@@ -1,7 +1,12 @@
-import type { BranchSettings, BranchSettingsReader } from "@purosur/domain/branch/use-cases";
+import { DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP } from "@purosur/domain";
+import type {
+  BranchSettings,
+  BranchSettingsReader,
+  EditableBranchSettings,
+} from "@purosur/domain/branch/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { branchSettings } from "../platform/db/schema.js";
+import { branchSettings, supplierPriceListExtractionCaps } from "../platform/db/schema.js";
 import { readBranchHours } from "./drizzle-branch-hours-reader.js";
 
 export async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
@@ -28,6 +33,22 @@ export async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
   return { ...row, hours: await readBranchHours(db, locationId) };
 }
 
+export async function readEditableBranchSettings<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  locationId: string,
+): Promise<EditableBranchSettings> {
+  const settings = await readBranchSettings(db, locationId);
+  const [setCap] = await db
+    .select({ dailyCap: supplierPriceListExtractionCaps.dailyCap })
+    .from(supplierPriceListExtractionCaps)
+    .where(eq(supplierPriceListExtractionCaps.locationId, locationId));
+  return {
+    ...settings,
+    supplierPriceListDailyExtractionCap:
+      setCap?.dailyCap ?? DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
+  };
+}
+
 export class DrizzleBranchSettingsReader<TQueryResult extends PgQueryResultHKT>
   implements BranchSettingsReader
 {
@@ -37,10 +58,10 @@ export class DrizzleBranchSettingsReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  // Repeatable-read: both reads see one snapshot, so a save committing between them can't pair
-  // settings from before it with hours from after it.
-  currentBranchSettings(locationId: string): Promise<BranchSettings> {
-    return this.db.transaction((tx) => readBranchSettings(tx, locationId), {
+  // Repeatable-read: every read sees one snapshot, so a save committing between them can't pair
+  // part of the settings from before it with another part from after it.
+  currentBranchSettings(locationId: string): Promise<EditableBranchSettings> {
+    return this.db.transaction((tx) => readEditableBranchSettings(tx, locationId), {
       isolationLevel: "repeatable read",
       accessMode: "read only",
     });

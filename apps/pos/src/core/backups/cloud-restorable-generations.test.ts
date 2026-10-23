@@ -63,6 +63,22 @@ describe("the generations the cloud lists for a restore", () => {
     expect(answer).toEqual({ kind: "listed", generations: [] });
   });
 
+  it("names the register's first installation, with the register it belongs to", async () => {
+    const cloud = new FakeRestorableCloud();
+    cloud.firstInstallationId = "3b241101-e2bb-4255-8caf-4136c566a962";
+
+    const answer = await restorableFrom(cloud).generations.list();
+
+    expect(answer).toEqual({
+      kind: "listed",
+      generations: [],
+      firstInstallation: {
+        installationId: "3b241101-e2bb-4255-8caf-4136c566a962",
+        registerId: REGISTER_ID,
+      },
+    });
+  });
+
   it("remembers where each listed generation is downloaded from", async () => {
     const cloud = new FakeRestorableCloud();
     cloud.snapshots = [

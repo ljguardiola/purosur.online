@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { resetSyncIdentityWithoutCopy } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type RestorePending, restorePendingIn } from "../backups/restore-pending";
 import type { LocalDatabase } from "../platform/local-database";
@@ -8,6 +9,8 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
+import { SqliteNoCopySyncIdentityStore } from "../sync/sqlite-no-copy-sync-identity-store";
+import { SqliteRegisterReplenishmentStore } from "../sync/sqlite-register-replenishment-store";
 import { SqliteRestorationEvidence } from "./sqlite-restoration-evidence";
 
 let database: LocalDatabase;
@@ -66,6 +69,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
   });
@@ -80,6 +84,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
   });
@@ -101,6 +106,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
   });
@@ -115,7 +121,45 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "pending",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
+    });
+  });
+
+  it("holds that the register came from a copy while it awaits what a restored copy awaits", () => {
+    holdPredecessor();
+    awaitOrphanSweep();
+
+    expect(evidence.evidence().origin).toBe("copy");
+  });
+
+  it("holds that the register was reinstalled with no copy through every step that still holds it", async () => {
+    holdPointOfSale(false);
+    await resetSyncIdentityWithoutCopy(
+      { store: new SqliteNoCopySyncIdentityStore(database) },
+      { deviceId: "d1", registerId: "r1", firstInstallationId: "d0" },
+    );
+
+    expect(evidence.evidence()).toMatchObject({ replenish: "pending", origin: "no_copy" });
+
+    await new SqliteRegisterReplenishmentStore({
+      database,
+      pepper: "pepper",
+      ids: { next: () => "id" },
+    }).finish();
+
+    expect(evidence.evidence()).toMatchObject({
+      replenish: "completed",
+      reconcile_fiscal_counters: "pending",
+      origin: "no_copy",
+    });
+
+    database.exec("DELETE FROM awaiting_restored_numbering");
+
+    expect(evidence.evidence()).toMatchObject({
+      reconcile_fiscal_counters: "completed",
+      regularize_orphan_authorizations: "pending",
+      origin: "no_copy",
     });
   });
 
@@ -129,6 +173,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "pending",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
   });
@@ -149,6 +194,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "pending",
+      origin: "copy",
       cloud: "unknown",
     });
   });

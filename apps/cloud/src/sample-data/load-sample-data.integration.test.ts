@@ -34,6 +34,7 @@ import {
   productTags,
   registers,
   roles,
+  supplierPriceListExtractionCaps,
   tags,
   userRoles,
   users,
@@ -507,6 +508,22 @@ describe("loadSampleData", () => {
       instagramHandle: "",
     });
     expect(await tableCount(db, "branch_hours")).toBe(0);
+  }, 120_000);
+
+  it("leaves branch settings whose daily extraction cap was already configured untouched", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+    const locationId = await seededLocationId(db);
+    await db.insert(supplierPriceListExtractionCaps).values({ locationId, dailyCap: 3 });
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const [settingsRow] = await db.select().from(branchSettings);
+    expect(settingsRow).toMatchObject({ address: "", whatsappNumber: "", instagramHandle: "" });
+    const capRows = await db
+      .select({ dailyCap: supplierPriceListExtractionCaps.dailyCap })
+      .from(supplierPriceListExtractionCaps);
+    expect(capRows).toEqual([{ dailyCap: 3 }]);
   }, 120_000);
 
   it("leaves branch hours that were already configured untouched", async () => {

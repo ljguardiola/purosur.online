@@ -1,18 +1,18 @@
 import type {
-  BranchSettings,
   BranchSettingsStore,
   BranchSettingsStoreTransaction,
+  EditableBranchSettings,
   NewBranchSettingsVersion,
 } from "../branch-settings-store.js";
 
 export type FakeBranchSettingsWrite = "recordBranchSettingsVersion";
 
 export interface FakeBranchSettingsState {
-  settings: Record<string, BranchSettings>;
-  versions: (NewBranchSettingsVersion & { previous: BranchSettings })[];
+  settings: Record<string, EditableBranchSettings>;
+  versions: (NewBranchSettingsVersion & { previous: EditableBranchSettings })[];
 }
 
-function cloneSettings(settings: BranchSettings): BranchSettings {
+function cloneSettings(settings: EditableBranchSettings): EditableBranchSettings {
   return { ...settings, hours: settings.hours.map((range) => ({ ...range })) };
 }
 
@@ -42,7 +42,7 @@ class FakeTransaction implements BranchSettingsStoreTransaction {
     this.store = store;
   }
 
-  async lockCurrentBranchSettings(locationId: string): Promise<BranchSettings> {
+  async lockCurrentBranchSettings(locationId: string): Promise<EditableBranchSettings> {
     this.store.operationOrder.push("lockCurrentBranchSettings");
     const settings = this.state.settings[locationId];
     if (!settings) {
@@ -53,7 +53,7 @@ class FakeTransaction implements BranchSettingsStoreTransaction {
 
   async recordBranchSettingsVersion(
     next: NewBranchSettingsVersion,
-    previous: BranchSettings,
+    previous: EditableBranchSettings,
   ): Promise<void> {
     this.store.operationOrder.push("recordBranchSettingsVersion");
     const { locationId, recordedBy: _recordedBy, ...settings } = next;
@@ -77,7 +77,7 @@ export class FakeBranchSettingsStore implements BranchSettingsStore {
   operationOrder: string[] = [];
   transactionCount = 0;
 
-  seed(locationId: string, settings: BranchSettings): void {
+  seed(locationId: string, settings: EditableBranchSettings): void {
     this.state.settings[locationId] = cloneSettings(settings);
   }
 
