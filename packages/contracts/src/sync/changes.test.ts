@@ -395,6 +395,13 @@ describe("changesPageSchema", () => {
       change(1, "offline_number_block", offlineNumberBlockRow),
     ],
     [
+      "an offline number block of the credit note series",
+      change(1, "offline_number_block", {
+        ...offlineNumberBlockRow,
+        document_type: "credit_note_c",
+      }),
+    ],
+    [
       "a later offline number block",
       change(2, "offline_number_block", {
         ...offlineNumberBlockRow,
