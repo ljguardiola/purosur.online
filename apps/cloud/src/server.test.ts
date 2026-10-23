@@ -2023,7 +2023,7 @@ describe("createRecoveryJobQueuePool", () => {
     expect(pool.listenerCount("error")).toBeGreaterThan(0);
     expect(() => pool.emit("error", error)).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith(
-      "recovery job queue: idle database client failed",
+      "background job queue: idle database client failed",
       error,
     );
   });
@@ -2044,7 +2044,7 @@ describe("createRecoveryJobQueuePool", () => {
     expect(client.listenerCount("error")).toBeGreaterThan(0);
     expect(() => client.emit("error", error)).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith(
-      "recovery job queue: active database client failed",
+      "background job queue: active database client failed",
       error,
     );
   });
@@ -2106,8 +2106,8 @@ describe("closeRecoveryResources", () => {
     expect(events).toEqual(["utilities released", "job-queue pool ended", "database client ended"]);
     expect(failure).toBeInstanceOf(AggregateError);
     expect((failure as AggregateError).errors.map((error: Error) => error.message)).toEqual([
-      expect.stringContaining("worker stop failed"),
-      expect.stringContaining("pool end failed"),
+      expect.stringContaining("background job runner failed to shut down: worker stop failed"),
+      expect.stringContaining("job-queue pool failed to shut down: pool end failed"),
     ]);
   });
 });

@@ -83,7 +83,7 @@ describe("startBackgroundJobRunner", () => {
     expect(pool.listenerCount("error")).toBeGreaterThan(0);
     expect(() => pool.emit("error", error)).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith(
-      "recovery worker: idle database client failed",
+      "background job runner: idle database client failed",
       error,
     );
   });
@@ -111,7 +111,7 @@ describe("startBackgroundJobRunner", () => {
     expect(client.listenerCount("error")).toBeGreaterThan(0);
     expect(() => client.emit("error", error)).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith(
-      "recovery worker: active database client failed",
+      "background job runner: active database client failed",
       error,
     );
   });
@@ -309,8 +309,12 @@ describe("startBackgroundJobRunner", () => {
 
     expect(failure).toBeInstanceOf(AggregateError);
     expect((failure as AggregateError).errors.map((error: Error) => error.message)).toEqual([
-      expect.stringContaining("stop failed: connection reset"),
-      expect.stringContaining("pool end failed: socket closed"),
+      expect.stringContaining(
+        "background job runner failed to shut down: stop failed: connection reset",
+      ),
+      expect.stringContaining(
+        "background job runner pool failed to shut down: pool end failed: socket closed",
+      ),
     ]);
   });
 
@@ -338,7 +342,7 @@ describe("startBackgroundJobRunner", () => {
       await flushPendingWork();
 
       expect(consoleError).toHaveBeenCalledWith(
-        "recovery worker: runner exited with an error",
+        "background job runner: runner exited with an error",
         error,
       );
       expect(unhandled).toEqual([]);
@@ -368,7 +372,7 @@ describe("startBackgroundJobRunner", () => {
 
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "recovery worker: Failed to record the failure of job '1' (other-task)",
+      "background job runner: Failed to record the failure of job '1' (other-task)",
       error,
     );
   });

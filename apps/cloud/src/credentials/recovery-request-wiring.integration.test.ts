@@ -117,8 +117,8 @@ interface StartedFixture {
   close(): Promise<void>;
 }
 
-const JOB_QUEUE_FAILURE = /recovery job queue: (idle|active) database client failed/;
-const WORKER_FAILURE = /recovery worker: (idle|active) database client failed/;
+const JOB_QUEUE_FAILURE = /background job queue: (idle|active) database client failed/;
+const WORKER_FAILURE = /background job runner: (idle|active) database client failed/;
 
 async function dropEveryConnection(databaseUrl: string): Promise<void> {
   const sql = postgres(databaseUrl, { max: 1 });
