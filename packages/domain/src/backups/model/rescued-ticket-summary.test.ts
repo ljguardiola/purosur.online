@@ -103,6 +103,18 @@ describe("rescuedTicketSummary", () => {
     expect(summary.saleTotal).toBe(1234);
   });
 
+  it("reports the total of the first sale when it carries several", () => {
+    const summary = rescuedTicketSummary(
+      [event("2026-10-01T10:00:00.000Z")],
+      [
+        { kind: "sale_completed", sale: { total: 100 } },
+        { kind: "sale_completed", sale: { total: 200 } },
+      ],
+    );
+
+    expect(summary.saleTotal).toBe(100);
+  });
+
   it("reports no sale total when it carries no sale", () => {
     expect(
       rescuedTicketSummary([event("2026-10-01T10:00:00.000Z")], [{ kind: "sale_voided" }])
