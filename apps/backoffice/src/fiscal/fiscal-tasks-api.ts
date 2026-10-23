@@ -4,12 +4,14 @@ import {
   fiscalTasksSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 import { readCloudList, sendJson, type WriteFailure, writeFailureOf } from "./fiscal-api-request";
 
 export type CloseFiscalTaskOutcome =
   | { kind: "ok" }
   | { kind: "already_closed" }
   | { kind: "not_found" }
+  | { kind: "validation_failed"; field: string }
   | WriteFailure;
 
 export function fetchFiscalTasks(): Promise<CloudReadOutcome<FiscalTasks>> {
@@ -26,6 +28,10 @@ export async function closeFiscalTask(
   }
   if (response.ok) {
     return { kind: "ok" };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 409) {
     return { kind: "already_closed" };

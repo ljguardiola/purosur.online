@@ -16,10 +16,6 @@ export interface FiscalTaskClosingAudit {
 }
 
 export interface CloseFiscalTaskStoreTransaction {
-  /**
-   * Locks the task only when it belongs to the branch, so a task of another branch is never
-   * seen, and answers its state.
-   */
   lockFiscalTaskOfBranch(taskId: string, locationId: string): Promise<FiscalTaskState | null>;
   recordClosing(record: FiscalTaskClosingRecord): Promise<void>;
   recordClosingAudit(audit: FiscalTaskClosingAudit): Promise<void>;

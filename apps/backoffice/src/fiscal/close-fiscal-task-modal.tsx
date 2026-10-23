@@ -2,7 +2,7 @@ import type { FiscalTaskItem } from "@purosur/contracts";
 import { fiscalTaskClosingBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, CircleCheck, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -42,20 +42,25 @@ export function CloseFiscalTaskModal({
 }: CloseFiscalTaskModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<ModalNotice | null>(null);
+  const openingRef = useRef(0);
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_FISCAL_TASK_CLOSING_FORM,
     request: { schema: fiscalTaskClosingBodySchema, from: fiscalTaskClosingRequestFrom },
     fields: { note: "note" },
     messages: { note: fiscalTaskClosingNoteMessage },
-    onSubmit: async (request) => {
+    onSubmit: async (request, { showWireFieldError }) => {
       if (target === null) {
         return;
       }
       setNotice(null);
+      const opening = openingRef.current;
       const outcome = await services.closeFiscalTask(target.id, request);
+      const isCurrent = () => opening === openingRef.current;
       if (outcome.kind === "ok") {
         await reload();
-        onClosed();
+        if (isCurrent()) {
+          onClosed();
+        }
         return;
       }
       if (outcome.kind === "unauthenticated") {
@@ -66,14 +71,21 @@ export function CloseFiscalTaskModal({
         sendToMyAccount();
         return;
       }
-      if (outcome.kind === "already_closed") {
+      if (outcome.kind === "already_closed" || outcome.kind === "not_found") {
         await reload();
+      }
+      if (!isCurrent()) {
+        return;
+      }
+      if (outcome.kind === "already_closed") {
         setNotice({ kind: "alreadyClosed" });
         return;
       }
       if (outcome.kind === "not_found") {
-        await reload();
         setNotice({ kind: "notFound" });
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
         return;
       }
       if (outcome.kind === "rate_limited") {
@@ -85,6 +97,7 @@ export function CloseFiscalTaskModal({
   });
 
   useEffect(() => {
+    openingRef.current += 1;
     if (target === null) {
       reset();
       setNotice(null);
