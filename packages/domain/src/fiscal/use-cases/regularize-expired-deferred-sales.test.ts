@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { argentinaInstant } from "../../shared/index.js";
+import type { PendingDeferredSale } from "../model/deferred-sale-record.js";
 import { regularizeExpiredDeferredSales } from "./regularize-expired-deferred-sales.js";
-import type { PendingDeferredSale } from "./regularize-expired-deferred-sales-ports.js";
 import { FakeDeferredSaleExpiryStore } from "./test-support/fake-deferred-sale-expiry.js";
 import { FixedClock } from "./test-support/fixed-clock.js";
 
@@ -12,7 +12,9 @@ function at(day: string, time = "12:00"): Date {
 function pendingSale(id: string, occurredAt: Date): PendingDeferredSale {
   return {
     id,
+    saleId: `sale-of-${id}`,
     registerId: "register-1",
+    locationId: "branch-1",
     occurredAt,
     total: 250000,
     shortCode: `CODE${id}`.slice(0, 8).padEnd(8, "2"),

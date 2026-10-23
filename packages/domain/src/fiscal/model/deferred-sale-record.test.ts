@@ -5,11 +5,9 @@ import {
   deferredSaleRegularizationTask,
   deferredSaleSettlement,
   EXPIRED_DEFERRED_SALE_STATE,
-  FISCAL_TASK_KINDS,
   isUnbilledDeferredSale,
   PENDING_DEFERRED_SALE_STATE,
 } from "./deferred-sale-record.js";
-import type { FiscalTaskKind } from "./fiscal-task.js";
 
 describe("deferred sale states", () => {
   it("lists every state a deferred sale can be in", () => {
@@ -87,7 +85,9 @@ describe("deferredSaleRegularizationTask", () => {
       deferredSaleRegularizationTask(
         {
           id: "deferred-sale-1",
+          saleId: "sale-1",
           registerId: "register-1",
+          locationId: "branch-1",
           occurredAt,
           total: 1234500,
           shortCode: "ABCD2345",
@@ -107,16 +107,8 @@ describe("deferredSaleRegularizationTask", () => {
   });
 });
 
-describe("FISCAL_TASK_KINDS", () => {
-  it("lists the kinds of fiscal task, including the expired deferred sale's", () => {
-    expect(FISCAL_TASK_KINDS).toEqual([
-      "external_invoicing",
-      "credit_note_rejected",
-      "deferred_sale_expired",
-    ]);
-    expectTypeOf<(typeof FISCAL_TASK_KINDS)[number]>().toEqualTypeOf<
-      FiscalTaskKind | "deferred_sale_expired"
-    >();
+describe("DEFERRED_SALE_STATES", () => {
+  it("names the type of a deferred sale's state", () => {
     expectTypeOf<DeferredSaleState>().toEqualTypeOf<(typeof DEFERRED_SALE_STATES)[number]>();
   });
 });

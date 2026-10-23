@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { PendingDeferredSale } from "../../fiscal/index.js";
 import { argentinaInstant } from "../../shared/index.js";
-import type { PendingDeferredSaleForAlert } from "./deferred-sale-deadline-ports.js";
 import { detectDeferredSaleDeadlines } from "./detect-deferred-sale-deadlines.js";
 import { FixedClock } from "./test-support/fake-alert-store.js";
-import {
-  FakeDeferredSaleDeadlineAlerts,
-  FakeDeferredSaleDeadlineReader,
-} from "./test-support/fake-deferred-sale-deadlines.js";
+import { FakeDeferredSaleDeadlineAlerts } from "./test-support/fake-deferred-sale-deadlines.js";
 
 function at(day: string, time = "12:00"): Date {
   return new Date(argentinaInstant(day, time));
@@ -15,8 +12,8 @@ function at(day: string, time = "12:00"): Date {
 function pendingSale(
   id: string,
   occurredAt: Date,
-  overrides: Partial<PendingDeferredSaleForAlert> = {},
-): PendingDeferredSaleForAlert {
+  overrides: Partial<PendingDeferredSale> = {},
+): PendingDeferredSale {
   return {
     id,
     saleId: `sale-of-${id}`,
@@ -30,15 +27,11 @@ function pendingSale(
 }
 
 function detect(
-  sales: PendingDeferredSaleForAlert[],
+  sales: PendingDeferredSale[],
   moment: Date,
   alerts = new FakeDeferredSaleDeadlineAlerts(),
 ) {
-  const outcome = detectDeferredSaleDeadlines({
-    deferredSales: new FakeDeferredSaleDeadlineReader(sales),
-    alerts,
-    clock: new FixedClock(moment),
-  });
+  const outcome = detectDeferredSaleDeadlines({ alerts, clock: new FixedClock(moment) }, sales);
   return { alerts, outcome };
 }
 

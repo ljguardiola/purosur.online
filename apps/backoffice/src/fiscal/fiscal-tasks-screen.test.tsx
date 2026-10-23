@@ -124,7 +124,14 @@ test("shows the empty state when no fiscal task is open", async () => {
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Sin tareas fiscales abiertas")).toBeVisible();
-  await expect.element(screen.getByText("Todos los comprobantes están en orden.")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Aparecen acá cuando hay que resolver a mano un comprobante o una venta diferida vencida.",
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText("Todos los comprobantes están en orden.").query()).toBeNull();
   expect(screen.getByText("0 tareas abiertas").query()).toBeNull();
 });
 

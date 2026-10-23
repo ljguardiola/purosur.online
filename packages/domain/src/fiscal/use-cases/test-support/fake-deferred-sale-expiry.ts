@@ -1,8 +1,10 @@
-import type { DeferredSaleRegularizationTask } from "../../model/deferred-sale-record.js";
+import type {
+  DeferredSaleRegularizationTask,
+  PendingDeferredSale,
+} from "../../model/deferred-sale-record.js";
 import type {
   DeferredSaleExpiryStore,
   DeferredSaleExpiryTransaction,
-  PendingDeferredSale,
 } from "../regularize-expired-deferred-sales-ports.js";
 
 interface ExpiryState {

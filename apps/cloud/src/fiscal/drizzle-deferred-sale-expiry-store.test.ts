@@ -61,14 +61,18 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
     expect(locked).toEqual([
       {
         id: older.id,
+        saleId: older.saleId,
         registerId: installation.registerId,
+        locationId: installation.locationId,
         occurredAt: older.occurredAt,
         total: 9900,
         shortCode: "AAAA2222",
       },
       {
         id: newer.id,
+        saleId: newer.saleId,
         registerId: installation.registerId,
+        locationId: installation.locationId,
         occurredAt: newer.occurredAt,
         total: 4800,
         shortCode: "7KQ4M2P9",
@@ -81,7 +85,9 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
     const task = deferredSaleRegularizationTask(
       {
         id: sale.id,
+        saleId: sale.saleId,
         registerId: sale.registerId,
+        locationId: sale.locationId,
         occurredAt: sale.occurredAt,
         total: sale.total,
         shortCode: sale.shortCode,
@@ -117,7 +123,9 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
     const task = deferredSaleRegularizationTask(
       {
         id: sale.id,
+        saleId: sale.saleId,
         registerId: sale.registerId,
+        locationId: sale.locationId,
         occurredAt: sale.occurredAt,
         total: sale.total,
         shortCode: sale.shortCode,
