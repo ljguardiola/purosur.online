@@ -419,6 +419,29 @@ describe("a receipt ledger's fiscal document of a sale", () => {
 
     expect(fiscal).toEqual({ kind: "deferred", deferred: reference });
   });
+
+  it("is the authorized factura C, not the deferred record, once the deferred sale was invoiced", () => {
+    insertSaleWithEverything();
+    insertDeferredSale(database, "sale-1", "fiscally_offline");
+    insertFiscalDocument(database, { state: "AUTHORIZED", pointOfSale: 12, number: 41 });
+    database
+      .prepare(
+        "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-1', satisfied_at = '2026-10-01T12:06:00.000Z'",
+      )
+      .run();
+
+    const { fiscal } = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(fiscal).toMatchObject({
+      kind: "authorized",
+      authorized: {
+        pointOfSale: 12,
+        number: 41,
+        authorizationCode: "75123456789012",
+        document: FACTURA_C,
+      },
+    });
+  });
 });
 
 describe("a receipt ledger's payments", () => {
