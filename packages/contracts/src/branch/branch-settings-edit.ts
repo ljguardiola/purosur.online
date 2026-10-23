@@ -7,6 +7,7 @@ import {
   isBranchHoursTime,
   isSupplierPriceListDailyExtractionCap,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
+  SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
 } from "@purosur/domain";
 import { z } from "zod";
 import { loadedVersionSchema } from "../shared/index.js";
@@ -50,11 +51,11 @@ function daysSchema(field: string) {
 }
 
 function extractionCapSchema(field: string) {
-  const message = `${field} must be an integer from 1 to ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}`;
-  return z
-    .number({ error: message })
-    .refine(isSupplierPriceListDailyExtractionCap, message)
-    .meta({ maximum: SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX });
+  const message = `${field} must be an integer from ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN} to ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}`;
+  return z.number({ error: message }).refine(isSupplierPriceListDailyExtractionCap, message).meta({
+    minimum: SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
+    maximum: SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
+  });
 }
 
 export const branchSettingsEditBodySchema = z.object({

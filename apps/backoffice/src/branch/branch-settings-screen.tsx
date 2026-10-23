@@ -228,7 +228,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                     <field.TextField
                       kind="plain-text"
                       label="Listas leídas por día"
-                      description="Cuántas listas de proveedores puede mandar a leer con IA esta sucursal por día. Al llegar al tope, la lectura queda para el día siguiente."
+                      description="Cuántas listas de proveedores puede mandar a leer con IA esta sucursal por día. Al llegar al tope, no se pueden cargar más listas hasta el día siguiente."
                     />
                   )}
                 </form.AppField>

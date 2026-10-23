@@ -2,12 +2,14 @@ import type { EditableBranchSettingsBody } from "@purosur/contracts";
 import {
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
 } from "@purosur/domain";
 import type { BranchHoursRange } from "@purosur/domain/branch/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { toEditableBranchSettingsWire } from "../branch/branch-settings-wire.js";
+import { readEditableBranchSettings } from "../branch/drizzle-branch-settings-reader.js";
 import { branchHours, branchSettings } from "../platform/db/schema.js";
 import { SAMPLE_BRANCH_SETTINGS } from "./sample-catalog.js";
 
@@ -103,9 +105,11 @@ export async function branchSettingsAreAtDefaults<TQueryResult extends PgQueryRe
   locationId: string,
 ): Promise<boolean> {
   const state = await readBranchSettingsState(db, locationId);
+  const { supplierPriceListDailyExtractionCap } = await readEditableBranchSettings(db, locationId);
   return (
     fieldsEqual(state.fields, BRANCH_SETTINGS_DEFAULTS) &&
-    state.hoursByDay.every((ranges) => ranges.length === 0)
+    state.hoursByDay.every((ranges) => ranges.length === 0) &&
+    supplierPriceListDailyExtractionCap === DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP
   );
 }
 

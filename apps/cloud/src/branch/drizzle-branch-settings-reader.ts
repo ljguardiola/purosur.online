@@ -58,8 +58,8 @@ export class DrizzleBranchSettingsReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  // Repeatable-read: both reads see one snapshot, so a save committing between them can't pair
-  // settings from before it with hours from after it.
+  // Repeatable-read: every read sees one snapshot, so a save committing between them can't pair
+  // part of the settings from before it with another part from after it.
   currentBranchSettings(locationId: string): Promise<EditableBranchSettings> {
     return this.db.transaction((tx) => readEditableBranchSettings(tx, locationId), {
       isolationLevel: "repeatable read",
