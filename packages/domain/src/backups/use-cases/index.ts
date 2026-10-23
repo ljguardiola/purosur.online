@@ -35,6 +35,22 @@ export type {
 } from "./record-contingency-backup-ticket.js";
 export { recordContingencyBackupTicket } from "./record-contingency-backup-ticket.js";
 export type {
+  ContingencyBackupTicketOpener,
+  ContingencyBackupTicketOpening,
+  RescueContingencyBackupTicketPorts,
+  RescuedEventDecoder,
+  RescuedTicketAudit,
+  RescuedTicketAuditEntry,
+  RescuedTicketDelivery,
+  RescuedTicketDeliveryAnswer,
+  RescuedTicketEvents,
+} from "./rescue-contingency-backup-ticket-ports.js";
+export type {
+  RescueContingencyBackupTicketInput,
+  RescueContingencyBackupTicketOutcome,
+} from "./rescue-contingency-backup-ticket.js";
+export { rescueContingencyBackupTicket } from "./rescue-contingency-backup-ticket.js";
+export type {
   RecordOffsiteDumpCheckInput,
   RecordOffsiteDumpCheckOutcome,
 } from "./record-offsite-dump-check.js";

@@ -13,6 +13,12 @@ export {
   contingencyBackupTicketsSummary,
   customerDocumentPrinted,
 } from "./model/contingency-backup-ticket.js";
+export type {
+  RescuedTicketFact,
+  RescuedTicketSummary,
+  RescuedTicketVoucher,
+} from "./model/rescued-ticket-summary.js";
+export { rescuedTicketSummary } from "./model/rescued-ticket-summary.js";
 export { contingencyTicketSealingKey } from "./model/contingency-ticket-key.js";
 export type {
   OffsiteDumpCheckResult,
