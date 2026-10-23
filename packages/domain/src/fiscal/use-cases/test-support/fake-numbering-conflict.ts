@@ -27,6 +27,8 @@ import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcom
 import type { WsaaToken } from "../wsaa-token-ports.js";
 import { creditNotesRecordedFor } from "./recorded-credit-notes.js";
 
+export type SeededSaleDocument = SaleDocument & { fiscalDocumentId?: string };
+
 export interface SeededNumberingRequest {
   fiscalDocumentId: string;
   pointOfSale: number;
@@ -43,7 +45,7 @@ interface StoreState {
   counts: Map<number, number>;
   documents: Map<number, NumberingReconciliationDocument[]>;
   requestsAtNumber: Map<string, RequestsAtNumber>;
-  saleDocuments: Map<string, SaleDocument[]>;
+  saleDocuments: Map<string, SeededSaleDocument[]>;
   creditNotes: Map<string, SaleCreditNote[]>;
   regularizations: OrphanRegularization[];
   reconciliationRequests: number[];
@@ -91,7 +93,7 @@ export class FakeNumberingConflictStore
     this.state.requestsAtNumber.set(`${pointOfSale}/${number}`, requests);
   }
 
-  seedSaleDocuments(saleId: string, documents: SaleDocument[]) {
+  seedSaleDocuments(saleId: string, documents: SeededSaleDocument[]) {
     this.state.saleDocuments.set(saleId, documents);
   }
 
@@ -247,9 +249,12 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     );
   }
 
-  async otherDocumentsOfSale(saleId: string, _fiscalDocumentId: string): Promise<SaleDocument[]> {
+  async otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
     this.store.record("otherDocumentsOfSale");
-    return this.store.current.saleDocuments.get(saleId) ?? [];
+    return (this.store.current.saleDocuments.get(saleId) ?? []).flatMap(
+      ({ fiscalDocumentId: documentId, ...document }) =>
+        documentId === fiscalDocumentId ? [] : [document],
+    );
   }
 
   async creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {

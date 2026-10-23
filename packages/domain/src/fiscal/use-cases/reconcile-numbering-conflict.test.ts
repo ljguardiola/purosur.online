@@ -16,6 +16,7 @@ import {
   FakeNumberingConflictStore,
   FakeNumberingTaxAuthority,
   FakeNumberingTokens,
+  type SeededSaleDocument,
 } from "./test-support/fake-numbering-conflict.js";
 import { SequentialIds } from "./test-support/fake-sale-authorization.js";
 import type { VoucherAnswer } from "./unclear-outcome-ports.js";
@@ -55,7 +56,7 @@ interface Scenario {
   count?: number;
   voucher?: VoucherAnswer | ((number: number) => VoucherAnswer);
   standings?: [number, RequestsAtNumber][];
-  saleDocuments?: [string, SaleDocument[]][];
+  saleDocuments?: [string, SeededSaleDocument[]][];
 }
 
 function scenario({
@@ -376,7 +377,8 @@ describe("reconcileNumberingConflict", () => {
     });
 
     it("credits the lower and keeps the higher of two confirmed authorizations of one sale whose local requests were both released", async () => {
-      const releasedAt = (number: number): SaleDocument => ({
+      const releasedAt = (number: number): SeededSaleDocument => ({
+        fiscalDocumentId: `document-${number}`,
         kind: "real_time",
         voucher: { voucherType: 11, pointOfSale: 12, number },
         outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
