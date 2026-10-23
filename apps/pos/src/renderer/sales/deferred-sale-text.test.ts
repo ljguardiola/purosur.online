@@ -25,7 +25,7 @@ describe("deferredSaleRefusal", () => {
     [
       "already_printed",
       "La factura ya se imprimió",
-      "Si el cliente la perdió, reimprimí un duplicado desde el historial.",
+      "Si el cliente la perdió, reimprimí un duplicado.",
     ],
     [
       "not_a_deferred_sale_qr",
