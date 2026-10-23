@@ -540,6 +540,7 @@ export type {
   FindDeferredSaleOutcome,
   PrintDeferredSaleInvoiceOutcome,
 } from "./sales/deferred-sale-lookup.js";
+export { findDeferredSaleMessageSchema } from "./sales/deferred-sale-lookup.js";
 export type { ManualDiscountsBody, ManualDiscountsQuery } from "./sales/manual-discounts.js";
 export { manualDiscountsQuerySchema, manualDiscountsSchema } from "./sales/manual-discounts.js";
 export type {

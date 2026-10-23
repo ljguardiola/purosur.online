@@ -24,6 +24,12 @@ const WORDINGS: Record<PrintedDocument, Wording> = {
     mayHaveComeOut: "Puede que la nota de crédito haya salido",
     someoneElsePrints: "Pedile a alguien con permiso que la imprima.",
   },
+  deferred_invoice: {
+    subject: "la factura",
+    startedDescription: "Entregásela al cliente.",
+    mayHaveComeOut: "Puede que la factura haya salido",
+    someoneElsePrints: "Pedile a alguien con permiso que la imprima.",
+  },
 };
 
 export function originalPrintNotice(

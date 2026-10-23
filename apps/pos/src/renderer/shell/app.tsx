@@ -24,6 +24,7 @@ import { credentialsKey } from "../credentials/credentials-queries";
 import type {
   CashMovementInput,
   CoreClient,
+  DeferredSaleReading,
   MercadoPagoMethod,
   SalesHistoryQuery,
   SerialDevicesToRegister,
@@ -420,6 +421,8 @@ function Register({ core }: { core: CoreClient }) {
     ) => core.voidSale(saleId, pendingRefundsConfirmed, authorization),
     receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
     printOriginalReceipt: (saleId: string) => core.printOriginalReceipt(saleId),
+    findDeferredSale: (reading: DeferredSaleReading) => core.findDeferredSale(reading),
+    printDeferredSaleInvoice: (saleId: string) => core.printDeferredSaleInvoice(saleId),
     printCreditNote: (saleId: string) => core.printCreditNote(saleId),
     reprintCreditNote: (saleId: string, reason: string, authorization: Authorization | undefined) =>
       core.reprintCreditNote(saleId, reason, authorization),

@@ -60,6 +60,7 @@ export type SalesHistoryScreenProps = {
 const REPRINT_STARTED_TITLES: Record<PrintedDocument, string> = {
   sale_receipt: "La reimpresión sale en cuanto la impresora esté lista",
   credit_note: "La reimpresión de la nota de crédito sale en cuanto la impresora esté lista",
+  deferred_invoice: "La reimpresión de la factura sale en cuanto la impresora esté lista",
 };
 
 type FilterChoice = { session: SessionFilter; state: StateFilter; page: number };

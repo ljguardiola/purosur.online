@@ -25,6 +25,7 @@ import type {
   EnrollmentOutcome,
   EnrollmentStandingAnswer,
   FindCountableProductOutcome,
+  FindDeferredSaleOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
@@ -37,6 +38,7 @@ import type {
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
+  PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
   ReadInitialCountOutcome,
@@ -89,6 +91,7 @@ import { HelpScreen } from "../help/help-screen";
 import { help } from "../help/register-help";
 import type {
   CashMovementInput,
+  DeferredSaleReading,
   MercadoPagoMethod,
   SalesHistoryQuery,
   SerialDevicesToRegister,
@@ -119,6 +122,7 @@ import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { StartupPendingScreen } from "../register/startup-pending-screen";
 import { ChargeScreen } from "../sales/charge-screen";
+import { DeferredSaleScreen } from "../sales/deferred-sale-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
 import { FirstSignInScreen } from "../sessions/first-sign-in-screen";
@@ -254,6 +258,8 @@ export interface RouterContext {
   ) => Promise<VoidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
+  findDeferredSale: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
+  printDeferredSaleInvoice: (saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>;
   printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote: (
     saleId: string,
@@ -884,6 +890,34 @@ const historyRoute = createRoute({
   },
 });
 
+const deferredSaleRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/deferred-sale",
+  beforeLoad: ({ context }) => requireSignedInPersonAnywhere(context),
+  component: function DeferredSaleRoute() {
+    const {
+      person,
+      sessionOpen,
+      signOut,
+      findDeferredSale,
+      printDeferredSaleInvoice,
+      refreshCashSession,
+    } = deferredSaleRoute.useRouteContext();
+    const registerName = useRegisterName();
+    return (
+      <DeferredSaleScreen
+        person={person}
+        registerName={registerName}
+        sessionOpen={sessionOpen}
+        lock={signOut}
+        findDeferredSale={findDeferredSale}
+        printDeferredSaleInvoice={printDeferredSaleInvoice}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
 const cashRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/cash",
@@ -1194,6 +1228,7 @@ export const routeTree = rootRoute.addChildren([
       startupPendingRoute,
       chargeRoute,
       historyRoute,
+      deferredSaleRoute,
       cashRoute,
       cashCountRoute,
       lockedRoute,
@@ -1284,6 +1319,8 @@ export function createAppRouter(
     | "voidSale"
     | "receiptPrintStatus"
     | "printOriginalReceipt"
+    | "findDeferredSale"
+    | "printDeferredSaleInvoice"
     | "printCreditNote"
     | "reprintCreditNote"
     | "convertPaidOrderIntoRefund"
