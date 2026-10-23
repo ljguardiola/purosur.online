@@ -729,6 +729,10 @@ describe("a range that throws an unexpected error", () => {
 });
 
 describe("the time a reading has", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -763,7 +767,6 @@ describe("the time a reading has", () => {
     elapsedMs: number,
   ) {
     const source = await sourceOfPages(pageCount);
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let settled = false;
     const extraction = extractor.extract(source).finally(() => {
       settled = true;
