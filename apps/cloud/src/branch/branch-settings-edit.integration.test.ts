@@ -48,6 +48,7 @@ function editInput(locationId: string, actorId: string, overrides: Record<string
     expiringLotAlertDays: 30,
     unreviewedPriceAlertDays: 30,
     goodConditionReturnDays: 15,
+    supplierPriceListDailyExtractionCap: 10,
     version: 1,
     ...overrides,
   };

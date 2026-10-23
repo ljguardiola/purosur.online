@@ -8,6 +8,7 @@ import {
   rolePermissions,
   roles,
   sessions,
+  supplierPriceListExtractionCaps,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -234,8 +235,27 @@ describe("GET /locations/current/settings", () => {
       expiring_lot_alert_days: 30,
       unreviewed_price_alert_days: 30,
       good_condition_return_days: 15,
+      supplier_price_list_daily_extraction_cap: 10,
       version: 1,
     });
+  });
+
+  it("returns the cap the branch has set for supplier price lists", async () => {
+    const ownLocationId = await seededLocationId(db);
+    await db
+      .insert(supplierPriceListExtractionCaps)
+      .values({ locationId: ownLocationId, dailyCap: 4 });
+    const administratorId = await insertUser({
+      firstName: "Ada Lucero",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: ownLocationId,
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getBranchSettings(rawSessionId);
+
+    expect(response.json()).toMatchObject({ supplier_price_list_daily_extraction_cap: 4 });
   });
 
   it("returns a day's ranges as opens_at/closes_at, in position order", async () => {
