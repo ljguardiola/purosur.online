@@ -1,9 +1,15 @@
 import type { RegisterStatus } from "@purosur/contracts";
 import { StatusIndicator } from "@purosur/ui";
-import { isInContingency } from "./fiscal-contingency";
 
-export function FiscalModeIndicator({ mode }: { mode: RegisterStatus["fiscal_mode"] }) {
-  return isInContingency(mode) ? (
-    <StatusIndicator tone="warning">Contingencia CAEA</StatusIndicator>
-  ) : null;
+export function FiscalModeIndicator({
+  contingency,
+}: {
+  contingency: RegisterStatus["contingency"];
+}) {
+  if (contingency === null) return null;
+  return (
+    <StatusIndicator tone="warning">
+      {contingency.kind === "offline_code" ? "Contingencia CAEA" : "Venta diferida"}
+    </StatusIndicator>
+  );
 }

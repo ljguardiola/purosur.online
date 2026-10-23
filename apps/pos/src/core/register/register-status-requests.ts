@@ -2,6 +2,7 @@ import type { RegisterStatus } from "@purosur/contracts";
 import {
   type BatteryReport,
   type CriticalBatteryAction,
+  contingencyOf,
   offersSerialDevicesSetup,
   registerOperationAccess,
   registerOwnConditions,
@@ -73,7 +74,7 @@ export async function registerStatusFor({
       mayConfigure: mayConfigureSerialDevices(database, signedInPerson),
       standings,
     }),
-    fiscal_mode: readFiscalEmissionModeIn(database, now()).kind,
+    contingency: contingencyOf(readFiscalEmissionModeIn(database, now())),
   };
 }
 

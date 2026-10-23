@@ -16,7 +16,9 @@ describe("FiscalModeIndicator", () => {
   it.each([[true], [false]])(
     "shows the deferred sale mode in the warning tone while the contingency is deferring and its notice is %s",
     async (notice) => {
-      const screen = await render(<FiscalModeIndicator contingency={{ kind: "deferring", notice }} />);
+      const screen = await render(
+        <FiscalModeIndicator contingency={{ kind: "deferring", notice }} />,
+      );
 
       const indicator = screen.getByText("Venta diferida").element();
       expect(getComputedStyle(indicator).backgroundColor).toBe(tokenRgb("warning-subtle"));
