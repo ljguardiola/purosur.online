@@ -34,8 +34,9 @@ export function RestoringScreen({
       </BrandPanelScreen>
     );
   }
-  const eyebrow =
+  const restoredEyebrow =
     standing.step === "restore" ? "RESTAURANDO DESDE UNA COPIA" : "RESTAURADA DESDE UNA COPIA";
+  const eyebrow = standing.origin === "no_copy" ? "REINSTALADA SIN COPIA" : restoredEyebrow;
   return (
     <BrandPanelScreen>
       <main className="flex w-full max-w-110 flex-col gap-4">

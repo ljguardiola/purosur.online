@@ -9,6 +9,7 @@ const COMPLETED: RestorationEvidence = {
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
   regularize_orphan_authorizations: "completed",
+  origin: "copy",
   cloud: "unknown",
 };
 
@@ -22,6 +23,6 @@ describe("the restoration standing the register answers", () => {
       restorationStandingFor({
         evidence: () => ({ ...COMPLETED, reset_sync_identity: "pending", replenish: "pending" }),
       }),
-    ).toEqual({ kind: "in_progress", step: "reset_sync_identity" });
+    ).toEqual({ kind: "in_progress", step: "reset_sync_identity", origin: "copy" });
   });
 });

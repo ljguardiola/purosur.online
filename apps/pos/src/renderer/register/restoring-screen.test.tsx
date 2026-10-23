@@ -8,7 +8,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
-        standing={{ kind: "in_progress", step: "reset_sync_identity" }}
+        standing={{ kind: "in_progress", step: "reset_sync_identity", origin: "copy" }}
       />,
     );
 
@@ -29,7 +29,10 @@ describe("RestoringScreen", () => {
 
   it("leaves the register's name out of the eyebrow when it is not known", async () => {
     const screen = await render(
-      <RestoringScreen registerName={null} standing={{ kind: "in_progress", step: "replenish" }} />,
+      <RestoringScreen
+        registerName={null}
+        standing={{ kind: "in_progress", step: "replenish", origin: "copy" }}
+      />,
     );
 
     await expect.element(screen.getByText("RESTAURADA DESDE UNA COPIA")).toBeVisible();
@@ -37,7 +40,10 @@ describe("RestoringScreen", () => {
 
   it("says the register is being restored from a copy while the copy is not restored yet", async () => {
     const screen = await render(
-      <RestoringScreen registerName="Caja 2" standing={{ kind: "in_progress", step: "restore" }} />,
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "in_progress", step: "restore", origin: "copy" }}
+      />,
     );
 
     await expect.element(screen.getByText("CAJA 2 · RESTAURANDO DESDE UNA COPIA")).toBeVisible();
@@ -48,17 +54,56 @@ describe("RestoringScreen", () => {
 
   it("says just that the register is being restored when its name is not known", async () => {
     const screen = await render(
-      <RestoringScreen registerName={null} standing={{ kind: "in_progress", step: "restore" }} />,
+      <RestoringScreen
+        registerName={null}
+        standing={{ kind: "in_progress", step: "restore", origin: "copy" }}
+      />,
     );
 
     await expect.element(screen.getByText("RESTAURANDO DESDE UNA COPIA")).toBeVisible();
+  });
+
+  it("says the register was reinstalled with no copy, with the same hold on selling", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "in_progress", step: "replenish", origin: "no_copy" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("CAJA 2 · REINSTALADA SIN COPIA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Antes de vender tiene que ponerse al día con la nube, para no repetir números de factura.",
+        ),
+      )
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("CAJA 2 · RESTAURADA DESDE UNA COPIA"))
+      .not.toBeInTheDocument();
+  });
+
+  it("says the register reinstalled with no copy also needs the connection", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName={null}
+        standing={{ kind: "without_connection", step: "replenish", origin: "no_copy" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("REINSTALADA SIN COPIA")).toBeVisible();
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 
   it("offers nothing to press", async () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
-        standing={{ kind: "in_progress", step: "reset_sync_identity" }}
+        standing={{ kind: "in_progress", step: "reset_sync_identity", origin: "copy" }}
       />,
     );
 
@@ -69,7 +114,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
-        standing={{ kind: "without_connection", step: "replenish" }}
+        standing={{ kind: "without_connection", step: "replenish", origin: "copy" }}
       />,
     );
 
@@ -100,7 +145,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
-        standing={{ kind: "without_connection", step: "restore" }}
+        standing={{ kind: "without_connection", step: "restore", origin: "copy" }}
       />,
     );
 

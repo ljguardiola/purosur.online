@@ -29,4 +29,8 @@ export class FakeRestoredRegisterPredecessors implements RestoredRegisterPredece
     this.cursorChecks.push({ registerId, predecessorDeviceId, cursorDeviceId });
     return !this.refusedCursorDeviceIds.has(cursorDeviceId);
   }
+
+  async firstRevokedInstallation(): Promise<string | undefined> {
+    return undefined;
+  }
 }

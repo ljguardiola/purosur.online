@@ -14,6 +14,7 @@ import {
 const AT_THE_SWEEP: RestorationEvidence = {
   ...COMPLETED_RESTORATION,
   regularize_orphan_authorizations: "pending",
+  origin: "copy",
 };
 
 function scenario(evidence: RestorationEvidence, answer?: OrphanSweepAnswer<string>) {
