@@ -104,7 +104,7 @@ export function CloseFiscalTaskModal({
       width="standard"
       tone="info"
       icon={<Check />}
-      context={target ? fiscalTaskTitle(target) : undefined}
+      context={target ? fiscalTaskTitle(target) : "Tareas fiscales"}
       title="Cerrar tarea fiscal"
       closable
       footer={
