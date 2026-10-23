@@ -82,12 +82,30 @@ const issuerIdentificationRow = {
   version: 2,
 };
 
-const offlinePointOfSaleRow = {
-  point_of_sale_number: 20,
+const facturaSeriesCount = {
+  document_type: "factura_c",
   tax_authority_last_authorized_number: 38,
   highest_synced_offline_number: 240,
+};
+
+const creditNoteSeriesCount = {
+  document_type: "credit_note_c",
+  tax_authority_last_authorized_number: 5,
+  highest_synced_offline_number: 12,
+};
+
+const offlinePointOfSaleRow = {
+  point_of_sale_number: 20,
+  series_counts: [facturaSeriesCount, creditNoteSeriesCount],
   version: 1,
 };
+
+function offlinePointOfSaleWith(
+  facturaCount: Record<string, unknown>,
+  creditNoteCount: Record<string, unknown> = creditNoteSeriesCount,
+) {
+  return { ...offlinePointOfSaleRow, series_counts: [facturaCount, creditNoteCount] };
+}
 
 const offlineAuthorizationCodeRow = {
   fortnight_start: "2026-09-16",
@@ -318,31 +336,50 @@ describe("changesPageSchema", () => {
       change(1, "register_offline_point_of_sale", offlinePointOfSaleRow),
     ],
     [
-      "the offline point of sale of a register whose tax authority count is not known yet",
+      "the offline point of sale of a register whose tax authority counts are not known yet",
       change(1, "register_offline_point_of_sale", {
         ...offlinePointOfSaleRow,
-        tax_authority_last_authorized_number: null,
+        series_counts: [
+          { ...facturaSeriesCount, tax_authority_last_authorized_number: null },
+          { ...creditNoteSeriesCount, tax_authority_last_authorized_number: null },
+        ],
       }),
     ],
     [
       "the offline point of sale of a register whose tax authority never authorized anything",
       change(1, "register_offline_point_of_sale", {
         ...offlinePointOfSaleRow,
-        tax_authority_last_authorized_number: 0,
+        series_counts: [
+          { ...facturaSeriesCount, tax_authority_last_authorized_number: 0 },
+          { ...creditNoteSeriesCount, tax_authority_last_authorized_number: 0 },
+        ],
       }),
     ],
     [
       "the offline point of sale of a register none of whose documents was synced yet",
       change(1, "register_offline_point_of_sale", {
         ...offlinePointOfSaleRow,
-        highest_synced_offline_number: null,
+        series_counts: [
+          { ...facturaSeriesCount, highest_synced_offline_number: null },
+          { ...creditNoteSeriesCount, highest_synced_offline_number: null },
+        ],
       }),
     ],
     [
       "the offline point of sale of a register whose synced documents used no number",
       change(1, "register_offline_point_of_sale", {
         ...offlinePointOfSaleRow,
-        highest_synced_offline_number: 0,
+        series_counts: [
+          { ...facturaSeriesCount, highest_synced_offline_number: 0 },
+          { ...creditNoteSeriesCount, highest_synced_offline_number: 0 },
+        ],
+      }),
+    ],
+    [
+      "the offline point of sale of a register whose cloud counts a series only",
+      change(1, "register_offline_point_of_sale", {
+        ...offlinePointOfSaleRow,
+        series_counts: [facturaSeriesCount],
       }),
     ],
     [
@@ -648,32 +685,59 @@ describe("changesPageSchema", () => {
     ).toThrow();
   });
 
-  it("reads the offline point of sale of a cloud that does not send the tax authority count yet as not known", () => {
-    const { tax_authority_last_authorized_number: _count, ...legacyRow } = offlinePointOfSaleRow;
+  it("reads a series count of a cloud that does not send its tax authority count yet as not known", () => {
+    const { tax_authority_last_authorized_number: _count, ...legacyCount } = facturaSeriesCount;
+    const row = offlinePointOfSaleWith(legacyCount);
 
     expect(
-      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", legacyRow)))
-        .changes[0],
+      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", row))).changes[0],
     ).toEqual(
-      change(1, "register_offline_point_of_sale", {
-        ...legacyRow,
-        tax_authority_last_authorized_number: null,
-      }),
+      change(
+        1,
+        "register_offline_point_of_sale",
+        offlinePointOfSaleWith({ ...legacyCount, tax_authority_last_authorized_number: null }),
+      ),
     );
   });
 
-  it("reads the offline point of sale of a cloud that does not send the highest synced offline number yet as not known", () => {
-    const { highest_synced_offline_number: _highest, ...legacyRow } = offlinePointOfSaleRow;
+  it("reads a series count of a cloud that does not send its highest synced offline number yet as not known", () => {
+    const { highest_synced_offline_number: _highest, ...legacyCount } = creditNoteSeriesCount;
+    const row = offlinePointOfSaleWith(facturaSeriesCount, legacyCount);
 
     expect(
-      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", legacyRow)))
-        .changes[0],
+      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", row))).changes[0],
     ).toEqual(
-      change(1, "register_offline_point_of_sale", {
-        ...legacyRow,
-        highest_synced_offline_number: null,
-      }),
+      change(
+        1,
+        "register_offline_point_of_sale",
+        offlinePointOfSaleWith(facturaSeriesCount, {
+          ...legacyCount,
+          highest_synced_offline_number: null,
+        }),
+      ),
     );
+  });
+
+  it("refuses a series count of a document type other than a factura C or a credit note C", () => {
+    expect(() =>
+      changesPageSchema.parse(
+        pageOf(
+          change(
+            1,
+            "register_offline_point_of_sale",
+            offlinePointOfSaleWith({ ...facturaSeriesCount, document_type: "nota_a" }),
+          ),
+        ),
+      ),
+    ).toThrow();
+  });
+
+  it("refuses an offline point of sale that carries no series counts", () => {
+    const { series_counts: _counts, ...withoutCounts } = offlinePointOfSaleRow;
+
+    expect(() =>
+      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", withoutCounts))),
+    ).toThrow();
   });
 
   it("reads a threshold of a cloud that does not send its revision yet as the first of its day", () => {
