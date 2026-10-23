@@ -439,9 +439,7 @@ describe("ReprintReceiptModal", () => {
         .element(screen.getByRole("heading", { name: "Sale como duplicado" }))
         .toBeVisible();
       await expect.element(screen.getByText("COPIA DUPLICADA Nº 1")).toBeVisible();
-      await expect
-        .element(screen.getByText("Factura C · PV 00004 · Nº 00000319"))
-        .toBeVisible();
+      await expect.element(screen.getByText("Factura C · PV 00004 · Nº 00000319")).toBeVisible();
       await expect.element(screen.getByText("Operación")).not.toBeInTheDocument();
       await expectNoAccessibilityViolations(document.body);
     });

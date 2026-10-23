@@ -2081,7 +2081,11 @@ describe("createCoreClient", () => {
     client.connect(port);
     const authorization = { user_id: "u2", pin: "1234" };
 
-    const reprinted = client.reprintDeferredSaleInvoice("sale-1", "El cliente la perdió", authorization);
+    const reprinted = client.reprintDeferredSaleInvoice(
+      "sale-1",
+      "El cliente la perdió",
+      authorization,
+    );
     port.answer({
       type: "reprint-deferred-sale-invoice-result",
       request_id: "request-1",

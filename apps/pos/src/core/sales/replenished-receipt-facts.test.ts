@@ -265,7 +265,12 @@ describe("replenishing the invoice of a deferred sale into a restored register",
   it("holds when the invoice was sent to the printer and printed, apart from the sale receipt's", () => {
     applyReplenishedReceiptFact(
       database,
-      printState("sale-1", "2026-10-08T11:00:05.000Z", "2026-10-08T11:00:09.000Z", "deferred_invoice"),
+      printState(
+        "sale-1",
+        "2026-10-08T11:00:05.000Z",
+        "2026-10-08T11:00:09.000Z",
+        "deferred_invoice",
+      ),
     );
 
     expect(invoicePrinting()).toEqual({
@@ -278,12 +283,22 @@ describe("replenishing the invoice of a deferred sale into a restored register",
   it("keeps the later attempt the snapshot already holds over an earlier one", () => {
     applyReplenishedReceiptFact(
       database,
-      printState("sale-1", "2026-10-08T11:09:00.000Z", "2026-10-08T11:09:03.000Z", "deferred_invoice"),
+      printState(
+        "sale-1",
+        "2026-10-08T11:09:00.000Z",
+        "2026-10-08T11:09:03.000Z",
+        "deferred_invoice",
+      ),
     );
 
     applyReplenishedReceiptFact(
       database,
-      printState("sale-1", "2026-10-08T11:00:05.000Z", "2026-10-08T11:00:09.000Z", "deferred_invoice"),
+      printState(
+        "sale-1",
+        "2026-10-08T11:00:05.000Z",
+        "2026-10-08T11:00:09.000Z",
+        "deferred_invoice",
+      ),
     );
 
     expect(invoicePrinting()).toEqual({

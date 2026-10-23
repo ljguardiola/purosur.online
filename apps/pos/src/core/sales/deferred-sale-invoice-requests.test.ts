@@ -45,7 +45,12 @@ function deps(
       now: () => NOW,
     }),
     now: () => NOW,
-    ids: { next: () => `id-${(idCount += 1)}` },
+    ids: {
+      next: () => {
+        idCount += 1;
+        return `id-${idCount}`;
+      },
+    },
     readOutboxChainKey: async () => CHAIN_KEY,
     signedInUserId: () => signedInPerson.userId(),
     printers: { configured: () => printer },
@@ -313,7 +318,9 @@ describe("printing a deferred sale's invoice end to end", () => {
       { sale_id: "sale-1", print_attempted_at: NOW.toISOString(), printed_at: NOW.toISOString() },
     ]);
     expect(
-      database.prepare("SELECT print_attempted_at, printed_at FROM sales WHERE id = 'sale-1'").get(),
+      database
+        .prepare("SELECT print_attempted_at, printed_at FROM sales WHERE id = 'sale-1'")
+        .get(),
     ).toEqual({ print_attempted_at: null, printed_at: null });
     expect(database.prepare("SELECT count(*) AS count FROM sale_receipts").get()).toEqual({
       count: 0,
@@ -402,7 +409,9 @@ describe("reprinting a deferred sale's invoice", () => {
     await printedOriginal();
     signedInPerson.set("supervisor");
 
-    expect(await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-1", reason: REASON })).toEqual({
+    expect(
+      await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-1", reason: REASON }),
+    ).toEqual({
       kind: "started",
       copy: { kind: "duplicate", order_number: 1 },
     });
@@ -419,7 +428,9 @@ describe("reprinting a deferred sale's invoice", () => {
   it("asks another person's authorization from a cashier who may not reprint", async () => {
     await printedOriginal();
 
-    expect(await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-1", reason: REASON })).toEqual({
+    expect(
+      await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-1", reason: REASON }),
+    ).toEqual({
       kind: "lacks_permission",
     });
     expect(printer.waiting).toHaveLength(1);
@@ -428,7 +439,9 @@ describe("reprinting a deferred sale's invoice", () => {
   it("answers not_found for a sale the register does not hold", async () => {
     signedInPerson.set("supervisor");
 
-    expect(await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-9", reason: REASON })).toEqual({
+    expect(
+      await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-9", reason: REASON }),
+    ).toEqual({
       kind: "not_found",
     });
   });

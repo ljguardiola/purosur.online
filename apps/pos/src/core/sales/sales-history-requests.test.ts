@@ -554,7 +554,7 @@ describe("the detail of a sale of the history", () => {
         occurredAt: "2026-10-08T09:30:00.000Z",
         operationNumber: 483,
         deferred: true,
-        authorizedDocumentNumber: satisfied ? 1205 : undefined,
+        ...(satisfied ? { authorizedDocumentNumber: 1205 } : {}),
       });
       if (satisfied) {
         database.exec(

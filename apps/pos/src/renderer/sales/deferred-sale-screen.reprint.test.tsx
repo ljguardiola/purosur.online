@@ -63,7 +63,9 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
       undefined,
     );
     await expect
-      .element(screen.getByText("La reimpresión de la factura sale en cuanto la impresora esté lista"))
+      .element(
+        screen.getByText("La reimpresión de la factura sale en cuanto la impresora esté lista"),
+      )
       .toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });

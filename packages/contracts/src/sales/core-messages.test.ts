@@ -1619,7 +1619,11 @@ describe("reprinting a deferred sale's invoice", () => {
     { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
     { kind: "locked", consecutive_failures: 8 },
   ])("accepts the result $kind", (outcome) => {
-    const message = { type: "reprint-deferred-sale-invoice-result", request_id: REQUEST_ID, outcome };
+    const message = {
+      type: "reprint-deferred-sale-invoice-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
 
     expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
@@ -1629,7 +1633,11 @@ describe("reprinting a deferred sale's invoice", () => {
     { kind: "not_offered" },
     { kind: "started", copy: { kind: "duplicate", order_number: 1.5 } },
   ])("rejects the result %j", (outcome) => {
-    const message = { type: "reprint-deferred-sale-invoice-result", request_id: REQUEST_ID, outcome };
+    const message = {
+      type: "reprint-deferred-sale-invoice-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
 
     expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });

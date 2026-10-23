@@ -38,7 +38,9 @@ describe("SalesHistoryScreen factura of a sale that was deferred", () => {
       "El cliente la perdió",
     );
 
-    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Reimprimir duplicado" }));
+    await userEvent.click(
+      screen.getByRole("dialog").getByRole("button", { name: "Reimprimir duplicado" }),
+    );
 
     expect(reprintDeferredSaleInvoice).toHaveBeenCalledExactlyOnceWith(
       "sale-1",
@@ -47,7 +49,9 @@ describe("SalesHistoryScreen factura of a sale that was deferred", () => {
     );
     expect(reprintSaleReceipt).not.toHaveBeenCalled();
     await expect
-      .element(screen.getByText("La reimpresión de la factura sale en cuanto la impresora esté lista"))
+      .element(
+        screen.getByText("La reimpresión de la factura sale en cuanto la impresora esté lista"),
+      )
       .toBeVisible();
   });
 
@@ -63,7 +67,9 @@ describe("SalesHistoryScreen factura of a sale that was deferred", () => {
       "Otra copia",
     );
 
-    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Reimprimir duplicado" }));
+    await userEvent.click(
+      screen.getByRole("dialog").getByRole("button", { name: "Reimprimir duplicado" }),
+    );
 
     await expect.element(screen.getByText("Elegí una venta para ver su detalle")).toBeVisible();
   });
