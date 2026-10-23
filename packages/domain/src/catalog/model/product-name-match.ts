@@ -1,3 +1,5 @@
+import { foldedText, wordsOf } from "./folded-text.js";
+
 export interface NameMatch {
   start: number;
   length: number;
@@ -12,8 +14,6 @@ interface NameWord {
   start: number;
   letters: FoldedLetter[];
 }
-
-const WORD = /[\p{L}\p{N}\p{M}]+/gu;
 
 export function matchProductName(name: string, query: string): NameMatch[] | undefined {
   const queryWords = wordsOf(query)
@@ -40,10 +40,6 @@ export function matchProductName(name: string, query: string): NameMatch[] | und
   });
 }
 
-function wordsOf(text: string): { start: number; text: string }[] {
-  return [...text.matchAll(WORD)].map((found) => ({ start: found.index, text: found[0] }));
-}
-
 function nameWord(word: { start: number; text: string }): NameWord {
   let end = word.start;
   const letters: FoldedLetter[] = [];
@@ -52,10 +48,6 @@ function nameWord(word: { start: number; text: string }): NameWord {
     letters.push({ end, folded: foldedText(character) });
   }
   return { start: word.start, letters };
-}
-
-function foldedText(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
 function foldedWord(word: NameWord): string {
