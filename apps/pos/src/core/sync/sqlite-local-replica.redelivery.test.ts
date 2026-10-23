@@ -453,7 +453,7 @@ describe("what a register owns, kept by a redelivered page", () => {
       });
     const held = () =>
       database
-        .prepare<[string], Record<string, number | null>>(
+        .prepare<[string], { value: number | null }>(
           `SELECT ${field} AS value FROM offline_series_counts WHERE document_type = ?`,
         )
         .all(documentType)

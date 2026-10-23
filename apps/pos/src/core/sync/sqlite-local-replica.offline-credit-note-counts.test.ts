@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import type { SqliteLocalReplica } from "./sqlite-local-replica";
 import type { RegisterPulledChange } from "./pulled-change";
+import type { SqliteLocalReplica } from "./sqlite-local-replica";
 import {
   openAdoptedReplica,
   savePulledChanges,

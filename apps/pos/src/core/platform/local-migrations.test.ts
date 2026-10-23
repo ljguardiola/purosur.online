@@ -3537,22 +3537,16 @@ describe("the register's local migrations", () => {
       expect(
         after
           .prepare(
-            `SELECT register_id, point_of_sale_number, version, tax_authority_last_authorized_number
-             FROM register_offline_point_of_sale`,
+            "SELECT register_id, point_of_sale_number, version FROM register_offline_point_of_sale",
           )
           .all(),
-      ).toEqual([
-        {
-          register_id: "r1",
-          point_of_sale_number: 31,
-          version: 2,
-          tax_authority_last_authorized_number: null,
-        },
-      ]);
+      ).toEqual([{ register_id: "r1", point_of_sale_number: 31, version: 2 }]);
+      expect(after.prepare("SELECT * FROM offline_series_counts").all()).toEqual([]);
       const setCount = (count: number | null) =>
         after
           .prepare(
-            "UPDATE register_offline_point_of_sale SET tax_authority_last_authorized_number = ?",
+            `INSERT OR REPLACE INTO offline_series_counts (point_of_sale, document_type, tax_authority_last_authorized_number)
+             VALUES (31, 'factura_c', ?)`,
           )
           .run(count);
       expect(() => setCount(0)).not.toThrow();
@@ -5019,16 +5013,22 @@ describe("the register's local migrations", () => {
       expect(
         after
           .prepare(
-            "SELECT register_id, point_of_sale_number, tax_authority_last_authorized_number, highest_synced_offline_number, version FROM register_offline_point_of_sale",
+            "SELECT register_id, point_of_sale_number, version FROM register_offline_point_of_sale",
+          )
+          .all(),
+      ).toEqual([{ register_id: "r1", point_of_sale_number: 31, version: 2 }]);
+      expect(
+        after
+          .prepare(
+            "SELECT point_of_sale, document_type, tax_authority_last_authorized_number, highest_synced_offline_number FROM offline_series_counts",
           )
           .all(),
       ).toEqual([
         {
-          register_id: "r1",
-          point_of_sale_number: 31,
+          point_of_sale: 31,
+          document_type: "factura_c",
           tax_authority_last_authorized_number: 1000,
           highest_synced_offline_number: null,
-          version: 2,
         },
       ]);
       expect(
@@ -5050,7 +5050,7 @@ describe("the register's local migrations", () => {
       ]);
       const setHighest = (value: number) =>
         after
-          .prepare("UPDATE register_offline_point_of_sale SET highest_synced_offline_number = ?")
+          .prepare("UPDATE offline_series_counts SET highest_synced_offline_number = ?")
           .run(value);
       expect(() => setHighest(1500)).not.toThrow();
       expect(() => setHighest(-1)).toThrow(/CHECK/);
