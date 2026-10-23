@@ -1,12 +1,22 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { createServer as createSecureServer, type Server as SecureServer } from "node:https";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { getCACertificates, setDefaultCACertificates } from "node:tls";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { connectPinned } from "./pinned-web-page-connector.js";
 import { deferred } from "./test-support/deferred.js";
+import { selfSignedCertificateFor } from "./test-support/self-signed-certificate.js";
 
 let server: Server | undefined;
+let secureServer: SecureServer | undefined;
 
 afterEach(async () => {
+  if (secureServer !== undefined) {
+    const closing = new Promise((resolve) => secureServer?.close(resolve));
+    secureServer.closeAllConnections();
+    await closing;
+    secureServer = undefined;
+  }
   if (server !== undefined) {
     const closing = new Promise((resolve) => server?.close(resolve));
     server.closeAllConnections();
@@ -176,5 +186,60 @@ describe("connectPinned", () => {
         signal: new AbortController().signal,
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("connectPinned over HTTPS", () => {
+  const trusted = [
+    selfSignedCertificateFor("supplier.example"),
+    selfSignedCertificateFor("other.example"),
+  ];
+  const [certificateOfSupplier, certificateOfOther] = trusted;
+  let defaultCertificates: string[];
+
+  beforeAll(() => {
+    defaultCertificates = getCACertificates("default");
+    setDefaultCACertificates([...defaultCertificates, ...trusted.map(({ cert }) => cert)]);
+  });
+
+  afterAll(() => {
+    setDefaultCACertificates(defaultCertificates);
+  });
+
+  async function serveSecurely(certificate: { key: string; cert: string }): Promise<number> {
+    const secure = createSecureServer(certificate, (_request, response) => {
+      response.setHeader("content-type", "text/html");
+      response.end("<p>hola</p>");
+    });
+    secureServer = secure;
+    await new Promise<void>((resolve) => secure.listen(0, "127.0.0.1", resolve));
+    return (secure.address() as AddressInfo).port;
+  }
+
+  it("reaches the pinned address while the certificate proves the name of the address", async () => {
+    const port = await serveSecurely(certificateOfSupplier as { key: string; cert: string });
+
+    const connection = await connectPinned({
+      url: new URL(`https://supplier.example:${port}/`),
+      address: "127.0.0.1",
+      family: 4,
+      signal: new AbortController().signal,
+    });
+
+    expect(connection.status).toBe(200);
+    expect(await readAll(connection.body)).toBe("<p>hola</p>");
+  });
+
+  it("refuses a certificate that proves another name, though the pinned address answers", async () => {
+    const port = await serveSecurely(certificateOfOther as { key: string; cert: string });
+
+    await expect(
+      connectPinned({
+        url: new URL(`https://supplier.example:${port}/`),
+        address: "127.0.0.1",
+        family: 4,
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({ code: "ERR_TLS_CERT_ALTNAME_INVALID" });
   });
 });

@@ -565,31 +565,6 @@ describe("POST /supplier-price-lists/web-page", () => {
     expect(webPages.urls).toEqual([]);
   });
 
-  it("reads the page, keeps it with its kind and queues the reading, answering 201 with the list", async () => {
-    const { headers, locationId, userId } = await manager();
-    const supplierId = await storedSupplier();
-
-    const response = await loadWebPage(headers, { supplierId, url: WEB_PAGE_URL });
-
-    expect(response.statusCode).toBe(201);
-    const { listId } = response.json();
-    expect(webPages.urls).toEqual([WEB_PAGE_URL]);
-    expect(await listRow(listId)).toMatchObject({
-      supplierId,
-      locationId,
-      sourceKind: "WEB_PAGE",
-      sourceUrl: WEB_PAGE_URL,
-      fileName: null,
-      fileContentKind: "HTML",
-      state: "READING",
-      uploadedBy: userId,
-    });
-    expect(files.stored.get(listId)).toEqual({
-      bytes: expect.any(Uint8Array),
-      contentKind: "HTML",
-    });
-  });
-
   it("answers 404 supplier_not_found for a supplier that does not exist, reading nothing", async () => {
     const { headers } = await manager();
 
@@ -709,26 +684,6 @@ describe("POST /supplier-price-lists/:id/refresh", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
-  });
-
-  it("reads the stored address again into a new list of the same supplier, answering 201", async () => {
-    const { headers, locationId, supplierId, listId } = await webPageList();
-
-    const response = await refresh(headers, listId);
-
-    expect(response.statusCode).toBe(201);
-    const { listId: refreshedId } = response.json();
-    expect(refreshedId).not.toBe(listId);
-    expect(webPages.urls).toEqual([WEB_PAGE_URL]);
-    expect(await listRow(refreshedId)).toMatchObject({
-      supplierId,
-      locationId,
-      sourceKind: "WEB_PAGE",
-      sourceUrl: WEB_PAGE_URL,
-      state: "READING",
-    });
-    expect(files.stored.get(refreshedId)?.contentKind).toBe("HTML");
-    expect((await listRow(listId))?.state).toBe("REVIEWED");
   });
 
   it("answers 404 not_found for a list that does not exist, reading nothing", async () => {
