@@ -12,6 +12,7 @@ import {
   type OperationAuthorization,
   printOriginalReceipt,
   printSaleReceipt,
+  type ReceiptLedger,
   type ReceiptPrinters,
   type ReceiptPrintGrant,
   readSaleComprobante,
@@ -209,17 +210,8 @@ export async function printOriginalReceiptFor(
   );
 }
 
-function sendingThrough(printers: ReceiptPrinters, ticketedStep: TicketedStep): ReceiptPrinters {
-  return {
-    configured() {
-      const printer = printers.configured();
-      return (
-        printer && {
-          print: (watch, sending) => printer.print(watch, () => ticketedStep(sending)),
-        }
-      );
-    },
-  };
+function ticketedLedger(ledger: ReceiptLedger, ticketedStep: TicketedStep): ReceiptLedger {
+  return { transaction: (work) => ticketedStep(() => ledger.transaction(work)) };
 }
 
 export async function reprintFor(
@@ -250,18 +242,14 @@ export async function reprintFor(
     },
   };
   const start = await deps.jobs.start(jobKeyOf(key), ({ watch, printers }) =>
-    deps.ticketedSteps("reprint", key.saleId, (ticketedStep) =>
-      reprintReceipt(
-        printingPorts(
-          deps,
-          chainKey,
-          authority,
-          sendingThrough(printers(deps.printers), ticketedStep),
-        ),
+    deps.ticketedSteps("reprint", key.saleId, (ticketedStep) => {
+      const ports = printingPorts(deps, chainKey, authority, printers(deps.printers));
+      return reprintReceipt(
+        { ...ports, ledger: ticketedLedger(ports.ledger, ticketedStep) },
         { ...key, reason },
         watch,
-      ),
-    ),
+      );
+    }),
   );
   switch (start.kind) {
     case "busy":

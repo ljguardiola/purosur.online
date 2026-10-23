@@ -50,6 +50,16 @@ interface Reading {
   mode: FiscalEmissionMode;
 }
 
+function appendStep(spans: Reading[][], before: Reading, after: Reading): void {
+  if (after.lastDeviceSeq === before.lastDeviceSeq) return;
+  const span = spans.at(-1);
+  if (span?.at(-1)?.lastDeviceSeq === before.lastDeviceSeq) {
+    span.push(before, after);
+  } else {
+    spans.push([before, after]);
+  }
+}
+
 export function createTicketedOperations({
   readLastDeviceSeq,
   readEmissionMode,
@@ -73,12 +83,23 @@ export function createTicketedOperations({
     after: Reading | undefined,
   ): Promise<void> {
     if (after === undefined) return;
+    await recordSpan(operation, subjectOf(), [before, after]);
+  }
+
+  async function recordSpan(
+    operation: ContingencyBackupOperation,
+    subjectId: string | null,
+    readings: Reading[],
+  ): Promise<void> {
+    const first = readings[0];
+    const last = readings.at(-1);
+    if (first === undefined || last === undefined) return;
     try {
       await record({
         operation,
-        subjectId: subjectOf(),
-        modesAround: [before.mode, after.mode],
-        range: { firstDeviceSeq: before.lastDeviceSeq + 1, lastDeviceSeq: after.lastDeviceSeq },
+        subjectId,
+        modesAround: readings.map(({ mode }) => mode),
+        range: { firstDeviceSeq: first.lastDeviceSeq + 1, lastDeviceSeq: last.lastDeviceSeq },
       });
       afterRecorded();
     } catch (error) {
@@ -125,17 +146,20 @@ export function createTicketedOperations({
       ticketedNow("sale", settle, (_args, settlement) => completedSaleOf(settlement)),
 
     async ticketedSteps(operation, subjectId, operate) {
-      const steps: [Reading, Reading | undefined][] = [];
+      const spans: Reading[][] = [];
       try {
         return await operate((step) => {
           const before = read();
           const outcome = step();
-          if (before !== undefined) steps.push([before, read()]);
+          const after = before && read();
+          if (before !== undefined && after !== undefined) {
+            appendStep(spans, before, after);
+          }
           return outcome;
         });
       } finally {
-        for (const [before, after] of steps) {
-          await recordAround(operation, () => subjectId, before, after);
+        for (const span of spans) {
+          await recordSpan(operation, subjectId, span);
         }
       }
     },
