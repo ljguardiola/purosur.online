@@ -30,7 +30,7 @@ export {
   REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
   replayedClockMark,
 } from "./model/clock-correction.js";
-export { isConnectivityGap } from "./model/connectivity-gap.js";
+export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
 export { CREDIT_NOTE_C_VOUCHER_TYPE, CREDIT_NOTE_REASONS } from "./model/credit-note.js";
@@ -112,7 +112,7 @@ export type {
   FiscalEmissionMode,
   FiscalEmissionModeKind,
 } from "./model/fiscal-emission-mode.js";
-export { FISCAL_AUTHORIZATIONS, FISCAL_EMISSION_MODE_KINDS } from "./model/fiscal-emission-mode.js";
+export { FISCAL_AUTHORIZATIONS } from "./model/fiscal-emission-mode.js";
 export type {
   FiscalEmissionStoppedReport,
   LatestPreEmissionGateOutcome,

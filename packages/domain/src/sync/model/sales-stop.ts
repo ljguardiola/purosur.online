@@ -42,6 +42,18 @@ export function salesDenialOf(
   return state.stopped ? undefined : storageStop;
 }
 
+export function areNewSalesStopped(
+  state: SalesStopState,
+  storageStop: StorageSalesStop | undefined,
+  localDatabaseDamaged: boolean,
+  batteryCritical: boolean,
+): boolean {
+  return (
+    state.stopped ||
+    salesDenialOf(state, storageStop, localDatabaseDamaged, batteryCritical) !== undefined
+  );
+}
+
 export function salesDeniedReportOf(
   state: SalesStopState,
   storageStop?: StorageSalesStop,

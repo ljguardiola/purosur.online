@@ -263,6 +263,7 @@ export {
   CLOCK_CORRECTED_EVENT_TYPE,
   CLOCK_PREVIOUS_READING_SOURCES,
   CLOSED_FISCAL_TASK_STATE,
+  CONTINGENCY_KINDS,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   CREDIT_NOTE_C_VOUCHER_TYPE,
   CREDIT_NOTE_REASONS,
@@ -270,6 +271,7 @@ export {
   chargeRefusal,
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
+  contingencyOf,
   creditNoteCFiscalBlock,
   DEFERRAL_REASONS,
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
@@ -290,7 +292,6 @@ export {
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   FISCAL_AUTHORIZATIONS,
-  FISCAL_EMISSION_MODE_KINDS,
   FISCAL_TASK_KINDS,
   FISCAL_TASK_STATES,
   fiscalEmissionStoppedReportOf,
@@ -904,6 +905,7 @@ export type {
   StorageTelemetry,
 } from "./sync/index.js";
 export {
+  areNewSalesStopped,
   canonicalOutboxEvent,
   canonicalOutboxPayload,
   FIRST_PULL_CURSOR,

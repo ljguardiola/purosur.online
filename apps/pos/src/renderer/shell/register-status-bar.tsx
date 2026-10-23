@@ -29,7 +29,6 @@ import {
 import { ContingencyBackupTicketsNoticeCard } from "../backups/contingency-backup-tickets-notice-card";
 import { contingencyBackupTicketsNoticeCount } from "../backups/contingency-backup-tickets-notice-count";
 import { ContingencyNoticeCard } from "../fiscal/contingency-notice-card";
-import { isInContingency } from "../fiscal/fiscal-contingency";
 import { FiscalModeIndicator } from "../fiscal/fiscal-mode-indicator";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
@@ -97,7 +96,7 @@ function NoticesPill({
   onDiscardBackupTickets,
 }: {
   conditions: RegisterStatus["conditions"];
-  contingency: boolean;
+  contingency: RegisterStatus["contingency"];
   backupTickets: ContingencyBackupTicketsAnswer | undefined;
   onDiscardBackupTickets: () => void;
 }) {
@@ -108,7 +107,7 @@ function NoticesPill({
       : "warning";
   const count =
     conditions.length +
-    (contingency ? 1 : 0) +
+    (contingency?.notice ? 1 : 0) +
     (backupTickets === undefined ? 0 : contingencyBackupTicketsNoticeCount(backupTickets));
   return (
     <NotificationPanel
@@ -132,7 +131,7 @@ function NoticesPill({
           />
         );
       })}
-      {contingency ? <ContingencyNoticeCard /> : null}
+      {contingency?.notice ? <ContingencyNoticeCard kind={contingency.kind} /> : null}
       {backupTickets === undefined ? null : (
         <ContingencyBackupTicketsNoticeCard
           tickets={backupTickets}
@@ -165,7 +164,7 @@ export function RegisterStatusBar({
   const loadedBackupTickets = backupTickets.status === "loaded" ? backupTickets.value : undefined;
   const noticeCount =
     (status.status === "loaded"
-      ? status.value.conditions.length + (isInContingency(status.value.fiscal_mode) ? 1 : 0)
+      ? status.value.conditions.length + (status.value.contingency?.notice ? 1 : 0)
       : 0) +
     (loadedBackupTickets === undefined
       ? 0
@@ -182,7 +181,7 @@ export function RegisterStatusBar({
         {session === undefined ? null : <p className="text-text-subtle text-detail">{session}</p>}
         {status.status === "loaded" ? <CloudIndicator cloud={status.value.cloud} /> : null}
         {status.status === "loaded" ? (
-          <FiscalModeIndicator mode={status.value.fiscal_mode} />
+          <FiscalModeIndicator contingency={status.value.contingency} />
         ) : null}
         {status.status === "loaded" ? (
           <>
@@ -193,7 +192,7 @@ export function RegisterStatusBar({
         {noticeCount > 0 ? (
           <NoticesPill
             conditions={status.status === "loaded" ? status.value.conditions : []}
-            contingency={status.status === "loaded" && isInContingency(status.value.fiscal_mode)}
+            contingency={status.status === "loaded" ? status.value.contingency : null}
             backupTickets={loadedBackupTickets}
             onDiscardBackupTickets={onDiscardBackupTickets}
           />

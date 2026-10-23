@@ -216,7 +216,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
-      fiscal_mode: "deferring",
+      contingency: { kind: "deferring", notice: true },
     });
   });
 
@@ -317,7 +317,7 @@ describe("the register's status", () => {
       cloud: "unreachable",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
-      fiscal_mode: "deferring",
+      contingency: { kind: "deferring", notice: false },
     });
   });
 
@@ -417,7 +417,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
       serial_devices_setup_offered: false,
-      fiscal_mode: "deferring",
+      contingency: { kind: "deferring", notice: false },
     });
   });
 
@@ -433,7 +433,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
       serial_devices_setup_offered: false,
-      fiscal_mode: "deferring",
+      contingency: { kind: "deferring", notice: false },
     });
   });
 
@@ -454,7 +454,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "unknown" },
       serial_devices_setup_offered: false,
-      fiscal_mode: "deferring",
+      contingency: { kind: "deferring", notice: false },
     });
   });
 });
@@ -532,31 +532,77 @@ describe("the register's fiscal mode on its status", () => {
     });
   }
 
-  it("is real time while the register is online with its series ready", async () => {
+  it("is no contingency while the register is online with its series ready", async () => {
     holdRealTimeSeries();
     insertHealthCheck(database, { checkedAt: new Date(NOW.getTime() - 1000).toISOString() });
 
-    expect((await status()).fiscal_mode).toBe("real_time");
+    expect((await status()).contingency).toBeNull();
   });
 
-  it("is the offline code while the register would authorize a sale under its code", async () => {
+  it("is a contingency with a notice under the offline code while the register would authorize a sale under its code", async () => {
     holdRealTimeSeries();
     holdTheOfflineCode();
 
-    expect((await status()).fiscal_mode).toBe("offline_code");
+    expect((await status()).contingency).toEqual({ kind: "offline_code", notice: true });
   });
 
-  it("is deferring while the register is offline and holds no code", async () => {
+  it("is a deferring contingency with a notice while the register is offline and holds no code", async () => {
     holdRealTimeSeries();
 
-    expect((await status()).fiscal_mode).toBe("deferring");
+    expect((await status()).contingency).toEqual({ kind: "deferring", notice: true });
   });
 
-  it("is deferring while the register's latest sale failed the pre-emission check", async () => {
+  it("is a deferring contingency without a notice while the register's latest sale failed the pre-emission check", async () => {
     holdRealTimeSeries();
     holdTheOfflineCode();
     recordGateOutcome("sale-1", 10, false);
 
-    expect((await status()).fiscal_mode).toBe("deferring");
+    expect((await status()).contingency).toEqual({ kind: "deferring", notice: false });
+  });
+
+  it("is a contingency without a notice while the register stopped opening new sales", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+    stopOpeningNewSales(database, "event_history_broken", NOW);
+
+    expect((await status()).contingency).toEqual({ kind: "offline_code", notice: false });
+  });
+
+  it("is a contingency without a notice while its storage stops new sales", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+
+    expect(
+      (await status("unknown", NO_DEVICES, { ...ROOMY_STORAGE, diskStanding: "full" })).contingency,
+    ).toEqual({ kind: "offline_code", notice: false });
+  });
+
+  it("is a contingency without a notice while its local database is damaged", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+
+    expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, true)).contingency).toEqual({
+      kind: "offline_code",
+      notice: false,
+    });
+  });
+
+  it("is a contingency without a notice while its battery stops new sales", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+
+    expect(
+      (
+        await status(
+          "unknown",
+          NO_DEVICES,
+          ROOMY_STORAGE,
+          false,
+          onBattery(5),
+          { kind: "unreadable" },
+          true,
+        )
+      ).contingency,
+    ).toEqual({ kind: "offline_code", notice: false });
   });
 });
