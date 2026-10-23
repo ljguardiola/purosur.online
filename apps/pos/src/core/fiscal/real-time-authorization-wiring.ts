@@ -1,15 +1,18 @@
 import { REAL_TIME_AUTHORIZATION_TIMEOUT_MS } from "@purosur/domain";
 import {
   applyUnclearOutcomeDecisions,
+  type CatchUpDeferredSalesPorts,
   type CloudCreditNotes as CloudCreditNotesPort,
   catchUpDeferredSales,
   type IdGenerator,
+  invoiceDeferredSalesUpTo,
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
   requestVoidCreditNotes,
   type ShortCodeRandomness,
   settleInterruptedRealTimeAuthorizations,
 } from "@purosur/domain/fiscal/use-cases";
+import type { DeferredSaleInvoicing } from "@purosur/domain/sales/use-cases";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -20,6 +23,10 @@ import { checkRegisterHealth } from "./check-register-health";
 import { CloudCreditNotes } from "./cloud-credit-notes";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
 import { CloudUnclearOutcomeDecisions } from "./cloud-unclear-outcome-decisions";
+import {
+  createDeferredBacklogSerializer,
+  type DeferredBacklogSerializer,
+} from "./deferred-backlog-serializer";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import { startRegisterHealthMonitor } from "./register-health-monitor";
 import { SqliteDeferredSaleCatchUp } from "./sqlite-deferred-sale-catch-up";
@@ -61,6 +68,54 @@ function realTimeTaxAuthority({
         post: (path, bearerToken, body, options) =>
           postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
       });
+}
+
+function deferredSaleCatchUpPorts(
+  database: LocalDatabase,
+  outboxChainKey: string | undefined,
+  {
+    cloudClient,
+    readDeviceToken,
+    now,
+    ids,
+    shortCodes,
+  }: Pick<RealTimeAuthorizationWiringDeps, "cloudClient" | "readDeviceToken" | "now"> &
+    Pick<DeferralIdentities, "ids" | "shortCodes">,
+): CatchUpDeferredSalesPorts {
+  return {
+    catchUp: new SqliteDeferredSaleCatchUp(database, outboxChainKey),
+    documents: new SqliteRealTimeFiscalDocuments(database, outboxChainKey),
+    roundTrips: new SqliteRoundTripSamples(database),
+    taxAuthority: realTimeTaxAuthority({ cloudClient, readDeviceToken }),
+    clock: { now },
+    ids,
+    shortCodes,
+  };
+}
+
+export function createDeferredSaleInvoicing({
+  database,
+  readOutboxChainKey,
+  serialize,
+  ...deps
+}: RealTimeAuthorizationWiringDeps & DeferralIdentities & { serialize: DeferredBacklogSerializer }):
+  | DeferredSaleInvoicing
+  | undefined {
+  if (database === undefined) {
+    return undefined;
+  }
+  return {
+    invoiceUpTo: (saleId) =>
+      serialize(async () => {
+        const outboxChainKey = await readOutboxChainKey();
+        if (outboxChainKey === undefined) {
+          throw new Error("the register has no outbox chain key");
+        }
+        return invoiceDeferredSalesUpTo(deferredSaleCatchUpPorts(database, outboxChainKey, deps), {
+          saleId,
+        });
+      }),
+  };
 }
 
 export function createRealTimeAuthorization({
@@ -150,10 +205,12 @@ export function startRegisterHealthChecks({
   ids,
   shortCodes,
   readOutboxChainKey,
+  serialize = createDeferredBacklogSerializer(),
 }: RealTimeAuthorizationWiringDeps &
   DeferralIdentities & {
     scheduleNext: (run: () => void, delayMs: number) => () => void;
     afterCheck?: () => void;
+    serialize?: DeferredBacklogSerializer;
   }): (() => void) | undefined {
   if (database === undefined || cloudClient === undefined) {
     return undefined;
@@ -164,7 +221,6 @@ export function startRegisterHealthChecks({
     post: (path, bearerToken, body, options) =>
       postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
   });
-  const taxAuthority = realTimeTaxAuthority({ cloudClient, readDeviceToken });
   const creditNotes = new SqliteVoidCreditNotes(database);
   const creditNotesCloud = cloudCreditNotes({ cloudClient, readDeviceToken });
   return startRegisterHealthMonitor({
@@ -193,15 +249,17 @@ export function startRegisterHealthChecks({
         reportFailure(error);
       }
       if (outboxChainKey !== undefined) {
-        await catchUpDeferredSales({
-          catchUp: new SqliteDeferredSaleCatchUp(database, outboxChainKey.key),
-          documents,
-          roundTrips: new SqliteRoundTripSamples(database),
-          taxAuthority,
-          clock: { now },
-          ids,
-          shortCodes,
-        }).catch(reportFailure);
+        await serialize(() =>
+          catchUpDeferredSales(
+            deferredSaleCatchUpPorts(database, outboxChainKey.key, {
+              cloudClient,
+              readDeviceToken,
+              now,
+              ids,
+              shortCodes,
+            }),
+          ),
+        ).catch(reportFailure);
       }
       if (creditNotesCloud !== undefined) {
         await requestVoidCreditNotes({
