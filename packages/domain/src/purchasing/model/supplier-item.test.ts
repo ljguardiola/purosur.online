@@ -391,9 +391,13 @@ describe("lastRowOfEachItem", () => {
     ];
 
     expect(lastRowOfEachItem(rows)).toEqual([
-      { key: { kind: "code", value: "A" }, row: rows[2] },
-      { key: { kind: "description", value: "azucar 1 kg" }, row: rows[3] },
-      { key: { kind: "code", value: "B" }, row: rows[4] },
+      { key: { kind: "code", value: "A" }, row: rows[2], rows: [rows[0], rows[2]] },
+      {
+        key: { kind: "description", value: "azucar 1 kg" },
+        row: rows[3],
+        rows: [rows[1], rows[3]],
+      },
+      { key: { kind: "code", value: "B" }, row: rows[4], rows: [rows[4]] },
     ]);
   });
 
