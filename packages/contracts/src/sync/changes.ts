@@ -1,4 +1,5 @@
 import {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   isBuyerIdentificationThresholdAmount,
   isCalendarDay,
@@ -196,13 +197,18 @@ const registerQrPointOfSaleChangeSchema = z.object({
   }),
 });
 
+const offlineSeriesCountSchema = z.object({
+  document_type: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]),
+  tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
+  highest_synced_offline_number: z.int().nonnegative().nullable().default(null),
+});
+
 const registerOfflinePointOfSaleChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("register_offline_point_of_sale"),
   row: z.object({
     point_of_sale_number: pointOfSaleNumberSchema,
-    tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
-    highest_synced_offline_number: z.int().nonnegative().nullable().default(null),
+    series_counts: z.array(offlineSeriesCountSchema),
     version: z.int().positive(),
   }),
 });
