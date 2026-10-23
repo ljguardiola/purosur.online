@@ -149,6 +149,7 @@ export type {
   SupplierPriceListReader,
   SupplierPriceListReview,
   SupplierPriceListReviewRow,
+  SupplierPriceListSource,
 } from "./supplier-price-list-reader.js";
 export type {
   SupplierPriceListReadingInProgress,
