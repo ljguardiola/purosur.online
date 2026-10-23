@@ -27,6 +27,10 @@ const LOCKED_SESSION: CashSessionState = { ...OPEN_SESSION, locked: true };
 type Condition = RegisterStatus["conditions"][number];
 
 const SALES_DENIED_TITLE = "La caja no puede vender";
+const OFFLINE_CODE = { kind: "offline_code", notice: true } as const;
+const SOLD_LATER = { kind: "deferring", notice: true } as const;
+const SOLD_LATER_WITHOUT_NOTICE = { kind: "deferring", notice: false } as const;
+
 const SILENT_TITLE = "La caja no está sincronizando";
 
 function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> {
@@ -37,7 +41,7 @@ function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> 
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
       serial_devices_setup_offered: false,
-      fiscal_mode: "real_time",
+      contingency: null,
       ...status,
     },
     refreshing: false,
@@ -433,17 +437,23 @@ describe("RegisterStatusBar", () => {
   });
 
   it("shows the contingency mode after the cloud", async () => {
-    const screen = await renderBar({ status: loaded({ fiscal_mode: "offline_code" }) });
+    const screen = await renderBar({ status: loaded({ contingency: OFFLINE_CODE }) });
 
     expect(barText(screen)).toMatch(/Nube conectada.*Contingencia CAEA/);
   });
 
-  it.each([["real_time"], ["deferring"]] as const)(
-    "shows no fiscal indicator while the mode is %s",
-    async (fiscalMode) => {
-      const screen = await renderBar({ status: loaded({ fiscal_mode: fiscalMode }) });
+  it("shows no fiscal indicator while there is no contingency", async () => {
+    const screen = await renderBar({ status: loaded({ contingency: null }) });
 
-      expect(barText(screen)).not.toMatch(/Factura en línea|Contingencia CAEA/);
+    expect(barText(screen)).not.toMatch(/Venta diferida|Contingencia CAEA/);
+  });
+
+  it.each([[SOLD_LATER], [SOLD_LATER_WITHOUT_NOTICE]])(
+    "shows the deferred sale indicator after the cloud while the contingency is deferring (%j)",
+    async (contingency) => {
+      const screen = await renderBar({ status: loaded({ contingency }) });
+
+      expect(barText(screen)).toMatch(/Nube conectada.*Venta diferida/);
     },
   );
 
@@ -456,7 +466,7 @@ describe("RegisterStatusBar", () => {
   it("counts the contingency as one more notice, shown in the warning tone with its explanation", async () => {
     const screen = await renderBar({
       status: loaded({
-        fiscal_mode: "offline_code",
+        contingency: OFFLINE_CODE,
         conditions: [{ kind: "serial_device_missing", level: "warning" }],
       }),
     });
@@ -467,7 +477,7 @@ describe("RegisterStatusBar", () => {
   });
 
   it("shows the notices pill for the contingency alone", async () => {
-    const screen = await renderBar({ status: loaded({ fiscal_mode: "offline_code" }) });
+    const screen = await renderBar({ status: loaded({ contingency: OFFLINE_CODE }) });
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
@@ -476,15 +486,34 @@ describe("RegisterStatusBar", () => {
     expect(getComputedStyle(card).borderLeftColor).toBe(tokenRgb("warning-soft"));
   });
 
+  it("counts a deferring contingency with a notice as one notice, with its own explanation", async () => {
+    const screen = await renderBar({ status: loaded({ contingency: SOLD_LATER }) });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await expect.element(screen.getByText("Ventas sin factura en el momento")).toBeVisible();
+    await expect
+      .element(screen.getByText("Facturación en modo de respaldo"))
+      .not.toBeInTheDocument();
+  });
+
+  it("shows the indicator but no notice for a deferring contingency without a notice", async () => {
+    const screen = await renderBar({
+      status: loaded({ contingency: SOLD_LATER_WITHOUT_NOTICE }),
+    });
+
+    await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
+  });
+
   it("shows no contingency notice in real time", async () => {
-    const screen = await renderBar({ status: loaded({ fiscal_mode: "real_time" }) });
+    const screen = await renderBar({ status: loaded({ contingency: null }) });
 
     await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
   });
   describe("contingency backup tickets", () => {
     it("counts a notice for tickets that did not print, whatever the fiscal mode", async () => {
       const screen = await renderBar({
-        status: loaded({ fiscal_mode: "real_time" }),
+        status: loaded({ contingency: null }),
         backupTickets: loadedTickets({ to_print: 2 }),
       });
 
@@ -496,7 +525,7 @@ describe("RegisterStatusBar", () => {
     it("counts them beside the conditions and the contingency", async () => {
       const screen = await renderBar({
         status: loaded({
-          fiscal_mode: "offline_code",
+          contingency: OFFLINE_CODE,
           conditions: [{ kind: "serial_device_missing", level: "warning" }],
         }),
         backupTickets: loadedTickets({ to_print: 1, missing_key: 1 }),
