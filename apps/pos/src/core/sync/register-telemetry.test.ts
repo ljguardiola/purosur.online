@@ -1,6 +1,7 @@
 import type {
   BatteryReport,
   LatestPreEmissionGateOutcome,
+  ReplenishmentFailure,
   SalesStopState,
   SerialDevicesReport,
   StorageSalesStop,
@@ -237,6 +238,58 @@ describe("the register's clock drift telemetry", () => {
 
     expect(before).toMatchObject({ clock_drift: false });
     expect(after).toMatchObject({ clock_drift: true });
+  });
+});
+
+describe("the register's replenishment failure telemetry", () => {
+  function readerOfReplenishmentFailure(
+    readReplenishmentFailure: () => ReplenishmentFailure | undefined,
+  ) {
+    return registerTelemetryReader(
+      async () => STORAGE,
+      () => ({ stopped: false }),
+      () => SERIAL_DEVICES,
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => false,
+      () => false,
+      () => null,
+      readReplenishmentFailure,
+    );
+  }
+
+  it("reports no failure for a register whose replenishment has not failed", async () => {
+    const read = readerOfReplenishmentFailure(() => undefined);
+
+    expect(await read()).toMatchObject({ replenishment_failed: false });
+  });
+
+  it("reads the failure each time it reports, naming its kind", async () => {
+    let failure: ReplenishmentFailure | undefined;
+    const read = readerOfReplenishmentFailure(() => failure);
+
+    const before = await read();
+    failure = { kind: "refused", refusal: "predecessor_not_revoked" };
+    const refused = await read();
+    failure = { kind: "unreadable_event", eventId: "event-1", reason: "garbled", appVersion: null };
+    const unreadable = await read();
+    failure = undefined;
+    const after = await read();
+
+    expect(before).toMatchObject({ replenishment_failed: false });
+    expect(refused).toMatchObject({ replenishment_failed: "refused" });
+    expect(unreadable).toMatchObject({ replenishment_failed: "unreadable_event" });
+    expect(after).toMatchObject({ replenishment_failed: false });
+  });
+
+  it("is not reported by a register whose local database is damaged", async () => {
+    const read = damagedRegisterTelemetryReader(
+      async () => STORAGE,
+      () => undefined,
+    );
+
+    expect(await read()).not.toHaveProperty("replenishment_failed");
   });
 });
 

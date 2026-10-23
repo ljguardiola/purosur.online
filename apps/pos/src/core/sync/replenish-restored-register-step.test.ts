@@ -120,7 +120,7 @@ function pageOf(
   };
 }
 
-function step(answers: CloudResponse[]) {
+function step(answers: CloudResponse[], appVersion: string | undefined = "1.4.0") {
   let answered = 0;
   return replenishRestoredRegisterStep({
     database,
@@ -134,6 +134,7 @@ function step(answers: CloudResponse[]) {
       return answer;
     },
     ids: { next: () => crypto.randomUUID() },
+    appVersion,
   });
 }
 
@@ -327,6 +328,51 @@ describe("replenishing a restored register from the cloud", () => {
     expect(count("register_predecessor")).toBe(1);
   });
 
+  it("holds the cloud's refusal and does not ask the cloud again", async () => {
+    const refusal = {
+      kind: "error",
+      error: { code: "predecessor_not_revoked", message: "not revoked", details: [] },
+    } as const;
+    await step([refusal]);
+
+    const outcome = await step([]);
+
+    expect(outcome).toEqual({
+      kind: "held_failure",
+      failure: { kind: "refused", refusal: "predecessor_not_revoked" },
+    });
+    expect(requests).toHaveLength(1);
+  });
+
+  it("holds an unreadable event on the version that could not read it, and replenishes on a newer one", async () => {
+    const unreadable: PushedEvent = {
+      ...firstRecordedEvent(),
+      event_id: "01a12101-ffff-7000-8000-000000000099",
+      device_seq: 99,
+      schema_version: 99,
+    };
+    await step([ok([...applicableEvents(), unreadable])], "1.4.0");
+
+    const sameVersion = await step([], "1.4.0");
+    const newerVersion = await step([ok(applicableEvents())], "1.4.1");
+
+    expect(sameVersion).toMatchObject({ kind: "held_failure" });
+    expect(newerVersion).toEqual({ kind: "replenished" });
+    expect(count("register_predecessor")).toBe(0);
+  });
+
+  it("holds an unreadable event when the register does not know its own version", async () => {
+    const unreadable: PushedEvent = {
+      ...firstRecordedEvent(),
+      event_id: "01a12101-ffff-7000-8000-000000000099",
+      device_seq: 99,
+      schema_version: 99,
+    };
+    await step([ok([unreadable])], undefined);
+
+    expect(await step([], "9.9.9")).toMatchObject({ kind: "held_failure" });
+  });
+
   it("keeps the predecessor when the cloud refuses", async () => {
     const outcome = await step([
       {
@@ -345,6 +391,7 @@ describe("replenishing a restored register from the cloud", () => {
       readCredentials: async () => CREDENTIALS,
       post: async () => ({ kind: "unreachable" }) as const,
       ids: { next: () => "id" },
+      appVersion: "1.4.0",
     };
 
     expect(
@@ -368,6 +415,10 @@ describe("what a replenishment attempt reports", () => {
     ["a register without a cloud", { kind: "no_cloud" }],
     ["a register without a local database", { kind: "no_local_database" }],
     ["a failure to reach the cloud", { kind: "failed", failure: { kind: "unreachable" } }],
+    [
+      "a failure already held",
+      { kind: "held_failure", failure: { kind: "refused", refusal: "predecessor_not_revoked" } },
+    ],
   ])("nothing for %s", (_name, attempt) => {
     expect(replenishmentReportOf(attempt)).toBeUndefined();
   });
