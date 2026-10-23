@@ -89,7 +89,7 @@ export interface RegisterQrPointOfSaleRow {
   version: number;
 }
 
-export interface OfflineSeriesCountRow {
+interface OfflineSeriesCountRow {
   documentType: FiscalTaskDocumentType;
   taxAuthorityLastAuthorizedNumber: number | null;
   highestSyncedOfflineNumber: number | null;

@@ -190,7 +190,7 @@ export function insertOfflineNumberBlock(
     .run(id, pointOfSale, documentType, firstNumber, lastNumber);
 }
 
-export function insertOfflineSeriesCount(
+function insertOfflineSeriesCount(
   database: LocalDatabase,
   pointOfSale: number,
   documentType: "factura_c" | "credit_note_c",
