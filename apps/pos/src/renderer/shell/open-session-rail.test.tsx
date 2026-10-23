@@ -99,7 +99,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Venta diferida", "Caja"]);
+    expect(links).toEqual(["Venta", "Historial", "Venta diferida", "Caja"]);
   });
 
   it("offers no sales history to a person who may not view it", async () => {

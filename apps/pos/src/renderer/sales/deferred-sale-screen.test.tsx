@@ -230,6 +230,7 @@ describe("DeferredSaleScreen invoicing the sale it found", () => {
 
     expect(printDeferredSaleInvoice).toHaveBeenCalledExactlyOnceWith("sale-1");
     await expect.element(screen.getByText("La factura salió como original")).toBeVisible();
+    await expect.element(screen.getByText("Entregásela al cliente.")).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
