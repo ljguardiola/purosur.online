@@ -822,6 +822,17 @@ describe("an event a register pushes again", () => {
     expectBrokenChain(inbox, pushed, [1, 2]);
   });
 
+  it("breaks the chain when it arrives with a correct link and the one held is another", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    inbox.holdEvents(DEVICE, { ...fakeEvent(2), chain_hmac: "held-link" });
+    const pushed = [fakeEvent(2)];
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, [1, 2]);
+  });
+
   it("breaks the chain when the first event of an installation arrives again altered", async () => {
     const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
     const pushed = [{ ...fakeEvent(1), actor_id: "someone-else" }];
