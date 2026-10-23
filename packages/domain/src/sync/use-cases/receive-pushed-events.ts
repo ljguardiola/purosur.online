@@ -100,6 +100,7 @@ export async function receivePushedEvents(
       !(await chainHolds(tx, eventChain, deviceId, [...events, ...heldJoined], references))
     ) {
       await tx.setAsideRefusedPush(deviceId, events, now);
+      await tx.setAsideUnappliedHeldEvents(deviceId, heldJoined, now);
       await tx.revokeForBrokenChain(deviceId, now);
       return { kind: "chain_broken" };
     }

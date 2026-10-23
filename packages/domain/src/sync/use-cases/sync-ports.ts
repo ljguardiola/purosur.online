@@ -163,6 +163,12 @@ export interface InboxTransaction {
     events: readonly PushedEvent[],
     refusedAt: Date,
   ): Promise<void>;
+  // An event the cloud already applied stays held: what it derived from it cannot be undone.
+  setAsideUnappliedHeldEvents(
+    deviceId: string,
+    events: readonly PushedEvent[],
+    refusedAt: Date,
+  ): Promise<void>;
   revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void>;
 }
 

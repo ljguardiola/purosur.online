@@ -339,6 +339,46 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     );
   }
 
+  async setAsideUnappliedHeldEvents(
+    deviceId: string,
+    events: readonly PushedEvent[],
+    refusedAt: Date,
+  ): Promise<void> {
+    if (events.length === 0) {
+      return;
+    }
+    const setAside = await this.tx
+      .delete(inbox)
+      .where(
+        and(
+          eq(inbox.deviceId, deviceId),
+          inArray(
+            inbox.eventId,
+            events.map((event) => event.event_id),
+          ),
+          isNull(inbox.appliedAt),
+        ),
+      )
+      .returning({
+        eventId: inbox.eventId,
+        deviceSeq: inbox.deviceSeq,
+        aggregateType: inbox.aggregateType,
+        aggregateId: inbox.aggregateId,
+        eventType: inbox.eventType,
+        schemaVersion: inbox.schemaVersion,
+        payload: inbox.payload,
+        occurredAt: inbox.occurredAt,
+        actorId: inbox.actorId,
+        chainHmac: inbox.chainHmac,
+      });
+    if (setAside.length === 0) {
+      return;
+    }
+    await this.tx
+      .insert(refusedEvents)
+      .values(setAside.map((row) => ({ ...row, deviceId, refusedAt })));
+  }
+
   async revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void> {
     await this.tx
       .update(registerInstallations)
