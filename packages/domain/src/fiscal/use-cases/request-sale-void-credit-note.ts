@@ -1,3 +1,4 @@
+import type { PushedEvent } from "../../sync/index.js";
 import {
   type CreditNoteAnswer,
   creditNoteAnswerOf,
@@ -10,11 +11,13 @@ import {
 } from "./sale-void-credit-note-ports.js";
 
 export interface RequestSaleVoidCreditNoteInput {
+  deviceId: string;
   registerId: string;
   request: {
     creditNoteId: string;
     pointOfSale: number;
     voided: SaleVoidCreditNote;
+    saleEvent: PushedEvent;
   };
   receivedAt: Date;
 }
@@ -29,13 +32,15 @@ export type RequestSaleVoidCreditNoteOutcome =
   | { kind: "voucher_already_credited" };
 
 export async function requestSaleVoidCreditNote(
-  { lanes }: RequestSaleVoidCreditNotePorts,
-  { registerId, request, receivedAt }: RequestSaleVoidCreditNoteInput,
+  { lanes, attachedSaleEvents }: RequestSaleVoidCreditNotePorts,
+  { deviceId, registerId, request, receivedAt }: RequestSaleVoidCreditNoteInput,
 ): Promise<RequestSaleVoidCreditNoteOutcome> {
   const asked = request.voided;
   if (asked.creditNoteId !== request.creditNoteId) {
     return { kind: "sale_event_mismatch" };
   }
+
+  await attachedSaleEvents.record(deviceId, request.saleEvent);
 
   return lanes.inPointOfSaleLane<RequestSaleVoidCreditNoteOutcome>(
     request.pointOfSale,
