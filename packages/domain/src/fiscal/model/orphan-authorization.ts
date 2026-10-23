@@ -47,7 +47,8 @@ export type RequestsAtNumber =
 
 export type SaleDocument =
   | { kind: "offline"; voucher: VoucherReference }
-  | { kind: "real_time"; voucher: VoucherReference; outcome: RecordedRequestOutcome };
+  | { kind: "real_time"; voucher: VoucherReference; outcome: RecordedRequestOutcome }
+  | { kind: "confirmed"; voucher: VoucherReference };
 
 export function requestBehindVoucher(
   voucher: TaxAuthorityVoucher,
@@ -61,7 +62,7 @@ export function requestBehindVoucher(
 }
 
 function isAuthorizedDocument(document: SaleDocument): boolean {
-  if (document.kind === "offline") {
+  if (document.kind !== "real_time") {
     return true;
   }
   const told = outcomeToldToAskingRegister(document.outcome);
@@ -125,6 +126,17 @@ function sameVoucher(one: VoucherReference, other: VoucherReference): boolean {
     one.voucherType === other.voucherType &&
     one.pointOfSale === other.pointOfSale &&
     one.number === other.number
+  );
+}
+
+export function withVouchersConfirmedAuthorized(
+  documents: readonly SaleDocument[],
+  confirmedVouchers: readonly VoucherReference[],
+): SaleDocument[] {
+  return documents.map((document) =>
+    confirmedVouchers.some((confirmed) => sameVoucher(confirmed, document.voucher))
+      ? { kind: "confirmed", voucher: document.voucher }
+      : document,
   );
 }
 
@@ -261,4 +273,20 @@ export function orphanRegularization(
       };
     }
   }
+}
+
+export function creditNotesDecidedFor(
+  saleId: string,
+  regularizations: readonly (OrphanRegularization | null)[],
+): SaleCreditNote[] {
+  return regularizations.flatMap((regularization) =>
+    regularization?.kind === "credit_note" && regularization.saleId === saleId
+      ? [
+          {
+            creditedVoucher: regularization.associatedVoucher,
+            keptVoucher: regularization.keptVoucher,
+          },
+        ]
+      : [],
+  );
 }
