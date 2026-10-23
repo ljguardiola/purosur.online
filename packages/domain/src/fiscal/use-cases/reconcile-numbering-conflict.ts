@@ -8,8 +8,19 @@ import {
   type OrphanRegularization,
   orphanRegularization,
 } from "../model/orphan-authorization.js";
+import type { TaxAuthorityVoucher } from "../model/unclear-outcome-decision.js";
 import type { ReconcileNumberingConflictPorts } from "./numbering-conflict-ports.js";
-import { localStandingBehindVoucher } from "./orphan-local-standing.js";
+import {
+  localStandingOfRequest,
+  type RequestBehindAuthorization,
+  requestBehindAuthorization,
+} from "./orphan-local-standing.js";
+
+interface SweptAuthorization {
+  number: number;
+  voucher: TaxAuthorityVoucher;
+  behind: RequestBehindAuthorization;
+}
 
 export interface ReconcileNumberingConflictInput {
   pointOfSale: number;
@@ -62,7 +73,7 @@ export async function reconcileNumberingConflict(
       return { kind: "waiting", askAgainAt: askAgainAt() };
     }
 
-    const regularizations: OrphanRegularization[] = [];
+    const confirmed: { number: number; voucher: TaxAuthorityVoucher }[] = [];
     for (const number of reconciliation.numbersWithoutOwnDocument) {
       const answer = await vouchers.voucherAt({
         token,
@@ -73,10 +84,37 @@ export async function reconcileNumberingConflict(
       if (answer.kind !== "found") {
         return { kind: answer.kind === "none" ? "waiting" : "retry", askAgainAt: askAgainAt() };
       }
+      confirmed.push({ number, voucher: answer.voucher });
+    }
+
+    const swept: SweptAuthorization[] = [];
+    for (const { number, voucher } of confirmed) {
+      swept.push({
+        number,
+        voucher,
+        behind: await requestBehindAuthorization(lane, { pointOfSale, number }, voucher),
+      });
+    }
+
+    const regularizations: OrphanRegularization[] = [];
+    const confirmedVouchers = swept.flatMap(({ number, behind }) =>
+      behind.kind === "request"
+        ? [
+            {
+              saleId: behind.request.saleId,
+              voucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale, number },
+            },
+          ]
+        : [],
+    );
+    for (const { number, voucher, behind } of swept) {
       const regularization = orphanRegularization(
         decideOrphanAuthorization({
-          evidence: { kind: "confirmed", pointOfSale, number, voucher: answer.voucher },
-          local: await localStandingBehindVoucher(lane, { pointOfSale, number }, answer.voucher),
+          evidence: { kind: "confirmed", pointOfSale, number, voucher },
+          local: await localStandingOfRequest(lane, { pointOfSale, number }, behind, {
+            confirmedVouchers,
+            regularizations,
+          }),
         }),
         { creditNoteId: ids.next(), now: clock.now() },
       );
