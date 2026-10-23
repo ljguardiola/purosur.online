@@ -20,6 +20,7 @@ import { formatDisplayDate } from "../platform/display-date";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
+import { supplierPriceListOriginOf } from "./supplier-price-list-source";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
 import type { SupplierPriceListsFilters } from "./supplier-price-lists-filters";
 import type { SupplierPriceListsScreenServices } from "./supplier-price-lists-services";
@@ -37,11 +38,6 @@ type StateFilter = SupplierPriceListsFilters["state"];
 
 const NO_LISTS: SupplierPriceListSummary[] = [];
 const UNSET = "—";
-
-const SOURCE_KIND_LABEL = { PDF: "PDF" } satisfies Record<
-  SupplierPriceListSummary["sourceKind"],
-  string
->;
 
 const STATE_FILTER_OPTIONS = [
   { value: "ALL" as const, label: "Todas" },
@@ -94,12 +90,15 @@ export function SupplierPriceListsScreen({
     dataColumn({
       id: "source",
       header: "Origen",
-      render: (item: SupplierPriceListSummary) => (
-        <div className="flex flex-col">
-          <span>{item.fileName}</span>
-          <span className="text-detail text-text-subtle">{SOURCE_KIND_LABEL[item.sourceKind]}</span>
-        </div>
-      ),
+      render: (item: SupplierPriceListSummary) => {
+        const origin = supplierPriceListOriginOf(item.source);
+        return (
+          <div className="flex flex-col">
+            <span>{origin.name}</span>
+            <span className="text-detail text-text-subtle">{origin.detail}</span>
+          </div>
+        );
+      },
     }),
     dataColumn({
       id: "date",
@@ -156,7 +155,10 @@ export function SupplierPriceListsScreen({
   const table = useTableModel({
     items: lists,
     id: (list) => list.id,
-    search: { text: search, in: (list) => [list.supplier.name, list.fileName] },
+    search: {
+      text: search,
+      in: (list) => [list.supplier.name, supplierPriceListOriginOf(list.source).name],
+    },
     filter: (list) => stateFilter === "ALL" || list.state === stateFilter,
     columns,
   });
