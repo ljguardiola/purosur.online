@@ -37,7 +37,7 @@ export function ContingencyBackupTicketsNoticeCard({
           tone="success"
           icon={<CircleCheck />}
           title="Ya podés descartar los tickets de respaldo"
-          description={`Esta caja sincronizó con la nube todo lo de la contingencia: ${plural(tickets.discardable, { one: "el", other: "los" })} ${tickets.discardable} ${plural(tickets.discardable, { one: "ticket guardado", other: "tickets guardados" })} en la caja del local ya no ${plural(tickets.discardable, { one: "hace", other: "hacen" })} falta.`}
+          description={`Esta caja sincronizó con la nube todo lo de la contingencia: ${plural(tickets.discardable, { one: "el ticket guardado", other: `los ${tickets.discardable} tickets guardados` })} en la caja del local ya no ${plural(tickets.discardable, { one: "hace", other: "hacen" })} falta.`}
           whatToDo="Tiralos y cerrá este aviso."
           onClose={onDiscard}
         />
