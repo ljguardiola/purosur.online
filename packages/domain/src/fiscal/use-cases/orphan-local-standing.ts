@@ -47,24 +47,23 @@ export async function localStandingOfRequest(
     return behind;
   }
   const { request } = behind;
+  const voucher = { voucherType: FACTURA_C_VOUCHER_TYPE, ...authorization };
   return {
     kind: "local_sale",
     saleId: request.saleId,
-    otherAuthorizedVoucher: otherVoucherToKeep(
-      { voucherType: FACTURA_C_VOUCHER_TYPE, ...authorization },
-      {
-        otherDocuments: withVouchersConfirmedAuthorized(
-          await reader.otherDocumentsOfSale(request.saleId, request.fiscalDocumentId),
-          pass.confirmedVouchers.flatMap(({ saleId, voucher }) =>
-            saleId === request.saleId ? [voucher] : [],
-          ),
+    otherAuthorizedVoucher: otherVoucherToKeep(voucher, {
+      otherDocuments: withVouchersConfirmedAuthorized(
+        voucher,
+        await reader.otherDocumentsOfSale(request.saleId, request.fiscalDocumentId),
+        pass.confirmedVouchers.flatMap(({ saleId, voucher: confirmed }) =>
+          saleId === request.saleId ? [confirmed] : [],
         ),
-        creditNotes: [
-          ...(await reader.creditNotesOfSale(request.saleId)),
-          ...creditNotesDecidedFor(request.saleId, pass.regularizations),
-        ],
-      },
-    ),
+      ),
+      creditNotes: [
+        ...(await reader.creditNotesOfSale(request.saleId)),
+        ...creditNotesDecidedFor(request.saleId, pass.regularizations),
+      ],
+    }),
   };
 }
 

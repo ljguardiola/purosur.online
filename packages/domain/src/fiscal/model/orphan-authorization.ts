@@ -130,14 +130,19 @@ function sameVoucher(one: VoucherReference, other: VoucherReference): boolean {
 }
 
 export function withVouchersConfirmedAuthorized(
+  voucher: VoucherReference,
   documents: readonly SaleDocument[],
   confirmedVouchers: readonly VoucherReference[],
 ): SaleDocument[] {
-  return documents.map((document) =>
-    confirmedVouchers.some((confirmed) => sameVoucher(confirmed, document.voucher))
-      ? { kind: "confirmed", voucher: document.voucher }
-      : document,
-  );
+  const isConfirmed = (document: SaleDocument) =>
+    !sameVoucher(document.voucher, voucher) &&
+    confirmedVouchers.some((confirmed) => sameVoucher(confirmed, document.voucher));
+  return [
+    ...documents.filter((document) => !isConfirmed(document)),
+    ...documents.flatMap((document): SaleDocument[] =>
+      isConfirmed(document) ? [{ kind: "confirmed", voucher: document.voucher }] : [],
+    ),
+  ];
 }
 
 export function isKeptByCreditNote(
