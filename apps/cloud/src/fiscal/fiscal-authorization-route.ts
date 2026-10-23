@@ -20,13 +20,21 @@ import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
+import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleSaleCompletions } from "../sales/drizzle-sale-completions.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
+import { DrizzleInbox } from "../sync/drizzle-inbox.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
+import {
+  type EnqueueEventApplication,
+  enqueueEventApplicationJob,
+} from "../sync/graphile-event-application-queue.js";
+import { hmacEventChain } from "../sync/hmac-event-chain.js";
+import { InboxAttachedSaleEvents } from "../sync/inbox-attached-sale-events.js";
 import { clearAuthorizationAnswerToWire } from "./clear-authorization-answer-wire.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
@@ -42,6 +50,7 @@ export type FiscalAuthorizationRouteOptions<TQueryResult extends PgQueryResultHK
     enqueueUnclearOutcome: EnqueueUnclearOutcome;
     withdrawUnclearOutcome: WithdrawUnclearOutcome;
     enqueueNumberingDiagnosis: EnqueueNumberingDiagnosis;
+    enqueueEventApplication?: EnqueueEventApplication;
     report?: typeof reportError;
   };
 
@@ -104,6 +113,18 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
       options.enqueueNumberingDiagnosis,
     ),
     saleCompletions: new DrizzleSaleCompletions(options.db),
+    attachedSaleEvents: new InboxAttachedSaleEvents(
+      {
+        inbox: new DrizzleInbox(
+          options.db,
+          installationKeyCipher(options.keysEncryptionKey),
+          options.enqueueEventApplication ?? enqueueEventApplicationJob,
+        ),
+        eventChain: hmacEventChain,
+        clock,
+      },
+      report,
+    ),
     clock,
     tokens: new DrizzleWsaaTokenSource(
       options.db,
@@ -156,6 +177,7 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
         }
 
         const outcome = await authorizeFiscalDocument(ports, {
+          deviceId: authentication.installation.deviceId,
           registerId: authentication.installation.registerId,
           receivedAt,
           request: {

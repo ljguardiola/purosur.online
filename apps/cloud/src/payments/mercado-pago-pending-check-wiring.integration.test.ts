@@ -3,7 +3,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { paymentTransactions } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -66,7 +66,7 @@ function pendingWatchdogs() {
 }
 
 function setUp(mercadoPago: FakeMercadoPagoOrders) {
-  return setUpRecovery(
+  return setUpBackgroundJobs(
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" },
@@ -95,9 +95,9 @@ describe("the Mercado Pago pending check the server sets up on a real Postgres",
     const payment = await seedPendingPayment();
     const mercadoPago = new FakeMercadoPagoOrders();
     mercadoPago.reading = { kind: "read", result: PAID_ORDER };
-    const recovery = await setUp(mercadoPago);
+    const backgroundJobs = await setUp(mercadoPago);
     try {
-      await recovery.workerUtils.addJob(
+      await backgroundJobs.workerUtils.addJob(
         MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER,
         {},
         { jobKey: MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER },
@@ -115,7 +115,7 @@ describe("the Mercado Pago pending check the server sets up on a real Postgres",
         { timeout: 20_000, interval: 100 },
       );
 
-      await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
       await vi.waitFor(async () => expect(await pendingWatchdogs()).toHaveLength(0), {
         timeout: 20_000,
         interval: 100,
@@ -123,7 +123,7 @@ describe("the Mercado Pago pending check the server sets up on a real Postgres",
 
       expect(await scheduledChecks()).toEqual([{ runAt: NEXT_CHECK_AT }]);
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 
@@ -143,9 +143,9 @@ describe("the Mercado Pago pending check the server sets up on a real Postgres",
         { orderId: SEARCHED_ORDER_ID, result: { ...PAID_ORDER, externalReference: payment.id } },
       ],
     };
-    const recovery = await setUp(mercadoPago);
+    const backgroundJobs = await setUp(mercadoPago);
     try {
-      await recovery.workerUtils.addJob(
+      await backgroundJobs.workerUtils.addJob(
         MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER,
         {},
         { jobKey: MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER },
@@ -162,22 +162,22 @@ describe("the Mercado Pago pending check the server sets up on a real Postgres",
       );
       expect(mercadoPago.searches[0]?.externalReference).toBe(payment.id);
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 
   it("has the watchdog start the chain when none is scheduled", async () => {
     await sql`delete from graphile_worker._private_jobs`;
-    const recovery = await setUp(new FakeMercadoPagoOrders());
+    const backgroundJobs = await setUp(new FakeMercadoPagoOrders());
     try {
-      await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
 
       await vi.waitFor(async () => expect(await scheduledChecks()).toHaveLength(1), {
         timeout: 20_000,
         interval: 100,
       });
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 });

@@ -6,7 +6,7 @@ import type { AccessEmailSender } from "../credentials/recovery-email-sender.js"
 import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "../fiscal/arca-vitality-task.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { alerts } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -56,7 +56,7 @@ async function pendingCertificateExpiryChecks() {
 }
 
 async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
-  const recovery = await setUpRecovery(
+  const backgroundJobs = await setUpBackgroundJobs(
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" },
@@ -70,12 +70,12 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
     { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
   );
   try {
-    await recovery.workerUtils.addJob(
+    await backgroundJobs.workerUtils.addJob(
       ARCA_VITALITY_CHECK_TASK_IDENTIFIER,
       {},
       { jobKey: ARCA_VITALITY_CHECK_TASK_IDENTIFIER, runAt: NEXT_VITALITY_CHECK_AT },
     );
-    await enqueueArcaCertificateExpiryCheck(recovery.workerUtils);
+    await enqueueArcaCertificateExpiryCheck(backgroundJobs.workerUtils);
     await vi.waitFor(
       async () => {
         expect(await pendingCertificateExpiryChecks()).toHaveLength(0);
@@ -83,7 +83,7 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
       { timeout: 20_000, interval: 100 },
     );
   } finally {
-    await recovery.close();
+    await backgroundJobs.close();
   }
 }
 

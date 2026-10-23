@@ -12,10 +12,19 @@ import {
   alerts,
   arcaInvoicingEvidence,
   fiscalRequests,
+  inbox,
   installationRequestAttempts,
+  sales,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
+import {
+  cashSessionOpened,
+  PUSHING_CHAIN_KEY,
+  pushingDevice,
+  saleCompleted,
+} from "../sync/test-support/pushing-device.js";
 import {
   insertRegisterWithPointOfSale,
   insertSaleOfRegister,
@@ -47,12 +56,16 @@ function requestBody(
   };
 }
 
-async function enrollRegisterWithPointOfSale(pointOfSaleNumber = 7) {
+async function enrollRegisterWithPointOfSale(pointOfSaleNumber = 7, outboxChainKey?: string) {
   const registerId = await insertRegisterWithPointOfSale(route.db, {
     pointOfSaleNumber,
     name: `caja-${pointOfSaleNumber}`,
   });
-  return insertEnrolledInstallation(route.db, { now: NOW, existingRegisterId: registerId });
+  return insertEnrolledInstallation(route.db, {
+    now: NOW,
+    existingRegisterId: registerId,
+    ...(outboxChainKey !== undefined && { outboxChainKey }),
+  });
 }
 
 function authorize(payload: unknown, authorization?: string) {
@@ -616,6 +629,143 @@ describe("POST /fiscal/authorize", () => {
 
       expect(route.taxAuthority.solicitations).toHaveLength(2);
       expect(route.report).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("the sale event a request carries", () => {
+    const A_MINUTE_MS = 60 * 1000;
+
+    async function registerPushingSales() {
+      const installation = await enrollRegisterWithPointOfSale(7, PUSHING_CHAIN_KEY);
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "authorized",
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-16",
+      };
+      return { installation, device: pushingDevice(route.app, installation.deviceToken) };
+    }
+
+    function completedSale(saleId: string, sessionId: string) {
+      return saleCompleted({
+        saleId,
+        sessionId,
+        completedAt: "2026-10-06T11:20:00.000Z",
+        total: 1500,
+        payments: [{ amount: 1500 }],
+      });
+    }
+
+    function applyAt(at: Date) {
+      return applySyncedEventsTask(route.db, { now: () => at, report: vi.fn() });
+    }
+
+    it("is held in the inbox of the requesting installation once the request is authorized", async () => {
+      const { installation, device } = await registerPushingSales();
+      const saleId = crypto.randomUUID();
+      const [saleEvent] = device.chain([completedSale(saleId, crypto.randomUUID())]);
+      if (saleEvent === undefined) {
+        throw new Error("test setup: no event was chained");
+      }
+
+      const response = await authorize(
+        requestBody({ sale_id: saleId, sale_event: saleEvent }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(200);
+      const held = await route.db.select().from(inbox);
+      expect(held).toHaveLength(1);
+      expect(held[0]).toMatchObject({
+        deviceId: installation.deviceId,
+        deviceSeq: 1,
+        eventId: saleEvent.event_id,
+        appliedAt: null,
+      });
+    });
+
+    it("is held in the inbox before the tax authority is called", async () => {
+      const { installation, device } = await registerPushingSales();
+      const saleId = crypto.randomUUID();
+      const [saleEvent] = device.chain([completedSale(saleId, crypto.randomUUID())]);
+      const heldWhenCalled: number[] = [];
+      vi.spyOn(route.taxAuthority, "solicit").mockImplementation(async () => {
+        heldWhenCalled.push((await route.db.select().from(inbox)).length);
+        return { kind: "no_answer", rejections: [] };
+      });
+
+      await authorize(
+        requestBody({ sale_id: saleId, sale_event: saleEvent ?? null }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      expect(heldWhenCalled).toEqual([1]);
+    });
+
+    it("leaves one row when the same request is sent again", async () => {
+      const { installation, device } = await registerPushingSales();
+      const saleId = crypto.randomUUID();
+      const [saleEvent] = device.chain([completedSale(saleId, crypto.randomUUID())]);
+      const body = requestBody({ sale_id: saleId, sale_event: saleEvent ?? null });
+
+      await authorize(body, `Bearer ${installation.deviceToken}`);
+      const again = await authorize(body, `Bearer ${installation.deviceToken}`);
+
+      expect(again.statusCode).toBe(200);
+      expect(await route.db.select().from(inbox)).toHaveLength(1);
+    });
+
+    it("is applied without waiting for an earlier event the register has not pushed, when what it needs was applied", async () => {
+      const { installation, device } = await registerPushingSales();
+      const sessionId = crypto.randomUUID();
+      const saleId = crypto.randomUUID();
+      const [opened, unrelated, completed] = device.chain([
+        cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+        cashSessionOpened(crypto.randomUUID(), "2026-10-06T11:10:00.000Z"),
+        completedSale(saleId, sessionId),
+      ]);
+      if (opened === undefined || unrelated === undefined || completed === undefined) {
+        throw new Error("test setup: events were not chained");
+      }
+      await device.send([opened]);
+      await applyAt(NOW);
+
+      await authorize(
+        requestBody({ sale_id: saleId, sale_event: completed }),
+        `Bearer ${installation.deviceToken}`,
+      );
+      await applyAt(NOW);
+
+      expect(await route.db.select({ id: sales.id }).from(sales)).toEqual([{ id: saleId }]);
+      const held = await route.db.select().from(inbox).where(eq(inbox.deviceSeq, 3));
+      expect(held[0]?.appliedAt).toEqual(NOW);
+    });
+
+    it("stays unapplied while the cash session it needs sits in a hole, and is applied once the push fills it", async () => {
+      const { installation, device } = await registerPushingSales();
+      const sessionId = crypto.randomUUID();
+      const saleId = crypto.randomUUID();
+      const events = device.chain([
+        cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+        completedSale(saleId, sessionId),
+      ]);
+      await authorize(
+        requestBody({ sale_id: saleId, sale_event: events[1] ?? null }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      await applyAt(NOW);
+
+      expect(await route.db.select().from(sales)).toEqual([]);
+      const [waiting] = await route.db.select().from(inbox).where(eq(inbox.deviceSeq, 2));
+      expect(waiting?.appliedAt).toBeNull();
+
+      await device.send(events);
+      await applyAt(new Date(NOW.getTime() + 10 * A_MINUTE_MS));
+
+      expect(await route.db.select({ id: sales.id }).from(sales)).toEqual([{ id: saleId }]);
+      const applied = await route.db.select().from(inbox);
+      expect(applied.map((row) => row.appliedAt)).not.toContain(null);
     });
   });
 });

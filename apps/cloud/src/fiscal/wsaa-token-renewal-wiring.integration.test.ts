@@ -3,7 +3,7 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -90,12 +90,12 @@ async function queuedTasks() {
 
 async function setUp(now: () => Date = () => NOW, invoicing?: Invoicing) {
   expect(await queuedTasks()).toEqual([]);
-  const recovery = await setUpRecovery(serverEnvironment(invoicing), now, {
+  const backgroundJobs = await setUpBackgroundJobs(serverEnvironment(invoicing), now, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });
   theScheduledMinuteArrives();
-  return recovery;
+  return backgroundJobs;
 }
 
 async function pendingRenewals() {
@@ -119,9 +119,9 @@ afterEach(() => {
 
 describe("the WSAA token renewal the server sets up on a real Postgres", () => {
   it("issues and persists a token on the first run and keeps it, without calling WSAA, on the second", async () => {
-    const recovery = await setUp();
+    const backgroundJobs = await setUp();
     try {
-      await recovery.workerUtils.addJob(WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER, {});
       await vi.waitFor(
         async () => {
           expect(await pendingRenewals()).toHaveLength(0);
@@ -139,7 +139,7 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
       );
       expect(fakeWsaa.requests).toHaveLength(1);
 
-      await recovery.workerUtils.addJob(WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER, {});
       await vi.waitFor(async () => expect(await pendingRenewals()).toHaveLength(0), {
         timeout: 20_000,
         interval: 100,
@@ -148,14 +148,14 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
       expect(fakeWsaa.requests).toHaveLength(1);
       expect(await sql`select 1 from arca_wsaa_tokens`).toHaveLength(1);
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 
   it("renews the token on its own schedule when the server starts with its schedules", async () => {
     await sql`delete from arca_wsaa_tokens`;
     fakeWsaa.behave(answers("login-cms-issued.xml"));
-    const recovery = await setUpRecovery(serverEnvironment(), () => NOW, {
+    const backgroundJobs = await setUpBackgroundJobs(serverEnvironment(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
     });
     try {
@@ -169,7 +169,7 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
         { timeout: 20_000, interval: 100 },
       );
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
       await sql`delete from graphile_worker._private_jobs`;
     }
   }, 90_000);
@@ -179,8 +179,8 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
       select scope from alerts
       where kind = 'arca_wsaa_ticket_held' and (resolved_at is null) = ${open}`;
 
-    async function runRenewal(recovery: Awaited<ReturnType<typeof setUp>>) {
-      await recovery.workerUtils.addJob(WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER, {});
+    async function runRenewal(backgroundJobs: Awaited<ReturnType<typeof setUp>>) {
+      await backgroundJobs.workerUtils.addJob(WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER, {});
       await vi.waitFor(async () => expect(await pendingRenewals()).toHaveLength(0), {
         timeout: 20_000,
         interval: 100,
@@ -197,9 +197,9 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
 
     it("opens the alert on the refusal, waits the retry interval, then records the ticket and resolves the alert", async () => {
       let current = NOW;
-      const recovery = await setUp(() => current);
+      const backgroundJobs = await setUp(() => current);
       try {
-        await runRenewal(recovery);
+        await runRenewal(backgroundJobs);
 
         expect(fakeWsaa.requests).toHaveLength(1);
         expect(await heldTicketAlerts(true)).toEqual([{ scope: "production" }]);
@@ -209,14 +209,14 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
         expect(await sql`select 1 from arca_wsaa_tokens`).toHaveLength(0);
 
         current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS - 1);
-        await runRenewal(recovery);
+        await runRenewal(backgroundJobs);
 
         expect(fakeWsaa.requests).toHaveLength(1);
         expect(await heldTicketAlerts(true)).toHaveLength(1);
 
         current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
         fakeWsaa.behave(answers("login-cms-issued.xml"));
-        await runRenewal(recovery);
+        await runRenewal(backgroundJobs);
 
         expect(fakeWsaa.requests).toHaveLength(2);
         expect(await sql`select token from arca_wsaa_tokens`).toEqual([
@@ -226,17 +226,17 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
         expect(await heldTicketAlerts(false)).toEqual([{ scope: "production" }]);
         expect(await sql`select 1 from arca_wsaa_ticket_refusals`).toHaveLength(0);
       } finally {
-        await recovery.close();
+        await backgroundJobs.close();
       }
     }, 90_000);
 
     it("keeps refusing quietly, with one alert, while ARCA keeps the ticket", async () => {
       let current = NOW;
-      const recovery = await setUp(() => current);
+      const backgroundJobs = await setUp(() => current);
       try {
-        await runRenewal(recovery);
+        await runRenewal(backgroundJobs);
         current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
-        await runRenewal(recovery);
+        await runRenewal(backgroundJobs);
 
         expect(fakeWsaa.requests).toHaveLength(2);
         expect(await heldTicketAlerts(true)).toHaveLength(1);
@@ -244,21 +244,21 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
           { refused_at: current },
         ]);
       } finally {
-        await recovery.close();
+        await backgroundJobs.close();
       }
     }, 90_000);
 
     it("opens no alert when WSAA fails for any other reason", async () => {
       fakeWsaa.behave(answers("certificate-expired-fault.xml", 500));
-      const recovery = await setUp();
+      const backgroundJobs = await setUp();
       try {
-        await runRenewal(recovery);
+        await runRenewal(backgroundJobs);
 
         expect(fakeWsaa.requests).toHaveLength(1);
         expect(await heldTicketAlerts(true)).toEqual([]);
         expect(await sql`select 1 from arca_wsaa_ticket_refusals`).toHaveLength(0);
       } finally {
-        await recovery.close();
+        await backgroundJobs.close();
       }
     }, 90_000);
 
@@ -297,33 +297,33 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
 
       it("is asked to run again once the ticket is recorded when the cloud issues documents", async () => {
         let current = NOW;
-        const recovery = await setUp(() => current, invoicing());
+        const backgroundJobs = await setUp(() => current, invoicing());
         try {
-          await runRenewal(recovery);
+          await runRenewal(backgroundJobs);
           await recordJobsAdded();
           current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
           fakeWsaa.behave(answers("login-cms-issued.xml"));
-          await runRenewal(recovery);
+          await runRenewal(backgroundJobs);
 
           expect(await acquisitionsAddedByTheTicket()).toHaveLength(1);
         } finally {
-          await recovery.close();
+          await backgroundJobs.close();
         }
       }, 90_000);
 
       it("is left alone when the cloud does not issue documents", async () => {
         let current = NOW;
-        const recovery = await setUp(() => current);
+        const backgroundJobs = await setUp(() => current);
         try {
-          await runRenewal(recovery);
+          await runRenewal(backgroundJobs);
           await recordJobsAdded();
           current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
           fakeWsaa.behave(answers("login-cms-issued.xml"));
-          await runRenewal(recovery);
+          await runRenewal(backgroundJobs);
 
           expect(await acquisitionsAddedByTheTicket()).toHaveLength(0);
         } finally {
-          await recovery.close();
+          await backgroundJobs.close();
         }
       }, 90_000);
     });

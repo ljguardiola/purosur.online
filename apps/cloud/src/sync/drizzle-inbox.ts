@@ -19,7 +19,7 @@ import type {
   RegisterStops,
   RegisterVersionStanding,
 } from "@purosur/domain/sync/use-cases";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openOutboxChainBrokenAlert } from "../alerts/outbox-chain-broken-alert.js";
 import {
@@ -275,6 +275,47 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     return row?.chainHmac;
   }
 
+  async receivedEventsBetween(
+    deviceId: string,
+    aboveSeq: number,
+    upToSeq: number,
+  ): Promise<PushedEvent[]> {
+    const rows = await this.tx
+      .select({
+        eventId: inbox.eventId,
+        deviceSeq: inbox.deviceSeq,
+        aggregateType: inbox.aggregateType,
+        aggregateId: inbox.aggregateId,
+        eventType: inbox.eventType,
+        schemaVersion: inbox.schemaVersion,
+        payload: inbox.payload,
+        occurredAt: inbox.occurredAt,
+        actorId: inbox.actorId,
+        chainHmac: inbox.chainHmac,
+      })
+      .from(inbox)
+      .where(
+        and(
+          eq(inbox.deviceId, deviceId),
+          gt(inbox.deviceSeq, aboveSeq),
+          lte(inbox.deviceSeq, upToSeq),
+        ),
+      )
+      .orderBy(asc(inbox.deviceSeq));
+    return rows.map((row) => ({
+      event_id: row.eventId,
+      device_seq: row.deviceSeq,
+      aggregate_type: row.aggregateType,
+      aggregate_id: row.aggregateId,
+      event_type: row.eventType,
+      schema_version: row.schemaVersion,
+      payload: row.payload,
+      occurred_at: row.occurredAt.toISOString(),
+      actor_id: row.actorId,
+      chain_hmac: row.chainHmac,
+    }));
+  }
+
   async setAsideRefusedPush(
     deviceId: string,
     events: readonly PushedEvent[],
@@ -296,6 +337,36 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
         refusedAt,
       })),
     );
+  }
+
+  async setAsideHeldEventsAbove(
+    deviceId: string,
+    aboveSeq: number,
+    refusedAt: Date,
+  ): Promise<void> {
+    const heldAbove = and(eq(inbox.deviceId, deviceId), gt(inbox.deviceSeq, aboveSeq));
+    const setAside = await this.tx
+      .select({
+        eventId: inbox.eventId,
+        deviceSeq: inbox.deviceSeq,
+        aggregateType: inbox.aggregateType,
+        aggregateId: inbox.aggregateId,
+        eventType: inbox.eventType,
+        schemaVersion: inbox.schemaVersion,
+        payload: inbox.payload,
+        occurredAt: inbox.occurredAt,
+        actorId: inbox.actorId,
+        chainHmac: inbox.chainHmac,
+      })
+      .from(inbox)
+      .where(heldAbove);
+    if (setAside.length === 0) {
+      return;
+    }
+    await this.tx
+      .insert(refusedEvents)
+      .values(setAside.map((row) => ({ ...row, deviceId, refusedAt })));
+    await this.tx.delete(inbox).where(and(heldAbove, isNull(inbox.appliedAt)));
   }
 
   async revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void> {

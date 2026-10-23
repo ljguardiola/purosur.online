@@ -55,6 +55,7 @@ describe("replenishing a register from its first installation's first event", ()
       { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
       undefined,
       100,
+      new Map(),
     );
 
     expect(events.map(({ deviceId, event }) => [deviceId, event.device_seq])).toEqual([

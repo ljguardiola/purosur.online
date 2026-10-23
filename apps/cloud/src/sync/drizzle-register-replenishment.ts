@@ -1,12 +1,13 @@
 import type {
   EventPosition,
+  InstallationReceivedSeqs,
   ReplenishedEvent,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,
 } from "@purosur/domain/sync/use-cases";
-import { and, asc, eq, gt, or } from "drizzle-orm";
+import { and, asc, eq, exists, gt, notExists, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { inbox, registerInstallations } from "../platform/db/schema.js";
+import { inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 
 export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
   implements RestoredRegisterReplenishment
@@ -17,11 +18,38 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
+  async receivedSeqsOfRefusedInstallations(
+    registerId: string,
+  ): Promise<InstallationReceivedSeqs[]> {
+    const rows = await this.db
+      .select({ deviceId: inbox.deviceId, deviceSeq: inbox.deviceSeq })
+      .from(inbox)
+      .innerJoin(registerInstallations, eq(registerInstallations.id, inbox.deviceId))
+      .where(
+        and(
+          eq(registerInstallations.registerId, registerId),
+          exists(
+            this.db
+              .select({ deviceId: refusedEvents.deviceId })
+              .from(refusedEvents)
+              .where(eq(refusedEvents.deviceId, inbox.deviceId)),
+          ),
+        ),
+      )
+      .orderBy(asc(inbox.deviceId), asc(inbox.deviceSeq));
+    const seqsByInstallation = new Map<string, number[]>();
+    for (const { deviceId, deviceSeq } of rows) {
+      seqsByInstallation.set(deviceId, [...(seqsByInstallation.get(deviceId) ?? []), deviceSeq]);
+    }
+    return [...seqsByInstallation].map(([deviceId, seqs]) => ({ deviceId, seqs }));
+  }
+
   async ownEventsAbove(
     registerId: string,
     { predecessorDeviceId, lastAcknowledgedSeq }: ReplenishmentPosition,
     after: EventPosition | undefined,
     limit: number,
+    setAsideAbove: ReadonlyMap<string, number>,
   ): Promise<ReplenishedEvent[]> {
     const predecessorEnrolledAt = await this.enrolledAtOf(registerId, predecessorDeviceId);
     const afterEnrolledAt = after && (await this.enrolledAtOf(registerId, after.deviceId));
@@ -61,6 +89,7 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
                 ),
               )
             : undefined,
+          this.notSetAside(setAsideAbove),
         ),
       )
       .orderBy(
@@ -84,6 +113,29 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
         chain_hmac: row.chainHmac,
       },
     }));
+  }
+
+  private notSetAside(setAsideAbove: ReadonlyMap<string, number>) {
+    if (setAsideAbove.size === 0) {
+      return undefined;
+    }
+    return notExists(
+      this.db
+        .select({ eventId: refusedEvents.eventId })
+        .from(refusedEvents)
+        .where(
+          and(
+            eq(refusedEvents.deviceId, inbox.deviceId),
+            eq(refusedEvents.eventId, inbox.eventId),
+            eq(refusedEvents.deviceSeq, inbox.deviceSeq),
+            or(
+              ...[...setAsideAbove].map(([deviceId, aboveSeq]) =>
+                and(eq(refusedEvents.deviceId, deviceId), gt(refusedEvents.deviceSeq, aboveSeq)),
+              ),
+            ),
+          ),
+        ),
+    );
   }
 
   private async enrolledAtOf(registerId: string, deviceId: string): Promise<Date> {

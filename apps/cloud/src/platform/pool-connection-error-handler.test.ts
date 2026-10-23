@@ -22,7 +22,7 @@ describe("reportPoolErrors", () => {
   it("keeps both an error and a connect listener on the pool, the two graphile-worker's own assertPool checks for", () => {
     const pool = new FakePool();
 
-    reportPoolErrors(pool, "recovery job queue");
+    reportPoolErrors(pool, "background job queue");
 
     expect(pool.listenerCount("error")).toBeGreaterThan(0);
     expect(pool.listenerCount("connect")).toBeGreaterThan(0);
@@ -32,13 +32,13 @@ describe("reportPoolErrors", () => {
     const pool = new FakePool();
     const captureException = vi.fn();
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    reportPoolErrors(pool, "recovery job queue", { captureException });
+    reportPoolErrors(pool, "background job queue", { captureException });
     const error = new Error("connection terminated unexpectedly");
 
     expect(() => pool.emit("error", error)).not.toThrow();
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "recovery job queue: idle database client failed",
+      "background job queue: idle database client failed",
       error,
     );
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
@@ -48,7 +48,7 @@ describe("reportPoolErrors", () => {
     const pool = new FakePool();
     const captureException = vi.fn();
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    reportPoolErrors(pool, "recovery worker", { captureException });
+    reportPoolErrors(pool, "background job runner", { captureException });
 
     const client = new FakeClient();
     checkOut(pool, client);
@@ -57,7 +57,7 @@ describe("reportPoolErrors", () => {
     expect(client.listenerCount("error")).toBeGreaterThan(0);
     expect(() => client.emit("error", error)).not.toThrow();
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "recovery worker: active database client failed",
+      "background job runner: active database client failed",
       error,
     );
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
@@ -67,7 +67,7 @@ describe("reportPoolErrors", () => {
     const pool = new FakePool();
     const captureException = vi.fn();
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    reportPoolErrors(pool, "recovery worker", { captureException });
+    reportPoolErrors(pool, "background job runner", { captureException });
 
     const client = new FakeClient();
     checkOut(pool, client);
@@ -78,7 +78,7 @@ describe("reportPoolErrors", () => {
     client.emit("error", terminated);
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "recovery worker: active database client failed",
+      "background job runner: active database client failed",
       fatal,
     );
     expect(captureException).toHaveBeenCalledExactlyOnceWith(fatal);
@@ -88,7 +88,7 @@ describe("reportPoolErrors", () => {
     const pool = new FakePool();
     const captureException = vi.fn();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    reportPoolErrors(pool, "recovery worker", { captureException });
+    reportPoolErrors(pool, "background job runner", { captureException });
 
     const firstClient = new FakeClient();
     const secondClient = new FakeClient();
@@ -108,7 +108,7 @@ describe("reportPoolErrors", () => {
     const pool = new FakePool();
     const captureException = vi.fn();
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    reportPoolErrors(pool, "recovery worker", { captureException });
+    reportPoolErrors(pool, "background job runner", { captureException });
 
     const client = new FakeClient();
     checkOut(pool, client);
@@ -120,7 +120,7 @@ describe("reportPoolErrors", () => {
     pool.emit("error", error);
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "recovery worker: idle database client failed",
+      "background job runner: idle database client failed",
       error,
     );
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
@@ -130,7 +130,7 @@ describe("reportPoolErrors", () => {
     const pool = new FakePool();
     const captureException = vi.fn();
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    reportPoolErrors(pool, "recovery worker", { captureException });
+    reportPoolErrors(pool, "background job runner", { captureException });
 
     const client = new FakeClient();
     checkOut(pool, client);
@@ -141,14 +141,14 @@ describe("reportPoolErrors", () => {
     client.emit("error", error);
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "recovery worker: active database client failed",
+      "background job runner: active database client failed",
       error,
     );
   });
 
   it("keeps attaching a handler to every later connection, unlike graphile-worker's own releaser which removes its handlers when the worker stops", () => {
     const pool = new FakePool();
-    reportPoolErrors(pool, "recovery job queue");
+    reportPoolErrors(pool, "background job queue");
 
     const firstClient = new FakeClient();
     const secondClient = new FakeClient();

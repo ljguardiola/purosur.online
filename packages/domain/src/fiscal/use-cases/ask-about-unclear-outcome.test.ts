@@ -3,6 +3,7 @@ import type { PushedEvent } from "../../sync/index.js";
 import { askAboutUnclearOutcome } from "./ask-about-unclear-outcome.js";
 import { authorizeFiscalDocument } from "./authorize-fiscal-document.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
+import { FakeAttachedSaleEvents } from "./test-support/fake-attached-sale-events.js";
 import {
   FakePointOfSaleLanes,
   FakeTaxAuthorityInvoicing,
@@ -12,6 +13,7 @@ import { FakeUnclearOutcomeStore } from "./test-support/fake-unclear-outcome.js"
 
 const NOW = new Date("2026-10-01T12:00:00.000Z");
 const REGISTER_ID = "register-1";
+const DEVICE_ID = "device-1";
 const FISCAL_DOCUMENT_ID = "fiscal-document-1";
 
 const SALE_EVENT: PushedEvent = {
@@ -48,8 +50,14 @@ const TOKEN = {
 function setup() {
   const documents = new FakePointOfSaleLanes([[12, REGISTER_ID]]);
   const store = new FakeUnclearOutcomeStore(documents);
-  const ports = { lanes: store, saleCompletions: documents, clock: new ManualClock(NOW) };
-  return { documents, store, ports };
+  const attachedSaleEvents = new FakeAttachedSaleEvents(documents);
+  const ports = {
+    lanes: store,
+    saleCompletions: documents,
+    attachedSaleEvents,
+    clock: new ManualClock(NOW),
+  };
+  return { documents, store, ports, attachedSaleEvents };
 }
 
 describe("askAboutUnclearOutcome", () => {
@@ -57,10 +65,15 @@ describe("askAboutUnclearOutcome", () => {
     const { documents, store, ports } = setup();
 
     expect(
-      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      }),
     ).toEqual({ kind: "pending" });
     expect(documents.lanesEntered).toEqual([12]);
     expect(documents.operations).toEqual([
+      "recordAttachedSaleEvent",
       "enterLane",
       "registerOwnsPointOfSale",
       "recordedRequest",
@@ -83,7 +96,11 @@ describe("askAboutUnclearOutcome", () => {
 
   it("never lets a later authorization request for the recorded document reach the tax authority", async () => {
     const { documents, ports } = setup();
-    await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST });
+    await askAboutUnclearOutcome(ports, {
+      deviceId: DEVICE_ID,
+      registerId: REGISTER_ID,
+      request: REQUEST,
+    });
     const taxAuthority = new FakeTaxAuthorityInvoicing(documents, {
       kind: "authorized",
       authorizationCode: "75123456789012",
@@ -94,11 +111,13 @@ describe("askAboutUnclearOutcome", () => {
       {
         lanes: documents,
         saleCompletions: documents,
+        attachedSaleEvents: ports.attachedSaleEvents,
         clock: ports.clock,
         tokens: new FakeWsaaTokenSource(documents, TOKEN),
         taxAuthority,
       },
       {
+        deviceId: DEVICE_ID,
         registerId: REGISTER_ID,
         request: { ...REQUEST, timeoutMs: 5_000, roundTripMedianMs: 200 },
         receivedAt: NOW,
@@ -114,6 +133,7 @@ describe("askAboutUnclearOutcome", () => {
 
     expect(
       await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
         registerId: "register-2",
         request: REQUEST,
       }),
@@ -126,6 +146,7 @@ describe("askAboutUnclearOutcome", () => {
 
     expect(
       await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
         registerId: REGISTER_ID,
         request: { ...REQUEST, saleId: "sale-2" },
       }),
@@ -141,7 +162,11 @@ describe("askAboutUnclearOutcome", () => {
       documents.seedHeldSaleCompletion(REGISTER_ID, "sale-1");
 
       expect(
-        await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: WITHOUT_EVENT }),
+        await askAboutUnclearOutcome(ports, {
+          deviceId: DEVICE_ID,
+          registerId: REGISTER_ID,
+          request: WITHOUT_EVENT,
+        }),
       ).toEqual({ kind: "pending" });
       expect(documents.operations).toEqual([
         "enterLane",
@@ -158,7 +183,11 @@ describe("askAboutUnclearOutcome", () => {
       const { documents, ports } = setup();
 
       expect(
-        await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: WITHOUT_EVENT }),
+        await askAboutUnclearOutcome(ports, {
+          deviceId: DEVICE_ID,
+          registerId: REGISTER_ID,
+          request: WITHOUT_EVENT,
+        }),
       ).toEqual({ kind: "sale_completion_not_held" });
       expect(documents.operations).toEqual([
         "enterLane",
@@ -175,7 +204,11 @@ describe("askAboutUnclearOutcome", () => {
       documents.seedHeldSaleCompletion("register-2", "sale-1");
 
       expect(
-        await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: WITHOUT_EVENT }),
+        await askAboutUnclearOutcome(ports, {
+          deviceId: DEVICE_ID,
+          registerId: REGISTER_ID,
+          request: WITHOUT_EVENT,
+        }),
       ).toEqual({ kind: "sale_completion_not_held" });
     });
 
@@ -187,7 +220,11 @@ describe("askAboutUnclearOutcome", () => {
         NOW,
       );
 
-      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: WITHOUT_EVENT });
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: WITHOUT_EVENT,
+      });
 
       expect(documents.operations).not.toContain("holdsSaleCompletion");
     });
@@ -196,7 +233,11 @@ describe("askAboutUnclearOutcome", () => {
       const { documents, ports } = setup();
 
       expect(
-        await askAboutUnclearOutcome(ports, { registerId: "register-2", request: WITHOUT_EVENT }),
+        await askAboutUnclearOutcome(ports, {
+          deviceId: DEVICE_ID,
+          registerId: "register-2",
+          request: WITHOUT_EVENT,
+        }),
       ).toEqual({ kind: "point_of_sale_not_owned" });
       expect(documents.operations).not.toContain("holdsSaleCompletion");
     });
@@ -204,7 +245,11 @@ describe("askAboutUnclearOutcome", () => {
 
   it("never asks whether the cloud holds the completion when the question carries the event", async () => {
     const { documents, ports } = setup();
-    await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST });
+    await askAboutUnclearOutcome(ports, {
+      deviceId: DEVICE_ID,
+      registerId: REGISTER_ID,
+      request: REQUEST,
+    });
 
     expect(documents.operations).not.toContain("holdsSaleCompletion");
   });
@@ -224,7 +269,11 @@ describe("askAboutUnclearOutcome", () => {
     );
 
     expect(
-      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      }),
     ).toEqual({ kind: "decided", decision: { kind: "released" } });
     expect(documents.operations).not.toContain("recordAbandonedRequest@2026-10-01T12:00:00.000Z");
   });
@@ -242,7 +291,11 @@ describe("askAboutUnclearOutcome", () => {
     );
 
     expect(
-      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      }),
     ).toEqual({
       kind: "answered",
       answer: {
@@ -264,7 +317,11 @@ describe("askAboutUnclearOutcome", () => {
     );
 
     expect(
-      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      }),
     ).toEqual({
       kind: "answered",
       answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
@@ -278,7 +335,11 @@ describe("askAboutUnclearOutcome", () => {
     store.seed({ ...REQUEST, registerId: REGISTER_ID, notAfter: NOW, receivedAt: NOW }, null);
 
     expect(
-      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      }),
     ).toEqual({ kind: "pending" });
   });
 
@@ -287,7 +348,11 @@ describe("askAboutUnclearOutcome", () => {
     store.seed({ ...REQUEST, registerId: "register-2", notAfter: NOW, receivedAt: NOW }, null);
 
     expect(
-      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      }),
     ).toEqual({ kind: "fiscal_document_not_owned" });
     expect(documents.requests.get(FISCAL_DOCUMENT_ID)?.registerId).toBe("register-2");
   });
@@ -298,7 +363,93 @@ describe("askAboutUnclearOutcome", () => {
     store.recordingFailure = failure;
 
     await expect(
-      askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      }),
     ).rejects.toBe(failure);
+  });
+
+  describe("the sale event a question carries", () => {
+    it("is recorded for the asking device before the lane is taken and the document is recorded", async () => {
+      const { documents, ports, attachedSaleEvents } = setup();
+
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      });
+
+      expect(attachedSaleEvents.recorded).toEqual([{ deviceId: DEVICE_ID, event: SALE_EVENT }]);
+      expect(documents.operations.slice(0, 3)).toEqual([
+        "recordAttachedSaleEvent",
+        "enterLane",
+        "registerOwnsPointOfSale",
+      ]);
+      expect(documents.operations.indexOf("recordAttachedSaleEvent")).toBeLessThan(
+        documents.operations.findIndex((operation) =>
+          operation.startsWith("recordAbandonedRequest"),
+        ),
+      );
+    });
+
+    it("is not recorded when it does not complete the document's sale", async () => {
+      const { ports, attachedSaleEvents } = setup();
+
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: { ...REQUEST, saleId: "sale-2" },
+      });
+
+      expect(attachedSaleEvents.recorded).toEqual([]);
+    });
+
+    it("is not recorded when the question carries none", async () => {
+      const { documents, ports, attachedSaleEvents } = setup();
+      documents.seedHeldSaleCompletion(REGISTER_ID, "sale-1");
+
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: { ...REQUEST, saleEvent: null },
+      });
+
+      expect(attachedSaleEvents.recorded).toEqual([]);
+    });
+
+    it("is recorded again, harmlessly, when the document's request was already recorded", async () => {
+      const { ports, attachedSaleEvents } = setup();
+      await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      });
+
+      const outcome = await askAboutUnclearOutcome(ports, {
+        deviceId: DEVICE_ID,
+        registerId: REGISTER_ID,
+        request: REQUEST,
+      });
+
+      expect(outcome).toEqual({ kind: "pending" });
+      expect(attachedSaleEvents.recorded).toHaveLength(2);
+    });
+
+    it("fails the question, recording nothing, when the event cannot be recorded", async () => {
+      const { documents, ports, attachedSaleEvents } = setup();
+      const failure = new Error("the inbox broke");
+      attachedSaleEvents.failure = failure;
+
+      await expect(
+        askAboutUnclearOutcome(ports, {
+          deviceId: DEVICE_ID,
+          registerId: REGISTER_ID,
+          request: REQUEST,
+        }),
+      ).rejects.toBe(failure);
+      expect(documents.requests.size).toBe(0);
+    });
   });
 });
