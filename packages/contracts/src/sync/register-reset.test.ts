@@ -339,11 +339,7 @@ describe("the register reset response", () => {
   describe("the unclear deferrals", () => {
     const DOCUMENT = "3c8e1f5a-9b27-4d60-8a41-7e2d6b0c9f58";
     const unsettled = { fiscal_document_id: DOCUMENT, state: "UNSETTLED" };
-    const rejected = {
-      fiscal_document_id: DOCUMENT,
-      state: "REJECTED",
-      answered_at: "2026-10-08T15:00:00.000Z",
-    };
+    const rejected = { fiscal_document_id: DOCUMENT, state: "REJECTED" };
     const authorized = {
       fiscal_document_id: DOCUMENT,
       state: "AUTHORIZED",
@@ -386,8 +382,6 @@ describe("the register reset response", () => {
       ["an answer of a state nobody gives", { ...unsettled, state: "RELEASED" }],
       ["an answer without its document", { ...unsettled, fiscal_document_id: undefined }],
       ["a document that is not an id", { ...unsettled, fiscal_document_id: "document" }],
-      ["a rejection without the moment it was given", { ...rejected, answered_at: undefined }],
-      ["a rejection given at a moment that is not a date", { ...rejected, answered_at: "soon" }],
       ["an authorization without its code", { ...authorized, authorization_code: "" }],
       [
         "an authorization without its due day",

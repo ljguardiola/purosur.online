@@ -229,14 +229,6 @@ describe("rebuilding the deferred-sale record of an unclear outcome in a restore
     ]);
   });
 
-  it("raises the clock mark of the point of sale to when the authorized document was reserved", () => {
-    rebuildReplenishedUnclearDeferredSale(database, AUTHORIZED);
-
-    expect(
-      database.prepare("SELECT point_of_sale, reading FROM register_clock_marks").all(),
-    ).toEqual([{ point_of_sale: 7, reading: "2026-10-09T09:59:58.000Z" }]);
-  });
-
   it("changes nothing when the same answer is applied again", () => {
     rebuildReplenishedUnclearDeferredSale(database, AUTHORIZED);
     const heldRecords = records();

@@ -23,6 +23,15 @@ describe("deferredSaleUnclearDocumentEventSchema", () => {
     });
   });
 
+  it("lowercases the id of the waiting document", () => {
+    const parsed = deferredSaleUnclearDocumentEventSchema.parse({
+      ...recordedEvent,
+      payload: { unclear_document: { fiscal_document_id: DOCUMENT_ID.toUpperCase() } },
+    });
+
+    expect(parsed.payload.unclear_document.fiscal_document_id).toBe(DOCUMENT_ID);
+  });
+
   it.each([
     ["an event of another type", { event_type: "deferred_sale_satisfied" }],
     ["a record of the first version, which holds no document", { schema_version: 1 }],
@@ -32,7 +41,10 @@ describe("deferredSaleUnclearDocumentEventSchema", () => {
       "a document without its id",
       { payload: { unclear_document: { fiscal_document_id: undefined } } },
     ],
-    ["a document with an empty id", { payload: { unclear_document: { fiscal_document_id: "" } } }],
+    [
+      "a document whose id is not a record id",
+      { payload: { unclear_document: { fiscal_document_id: "document-1" } } },
+    ],
   ])("refuses %s", (_case, overrides) => {
     expect(
       deferredSaleUnclearDocumentEventSchema.safeParse({ ...recordedEvent, ...overrides }).success,

@@ -69,7 +69,7 @@ describe("serveRestoredRegisterUnclearDeferralAnswers", () => {
     ]);
 
     await expect(serve(cloud, ["document-1"])).resolves.toEqual([
-      { fiscalDocumentId: "document-1", answer: { kind: "rejected", answeredAt: ANSWERED_AT } },
+      { fiscalDocumentId: "document-1", answer: { kind: "rejected" } },
     ]);
   });
 

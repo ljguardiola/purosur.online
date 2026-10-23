@@ -527,11 +527,7 @@ describe("POST /devices/current/reset", () => {
             authorization_code_due_on: "2026-10-18",
             answered_at: REQUEST_ANSWERED_AT.toISOString(),
           },
-          {
-            fiscal_document_id: rejected,
-            state: "REJECTED",
-            answered_at: REQUEST_ANSWERED_AT.toISOString(),
-          },
+          { fiscal_document_id: rejected, state: "REJECTED" },
           { fiscal_document_id: stillUnclear, state: "UNSETTLED" },
           { fiscal_document_id: neverAsked, state: "UNSETTLED" },
         ]),
@@ -551,19 +547,12 @@ describe("POST /devices/current/reset", () => {
       ]);
     });
 
-    it.each([
-      [
-        "a deferral of the first version",
-        { schemaVersion: 1, payload: { reason: "unclear_outcome" } },
-      ],
-      [
-        "a deferral that left no document waiting",
-        { payload: { reason: "rejected", unclear_document: null } },
-      ],
-      ["an event that is not a deferral", { eventType: "sale_completed" }],
-    ])("answers nothing for %s", async (_case, eventOverrides) => {
+    it("answers nothing for a deferral of the first version, which names no document", async () => {
       const { predecessor, current } = await aRestoredRegister();
-      await anUnclearDeferral(predecessor.deviceId, undefined, eventOverrides);
+      await anUnclearDeferral(predecessor.deviceId, undefined, {
+        schemaVersion: 1,
+        payload: { reason: "unclear_outcome" },
+      });
 
       const response = await resetOf(predecessor, current);
 

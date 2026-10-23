@@ -42,7 +42,7 @@ function accepts(eventType: string, schemaVersion: number, payload: unknown): bo
 }
 
 const UNCLEAR_DOCUMENT = {
-  fiscalDocumentId: "document-1",
+  fiscalDocumentId: "0199b7a0-0000-7000-8000-000000000004",
   pointOfSale: 7,
   number: 42,
   issuedOn: "2026-10-06",
@@ -527,6 +527,7 @@ describe("synced event payloads", () => {
 
     it.each([
       ["a document id that is empty", { fiscal_document_id: "" }],
+      ["a document id that is not a record id", { fiscal_document_id: "document-1" }],
       ["a point of sale of zero", { point_of_sale: 0 }],
       ["a number of zero", { number: 0 }],
       ["an issue date that is not a calendar day", { issued_on: "2026-13-01" }],
@@ -538,6 +539,18 @@ describe("synced event payloads", () => {
           unclear_document: { ...unclearDocumentOf(recorded), ...change },
         }),
       ).toBe(false);
+    });
+
+    it("lowercases the id of the waiting document", () => {
+      const parsed = syncedEventPayloadSchema("deferred_sale_recorded@2").parse({
+        ...recorded,
+        unclear_document: {
+          ...unclearDocumentOf(recorded),
+          fiscal_document_id: UNCLEAR_DOCUMENT.fiscalDocumentId.toUpperCase(),
+        },
+      });
+
+      expect(parsed.unclear_document?.fiscal_document_id).toBe(UNCLEAR_DOCUMENT.fiscalDocumentId);
     });
 
     it("refuses a waiting document without any one of its fields", () => {

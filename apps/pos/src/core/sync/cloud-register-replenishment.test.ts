@@ -415,11 +415,7 @@ describe("the cloud's replenishment of a restored register, as the register read
 
     it("reads the rejection and the unsettled answer, in the order the cloud sent them", async () => {
       const answer = await pageWith(
-        {
-          fiscal_document_id: DOCUMENT,
-          state: "REJECTED",
-          answered_at: "2026-10-08T15:00:00.000Z",
-        },
+        { fiscal_document_id: DOCUMENT, state: "REJECTED" },
         { fiscal_document_id: OTHER_DOCUMENT, state: "UNSETTLED" },
       );
 
@@ -429,7 +425,7 @@ describe("the cloud's replenishment of a restored register, as the register read
           unclearDeferralAnswers: [
             {
               fiscalDocumentId: DOCUMENT,
-              answer: { kind: "rejected", answeredAt: new Date("2026-10-08T15:00:00.000Z") },
+              answer: { kind: "rejected" },
             },
             { fiscalDocumentId: OTHER_DOCUMENT, answer: { kind: "unsettled" } },
           ],

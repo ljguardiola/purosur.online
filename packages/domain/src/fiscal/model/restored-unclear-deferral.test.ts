@@ -62,8 +62,17 @@ describe("the answer a restored register is told about an unclear-outcome deferr
     });
   });
 
-  it("is rejected, with the time the cloud got the answer, when the tax authority rejected", () => {
-    expect(answerOf(REJECTED)).toEqual({ kind: "rejected", answeredAt: ANSWERED_AT });
+  it("is rejected when the tax authority rejected", () => {
+    expect(answerOf(REJECTED)).toEqual({ kind: "rejected" });
+  });
+
+  it("is rejected even when the time the cloud got the rejection is not recorded", () => {
+    expect(
+      restoredUnclearDeferralAnswer(
+        { answer: REJECTED, decision: null },
+        { answeredAt: null, decidedAt: null },
+      ),
+    ).toEqual({ kind: "rejected" });
   });
 
   it("is authorized, with the time of the decision, when the cloud adopted the voucher the tax authority held", () => {
@@ -92,10 +101,7 @@ describe("the answer a restored register is told about an unclear-outcome deferr
   });
 
   it("goes by the clear answer of the tax authority over a decision recorded beside it", () => {
-    expect(answerOf(REJECTED, { kind: "released" })).toEqual({
-      kind: "rejected",
-      answeredAt: ANSWERED_AT,
-    });
+    expect(answerOf(REJECTED, { kind: "released" })).toEqual({ kind: "rejected" });
   });
 
   it("is unsettled when the instant it would report is not recorded", () => {
@@ -168,7 +174,7 @@ describe("the deferral a restored register rebuilds from an unclear outcome", ()
   });
 
   it("keeps the record's identifier and short code but gives the rejection as its reason when rejected", () => {
-    expect(rebuiltFor({ kind: "rejected", answeredAt: ANSWERED_AT })).toEqual({
+    expect(rebuiltFor({ kind: "rejected" })).toEqual({
       deferredSale: { ...DEFERRED_SALE, reason: "rejected" },
       authorizedDocument: null,
     });

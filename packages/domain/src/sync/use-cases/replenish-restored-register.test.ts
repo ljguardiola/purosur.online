@@ -790,7 +790,7 @@ describe("replenishRestoredRegister", () => {
     });
     const REJECTED = (saleId: string): RestoredUnclearDeferral => ({
       fiscalDocumentId: `document-of-${saleId}`,
-      answer: { kind: "rejected", answeredAt: new Date("2026-10-08T15:00:00.000Z") },
+      answer: { kind: "rejected" },
     });
     const AUTHORIZED = (saleId: string): RestoredUnclearDeferral => ({
       fiscalDocumentId: `document-of-${saleId}`,
