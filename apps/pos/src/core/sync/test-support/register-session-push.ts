@@ -225,11 +225,17 @@ function holdOfflineAuthorization(database: ReturnType<typeof openLocalDatabase>
     .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "A/M/C" }]));
   database
     .prepare(
-      `INSERT INTO register_offline_point_of_sale (
-         register_id, point_of_sale_number, tax_authority_last_authorized_number, version
-       ) VALUES (?, ?, 0, 1)`,
+      `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+       VALUES (?, ?, 1)`,
     )
     .run(REGISTER, OFFLINE_POINT_OF_SALE);
+  database
+    .prepare(
+      `INSERT INTO offline_series_counts (
+         point_of_sale, document_type, tax_authority_last_authorized_number
+       ) VALUES (?, 'factura_c', 0)`,
+    )
+    .run(OFFLINE_POINT_OF_SALE);
   database
     .prepare(
       `INSERT INTO offline_number_blocks (

@@ -6314,12 +6314,24 @@ describe("the offline void credit notes migration", () => {
       expect(
         after
           .prepare(
-            "SELECT tax_authority_last_authorized_number, highest_synced_offline_number FROM register_offline_point_of_sale",
+            "SELECT point_of_sale, document_type, tax_authority_last_authorized_number, highest_synced_offline_number FROM offline_series_counts",
           )
           .all(),
       ).toEqual([
-        { tax_authority_last_authorized_number: 1000, highest_synced_offline_number: 1004 },
+        {
+          point_of_sale: 31,
+          document_type: "factura_c",
+          tax_authority_last_authorized_number: 1000,
+          highest_synced_offline_number: 1004,
+        },
       ]);
+      expect(
+        after
+          .prepare(
+            "SELECT register_id, point_of_sale_number, version FROM register_offline_point_of_sale",
+          )
+          .all(),
+      ).toEqual([{ register_id: "r1", point_of_sale_number: 31, version: 2 }]);
       expect(after.prepare("SELECT id, document_type FROM offline_number_blocks").all()).toEqual([
         { id: "b1", document_type: "factura_c" },
       ]);
@@ -6417,7 +6429,7 @@ describe("the offline void credit notes migration", () => {
     });
   });
 
-  it("hold the tax authority's count and the highest synced number of the credit note series", () => {
+  it("hold the tax authority's count and the highest synced number of each series, once per point of sale", () => {
     withDatabase((after) => {
       const insert = after.prepare(
         `INSERT INTO offline_series_counts (
@@ -6429,8 +6441,108 @@ describe("the offline void credit notes migration", () => {
       expect(() => insert.run({ point_of_sale: 31, document_type: "credit_note_c" })).toThrow(
         /UNIQUE|PRIMARY KEY/,
       );
-      expect(() => insert.run({ point_of_sale: 31, document_type: "factura_c" })).toThrow(/CHECK/);
+      expect(() => insert.run({ point_of_sale: 31, document_type: "factura_c" })).toThrow(
+        /UNIQUE|PRIMARY KEY/,
+      );
+      expect(() => insert.run({ point_of_sale: 32, document_type: "factura_c" })).not.toThrow();
+      expect(() => insert.run({ point_of_sale: 31, document_type: "nota_a" })).toThrow(/CHECK/);
     });
+  });
+
+  it("no longer keep the counts in the register's offline point of sale", () => {
+    withDatabase((after) => {
+      const columns = after
+        .prepare<[], { name: string }>(
+          "SELECT name FROM pragma_table_info('register_offline_point_of_sale')",
+        )
+        .all()
+        .map((column) => column.name);
+
+      expect(columns).not.toContain("tax_authority_last_authorized_number");
+      expect(columns).not.toContain("highest_synced_offline_number");
+    });
+  });
+
+  it("declare the offline point of sale for redelivery from its first change, so the credit note counts arrive, leaving the pull cursor as it is", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1;
+         UPDATE pulled_table_redeliveries SET cursor = 7
+         WHERE table_name = 'register_offline_point_of_sale';`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all(),
+      ).toContainEqual({ table_name: "register_offline_point_of_sale", cursor: 0 });
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["a count and no synced number", "1000, NULL", { count: 1000, highest: null }],
+    ["a synced number and no count", "NULL, 1004", { count: null, highest: 1004 }],
+  ])("keep the factura counts of an offline point of sale holding %s", (_case, values, kept) => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO register_offline_point_of_sale (
+           register_id, point_of_sale_number, tax_authority_last_authorized_number,
+           highest_synced_offline_number, version
+         ) VALUES ('r1', 31, ${values}, 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT tax_authority_last_authorized_number AS count, highest_synced_offline_number AS highest FROM offline_series_counts WHERE point_of_sale = 31 AND document_type = 'factura_c'",
+          )
+          .all(),
+      ).toEqual([kept]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("keep no count for an offline point of sale that held none", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+         VALUES ('r1', 31, 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM offline_series_counts").all()).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 
   describe("a credit note issued offline", () => {

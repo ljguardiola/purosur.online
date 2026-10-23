@@ -166,11 +166,11 @@ export function insertOfflinePointOfSale(
 ): void {
   database
     .prepare(
-      `INSERT INTO register_offline_point_of_sale (
-         register_id, point_of_sale_number, tax_authority_last_authorized_number, version
-       ) VALUES ('register-1', ?, ?, 1)`,
+      `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+       VALUES ('register-1', ?, 1)`,
     )
-    .run(pointOfSale, taxAuthorityLastAuthorizedNumber);
+    .run(pointOfSale);
+  insertOfflineSeriesCount(database, pointOfSale, "factura_c", taxAuthorityLastAuthorizedNumber);
 }
 
 export function insertOfflineNumberBlock(
@@ -190,9 +190,10 @@ export function insertOfflineNumberBlock(
     .run(id, pointOfSale, documentType, firstNumber, lastNumber);
 }
 
-export function insertOfflineCreditNoteSeriesCount(
+export function insertOfflineSeriesCount(
   database: LocalDatabase,
   pointOfSale: number,
+  documentType: "factura_c" | "credit_note_c",
   taxAuthorityLastAuthorizedNumber: number | null,
   highestSyncedOfflineNumber: number | null = null,
 ): void {
@@ -200,9 +201,24 @@ export function insertOfflineCreditNoteSeriesCount(
     .prepare(
       `INSERT INTO offline_series_counts (
          point_of_sale, document_type, tax_authority_last_authorized_number, highest_synced_offline_number
-       ) VALUES (?, 'credit_note_c', ?, ?)`,
+       ) VALUES (?, ?, ?, ?)`,
     )
-    .run(pointOfSale, taxAuthorityLastAuthorizedNumber, highestSyncedOfflineNumber);
+    .run(pointOfSale, documentType, taxAuthorityLastAuthorizedNumber, highestSyncedOfflineNumber);
+}
+
+export function insertOfflineCreditNoteSeriesCount(
+  database: LocalDatabase,
+  pointOfSale: number,
+  taxAuthorityLastAuthorizedNumber: number | null,
+  highestSyncedOfflineNumber: number | null = null,
+): void {
+  insertOfflineSeriesCount(
+    database,
+    pointOfSale,
+    "credit_note_c",
+    taxAuthorityLastAuthorizedNumber,
+    highestSyncedOfflineNumber,
+  );
 }
 
 export const OFFLINE_CODE = "36251478963214";

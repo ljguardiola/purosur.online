@@ -404,7 +404,9 @@ describe("readOfflineSeries", () => {
 
   it("reads its blocks in the order of their numbers, its last used number and its clock mark", () => {
     insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 100);
-    database.exec("UPDATE register_offline_point_of_sale SET highest_synced_offline_number = 102");
+    database.exec(
+      "UPDATE offline_series_counts SET highest_synced_offline_number = 102 WHERE document_type = 'factura_c'",
+    );
     insertOfflineNumberBlock(database, "block-2", 201, 300, OFFLINE_POINT_OF_SALE);
     insertOfflineNumberBlock(database, "block-1", 101, 200, OFFLINE_POINT_OF_SALE);
     insertOfflineNumberBlock(database, "block-other", 1, 50, 99);

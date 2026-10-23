@@ -37,8 +37,13 @@ function offlinePointOfSaleChange(
     entity_id: REGISTER_ID,
     row: {
       point_of_sale_number: OFFLINE_POINT_OF_SALE,
-      tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
-      highest_synced_offline_number: highestSyncedOfflineNumber,
+      series_counts: [
+        {
+          document_type: "factura_c",
+          tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+          highest_synced_offline_number: highestSyncedOfflineNumber,
+        },
+      ],
       version,
     },
   };
@@ -179,7 +184,7 @@ describe("the highest synced offline number a register holds", () => {
   function heldFloor() {
     return database
       .prepare<[], { highest_synced_offline_number: number | null }>(
-        "SELECT highest_synced_offline_number FROM register_offline_point_of_sale",
+        "SELECT highest_synced_offline_number FROM offline_series_counts WHERE document_type = 'factura_c'",
       )
       .all()
       .map((row) => row.highest_synced_offline_number);

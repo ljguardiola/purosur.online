@@ -135,14 +135,14 @@ describe("replenishing an offline fiscal document into a restored register", () 
   it("touches neither the numbering blocks nor the tax authority's count", () => {
     const before = [
       database.prepare("SELECT * FROM offline_number_blocks").all(),
-      database.prepare("SELECT * FROM register_offline_point_of_sale").all(),
+      database.prepare("SELECT * FROM offline_series_counts").all(),
     ];
 
     applyReplenishedOfflineFiscalDocument(database, issued());
 
     expect([
       database.prepare("SELECT * FROM offline_number_blocks").all(),
-      database.prepare("SELECT * FROM register_offline_point_of_sale").all(),
+      database.prepare("SELECT * FROM offline_series_counts").all(),
     ]).toEqual(before);
   });
 
