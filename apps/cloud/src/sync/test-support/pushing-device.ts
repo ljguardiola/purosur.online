@@ -19,32 +19,40 @@ export interface PushedEventDraft {
 export function pushingDevice(app: FastifyInstance, deviceToken: string) {
   let lastSeq = 0;
   let link: string | null = null;
+  function chain(drafts: PushedEventDraft[]) {
+    return drafts.map((draft) => {
+      lastSeq += 1;
+      const unlinked = {
+        event_id: randomUUID(),
+        device_seq: lastSeq,
+        actor_id: CASHIER,
+        ...draft,
+      };
+      link = hmacEventChain.link(PUSHING_CHAIN_KEY, link, canonicalOutboxEvent(unlinked));
+      return { ...unlinked, chain_hmac: link };
+    });
+  }
+  async function send(events: ReturnType<typeof chain>): Promise<{ ack_seq: number }> {
+    const response = await app.inject({
+      method: "POST",
+      url: "/events",
+      headers: { authorization: `Bearer ${deviceToken}` },
+      payload: {
+        app_version: "1.4.0",
+        telemetry: { wal_size_bytes: 4096, disk_free_bytes: 50_000_000, disk_free_ratio: 0.42 },
+        events,
+      },
+    });
+    if (response.statusCode !== 200 || response.json().status !== "ok") {
+      throw new Error(`test setup: the push was not received: ${response.body}`);
+    }
+    return { ack_seq: response.json().ack_seq };
+  }
   return {
+    chain,
+    send,
     async push(drafts: PushedEventDraft[]) {
-      const events = drafts.map((draft) => {
-        lastSeq += 1;
-        const unlinked = {
-          event_id: randomUUID(),
-          device_seq: lastSeq,
-          actor_id: CASHIER,
-          ...draft,
-        };
-        link = hmacEventChain.link(PUSHING_CHAIN_KEY, link, canonicalOutboxEvent(unlinked));
-        return { ...unlinked, chain_hmac: link };
-      });
-      const response = await app.inject({
-        method: "POST",
-        url: "/events",
-        headers: { authorization: `Bearer ${deviceToken}` },
-        payload: {
-          app_version: "1.4.0",
-          telemetry: { wal_size_bytes: 4096, disk_free_bytes: 50_000_000, disk_free_ratio: 0.42 },
-          events,
-        },
-      });
-      if (response.statusCode !== 200 || response.json().status !== "ok") {
-        throw new Error(`test setup: the push was not received: ${response.body}`);
-      }
+      await send(chain(drafts));
     },
   };
 }

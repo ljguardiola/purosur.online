@@ -208,6 +208,42 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
     expect(positions).toEqual(new Map());
   });
 
+  it("reads whole, in seq order, the events it holds of one installation above a seq and up to another", async () => {
+    const first = await insertEnrolledInstallation();
+    const second = await insertEnrolledInstallation();
+    const held = linked(
+      event(1),
+      event(2),
+      {
+        ...event(3),
+        occurred_at: "2026-10-01T09:00:00.123Z",
+        payload: { z: 1, a: { y: [3, 2], x: null }, note: "ñ" },
+      },
+      event(4),
+      event(5),
+    );
+    await db.insert(inbox).values([...held].reverse().map((one) => storedRow(first.deviceId, one)));
+    await db.insert(inbox).values(storedRow(second.deviceId, event(3)));
+
+    const between = await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
+      tx.receivedEventsBetween(first.deviceId, 2, 4),
+    );
+
+    expect(between).toEqual(held.slice(2, 4));
+  });
+
+  it("checks the link of an event held above a hole as the database returns it, when a push fills the hole", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const [first = event(1), second = event(2), third = event(3)] = linked(event(1), event(2), {
+      ...event(3),
+      occurred_at: "2026-10-01T09:00:00.123Z",
+      payload: { z: 1, a: { y: [3, 2], x: null }, note: "ñ" },
+    });
+    await db.insert(inbox).values(storedRow(deviceId, third));
+
+    expect(await push(deviceId, [first, second])).toEqual({ kind: "received", ackSeq: 3 });
+  });
+
   it("skips an event pushed again whole as it was stored, however the database returns its date and payload", async () => {
     const { deviceId } = await insertEnrolledInstallation();
     const [pushed = event(1)] = linked({
@@ -311,6 +347,78 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       .from(registerInstallations)
       .where(eq(registerInstallations.id, deviceId));
     expect(installation?.revocationReason).toBe("outbox_chain_broken");
+  });
+
+  it("moves every unapplied event held above the acknowledged ones into the refused events when it refuses a push, and copies there an applied one it keeps", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const [first, second, third, fourth, , sixth] = linked(
+      event(1),
+      event(2),
+      event(3),
+      event(4),
+      event(5),
+      event(6),
+    );
+    if (!first || !second || !third || !fourth || !sixth) {
+      throw new Error("test setup: the chain holds six events");
+    }
+    const alteredFourth = { ...fourth, payload: { quantity: 99 } };
+    await db
+      .insert(inbox)
+      .values([
+        storedRow(deviceId, first),
+        { ...storedRow(deviceId, third), appliedAt: NOW },
+        storedRow(deviceId, alteredFourth),
+        storedRow(deviceId, sixth),
+      ]);
+
+    expect(await push(deviceId, [second])).toEqual({ kind: "chain_broken" });
+
+    expect(await storedSeqs(deviceId)).toEqual([1, 3]);
+    const kept = await db.select().from(refusedEvents).where(eq(refusedEvents.deviceId, deviceId));
+    expect(
+      kept.map(({ id: _id, ...row }) => row).sort((one, other) => one.deviceSeq - other.deviceSeq),
+    ).toEqual(
+      [second, third, alteredFourth, sixth].map((refused) => ({
+        deviceId,
+        eventId: refused.event_id,
+        deviceSeq: refused.device_seq,
+        aggregateType: refused.aggregate_type,
+        aggregateId: refused.aggregate_id,
+        eventType: refused.event_type,
+        schemaVersion: refused.schema_version,
+        payload: refused.payload,
+        occurredAt: new Date(refused.occurred_at),
+        actorId: refused.actor_id,
+        chainHmac: refused.chain_hmac,
+        refusedAt: NOW,
+      })),
+    );
+  });
+
+  it("keeps the acknowledged events a refused push carried again, recording the whole push among the refused events", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const [first, second, third] = linked(event(1), event(2), event(3));
+    if (!first || !second || !third) {
+      throw new Error("test setup: the chain holds three events");
+    }
+    await push(deviceId, [first, second]);
+
+    expect(await push(deviceId, [first, second, { ...third, chain_hmac: "forged-link" }])).toEqual({
+      kind: "chain_broken",
+    });
+
+    expect(await storedSeqs(deviceId)).toEqual([1, 2]);
+    const kept = await db
+      .select({ eventId: refusedEvents.eventId, deviceSeq: refusedEvents.deviceSeq })
+      .from(refusedEvents)
+      .where(eq(refusedEvents.deviceId, deviceId));
+    expect(kept.sort((one, other) => one.deviceSeq - other.deviceSeq)).toEqual(
+      [first, second, third].map((refused) => ({
+        eventId: refused.event_id,
+        deviceSeq: refused.device_seq,
+      })),
+    );
   });
 
   it("answers revoked to a push queued behind the one whose chain broke, receiving nothing of it", async () => {

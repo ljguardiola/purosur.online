@@ -28,6 +28,7 @@ export interface FiscalDocumentAuthorizationRequest extends FiscalDocumentData {
 }
 
 export interface AuthorizeFiscalDocumentInput {
+  deviceId: string;
   registerId: string;
   request: FiscalDocumentAuthorizationRequest;
   receivedAt: Date;
@@ -85,11 +86,21 @@ function taxAuthorityGaveAnswer(
 }
 
 export async function authorizeFiscalDocument(
-  { lanes, saleCompletions, clock, tokens, taxAuthority }: AuthorizeFiscalDocumentPorts,
-  { registerId, request, receivedAt }: AuthorizeFiscalDocumentInput,
+  {
+    lanes,
+    saleCompletions,
+    attachedSaleEvents,
+    clock,
+    tokens,
+    taxAuthority,
+  }: AuthorizeFiscalDocumentPorts,
+  { deviceId, registerId, request, receivedAt }: AuthorizeFiscalDocumentInput,
 ): Promise<AuthorizeFiscalDocumentOutcome> {
   if (request.saleEvent !== null && !isCompletionEventOfSale(request.saleEvent, request.saleId)) {
     return { kind: "sale_event_mismatch" };
+  }
+  if (request.saleEvent !== null) {
+    await attachedSaleEvents.record(deviceId, request.saleEvent);
   }
 
   return lanes.inPointOfSaleLane<AuthorizeFiscalDocumentOutcome>(

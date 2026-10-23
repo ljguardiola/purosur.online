@@ -13,17 +13,26 @@ import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { reportError } from "../platform/error-reporting.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
+import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleSaleCompletions } from "../sales/drizzle-sale-completions.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
+import { DrizzleInbox } from "../sync/drizzle-inbox.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
+import {
+  type EnqueueEventApplication,
+  enqueueEventApplicationJob,
+} from "../sync/graphile-event-application-queue.js";
+import { hmacEventChain } from "../sync/hmac-event-chain.js";
+import { InboxAttachedSaleEvents } from "../sync/inbox-attached-sale-events.js";
 import { clearAuthorizationAnswerToWire } from "./clear-authorization-answer-wire.js";
 import { DrizzleUnclearOutcomeLanes } from "./drizzle-unclear-outcome-lanes.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
@@ -34,6 +43,8 @@ export type UnclearOutcomeRouteOptions<TQueryResult extends PgQueryResultHKT> =
     connections: DedicatedConnections<TQueryResult>;
     enqueueUnclearOutcome: EnqueueUnclearOutcome;
     enqueueCreditNote: EnqueueCreditNote;
+    enqueueEventApplication?: EnqueueEventApplication;
+    report?: typeof reportError;
   };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
@@ -104,6 +115,18 @@ export function registerUnclearOutcomeRoute<TQueryResult extends PgQueryResultHK
       options.enqueueCreditNote,
     ),
     saleCompletions: new DrizzleSaleCompletions(options.db),
+    attachedSaleEvents: new InboxAttachedSaleEvents(
+      {
+        inbox: new DrizzleInbox(
+          options.db,
+          installationKeyCipher(options.keysEncryptionKey),
+          options.enqueueEventApplication ?? enqueueEventApplicationJob,
+        ),
+        eventChain: hmacEventChain,
+        clock,
+      },
+      options.report ?? reportError,
+    ),
     clock,
   };
   const admission = { admission: new DrizzleRequestAdmission(options.db), clock };
@@ -143,6 +166,7 @@ export function registerUnclearOutcomeRoute<TQueryResult extends PgQueryResultHK
         }
 
         const outcome = await askAboutUnclearOutcome(ports, {
+          deviceId: authentication.installation.deviceId,
           registerId: authentication.installation.registerId,
           request: {
             fiscalDocumentId: body.fiscal_document_id,

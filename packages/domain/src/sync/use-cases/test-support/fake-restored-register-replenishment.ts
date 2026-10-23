@@ -1,6 +1,7 @@
 import type { PushedEvent } from "../../model/push-batch.js";
 import type {
   EventPosition,
+  InstallationReceivedSeqs,
   ReplenishedEvent,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,
@@ -44,26 +45,48 @@ export interface OwnEventsRead {
   position: ReplenishmentPosition;
   after: EventPosition | undefined;
   limit: number;
+  setAsideAbove: ReadonlyMap<string, number>;
 }
 
 export class FakeRestoredRegisterReplenishment implements RestoredRegisterReplenishment {
   events: ReplenishedEvent[] = [];
+  refusedCopies: EventPosition[] = [];
   eventReads: OwnEventsRead[] = [];
+
+  async receivedSeqsOfRefusedInstallations(): Promise<InstallationReceivedSeqs[]> {
+    const refusedInstallations = [...new Set(this.refusedCopies.map(({ deviceId }) => deviceId))];
+    return refusedInstallations.map((deviceId) => ({
+      deviceId,
+      seqs: this.events
+        .filter((received) => received.deviceId === deviceId)
+        .map(({ event }) => event.device_seq),
+    }));
+  }
 
   async ownEventsAbove(
     registerId: string,
     position: ReplenishmentPosition,
     after: EventPosition | undefined,
     limit: number,
+    setAsideAbove: ReadonlyMap<string, number>,
   ): Promise<ReplenishedEvent[]> {
-    this.eventReads.push({ registerId, position, after, limit });
+    this.eventReads.push({ registerId, position, after, limit, setAsideAbove });
+    const served = this.events.filter(
+      ({ deviceId, event }) =>
+        !this.refusedCopies.some(
+          (copy) =>
+            copy.deviceId === deviceId &&
+            copy.deviceSeq === event.device_seq &&
+            event.device_seq > (setAsideAbove.get(deviceId) ?? Number.POSITIVE_INFINITY),
+        ),
+    );
     const afterIndex =
       after === undefined
         ? -1
-        : this.events.findIndex(
+        : served.findIndex(
             ({ deviceId, event }) =>
               deviceId === after.deviceId && event.device_seq === after.deviceSeq,
           );
-    return this.events.slice(afterIndex + 1, afterIndex + 1 + limit);
+    return served.slice(afterIndex + 1, afterIndex + 1 + limit);
   }
 }

@@ -1,3 +1,4 @@
+import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import {
   REPLENISHMENT_PAGE_MAX_EVENTS,
   REPLENISHMENT_PAGE_READ_LIMIT,
@@ -29,11 +30,16 @@ export async function serveRestoredRegisterReplenishment(
     after,
   }: ServeRestoredRegisterReplenishmentInput,
 ): Promise<ServedReplenishmentPage> {
+  const refusedInstallations = await replenishment.receivedSeqsOfRefusedInstallations(registerId);
+  const setAsideAbove = new Map(
+    refusedInstallations.map(({ deviceId, seqs }) => [deviceId, highestContiguousSeq(seqs)]),
+  );
   const read = await replenishment.ownEventsAbove(
     registerId,
     { predecessorDeviceId, lastAcknowledgedSeq },
     after,
     REPLENISHMENT_PAGE_READ_LIMIT,
+    setAsideAbove,
   );
   const events = read.slice(0, REPLENISHMENT_PAGE_MAX_EVENTS);
   const last = events.at(-1);

@@ -5,11 +5,29 @@ import {
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { fiscalRequests, installationRequestAttempts } from "../platform/db/schema.js";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from "vitest";
+import { fiscalRequests, inbox, installationRequestAttempts } from "../platform/db/schema.js";
+import type { reportError } from "../platform/error-reporting.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
+import { registerEventsRoute } from "../sync/events-route.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
+import {
+  cashSessionOpened,
+  PUSHING_CHAIN_KEY,
+  pushingDevice,
+  saleCompleted,
+} from "../sync/test-support/pushing-device.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
@@ -26,6 +44,7 @@ const NOW = new Date("2026-10-06T15:00:00.000Z");
 let testDatabase: TestDatabase;
 let app: FastifyInstance;
 let enqueuedUnclearOutcomes: string[];
+let report: Mock<typeof reportError>;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -38,6 +57,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   enqueuedUnclearOutcomes = [];
+  report = vi.fn<typeof reportError>();
   app = Fastify();
   registerRouteAccess(app);
   registerUnclearOutcomeRoute(app, {
@@ -50,6 +70,15 @@ beforeEach(async () => {
       enqueuedUnclearOutcomes.push(fiscalDocumentId);
     },
     enqueueCreditNote: async () => {},
+    enqueueEventApplication: async () => {},
+    report,
+  });
+  registerEventsRoute(app, {
+    db: testDatabase.db,
+    rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    now: () => NOW,
+    enqueueEventApplication: async () => {},
   });
 });
 
@@ -337,5 +366,134 @@ describe("POST /fiscal/unclear-outcomes", () => {
         expect(await requests()).toEqual([expect.objectContaining({ decision: null })]);
       },
     );
+  });
+
+  describe("the sale event a question carries", () => {
+    async function installationPushingSales() {
+      const registerId = await insertRegisterWithPointOfSale(testDatabase.db, {
+        pointOfSaleNumber: 7,
+        name: "caja-7",
+      });
+      const installation = await insertEnrolledInstallation(testDatabase.db, {
+        now: NOW,
+        existingRegisterId: registerId,
+        outboxChainKey: PUSHING_CHAIN_KEY,
+      });
+      return { installation, device: pushingDevice(app, installation.deviceToken) };
+    }
+
+    function chainedSale(device: ReturnType<typeof pushingDevice>) {
+      const sessionId = crypto.randomUUID();
+      const saleId = crypto.randomUUID();
+      const events = device.chain([
+        cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+        saleCompleted({
+          saleId,
+          sessionId,
+          completedAt: "2026-10-06T11:20:00.000Z",
+          total: 1500,
+          payments: [{ amount: 1500 }],
+        }),
+      ]);
+      return { saleId, events };
+    }
+
+    it("is held in the inbox of the asking installation", async () => {
+      const { installation, device } = await installationPushingSales();
+      const { saleId, events } = chainedSale(device);
+
+      const response = await ask(
+        questionBody({ sale_id: saleId, sale_event: events[1] ?? null }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(200);
+      const held = await testDatabase.db.select().from(inbox);
+      expect(held).toHaveLength(1);
+      expect(held[0]).toMatchObject({
+        deviceId: installation.deviceId,
+        deviceSeq: 2,
+        eventId: events[1]?.event_id,
+        appliedAt: null,
+      });
+    });
+
+    it("leaves one row when the same question is asked again", async () => {
+      const { installation, device } = await installationPushingSales();
+      const { saleId, events } = chainedSale(device);
+      const body = questionBody({ sale_id: saleId, sale_event: events[1] ?? null });
+
+      await ask(body, `Bearer ${installation.deviceToken}`);
+      const again = await ask(body, `Bearer ${installation.deviceToken}`);
+
+      expect(again.statusCode).toBe(200);
+      expect(await testDatabase.db.select().from(inbox)).toHaveLength(1);
+    });
+
+    it("reports an event the inbox refuses for a broken chain, with how it was refused", async () => {
+      const { installation, device } = await installationPushingSales();
+      const { saleId, events } = chainedSale(device);
+      const renumberedFirst = { ...(events[1] ?? saleCompletedEvent(saleId)), device_seq: 1 };
+
+      await ask(
+        questionBody({ sale_id: saleId, sale_event: renumberedFirst }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      expect(report).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
+        context: {
+          deviceId: installation.deviceId,
+          eventId: renumberedFirst.event_id,
+          outcome: "chain_broken",
+        },
+      });
+    });
+
+    it("reports an event the inbox refuses as held at another position, with how it was refused", async () => {
+      const { installation, device } = await installationPushingSales();
+      const { saleId, events } = chainedSale(device);
+      const saleEvent = events[1] ?? saleCompletedEvent(saleId);
+      await ask(
+        questionBody({ sale_id: saleId, sale_event: saleEvent }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      await ask(
+        questionBody({ sale_id: saleId, sale_event: { ...saleEvent, device_seq: 3 } }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      expect(report).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
+        context: {
+          deviceId: installation.deviceId,
+          eventId: saleEvent.event_id,
+          outcome: "misplaced",
+        },
+      });
+    });
+
+    it("reports nothing of an event the inbox holds, the first time or again", async () => {
+      const { installation, device } = await installationPushingSales();
+      const { saleId, events } = chainedSale(device);
+      const body = questionBody({ sale_id: saleId, sale_event: events[1] ?? null });
+
+      await ask(body, `Bearer ${installation.deviceToken}`);
+      await ask(body, `Bearer ${installation.deviceToken}`);
+
+      expect(report).not.toHaveBeenCalled();
+    });
+
+    it("holds nothing when the question carries none", async () => {
+      const { installation } = await installationPushingSales();
+      const saleId = crypto.randomUUID();
+      await insertSaleOfRegister(testDatabase.db, installation.registerId, saleId);
+
+      await ask(
+        questionBody({ sale_id: saleId, sale_event: null }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      expect(await testDatabase.db.select().from(inbox)).toEqual([]);
+    });
   });
 });

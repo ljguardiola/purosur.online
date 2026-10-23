@@ -3,6 +3,7 @@ import type { PushedEvent } from "../../sync/index.js";
 import { authorizeFiscalDocument } from "./authorize-fiscal-document.js";
 import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
+import { FakeAttachedSaleEvents } from "./test-support/fake-attached-sale-events.js";
 import {
   FakePointOfSaleLanes,
   FakeTaxAuthorityInvoicing,
@@ -12,6 +13,7 @@ import {
 const RECEIVED_AT = new Date("2026-10-01T12:00:00.000Z");
 const ANSWER_DELAY_MS = 900;
 const REGISTER_ID = "register-1";
+const DEVICE_ID = "device-1";
 const FISCAL_DOCUMENT_ID = "fiscal-document-1";
 const NOT_AFTER = new Date("2026-10-01T12:00:04.400Z");
 
@@ -69,6 +71,7 @@ interface Scenario {
   startAt?: Date;
   recordingFailure?: Error;
   answerRecordingFailure?: Error;
+  attachedRecordingFailure?: Error;
   seeded?: {
     answer: Parameters<FakePointOfSaleLanes["seedRequest"]>[1];
     registerId?: string;
@@ -84,6 +87,7 @@ function authorize({
   startAt = RECEIVED_AT,
   recordingFailure,
   answerRecordingFailure,
+  attachedRecordingFailure,
   seeded,
 }: Scenario = {}) {
   const clock = new ManualClock(startAt);
@@ -115,11 +119,18 @@ function authorize({
   const taxAuthority = new FakeTaxAuthorityInvoicing(lanes, solicitation, () =>
     clock.advanceBy(ANSWER_DELAY_MS),
   );
+  const attachedSaleEvents = new FakeAttachedSaleEvents(lanes);
+  attachedSaleEvents.failure = attachedRecordingFailure;
   const outcome = authorizeFiscalDocument(
-    { lanes, saleCompletions: lanes, clock, tokens, taxAuthority },
-    { registerId: REGISTER_ID, request: { ...REQUEST, ...request }, receivedAt: RECEIVED_AT },
+    { lanes, saleCompletions: lanes, attachedSaleEvents, clock, tokens, taxAuthority },
+    {
+      deviceId: DEVICE_ID,
+      registerId: REGISTER_ID,
+      request: { ...REQUEST, ...request },
+      receivedAt: RECEIVED_AT,
+    },
   );
-  return { lanes, taxAuthority, outcome };
+  return { lanes, taxAuthority, attachedSaleEvents, outcome };
 }
 
 describe("authorizeFiscalDocument", () => {
@@ -127,7 +138,8 @@ describe("authorizeFiscalDocument", () => {
     const { lanes, taxAuthority, outcome } = authorize();
     await outcome;
 
-    expect(lanes.operations.slice(0, 7)).toEqual([
+    expect(lanes.operations.slice(0, 8)).toEqual([
+      "recordAttachedSaleEvent",
       "enterLane",
       "registerOwnsPointOfSale",
       "recordedRequest",
@@ -427,7 +439,12 @@ describe("authorizeFiscalDocument", () => {
     const { lanes, taxAuthority, outcome } = authorize({ owners: [[12, "register-2"]] });
 
     await expect(outcome).resolves.toEqual({ kind: "point_of_sale_not_owned" });
-    expect(lanes.operations).toEqual(["enterLane", "registerOwnsPointOfSale", "leaveLane"]);
+    expect(lanes.operations).toEqual([
+      "recordAttachedSaleEvent",
+      "enterLane",
+      "registerOwnsPointOfSale",
+      "leaveLane",
+    ]);
     expect(taxAuthority.solicitations).toEqual([]);
   });
 
@@ -438,12 +455,13 @@ describe("authorizeFiscalDocument", () => {
   });
 
   it("refuses an event that is not the completion of the sale, before taking the lane", async () => {
-    const { lanes, taxAuthority, outcome } = authorize({
+    const { lanes, taxAuthority, attachedSaleEvents, outcome } = authorize({
       request: { saleEvent: { ...SALE_EVENT, aggregate_id: "sale-2" } },
     });
 
     await expect(outcome).resolves.toEqual({ kind: "sale_event_mismatch" });
     expect(lanes.operations).toEqual([]);
+    expect(attachedSaleEvents.recorded).toEqual([]);
     expect(taxAuthority.solicitations).toEqual([]);
   });
 
@@ -531,6 +549,7 @@ describe("authorizeFiscalDocument", () => {
 
     await expect(outcome).resolves.toEqual({ kind: "already_answered", answer: AUTHORIZED_ANSWER });
     expect(lanes.operations).toEqual([
+      "recordAttachedSaleEvent",
       "enterLane",
       "registerOwnsPointOfSale",
       "recordedRequest",
@@ -555,6 +574,7 @@ describe("authorizeFiscalDocument", () => {
 
     await expect(outcome).resolves.toEqual({ kind: "fiscal_document_not_owned" });
     expect(lanes.operations).toEqual([
+      "recordAttachedSaleEvent",
       "enterLane",
       "registerOwnsPointOfSale",
       "recordedRequest",
@@ -632,5 +652,48 @@ describe("authorizeFiscalDocument", () => {
     });
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual({ kind: "not_attempted" });
     expect(taxAuthority.solicitations).toEqual([]);
+  });
+
+  describe("the sale event a request carries", () => {
+    it("is recorded for the requesting device before the request is recorded and before the tax authority is solicited", async () => {
+      const { lanes, attachedSaleEvents, outcome } = authorize();
+      await outcome;
+
+      expect(attachedSaleEvents.recorded).toEqual([{ deviceId: DEVICE_ID, event: SALE_EVENT }]);
+      const recorded = lanes.operations.indexOf("recordAttachedSaleEvent");
+      expect(recorded).toBe(0);
+      expect(recorded).toBeLessThan(lanes.operations.indexOf("recordRequest"));
+      expect(recorded).toBeLessThan(lanes.operations.indexOf("solicit"));
+    });
+
+    it("is not recorded when the request carries none", async () => {
+      const { attachedSaleEvents, outcome } = authorize({
+        request: { saleEvent: null },
+        saleCompletionHeldFor: REGISTER_ID,
+      });
+      await outcome;
+
+      expect(attachedSaleEvents.recorded).toEqual([]);
+    });
+
+    it("is recorded again, harmlessly, when the document's request was already answered", async () => {
+      const { attachedSaleEvents, outcome } = authorize({ seeded: { answer: AUTHORIZED_ANSWER } });
+
+      await expect(outcome).resolves.toEqual({
+        kind: "already_answered",
+        answer: AUTHORIZED_ANSWER,
+      });
+      expect(attachedSaleEvents.recorded).toEqual([{ deviceId: DEVICE_ID, event: SALE_EVENT }]);
+    });
+
+    it("keeps the request unrecorded and the tax authority uncalled when it cannot be recorded", async () => {
+      const failure = new Error("the inbox broke");
+      const { lanes, taxAuthority, outcome } = authorize({ attachedRecordingFailure: failure });
+
+      await expect(outcome).rejects.toBe(failure);
+
+      expect(lanes.requests.size).toBe(0);
+      expect(taxAuthority.solicitations).toEqual([]);
+    });
   });
 });

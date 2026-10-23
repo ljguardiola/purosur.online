@@ -83,6 +83,7 @@ function authorizationPorts(taxAuthority: TaxAuthorityInvoicing): AuthorizeFisca
       async () => {},
     ),
     saleCompletions: new DrizzleSaleCompletions(db),
+    attachedSaleEvents: { record: async () => {} },
     clock: { now: () => RECEIVED_AT },
     tokens: { validToken: async () => TOKEN },
     taxAuthority,
@@ -97,6 +98,7 @@ function authorize(
 ) {
   const record = authorizationRequestRecord(registerId, { pointOfSale, number });
   return authorizeFiscalDocument(ports, {
+    deviceId: crypto.randomUUID(),
     registerId,
     receivedAt: RECEIVED_AT,
     request: {
