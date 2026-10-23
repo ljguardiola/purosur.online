@@ -54,6 +54,7 @@ const loaded: BranchSettings = {
   expiringLotAlertDays: 30,
   unreviewedPriceAlertDays: 30,
   goodConditionReturnDays: 15,
+  supplierPriceListDailyExtractionCap: 10,
   version: 1,
 };
 
@@ -76,6 +77,7 @@ function wire(settings: BranchSettings) {
     expiring_lot_alert_days: settings.expiringLotAlertDays,
     unreviewed_price_alert_days: settings.unreviewedPriceAlertDays,
     good_condition_return_days: settings.goodConditionReturnDays,
+    supplier_price_list_daily_extraction_cap: settings.supplierPriceListDailyExtractionCap,
     version: settings.version,
   };
 }
@@ -1228,6 +1230,82 @@ test("after a save, shows the server's normalized values even when the read retu
   await expect
     .element(screen.getByRole("textbox", { name: "Aviso de vencimiento" }))
     .toHaveValue("30");
+});
+
+test("shows the loaded cap of supplier price lists read per day, with its explanation", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({
+    kind: "ok",
+    value: { ...loaded, supplierPriceListDailyExtractionCap: 7 },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Listas de proveedores" }))
+    .toBeVisible();
+  const field = screen.getByRole("textbox", { name: "Listas leídas por día" });
+  await expect.element(field).toHaveValue("7");
+  await expect
+    .element(field)
+    .toHaveAccessibleDescription(
+      "Cuántas listas de proveedores puede mandar a leer con IA esta sucursal por día. Al llegar al tope, la lectura queda para el día siguiente.",
+    );
+});
+
+test("sends an edited cap of supplier price lists read per day", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Listas leídas por día" }))
+    .toHaveValue("10");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Listas leídas por día" }), "3");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({ ...loaded, supplierPriceListDailyExtractionCap: 3 }),
+  );
+});
+
+test("shows the field's error and sends nothing for a cap of 0", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Listas leídas por día" }))
+    .toHaveValue("10");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Listas leídas por día" }), "0");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Listas leídas por día" }))
+    .toHaveAttribute("aria-invalid", "true");
+  await expect
+    .element(screen.getByText("Ingresá un número entero de listas, de 1 a 100."))
+    .toBeVisible();
+  expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
+test("shows the cloud's refusal of the cap on its field", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({
+    kind: "validation_failed",
+    field: "supplier_price_list_daily_extraction_cap",
+  });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Listas leídas por día" }))
+    .toHaveValue("10");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("Revisá la cantidad de listas por día.")).toBeVisible();
 });
 
 test("has no accessibility violations once loaded", async () => {

@@ -303,6 +303,12 @@ describe("branchSettingsEditBodySchema, supplier price list daily extraction cap
     },
   );
 
+  it("declares its maximum for a form to read", () => {
+    expect(
+      branchSettingsEditBodySchema.shape.supplier_price_list_daily_extraction_cap.meta(),
+    ).toEqual({ maximum: SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX });
+  });
+
   it("rejects a missing cap", () => {
     const body = validBody();
     delete body[field];

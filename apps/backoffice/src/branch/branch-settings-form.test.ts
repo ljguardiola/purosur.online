@@ -1,6 +1,10 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
+import {
+  BRANCH_HOURS_RANGES_PER_DAY_MAX,
+  BRANCH_SETTINGS_DAYS_MAX,
+  SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
+} from "@purosur/domain";
 import { expect, test } from "vitest";
-import { type DayValues, EMPTY_VALUES, MESSAGES } from "./branch-settings-form";
+import { type DayValues, EMPTY_VALUES, MESSAGES, requestFrom } from "./branch-settings-form";
 
 function daysMessage(days: string): string {
   return MESSAGES.unreviewedPriceAlertDays({ ...EMPTY_VALUES, unreviewedPriceAlertDays: days });
@@ -75,4 +79,43 @@ test("asks to review the hours of a day with more ranges than allowed", () => {
   );
 
   expect(hoursMessage(...ranges)).toBe("Revisá los horarios de este día.");
+});
+
+function extractionCapMessage(cap: string): string {
+  return MESSAGES.supplierPriceListDailyExtractionCap({
+    ...EMPTY_VALUES,
+    supplierPriceListDailyExtractionCap: cap,
+  });
+}
+
+test.each([
+  "0",
+  "-1",
+  "1.5",
+  "",
+  " ",
+  "abc",
+  String(SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX + 1),
+  "9".repeat(400),
+])("asks for a whole number of lists from 1 to the maximum for %j", (cap) => {
+  expect(extractionCapMessage(cap)).toBe(
+    `Ingresá un número entero de listas, de 1 a ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}.`,
+  );
+});
+
+test("asks to review a number of lists the shape accepts", () => {
+  expect(extractionCapMessage(` ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX} `)).toBe(
+    "Revisá la cantidad de listas por día.",
+  );
+});
+
+test("sends the number of lists as a number, and NaN for text that is not a whole number", () => {
+  const request = (cap: string) =>
+    requestFrom({
+      ...EMPTY_VALUES,
+      supplierPriceListDailyExtractionCap: cap,
+    }).supplier_price_list_daily_extraction_cap;
+
+  expect(request(" 12 ")).toBe(12);
+  expect(request("1.5")).toBeNaN();
 });
