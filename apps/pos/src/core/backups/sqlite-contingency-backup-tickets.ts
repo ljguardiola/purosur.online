@@ -47,7 +47,7 @@ const TICKET_COLUMNS = `
            WHERE EXISTS (
              SELECT 1 FROM sale_void_credit_notes
               WHERE sale_void_credit_notes.sale_id = tickets.subject_id
-                AND sale_void_credit_notes.state = 'AUTHORIZED'
+                AND sale_void_credit_notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')
            )
          ) AS void_credit_note_printed,
          tickets.printed_at AS printed_at, tickets.discarded_at AS discarded_at
