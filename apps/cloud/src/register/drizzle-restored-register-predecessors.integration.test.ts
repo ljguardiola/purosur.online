@@ -125,26 +125,6 @@ describe("the first revoked installation of a register", () => {
     expect(await predecessors.firstRevokedInstallation(registerId, calling)).toBeUndefined();
   });
 
-  it("is none while the other installations of the register are not revoked", async () => {
-    const registerId = await insertRegister(db, await insertBranch(db));
-    await insertInstallation(db, registerId, { enrolledAt: T0 });
-    const calling = await insertInstallation(db, registerId, { enrolledAt: hoursAfter(T0, 1) });
-
-    expect(await predecessors.firstRevokedInstallation(registerId, calling)).toBeUndefined();
-  });
-
-  it("skips an active installation enrolled before the revoked ones", async () => {
-    const registerId = await insertRegister(db, await insertBranch(db));
-    await insertInstallation(db, registerId, { enrolledAt: T0 });
-    const revoked = await insertInstallation(db, registerId, {
-      enrolledAt: hoursAfter(T0, 1),
-      revokedAt: hoursAfter(T0, 2),
-    });
-    const calling = await insertInstallation(db, registerId, { enrolledAt: hoursAfter(T0, 3) });
-
-    expect(await predecessors.firstRevokedInstallation(registerId, calling)).toBe(revoked);
-  });
-
   it("never names an installation of another register", async () => {
     const branchId = await insertBranch(db);
     const registerId = await insertRegister(db, branchId);

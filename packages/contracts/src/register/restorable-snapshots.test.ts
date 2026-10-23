@@ -16,7 +16,11 @@ const FIRST_INSTALLATION_ID = "3b241101-e2bb-4255-8caf-4136c566a962";
 describe("restorableSnapshotsSchema", () => {
   it("reads the generations a restore can use", () => {
     expect(
-      restorableSnapshotsSchema.parse({ register_id: REGISTER_ID, first_installation_id: null, generations: [GENERATION] }),
+      restorableSnapshotsSchema.parse({
+        register_id: REGISTER_ID,
+        first_installation_id: null,
+        generations: [GENERATION],
+      }),
     ).toEqual({
       register_id: REGISTER_ID,
       first_installation_id: null,
@@ -27,7 +31,11 @@ describe("restorableSnapshotsSchema", () => {
   it("reads a generation id written in uppercase as lowercase", () => {
     const uppercase = { ...GENERATION, generation_id: GENERATION.generation_id.toUpperCase() };
     expect(
-      restorableSnapshotsSchema.parse({ register_id: REGISTER_ID, first_installation_id: null, generations: [uppercase] }),
+      restorableSnapshotsSchema.parse({
+        register_id: REGISTER_ID,
+        first_installation_id: null,
+        generations: [uppercase],
+      }),
     ).toEqual({
       register_id: REGISTER_ID,
       first_installation_id: null,
@@ -36,7 +44,13 @@ describe("restorableSnapshotsSchema", () => {
   });
 
   it("reads an empty list", () => {
-    expect(restorableSnapshotsSchema.parse({ register_id: REGISTER_ID, first_installation_id: null, generations: [] })).toEqual({
+    expect(
+      restorableSnapshotsSchema.parse({
+        register_id: REGISTER_ID,
+        first_installation_id: null,
+        generations: [],
+      }),
+    ).toEqual({
       register_id: REGISTER_ID,
       first_installation_id: null,
       generations: [],
@@ -45,17 +59,30 @@ describe("restorableSnapshotsSchema", () => {
 
   it("reads a register id written in uppercase as lowercase", () => {
     expect(
-      restorableSnapshotsSchema.parse({ register_id: REGISTER_ID.toUpperCase(), generations: [] }),
-    ).toEqual({ register_id: REGISTER_ID, generations: [] });
+      restorableSnapshotsSchema.parse({
+        register_id: REGISTER_ID.toUpperCase(),
+        first_installation_id: null,
+        generations: [],
+      }),
+    ).toEqual({ register_id: REGISTER_ID, first_installation_id: null, generations: [] });
   });
 
   it("refuses an answer without a register id", () => {
-    expect(restorableSnapshotsSchema.safeParse({ first_installation_id: null, generations: [GENERATION] }).success).toBe(false);
+    expect(
+      restorableSnapshotsSchema.safeParse({
+        first_installation_id: null,
+        generations: [GENERATION],
+      }).success,
+    ).toBe(false);
   });
 
   it("refuses a register id that is not a uuid", () => {
     expect(
-      restorableSnapshotsSchema.safeParse({ register_id: "r1", first_installation_id: null, generations: [] }).success,
+      restorableSnapshotsSchema.safeParse({
+        register_id: "r1",
+        first_installation_id: null,
+        generations: [],
+      }).success,
     ).toBe(false);
   });
 
