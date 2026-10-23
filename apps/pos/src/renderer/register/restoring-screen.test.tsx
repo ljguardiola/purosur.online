@@ -175,4 +175,64 @@ describe("RestoringScreen", () => {
 
     await expectNoAccessibilityViolations(screen.container);
   });
+
+  it("says the register could not catch up and cannot sell, whatever the failure", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "failed", step: "replenish", failure: "refused" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("CAJA 2 · NO SE PUDO PONER AL DÍA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "La caja no pudo ponerse al día" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("La caja no puede vender hasta ponerse al día con la nube."))
+      .toBeVisible();
+    await expect.element(screen.getByText("Sin conexión con la nube")).not.toBeInTheDocument();
+  });
+
+  it("tells to update the register when it received what its version cannot read", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "failed", step: "replenish", failure: "unreadable_event" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("Actualizá la caja")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Esta versión no puede leer parte de lo que mandó la nube. Después de actualizar, la caja lo intenta sola.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("Llamá a un Administrador")).not.toBeInTheDocument();
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("tells to call an Administrator when the cloud refused to bring the register up to date", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "failed", step: "replenish", failure: "refused" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("Llamá a un Administrador")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "La nube rechazó ponerla al día. Un Administrador tiene que dar de alta la caja de nuevo.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("Actualizá la caja")).not.toBeInTheDocument();
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
 });
