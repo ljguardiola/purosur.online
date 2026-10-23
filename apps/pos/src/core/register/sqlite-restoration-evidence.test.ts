@@ -126,6 +126,39 @@ describe("the evidence of the restoration protocol", () => {
     });
   });
 
+  it("holds the replenishment as refused while its predecessor holds the cloud's refusal", () => {
+    holdPredecessor();
+    database.exec(
+      "UPDATE register_predecessor SET failure_kind = 'refused', failure_refusal = 'predecessor_not_revoked'",
+    );
+
+    expect(evidence.evidence().replenish).toBe("refused");
+  });
+
+  it("holds the replenishment as unreadable while its predecessor holds an event the register could not read", () => {
+    holdPredecessor();
+    database.exec(
+      `UPDATE register_predecessor SET failure_kind = 'unreadable_event',
+         failure_event_id = 'event-1', failure_reason = 'garbled', failure_app_version = '1.4.0'`,
+    );
+
+    expect(evidence.evidence().replenish).toBe("unreadable_event");
+  });
+
+  it("holds the replenishment pending again once its failure is cleared", async () => {
+    holdPredecessor();
+    const store = new SqliteRegisterReplenishmentStore({
+      database,
+      pepper: "pepper",
+      ids: { next: () => "id" },
+    });
+    await store.recordFailure({ kind: "refused", refusal: "predecessor_not_revoked" });
+
+    await store.clearFailure();
+
+    expect(evidence.evidence().replenish).toBe("pending");
+  });
+
   it("holds that the register came from a copy while it awaits what a restored copy awaits", () => {
     holdPredecessor();
     awaitOrphanSweep();
