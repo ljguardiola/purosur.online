@@ -2,6 +2,7 @@ import {
   supplierPriceListConfirmationBodySchema,
   supplierPriceListDiscardBodySchema,
   supplierPriceListListSchema,
+  supplierPriceListPageRefusedSchema,
   supplierPriceListReviewSchema,
   supplierPriceListRowPriceBodySchema,
   supplierPriceListRowRemovalBodySchema,
@@ -114,11 +115,13 @@ async function answerWebPageLoad(
 ): Promise<void> {
   switch (outcome.kind) {
     case "page_refused":
-      await reply.code(422).send({
-        code: "page_refused",
-        message: "the page could not be read",
-        reason: outcome.reason,
-      });
+      await reply.code(422).send(
+        supplierPriceListPageRefusedSchema.parse({
+          code: "page_refused",
+          message: "the page could not be read",
+          reason: outcome.reason,
+        }),
+      );
       return;
     case "loaded":
       await reply.code(201).send(supplierPriceListUploadedSchema.parse({ listId: outcome.listId }));

@@ -345,6 +345,8 @@ export type { SupplierPriceListConfirmationBody } from "./purchasing/supplier-pr
 export { supplierPriceListConfirmationBodySchema } from "./purchasing/supplier-price-list-confirmation.js";
 export type { SupplierPriceListDiscardBody } from "./purchasing/supplier-price-list-discard.js";
 export { supplierPriceListDiscardBodySchema } from "./purchasing/supplier-price-list-discard.js";
+export type { SupplierPriceListPageRefused } from "./purchasing/supplier-price-list-page-refused.js";
+export { supplierPriceListPageRefusedSchema } from "./purchasing/supplier-price-list-page-refused.js";
 export type { SupplierPriceListReview } from "./purchasing/supplier-price-list-review.js";
 export { supplierPriceListReviewSchema } from "./purchasing/supplier-price-list-review.js";
 export type { SupplierPriceListRowPriceBody } from "./purchasing/supplier-price-list-row-price.js";

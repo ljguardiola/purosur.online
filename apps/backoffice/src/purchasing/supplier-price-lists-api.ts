@@ -1,6 +1,7 @@
 import {
   type SupplierPriceListConfirmationBody,
   type SupplierPriceListDiscardBody,
+  type SupplierPriceListPageRefused,
   type SupplierPriceListReview,
   type SupplierPriceListRowPriceBody,
   type SupplierPriceListRowRemovalBody,
@@ -8,10 +9,10 @@ import {
   type SupplierPriceListUploadQuery,
   type SupplierPriceListWebPageBody,
   supplierPriceListListSchema,
+  supplierPriceListPageRefusedSchema,
   supplierPriceListReviewSchema,
   supplierPriceListUploadedSchema,
 } from "@purosur/contracts";
-import type { SupplierPriceListWebPageRefusal } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readCloudJson } from "../platform/read-cloud-json";
@@ -46,17 +47,7 @@ export type UploadSupplierPriceListOutcome =
   | { kind: "reading_unavailable" }
   | RequestRefusal;
 
-const WEB_PAGE_REFUSAL_REASONS = [
-  "invalid_address",
-  "address_not_public",
-  "too_many_redirects",
-  "too_large",
-  "too_slow",
-  "unsupported_content",
-  "unreachable",
-] as const satisfies readonly SupplierPriceListWebPageRefusal[];
-
-export type WebPageRefusalReason = (typeof WEB_PAGE_REFUSAL_REASONS)[number];
+export type WebPageRefusalReason = SupplierPriceListPageRefused["reason"];
 
 export type ReadSupplierPriceListWebPageOutcome =
   | { kind: "ok" }
@@ -235,9 +226,10 @@ async function readWebPage(
       : { kind: "failed" };
   }
   if (response.status === 422) {
-    const { reason } = await readBody(response);
-    const refused = WEB_PAGE_REFUSAL_REASONS.find((known) => known === reason);
-    return refused === undefined ? { kind: "failed" } : { kind: "page_refused", reason: refused };
+    const refused = supplierPriceListPageRefusedSchema.safeParse(await readBody(response));
+    return refused.success
+      ? { kind: "page_refused", reason: refused.data.reason }
+      : { kind: "failed" };
   }
   if (response.status === 503) {
     return { kind: "reading_unavailable" };
