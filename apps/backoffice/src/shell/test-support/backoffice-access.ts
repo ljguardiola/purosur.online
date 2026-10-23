@@ -21,6 +21,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   revoke_installations: true,
   bitlocker_recovery_key: true,
   backups_area: true,
+  contingency_ticket_rescue: true,
   quarantined_events: true,
   stock_balances: true,
   stock_counts: true,
