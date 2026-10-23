@@ -1,6 +1,7 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   BadgePercent,
+  Calculator,
   ChartColumn,
   HandCoins,
   List,
@@ -25,6 +26,7 @@ function ReportsArea() {
   const handConfirmedPaymentsShown = Boolean(
     matchRoute({ to: "/reports/hand-confirmed-payments" }),
   );
+  const cashSessionClosesShown = Boolean(matchRoute({ to: "/reports/cash-session-closes" }));
   const salesByProductAndCategoryShown = Boolean(
     matchRoute({ to: "/reports/sales-by-product-and-category" }),
   );
@@ -74,6 +76,15 @@ function ReportsArea() {
                 icon={<Wallet />}
                 search={handConfirmedPaymentsShown ? true : {}}
                 active={handConfirmedPaymentsShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/cash-session-closes"
+                label="Cierres de sesión"
+                icon={<Calculator />}
+                search={cashSessionClosesShown ? true : {}}
+                active={cashSessionClosesShown}
               />
             </li>
             <li>
