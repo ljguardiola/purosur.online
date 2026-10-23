@@ -1462,6 +1462,10 @@ export const sales = pgTable(
       withTimezone: true,
     }),
     creditNotePrintedAt: timestamp("credit_note_printed_at", { withTimezone: true }),
+    deferredInvoicePrintAttemptedAt: timestamp("deferred_invoice_print_attempted_at", {
+      withTimezone: true,
+    }),
+    deferredInvoicePrintedAt: timestamp("deferred_invoice_printed_at", { withTimezone: true }),
     appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
   },
   (table) => [
@@ -1473,6 +1477,10 @@ export const sales = pgTable(
     check(
       "sales_credit_note_printed_only_after_attempted_check",
       sql`${table.creditNotePrintedAt} is null or ${table.creditNotePrintAttemptedAt} is not null`,
+    ),
+    check(
+      "sales_deferred_invoice_printed_only_after_attempted_check",
+      sql`${table.deferredInvoicePrintedAt} is null or ${table.deferredInvoicePrintAttemptedAt} is not null`,
     ),
     check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED', 'VOIDED')`),
     check(
@@ -1537,7 +1545,7 @@ export const saleReprints = pgTable(
     primaryKey({ columns: [table.saleId, table.document, table.orderNumber] }),
     check(
       "sale_reprints_document_check",
-      sql`${table.document} in ('sale_receipt', 'credit_note')`,
+      sql`${table.document} in ('sale_receipt', 'credit_note', 'deferred_invoice')`,
     ),
     check("sale_reprints_order_number_positive_check", sql`${table.orderNumber} > 0`),
     check("sale_reprints_reason_kind_check", sql`${table.reasonKind} in ('retry', 'requested')`),
