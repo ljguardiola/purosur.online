@@ -167,6 +167,11 @@ interface ClockDriftDetail {
   deviceId: string;
 }
 
+interface RegisterReplenishmentFailedDetail {
+  deviceId: string;
+  failure: "refused" | "unreadable_event";
+}
+
 interface OutboxChainBrokenDetail {
   deviceId: string;
 }
@@ -249,6 +254,7 @@ export interface AlertDetails {
   fiscal_unknown: FiscalUnknownDetail;
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
   clock_drift: ClockDriftDetail;
+  register_replenishment_failed: RegisterReplenishmentFailedDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
   offsite_dump_unverified: OffsiteDumpUnverifiedDetail;

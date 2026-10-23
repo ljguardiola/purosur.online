@@ -72,10 +72,18 @@ const clockDriftReportSchema = z.union([
   z.object({ clock_drift: absent }),
 ]);
 
+const replenishmentFailedReportSchema = z.union([
+  z.object({
+    replenishment_failed: z.union([z.literal(false), z.enum(["refused", "unreadable_event"])]),
+  }),
+  z.object({ replenishment_failed: absent }),
+]);
+
 const registerTelemetrySchema = storageTelemetrySchema
   .and(salesDeniedReportSchema)
   .and(fiscalEmissionStoppedReportSchema)
-  .and(clockDriftReportSchema);
+  .and(clockDriftReportSchema)
+  .and(replenishmentFailedReportSchema);
 
 export const PUSH_EVENTS_REQUEST_MAX_BYTES = 16_777_216;
 

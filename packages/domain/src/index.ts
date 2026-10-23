@@ -67,6 +67,7 @@ export {
   registerFiscalEmissionObservation,
   registerFortnightScope,
   registerOwnConditions,
+  registerReplenishmentObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,

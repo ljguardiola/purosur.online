@@ -18,6 +18,7 @@ export {
   registerBackupOverdueObservation,
   registerClockDriftObservation,
   registerFiscalEmissionObservation,
+  registerReplenishmentObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,

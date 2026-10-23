@@ -214,6 +214,11 @@ const clockDriftDetailSchema = z.object({
   deviceId: z.string(),
 });
 
+const registerReplenishmentFailedDetailSchema = z.object({
+  deviceId: z.string(),
+  failure: z.enum(["refused", "unreadable_event"]),
+});
+
 const outboxChainBrokenDetailSchema = z.object({
   deviceId: z.string(),
 });
@@ -396,6 +401,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("clock_drift" satisfies AlertKind),
     detail: clockDriftDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("register_replenishment_failed" satisfies AlertKind),
+    detail: registerReplenishmentFailedDetailSchema,
   }),
   z.object({
     ...alertBase,
