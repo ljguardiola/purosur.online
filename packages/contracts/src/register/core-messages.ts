@@ -409,6 +409,11 @@ const restorationStandingSchema = z.discriminatedUnion("kind", [
     origin: z.enum(["copy", "no_copy"]),
   }),
   z.object({ kind: z.literal("failed"), step: z.literal("restore") }),
+  z.object({
+    kind: z.literal("failed"),
+    step: z.literal("replenish"),
+    failure: z.enum(["refused", "unreadable_event"]),
+  }),
 ]);
 export type RestorationStandingAnswer = z.infer<typeof restorationStandingSchema>;
 

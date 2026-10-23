@@ -40,7 +40,7 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       enroll: staleSequenceDetected(this.database) && !restoring ? "pending" : "completed",
       restore: this.restoreEvidence(restoring),
       reset_sync_identity: restoring ? "pending" : "completed",
-      replenish: this.holdsPredecessor() ? "pending" : "completed",
+      replenish: this.replenishEvidence(),
       reconcile_fiscal_counters: awaitsRestoredNumbering(this.database) ? "pending" : "completed",
       regularize_orphan_authorizations: this.awaitsOrphanSweep() ? "pending" : "completed",
       origin: this.replenishmentOrigin(),
@@ -70,11 +70,15 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
     return row?.from_copy === 0 ? "no_copy" : "copy";
   }
 
-  private holdsPredecessor(): boolean {
-    return (
-      this.database
-        .prepare<[], { held: 1 }>("SELECT 1 AS held FROM register_predecessor LIMIT 1")
-        .get() !== undefined
-    );
+  private replenishEvidence(): "completed" | "pending" | "refused" | "unreadable_event" {
+    const held = this.database
+      .prepare<[], { failure_kind: "refused" | "unreadable_event" | null }>(
+        "SELECT failure_kind FROM register_predecessor LIMIT 1",
+      )
+      .get();
+    if (held === undefined) {
+      return "completed";
+    }
+    return held.failure_kind ?? "pending";
   }
 }

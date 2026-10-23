@@ -22,11 +22,12 @@ type DeliveredRestorationStep = Exclude<
 
 type RestorationStepEvidence = "completed" | "pending";
 
-type FailableRestorationStep = "restore";
+export type ReplenishmentFailureEvidence = "refused" | "unreadable_event";
 
-type RestoringStepEvidence<Step extends DeliveredRestorationStep> =
-  Step extends FailableRestorationStep
-    ? RestorationStepEvidence | "failed"
+type RestoringStepEvidence<Step extends DeliveredRestorationStep> = Step extends "restore"
+  ? RestorationStepEvidence | "failed"
+  : Step extends "replenish"
+    ? RestorationStepEvidence | ReplenishmentFailureEvidence
     : RestorationStepEvidence;
 
 type ReplenishmentOrigin = "copy" | "no_copy";
@@ -50,7 +51,8 @@ export type RestorationStanding =
       step: Exclude<HeldRestorationStep, "enroll">;
       origin: ReplenishmentOrigin;
     }
-  | { kind: "failed"; step: FailableRestorationStep };
+  | { kind: "failed"; step: "restore" }
+  | { kind: "failed"; step: "replenish"; failure: ReplenishmentFailureEvidence };
 
 const DELIVERED_STEPS = [
   "enroll",
@@ -68,6 +70,10 @@ export function restorationStanding(evidence: RestorationEvidence): RestorationS
   }
   if (held === "restore" && evidence.restore === "failed") {
     return { kind: "failed", step: held };
+  }
+  const { replenish } = evidence;
+  if (held === "replenish" && (replenish === "refused" || replenish === "unreadable_event")) {
+    return { kind: "failed", step: held, failure: replenish };
   }
   if (held !== "enroll" && evidence.cloud === "unreachable") {
     return { kind: "without_connection", step: held, origin: evidence.origin };
