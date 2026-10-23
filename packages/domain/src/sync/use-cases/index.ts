@@ -101,6 +101,7 @@ export type {
 } from "./reset-sync-identity-without-copy-ports.js";
 export type {
   EventPosition,
+  InstallationReceivedSeqs,
   ReplenishedEvent,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,

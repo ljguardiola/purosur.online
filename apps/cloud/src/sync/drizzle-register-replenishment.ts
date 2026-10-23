@@ -1,14 +1,13 @@
 import type {
   EventPosition,
+  InstallationReceivedSeqs,
   ReplenishedEvent,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,
 } from "@purosur/domain/sync/use-cases";
-import { and, asc, eq, gt, lte, notExists, or, sql } from "drizzle-orm";
-import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { and, asc, eq, exists, gt, notExists, or } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
-
-const heldBelow = alias(inbox, "held_below");
 
 export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
   implements RestoredRegisterReplenishment
@@ -19,11 +18,38 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
+  async receivedSeqsOfRefusedInstallations(
+    registerId: string,
+  ): Promise<InstallationReceivedSeqs[]> {
+    const rows = await this.db
+      .select({ deviceId: inbox.deviceId, deviceSeq: inbox.deviceSeq })
+      .from(inbox)
+      .innerJoin(registerInstallations, eq(registerInstallations.id, inbox.deviceId))
+      .where(
+        and(
+          eq(registerInstallations.registerId, registerId),
+          exists(
+            this.db
+              .select({ deviceId: refusedEvents.deviceId })
+              .from(refusedEvents)
+              .where(eq(refusedEvents.deviceId, inbox.deviceId)),
+          ),
+        ),
+      )
+      .orderBy(asc(inbox.deviceId), asc(inbox.deviceSeq));
+    const seqsByInstallation = new Map<string, number[]>();
+    for (const { deviceId, deviceSeq } of rows) {
+      seqsByInstallation.set(deviceId, [...(seqsByInstallation.get(deviceId) ?? []), deviceSeq]);
+    }
+    return [...seqsByInstallation].map(([deviceId, seqs]) => ({ deviceId, seqs }));
+  }
+
   async ownEventsAbove(
     registerId: string,
     { predecessorDeviceId, lastAcknowledgedSeq }: ReplenishmentPosition,
     after: EventPosition | undefined,
     limit: number,
+    setAsideAbove: ReadonlyMap<string, number>,
   ): Promise<ReplenishedEvent[]> {
     const predecessorEnrolledAt = await this.enrolledAtOf(registerId, predecessorDeviceId);
     const afterEnrolledAt = after && (await this.enrolledAtOf(registerId, after.deviceId));
@@ -63,7 +89,7 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
                 ),
               )
             : undefined,
-          notExists(this.setAsideByARefusedPush()),
+          this.notSetAside(setAsideAbove),
         ),
       )
       .orderBy(
@@ -89,28 +115,27 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
     }));
   }
 
-  // A refused push also keeps the acknowledged events it carried again; only those above the hole
-  // it left were set aside.
-  private setAsideByARefusedPush() {
-    return this.db
-      .select({ eventId: refusedEvents.eventId })
-      .from(refusedEvents)
-      .where(
-        and(
-          eq(refusedEvents.deviceId, inbox.deviceId),
-          eq(refusedEvents.eventId, inbox.eventId),
-          eq(refusedEvents.deviceSeq, inbox.deviceSeq),
-          sql`(${this.db
-            .select({ held: sql`count(*)` })
-            .from(heldBelow)
-            .where(
-              and(
-                eq(heldBelow.deviceId, inbox.deviceId),
-                lte(heldBelow.deviceSeq, inbox.deviceSeq),
+  private notSetAside(setAsideAbove: ReadonlyMap<string, number>) {
+    if (setAsideAbove.size === 0) {
+      return undefined;
+    }
+    return notExists(
+      this.db
+        .select({ eventId: refusedEvents.eventId })
+        .from(refusedEvents)
+        .where(
+          and(
+            eq(refusedEvents.deviceId, inbox.deviceId),
+            eq(refusedEvents.eventId, inbox.eventId),
+            eq(refusedEvents.deviceSeq, inbox.deviceSeq),
+            or(
+              ...[...setAsideAbove].map(([deviceId, aboveSeq]) =>
+                and(eq(refusedEvents.deviceId, deviceId), gt(refusedEvents.deviceSeq, aboveSeq)),
               ),
-            )}) < ${inbox.deviceSeq}`,
+            ),
+          ),
         ),
-      );
+    );
   }
 
   private async enrolledAtOf(registerId: string, deviceId: string): Promise<Date> {
