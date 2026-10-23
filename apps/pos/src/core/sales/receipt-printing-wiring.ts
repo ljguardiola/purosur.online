@@ -25,7 +25,7 @@ import {
   reprintSaleReceiptFor,
 } from "./receipt-requests";
 
-function savedReceiptPrinters(
+export function savedReceiptPrinters(
   settings: SqliteReceiptPrinterSettings,
   connect: TcpReceiptPrinterOptions["connect"],
 ): ReceiptPrinters {

@@ -26,12 +26,14 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
+import { createContingencyBackupTickets } from "./backups/contingency-backup-tickets-wiring";
 import { createRestoreAttempts } from "./backups/restore-attempts";
 import { createRestoreLaunch } from "./backups/restore-launch";
 import { afterEnrollment, storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
 import { restorePendingIn } from "./backups/restore-pending";
 import { syncUnlessRestorePending } from "./backups/restore-sync-hold";
 import { setAsideStaleDatabase } from "./backups/set-aside-stale-database";
+import type { TicketedOperations } from "./backups/ticketed-operation";
 import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
@@ -59,6 +61,7 @@ import {
   postToCloud,
   postToCloudWithBearer,
 } from "./platform/cloud-client";
+import { completedSaleId } from "./platform/completed-sale-id";
 import { initializeErrorReporting } from "./platform/error-reporting";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainLink } from "./platform/main-link";
@@ -114,6 +117,7 @@ import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
+import { SqliteReceiptPrinterSettings } from "./register/sqlite-receipt-printer-settings";
 import { SqliteRestorationEvidence } from "./register/sqlite-restoration-evidence";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
@@ -127,7 +131,7 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
-import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
+import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   addWeighedProductFor,
@@ -251,6 +255,7 @@ const RESTORATION_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
 const QUIT_REGISTER_MESSAGE: QuitRegisterMessage = { type: "quit-register" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 const BARCODE_READER_RETRY_MS = 3_000;
+const CONTINGENCY_BACKUP_TICKET_RETRY_MS = 30_000;
 
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
@@ -678,6 +683,27 @@ const mercadoPagoCharging = createMercadoPagoCharging({
   restoration: localDatabase === undefined ? undefined : restorationOf(localDatabase),
 });
 
+const contingencyBackupTickets =
+  localDatabase === undefined
+    ? undefined
+    : createContingencyBackupTickets({
+        database: localDatabase,
+        now,
+        ids: uuidV7Ids,
+        readContingencyTicketKey: async () =>
+          (await mainRequests.readCredentials())?.keys?.contingency_ticket_key,
+        appVersion: appVersionFromCoreArguments(process.argv),
+        readEmissionMode: () => readFiscalEmissionModeIn(localDatabase, now()),
+        printers: savedReceiptPrinters(new SqliteReceiptPrinterSettings(localDatabase), undefined),
+        scheduleNext: (run, delayMs) => {
+          const timer = setTimeout(run, delayMs);
+          return () => clearTimeout(timer);
+        },
+        intervalMs: CONTINGENCY_BACKUP_TICKET_RETRY_MS,
+        reportFailure,
+      });
+contingencyBackupTickets?.worker.start();
+
 const receiptPrinting = createReceiptPrinting({
   database: localDatabase,
   gate: actionGate,
@@ -690,7 +716,10 @@ const receiptPrinting = createReceiptPrinting({
     fiscalModeWatch?.check();
   },
   reportFailure,
-  syncNow: () => syncSchedule.syncNow(),
+  syncNow: () => {
+    syncSchedule.syncNow();
+    void contingencyBackupTickets?.worker.kick();
+  },
 });
 
 const interruptedCharges = createInterruptedChargesWiring({
@@ -1366,6 +1395,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             devices,
           ),
+  contingencyBackupTickets: contingencyBackupTickets?.requests,
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   printOriginalReceipt: receiptPrinting.printOriginalReceipt,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
@@ -1374,21 +1404,67 @@ const rendererRequestDeps: RendererRequestDeps = {
   reportFailure,
 };
 
+const ticketed: TicketedOperations["ticketed"] =
+  contingencyBackupTickets?.ticketed ?? ((_operation, handler) => handler);
+const completedSale = (_args: unknown, outcome: { kind: string }) =>
+  completedSaleId(outcome) ?? null;
+const saleOfRequest = ([request]: [{ saleId: string }, ...unknown[]]) => request.saleId;
+
 const answeredRendererRequestDeps: RendererRequestDeps = {
   ...rendererRequestDeps,
-  chargeSaleInCash: receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
-  chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.chargeSaleByTransfer,
+  chargeSaleInCash: ticketed(
+    "sale",
+    receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
+    completedSale,
   ),
-  chargeSaleOnStandaloneTerminal: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.chargeSaleOnStandaloneTerminal,
+  chargeSaleByTransfer: ticketed(
+    "sale",
+    receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleByTransfer),
+    completedSale,
   ),
-  followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.followMercadoPagoCharge,
+  chargeSaleOnStandaloneTerminal: ticketed(
+    "sale",
+    receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleOnStandaloneTerminal),
+    completedSale,
   ),
-  abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.abandonMercadoPagoCharge,
+  followMercadoPagoCharge: ticketed(
+    "sale",
+    receiptPrinting.afterCompletedSale(rendererRequestDeps.followMercadoPagoCharge),
+    completedSale,
   ),
+  abandonMercadoPagoCharge: ticketed(
+    "sale",
+    receiptPrinting.afterCompletedSale(rendererRequestDeps.abandonMercadoPagoCharge),
+    completedSale,
+  ),
+  cancelPaidSale: ticketed(
+    "paid_sale_cancellation",
+    rendererRequestDeps.cancelPaidSale,
+    saleOfRequest,
+  ),
+  voidSale: ticketed("sale_void", rendererRequestDeps.voidSale, saleOfRequest),
+  reprintSaleReceipt: ticketed("reprint", rendererRequestDeps.reprintSaleReceipt, saleOfRequest),
+  reprintCreditNote: ticketed("reprint", rendererRequestDeps.reprintCreditNote, saleOfRequest),
+  recordCashMovement: ticketed(
+    "cash_movement",
+    rendererRequestDeps.recordCashMovement,
+    ([request]) => request.kind,
+  ),
+  openCashSession: ticketed("cash_session_opening", rendererRequestDeps.openCashSession),
+  closeCashSession: ticketed("cash_session_closing", rendererRequestDeps.closeCashSession),
+  closeLockedCashSession: ticketed(
+    "cash_session_closing",
+    rendererRequestDeps.closeLockedCashSession,
+  ),
+  initialCount: rendererRequestDeps.initialCount && {
+    ...rendererRequestDeps.initialCount,
+    record: ticketed("initial_count", rendererRequestDeps.initialCount.record),
+    withdraw: ticketed("initial_count", rendererRequestDeps.initialCount.withdraw),
+  },
+  clockGuard: rendererRequestDeps.clockGuard && {
+    ...rendererRequestDeps.clockGuard,
+    correct: ticketed("clock_correction", rendererRequestDeps.clockGuard.correct),
+  },
 };
 
 startRegisterHealthChecks({
