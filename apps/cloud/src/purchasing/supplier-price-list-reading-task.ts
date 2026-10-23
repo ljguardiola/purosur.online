@@ -1,4 +1,5 @@
 import { recordIdSchema } from "@purosur/contracts";
+import { SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS } from "@purosur/domain";
 import {
   type PriceListExtractor,
   readSupplierPriceList,
@@ -14,8 +15,6 @@ import { SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER } from "./supplier-price-li
 
 const SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_TASK_IDENTIFIER =
   "supplier-price-list-abandoned-reading-check";
-
-const ABANDONED_READING_CHECK_INTERVAL_MS = 60 * 1000;
 
 const payloadSchema = z.object({ listId: recordIdSchema() });
 
@@ -53,7 +52,7 @@ export function supplierPriceListReadingJobs<TQueryResult extends PgQueryResultH
     },
     crontab: [
       crontabLineEvery(
-        ABANDONED_READING_CHECK_INTERVAL_MS,
+        SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
         SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_TASK_IDENTIFIER,
       ),
     ],

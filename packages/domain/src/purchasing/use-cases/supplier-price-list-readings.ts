@@ -7,6 +7,5 @@ export interface SupplierPriceListReadingInProgress {
 }
 
 export interface SupplierPriceListReadings {
-  // Every list still being read.
   listInProgress(): Promise<SupplierPriceListReadingInProgress[]>;
 }
