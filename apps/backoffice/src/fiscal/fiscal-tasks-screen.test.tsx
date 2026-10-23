@@ -3,6 +3,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { deferred } from "../payments/test-support/deferred";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { accessWith, NO_CAPABILITIES_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { FiscalTasksScreen } from "./fiscal-tasks-screen";
 import type { FiscalTasksScreenServices } from "./fiscal-tasks-services";
@@ -21,19 +23,27 @@ beforeEach(async () => {
   onTestFinished(() => page.viewport(414, 896));
 });
 
-function renderScreen(services: FiscalTasksScreenServices, onSessionEnded = () => {}) {
+function renderScreen(
+  services: FiscalTasksScreenServices,
+  onSessionEnded = () => {},
+  access: BackofficeAccess = NO_CAPABILITIES_ACCESS,
+) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <FiscalTasksScreen services={services} onSessionEnded={onSessionEnded} />
+        <FiscalTasksScreen access={access} services={services} onSessionEnded={onSessionEnded} />
       </main>
     </FieldSizeProvider>,
   );
 }
 
-async function loaded(services: FiscalTasksScreenServices, tasks = fiscalTasks) {
+async function loaded(
+  services: FiscalTasksScreenServices,
+  tasks = fiscalTasks,
+  access: BackofficeAccess = NO_CAPABILITIES_ACCESS,
+) {
   vi.mocked(services.fetchFiscalTasks).mockResolvedValue({ kind: "ok", value: tasks });
-  const screen = await renderScreen(services);
+  const screen = await renderScreen(services, () => {}, access);
   await expect.element(screen.getByText(/tareas? abiertas?$/)).toBeVisible();
   return screen;
 }
@@ -75,7 +85,7 @@ test("shows the eyebrow, the heading and each open task with since when, what, w
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("heads the list by since when, task, register and alert, with no column to close a task", async () => {
+test("without the capability to close tasks, heads the list by since when, task, register and alert and offers no button", async () => {
   const screen = await loaded(createFiscalTasksServices());
 
   const headers = screen
@@ -183,4 +193,84 @@ test("ends the session when the tasks request finds no open session", async () =
   await renderScreen(services, onSessionEnded);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+const closeAccess = accessWith("close_fiscal_tasks");
+
+test("heads one more column and offers a Cerrar tarea button on each row to who may close tasks", async () => {
+  const screen = await loaded(createFiscalTasksServices(), fiscalTasks, closeAccess);
+
+  const headers = screen
+    .getByRole("columnheader")
+    .all()
+    .map((header) => header.element().textContent?.trim());
+  expect(headers).toEqual(["Abierta", "Tarea", "Caja", "Aviso", "Acciones"]);
+  expect(screen.getByRole("button", { name: "Cerrar tarea" }).all()).toHaveLength(3);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("opens the closing modal for the task of the row", async () => {
+  const screen = await loaded(createFiscalTasksServices(), fiscalTasks, closeAccess);
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar tarea" }).nth(1));
+
+  const dialog = screen.getByRole("dialog", { name: "Cerrar tarea fiscal" });
+  await expect.element(dialog).toBeVisible();
+  await expect
+    .element(dialog.getByText("ARCA rechazó la nota de crédito 00004-00000017"))
+    .toBeVisible();
+});
+
+test("closes the modal without closing anything on Cancelar", async () => {
+  const services = createFiscalTasksServices();
+  const screen = await loaded(services, fiscalTasks, closeAccess);
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar tarea" }).first());
+
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  expect(services.closeFiscalTask).not.toHaveBeenCalled();
+});
+
+test("after closing a task, reads the tasks again and the task leaves the list", async () => {
+  const services = createFiscalTasksServices();
+  vi.mocked(services.closeFiscalTask).mockResolvedValue({ kind: "ok" });
+  const screen = await loaded(services, fiscalTasks, closeAccess);
+  vi.mocked(services.fetchFiscalTasks).mockResolvedValue({
+    kind: "ok",
+    value: { tasks: [creditNoteRejectedTask, deferredSaleExpiredTask] },
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar tarea" }).first());
+
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: /^Cómo se regularizó/ }),
+    "Regularizada con el contador",
+  );
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cerrar tarea" }));
+
+  await expect.element(screen.getByText("2 tareas abiertas")).toBeVisible();
+  expect(services.closeFiscalTask).toHaveBeenCalledWith(externalInvoicingTask.id, {
+    note: "Regularizada con el contador",
+  });
+  expect(screen.getByText("Facturación externa").query()).toBeNull();
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("after the cloud says the task was already closed, reads the tasks again and keeps the modal with the notice", async () => {
+  const services = createFiscalTasksServices();
+  vi.mocked(services.closeFiscalTask).mockResolvedValue({ kind: "already_closed" });
+  const screen = await loaded(services, fiscalTasks, closeAccess);
+  vi.mocked(services.fetchFiscalTasks).mockResolvedValue({
+    kind: "ok",
+    value: { tasks: [creditNoteRejectedTask, deferredSaleExpiredTask] },
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar tarea" }).first());
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Cómo se regularizó/ }), "Listo");
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cerrar tarea" }));
+
+  await expect.element(screen.getByText("2 tareas abiertas")).toBeVisible();
+  await expect
+    .element(screen.getByRole("dialog").getByText("Esta tarea ya estaba cerrada.").first())
+    .toBeVisible();
 });

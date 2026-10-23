@@ -4,10 +4,7 @@ import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
 import { deferred } from "../payments/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
-import {
-  CloseFiscalTaskModal,
-  type CloseFiscalTaskModalServices,
-} from "./close-fiscal-task-modal";
+import { CloseFiscalTaskModal, type CloseFiscalTaskModalServices } from "./close-fiscal-task-modal";
 import type { CloseFiscalTaskOutcome } from "./fiscal-tasks-api";
 import { externalInvoicingTask } from "./test-support/fiscal-task-fixtures";
 
@@ -52,9 +49,7 @@ test("names the task and opens with an empty note to fill", async () => {
 
   await expect.element(dialog.getByText("Facturación externa")).toBeVisible();
   await expect
-    .element(
-      dialog.getByText("Comprobante 00004-00001234 autorizado por ARCA fuera del sistema"),
-    )
+    .element(dialog.getByText("Comprobante 00004-00001234 autorizado por ARCA fuera del sistema"))
     .toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Cómo se regularizó/ }))
