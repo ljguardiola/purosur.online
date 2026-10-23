@@ -195,6 +195,20 @@ describe("the restored sync identity store", () => {
     expect(count("register_predecessor")).toBe(1);
   });
 
+  it("starts the replenishment with no failure left from an earlier restoration", async () => {
+    database.exec(
+      `INSERT INTO register_predecessor (device_id, last_acknowledged_seq, failure_kind, failure_refusal)
+       VALUES ('earlier-device', 3, 'refused', 'predecessor_not_revoked')`,
+    );
+    carryOldInstallation(5);
+
+    await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
+
+    expect(
+      database.prepare("SELECT failure_kind, failure_refusal FROM register_predecessor").all(),
+    ).toEqual([{ failure_kind: null, failure_refusal: null }]);
+  });
+
   it("leaves everything as it was when the work fails midway", async () => {
     carryOldInstallation(5);
     insertOutboxEvent(5, false);

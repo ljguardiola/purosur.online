@@ -6776,3 +6776,83 @@ describe("the offline void credit notes migration", () => {
     });
   });
 });
+
+describe("the replenishment failure migration", () => {
+  const MIGRATION = "0080_replenishment_failure";
+
+  function withDatabase(test: (database: ReturnType<typeof openLocalDatabase>) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const path = join(folder, "register.sqlite");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('device-old', 52)",
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("keeps a predecessor held before it, with no failure", () => {
+    withDatabase((database) => {
+      expect(database.prepare("SELECT * FROM register_predecessor").all()).toEqual([
+        {
+          device_id: "device-old",
+          last_acknowledged_seq: 52,
+          failure_kind: null,
+          failure_refusal: null,
+          failure_event_id: null,
+          failure_reason: null,
+          failure_app_version: null,
+        },
+      ]);
+    });
+  });
+
+  it.each([
+    [
+      "a kind of failure the register does not know",
+      "UPDATE register_predecessor SET failure_kind = 'lost'",
+    ],
+    ["a refusal with no refusal named", "UPDATE register_predecessor SET failure_kind = 'refused'"],
+    [
+      "an unreadable event with no event named",
+      "UPDATE register_predecessor SET failure_kind = 'unreadable_event', failure_reason = 'garbled'",
+    ],
+    [
+      "a refusal the cloud does not give",
+      "UPDATE register_predecessor SET failure_kind = 'refused', failure_refusal = 'because'",
+    ],
+    [
+      "a refusal that also names an event",
+      "UPDATE register_predecessor SET failure_kind = 'refused', failure_refusal = 'predecessor_not_revoked', failure_event_id = 'event-1', failure_reason = 'garbled'",
+    ],
+    [
+      "details of a failure with no kind",
+      "UPDATE register_predecessor SET failure_reason = 'garbled'",
+    ],
+  ])("refuses %s", (_name, statement) => {
+    withDatabase((database) => {
+      expect(() => database.exec(statement)).toThrow(/CHECK/);
+    });
+  });
+
+  it.each([
+    "UPDATE register_predecessor SET failure_kind = 'refused', failure_refusal = 'predecessor_not_of_register'",
+    "UPDATE register_predecessor SET failure_kind = 'unreadable_event', failure_event_id = 'event-1', failure_reason = 'garbled', failure_app_version = '1.4.0'",
+    "UPDATE register_predecessor SET failure_kind = 'unreadable_event', failure_event_id = 'event-1', failure_reason = 'garbled'",
+  ])("accepts a failure written as %s", (statement) => {
+    withDatabase((database) => {
+      expect(() => database.exec(statement)).not.toThrow();
+    });
+  });
+});

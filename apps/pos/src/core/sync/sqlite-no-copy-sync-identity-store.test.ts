@@ -81,6 +81,19 @@ describe("the sync identity store of a register reinstalled with no copy", () =>
     });
   });
 
+  it("starts the replenishment with no failure left from an earlier restoration", async () => {
+    database.exec(
+      `INSERT INTO register_predecessor (device_id, last_acknowledged_seq, failure_kind, failure_refusal)
+       VALUES ('earlier-device', 3, 'refused', 'predecessor_not_revoked')`,
+    );
+
+    await resetSyncIdentityWithoutCopy({ store }, INPUT);
+
+    expect(
+      database.prepare("SELECT failure_kind, failure_refusal FROM register_predecessor").all(),
+    ).toEqual([{ failure_kind: null, failure_refusal: null }]);
+  });
+
   it("leaves everything as it was when the work fails midway", async () => {
     await expect(
       store.transaction(async (tx) => {
