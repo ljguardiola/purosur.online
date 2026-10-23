@@ -6,9 +6,13 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { creditNotesOfSale } from "./orphan-local-standing.js";
+import { creditNotesOfSale, otherDocumentsOfSale } from "./orphan-local-standing.js";
 import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
+import {
+  insertOfflineCreditNote,
+  insertOfflineFiscalDocument,
+} from "./test-support/offline-fiscal-document-fixtures.js";
 import {
   creditNoteRegularization,
   OPENED_AT,
@@ -77,5 +81,46 @@ describe("the credit notes of a sale on a real Postgres", () => {
 
   it("gives none for a sale without credit notes", async () => {
     expect(await creditNotesOfSale(db, crypto.randomUUID())).toEqual([]);
+  });
+});
+
+describe("the other documents of a sale on a real Postgres", () => {
+  const FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
+
+  it("gives the factura issued offline for the sale and not its offline credit note", async () => {
+    const saleId = crypto.randomUUID();
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: 7,
+      fortnight: FORTNIGHT,
+      number: 21,
+      saleId,
+    });
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: 7,
+      fortnight: FORTNIGHT,
+      number: 4,
+      corrects: voucherAt(21),
+      saleId,
+    });
+
+    expect(await otherDocumentsOfSale(db, saleId, crypto.randomUUID())).toEqual([
+      { kind: "offline", voucher: voucherAt(21) },
+    ]);
+  });
+
+  it("gives none for a sale whose only offline document is a credit note", async () => {
+    const saleId = crypto.randomUUID();
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: 7,
+      fortnight: FORTNIGHT,
+      number: 5,
+      corrects: voucherAt(22),
+      saleId,
+    });
+
+    expect(await otherDocumentsOfSale(db, saleId, crypto.randomUUID())).toEqual([]);
   });
 });
