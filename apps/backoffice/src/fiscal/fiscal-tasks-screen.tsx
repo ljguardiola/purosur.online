@@ -80,7 +80,7 @@ function alertCell(task: FiscalTaskItem) {
 }
 
 const columns = [
-  dataColumn({ id: "openedSince", header: "Abierta", render: openedSince }),
+  dataColumn({ id: "openedSince", header: "Abierta", width: 140, render: openedSince }),
   dataColumn({
     id: "task",
     header: "Tarea",
@@ -93,9 +93,10 @@ const columns = [
   dataColumn({
     id: "register",
     header: "Caja",
+    width: 120,
     render: (task: FiscalTaskItem) => task.register_name,
   }),
-  dataColumn({ id: "alert", header: "Aviso", render: alertCell }),
+  dataColumn({ id: "alert", header: "Aviso", width: 210, render: alertCell }),
 ] as const;
 
 export function FiscalTasksScreen({ onSessionEnded, services }: FiscalTasksScreenProps) {
@@ -122,7 +123,9 @@ export function FiscalTasksScreen({ onSessionEnded, services }: FiscalTasksScree
           variant: "blank",
         }}
         footer={
-          <p className="text-text-subtle text-detail">{openFiscalTasksCountText(tasks.length)}</p>
+          tasks.length === 0 ? undefined : (
+            <p className="text-text-subtle text-detail">{openFiscalTasksCountText(tasks.length)}</p>
+          )
         }
       />
     </ScreenLayout>
