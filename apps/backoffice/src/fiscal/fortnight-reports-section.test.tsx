@@ -73,6 +73,7 @@ function rejectedDocument(overrides: Partial<RejectedDocument> = {}): RejectedDo
     buyerTaxStatusCode: 5,
     rejections: [{ code: 10016, message: "Fictional observation" }],
     remedy: "awaiting_remedy",
+    remedies: ["report", "printed"],
     ...overrides,
   };
 }
@@ -332,6 +333,7 @@ test("offers to review the rejection of a document that waits for its remedy, ha
   expect(onReview).toHaveBeenCalledWith({
     pointOfSaleNumber: 4,
     fortnight: septemberFirstHalf,
+    documentType: "factura_c",
     rejectedDocument: rejectedDocument(),
   });
 });

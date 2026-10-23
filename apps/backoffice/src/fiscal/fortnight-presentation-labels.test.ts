@@ -16,6 +16,7 @@ function rejectedDocument(overrides: Partial<RejectedDocument> = {}): RejectedDo
     buyerTaxStatusCode: 5,
     rejections: [{ code: 10016, message: "Fictional observation" }],
     remedy: "awaiting_remedy",
+    remedies: ["report", "printed"],
     ...overrides,
   };
 }

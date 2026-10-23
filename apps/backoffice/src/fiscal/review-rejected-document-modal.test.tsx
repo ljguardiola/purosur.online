@@ -26,12 +26,20 @@ const rejectedDocument: RejectedDocument = {
   buyerTaxStatusCode: 5,
   rejections: [{ code: 10016, message: "El importe total no coincide con la suma." }],
   remedy: "awaiting_remedy",
+  remedies: ["report", "printed"],
 };
 
 const target: RemedyTarget = {
   pointOfSaleNumber: 4,
   fortnight: { start: "2026-09-01", end: "2026-09-15" },
+  documentType: "factura_c",
   rejectedDocument,
+};
+
+const creditNoteTarget: RemedyTarget = {
+  ...target,
+  documentType: "credit_note_c",
+  rejectedDocument: { ...rejectedDocument, remedies: ["report"] },
 };
 
 const reportRequest = {
@@ -172,6 +180,30 @@ test.each([
     await expect.element(dialog.getByText(notice, { exact: true }).first()).toBeVisible();
   },
 );
+
+test("offers a rejected credit note only to be reported again, without asking where the error is", async () => {
+  const { dialog } = await renderModal(createServices(), { target: creditNoteTarget });
+
+  await expect.element(dialog.getByText("Nota de crédito C · CAEA")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Corregir el informe" })).toBeVisible();
+  expect(dialog.getByRole("radiogroup", { name: "¿Dónde está el error?" }).query()).toBeNull();
+  expect(dialog.getByRole("radio", { name: "En el comprobante impreso" }).query()).toBeNull();
+  expect(dialog.getByText("Lo impreso está mal").query()).toBeNull();
+});
+
+test("reports a rejected credit note again as a credit note", async () => {
+  const services = createServices();
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal(services, { target: creditNoteTarget });
+
+  await submitReport(dialog);
+
+  await expect.poll(() => vi.mocked(services.remedyRejectedDocument).mock.calls.length).toBe(1);
+  expect(services.remedyRejectedDocument).toHaveBeenCalledWith({
+    ...reportRequest,
+    document_type: "credit_note_c",
+  });
+});
 
 test("has no accessibility violations", async () => {
   const { dialog } = await renderModal(createServices());
