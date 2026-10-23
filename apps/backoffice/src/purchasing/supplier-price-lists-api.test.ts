@@ -256,13 +256,27 @@ describe("loadSupplierPriceListWebPage", () => {
   });
 
   test.each(WEB_PAGE_REFUSAL_REASONS)("answers a refused page for %s", async (reason) => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(422, { code: "page_refused", reason }));
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(422, { code: "page_refused", message: "the page could not be read", reason }),
+    );
 
     expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "page_refused", reason });
   });
 
+  test("returns failed for a 422 that is not a page refusal", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(422, { reason: "too_large" }));
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "failed" });
+  });
+
   test("returns failed for a 422 with a reason it does not know", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(422, { code: "page_refused", reason: "x" }));
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(422, {
+        code: "page_refused",
+        message: "the page could not be read",
+        reason: "x",
+      }),
+    );
 
     expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "failed" });
   });
@@ -319,7 +333,9 @@ describe("refreshSupplierPriceList", () => {
   });
 
   test.each(WEB_PAGE_REFUSAL_REASONS)("answers a refused page for %s", async (reason) => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(422, { code: "page_refused", reason }));
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(422, { code: "page_refused", message: "the page could not be read", reason }),
+    );
 
     expect(await refreshSupplierPriceList("list-1")).toEqual({ kind: "page_refused", reason });
   });
