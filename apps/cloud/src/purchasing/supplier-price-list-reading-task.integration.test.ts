@@ -17,7 +17,7 @@ import { insertActor } from "./test-support/purchasing-fixtures.js";
 import { insertPriceList, insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
 
 const NOW = new Date("2026-03-10T15:00:00.000Z");
-const TWENTY_MINUTES_AGO = new Date("2026-03-10T14:40:00.000Z");
+const THIRTY_MINUTES_AGO = new Date("2026-03-10T14:30:00.000Z");
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
 
 let integrationDb: IntegrationDatabase;
@@ -100,11 +100,11 @@ describe("supplierPriceListReadingJobs against a real job queue", () => {
       supplierId,
       locationId,
       actorId,
-      sentAt: TWENTY_MINUTES_AGO,
+      sentAt: THIRTY_MINUTES_AGO,
       sentOn: "2026-03-10",
     });
     await queueReading(listId);
-    await lockReadingJobByStoppedWorker(listId, TWENTY_MINUTES_AGO);
+    await lockReadingJobByStoppedWorker(listId, THIRTY_MINUTES_AGO);
 
     await runTask("supplier-price-list-abandoned-reading-check", {});
 

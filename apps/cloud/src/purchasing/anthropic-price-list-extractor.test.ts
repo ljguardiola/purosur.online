@@ -731,10 +731,12 @@ describe("a range that throws an unexpected error", () => {
 describe("the time a reading has", () => {
   let fiftyPages: Awaited<ReturnType<typeof sourceOfPages>>;
   let fortyPages: Awaited<ReturnType<typeof sourceOfPages>>;
+  let fivePages: Awaited<ReturnType<typeof sourceOfPages>>;
 
   beforeAll(async () => {
     fiftyPages = await sourceOfPages(50);
     fortyPages = await sourceOfPages(40);
+    fivePages = await sourceOfPages(5);
   });
 
   beforeEach(() => {
@@ -810,6 +812,16 @@ describe("the time a reading has", () => {
     );
 
     expect(await extraction).toMatchObject({ kind: "extracted" });
+  });
+
+  it("gives up on a list as unavailable once one answer takes longer than ten minutes", async () => {
+    const { extractor, requests } = extractorAnsweringEachRangeAfter(11 * 60 * 1000);
+
+    const { extraction, settled } = await extractedAfter(extractor, fivePages, 10 * 60 * 1000 + 1);
+
+    expect(settled()).toBe(true);
+    expect(await extraction).toEqual({ kind: "unavailable" });
+    expect(requests).toHaveLength(1);
   });
 });
 

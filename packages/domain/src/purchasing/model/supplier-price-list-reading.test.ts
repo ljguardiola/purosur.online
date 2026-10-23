@@ -14,12 +14,12 @@ function minutesBeforeNow(minutes: number, extraMs = 0): Date {
 }
 
 describe("supplier price list reading limits", () => {
-  it("gives the AI service ten minutes to read a list", () => {
-    expect(SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS).toBe(10 * MINUTE_MS);
+  it("gives the AI service twenty minutes to read a list", () => {
+    expect(SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS).toBe(20 * MINUTE_MS);
   });
 
-  it("gives up on a reading fifteen minutes after it started, past the time the AI service has", () => {
-    expect(SUPPLIER_PRICE_LIST_READING_ABANDONED_AFTER_MS).toBe(15 * MINUTE_MS);
+  it("gives up on a reading twenty-five minutes after it started, past the time the AI service has", () => {
+    expect(SUPPLIER_PRICE_LIST_READING_ABANDONED_AFTER_MS).toBe(25 * MINUTE_MS);
   });
 
   it("looks for abandoned readings every minute", () => {
@@ -28,19 +28,19 @@ describe("supplier price list reading limits", () => {
 });
 
 describe("isSupplierPriceListReadingAbandoned", () => {
-  it("abandons a sent reading once fifteen minutes passed since it was sent", () => {
+  it("abandons a sent reading once twenty-five minutes passed since it was sent", () => {
     expect(
       isSupplierPriceListReadingAbandoned(
-        { sentAt: minutesBeforeNow(15, 1), readingStartedAt: null },
+        { sentAt: minutesBeforeNow(25, 1), readingStartedAt: null },
         NOW,
       ),
     ).toBe(true);
   });
 
-  it("keeps a sent reading exactly fifteen minutes after it was sent", () => {
+  it("keeps a sent reading exactly twenty-five minutes after it was sent", () => {
     expect(
       isSupplierPriceListReadingAbandoned(
-        { sentAt: minutesBeforeNow(15), readingStartedAt: null },
+        { sentAt: minutesBeforeNow(25), readingStartedAt: null },
         NOW,
       ),
     ).toBe(false);
@@ -55,19 +55,19 @@ describe("isSupplierPriceListReadingAbandoned", () => {
     ).toBe(false);
   });
 
-  it("abandons an unsent reading once fifteen minutes passed since it started", () => {
+  it("abandons an unsent reading once twenty-five minutes passed since it started", () => {
     expect(
       isSupplierPriceListReadingAbandoned(
-        { sentAt: null, readingStartedAt: minutesBeforeNow(15, 1) },
+        { sentAt: null, readingStartedAt: minutesBeforeNow(25, 1) },
         NOW,
       ),
     ).toBe(true);
   });
 
-  it("keeps an unsent reading exactly fifteen minutes after it started", () => {
+  it("keeps an unsent reading exactly twenty-five minutes after it started", () => {
     expect(
       isSupplierPriceListReadingAbandoned(
-        { sentAt: null, readingStartedAt: minutesBeforeNow(15) },
+        { sentAt: null, readingStartedAt: minutesBeforeNow(25) },
         NOW,
       ),
     ).toBe(false);

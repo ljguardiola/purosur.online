@@ -5,7 +5,7 @@ import { FakeSupplierPriceListReadings } from "./test-support/fake-supplier-pric
 import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
 
 const NOW = new Date("2026-03-10T15:00:00Z");
-const TWENTY_MINUTES_AGO = new Date("2026-03-10T14:40:00Z");
+const THIRTY_MINUTES_AGO = new Date("2026-03-10T14:30:00Z");
 const ONE_MINUTE_AGO = new Date("2026-03-10T14:59:00Z");
 
 function setup(
@@ -34,23 +34,23 @@ function failingFirstTransactions(
 }
 
 const THREE_ABANDONED_READINGS = [
-  { listId: "list-1", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
-  { listId: "list-2", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
-  { listId: "list-3", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+  { listId: "list-1", sentAt: THIRTY_MINUTES_AGO, readingStartedAt: THIRTY_MINUTES_AGO },
+  { listId: "list-2", sentAt: THIRTY_MINUTES_AGO, readingStartedAt: THIRTY_MINUTES_AGO },
+  { listId: "list-3", sentAt: THIRTY_MINUTES_AGO, readingStartedAt: THIRTY_MINUTES_AGO },
 ];
 
 const THREE_SENT_LISTS = THREE_ABANDONED_READINGS.map(({ listId }) => ({
   id: listId,
-  sentAt: TWENTY_MINUTES_AGO,
+  sentAt: THIRTY_MINUTES_AGO,
   sentOn: "2026-03-10",
 }));
 
 describe("settleAbandonedSupplierPriceListReadings", () => {
-  it("fails as interrupted a list sent to the AI service fifteen minutes ago or more with no answer", async () => {
+  it("fails as interrupted a list sent to the AI service twenty-five minutes ago or more with no answer", async () => {
     const { store, ports } = setup(
-      [{ id: "list-1", sentAt: TWENTY_MINUTES_AGO, sentOn: "2026-03-10" }],
+      [{ id: "list-1", sentAt: THIRTY_MINUTES_AGO, sentOn: "2026-03-10" }],
       new FakeSupplierPriceListReadings([
-        { listId: "list-1", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+        { listId: "list-1", sentAt: THIRTY_MINUTES_AGO, readingStartedAt: THIRTY_MINUTES_AGO },
       ]),
     );
 
@@ -64,11 +64,11 @@ describe("settleAbandonedSupplierPriceListReadings", () => {
     });
   });
 
-  it("fails as unavailable a list whose reading started fifteen minutes ago or more without sending it", async () => {
+  it("fails as unavailable a list whose reading started twenty-five minutes ago or more without sending it", async () => {
     const { store, ports } = setup(
       [{ id: "list-1" }],
       new FakeSupplierPriceListReadings([
-        { listId: "list-1", sentAt: null, readingStartedAt: TWENTY_MINUTES_AGO },
+        { listId: "list-1", sentAt: null, readingStartedAt: THIRTY_MINUTES_AGO },
       ]),
     );
 
@@ -116,9 +116,9 @@ describe("settleAbandonedSupplierPriceListReadings", () => {
 
   it("leaves a list whose reading finished after it was listed", async () => {
     const { store, ports } = setup(
-      [{ id: "list-1", state: "EXTRACTED", sentAt: TWENTY_MINUTES_AGO, sentOn: "2026-03-10" }],
+      [{ id: "list-1", state: "EXTRACTED", sentAt: THIRTY_MINUTES_AGO, sentOn: "2026-03-10" }],
       new FakeSupplierPriceListReadings([
-        { listId: "list-1", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+        { listId: "list-1", sentAt: THIRTY_MINUTES_AGO, readingStartedAt: THIRTY_MINUTES_AGO },
       ]),
     );
     const before = store.snapshot();
@@ -134,7 +134,7 @@ describe("settleAbandonedSupplierPriceListReadings", () => {
     const { store, ports } = setup(
       [{ id: "list-1", sentAt: ONE_MINUTE_AGO, sentOn: "2026-03-10" }],
       new FakeSupplierPriceListReadings([
-        { listId: "list-1", sentAt: null, readingStartedAt: TWENTY_MINUTES_AGO },
+        { listId: "list-1", sentAt: null, readingStartedAt: THIRTY_MINUTES_AGO },
       ]),
     );
     const before = store.snapshot();
@@ -150,7 +150,7 @@ describe("settleAbandonedSupplierPriceListReadings", () => {
     const { store, ports } = setup(
       [],
       new FakeSupplierPriceListReadings([
-        { listId: "list-1", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+        { listId: "list-1", sentAt: THIRTY_MINUTES_AGO, readingStartedAt: THIRTY_MINUTES_AGO },
       ]),
     );
 
@@ -164,14 +164,14 @@ describe("settleAbandonedSupplierPriceListReadings", () => {
   it("settles each abandoned list in its own transaction, leaving the others", async () => {
     const { store, ports } = setup(
       [
-        { id: "list-1", sentAt: TWENTY_MINUTES_AGO, sentOn: "2026-03-10" },
+        { id: "list-1", sentAt: THIRTY_MINUTES_AGO, sentOn: "2026-03-10" },
         { id: "list-2", sentAt: ONE_MINUTE_AGO, sentOn: "2026-03-10" },
         { id: "list-3" },
       ],
       new FakeSupplierPriceListReadings([
-        { listId: "list-1", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+        { listId: "list-1", sentAt: THIRTY_MINUTES_AGO, readingStartedAt: THIRTY_MINUTES_AGO },
         { listId: "list-2", sentAt: ONE_MINUTE_AGO, readingStartedAt: ONE_MINUTE_AGO },
-        { listId: "list-3", sentAt: null, readingStartedAt: TWENTY_MINUTES_AGO },
+        { listId: "list-3", sentAt: null, readingStartedAt: THIRTY_MINUTES_AGO },
       ]),
     );
 
@@ -189,9 +189,9 @@ describe("settleAbandonedSupplierPriceListReadings", () => {
 
   it("leaves the list reading when recording its failure fails", async () => {
     const { store, ports } = setup(
-      [{ id: "list-1", sentAt: TWENTY_MINUTES_AGO, sentOn: "2026-03-10" }],
+      [{ id: "list-1", sentAt: THIRTY_MINUTES_AGO, sentOn: "2026-03-10" }],
       new FakeSupplierPriceListReadings([
-        { listId: "list-1", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+        { listId: "list-1", sentAt: THIRTY_MINUTES_AGO, readingStartedAt: THIRTY_MINUTES_AGO },
       ]),
     );
     store.failingWrites.add("recordReadFailure");
