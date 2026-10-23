@@ -5,6 +5,8 @@ import type {
   RegisterReplenishmentTransaction,
   ReplenishedEventApplication,
   ReplenishedEventSource,
+  ReplenishmentFailure,
+  ReplenishmentRefusal,
   SyncedFact,
 } from "@purosur/domain/sync/use-cases";
 import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
@@ -33,6 +35,41 @@ export interface SqliteRegisterReplenishmentStoreDeps {
   ids: IdGenerator;
 }
 
+interface FailureRow {
+  failure_kind: "refused" | "unreadable_event" | null;
+  failure_refusal: ReplenishmentRefusal | null;
+  failure_event_id: string | null;
+  failure_reason: string | null;
+  failure_app_version: string | null;
+}
+
+export function readReplenishmentFailure(
+  database: LocalDatabase,
+): ReplenishmentFailure | undefined {
+  const row = database
+    .prepare<[], FailureRow>(
+      `SELECT failure_kind, failure_refusal, failure_event_id, failure_reason, failure_app_version
+         FROM register_predecessor`,
+    )
+    .get();
+  if (row?.failure_kind === "refused" && row.failure_refusal !== null) {
+    return { kind: "refused", refusal: row.failure_refusal };
+  }
+  if (
+    row?.failure_kind === "unreadable_event" &&
+    row.failure_event_id !== null &&
+    row.failure_reason !== null
+  ) {
+    return {
+      kind: "unreadable_event",
+      eventId: row.failure_event_id,
+      reason: row.failure_reason,
+      appVersion: row.failure_app_version,
+    };
+  }
+  return undefined;
+}
+
 export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentStore {
   private readonly database: LocalDatabase;
   private readonly pepper: string;
@@ -51,6 +88,36 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
       )
       .get();
     return row && { deviceId: row.device_id, lastAcknowledgedSeq: row.last_acknowledged_seq };
+  }
+
+  async lastFailure(): Promise<ReplenishmentFailure | undefined> {
+    return readReplenishmentFailure(this.database);
+  }
+
+  async recordFailure(failure: ReplenishmentFailure): Promise<void> {
+    this.database
+      .prepare(
+        `UPDATE register_predecessor SET
+           failure_kind = ?, failure_refusal = ?, failure_event_id = ?,
+           failure_reason = ?, failure_app_version = ?`,
+      )
+      .run(
+        failure.kind,
+        failure.kind === "refused" ? failure.refusal : null,
+        failure.kind === "unreadable_event" ? failure.eventId : null,
+        failure.kind === "unreadable_event" ? failure.reason : null,
+        failure.kind === "unreadable_event" ? failure.appVersion : null,
+      );
+  }
+
+  async clearFailure(): Promise<void> {
+    this.database
+      .prepare(
+        `UPDATE register_predecessor SET
+           failure_kind = NULL, failure_refusal = NULL, failure_event_id = NULL,
+           failure_reason = NULL, failure_app_version = NULL`,
+      )
+      .run();
   }
 
   async applyUsers(users: readonly ReplenishedUser[]): Promise<void> {
