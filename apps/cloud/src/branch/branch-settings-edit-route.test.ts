@@ -376,11 +376,7 @@ describe("PUT /locations/current/settings", () => {
     });
   });
 
-  it.each([
-    ["zero", 0],
-    ["not a whole number", 1.5],
-    ["above the maximum", 101],
-  ])("answers 400 for a cap that is %s, leaving the cap as it was", async (_case, cap) => {
+  it("answers 400 for a cap the request shape refuses, leaving the cap as it was", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lucero",
       email: "ada@example.com",
@@ -390,7 +386,7 @@ describe("PUT /locations/current/settings", () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await putBranchSettings(
-      validBody({ supplier_price_list_daily_extraction_cap: cap }),
+      validBody({ supplier_price_list_daily_extraction_cap: 0 }),
       rawSessionId,
     );
 

@@ -2,6 +2,7 @@ import {
   BRANCH_HOURS_RANGES_PER_DAY_MAX,
   BRANCH_SETTINGS_DAYS_MAX,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
+  SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
 } from "@purosur/domain";
 import { expect, test } from "vitest";
 import { type DayValues, EMPTY_VALUES, MESSAGES, requestFrom } from "./branch-settings-form";
@@ -97,9 +98,9 @@ test.each([
   "abc",
   String(SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX + 1),
   "9".repeat(400),
-])("asks for a whole number of lists from 1 to the maximum for %j", (cap) => {
+])("asks for a whole number of lists from the minimum to the maximum for %j", (cap) => {
   expect(extractionCapMessage(cap)).toBe(
-    `Ingresá un número entero de listas, de 1 a ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}.`,
+    `Ingresá un número entero de listas, de ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN} a ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}.`,
   );
 });
 

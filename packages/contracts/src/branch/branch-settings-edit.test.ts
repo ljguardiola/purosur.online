@@ -3,6 +3,7 @@ import {
   BRANCH_SETTINGS_DAYS_MAX,
   BRANCH_SETTINGS_TEXT_MAX_LENGTH,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
+  SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { branchSettingsEditBodySchema } from "./branch-settings-edit.js";
@@ -289,24 +290,35 @@ describe("branchSettingsEditBodySchema, supplier price list daily extraction cap
   const field = "supplier_price_list_daily_extraction_cap";
   const failure = {
     field,
-    message: `${field} must be an integer from 1 to ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}`,
+    message: `${field} must be an integer from ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN} to ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}`,
   };
 
-  it.each([1, 3, SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX])("accepts %s", (cap) => {
+  it.each([
+    SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
+    3,
+    SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
+  ])("accepts %s", (cap) => {
     expect(isAccepted(validBody({ [field]: cap }))).toBe(true);
   });
 
-  it.each([0, -1, SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX + 1, 1.5, "3", null])(
-    "rejects %s",
-    (cap) => {
-      expect(firstFailure(validBody({ [field]: cap }))).toEqual(failure);
-    },
-  );
+  it.each([
+    SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN - 1,
+    -1,
+    SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX + 1,
+    1.5,
+    "3",
+    null,
+  ])("rejects %s", (cap) => {
+    expect(firstFailure(validBody({ [field]: cap }))).toEqual(failure);
+  });
 
-  it("declares its maximum for a form to read", () => {
+  it("declares its minimum and maximum for a form to read", () => {
     expect(
       branchSettingsEditBodySchema.shape.supplier_price_list_daily_extraction_cap.meta(),
-    ).toEqual({ maximum: SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX });
+    ).toEqual({
+      minimum: SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
+      maximum: SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
+    });
   });
 
   it("rejects a missing cap", () => {

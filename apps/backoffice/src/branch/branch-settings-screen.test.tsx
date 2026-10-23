@@ -1249,7 +1249,7 @@ test("shows the loaded cap of supplier price lists read per day, with its explan
   await expect
     .element(field)
     .toHaveAccessibleDescription(
-      "Cuántas listas de proveedores puede mandar a leer con IA esta sucursal por día. Al llegar al tope, la lectura queda para el día siguiente.",
+      "Cuántas listas de proveedores puede mandar a leer con IA esta sucursal por día. Al llegar al tope, no se pueden cargar más listas hasta el día siguiente.",
     );
 });
 

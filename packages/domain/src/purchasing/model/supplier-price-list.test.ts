@@ -14,6 +14,7 @@ import {
   isSupplierPriceListPdfTooLarge,
   isSupplierPriceListUnderReview,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
+  SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
   SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH,
   SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
   SUPPLIER_PRICE_LIST_READ_FAILURES,
@@ -128,6 +129,10 @@ describe("dailyExtractionCapReached", () => {
 });
 
 describe("isSupplierPriceListDailyExtractionCap", () => {
+  it("allows at least 1 extraction a day", () => {
+    expect(SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN).toBe(1);
+  });
+
   it("allows at most 100 extractions a day", () => {
     expect(SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX).toBe(100);
   });
