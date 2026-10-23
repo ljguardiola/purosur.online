@@ -13,7 +13,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../platform/edge-origin-guard.js";
-import { type RecoveryInfrastructure, setUpRecovery, startServer } from "../server.js";
+import { type BackgroundJobInfrastructure, setUpBackgroundJobs, startServer } from "../server.js";
 import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
@@ -151,7 +151,7 @@ async function startRealServer(
 ): Promise<StartedFixture> {
   const port = await findFreePort();
   let currentTime = NOW.getTime();
-  let recovery: RecoveryInfrastructure | undefined;
+  let recovery: BackgroundJobInfrastructure | undefined;
   let app: Awaited<ReturnType<typeof startServer>>;
   try {
     app = await startServer(
@@ -171,8 +171,8 @@ async function startRealServer(
       {
         now: () => new Date(currentTime),
         arcaEndpoints: unreachableArcaEndpoints,
-        setUpRecovery: async (recoveryEnv, now) => {
-          recovery = await setUpRecovery(recoveryEnv, now, {
+        setUpBackgroundJobs: async (recoveryEnv, now) => {
+          recovery = await setUpBackgroundJobs(recoveryEnv, now, {
             emailSender,
             createJobQueuePool,
             schedules: false,
@@ -209,7 +209,7 @@ function postRecoveryRequest(origin: string, email: string): Promise<Response> {
   });
 }
 
-describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker run()", () => {
+describe("setUpBackgroundJobs wired to a real Postgres pool and a real graphile-worker run()", () => {
   it("hands graphile-worker pools that report their own dropped connections, so graphile installs none of its own", async () => {
     const warnings: string[] = [];
     const reports: string[] = [];

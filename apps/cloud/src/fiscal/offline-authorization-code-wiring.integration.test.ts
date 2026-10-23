@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -70,7 +70,7 @@ function recoveryEnv() {
 }
 
 async function acquireOnDemand() {
-  const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+  const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });

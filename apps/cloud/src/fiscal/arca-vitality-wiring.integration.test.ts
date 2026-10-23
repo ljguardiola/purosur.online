@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -63,7 +63,7 @@ function pendingWatchdogs() {
 
 describe("the ARCA vitality check the server sets up on a real Postgres", () => {
   it("records a check and keeps exactly one next check scheduled 30 seconds on, which the watchdog does not duplicate", async () => {
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -112,7 +112,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
     await sql`delete from arca_vitality_checks`;
     fakeWsfe.behave(answers("fe-dummy-fault.xml", 500));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -149,7 +149,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
   it("has the watchdog start the chain when none is scheduled", async () => {
     await sql`delete from graphile_worker._private_jobs`;
     await sql`delete from arca_vitality_checks`;
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },

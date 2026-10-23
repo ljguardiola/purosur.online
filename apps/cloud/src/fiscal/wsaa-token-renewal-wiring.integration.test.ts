@@ -3,7 +3,7 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -90,7 +90,7 @@ async function queuedTasks() {
 
 async function setUp(now: () => Date = () => NOW, invoicing?: Invoicing) {
   expect(await queuedTasks()).toEqual([]);
-  const recovery = await setUpRecovery(serverEnvironment(invoicing), now, {
+  const recovery = await setUpBackgroundJobs(serverEnvironment(invoicing), now, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });
@@ -155,7 +155,7 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
   it("renews the token on its own schedule when the server starts with its schedules", async () => {
     await sql`delete from arca_wsaa_tokens`;
     fakeWsaa.behave(answers("login-cms-issued.xml"));
-    const recovery = await setUpRecovery(serverEnvironment(), () => NOW, {
+    const recovery = await setUpBackgroundJobs(serverEnvironment(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
     });
     try {

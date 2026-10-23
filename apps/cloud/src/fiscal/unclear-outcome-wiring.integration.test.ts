@@ -4,7 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { fiscalRequests } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -87,7 +87,7 @@ describe("the unclear outcome decisions the server sets up on a real Postgres", 
       unclearCodes: [],
       answeredAt: ANSWERED_AT,
     });
-    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });

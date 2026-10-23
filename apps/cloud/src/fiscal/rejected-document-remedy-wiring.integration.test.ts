@@ -5,7 +5,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import {
   createIntegrationDatabase,
@@ -117,7 +117,7 @@ beforeEach(async () => {
 });
 
 async function runReportTask() {
-  const recovery = await setUpRecovery(
+  const recovery = await setUpBackgroundJobs(
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" as const },

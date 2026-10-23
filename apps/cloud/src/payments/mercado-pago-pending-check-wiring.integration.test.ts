@@ -3,7 +3,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { paymentTransactions } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -66,7 +66,7 @@ function pendingWatchdogs() {
 }
 
 function setUp(mercadoPago: FakeMercadoPagoOrders) {
-  return setUpRecovery(
+  return setUpBackgroundJobs(
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" },

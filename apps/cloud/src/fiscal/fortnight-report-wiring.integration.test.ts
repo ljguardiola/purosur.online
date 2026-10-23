@@ -4,7 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import {
   createIntegrationDatabase,
@@ -106,7 +106,7 @@ function recoveryEnv() {
 }
 
 async function reportOnDemand(expectedRequests: number) {
-  const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+  const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });
@@ -125,7 +125,7 @@ async function reportOnDemand(expectedRequests: number) {
 }
 
 async function reportOnDemandUntilDone() {
-  const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+  const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });
@@ -289,7 +289,7 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
       number: 1,
     });
 
-    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
@@ -320,7 +320,7 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
               values (8, '2026-10-01', ${NOW.toISOString()}::timestamptz)`;
     fakeWsfe.behave(answersInTurn("fe-caea-sin-movimiento-consultar-held.xml"));
 
-    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });

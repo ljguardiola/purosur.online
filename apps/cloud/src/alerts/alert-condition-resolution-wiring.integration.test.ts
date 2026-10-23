@@ -19,7 +19,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import {
@@ -78,7 +78,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
     if (!stable || !recent || !holding) {
       throw new Error("test setup: inserting the alerts returned no rows");
     }
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -125,7 +125,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       lastAcceptedPushAt: new Date(NOW.getTime() - 20 * MINUTE_MS),
       reportsEveryCycleSince: new Date(NOW.getTime() - 60 * MINUTE_MS),
     });
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -171,7 +171,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       now: NOW,
       existingRegisterId: registerId,
     });
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -245,7 +245,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       expiresOn: "2020-01-20",
     });
     let currentTime = NOW;
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -323,7 +323,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       }),
     );
     let currentTime = NOW;
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -417,7 +417,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       lastAttemptAt: new Date("2020-01-03T12:00:00.000Z"),
       recordedAt: new Date("2020-01-03T12:00:00.000Z"),
     });
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -486,7 +486,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
     });
     const firstChange = new Date(NOW.getTime() - 90 * MINUTE_MS);
     await insertInboxEvent(db, overdue.deviceId, { occurredAt: firstChange });
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },

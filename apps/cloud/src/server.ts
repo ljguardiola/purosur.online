@@ -327,7 +327,7 @@ export function arcaEndpointsOf(environment: string): ArcaEndpoints {
 function resolveArcaSigning(
   env: ServerEnv,
   arcaEndpoints: (environment: string) => ArcaEndpoints,
-): Pick<SetUpRecoveryEnv, "arcaWsaa" | "arcaBuyerTaxStatus" | "arcaInvoicing"> {
+): Pick<SetUpBackgroundJobsEnv, "arcaWsaa" | "arcaBuyerTaxStatus" | "arcaInvoicing"> {
   const environment = requireArcaEnvironment(env);
   const encodedKey = env.ARCA_PRIVATE_KEY;
   if (!encodedKey) {
@@ -414,7 +414,7 @@ export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
   };
 }
 
-export interface SetUpRecoveryEnv extends RecoveryEnv {
+export interface SetUpBackgroundJobsEnv extends RecoveryEnv {
   arcaCertificate: { environment: string; notAfter: Date };
   arcaVitality: { endpoint: string };
   offsiteDumpCheck?: { environment: string };
@@ -437,7 +437,7 @@ function wsaaRenewalInput(
     certificatePem,
     privateKeyPem,
     certificateFingerprint,
-  }: NonNullable<SetUpRecoveryEnv["arcaWsaa"]>,
+  }: NonNullable<SetUpBackgroundJobsEnv["arcaWsaa"]>,
   environment: string,
   resumesWorkWaitingOnToken: boolean,
   now: () => Date,
@@ -453,7 +453,7 @@ function wsaaRenewalInput(
   };
 }
 
-export interface RecoveryInfrastructure {
+export interface BackgroundJobInfrastructure {
   db: PostgresJsDatabase<Record<string, never>>;
   connections: DedicatedConnections<PostgresJsQueryResultHKT>;
   jobQueue: RecoveryJobQueue;
@@ -463,14 +463,14 @@ export interface RecoveryInfrastructure {
   close(): Promise<void>;
 }
 
-export interface CreateRecoveryJobQueuePoolDeps {
+export interface CreateBackgroundJobQueuePoolDeps {
   createPool?: (connectionString: string) => Pick<pg.Pool, "on" | "end">;
 }
 
 /** graphile-worker's own `release()` ends a pool it created without awaiting it, so it's owned here. */
-export function createRecoveryJobQueuePool(
+export function createBackgroundJobQueuePool(
   connectionString: string,
-  deps: CreateRecoveryJobQueuePoolDeps = {},
+  deps: CreateBackgroundJobQueuePoolDeps = {},
 ): Pick<pg.Pool, "on" | "end"> {
   const doCreatePool = deps.createPool ?? ((url: string) => new pg.Pool({ connectionString: url }));
   const pool = doCreatePool(connectionString);
@@ -478,19 +478,19 @@ export function createRecoveryJobQueuePool(
   return pool;
 }
 
-export interface RecoveryResources {
+export interface BackgroundJobResources {
   worker: Pick<BackgroundJobRunnerHandle, "stop">;
   workerUtils: Pick<WorkerUtils, "release">;
   jobQueuePool: Pick<pg.Pool, "end">;
   sql: Pick<postgres.Sql, "end">;
 }
 
-export async function closeRecoveryResources({
+export async function closeBackgroundJobResources({
   worker,
   workerUtils,
   jobQueuePool,
   sql,
-}: RecoveryResources): Promise<void> {
+}: BackgroundJobResources): Promise<void> {
   await runShutdownSteps([
     { label: "background job runner", run: () => worker.stop() },
     { label: "job-queue utilities", run: async () => void (await workerUtils.release()) },
@@ -499,11 +499,11 @@ export async function closeRecoveryResources({
   ]);
 }
 
-export interface SetUpRecoveryDeps {
+export interface SetUpBackgroundJobsDeps {
   /** Only an integration test injects a fake sender, to run this against a real Postgres without sending real email. */
   emailSender?: AccessEmailSender;
   /** Lets a test give the job-queue pool a `pg.Pool` with no idle reaper, so it doesn't race pg-pool's own idle timeout. */
-  createJobQueuePool?: CreateRecoveryJobQueuePoolDeps["createPool"];
+  createJobQueuePool?: CreateBackgroundJobQueuePoolDeps["createPool"];
   schedules?: StartBackgroundJobRunnerOptions["schedules"];
 }
 
@@ -511,36 +511,36 @@ export interface SetUpRecoveryDeps {
  * graphile-worker's `run()` needs a real Postgres connection with LISTEN/NOTIFY, which this
  * repository's PGlite-based test database does not provide.
  */
-export async function setUpRecovery(
-  recoveryEnv: SetUpRecoveryEnv,
+export async function setUpBackgroundJobs(
+  backgroundJobsEnv: SetUpBackgroundJobsEnv,
   now: () => Date,
-  deps: SetUpRecoveryDeps = {},
-): Promise<RecoveryInfrastructure> {
-  const sql = postgres(recoveryEnv.databaseUrl);
+  deps: SetUpBackgroundJobsDeps = {},
+): Promise<BackgroundJobInfrastructure> {
+  const sql = postgres(backgroundJobsEnv.databaseUrl);
   const db = drizzle(sql);
   const connections = postgresDedicatedConnections(sql);
   const emailSender =
     deps.emailSender ??
     selectRecoveryEmailSender({
-      emailSender: recoveryEnv.emailSender,
-      emailFrom: recoveryEnv.emailFrom,
-      emailReplyTo: recoveryEnv.emailReplyTo,
+      emailSender: backgroundJobsEnv.emailSender,
+      emailFrom: backgroundJobsEnv.emailFrom,
+      emailReplyTo: backgroundJobsEnv.emailReplyTo,
     });
   const worker = await startBackgroundJobRunner({
-    databaseUrl: recoveryEnv.databaseUrl,
+    databaseUrl: backgroundJobsEnv.databaseUrl,
     ...(deps.schedules === undefined ? {} : { schedules: deps.schedules }),
     jobs: [
-      accessEmailJobs({ now, backofficeOrigin: recoveryEnv.backofficeOrigin, emailSender }),
+      accessEmailJobs({ now, backofficeOrigin: backgroundJobsEnv.backofficeOrigin, emailSender }),
       alertEscalationJobs({ now }),
       alertConditionResolutionJobs({ now }),
-      arcaCertificateExpiryJobs({ now, ...recoveryEnv.arcaCertificate }),
-      ...(recoveryEnv.offsiteDumpCheck
-        ? [unverifiedOffsiteDumpJobs({ now, ...recoveryEnv.offsiteDumpCheck })]
+      arcaCertificateExpiryJobs({ now, ...backgroundJobsEnv.arcaCertificate }),
+      ...(backgroundJobsEnv.offsiteDumpCheck
+        ? [unverifiedOffsiteDumpJobs({ now, ...backgroundJobsEnv.offsiteDumpCheck })]
         : []),
       arcaVitalityJobs({
         now,
         vitality: new WsfeArcaVitalityService({
-          endpoint: recoveryEnv.arcaVitality.endpoint,
+          endpoint: backgroundJobsEnv.arcaVitality.endpoint,
           onUnreachable: (cause) =>
             console.warn(
               `ARCA vitality check: no answer the cloud could read from FEDummy (${cause})`,
@@ -548,62 +548,62 @@ export async function setUpRecovery(
         }),
       }),
       applySyncedEventsJobs({ now }),
-      ...(recoveryEnv.registerSnapshotObjects
-        ? [registerSnapshotJobs({ now, objects: recoveryEnv.registerSnapshotObjects })]
+      ...(backgroundJobsEnv.registerSnapshotObjects
+        ? [registerSnapshotJobs({ now, objects: backgroundJobsEnv.registerSnapshotObjects })]
         : []),
-      ...(recoveryEnv.supplierPriceListReading
-        ? [supplierPriceListReadingJobs({ now, db, ...recoveryEnv.supplierPriceListReading })]
+      ...(backgroundJobsEnv.supplierPriceListReading
+        ? [supplierPriceListReadingJobs({ now, db, ...backgroundJobsEnv.supplierPriceListReading })]
         : []),
-      ...(recoveryEnv.mercadoPago
+      ...(backgroundJobsEnv.mercadoPago
         ? [
             mercadoPagoPendingCheckJobs({
               now,
-              mercadoPago: recoveryEnv.mercadoPago,
+              mercadoPago: backgroundJobsEnv.mercadoPago,
               db,
               connections,
             }),
             mercadoPagoRefundFollowJobs({
               now,
-              mercadoPago: recoveryEnv.mercadoPago,
+              mercadoPago: backgroundJobsEnv.mercadoPago,
               db,
               connections,
             }),
           ]
         : []),
-      ...(recoveryEnv.arcaWsaa
+      ...(backgroundJobsEnv.arcaWsaa
         ? [
             wsaaTokenRenewalJobs(
               wsaaRenewalInput(
-                recoveryEnv.arcaWsaa,
-                recoveryEnv.arcaCertificate.environment,
-                recoveryEnv.arcaInvoicing !== undefined,
+                backgroundJobsEnv.arcaWsaa,
+                backgroundJobsEnv.arcaCertificate.environment,
+                backgroundJobsEnv.arcaInvoicing !== undefined,
                 now,
               ),
             ),
           ]
         : []),
-      ...(recoveryEnv.arcaBuyerTaxStatus
+      ...(backgroundJobsEnv.arcaBuyerTaxStatus
         ? [
             buyerTaxStatusFetchJobs({
               now,
-              source: new WsfeBuyerTaxStatusSource(recoveryEnv.arcaBuyerTaxStatus),
-              certificateFingerprint: recoveryEnv.arcaBuyerTaxStatus.certificateFingerprint,
+              source: new WsfeBuyerTaxStatusSource(backgroundJobsEnv.arcaBuyerTaxStatus),
+              certificateFingerprint: backgroundJobsEnv.arcaBuyerTaxStatus.certificateFingerprint,
             }),
           ]
         : []),
-      ...(recoveryEnv.arcaInvoicing
+      ...(backgroundJobsEnv.arcaInvoicing
         ? [
             taxAuthorityCountJobs({
               now,
-              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
-              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
-              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(backgroundJobsEnv.arcaInvoicing),
+              vouchers: new WsfeTaxAuthorityVouchers(backgroundJobsEnv.arcaInvoicing),
+              certificateFingerprint: backgroundJobsEnv.arcaInvoicing.certificateFingerprint,
             }),
             unclearOutcomeJobs({
               now,
-              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
-              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
-              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              vouchers: new WsfeTaxAuthorityVouchers(backgroundJobsEnv.arcaInvoicing),
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(backgroundJobsEnv.arcaInvoicing),
+              certificateFingerprint: backgroundJobsEnv.arcaInvoicing.certificateFingerprint,
               db,
               connections,
               enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
@@ -611,18 +611,18 @@ export async function setUpRecovery(
             }),
             creditNoteJobs({
               now,
-              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
-              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
-              creditNotes: new WsfeTaxAuthorityCreditNotes(recoveryEnv.arcaInvoicing),
-              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              vouchers: new WsfeTaxAuthorityVouchers(backgroundJobsEnv.arcaInvoicing),
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(backgroundJobsEnv.arcaInvoicing),
+              creditNotes: new WsfeTaxAuthorityCreditNotes(backgroundJobsEnv.arcaInvoicing),
+              certificateFingerprint: backgroundJobsEnv.arcaInvoicing.certificateFingerprint,
               db,
               connections,
             }),
             numberingConflictJobs({
               now,
-              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
-              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
-              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              vouchers: new WsfeTaxAuthorityVouchers(backgroundJobsEnv.arcaInvoicing),
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(backgroundJobsEnv.arcaInvoicing),
+              certificateFingerprint: backgroundJobsEnv.arcaInvoicing.certificateFingerprint,
               db,
               connections,
               enqueueNumberingReconciliation: enqueueNumberingReconciliationJob,
@@ -631,27 +631,29 @@ export async function setUpRecovery(
             offlineAuthorizationCodeJobs({
               now,
               taxAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
-                recoveryEnv.arcaInvoicing,
+                backgroundJobsEnv.arcaInvoicing,
               ),
-              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              certificateFingerprint: backgroundJobsEnv.arcaInvoicing.certificateFingerprint,
             }),
             fortnightReportJobs({
               now,
-              declarations: new WsfeTaxAuthorityNoMovementDeclarations(recoveryEnv.arcaInvoicing),
+              declarations: new WsfeTaxAuthorityNoMovementDeclarations(
+                backgroundJobsEnv.arcaInvoicing,
+              ),
               documentReports: new WsfeTaxAuthorityOfflineDocumentReports(
-                recoveryEnv.arcaInvoicing,
+                backgroundJobsEnv.arcaInvoicing,
               ),
               codeAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
-                recoveryEnv.arcaInvoicing,
+                backgroundJobsEnv.arcaInvoicing,
               ),
-              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              certificateFingerprint: backgroundJobsEnv.arcaInvoicing.certificateFingerprint,
             }),
           ]
         : []),
     ],
   });
-  const jobQueuePool = createRecoveryJobQueuePool(
-    recoveryEnv.databaseUrl,
+  const jobQueuePool = createBackgroundJobQueuePool(
+    backgroundJobsEnv.databaseUrl,
     deps.createJobQueuePool ? { createPool: deps.createJobQueuePool } : {},
   );
   const workerUtils = await makeWorkerUtils({ pgPool: jobQueuePool as pg.Pool });
@@ -662,39 +664,39 @@ export async function setUpRecovery(
     connections,
     jobQueue,
     workerUtils,
-    backofficeOrigin: recoveryEnv.backofficeOrigin,
+    backofficeOrigin: backgroundJobsEnv.backofficeOrigin,
     worker,
-    close: () => closeRecoveryResources({ worker, workerUtils, jobQueuePool, sql }),
+    close: () => closeBackgroundJobResources({ worker, workerUtils, jobQueuePool, sql }),
   };
 }
 
 export interface StartServerDeps {
   initSentry?: typeof initSentry;
   buildApp?: (options: BuildAppOptions) => FastifyInstance;
-  setUpRecovery?: (
-    recoveryEnv: SetUpRecoveryEnv,
+  setUpBackgroundJobs?: (
+    backgroundJobsEnv: SetUpBackgroundJobsEnv,
     now: () => Date,
-  ) => Promise<RecoveryInfrastructure>;
+  ) => Promise<BackgroundJobInfrastructure>;
   enqueueArcaCertificateExpiryCheck?: (
-    workerUtils: RecoveryInfrastructure["workerUtils"],
+    workerUtils: BackgroundJobInfrastructure["workerUtils"],
   ) => Promise<unknown>;
   enqueueBuyerTaxStatusFetch?: (
-    workerUtils: RecoveryInfrastructure["workerUtils"],
+    workerUtils: BackgroundJobInfrastructure["workerUtils"],
   ) => Promise<unknown>;
-  enqueueMissingTaxAuthorityCounts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
-  enqueueMissingUnclearOutcomes?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
-  enqueueMissingNumberingConflicts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
-  enqueueMissingCreditNotes?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
+  enqueueMissingTaxAuthorityCounts?: (db: BackgroundJobInfrastructure["db"]) => Promise<unknown>;
+  enqueueMissingUnclearOutcomes?: (db: BackgroundJobInfrastructure["db"]) => Promise<unknown>;
+  enqueueMissingNumberingConflicts?: (db: BackgroundJobInfrastructure["db"]) => Promise<unknown>;
+  enqueueMissingCreditNotes?: (db: BackgroundJobInfrastructure["db"]) => Promise<unknown>;
   now?: () => Date;
   arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
-    db: RecoveryInfrastructure["db"],
+    db: BackgroundJobInfrastructure["db"],
     authorizedCuit: string,
   ) => Promise<unknown>;
 }
 
 function recordAuthorizedCuitInDatabase(
-  db: RecoveryInfrastructure["db"],
+  db: BackgroundJobInfrastructure["db"],
   authorizedCuit: string,
   now: () => Date,
 ): Promise<unknown> {
@@ -707,7 +709,7 @@ function recordAuthorizedCuitInDatabase(
 export async function startServer(env: ServerEnv, deps: StartServerDeps): Promise<FastifyInstance> {
   const doInitSentry = deps.initSentry ?? initSentry;
   const doBuildApp = deps.buildApp ?? buildApp;
-  const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
+  const doSetUpBackgroundJobs = deps.setUpBackgroundJobs ?? setUpBackgroundJobs;
   const now = deps.now ?? (() => new Date());
   const arcaEndpoints = deps.arcaEndpoints;
   const doEnqueueArcaCertificateExpiryCheck =
@@ -723,7 +725,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const doEnqueueMissingCreditNotes = deps.enqueueMissingCreditNotes ?? enqueueMissingCreditNotes;
   const doRecordAuthorizedCuit =
     deps.recordAuthorizedCuit ??
-    ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
+    ((db: BackgroundJobInfrastructure["db"], authorizedCuit: string) =>
       recordAuthorizedCuitInDatabase(db, authorizedCuit, now));
 
   const version = resolveVersion(env);
@@ -756,7 +758,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
         certificateFingerprint: parseArcaCertificate(env).fingerprint256,
         deviceTokenRotationKey: requireDeviceTokenRotationKey(env),
         installationKeysEncryptionKey: requireInstallationKeysEncryptionKey(env),
-        setUpRecoveryEnv: {
+        setUpBackgroundJobsEnv: {
           ...recoveryEnv,
           arcaCertificate: {
             environment: requireArcaEnvironment(env),
@@ -776,11 +778,11 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const database = configuration
     ? {
         ...configuration,
-        recovery: await doSetUpRecovery(configuration.setUpRecoveryEnv, now),
+        backgroundJobs: await doSetUpBackgroundJobs(configuration.setUpBackgroundJobsEnv, now),
       }
     : undefined;
 
-  const invoicing = database?.setUpRecoveryEnv.arcaInvoicing;
+  const invoicing = database?.setUpBackgroundJobsEnv.arcaInvoicing;
   const app = doBuildApp({
     version,
     now,
@@ -789,9 +791,9 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     ...(errorReporting ? { errorReporting } : {}),
     ...(database
       ? databaseRouteOptions({
-          db: database.recovery.db,
-          backofficeOrigin: database.recovery.backofficeOrigin,
-          recoveryJobQueue: database.recovery.jobQueue,
+          db: database.backgroundJobs.db,
+          backofficeOrigin: database.backgroundJobs.backofficeOrigin,
+          recoveryJobQueue: database.backgroundJobs.jobQueue,
           authorizedCuit: database.authorizedCuit,
           certificateFingerprint: database.certificateFingerprint,
           deviceTokenRotationKey: database.deviceTokenRotationKey,
@@ -804,7 +806,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
           ...(mercadoPago
             ? {
-                refundSending: { connections: database.recovery.connections, mercadoPago },
+                refundSending: { connections: database.backgroundJobs.connections, mercadoPago },
               }
             : {}),
         })
@@ -828,12 +830,12 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     ...(database
       ? {
           mercadoPagoOrders: {
-            connections: database.recovery.connections,
+            connections: database.backgroundJobs.connections,
             ...(mercadoPago ? { mercadoPago } : {}),
           },
           mercadoPagoNotifications: {
-            db: database.recovery.db,
-            connections: database.recovery.connections,
+            db: database.backgroundJobs.db,
+            connections: database.backgroundJobs.connections,
             ...(mercadoPago && mercadoPagoConfig
               ? { mercadoPago, webhookSecret: mercadoPagoConfig.webhookSecret }
               : {}),
@@ -843,7 +845,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     ...(database
       ? {
           restoredOrphanSweep: {
-            connections: database.recovery.connections,
+            connections: database.backgroundJobs.connections,
             enqueueCreditNote: enqueueCreditNoteJob,
           },
         }
@@ -851,7 +853,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     ...(database && invoicing
       ? {
           fiscalAuthorization: {
-            connections: database.recovery.connections,
+            connections: database.backgroundJobs.connections,
             taxAuthority: new WsfeTaxAuthorityInvoicing(invoicing),
             certificateFingerprint: invoicing.certificateFingerprint,
             enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
@@ -860,7 +862,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             enqueueCreditNote: enqueueCreditNoteJob,
           },
           creditNotes: {
-            connections: database.recovery.connections,
+            connections: database.backgroundJobs.connections,
             vouchers: new WsfeTaxAuthorityVouchers(invoicing),
             taxAuthority: new WsfeTaxAuthorityLastAuthorized(invoicing),
             creditNotes: new WsfeTaxAuthorityCreditNotes(invoicing),
@@ -871,17 +873,17 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       : {}),
   });
   if (database) {
-    app.addHook("onClose", () => database.recovery.close());
-    await doRecordAuthorizedCuit(database.recovery.db, database.authorizedCuit);
-    await doEnqueueArcaCertificateExpiryCheck(database.recovery.workerUtils);
-    if (database.setUpRecoveryEnv.arcaBuyerTaxStatus) {
-      await doEnqueueBuyerTaxStatusFetch(database.recovery.workerUtils);
+    app.addHook("onClose", () => database.backgroundJobs.close());
+    await doRecordAuthorizedCuit(database.backgroundJobs.db, database.authorizedCuit);
+    await doEnqueueArcaCertificateExpiryCheck(database.backgroundJobs.workerUtils);
+    if (database.setUpBackgroundJobsEnv.arcaBuyerTaxStatus) {
+      await doEnqueueBuyerTaxStatusFetch(database.backgroundJobs.workerUtils);
     }
     if (invoicing) {
-      await doEnqueueMissingTaxAuthorityCounts(database.recovery.db);
-      await doEnqueueMissingUnclearOutcomes(database.recovery.db);
-      await doEnqueueMissingNumberingConflicts(database.recovery.db);
-      await doEnqueueMissingCreditNotes(database.recovery.db);
+      await doEnqueueMissingTaxAuthorityCounts(database.backgroundJobs.db);
+      await doEnqueueMissingUnclearOutcomes(database.backgroundJobs.db);
+      await doEnqueueMissingNumberingConflicts(database.backgroundJobs.db);
+      await doEnqueueMissingCreditNotes(database.backgroundJobs.db);
     }
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });

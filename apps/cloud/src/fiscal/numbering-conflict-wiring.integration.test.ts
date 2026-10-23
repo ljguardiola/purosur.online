@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { fiscalRequests, taxAuthorityLastAuthorizedNumbers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import { buildChangesRouteApp, pulledPage } from "../sync/test-support/changes-route.js";
 import {
   createIntegrationDatabase,
@@ -128,7 +128,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
         "fe-comp-ultimo-autorizado-token-error.xml",
       ),
     );
-    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
@@ -210,7 +210,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
           "fe-comp-ultimo-autorizado-token-error.xml",
         ),
       );
-      const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+      const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
         emailSender: UNUSED_EMAIL_SENDER,
         schedules: false,
       });
@@ -268,7 +268,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
     const { registerId, deviceToken } = await registerHoldingPointOfSale(8, 1);
     const fiscalDocumentId = await leftUnclearByNumbering(registerId, 8, 2, "2026-10-05");
     fakeWsfe.behave(answersInTurn("fe-comp-ultimo-autorizado.xml", "fe-comp-consultar-found.xml"));
-    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });

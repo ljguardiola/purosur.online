@@ -10,7 +10,7 @@ import {
   registerSnapshotKeys,
   registers,
 } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -84,7 +84,7 @@ describe("the background worker the server sets up with a snapshots bucket on a 
       { ...common, id: FAILED_ID, status: "failed", failureReason: "hash_mismatch" },
     ]);
     const removed: string[] = [];
-    const recovery = await setUpRecovery(
+    const recovery = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },

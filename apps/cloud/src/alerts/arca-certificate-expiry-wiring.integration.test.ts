@@ -6,7 +6,7 @@ import type { AccessEmailSender } from "../credentials/recovery-email-sender.js"
 import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "../fiscal/arca-vitality-task.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { alerts } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -56,7 +56,7 @@ async function pendingCertificateExpiryChecks() {
 }
 
 async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
-  const recovery = await setUpRecovery(
+  const recovery = await setUpBackgroundJobs(
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" },
