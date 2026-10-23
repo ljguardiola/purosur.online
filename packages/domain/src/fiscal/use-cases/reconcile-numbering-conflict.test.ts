@@ -405,6 +405,41 @@ describe("reconcileNumberingConflict", () => {
       ]);
     });
 
+    it("credits nothing for a released document of the sale whose number the tax authority confirmed for another sale", async () => {
+      const { store, ports } = scenario({
+        ...gaps,
+        standings: [
+          [12, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-12" })],
+          [
+            13,
+            requestsAt(
+              { ...SALE_9_REQUEST, fiscalDocumentId: "document-13", total: 1 },
+              { ...SALE_9_REQUEST, fiscalDocumentId: "document-8", saleId: "sale-8" },
+            ),
+          ],
+        ],
+        saleDocuments: [
+          [
+            "sale-9",
+            [
+              {
+                kind: "real_time",
+                voucher: { voucherType: 11, pointOfSale: 12, number: 13 },
+                outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
+              },
+            ],
+          ],
+        ],
+      });
+
+      expect(await reconcile(ports)).toEqual({
+        kind: "reconciled",
+        lastAuthorized: 14,
+        alertedNumbers: [],
+        creditNotedNumbers: [],
+      });
+    });
+
     it.each<[string, RequestsAtNumber]>([
       ["the only voucher of its sale", requestsAt(SALE_9_REQUEST)],
       ["already regularized", { kind: "already_regularized" }],
