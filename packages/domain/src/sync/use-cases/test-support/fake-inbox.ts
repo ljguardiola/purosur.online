@@ -40,6 +40,7 @@ export interface FakeInboxState {
   everyCycleReports: { deviceId: string; at: Date }[];
   caughtUps: { deviceId: string; at: Date }[];
   refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
+  setAsideHeldEvents: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
   brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
   offlineNumberingAdvancedFor: { eventId: string; at: Date }[];
 }
@@ -55,6 +56,7 @@ export class FakeInbox implements Inbox {
     everyCycleReports: [],
     caughtUps: [],
     refusedPushes: [],
+    setAsideHeldEvents: [],
     brokenChainRevocations: [],
     offlineNumberingAdvancedFor: [],
   };
@@ -159,6 +161,14 @@ export class FakeInbox implements Inbox {
           throw new Error("the refused push could not be kept");
         }
         working.refusedPushes.push({ deviceId, events: structuredClone(events), refusedAt });
+      },
+      setAsideUnappliedHeldEvents: async (deviceId, events, refusedAt) => {
+        this.calls.push(`setAsideUnappliedHeldEvents ${deviceId}`);
+        const setAside = new Set(events.map((event) => event.event_id));
+        working.received = working.received.filter(
+          (entry) => entry.deviceId !== deviceId || !setAside.has(entry.event.event_id),
+        );
+        working.setAsideHeldEvents.push({ deviceId, events: structuredClone(events), refusedAt });
       },
       revokeForBrokenChain: async (deviceId, revokedAt) => {
         this.calls.push(`revokeForBrokenChain ${deviceId}`);

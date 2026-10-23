@@ -68,6 +68,7 @@ describe("receiving the events a register pushes", () => {
       everyCycleReports: [],
       caughtUps: [],
       refusedPushes: [],
+      setAsideHeldEvents: [],
       brokenChainRevocations: [],
       offlineNumberingAdvancedFor: [],
     });
@@ -264,6 +265,7 @@ describe("receiving the events a register pushes", () => {
       everyCycleReports: [],
       caughtUps: [],
       refusedPushes: [],
+      setAsideHeldEvents: [],
       brokenChainRevocations: [],
       offlineNumberingAdvancedFor: [],
     });
@@ -1096,7 +1098,7 @@ describe("the events held above a hole that a push fills", () => {
     return { ...fakeEvent(deviceSeq), payload: { seq: 99 } };
   }
 
-  it("refuses a push that fills the hole below an event altered after it was chained, setting the push aside and revoking", async () => {
+  it("refuses a push that fills the hole below an event altered after it was chained, setting aside the push and the held event and revoking", async () => {
     const inbox = new FakeInbox();
     inbox.holdEvents(DEVICE, altered(3));
     const pushed = eventsOf(1, 2);
@@ -1104,11 +1106,26 @@ describe("the events held above a hole that a push fills", () => {
     const outcome = await receive(inbox, pushed);
 
     expect(outcome).toEqual(REFUSED);
-    expect(inbox.receivedSeqs(DEVICE)).toEqual([3]);
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([]);
     expect(inbox.state.refusedPushes).toEqual([
       { deviceId: DEVICE, events: pushed, refusedAt: NOW },
     ]);
+    expect(inbox.state.setAsideHeldEvents).toEqual([
+      { deviceId: DEVICE, events: [altered(3)], refusedAt: NOW },
+    ]);
     expect(inbox.state.brokenChainRevocations).toEqual([{ deviceId: DEVICE, revokedAt: NOW }]);
+  });
+
+  it("sets aside every held event a refused push joins, keeping the events below the push and above the next hole", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    inbox.holdEvents(DEVICE, fakeEvent(3), altered(4), fakeEvent(6));
+
+    await receive(inbox, eventsOf(2));
+
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 6]);
+    expect(inbox.state.setAsideHeldEvents).toEqual([
+      { deviceId: DEVICE, events: [fakeEvent(3), altered(4)], refusedAt: NOW },
+    ]);
   });
 
   it("refuses a push carrying the original of an event whose held copy was altered after it was chained", async () => {
@@ -1146,6 +1163,7 @@ describe("the events held above a hole that a push fills", () => {
 
     expect(outcome).toEqual({ kind: "received", ackSeq: 4 });
     expect(inbox.state.brokenChainRevocations).toEqual([]);
+    expect(inbox.state.setAsideHeldEvents).toEqual([]);
   });
 
   it("leaves a held event above the next hole to the push that fills that hole", async () => {

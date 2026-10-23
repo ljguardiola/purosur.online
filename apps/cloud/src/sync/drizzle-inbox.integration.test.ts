@@ -21,6 +21,7 @@ import {
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
+import { DrizzleRegisterReplenishment } from "./drizzle-register-replenishment.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 
 const CIPHER = installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY);
@@ -347,6 +348,69 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       .from(registerInstallations)
       .where(eq(registerInstallations.id, deviceId));
     expect(installation?.revocationReason).toBe("outbox_chain_broken");
+  });
+
+  it("moves the unapplied held events a refused push joins into the refused events, keeping an applied one", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const [first, second, third, fourth] = linked(event(1), event(2), event(3), event(4));
+    if (!first || !second || !third || !fourth) {
+      throw new Error("test setup: the chain holds four events");
+    }
+    const alteredFourth = { ...fourth, payload: { quantity: 99 } };
+    await db
+      .insert(inbox)
+      .values([
+        storedRow(deviceId, first),
+        { ...storedRow(deviceId, third), appliedAt: NOW },
+        storedRow(deviceId, alteredFourth),
+      ]);
+
+    expect(await push(deviceId, [second])).toEqual({ kind: "chain_broken" });
+
+    expect(await storedSeqs(deviceId)).toEqual([1, 3]);
+    const kept = await db.select().from(refusedEvents).where(eq(refusedEvents.deviceId, deviceId));
+    expect(
+      kept.map(({ id: _id, ...row }) => row).sort((one, other) => one.deviceSeq - other.deviceSeq),
+    ).toEqual(
+      [second, alteredFourth].map((refused) => ({
+        deviceId,
+        eventId: refused.event_id,
+        deviceSeq: refused.device_seq,
+        aggregateType: refused.aggregate_type,
+        aggregateId: refused.aggregate_id,
+        eventType: refused.event_type,
+        schemaVersion: refused.schema_version,
+        payload: refused.payload,
+        occurredAt: new Date(refused.occurred_at),
+        actorId: refused.actor_id,
+        chainHmac: refused.chain_hmac,
+        refusedAt: NOW,
+      })),
+    );
+  });
+
+  it("no longer serves a replenishment the held events a refused push set aside", async () => {
+    const { deviceId, registerId } = await insertEnrolledInstallation();
+    const [first, second, third] = linked(event(1), event(2), event(3));
+    if (!first || !second || !third) {
+      throw new Error("test setup: the chain holds three events");
+    }
+    await db
+      .insert(inbox)
+      .values([
+        storedRow(deviceId, first),
+        storedRow(deviceId, { ...third, payload: { quantity: 99 } }),
+      ]);
+
+    await push(deviceId, [second]);
+
+    const served = await new DrizzleRegisterReplenishment(db).ownEventsAbove(
+      registerId,
+      { predecessorDeviceId: deviceId, lastAcknowledgedSeq: 1 },
+      undefined,
+      100,
+    );
+    expect(served).toEqual([]);
   });
 
   it("answers revoked to a push queued behind the one whose chain broke, receiving nothing of it", async () => {
