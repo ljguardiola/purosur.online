@@ -222,7 +222,10 @@ describe("taxAuthorityCountJobs", () => {
     it("starts right after the number ARCA last authorized, once the count of an offline point of sale configured with no count is read", async () => {
       const enqueuedCounts: { pointOfSale: number; documentType: FiscalTaskDocumentType }[] = [];
       const registerId = await configureRegisterWithOfflinePointOfSale(enqueuedCounts);
-      expect(enqueuedCounts).toEqual([{ pointOfSale: 8, documentType: "factura_c" }]);
+      expect(enqueuedCounts).toEqual([
+        { pointOfSale: 8, documentType: "credit_note_c" },
+        { pointOfSale: 8, documentType: "factura_c" },
+      ]);
       expect(await storedCounts()).toEqual([]);
       expect(await testDatabase.db.select().from(offlineNumberBlocks)).toEqual([]);
       await issueWsaaToken();

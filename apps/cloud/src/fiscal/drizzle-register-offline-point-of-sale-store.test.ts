@@ -500,11 +500,19 @@ describe("the tax authority's count behind the offline number blocks", () => {
   it("starts the first block of a configured point of sale right after the count the cloud holds", async () => {
     const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
     await seedTaxAuthorityCount(8, 37);
+    await seedTaxAuthorityCount(8, 4, "credit_note_c");
 
     await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
 
-    const [block] = await db.select().from(offlineNumberBlocks);
-    expect([block?.firstNumber, block?.lastNumber]).toEqual([38, 1037]);
+    const blocks = await db.select().from(offlineNumberBlocks);
+    expect(
+      blocks
+        .map((block) => [block.documentType, block.firstNumber, block.lastNumber])
+        .sort(([a], [b]) => String(a).localeCompare(String(b))),
+    ).toEqual([
+      ["credit_note_c", 5, 1004],
+      ["factura_c", 38, 1037],
+    ]);
     expect(enqueuedCounts).toEqual([]);
   });
 
@@ -522,7 +530,10 @@ describe("the tax authority's count behind the offline number blocks", () => {
     expect(outcome.kind).toBe("configured");
     expect(await db.select().from(registerOfflinePointsOfSale)).toHaveLength(1);
     expect(await db.select().from(offlineNumberBlocks)).toEqual([]);
-    expect(enqueuedCounts).toEqual([[8, "factura_c"]]);
+    expect(enqueuedCounts).toEqual([
+      [8, "credit_note_c"],
+      [8, "factura_c"],
+    ]);
   });
 
   it("reads the count the cloud holds, and none for a point of sale without one", async () => {

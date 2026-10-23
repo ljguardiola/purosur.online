@@ -27,7 +27,7 @@ import { registerRegisterPointOfSaleConfigurationRoute } from "./register-point-
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
-let enqueuedCounts: number[];
+let enqueuedCounts: string[];
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -46,8 +46,8 @@ beforeEach(async () => {
   registerRegisterPointOfSaleConfigurationRoute(app, options);
   registerRegisterOfflinePointOfSaleConfigurationRoute(app, {
     ...options,
-    enqueueTaxAuthorityCount: async (_transaction, pointOfSale) => {
-      enqueuedCounts.push(pointOfSale);
+    enqueueTaxAuthorityCount: async (_transaction, pointOfSale, documentType) => {
+      enqueuedCounts.push(`${pointOfSale}:${documentType}`);
     },
   });
 });
@@ -302,7 +302,7 @@ describe("PUT /registers/:id/offline-point-of-sale", () => {
       version: 1,
     });
     expect(await db.select().from(offlineNumberBlocks)).toEqual([]);
-    expect(enqueuedCounts).toEqual([8]);
+    expect(enqueuedCounts).toEqual(["8:credit_note_c", "8:factura_c"]);
   });
 
   it("answers 200 with no block, and asks for nothing, when invoicing is not configured", async () => {
