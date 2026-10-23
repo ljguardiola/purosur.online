@@ -11,6 +11,7 @@ import {
   rolePermissions,
   roles,
   sessions,
+  supplierPriceListExtractionCaps,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -131,6 +132,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
     expiring_lot_alert_days: 30,
     unreviewed_price_alert_days: 30,
     good_condition_return_days: 15,
+    supplier_price_list_daily_extraction_cap: 10,
     version: 1,
     ...overrides,
   };
@@ -343,6 +345,88 @@ describe("PUT /locations/current/settings", () => {
     });
   });
 
+  it("saves a cap of the branch's own and audits it with the one it replaced", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lucero",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const locationId = await seededLocationId(db);
+
+    const response = await putBranchSettings(
+      validBody({ supplier_price_list_daily_extraction_cap: 3 }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      supplier_price_list_daily_extraction_cap: 3,
+      version: 2,
+    });
+    expect(await getBranchSettings(rawSessionId).then((got) => got.json())).toMatchObject({
+      supplier_price_list_daily_extraction_cap: 3,
+    });
+    const [entry] = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
+    expect(entry).toMatchObject({
+      actorId: administratorId,
+      previousValue: { supplier_price_list_daily_extraction_cap: 10, version: 1 },
+      newValue: { supplier_price_list_daily_extraction_cap: 3, version: 2 },
+    });
+  });
+
+  it("answers 400 for a cap the request shape refuses, leaving the cap as it was", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lucero",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({ supplier_price_list_daily_extraction_cap: 0 }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(await db.select().from(supplierPriceListExtractionCaps)).toEqual([]);
+    expect(await db.select().from(auditLog)).toEqual([]);
+  });
+
+  it("refuses a user without configure_branch a cap change, storing no cap", async () => {
+    const cashierId = await insertUser({
+      firstName: "Grace Villalba",
+      email: "grace@example.com",
+      roleId: await insertRole("Cajera", ["sell_and_charge"]),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(cashierId);
+
+    const response = await putBranchSettings(
+      validBody({ supplier_price_list_daily_extraction_cap: 3 }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(403);
+    expect(await db.select().from(supplierPriceListExtractionCaps)).toEqual([]);
+  });
+
+  it("keeps the branch without a cap of its own when a save leaves the cap at the default", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lucero",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    expect((await putBranchSettings(validBody(), rawSessionId)).statusCode).toBe(200);
+
+    expect(await db.select().from(supplierPriceListExtractionCaps)).toEqual([]);
+  });
+
   it("logs the saved version as a change for registers to pull, and nothing for a save that changed nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lucero",
@@ -424,6 +508,7 @@ describe("PUT /locations/current/settings", () => {
       expiring_lot_alert_days: 30,
       unreviewed_price_alert_days: 30,
       good_condition_return_days: 15,
+      supplier_price_list_daily_extraction_cap: 10,
       version: 1,
     };
 

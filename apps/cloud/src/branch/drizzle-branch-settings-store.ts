@@ -1,15 +1,20 @@
 import type {
-  BranchSettings,
   BranchSettingsStore,
   BranchSettingsStoreTransaction,
+  EditableBranchSettings,
   NewBranchSettingsVersion,
 } from "@purosur/domain/branch/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { auditLog, branchHours, branchSettings } from "../platform/db/schema.js";
+import {
+  auditLog,
+  branchHours,
+  branchSettings,
+  supplierPriceListExtractionCaps,
+} from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
-import { toBranchSettingsWire } from "./branch-settings-wire.js";
-import { readBranchSettings } from "./drizzle-branch-settings-reader.js";
+import { toEditableBranchSettingsWire } from "./branch-settings-wire.js";
+import { readEditableBranchSettings } from "./drizzle-branch-settings-reader.js";
 
 class DrizzleBranchSettingsStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements BranchSettingsStoreTransaction
@@ -26,7 +31,7 @@ class DrizzleBranchSettingsStoreTransaction<TQueryResult extends PgQueryResultHK
 
   // The row lock makes a concurrent save wait instead of racing the version check and the hours
   // read and write.
-  async lockCurrentBranchSettings(locationId: string): Promise<BranchSettings> {
+  async lockCurrentBranchSettings(locationId: string): Promise<EditableBranchSettings> {
     const [locked] = await this.tx
       .select({ locationId: branchSettings.locationId })
       .from(branchSettings)
@@ -35,12 +40,12 @@ class DrizzleBranchSettingsStoreTransaction<TQueryResult extends PgQueryResultHK
     if (!locked) {
       throw new Error(`branch settings missing for location ${locationId}`);
     }
-    return readBranchSettings(this.tx, locationId);
+    return readEditableBranchSettings(this.tx, locationId);
   }
 
   async recordBranchSettingsVersion(
     next: NewBranchSettingsVersion,
-    previous: BranchSettings,
+    previous: EditableBranchSettings,
   ): Promise<void> {
     const { locationId, recordedBy, hours, ...settings } = next;
     await this.tx
@@ -55,6 +60,18 @@ class DrizzleBranchSettingsStoreTransaction<TQueryResult extends PgQueryResultHK
         version: settings.version,
       })
       .where(eq(branchSettings.locationId, locationId));
+
+    if (
+      settings.supplierPriceListDailyExtractionCap !== previous.supplierPriceListDailyExtractionCap
+    ) {
+      await this.tx
+        .insert(supplierPriceListExtractionCaps)
+        .values({ locationId, dailyCap: settings.supplierPriceListDailyExtractionCap })
+        .onConflictDoUpdate({
+          target: supplierPriceListExtractionCaps.locationId,
+          set: { dailyCap: settings.supplierPriceListDailyExtractionCap },
+        });
+    }
 
     await this.tx.delete(branchHours).where(eq(branchHours.locationId, locationId));
     if (hours.length > 0) {
@@ -72,8 +89,8 @@ class DrizzleBranchSettingsStoreTransaction<TQueryResult extends PgQueryResultHK
       entity: "branch_settings",
       entityId: locationId,
       actorId: recordedBy,
-      previousValue: toBranchSettingsWire(previous),
-      newValue: toBranchSettingsWire({ ...settings, hours }),
+      previousValue: toEditableBranchSettingsWire(previous),
+      newValue: toEditableBranchSettingsWire({ ...settings, hours }),
       at: this.now(),
     });
   }

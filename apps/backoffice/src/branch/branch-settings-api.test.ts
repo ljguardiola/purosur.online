@@ -24,6 +24,7 @@ const wireRow = {
   expiring_lot_alert_days: 30,
   unreviewed_price_alert_days: 30,
   good_condition_return_days: 15,
+  supplier_price_list_daily_extraction_cap: 10,
   version: 1,
   monday_hours: [
     { opens_at: "09:00", closes_at: "13:00" },
@@ -56,6 +57,7 @@ const settings: BranchSettings = {
   expiringLotAlertDays: 30,
   unreviewedPriceAlertDays: 30,
   goodConditionReturnDays: 15,
+  supplierPriceListDailyExtractionCap: 10,
   version: 1,
 };
 
@@ -70,6 +72,10 @@ test("fetchBranchSettings returns the branch's settings on 200", async () => {
 
 test.each([
   ["a body missing a field", { ...wireRow, version: undefined }],
+  [
+    "a body without the supplier price list cap",
+    { ...wireRow, supplier_price_list_daily_extraction_cap: undefined },
+  ],
   ["a body with a mistyped field", { ...wireRow, expiring_lot_alert_days: "30" }],
   ["a body with a malformed range", { ...wireRow, monday_hours: [{ opens_at: "09:00" }] }],
   ["a body that is not an object", []],

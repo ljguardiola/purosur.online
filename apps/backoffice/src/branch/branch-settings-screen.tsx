@@ -219,6 +219,22 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
               </div>
             </div>
           </div>
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+            <h2 className="text-text-accent text-subheading">Listas de proveedores</h2>
+            <div className="flex gap-4">
+              <div className="min-w-0 flex-1">
+                <form.AppField name="supplierPriceListDailyExtractionCap">
+                  {(field) => (
+                    <field.TextField
+                      kind="plain-text"
+                      label="Listas leídas por día"
+                      description="Cuántas listas de proveedores puede mandar a leer con IA esta sucursal por día. Al llegar al tope, no se pueden cargar más listas hasta el día siguiente."
+                    />
+                  )}
+                </form.AppField>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </ScreenLayout>

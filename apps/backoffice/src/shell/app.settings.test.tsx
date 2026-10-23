@@ -275,6 +275,7 @@ test("following the sidebar's Sucursal item opens the branch settings screen, wi
       expiringLotAlertDays: 30,
       unreviewedPriceAlertDays: 30,
       goodConditionReturnDays: 15,
+      supplierPriceListDailyExtractionCap: 10,
       version: 1,
     },
   });
