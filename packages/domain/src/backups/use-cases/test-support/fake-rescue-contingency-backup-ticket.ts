@@ -32,7 +32,11 @@ export function rescuedEvent(
 export class FakeContingencyBackupTicketOpener implements ContingencyBackupTicketOpener {
   readonly opened: (readonly string[])[] = [];
 
-  constructor(private readonly answer: ContingencyBackupTicketOpening) {}
+  private readonly answer: ContingencyBackupTicketOpening;
+
+  constructor(answer: ContingencyBackupTicketOpening) {
+    this.answer = answer;
+  }
 
   async open(qrCodes: readonly string[]): Promise<ContingencyBackupTicketOpening> {
     this.opened.push(qrCodes);
@@ -41,7 +45,11 @@ export class FakeContingencyBackupTicketOpener implements ContingencyBackupTicke
 }
 
 export class FakeRescuedEventDecoder implements RescuedEventDecoder {
-  constructor(private readonly facts: ReadonlyMap<string, RescuedTicketFact>) {}
+  private readonly facts: ReadonlyMap<string, RescuedTicketFact>;
+
+  constructor(facts: ReadonlyMap<string, RescuedTicketFact>) {
+    this.facts = facts;
+  }
 
   decode(event: PushedEvent): RescuedTicketFact | null {
     return this.facts.get(event.event_id) ?? null;
@@ -51,13 +59,17 @@ export class FakeRescuedEventDecoder implements RescuedEventDecoder {
 export class FakeRescuedTicketEvents implements RescuedTicketEvents {
   readonly delivered: RescuedTicketDelivery[] = [];
 
+  private readonly answer: RescuedTicketDeliveryAnswer;
+
   constructor(
-    private readonly answer: RescuedTicketDeliveryAnswer = {
+    answer: RescuedTicketDeliveryAnswer = {
       kind: "delivered",
       received: 0,
       alreadyReceived: 0,
     },
-  ) {}
+  ) {
+    this.answer = answer;
+  }
 
   async deliver(delivery: RescuedTicketDelivery): Promise<RescuedTicketDeliveryAnswer> {
     this.delivered.push(delivery);
