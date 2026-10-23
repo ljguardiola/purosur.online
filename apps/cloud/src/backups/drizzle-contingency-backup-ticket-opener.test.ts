@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { contingencyBackupTicketQrCodes } from "@purosur/contracts";
+import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -19,7 +20,7 @@ const NOW = new Date("2026-10-14T12:00:00.000Z");
 const KEY_VERSION = 2;
 
 let testDatabase: TestDatabase;
-let opener: DrizzleContingencyBackupTicketOpener<Record<string, never>>;
+let opener: DrizzleContingencyBackupTicketOpener<PgliteQueryResultHKT>;
 let registerId: string;
 let deviceId: string;
 let key: string;
