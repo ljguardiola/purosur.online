@@ -44,6 +44,12 @@ describe("fiscalTasksSchema", () => {
     expect(fiscalTasksSchema.parse({ tasks })).toEqual({ tasks });
   });
 
+  it("reads a task's id as a record id, lowercased like the stored one", () => {
+    const task = { ...deferredSaleExpired, id: "5B9E2F4A-7C1D-4E83-A6F0-3D8C1B7E9A42" };
+
+    expect(fiscalTaskItemSchema.parse(task).id).toBe("5b9e2f4a-7c1d-4e83-a6f0-3d8c1b7e9a42");
+  });
+
   it("reads a list with no task", () => {
     expect(fiscalTasksSchema.parse({ tasks: [] })).toEqual({ tasks: [] });
   });
