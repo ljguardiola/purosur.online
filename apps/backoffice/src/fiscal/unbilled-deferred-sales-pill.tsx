@@ -1,6 +1,8 @@
-import { PillLink } from "@purosur/ui";
+import { LoadFailure, LoadingPlaceholder, PillLink } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { Hourglass } from "lucide-react";
+import type { ReactNode } from "react";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useUnbilledDeferredSalesQuery } from "./fiscal-queries";
 import {
   defaultUnbilledDeferredSalesPillServices,
@@ -24,14 +26,39 @@ export function UnbilledDeferredSalesPill({
       .fetchUnbilledDeferredSales,
     onSessionEnded,
   });
-  if (sales.status !== "loaded" || sales.value.count === 0) {
+  if (sales.status === "loading") {
+    return (
+      <TopBarSlot>
+        <LoadingPlaceholder variant="pill" />
+      </TopBarSlot>
+    );
+  }
+  if (sales.status === "failed") {
+    return (
+      <TopBarSlot>
+        <LoadFailure
+          variant="pill"
+          {...cloudLoadFailure(sales, "las ventas diferidas sin facturar")}
+        />
+      </TopBarSlot>
+    );
+  }
+  if (sales.value.count === 0) {
     return null;
   }
   return (
-    <div className="flex h-18 shrink-0 items-center border-border border-b bg-surface pr-8">
+    <TopBarSlot>
       <FiscalTasksLink to="/fiscal-tasks" tone="warning" icon={<Hourglass />}>
         {unbilledDeferredSalesText(sales.value)}
       </FiscalTasksLink>
+    </TopBarSlot>
+  );
+}
+
+function TopBarSlot({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-18 shrink-0 items-center border-border border-b bg-surface pr-8">
+      {children}
     </div>
   );
 }

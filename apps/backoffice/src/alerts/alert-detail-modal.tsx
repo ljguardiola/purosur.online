@@ -49,7 +49,8 @@ import {
   WifiOff,
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
-import { ALERT_LEVEL_LABELS, ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
+import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
+import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { fetchPermissionCatalog as fetchPermissionCatalogDefault } from "../platform/permission-catalog-api";
 import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";

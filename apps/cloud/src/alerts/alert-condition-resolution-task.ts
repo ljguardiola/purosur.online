@@ -182,15 +182,14 @@ function regularizeExpiredDeferredSalesTask<TQueryResult extends PgQueryResultHK
   });
 }
 
-function detectDeferredSaleDeadlinesTask<TQueryResult extends PgQueryResultHKT>(
+async function detectDeferredSaleDeadlinesTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   deps: { now: () => Date },
 ): Promise<number> {
-  return detectDeferredSaleDeadlines({
-    deferredSales: new DrizzlePendingDeferredSaleReader(db),
-    alerts: new DrizzleDeferredSaleDueAlerts(db, deps.now),
-    clock: { now: deps.now },
-  });
+  return detectDeferredSaleDeadlines(
+    { alerts: new DrizzleDeferredSaleDueAlerts(db, deps.now), clock: { now: deps.now } },
+    await new DrizzlePendingDeferredSaleReader(db).pendingDeferredSales(),
+  );
 }
 
 export interface AlertConditionResolutionJobsDeps {

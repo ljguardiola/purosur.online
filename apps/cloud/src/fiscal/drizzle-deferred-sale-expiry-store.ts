@@ -25,7 +25,9 @@ class DrizzleDeferredSaleExpiryTransaction<TQueryResult extends PgQueryResultHKT
     return this.tx
       .select({
         id: deferredSales.id,
+        saleId: deferredSales.saleId,
         registerId: deferredSales.registerId,
+        locationId: deferredSales.locationId,
         occurredAt: deferredSales.occurredAt,
         total: deferredSales.total,
         shortCode: deferredSales.shortCode,

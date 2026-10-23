@@ -8,7 +8,8 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { ListChecks } from "lucide-react";
-import { ALERT_LEVEL_LABELS, ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
+import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
+import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
@@ -39,10 +40,7 @@ function openedSince(task: FiscalTaskItem) {
   }
   if (task.kind === "deferred_sale_expired") {
     return (
-      <TableCellText
-        strong
-        description={<span className="font-bold text-warning-strong">{since}</span>}
-      >
+      <TableCellText strong description={since} descriptionTone="warning">
         {fiscalTaskDate(task.created_at)}
       </TableCellText>
     );
@@ -119,7 +117,8 @@ export function FiscalTasksScreen({ onSessionEnded, services }: FiscalTasksScree
         empty={{
           icon: <ListChecks />,
           title: "Sin tareas fiscales abiertas",
-          description: "Todos los comprobantes están en orden.",
+          description:
+            "Aparecen acá cuando hay que resolver a mano un comprobante o una venta diferida vencida.",
           variant: "blank",
         }}
         footer={

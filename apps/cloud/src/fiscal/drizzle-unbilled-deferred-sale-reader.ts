@@ -2,18 +2,20 @@ import {
   type DeferredSaleState,
   EXPIRED_DEFERRED_SALE_STATE,
   isUnbilledDeferredSale,
+  OPEN_FISCAL_TASK_STATE,
   PENDING_DEFERRED_SALE_STATE,
 } from "@purosur/domain";
+import type {
+  UnbilledDeferredSaleReader,
+  UnbilledDeferredSales,
+} from "@purosur/domain/fiscal/use-cases";
 import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deferredSales, fiscalTasks } from "../platform/db/schema.js";
 
-export interface UnbilledDeferredSales {
-  count: number;
-  oldestOccurredAt: Date | null;
-}
-
-export class DrizzleUnbilledDeferredSaleReader<TQueryResult extends PgQueryResultHKT> {
+export class DrizzleUnbilledDeferredSaleReader<TQueryResult extends PgQueryResultHKT>
+  implements UnbilledDeferredSaleReader
+{
   private readonly db: PgDatabase<TQueryResult>;
 
   constructor(db: PgDatabase<TQueryResult>) {
@@ -30,7 +32,10 @@ export class DrizzleUnbilledDeferredSaleReader<TQueryResult extends PgQueryResul
       .from(deferredSales)
       .leftJoin(
         fiscalTasks,
-        and(eq(fiscalTasks.deferredSaleId, deferredSales.id), eq(fiscalTasks.state, "open")),
+        and(
+          eq(fiscalTasks.deferredSaleId, deferredSales.id),
+          eq(fiscalTasks.state, OPEN_FISCAL_TASK_STATE),
+        ),
       )
       .where(
         and(

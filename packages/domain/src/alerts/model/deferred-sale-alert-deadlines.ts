@@ -1,5 +1,5 @@
-import { argentinaCalendarDay, argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
-import { deferredSaleExpiresOn, isDeferredSaleExpired } from "./deferred-sale-expiry.js";
+import { deferredSaleExpiresOn, isDeferredSaleExpired } from "../../fiscal/index.js";
+import { argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALERT_OPENS_DAYS_BEFORE_EXPIRY_END = 3;
@@ -41,10 +41,4 @@ export function deferredSaleStanding(occurredAt: Date, now: Date): DeferredSaleS
     return { kind: "due" };
   }
   return { kind: "quiet" };
-}
-
-export function deferredSaleAgeInDays(occurredAt: Date, now: Date): number {
-  const saleDay = Date.parse(`${argentinaCalendarDay(occurredAt)}T00:00:00Z`);
-  const today = Date.parse(`${argentinaCalendarDay(now)}T00:00:00Z`);
-  return Math.round((today - saleDay) / DAY_MS);
 }

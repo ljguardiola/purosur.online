@@ -1,10 +1,8 @@
 import type { Clock } from "../../shared/index.js";
 import type {
   DeferredSaleRegularizationTask,
-  ExpiredDeferredSale,
+  PendingDeferredSale,
 } from "../model/deferred-sale-record.js";
-
-export type PendingDeferredSale = ExpiredDeferredSale;
 
 export interface DeferredSaleExpiryTransaction {
   lockPendingDeferredSalesOccurredBefore(instant: Date): Promise<PendingDeferredSale[]>;

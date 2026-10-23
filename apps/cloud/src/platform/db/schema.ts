@@ -15,6 +15,7 @@ import {
   type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
   FISCAL_TASK_KINDS,
+  FISCAL_TASK_STATES,
   type FiscalDocumentType,
   type JsonValue,
   OFFLINE_AUTHORIZATION_CAUSES,
@@ -2689,8 +2690,9 @@ export const deferredSales = pgTable(
 // credit note it rejected, or a deferred sale that expired without being invoiced. One per voucher
 // held outside the register, one per rejected credit note and one per expired deferred sale, so
 // detecting any of them again opens nothing new; credit notes rejected at the same number each
-// keep their own. The register is the one that holds the point of sale when the task is opened.
-// A task about a deferred sale names no voucher: none was ever issued for it.
+// keep their own. A task about a voucher names the register that holds its point of sale when the
+// task is opened; a task about a deferred sale names the register that recorded the sale, and no
+// voucher: none was ever issued for it.
 export const fiscalTasks = pgTable(
   "fiscal_tasks",
   {
@@ -2735,7 +2737,10 @@ export const fiscalTasks = pgTable(
       "fiscal_tasks_document_type_check",
       sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
     ),
-    check("fiscal_tasks_state_check", sql`${table.state} in ('open', 'closed')`),
+    check(
+      "fiscal_tasks_state_check",
+      sql`${table.state} in (${sql.raw(FISCAL_TASK_STATES.map((state) => `'${state}'`).join(", "))})`,
+    ),
     check(
       "fiscal_tasks_closed_time_check",
       sql`(${table.state} = 'closed') = (${table.closedAt} is not null)`,

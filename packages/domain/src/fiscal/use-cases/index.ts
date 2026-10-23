@@ -6,6 +6,7 @@ export type {
   ClockMark,
   ClockPreviousReadingSource,
 } from "../model/clock-correction.js";
+export type { PendingDeferredSale } from "../model/deferred-sale-record.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
   RejectionStandingChange,
@@ -322,6 +323,11 @@ export type {
   OfflineNumberBlockStore,
 } from "./offline-number-block-store.js";
 export type {
+  FiscalTaskAlert,
+  OpenFiscalTask,
+  OpenFiscalTaskReader,
+} from "./open-fiscal-task-reader.js";
+export type {
   AuthorizationNumber,
   OrphanRegularizationLane,
   OrphanRegularizationLanes,
@@ -329,6 +335,7 @@ export type {
   RegularizeOrphanAuthorizationPorts,
 } from "./orphan-authorization-ports.js";
 export type { OwedPresentationList } from "./owed-presentation-list-ports.js";
+export type { PendingDeferredSaleReader } from "./pending-deferred-sale-reader.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,
@@ -417,7 +424,6 @@ export { regularizeExpiredDeferredSales } from "./regularize-expired-deferred-sa
 export type {
   DeferredSaleExpiryStore,
   DeferredSaleExpiryTransaction,
-  PendingDeferredSale,
   RegularizeExpiredDeferredSalesPorts,
 } from "./regularize-expired-deferred-sales-ports.js";
 export type {
@@ -551,6 +557,10 @@ export type {
   TaxAuthorityCounts,
   TaxAuthorityLastAuthorizedLookup,
 } from "./tax-authority-count-ports.js";
+export type {
+  UnbilledDeferredSaleReader,
+  UnbilledDeferredSales,
+} from "./unbilled-deferred-sale-reader.js";
 export type {
   AbandonedRequestRecord,
   AskAboutUnclearOutcomePorts,

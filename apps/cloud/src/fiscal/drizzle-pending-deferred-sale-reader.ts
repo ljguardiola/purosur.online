@@ -1,14 +1,14 @@
 import { PENDING_DEFERRED_SALE_STATE } from "@purosur/domain";
 import type {
-  DeferredSaleDeadlineReader,
-  PendingDeferredSaleForAlert,
-} from "@purosur/domain/alerts/use-cases";
+  PendingDeferredSale,
+  PendingDeferredSaleReader,
+} from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deferredSales } from "../platform/db/schema.js";
 
 export class DrizzlePendingDeferredSaleReader<TQueryResult extends PgQueryResultHKT>
-  implements DeferredSaleDeadlineReader
+  implements PendingDeferredSaleReader
 {
   private readonly db: PgDatabase<TQueryResult>;
 
@@ -16,7 +16,7 @@ export class DrizzlePendingDeferredSaleReader<TQueryResult extends PgQueryResult
     this.db = db;
   }
 
-  pendingDeferredSales(): Promise<PendingDeferredSaleForAlert[]> {
+  pendingDeferredSales(): Promise<PendingDeferredSale[]> {
     return this.db
       .select({
         id: deferredSales.id,

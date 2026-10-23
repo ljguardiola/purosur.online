@@ -20,7 +20,8 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { ALERT_LEVEL_LABELS, ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
+import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
+import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import type { CloudData } from "../platform/use-cloud-query";

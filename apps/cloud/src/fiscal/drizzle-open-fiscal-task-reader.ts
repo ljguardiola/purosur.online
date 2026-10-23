@@ -1,48 +1,23 @@
-import { externalBillingObservation } from "@purosur/domain";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import {
+  externalBillingObservation,
+  type FiscalTaskDocumentType,
+  OPEN_FISCAL_TASK_STATE,
+} from "@purosur/domain";
+import type { OpenAlertStandingReader } from "@purosur/domain/alerts/use-cases";
+import type {
+  FiscalTaskAlert,
+  OpenFiscalTask,
+  OpenFiscalTaskReader,
+  TaxAuthorityRejection,
+} from "@purosur/domain/fiscal/use-cases";
+import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlertCondition } from "../alerts/open-alert-condition.js";
-import { alerts, fiscalTasks, registers } from "../platform/db/schema.js";
-
-export interface FiscalTaskAlert {
-  level: "informational" | "warning" | "critical";
-  escalatedAt: Date | null;
-}
-
-interface OpenFiscalTaskBase {
-  id: string;
-  registerId: string;
-  registerName: string;
-  createdAt: Date;
-  alert: FiscalTaskAlert | null;
-}
-
-export type OpenFiscalTask =
-  | (OpenFiscalTaskBase & {
-      kind: "external_invoicing";
-      pointOfSale: number;
-      documentType: string;
-      number: number;
-      voucher: { issuedOn: string; total: number; authorizationCode: string };
-    })
-  | (OpenFiscalTaskBase & {
-      kind: "credit_note_rejected";
-      pointOfSale: number;
-      number: number;
-      creditNoteId: string;
-      rejections: { code: number; message: string }[];
-    })
-  | (OpenFiscalTaskBase & {
-      kind: "deferred_sale_expired";
-      saleOccurredAt: string;
-      total: number;
-      shortCode: string;
-    });
+import { fiscalTasks, registers } from "../platform/db/schema.js";
 
 function externalBillingScope(pointOfSale: number, documentType: string, number: number): string {
   const observation = externalBillingObservation({
     pointOfSale,
-    documentType: documentType as Parameters<typeof externalBillingObservation>[0]["documentType"],
+    documentType: documentType as FiscalTaskDocumentType,
     number,
   });
   if (!observation.holds) {
@@ -51,11 +26,15 @@ function externalBillingScope(pointOfSale: number, documentType: string, number:
   return observation.alert.scope;
 }
 
-export class DrizzleOpenFiscalTaskReader<TQueryResult extends PgQueryResultHKT> {
+export class DrizzleOpenFiscalTaskReader<TQueryResult extends PgQueryResultHKT>
+  implements OpenFiscalTaskReader
+{
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly alerts: OpenAlertStandingReader;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, alerts: OpenAlertStandingReader) {
     this.db = db;
+    this.alerts = alerts;
   }
 
   async openTasksOfBranch(locationId: string): Promise<OpenFiscalTask[]> {
@@ -63,7 +42,9 @@ export class DrizzleOpenFiscalTaskReader<TQueryResult extends PgQueryResultHKT> 
       .select({ task: fiscalTasks, registerName: registers.name })
       .from(fiscalTasks)
       .innerJoin(registers, eq(registers.id, fiscalTasks.registerId))
-      .where(and(eq(registers.locationId, locationId), eq(fiscalTasks.state, "open")))
+      .where(
+        and(eq(registers.locationId, locationId), eq(fiscalTasks.state, OPEN_FISCAL_TASK_STATE)),
+      )
       .orderBy(asc(fiscalTasks.createdAt), asc(fiscalTasks.id));
     const externalBillingAlerts = await this.openExternalBillingAlerts(
       rows.flatMap(({ task }) =>
@@ -94,9 +75,13 @@ export class DrizzleOpenFiscalTaskReader<TQueryResult extends PgQueryResultHKT> 
               ...base,
               kind: "external_invoicing",
               pointOfSale,
-              documentType,
+              documentType: documentType as FiscalTaskDocumentType,
               number,
-              voucher: reason as { issuedOn: string; total: number; authorizationCode: string },
+              voucher: {
+                issuedOn: reason["issuedOn"] as string,
+                total: reason["total"] as number,
+                authorizationCode: reason["authorizationCode"] as string,
+              },
               alert:
                 externalBillingAlerts.get(
                   externalBillingScope(pointOfSale, documentType, number),
@@ -116,7 +101,7 @@ export class DrizzleOpenFiscalTaskReader<TQueryResult extends PgQueryResultHKT> 
               pointOfSale,
               number,
               creditNoteId,
-              rejections: reason["rejections"] as { code: number; message: string }[],
+              rejections: reason["rejections"] as TaxAuthorityRejection[],
               alert: null,
             },
           ];
@@ -126,7 +111,7 @@ export class DrizzleOpenFiscalTaskReader<TQueryResult extends PgQueryResultHKT> 
             {
               ...base,
               kind: "deferred_sale_expired",
-              saleOccurredAt: reason["saleOccurredAt"] as string,
+              saleOccurredAt: new Date(reason["saleOccurredAt"] as string),
               total: reason["total"] as number,
               shortCode: reason["shortCode"] as string,
               alert: null,
@@ -139,19 +124,9 @@ export class DrizzleOpenFiscalTaskReader<TQueryResult extends PgQueryResultHKT> 
   }
 
   private async openExternalBillingAlerts(scopes: string[]): Promise<Map<string, FiscalTaskAlert>> {
-    if (scopes.length === 0) {
-      return new Map();
-    }
-    const rows = await this.db
-      .select({ scope: alerts.scope, level: alerts.level, escalatedAt: alerts.escalatedAt })
-      .from(alerts)
-      .where(
-        and(
-          eq(alerts.kind, "external_billing"),
-          inArray(alerts.scope, scopes),
-          openAlertCondition(),
-        ),
-      );
-    return new Map(rows.map(({ scope, level, escalatedAt }) => [scope, { level, escalatedAt }]));
+    const standings = await this.alerts.openAlertsOfScopes("external_billing", scopes);
+    return new Map(
+      standings.map(({ scope, level, escalatedAt }) => [scope, { level, escalatedAt }]),
+    );
   }
 }

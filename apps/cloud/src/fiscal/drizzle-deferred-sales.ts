@@ -1,6 +1,8 @@
 import {
+  CLOSED_FISCAL_TASK_STATE,
   type DeferredSaleState,
   deferredSaleSettlement,
+  OPEN_FISCAL_TASK_STATE,
   PENDING_DEFERRED_SALE_STATE,
 } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
@@ -58,8 +60,10 @@ async function settleDeferredSales<TQueryResult extends PgQueryResultHKT>(
     if (settlement.closesRegularizationTask) {
       await tx
         .update(fiscalTasks)
-        .set({ state: "closed", closedAt })
-        .where(and(eq(fiscalTasks.deferredSaleId, id), eq(fiscalTasks.state, "open")));
+        .set({ state: CLOSED_FISCAL_TASK_STATE, closedAt })
+        .where(
+          and(eq(fiscalTasks.deferredSaleId, id), eq(fiscalTasks.state, OPEN_FISCAL_TASK_STATE)),
+        );
     }
   }
 }

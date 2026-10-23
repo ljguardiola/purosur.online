@@ -1,6 +1,8 @@
 import { fiscalTasksSchema } from "@purosur/contracts";
+import type { FiscalTaskAlert, OpenFiscalTask } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { DrizzleOpenAlertStandingReader } from "../alerts/drizzle-open-alert-standing-reader.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
@@ -8,11 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
-import {
-  DrizzleOpenFiscalTaskReader,
-  type FiscalTaskAlert,
-  type OpenFiscalTask,
-} from "./drizzle-open-fiscal-task-reader.js";
+import { DrizzleOpenFiscalTaskReader } from "./drizzle-open-fiscal-task-reader.js";
 
 export interface FiscalTasksRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -62,7 +60,7 @@ function toWire(task: OpenFiscalTask, now: Date) {
       return {
         ...common,
         kind: task.kind,
-        sale_occurred_at: task.saleOccurredAt,
+        sale_occurred_at: task.saleOccurredAt.toISOString(),
         total: task.total,
         short_code: task.shortCode,
       };
@@ -76,7 +74,10 @@ export function registerFiscalTasksListRoute<TQueryResult extends PgQueryResultH
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const reader = new DrizzleOpenFiscalTaskReader(options.db);
+  const reader = new DrizzleOpenFiscalTaskReader(
+    options.db,
+    new DrizzleOpenAlertStandingReader(options.db),
+  );
 
   app.get(
     "/fiscal/tasks",

@@ -1,22 +1,12 @@
+import { deferredSaleExpiresOn, type PendingDeferredSale } from "../../fiscal/index.js";
+import type { AlertConditionObservation } from "./alert-condition-observation.js";
 import {
   type DeferredSaleStanding,
   deferredSaleAlertEscalatesAt,
-  deferredSaleExpiresOn,
-} from "../../fiscal/index.js";
-import type { AlertConditionObservation } from "./alert-condition-observation.js";
-
-interface DeferredSaleDue {
-  id: string;
-  saleId: string;
-  registerId: string;
-  locationId: string;
-  occurredAt: Date;
-  total: number;
-  shortCode: string;
-}
+} from "./deferred-sale-alert-deadlines.js";
 
 export function deferredSaleDueObservation(
-  { id, saleId, registerId, locationId, occurredAt, total, shortCode }: DeferredSaleDue,
+  { id, saleId, registerId, locationId, occurredAt, total, shortCode }: PendingDeferredSale,
   standing: Extract<DeferredSaleStanding, { kind: "due" | "pressing" }>,
 ): AlertConditionObservation {
   return {
