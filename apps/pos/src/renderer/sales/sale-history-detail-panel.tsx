@@ -59,6 +59,7 @@ type SaleActions = {
   onVoid: (sale: SaleDetail) => void;
   onPrintCreditNote: (sale: SaleDetail) => void;
   onReprintCreditNote: (sale: SaleDetail) => void;
+  onReprintDeferredInvoice: (sale: SaleDetail) => void;
 };
 
 function SaleFooter({
@@ -68,6 +69,7 @@ function SaleFooter({
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
+  onReprintDeferredInvoice,
 }: { sale: SaleDetail } & SaleActions) {
   const { voidability } = sale;
   const refusalReason =
@@ -76,7 +78,14 @@ function SaleFooter({
   const offersCreditNote =
     sale.credit_note?.kind === "authorized" || sale.credit_note?.kind === "issued_offline";
   const creditNoteIsDuplicate = sale.credit_note_next_copy?.kind === "duplicate";
-  if (sale.reprint.kind !== "available" && !offersVoid && !offersCreditNote) {
+  const offersInvoiceDuplicate =
+    sale.reprint.kind === "available" && sale.deferred_invoice_next_copy?.kind === "duplicate";
+  if (
+    sale.reprint.kind !== "available" &&
+    !offersVoid &&
+    !offersCreditNote &&
+    !offersInvoiceDuplicate
+  ) {
     return null;
   }
   return (
@@ -92,6 +101,17 @@ function SaleFooter({
           }
         >
           {receiptCopyPresentation(sale.next_copy).printButton}
+        </Button>
+      ) : null}
+      {offersInvoiceDuplicate ? (
+        <Button
+          variant="secondary"
+          size="large"
+          fullWidth
+          icon={<Printer />}
+          onPress={() => onReprintDeferredInvoice(sale)}
+        >
+          Reimprimir factura
         </Button>
       ) : null}
       {offersCreditNote ? (
@@ -137,6 +157,7 @@ function Sale({
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
+  onReprintDeferredInvoice,
 }: { sale: SaleDetail } & SaleActions) {
   const details = nonEmptyRows(detailRows(sale));
   const payments = nonEmptyRows(
@@ -156,6 +177,7 @@ function Sale({
           onVoid={onVoid}
           onPrintCreditNote={onPrintCreditNote}
           onReprintCreditNote={onReprintCreditNote}
+          onReprintDeferredInvoice={onReprintDeferredInvoice}
         />
       }
     >
@@ -185,6 +207,7 @@ function SelectedSale({
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
+  onReprintDeferredInvoice,
 }: {
   detail: CoreData<ShownSaleHistoryDetail>;
 } & SaleActions) {
@@ -218,6 +241,7 @@ function SelectedSale({
           onVoid={onVoid}
           onPrintCreditNote={onPrintCreditNote}
           onReprintCreditNote={onReprintCreditNote}
+          onReprintDeferredInvoice={onReprintDeferredInvoice}
         />
       );
     case "not_found":
@@ -261,6 +285,7 @@ function SelectedSaleReader({
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
+  onReprintDeferredInvoice,
 }: {
   saleId: string;
   readDetail: SaleHistoryDetailPanelProps["readDetail"];
@@ -274,6 +299,7 @@ function SelectedSaleReader({
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
       onReprintCreditNote={onReprintCreditNote}
+      onReprintDeferredInvoice={onReprintDeferredInvoice}
     />
   );
 }
@@ -291,6 +317,7 @@ export function SaleHistoryDetailPanel({
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
+  onReprintDeferredInvoice,
 }: SaleHistoryDetailPanelProps) {
   if (saleId === undefined) {
     return (
@@ -312,6 +339,7 @@ export function SaleHistoryDetailPanel({
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
       onReprintCreditNote={onReprintCreditNote}
+      onReprintDeferredInvoice={onReprintDeferredInvoice}
     />
   );
 }

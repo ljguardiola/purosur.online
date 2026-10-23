@@ -53,6 +53,11 @@ export type SalesHistoryScreenProps = {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
+  reprintDeferredSaleInvoice: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
 };
@@ -77,6 +82,7 @@ export function SalesHistoryScreen({
   voidSale,
   printCreditNote,
   reprintCreditNote,
+  reprintDeferredSaleInvoice,
   loadAuthorizers,
   onSessionInvalid,
 }: SalesHistoryScreenProps) {
@@ -88,6 +94,7 @@ export function SalesHistoryScreen({
   const [selectedSaleId, setSelectedSaleId] = useState<string>();
   const [reprinting, setReprinting] = useState<SaleDetail>();
   const [reprintingCreditNote, setReprintingCreditNote] = useState<SaleDetail>();
+  const [reprintingInvoice, setReprintingInvoice] = useState<SaleDetail>();
   const [voiding, setVoiding] = useState<SaleDetail>();
   const [voided, setVoided] = useState<{ creditNote: SaleCreditNote | null }>();
   const [originalPrint, setOriginalPrint] = useState<ReturnType<typeof originalPrintNotice>>();
@@ -96,6 +103,7 @@ export function SalesHistoryScreen({
   const history = useSalesHistoryQuery({ ...choice, read: salesHistory });
   const refreshHistory = useRefreshSalesHistory();
   const nextCreditNoteCopy = reprintingCreditNote?.credit_note_next_copy;
+  const nextInvoiceCopy = reprintingInvoice?.deferred_invoice_next_copy;
 
   async function printOriginalOf(document: PrintedDocument, sale: SaleDetail) {
     const printing = `${document}:${sale.sale_id}`;
@@ -181,6 +189,7 @@ export function SalesHistoryScreen({
         onVoid={setVoiding}
         onPrintCreditNote={(sale) => void printOriginalOf("credit_note", sale)}
         onReprintCreditNote={setReprintingCreditNote}
+        onReprintDeferredInvoice={setReprintingInvoice}
       />
       {reprinting === undefined || reprinting.next_copy.kind !== "duplicate" ? null : (
         <ReprintReceiptModal
@@ -222,6 +231,27 @@ export function SalesHistoryScreen({
           }}
           onSessionInvalid={onSessionInvalid}
           onClose={() => setReprintingCreditNote(undefined)}
+        />
+      ) : null}
+      {reprintingInvoice !== undefined && nextInvoiceCopy?.kind === "duplicate" ? (
+        <ReprintReceiptModal
+          document="deferred_invoice"
+          sale={{ ...reprintingInvoice, next_copy: nextInvoiceCopy }}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          reprint={reprintDeferredSaleInvoice}
+          onReprinted={(copy) => {
+            setReprintingInvoice(undefined);
+            setSent({ copy, document: "deferred_invoice" });
+            void refreshHistory();
+          }}
+          onSaleGone={() => {
+            setReprintingInvoice(undefined);
+            setSelectedSaleId(undefined);
+            void refreshHistory();
+          }}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => setReprintingInvoice(undefined)}
         />
       ) : null}
       {voiding === undefined || voiding.voidability.kind !== "voidable" ? null : (
