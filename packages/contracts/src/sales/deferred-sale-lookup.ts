@@ -64,6 +64,7 @@ const findDeferredSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("expired") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("unavailable") }),
 ]);
 export type FindDeferredSaleOutcome = z.infer<typeof findDeferredSaleOutcomeSchema>;
 
