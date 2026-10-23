@@ -85,6 +85,11 @@ function closesTable(screen: Screen) {
   return screen.getByRole("table", { name: TITLE, exact: true });
 }
 
+function emptyStateIconColor(title: Element): string {
+  const icon = title.parentElement?.querySelector("svg");
+  return icon ? getComputedStyle(icon).color : "";
+}
+
 test("shows how many sessions closed, their net difference and how many had one, from the cloud", async () => {
   const screen = await renderScreen(createServices());
 
@@ -114,6 +119,24 @@ test("names a cashier with a difference the cloud could not identify", async () 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText(/Sin identificar 2/)).toBeVisible();
+});
+
+test("writes each cashier's count of closes with a difference as a number reads in Spanish", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCashSessionCloses).mockResolvedValue({
+    kind: "ok",
+    value: {
+      ...weekCashSessionClosesReport,
+      totals: {
+        ...weekCashSessionClosesReport.totals,
+        cashiers: [{ cashier_id: "u1", cashier_name: "Tomás Ruiz", sessions: 1_200 }],
+      },
+    },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText(/Tomás Ruiz 1\.200/)).toBeVisible();
 });
 
 test("lists no cashier when no session had a difference", async () => {
@@ -279,9 +302,10 @@ test("says there are no closed sessions in the period when there are none", asyn
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("No hay sesiones cerradas en este período")).toBeVisible();
+  const empty = closesTable(screen).getByText("No hay sesiones cerradas en este período");
+  await expect.element(empty).toBeVisible();
   await expect.element(screen.getByText(/^Sesiones cerradas0$/)).toBeVisible();
-  expect(screen.getByRole("table").query()).toBeNull();
+  expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-accent"));
 });
 
 test("says there are none in the period when a register is chosen and none closed", async () => {
@@ -295,7 +319,9 @@ test("says there are none in the period when a register is chosen and none close
     filters: reportFiltersSearch.parse({ register: FRONT_REGISTER_ID }),
   });
 
-  await expect.element(screen.getByText("No hay sesiones cerradas en este período")).toBeVisible();
+  const empty = closesTable(screen).getByText("No hay sesiones cerradas en este período");
+  await expect.element(empty).toBeVisible();
+  expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-subtle"));
 });
 
 test("shows a failed load with a retry that loads the report again", async () => {

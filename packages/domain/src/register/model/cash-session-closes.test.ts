@@ -155,6 +155,27 @@ describe("cashSessionClosesSummary", () => {
     }
   });
 
+  it("orders closes of the same instant by id as a Spanish reader does, whatever its case", () => {
+    const closes = [aClose({ id: "B" }), aClose({ id: "a" })];
+
+    for (const input of [closes, [...closes].reverse()]) {
+      expect(cashSessionClosesSummary(input).closes.map(({ id }) => id)).toEqual(["a", "B"]);
+    }
+  });
+
+  it("orders cashiers of the same count and name by id as a Spanish reader does, whatever its case", () => {
+    const closes = [
+      aClose({ id: "a", cashierId: "B", cashierName: "Ana", difference: 1 }),
+      aClose({ id: "b", cashierId: "a", cashierName: "Ana", difference: 1 }),
+    ];
+
+    for (const input of [closes, [...closes].reverse()]) {
+      const { totals } = cashSessionClosesSummary(input);
+
+      expect(totals.cashiersWithDifference.map(({ cashierId }) => cashierId)).toEqual(["a", "B"]);
+    }
+  });
+
   it("keeps closes of the same instant and id in the order they come in", () => {
     const first = aClose({ id: "same", registerName: "Caja 1" });
     const second = aClose({ id: "same", registerName: "Caja 2" });
