@@ -1,8 +1,10 @@
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, type Mock, vi } from "vitest";
 import { arcaWsaaTokens } from "../../platform/db/schema.js";
+import type { reportError } from "../../platform/error-reporting.js";
 import { registerRouteAccess } from "../../sessions/route-access.js";
+import { registerEventsRoute } from "../../sync/events-route.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
@@ -19,6 +21,8 @@ export interface CreditNoteRouteUnderTest {
   readonly db: TestDatabase["db"];
   readonly app: FastifyInstance;
   readonly wsfe: FakeWsfeServer;
+  readonly creditNotes: WsfeTaxAuthorityCreditNotes;
+  readonly report: Mock<typeof reportError>;
   readonly enqueuedCreditNotes: readonly string[];
   issueWsaaToken(): Promise<void>;
 }
@@ -28,6 +32,8 @@ export function creditNoteRouteUnderTest(): CreditNoteRouteUnderTest {
   let wsfe: FakeWsfeServer;
   let app: FastifyInstance;
   let enqueued: string[];
+  let creditNotes: WsfeTaxAuthorityCreditNotes;
+  let report: Mock<typeof reportError>;
 
   beforeAll(async () => {
     testDatabase = await buildTestDatabase();
@@ -48,6 +54,8 @@ export function creditNoteRouteUnderTest(): CreditNoteRouteUnderTest {
       cuit: FICTIONAL_CERTIFICATE_CUIT,
       timeoutMs: 2_000,
     };
+    creditNotes = new WsfeTaxAuthorityCreditNotes(connection);
+    report = vi.fn();
     app = Fastify();
     registerRouteAccess(app);
     registerCreditNoteRoute(app, {
@@ -58,11 +66,20 @@ export function creditNoteRouteUnderTest(): CreditNoteRouteUnderTest {
       connections: { withConnection: (work) => work(testDatabase.db) },
       vouchers: new WsfeTaxAuthorityVouchers(connection),
       taxAuthority: new WsfeTaxAuthorityLastAuthorized(connection),
-      creditNotes: new WsfeTaxAuthorityCreditNotes(connection),
+      creditNotes,
       certificateFingerprint: CERTIFICATE_FINGERPRINT,
       enqueueCreditNote: async (_, creditNoteId) => {
         enqueued.push(creditNoteId);
       },
+      enqueueEventApplication: async () => {},
+      report,
+    });
+    registerEventsRoute(app, {
+      db: testDatabase.db,
+      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      now: () => NOW,
+      enqueueEventApplication: async () => {},
     });
   });
 
@@ -79,6 +96,12 @@ export function creditNoteRouteUnderTest(): CreditNoteRouteUnderTest {
     },
     get wsfe() {
       return wsfe;
+    },
+    get creditNotes() {
+      return creditNotes;
+    },
+    get report() {
+      return report;
     },
     get enqueuedCreditNotes() {
       return [...enqueued];

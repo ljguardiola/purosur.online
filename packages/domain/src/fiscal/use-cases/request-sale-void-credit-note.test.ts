@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { PushedEvent } from "../../sync/index.js";
 import type { SaleVoidCreditNote } from "../model/sale-void-credit-note.js";
 import type { CreditNote, CreditNoteStanding } from "./credit-note-ports.js";
 import {
   type RequestSaleVoidCreditNoteInput,
   requestSaleVoidCreditNote,
 } from "./request-sale-void-credit-note.js";
+import { FakeAttachedSaleEvents } from "./test-support/fake-attached-sale-events.js";
 import {
   type FakeRegisterPointsOfSale,
   FakeSaleVoidCreditNoteStore,
@@ -12,6 +14,7 @@ import {
 
 const RECEIVED_AT = new Date("2026-10-07T15:31:00.000Z");
 const REGISTER_ID = "register-1";
+const DEVICE_ID = "device-1";
 const CREDIT_NOTE_ID = "credit-note-1";
 
 const VOIDED: SaleVoidCreditNote = {
@@ -22,7 +25,25 @@ const VOIDED: SaleVoidCreditNote = {
   correctedVoucher: { voucherType: 11, pointOfSale: 8, number: 77 },
 };
 
-const REQUEST = { creditNoteId: CREDIT_NOTE_ID, pointOfSale: 12, voided: VOIDED };
+const SALE_EVENT: PushedEvent = {
+  event_id: "event-1",
+  device_seq: 4,
+  aggregate_type: "sale",
+  aggregate_id: "sale-1",
+  event_type: "sale_voided",
+  schema_version: 3,
+  payload: {},
+  occurred_at: "2026-10-07T15:30:00.000Z",
+  actor_id: "user-1",
+  chain_hmac: "hmac",
+};
+
+const REQUEST = {
+  creditNoteId: CREDIT_NOTE_ID,
+  pointOfSale: 12,
+  voided: VOIDED,
+  saleEvent: SALE_EVENT,
+};
 
 const STORED: CreditNote = {
   creditNoteId: CREDIT_NOTE_ID,
@@ -39,6 +60,7 @@ interface Scenario {
   seeded?: [string, CreditNote][];
   request?: Partial<RequestSaleVoidCreditNoteInput["request"]>;
   registerId?: string;
+  attachedFailure?: Error;
 }
 
 function request({
@@ -46,17 +68,26 @@ function request({
   seeded = [],
   request: overrides = {},
   registerId = REGISTER_ID,
+  attachedFailure,
 }: Scenario = {}) {
   const store = new FakeSaleVoidCreditNoteStore(registers);
+  const attachedSaleEvents = new FakeAttachedSaleEvents(store);
+  attachedSaleEvents.failure = attachedFailure;
   for (const [owner, creditNote] of seeded) {
     store.seed(owner, creditNote);
   }
   return {
     store,
+    attachedSaleEvents,
     run: () =>
       requestSaleVoidCreditNote(
-        { lanes: store },
-        { registerId, request: { ...REQUEST, ...overrides }, receivedAt: RECEIVED_AT },
+        { lanes: store, attachedSaleEvents },
+        {
+          deviceId: DEVICE_ID,
+          registerId,
+          request: { ...REQUEST, ...overrides },
+          receivedAt: RECEIVED_AT,
+        },
       ),
   };
 }
@@ -92,6 +123,7 @@ describe("requestSaleVoidCreditNote", () => {
 
       expect(store.lanesEntered).toEqual([12]);
       expect(store.operations).toEqual([
+        "recordAttachedSaleEvent",
         "enterLane",
         "registerOwnsPointOfSale",
         "recordedCreditNote",
@@ -226,12 +258,27 @@ describe("requestSaleVoidCreditNote", () => {
       expect(store.operations).toEqual([]);
     });
 
+    it("records no attached event for a void that asks for another credit note", async () => {
+      const { attachedSaleEvents, run } = request({
+        request: { voided: { ...VOIDED, creditNoteId: "credit-note-2" } },
+      });
+
+      await run();
+
+      expect(attachedSaleEvents.recorded).toEqual([]);
+    });
+
     it("refuses a point of sale that is not the register's real-time one", async () => {
       const { store, run } = request({ request: { pointOfSale: 8 } });
 
       expect(await run()).toEqual({ kind: "point_of_sale_not_owned" });
       expect(store.records).toEqual([]);
-      expect(store.operations).toEqual(["enterLane", "registerOwnsPointOfSale", "leaveLane"]);
+      expect(store.operations).toEqual([
+        "recordAttachedSaleEvent",
+        "enterLane",
+        "registerOwnsPointOfSale",
+        "leaveLane",
+      ]);
     });
 
     it("refuses a point of sale of another register", async () => {
@@ -325,6 +372,48 @@ describe("requestSaleVoidCreditNote", () => {
 
       expect(store.alertsRaised).toEqual([]);
       expect(store.refusalsKept).toEqual([]);
+    });
+  });
+
+  describe("the sale event a request carries", () => {
+    it("is recorded for the requesting device", async () => {
+      const { attachedSaleEvents, run } = request();
+
+      await run();
+
+      expect(attachedSaleEvents.recorded).toEqual([{ deviceId: DEVICE_ID, event: SALE_EVENT }]);
+    });
+
+    it("is recorded before the point of sale's lane is entered", async () => {
+      const { store, run } = request();
+
+      await run();
+
+      expect(store.operations.indexOf("recordAttachedSaleEvent")).toBe(0);
+      expect(store.operations.indexOf("enterLane")).toBe(1);
+    });
+
+    it("is recorded even when the credit note was already recorded", async () => {
+      const { attachedSaleEvents, run } = request({ seeded: [[REGISTER_ID, STORED]] });
+
+      expect(await run()).toMatchObject({ kind: "already_recorded" });
+      expect(attachedSaleEvents.recorded).toEqual([{ deviceId: DEVICE_ID, event: SALE_EVENT }]);
+    });
+
+    it("is recorded even when the point of sale is not the register's", async () => {
+      const { attachedSaleEvents, run } = request({ request: { pointOfSale: 8 } });
+
+      expect(await run()).toEqual({ kind: "point_of_sale_not_owned" });
+      expect(attachedSaleEvents.recorded).toEqual([{ deviceId: DEVICE_ID, event: SALE_EVENT }]);
+    });
+
+    it("lets a recording failure through and records nothing in the lane", async () => {
+      const failure = new Error("inbox unavailable");
+      const { store, run } = request({ attachedFailure: failure });
+
+      await expect(run()).rejects.toBe(failure);
+      expect(store.operations).toEqual(["recordAttachedSaleEvent"]);
+      expect(store.records).toEqual([]);
     });
   });
 });
