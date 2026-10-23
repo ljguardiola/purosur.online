@@ -265,6 +265,11 @@ export interface CoreClient {
   findDeferredSale(reading: DeferredSaleReading): Promise<FindDeferredSaleOutcome>;
   printDeferredSaleInvoice(saleId: string): Promise<PrintDeferredSaleInvoiceOutcome>;
   printCreditNote(saleId: string): Promise<PrintCreditNoteOutcome>;
+  reprintDeferredSaleInvoice(
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ): Promise<ReprintSaleReceiptOutcome>;
   reprintCreditNote(
     saleId: string,
     reason: string,
@@ -801,6 +806,19 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "print-credit-note", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "print-credit-note-result" ? answer.outcome : undefined),
+      );
+    },
+    reprintDeferredSaleInvoice(saleId, reason, authorization) {
+      return ask(
+        {
+          type: "reprint-deferred-sale-invoice",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) =>
+          answer.type === "reprint-deferred-sale-invoice-result" ? answer.outcome : undefined,
       );
     },
     reprintCreditNote(saleId, reason, authorization) {
