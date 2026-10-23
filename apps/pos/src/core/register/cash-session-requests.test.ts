@@ -114,7 +114,11 @@ describe("opening a cash session on the register", () => {
       cash_session: {
         id: "id-1",
         opened_at: "2026-09-30T09:00:00.000-03:00",
-        opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
+        opened_by: {
+          user_id: "u1",
+          first_name: "Ada",
+          abilities: ["open_cash_session", "invoice_deferred_sale"],
+        },
         locked: false,
       },
     });
@@ -138,7 +142,11 @@ describe("opening a cash session on the register", () => {
       cash_session: {
         id: "id-1",
         opened_at: "2026-09-30T09:00:00.000-03:00",
-        opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
+        opened_by: {
+          user_id: "u1",
+          first_name: "Ada",
+          abilities: ["open_cash_session", "invoice_deferred_sale"],
+        },
         locked: false,
       },
     });
@@ -242,7 +250,11 @@ describe("the open cash session", () => {
     expect(currentCashSession(database, signedInPerson.userId())).toEqual({
       id: "id-1",
       opened_at: "2026-09-30T09:00:00.000-03:00",
-      opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
+      opened_by: {
+        user_id: "u1",
+        first_name: "Ada",
+        abilities: ["open_cash_session", "invoice_deferred_sale"],
+      },
       locked: false,
     });
   });
@@ -285,7 +297,7 @@ describe("the open cash session", () => {
     expect(currentCashSession(database, signedInPerson.userId())?.opened_by).toEqual({
       user_id: "u1",
       first_name: "Ada",
-      abilities: ["open_cash_session"],
+      abilities: ["open_cash_session", "invoice_deferred_sale"],
     });
   });
 
