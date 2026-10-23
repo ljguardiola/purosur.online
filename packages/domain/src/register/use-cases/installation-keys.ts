@@ -1,4 +1,5 @@
-import { FIRST_KEY_VERSION, inVersionOrder, latestKey } from "../model/installation-key.js";
+import { inVersionOrder, latestKey } from "../../shared/index.js";
+import { FIRST_KEY_VERSION } from "../model/installation-key.js";
 import type {
   InstallationKeyGenerator,
   RegisterStoreTransaction,
