@@ -40,12 +40,8 @@ export function hasCashDifference(difference: number): boolean {
   return difference !== 0;
 }
 
-function codeUnitOrder(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-
 function closeOrder(a: CashSessionClose, b: CashSessionClose): number {
-  return b.closedAt.getTime() - a.closedAt.getTime() || codeUnitOrder(a.id, b.id);
+  return b.closedAt.getTime() - a.closedAt.getTime() || compareSpanishText(a.id, b.id);
 }
 
 function nameOrder(a: string | null, b: string | null): number {
@@ -59,7 +55,7 @@ function cashierOrder(a: CashierWithDifferences, b: CashierWithDifferences): num
   return (
     b.sessions - a.sessions ||
     nameOrder(a.cashierName, b.cashierName) ||
-    codeUnitOrder(a.cashierId, b.cashierId)
+    compareSpanishText(a.cashierId, b.cashierId)
   );
 }
 
