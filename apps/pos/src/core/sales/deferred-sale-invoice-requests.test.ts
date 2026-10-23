@@ -14,6 +14,7 @@ import {
   type DeferredSaleInvoiceRequestDeps,
   findDeferredSaleFor,
   printDeferredSaleInvoiceFor,
+  reprintDeferredSaleInvoiceFor,
 } from "./deferred-sale-invoice-requests";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import { printCompletedSaleReceiptFor, reprintSaleReceiptFor } from "./receipt-requests";
@@ -383,5 +384,52 @@ describe("printing a deferred sale's invoice end to end", () => {
     expect(printedText(0)).toContain(NOT_AN_INVOICE_TEXT);
     expect(printedText(1)).toContain(NOT_AN_INVOICE_TEXT);
     expect(printedText(1)).not.toContain(FACTURA_TEXT);
+  });
+});
+
+describe("reprinting a deferred sale's invoice", () => {
+  const REASON = "el cliente la perdió";
+
+  async function printedOriginal(): Promise<void> {
+    addDeferredSale("sale-1", "7KQ4M2P9");
+    invoiceSale("sale-1");
+    await printDeferredSaleInvoiceFor(deps(), "sale-1");
+    printer.becomeReady();
+    await vi.waitFor(() => expect(jobs.standingOf("deferred-invoice:sale-1")).toBe("printed"));
+  }
+
+  it("starts the first duplicate of the factura as it was printed, with its legend, recording the reprint apart from the sale receipt's", async () => {
+    await printedOriginal();
+    signedInPerson.set("supervisor");
+
+    expect(await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-1", reason: REASON })).toEqual({
+      kind: "started",
+      copy: { kind: "duplicate", order_number: 1 },
+    });
+    printer.becomeReady();
+    await vi.waitFor(() => expect(printer.handed).toHaveLength(2));
+
+    expect(printedText(1)).toContain("COPIA DUPLICADA");
+    expect(printedText(1)).toContain("CAE 75123456789012");
+    expect(
+      database.prepare("SELECT document, order_number, reason_text FROM sale_reprints").all(),
+    ).toEqual([{ document: "deferred_invoice", order_number: 1, reason_text: REASON }]);
+  });
+
+  it("asks another person's authorization from a cashier who may not reprint", async () => {
+    await printedOriginal();
+
+    expect(await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-1", reason: REASON })).toEqual({
+      kind: "lacks_permission",
+    });
+    expect(printer.waiting).toHaveLength(1);
+  });
+
+  it("answers not_found for a sale the register does not hold", async () => {
+    signedInPerson.set("supervisor");
+
+    expect(await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-9", reason: REASON })).toEqual({
+      kind: "not_found",
+    });
   });
 });
