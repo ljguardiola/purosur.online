@@ -138,12 +138,13 @@ export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
 export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
 export {
   CLOSED_FISCAL_TASK_STATE,
-  CREDIT_NOTE_C_DOCUMENT_TYPE,
   FISCAL_TASK_KINDS,
   FISCAL_TASK_STATES,
   OPEN_FISCAL_TASK_STATE,
 } from "./model/fiscal-task.js";
+export type { OfflineSeriesDocumentType } from "./model/fiscal-voucher-type.js";
 export {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
   OFFLINE_SERIES_DOCUMENT_TYPES,
   voucherTypeOfDocumentType,
 } from "./model/fiscal-voucher-type.js";

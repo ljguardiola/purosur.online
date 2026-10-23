@@ -4,7 +4,10 @@ import {
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
 import { FACTURA_C_DOCUMENT_TYPE, type FiscalDocumentType } from "./fiscal-rejection-standing.js";
-import { CREDIT_NOTE_C_DOCUMENT_TYPE, type FiscalTaskDocumentType } from "./fiscal-task.js";
+import {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  type OfflineSeriesDocumentType,
+} from "./fiscal-voucher-type.js";
 import { generationStampOf } from "./generation-stamp.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 import type { VoucherReference } from "./orphan-authorization.js";
@@ -82,7 +85,7 @@ export interface OfflineFiscalDocumentIssuedFact {
   saleId: string;
   registerId: string;
   pointOfSale: number;
-  documentType: FiscalTaskDocumentType;
+  documentType: OfflineSeriesDocumentType;
   number: number;
   issuedOn: string;
   generatedAt: Date;

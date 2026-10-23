@@ -4,7 +4,7 @@ import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
-import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./fiscal-task.js";
+import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./fiscal-voucher-type.js";
 import { type DocumentTypeReportState, isOfflineDocumentReported } from "./fortnight-report.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 

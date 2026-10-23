@@ -2,7 +2,7 @@ import { argentinaCalendarDay, argentinaInstant, shiftCalendarDay } from "../../
 import { isInstallationActiveDuring, streamReachesPast } from "../../sync/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { FiscalTaskDocumentType as FiscalDocumentType } from "../model/fiscal-task.js";
-import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "../model/fiscal-task.js";
+import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "../model/fiscal-voucher-type.js";
 import {
   type DocumentTypeReportState,
   fortnightClosesAt,
