@@ -152,7 +152,7 @@ describe("the restored sync identity store", () => {
     ]);
   });
 
-  it("marks the register as awaiting the sweep of its orphan authorizations when it adopts the new identity", async () => {
+  it("marks the register as awaiting the sweep of its orphan authorizations, restored from a copy, when it adopts the new identity", async () => {
     carryOldInstallation(5);
     database.exec(`
       INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
@@ -163,8 +163,8 @@ describe("the restored sync identity store", () => {
 
     await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
 
-    expect(database.prepare("SELECT register_id FROM awaiting_orphan_sweep").all()).toEqual([
-      { register_id: "r1" },
+    expect(database.prepare("SELECT * FROM awaiting_orphan_sweep").all()).toEqual([
+      { register_id: "r1", from_copy: 1 },
     ]);
   });
 

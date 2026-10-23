@@ -502,6 +502,7 @@ export {
   snapshotVerificationQuerySchema,
 } from "./register/snapshot-verification.js";
 export type {
+  RestoreFirstInstallation,
   SnapshotRestoreOutcomeKind,
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,

@@ -21,4 +21,24 @@ describe("endRestoreWorker", () => {
       expect(posted).toEqual([{ type: "snapshot-restore-finished", outcome: outcome.kind }]);
     },
   );
+
+  it("tells main the register's first installation when the restore found no generation", () => {
+    const posted: SnapshotWorkerMessage[] = [];
+
+    endRestoreWorker(
+      {
+        kind: "no_generation",
+        firstInstallation: { installationId: "installation-1", registerId: "register-1" },
+      },
+      { post: (message) => posted.push(message) },
+    );
+
+    expect(posted).toEqual([
+      {
+        type: "snapshot-restore-finished",
+        outcome: "no_generation",
+        first_installation: { installation_id: "installation-1", register_id: "register-1" },
+      },
+    ]);
+  });
 });

@@ -111,12 +111,14 @@ describe("a restored register's numbering", () => {
     expect(restorationStanding(evidence.evidence())).toEqual({
       kind: "in_progress",
       step: "reconcile_fiscal_counters",
+      origin: "copy",
     });
 
     await savePulledChanges(replica, pulledPointOfSale(1, null, true, null));
     expect(restorationStanding(evidence.evidence())).toEqual({
       kind: "in_progress",
       step: "reconcile_fiscal_counters",
+      origin: "copy",
     });
 
     await savePulledChanges(replica, pulledPointOfSale(2, 31, false, "2026-09-29"));
@@ -124,6 +126,7 @@ describe("a restored register's numbering", () => {
     expect(restorationStanding(evidence.evidence())).toEqual({
       kind: "in_progress",
       step: "regularize_orphan_authorizations",
+      origin: "copy",
     });
     expect(reservedNumbers()).toEqual([32]);
   });

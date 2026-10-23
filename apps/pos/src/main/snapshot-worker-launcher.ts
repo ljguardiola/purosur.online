@@ -67,11 +67,31 @@ function readRestoreOutcome(message: unknown): string | undefined {
     : undefined;
 }
 
+interface RestoreFirstInstallation {
+  installation_id: string;
+  register_id: string;
+}
+
+function readRestoreFirstInstallation(message: unknown): RestoreFirstInstallation | undefined {
+  if (typeof message !== "object" || message === null) {
+    return undefined;
+  }
+  const { type, first_installation: found } = message as Record<string, unknown>;
+  if (type !== "snapshot-restore-finished" || typeof found !== "object" || found === null) {
+    return undefined;
+  }
+  const { installation_id, register_id } = found as Record<string, unknown>;
+  return typeof installation_id === "string" && typeof register_id === "string"
+    ? { installation_id, register_id }
+    : undefined;
+}
+
 interface SnapshotWorkerExitedNotice {
   type: "snapshot-worker-exited";
   copy_failed_stage?: string;
   latest_announced_key_version?: number;
   restore_outcome?: string;
+  first_installation?: RestoreFirstInstallation;
 }
 
 export interface SnapshotWorkerProcess extends CoreProcessOutput {
@@ -111,6 +131,7 @@ export function createSnapshotWorkerLauncher(
     let copyFailedStage: string | undefined;
     let announcedKeyVersion: number | undefined;
     let restoreOutcome: string | undefined;
+    let firstInstallation: RestoreFirstInstallation | undefined;
     worker.on("message", (message) => {
       const stage = readSnapshotCopyFailure(message);
       if (stage !== undefined) {
@@ -127,6 +148,7 @@ export function createSnapshotWorkerLauncher(
       const outcome = readRestoreOutcome(message);
       if (outcome !== undefined) {
         restoreOutcome = outcome;
+        firstInstallation = readRestoreFirstInstallation(message);
         worker.kill();
       }
     });
@@ -147,6 +169,7 @@ export function createSnapshotWorkerLauncher(
           ? {}
           : { latest_announced_key_version: announcedKeyVersion }),
         ...(restoreOutcome === undefined ? {} : { restore_outcome: restoreOutcome }),
+        ...(firstInstallation === undefined ? {} : { first_installation: firstInstallation }),
       });
     });
     worker.postMessage(job);
