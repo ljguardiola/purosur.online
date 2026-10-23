@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteLocalOutbox } from "../sync/sqlite-local-outbox";
 import { appendOutboxEvents, openOutboxDatabase } from "../sync/test-support/sqlite-local-outbox";
-import { createContingencyBackupTicketRequests } from "./contingency-backup-ticket-requests";
+import {
+  answerContingencyBackupTicketRequest,
+  createContingencyBackupTicketRequests,
+} from "./contingency-backup-ticket-requests";
 import { SqliteContingencyBackupTickets } from "./sqlite-contingency-backup-tickets";
 
 const NOW = new Date("2026-10-10T09:00:00.000Z");
@@ -164,5 +167,79 @@ describe("discarding the tickets", () => {
     await cloudAcknowledgesThrough(2);
 
     expect(await requests().discard()).toEqual({ kind: "not_yet" });
+  });
+});
+
+describe("answering the renderer's messages", () => {
+  const reported: { context: string; error: unknown }[] = [];
+  const reportFailure = (context: string, error: unknown) => reported.push({ context, error });
+
+  it("answers each message with the outcome of its request", async () => {
+    const withRequests = { contingencyBackupTickets: requests(), reportFailure };
+
+    expect(
+      await answerContingencyBackupTicketRequest(withRequests, {
+        type: "read-contingency-backup-tickets",
+        request_id: "r1",
+      }),
+    ).toMatchObject({
+      type: "read-contingency-backup-tickets-result",
+      request_id: "r1",
+      outcome: { kind: "read" },
+    });
+    expect(
+      await answerContingencyBackupTicketRequest(withRequests, {
+        type: "read-contingency-backup-ticket-of-sale",
+        request_id: "r2",
+        sale_id: "sale-1",
+      }),
+    ).toEqual({
+      type: "read-contingency-backup-ticket-of-sale-result",
+      request_id: "r2",
+      outcome: { kind: "read", ticket: { standing: null } },
+    });
+    expect(
+      await answerContingencyBackupTicketRequest(withRequests, {
+        type: "discard-contingency-backup-tickets",
+        request_id: "r3",
+      }),
+    ).toEqual({
+      type: "discard-contingency-backup-tickets-result",
+      request_id: "r3",
+      outcome: { kind: "not_yet" },
+    });
+  });
+
+  it("answers that the tickets are unavailable when the register keeps none", async () => {
+    expect(
+      await answerContingencyBackupTicketRequest(
+        { contingencyBackupTickets: undefined, reportFailure },
+        { type: "read-contingency-backup-tickets", request_id: "r1" },
+      ),
+    ).toEqual({
+      type: "read-contingency-backup-tickets-result",
+      request_id: "r1",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("reports a request that fails and answers that the tickets are unavailable", async () => {
+    reported.length = 0;
+    database.close();
+
+    expect(
+      await answerContingencyBackupTicketRequest(
+        { contingencyBackupTickets: requests(), reportFailure },
+        { type: "discard-contingency-backup-tickets", request_id: "r3" },
+      ),
+    ).toEqual({
+      type: "discard-contingency-backup-tickets-result",
+      request_id: "r3",
+      outcome: { kind: "unavailable" },
+    });
+    expect(reported.map(({ context }) => context)).toEqual([
+      "discarding the contingency backup tickets",
+    ]);
+    database = openOutboxDatabase();
   });
 });
