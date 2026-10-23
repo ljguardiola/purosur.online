@@ -123,6 +123,7 @@ test("shows the empty state when no fiscal task is open", async () => {
 
   await expect.element(screen.getByText("Sin tareas fiscales abiertas")).toBeVisible();
   await expect.element(screen.getByText("Todos los comprobantes están en orden.")).toBeVisible();
+  expect(screen.getByText("0 tareas abiertas").query()).toBeNull();
 });
 
 test("shows the table loading while the tasks load", async () => {
