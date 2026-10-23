@@ -4,6 +4,7 @@ import {
   allocatesToLots,
   movementAllocations,
   receiptAllocations,
+  saleVoidAllocations,
   type StockLot,
 } from "./lot-allocation.js";
 
@@ -415,5 +416,46 @@ describe("receiptAllocations for any lots and any quantity", () => {
         }
       }),
     );
+  });
+});
+
+describe("saleVoidAllocations", () => {
+  it("gives back to each lot exactly what the sale took from it", () => {
+    expect(
+      saleVoidAllocations([
+        { lotId: "soon", quantity: -2000 },
+        { lotId: "late", quantity: -4000 },
+      ]),
+    ).toEqual([
+      { target: { kind: "lot", lotId: "soon" }, quantity: 2000 },
+      { target: { kind: "lot", lotId: "late" }, quantity: 4000 },
+    ]);
+  });
+
+  it("adds up what the sale took from the same lot more than once", () => {
+    expect(
+      saleVoidAllocations([
+        { lotId: "soon", quantity: -2000 },
+        { lotId: "late", quantity: -1000 },
+        { lotId: "soon", quantity: -500 },
+      ]),
+    ).toEqual([
+      { target: { kind: "lot", lotId: "soon" }, quantity: 2500 },
+      { target: { kind: "lot", lotId: "late" }, quantity: 1000 },
+    ]);
+  });
+
+  it("skips a lot whose allocations cancel out", () => {
+    expect(
+      saleVoidAllocations([
+        { lotId: "soon", quantity: -2000 },
+        { lotId: "soon", quantity: 2000 },
+        { lotId: "late", quantity: -1000 },
+      ]),
+    ).toEqual([{ target: { kind: "lot", lotId: "late" }, quantity: 1000 }]);
+  });
+
+  it("allocates nothing for a sale that made no allocation", () => {
+    expect(saleVoidAllocations([])).toEqual([]);
   });
 });
