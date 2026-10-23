@@ -181,6 +181,38 @@ test("warns above the table of each blocked presentation which register still ha
   expect(screen.getByText(/No se puede presentar/).query()).toBeNull();
 });
 
+test("explains above the table why the credit notes of a presentation wait", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        presentation({ documentType: "credit_note_c", state: "awaiting_invoice_report" }),
+        presentation({ fortnight: augustSecondHalf, state: "accepted" }),
+      ]),
+    ),
+  );
+
+  const table = screen.getByRole("table", { name: "Informes quincenales" });
+  await expect.element(table.getByText("Nota de crédito C")).toBeVisible();
+  await expect
+    .element(table.getByText("Espera el informe de la factura que corrige"))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `Las notas de crédito del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004 esperan el informe de la factura que corrigen`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Se presentan cuando ARCA acepte ese informe, de una quincena anterior.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+});
+
 test("shows no warning while no presentation is blocked, even when one is missing a document", async () => {
   const screen = await render(
     sectionFor(

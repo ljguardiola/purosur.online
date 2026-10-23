@@ -42,6 +42,7 @@ describe("fortnightPresentationListSchema", () => {
     "refused",
     "accepted",
     "needs_regularization",
+    "awaiting_invoice_report",
     "listed_as_owed",
   ] as const)("reads the %s state", (state) => {
     expect(fortnightPresentationListSchema.parse([{ ...presentation, state }])).toEqual([
@@ -120,6 +121,12 @@ describe("fortnightPresentationListSchema", () => {
       { ...presentation, state: "refused", refusal: "partial" },
       { ...presentation, state: "refused", refusal: "whole" },
     ];
+
+    expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
+  });
+
+  it("reads the presentation of the credit notes of a fortnight", () => {
+    const list = [{ ...presentation, document_type: "credit_note_c" }];
 
     expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
   });
