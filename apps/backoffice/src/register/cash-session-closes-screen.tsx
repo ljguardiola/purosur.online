@@ -2,7 +2,6 @@ import { type CashSessionClosesBody, cashSessionClosesSchema } from "@purosur/co
 import {
   Card,
   dataColumn,
-  EmptyState,
   FigureStat,
   formatCents,
   formatNumber,
@@ -108,7 +107,9 @@ function cashiersWithDifferenceText(totals: CashSessionClosesBody["totals"]): st
   return totals.cashiers.length === 0
     ? undefined
     : totals.cashiers
-        .map((cashier) => `${cashier.cashier_name ?? UNIDENTIFIED} ${cashier.sessions}`)
+        .map(
+          (cashier) => `${cashier.cashier_name ?? UNIDENTIFIED} ${formatNumber(cashier.sessions)}`,
+        )
         .join(" · ");
 }
 
@@ -130,7 +131,6 @@ export function CashSessionClosesScreen({
     id: (session) => session.id,
     columns: sessionColumns,
   });
-  const noSessions = data.status === "loaded" && data.value.sessions.length === 0;
 
   return (
     <ScreenLayout
@@ -185,19 +185,16 @@ export function CashSessionClosesScreen({
           )}
         </div>
       )}
-      {noSessions ? (
-        <EmptyState
-          icon={<Calculator />}
-          title="No hay sesiones cerradas en este período"
-          variant={filters.register === "ALL" ? "blank" : "filtered"}
-        />
-      ) : (
-        <Table
-          aria-label="Cierres de sesión"
-          table={table}
-          {...cloudTableState(data, "los cierres de sesión")}
-        />
-      )}
+      <Table
+        aria-label="Cierres de sesión"
+        table={table}
+        {...cloudTableState(data, "los cierres de sesión")}
+        empty={{
+          icon: <Calculator />,
+          title: "No hay sesiones cerradas en este período",
+          variant: filters.register === "ALL" ? "blank" : "filtered",
+        }}
+      />
     </ScreenLayout>
   );
 }

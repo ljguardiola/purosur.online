@@ -39,14 +39,7 @@ export type {
   OpenedCashSession,
 } from "./model/cash-session.js";
 export { CASH_MOVEMENT_TYPES } from "./model/cash-session.js";
-export type {
-  CashierWithDifferences,
-  CashSessionClose,
-  CashSessionClosesSummary,
-  CashSessionClosesTotals,
-  ReportedCashSessionClose,
-} from "./model/cash-session-closes.js";
-export { cashSessionClosesSummary, hasCashDifference } from "./model/cash-session-closes.js";
+export type { CashSessionClose } from "./model/cash-session-closes.js";
 export type {
   CashMovementRecordedFact,
   CashSessionClosedFact,

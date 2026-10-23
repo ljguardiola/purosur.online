@@ -1,9 +1,8 @@
-import { ARGENTINA_TIME_ZONE, isCalendarDay } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema, reportQuerySchema } from "../shared/index.js";
+import { answeredRangeSchema, recordIdSchema, reportQuerySchema } from "../shared/index.js";
 import { handConfirmedPaymentMethodSchema } from "./hand-confirmed-payment-method.js";
 
-const calendarDay = z.string().refine(isCalendarDay);
 const count = z.int().nonnegative();
 const cents = z.int().nonnegative();
 const method = handConfirmedPaymentMethodSchema;
@@ -15,7 +14,7 @@ export const handConfirmedPaymentsQuerySchema = reportQuerySchema.and(
 const methodTotal = z.object({ method, count, amount: cents });
 
 export const handConfirmedPaymentsSchema = z.object({
-  range: z.object({ from: calendarDay, to: calendarDay }),
+  range: answeredRangeSchema,
   totals: z.object({ count, amount: cents }),
   methods: z.array(methodTotal),
   cashiers: z.array(
