@@ -203,6 +203,8 @@ describe("PUT /fiscal/tasks/:id/closure", () => {
       registerId: installation.registerId,
       locationId,
       state: "expired",
+      occurredAt: new Date("2025-12-30T15:00:00.000Z"),
+      expiredAt: CREATED_AT,
     });
     const taskId = await insertDeferredSaleTaskRow(db, {
       registerId: installation.registerId,

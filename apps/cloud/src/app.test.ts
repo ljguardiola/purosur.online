@@ -3124,14 +3124,14 @@ describe("the route access inventory", () => {
         access: capabilityAccess("fiscal_information"),
       },
       {
-        method: "GET",
-        url: "/api/fiscal/unbilled-deferred-sales",
-        access: capabilityAccess("fiscal_information"),
-      },
-      {
         method: "PUT",
         url: "/api/fiscal/tasks/:id/closure",
         access: capabilityAccess("close_fiscal_tasks"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/unbilled-deferred-sales",
+        access: capabilityAccess("fiscal_information"),
       },
       {
         method: "POST",
