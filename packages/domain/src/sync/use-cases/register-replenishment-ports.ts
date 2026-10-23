@@ -6,6 +6,7 @@ import type {
 } from "../../fiscal/index.js";
 import type { ReplenishedUser } from "../../users/index.js";
 import type { PushedEvent } from "../model/push-batch.js";
+import type { ReplenishmentFailure, ReplenishmentRefusal } from "../model/replenishment-failure.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type { DecodedEvent } from "./event-application-ports.js";
 import type { EventPosition, ReplenishedEvent } from "./restored-register-replenishment-ports.js";
@@ -15,10 +16,7 @@ export interface RegisterPredecessor {
   lastAcknowledgedSeq: number;
 }
 
-export type ReplenishmentRefusal =
-  | "predecessor_not_of_register"
-  | "predecessor_not_revoked"
-  | "cursor_not_of_replenishment";
+export type { ReplenishmentRefusal };
 
 export interface ReplenishmentPage {
   events: ReplenishedEvent[];
