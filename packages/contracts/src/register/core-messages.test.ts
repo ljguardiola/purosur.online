@@ -2154,6 +2154,8 @@ describe("restoration standing messages", () => {
     { kind: "in_progress", step: "replenish", origin: "no_copy" },
     { kind: "without_connection", step: "replenish", origin: "no_copy" },
     { kind: "failed", step: "restore" },
+    { kind: "failed", step: "replenish", failure: "refused" },
+    { kind: "failed", step: "replenish", failure: "unreadable_event" },
   ])("accepts the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
 
@@ -2169,6 +2171,8 @@ describe("restoration standing messages", () => {
     { kind: "without_connection", step: "open_session", origin: "copy" },
     { kind: "failed" },
     { kind: "failed", step: "replenish" },
+    { kind: "failed", step: "replenish", failure: "lost" },
+    { kind: "failed", step: "enroll", failure: "refused" },
     { kind: "in_progress", step: "replenish", origin: "somewhere_else" },
     { kind: "in_progress", step: "replenish" },
     { kind: "without_connection", step: "replenish" },
