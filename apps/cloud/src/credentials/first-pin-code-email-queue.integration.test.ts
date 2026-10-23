@@ -4,6 +4,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { startBackgroundJobRunner } from "../platform/background-job-runner.js";
 import { registers, userPinCodes, users } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import {
@@ -11,6 +12,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { accessEmailJobs, FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER } from "./access-email-task.js";
 import { DrizzleFirstPinCodeStore } from "./drizzle-first-pin-code-store.js";
 import {
   type EnqueueFirstPinCodeEmail,
@@ -18,7 +20,6 @@ import {
 } from "./graphile-first-pin-code-email-queue.js";
 import { generatePinCode } from "./pin-code-generator.js";
 import type { AccessEmailSender, SendFirstPinCodeInput } from "./recovery-email-sender.js";
-import { FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER, startRecoveryWorker } from "./recovery-worker.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
@@ -130,12 +131,16 @@ describe("the first PIN code email queued by an emission on a real Postgres", ()
         sent.push(input);
       },
     };
-    const worker = await startRecoveryWorker({
-      now: () => new Date(),
-      schedules: false,
+    const worker = await startBackgroundJobRunner({
       databaseUrl: integrationDb.databaseUrl,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
+      schedules: false,
+      jobs: [
+        accessEmailJobs({
+          now: () => new Date(),
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender,
+        }),
+      ],
     });
 
     try {
@@ -169,12 +174,16 @@ describe("the first PIN code email queued by an emission on a real Postgres", ()
     await emit(person);
     await emit(person);
     expect(await queuedJobsFor(person.email)).toHaveLength(2);
-    const worker = await startRecoveryWorker({
-      now: () => new Date(),
-      schedules: false,
+    const worker = await startBackgroundJobRunner({
       databaseUrl: integrationDb.databaseUrl,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
+      schedules: false,
+      jobs: [
+        accessEmailJobs({
+          now: () => new Date(),
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender,
+        }),
+      ],
     });
 
     try {

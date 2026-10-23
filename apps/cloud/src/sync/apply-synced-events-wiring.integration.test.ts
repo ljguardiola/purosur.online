@@ -9,7 +9,7 @@ import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-serv
 import { inbox, salePayments, sales } from "../platform/db/schema.js";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -107,7 +107,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         },
       }),
     ];
-    const recovery = await setUpRecovery(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -139,7 +139,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       const received = await db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
       expect(received.map((row) => row.appliedAt)).toEqual([NOW, NOW]);
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 60_000);
 });

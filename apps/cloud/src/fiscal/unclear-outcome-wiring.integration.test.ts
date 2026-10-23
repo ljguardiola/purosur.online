@@ -4,7 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { fiscalRequests } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -51,7 +51,7 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-function recoveryEnv() {
+function backgroundJobsEnv() {
   return {
     databaseUrl: integrationDb.databaseUrl,
     emailSender: { transport: "log" as const },
@@ -87,12 +87,12 @@ describe("the unclear outcome decisions the server sets up on a real Postgres", 
       unclearCodes: [],
       answeredAt: ANSWERED_AT,
     });
-    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
     try {
-      await recovery.db.transaction((transaction) =>
+      await backgroundJobs.db.transaction((transaction) =>
         enqueueUnclearOutcomeJob(transaction, request.fiscalDocumentId, ALREADY_DUE),
       );
 
@@ -106,7 +106,7 @@ describe("the unclear outcome decisions the server sets up on a real Postgres", 
       );
       expect(fakeWsfe.requests[0]).toContain("FECompConsultar");
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 });

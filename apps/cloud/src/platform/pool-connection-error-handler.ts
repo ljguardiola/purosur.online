@@ -1,4 +1,4 @@
-import { type ReportErrorDeps, reportError } from "../platform/error-reporting.js";
+import { type ReportErrorDeps, reportError } from "./error-reporting.js";
 
 interface PoolConnection {
   on(event: "error", listener: (error: Error) => void): unknown;

@@ -13,7 +13,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../platform/edge-origin-guard.js";
-import { type RecoveryInfrastructure, setUpRecovery, startServer } from "../server.js";
+import { type BackgroundJobInfrastructure, setUpBackgroundJobs, startServer } from "../server.js";
 import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
@@ -27,10 +27,10 @@ import {
   FICTIONAL_RECOVERY_SENDER,
 } from "../test-support/recovery-email.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./access-email-task.js";
 import type { AccessEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
-import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 import { findFreePort } from "./test-support/find-free-port.js";
 
 // Proves the real production wiring end to end (a real postgres-js pool and graphile-worker's
@@ -117,8 +117,8 @@ interface StartedFixture {
   close(): Promise<void>;
 }
 
-const JOB_QUEUE_FAILURE = /recovery job queue: (idle|active) database client failed/;
-const WORKER_FAILURE = /recovery worker: (idle|active) database client failed/;
+const JOB_QUEUE_FAILURE = /background job queue: (idle|active) database client failed/;
+const WORKER_FAILURE = /background job runner: (idle|active) database client failed/;
 
 async function dropEveryConnection(databaseUrl: string): Promise<void> {
   const sql = postgres(databaseUrl, { max: 1 });
@@ -151,7 +151,7 @@ async function startRealServer(
 ): Promise<StartedFixture> {
   const port = await findFreePort();
   let currentTime = NOW.getTime();
-  let recovery: RecoveryInfrastructure | undefined;
+  let backgroundJobs: BackgroundJobInfrastructure | undefined;
   let app: Awaited<ReturnType<typeof startServer>>;
   try {
     app = await startServer(
@@ -171,20 +171,20 @@ async function startRealServer(
       {
         now: () => new Date(currentTime),
         arcaEndpoints: unreachableArcaEndpoints,
-        setUpRecovery: async (recoveryEnv, now) => {
-          recovery = await setUpRecovery(recoveryEnv, now, {
+        setUpBackgroundJobs: async (backgroundJobsEnv, now) => {
+          backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv, now, {
             emailSender,
             createJobQueuePool,
             schedules: false,
           });
-          return recovery;
+          return backgroundJobs;
         },
       },
     );
   } catch (error) {
-    // `recovery` can be set even though `startServer` never returned (e.g. `app.listen` failing
+    // `backgroundJobs` can be set even though `startServer` never returned (e.g. `app.listen` failing
     // after setup resolved), which would otherwise leave its worker running with no close() called.
-    await rethrowAfter(error, () => (recovery ? recovery.close() : Promise.resolve()));
+    await rethrowAfter(error, () => (backgroundJobs ? backgroundJobs.close() : Promise.resolve()));
   }
   return {
     origin: `http://127.0.0.1:${port}`,
@@ -209,7 +209,7 @@ function postRecoveryRequest(origin: string, email: string): Promise<Response> {
   });
 }
 
-describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker run()", () => {
+describe("setUpBackgroundJobs wired to a real Postgres pool and a real graphile-worker run()", () => {
   it("hands graphile-worker pools that report their own dropped connections, so graphile installs none of its own", async () => {
     const warnings: string[] = [];
     const reports: string[] = [];
