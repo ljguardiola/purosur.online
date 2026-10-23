@@ -110,6 +110,19 @@ test("writes an error description in bold, in the error tone", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("writes a warning description in bold, in the warning tone", async () => {
+  const screen = await render(
+    <TableCellText description="hace 3 días" descriptionTone="warning">
+      06/09/2026
+    </TableCellText>,
+  );
+  const description = screen.getByText("hace 3 días", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(description).color).toBe(tokenRgb("warning-strong"));
+  expect(getComputedStyle(description).fontWeight).toBe("700");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("accepts an undefined tone and description tone, for a caller that picks them from a condition", () => {
   expectTypeOf<{
     tone: undefined;

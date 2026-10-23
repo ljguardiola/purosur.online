@@ -18,7 +18,8 @@ export type AlertScopeKind =
   | "fiscalDocument"
   | "syncDevice"
   | "branch"
-  | "pointOfSaleFortnight";
+  | "pointOfSaleFortnight"
+  | "deferredSale";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -298,6 +299,14 @@ const ALERT_KIND_POLICIES = {
     escalation: null,
     audience: "all",
     scopeKind: "pointOfSaleFortnight",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
+  deferred_sale_due: {
+    level: "warning",
+    escalation: null,
+    audience: "all",
+    scopeKind: "deferredSale",
     deduplicates: true,
     resolvesAfterStableClear: true,
   },

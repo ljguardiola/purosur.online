@@ -73,6 +73,7 @@ describe("alertKindPolicy", () => {
     ],
     ["fortnight_report_owed_elsewhere", "critical", null, "all", "pointOfSaleFortnight", true],
     ["fortnight_report_document_rejected", "critical", null, "all", "pointOfSaleFortnight", true],
+    ["deferred_sale_due", "warning", null, "all", "deferredSale", true],
     ["update_required", "critical", null, "all", "register", true],
     ["clock_corrected", "critical", null, "all", "register", false],
     ["invoice_already_credited", "critical", null, "all", "pointOfSaleDocumentNumber", true],
@@ -137,6 +138,7 @@ describe("alertKindPolicy", () => {
       "fortnight_report_owed_elsewhere",
       "register_backup_overdue",
       "fortnight_report_document_rejected",
+      "deferred_sale_due",
     ]);
   });
 
@@ -184,6 +186,7 @@ describe("alertClosing", () => {
       fortnight_report_owed_elsewhere: "by_itself",
       register_backup_overdue: "by_itself",
       fortnight_report_document_rejected: "by_itself",
+      deferred_sale_due: "by_itself",
     });
   });
 
@@ -245,5 +248,6 @@ describe("alertKindsWithScope", () => {
       "fortnight_report_owed_elsewhere",
       "fortnight_report_document_rejected",
     ]);
+    expect(alertKindsWithScope("deferredSale")).toEqual(["deferred_sale_due"]);
   });
 });

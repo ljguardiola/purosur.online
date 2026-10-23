@@ -48,6 +48,9 @@ export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string):
   if (scopeKind === ("branch" satisfies AlertScopeKind)) {
     return "Sucursal";
   }
+  if (scopeKind === ("deferredSale" satisfies AlertScopeKind)) {
+    return "Venta diferida";
+  }
   if (scopeKind === ("pointOfSaleFortnight" satisfies AlertScopeKind)) {
     return pointOfSaleFortnightScopeLabel(scopeDisplay);
   }

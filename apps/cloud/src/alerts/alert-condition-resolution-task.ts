@@ -1,5 +1,6 @@
 import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import {
+  detectDeferredSaleDeadlines,
   detectExpiringLots,
   detectFortnightReportDeadlines,
   detectFortnightReportRegularizations,
@@ -11,6 +12,7 @@ import {
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
 import { detectOverdueRegisterBackups } from "@purosur/domain/backups/use-cases";
+import { regularizeExpiredDeferredSales } from "@purosur/domain/fiscal/use-cases";
 import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -18,10 +20,12 @@ import type { PoolClient } from "pg";
 import { DrizzleRegisterBackupStandingReader } from "../backups/drizzle-register-backup-standing-reader.js";
 import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry-window-reader.js";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
+import { DrizzleDeferredSaleExpiryStore } from "../fiscal/drizzle-deferred-sale-expiry-store.js";
 import { DrizzleFortnightRegularizationReader } from "../fiscal/drizzle-fortnight-regularization-reader.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { DrizzleOwedElsewherePresentationReader } from "../fiscal/drizzle-owed-elsewhere-presentation-reader.js";
 import { DrizzleOwedFortnightPresentationReader } from "../fiscal/drizzle-owed-fortnight-presentation-reader.js";
+import { DrizzlePendingDeferredSaleReader } from "../fiscal/drizzle-pending-deferred-sale-reader.js";
 import { DrizzleRejectedFortnightDocumentReader } from "../fiscal/drizzle-rejected-fortnight-document-reader.js";
 import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import {
@@ -33,6 +37,7 @@ import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-regist
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
+import { DrizzleDeferredSaleDueAlerts } from "./drizzle-deferred-sale-due-alerts.js";
 import { DrizzleExpiringLotAlerts } from "./drizzle-expiring-lot-alerts.js";
 import { DrizzleFortnightReportDeadlineAlerts } from "./drizzle-fortnight-report-deadline-alerts.js";
 import { DrizzleFortnightReportRegularizationAlerts } from "./drizzle-fortnight-report-regularization-alerts.js";
@@ -167,6 +172,26 @@ function detectOverdueRegisterBackupsTask<TQueryResult extends PgQueryResultHKT>
   });
 }
 
+function regularizeExpiredDeferredSalesTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+) {
+  return regularizeExpiredDeferredSales({
+    store: new DrizzleDeferredSaleExpiryStore(db),
+    clock: { now: deps.now },
+  });
+}
+
+async function detectDeferredSaleDeadlinesTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectDeferredSaleDeadlines(
+    { alerts: new DrizzleDeferredSaleDueAlerts(db, deps.now), clock: { now: deps.now } },
+    await new DrizzlePendingDeferredSaleReader(db).pendingDeferredSales(),
+  );
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
@@ -180,6 +205,8 @@ export interface AlertConditionResolutionJobsDeps {
   detectOwedElsewherePresentations?: typeof detectOwedElsewherePresentationsTask;
   detectRejectedFortnightDocuments?: typeof detectRejectedFortnightDocumentsTask;
   detectOverdueRegisterBackups?: typeof detectOverdueRegisterBackupsTask;
+  regularizeExpiredDeferredSales?: typeof regularizeExpiredDeferredSalesTask;
+  detectDeferredSaleDeadlines?: typeof detectDeferredSaleDeadlinesTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -204,6 +231,10 @@ export function alertConditionResolutionJobs(
     deps.detectRejectedFortnightDocuments ?? detectRejectedFortnightDocumentsTask;
   const doDetectOverdueRegisterBackups =
     deps.detectOverdueRegisterBackups ?? detectOverdueRegisterBackupsTask;
+  const doRegularizeExpiredDeferredSales =
+    deps.regularizeExpiredDeferredSales ?? regularizeExpiredDeferredSalesTask;
+  const doDetectDeferredSaleDeadlines =
+    deps.detectDeferredSaleDeadlines ?? detectDeferredSaleDeadlinesTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -220,6 +251,8 @@ export function alertConditionResolutionJobs(
           await doDetectFortnightReportRegularizations(db, { now: options.now });
           await doDetectRejectedFortnightDocuments(db, { now: options.now });
           await doDetectOverdueRegisterBackups(db, { now: options.now });
+          await doRegularizeExpiredDeferredSales(db, { now: options.now });
+          await doDetectDeferredSaleDeadlines(db, { now: options.now });
         });
       },
     },

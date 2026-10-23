@@ -154,3 +154,7 @@ export function canManageSupplierPriceLists(access: BackofficeAccess): boolean {
 export function canSeeOrdersArea(access: BackofficeAccess): boolean {
   return grants(access, "orders_area");
 }
+
+export function canSeeFiscalInformation(access: BackofficeAccess): boolean {
+  return grants(access, "fiscal_information");
+}

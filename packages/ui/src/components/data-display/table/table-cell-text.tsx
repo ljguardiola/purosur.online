@@ -7,13 +7,18 @@ export type TableCellTextProps = {
   strong?: boolean;
   monospace?: boolean;
   size?: "body" | "detail";
-  descriptionTone?: "error" | undefined;
+  descriptionTone?: "error" | "warning" | undefined;
 };
 
 const TEXT_TONE_CLASS_NAME = {
   subtle: "text-text-subtle",
   error: "text-error-strong",
   success: "text-success-strong",
+} as const;
+
+const DESCRIPTION_TONE_CLASS_NAME = {
+  error: "font-bold text-error-strong",
+  warning: "font-bold text-warning-strong",
 } as const;
 
 const TEXT_SIZE_CLASS_NAME = { body: "text-body", detail: "text-detail" } as const;
@@ -52,7 +57,9 @@ export function TableCellText({
         <span
           className={[
             "text-detail",
-            descriptionTone === "error" ? "font-bold text-error-strong" : "text-text-subtle",
+            descriptionTone === undefined
+              ? "text-text-subtle"
+              : DESCRIPTION_TONE_CLASS_NAME[descriptionTone],
           ].join(" ")}
         >
           {description}

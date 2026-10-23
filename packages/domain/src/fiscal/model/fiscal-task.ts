@@ -2,6 +2,19 @@ import type { FiscalDocumentType, TaxAuthorityRejection } from "./fiscal-rejecti
 
 export const CREDIT_NOTE_C_DOCUMENT_TYPE = "credit_note_c";
 
+export const OPEN_FISCAL_TASK_STATE = "open";
+export const CLOSED_FISCAL_TASK_STATE = "closed";
+export const FISCAL_TASK_STATES = [OPEN_FISCAL_TASK_STATE, CLOSED_FISCAL_TASK_STATE] as const;
+export type FiscalTaskState = (typeof FISCAL_TASK_STATES)[number];
+
+export const DEFERRED_SALE_EXPIRED_TASK_KIND = "deferred_sale_expired";
+export const FISCAL_TASK_KINDS = [
+  "external_invoicing",
+  "credit_note_rejected",
+  DEFERRED_SALE_EXPIRED_TASK_KIND,
+] as const;
+export type FiscalTaskKind = (typeof FISCAL_TASK_KINDS)[number];
+
 export type FiscalTaskDocumentType = FiscalDocumentType | typeof CREDIT_NOTE_C_DOCUMENT_TYPE;
 
 export interface ExternalInvoicingVoucher {
@@ -11,7 +24,7 @@ export interface ExternalInvoicingVoucher {
 }
 
 interface FiscalTaskBase {
-  state: "open";
+  state: typeof OPEN_FISCAL_TASK_STATE;
   pointOfSale: number;
   documentType: FiscalTaskDocumentType;
   number: number;
@@ -25,8 +38,6 @@ export type FiscalTask =
       creditNoteId: string;
       rejections: readonly TaxAuthorityRejection[];
     });
-
-export type FiscalTaskKind = FiscalTask["kind"];
 
 export function externalInvoicingTask(
   {
@@ -44,7 +55,7 @@ export function externalInvoicingTask(
 ): FiscalTask {
   return {
     kind: "external_invoicing",
-    state: "open",
+    state: OPEN_FISCAL_TASK_STATE,
     pointOfSale,
     documentType,
     number,
@@ -69,7 +80,7 @@ export function creditNoteRejectedTask(
 ): FiscalTask {
   return {
     kind: "credit_note_rejected",
-    state: "open",
+    state: OPEN_FISCAL_TASK_STATE,
     pointOfSale,
     documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
     number,
