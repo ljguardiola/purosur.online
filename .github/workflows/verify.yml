@@ -14,6 +14,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  GIT_HTTP_LOW_SPEED_LIMIT: "1000"
+  GIT_HTTP_LOW_SPEED_TIME: "30"
+
 jobs:
   # Decides whether a `pull_request` change is docs-only, the one case that may skip static below,
   # and whether the test shards read any of its changed paths; a push always runs every job in
@@ -83,7 +87,7 @@ jobs:
             command: pnpm verify:static:automation
             shard: 2/2
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       # Full history, so the migration guard among the automation tests can diff the working tree
       # against the commit this change is built on, and the secret scan can read every commit since

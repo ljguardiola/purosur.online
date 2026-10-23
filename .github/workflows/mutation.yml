@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+env:
+  GIT_HTTP_LOW_SPEED_LIMIT: "1000"
+  GIT_HTTP_LOW_SPEED_TIME: "30"
+
 jobs:
   shard:
     name: mutation (${{ matrix.shard }}/6)
