@@ -8,6 +8,15 @@ const row = {
   presentation: "Caja x 10",
   priceCents: 150_050,
   page: 3,
+  barcode: "7790001000012",
+  link: {
+    product: { id: "p-1", name: "Yerba Taragüi", saleUnit: "UNIT" },
+    packaging: { id: "pk-1", name: "Caja x 10", quantityPerPackage: 10_000 },
+    vatRate: 1050,
+  },
+  status: "price_changed",
+  previousPriceCents: 140_000,
+  pricePerSaleUnit: { numerator: "165805", denominator: "10" },
 };
 const bareRow = {
   id: "row-2",
@@ -16,6 +25,11 @@ const bareRow = {
   presentation: null,
   priceCents: null,
   page: null,
+  barcode: null,
+  link: null,
+  status: "new",
+  previousPriceCents: null,
+  pricePerSaleUnit: null,
 };
 const review = {
   list: {
@@ -33,7 +47,8 @@ const review = {
     pricesIncludeVat: true,
   },
   rows: [row, bareRow],
-  actions: { changeRows: true, confirm: true, discard: true },
+  counts: { needingReview: 2, linkedAutomatically: 0 },
+  actions: { changeRows: true, confirm: true, discard: true, linkRows: true },
 };
 
 describe("supplierPriceListReviewSchema", () => {
@@ -92,14 +107,17 @@ describe("supplierPriceListReviewSchema", () => {
     expect(supplierPriceListReviewSchema.safeParse(withoutActions).success).toBe(false);
   });
 
-  it.each(["changeRows", "confirm", "discard"])("requires whether the list allows %s", (action) => {
-    expect(
-      supplierPriceListReviewSchema.safeParse({
-        ...review,
-        actions: { ...review.actions, [action]: "yes" },
-      }).success,
-    ).toBe(false);
-  });
+  it.each(["changeRows", "confirm", "discard", "linkRows"])(
+    "requires whether the list allows %s",
+    (action) => {
+      expect(
+        supplierPriceListReviewSchema.safeParse({
+          ...review,
+          actions: { ...review.actions, [action]: "yes" },
+        }).success,
+      ).toBe(false);
+    },
+  );
 
   it("strips keys it does not define from the rows", () => {
     const parsed = supplierPriceListReviewSchema.safeParse({
@@ -128,5 +146,94 @@ describe("supplierPriceListReviewSchema", () => {
       supplierPriceListReviewSchema.safeParse({ ...review, rows: [{ ...row, [field]: value }] })
         .success,
     ).toBe(false);
+  });
+
+  it.each([
+    "new",
+    "linked",
+    "price_changed",
+    "description_changed",
+    "unlinked",
+    "vat_rate_missing",
+    "reviewed",
+  ])("accepts the row status %s", (status) => {
+    const withStatus = { ...review, rows: [{ ...row, status }] };
+
+    expect(supplierPriceListReviewSchema.safeParse(withStatus).data).toEqual(withStatus);
+  });
+
+  it.each(["", "Linked", "changed", null, 1])("refuses the row status %j", (status) => {
+    expect(
+      supplierPriceListReviewSchema.safeParse({ ...review, rows: [{ ...row, status }] }).success,
+    ).toBe(false);
+  });
+
+  it.each(["UNIT", "KG"])("accepts a link to a product sold by %s", (saleUnit) => {
+    const linked = {
+      ...review,
+      rows: [{ ...row, link: { ...row.link, product: { ...row.link.product, saleUnit } } }],
+    };
+
+    expect(supplierPriceListReviewSchema.safeParse(linked).data).toEqual(linked);
+  });
+
+  it("refuses a link to a product sold by an unknown unit", () => {
+    const linked = {
+      ...review,
+      rows: [{ ...row, link: { ...row.link, product: { ...row.link.product, saleUnit: "BOX" } } }],
+    };
+
+    expect(supplierPriceListReviewSchema.safeParse(linked).success).toBe(false);
+  });
+
+  it("accepts a link without a VAT rate", () => {
+    const linked = { ...review, rows: [{ ...row, link: { ...row.link, vatRate: null } }] };
+
+    expect(supplierPriceListReviewSchema.safeParse(linked).data).toEqual(linked);
+  });
+
+  it.each(["product", "packaging", "vatRate"])("requires %s in a link", (field) => {
+    const { [field as keyof typeof row.link]: _omitted, ...link } = row.link;
+
+    expect(
+      supplierPriceListReviewSchema.safeParse({ ...review, rows: [{ ...row, link }] }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    ["numerator", "1.5"],
+    ["numerator", "-1"],
+    ["numerator", 5],
+    ["denominator", "0"],
+    ["denominator", "-3"],
+    ["denominator", ""],
+  ])("refuses a price per sale unit with the %s %j", (field, value) => {
+    expect(
+      supplierPriceListReviewSchema.safeParse({
+        ...review,
+        rows: [{ ...row, pricePerSaleUnit: { numerator: "1", denominator: "1", [field]: value } }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a previous price that is not a whole number of cents", () => {
+    expect(
+      supplierPriceListReviewSchema.safeParse({
+        ...review,
+        rows: [{ ...row, previousPriceCents: 1.5 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each(["needingReview", "linkedAutomatically"])("requires the count %s", (field) => {
+    const { [field as keyof typeof review.counts]: _omitted, ...counts } = review.counts;
+
+    expect(supplierPriceListReviewSchema.safeParse({ ...review, counts }).success).toBe(false);
+  });
+
+  it("requires the counts of the footer", () => {
+    const { counts: _counts, ...withoutCounts } = review;
+
+    expect(supplierPriceListReviewSchema.safeParse(withoutCounts).success).toBe(false);
   });
 });
