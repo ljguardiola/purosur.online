@@ -123,12 +123,12 @@ describe("pricePerSaleUnit", () => {
   it("adds the rate to a price that excludes VAT exactly", () => {
     expect(
       pricePerSaleUnit({
-        priceCents: 1_000,
+        priceCents: 1_001,
         pricesIncludeVat: false,
         vatRate: 1050,
-        quantityPerPackage: 1_000,
+        quantityPerPackage: 3_000,
       }),
-    ).toEqual({ numerator: 1_105n, denominator: 10n });
+    ).toEqual({ numerator: 221_221n, denominator: 600n });
   });
 
   it("ignores the rate of a list whose prices include VAT", () => {
@@ -169,7 +169,7 @@ describe("pricePerSaleUnit", () => {
         vatRate: 2100,
         quantityPerPackage: 1_000,
       }),
-    ).toEqual({ numerator: 121n, denominator: 1n });
+    ).toEqual({ numerator: 1_210n, denominator: 1n });
   });
 
   it("prices a package of half a sale unit at twice its price", () => {
