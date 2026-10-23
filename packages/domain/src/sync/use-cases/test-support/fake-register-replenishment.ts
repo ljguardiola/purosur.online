@@ -5,6 +5,7 @@ import type {
   SaleVoidCreditNote,
 } from "../../../fiscal/index.js";
 import type { ReplenishedUser } from "../../../users/index.js";
+import type { ReplenishmentFailure } from "../../model/replenishment-failure.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
 import { A_SESSION_OPENED_FACT } from "../../model/test-support/synced-facts.js";
 import type {
@@ -105,6 +106,7 @@ interface HeldCreditNote {
 
 export interface ReplenishingRegisterState {
   predecessor: RegisterPredecessor | undefined;
+  failure: ReplenishmentFailure | undefined;
   users: ReplenishedUser[][];
   facts: AppliedFact[];
   appliedEventIds: string[];
@@ -129,9 +131,10 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
   salesNotYetHeld = new Set<string>();
   failAt: { operation: FakeStoreOperation; eventId?: string } | undefined;
 
-  constructor(predecessor: RegisterPredecessor | undefined) {
+  constructor(predecessor: RegisterPredecessor | undefined, failure?: ReplenishmentFailure) {
     this.state = {
       predecessor,
+      failure,
       users: [],
       facts: [],
       appliedEventIds: [],
@@ -143,6 +146,18 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
 
   async predecessor(): Promise<RegisterPredecessor | undefined> {
     return this.state.predecessor;
+  }
+
+  async lastFailure(): Promise<ReplenishmentFailure | undefined> {
+    return this.state.failure;
+  }
+
+  async recordFailure(failure: ReplenishmentFailure): Promise<void> {
+    this.state.failure = failure;
+  }
+
+  async clearFailure(): Promise<void> {
+    this.state.failure = undefined;
   }
 
   async applyUsers(users: readonly ReplenishedUser[]): Promise<void> {
@@ -227,6 +242,7 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
   async finish(): Promise<void> {
     failIfFinishing(this.failAt);
     this.state.predecessor = undefined;
+    this.state.failure = undefined;
   }
 }
 
