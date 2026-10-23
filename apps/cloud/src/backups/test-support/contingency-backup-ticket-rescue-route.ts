@@ -16,8 +16,8 @@ import { registerContingencyBackupTicketRescueRoute } from "../contingency-backu
 import {
   generatedKey,
   sealedTicketQrCodes,
-  ticketContent,
   type TicketEvent,
+  ticketContent,
 } from "./sealed-contingency-backup-ticket.js";
 
 export const RESCUE_URL = "/contingency-backup-tickets/rescue";

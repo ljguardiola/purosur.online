@@ -16,6 +16,10 @@ import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
 import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
 import { registerAlertsOverviewRoute } from "./alerts/alerts-overview-route.js";
 import {
+  type ContingencyBackupTicketRescueRouteOptions,
+  registerContingencyBackupTicketRescueRoute,
+} from "./backups/contingency-backup-ticket-rescue-route.js";
+import {
   type RecordOffsiteDumpCheckRouteOptions,
   registerRecordOffsiteDumpCheckRoute,
 } from "./backups/record-offsite-dump-check-route.js";
@@ -182,10 +186,6 @@ import {
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
 import { registerReportRegistersRoute } from "./register/report-registers-route.js";
-import {
-  type ContingencyBackupTicketRescueRouteOptions,
-  registerContingencyBackupTicketRescueRoute,
-} from "./backups/contingency-backup-ticket-rescue-route.js";
 import {
   registerSnapshotBackupsRoutes,
   type SnapshotBackupsRouteOptions,
@@ -721,7 +721,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       }
 
       if (options.contingencyTicketRescue) {
-        registerContingencyBackupTicketRescueRoute(api, { ...options.contingencyTicketRescue, now });
+        registerContingencyBackupTicketRescueRoute(api, {
+          ...options.contingencyTicketRescue,
+          now,
+        });
       }
 
       if (options.registerRevocations) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rescuedTicketSummary, type RescuedTicketFact } from "./rescued-ticket-summary.js";
+import { type RescuedTicketFact, rescuedTicketSummary } from "./rescued-ticket-summary.js";
 
 function event(occurredAt: string): { occurred_at: string } {
   return { occurred_at: occurredAt };
@@ -34,7 +34,12 @@ describe("rescuedTicketSummary", () => {
   it("names the operation after the first fact that stands for one", () => {
     const summary = rescuedTicketSummary(
       [event("2026-10-01T10:00:00.000Z")],
-      [{ kind: "sale_print_state_changed" }, OFFLINE_VOUCHER, { kind: "sale_voided" }, { kind: "reprint_recorded" }],
+      [
+        { kind: "sale_print_state_changed" },
+        OFFLINE_VOUCHER,
+        { kind: "sale_voided" },
+        { kind: "reprint_recorded" },
+      ],
     );
 
     expect(summary.operation).toBe("sale_void");

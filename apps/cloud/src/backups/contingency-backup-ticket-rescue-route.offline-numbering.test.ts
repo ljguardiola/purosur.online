@@ -76,7 +76,9 @@ async function pulledOfflinePointOfSale(deviceToken: string) {
   if (change === undefined || !("row" in change)) {
     throw new Error("the pull carried no offline point of sale");
   }
-  return change.row as { series_counts: { document_type: string; highest_synced_offline_number: number | null }[] };
+  return change.row as {
+    series_counts: { document_type: string; highest_synced_offline_number: number | null }[];
+  };
 }
 
 function highestSynced(

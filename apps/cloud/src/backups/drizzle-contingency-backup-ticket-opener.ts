@@ -13,9 +13,9 @@ import type {
 } from "@purosur/domain/backups/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { registerContingencyTicketKeys, registers } from "../platform/db/schema.js";
 import { contingencyTicketKeyPurpose } from "../register/drizzle-register-store.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
-import { registerContingencyTicketKeys, registers } from "../platform/db/schema.js";
 
 const AUTH_TAG_BYTES = 16;
 const MAX_TICKET_BYTES = 16 * 1024 * 1024;
@@ -59,7 +59,10 @@ export class DrizzleContingencyBackupTicketOpener<TQueryResult extends PgQueryRe
     if (row === undefined) {
       return { kind: "unknown_key" };
     }
-    const key = this.cipher.open(row.key, contingencyTicketKeyPurpose(first.registerId, first.keyVersion));
+    const key = this.cipher.open(
+      row.key,
+      contingencyTicketKeyPurpose(first.registerId, first.keyVersion),
+    );
 
     const content = contentOf(sealed, key, first);
     if (content === null || content.register_id !== first.registerId) {
@@ -89,7 +92,9 @@ function contentOf(sealed: Uint8Array, key: string, header: ContingencyBackupTic
       decipher.final(),
     ]);
     const parsed = contingencyBackupTicketContentSchema.safeParse(
-      JSON.parse(inflateRawSync(compressed, { maxOutputLength: MAX_TICKET_BYTES }).toString("utf8")),
+      JSON.parse(
+        inflateRawSync(compressed, { maxOutputLength: MAX_TICKET_BYTES }).toString("utf8"),
+      ),
     );
     return parsed.success ? parsed.data : null;
   } catch {

@@ -50,19 +50,19 @@ describe("POST /contingency-backup-tickets/rescue access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it.each([
-    "view_backups_and_rotate_key",
-    "configure_branch",
-  ])("answers 403 to a user holding only the %s permission", async (permission) => {
-    const register = await registerWithTicketKey(route.db);
-    const session = await rescueSession(route.db, [permission]);
+  it.each(["view_backups_and_rotate_key", "configure_branch"])(
+    "answers 403 to a user holding only the %s permission",
+    async (permission) => {
+      const register = await registerWithTicketKey(route.db);
+      const session = await rescueSession(route.db, [permission]);
 
-    const response = await rescuing(route, session, register.seal([plainEvent(1)]));
+      const response = await rescuing(route, session, register.seal([plainEvent(1)]));
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "forbidden" });
-    expect(await route.db.select().from(inbox)).toEqual([]);
-  });
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toMatchObject({ code: "forbidden" });
+      expect(await route.db.select().from(inbox)).toEqual([]);
+    },
+  );
 
   it("answers 400 validation_failed to a request without codes", async () => {
     const session = await rescueSession(route.db);

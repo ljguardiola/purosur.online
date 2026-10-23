@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { RescuedTicketFact } from "../model/rescued-ticket-summary.js";
+import { rescueContingencyBackupTicket } from "./rescue-contingency-backup-ticket.js";
 import type {
   ContingencyBackupTicketOpening,
   RescuedTicketDeliveryAnswer,
 } from "./rescue-contingency-backup-ticket-ports.js";
-import { rescueContingencyBackupTicket } from "./rescue-contingency-backup-ticket.js";
 import {
   FakeContingencyBackupTicketOpener,
   FakeRescuedEventDecoder,
@@ -68,7 +68,10 @@ describe("rescuing a contingency backup ticket", () => {
       ],
     ]);
 
-    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+    const outcome = await rescueContingencyBackupTicket(ports, {
+      qrCodes: QR_CODES,
+      actorId: "user-1",
+    });
 
     expect(outcome).toEqual({
       kind: "rescued",
@@ -88,7 +91,10 @@ describe("rescuing a contingency backup ticket", () => {
   it("summarizes a ticket whose events it cannot read without them", async () => {
     const { ports } = setup(OPENED, { kind: "delivered", received: 2, alreadyReceived: 0 });
 
-    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+    const outcome = await rescueContingencyBackupTicket(ports, {
+      qrCodes: QR_CODES,
+      actorId: "user-1",
+    });
 
     expect(outcome).toMatchObject({
       kind: "rescued",
@@ -96,30 +102,34 @@ describe("rescuing a contingency backup ticket", () => {
     });
   });
 
-  it.each([
-    "unreadable",
-    "incomplete",
-    "unknown_key",
-    "not_authentic",
-  ] as const)("answers %s and delivers nothing when the codes cannot be opened that way", async (kind) => {
-    const { ports, events } = setup({ kind });
+  it.each(["unreadable", "incomplete", "unknown_key", "not_authentic"] as const)(
+    "answers %s and delivers nothing when the codes cannot be opened that way",
+    async (kind) => {
+      const { ports, events } = setup({ kind });
 
-    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+      const outcome = await rescueContingencyBackupTicket(ports, {
+        qrCodes: QR_CODES,
+        actorId: "user-1",
+      });
 
-    expect(outcome).toEqual({ kind });
-    expect(events.delivered).toEqual([]);
-  });
+      expect(outcome).toEqual({ kind });
+      expect(events.delivered).toEqual([]);
+    },
+  );
 
-  it.each([
-    "foreign_installation",
-    "conflicting",
-  ] as const)("answers %s when the inbox refuses the events that way", async (kind) => {
-    const { ports } = setup(OPENED, { kind });
+  it.each(["foreign_installation", "conflicting"] as const)(
+    "answers %s when the inbox refuses the events that way",
+    async (kind) => {
+      const { ports } = setup(OPENED, { kind });
 
-    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+      const outcome = await rescueContingencyBackupTicket(ports, {
+        qrCodes: QR_CODES,
+        actorId: "user-1",
+      });
 
-    expect(outcome).toEqual({ kind });
-  });
+      expect(outcome).toEqual({ kind });
+    },
+  );
 
   it("records who rescued the ticket and what it brought in", async () => {
     const { ports, audit } = setup(OPENED, { kind: "delivered", received: 1, alreadyReceived: 1 });
@@ -152,14 +162,14 @@ describe("rescuing a contingency backup ticket", () => {
     expect(audit.entries).toEqual([]);
   });
 
-  it.each([
-    "foreign_installation",
-    "conflicting",
-  ] as const)("records nothing when the inbox answers %s", async (kind) => {
-    const { ports, audit } = setup(OPENED, { kind });
+  it.each(["foreign_installation", "conflicting"] as const)(
+    "records nothing when the inbox answers %s",
+    async (kind) => {
+      const { ports, audit } = setup(OPENED, { kind });
 
-    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+      await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
 
-    expect(audit.entries).toEqual([]);
-  });
+      expect(audit.entries).toEqual([]);
+    },
+  );
 });

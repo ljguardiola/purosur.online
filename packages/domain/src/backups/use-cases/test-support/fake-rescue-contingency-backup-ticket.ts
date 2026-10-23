@@ -11,7 +11,10 @@ import type {
   RescuedTicketEvents,
 } from "../rescue-contingency-backup-ticket-ports.js";
 
-export function rescuedEvent(deviceSeq: number, occurredAt = "2026-10-01T10:00:00.000Z"): PushedEvent {
+export function rescuedEvent(
+  deviceSeq: number,
+  occurredAt = "2026-10-01T10:00:00.000Z",
+): PushedEvent {
   return {
     event_id: `event-${deviceSeq}`,
     device_seq: deviceSeq,

@@ -28,9 +28,9 @@ describe("contingencyBackupTicketRescueRequestSchema", () => {
   });
 
   it("refuses a request without codes", () => {
-    expect(
-      contingencyBackupTicketRescueRequestSchema.safeParse({ qr_codes: [] }).success,
-    ).toBe(false);
+    expect(contingencyBackupTicketRescueRequestSchema.safeParse({ qr_codes: [] }).success).toBe(
+      false,
+    );
   });
 
   it("refuses an empty code", () => {
@@ -80,9 +80,9 @@ describe("contingencyBackupTicketRescueResponseSchema", () => {
   });
 
   it("refuses an outcome it does not know", () => {
-    expect(
-      contingencyBackupTicketRescueResponseSchema.safeParse({ outcome: "lost" }).success,
-    ).toBe(false);
+    expect(contingencyBackupTicketRescueResponseSchema.safeParse({ outcome: "lost" }).success).toBe(
+      false,
+    );
   });
 
   it("refuses a rescued ticket whose operation is not one a ticket is printed for", () => {

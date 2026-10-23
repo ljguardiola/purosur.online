@@ -108,11 +108,14 @@ describe("the backups, ticket rescue and branch screens", () => {
     ).toBe(false);
   });
 
-  it.each(screens)("whoever holds only the permission of %s is granted nothing else", (own, permission) => {
-    const granted = grantedCapabilities({ isAdministrator: false, permissionKeys: [permission] });
+  it.each(screens)(
+    "whoever holds only the permission of %s is granted nothing else",
+    (own, permission) => {
+      const granted = grantedCapabilities({ isAdministrator: false, permissionKeys: [permission] });
 
-    expect(granted).toEqual([own]);
-  });
+      expect(granted).toEqual([own]);
+    },
+  );
 });
 
 describe("the reports_area capability", () => {

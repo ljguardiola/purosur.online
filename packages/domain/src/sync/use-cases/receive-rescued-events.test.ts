@@ -117,9 +117,7 @@ describe("receiving the events of rescued contingency tickets", () => {
 
     await rescue(inbox, [offlineDocument(1), fakeEvent(2), offlineDocument(3)]);
 
-    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([
-      { eventId: "event-3", at: NOW },
-    ]);
+    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([{ eventId: "event-3", at: NOW }]);
   });
 
   it("refuses an installation of another register and receives nothing", async () => {

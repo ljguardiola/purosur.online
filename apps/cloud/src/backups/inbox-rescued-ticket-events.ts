@@ -3,8 +3,11 @@ import type {
   RescuedTicketDeliveryAnswer,
   RescuedTicketEvents,
 } from "@purosur/domain/backups/use-cases";
-import { type ReceiveRescuedEventsOutcome, receiveRescuedEvents } from "@purosur/domain/sync/use-cases";
 import type { Inbox } from "@purosur/domain/sync/use-cases";
+import {
+  type ReceiveRescuedEventsOutcome,
+  receiveRescuedEvents,
+} from "@purosur/domain/sync/use-cases";
 
 export class InboxRescuedTicketEvents implements RescuedTicketEvents {
   private readonly inbox: Inbox;

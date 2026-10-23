@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { contingencyBackupTicketQrCodes } from "@purosur/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { keyStore } from "../register/test-support/key-store.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { keyStore } from "../register/test-support/key-store.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { DrizzleContingencyBackupTicketOpener } from "./drizzle-contingency-backup-ticket-opener.js";
