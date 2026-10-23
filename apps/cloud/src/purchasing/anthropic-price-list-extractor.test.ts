@@ -2,9 +2,10 @@ import {
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
+  SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "@purosur/domain";
 import { PDFDocument } from "pdf-lib";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AnthropicPriceListExtractor,
   SUPPLIER_PRICE_LIST_READING_MODEL,
@@ -724,6 +725,103 @@ describe("a range that throws an unexpected error", () => {
       [6, 7, 8, 9, 10],
       [11, 12, 13, 14, 15],
     ]);
+  });
+});
+
+describe("the time a reading has", () => {
+  let fiftyPages: Awaited<ReturnType<typeof sourceOfPages>>;
+  let fortyPages: Awaited<ReturnType<typeof sourceOfPages>>;
+  let fivePages: Awaited<ReturnType<typeof sourceOfPages>>;
+
+  beforeAll(async () => {
+    fiftyPages = await sourceOfPages(50);
+    fortyPages = await sourceOfPages(40);
+    fivePages = await sourceOfPages(5);
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function extractorAnsweringEachRangeAfter(delayMs: number) {
+    const requests: RecordedRequest[] = [];
+    const extractor = new AnthropicPriceListExtractor({
+      apiKey: "fictional-api-key-for-tests",
+      fetch: async (input, init) => {
+        const request = {
+          url: String(input),
+          headers: new Headers(init?.headers),
+          body: JSON.parse(String(init?.body)),
+        };
+        requests.push(request);
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, delayMs);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(init.signal?.reason);
+          });
+        });
+        return answerWithRowsOfEachPage(request);
+      },
+    });
+    return { extractor, requests };
+  }
+
+  async function extractedAfter(
+    extractor: AnthropicPriceListExtractor,
+    source: Awaited<ReturnType<typeof sourceOfPages>>,
+    elapsedMs: number,
+  ) {
+    let settled = false;
+    const extraction = extractor.extract(source).finally(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(elapsedMs);
+    return { extraction, settled: () => settled };
+  }
+
+  it("gives up on a list as unavailable once its ranges together pass the time, starting no other range", async () => {
+    const { extractor, requests } = extractorAnsweringEachRangeAfter(
+      SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS * 0.4,
+    );
+
+    const { extraction, settled } = await extractedAfter(
+      extractor,
+      fiftyPages,
+      SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
+    );
+
+    expect(settled()).toBe(true);
+    expect(await extraction).toEqual({ kind: "unavailable" });
+    expect(requests).toHaveLength(9);
+  });
+
+  it("keeps reading a list whose ranges together take less than the time", async () => {
+    const { extractor } = extractorAnsweringEachRangeAfter(
+      SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS * 0.3,
+    );
+
+    const { extraction } = await extractedAfter(
+      extractor,
+      fortyPages,
+      SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS * 0.9,
+    );
+
+    expect(await extraction).toMatchObject({ kind: "extracted" });
+  });
+
+  it("gives up on a list as unavailable once one answer takes longer than ten minutes", async () => {
+    const { extractor, requests } = extractorAnsweringEachRangeAfter(11 * 60 * 1000);
+
+    const { extraction, settled } = await extractedAfter(extractor, fivePages, 10 * 60 * 1000 + 1);
+
+    expect(settled()).toBe(true);
+    expect(await extraction).toEqual({ kind: "unavailable" });
+    expect(requests).toHaveLength(1);
   });
 });
 

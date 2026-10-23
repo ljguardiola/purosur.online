@@ -156,7 +156,7 @@ describe("GET /registers", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user without the enroll_register_devices permission with 403 forbidden", async () => {
+  it("rejects a user without any register permission with 403 forbidden", async () => {
     const locationId = await seededLocationId(db);
     const userId = await insertUserWithPermission(locationId, ["sell_and_charge"]);
     const rawSessionId = await insertSession(userId);
@@ -166,6 +166,21 @@ describe("GET /registers", () => {
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
+
+  it.each(["view_bitlocker_key", "revoke_register_devices"])(
+    "lists the branch registers to a user holding only %s",
+    async (permission) => {
+      const locationId = await seededLocationId(db);
+      await insertRegister(locationId, "Caja 1");
+      const userId = await insertUserWithPermission(locationId, [permission]);
+      const rawSessionId = await insertSession(userId);
+
+      const response = await getRegisters(rawSessionId);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual([expect.objectContaining({ name: "Caja 1" })]);
+    },
+  );
 
   it("lists the session's branch registers by name, with no pending code", async () => {
     const locationId = await seededLocationId(db);

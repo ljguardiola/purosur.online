@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
+import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { EndEverySessionSection } from "../../sessions/end-every-session-section";
@@ -219,6 +220,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     handConfirmedPaymentsScreen: {
       fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    cashSessionClosesScreen: {
+      fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     reportFiltersRegisterFilter: ReportRegisterFilter,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -307,6 +311,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
+    fiscalTasksScreen: { fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})) },
     pointsOfSaleScreen: {
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -330,6 +335,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     areaTopBarAlertsCount: AlertsOpenCountLink,
+    areaTopBarUnbilledDeferredSales: UnbilledDeferredSalesPill,
+    unbilledDeferredSalesPill: {
+      fetchUnbilledDeferredSales: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     alertsOpenCountLink: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
     },

@@ -30,6 +30,7 @@ import {
   compromiseResponseCompletions,
   compromiseResponses,
   creditNotes,
+  deferredSales,
   deviceState,
   discounts,
   fiscalAddresses,
@@ -721,6 +722,18 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       total: 10_000,
       receiverTaxStatusCode: 5,
       createdAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(deferredSales).values({
+      id: "00000000-0000-4000-8000-00000000010a",
+      saleId: "00000000-0000-4000-8000-00000000010b",
+      registerId: register.id,
+      locationId: await seededLocationId(db),
+      occurredAt: new Date("2026-01-01T15:00:00.000Z"),
+      total: 4800,
+      reason: "pre_emission_gate_failed",
+      shortCode: "7KQ4M2P9",
+      routedAt: new Date("2026-01-01T15:00:01.000Z"),
+      state: "pending",
     });
     await db.insert(saleVoidCreditNoteRefusals).values({
       creditNoteId: "00000000-0000-4000-8000-000000000108",

@@ -44,6 +44,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase,
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve,
         detectQuiet,
         detectMissingCodes,
@@ -89,6 +93,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve,
         detectQuiet,
         detectMissingCodes: vi.fn().mockResolvedValue(0),
@@ -132,6 +140,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet,
         detectMissingCodes,
@@ -178,6 +190,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet: vi.fn().mockResolvedValue(0),
         detectMissingCodes,
@@ -224,6 +240,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet: vi.fn().mockResolvedValue(0),
         detectMissingCodes: vi.fn().mockResolvedValue(0),
@@ -270,6 +290,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet: vi.fn().mockResolvedValue(0),
         detectMissingCodes: vi.fn().mockResolvedValue(0),
@@ -316,6 +340,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet: vi.fn().mockResolvedValue(0),
         detectMissingCodes: vi.fn().mockResolvedValue(0),
@@ -362,6 +390,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet: vi.fn().mockResolvedValue(0),
         detectMissingCodes: vi.fn().mockResolvedValue(0),
@@ -406,6 +438,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet: vi.fn().mockResolvedValue(0),
         detectMissingCodes: vi.fn().mockResolvedValue(0),
@@ -452,6 +488,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet: vi.fn().mockResolvedValue(0),
         detectMissingCodes: vi.fn().mockResolvedValue(0),
@@ -502,6 +542,10 @@ describe("alertConditionResolutionJobs", () => {
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeExpiredDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet: vi.fn().mockResolvedValue(0),
         detectMissingCodes: vi.fn().mockResolvedValue(0),
@@ -533,5 +577,60 @@ describe("alertConditionResolutionJobs", () => {
     ];
     expect(dbArgument).toBe(fakeDb);
     expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
+  });
+
+  it("regularizes the expired deferred sales, then looks for those that are due, after every other detection and on the same database and by the same clock", async () => {
+    const fakeClient: PoolClient = Object.create(null);
+    const fakeDb = { marker: "fake-db" };
+    const calls: string[] = [];
+    const detectOverdueRegisterBackups = vi.fn().mockImplementation(async () => {
+      calls.push("detectOverdueRegisterBackups");
+      return 0;
+    });
+    const regularizeExpiredDeferredSales = vi.fn().mockImplementation(async () => {
+      calls.push("regularizeExpiredDeferredSales");
+      return { kind: "regularized", count: 0 };
+    });
+    const detectDeferredSaleDeadlines = vi.fn().mockImplementation(async () => {
+      calls.push("detectDeferredSaleDeadlines");
+      return 0;
+    });
+
+    const jobs = alertConditionResolutionJobs(
+      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      {
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+        resolve: vi.fn().mockResolvedValue(0),
+        detectQuiet: vi.fn().mockResolvedValue(0),
+        detectMissingCodes: vi.fn().mockResolvedValue(0),
+        openRefundTaskAlerts: vi.fn().mockResolvedValue(0),
+        openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
+        detectExpiringLots: vi.fn().mockResolvedValue(0),
+        detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
+        detectRejectedFortnightDocuments: vi.fn().mockResolvedValue(0),
+        detectOverdueRegisterBackups,
+        regularizeExpiredDeferredSales,
+        detectDeferredSaleDeadlines,
+      },
+    );
+    const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
+    if (!task) {
+      throw new Error("test setup: expected the registered alert condition resolution task");
+    }
+
+    await task({}, jobHelpers(fakeClient, vi.fn()));
+
+    expect(calls).toEqual([
+      "detectOverdueRegisterBackups",
+      "regularizeExpiredDeferredSales",
+      "detectDeferredSaleDeadlines",
+    ]);
+    for (const step of [regularizeExpiredDeferredSales, detectDeferredSaleDeadlines]) {
+      const [dbArgument, depsArgument] = step.mock.calls[0] as [unknown, { now: () => Date }];
+      expect(dbArgument).toBe(fakeDb);
+      expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
+    }
   });
 });

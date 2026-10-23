@@ -31,6 +31,7 @@ const ALERT_KIND_LIST = [
   "fortnight_report_owed_elsewhere",
   "register_backup_overdue",
   "fortnight_report_document_rejected",
+  "deferred_sale_due",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

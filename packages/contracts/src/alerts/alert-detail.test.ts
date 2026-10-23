@@ -247,6 +247,12 @@ describe("alertDetailSchema", () => {
     expectTypeOf<
       Omit<WireDetail<"fortnight_report_document_rejected">, "registerName">
     >().toEqualTypeOf<AlertDetails["fortnight_report_document_rejected"]>();
+    expectTypeOf<Omit<WireDetail<"deferred_sale_due">, "registerName">>().toEqualTypeOf<
+      AlertDetails["deferred_sale_due"]
+    >();
+    expectTypeOf<WireDetail<"deferred_sale_due">["registerName"]>().toEqualTypeOf<
+      string | undefined
+    >();
     expectTypeOf<WireDetail<"fortnight_report_owed_elsewhere">>().toEqualTypeOf<
       AlertDetails["fortnight_report_owed_elsewhere"]
     >();
@@ -449,6 +455,16 @@ describe("alertDetailSchema", () => {
         fortnightEnd: "2026-09-15",
         documentType: "factura_c",
         rejectedNumber: 17,
+      },
+      deferred_sale_due: {
+        registerId: "register-1",
+        registerName: "Caja 1",
+        saleId: "sale-1",
+        saleOccurredAt: "2026-10-10T15:00:00.000Z",
+        total: 1234500,
+        shortCode: "ABCD2345",
+        expiresOn: "2026-10-15",
+        escalatesAt: "2026-10-14T03:00:00.000Z",
       },
       fortnight_report_owed_elsewhere: {
         pointOfSaleNumber: 9,

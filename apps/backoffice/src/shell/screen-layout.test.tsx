@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
+import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import { ScreenLayout } from "./screen-layout";
 
 function renderLayout() {
@@ -46,4 +47,20 @@ test("scrolling the body leaves the top bar's position unchanged and keeps the f
 
   expect(topBar.getBoundingClientRect().top).toBe(topBarTopBefore);
   await expect.element(screen.getByText("Footer")).toBeVisible();
+});
+
+test("shows what its area puts beside the top bar, on the same row, without moving the body", async () => {
+  const screen = await render(
+    <AreaTopBarUnbilledDeferredSales value={<p>Ventas sin facturar</p>}>
+      <ScreenLayout topBar={<div>Top bar</div>} bodyClassName="p-4">
+        <p>Line 0</p>
+      </ScreenLayout>
+    </AreaTopBarUnbilledDeferredSales>,
+  );
+
+  const topBar = screen.getByText("Top bar").element();
+  const beside = screen.getByText("Ventas sin facturar").element();
+  const row = beside.parentElement;
+  expect(topBar.parentElement?.parentElement).toBe(row);
+  expect(row?.nextElementSibling?.textContent).toBe("Line 0");
 });

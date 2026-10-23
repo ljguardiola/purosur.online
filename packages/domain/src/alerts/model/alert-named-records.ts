@@ -16,14 +16,15 @@ export function alertScopeRecordId(alert: { kind: string; scope: string }): stri
     : undefined;
 }
 
-function pointOfSaleFortnightRegisterId(alert: {
+function detailRegisterId(alert: {
   kind: string;
   detail?: Record<string, unknown>;
 }): string | undefined {
-  if (
-    !isAlertKind(alert.kind) ||
-    alertKindPolicy(alert.kind).scopeKind !== "pointOfSaleFortnight"
-  ) {
+  if (!isAlertKind(alert.kind)) {
+    return undefined;
+  }
+  const { scopeKind } = alertKindPolicy(alert.kind);
+  if (scopeKind !== "pointOfSaleFortnight" && scopeKind !== "deferredSale") {
     return undefined;
   }
   const registerId = alert.detail?.["registerId"];
@@ -42,7 +43,7 @@ export function alertNamedRecordIds(alert: {
 }): string[] {
   const recordId = alertScopeRecordId(alert);
   const ids = recordId === undefined ? [] : [recordId];
-  const registerId = pointOfSaleFortnightRegisterId(alert);
+  const registerId = detailRegisterId(alert);
   if (registerId !== undefined) {
     ids.push(registerId);
   }

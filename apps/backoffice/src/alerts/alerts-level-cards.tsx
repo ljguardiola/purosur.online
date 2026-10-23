@@ -2,8 +2,8 @@ import type { AlertsOverview } from "@purosur/contracts";
 import type { AlertLevel } from "@purosur/domain";
 import { CountCard, localAlertTitle, sortedItems, textOrder } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
+import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { alertKindLabel } from "./alert-kind-label";
-import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 
 const CountCardLink = createLink(CountCard);
 
