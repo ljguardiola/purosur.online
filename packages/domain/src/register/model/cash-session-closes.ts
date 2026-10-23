@@ -14,17 +14,17 @@ export interface CashSessionClose {
   difference: number;
 }
 
-export interface ReportedCashSessionClose extends CashSessionClose {
+interface ReportedCashSessionClose extends CashSessionClose {
   hasDifference: boolean;
 }
 
-export interface CashierWithDifferences {
+interface CashierWithDifferences {
   cashierId: string;
   cashierName: string | null;
   sessions: number;
 }
 
-export interface CashSessionClosesTotals {
+interface CashSessionClosesTotals {
   sessions: number;
   netDifference: number;
   withDifference: number;

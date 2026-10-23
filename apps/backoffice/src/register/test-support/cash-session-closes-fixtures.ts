@@ -21,7 +21,7 @@ export const closeByTomas: CashSessionClosesBody["sessions"][number] = {
   has_difference: true,
 };
 
-export const closeByLucia: CashSessionClosesBody["sessions"][number] = {
+const closeByLucia: CashSessionClosesBody["sessions"][number] = {
   id: "2c8e4a90-5d17-4b3f-9e62-1a7d0c5b8f34",
   closed_at: "2026-10-06T14:30:00.000Z",
   register_id: BACK_REGISTER_ID,
