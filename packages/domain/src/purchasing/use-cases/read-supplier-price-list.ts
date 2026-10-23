@@ -108,19 +108,19 @@ async function readOnce(
     return claim.outcome;
   }
 
-  const bytes = await files.read(listId);
+  const file = await files.read(listId);
 
   const sent = await store.transaction<Stop | { kind: "sent"; bytes: Uint8Array }>(async (tx) => {
     if (!(await isUnsentReading(tx, listId))) {
       return { kind: "stop", outcome: { kind: "already_read" } };
     }
-    if (bytes === null) {
+    if (file === null) {
       await tx.recordReadFailure(listId, "reading_unavailable");
       return { kind: "stop", outcome: { kind: "failed", reason: "reading_unavailable" } };
     }
     const sentAt = now();
     await tx.markSent(listId, sentAt, argentinaCalendarDay(sentAt));
-    return { kind: "sent", bytes };
+    return { kind: "sent", bytes: file.bytes };
   });
   if (sent.kind === "stop") {
     return sent.outcome;
