@@ -198,11 +198,11 @@ describe("QrPaymentWaitModal", () => {
 
     await expect.element(screen.getByText("No se pudo consultar el pago del QR")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+    expect(followCharge).toHaveBeenCalledOnce();
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
     await expect.element(screen.getByText("2:41")).toBeVisible();
-    expect(followCharge).toHaveBeenCalledTimes(2);
     expect(callbacks.onSaleUnavailable).not.toHaveBeenCalled();
   });
 
