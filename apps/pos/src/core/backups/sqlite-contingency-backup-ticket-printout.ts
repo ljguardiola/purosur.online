@@ -10,13 +10,29 @@ import type {
 
 interface TicketRow {
   operation: string;
+  first_device_seq: number;
+  last_device_seq: number;
   subject_id: string | null;
   created_at: string;
   qr_codes: string | null;
 }
 
-function isCashMovementKind(value: string | null): value is CashMovementKind {
+function isCashMovementKind(value: unknown): value is CashMovementKind {
   return CASH_MOVEMENT_KINDS.some((kind) => kind === value);
+}
+
+function movementOf(database: LocalDatabase, ticket: TicketRow): CashMovementKind | null {
+  const event = database
+    .prepare<[number, number], { payload: string }>(
+      `SELECT payload FROM outbox
+        WHERE device_id = (SELECT device_id FROM sync_state)
+          AND event_type = 'cash_movement_recorded' AND device_seq BETWEEN ? AND ?
+        ORDER BY device_seq LIMIT 1`,
+    )
+    .get(ticket.first_device_seq, ticket.last_device_seq);
+  if (event === undefined) return null;
+  const { type } = JSON.parse(event.payload) as { type?: unknown };
+  return isCashMovementKind(type) ? type : null;
 }
 
 function operationNumberOf(database: LocalDatabase, saleId: string | null): number | undefined {
@@ -40,9 +56,7 @@ function operationOf(database: LocalDatabase, ticket: TicketRow): PrintedOperati
       return operationNumber === undefined ? undefined : { kind: "numbered", operationNumber };
     }
     case "cash_movement":
-      return isCashMovementKind(ticket.subject_id)
-        ? { kind: "cash_movement", movement: ticket.subject_id }
-        : undefined;
+      return { kind: "cash_movement", movement: movementOf(database, ticket) };
     case "cash_session_opening":
     case "cash_session_closing":
     case "initial_count":
@@ -90,7 +104,7 @@ export function readContingencyBackupTicketPrintout(
 ): ContingencyBackupTicketPrintout | undefined {
   const ticket = database
     .prepare<[string], TicketRow>(
-      `SELECT operation, subject_id, created_at, qr_codes
+      `SELECT operation, first_device_seq, last_device_seq, subject_id, created_at, qr_codes
          FROM contingency_backup_tickets WHERE id = ?`,
     )
     .get(ticketId);

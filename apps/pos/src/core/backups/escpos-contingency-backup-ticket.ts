@@ -14,7 +14,7 @@ export type BackedDocument =
 
 export type PrintedOperation =
   | { kind: "numbered"; operationNumber: number }
-  | { kind: "cash_movement"; movement: CashMovementKind }
+  | { kind: "cash_movement"; movement: CashMovementKind | null }
   | { kind: "cash_session_opening" }
   | { kind: "cash_session_closing" }
   | { kind: "initial_count" }
@@ -92,6 +92,7 @@ function operationName(operation: PrintedOperation): string {
     case "numbered":
       return formatOperationNumber(operation.operationNumber);
     case "cash_movement":
+      if (operation.movement === null) return "Movimiento de efectivo";
       return operation.movement === "CASH_IN" ? "Ingreso de efectivo" : "Retiro de efectivo";
     default:
       return OPERATION_NAMES[operation.kind];

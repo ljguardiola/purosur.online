@@ -1445,11 +1445,7 @@ const answeredRendererRequestDeps: RendererRequestDeps = {
   voidSale: ticketed("sale_void", rendererRequestDeps.voidSale, saleOfRequest),
   reprintSaleReceipt: ticketed("reprint", rendererRequestDeps.reprintSaleReceipt, saleOfRequest),
   reprintCreditNote: ticketed("reprint", rendererRequestDeps.reprintCreditNote, saleOfRequest),
-  recordCashMovement: ticketed(
-    "cash_movement",
-    rendererRequestDeps.recordCashMovement,
-    ([request]) => request.kind,
-  ),
+  recordCashMovement: ticketed("cash_movement", rendererRequestDeps.recordCashMovement),
   openCashSession: ticketed("cash_session_opening", rendererRequestDeps.openCashSession),
   closeCashSession: ticketed("cash_session_closing", rendererRequestDeps.closeCashSession),
   closeLockedCashSession: ticketed(
