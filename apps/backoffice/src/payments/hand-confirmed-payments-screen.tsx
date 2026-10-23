@@ -1,6 +1,7 @@
 import {
   type HandConfirmedPaymentsBody,
   handConfirmedPaymentMethodSchema,
+  handConfirmedPaymentsSchema,
 } from "@purosur/contracts";
 import {
   Card,
@@ -19,11 +20,12 @@ import { Wallet } from "lucide-react";
 import { useId } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
+import { reportMoment } from "../platform/report-moment";
+import { schemaText } from "../platform/schema-text";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
-import { handConfirmedMoment } from "./hand-confirmed-moment";
 import {
   type HandConfirmedPaymentsFilters,
   handConfirmedPaymentsQueryOf,
@@ -45,6 +47,10 @@ type MethodTotal = HandConfirmedPaymentsBody["methods"][number];
 
 const NO_CASHIERS: CashierRow[] = [];
 const NO_PAYMENTS: PaymentRow[] = [];
+
+const CONFIRMED_TIME_ZONE = schemaText(
+  handConfirmedPaymentsSchema.shape.payments.element.shape.confirmed_at.meta()?.["timeZone"],
+);
 
 const UNIDENTIFIED = "Sin identificar";
 const NO_NAME = "—";
@@ -109,7 +115,7 @@ const paymentColumns = [
     id: "confirmedAt",
     header: "Confirmado",
     render: (payment: PaymentRow) => {
-      const { date, time } = handConfirmedMoment(payment.confirmed_at);
+      const { date, time } = reportMoment(payment.confirmed_at, CONFIRMED_TIME_ZONE);
       return <TableCellText description={time}>{date}</TableCellText>;
     },
   }),

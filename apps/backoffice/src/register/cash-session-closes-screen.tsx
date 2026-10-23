@@ -1,4 +1,4 @@
-import type { CashSessionClosesBody } from "@purosur/contracts";
+import { type CashSessionClosesBody, cashSessionClosesSchema } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
@@ -13,6 +13,8 @@ import {
 } from "@purosur/ui";
 import { Calculator } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { reportMoment } from "../platform/report-moment";
+import { schemaText } from "../platform/schema-text";
 import { ReportFilters } from "../shell/report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -21,7 +23,6 @@ import {
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
-import { cashSessionCloseMoment } from "./cash-session-close-moment";
 import type { CashSessionClosesScreenServices } from "./cash-session-closes-services";
 import { useCashSessionClosesQuery } from "./register-queries";
 
@@ -36,6 +37,10 @@ export type CashSessionClosesScreenProps = {
 type SessionRow = CashSessionClosesBody["sessions"][number];
 
 const NO_SESSIONS: SessionRow[] = [];
+
+const CLOSED_TIME_ZONE = schemaText(
+  cashSessionClosesSchema.shape.sessions.element.shape.closed_at.meta()?.["timeZone"],
+);
 
 const UNIDENTIFIED = "Sin identificar";
 
@@ -55,7 +60,7 @@ const sessionColumns = [
     id: "closedAt",
     header: "Fecha",
     render: (session: SessionRow) => {
-      const { date, time } = cashSessionCloseMoment(session.closed_at);
+      const { date, time } = reportMoment(session.closed_at, CLOSED_TIME_ZONE);
       return <TableCellText description={time}>{date}</TableCellText>;
     },
   }),
