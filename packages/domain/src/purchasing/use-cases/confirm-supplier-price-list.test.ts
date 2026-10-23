@@ -238,6 +238,66 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     expect(state.itemPrices).toEqual([expect.objectContaining({ itemId, priceCents: 200 })]);
   });
 
+  describe("a list dated before the item's latest price", () => {
+    function setupOlder() {
+      const store = setupRows([
+        { code: "Y-1", description: "Yerba vieja", priceCents: 100, link: LINK },
+      ]);
+      const itemId = store.seedSupplierItem({
+        description: "Yerba nueva",
+        key: { kind: "code", value: "Y-1" },
+      });
+      store.seedSupplierItemPrice({
+        itemId,
+        listId: "list-newer",
+        priceCents: 500,
+        listDate: "2026-04-01",
+        pricesIncludeVat: true,
+      });
+      return store;
+    }
+
+    it("keeps the item's current description, still recording the price in its history", async () => {
+      const store = setupOlder();
+
+      await confirmSupplierPriceList(store, input);
+
+      const state = store.snapshot();
+      expect(state.items[0]?.description).toBe("Yerba nueva");
+      expect(state.itemPrices.map((entry) => entry.listId)).toEqual(["list-newer", "list-1"]);
+    });
+
+    it("still remembers the link a person made", async () => {
+      const store = setupOlder();
+
+      await confirmSupplierPriceList(store, input);
+
+      expect(store.snapshot().items[0]?.link).toEqual(LINK);
+    });
+
+    it.each(["2026-03-01", "2026-02-01"])(
+      "takes the description once the list is dated on or after the latest price (%s vs 2026-03-01)",
+      async (latest) => {
+        const store = setupRows([{ code: "Y-1", description: "Yerba vieja", priceCents: 100 }]);
+        const itemId = store.seedSupplierItem({
+          description: "Yerba nueva",
+          key: { kind: "code", value: "Y-1" },
+        });
+        store.seedSupplierItemPrice({
+          itemId,
+          listId: "list-before",
+          priceCents: 500,
+          listDate: latest,
+          pricesIncludeVat: true,
+        });
+
+        await confirmSupplierPriceList(store, input);
+
+        expect(store.snapshot().items[0]?.description).toBe("Yerba vieja");
+      },
+    );
+  });
+
   it("copies the link of a linked row to its item, replacing the one it had", async () => {
     const store = setupRows([
       { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK },

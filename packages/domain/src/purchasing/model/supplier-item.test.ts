@@ -13,6 +13,7 @@ import {
   SUPPLIER_ITEM_VAT_RATES,
   SUPPLIER_PRICE_LIST_ROW_STATUSES,
   sameSupplierItemKey,
+  supersedesCurrentPrice,
   supplierItemKey,
   supplierPriceListRowStatus,
 } from "./supplier-item.js";
@@ -430,5 +431,23 @@ describe("sameSupplierItemKey", () => {
     expect(
       sameSupplierItemKey({ kind: "code", value: "a" }, { kind: "description", value: "a" }),
     ).toBe(false);
+  });
+});
+
+describe("supersedesCurrentPrice", () => {
+  it("is true while the item has no price recorded", () => {
+    expect(supersedesCurrentPrice("2026-03-01", null)).toBe(true);
+  });
+
+  it("is true for a list dated after the item's latest price", () => {
+    expect(supersedesCurrentPrice("2026-03-02", "2026-03-01")).toBe(true);
+  });
+
+  it("is true for a list dated the same day, since it is confirmed later", () => {
+    expect(supersedesCurrentPrice("2026-03-01", "2026-03-01")).toBe(true);
+  });
+
+  it("is false for a list dated before the item's latest price", () => {
+    expect(supersedesCurrentPrice("2026-02-28", "2026-03-01")).toBe(false);
   });
 });
