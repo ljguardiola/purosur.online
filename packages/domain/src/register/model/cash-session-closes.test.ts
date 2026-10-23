@@ -115,6 +115,46 @@ describe("cashSessionClosesSummary", () => {
     ]);
   });
 
+  it("puts the cashier with more closes with a difference first whatever their names", () => {
+    const closes = [
+      aClose({ id: "a", cashierId: "u1", cashierName: "Ana", difference: 1 }),
+      aClose({ id: "b", cashierId: "u2", cashierName: "Zoe", difference: 1 }),
+      aClose({ id: "c", cashierId: "u2", cashierName: "Zoe", difference: 1 }),
+    ];
+
+    for (const input of [closes, [...closes].reverse()]) {
+      const { totals } = cashSessionClosesSummary(input);
+
+      expect(totals.cashiersWithDifference.map(({ cashierId }) => cashierId)).toEqual(["u2", "u1"]);
+    }
+  });
+
+  it.each([
+    ["a named cashier before an unnamed one", "Ana", null, ["u1", "u2"]],
+    ["an unnamed cashier after a named one", null, "Ana", ["u2", "u1"]],
+    ["two unnamed cashiers by id", null, null, ["u1", "u2"]],
+    ["two named cashiers by name", "Zoe", "Ana", ["u2", "u1"]],
+  ])("orders cashiers with the same count: %s", (_name, firstName, secondName, expected) => {
+    const closes = [
+      aClose({ id: "a", cashierId: "u1", cashierName: firstName, difference: 1 }),
+      aClose({ id: "b", cashierId: "u2", cashierName: secondName, difference: 1 }),
+    ];
+
+    for (const input of [closes, [...closes].reverse()]) {
+      const { totals } = cashSessionClosesSummary(input);
+
+      expect(totals.cashiersWithDifference.map(({ cashierId }) => cashierId)).toEqual(expected);
+    }
+  });
+
+  it("orders closes of the same instant by id whatever the order they come in", () => {
+    const closes = [aClose({ id: "a" }), aClose({ id: "b" })];
+
+    for (const input of [closes, [...closes].reverse()]) {
+      expect(cashSessionClosesSummary(input).closes.map(({ id }) => id)).toEqual(["a", "b"]);
+    }
+  });
+
   it("counts a cashier whose closes were all exact as absent", () => {
     const { totals } = cashSessionClosesSummary([aClose({ difference: 0 })]);
 
