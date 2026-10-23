@@ -924,6 +924,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1025,6 +1026,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1121,6 +1123,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1216,6 +1219,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1340,6 +1344,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1454,6 +1459,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1572,6 +1578,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1698,6 +1705,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1791,6 +1799,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0080_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
