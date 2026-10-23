@@ -369,17 +369,18 @@ test("refreshing a list reads the lists again and says it was loaded", async () 
   await expect.element(screen.getByText("Leyendo la lista")).toBeVisible();
 });
 
-test("keeps the refresh button disabled while the page is being loaded", async () => {
+test("does not ask for the same list again while its page is being loaded", async () => {
   const services = createServices();
   const refresh = deferred<Awaited<ReturnType<typeof services.refreshSupplierPriceList>>>();
   vi.mocked(services.refreshSupplierPriceList).mockReturnValue(refresh.promise);
   const screen = await loaded(services, [WEB_LIST]);
 
   await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
-
-  await expect.element(refreshButton(screen, "Distribuidora del Sur")).toBeDisabled();
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
   refresh.resolve({ kind: "ok" });
-  await expect.element(refreshButton(screen, "Distribuidora del Sur")).toBeEnabled();
+
+  await expect.element(screen.getByText("Lista cargada")).toBeVisible();
+  expect(services.refreshSupplierPriceList).toHaveBeenCalledTimes(1);
 });
 
 test("says why the page was refused", async () => {
