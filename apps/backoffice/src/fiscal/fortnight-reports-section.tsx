@@ -109,6 +109,9 @@ export function FortnightReportsSection({ data, onReview }: FortnightReportsSect
     columns,
   });
   const blocked = presentations.filter(({ state }) => state === "blocked");
+  const awaitingInvoiceReport = presentations.filter(
+    ({ state }) => state === "awaiting_invoice_report",
+  );
   const awaitingRemedy = presentations.filter(
     ({ rejectedDocument }) => rejectedDocument?.remedy === "awaiting_remedy",
   );
@@ -122,6 +125,15 @@ export function FortnightReportsSection({ data, onReview }: FortnightReportsSect
           icon={<TriangleAlert />}
           title={`${registerNameOf(item.registerId)} todavía no terminó de sincronizar`}
           description={`El informe ${formatCalendarDayRange(item.fortnight.start, item.fortnight.end)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} se puede presentar cuando termine.`}
+        />
+      ))}
+      {awaitingInvoiceReport.map((item) => (
+        <InlineNotice
+          key={presentationKey(item)}
+          tone="warning"
+          icon={<CircleAlert />}
+          title={`Las notas de crédito del informe ${fortnightOf(item)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} esperan el informe de la factura que corrigen`}
+          description="Se presentan cuando ARCA acepte ese informe, de una quincena anterior."
         />
       ))}
       {awaitingRemedy.map((item) => (

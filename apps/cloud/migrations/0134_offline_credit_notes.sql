@@ -14,4 +14,6 @@ ALTER TABLE "offline_fiscal_documents" ADD CONSTRAINT "offline_fiscal_documents_
         and ("offline_fiscal_documents"."credit_note_id" is null) = ("offline_fiscal_documents"."corrected_point_of_sale" is null)
         and ("offline_fiscal_documents"."credit_note_id" is null) = ("offline_fiscal_documents"."corrected_number" is null));--> statement-breakpoint
 ALTER TABLE "offline_fiscal_documents" ADD CONSTRAINT "offline_fiscal_documents_document_type_known" CHECK ("offline_fiscal_documents"."document_type" in ('factura_c', 'credit_note_c'));--> statement-breakpoint
-ALTER TABLE "offline_number_blocks" ADD CONSTRAINT "offline_number_blocks_document_type_known" CHECK ("offline_number_blocks"."document_type" in ('factura_c', 'credit_note_c'));
+ALTER TABLE "offline_number_blocks" ADD CONSTRAINT "offline_number_blocks_document_type_known" CHECK ("offline_number_blocks"."document_type" in ('factura_c', 'credit_note_c'));--> statement-breakpoint
+ALTER TYPE "public"."document_type_report_state" ADD VALUE 'awaiting_invoice_report';--> statement-breakpoint
+ALTER TYPE "public"."fortnight_report_state" ADD VALUE 'awaiting_invoice_report';

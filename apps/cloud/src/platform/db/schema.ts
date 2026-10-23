@@ -2239,6 +2239,7 @@ export const fortnightReportState = pgEnum("fortnight_report_state", [
   "accepted",
   "needs_regularization",
   "missing_document",
+  "awaiting_invoice_report",
 ]);
 
 export const fortnightReportMovement = pgEnum("fortnight_report_movement", ["none", "documents"]);
@@ -2248,6 +2249,7 @@ export const documentTypeReportState = pgEnum("document_type_report_state", [
   "refused",
   "accepted",
   "missing_document",
+  "awaiting_invoice_report",
 ]);
 
 export const fortnightReports = pgTable(
@@ -2288,7 +2290,7 @@ export const fortnightDocumentReports = pgTable(
       .notNull()
       .references(() => caeaCodes.fortnightStart),
     fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
-    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    documentType: text("document_type").$type<FiscalTaskDocumentType>().notNull(),
     state: documentTypeReportState("state").notNull(),
     reportedThrough: integer("reported_through").notNull(),
     rejectedNumber: integer("rejected_number"),

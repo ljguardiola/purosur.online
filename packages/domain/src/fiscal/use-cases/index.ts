@@ -246,6 +246,7 @@ export type {
   FortnightRegularizationReader,
 } from "./fortnight-regularization-reader.js";
 export type {
+  ContingencyInvoiceReport,
   DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,

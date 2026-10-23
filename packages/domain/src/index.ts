@@ -354,6 +354,7 @@ export {
   thresholdScheduledAfter,
   UNCLEAR_ANSWER_KINDS,
   unclearOutcomeSince,
+  voucherTypeOfDocumentType,
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {

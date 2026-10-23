@@ -10809,7 +10809,7 @@
     "public.document_type_report_state": {
       "name": "document_type_report_state",
       "schema": "public",
-      "values": ["submitting", "refused", "accepted", "missing_document"]
+      "values": ["submitting", "refused", "accepted", "missing_document", "awaiting_invoice_report"]
     },
     "public.fortnight_report_movement": {
       "name": "fortnight_report_movement",
@@ -10825,7 +10825,8 @@
         "refused",
         "accepted",
         "needs_regularization",
-        "missing_document"
+        "missing_document",
+        "awaiting_invoice_report"
       ]
     },
     "public.installation_request_endpoint": {

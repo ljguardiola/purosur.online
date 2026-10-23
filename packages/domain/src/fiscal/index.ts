@@ -122,6 +122,7 @@ export type {
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
 export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
 export { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./model/fiscal-task.js";
+export { voucherTypeOfDocumentType } from "./model/fiscal-voucher-type.js";
 export type {
   FortnightPresentationRefusal,
   FortnightPresentationState,
