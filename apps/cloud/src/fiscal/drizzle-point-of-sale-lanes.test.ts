@@ -533,7 +533,7 @@ describe("DrizzlePointOfSaleLanes", () => {
   describe("the last authorized count", () => {
     const COUNT = {
       pointOfSale: 7,
-      documentType: "factura_c",
+      documentType: "factura_c" as const,
       lastAuthorized: 42,
       readAt: ANSWERED_AT,
     };

@@ -75,7 +75,7 @@ async function jobsOf(taskIdentifier: string) {
 describe("resuming the work that waits on a WSAA token, on a real Postgres", () => {
   it("makes a tax authority count that kept failing for lack of a token runnable again, with its attempts reset", async () => {
     await claimPointOfSale();
-    await enqueueTaxAuthorityCountJob(db, POINT_OF_SALE);
+    await enqueueTaxAuthorityCountJob(db, POINT_OF_SALE, "factura_c");
     await failOnNoToken(TAX_AUTHORITY_COUNT_TASK_IDENTIFIER);
     expect(await jobsOf(TAX_AUTHORITY_COUNT_TASK_IDENTIFIER)).toEqual([
       { attempts: 4, runnable: false },
@@ -109,7 +109,7 @@ describe("resuming the work that waits on a WSAA token, on a real Postgres", () 
 
   it("leaves every job as it was when the transaction that resumes the work rolls back", async () => {
     await claimPointOfSale();
-    await enqueueTaxAuthorityCountJob(db, POINT_OF_SALE);
+    await enqueueTaxAuthorityCountJob(db, POINT_OF_SALE, "factura_c");
     await failOnNoToken(TAX_AUTHORITY_COUNT_TASK_IDENTIFIER);
 
     await expect(

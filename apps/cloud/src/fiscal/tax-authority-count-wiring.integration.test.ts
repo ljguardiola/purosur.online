@@ -74,7 +74,7 @@ describe("the tax authority's count the server sets up on a real Postgres", () =
     });
     try {
       await backgroundJobs.db.transaction((transaction) =>
-        enqueueTaxAuthorityCountJob(transaction, 7),
+        enqueueTaxAuthorityCountJob(transaction, 7, "factura_c"),
       );
 
       await vi.waitFor(

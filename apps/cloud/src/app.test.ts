@@ -263,7 +263,11 @@ describe("POST /api/devices", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(expect.anything(), 7);
+    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(
+      expect.anything(),
+      7,
+      "factura_c",
+    );
   });
 });
 

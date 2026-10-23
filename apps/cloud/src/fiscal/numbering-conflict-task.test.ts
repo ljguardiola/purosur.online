@@ -298,7 +298,13 @@ describe("numberingConflictJobs", () => {
         },
       ]);
       expect(await testDatabase.db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([
-        { pointOfSaleNumber: 7, lastAuthorized: 3, issuedOn: "2026-10-05", readAt: NOW },
+        {
+          pointOfSaleNumber: 7,
+          documentType: "factura_c",
+          lastAuthorized: 3,
+          issuedOn: "2026-10-05",
+          readAt: NOW,
+        },
       ]);
       expect(await freezes()).toEqual([]);
     });

@@ -5,11 +5,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { DrizzleNumberingConflictLanes } from "../fiscal/drizzle-numbering-conflict-lanes.js";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleTaxAuthorityCounts } from "../fiscal/drizzle-tax-authority-counts.js";
+import { insertOfflineCreditNote } from "../fiscal/test-support/offline-fiscal-document-fixtures.js";
 import {
   insertAppliedOfflineDocument,
   insertReceivedOfflineDocumentEvent,
 } from "../fiscal/test-support/synced-offline-documents.js";
-import { insertOfflineCreditNote } from "../fiscal/test-support/offline-fiscal-document-fixtures.js";
 import { locations } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -248,15 +248,9 @@ describe("GET /changes carrying the register's own point of sale", () => {
 
     const pulled = await pullAfterSeed(deviceToken);
 
-    const pointsOfSale = pulled.filter(({ entity }) => entity === "register_point_of_sale");
-    expect(pointsOfSale.length).toBeGreaterThan(0);
-    expect(
-      pointsOfSale.map((change) =>
-        "tax_authority_last_authorized_number" in change.row
-          ? change.row.tax_authority_last_authorized_number
-          : undefined,
-      ),
-    ).toEqual(pointsOfSale.map(() => 41));
+    expect(pulled.filter(({ entity }) => entity === "register_point_of_sale").at(-1)).toMatchObject(
+      { row: { tax_authority_last_authorized_number: 41 } },
+    );
   });
 
   it("gives the point of sale as frozen while its numbering is frozen, at the same version as the count", async () => {
