@@ -1,12 +1,14 @@
 import {
   countsTowardDailyExtractionCap,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
+  type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
 } from "../../model/supplier-price-list.js";
 import type {
   FindPriceListSupplierResult,
+  FindSupplierPriceListSourceResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
   NewSupplierPriceListFields,
@@ -26,7 +28,9 @@ export interface FakeSupplierPriceListRow {
   locationId: string;
   supplierId: string;
   sourceKind: SupplierPriceListSourceKind;
-  fileName: string;
+  fileName: string | null;
+  sourceUrl: string | null;
+  contentKind: SupplierPriceListContentKind;
   byteSize: number;
   uploadedAt: Date;
   uploadedBy: string;
@@ -124,7 +128,9 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       locationId: fields.locationId,
       supplierId: fields.supplierId,
       sourceKind: fields.sourceKind,
-      fileName: fields.fileName,
+      fileName: fields.sourceKind === "PDF" ? fields.fileName : null,
+      sourceUrl: fields.sourceKind === "WEB_PAGE" ? fields.sourceUrl : null,
+      contentKind: fields.contentKind,
       byteSize: fields.byteSize,
       uploadedAt: fields.uploadedAt,
       uploadedBy: fields.actorId,
@@ -143,6 +149,21 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     return { id };
   }
 
+  async findListSource(listId: string): Promise<FindSupplierPriceListSourceResult> {
+    const list = this.state.lists.find((row) => row.id === listId);
+    if (!list) {
+      return { kind: "not_found" };
+    }
+    return {
+      kind: "found",
+      supplierId: list.supplierId,
+      source:
+        list.sourceKind === "WEB_PAGE" && list.sourceUrl !== null
+          ? { kind: "WEB_PAGE", url: list.sourceUrl }
+          : { kind: "PDF" },
+    };
+  }
+
   async enqueueReading(listId: string): Promise<void> {
     this.beforeWrite("enqueueReading");
     this.state.readingQueue.push(listId);
@@ -159,6 +180,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       list: {
         id: list.id,
         sourceKind: list.sourceKind,
+        contentKind: list.contentKind,
         state: list.state,
         version: list.version,
         listDate: list.listDate,
@@ -298,12 +320,22 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
     this.state.suppliers.push({ ...supplier });
   }
 
+  deactivateSupplier(supplierId: string): void {
+    for (const supplier of this.state.suppliers) {
+      if (supplier.id === supplierId) {
+        supplier.active = false;
+      }
+    }
+  }
+
   seedList(list: Partial<FakeSupplierPriceListRow> & { id: string }): void {
     this.state.lists.push({
       locationId: "branch-1",
       supplierId: "supplier-a",
       sourceKind: "PDF",
       fileName: "lista.pdf",
+      sourceUrl: null,
+      contentKind: "PDF",
       byteSize: 1_000,
       uploadedAt: new Date("2026-03-01T12:00:00Z"),
       uploadedBy: "person-1",

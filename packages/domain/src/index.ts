@@ -538,9 +538,11 @@ export type {
   FreightMeans,
   FreightPeriodDays,
   ReceiptType,
+  SupplierPriceListContentKind,
   SupplierPriceListReadFailure,
   SupplierPriceListSourceKind,
   SupplierPriceListState,
+  SupplierPriceListWebPageRefusal,
 } from "./purchasing/index.js";
 export {
   countsTowardDailyExtractionCap,
@@ -569,6 +571,8 @@ export {
   isSupplierNoteTooLong,
   isSupplierPriceListDailyExtractionCap,
   isSupplierPriceListFileNameTooLong,
+  isSupplierPriceListWebPageAddressTooLong,
+  isSupplierPriceListWebPageScheme,
   isValidFreightMeans,
   LOT_NUMBER_MAX_LENGTH,
   MIN_FREIGHT_PURCHASES,
@@ -587,6 +591,7 @@ export {
   SUPPLIER_NAME_MAX_LENGTH,
   SUPPLIER_NOTE_MAX_LENGTH,
   SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
+  SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
   SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH,
@@ -595,6 +600,12 @@ export {
   SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
   SUPPLIER_PRICE_LIST_SOURCE_KINDS,
   SUPPLIER_PRICE_LIST_STATES,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_ADDRESS_MAX_LENGTH,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_MAX_BYTES,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_MAX_REDIRECTS,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_REFUSALS,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_SCHEMES,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_TIME_LIMIT_MS,
 } from "./purchasing/index.js";
 export type {
   BatteryReading,

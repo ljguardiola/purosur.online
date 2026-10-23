@@ -46,6 +46,8 @@ describe("uploadSupplierPriceList", () => {
         supplierId: "supplier-a",
         sourceKind: "PDF",
         fileName: "lista-marzo.pdf",
+        sourceUrl: null,
+        contentKind: "PDF",
         byteSize: PDF.byteLength,
         uploadedAt: NOW,
         uploadedBy: "person-1",
@@ -63,6 +65,7 @@ describe("uploadSupplierPriceList", () => {
       },
     ]);
     expect(files.stored.get("list-1")).toBe(PDF);
+    expect(files.contentKinds.get("list-1")).toBe("PDF");
     expect(store.snapshot().readingQueue).toEqual(["list-1"]);
   });
 

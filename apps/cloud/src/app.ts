@@ -1,7 +1,10 @@
 import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
-import type { SupplierPriceListFiles } from "@purosur/domain/purchasing/use-cases";
+import type {
+  SupplierPriceListFiles,
+  SupplierPriceListWebPages,
+} from "@purosur/domain/purchasing/use-cases";
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@sentry/node";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -347,6 +350,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   releaseCheckToken?: string | undefined;
   offsiteDumpCheckToken?: string | undefined;
   supplierPriceListFiles?: SupplierPriceListFiles;
+  supplierPriceListWebPages?: SupplierPriceListWebPages;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -371,9 +375,15 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     fiscalAddresses: backoffice,
     categories: backoffice,
     brands: backoffice,
-    purchasing: wiring.supplierPriceListFiles
-      ? { ...backoffice, supplierPriceListFiles: wiring.supplierPriceListFiles }
-      : backoffice,
+    purchasing: {
+      ...backoffice,
+      ...(wiring.supplierPriceListFiles
+        ? { supplierPriceListFiles: wiring.supplierPriceListFiles }
+        : {}),
+      ...(wiring.supplierPriceListWebPages
+        ? { supplierPriceListWebPages: wiring.supplierPriceListWebPages }
+        : {}),
+    },
     tags: backoffice,
     products: backoffice,
     alerts: backoffice,

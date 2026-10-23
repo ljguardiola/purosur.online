@@ -1,5 +1,5 @@
 {
-  "id": "ea561e66-790d-49af-8f0f-d6bc7ba92f25",
+  "id": "120736dd-4dbd-4299-9006-3179562f6cb8",
   "prevId": "5816cacb-6c54-450e-9351-21c6146cf70d",
   "version": "7",
   "dialect": "postgresql",
@@ -3329,7 +3329,7 @@
         },
         "fortnight_document_reports_document_type_known": {
           "name": "fortnight_document_reports_document_type_known",
-          "value": "\"fortnight_document_reports\".\"document_type\" in ('factura_c', 'credit_note_c')"
+          "value": "\"fortnight_document_reports\".\"document_type\" in ('factura_c')"
         }
       },
       "isRLSEnabled": false
@@ -4543,62 +4543,9 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
-        },
-        "credit_note_id": {
-          "name": "credit_note_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corrected_voucher_type": {
-          "name": "corrected_voucher_type",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corrected_point_of_sale": {
-          "name": "corrected_point_of_sale",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corrected_number": {
-          "name": "corrected_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
         }
       },
-      "indexes": {
-        "offline_fiscal_documents_corrected_voucher_idx": {
-          "name": "offline_fiscal_documents_corrected_voucher_idx",
-          "columns": [
-            {
-              "expression": "corrected_voucher_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "corrected_point_of_sale",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "corrected_number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"offline_fiscal_documents\".\"document_type\" = 'credit_note_c'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "offline_fiscal_documents_register_id_registers_id_fk": {
           "name": "offline_fiscal_documents_register_id_registers_id_fk",
@@ -4612,10 +4559,10 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "offline_fiscal_documents_sale_document_key": {
-          "name": "offline_fiscal_documents_sale_document_key",
+        "offline_fiscal_documents_sale_id_unique": {
+          "name": "offline_fiscal_documents_sale_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["sale_id", "document_type"]
+          "columns": ["sale_id"]
         },
         "offline_fiscal_documents_number_key": {
           "name": "offline_fiscal_documents_number_key",
@@ -4625,13 +4572,9 @@
       },
       "policies": {},
       "checkConstraints": {
-        "offline_fiscal_documents_credit_note_data": {
-          "name": "offline_fiscal_documents_credit_note_data",
-          "value": "(\"offline_fiscal_documents\".\"document_type\" = 'credit_note_c') = (\"offline_fiscal_documents\".\"credit_note_id\" is not null)\n        and (\"offline_fiscal_documents\".\"credit_note_id\" is null) = (\"offline_fiscal_documents\".\"corrected_voucher_type\" is null)\n        and (\"offline_fiscal_documents\".\"credit_note_id\" is null) = (\"offline_fiscal_documents\".\"corrected_point_of_sale\" is null)\n        and (\"offline_fiscal_documents\".\"credit_note_id\" is null) = (\"offline_fiscal_documents\".\"corrected_number\" is null)"
-        },
         "offline_fiscal_documents_document_type_known": {
           "name": "offline_fiscal_documents_document_type_known",
-          "value": "\"offline_fiscal_documents\".\"document_type\" in ('factura_c', 'credit_note_c')"
+          "value": "\"offline_fiscal_documents\".\"document_type\" in ('factura_c')"
         },
         "offline_fiscal_documents_cause_known": {
           "name": "offline_fiscal_documents_cause_known",
@@ -4746,7 +4689,7 @@
         },
         "offline_number_blocks_document_type_known": {
           "name": "offline_number_blocks_document_type_known",
-          "value": "\"offline_number_blocks\".\"document_type\" in ('factura_c', 'credit_note_c')"
+          "value": "\"offline_number_blocks\".\"document_type\" in ('factura_c')"
         },
         "offline_number_blocks_range_valid": {
           "name": "offline_number_blocks_range_valid",
@@ -10223,6 +10166,18 @@
           "name": "file_name",
           "type": "text",
           "primaryKey": false,
+          "notNull": false
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_content_kind": {
+          "name": "file_content_kind",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
         },
         "file_byte_size": {
@@ -10414,7 +10369,15 @@
       "checkConstraints": {
         "supplier_price_lists_source_kind_check": {
           "name": "supplier_price_lists_source_kind_check",
-          "value": "\"supplier_price_lists\".\"source_kind\" in ('PDF')"
+          "value": "\"supplier_price_lists\".\"source_kind\" in ('PDF', 'WEB_PAGE')"
+        },
+        "supplier_price_lists_file_content_kind_check": {
+          "name": "supplier_price_lists_file_content_kind_check",
+          "value": "\"supplier_price_lists\".\"file_content_kind\" in ('PDF', 'HTML')"
+        },
+        "supplier_price_lists_source_check": {
+          "name": "supplier_price_lists_source_check",
+          "value": "(\"supplier_price_lists\".\"source_kind\" = 'PDF' and \"supplier_price_lists\".\"file_name\" is not null and \"supplier_price_lists\".\"source_url\" is null) or (\"supplier_price_lists\".\"source_kind\" = 'WEB_PAGE' and \"supplier_price_lists\".\"source_url\" is not null and \"supplier_price_lists\".\"file_name\" is null)"
         },
         "supplier_price_lists_state_check": {
           "name": "supplier_price_lists_state_check",
@@ -10602,13 +10565,7 @@
         "point_of_sale_number": {
           "name": "point_of_sale_number",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_type": {
-          "name": "document_type",
-          "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "last_authorized": {
@@ -10632,19 +10589,10 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "tax_authority_last_authorized_numbers_pkey": {
-          "name": "tax_authority_last_authorized_numbers_pkey",
-          "columns": ["point_of_sale_number", "document_type"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "tax_authority_last_authorized_numbers_document_type_known": {
-          "name": "tax_authority_last_authorized_numbers_document_type_known",
-          "value": "\"tax_authority_last_authorized_numbers\".\"document_type\" in ('factura_c', 'credit_note_c')"
-        },
         "tax_authority_last_authorized_numbers_non_negative_check": {
           "name": "tax_authority_last_authorized_numbers_non_negative_check",
           "value": "\"tax_authority_last_authorized_numbers\".\"last_authorized\" >= 0"
@@ -11043,7 +10991,7 @@
     "public.document_type_report_state": {
       "name": "document_type_report_state",
       "schema": "public",
-      "values": ["submitting", "refused", "accepted", "missing_document", "awaiting_invoice_report"]
+      "values": ["submitting", "refused", "accepted", "missing_document"]
     },
     "public.fortnight_report_movement": {
       "name": "fortnight_report_movement",
@@ -11059,8 +11007,7 @@
         "refused",
         "accepted",
         "needs_regularization",
-        "missing_document",
-        "awaiting_invoice_report"
+        "missing_document"
       ]
     },
     "public.installation_request_endpoint": {

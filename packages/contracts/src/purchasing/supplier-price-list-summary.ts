@@ -1,15 +1,15 @@
-import {
-  SUPPLIER_PRICE_LIST_READ_FAILURES,
-  SUPPLIER_PRICE_LIST_SOURCE_KINDS,
-  SUPPLIER_PRICE_LIST_STATES,
-} from "@purosur/domain";
+import { SUPPLIER_PRICE_LIST_READ_FAILURES, SUPPLIER_PRICE_LIST_STATES } from "@purosur/domain";
 import { z } from "zod";
+
+const supplierPriceListSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("PDF"), fileName: z.string() }),
+  z.object({ kind: z.literal("WEB_PAGE"), url: z.string() }),
+]);
 
 export const supplierPriceListSummarySchema = z.object({
   id: z.string(),
   supplier: z.object({ id: z.string(), name: z.string() }),
-  sourceKind: z.enum(SUPPLIER_PRICE_LIST_SOURCE_KINDS),
-  fileName: z.string(),
+  source: supplierPriceListSourceSchema,
   listDate: z.string().nullable(),
   rowCount: z.int(),
   unpricedRowCount: z.int(),

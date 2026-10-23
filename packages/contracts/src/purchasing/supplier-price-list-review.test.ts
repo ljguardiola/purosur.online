@@ -21,8 +21,7 @@ const review = {
   list: {
     id: "list-1",
     supplier: { id: "s-1", name: "Distribuidora Sur" },
-    sourceKind: "PDF",
-    fileName: "lista-marzo.pdf",
+    source: { kind: "PDF", fileName: "lista-marzo.pdf" },
     listDate: "2026-03-01",
     rowCount: 2,
     unpricedRowCount: 1,
@@ -40,6 +39,18 @@ const review = {
 describe("supplierPriceListReviewSchema", () => {
   it("accepts the list with a row that has everything and one that has nothing optional", () => {
     expect(supplierPriceListReviewSchema.safeParse(review).data).toEqual(review);
+  });
+
+  it("accepts a list read from a web page", () => {
+    const fromWebPage = {
+      ...review,
+      list: {
+        ...review.list,
+        source: { kind: "WEB_PAGE", url: "https://distribuidora-sur.example/lista" },
+      },
+    };
+
+    expect(supplierPriceListReviewSchema.safeParse(fromWebPage).data).toEqual(fromWebPage);
   });
 
   it("accepts a list without rows", () => {

@@ -10,9 +10,13 @@ export const SUPPLIER_PRICE_LIST_STATES = [
 
 export type SupplierPriceListState = (typeof SUPPLIER_PRICE_LIST_STATES)[number];
 
-export const SUPPLIER_PRICE_LIST_SOURCE_KINDS = ["PDF"] as const;
+export const SUPPLIER_PRICE_LIST_SOURCE_KINDS = ["PDF", "WEB_PAGE"] as const;
 
 export type SupplierPriceListSourceKind = (typeof SUPPLIER_PRICE_LIST_SOURCE_KINDS)[number];
+
+export const SUPPLIER_PRICE_LIST_CONTENT_KINDS = ["PDF", "HTML"] as const;
+
+export type SupplierPriceListContentKind = (typeof SUPPLIER_PRICE_LIST_CONTENT_KINDS)[number];
 
 export const SUPPLIER_PRICE_LIST_READ_FAILURES = [
   "unreadable_document",

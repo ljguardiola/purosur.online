@@ -86,7 +86,8 @@ describe("POST /supplier-price-lists on a real Postgres", () => {
     expect(await db.select().from(supplierPriceLists)).toMatchObject([
       { id: listId, state: "READING", fileName: "lista.pdf", uploadedBy: userId },
     ]);
-    expect(Buffer.from(files.stored.get(listId) ?? []).equals(PDF)).toBe(true);
+    expect(Buffer.from(files.stored.get(listId)?.bytes ?? []).equals(PDF)).toBe(true);
+    expect(files.stored.get(listId)?.contentKind).toBe("PDF");
     expect(await queuedReadings()).toEqual([{ payload: { listId } }]);
   });
 

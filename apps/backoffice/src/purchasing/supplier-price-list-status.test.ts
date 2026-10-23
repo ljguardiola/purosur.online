@@ -7,6 +7,7 @@ import {
   READING_LIST,
   REPLACED_LIST,
   REVIEWED_LIST,
+  WEB_FAILED_LIST,
 } from "./test-support/supplier-price-lists";
 
 describe("supplierPriceListStatusOf", () => {
@@ -63,4 +64,19 @@ describe("supplierPriceListStatusOf", () => {
       reason,
     });
   });
+
+  test.each([
+    ["unreadable_document", "No se pudo leer el contenido de la página."],
+    ["no_items_found", "No se encontró ningún ítem en la página."],
+  ] as const)(
+    "gives a web page that could not be read for %s its reason",
+    (readFailure, reason) => {
+      expect(supplierPriceListStatusOf({ ...WEB_FAILED_LIST, readFailure })).toEqual({
+        tone: "error",
+        label: "No se pudo leer",
+        busy: false,
+        reason,
+      });
+    },
+  );
 });

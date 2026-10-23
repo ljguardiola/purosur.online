@@ -30,6 +30,7 @@ import {
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_LIFECYCLE_LIMITS,
+  SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_READ_FAILURES,
   SUPPLIER_PRICE_LIST_SOURCE_KINDS,
   SUPPLIER_PRICE_LIST_STATES,
@@ -2981,7 +2982,9 @@ export const supplierPriceLists = pgTable(
       .notNull()
       .references(() => locations.id),
     sourceKind: text("source_kind").notNull(),
-    fileName: text("file_name").notNull(),
+    fileName: text("file_name"),
+    sourceUrl: text("source_url"),
+    fileContentKind: text("file_content_kind").notNull(),
     fileByteSize: bigint("file_byte_size", { mode: "number" }).notNull(),
     state: text("state").notNull(),
     readFailure: text("read_failure"),
@@ -3004,6 +3007,14 @@ export const supplierPriceLists = pgTable(
     check(
       "supplier_price_lists_source_kind_check",
       sql`${table.sourceKind} in (${quotedList(SUPPLIER_PRICE_LIST_SOURCE_KINDS)})`,
+    ),
+    check(
+      "supplier_price_lists_file_content_kind_check",
+      sql`${table.fileContentKind} in (${quotedList(SUPPLIER_PRICE_LIST_CONTENT_KINDS)})`,
+    ),
+    check(
+      "supplier_price_lists_source_check",
+      sql`(${table.sourceKind} = 'PDF' and ${table.fileName} is not null and ${table.sourceUrl} is null) or (${table.sourceKind} = 'WEB_PAGE' and ${table.sourceUrl} is not null and ${table.fileName} is null)`,
     ),
     check(
       "supplier_price_lists_state_check",

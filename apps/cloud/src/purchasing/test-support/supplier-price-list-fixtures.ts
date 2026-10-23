@@ -1,4 +1,8 @@
-import type { SupplierPriceListReadFailure, SupplierPriceListState } from "@purosur/domain";
+import type {
+  SupplierPriceListContentKind,
+  SupplierPriceListReadFailure,
+  SupplierPriceListState,
+} from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { supplierPriceListRows, supplierPriceLists, suppliers } from "../../platform/db/schema.js";
 
@@ -27,6 +31,8 @@ export interface PriceListSeed {
   state?: SupplierPriceListState;
   readFailure?: SupplierPriceListReadFailure | null;
   fileName?: string;
+  sourceUrl?: string;
+  contentKind?: SupplierPriceListContentKind;
   uploadedAt?: Date;
   sentAt?: Date | null;
   sentOn?: string | null;
@@ -45,8 +51,10 @@ export async function insertPriceList<TQueryResult extends PgQueryResultHKT>(
     .values({
       supplierId: seed.supplierId,
       locationId: seed.locationId,
-      sourceKind: "PDF",
-      fileName: seed.fileName ?? "lista.pdf",
+      ...(seed.sourceUrl === undefined
+        ? { sourceKind: "PDF", fileName: seed.fileName ?? "lista.pdf", sourceUrl: null }
+        : { sourceKind: "WEB_PAGE", fileName: null, sourceUrl: seed.sourceUrl }),
+      fileContentKind: seed.contentKind ?? (seed.sourceUrl === undefined ? "PDF" : "HTML"),
       fileByteSize: 1_000,
       state: seed.state ?? "READING",
       readFailure: seed.readFailure ?? null,

@@ -1379,6 +1379,12 @@ describe("wiring the purchasing routes", () => {
         url: `/api/supplier-price-lists/${ID}/discard`,
         headers: ORIGIN,
       }),
+      app.inject({ method: "POST", url: "/api/supplier-price-lists/web-page", headers: ORIGIN }),
+      app.inject({
+        method: "POST",
+        url: `/api/supplier-price-lists/${ID}/refresh`,
+        headers: ORIGIN,
+      }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1386,7 +1392,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(25).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(27).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1396,7 +1402,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(25).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(27).fill(401));
   });
 });
 
@@ -2691,6 +2697,16 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/supplier-price-lists/:id/discard",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/web-page",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/refresh",
         access: capabilityAccess("supplier_price_lists"),
       },
       {

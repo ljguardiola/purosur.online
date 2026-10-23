@@ -59,11 +59,12 @@ export async function uploadSupplierPriceList(
       locationId: input.locationId,
       sourceKind: "PDF",
       fileName: input.fileName,
+      contentKind: "PDF",
       byteSize: input.pdf.byteLength,
       uploadedAt: input.now,
       actorId: input.actorId,
     });
-    await files.store(id, input.pdf);
+    await files.store(id, input.pdf, "PDF");
     await tx.enqueueReading(id);
 
     return { kind: "uploaded", listId: id };
