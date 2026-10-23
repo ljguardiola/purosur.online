@@ -1,5 +1,6 @@
 import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTicketedOperations } from "../backups/ticketed-operation";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import { insertFiscalDocument } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
@@ -55,7 +56,7 @@ function deps(overrides: Partial<ReceiptRequestDeps> = {}): ReceiptRequestDeps {
     signedInUserId: () => signedInPerson.userId(),
     printers: { configured: () => printer },
     jobs,
-    ticketedReprint: (_saleId, reprint) => reprint(),
+    ticketedSteps: (_operation, _subjectId, operate) => operate((step) => step()),
     ...overrides,
   };
 }
@@ -316,6 +317,32 @@ describe("reprinting the credit note of a voided sale from its history", () => {
         reason_text: REASON,
       },
     });
+  });
+
+  it("tickets the reprint of the credit note as a reprint of its sale, once the duplicate was handed to the printer", async () => {
+    await printedOnce();
+    signedInPerson.set("supervisor");
+    const recorded: { operation: string; subjectId: string | null; handedCopies: number }[] = [];
+    const { ticketedSteps } = createTicketedOperations({
+      readLastDeviceSeq: () =>
+        database
+          .prepare<[], { last_device_seq: number }>("SELECT last_device_seq FROM sync_state")
+          .get()?.last_device_seq ?? 0,
+      readEmissionMode: () => ({ kind: "offline_code", cause: "no_connectivity" }),
+      record: async ({ operation, subjectId }) => {
+        recorded.push({ operation, subjectId, handedCopies: printer.handed.length });
+      },
+      afterRecorded: () => {},
+      reportFailure: (_context, error) => failures.push(error),
+    });
+
+    await reprintCreditNoteFor(deps({ ticketedSteps }), { saleId: "sale-1", reason: REASON });
+    await printer.whenWaiting(2);
+    printer.becomeReady();
+
+    await vi.waitFor(() =>
+      expect(recorded).toEqual([{ operation: "reprint", subjectId: "sale-1", handedCopies: 2 }]),
+    );
   });
 
   it("numbers each later duplicate after the previous reprints of the credit note", async () => {

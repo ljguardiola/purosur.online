@@ -779,7 +779,7 @@ export async function withRegisterSession<TResult>(
       deps: {
         ...deps(),
         signedInUserId: () => signedInPerson.userId(),
-        ticketedReprint: (_saleId, reprint) => reprint(),
+        ticketedSteps: (_operation, _subjectId, operate) => operate((step) => step()),
         jobs: createReceiptPrintJobs({
           reportFailure: (context, error) => {
             throw new Error(`The register session's receipt print failed: ${context}`, {
@@ -954,7 +954,7 @@ export async function withRegisterSession<TResult>(
       deps: {
         ...deps(),
         signedInUserId: () => signedInPerson.userId(),
-        ticketedReprint: (_saleId, reprint) => reprint(),
+        ticketedSteps: (_operation, _subjectId, operate) => operate((step) => step()),
         jobs: createReceiptPrintJobs({
           reportFailure: (context, error) => {
             throw new Error(`The register session's credit note print failed: ${context}`, {

@@ -230,3 +230,68 @@ describe("a settlement that leaves a sale's ticket in a connectivity gap", () =>
     );
   });
 });
+
+describe("an operation whose ticket covers only some of its steps", () => {
+  it("records the events of each ticketed step, with its subject, only once the whole operation ended", async () => {
+    const { ticketing, recorded, log } = setup({ seqs: [10, 11, 14, 15] });
+    const ended: { end?: () => void } = {};
+
+    const operation = ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) => {
+      log.push("waiting");
+      await new Promise<void>((resolve) => {
+        ended.end = resolve;
+      });
+      const step = ticketedStep(() => "handed");
+      log.push("printed");
+      return { kind: "printed", step };
+    });
+    await vi.waitFor(() => expect(ended.end).toBeDefined());
+    ended.end?.();
+
+    expect(await operation).toEqual({ kind: "printed", step: "handed" });
+    expect(recorded).toEqual([
+      {
+        operation: "reprint",
+        subjectId: "sale-1",
+        modesAround: [REAL_TIME, OFFLINE],
+        range: { firstDeviceSeq: 11, lastDeviceSeq: 11 },
+      },
+    ]);
+    expect(log.indexOf("record")).toBeGreaterThan(log.indexOf("printed"));
+    expect(log.at(-1)).toBe("kick");
+  });
+
+  it("records nothing when no step was ticketed", async () => {
+    const { ticketing, recorded, log } = setup();
+
+    await ticketing.ticketedSteps("reprint", "sale-1", async () => ({ kind: "refused" }));
+
+    expect(recorded).toEqual([]);
+    expect(log).toEqual([]);
+  });
+
+  it("still records a ticketed step's events when the operation fails after it", async () => {
+    const { ticketing, recorded } = setup();
+
+    await expect(
+      ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) => {
+        ticketedStep(() => "handed");
+        throw new Error("the printer disconnected");
+      }),
+    ).rejects.toThrow("the printer disconnected");
+    expect(recorded).toMatchObject([{ operation: "reprint", subjectId: "sale-1" }]);
+  });
+
+  it("rethrows what a step throws, recording nothing for it", async () => {
+    const { ticketing, recorded } = setup();
+
+    await expect(
+      ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) =>
+        ticketedStep(() => {
+          throw new Error("the copy is no longer the original");
+        }),
+      ),
+    ).rejects.toThrow("the copy is no longer the original");
+    expect(recorded).toEqual([]);
+  });
+});
