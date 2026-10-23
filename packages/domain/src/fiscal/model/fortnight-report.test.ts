@@ -703,7 +703,7 @@ describe("fortnightPresentationRows", () => {
     const AT = new Date("2026-10-03T15:00:00.000Z");
     const REJECTIONS = [{ code: 1439, message: "El campo 'Importe Total' ImpTotal" }];
     const refusedReport = {
-      documentType: "factura_c" as const,
+      documentType: "factura_c" as "factura_c" | "credit_note_c",
       state: "refused" as const,
       reportedThrough: 1,
       rejectedNumber: 2,
@@ -714,7 +714,7 @@ describe("fortnightPresentationRows", () => {
 
     function rejectedRow(
       documentReport: Partial<typeof refusedReport> | Record<string, unknown> = {},
-      documents = [
+      documents: ReturnType<typeof presentable<"factura_c" | "credit_note_c">>[] = [
         presentable({ documentType: "factura_c", number: 1 }),
         presentable({ documentType: "factura_c", number: 2 }),
       ],
