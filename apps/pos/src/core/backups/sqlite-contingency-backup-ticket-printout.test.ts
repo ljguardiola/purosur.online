@@ -11,7 +11,12 @@ import {
   insertCreditNote,
   insertVoidedSale,
 } from "../sales/test-support/credit-note-receipt-database";
-import { openOutboxDatabase } from "../sync/test-support/sqlite-local-outbox";
+import { appendOutboxEvent } from "../sync/sqlite-outbox";
+import {
+  CHAIN_KEY,
+  openOutboxDatabase,
+  outboxEventDraft,
+} from "../sync/test-support/sqlite-local-outbox";
 import { readContingencyBackupTicketPrintout } from "./sqlite-contingency-backup-ticket-printout";
 import { SqliteContingencyBackupTickets } from "./sqlite-contingency-backup-tickets";
 
@@ -175,19 +180,46 @@ describe("reading what a ticket prints", () => {
       expect(printout()).toMatchObject({ operation: expected, backs: null });
     });
 
+    function appendEvent(eventType: string, payload: Record<string, string>): void {
+      appendOutboxEvent(database, CHAIN_KEY, {
+        ...outboxEventDraft(1),
+        event_id: `018f0000-0000-7000-8000-${String(Math.floor(Math.random() * 1e12)).padStart(12, "0")}`,
+        event_type: eventType,
+        payload,
+      });
+    }
+
     it.each(["CASH_IN", "CASH_OUT", "WITHDRAWAL"] as const)(
-      "carries the %s kind of a cash movement",
+      "carries the %s kind its own cash movement event holds",
       async (movement) => {
-        await record("cash_movement", movement);
+        appendEvent("cash_movement_recorded", { type: movement });
+        appendEvent("cash_session_opened", { type: "OPENING" });
+        await record("cash_movement", null);
 
         expect(printout()?.operation).toEqual({ kind: "cash_movement", movement });
       },
     );
 
-    it("cannot be read for a cash movement of an unknown kind", async () => {
+    it("does not take the kind from a cash movement event outside the ticket's range", async () => {
+      appendEvent("cash_session_opened", { type: "OPENING" });
+      appendEvent("cash_session_opened", { type: "OPENING" });
+      appendEvent("cash_movement_recorded", { type: "CASH_IN" });
       await record("cash_movement", null);
 
-      expect(printout()).toBeUndefined();
+      expect(printout()?.operation).toEqual({ kind: "cash_movement", movement: null });
+    });
+
+    it("does not know the kind once the events are gone", async () => {
+      await record("cash_movement", null);
+
+      expect(printout()?.operation).toEqual({ kind: "cash_movement", movement: null });
+    });
+
+    it("does not know a kind it does not recognize", async () => {
+      appendEvent("cash_movement_recorded", { type: "SALE" });
+      await record("cash_movement", null);
+
+      expect(printout()?.operation).toEqual({ kind: "cash_movement", movement: null });
     });
   });
 });

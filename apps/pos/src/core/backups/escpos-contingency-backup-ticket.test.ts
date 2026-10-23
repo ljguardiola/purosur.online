@@ -99,6 +99,7 @@ describe("the contingency backup ticket", () => {
     [{ kind: "cash_movement", movement: "CASH_OUT" }, "Retiro de efectivo"],
     [{ kind: "cash_movement", movement: "WITHDRAWAL" }, "Retiro de efectivo"],
     [{ kind: "cash_movement", movement: "CASH_IN" }, "Ingreso de efectivo"],
+    [{ kind: "cash_movement", movement: null }, "Movimiento de efectivo"],
     [{ kind: "cash_session_opening" }, "Apertura de caja"],
     [{ kind: "cash_session_closing" }, "Cierre de caja"],
     [{ kind: "initial_count" }, "Inventario inicial"],
