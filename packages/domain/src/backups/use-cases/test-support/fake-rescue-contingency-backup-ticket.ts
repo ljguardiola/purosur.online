@@ -1,12 +1,13 @@
 import type { PushedEvent } from "../../../sync/index.js";
 import type { RescuedTicketFact } from "../../model/rescued-ticket-summary.js";
 import type {
-  ContingencyBackupTicketOpener,
   ContingencyBackupTicketOpening,
+  ContingencyBackupTicketRescues,
+  RescueContingencyBackupTicketTransaction,
   RescuedEventDecoder,
   RescuedTicketDelivery,
   RescuedTicketDeliveryAnswer,
-  RescuedTicketEvents,
+  RescuedTicketRecord,
 } from "../rescue-contingency-backup-ticket-ports.js";
 
 export function rescuedEvent(
@@ -27,21 +28,6 @@ export function rescuedEvent(
   };
 }
 
-export class FakeContingencyBackupTicketOpener implements ContingencyBackupTicketOpener {
-  readonly opened: (readonly string[])[] = [];
-
-  private readonly answer: ContingencyBackupTicketOpening;
-
-  constructor(answer: ContingencyBackupTicketOpening) {
-    this.answer = answer;
-  }
-
-  async open(qrCodes: readonly string[]): Promise<ContingencyBackupTicketOpening> {
-    this.opened.push(qrCodes);
-    return this.answer;
-  }
-}
-
 export class FakeRescuedEventDecoder implements RescuedEventDecoder {
   private readonly facts: ReadonlyMap<string, RescuedTicketFact>;
 
@@ -54,23 +40,47 @@ export class FakeRescuedEventDecoder implements RescuedEventDecoder {
   }
 }
 
-export class FakeRescuedTicketEvents implements RescuedTicketEvents {
-  readonly delivered: RescuedTicketDelivery[] = [];
+export interface FakeRescuesAnswers {
+  opening: ContingencyBackupTicketOpening;
+  delivery?: RescuedTicketDeliveryAnswer;
+  failRecording?: boolean;
+}
 
-  private readonly answer: RescuedTicketDeliveryAnswer;
+export class FakeContingencyBackupTicketRescues implements ContingencyBackupTicketRescues {
+  readonly opened: (readonly string[])[] = [];
+  delivered: RescuedTicketDelivery[] = [];
+  recorded: RescuedTicketRecord[] = [];
 
-  constructor(
-    answer: RescuedTicketDeliveryAnswer = {
-      kind: "delivered",
-      received: 0,
-      alreadyReceived: 0,
-    },
-  ) {
-    this.answer = answer;
+  private readonly answers: FakeRescuesAnswers;
+
+  constructor(answers: FakeRescuesAnswers) {
+    this.answers = answers;
   }
 
-  async deliver(delivery: RescuedTicketDelivery): Promise<RescuedTicketDeliveryAnswer> {
-    this.delivered.push(delivery);
-    return this.answer;
+  async transaction<TOutcome>(
+    work: (tx: RescueContingencyBackupTicketTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    const delivered = [...this.delivered];
+    const recorded = [...this.recorded];
+    const tx: RescueContingencyBackupTicketTransaction = {
+      open: async (qrCodes) => {
+        this.opened.push(qrCodes);
+        return this.answers.opening;
+      },
+      deliver: async (delivery) => {
+        delivered.push(delivery);
+        return this.answers.delivery ?? { kind: "delivered", received: 0, alreadyReceived: 0 };
+      },
+      recordRescue: async (rescue) => {
+        if (this.answers.failRecording === true) {
+          throw new Error("storage unavailable");
+        }
+        recorded.push(rescue);
+      },
+    };
+    const outcome = await work(tx);
+    this.delivered = delivered;
+    this.recorded = recorded;
+    return outcome;
   }
 }

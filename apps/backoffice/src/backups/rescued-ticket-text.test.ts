@@ -1,6 +1,7 @@
 import type { ContingencyBackupTicketRescueResponse } from "@purosur/contracts";
 import { expect, test } from "vitest";
 import {
+  REFUSED_TICKET_STATUS,
   REFUSED_TICKET_TITLE,
   rescuedTicketTitle,
   rescuedTicketTotalText,
@@ -76,8 +77,19 @@ test("gives each refusal of the cloud its own title", () => {
     incomplete: "Faltan QR de este ticket",
     unknown_key: "Clave de cifrado desconocida",
     not_authentic: "El ticket no es auténtico",
-    foreign_installation: "Ticket de otra instalación",
-    conflicting: "Los QR no son del mismo ticket",
+    foreign_installation: "La instalación del ticket es de otra caja",
+    conflicting: "Choca con datos ya recibidos de la caja",
+  });
+});
+
+test("says a ticket refused after it was verified could not be recovered, and any other could not be verified", () => {
+  expect(REFUSED_TICKET_STATUS).toEqual({
+    unreadable: "No se pudo verificar",
+    incomplete: "No se pudo verificar",
+    unknown_key: "No se pudo verificar",
+    not_authentic: "No se pudo verificar",
+    foreign_installation: "No se pudo recuperar",
+    conflicting: "No se pudo recuperar",
   });
 });
 

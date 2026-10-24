@@ -122,3 +122,18 @@ test("codes sealed with another version of the key are another ticket", () => {
     of: 2,
   });
 });
+
+test("codes numbered for another count of parts are another ticket", () => {
+  const [firstOfTwo] = ticketCodes(2, 1);
+  const [, secondOfThree] = ticketCodes(3, 1);
+  const afterFirst = scanTicketCode(NO_PENDING_TICKETS, firstOfTwo ?? "");
+  if (afterFirst.kind !== "waiting") {
+    throw new Error("the first of two codes must wait for the second");
+  }
+
+  expect(scanTicketCode(afterFirst.pending, secondOfThree ?? "")).toMatchObject({
+    kind: "waiting",
+    read: 1,
+    of: 3,
+  });
+});

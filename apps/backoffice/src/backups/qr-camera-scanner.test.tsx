@@ -70,6 +70,8 @@ test("reports a code the decoder reads from the camera", async () => {
   await vi.waitFor(() => expect(onCode).toHaveBeenCalledWith("QR-1"));
 });
 
+const A_SECOND_WITHOUT_THE_CODE: null[] = Array.from({ length: 10 }, () => null);
+
 test("reports a code once while it stays in front of the camera and again after it left", async () => {
   const { stream } = cameraStream();
   useCamera(async () => stream);
@@ -79,12 +81,25 @@ test("reports a code once while it stays in front of the camera and again after 
     <QrCameraScanner
       onCode={onCode}
       onUnavailable={vi.fn()}
-      decoder={decoderReading("QR-1", "QR-1", "QR-1", null, "QR-1", "QR-2")}
+      decoder={decoderReading("QR-1", "QR-1", ...A_SECOND_WITHOUT_THE_CODE, "QR-1", "QR-2")}
     />,
   );
 
-  await vi.waitFor(() => expect(onCode).toHaveBeenCalledTimes(3));
+  await vi.waitFor(() => expect(onCode).toHaveBeenCalledTimes(3), { timeout: 5000 });
   expect(onCode.mock.calls).toEqual([["QR-1"], ["QR-1"], ["QR-2"]]);
+});
+
+test("reports a code once when a few frames in front of the camera could not be read", async () => {
+  const { stream } = cameraStream();
+  useCamera(async () => stream);
+  const onCode = vi.fn();
+  const frames = ["QR-1", null, "QR-1", null, null, "QR-1"];
+  const decoder = decoderReading(...frames);
+
+  await render(<QrCameraScanner onCode={onCode} onUnavailable={vi.fn()} decoder={decoder} />);
+
+  await vi.waitFor(() => expect(decoder).toHaveBeenCalledTimes(frames.length + 1));
+  expect(onCode.mock.calls).toEqual([["QR-1"]]);
 });
 
 test("says the camera was denied when the person refuses it", async () => {

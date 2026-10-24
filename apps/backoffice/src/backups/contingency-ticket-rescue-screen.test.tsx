@@ -110,23 +110,26 @@ test("shows a dash for the total of a ticket that is not a sale", async () => {
 });
 
 test.each([
-  ["unreadable", "QR ilegible o de otro sistema"],
-  ["incomplete", "Faltan QR de este ticket"],
-  ["unknown_key", "Clave de cifrado desconocida"],
-  ["not_authentic", "El ticket no es auténtico"],
-  ["foreign_installation", "Ticket de otra instalación"],
-  ["conflicting", "Los QR no son del mismo ticket"],
-] as const)("says nothing was recovered when the cloud answers %s", async (outcome, title) => {
-  const [code = ""] = ticketCodes(1);
-  const { services, scanner } = answering({ outcome });
-  const screen = await renderScreen(services);
+  ["unreadable", "QR ilegible o de otro sistema", "No se pudo verificar"],
+  ["incomplete", "Faltan QR de este ticket", "No se pudo verificar"],
+  ["unknown_key", "Clave de cifrado desconocida", "No se pudo verificar"],
+  ["not_authentic", "El ticket no es auténtico", "No se pudo verificar"],
+  ["foreign_installation", "La instalación del ticket es de otra caja", "No se pudo recuperar"],
+  ["conflicting", "Choca con datos ya recibidos de la caja", "No se pudo recuperar"],
+] as const)(
+  "says nothing was recovered when the cloud answers %s",
+  async (outcome, title, status) => {
+    const [code = ""] = ticketCodes(1);
+    const { services, scanner } = answering({ outcome });
+    const screen = await renderScreen(services);
 
-  scanner.show(code);
+    scanner.show(code);
 
-  await expect.element(screen.getByText(title)).toBeVisible();
-  await expect.element(screen.getByText("No se pudo verificar")).toBeVisible();
-  await expect.element(screen.getByText("No se recuperó nada")).toBeVisible();
-});
+    await expect.element(screen.getByText(title)).toBeVisible();
+    await expect.element(screen.getByText(status)).toBeVisible();
+    await expect.element(screen.getByText("No se recuperó nada")).toBeVisible();
+  },
+);
 
 test("says the ticket could not be sent when the request fails", async () => {
   const [code = ""] = ticketCodes(1);

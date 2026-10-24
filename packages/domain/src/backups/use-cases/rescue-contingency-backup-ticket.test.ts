@@ -6,13 +6,13 @@ import type {
   RescuedTicketDeliveryAnswer,
 } from "./rescue-contingency-backup-ticket-ports.js";
 import {
-  FakeContingencyBackupTicketOpener,
+  FakeContingencyBackupTicketRescues,
   FakeRescuedEventDecoder,
-  FakeRescuedTicketEvents,
   rescuedEvent,
 } from "./test-support/fake-rescue-contingency-backup-ticket.js";
 
 const QR_CODES = ["QR-1", "QR-2"];
+const NOW = new Date("2026-10-14T12:00:00.000Z");
 
 const OPENED: ContingencyBackupTicketOpening = {
   kind: "opened",
@@ -30,17 +30,20 @@ const OPENED: ContingencyBackupTicketOpening = {
 function setup(
   opening: ContingencyBackupTicketOpening,
   delivery?: RescuedTicketDeliveryAnswer,
-  facts: [string, RescuedTicketFact][] = [],
+  options: { facts?: [string, RescuedTicketFact][]; failRecording?: boolean } = {},
 ) {
-  const opener = new FakeContingencyBackupTicketOpener(opening);
-  const events = new FakeRescuedTicketEvents(delivery);
-  const decoder = new FakeRescuedEventDecoder(new Map(facts));
-  return { opener, events, decoder, ports: { opener, events, decoder } };
+  const rescues = new FakeContingencyBackupTicketRescues({
+    opening,
+    ...(delivery === undefined ? {} : { delivery }),
+    ...(options.failRecording === undefined ? {} : { failRecording: options.failRecording }),
+  });
+  const decoder = new FakeRescuedEventDecoder(new Map(options.facts ?? []));
+  return { rescues, ports: { rescues, decoder, clock: { now: () => NOW } } };
 }
 
 describe("rescuing a contingency backup ticket", () => {
-  it("opens the scanned codes and delivers the events they carry to their installation, with who rescued them", async () => {
-    const { ports, opener, events } = setup(OPENED, {
+  it("opens the scanned codes and delivers the events they carry to their installation", async () => {
+    const { ports, rescues } = setup(OPENED, {
       kind: "delivered",
       received: 2,
       alreadyReceived: 0,
@@ -48,28 +51,72 @@ describe("rescuing a contingency backup ticket", () => {
 
     await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
 
-    expect(opener.opened).toEqual([QR_CODES]);
-    expect(events.delivered).toEqual([
-      {
-        registerId: "register-1",
-        deviceId: "device-1",
-        events: OPENED.content.events,
-        rescuedBy: "user-1",
-      },
+    expect(rescues.opened).toEqual([QR_CODES]);
+    expect(rescues.delivered).toEqual([
+      { registerId: "register-1", deviceId: "device-1", events: OPENED.content.events },
     ]);
   });
 
-  it("answers what was received and a summary of the ticket", async () => {
-    const { ports } = setup(OPENED, { kind: "delivered", received: 1, alreadyReceived: 1 }, [
-      ["event-4", { kind: "sale_completed", sale: { total: 2500 } }],
-      [
-        "event-5",
-        {
-          kind: "offline_fiscal_document_issued",
-          document: { pointOfSale: 3, documentType: "factura_c", number: 88 },
-        },
-      ],
+  it("records who rescued the ticket and what it brought in", async () => {
+    const { ports, rescues } = setup(OPENED, {
+      kind: "delivered",
+      received: 1,
+      alreadyReceived: 1,
+    });
+
+    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+
+    expect(rescues.recorded).toEqual([
+      { registerId: "register-1", actorId: "user-1", received: 1, alreadyReceived: 1, at: NOW },
     ]);
+  });
+
+  it("records a rescue that brought nothing new", async () => {
+    const { ports, rescues } = setup(OPENED, {
+      kind: "delivered",
+      received: 0,
+      alreadyReceived: 2,
+    });
+
+    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+
+    expect(rescues.recorded).toEqual([
+      { registerId: "register-1", actorId: "user-1", received: 0, alreadyReceived: 2, at: NOW },
+    ]);
+  });
+
+  it("delivers nothing when the rescue cannot be recorded", async () => {
+    const { ports, rescues } = setup(
+      OPENED,
+      { kind: "delivered", received: 2, alreadyReceived: 0 },
+      { failRecording: true },
+    );
+
+    await expect(
+      rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" }),
+    ).rejects.toThrow("storage unavailable");
+
+    expect(rescues.delivered).toEqual([]);
+    expect(rescues.recorded).toEqual([]);
+  });
+
+  it("answers what was received and a summary of the ticket", async () => {
+    const { ports } = setup(
+      OPENED,
+      { kind: "delivered", received: 1, alreadyReceived: 1 },
+      {
+        facts: [
+          ["event-4", { kind: "sale_completed", sale: { total: 2500 } }],
+          [
+            "event-5",
+            {
+              kind: "offline_fiscal_document_issued",
+              document: { pointOfSale: 3, documentType: "factura_c", number: 88 },
+            },
+          ],
+        ],
+      },
+    );
 
     const outcome = await rescueContingencyBackupTicket(ports, {
       qrCodes: QR_CODES,
@@ -106,9 +153,9 @@ describe("rescuing a contingency backup ticket", () => {
   });
 
   it.each(["unreadable", "incomplete", "unknown_key", "not_authentic"] as const)(
-    "answers %s and delivers nothing when the codes cannot be opened that way",
+    "answers %s and delivers and records nothing when the codes cannot be opened that way",
     async (kind) => {
-      const { ports, events } = setup({ kind });
+      const { ports, rescues } = setup({ kind });
 
       const outcome = await rescueContingencyBackupTicket(ports, {
         qrCodes: QR_CODES,
@@ -116,14 +163,15 @@ describe("rescuing a contingency backup ticket", () => {
       });
 
       expect(outcome).toEqual({ kind });
-      expect(events.delivered).toEqual([]);
+      expect(rescues.delivered).toEqual([]);
+      expect(rescues.recorded).toEqual([]);
     },
   );
 
   it.each(["foreign_installation", "conflicting"] as const)(
-    "answers %s when the inbox refuses the events that way",
+    "answers %s and records nothing when the inbox refuses the events that way",
     async (kind) => {
-      const { ports } = setup(OPENED, { kind });
+      const { ports, rescues } = setup(OPENED, { kind });
 
       const outcome = await rescueContingencyBackupTicket(ports, {
         qrCodes: QR_CODES,
@@ -131,6 +179,7 @@ describe("rescuing a contingency backup ticket", () => {
       });
 
       expect(outcome).toEqual({ kind });
+      expect(rescues.recorded).toEqual([]);
     },
   );
 });
