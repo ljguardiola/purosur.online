@@ -205,3 +205,38 @@ export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
     pricePerSaleUnit: null,
   },
 ];
+
+export const LINKED_ROW: ReviewRow = {
+  id: "5b200000-0000-4000-8000-000000000004",
+  description: "Castañas de cajú W320 x 11,34 kg",
+  code: "CJ-11",
+  presentation: "Caja 11,34 kg",
+  priceCents: 19_845_000,
+  page: 4,
+  barcode: null,
+  link: {
+    product: {
+      id: "90d00000-0000-4000-8000-000000000051",
+      name: "Castañas de cajú",
+      saleUnit: "KG",
+    },
+    packaging: {
+      id: "9ac00000-0000-4000-8000-000000000051",
+      name: "Caja de 11,34 kg",
+      quantityPerPackage: 11_340,
+    },
+    vatRate: null,
+  },
+  status: "linked",
+  needsReview: false,
+  previousPriceCents: null,
+  pricePerSaleUnit: { numerator: "19845000000", denominator: "11340" },
+};
+
+export const REVIEWED_ROW: ReviewRow = {
+  ...LINKED_ROW,
+  id: "5b200000-0000-4000-8000-000000000005",
+  description: "Mix tropical x 5 kg",
+  code: "MT-5",
+  status: "reviewed",
+};

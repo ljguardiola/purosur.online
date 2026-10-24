@@ -25,8 +25,12 @@ describe("supplierPriceListsFilters", () => {
 });
 
 describe("supplierPriceListReviewFilters", () => {
-  test("defaults to no search and every item", () => {
-    expect(supplierPriceListReviewFilters.parse({})).toEqual({ search: "", show: "all" });
+  test("defaults to no search and the items to review", () => {
+    expect(supplierPriceListReviewFilters.parse({})).toEqual({ search: "", show: "review" });
+  });
+
+  test("keeps the filter that shows every item", () => {
+    expect(supplierPriceListReviewFilters.parse({ show: "all" }).show).toBe("all");
   });
 
   test("keeps the unpriced items filter", () => {
@@ -36,7 +40,7 @@ describe("supplierPriceListReviewFilters", () => {
   test("falls back to the default for a value the review does not offer", () => {
     expect(supplierPriceListReviewFilters.parse({ search: false, show: "x" })).toEqual({
       search: "",
-      show: "all",
+      show: "review",
     });
   });
 });

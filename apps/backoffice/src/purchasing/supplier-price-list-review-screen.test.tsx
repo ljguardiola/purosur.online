@@ -3,6 +3,8 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { SupplierPriceListReviewScreen } from "./supplier-price-list-review-screen";
 import type { SupplierPriceListReviewScreenServices } from "./supplier-price-list-review-services";
@@ -10,16 +12,19 @@ import {
   type SupplierPriceListReviewFilters,
   supplierPriceListReviewFilters,
 } from "./supplier-price-lists-filters";
+import { LINK_CHOICES, PROPOSED_BY_BARCODE } from "./test-support/supplier-item-links";
 import {
   DISCARDED_LIST,
   EVERY_REVIEW_ACTION,
   EXTRACTED_ROWS,
   FAILED_LIST,
   itemRow,
+  LINKED_ROW,
   ONLY_DISCARD,
   READ_LIST,
   READING_LIST,
   REVIEWED_LIST,
+  REVIEWED_ROW,
   reviewOf,
   WEB_LIST,
   WEB_PAGE_URL,
@@ -38,6 +43,11 @@ function createServices(
     fetchSupplierPriceListReview: vi.fn(),
     setSupplierPriceListRowPrice: vi.fn(),
     removeSupplierPriceListRow: vi.fn(),
+    markSupplierPriceListRowReviewed: vi.fn(),
+    linkSupplierPriceListRow: vi.fn(),
+    fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
+    fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
+    createPackaging: vi.fn(),
     confirmSupplierPriceList: vi.fn(),
     discardSupplierPriceList: vi.fn(),
     ...overrides,
@@ -59,7 +69,9 @@ function screenElement(
     onFiltersChange = () => {},
     onBack = () => {},
     onSessionEnded = () => {},
+    access = ADMINISTRATOR_ACCESS,
   }: {
+    access?: BackofficeAccess;
     filters?: SupplierPriceListReviewFilters;
     onFiltersChange?: (filters: SupplierPriceListReviewFilters) => void;
     onBack?: () => void;
@@ -71,6 +83,7 @@ function screenElement(
       <main>
         <SupplierPriceListReviewScreen
           listId={LIST_ID}
+          access={access}
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
@@ -106,7 +119,10 @@ function itemRows(screen: Screen) {
   return screen.getByRole("row").all().slice(1);
 }
 
-const extracted = reviewOf(READ_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION);
+const extracted = reviewOf(READ_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION, true, {
+  needingReview: 3,
+  linkedAutomatically: 12,
+});
 
 test("shows the supplier's name in the title, under Pedidos · Listas de proveedores", async () => {
   const screen = await loaded(createServices(), extracted);
@@ -129,10 +145,38 @@ test("shows each item with its code, presentation and source page, and its price
   expect(raisins.element().textContent).not.toContain("página");
 });
 
-test("counts the items shown and the ones without a price", async () => {
+test("counts the items shown, the ones to review, the ones linked from earlier lists and the ones without a price", async () => {
   const screen = await loaded(createServices(), extracted);
 
+  await expect
+    .element(
+      screen.getByText(
+        "1 a 3 de 3 ítems · 3 para revisar · 12 vinculados de listas anteriores · 2 sin precio",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("leaves out of the count what there is none of", async () => {
+  const screen = await loaded(createServices(), reviewOf(READ_LIST, EXTRACTED_ROWS));
+
   await expect.element(screen.getByText("1 a 3 de 3 ítems · 2 sin precio")).toBeVisible();
+});
+
+test("speaks of a single item to review and a single item linked from an earlier list in the singular", async () => {
+  const screen = await loaded(
+    createServices(),
+    reviewOf({ ...READ_LIST, unpricedRowCount: 0 }, EXTRACTED_ROWS, EVERY_REVIEW_ACTION, true, {
+      needingReview: 1,
+      linkedAutomatically: 1,
+    }),
+  );
+
+  await expect
+    .element(
+      screen.getByText("1 a 3 de 3 ítems · 1 para revisar · 1 vinculado de listas anteriores"),
+    )
+    .toBeVisible();
 });
 
 test("shows the items in pages of 25", async () => {
@@ -205,7 +249,7 @@ test("the search field filters the items by description or code, and reports the
   await expect.element(screen.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
-    .toEqual({ search: "nm-10", show: "all" });
+    .toEqual({ search: "nm-10", show: "review" });
 });
 
 test("the filter can show only the items without a price", async () => {
@@ -495,4 +539,266 @@ test("has no accessibility violations once loaded, and with the confirm modal op
   await expectNoAccessibilityViolations(screen.container);
   await userEvent.click(screen.getByRole("button", { name: "Confirmar la lista" }));
   await expectNoAccessibilityViolations(document.body);
+});
+
+const withEveryKindOfRow = reviewOf(
+  READ_LIST,
+  [...EXTRACTED_ROWS, LINKED_ROW, REVIEWED_ROW],
+  EVERY_REVIEW_ACTION,
+);
+
+test("shows the items to review by default and every item on asking for them", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await loaded(createServices(), withEveryKindOfRow, { onFiltersChange });
+
+  await expect.poll(() => itemRows(screen)).toHaveLength(3);
+  expect(screen.getByText(LINKED_ROW.description).query()).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: /Mostrar:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+
+  await expect.poll(() => itemRows(screen)).toHaveLength(5);
+  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({ search: "", show: "all" });
+});
+
+test("offers the filters to review, every item and the items without a price", async () => {
+  const screen = await loaded(createServices(), extracted);
+
+  await userEvent.click(screen.getByRole("button", { name: /Mostrar:/ }));
+
+  expect(
+    screen
+      .getByRole("option")
+      .elements()
+      .map((option) => option.textContent),
+  ).toEqual(["Para revisar", "Todos", "Sin precio"]);
+});
+
+test("shows the product and presentation an item is linked to, or that it is not linked", async () => {
+  const screen = await loaded(createServices(), withEveryKindOfRow, {
+    filters: supplierPriceListReviewFilters.parse({ show: "all" }),
+  });
+
+  const almond = screen.getByRole("row", { name: /Almendra pelada/ });
+  await expect.element(almond.getByText("Almendras peladas")).toBeVisible();
+  await expect.element(almond.getByText("Bolsa de 25 kg")).toBeVisible();
+  await expect
+    .element(
+      screen
+        .getByRole("row", { name: /Pasas de uva/ })
+        .getByText("Sin vincular")
+        .first(),
+    )
+    .toBeVisible();
+});
+
+test("shows each item's status, and the earlier price of one whose price changed", async () => {
+  const screen = await loaded(createServices(), withEveryKindOfRow, {
+    filters: supplierPriceListReviewFilters.parse({ show: "all" }),
+  });
+
+  const almond = screen.getByRole("row", { name: /Almendra pelada/ });
+  await expect.element(almond.getByText("Cambió el precio")).toBeVisible();
+  await expect.element(almond.getByText("Antes $ 248.000,00")).toBeVisible();
+  await expect
+    .element(screen.getByRole("row", { name: /Nuez mariposa/ }).getByText("Nuevo"))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("row", { name: /Castañas de cajú/ }).getByText("Vinculado"))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("row", { name: /Mix tropical/ }).getByText("Revisado"))
+    .toBeVisible();
+});
+
+test("shows the price per sale unit under the price of a linked item, and none under another", async () => {
+  const screen = await loaded(createServices(), withEveryKindOfRow);
+
+  const almond = screen.getByRole("row", { name: /Almendra pelada/ });
+  await expect.element(almond.getByText("$ 254.500,00")).toBeVisible();
+  await expect.element(almond.getByText("$ 10.180,00 / kg")).toBeVisible();
+  expect(screen.getByRole("row", { name: /Nuez mariposa/ }).element().textContent).not.toContain(
+    "/ kg",
+  );
+});
+
+test("rounds a price per sale unit only for the screen", async () => {
+  const rows = [
+    {
+      ...LINKED_ROW,
+      needsReview: true,
+      pricePerSaleUnit: { numerator: "25000", denominator: "3" },
+    },
+  ];
+  const screen = await loaded(createServices(), reviewOf(READ_LIST, rows, EVERY_REVIEW_ACTION));
+
+  await expect.element(screen.getByText("$ 83,33 / kg")).toBeVisible();
+});
+
+test("offers to link each item, and to change the link of one already linked", async () => {
+  const screen = await loaded(createServices(), withEveryKindOfRow, {
+    filters: supplierPriceListReviewFilters.parse({ show: "all" }),
+  });
+
+  await expect
+    .element(screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByRole("button", {
+        name: "Cambiar el vínculo de Castañas de cajú W320 x 11,34 kg",
+      }),
+    )
+    .toBeVisible();
+});
+
+test("opens the link modal for the item, with the proposal and the choices read for it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
+    kind: "ok",
+    value: LINK_CHOICES,
+  });
+  vi.mocked(services.fetchSupplierItemLinkProposal).mockResolvedValue({
+    kind: "ok",
+    value: PROPOSED_BY_BARCODE,
+  });
+  const screen = await loaded(services, extracted);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
+  );
+
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("Pedidos · Vincular un ítem")).toBeVisible();
+  await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
+  expect(services.fetchSupplierItemLinkProposal).toHaveBeenCalledWith(
+    LIST_ID,
+    EXTRACTED_ROWS[2]?.id,
+  );
+});
+
+test("does not read the proposal or the choices until a link modal opens", async () => {
+  const services = createServices();
+  await loaded(services, extracted);
+
+  expect(services.fetchSupplierItemLinkProposal).not.toHaveBeenCalled();
+  expect(services.fetchSupplierItemLinkChoices).not.toHaveBeenCalled();
+});
+
+test("offers no link action when the cloud does not allow linking", async () => {
+  const screen = await loaded(
+    createServices(),
+    reviewOf(READ_LIST, EXTRACTED_ROWS, { ...EVERY_REVIEW_ACTION, linkRows: false }),
+  );
+
+  expect(screen.getByRole("button", { name: /^Vincular / }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: /^Marcar como revisado/ }).query()).toBeNull();
+});
+
+test("offers to mark as reviewed only an item that needs review", async () => {
+  const screen = await loaded(createServices(), withEveryKindOfRow, {
+    filters: supplierPriceListReviewFilters.parse({ show: "all" }),
+  });
+
+  await expect
+    .element(
+      screen.getByRole("button", {
+        name: "Marcar como revisado Almendra pelada Nonpareil x 25 kg",
+      }),
+    )
+    .toBeVisible();
+  expect(
+    screen
+      .getByRole("button", { name: "Marcar como revisado Castañas de cajú W320 x 11,34 kg" })
+      .query(),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Marcar como revisado Mix tropical x 5 kg" }).query(),
+  ).toBeNull();
+});
+
+test("marking an item as reviewed sends the list's version, reads the list again and says so", async () => {
+  const services = createServices();
+  vi.mocked(services.markSupplierPriceListRowReviewed).mockResolvedValue({ kind: "ok" });
+  const screen = await loaded(services, extracted);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Marcar como revisado Almendra pelada Nonpareil x 25 kg" }),
+  );
+
+  expect(services.markSupplierPriceListRowReviewed).toHaveBeenCalledWith(
+    LIST_ID,
+    EXTRACTED_ROWS[0]?.id,
+    { version: 3 },
+  );
+  await expect.element(screen.getByText("Ítem revisado")).toBeVisible();
+  await expect
+    .poll(() => vi.mocked(services.fetchSupplierPriceListReview).mock.calls.length)
+    .toBeGreaterThan(1);
+});
+
+test("an item marked as reviewed on a list that changed reads the list again and says so", async () => {
+  const services = createServices();
+  vi.mocked(services.markSupplierPriceListRowReviewed).mockResolvedValue({
+    kind: "stale_version",
+  });
+  const screen = await loaded(services, extracted);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Marcar como revisado Almendra pelada Nonpareil x 25 kg" }),
+  );
+
+  await expect.element(screen.getByText("La lista cambió")).toBeVisible();
+  await expect
+    .poll(() => vi.mocked(services.fetchSupplierPriceListReview).mock.calls.length)
+    .toBeGreaterThan(1);
+});
+
+test("an item that could not be marked as reviewed says so", async () => {
+  const services = createServices();
+  vi.mocked(services.markSupplierPriceListRowReviewed).mockResolvedValue({ kind: "failed" });
+  const screen = await loaded(services, extracted);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Marcar como revisado Almendra pelada Nonpareil x 25 kg" }),
+  );
+
+  await expect.element(screen.getByText("No se marcó el ítem")).toBeVisible();
+});
+
+test("ends the session when marking an item as reviewed comes back unauthenticated", async () => {
+  const services = createServices();
+  vi.mocked(services.markSupplierPriceListRowReviewed).mockResolvedValue({
+    kind: "unauthenticated",
+  });
+  const onSessionEnded = vi.fn();
+  const screen = await loaded(services, extracted, { onSessionEnded });
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Marcar como revisado Almendra pelada Nonpareil x 25 kg" }),
+  );
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test.each([
+  ["a session that may create packagings", ADMINISTRATOR_ACCESS, true],
+  ["a session that may only link", accessWith("supplier_price_lists"), false],
+])("hands the link modal whether %s may create one", async (_name, access, offered) => {
+  const services = createServices();
+  vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
+    kind: "ok",
+    value: LINK_CHOICES,
+  });
+  const screen = await loaded(services, extracted, { access });
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("combobox", { name: /Producto del catálogo/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Pasas de uva" }));
+
+  await expect.element(dialog.getByRole("radio", { name: "Caja de 10 kg" })).toBeVisible();
+  expect(dialog.getByRole("button", { name: "Nueva presentación" }).query() !== null).toBe(offered);
 });
