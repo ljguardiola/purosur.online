@@ -15,7 +15,11 @@ export function createFakeQrScanner() {
     useEffect(() => {
       live = props;
     });
-    return <div role="img" aria-label="Cámara" />;
+    return (
+      <div role="img" aria-label="Cámara">
+        vista de la cámara
+      </div>
+    );
   }
 
   return {

@@ -10,11 +10,13 @@ function renderPanel(
   props: { progress?: { read: number; of: number } | null; onCode?: (text: string) => void } = {},
 ) {
   return render(
-    <TicketScanPanel
-      scanner={fake.Scanner}
-      progress={props.progress ?? null}
-      onCode={props.onCode ?? vi.fn()}
-    />,
+    <main>
+      <TicketScanPanel
+        scanner={fake.Scanner}
+        progress={props.progress ?? null}
+        onCode={props.onCode ?? vi.fn()}
+      />
+    </main>,
   );
 }
 
