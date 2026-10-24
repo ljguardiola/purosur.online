@@ -1,0 +1,4 @@
+ALTER TABLE "fiscal_tasks" ADD COLUMN "closed_by" uuid;--> statement-breakpoint
+ALTER TABLE "fiscal_tasks" ADD COLUMN "closing_note" text;--> statement-breakpoint
+ALTER TABLE "fiscal_tasks" ADD CONSTRAINT "fiscal_tasks_closed_by_users_id_fk" FOREIGN KEY ("closed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fiscal_tasks" ADD CONSTRAINT "fiscal_tasks_closing_record_check" CHECK (("fiscal_tasks"."closed_by" is null) = ("fiscal_tasks"."closing_note" is null) and ("fiscal_tasks"."closed_by" is null or "fiscal_tasks"."state" = 'closed'));
