@@ -151,6 +151,7 @@ import { registerFreightsRoutes } from "./purchasing/freights-routes.js";
 import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
 import { registerPurchasesRoutes } from "./purchasing/purchases-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
+import { registerSupplierPriceComparisonRoutes } from "./purchasing/supplier-price-comparison-routes.js";
 import { registerSupplierPriceListsRoutes } from "./purchasing/supplier-price-lists-routes.js";
 import { registerSuppliersRoutes } from "./purchasing/suppliers-routes.js";
 import {
@@ -618,6 +619,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerPurchasesRoutes(api, { ...options.purchasing, now });
         registerFreightsRoutes(api, { ...options.purchasing, now });
         registerSupplierPriceListsRoutes(api, { ...options.purchasing, now });
+        registerSupplierPriceComparisonRoutes(api, { ...options.purchasing, now });
       }
 
       if (options.tags) {
