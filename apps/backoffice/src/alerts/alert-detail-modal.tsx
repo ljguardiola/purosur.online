@@ -10,6 +10,7 @@ import {
   EmptyState,
   formatCalendarDay,
   formatCalendarDayRange,
+  formatCents,
   formatDate,
   formatDayAndTime,
   formatInvoiceNumber,
@@ -48,6 +49,8 @@ import {
   WifiOff,
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
+import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
+import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { fetchPermissionCatalog as fetchPermissionCatalogDefault } from "../platform/permission-catalog-api";
 import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";
@@ -63,7 +66,6 @@ import {
 } from "../shell/backoffice-access";
 import { alertKindDescription } from "./alert-kind-description";
 import { alertKindLabel } from "./alert-kind-label";
-import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { alertScopeLabel } from "./alert-scope-label";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
 import {
@@ -102,12 +104,6 @@ const ALERT_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
 export function alertDateTime(date: Date): string {
   return `${formatDate(date, ALERT_DATE_OPTIONS)} ${formatDate(date, ALERT_TIME_OPTIONS)}`;
 }
-
-export const ALERT_LEVEL_LABELS: Record<AlertLevel, string> = {
-  critical: "Crítica",
-  warning: "Advertencia",
-  informational: "Informativa",
-};
 
 export type AlertDetailModalServices = {
   fetchAlert: typeof fetchAlertDefault;
@@ -167,6 +163,7 @@ function alertIcon(kind: string): Icon {
       return <CloudDownload />;
     case "lots_expiring":
     case "fortnight_report_pending":
+    case "deferred_sale_due":
       return <CalendarClock />;
     case "offsite_dump_unverified":
     case "register_backup_overdue":
@@ -485,6 +482,8 @@ function alertTitle(alert: AlertDetail): string {
       return alertKindDescription(alert.kind);
     case "late_payment_refund":
       return "Reembolso pendiente por un pago tardío";
+    case "register_replenishment_failed":
+      return alertKindLabel(alert.kind);
     case "refund_task":
       return "Reembolso pendiente de confirmar";
     case "lots_expiring":
@@ -498,6 +497,7 @@ function alertTitle(alert: AlertDetail): string {
     case "fortnight_report_document_rejected":
     case "clock_corrected":
     case "register_backup_overdue":
+    case "deferred_sale_due":
       return alertKindLabel(alert.kind);
   }
 }
@@ -570,6 +570,10 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return externalBillingDescription(alert.detail);
     case "invoice_already_credited":
       return invoiceAlreadyCreditedDescription(alert.detail);
+    case "register_replenishment_failed":
+      return alert.detail.failure === "refused"
+        ? `La nube rechazó ponerla al día. La caja «${targetName}» no puede vender hasta que un Administrador la dé de alta de nuevo.`
+        : `La caja «${targetName}» recibió un evento que su versión no puede leer. No puede vender hasta que se actualice; después lo intenta sola.`;
     case "outbox_chain_broken":
       return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":
@@ -585,6 +589,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "fortnight_report_needs_regularization":
     case "fortnight_report_owed_elsewhere":
     case "fortnight_report_document_rejected":
+    case "deferred_sale_due":
       return "";
     case "clock_corrected":
       return alert.detail.previousReadingSource === "tax_authority_day"
@@ -689,6 +694,31 @@ function RegisterBackupOverdueRows({
   );
 }
 
+function DeferredSaleDueLines({
+  detail,
+  escalated,
+}: {
+  detail: Extract<AlertDetail, { kind: "deferred_sale_due" }>["detail"];
+  escalated: boolean;
+}) {
+  const lines = [
+    ...(detail.registerName === undefined ? [] : [detail.registerName]),
+    `Venta del ${formatDayAndTime(detail.saleOccurredAt, ALERT_TIME_ZONE)} por ${formatCents(detail.total)}`,
+    `Código ${detail.shortCode}`,
+    `Vence el ${formatCalendarDay(detail.expiresOn)}`,
+    ...(escalated
+      ? []
+      : [`Escala a crítica el ${formatDayAndTime(detail.escalatesAt, ALERT_TIME_ZONE)}`]),
+  ];
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
+      {lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </div>
+  );
+}
+
 function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "fiscal_rejected") {
     return (
@@ -759,6 +789,14 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
       <>
         <p className="text-text text-body">{alertDescription(alert)}</p>
         <RegisterBackupOverdueRows detail={alert.detail} />
+      </>
+    );
+  }
+  if (alert.kind === "deferred_sale_due") {
+    return (
+      <>
+        <p className="text-text text-body">{alertKindDescription(alert.kind)}</p>
+        <DeferredSaleDueLines detail={alert.detail} escalated={alert.level === "critical"} />
       </>
     );
   }

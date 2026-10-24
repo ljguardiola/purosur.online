@@ -4,17 +4,23 @@ import {
   saleVoidCreditNoteResponseSchema,
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   alerts,
   creditNotes,
   fiscalTasks,
+  inbox,
   installationRequestAttempts,
   pointOfSaleClaims,
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
+import {
+  PUSHING_CHAIN_KEY,
+  pushingDevice,
+  saleVoided,
+} from "../sync/test-support/pushing-device.js";
 import {
   insertRegisterWithPointOfSale,
   saleCompletedEvent,
@@ -42,7 +48,7 @@ function requestBody(
   };
 }
 
-async function enrollRegister(pointOfSaleNumber = 7) {
+async function enrollRegister(pointOfSaleNumber = 7, outboxChainKey?: string) {
   const registerId = await insertRegisterWithPointOfSale(route.db, {
     pointOfSaleNumber,
     name: `caja-${pointOfSaleNumber}`,
@@ -54,7 +60,11 @@ async function enrollRegister(pointOfSaleNumber = 7) {
     mechanism: "offline",
     claimedBy: actor?.id ?? "",
   });
-  return insertEnrolledInstallation(route.db, { now: NOW, existingRegisterId: registerId });
+  return insertEnrolledInstallation(route.db, {
+    now: NOW,
+    existingRegisterId: registerId,
+    ...(outboxChainKey !== undefined && { outboxChainKey }),
+  });
 }
 
 function requestCreditNote(payload: unknown, authorization?: string) {
@@ -381,6 +391,74 @@ describe("POST /fiscal/credit-notes", () => {
       await requestCreditNote(body, `Bearer ${deviceToken}`);
 
       expect(await route.db.select().from(alerts)).toEqual([]);
+    });
+  });
+
+  describe("the sale event a request carries", () => {
+    async function registerPushingVoids() {
+      const installation = await enrollRegister(7, PUSHING_CHAIN_KEY);
+      await route.issueWsaaToken();
+      route.wsfe.behave(AUTHORIZED_IN_TURN);
+      const creditNoteId = crypto.randomUUID();
+      const [saleEvent] = pushingDevice(route.app, installation.deviceToken).chain([
+        saleVoided({
+          saleId: crypto.randomUUID(),
+          creditNoteId,
+          total: 12_550,
+          corrects: { voucherType: 11, pointOfSale: 31, number: 42 },
+          voidedAt: "2026-10-08T01:29:58.000Z",
+        }),
+      ]);
+      if (saleEvent === undefined) {
+        throw new Error("test setup: no event was chained");
+      }
+      return {
+        installation,
+        body: requestBody({ credit_note_id: creditNoteId, sale_event: saleEvent }),
+        saleEvent,
+      };
+    }
+
+    it("is held in the inbox of the requesting installation once the credit note is authorized", async () => {
+      const { installation, body, saleEvent } = await registerPushingVoids();
+
+      const response = await requestCreditNote(body, `Bearer ${installation.deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(saleVoidCreditNoteResponseSchema.parse(response.json()).state).toBe("AUTHORIZED");
+      const held = await route.db.select().from(inbox);
+      expect(held).toHaveLength(1);
+      expect(held[0]).toMatchObject({
+        deviceId: installation.deviceId,
+        deviceSeq: 1,
+        eventId: saleEvent.event_id,
+        appliedAt: null,
+      });
+      expect(route.report).not.toHaveBeenCalled();
+    });
+
+    it("is held in the inbox before the tax authority is called", async () => {
+      const { installation, body } = await registerPushingVoids();
+      const solicit = route.creditNotes.solicit.bind(route.creditNotes);
+      const heldWhenCalled: number[] = [];
+      vi.spyOn(route.creditNotes, "solicit").mockImplementation(async (solicitation) => {
+        heldWhenCalled.push((await route.db.select().from(inbox)).length);
+        return solicit(solicitation);
+      });
+
+      await requestCreditNote(body, `Bearer ${installation.deviceToken}`);
+
+      expect(heldWhenCalled).toEqual([1]);
+    });
+
+    it("leaves one row when the same request is sent again", async () => {
+      const { installation, body } = await registerPushingVoids();
+
+      await requestCreditNote(body, `Bearer ${installation.deviceToken}`);
+      const again = await requestCreditNote(body, `Bearer ${installation.deviceToken}`);
+
+      expect(again.statusCode).toBe(200);
+      expect(await route.db.select().from(inbox)).toHaveLength(1);
     });
   });
 });

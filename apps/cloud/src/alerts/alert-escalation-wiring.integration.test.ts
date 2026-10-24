@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { alerts } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -66,7 +66,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
     if (!overdue || !dueLater) {
       throw new Error("test setup: inserting the alerts returned no rows");
     }
-    const recovery = await setUpRecovery(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -93,7 +93,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       const [notYetDue] = await db.select().from(alerts).where(eq(alerts.id, dueLater.id));
       expect(notYetDue?.level).toBe("warning");
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 60_000);
 });

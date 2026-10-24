@@ -3,6 +3,7 @@ import {
   canAssignPointTerminal,
   canAssignQrPointOfSale,
   canCloseAlertsManually,
+  canCloseFiscalTasks,
   canEnrollRegisters,
   canManageBatches,
   canManageFreights,
@@ -24,6 +25,7 @@ import {
   canSeeCashArea,
   canSeeCatalogArea,
   canSeeExpiringLots,
+  canSeeFiscalInformation,
   canSeeOrdersArea,
   canSeePricesArea,
   canSeeQuarantinedEvents,
@@ -55,6 +57,7 @@ test.each([
   ["canAssignQrPointOfSale", "cash_area", canAssignQrPointOfSale],
   ["canSeeAlertsArea", "alerts_area", canSeeAlertsArea],
   ["canCloseAlertsManually", "close_alerts_manually", canCloseAlertsManually],
+  ["canCloseFiscalTasks", "close_fiscal_tasks", canCloseFiscalTasks],
   ["canSeeRegistersArea", "registers_area", canSeeRegistersArea],
   ["canEnrollRegisters", "enroll_registers", canEnrollRegisters],
   ["canRevokeInstallations", "revoke_installations", canRevokeInstallations],
@@ -80,6 +83,7 @@ test.each([
   ["canManageUsers", "manage_users", canManageUsers],
   ["canSeeRolesArea", "manage_roles", canSeeRolesArea],
   ["canSeeQuarantinedEvents", "quarantined_events", canSeeQuarantinedEvents],
+  ["canSeeFiscalInformation", "fiscal_information", canSeeFiscalInformation],
 ] as const)("%s holds exactly when the %s capability is granted", (_name, capability, can) => {
   expect(can(ADMINISTRATOR_ACCESS)).toBe(true);
   expect(can(accessWith(capability))).toBe(true);

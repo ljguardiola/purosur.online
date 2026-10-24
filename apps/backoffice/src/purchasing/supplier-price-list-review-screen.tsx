@@ -19,6 +19,7 @@ import { deepEqual } from "@tanstack/react-router";
 import {
   Check,
   Download,
+  ExternalLink,
   FileX,
   LoaderCircle,
   Pencil,
@@ -194,14 +195,26 @@ export function SupplierPriceListReviewScreen({
             action={
               list === null ? undefined : (
                 <div className="flex items-center gap-3">
-                  <ButtonLink
-                    variant="text"
-                    icon={<Download />}
-                    href={`/api/supplier-price-lists/${list.id}/file`}
-                    download
-                  >
-                    Descargar el PDF
-                  </ButtonLink>
+                  {list.source.kind === "WEB_PAGE" ? (
+                    <ButtonLink
+                      variant="text"
+                      icon={<ExternalLink />}
+                      href={list.source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Abrir la página
+                    </ButtonLink>
+                  ) : (
+                    <ButtonLink
+                      variant="text"
+                      icon={<Download />}
+                      href={`/api/supplier-price-lists/${list.id}/file`}
+                      download
+                    >
+                      Descargar el PDF
+                    </ButtonLink>
+                  )}
                   {actions?.discard ? (
                     <Button
                       variant="secondary"

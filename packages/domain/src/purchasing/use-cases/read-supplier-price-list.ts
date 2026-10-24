@@ -2,12 +2,14 @@ import { argentinaCalendarDay, isCalendarDay } from "../../shared/index.js";
 import {
   isPriceListRowPrice,
   isSourcePage,
+  type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
 } from "../model/supplier-price-list.js";
 import type {
   ExtractedPriceListRow,
   PriceListExtraction,
   PriceListExtractor,
+  PriceListSource,
 } from "./price-list-extractor.js";
 import type { SupplierPriceListFiles } from "./supplier-price-list-files.js";
 import type {
@@ -48,13 +50,20 @@ function proposedRow(row: ExtractedPriceListRow): ProposedPriceListRow {
 
 async function extractedOrUnavailable(
   extractor: PriceListExtractor,
-  bytes: Uint8Array,
+  source: PriceListSource,
 ): Promise<PriceListExtraction> {
   try {
-    return await extractor.extract({ kind: "pdf", bytes });
+    return await extractor.extract(source);
   } catch {
     return { kind: "unavailable" };
   }
+}
+
+function priceListSource(
+  contentKind: SupplierPriceListContentKind,
+  bytes: Uint8Array,
+): PriceListSource {
+  return contentKind === "HTML" ? { kind: "web_page", html: bytes } : { kind: "pdf", bytes };
 }
 
 type Stop = { kind: "stop"; outcome: ReadSupplierPriceListOutcome };
@@ -90,7 +99,9 @@ async function readOnce(
   { store, files, extractor }: ReadSupplierPriceListPorts,
   { listId, now }: ReadSupplierPriceListInput,
 ): Promise<ReadSupplierPriceListOutcome> {
-  const claim = await store.transaction<Stop | { kind: "go" }>(async (tx) => {
+  const claim = await store.transaction<
+    Stop | { kind: "go"; contentKind: SupplierPriceListContentKind }
+  >(async (tx) => {
     const locked = await tx.lockList(listId);
     if (locked.kind === "not_found") {
       return { kind: "stop", outcome: { kind: "not_found" } };
@@ -102,31 +113,33 @@ async function readOnce(
       await tx.recordReadFailure(listId, "interrupted");
       return { kind: "stop", outcome: { kind: "interrupted" } };
     }
-    return { kind: "go" };
+    return { kind: "go", contentKind: locked.list.contentKind };
   });
   if (claim.kind === "stop") {
     return claim.outcome;
   }
 
-  const bytes = await files.read(listId);
+  const file = await files.read(listId, claim.contentKind);
 
-  const sent = await store.transaction<Stop | { kind: "sent"; bytes: Uint8Array }>(async (tx) => {
-    if (!(await isUnsentReading(tx, listId))) {
-      return { kind: "stop", outcome: { kind: "already_read" } };
-    }
-    if (bytes === null) {
-      await tx.recordReadFailure(listId, "reading_unavailable");
-      return { kind: "stop", outcome: { kind: "failed", reason: "reading_unavailable" } };
-    }
-    const sentAt = now();
-    await tx.markSent(listId, sentAt, argentinaCalendarDay(sentAt));
-    return { kind: "sent", bytes };
-  });
+  const sent = await store.transaction<Stop | { kind: "sent"; source: PriceListSource }>(
+    async (tx) => {
+      if (!(await isUnsentReading(tx, listId))) {
+        return { kind: "stop", outcome: { kind: "already_read" } };
+      }
+      if (file === null) {
+        await tx.recordReadFailure(listId, "reading_unavailable");
+        return { kind: "stop", outcome: { kind: "failed", reason: "reading_unavailable" } };
+      }
+      const sentAt = now();
+      await tx.markSent(listId, sentAt, argentinaCalendarDay(sentAt));
+      return { kind: "sent", source: priceListSource(claim.contentKind, file) };
+    },
+  );
   if (sent.kind === "stop") {
     return sent.outcome;
   }
 
-  const extraction = await extractedOrUnavailable(extractor, sent.bytes);
+  const extraction = await extractedOrUnavailable(extractor, sent.source);
 
   return store.transaction<ReadSupplierPriceListOutcome>(async (tx) => {
     const locked = await tx.lockList(listId);

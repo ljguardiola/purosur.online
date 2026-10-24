@@ -5,8 +5,7 @@ import { FakeSupplierPriceListReader } from "./test-support/fake-supplier-price-
 const LIST = {
   id: "list-1",
   supplier: { id: "supplier-a", name: "Distribuidora Sur" },
-  sourceKind: "PDF" as const,
-  fileName: "lista.pdf",
+  source: { kind: "PDF" as const, fileName: "lista.pdf" },
   listDate: "2026-03-01",
   rowCount: 2,
   unpricedRowCount: 1,

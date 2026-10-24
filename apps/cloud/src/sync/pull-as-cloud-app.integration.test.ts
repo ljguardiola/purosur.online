@@ -197,7 +197,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     }
     await db
       .insert(taxAuthorityLastAuthorizedNumbers)
-      .values({ pointOfSaleNumber: 8, lastAuthorized: 0, readAt: NOW });
+      .values({ pointOfSaleNumber: 8, documentType: "factura_c", lastAuthorized: 0, readAt: NOW });
     const offlinePointOfSale = await configureRegisterOfflinePointOfSale(
       new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
       { locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId: actor.id },

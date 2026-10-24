@@ -4,9 +4,10 @@ import {
   CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
-  FISCAL_EMISSION_MODE_KINDS,
+  CONTINGENCY_KINDS,
   isAuthorizablePermissionKey,
   REGISTER_OWN_CONDITIONS,
+  REPLENISHMENT_FAILURE_KINDS,
   RESTORATION_STEPS,
   SALES_DENIED_REASONS,
   STORAGE_SALES_DENIED_REASONS,
@@ -385,7 +386,7 @@ const registerStatusSchema = z.object({
     reader: z.enum(SERIAL_DEVICE_STANDING_KINDS),
   }),
   serial_devices_setup_offered: z.boolean(),
-  fiscal_mode: z.enum(FISCAL_EMISSION_MODE_KINDS),
+  contingency: z.object({ kind: z.enum(CONTINGENCY_KINDS), notice: z.boolean() }).nullable(),
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 
@@ -396,7 +397,7 @@ const enrollmentStandingSchema = z.discriminatedUnion("kind", [
 ]);
 export type EnrollmentStandingAnswer = z.infer<typeof enrollmentStandingSchema>;
 
-const restorationStandingSchema = z.discriminatedUnion("kind", [
+const restorationStandingSchema = z.union([
   z.object({ kind: z.literal("completed") }),
   z.object({
     kind: z.literal("in_progress"),
@@ -409,6 +410,12 @@ const restorationStandingSchema = z.discriminatedUnion("kind", [
     origin: z.enum(["copy", "no_copy"]),
   }),
   z.object({ kind: z.literal("failed"), step: z.literal("restore") }),
+  z.object({
+    kind: z.literal("failed"),
+    step: z.literal("replenish"),
+    failure: z.enum(REPLENISHMENT_FAILURE_KINDS),
+    origin: z.enum(["copy", "no_copy"]),
+  }),
 ]);
 export type RestorationStandingAnswer = z.infer<typeof restorationStandingSchema>;
 

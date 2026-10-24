@@ -7,7 +7,7 @@ import type {
   TaxAuthorityRejection,
 } from "../../fiscal/index.js";
 import type { MercadoPagoPaymentMethod } from "../../payments/index.js";
-import type { SalesDeniedReason } from "../../shared/index.js";
+import type { ReplenishmentFailureKind, SalesDeniedReason } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
 import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
 
@@ -167,6 +167,11 @@ interface ClockDriftDetail {
   deviceId: string;
 }
 
+interface RegisterReplenishmentFailedDetail {
+  deviceId: string;
+  failure: ReplenishmentFailureKind;
+}
+
 interface OutboxChainBrokenDetail {
   deviceId: string;
 }
@@ -214,8 +219,18 @@ interface FortnightReportPendingDetail extends FortnightReportOverdueDetail {
 }
 
 interface FortnightReportDocumentRejectedDetail extends FortnightReportNeedsRegularizationDetail {
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   rejectedNumber: number;
+}
+
+interface DeferredSaleDueDetail {
+  registerId: string;
+  saleId: string;
+  saleOccurredAt: string;
+  total: number;
+  shortCode: string;
+  expiresOn: string;
+  escalatesAt: string;
 }
 
 export interface AlertDetails {
@@ -239,6 +254,7 @@ export interface AlertDetails {
   fiscal_unknown: FiscalUnknownDetail;
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
   clock_drift: ClockDriftDetail;
+  register_replenishment_failed: RegisterReplenishmentFailedDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
   offsite_dump_unverified: OffsiteDumpUnverifiedDetail;
@@ -251,6 +267,7 @@ export interface AlertDetails {
   fortnight_report_owed_elsewhere: FortnightReportOwedElsewhereDetail;
   register_backup_overdue: RegisterBackupOverdueDetail;
   fortnight_report_document_rejected: FortnightReportDocumentRejectedDetail;
+  deferred_sale_due: DeferredSaleDueDetail;
 }
 
 export type OpenAlertInput = {

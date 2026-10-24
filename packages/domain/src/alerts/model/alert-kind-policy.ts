@@ -18,7 +18,8 @@ export type AlertScopeKind =
   | "fiscalDocument"
   | "syncDevice"
   | "branch"
-  | "pointOfSaleFortnight";
+  | "pointOfSaleFortnight"
+  | "deferredSale";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -205,6 +206,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: true,
   },
+  register_replenishment_failed: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "register",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
   outbox_chain_broken: {
     level: "warning",
     escalation: AFTER_OPENING,
@@ -298,6 +307,14 @@ const ALERT_KIND_POLICIES = {
     escalation: null,
     audience: "all",
     scopeKind: "pointOfSaleFortnight",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
+  deferred_sale_due: {
+    level: "warning",
+    escalation: null,
+    audience: "all",
+    scopeKind: "deferredSale",
     deduplicates: true,
     resolvesAfterStableClear: true,
   },

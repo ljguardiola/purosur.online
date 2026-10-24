@@ -230,7 +230,7 @@ function contextWith(
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
       serial_devices_setup_offered: false,
-      fiscal_mode: "real_time",
+      contingency: null,
     }),
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
@@ -272,6 +272,9 @@ function contextWith(
     cancelPaidSale: async () => ({ kind: "unavailable" }),
     voidSale: async () => ({ kind: "unavailable" }),
     receiptPrintStatus: async () => ({ kind: "unavailable" }),
+    contingencyBackupTickets: async () => ({ kind: "unavailable" }),
+    contingencyBackupTicketOfSale: async () => ({ kind: "unavailable" }),
+    discardContingencyBackupTickets: async () => ({ kind: "unavailable" }),
     printOriginalReceipt: async () => ({ kind: "unavailable" }),
     printCreditNote: async () => ({ kind: "unavailable" }),
     reprintCreditNote: async () => ({ kind: "unavailable" }),
@@ -1242,6 +1245,21 @@ describe("the register's router", () => {
       .toBeVisible();
   });
 
+  it("tells the restoring screen when the replenishment can never complete", async () => {
+    const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "failed",
+      step: "replenish",
+      failure: "unreadable_event",
+      origin: "copy",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "La caja no pudo ponerse al día" }))
+      .toBeVisible();
+  });
+
   it("renders the restore-required screen while the register has to be enrolled again", async () => {
     const router = routerAt("/restore-required", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "in_progress",
@@ -2031,7 +2049,7 @@ describe("the register's router", () => {
         cloud: "reachable",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
         serial_devices_setup_offered: true,
-        fiscal_mode: "real_time",
+        contingency: null,
       };
       const takeSerialDevicesOffer = vi.fn(
         async (readStatus: () => Promise<RegisterStatus>) => (await readStatus()) === status,
@@ -2059,7 +2077,7 @@ describe("the register's router", () => {
         cloud: "reachable",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
         serial_devices_setup_offered: true,
-        fiscal_mode: "real_time",
+        contingency: null,
       };
       const context = contextWith("up", "enrolled", DEVICES_CONFIGURER);
       const offer = serialDevicesOffer();
@@ -2068,7 +2086,7 @@ describe("the register's router", () => {
         ...offered,
         serial_devices: { scale: "matching", reader: "matching" },
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       });
       const router = createRegisterRouter(
         routeTree,
@@ -3068,7 +3086,7 @@ describe("the register's status bar", () => {
         cloud: "unreachable" as const,
         serial_devices: { scale: "matching" as const, reader: "matching" as const },
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time" as const,
+        contingency: null,
       }),
     };
     const router = createRegisterRouter(routeTree, context, "/");

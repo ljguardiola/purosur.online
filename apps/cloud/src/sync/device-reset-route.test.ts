@@ -13,6 +13,7 @@ import {
 import {
   fiscalRequests,
   inbox,
+  offlineFiscalDocuments,
   roles,
   saleVoidCreditNoteRefusals,
   userRoles,
@@ -343,6 +344,56 @@ describe("POST /devices/current/reset", () => {
           credit_note_id: refused.creditNoteId,
           answered_at: refusedAt.toISOString(),
           state: "ALREADY_CREDITED",
+        },
+      ]);
+      expect(body.unrequested_credit_note_ids).toEqual([]);
+    });
+
+    it("answers as issued offline, never as unrequested, a credit note the register issued under its contingency code", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const issued = await aVoidedSale(predecessor.deviceId);
+      const saleId = issued.saleId;
+      await db.insert(offlineFiscalDocuments).values({
+        id: crypto.randomUUID(),
+        saleId,
+        registerId: current.registerId,
+        pointOfSale: 31,
+        documentType: "credit_note_c",
+        number: 4,
+        issuedOn: "2026-10-07",
+        generatedAt: new Date("2026-10-07T10:29:00.000Z"),
+        generationStamp: "20261007072900",
+        offlineAuthorizationCode: "71234567890123",
+        fortnightStart: "2026-10-01",
+        fortnightEnd: "2026-10-15",
+        buyerDocumentType: 99,
+        buyerDocumentNumber: 0,
+        buyerTaxStatusCode: 5,
+        total: 4800,
+        netAmount: 4800,
+        cause: "no_connectivity",
+        recordedAt: new Date("2026-10-07T11:00:00.000Z"),
+        creditNoteId: issued.creditNoteId ?? "",
+        correctedVoucherType: 11,
+        correctedPointOfSale: 31,
+        correctedNumber: 3,
+      });
+
+      const response = await resetOf(predecessor, current);
+
+      const body = registerResetResponseSchema.parse(response.json());
+      expect(body.credit_notes).toEqual([
+        {
+          credit_note_id: issued.creditNoteId,
+          answered_at: "2026-10-07T10:29:00.000Z",
+          state: "ISSUED_OFFLINE",
+          point_of_sale: 31,
+          number: 4,
+          issued_on: "2026-10-07",
+          issued_at: "2026-10-07T10:29:00.000Z",
+          offline_authorization_code: "71234567890123",
+          fortnight_start: "2026-10-01",
+          fortnight_end: "2026-10-15",
         },
       ]);
       expect(body.unrequested_credit_note_ids).toEqual([]);

@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { fiscalRequests, taxAuthorityLastAuthorizedNumbers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import { buildChangesRouteApp, pulledPage } from "../sync/test-support/changes-route.js";
 import {
   createIntegrationDatabase,
@@ -65,7 +65,7 @@ beforeEach(() => {
   fakeWsfe.requests.length = 0;
 });
 
-function recoveryEnv() {
+function backgroundJobsEnv() {
   return {
     databaseUrl: integrationDb.databaseUrl,
     emailSender: { transport: "log" as const },
@@ -88,9 +88,12 @@ async function registerHoldingPointOfSale(pointOfSale: number, count: number) {
     pointOfSaleNumber: pointOfSale,
     name: `caja-${pointOfSale}`,
   });
-  await db
-    .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber: pointOfSale, lastAuthorized: count, readAt: ANSWERED_AT });
+  await db.insert(taxAuthorityLastAuthorizedNumbers).values({
+    pointOfSaleNumber: pointOfSale,
+    documentType: "factura_c",
+    lastAuthorized: count,
+    readAt: ANSWERED_AT,
+  });
   const { deviceToken } = await insertEnrolledInstallation(db, {
     now: NOW,
     existingRegisterId: registerId,
@@ -128,18 +131,18 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
         "fe-comp-ultimo-autorizado-token-error.xml",
       ),
     );
-    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
-    const app = buildChangesRouteApp(recovery.db, { now: () => NOW });
+    const app = buildChangesRouteApp(backgroundJobs.db, { now: () => NOW });
     const pointOfSaleRow = async () => {
       const page = await pulledPage(app, 0, deviceToken, { entity: "register_point_of_sale" });
       const last = page.changes.at(-1);
       return last !== undefined && "row" in last ? last.row : undefined;
     };
     try {
-      await recovery.db.transaction((transaction) =>
+      await backgroundJobs.db.transaction((transaction) =>
         enqueueNumberingDiagnosisJob(transaction, fiscalDocumentId),
       );
 
@@ -163,7 +166,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
       fakeWsfe.behave(
         answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", "fe-comp-consultar-found.xml"),
       );
-      await recovery.db.transaction((transaction) =>
+      await backgroundJobs.db.transaction((transaction) =>
         enqueueNumberingReconciliationJob(transaction, 7),
       );
       await vi.waitFor(
@@ -186,7 +189,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
       ]);
     } finally {
       await app.close();
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 
@@ -210,12 +213,12 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
           "fe-comp-ultimo-autorizado-token-error.xml",
         ),
       );
-      const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+      const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
         emailSender: UNUSED_EMAIL_SENDER,
         schedules: false,
       });
       try {
-        await recovery.db.transaction((transaction) =>
+        await backgroundJobs.db.transaction((transaction) =>
           enqueueNumberingDiagnosisJob(transaction, fiscalDocumentId),
         );
         await vi.waitFor(
@@ -235,7 +238,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
 
         fakeWsfe.requests.length = 0;
         fakeWsfe.behave(answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", file));
-        await recovery.db.transaction((transaction) =>
+        await backgroundJobs.db.transaction((transaction) =>
           enqueueNumberingReconciliationJob(transaction, pointOfSale),
         );
         await vi.waitFor(
@@ -258,7 +261,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
           [],
         );
       } finally {
-        await recovery.close();
+        await backgroundJobs.close();
       }
     },
     90_000,
@@ -268,13 +271,13 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
     const { registerId, deviceToken } = await registerHoldingPointOfSale(8, 1);
     const fiscalDocumentId = await leftUnclearByNumbering(registerId, 8, 2, "2026-10-05");
     fakeWsfe.behave(answersInTurn("fe-comp-ultimo-autorizado.xml", "fe-comp-consultar-found.xml"));
-    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
-    const app = buildChangesRouteApp(recovery.db, { now: () => NOW });
+    const app = buildChangesRouteApp(backgroundJobs.db, { now: () => NOW });
     try {
-      await recovery.db.transaction((transaction) =>
+      await backgroundJobs.db.transaction((transaction) =>
         enqueueNumberingDiagnosisJob(transaction, fiscalDocumentId),
       );
 
@@ -293,7 +296,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
       expect(await sql`select 1 from numbering_freezes where point_of_sale_number = 8`).toEqual([]);
     } finally {
       await app.close();
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 });

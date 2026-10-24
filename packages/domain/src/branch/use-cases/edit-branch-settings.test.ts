@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { BranchSettings } from "./branch-settings-store.js";
+import type { EditableBranchSettings } from "./branch-settings-store.js";
 import { type EditBranchSettingsInput, editBranchSettings } from "./edit-branch-settings.js";
 import { FakeBranchSettingsStore } from "./test-support/fake-branch-settings-store.js";
 
 const LOCATION = "location-1";
 
-const saved: BranchSettings = {
+const saved: EditableBranchSettings = {
   address: "Av. Siempre Viva 742",
   whatsappNumber: "+54 11 5555-0000",
   instagramHandle: "@comercio.de.prueba",
@@ -17,6 +17,7 @@ const saved: BranchSettings = {
   expiringLotAlertDays: 30,
   unreviewedPriceAlertDays: 20,
   goodConditionReturnDays: 15,
+  supplierPriceListDailyExtractionCap: 10,
   version: 3,
 };
 
@@ -39,6 +40,7 @@ const sameAsSaved: EditBranchSettingsInput = {
   expiringLotAlertDays: 30,
   unreviewedPriceAlertDays: 20,
   goodConditionReturnDays: 15,
+  supplierPriceListDailyExtractionCap: 10,
   version: 3,
 };
 
@@ -62,7 +64,7 @@ describe("editBranchSettings", () => {
       saturdayHours: [],
     });
 
-    const next: BranchSettings = {
+    const next: EditableBranchSettings = {
       ...saved,
       address: "Av. Nueva 100",
       hours: [
@@ -108,6 +110,7 @@ describe("editBranchSettings", () => {
     ["the expiring lot alert days", { expiringLotAlertDays: 31 }],
     ["the unreviewed price alert days", { unreviewedPriceAlertDays: 21 }],
     ["the good condition return days", { goodConditionReturnDays: 16 }],
+    ["the supplier price list daily extraction cap", { supplierPriceListDailyExtractionCap: 3 }],
     ["a range's closing time", { saturdayHours: [{ opensAt: "09:00", closesAt: "14:00" }] }],
     ["a range's opening time", { saturdayHours: [{ opensAt: "08:00", closesAt: "13:00" }] }],
     ["a day's hours removed", { saturdayHours: [] }],
@@ -139,6 +142,22 @@ describe("editBranchSettings", () => {
     expect(store.operationOrder).toEqual([
       "lockCurrentBranchSettings",
       "recordBranchSettingsVersion",
+    ]);
+  });
+
+  it("records the new cap and the one it replaced when only the cap changes", async () => {
+    const store = storeWithSaved();
+
+    const outcome = await edit(store, { supplierPriceListDailyExtractionCap: 3 });
+
+    const next: EditableBranchSettings = {
+      ...saved,
+      supplierPriceListDailyExtractionCap: 3,
+      version: 4,
+    };
+    expect(outcome).toEqual({ kind: "edited", settings: next });
+    expect(store.snapshot().versions).toEqual([
+      { ...next, locationId: LOCATION, recordedBy: "actor-1", previous: saved },
     ]);
   });
 

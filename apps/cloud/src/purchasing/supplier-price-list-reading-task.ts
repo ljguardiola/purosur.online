@@ -1,14 +1,20 @@
 import { recordIdSchema } from "@purosur/contracts";
+import { SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS } from "@purosur/domain";
 import {
   type PriceListExtractor,
   readSupplierPriceList,
   type SupplierPriceListFiles,
+  settleAbandonedSupplierPriceListReadings,
 } from "@purosur/domain/purchasing/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { z } from "zod";
-import type { BackgroundJobs } from "../platform/background-jobs.js";
+import { type BackgroundJobs, crontabLineEvery } from "../platform/background-jobs.js";
+import { DrizzleSupplierPriceListReadings } from "./drizzle-supplier-price-list-readings.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER } from "./supplier-price-list-reading-task-identifier.js";
+
+const SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_TASK_IDENTIFIER =
+  "supplier-price-list-abandoned-reading-check";
 
 const payloadSchema = z.object({ listId: recordIdSchema() });
 
@@ -34,7 +40,21 @@ export function supplierPriceListReadingJobs<TQueryResult extends PgQueryResultH
           { listId, now, finalAttempt: helpers.job.attempts >= helpers.job.max_attempts },
         );
       },
+      [SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_TASK_IDENTIFIER]: async () => {
+        await settleAbandonedSupplierPriceListReadings(
+          {
+            store: new DrizzleSupplierPriceListStore(db, now),
+            readings: new DrizzleSupplierPriceListReadings(db),
+          },
+          { now: now() },
+        );
+      },
     },
-    crontab: [],
+    crontab: [
+      crontabLineEvery(
+        SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
+        SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_TASK_IDENTIFIER,
+      ),
+    ],
   };
 }

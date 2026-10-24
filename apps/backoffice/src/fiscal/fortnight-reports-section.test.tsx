@@ -73,6 +73,7 @@ function rejectedDocument(overrides: Partial<RejectedDocument> = {}): RejectedDo
     buyerTaxStatusCode: 5,
     rejections: [{ code: 10016, message: "Fictional observation" }],
     remedy: "awaiting_remedy",
+    remedies: ["report", "printed"],
     ...overrides,
   };
 }
@@ -179,6 +180,38 @@ test("warns above the table of each blocked presentation which register still ha
     )
     .toBeVisible();
   expect(screen.getByText(/No se puede presentar/).query()).toBeNull();
+});
+
+test("explains above the table why the credit notes of a presentation wait", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        presentation({ documentType: "credit_note_c", state: "awaiting_invoice_report" }),
+        presentation({ fortnight: augustSecondHalf, state: "accepted" }),
+      ]),
+    ),
+  );
+
+  const table = screen.getByRole("table", { name: "Informes quincenales" });
+  await expect.element(table.getByText("Nota de crédito C")).toBeVisible();
+  await expect
+    .element(table.getByText("Espera el informe de la factura que corrige"))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("ARCA todavía no aceptó el informe de una quincena anterior", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `Las notas de crédito del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004 corrigen facturas de una quincena anterior y se presentan cuando ARCA acepte el informe de esas facturas.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
 });
 
 test("shows no warning while no presentation is blocked, even when one is missing a document", async () => {
@@ -300,6 +333,7 @@ test("offers to review the rejection of a document that waits for its remedy, ha
   expect(onReview).toHaveBeenCalledWith({
     pointOfSaleNumber: 4,
     fortnight: septemberFirstHalf,
+    documentType: "factura_c",
     rejectedDocument: rejectedDocument(),
   });
 });

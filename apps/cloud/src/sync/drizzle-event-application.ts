@@ -1,5 +1,10 @@
 import { reportsFailedQuery } from "@purosur/contracts";
-import type { EventInvariantBreaks, EventQuarantine } from "@purosur/domain";
+import {
+  type EventInvariantBreaks,
+  type EventQuarantine,
+  invoiceAlreadyCreditedObservation,
+  type VoucherReference,
+} from "@purosur/domain";
 import {
   applyOpeningCount,
   applyRegisterStockMovements,
@@ -18,9 +23,20 @@ import type {
 import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openEventInvariantAlert } from "../alerts/event-invariant-alert.js";
+import { openAlert } from "../alerts/open-alert.js";
 import { openQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
+import {
+  lockCreditedVoucher,
+  voucherCreditedOffline,
+  voucherCreditedOnline,
+} from "../fiscal/credited-voucher.js";
 import { recordAppliedClockCorrection } from "../fiscal/drizzle-applied-clock-corrections.js";
 import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
+import {
+  recordAppliedDeferredSale,
+  recordAppliedDeferredSaleCancellation,
+  recordAppliedDeferredSaleSatisfaction,
+} from "../fiscal/drizzle-deferred-sales.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import type { EnqueueMercadoPagoRefundFollow } from "../payments/enqueue-mercado-pago-refund-follow.js";
@@ -76,6 +92,34 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
     this.now = now;
     this.pending = pending;
     this.enqueueRefundFollow = enqueueRefundFollow;
+  }
+
+  lockCreditedVoucher(voucher: VoucherReference): Promise<void> {
+    return lockCreditedVoucher(this.tx, voucher);
+  }
+
+  async voucherAlreadyCredited(
+    voucher: VoucherReference,
+    exceptOfflineDocumentId: string,
+  ): Promise<boolean> {
+    return (
+      (await voucherCreditedOnline(this.tx, voucher)) ||
+      (await voucherCreditedOffline(this.tx, voucher, exceptOfflineDocumentId))
+    );
+  }
+
+  async raiseInvoiceAlreadyCredited(
+    { voucher, saleId }: { voucher: VoucherReference; saleId: string },
+    at: Date,
+  ): Promise<void> {
+    const observation = invoiceAlreadyCreditedObservation({
+      pointOfSale: voucher.pointOfSale,
+      number: voucher.number,
+      saleId,
+    });
+    if (observation.holds) {
+      await openAlert(this.tx, observation.alert, { now: () => at });
+    }
   }
 
   requestMercadoPagoRefundFollow(): Promise<void> {
@@ -143,8 +187,11 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           event.eventId,
           this.now(),
         );
-      case "sale_voided":
-        return recordAppliedVoidedSale(this.tx, await this.originOf(event), fact, event.eventId);
+      case "sale_voided": {
+        const origin = await this.originOf(event);
+        await recordAppliedVoidedSale(this.tx, origin, fact, event.eventId);
+        return recordAppliedDeferredSaleCancellation(this.tx, origin, fact, this.now());
+      }
       case "sale_print_state_changed":
         return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":
@@ -171,10 +218,13 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           event,
           this.now(),
         );
+      case "deferred_sale_recorded":
+        return recordAppliedDeferredSale(this.tx, await this.originOf(event), fact);
+      case "deferred_sale_satisfied":
+        return recordAppliedDeferredSaleSatisfaction(this.tx, fact, this.now());
       case "opening_count_recorded":
       case "opening_count_withdrawn":
       case "fiscal_gate_failed":
-      case "deferred_sale_satisfied":
         return;
     }
   }

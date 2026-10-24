@@ -16,6 +16,7 @@ function offlinePointOfSaleChange(
   pointOfSaleNumber: number,
   version: number,
   taxAuthorityLastAuthorizedNumber: number | null = null,
+  creditNoteLastAuthorizedNumber: number | null = null,
 ): RegisterPulledChange {
   const change: SyncChange = {
     change_seq: changeSeq,
@@ -23,8 +24,18 @@ function offlinePointOfSaleChange(
     entity_id: REGISTER_ID,
     row: {
       point_of_sale_number: pointOfSaleNumber,
-      tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
-      highest_synced_offline_number: null,
+      series_counts: [
+        {
+          document_type: "factura_c",
+          tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+          highest_synced_offline_number: null,
+        },
+        {
+          document_type: "credit_note_c",
+          tax_authority_last_authorized_number: creditNoteLastAuthorizedNumber,
+          highest_synced_offline_number: null,
+        },
+      ],
       version,
     },
   };
@@ -43,12 +54,15 @@ function savedOfflinePointsOfSale() {
     .all();
 }
 
-function savedCount() {
+function savedCount(documentType: "factura_c" | "credit_note_c" = "factura_c") {
   return database
-    .prepare<[], { tax_authority_last_authorized_number: number | null }>(
-      "SELECT tax_authority_last_authorized_number FROM register_offline_point_of_sale",
+    .prepare<[string], { tax_authority_last_authorized_number: number | null }>(
+      `SELECT counts.tax_authority_last_authorized_number
+       FROM register_offline_point_of_sale AS offline
+       LEFT JOIN offline_series_counts AS counts
+         ON counts.point_of_sale = offline.point_of_sale_number AND counts.document_type = ?`,
     )
-    .all()
+    .all(documentType)
     .map((row) => row.tax_authority_last_authorized_number);
 }
 
@@ -211,6 +225,71 @@ describe("the register's local copy of its own offline point of sale", () => {
 
       await save(offlinePointOfSaleChange(4, 31, 4, 44));
       expect(savedCount()).toEqual([44]);
+    });
+  });
+
+  describe("the tax authority's last authorized credit note of the offline point of sale", () => {
+    it("holds none until the cloud delivers it", async () => {
+      await save(offlinePointOfSaleChange(1, 31, 1, 40));
+
+      expect(savedCount("credit_note_c")).toEqual([null]);
+    });
+
+    it("saves it beside the factura count, each apart", async () => {
+      await save(offlinePointOfSaleChange(1, 31, 1, 40, 4));
+
+      expect(savedCount()).toEqual([40]);
+      expect(savedCount("credit_note_c")).toEqual([4]);
+    });
+
+    it("takes it when the cloud redelivers the same version with the count now known", async () => {
+      await save(offlinePointOfSaleChange(1, 31, 1, 40));
+
+      await save(offlinePointOfSaleChange(2, 31, 1, 40, 4));
+
+      expect(savedCount("credit_note_c")).toEqual([4]);
+    });
+
+    it.each([
+      ["a lower count", 3],
+      ["the same count", 4],
+      ["no count", null],
+    ])("never lowers it with %s redelivered at the same version", async (_case, count) => {
+      await save(offlinePointOfSaleChange(1, 31, 1, 40, 4));
+
+      await save(offlinePointOfSaleChange(2, 31, 1, 40, count));
+
+      expect(savedCount("credit_note_c")).toEqual([4]);
+    });
+
+    it("ignores the count of an older version", async () => {
+      await save(offlinePointOfSaleChange(1, 31, 2, 40, 4));
+
+      await save(offlinePointOfSaleChange(2, 31, 1, 40, 90));
+
+      expect(savedCount("credit_note_c")).toEqual([4]);
+    });
+
+    it("holds the count of the point of sale the register has now, not the one it had", async () => {
+      await save(offlinePointOfSaleChange(1, 31, 1, 40, 4));
+
+      await save(offlinePointOfSaleChange(2, 33, 2, 5, 2));
+
+      expect(savedCount("credit_note_c")).toEqual([2]);
+      expect(savedCount()).toEqual([5]);
+    });
+
+    it("never lowers the count of the same point of sale when a newer version carries a lower or unknown one", async () => {
+      await save(offlinePointOfSaleChange(1, 31, 1, 40, 4));
+
+      await save(offlinePointOfSaleChange(2, 31, 2, 40, 3));
+      expect(savedCount("credit_note_c")).toEqual([4]);
+
+      await save(offlinePointOfSaleChange(3, 31, 3, 40));
+      expect(savedCount("credit_note_c")).toEqual([4]);
+
+      await save(offlinePointOfSaleChange(4, 31, 4, 40, 7));
+      expect(savedCount("credit_note_c")).toEqual([7]);
     });
   });
 });

@@ -16,6 +16,7 @@ function rejectedDocument(overrides: Partial<RejectedDocument> = {}): RejectedDo
     buyerTaxStatusCode: 5,
     rejections: [{ code: 10016, message: "Fictional observation" }],
     remedy: "awaiting_remedy",
+    remedies: ["report", "printed"],
     ...overrides,
   };
 }
@@ -28,6 +29,10 @@ test.each([
   ["missing_document", { label: "Falta un comprobante", tone: "error" }],
   ["accepted", { label: "Aceptado", tone: "success" }],
   ["needs_regularization", { label: "A regularizar", tone: "error" }],
+  [
+    "awaiting_invoice_report",
+    { label: "Espera el informe de la factura que corrige", tone: "warning" },
+  ],
   ["listed_as_owed", { label: "Adeudada según ARCA", tone: "error" }],
 ] as const)("badges the state %s", (state, badge) => {
   expect(presentationStateBadge({ state, refusal: null, rejectedDocument: null })).toEqual(badge);
@@ -67,6 +72,7 @@ test("badges a refusal the cloud tells is whole as rejected", () => {
 
 test("names the document type, and shows a dash for a presentation without one", () => {
   expect(presentationDocumentTypeLabel("factura_c")).toBe("Factura C");
+  expect(presentationDocumentTypeLabel("credit_note_c")).toBe("Nota de crédito C");
   expect(presentationDocumentTypeLabel(null)).toBe("—");
 });
 

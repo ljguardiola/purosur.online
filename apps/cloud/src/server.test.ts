@@ -23,8 +23,8 @@ import { unreachableArcaEndpoints } from "./fiscal/test-support/unreachable-arca
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import {
   arcaEndpointsOf,
-  closeRecoveryResources,
-  createRecoveryJobQueuePool,
+  closeBackgroundJobResources,
+  createBackgroundJobQueuePool,
   registerShutdownHandlers,
   reportStartupFailure,
   requireArcaEnvironment,
@@ -36,7 +36,7 @@ import {
   resolveRecoveryEnv,
   resolveStaticDir,
   resolveVersion,
-  type SetUpRecoveryEnv,
+  type SetUpBackgroundJobsEnv,
   type StartServerDeps,
   shutdownServer,
   startServer,
@@ -575,7 +575,7 @@ describe("startServer", () => {
     const listen = vi.fn().mockResolvedValue(undefined);
     const fakeApp = appListeningBy(listen);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
-    const setUpRecovery = vi.fn();
+    const setUpBackgroundJobs = vi.fn();
 
     await startServer(
       { EDGE_ORIGIN_SECRET: "edge-secret" },
@@ -583,12 +583,12 @@ describe("startServer", () => {
         arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp,
-        setUpRecovery,
+        setUpBackgroundJobs,
         now,
       },
     );
 
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
     expect(buildApp).toHaveBeenCalledWith({
       version: "unknown",
       now,
@@ -608,7 +608,7 @@ describe("startServer", () => {
 
   it("refuses to start without EDGE_ORIGIN_SECRET before opening any database or job-queue resource", async () => {
     const buildApp = vi.fn();
-    const setUpRecovery = vi.fn();
+    const setUpBackgroundJobs = vi.fn();
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
@@ -622,10 +622,10 @@ describe("startServer", () => {
         arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp,
-        setUpRecovery,
+        setUpBackgroundJobs,
       }),
     ).rejects.toThrow("EDGE_ORIGIN_SECRET");
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
   });
 
@@ -646,7 +646,7 @@ describe("startServer", () => {
 
   it("refuses to start when DATABASE_URL is set but ARCA_CERTIFICATE is not, before opening any database or job-queue resource", async () => {
     const buildApp = vi.fn();
-    const setUpRecovery = vi.fn();
+    const setUpBackgroundJobs = vi.fn();
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
@@ -661,16 +661,16 @@ describe("startServer", () => {
         arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp,
-        setUpRecovery,
+        setUpBackgroundJobs,
       }),
     ).rejects.toThrow("ARCA_CERTIFICATE must be set once DATABASE_URL is configured");
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
   });
 
   it("refuses to start when DATABASE_URL is set but DEVICE_TOKEN_ROTATION_KEY is not, before opening any database or job-queue resource", async () => {
     const buildApp = vi.fn();
-    const setUpRecovery = vi.fn();
+    const setUpBackgroundJobs = vi.fn();
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
@@ -687,16 +687,16 @@ describe("startServer", () => {
         arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp,
-        setUpRecovery,
+        setUpBackgroundJobs,
       }),
     ).rejects.toThrow("DEVICE_TOKEN_ROTATION_KEY must be set once DATABASE_URL is configured");
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
   });
 
   it("refuses to start when DATABASE_URL is set but INSTALLATION_KEYS_ENCRYPTION_KEY is not, before opening any database or job-queue resource", async () => {
     const buildApp = vi.fn();
-    const setUpRecovery = vi.fn();
+    const setUpBackgroundJobs = vi.fn();
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
@@ -714,18 +714,18 @@ describe("startServer", () => {
         arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp,
-        setUpRecovery,
+        setUpBackgroundJobs,
       }),
     ).rejects.toThrow(
       "INSTALLATION_KEYS_ENCRYPTION_KEY must be set once DATABASE_URL is configured",
     );
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
   });
 
   it("refuses to start when ARCA_CERTIFICATE's CUIT is not valid", async () => {
     const buildApp = vi.fn();
-    const setUpRecovery = vi.fn();
+    const setUpBackgroundJobs = vi.fn();
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
@@ -741,19 +741,19 @@ describe("startServer", () => {
         arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp,
-        setUpRecovery,
+        setUpBackgroundJobs,
       }),
     ).rejects.toThrow("ARCA_CERTIFICATE's CUIT must have a correct check digit");
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
   });
 
-  it("wires the resolved recovery infrastructure into the app and closes it when the app closes", async () => {
+  it("wires the resolved background job infrastructure into the app and closes it when the app closes", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
     const fakeApp = appListeningBy(listen);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
     const close = vi.fn().mockResolvedValue(undefined);
-    const fakeRecovery = {
+    const fakeBackgroundJobs = {
       db: { marker: "fake-db" },
       connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -762,7 +762,7 @@ describe("startServer", () => {
       workerUtils: { addJob: vi.fn() },
       close,
     };
-    const setUpRecovery = vi.fn().mockResolvedValue(fakeRecovery);
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue(fakeBackgroundJobs);
 
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
@@ -783,7 +783,7 @@ describe("startServer", () => {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
       buildApp,
-      setUpRecovery,
+      setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -792,7 +792,7 @@ describe("startServer", () => {
       now,
     });
 
-    expect(setUpRecovery).toHaveBeenCalledWith(
+    expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
         emailSender: { transport: "resend", resendApiKey: "re_test_key" },
@@ -814,154 +814,157 @@ describe("startServer", () => {
       edgeOriginSecret: "edge-secret",
       staticDir: undefined,
       recovery: {
-        db: fakeRecovery.db,
-        jobQueue: fakeRecovery.jobQueue,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        jobQueue: fakeBackgroundJobs.jobQueue,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       session: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       passkeys: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       users: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       registersPointsOfSale: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       roles: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       branchSettings: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       issuerIdentification: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
       },
       buyerIdentificationThresholds: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       fiscalAddresses: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       categories: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       brands: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       tags: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       products: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       alerts: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       quarantinedEvents: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       registersBelowMinimum: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         releaseCheckToken: "release-check-token",
       },
       readableEventVersions: {
         releaseCheckToken: "release-check-token",
       },
       offsiteDumpChecks: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         offsiteDumpCheckToken: "offsite-dump-check-token",
       },
       prices: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       discounts: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       restoredOrphanSweep: {
-        connections: fakeRecovery.connections,
+        connections: fakeBackgroundJobs.connections,
         enqueueCreditNote: enqueueCreditNoteJob,
       },
       registers: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       snapshotBackups: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       registerRevocations: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       compromiseResponses: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       bitlockerRecoveryKeys: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       stock: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       purchasing: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       salesReports: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       paymentsReports: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       refunds: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       devices: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       firstPinCodes: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       health: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         certificateFingerprint: new X509Certificate(VALID_ARCA_CERTIFICATE).fingerprint256,
       },
-      mercadoPagoOrders: { connections: fakeRecovery.connections },
-      mercadoPagoNotifications: { db: fakeRecovery.db, connections: fakeRecovery.connections },
+      mercadoPagoOrders: { connections: fakeBackgroundJobs.connections },
+      mercadoPagoNotifications: {
+        db: fakeBackgroundJobs.db,
+        connections: fakeBackgroundJobs.connections,
+      },
     });
 
     await fakeApp.close();
@@ -985,7 +988,7 @@ describe("startServer checking the offsite dump", () => {
 
   async function start(extraEnv: Record<string, string>) {
     const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
-    const setUpRecovery = vi.fn().mockResolvedValue({
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -999,7 +1002,7 @@ describe("startServer checking the offsite dump", () => {
         arcaEndpoints: arcaEndpointsOf,
         initSentry: vi.fn(),
         buildApp,
-        setUpRecovery,
+        setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -1007,23 +1010,23 @@ describe("startServer checking the offsite dump", () => {
         enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
       },
     );
-    return { buildApp, setUpRecovery };
+    return { buildApp, setUpBackgroundJobs };
   }
 
   it("sets up the detection for the certificate's environment when the token is configured", async () => {
-    const { setUpRecovery } = await start({ OFFSITE_DUMP_CHECK_TOKEN: "offsite-token" });
+    const { setUpBackgroundJobs } = await start({ OFFSITE_DUMP_CHECK_TOKEN: "offsite-token" });
 
-    expect(setUpRecovery).toHaveBeenCalledWith(
+    expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({ offsiteDumpCheck: { environment: "homologation" } }),
       expect.any(Function),
     );
   });
 
   it("sets up no detection without the token, so no alert is ever raised there", async () => {
-    const { setUpRecovery } = await start({});
+    const { setUpBackgroundJobs } = await start({});
 
-    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
-    expect(recoveryEnv).not.toHaveProperty("offsiteDumpCheck");
+    const [backgroundJobsEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
+    expect(backgroundJobsEnv).not.toHaveProperty("offsiteDumpCheck");
   });
 
   it("gives the report route no token when it is not configured", async () => {
@@ -1058,7 +1061,7 @@ describe("startServer recording the certificate's CUIT", () => {
       }),
     );
     const db = { marker: "fake-db" };
-    const setUpRecovery = vi.fn().mockResolvedValue({
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
       db,
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -1074,7 +1077,7 @@ describe("startServer recording the certificate's CUIT", () => {
       arcaEndpoints: unreachableArcaEndpoints,
       initSentry: vi.fn(),
       buildApp: vi.fn().mockReturnValue(fakeApp),
-      setUpRecovery,
+      setUpBackgroundJobs,
       recordAuthorizedCuit,
     });
 
@@ -1121,7 +1124,7 @@ describe("startServer checking the certificate's expiry", () => {
         steps.push("listen");
       }),
     );
-    const recovery = {
+    const backgroundJobs = {
       db: { marker: "fake-db" },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -1137,7 +1140,7 @@ describe("startServer checking the certificate's expiry", () => {
       arcaEndpoints: unreachableArcaEndpoints,
       initSentry: vi.fn(),
       buildApp: vi.fn().mockReturnValue(fakeApp),
-      setUpRecovery: vi.fn().mockResolvedValue(recovery),
+      setUpBackgroundJobs: vi.fn().mockResolvedValue(backgroundJobs),
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -1146,12 +1149,12 @@ describe("startServer checking the certificate's expiry", () => {
       enqueueArcaCertificateExpiryCheck,
     });
 
-    expect(enqueueArcaCertificateExpiryCheck).toHaveBeenCalledWith(recovery.workerUtils);
+    expect(enqueueArcaCertificateExpiryCheck).toHaveBeenCalledWith(backgroundJobs.workerUtils);
     expect(steps).toEqual(["enqueueArcaCertificateExpiryCheck", "listen"]);
   });
 
   it("refuses to start when ARCA_ENVIRONMENT is not valid, before opening any database or job-queue resource", async () => {
-    const setUpRecovery = vi.fn();
+    const setUpBackgroundJobs = vi.fn();
 
     await expect(
       startServer(
@@ -1160,11 +1163,11 @@ describe("startServer checking the certificate's expiry", () => {
           arcaEndpoints: unreachableArcaEndpoints,
           initSentry: vi.fn(),
           buildApp: vi.fn(),
-          setUpRecovery,
+          setUpBackgroundJobs,
         },
       ),
     ).rejects.toThrow('ARCA_ENVIRONMENT must be "homologation" or "production"');
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
   });
 
   it("refuses to start when ARCA_ENVIRONMENT is not set", async () => {
@@ -1175,7 +1178,7 @@ describe("startServer checking the certificate's expiry", () => {
         arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp: vi.fn(),
-        setUpRecovery: vi.fn(),
+        setUpBackgroundJobs: vi.fn(),
       }),
     ).rejects.toThrow("ARCA_ENVIRONMENT must be set once DATABASE_URL is configured");
   });
@@ -1198,7 +1201,7 @@ describe("startServer with the ARCA private key", () => {
 
   function start(env: Record<string, string>) {
     const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
-    const setUpRecovery = vi.fn().mockResolvedValue({
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -1210,14 +1213,14 @@ describe("startServer with the ARCA private key", () => {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
       buildApp: vi.fn().mockReturnValue(fakeApp),
-      setUpRecovery,
+      setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
-    return { started, setUpRecovery };
+    return { started, setUpBackgroundJobs };
   }
 
   afterEach(() => {
@@ -1225,13 +1228,13 @@ describe("startServer with the ARCA private key", () => {
   });
 
   it("sets up the WSAA token renewal with the certificate, its key and its fingerprint in homologation", async () => {
-    const { started, setUpRecovery } = start({
+    const { started, setUpBackgroundJobs } = start({
       ...baseEnv,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(setUpRecovery).toHaveBeenCalledWith(
+    expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({
         arcaWsaa: {
           endpoint: "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
@@ -1245,14 +1248,14 @@ describe("startServer with the ARCA private key", () => {
   });
 
   it("uses ARCA's production WSAA in production", async () => {
-    const { started, setUpRecovery } = start({
+    const { started, setUpBackgroundJobs } = start({
       ...baseEnv,
       ARCA_ENVIRONMENT: "production",
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(setUpRecovery).toHaveBeenCalledWith(
+    expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({
         arcaWsaa: expect.objectContaining({
           endpoint: "https://wsaa.afip.gov.ar/ws/services/LoginCms",
@@ -1263,14 +1266,14 @@ describe("startServer with the ARCA private key", () => {
   });
 
   it("accepts the key and the certificate collapsed to one line with literal \\n sequences", async () => {
-    const { started, setUpRecovery } = start({
+    const { started, setUpBackgroundJobs } = start({
       ...baseEnv,
       ARCA_CERTIFICATE: credentials.certificatePem.trimEnd().split("\n").join("\\n"),
       ARCA_PRIVATE_KEY: credentials.privateKeyPem.trimEnd().split("\n").join("\\n"),
     });
     await started;
 
-    expect(setUpRecovery).toHaveBeenCalledWith(
+    expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({
         arcaWsaa: expect.objectContaining({
           privateKeyPem: credentials.privateKeyPem.trimEnd(),
@@ -1282,21 +1285,21 @@ describe("startServer with the ARCA private key", () => {
   });
 
   it("refuses to start in production without the key, before opening any resource", async () => {
-    const { started, setUpRecovery } = start({ ...baseEnv, ARCA_ENVIRONMENT: "production" });
+    const { started, setUpBackgroundJobs } = start({ ...baseEnv, ARCA_ENVIRONMENT: "production" });
 
     await expect(started).rejects.toThrow(
       "ARCA_PRIVATE_KEY must be set when ARCA_ENVIRONMENT is production",
     );
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
   });
 
   it("starts in homologation without the key, sets up no renewal and warns once", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const { started, setUpRecovery } = start(baseEnv);
+    const { started, setUpBackgroundJobs } = start(baseEnv);
     await started;
 
-    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
-    expect(recoveryEnv).not.toHaveProperty("arcaWsaa");
+    const [backgroundJobsEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
+    expect(backgroundJobsEnv).not.toHaveProperty("arcaWsaa");
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("ARCA_PRIVATE_KEY"));
   });
@@ -1312,19 +1315,19 @@ describe("startServer with the ARCA private key", () => {
   it.each(["homologation", "production"])(
     "refuses to start in %s when the key is not a PEM private key",
     async (environment) => {
-      const { started, setUpRecovery } = start({
+      const { started, setUpBackgroundJobs } = start({
         ...baseEnv,
         ARCA_ENVIRONMENT: environment,
         ARCA_PRIVATE_KEY: "not a key",
       });
 
       await expect(started).rejects.toThrow("ARCA_PRIVATE_KEY must be a valid PEM private key");
-      expect(setUpRecovery).not.toHaveBeenCalled();
+      expect(setUpBackgroundJobs).not.toHaveBeenCalled();
     },
   );
 
   it("refuses to start when the key does not belong to the certificate", async () => {
-    const { started, setUpRecovery } = start({
+    const { started, setUpBackgroundJobs } = start({
       ...baseEnv,
       ARCA_PRIVATE_KEY: generateArcaTestCredentials().privateKeyPem,
     });
@@ -1332,18 +1335,18 @@ describe("startServer with the ARCA private key", () => {
     await expect(started).rejects.toThrow(
       "ARCA_PRIVATE_KEY must match ARCA_CERTIFICATE's public key",
     );
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
   });
 
   it("refuses to start when the key is not an RSA key", async () => {
     const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
-    const { started, setUpRecovery } = start({
+    const { started, setUpBackgroundJobs } = start({
       ...baseEnv,
       ARCA_PRIVATE_KEY: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
     });
 
     await expect(started).rejects.toThrow("ARCA_PRIVATE_KEY must be an RSA private key");
-    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(setUpBackgroundJobs).not.toHaveBeenCalled();
   });
 
   it("asks for no key when no database is configured", async () => {
@@ -1385,7 +1388,7 @@ describe("startServer fetching the buyer tax-status values", () => {
         steps.push("listen");
       }),
     );
-    const recovery = {
+    const backgroundJobs = {
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -1393,7 +1396,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       workerUtils: { addJob: vi.fn() },
       close: vi.fn(),
     };
-    const setUpRecovery = vi.fn().mockResolvedValue(recovery);
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue(backgroundJobs);
     const enqueueBuyerTaxStatusFetch = vi.fn(async () => {
       steps.push("enqueueBuyerTaxStatusFetch");
     });
@@ -1401,7 +1404,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
       buildApp: vi.fn().mockReturnValue(fakeApp),
-      setUpRecovery,
+      setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -1409,7 +1412,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch,
     });
-    return { started, steps, recovery, setUpRecovery, enqueueBuyerTaxStatusFetch };
+    return { started, steps, backgroundJobs, setUpBackgroundJobs, enqueueBuyerTaxStatusFetch };
   }
 
   afterEach(() => {
@@ -1417,13 +1420,13 @@ describe("startServer fetching the buyer tax-status values", () => {
   });
 
   it("sets up the fetch from the environment's WSFE with the certificate's CUIT and fingerprint", async () => {
-    const { started, setUpRecovery } = start({
+    const { started, setUpBackgroundJobs } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(setUpRecovery).toHaveBeenCalledWith(
+    expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({
         arcaBuyerTaxStatus: {
           endpoint: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
@@ -1436,23 +1439,23 @@ describe("startServer fetching the buyer tax-status values", () => {
   });
 
   it("fetches once on the started job queue before it starts listening", async () => {
-    const { started, steps, recovery, enqueueBuyerTaxStatusFetch } = start({
+    const { started, steps, backgroundJobs, enqueueBuyerTaxStatusFetch } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueBuyerTaxStatusFetch).toHaveBeenCalledWith(recovery.workerUtils);
+    expect(enqueueBuyerTaxStatusFetch).toHaveBeenCalledWith(backgroundJobs.workerUtils);
     expect(steps).toEqual(["enqueueBuyerTaxStatusFetch", "listen"]);
   });
 
   it("sets up no fetch without the key, as no WSAA token is ever renewed to fetch with", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const { started, setUpRecovery, enqueueBuyerTaxStatusFetch } = start(env);
+    const { started, setUpBackgroundJobs, enqueueBuyerTaxStatusFetch } = start(env);
     await started;
 
-    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
-    expect(recoveryEnv).not.toHaveProperty("arcaBuyerTaxStatus");
+    const [backgroundJobsEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
+    expect(backgroundJobsEnv).not.toHaveProperty("arcaBuyerTaxStatus");
     expect(enqueueBuyerTaxStatusFetch).not.toHaveBeenCalled();
   });
 });
@@ -1479,7 +1482,7 @@ describe("startServer authorizing sales in real time", () => {
         steps.push("listen");
       }),
     );
-    const recovery = {
+    const backgroundJobs = {
       db: {},
       connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -1488,7 +1491,7 @@ describe("startServer authorizing sales in real time", () => {
       workerUtils: { addJob: vi.fn() },
       close: vi.fn(),
     };
-    const setUpRecovery = vi.fn().mockResolvedValue(recovery);
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue(backgroundJobs);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
     const enqueueMissingTaxAuthorityCounts = vi.fn(async () => {
       steps.push("enqueueMissingTaxAuthorityCounts");
@@ -1506,7 +1509,7 @@ describe("startServer authorizing sales in real time", () => {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
       buildApp,
-      setUpRecovery,
+      setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts,
@@ -1517,8 +1520,8 @@ describe("startServer authorizing sales in real time", () => {
     return {
       started,
       steps,
-      recovery,
-      setUpRecovery,
+      backgroundJobs,
+      setUpBackgroundJobs,
       buildApp,
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
@@ -1532,13 +1535,13 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("sets up the count of the tax authority's last authorized number from the environment's WSFE with the certificate's CUIT and fingerprint", async () => {
-    const { started, setUpRecovery } = start({
+    const { started, setUpBackgroundJobs } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(setUpRecovery).toHaveBeenCalledWith(
+    expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({
         arcaInvoicing: {
           endpoint: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
@@ -1551,7 +1554,7 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("gives the app the authorization route, with a dedicated connection per point of sale lane, the WSFE invoicing and the certificate's fingerprint", async () => {
-    const { started, buildApp, recovery } = start({
+    const { started, buildApp, backgroundJobs } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
@@ -1559,7 +1562,7 @@ describe("startServer authorizing sales in real time", () => {
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options.fiscalAuthorization).toEqual({
-      connections: recovery.connections,
+      connections: backgroundJobs.connections,
       taxAuthority: expect.any(WsfeTaxAuthorityInvoicing),
       certificateFingerprint: credentials.fingerprint,
       enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
@@ -1570,18 +1573,18 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("gives the app the restored register orphan sweep route, with a dedicated connection per point of sale lane and the credit note queue", async () => {
-    const { started, buildApp, recovery } = start(env);
+    const { started, buildApp, backgroundJobs } = start(env);
     await started;
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options.restoredOrphanSweep).toEqual({
-      connections: recovery.connections,
+      connections: backgroundJobs.connections,
       enqueueCreditNote: enqueueCreditNoteJob,
     });
   });
 
   it("has the configuration of a register's point of sale enqueue the tax authority's count", async () => {
-    const { started, buildApp, recovery } = start({
+    const { started, buildApp, backgroundJobs } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
@@ -1589,7 +1592,7 @@ describe("startServer authorizing sales in real time", () => {
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options.registersPointsOfSale).toEqual({
-      db: recovery.db,
+      db: backgroundJobs.db,
       backofficeOrigin: "https://staging.purosur.online",
       enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob,
     });
@@ -1633,13 +1636,13 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("asks again for the count of every claimed point of sale that has none before it starts listening", async () => {
-    const { started, steps, recovery, enqueueMissingTaxAuthorityCounts } = start({
+    const { started, steps, backgroundJobs, enqueueMissingTaxAuthorityCounts } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingTaxAuthorityCounts).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingTaxAuthorityCounts).toHaveBeenCalledWith(backgroundJobs.db);
     expect(steps).toEqual([
       "enqueueMissingTaxAuthorityCounts",
       "enqueueMissingUnclearOutcomes",
@@ -1650,48 +1653,48 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("asks again for the decision of every unclear document that is still undecided", async () => {
-    const { started, recovery, enqueueMissingUnclearOutcomes } = start({
+    const { started, backgroundJobs, enqueueMissingUnclearOutcomes } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingUnclearOutcomes).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingUnclearOutcomes).toHaveBeenCalledWith(backgroundJobs.db);
   });
 
   it("asks again for the numbering conflict work still owed before it starts listening", async () => {
-    const { started, recovery, enqueueMissingNumberingConflicts } = start({
+    const { started, backgroundJobs, enqueueMissingNumberingConflicts } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingNumberingConflicts).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingNumberingConflicts).toHaveBeenCalledWith(backgroundJobs.db);
   });
 
   it("asks again for every credit note still to be issued before it starts listening", async () => {
-    const { started, recovery, enqueueMissingCreditNotes } = start({
+    const { started, backgroundJobs, enqueueMissingCreditNotes } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingCreditNotes).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingCreditNotes).toHaveBeenCalledWith(backgroundJobs.db);
   });
 
   it("wires none of it without the key, as no WSAA token is ever renewed to ask with", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const {
       started,
-      setUpRecovery,
+      setUpBackgroundJobs,
       buildApp,
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
     } = start(env);
     await started;
 
-    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
-    expect(recoveryEnv).not.toHaveProperty("arcaInvoicing");
+    const [backgroundJobsEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
+    expect(backgroundJobsEnv).not.toHaveProperty("arcaInvoicing");
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options).not.toHaveProperty("fiscalAuthorization");
     expect(options.registersPointsOfSale).not.toHaveProperty("enqueueTaxAuthorityCount");
@@ -1719,7 +1722,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
   };
 
   function start(startEnv: Record<string, string>) {
-    const recovery = {
+    const backgroundJobs = {
       db: {},
       connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -1729,12 +1732,12 @@ describe("startServer creating Mercado Pago QR orders", () => {
       close: vi.fn(),
     };
     const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn()));
-    const setUp = vi.fn().mockResolvedValue(recovery);
+    const setUp = vi.fn().mockResolvedValue(backgroundJobs);
     const started = startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
       buildApp,
-      setUpRecovery: setUp,
+      setUpBackgroundJobs: setUp,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
@@ -1742,7 +1745,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
-    return { started, buildApp, recovery, setUp };
+    return { started, buildApp, backgroundJobs, setUp };
   }
 
   afterEach(() => {
@@ -1750,7 +1753,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
   });
 
   it("gives the app the payment route with a dedicated connection per transaction lane and the Mercado Pago orders when both variables are set", async () => {
-    const { started, buildApp, recovery } = start({
+    const { started, buildApp, backgroundJobs } = start({
       ...env,
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
       MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
@@ -1768,16 +1771,19 @@ describe("startServer creating Mercado Pago QR orders", () => {
       refundOrder: expect.any(Function),
       readOrderRefunds: expect.any(Function),
     };
-    expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections, mercadoPago });
+    expect(options.mercadoPagoOrders).toEqual({
+      connections: backgroundJobs.connections,
+      mercadoPago,
+    });
     expect(options.mercadoPagoNotifications).toEqual({
-      db: recovery.db,
-      connections: recovery.connections,
+      db: backgroundJobs.db,
+      connections: backgroundJobs.connections,
       mercadoPago,
       webhookSecret: "fictional-webhook-secret",
     });
   });
 
-  it("gives the setup of the recovery infrastructure the Mercado Pago orders, so the pending check runs, when all variables are set", async () => {
+  it("gives the setup of the background job infrastructure the Mercado Pago orders, so the pending check runs, when all variables are set", async () => {
     const { started, setUp } = start({
       ...env,
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
@@ -1785,8 +1791,8 @@ describe("startServer creating Mercado Pago QR orders", () => {
     });
     await started;
 
-    const [recoveryEnv] = setUp.mock.calls[0] as [SetUpRecoveryEnv];
-    expect(recoveryEnv.mercadoPago).toEqual({
+    const [backgroundJobsEnv] = setUp.mock.calls[0] as [SetUpBackgroundJobsEnv];
+    expect(backgroundJobsEnv.mercadoPago).toEqual({
       longestCallMs: expect.any(Number),
       createQrOrder: expect.any(Function),
       createPointOrder: expect.any(Function),
@@ -1798,23 +1804,23 @@ describe("startServer creating Mercado Pago QR orders", () => {
     });
   });
 
-  it("gives the setup of the recovery infrastructure no Mercado Pago orders when the variables are not set", async () => {
+  it("gives the setup of the background job infrastructure no Mercado Pago orders when the variables are not set", async () => {
     const { started, setUp } = start(env);
     await started;
 
-    const [recoveryEnv] = setUp.mock.calls[0] as [SetUpRecoveryEnv];
-    expect(recoveryEnv).not.toHaveProperty("mercadoPago");
+    const [backgroundJobsEnv] = setUp.mock.calls[0] as [SetUpBackgroundJobsEnv];
+    expect(backgroundJobsEnv).not.toHaveProperty("mercadoPago");
   });
 
   it("gives the app the payment route without Mercado Pago when neither variable is set", async () => {
-    const { started, buildApp, recovery } = start(env);
+    const { started, buildApp, backgroundJobs } = start(env);
     await started;
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
-    expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections });
+    expect(options.mercadoPagoOrders).toEqual({ connections: backgroundJobs.connections });
     expect(options.mercadoPagoNotifications).toEqual({
-      db: recovery.db,
-      connections: recovery.connections,
+      db: backgroundJobs.db,
+      connections: backgroundJobs.connections,
     });
   });
 
@@ -1855,7 +1861,7 @@ describe("startServer reading supplier price lists", () => {
   const aiKey = { ANTHROPIC_API_KEY: "fictional-anthropic-key" };
 
   async function startedWith(startEnv: Record<string, string>) {
-    const recovery = {
+    const backgroundJobs = {
       db: {},
       connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -1864,13 +1870,13 @@ describe("startServer reading supplier price lists", () => {
       workerUtils: { addJob: vi.fn() },
       close: vi.fn(),
     };
-    const setUp = vi.fn().mockResolvedValue(recovery);
+    const setUp = vi.fn().mockResolvedValue(backgroundJobs);
     const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn()));
     await startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
       buildApp,
-      setUpRecovery: setUp,
+      setUpBackgroundJobs: setUp,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
@@ -1879,17 +1885,17 @@ describe("startServer reading supplier price lists", () => {
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
     const [appOptions] = buildApp.mock.calls[0] as [
-      { purchasing?: { supplierPriceListFiles?: unknown } },
+      { purchasing?: { supplierPriceListFiles?: unknown; supplierPriceListWebPages?: unknown } },
     ];
-    return { recoveryEnv: setUp.mock.calls[0]?.[0] as SetUpRecoveryEnv, appOptions };
+    return { backgroundJobsEnv: setUp.mock.calls[0]?.[0] as SetUpBackgroundJobsEnv, appOptions };
   }
 
-  async function recoveryEnvFor(startEnv: Record<string, string>) {
-    return (await startedWith(startEnv)).recoveryEnv;
+  async function backgroundJobsEnvFor(startEnv: Record<string, string>) {
+    return (await startedWith(startEnv)).backgroundJobsEnv;
   }
 
   it("gives the purchasing routes the same files the reading job reads when the AI key and the bucket are configured", async () => {
-    const { recoveryEnv, appOptions } = await startedWith({
+    const { backgroundJobsEnv, appOptions } = await startedWith({
       ...env,
       ...aiKey,
       ...priceListsBucket,
@@ -1897,36 +1903,45 @@ describe("startServer reading supplier price lists", () => {
 
     expect(appOptions.purchasing?.supplierPriceListFiles).toBeDefined();
     expect(appOptions.purchasing?.supplierPriceListFiles).toBe(
-      recoveryEnv.supplierPriceListReading?.files,
+      backgroundJobsEnv.supplierPriceListReading?.files,
     );
   });
 
-  it("gives the purchasing routes no files without the AI key", async () => {
+  it("gives the purchasing routes a reader of web pages when the AI key and the bucket are configured", async () => {
+    const { appOptions } = await startedWith({ ...env, ...aiKey, ...priceListsBucket });
+
+    expect(appOptions.purchasing?.supplierPriceListWebPages).toEqual(
+      expect.objectContaining({ read: expect.any(Function) }),
+    );
+  });
+
+  it("gives the purchasing routes no files and no reader of web pages without the AI key", async () => {
     const { appOptions } = await startedWith({ ...env, ...priceListsBucket });
 
     expect(appOptions.purchasing).toBeDefined();
     expect(appOptions.purchasing).not.toHaveProperty("supplierPriceListFiles");
+    expect(appOptions.purchasing).not.toHaveProperty("supplierPriceListWebPages");
   });
 
-  it("gives the setup of the recovery infrastructure the files and the extractor when the AI key and the bucket are configured", async () => {
-    const recoveryEnv = await recoveryEnvFor({ ...env, ...aiKey, ...priceListsBucket });
+  it("gives the setup of the background job infrastructure the files and the extractor when the AI key and the bucket are configured", async () => {
+    const backgroundJobsEnv = await backgroundJobsEnvFor({ ...env, ...aiKey, ...priceListsBucket });
 
-    expect(recoveryEnv.supplierPriceListReading).toEqual({
+    expect(backgroundJobsEnv.supplierPriceListReading).toEqual({
       files: expect.objectContaining({ store: expect.any(Function), read: expect.any(Function) }),
       extractor: expect.objectContaining({ extract: expect.any(Function) }),
     });
   });
 
   it("reads no supplier price list without the AI key", async () => {
-    const recoveryEnv = await recoveryEnvFor({ ...env, ...priceListsBucket });
+    const backgroundJobsEnv = await backgroundJobsEnvFor({ ...env, ...priceListsBucket });
 
-    expect(recoveryEnv).not.toHaveProperty("supplierPriceListReading");
+    expect(backgroundJobsEnv).not.toHaveProperty("supplierPriceListReading");
   });
 
   it("reads no supplier price list without the bucket", async () => {
-    const recoveryEnv = await recoveryEnvFor({ ...env, ...aiKey });
+    const backgroundJobsEnv = await backgroundJobsEnvFor({ ...env, ...aiKey });
 
-    expect(recoveryEnv).not.toHaveProperty("supplierPriceListReading");
+    expect(backgroundJobsEnv).not.toHaveProperty("supplierPriceListReading");
   });
 });
 
@@ -1950,7 +1965,7 @@ describe("startServer with the real app", () => {
       builtApps.push(app);
       return app;
     };
-    const setUpRecovery = vi.fn().mockResolvedValue({
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -1977,7 +1992,7 @@ describe("startServer with the real app", () => {
         arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp: buildAppWithoutListening,
-        setUpRecovery,
+        setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -2002,7 +2017,7 @@ describe("startServer with the real app", () => {
   });
 });
 
-describe("createRecoveryJobQueuePool", () => {
+describe("createBackgroundJobQueuePool", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -2016,14 +2031,14 @@ describe("createRecoveryJobQueuePool", () => {
     const createPool = vi.fn().mockReturnValue(pool);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    createRecoveryJobQueuePool("postgres://user:pass@db/purosur", { createPool });
+    createBackgroundJobQueuePool("postgres://user:pass@db/purosur", { createPool });
 
     const error = new Error("idle client disconnected");
     expect(createPool).toHaveBeenCalledWith("postgres://user:pass@db/purosur");
     expect(pool.listenerCount("error")).toBeGreaterThan(0);
     expect(() => pool.emit("error", error)).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith(
-      "recovery job queue: idle database client failed",
+      "background job queue: idle database client failed",
       error,
     );
   });
@@ -2033,7 +2048,7 @@ describe("createRecoveryJobQueuePool", () => {
     const createPool = vi.fn().mockReturnValue(pool);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    createRecoveryJobQueuePool("postgres://user:pass@db/purosur", { createPool });
+    createBackgroundJobQueuePool("postgres://user:pass@db/purosur", { createPool });
 
     expect(pool.listenerCount("connect")).toBeGreaterThan(0);
     const client = new EventEmitter();
@@ -2044,14 +2059,14 @@ describe("createRecoveryJobQueuePool", () => {
     expect(client.listenerCount("error")).toBeGreaterThan(0);
     expect(() => client.emit("error", error)).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith(
-      "recovery job queue: active database client failed",
+      "background job queue: active database client failed",
       error,
     );
   });
 });
 
-describe("closeRecoveryResources", () => {
-  function recoveryResources(events: string[]) {
+describe("closeBackgroundJobResources", () => {
+  function backgroundJobResources(events: string[]) {
     return {
       worker: {
         stop: vi.fn().mockImplementation(async () => {
@@ -2079,7 +2094,7 @@ describe("closeRecoveryResources", () => {
   it("releases the job-queue utilities before ending the pool they use, the worker first and the database client last", async () => {
     const events: string[] = [];
 
-    await closeRecoveryResources(recoveryResources(events));
+    await closeBackgroundJobResources(backgroundJobResources(events));
 
     expect(events).toEqual([
       "worker stopped",
@@ -2091,14 +2106,14 @@ describe("closeRecoveryResources", () => {
 
   it("still closes every later resource when two of them fail, then rejects with both failures", async () => {
     const events: string[] = [];
-    const resources = recoveryResources(events);
+    const resources = backgroundJobResources(events);
     resources.worker.stop.mockRejectedValue(new Error("worker stop failed"));
     resources.jobQueuePool.end.mockImplementation(async () => {
       events.push("job-queue pool ended");
       throw new Error("pool end failed");
     });
 
-    const failure = await closeRecoveryResources(resources).then(
+    const failure = await closeBackgroundJobResources(resources).then(
       () => undefined,
       (error: unknown) => error,
     );
@@ -2106,8 +2121,8 @@ describe("closeRecoveryResources", () => {
     expect(events).toEqual(["utilities released", "job-queue pool ended", "database client ended"]);
     expect(failure).toBeInstanceOf(AggregateError);
     expect((failure as AggregateError).errors.map((error: Error) => error.message)).toEqual([
-      expect.stringContaining("worker stop failed"),
-      expect.stringContaining("pool end failed"),
+      expect.stringContaining("background job runner failed to shut down: worker stop failed"),
+      expect.stringContaining("job-queue pool failed to shut down: pool end failed"),
     ]);
   });
 });
@@ -2209,9 +2224,9 @@ describe("startServer ARCA endpoints", () => {
     wsaa: "http://127.0.0.1:1/wsaa-for-this-test",
   };
 
-  it("hands setUpRecovery the endpoints it was given instead of ARCA's own", async () => {
+  it("hands setUpBackgroundJobs the endpoints it was given instead of ARCA's own", async () => {
     const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
-    const setUpRecovery = vi.fn().mockResolvedValue({
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -2238,7 +2253,7 @@ describe("startServer ARCA endpoints", () => {
       {
         initSentry: vi.fn(),
         buildApp: vi.fn().mockReturnValue(fakeApp),
-        setUpRecovery,
+        setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -2249,7 +2264,7 @@ describe("startServer ARCA endpoints", () => {
     );
 
     expect(arcaEndpoints).toHaveBeenCalledWith("homologation");
-    expect(setUpRecovery).toHaveBeenCalledWith(
+    expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({
         arcaVitality: { endpoint: endpoints.wsfe },
         arcaWsaa: expect.objectContaining({ endpoint: endpoints.wsaa }),

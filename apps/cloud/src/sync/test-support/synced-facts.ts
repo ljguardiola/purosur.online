@@ -320,6 +320,23 @@ export function anOfflineFiscalDocumentFact(
   };
 }
 
+export function anOfflineCreditNoteFact(
+  overrides: Partial<FactOf<"offline_fiscal_document_issued">["document"]> = {},
+): FactOf<"offline_fiscal_document_issued"> {
+  const { document } = anOfflineFiscalDocumentFact();
+  return {
+    kind: "offline_fiscal_document_issued",
+    document: {
+      ...document,
+      documentType: "credit_note_c",
+      number: 3,
+      creditNoteId: randomUUID(),
+      corrects: { voucherType: 11, pointOfSale: 7, number: 12 },
+      ...overrides,
+    },
+  };
+}
+
 export function aClockCorrectedFact(
   overrides: Partial<FactOf<"clock_corrected">["correction"]> = {},
 ): FactOf<"clock_corrected"> {

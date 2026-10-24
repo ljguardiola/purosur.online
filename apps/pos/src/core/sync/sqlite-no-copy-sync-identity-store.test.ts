@@ -59,9 +59,9 @@ describe("the sync identity store of a register reinstalled with no copy", () =>
       installation_revoked_at: null,
       sales_stopped_reason: null,
     });
-    expect(database.prepare("SELECT * FROM register_predecessor").all()).toEqual([
-      { device_id: "first-device", last_acknowledged_seq: 0 },
-    ]);
+    expect(
+      database.prepare("SELECT device_id, last_acknowledged_seq FROM register_predecessor").all(),
+    ).toEqual([{ device_id: "first-device", last_acknowledged_seq: 0 }]);
     expect(database.prepare("SELECT register_id FROM awaiting_restored_numbering").all()).toEqual([
       { register_id: "register-1" },
     ]);
@@ -79,6 +79,19 @@ describe("the sync identity store of a register reinstalled with no copy", () =>
     expect(database.prepare("SELECT COUNT(*) AS total FROM register_predecessor").get()).toEqual({
       total: 1,
     });
+  });
+
+  it("starts the replenishment with no failure left from an earlier restoration", async () => {
+    database.exec(
+      `INSERT INTO register_predecessor (device_id, last_acknowledged_seq, failure_kind, failure_refusal)
+       VALUES ('earlier-device', 3, 'refused', 'predecessor_not_revoked')`,
+    );
+
+    await resetSyncIdentityWithoutCopy({ store }, INPUT);
+
+    expect(
+      database.prepare("SELECT failure_kind, failure_refusal FROM register_predecessor").all(),
+    ).toEqual([{ failure_kind: null, failure_refusal: null }]);
   });
 
   it("leaves everything as it was when the work fails midway", async () => {

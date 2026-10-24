@@ -10,9 +10,13 @@ export const SUPPLIER_PRICE_LIST_STATES = [
 
 export type SupplierPriceListState = (typeof SUPPLIER_PRICE_LIST_STATES)[number];
 
-export const SUPPLIER_PRICE_LIST_SOURCE_KINDS = ["PDF"] as const;
+export const SUPPLIER_PRICE_LIST_SOURCE_KINDS = ["PDF", "WEB_PAGE"] as const;
 
 export type SupplierPriceListSourceKind = (typeof SUPPLIER_PRICE_LIST_SOURCE_KINDS)[number];
+
+export const SUPPLIER_PRICE_LIST_CONTENT_KINDS = ["PDF", "HTML"] as const;
+
+export type SupplierPriceListContentKind = (typeof SUPPLIER_PRICE_LIST_CONTENT_KINDS)[number];
 
 export const SUPPLIER_PRICE_LIST_READ_FAILURES = [
   "unreadable_document",
@@ -28,6 +32,10 @@ export const SUPPLIER_PRICE_LIST_PDF_MAX_BYTES = 20 * 1024 * 1024;
 export const SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH = 255;
 
 export const DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP = 10;
+
+export const SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN = 1;
+
+export const SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX = 100;
 
 export const PRICE_LIST_EXTRACTION_MAX_ROWS = 5_000;
 
@@ -62,6 +70,14 @@ export function isSupplierPriceListDiscardable(state: SupplierPriceListState): b
 
 export function dailyExtractionCapReached(countedToday: number, cap: number): boolean {
   return countedToday >= cap;
+}
+
+export function isSupplierPriceListDailyExtractionCap(value: number): boolean {
+  return (
+    Number.isInteger(value) &&
+    value >= SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN &&
+    value <= SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX
+  );
 }
 
 export function isPriceListRowPrice(cents: number): boolean {

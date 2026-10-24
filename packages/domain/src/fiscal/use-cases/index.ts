@@ -6,6 +6,7 @@ export type {
   ClockMark,
   ClockPreviousReadingSource,
 } from "../model/clock-correction.js";
+export type { PendingDeferredSale } from "../model/deferred-sale-record.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
   RejectionStandingChange,
@@ -17,7 +18,7 @@ export type {
   FiscalTaskKind,
 } from "../model/fiscal-task.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
-export type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
+export type { OfflineCreditNote, OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
 export type {
   CreditNoteDecision,
   ExternalBilling,
@@ -95,6 +96,7 @@ export type {
   AssignOfflineNumberBlockInput,
 } from "./assign-offline-number-block.js";
 export { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
+export type { AttachedSaleEvents } from "./attached-sale-event-ports.js";
 export type {
   AuthorizeFiscalDocumentInput,
   AuthorizeFiscalDocumentOutcome,
@@ -144,6 +146,15 @@ export type {
   BranchClockCorrection,
   ClockCorrectionReader,
 } from "./clock-correction-reader.js";
+export type { CloseFiscalTaskInput, CloseFiscalTaskOutcome } from "./close-fiscal-task.js";
+export { closeFiscalTask } from "./close-fiscal-task.js";
+export type {
+  CloseFiscalTaskPorts,
+  CloseFiscalTaskStore,
+  CloseFiscalTaskStoreTransaction,
+  FiscalTaskClosingAudit,
+  FiscalTaskClosingRecord,
+} from "./close-fiscal-task-ports.js";
 export type {
   ConfigureRegisterOfflinePointOfSaleInput,
   ConfigureRegisterOfflinePointOfSaleOutcome,
@@ -246,6 +257,7 @@ export type {
   FortnightRegularizationReader,
 } from "./fortnight-regularization-reader.js";
 export type {
+  ContingencyInvoiceReport,
   DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,
@@ -322,6 +334,11 @@ export type {
   OfflineNumberBlockStore,
 } from "./offline-number-block-store.js";
 export type {
+  FiscalTaskAlert,
+  OpenFiscalTask,
+  OpenFiscalTaskReader,
+} from "./open-fiscal-task-reader.js";
+export type {
   AuthorizationNumber,
   OrphanRegularizationLane,
   OrphanRegularizationLanes,
@@ -329,6 +346,7 @@ export type {
   RegularizeOrphanAuthorizationPorts,
 } from "./orphan-authorization-ports.js";
 export type { OwedPresentationList } from "./owed-presentation-list-ports.js";
+export type { PendingDeferredSaleReader } from "./pending-deferred-sale-reader.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,
@@ -412,6 +430,13 @@ export type {
   RegisterPointOfSaleStoreTransaction,
 } from "./register-point-of-sale-store.js";
 export { PointOfSaleClaimConflict } from "./register-point-of-sale-store.js";
+export type { RegularizeExpiredDeferredSalesOutcome } from "./regularize-expired-deferred-sales.js";
+export { regularizeExpiredDeferredSales } from "./regularize-expired-deferred-sales.js";
+export type {
+  DeferredSaleExpiryStore,
+  DeferredSaleExpiryTransaction,
+  RegularizeExpiredDeferredSalesPorts,
+} from "./regularize-expired-deferred-sales-ports.js";
 export type {
   RegularizeOrphanAuthorizationInput,
   RegularizeOrphanAuthorizationOutcome,
@@ -469,6 +494,7 @@ export type {
 } from "./request-void-credit-notes.js";
 export { requestVoidCreditNotes } from "./request-void-credit-notes.js";
 export type {
+  CloudCreditNoteAnswer,
   CloudCreditNoteCall,
   CloudCreditNotes,
   CreditNotePrinter,
@@ -483,6 +509,7 @@ export type {
 } from "./request-voided-sale-credit-note.js";
 export { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
 export type {
+  IssuedOfflineCreditNoteOfRegister,
   KeptAlreadyCreditedRefusalOfRegister,
   RestoredRegisterCreditNoteAnswers,
   SaleVoidCreditNoteOfRegister,
@@ -550,6 +577,10 @@ export type {
   TaxAuthorityCounts,
   TaxAuthorityLastAuthorizedLookup,
 } from "./tax-authority-count-ports.js";
+export type {
+  UnbilledDeferredSaleReader,
+  UnbilledDeferredSales,
+} from "./unbilled-deferred-sale-reader.js";
 export type {
   AbandonedRequestRecord,
   AskAboutUnclearOutcomePorts,

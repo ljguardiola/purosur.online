@@ -2,7 +2,6 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalAuthorization,
   type FiscalDocumentState,
-  type FiscalOnlineSignalEvidence,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   isDeferralPending,
   PENDING_DEFERRED_SALE_RECORD,
@@ -18,7 +17,6 @@ import type {
   SalesHistoryFilter,
   SalesHistoryPage,
 } from "@purosur/domain/sales/use-cases";
-import { readFiscalOnlineEvidence } from "../fiscal/sqlite-fiscal-online-evidence";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
@@ -165,10 +163,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     };
   }
 
-  fiscalOnlineEvidence(): FiscalOnlineSignalEvidence {
-    return readFiscalOnlineEvidence(this.database);
-  }
-
   private page(scope: string, { standing, offset, limit }: SalesHistoryFilter): SalesHistoryPage {
     const { sql, parameters } = standingCondition(standing);
     const where = `${scope} AND ${sql}`;
@@ -218,7 +212,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
          WHERE sale_id = @sale_id
          UNION ALL
          SELECT 'AUTHORIZED', 'offline_code', point_of_sale, number FROM offline_fiscal_documents
-         WHERE sale_id = @sale_id`,
+         WHERE sale_id = @sale_id AND document_type = 'factura_c'`,
       )
       .get({ sale_id: saleId });
     const deferredRecord = this.database

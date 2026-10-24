@@ -12,15 +12,20 @@ import {
   Table,
   useTableModel,
 } from "@purosur/ui";
+import { useMutation } from "@tanstack/react-query";
 import { deepEqual } from "@tanstack/react-router";
-import { Check, Eye, FileText, Search, SearchX, Upload } from "lucide-react";
+import { Check, Eye, FileText, RefreshCw, Search, SearchX, Upload } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
+import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
+import { supplierPriceListOriginOf } from "./supplier-price-list-source";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
+import type { ReadSupplierPriceListWebPageOutcome } from "./supplier-price-lists-api";
 import type { SupplierPriceListsFilters } from "./supplier-price-lists-filters";
 import type { SupplierPriceListsScreenServices } from "./supplier-price-lists-services";
 import { UploadSupplierPriceListModal } from "./upload-supplier-price-list-modal";
@@ -38,11 +43,6 @@ type StateFilter = SupplierPriceListsFilters["state"];
 const NO_LISTS: SupplierPriceListSummary[] = [];
 const UNSET = "—";
 
-const SOURCE_KIND_LABEL = { PDF: "PDF" } satisfies Record<
-  SupplierPriceListSummary["sourceKind"],
-  string
->;
-
 const STATE_FILTER_OPTIONS = [
   { value: "ALL" as const, label: "Todas" },
   { value: "EXTRACTED" as const, label: "Para revisar" },
@@ -58,6 +58,33 @@ function itemsOf(list: SupplierPriceListSummary): string {
     : formatNumber(list.rowCount);
 }
 
+function readNoticeOf(
+  outcome: Exclude<
+    ReadSupplierPriceListWebPageOutcome,
+    { kind: "ok" | "unauthenticated" | "forbidden" }
+  >,
+): ReadNotice {
+  switch (outcome.kind) {
+    case "daily_cap_reached":
+      return { kind: "dailyCapReached" };
+    case "supplier_inactive":
+      return { kind: "refreshedSupplierInactive" };
+    case "supplier_not_found":
+      return { kind: "refreshedSupplierNotFound" };
+    case "reading_unavailable":
+      return { kind: "readingUnavailable" };
+    case "page_refused":
+      return { kind: "pageRefused", reason: outcome.reason };
+    case "rate_limited":
+      return { kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds };
+    case "validation_failed":
+    case "not_found":
+    case "not_a_web_page":
+    case "failed":
+      return { kind: "attemptFailed" };
+  }
+}
+
 export function SupplierPriceListsScreen({
   filters,
   onFiltersChange,
@@ -70,10 +97,34 @@ export function SupplierPriceListsScreen({
     onSessionEnded,
   });
   const refreshPurchasing = useRefreshPurchasing();
+  const sendToMyAccount = useSendToMyAccount();
   const [search, setSearch] = useState(filters.search);
   const [stateFilter, setStateFilter] = useState<StateFilter>(filters.state);
   const [upload, setUpload] = useState<{ supplierId: string | null } | null>(null);
-  const [uploaded, setUploaded] = useState(false);
+  const [notice, setNotice] = useState<ReadNotice | "loaded" | null>(null);
+  const [refreshing, setRefreshing] = useState<ReadonlySet<string>>(new Set());
+  const refresh = useMutation({
+    mutationFn: (listId: string) => services.refreshSupplierPriceList(listId),
+    onSettled: (_outcome, _error, listId) => {
+      setRefreshing((ids) => new Set([...ids].filter((id) => id !== listId)));
+    },
+    onSuccess: (outcome) => {
+      switch (outcome.kind) {
+        case "ok":
+          setNotice("loaded");
+          void refreshPurchasing();
+          return;
+        case "unauthenticated":
+          onSessionEnded();
+          return;
+        case "forbidden":
+          sendToMyAccount();
+          return;
+        default:
+          setNotice(readNoticeOf(outcome));
+      }
+    },
+  });
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
@@ -94,12 +145,15 @@ export function SupplierPriceListsScreen({
     dataColumn({
       id: "source",
       header: "Origen",
-      render: (item: SupplierPriceListSummary) => (
-        <div className="flex flex-col">
-          <span>{item.fileName}</span>
-          <span className="text-detail text-text-subtle">{SOURCE_KIND_LABEL[item.sourceKind]}</span>
-        </div>
-      ),
+      render: (item: SupplierPriceListSummary) => {
+        const origin = supplierPriceListOriginOf(item.source);
+        return (
+          <div className="flex flex-col">
+            <span>{origin.name}</span>
+            <span className="text-detail text-text-subtle">{origin.detail}</span>
+          </div>
+        );
+      },
     }),
     dataColumn({
       id: "date",
@@ -134,6 +188,19 @@ export function SupplierPriceListsScreen({
       header: "Acciones",
       actions: [
         (item: SupplierPriceListSummary) =>
+          item.source.kind === "WEB_PAGE" && item.state !== "READING"
+            ? {
+                icon: <RefreshCw />,
+                "aria-label": `Actualizar la lista de ${item.supplier.name}`,
+                onPress: () => {
+                  if (!refreshing.has(item.id)) {
+                    setRefreshing((ids) => new Set([...ids, item.id]));
+                    refresh.mutate(item.id);
+                  }
+                },
+              }
+            : undefined,
+        (item: SupplierPriceListSummary) =>
           item.state === "READING"
             ? undefined
             : {
@@ -142,7 +209,7 @@ export function SupplierPriceListsScreen({
                 onPress: () => onOpenReview(item.id),
               },
         (item: SupplierPriceListSummary) =>
-          item.state === "READ_FAILED"
+          item.state === "READ_FAILED" && item.source.kind === "PDF"
             ? {
                 icon: <Upload />,
                 "aria-label": `Cargar de nuevo la lista de ${item.supplier.name}`,
@@ -156,7 +223,10 @@ export function SupplierPriceListsScreen({
   const table = useTableModel({
     items: lists,
     id: (list) => list.id,
-    search: { text: search, in: (list) => [list.supplier.name, list.fileName] },
+    search: {
+      text: search,
+      in: (list) => [list.supplier.name, supplierPriceListOriginOf(list.source).name],
+    },
     filter: (list) => stateFilter === "ALL" || list.state === stateFilter,
     columns,
   });
@@ -227,21 +297,23 @@ export function SupplierPriceListsScreen({
         services={services}
         onUploaded={() => {
           setUpload(null);
-          setUploaded(true);
+          setNotice("loaded");
           void refreshPurchasing();
         }}
         onClose={() => setUpload(null)}
         onSessionEnded={onSessionEnded}
       />
-      {uploaded ? (
+      {notice === "loaded" ? (
         <FloatingNotification
           tone="success"
           icon={<Check />}
           title="Lista cargada"
           description="Se está leyendo. Cuando termine, se puede revisar."
-          onDismiss={() => setUploaded(false)}
+          onDismiss={() => setNotice(null)}
         />
-      ) : null}
+      ) : notice === null ? null : (
+        <FloatingNotification {...readNoticeContent(notice)} onDismiss={() => setNotice(null)} />
+      )}
     </>
   );
 }

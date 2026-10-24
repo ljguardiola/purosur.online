@@ -17,6 +17,8 @@ export {
   SALE_COMPLETED_EVENT_TYPE,
   SALE_VOIDED_EVENT_TYPE,
 } from "./outbox-event.js";
+export type { ReplenishmentFailureKind } from "./replenishment-failure-kind.js";
+export { REPLENISHMENT_FAILURE_KINDS } from "./replenishment-failure-kind.js";
 export type { ReportPeriod } from "./report-period.js";
 export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 export type { Fraction } from "./rounding.js";
@@ -31,3 +33,5 @@ export type { Scale, ScaleReading } from "./scale.js";
 export type { SlidingWindowLimit } from "./sliding-window-limit.js";
 export { slidingWindowRetryAfterSeconds, slidingWindowStart } from "./sliding-window-limit.js";
 export { compareSpanishText } from "./text-order.js";
+export type { VersionedKey } from "./versioned-key.js";
+export { inVersionOrder, latestKey } from "./versioned-key.js";

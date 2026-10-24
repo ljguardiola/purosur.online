@@ -1,7 +1,6 @@
 import type { NumberingFreeze } from "../../fiscal/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, VersionedKey } from "../../shared/index.js";
 import type { EnrollmentCodeState } from "../model/enrollment-code.js";
-import type { VersionedKey } from "../model/installation-key.js";
 
 export type { VersionedKey };
 

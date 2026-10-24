@@ -1,8 +1,10 @@
-import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
+import type { FiscalTaskDocumentType } from "../model/fiscal-task.js";
+import { voucherTypeOfDocumentType } from "../model/fiscal-voucher-type.js";
 import type { TaxAuthorityCountPorts } from "./tax-authority-count-ports.js";
 
 export interface RecordTaxAuthorityLastAuthorizedInput {
   pointOfSale: number;
+  documentType: FiscalTaskDocumentType;
 }
 
 export type RecordTaxAuthorityLastAuthorizedOutcome =
@@ -12,8 +14,9 @@ export type RecordTaxAuthorityLastAuthorizedOutcome =
 
 export async function recordTaxAuthorityLastAuthorized(
   { tokens, taxAuthority, vouchers, counts, clock }: TaxAuthorityCountPorts,
-  { pointOfSale }: RecordTaxAuthorityLastAuthorizedInput,
+  { pointOfSale, documentType }: RecordTaxAuthorityLastAuthorizedInput,
 ): Promise<RecordTaxAuthorityLastAuthorizedOutcome> {
+  const voucherType = voucherTypeOfDocumentType(documentType);
   const token = await tokens.validToken();
   if (token === null) {
     return { kind: "no_token" };
@@ -21,7 +24,7 @@ export async function recordTaxAuthorityLastAuthorized(
   const answer = await taxAuthority.lastAuthorized({
     token,
     pointOfSale,
-    voucherType: FACTURA_C_VOUCHER_TYPE,
+    voucherType,
   });
   if (answer.kind === "no_answer") {
     return { kind: "no_answer" };
@@ -31,13 +34,14 @@ export async function recordTaxAuthorityLastAuthorized(
     const voucher = await vouchers.voucherAt({
       token,
       pointOfSale,
-      voucherType: FACTURA_C_VOUCHER_TYPE,
+      voucherType,
       number: answer.number,
     });
     issuedOn = voucher.kind === "found" ? voucher.voucher.issuedOn : null;
   }
   await counts.advance({
     pointOfSale,
+    documentType,
     lastAuthorized: answer.number,
     issuedOn,
     readAt: clock.now(),

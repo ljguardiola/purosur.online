@@ -1,11 +1,11 @@
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
+import type { OfflineSeriesDocumentType } from "../model/fiscal-voucher-type.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 
 export interface FortnightPresentationAwaitingRemedy {
   pointOfSaleNumber: number;
   registerId: string;
   fortnight: Fortnight;
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   rejectedNumber: number;
 }
 

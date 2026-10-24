@@ -70,6 +70,18 @@ describe("WsfeTaxAuthorityLastAuthorized", () => {
     expect(sentValue(request, "CbteTipo")).toBe("11");
   });
 
+  it("answers the number ARCA last authorized for credit notes C, asked with their voucher type", async () => {
+    server.behave(answers("fe-comp-ultimo-autorizado-credit-note.xml"));
+
+    const answer = await lastAuthorizedAt(server.endpoint).lastAuthorized({
+      ...lookup,
+      voucherType: 13,
+    });
+
+    expect(answer).toEqual({ kind: "read", number: 4 });
+    expect(sentValue(server.requests[0], "CbteTipo")).toBe("13");
+  });
+
   it("asks for the voucher type it is given", async () => {
     await lastAuthorizedAt(server.endpoint).lastAuthorized({ ...lookup, voucherType: 13 });
 

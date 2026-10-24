@@ -19,6 +19,7 @@ const ALERT_KIND_LIST = [
   "fiscal_unknown",
   "fiscal_emission_stopped",
   "clock_drift",
+  "register_replenishment_failed",
   "outbox_chain_broken",
   "lots_expiring",
   "offsite_dump_unverified",
@@ -31,6 +32,7 @@ const ALERT_KIND_LIST = [
   "fortnight_report_owed_elsewhere",
   "register_backup_overdue",
   "fortnight_report_document_rejected",
+  "deferred_sale_due",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

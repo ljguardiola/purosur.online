@@ -30,6 +30,7 @@ function toRejectedDocumentWire(rejected: BranchFortnightPresentation["rejectedD
         buyer_tax_status_code: rejected.buyerTaxStatusCode,
         rejections: rejected.rejections,
         remedy: rejected.remedy,
+        remedies: rejected.remedies,
       };
 }
 

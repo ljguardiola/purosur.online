@@ -10,6 +10,7 @@ import {
   OFFSITE_DUMP_UNVERIFIED_REASONS,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
+  REPLENISHMENT_FAILURE_KINDS,
   SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -214,6 +215,11 @@ const clockDriftDetailSchema = z.object({
   deviceId: z.string(),
 });
 
+const registerReplenishmentFailedDetailSchema = z.object({
+  deviceId: z.string(),
+  failure: z.enum(REPLENISHMENT_FAILURE_KINDS),
+});
+
 const outboxChainBrokenDetailSchema = z.object({
   deviceId: z.string(),
 });
@@ -253,9 +259,20 @@ const fortnightReportNeedsRegularizationDetailSchema =
     registerName: z.string().optional(),
   });
 
+const deferredSaleDueDetailSchema = z.object({
+  registerId: z.string(),
+  registerName: z.string().optional(),
+  saleId: z.string(),
+  saleOccurredAt: z.string(),
+  total: z.int(),
+  shortCode: z.string(),
+  expiresOn: z.string(),
+  escalatesAt: z.string(),
+});
+
 const fortnightReportDocumentRejectedDetailSchema =
   fortnightReportNeedsRegularizationDetailSchema.extend({
-    documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
+    documentType: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]),
     rejectedNumber: z.int(),
   });
 
@@ -388,6 +405,11 @@ const alertDetailKinds = [
   }),
   z.object({
     ...alertBase,
+    kind: z.literal("register_replenishment_failed" satisfies AlertKind),
+    detail: registerReplenishmentFailedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
     kind: z.literal("outbox_chain_broken" satisfies AlertKind),
     detail: outboxChainBrokenDetailSchema,
   }),
@@ -445,6 +467,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fortnight_report_document_rejected" satisfies AlertKind),
     detail: fortnightReportDocumentRejectedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("deferred_sale_due" satisfies AlertKind),
+    detail: deferredSaleDueDetailSchema,
   }),
 ] as const;
 

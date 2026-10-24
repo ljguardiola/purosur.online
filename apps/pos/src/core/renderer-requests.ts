@@ -59,6 +59,10 @@ import type {
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
+import {
+  answerContingencyBackupTicketRequest,
+  type ContingencyBackupTicketRequests,
+} from "./backups/contingency-backup-ticket-requests";
 import { answerClockGuardRequest, type ClockGuardRequests } from "./fiscal/clock-guard-answers";
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
@@ -144,6 +148,7 @@ export interface RendererRequestDeps {
   weighProduct: ((productId: string) => Promise<WeighProductOutcome>) | undefined;
   initialCount: InitialCountRequests | undefined;
   clockGuard: ClockGuardRequests | undefined;
+  contingencyBackupTickets: ContingencyBackupTicketRequests | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
   changeLineQuantity:
@@ -1169,6 +1174,10 @@ export async function answerRendererRequest(
     case "read-clock-guard":
     case "correct-register-clock":
       return answerClockGuardRequest(deps, message);
+    case "read-contingency-backup-tickets":
+    case "read-contingency-backup-ticket-of-sale":
+    case "discard-contingency-backup-tickets":
+      return answerContingencyBackupTicketRequest(deps, message);
     case "sale-request": {
       const sale = await readCurrentSale(deps);
       if (sale === "not_permitted") {

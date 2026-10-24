@@ -20,6 +20,8 @@ import {
   READING_LIST,
   REVIEWED_LIST,
   reviewOf,
+  WEB_LIST,
+  WEB_PAGE_URL,
 } from "./test-support/supplier-price-lists";
 
 const LIST_ID = READ_LIST.id;
@@ -250,6 +252,19 @@ test("offers to download the PDF, to discard the list and to confirm it", async 
     .toHaveAttribute("href", `/api/supplier-price-lists/${LIST_ID}/file`);
   await expect.element(screen.getByRole("button", { name: "Descartar la lista" })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Confirmar la lista" })).toBeVisible();
+});
+
+test("offers to open the page a list was read from instead of downloading a PDF", async () => {
+  const screen = await loaded(
+    createServices(),
+    reviewOf(WEB_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION),
+  );
+
+  const link = screen.getByRole("link", { name: "Abrir la página" });
+  await expect.element(link).toHaveAttribute("href", WEB_PAGE_URL);
+  await expect.element(link).toHaveAttribute("target", "_blank");
+  await expect.element(link).toHaveAttribute("rel", "noopener noreferrer");
+  expect(screen.getByRole("link", { name: "Descargar el PDF" }).query()).toBeNull();
 });
 
 test("offers only the actions the cloud allows, even on a list waiting for review", async () => {

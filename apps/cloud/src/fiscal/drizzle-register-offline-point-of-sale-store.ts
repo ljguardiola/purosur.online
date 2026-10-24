@@ -1,4 +1,4 @@
-import type { FiscalDocumentType } from "@purosur/domain";
+import type { FiscalTaskDocumentType } from "@purosur/domain";
 import type {
   LockBranchRegisterResult,
   OfflineNumberBlockRecord,
@@ -32,7 +32,7 @@ import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
 function offlineNumberBlocksLockKey(
   pointOfSaleNumber: number,
-  documentType: FiscalDocumentType,
+  documentType: FiscalTaskDocumentType,
 ): string {
   return `offline_number_blocks:${pointOfSaleNumber}:${documentType}`;
 }
@@ -62,16 +62,27 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
     this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
   }
 
-  async taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null> {
+  async taxAuthorityLastAuthorized(
+    pointOfSaleNumber: number,
+    documentType: FiscalTaskDocumentType,
+  ): Promise<number | null> {
     const [count] = await this.tx
       .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
       .from(taxAuthorityLastAuthorizedNumbers)
-      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, pointOfSaleNumber));
+      .where(
+        and(
+          eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, pointOfSaleNumber),
+          eq(taxAuthorityLastAuthorizedNumbers.documentType, documentType),
+        ),
+      );
     return count?.lastAuthorized ?? null;
   }
 
-  async requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void> {
-    await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber);
+  async requireTaxAuthorityCount(
+    pointOfSaleNumber: number,
+    documentType: FiscalTaskDocumentType,
+  ): Promise<void> {
+    await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber, documentType);
   }
 
   async offlineRegisterOf(pointOfSaleNumber: number): Promise<string | null> {
@@ -131,7 +142,7 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
 
   async lockOfflineNumberBlocks(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<void> {
     const key = offlineNumberBlocksLockKey(pointOfSaleNumber, documentType);
     await this.tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
@@ -139,7 +150,7 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
 
   async offlineNumberBlockInUse(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<OfflineNumberBlockRecord | null> {
     const [block] = await this.tx
       .select({
@@ -169,7 +180,7 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
 
   highestSyncedOfflineNumber(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<number | null> {
     return highestSyncedOfflineNumber(this.tx, pointOfSaleNumber, documentType);
   }

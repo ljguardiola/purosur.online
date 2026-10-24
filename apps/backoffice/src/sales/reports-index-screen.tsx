@@ -23,6 +23,7 @@ export function ReportsIndexScreen() {
       </LinkListCard>
       <LinkListCard title="Caja" icon={<Wallet />}>
         <ReportRow to="/reports/hand-confirmed-payments" label="Pagos confirmados a mano" />
+        <ReportRow to="/reports/cash-session-closes" label="Cierres de sesión" />
       </LinkListCard>
     </ScreenLayout>
   );

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
-import { FakeOfflineNumberBlocks } from "./test-support/fake-offline-number-blocks.js";
+import { FakeOfflineNumberBlocks, seriesKey } from "./test-support/fake-offline-number-blocks.js";
 
 const input = {
   pointOfSaleNumber: 12,
@@ -17,9 +17,9 @@ function storeKnowing(
     blocks,
     [],
     () => {},
-    new Map(lastAuthorized === null ? [] : [[12, lastAuthorized]]),
+    new Map(lastAuthorized === null ? [] : [[seriesKey(12, "factura_c"), lastAuthorized]]),
     [],
-    new Map(highestSynced === null ? [] : [[12, highestSynced]]),
+    new Map(highestSynced === null ? [] : [[seriesKey(12, "factura_c"), highestSynced]]),
   );
 }
 
@@ -96,7 +96,9 @@ describe("assignFirstOfflineNumberBlock", () => {
 
     expect(outcome).toEqual({ kind: "tax_authority_count_unknown" });
     expect(store.blocks).toEqual([]);
-    expect(store.requiredTaxAuthorityCounts).toEqual([12]);
+    expect(store.requiredTaxAuthorityCounts).toEqual([
+      { pointOfSaleNumber: 12, documentType: "factura_c" },
+    ]);
     expect(store.operations).toEqual([
       "lockOfflineNumberBlocks",
       "offlineNumberBlockInUse",

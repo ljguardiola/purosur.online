@@ -46,6 +46,11 @@ export type {
   ClosedAlert,
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
+export type {
+  DeferredSaleDeadlineAlerts,
+  DeferredSaleDeadlineDetectionPorts,
+} from "./deferred-sale-deadline-ports.js";
+export { detectDeferredSaleDeadlines } from "./detect-deferred-sale-deadlines.js";
 export { detectExpiringLots } from "./detect-expiring-lots.js";
 export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 export { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
@@ -86,6 +91,10 @@ export { observeAlertCondition } from "./observe-alert-condition.js";
 export type { OfflineAuthorizationCodeHoldingReader } from "./offline-authorization-code-holding-reader.js";
 export type { OpenAlertOutcome } from "./open-alert.js";
 export { openAlert } from "./open-alert.js";
+export type {
+  OpenAlertStanding,
+  OpenAlertStandingReader,
+} from "./open-alert-standing-reader.js";
 export type {
   OpenOverdueUnclearOutcomeAlertsOutcome,
   OpenOverdueUnclearOutcomeAlertsPorts,

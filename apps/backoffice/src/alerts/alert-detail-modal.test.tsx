@@ -2,6 +2,7 @@ import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
 import {
   formatCalendarDay,
   formatCalendarDayRange,
+  formatCents,
   formatInvoiceNumber,
   formatPercent,
   formatPointOfSaleNumber,
@@ -1463,6 +1464,43 @@ test("names a register whose clock is off by what happened when the alert is not
     .toBeVisible();
 });
 
+test.each([
+  [
+    "refused",
+    "La nube rechazó ponerla al día. La caja «Caja 1» no puede vender hasta que un Administrador la dé de alta de nuevo.",
+  ],
+  [
+    "unreadable_event",
+    "La caja «Caja 1» recibió un evento que su versión no puede leer. No puede vender hasta que se actualice; después lo intenta sola.",
+  ],
+] as const)(
+  "tells a register whose replenishment failed as %s and that the alert closes by itself",
+  async (failure, description) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "register_replenishment_failed",
+          level: "critical",
+          audience: "all",
+          closing: "by_itself",
+          scope: "register-1",
+          scopeDisplay: "Caja 1",
+          detail: { deviceId: "device-1", failure },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Caja sin poder ponerse al día", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText(description)).toBeVisible();
+    expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+  },
+);
+
 test("names a register whose fiscal emission is stopped by what happened when the alert is not for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
@@ -2210,6 +2248,71 @@ test("tells which register went more than an hour without a verified backup, whe
     .toBeVisible();
   await expect.element(screen.getByText("16/09/2026 · 14:05", { exact: true })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+function deferredSaleDueAlert(overrides: { level: "warning" | "critical" }) {
+  return baseDetail({
+    kind: "deferred_sale_due",
+    level: overrides.level,
+    audience: "all",
+    scope: "deferred-sale-1",
+    scopeDisplay: "deferred-sale-1",
+    scopeKind: "deferredSale",
+    closing: "by_itself",
+    detail: {
+      registerId: "register-1",
+      registerName: "Caja 1",
+      saleId: "sale-1",
+      saleOccurredAt: "2026-09-10T15:00:00.000Z",
+      total: 1234500,
+      shortCode: "ABCD2345",
+      expiresOn: "2026-09-15",
+      escalatesAt: "2026-09-14T03:00:00.000Z",
+    },
+  });
+}
+
+test("tells which deferred sale is about to run out of time to be invoiced, its code, when it expires and when the alert escalates", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(deferredSaleDueAlert({ level: "warning" })));
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Venta diferida por vencer", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Una venta diferida todavía no se facturó y se acerca el día en que ya no podrá facturarse.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(`Venta del 10/09/2026 · 12:00 por ${formatCents(1234500)}`, { exact: true }),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Código ABCD2345", { exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByText(`Vence el ${formatCalendarDay("2026-09-15")}`, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Escala a crítica el 14/09/2026 · 00:00", { exact: true }))
+    .toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("does not announce an escalation for a deferred sale alert that already escalated", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(deferredSaleDueAlert({ level: "critical" })));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Código ABCD2345", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText(/Escala a crítica/)).not.toBeInTheDocument();
 });
 
 test("says a register has never had a verified backup when it has none to name", async () => {

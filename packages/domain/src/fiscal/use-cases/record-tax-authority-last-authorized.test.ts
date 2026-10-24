@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { FiscalTaskDocumentType } from "../model/fiscal-task.js";
 import { recordTaxAuthorityLastAuthorized } from "./record-tax-authority-last-authorized.js";
 import type { LastAuthorizedAnswer, LastAuthorizedCount } from "./tax-authority-count-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
@@ -36,11 +37,13 @@ function record({
   answer = { kind: "read", number: 38 },
   stored = [],
   voucher = VOUCHER,
+  documentType = "factura_c",
 }: {
   token?: typeof TOKEN | null;
   answer?: LastAuthorizedAnswer;
   stored?: LastAuthorizedCount[];
   voucher?: VoucherAnswer;
+  documentType?: FiscalTaskDocumentType;
 } = {}) {
   const taxAuthority = new FakeLastAuthorizedLookup(answer);
   const vouchers = new FakeVoucherLookup(voucher);
@@ -53,7 +56,7 @@ function record({
       counts,
       clock: new ManualClock(NOW),
     },
-    { pointOfSale: 12 },
+    { pointOfSale: 12, documentType },
   );
   return { taxAuthority, vouchers, counts, outcome };
 }
@@ -65,7 +68,13 @@ describe("recordTaxAuthorityLastAuthorized", () => {
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
     expect(taxAuthority.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, voucherType: 11 }]);
     expect(counts.stored).toEqual([
-      { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastAuthorized: 38,
+        issuedOn: "2026-09-30",
+        readAt: NOW,
+      },
     ]);
   });
 
@@ -77,7 +86,13 @@ describe("recordTaxAuthorityLastAuthorized", () => {
       { token: TOKEN, pointOfSale: 12, voucherType: 11, number: 38 },
     ]);
     expect(counts.stored).toEqual([
-      { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastAuthorized: 38,
+        issuedOn: "2026-09-30",
+        readAt: NOW,
+      },
     ]);
   });
 
@@ -91,7 +106,13 @@ describe("recordTaxAuthorityLastAuthorized", () => {
 
       await expect(outcome).resolves.toEqual({ kind: "recorded" });
       expect(counts.stored).toEqual([
-        { pointOfSale: 12, lastAuthorized: 38, issuedOn: null, readAt: NOW },
+        {
+          pointOfSale: 12,
+          documentType: "factura_c",
+          lastAuthorized: 38,
+          issuedOn: null,
+          readAt: NOW,
+        },
       ]);
     },
   );
@@ -102,40 +123,69 @@ describe("recordTaxAuthorityLastAuthorized", () => {
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
     expect(vouchers.lookups).toEqual([]);
     expect(counts.stored).toEqual([
-      { pointOfSale: 12, lastAuthorized: 0, issuedOn: null, readAt: NOW },
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastAuthorized: 0,
+        issuedOn: null,
+        readAt: NOW,
+      },
     ]);
   });
 
   it("advances the point of sale's last authorized count with a higher number read", async () => {
     const { counts, outcome } = record({
-      stored: [{ pointOfSale: 12, lastAuthorized: 30, readAt: EARLIER }],
+      stored: [{ pointOfSale: 12, documentType: "factura_c", lastAuthorized: 30, readAt: EARLIER }],
     });
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
     expect(counts.stored).toEqual([
-      { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastAuthorized: 38,
+        issuedOn: "2026-09-30",
+        readAt: NOW,
+      },
     ]);
   });
 
   it("never moves the point of sale's last authorized count back when the number read is lower", async () => {
     const { counts, outcome } = record({
-      stored: [{ pointOfSale: 12, lastAuthorized: 44, readAt: EARLIER }],
+      stored: [{ pointOfSale: 12, documentType: "factura_c", lastAuthorized: 44, readAt: EARLIER }],
     });
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
     expect(counts.stored).toEqual([
-      { pointOfSale: 12, lastAuthorized: 44, issuedOn: "2026-09-30", readAt: NOW },
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastAuthorized: 44,
+        issuedOn: "2026-09-30",
+        readAt: NOW,
+      },
     ]);
   });
 
   it("leaves the count of another point of sale as it was", async () => {
-    const other = { pointOfSale: 13, lastAuthorized: 90, readAt: EARLIER };
+    const other: LastAuthorizedCount = {
+      pointOfSale: 13,
+      documentType: "factura_c",
+      lastAuthorized: 90,
+      readAt: EARLIER,
+    };
     const { counts, outcome } = record({ stored: [other] });
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
     expect(counts.stored).toEqual([
       other,
-      { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastAuthorized: 38,
+        issuedOn: "2026-09-30",
+        readAt: NOW,
+      },
     ]);
   });
 
@@ -153,5 +203,68 @@ describe("recordTaxAuthorityLastAuthorized", () => {
     await expect(outcome).resolves.toEqual({ kind: "no_answer" });
     expect(vouchers.lookups).toEqual([]);
     expect(counts.stored).toEqual([]);
+  });
+
+  describe("for the credit notes of a point of sale", () => {
+    it("asks the tax authority for the last authorized credit note C and the voucher of that number", async () => {
+      const { taxAuthority, vouchers, counts, outcome } = record({
+        documentType: "credit_note_c",
+        answer: { kind: "read", number: 9 },
+      });
+
+      await expect(outcome).resolves.toEqual({ kind: "recorded" });
+      expect(taxAuthority.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, voucherType: 13 }]);
+      expect(vouchers.lookups).toEqual([
+        { token: TOKEN, pointOfSale: 12, voucherType: 13, number: 9 },
+      ]);
+      expect(counts.stored).toEqual([
+        {
+          pointOfSale: 12,
+          documentType: "credit_note_c",
+          lastAuthorized: 9,
+          issuedOn: "2026-09-30",
+          readAt: NOW,
+        },
+      ]);
+    });
+
+    it("leaves the factura count of the same point of sale as it was", async () => {
+      const factura = {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastAuthorized: 44,
+        readAt: EARLIER,
+      } as const;
+      const { counts, outcome } = record({
+        documentType: "credit_note_c",
+        answer: { kind: "read", number: 9 },
+        stored: [factura],
+      });
+
+      await expect(outcome).resolves.toEqual({ kind: "recorded" });
+      expect(counts.stored).toEqual([
+        factura,
+        {
+          pointOfSale: 12,
+          documentType: "credit_note_c",
+          lastAuthorized: 9,
+          issuedOn: "2026-09-30",
+          readAt: NOW,
+        },
+      ]);
+    });
+
+    it("never moves the credit note count back when the number read is lower", async () => {
+      const { counts, outcome } = record({
+        documentType: "credit_note_c",
+        answer: { kind: "read", number: 9 },
+        stored: [
+          { pointOfSale: 12, documentType: "credit_note_c", lastAuthorized: 20, readAt: EARLIER },
+        ],
+      });
+
+      await expect(outcome).resolves.toEqual({ kind: "recorded" });
+      expect(counts.stored.map(({ lastAuthorized }) => lastAuthorized)).toEqual([20]);
+    });
   });
 });

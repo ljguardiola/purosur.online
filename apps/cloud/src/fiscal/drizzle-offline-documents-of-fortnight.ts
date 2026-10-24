@@ -36,6 +36,9 @@ export class DrizzleOfflineDocumentsOfFortnight<TQueryResult extends PgQueryResu
         buyerTaxStatusCode: offlineFiscalDocuments.buyerTaxStatusCode,
         total: offlineFiscalDocuments.total,
         netAmount: offlineFiscalDocuments.netAmount,
+        correctedVoucherType: offlineFiscalDocuments.correctedVoucherType,
+        correctedPointOfSale: offlineFiscalDocuments.correctedPointOfSale,
+        correctedNumber: offlineFiscalDocuments.correctedNumber,
       })
       .from(offlineFiscalDocuments)
       .innerJoin(
@@ -55,12 +58,25 @@ export class DrizzleOfflineDocumentsOfFortnight<TQueryResult extends PgQueryResu
       pointsOfSale: [pointOfSaleNumber],
       fortnightStart: fortnight.start,
     });
-    return documents.map((document) => ({
-      ...document,
-      correction:
-        corrections.get(
-          remedyKey(pointOfSaleNumber, fortnight.start, document.documentType, document.number),
-        ) ?? null,
-    }));
+    return documents.map(
+      ({ correctedVoucherType, correctedPointOfSale, correctedNumber, ...document }) => ({
+        ...document,
+        ...(correctedVoucherType === null ||
+        correctedPointOfSale === null ||
+        correctedNumber === null
+          ? {}
+          : {
+              corrects: {
+                voucherType: correctedVoucherType,
+                pointOfSale: correctedPointOfSale,
+                number: correctedNumber,
+              },
+            }),
+        correction:
+          corrections.get(
+            remedyKey(pointOfSaleNumber, fortnight.start, document.documentType, document.number),
+          ) ?? null,
+      }),
+    );
   }
 }

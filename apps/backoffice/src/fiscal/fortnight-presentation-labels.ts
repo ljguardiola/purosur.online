@@ -12,6 +12,10 @@ const STATE_BADGES: Record<
   missing_document: { label: "Falta un comprobante", tone: "error" },
   accepted: { label: "Aceptado", tone: "success" },
   needs_regularization: { label: "A regularizar", tone: "error" },
+  awaiting_invoice_report: {
+    label: "Espera el informe de la factura que corrige",
+    tone: "warning",
+  },
   listed_as_owed: { label: "Adeudada según ARCA", tone: "error" },
 };
 
@@ -32,7 +36,14 @@ export function presentationStateBadge({
 }
 
 export function presentationDocumentTypeLabel(documentType: FortnightPresentation["documentType"]) {
-  return documentType === "factura_c" ? "Factura C" : NOT_APPLICABLE;
+  switch (documentType) {
+    case "factura_c":
+      return "Factura C";
+    case "credit_note_c":
+      return "Nota de crédito C";
+    case null:
+      return NOT_APPLICABLE;
+  }
 }
 
 export function presentationDocumentsLabel({

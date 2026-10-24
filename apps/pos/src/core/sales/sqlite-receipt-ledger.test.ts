@@ -11,7 +11,11 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
-import { insertCreditNote, insertVoidedSale } from "./test-support/credit-note-receipt-database";
+import {
+  insertCreditNote,
+  insertCreditNoteIssuedOffline,
+  insertVoidedSale,
+} from "./test-support/credit-note-receipt-database";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const COMPLETED_AT = "2026-09-30T15:05:00.000Z";
@@ -556,6 +560,13 @@ describe("a receipt ledger's credit note of a voided sale", () => {
       voided: true,
       creditNoteAuthorized: true,
     });
+  });
+
+  it("is authorized once the register issued it offline, whatever its print state", () => {
+    database.exec("DELETE FROM sale_void_credit_notes");
+    insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 9 });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.creditNoteAuthorized).toBe(true);
   });
 
   it.each(["IN_PROGRESS", "REJECTED", "ALREADY_CREDITED"])(

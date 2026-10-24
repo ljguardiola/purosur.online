@@ -420,6 +420,7 @@ beforeAll(async () => {
   await db.insert(taxAuthorityLastAuthorizedNumbers).values(
     [17, 18, 19].map((pointOfSaleNumber) => ({
       pointOfSaleNumber,
+      documentType: "factura_c" as const,
       lastAuthorized: 0,
       readAt: NOW,
     })),

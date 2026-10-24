@@ -4,7 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { fiscalRequests } from "../platform/db/schema.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -64,7 +64,7 @@ beforeEach(() => {
   fakeWsfe.requests.length = 0;
 });
 
-function recoveryEnv() {
+function backgroundJobsEnv() {
   return {
     databaseUrl: integrationDb.databaseUrl,
     emailSender: { transport: "log" as const },
@@ -110,17 +110,17 @@ async function unclearRequestOfASaleAlsoIssuedOffline(
 }
 
 async function decide(fiscalDocumentId: string, run: () => Promise<void>) {
-  const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+  const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });
   try {
-    await recovery.db.transaction((transaction) =>
+    await backgroundJobs.db.transaction((transaction) =>
       enqueueUnclearOutcomeJob(transaction, fiscalDocumentId, ALREADY_DUE),
     );
     await run();
   } finally {
-    await recovery.close();
+    await backgroundJobs.close();
   }
 }
 

@@ -27,6 +27,8 @@ function createServices(
       .mockResolvedValue({ kind: "ok", value: [granos, cerealera, andina] }),
     uploadSupplierPriceList:
       vi.fn<UploadSupplierPriceListModalServices["uploadSupplierPriceList"]>(),
+    loadSupplierPriceListWebPage:
+      vi.fn<UploadSupplierPriceListModalServices["loadSupplierPriceListWebPage"]>(),
     ...overrides,
   };
 }
@@ -302,4 +304,222 @@ test("cancel closes the modal without calling the cloud", async () => {
 
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(services.uploadSupplierPriceList).not.toHaveBeenCalled();
+});
+
+const PAGE_ADDRESS = "https://distribuidora-sur.example/precios";
+
+function addressInput(screen: ModalScreen) {
+  return screen.getByRole("dialog").getByLabelText("Dirección de la página");
+}
+
+async function chooseWebPage(screen: ModalScreen) {
+  const label = screen
+    .getByRole("dialog")
+    .getByRole("radio", { name: "Página web" })
+    .element()
+    .closest("label");
+  if (!label) {
+    throw new Error("no label for the web page card");
+  }
+  await userEvent.click(label);
+}
+
+async function submitWebPage(screen: ModalScreen, address: string = PAGE_ADDRESS) {
+  const dialog = screen.getByRole("dialog");
+  await chooseSupplier(screen, "Distribuidora Andina");
+  await chooseWebPage(screen);
+  await userEvent.fill(addressInput(screen), address);
+  await userEvent.click(dialog.getByRole("button", { name: "Leer la lista" }));
+  return dialog;
+}
+
+test("offers a PDF file or a web page as where the list comes from, starting with the PDF", async () => {
+  const screen = await renderModal();
+  const dialog = screen.getByRole("dialog");
+
+  await expect
+    .element(dialog.getByRole("radiogroup", { name: /De dónde sale la lista/ }))
+    .toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Archivo PDF" })).toBeChecked();
+  await expect.element(dialog.getByText("Se sube desde la computadora")).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Página web" })).not.toBeChecked();
+  await expect.element(dialog.getByText("Se lee desde su dirección en internet")).toBeVisible();
+  expect(dialog.getByLabelText("Dirección de la página").query()).toBeNull();
+});
+
+test("asks for the address of the page instead of a file when the list comes from a web page", async () => {
+  const screen = await renderModal();
+
+  await chooseWebPage(screen);
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(addressInput(screen)).toBeVisible();
+  expect(dialog.getByText("Elegir un archivo").query()).toBeNull();
+  await expect
+    .element(
+      dialog.getByText(
+        "Se leen los ítems, las presentaciones y los precios. Nada se guarda hasta revisar cada ítem.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("loads the page for the chosen supplier and reports it without uploading a file", async () => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue({ kind: "ok" });
+  const onUploaded = vi.fn();
+  const screen = await renderModal({ services, onUploaded });
+
+  await submitWebPage(screen);
+
+  expect(services.loadSupplierPriceListWebPage).toHaveBeenCalledWith({
+    supplierId: andina.id,
+    url: PAGE_ADDRESS,
+  });
+  expect(services.uploadSupplierPriceList).not.toHaveBeenCalled();
+  await expect.poll(() => onUploaded.mock.calls.length).toBe(1);
+});
+
+test("asks for the supplier and the address without calling the cloud", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = screen.getByRole("dialog");
+
+  await chooseWebPage(screen);
+  await userEvent.click(dialog.getByRole("button", { name: "Leer la lista" }));
+
+  await expect.element(dialog.getByText("Elegí el proveedor.")).toBeVisible();
+  await expect.element(dialog.getByText("Escribí la dirección de la página.")).toBeVisible();
+  expect(services.loadSupplierPriceListWebPage).not.toHaveBeenCalled();
+});
+
+test("refuses an address that is not a web address without calling the cloud", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+
+  const dialog = await submitWebPage(screen, "precios del proveedor");
+
+  await expect
+    .element(
+      dialog.getByText(
+        "Escribí la dirección completa de la página, empezando con http:// o https://.",
+      ),
+    )
+    .toBeVisible();
+  expect(services.loadSupplierPriceListWebPage).not.toHaveBeenCalled();
+});
+
+test("marks the address as refused with the reason, followed by what else is not read", async () => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue({
+    kind: "page_refused",
+    reason: "address_not_public",
+  });
+  const screen = await renderModal({ services });
+
+  const dialog = await submitWebPage(screen);
+
+  await expect
+    .element(
+      dialog.getByText(
+        "La dirección no es de una página pública. Tiene que ser la página del proveedor en internet.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(addressInput(screen)).toBeInvalid();
+  await expect
+    .element(
+      dialog.getByText(
+        "Tampoco se lee una página que redirige demasiadas veces, tarda demasiado, es muy pesada o no es PDF ni una página web.",
+      ),
+    )
+    .toBeVisible();
+  expect(dialog.getByText(/^Se leen los ítems/).query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: "Leer la lista" })).toBeEnabled();
+});
+
+test("marks the address as refused with the reason alone when the reason is one of what else is not read", async () => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue({
+    kind: "page_refused",
+    reason: "too_large",
+  });
+  const screen = await renderModal({ services });
+
+  const dialog = await submitWebPage(screen);
+
+  await expect.element(dialog.getByText("La página es demasiado pesada.")).toBeVisible();
+  expect(dialog.getByText(/^Tampoco se lee/).query()).toBeNull();
+  expect(dialog.getByText(/^Se leen los ítems/).query()).toBeNull();
+});
+
+test("goes back to the first hint once the address is edited after a refusal", async () => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue({
+    kind: "page_refused",
+    reason: "unreachable",
+  });
+  const screen = await renderModal({ services });
+  const dialog = await submitWebPage(screen);
+  await expect.element(dialog.getByText(/^Tampoco se lee/)).toBeVisible();
+
+  await userEvent.fill(addressInput(screen), `${PAGE_ADDRESS}/lista`);
+
+  await expect.element(dialog.getByText(/^Se leen los ítems/)).toBeVisible();
+  expect(dialog.getByText(/^Tampoco se lee/).query()).toBeNull();
+  expect(dialog.getByText("La página no respondió. Revisá la dirección.").query()).toBeNull();
+});
+
+test("says the day's reading limit was reached when loading a page", async () => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue({
+    kind: "daily_cap_reached",
+    cap: 10,
+  });
+  const screen = await renderModal({ services });
+
+  const dialog = await submitWebPage(screen);
+
+  await expect.element(dialog.getByText("Por hoy no se pueden leer más listas")).toBeVisible();
+});
+
+test.each([
+  [{ kind: "supplier_inactive" }, "Este proveedor está desactivado"],
+  [{ kind: "supplier_not_found" }, "Este proveedor ya no existe"],
+  [{ kind: "reading_unavailable" }, "La lectura de listas no está disponible"],
+  [{ kind: "failed" }, "No se cargó la lista"],
+  [{ kind: "rate_limited", retryAfterSeconds: 60 }, "Demasiadas solicitudes"],
+] as const)("shows %j when loading a page", async (outcome, title) => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue(outcome);
+  const screen = await renderModal({ services });
+
+  const dialog = await submitWebPage(screen);
+
+  await expect.element(dialog.getByText(title)).toBeVisible();
+});
+
+test("shows the cloud's refusal of the address under the address", async () => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue({
+    kind: "validation_failed",
+    field: "url",
+  });
+  const screen = await renderModal({ services });
+
+  const dialog = await submitWebPage(screen);
+
+  await expect.element(dialog.getByText("Revisá la dirección.")).toBeVisible();
+  await expect.element(addressInput(screen)).toBeInvalid();
+});
+
+test("ends the session when loading a page finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderModal({ services, onSessionEnded });
+
+  await submitWebPage(screen);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });

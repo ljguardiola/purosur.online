@@ -163,6 +163,27 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it.each(["refused", "unreadable_event"] as const)(
+    "accepts the device and the %s failure for a register-replenishment-failed alert",
+    (failure) => {
+      expectTypeOf<{
+        kind: "register_replenishment_failed";
+        scope: string;
+        locationId: string;
+        detail: { deviceId: string; failure: typeof failure };
+      }>().toExtend<OpenAlertInput>();
+    },
+  );
+
+  it("refuses a register-replenishment-failed alert with a failure the register does not report", () => {
+    expectTypeOf<{
+      kind: "register_replenishment_failed";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; failure: "lost" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a fiscal-emission-stopped alert with a reason the pre-emission check does not fail for", () => {
     expectTypeOf<{
       kind: "fiscal_emission_stopped";
@@ -474,6 +495,40 @@ describe("an invoice already credited alert", () => {
       kind: "invoice_already_credited";
       scope: string;
       detail: { pointOfSale: number; number: number };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});
+
+describe("a deferred sale due alert", () => {
+  it("accepts the register, the sale, its date and total, its short code, its expiry day and the instant it escalates", () => {
+    expectTypeOf<{
+      kind: "deferred_sale_due";
+      scope: string;
+      locationId: string;
+      detail: {
+        registerId: string;
+        saleId: string;
+        saleOccurredAt: string;
+        total: number;
+        shortCode: string;
+        expiresOn: string;
+        escalatesAt: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without the day the sale expires", () => {
+    expectTypeOf<{
+      kind: "deferred_sale_due";
+      scope: string;
+      detail: {
+        registerId: string;
+        saleId: string;
+        saleOccurredAt: string;
+        total: number;
+        shortCode: string;
+        escalatesAt: string;
+      };
     }>().not.toExtend<OpenAlertInput>();
   });
 });

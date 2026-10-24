@@ -53,9 +53,10 @@ export interface CreditNoteCDetailSource extends FacturaCDetailSource {
   associatedVoucher: { voucherType: number; pointOfSale: number; number: number };
 }
 
-export function creditNoteCDetail({ associatedVoucher, ...source }: CreditNoteCDetailSource) {
+export function associatedVoucherDetail(
+  associatedVoucher: CreditNoteCDetailSource["associatedVoucher"],
+) {
   return {
-    ...facturaCDetail(source),
     CbtesAsoc: {
       CbteAsoc: {
         Tipo: associatedVoucher.voucherType,
@@ -64,4 +65,8 @@ export function creditNoteCDetail({ associatedVoucher, ...source }: CreditNoteCD
       },
     },
   };
+}
+
+export function creditNoteCDetail({ associatedVoucher, ...source }: CreditNoteCDetailSource) {
+  return { ...facturaCDetail(source), ...associatedVoucherDetail(associatedVoucher) };
 }

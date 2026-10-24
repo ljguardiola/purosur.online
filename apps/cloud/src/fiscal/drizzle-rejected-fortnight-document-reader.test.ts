@@ -49,12 +49,13 @@ beforeEach(async () => {
 function record(
   fortnight: Fortnight,
   progress: { state: "refused" | "accepted" | "submitting"; rejectedNumber?: number },
+  documentType: "factura_c" | "credit_note_c" = "factura_c",
 ) {
   return new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
     { pointOfSaleNumber: 8, fortnight },
     (report) =>
       report.recordDocumentType({
-        documentType: "factura_c",
+        documentType,
         at: ATTEMPTED_AT,
         reportedThrough: 3,
         ...progress,
@@ -86,6 +87,23 @@ describe("DrizzleRejectedFortnightDocumentReader.presentationsAwaitingRemedy", (
         rejectedNumber: 4,
       },
     ]);
+  });
+
+  it("answers a rejected credit note as it does a rejected factura, apart from the factura of the same fortnight", async () => {
+    await record(OCTOBER_FIRST_HALF, { state: "refused", rejectedNumber: 4 });
+    await record(OCTOBER_FIRST_HALF, { state: "refused", rejectedNumber: 2 }, "credit_note_c");
+
+    const awaiting = await awaitingRemedy();
+
+    expect(
+      awaiting.map(({ documentType, rejectedNumber }) => [documentType, rejectedNumber]),
+    ).toEqual(
+      expect.arrayContaining([
+        ["factura_c", 4],
+        ["credit_note_c", 2],
+      ]),
+    );
+    expect(awaiting).toHaveLength(2);
   });
 
   it("answers a rejected document whose only remedy was for an earlier rejection of it, or for another document", async () => {

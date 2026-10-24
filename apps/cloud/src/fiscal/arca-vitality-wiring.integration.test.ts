@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -63,7 +63,7 @@ function pendingWatchdogs() {
 
 describe("the ARCA vitality check the server sets up on a real Postgres", () => {
   it("records a check and keeps exactly one next check scheduled 30 seconds on, which the watchdog does not duplicate", async () => {
-    const recovery = await setUpRecovery(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -77,7 +77,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
-      await recovery.workerUtils.addJob(
+      await backgroundJobs.workerUtils.addJob(
         ARCA_VITALITY_CHECK_TASK_IDENTIFIER,
         {},
         { jobKey: ARCA_VITALITY_CHECK_TASK_IDENTIFIER },
@@ -94,7 +94,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         { timeout: 20_000, interval: 100 },
       );
 
-      await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
       await vi.waitFor(async () => expect(await pendingWatchdogs()).toHaveLength(0), {
         timeout: 20_000,
         interval: 100,
@@ -103,7 +103,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
       expect(await scheduledChecks()).toEqual([{ runAt: NEXT_CHECK_AT }]);
       expect(await sql`select 1 from arca_vitality_checks`).toHaveLength(1);
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 
@@ -112,7 +112,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
     await sql`delete from arca_vitality_checks`;
     fakeWsfe.behave(answers("fe-dummy-fault.xml", 500));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const recovery = await setUpRecovery(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -126,7 +126,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
-      await recovery.workerUtils.addJob(
+      await backgroundJobs.workerUtils.addJob(
         ARCA_VITALITY_CHECK_TASK_IDENTIFIER,
         {},
         { jobKey: ARCA_VITALITY_CHECK_TASK_IDENTIFIER },
@@ -140,7 +140,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         { timeout: 20_000, interval: 100 },
       );
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
       warn.mockRestore();
       fakeWsfe.behave(answers("fe-dummy-all-ok.xml"));
     }
@@ -149,7 +149,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
   it("has the watchdog start the chain when none is scheduled", async () => {
     await sql`delete from graphile_worker._private_jobs`;
     await sql`delete from arca_vitality_checks`;
-    const recovery = await setUpRecovery(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -163,7 +163,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
-      await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
 
       await vi.waitFor(
         async () => {
@@ -173,7 +173,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         { timeout: 20_000, interval: 100 },
       );
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 });

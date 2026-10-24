@@ -1,4 +1,5 @@
-import { eq } from "drizzle-orm";
+import type { FiscalTaskDocumentType } from "@purosur/domain";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { taxAuthorityLastAuthorizedNumbers } from "../platform/db/schema.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
@@ -26,11 +27,19 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-async function storedCount(pointOfSale: number) {
+async function storedCount(
+  pointOfSale: number,
+  documentType: FiscalTaskDocumentType = "factura_c",
+) {
   const [row] = await db
     .select()
     .from(taxAuthorityLastAuthorizedNumbers)
-    .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, pointOfSale));
+    .where(
+      and(
+        eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, pointOfSale),
+        eq(taxAuthorityLastAuthorizedNumbers.documentType, documentType),
+      ),
+    );
   return row;
 }
 
@@ -38,12 +47,14 @@ describe("DrizzleTaxAuthorityCounts", () => {
   it("keeps the number the tax authority last authorized for a point of sale, and when it was read", async () => {
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: READ_AT,
     });
 
     expect(await storedCount(7)).toEqual({
       pointOfSaleNumber: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: null,
       readAt: READ_AT,
@@ -52,21 +63,42 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
   it("never lowers the number already stored, whichever order the reads are recorded in", async () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
-    await counts.advance({ pointOfSale: 7, lastAuthorized: 44, readAt: LATER });
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "factura_c",
+      lastAuthorized: 44,
+      readAt: LATER,
+    });
 
-    await counts.advance({ pointOfSale: 7, lastAuthorized: 41, readAt: READ_AT });
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "factura_c",
+      lastAuthorized: 41,
+      readAt: READ_AT,
+    });
 
     expect(await storedCount(7)).toMatchObject({ lastAuthorized: 44 });
   });
 
   it("replaces the number of an earlier read", async () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
-    await counts.advance({ pointOfSale: 7, lastAuthorized: 41, readAt: READ_AT });
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "factura_c",
+      lastAuthorized: 41,
+      readAt: READ_AT,
+    });
 
-    await counts.advance({ pointOfSale: 7, lastAuthorized: 44, readAt: LATER });
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "factura_c",
+      lastAuthorized: 44,
+      readAt: LATER,
+    });
 
     expect(await storedCount(7)).toEqual({
       pointOfSaleNumber: 7,
+      documentType: "factura_c",
       lastAuthorized: 44,
       issuedOn: null,
       readAt: LATER,
@@ -76,6 +108,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
   it("keeps the day the last authorized document was issued on beside its number", async () => {
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-10-05",
       readAt: READ_AT,
@@ -88,6 +121,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
     await counts.advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-10-05",
       readAt: READ_AT,
@@ -95,13 +129,20 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
     await counts.advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 44,
       issuedOn: "2026-10-06",
       readAt: LATER,
     });
     expect(await storedCount(7)).toMatchObject({ lastAuthorized: 44, issuedOn: "2026-10-06" });
 
-    await counts.advance({ pointOfSale: 7, lastAuthorized: 45, issuedOn: null, readAt: LATER });
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "factura_c",
+      lastAuthorized: 45,
+      issuedOn: null,
+      readAt: LATER,
+    });
     expect(await storedCount(7)).toMatchObject({ lastAuthorized: 45, issuedOn: "2026-10-06" });
   });
 
@@ -109,6 +150,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
     await counts.advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 44,
       issuedOn: "2026-10-06",
       readAt: LATER,
@@ -116,6 +158,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
     await counts.advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-10-05",
       readAt: READ_AT,
@@ -128,15 +171,22 @@ describe("DrizzleTaxAuthorityCounts", () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
     await counts.advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-10-05",
       readAt: READ_AT,
     });
 
-    await counts.advance({ pointOfSale: 7, lastAuthorized: 41, readAt: LATER });
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "factura_c",
+      lastAuthorized: 41,
+      readAt: LATER,
+    });
 
     expect(await storedCount(7)).toEqual({
       pointOfSaleNumber: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-10-05",
       readAt: LATER,
@@ -145,10 +195,17 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
   it("learns the day of a number already stored without one", async () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
-    await counts.advance({ pointOfSale: 7, lastAuthorized: 41, issuedOn: null, readAt: READ_AT });
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "factura_c",
+      lastAuthorized: 41,
+      issuedOn: null,
+      readAt: READ_AT,
+    });
 
     await counts.advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-10-05",
       readAt: LATER,
@@ -164,6 +221,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
     });
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: READ_AT,
     });
@@ -171,6 +229,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-10-05",
       readAt: LATER,
@@ -190,6 +249,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: READ_AT,
     });
@@ -205,6 +265,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 8,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: READ_AT,
     });
@@ -220,6 +281,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: READ_AT,
     });
@@ -235,11 +297,81 @@ describe("DrizzleTaxAuthorityCounts", () => {
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 9,
+      documentType: "factura_c",
       lastAuthorized: 5,
       readAt: READ_AT,
     });
 
     expect(await changesLoggedAfter(db, mark)).toEqual([]);
     expect((await storedCount(9))?.lastAuthorized).toBe(5);
+  });
+
+  describe("for the credit notes of a point of sale", () => {
+    it("keeps the last credit note C the tax authority authorized beside the factura count of the same point of sale", async () => {
+      const counts = new DrizzleTaxAuthorityCounts(db);
+      await counts.advance({
+        pointOfSale: 8,
+        documentType: "factura_c",
+        lastAuthorized: 41,
+        readAt: READ_AT,
+      });
+
+      await counts.advance({
+        pointOfSale: 8,
+        documentType: "credit_note_c",
+        lastAuthorized: 4,
+        issuedOn: "2026-10-05",
+        readAt: LATER,
+      });
+
+      expect(await storedCount(8)).toMatchObject({ lastAuthorized: 41, readAt: READ_AT });
+      expect(await storedCount(8, "credit_note_c")).toEqual({
+        pointOfSaleNumber: 8,
+        documentType: "credit_note_c",
+        lastAuthorized: 4,
+        issuedOn: "2026-10-05",
+        readAt: LATER,
+      });
+    });
+
+    it("never lowers the credit note count already stored", async () => {
+      const counts = new DrizzleTaxAuthorityCounts(db);
+      await counts.advance({
+        pointOfSale: 8,
+        documentType: "credit_note_c",
+        lastAuthorized: 9,
+        readAt: LATER,
+      });
+
+      await counts.advance({
+        pointOfSale: 8,
+        documentType: "credit_note_c",
+        lastAuthorized: 4,
+        readAt: READ_AT,
+      });
+
+      expect(await storedCount(8, "credit_note_c")).toMatchObject({ lastAuthorized: 9 });
+    });
+
+    it("logs the offline point of sale of the register that holds it, so the register pulls the credit note count", async () => {
+      const registerId = await seedOfflinePointOfSale(db);
+      const mark = await lastLoggedChangeSeq(db);
+
+      await new DrizzleTaxAuthorityCounts(db).advance({
+        pointOfSale: 8,
+        documentType: "credit_note_c",
+        lastAuthorized: 4,
+        readAt: READ_AT,
+      });
+
+      expect(await changesLoggedAfter(db, mark)).toMatchObject([
+        {
+          entity: "register_offline_point_of_sale",
+          entityId: registerId,
+          version: 1,
+          op: "update",
+        },
+      ]);
+    });
   });
 });

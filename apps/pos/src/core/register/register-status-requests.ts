@@ -1,11 +1,14 @@
 import type { RegisterStatus } from "@purosur/contracts";
 import {
+  areNewSalesStopped,
   type BatteryReport,
   type CriticalBatteryAction,
+  contingencyOf,
   offersSerialDevicesSetup,
   registerOperationAccess,
   registerOwnConditions,
   type StorageStanding,
+  storageSalesStopOf,
 } from "@purosur/domain";
 import { readFiscalEmissionModeIn } from "../fiscal/sqlite-fiscal-emission-mode";
 import { readLatestPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
@@ -49,18 +52,22 @@ export async function registerStatusFor({
     scale: readStanding(reading, "scale"),
     reader: readStanding(reading, "reader"),
   };
+  const salesStop = salesStopOf(database);
+  const storageStanding = storage();
+  const damaged = localDatabaseDamaged();
+  const stoppedByBattery = newSalesStoppedByBattery();
   return {
     conditions: registerOwnConditions({
-      salesStop: salesStopOf(database),
+      salesStop,
       latestPreEmissionGate: readLatestPreEmissionGateOutcome(database),
       lastAcceptedPushAt: new SqliteAcceptedPushLog(database).lastAcceptedPushAt(),
       hours: new SqliteLocalReplica(database).ownBranchHours(),
       now: now(),
       serialDevices: reading.kind === "listed" ? reading.standings : null,
-      storage: storage(),
-      localDatabaseDamaged: localDatabaseDamaged(),
+      storage: storageStanding,
+      localDatabaseDamaged: damaged,
       battery: battery(),
-      newSalesStoppedByBattery: newSalesStoppedByBattery(),
+      newSalesStoppedByBattery: stoppedByBattery,
       criticalBatteryAction: criticalBatteryAction(),
       clockOffsetMs: readLatestClockOffsetMs(database),
     }),
@@ -73,7 +80,10 @@ export async function registerStatusFor({
       mayConfigure: mayConfigureSerialDevices(database, signedInPerson),
       standings,
     }),
-    fiscal_mode: readFiscalEmissionModeIn(database, now()).kind,
+    contingency: contingencyOf(
+      readFiscalEmissionModeIn(database, now()),
+      areNewSalesStopped(salesStop, storageSalesStopOf(storageStanding), damaged, stoppedByBattery),
+    ),
   };
 }
 

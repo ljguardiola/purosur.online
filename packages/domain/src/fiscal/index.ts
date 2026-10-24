@@ -30,6 +30,7 @@ export {
   REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
   replayedClockMark,
 } from "./model/clock-correction.js";
+export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
 export { CREDIT_NOTE_C_VOUCHER_TYPE, CREDIT_NOTE_REASONS } from "./model/credit-note.js";
@@ -55,7 +56,21 @@ export {
   randomShortCode,
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
+export { deferredSaleAgeInDays } from "./model/deferred-sale-age.js";
 export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-sale-expiry.js";
+export type {
+  DeferredSaleRegularizationTask,
+  DeferredSaleState,
+  PendingDeferredSale,
+} from "./model/deferred-sale-record.js";
+export {
+  DEFERRED_SALE_STATES,
+  deferredSaleRegularizationTask,
+  deferredSaleSettlement,
+  EXPIRED_DEFERRED_SALE_STATE,
+  isUnbilledDeferredSale,
+  PENDING_DEFERRED_SALE_STATE,
+} from "./model/deferred-sale-record.js";
 export {
   deferredSaleRecordedEvent,
   type UnclearDeferralDocument,
@@ -71,6 +86,7 @@ export type {
   CreditNoteCFiscalBlock,
   FacturaCFiscalBlock,
   OfflineAuthorizedFacturaC,
+  OfflineCreditNoteCFiscalBlock,
   OfflineFacturaCFiscalBlock,
 } from "./model/factura-c-fiscal-block.js";
 export {
@@ -82,6 +98,7 @@ export {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
   facturaCFiscalBlock,
+  offlineCreditNoteCFiscalBlock,
   offlineFacturaCFiscalBlock,
   TAX_AUTHORITY_QR_URL,
 } from "./model/factura-c-fiscal-block.js";
@@ -97,7 +114,7 @@ export type {
   FiscalEmissionMode,
   FiscalEmissionModeKind,
 } from "./model/fiscal-emission-mode.js";
-export { FISCAL_AUTHORIZATIONS, FISCAL_EMISSION_MODE_KINDS } from "./model/fiscal-emission-mode.js";
+export { FISCAL_AUTHORIZATIONS } from "./model/fiscal-emission-mode.js";
 export type {
   FiscalEmissionStoppedReport,
   LatestPreEmissionGateOutcome,
@@ -117,8 +134,21 @@ export type {
   TaxAuthorityRejection,
 } from "./model/fiscal-rejection-standing.js";
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
-export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
-export { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./model/fiscal-task.js";
+export type { FiscalTaskDocumentType, FiscalTaskState } from "./model/fiscal-task.js";
+export {
+  CLOSED_FISCAL_TASK_STATE,
+  FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH,
+  FISCAL_TASK_KINDS,
+  FISCAL_TASK_STATES,
+  isFiscalTaskClosingNoteTooLong,
+  OPEN_FISCAL_TASK_STATE,
+} from "./model/fiscal-task.js";
+export type { OfflineSeriesDocumentType } from "./model/fiscal-voucher-type.js";
+export {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  OFFLINE_SERIES_DOCUMENT_TYPES,
+  voucherTypeOfDocumentType,
+} from "./model/fiscal-voucher-type.js";
 export type {
   FortnightPresentationRefusal,
   FortnightPresentationState,
@@ -168,9 +198,14 @@ export type { OfflineAuthorizationCodeAcquisitionUrgency } from "./model/offline
 export { offlineAuthorizationCodeAcquisitionUrgency } from "./model/offline-authorization-code-acquisition-urgency.js";
 export type { RegisterOfflineAuthorizationCodeHolding } from "./model/offline-authorization-code-holding.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
-export type { OfflineFiscalDocumentIssuedFact } from "./model/offline-fiscal-document.js";
+export type {
+  OfflineCreditNote,
+  OfflineFiscalDocumentIssuedFact,
+} from "./model/offline-fiscal-document.js";
 export {
   OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,
+  offlineCreditNote,
+  offlineCreditNoteIssuedEvent,
   offlineFiscalDocument,
   offlineFiscalDocumentIssuedEvent,
 } from "./model/offline-fiscal-document.js";
@@ -202,6 +237,7 @@ export type {
   DeferralReason,
   FiscalDocumentState,
   OfflineAuthorizationCause,
+  OfflineSeries,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
   RejectionClass,
@@ -210,9 +246,11 @@ export {
   DEFERRAL_REASONS,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceDateOf,
+  invoiceOwnFortnight,
   isFiscalOutcomeUnresolved,
   NUMBER_CONSUMING_STATES,
   OFFLINE_AUTHORIZATION_CAUSES,
+  offlineRoute,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
@@ -239,6 +277,8 @@ export type {
 export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
 export type {
   CreditNoteAnswer,
+  CreditNoteIssuedOffline,
+  RequestedCreditNoteAnswer,
   RestoredCreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,

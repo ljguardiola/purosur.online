@@ -1,4 +1,4 @@
-import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
+import { OFFLINE_SERIES_DOCUMENT_TYPES } from "../model/fiscal-voucher-type.js";
 import { mayRegisterClaimPointOfSale } from "../model/point-of-sale.js";
 import { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
 import type {
@@ -67,11 +67,15 @@ export async function configureRegisterOfflinePointOfSale(
         ...setup,
         actorId: input.actorId,
       });
-      await assignFirstOfflineNumberBlock(tx, {
-        pointOfSaleNumber: input.pointOfSaleNumber,
-        documentType: FACTURA_C_DOCUMENT_TYPE,
-        registerId: input.registerId,
-      });
+      for (const documentType of [...OFFLINE_SERIES_DOCUMENT_TYPES].sort((a, b) =>
+        a.localeCompare(b),
+      )) {
+        await assignFirstOfflineNumberBlock(tx, {
+          pointOfSaleNumber: input.pointOfSaleNumber,
+          documentType,
+          registerId: input.registerId,
+        });
+      }
       return { kind: "configured", setup };
     });
   } catch (error) {

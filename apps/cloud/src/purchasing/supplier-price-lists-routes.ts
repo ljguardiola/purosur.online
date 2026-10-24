@@ -2,19 +2,24 @@ import {
   supplierPriceListConfirmationBodySchema,
   supplierPriceListDiscardBodySchema,
   supplierPriceListListSchema,
+  supplierPriceListPageRefusedSchema,
   supplierPriceListReviewSchema,
   supplierPriceListRowPriceBodySchema,
   supplierPriceListRowRemovalBodySchema,
   supplierPriceListUploadedSchema,
   supplierPriceListUploadQuerySchema,
+  supplierPriceListWebPageBodySchema,
 } from "@purosur/contracts";
 import { SUPPLIER_PRICE_LIST_PDF_MAX_BYTES } from "@purosur/domain";
+import type { LoadSupplierPriceListWebPageOutcome } from "@purosur/domain/purchasing/use-cases";
 import {
   confirmSupplierPriceList,
   discardSupplierPriceList,
   findSupplierPriceListFile,
   findSupplierPriceListReview,
   listSupplierPriceLists,
+  loadSupplierPriceListWebPage,
+  refreshSupplierPriceListWebPage,
   removeSupplierPriceListRow,
   setSupplierPriceListRowPrice,
   uploadSupplierPriceList,
@@ -54,6 +59,11 @@ const READING_UNAVAILABLE = {
   message: "reading supplier price lists is not available",
 } as const;
 
+const NOT_A_WEB_PAGE = {
+  code: "not_a_web_page",
+  message: "this supplier price list was not read from a web page",
+} as const;
+
 const CONFIRMATION_REFUSALS = {
   no_rows: "the list has no rows to confirm",
   unpriced_rows: "some rows have no price",
@@ -67,6 +77,58 @@ function contentDisposition(fileName: string): string {
     (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
   );
   return `attachment; filename*=UTF-8''${encoded}`;
+}
+
+type WebPageAdmissionRefusal =
+  | { kind: "supplier_not_found" }
+  | { kind: "supplier_inactive" }
+  | { kind: "daily_cap_reached"; cap: number };
+
+async function refuseAdmission(
+  reply: FastifyReply,
+  outcome: WebPageAdmissionRefusal,
+): Promise<void> {
+  switch (outcome.kind) {
+    case "supplier_not_found":
+      await reply
+        .code(404)
+        .send({ code: "supplier_not_found", message: "no supplier with that id" });
+      return;
+    case "supplier_inactive":
+      await reply
+        .code(409)
+        .send({ code: "supplier_inactive", message: "the supplier is deactivated" });
+      return;
+    case "daily_cap_reached":
+      await reply.code(409).send({
+        code: "daily_cap_reached",
+        message: "the branch reached its daily limit of price list readings",
+        cap: outcome.cap,
+      });
+      return;
+  }
+}
+
+async function answerWebPageLoad(
+  reply: FastifyReply,
+  outcome: LoadSupplierPriceListWebPageOutcome,
+): Promise<void> {
+  switch (outcome.kind) {
+    case "page_refused":
+      await reply.code(422).send(
+        supplierPriceListPageRefusedSchema.parse({
+          code: "page_refused",
+          message: "the page could not be read",
+          reason: outcome.reason,
+        }),
+      );
+      return;
+    case "loaded":
+      await reply.code(201).send(supplierPriceListUploadedSchema.parse({ listId: outcome.listId }));
+      return;
+    default:
+      await refuseAdmission(reply, outcome);
+  }
 }
 
 async function refuseChange(
@@ -84,7 +146,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   app: FastifyInstance,
   options: PurchasingRouteOptions<TQueryResult>,
 ): void {
-  const { now, supplierPriceListFiles: files } = options;
+  const { now, supplierPriceListFiles: files, supplierPriceListWebPages: webPages } = options;
   registerRouteAccess(app);
   const store = new DrizzleSupplierPriceListStore(options.db, now);
   const reader = new DrizzleSupplierPriceListReader(options.db);
@@ -146,21 +208,9 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
             await reply.code(413).send(FILE_TOO_LARGE);
             return;
           case "supplier_not_found":
-            await reply
-              .code(404)
-              .send({ code: "supplier_not_found", message: "no supplier with that id" });
-            return;
           case "supplier_inactive":
-            await reply
-              .code(409)
-              .send({ code: "supplier_inactive", message: "the supplier is deactivated" });
-            return;
           case "daily_cap_reached":
-            await reply.code(409).send({
-              code: "daily_cap_reached",
-              message: "the branch reached its daily limit of price list readings",
-              cap: outcome.cap,
-            });
+            await refuseAdmission(reply, outcome);
             return;
           case "uploaded":
             await reply
@@ -334,5 +384,61 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       return;
     }
     await reply.code(200).send();
+  });
+
+  app.post("/supplier-price-lists/web-page", writeGuard, async (request, reply) => {
+    const body = await readValidatedBody(reply, supplierPriceListWebPageBodySchema, request.body);
+    if (!body) {
+      return;
+    }
+    if (!files || !webPages) {
+      await reply.code(503).send(READING_UNAVAILABLE);
+      return;
+    }
+
+    const openSession = openSessionOf(request);
+    const outcome = await loadSupplierPriceListWebPage(
+      { store, files, webPages },
+      {
+        supplierId: body.supplierId,
+        locationId: openSession.locationId,
+        url: body.url,
+        actorId: openSession.userId,
+        now: now(),
+      },
+    );
+    await answerWebPageLoad(reply, outcome);
+  });
+
+  app.post("/supplier-price-lists/:id/refresh", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id"]);
+    if (!ids) {
+      return;
+    }
+    if (!files || !webPages) {
+      await reply.code(503).send(READING_UNAVAILABLE);
+      return;
+    }
+
+    const openSession = openSessionOf(request);
+    const outcome = await refreshSupplierPriceListWebPage(
+      { store, files, webPages },
+      {
+        listId: ids.id,
+        locationId: openSession.locationId,
+        actorId: openSession.userId,
+        now: now(),
+      },
+    );
+    switch (outcome.kind) {
+      case "not_found":
+        await reply.code(404).send(NOT_FOUND);
+        return;
+      case "not_a_web_page":
+        await reply.code(409).send(NOT_A_WEB_PAGE);
+        return;
+      default:
+        await answerWebPageLoad(reply, outcome);
+    }
   });
 }

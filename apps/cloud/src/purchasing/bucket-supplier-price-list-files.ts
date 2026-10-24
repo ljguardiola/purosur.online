@@ -1,3 +1,4 @@
+import type { SupplierPriceListContentKind } from "@purosur/domain";
 import type { SupplierPriceListFiles } from "@purosur/domain/purchasing/use-cases";
 import { AwsClient } from "aws4fetch";
 import type { SupplierPriceListsBucketConfig } from "./supplier-price-lists-bucket-config.js";
@@ -6,6 +7,11 @@ interface BucketSupplierPriceListFilesDeps {
   fetch: (request: Request) => Promise<Response>;
   now: () => Date;
 }
+
+const OBJECT_TYPES = {
+  PDF: { extension: "pdf", mediaType: "application/pdf" },
+  HTML: { extension: "html", mediaType: "text/html" },
+} as const satisfies Record<SupplierPriceListContentKind, { extension: string; mediaType: string }>;
 
 function amzDate(date: Date): string {
   return date.toISOString().replace(/[-:]|\.\d{3}/g, "");
@@ -28,11 +34,15 @@ export class BucketSupplierPriceListFiles implements SupplierPriceListFiles {
     this.origin = `${endpoint.protocol}//${config.bucket}.${endpoint.host}`;
   }
 
-  async store(listId: string, bytes: Uint8Array): Promise<void> {
+  async store(
+    listId: string,
+    bytes: Uint8Array,
+    contentKind: SupplierPriceListContentKind,
+  ): Promise<void> {
     const response = await this.deps.fetch(
-      await this.client.sign(this.objectUrl(listId), {
+      await this.client.sign(this.objectUrl(listId, contentKind), {
         method: "PUT",
-        headers: { "content-type": "application/pdf" },
+        headers: { "content-type": OBJECT_TYPES[contentKind].mediaType },
         body: bytes.slice(),
         aws: { datetime: amzDate(this.deps.now()) },
       }),
@@ -42,9 +52,12 @@ export class BucketSupplierPriceListFiles implements SupplierPriceListFiles {
     }
   }
 
-  async read(listId: string): Promise<Uint8Array | null> {
+  async read(
+    listId: string,
+    contentKind: SupplierPriceListContentKind,
+  ): Promise<Uint8Array | null> {
     const response = await this.deps.fetch(
-      await this.client.sign(this.objectUrl(listId), {
+      await this.client.sign(this.objectUrl(listId, contentKind), {
         method: "GET",
         aws: { datetime: amzDate(this.deps.now()) },
       }),
@@ -59,7 +72,7 @@ export class BucketSupplierPriceListFiles implements SupplierPriceListFiles {
     return new Uint8Array(await response.arrayBuffer());
   }
 
-  private objectUrl(listId: string): string {
-    return `${this.origin}/supplier-price-lists/${listId}.pdf`;
+  private objectUrl(listId: string, contentKind: SupplierPriceListContentKind): string {
+    return `${this.origin}/supplier-price-lists/${listId}.${OBJECT_TYPES[contentKind].extension}`;
   }
 }

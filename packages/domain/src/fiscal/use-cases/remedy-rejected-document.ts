@@ -1,4 +1,4 @@
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
+import type { OfflineSeriesDocumentType } from "../model/fiscal-voucher-type.js";
 import { fortnightContaining } from "../model/offline-authorization-code.js";
 import {
   awaitsRemedy,
@@ -9,6 +9,7 @@ import {
   offlineDocumentCorrectionRefusal,
   presentedOfflineDocument,
   type RejectedDocumentRemedy,
+  remediesOfferedFor,
   remedyAwaitsResend,
 } from "../model/rejected-document-remedy.js";
 import type { RemedyRejectedDocumentPorts } from "./remedy-rejected-document-ports.js";
@@ -17,7 +18,7 @@ export interface RemedyRejectedDocumentInput {
   locationId: string;
   pointOfSaleNumber: number;
   fortnightStart: string;
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   number: number;
   remedy: RejectedDocumentRemedy;
   actorId: string;
@@ -27,6 +28,7 @@ export type RemedyRejectedDocumentOutcome =
   | { kind: "not_rejected" }
   | { kind: "already_remedied" }
   | { kind: "document_not_found" }
+  | { kind: "remedy_not_offered" }
   | { kind: "correction_refused"; refusal: OfflineDocumentCorrectionRefusal }
   | { kind: "remedied" };
 
@@ -42,6 +44,9 @@ export function remedyRejectedDocument(
     actorId,
   }: RemedyRejectedDocumentInput,
 ): Promise<RemedyRejectedDocumentOutcome> {
+  if (!remediesOfferedFor(documentType).includes(remedy.kind)) {
+    return Promise.resolve({ kind: "remedy_not_offered" });
+  }
   const fortnight = fortnightContaining(fortnightStart);
   const key = { pointOfSaleNumber, fortnight };
   return store.transaction<RemedyRejectedDocumentOutcome>(async (tx) => {

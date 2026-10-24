@@ -82,9 +82,12 @@ export async function configureOfflinePointOfSale<TQueryResult extends PgQueryRe
     throw new Error("test setup: seeding the offline point of sale's parents returned no row");
   }
   const base = { locationId, registerId: register.id, actorId: actor.id };
-  await db
-    .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber: offlinePointOfSale, lastAuthorized: 0, readAt: now });
+  await db.insert(taxAuthorityLastAuthorizedNumbers).values({
+    pointOfSaleNumber: offlinePointOfSale,
+    documentType: "factura_c",
+    lastAuthorized: 0,
+    readAt: now,
+  });
   const realTime = await configureRegisterPointOfSale(
     new DrizzleRegisterPointOfSaleStore(db, () => now),
     {
@@ -120,7 +123,7 @@ export async function moveRegisterToOfflinePointOfSale<TQueryResult extends PgQu
   }
   await db
     .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber, lastAuthorized: 0, readAt: now });
+    .values({ pointOfSaleNumber, documentType: "factura_c", lastAuthorized: 0, readAt: now });
   const outcome = await configureRegisterOfflinePointOfSale(
     new DrizzleRegisterOfflinePointOfSaleStore(db, () => now),
     { locationId, registerId, actorId: actor.id, pointOfSaleNumber, version },

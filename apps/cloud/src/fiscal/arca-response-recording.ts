@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   argentinaCalendarDay,
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   FACTURA_C_VOUCHER_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,
@@ -11,6 +12,7 @@ import {
   fortnightsWithinRequestWindowOn,
   invoiceDateOf,
   isPointOfSaleNumber,
+  type OfflineSeriesDocumentType,
   selectConsumerBuyerTaxStatus,
 } from "@purosur/domain";
 import type {
@@ -549,12 +551,17 @@ async function recordOfflineDocumentReports(
     total: INVOICE_TOTAL_CENTS,
     netAmount,
   });
-  const reported = (name: string, documents: OfflineDocumentOfFortnight[], reportToken = token) =>
+  const reported = (
+    name: string,
+    documents: OfflineDocumentOfFortnight[],
+    reportToken = token,
+    documentType: OfflineSeriesDocumentType = FACTURA_C_DOCUMENT_TYPE,
+  ) =>
     recorded("FECAEARegInformativo", name, (onRawResponse) =>
       reportsWith(onRawResponse).report({
         token: reportToken,
         pointOfSaleNumber: offlinePointOfSale,
-        documentType: FACTURA_C_DOCUMENT_TYPE,
+        documentType,
         code,
         documents,
       }),
@@ -584,6 +591,34 @@ async function recordOfflineDocumentReports(
       number: number + 1,
     }),
   );
+  const lastCreditNote = await recorded(
+    "FECompUltimoAutorizado",
+    "fe-comp-ultimo-autorizado-offline-credit-note",
+    (onRawResponse) =>
+      reportsWith(onRawResponse).lastReported({
+        token,
+        pointOfSaleNumber: offlinePointOfSale,
+        documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
+      }),
+  );
+  if (lastCreditNote.kind === "read") {
+    await reported(
+      "fe-caea-reg-informativo-credit-note-accepted",
+      [
+        {
+          ...documentNumbered(lastCreditNote.number + 1),
+          documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
+          corrects: {
+            voucherType: FACTURA_C_VOUCHER_TYPE,
+            pointOfSale: offlinePointOfSale,
+            number: number + 1,
+          },
+        },
+      ],
+      token,
+      CREDIT_NOTE_C_DOCUMENT_TYPE,
+    );
+  }
   return {
     recordings,
     currentFortnightCodeGranted: true,

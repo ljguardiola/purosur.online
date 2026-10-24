@@ -1,5 +1,7 @@
 import {
+  type OfflineCreditNote,
   type PushedEvent,
+  type RequestedCreditNoteAnswer,
   SALE_VOIDED_EVENT_TYPE,
   type SaleVoidCreditNote,
   type VoidCreditNoteStanding,
@@ -21,7 +23,18 @@ interface UnauthorizedRow {
   state: "IN_PROGRESS" | "REJECTED" | "ALREADY_CREDITED";
 }
 
-type CreditNoteRow = (AuthorizedRow | UnauthorizedRow) & {
+interface IssuedOfflineRow {
+  state: "ISSUED_OFFLINE";
+  offline_point_of_sale: number;
+  offline_number: number;
+  offline_issued_on: string;
+  offline_generated_at: string;
+  offline_authorization_code: string;
+  offline_fortnight_start: string;
+  offline_fortnight_end: string;
+}
+
+type CreditNoteRow = (AuthorizedRow | UnauthorizedRow | IssuedOfflineRow) & {
   id: string;
   sale_id: string;
   total: number;
@@ -57,6 +70,16 @@ function answerOf(row: CreditNoteRow): VoidCreditNoteStanding {
         authorizationCode: row.authorization_code,
         authorizationCodeDueOn: row.authorization_code_due_on,
       };
+    case "ISSUED_OFFLINE":
+      return {
+        kind: "issued_offline",
+        pointOfSale: row.offline_point_of_sale,
+        number: row.offline_number,
+        issuedOn: row.offline_issued_on,
+        issuedAt: new Date(row.offline_generated_at),
+        offlineAuthorizationCode: row.offline_authorization_code,
+        fortnight: { start: row.offline_fortnight_start, end: row.offline_fortnight_end },
+      };
   }
 }
 
@@ -67,10 +90,22 @@ function readCreditNote(
 ): StoredCreditNote | null {
   const row = database
     .prepare<[string], CreditNoteRow>(
-      `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
-              corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
-              issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
-       FROM sale_void_credit_notes WHERE ${column} = ?`,
+      `SELECT notes.id, notes.sale_id, notes.total, notes.receiver_tax_status_code,
+              notes.corrected_voucher_type, notes.corrected_point_of_sale, notes.corrected_number,
+              notes.state, notes.point_of_sale, notes.number, notes.issued_on, notes.issued_at,
+              notes.authorization_code, notes.authorization_code_due_on, notes.recorded_at,
+              notes.answered_at,
+              documents.point_of_sale AS offline_point_of_sale,
+              documents.number AS offline_number,
+              documents.issued_on AS offline_issued_on,
+              documents.generated_at AS offline_generated_at,
+              documents.offline_authorization_code,
+              documents.fortnight_start AS offline_fortnight_start,
+              documents.fortnight_end AS offline_fortnight_end
+       FROM sale_void_credit_notes AS notes
+       LEFT JOIN offline_fiscal_documents AS documents
+         ON documents.id = notes.offline_fiscal_document_id
+       WHERE notes.${column} = ?`,
     )
     .get(value);
   return row === undefined
@@ -96,6 +131,42 @@ export function readCreditNoteOfSale(
   saleId: string,
 ): StoredCreditNote | null {
   return readCreditNote(database, "sale_id", saleId);
+}
+
+export function insertCreditNoteIssuedOffline(
+  database: LocalDatabase,
+  {
+    creditNoteId,
+    saleId,
+    total,
+    receiverTaxStatusCode,
+    corrects,
+    id,
+    generatedAt,
+  }: OfflineCreditNote,
+): void {
+  database
+    .prepare(
+      `INSERT INTO sale_void_credit_notes (
+         id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+         corrected_point_of_sale, corrected_number, state, recorded_at, answered_at,
+         offline_fiscal_document_id
+       ) VALUES (
+         @id, @sale_id, @total, @receiver_tax_status_code, @voucher_type, @point_of_sale, @number,
+         'ISSUED_OFFLINE', @recorded_at, @recorded_at, @offline_fiscal_document_id
+       )`,
+    )
+    .run({
+      id: creditNoteId,
+      sale_id: saleId,
+      total,
+      receiver_tax_status_code: receiverTaxStatusCode,
+      voucher_type: corrects.voucherType,
+      point_of_sale: corrects.pointOfSale,
+      number: corrects.number,
+      recorded_at: generatedAt.toISOString(),
+      offline_fiscal_document_id: id,
+    });
 }
 
 export function insertPendingCreditNote(
@@ -132,7 +203,7 @@ const STATES = {
 export function writeCreditNoteAnswer(
   database: LocalDatabase,
   creditNoteId: string,
-  answer: Exclude<VoidCreditNoteStanding, { kind: "in_progress" }>,
+  answer: RequestedCreditNoteAnswer,
   answeredAt: Date,
 ): number {
   return database
@@ -267,7 +338,7 @@ export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
 
   async recordAnswer(
     creditNoteId: string,
-    answer: Exclude<VoidCreditNoteStanding, { kind: "in_progress" }>,
+    answer: RequestedCreditNoteAnswer,
     answeredAt: Date,
   ): Promise<void> {
     const changes = writeCreditNoteAnswer(this.database, creditNoteId, answer, answeredAt);

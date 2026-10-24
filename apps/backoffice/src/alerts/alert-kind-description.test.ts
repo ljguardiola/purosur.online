@@ -136,8 +136,20 @@ test("describes a register whose clock differs from the real time by more than a
   );
 });
 
+test("describes a register whose replenishment can never complete", () => {
+  expect(alertKindDescription("register_replenishment_failed")).toBe(
+    "Una caja restaurada no puede ponerse al día con la nube y no puede vender",
+  );
+});
+
 test("describes a presentation whose document ARCA rejected and that waits for its remedy", () => {
   expect(alertKindDescription("fortnight_report_document_rejected")).toBe(
     "ARCA rechazó un comprobante de una quincena y los que le siguen quedan sin procesar hasta que se corrija",
+  );
+});
+
+test("describes a deferred sale that is not invoiced yet and nears the day it can no longer be", () => {
+  expect(alertKindDescription("deferred_sale_due")).toBe(
+    "Una venta diferida todavía no se facturó y se acerca el día en que ya no podrá facturarse.",
   );
 });

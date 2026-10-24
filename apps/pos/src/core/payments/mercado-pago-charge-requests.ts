@@ -206,14 +206,18 @@ export function mercadoPagoChargesLeftPendingFor(
   return new SqliteMercadoPagoCharges(deps.database).pendingCharges();
 }
 
+type SettleApprovedPayment = ReturnType<typeof mercadoPagoChargeSale>["settleApprovedPayment"];
+
 export async function followInterruptedMercadoPagoChargesFor(
   deps: MercadoPagoChargeRequestDeps,
   interrupted: readonly InterruptedMercadoPagoCharge[],
+  ticketedSettlement: (settle: SettleApprovedPayment) => SettleApprovedPayment,
 ): Promise<FollowedInterruptedMercadoPagoCharges> {
   const outboxChainKey = await deps.readOutboxChainKey();
+  const sale = mercadoPagoChargeSale(deps, outboxChainKey);
   const { followed, failures } = await followInterruptedMercadoPagoCharges(
     {
-      sale: mercadoPagoChargeSale(deps, outboxChainKey),
+      sale: { ...sale, settleApprovedPayment: ticketedSettlement(sale.settleApprovedPayment) },
       orders: deps.orders,
       charges: new SqliteMercadoPagoCharges(deps.database),
       clock: { now: deps.now },

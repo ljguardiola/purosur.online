@@ -3,7 +3,7 @@ import { sql as sqlTag } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -44,7 +44,7 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-function recoveryEnv() {
+function backgroundJobsEnv() {
   return {
     databaseUrl: integrationDb.databaseUrl,
     emailSender: { transport: "log" as const },
@@ -68,12 +68,14 @@ describe("the tax authority's count the server sets up on a real Postgres", () =
       values ('wsfe', ${FINGERPRINT}, 'FICTIONAL-TOKEN-0001', 'FICTIONAL-SIGN-0001',
               ${new Date("2125-12-31T18:00:00.000Z")}, ${new Date("2126-01-01T06:00:00.000Z")})
     `;
-    const recovery = await setUpRecovery(recoveryEnv(), () => READ_AT, {
+    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => READ_AT, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
     try {
-      await recovery.db.transaction((transaction) => enqueueTaxAuthorityCountJob(transaction, 7));
+      await backgroundJobs.db.transaction((transaction) =>
+        enqueueTaxAuthorityCountJob(transaction, 7, "factura_c"),
+      );
 
       await vi.waitFor(
         async () => {
@@ -87,23 +89,23 @@ describe("the tax authority's count the server sets up on a real Postgres", () =
       expect(fakeWsfe.requests[0]).toContain("FICTIONAL-TOKEN-0001");
       expect(fakeWsfe.requests[0]).toContain("FECompUltimoAutorizado");
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 
   it("hands out dedicated connections to the same database", async () => {
-    const recovery = await setUpRecovery(recoveryEnv(), () => READ_AT, {
+    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => READ_AT, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
     try {
-      const rows = await recovery.connections.withConnection((db) =>
+      const rows = await backgroundJobs.connections.withConnection((db) =>
         db.execute(sqlTag`select current_database() as name`),
       );
 
       expect(rows).toHaveLength(1);
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 });

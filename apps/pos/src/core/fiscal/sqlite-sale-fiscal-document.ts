@@ -58,7 +58,7 @@ function offlineDocumentOf(database: LocalDatabase, saleId: string): SaleFiscalD
     .prepare<[string], OfflineFiscalDocumentRow>(
       `SELECT point_of_sale, number, issued_on, document, offline_authorization_code,
               fortnight_start, fortnight_end
-       FROM offline_fiscal_documents WHERE sale_id = ?`,
+       FROM offline_fiscal_documents WHERE sale_id = ? AND document_type = 'factura_c'`,
     )
     .get(saleId);
   if (row === undefined) {

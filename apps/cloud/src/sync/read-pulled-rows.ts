@@ -1,11 +1,12 @@
 import {
   FACTURA_C_DOCUMENT_TYPE,
-  type FiscalDocumentType,
+  type FiscalTaskDocumentType,
   type NetContentUnit,
+  OFFLINE_SERIES_DOCUMENT_TYPES,
   type SaleUnit,
   type StockMovementKind,
 } from "@purosur/domain";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { highestSyncedOfflineNumber as highestSyncedOfflineNumberOf } from "../fiscal/drizzle-highest-synced-offline-number.js";
 import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "../fiscal/offline-authorization-code-version.js";
@@ -326,9 +327,12 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
     .from(registerPointsOfSale)
     .leftJoin(
       taxAuthorityLastAuthorizedNumbers,
-      eq(
-        taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
-        registerPointsOfSale.pointOfSaleNumber,
+      and(
+        eq(
+          taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
+          registerPointsOfSale.pointOfSaleNumber,
+        ),
+        eq(taxAuthorityLastAuthorizedNumbers.documentType, FACTURA_C_DOCUMENT_TYPE),
       ),
     )
     .leftJoin(
@@ -399,30 +403,45 @@ export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQue
     .select({
       registerId: registerOfflinePointsOfSale.registerId,
       pointOfSaleNumber: registerOfflinePointsOfSale.pointOfSaleNumber,
-      taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
       version: registerOfflinePointsOfSale.version,
     })
     .from(registerOfflinePointsOfSale)
-    .leftJoin(
-      taxAuthorityLastAuthorizedNumbers,
-      eq(
-        taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
-        registerOfflinePointsOfSale.pointOfSaleNumber,
-      ),
-    )
     .where(inArray(registerOfflinePointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerOfflinePointsOfSale.registerId));
-  const withHighestSynced = await Promise.all(
+  const pointsOfSale = rows.map((row) => row.pointOfSaleNumber);
+  const counts =
+    pointsOfSale.length === 0
+      ? []
+      : await tx
+          .select({
+            pointOfSaleNumber: taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
+            documentType: taxAuthorityLastAuthorizedNumbers.documentType,
+            lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
+          })
+          .from(taxAuthorityLastAuthorizedNumbers)
+          .where(inArray(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, pointsOfSale));
+  const withSeriesCounts = await Promise.all(
     rows.map(async ({ registerId, ...row }) => {
-      const highestSyncedOfflineNumber = await highestSyncedOfflineNumberOf(
-        tx,
-        row.pointOfSaleNumber,
-        FACTURA_C_DOCUMENT_TYPE,
+      const seriesCounts = await Promise.all(
+        OFFLINE_SERIES_DOCUMENT_TYPES.map(async (documentType) => ({
+          documentType,
+          taxAuthorityLastAuthorizedNumber:
+            counts.find(
+              (count) =>
+                count.pointOfSaleNumber === row.pointOfSaleNumber &&
+                count.documentType === documentType,
+            )?.lastAuthorized ?? null,
+          highestSyncedOfflineNumber: await highestSyncedOfflineNumberOf(
+            tx,
+            row.pointOfSaleNumber,
+            documentType,
+          ),
+        })),
       );
-      return [registerId, { ...row, highestSyncedOfflineNumber }] as const;
+      return [registerId, { ...row, seriesCounts }] as const;
     }),
   );
-  return new Map(withHighestSynced);
+  return new Map(withSeriesCounts);
 }
 
 export async function readOfflineAuthorizationCodes<TQueryResult extends PgQueryResultHKT>(
@@ -471,7 +490,7 @@ export async function readOfflineNumberBlocks<TQueryResult extends PgQueryResult
   return new Map(
     rows.map(({ id, documentType, ...row }) => [
       id,
-      { ...row, documentType: documentType as FiscalDocumentType },
+      { ...row, documentType: documentType as FiscalTaskDocumentType },
     ]),
   );
 }

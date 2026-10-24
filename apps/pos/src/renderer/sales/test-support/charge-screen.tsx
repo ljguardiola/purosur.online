@@ -8,6 +8,8 @@ import type {
   FollowMercadoPagoChargeOutcome,
   OpenSale,
   PaymentMethodAvailability,
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
@@ -163,6 +165,10 @@ export type Overrides = {
     amount: number,
   ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>;
   receiptPrintStatus?: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  contingencyBackupTicketOfSale?: (
+    saleId: string,
+  ) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
+  contingencyBackupTickets?: () => Promise<ReadContingencyBackupTicketsOutcome>;
 };
 
 const PRINTED: ReceiptPrintStatusOutcome = {
@@ -199,6 +205,17 @@ export async function renderScreen(overrides: Overrides = {}) {
       (async (): Promise<AbandonMercadoPagoChargeOutcome> => ({ kind: "cancelled" })),
   );
   const receiptPrintStatus = vi.fn(overrides.receiptPrintStatus ?? (async () => PRINTED));
+  const contingencyBackupTicketOfSale = vi.fn(
+    overrides.contingencyBackupTicketOfSale ??
+      (async (): Promise<ReadContingencyBackupTicketOfSaleOutcome> => ({
+        kind: "read",
+        ticket: { standing: null },
+      })),
+  );
+  const contingencyBackupTickets = vi.fn(
+    overrides.contingencyBackupTickets ??
+      (async (): Promise<ReadContingencyBackupTicketsOutcome> => ({ kind: "unavailable" })),
+  );
   const onSessionInvalid = vi.fn();
   const screen = await render(
     <ChargeScreen
@@ -216,6 +233,8 @@ export async function renderScreen(overrides: Overrides = {}) {
       followMercadoPagoCharge={followMercadoPagoCharge}
       abandonMercadoPagoCharge={abandonMercadoPagoCharge}
       receiptPrintStatus={receiptPrintStatus}
+      contingencyBackupTicketOfSale={contingencyBackupTicketOfSale}
+      contingencyBackupTickets={contingencyBackupTickets}
       onSessionInvalid={onSessionInvalid}
     />,
   );
@@ -231,6 +250,8 @@ export async function renderScreen(overrides: Overrides = {}) {
     followMercadoPagoCharge,
     abandonMercadoPagoCharge,
     receiptPrintStatus,
+    contingencyBackupTicketOfSale,
+    contingencyBackupTickets,
     onSessionInvalid,
   };
 }

@@ -890,6 +890,34 @@
       "when": 1792678115441,
       "tag": "0133_fiscal_request_without_sale_event",
       "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1792694699996,
+      "tag": "0134_deferred_sale_records",
+      "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1792771456909,
+      "tag": "0135_supplier_price_list_web_pages",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1792788410344,
+      "tag": "0136_offline_credit_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1792793976581,
+      "tag": "0137_fiscal_task_closing_record",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,10 @@
 import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
-import type { SupplierPriceListFiles } from "@purosur/domain/purchasing/use-cases";
+import type {
+  SupplierPriceListFiles,
+  SupplierPriceListWebPages,
+} from "@purosur/domain/purchasing/use-cases";
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@sentry/node";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -85,6 +88,8 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import { registerFiscalTaskClosingRoute } from "./fiscal/fiscal-task-closing-route.js";
+import { registerFiscalTasksListRoute } from "./fiscal/fiscal-tasks-list-route.js";
 import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
@@ -101,6 +106,7 @@ import {
   type RestoredRegisterOrphanSweepRouteOptions,
   registerRestoredRegisterOrphanSweepRoute,
 } from "./fiscal/restored-register-orphan-sweep-route.js";
+import { registerUnbilledDeferredSalesRoute } from "./fiscal/unbilled-deferred-sales-route.js";
 import {
   registerUnclearOutcomeRoute,
   type UnclearOutcomeRouteOptions,
@@ -150,6 +156,7 @@ import {
   type BitlockerRecoveryKeyRouteOptions,
   registerBitlockerRecoveryKeyRoute,
 } from "./register/bitlocker-recovery-key-route.js";
+import { registerCashSessionClosesReportRoute } from "./register/cash-session-closes-report-route.js";
 import { authenticateDevice } from "./register/device-authentication.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
@@ -344,6 +351,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   releaseCheckToken?: string | undefined;
   offsiteDumpCheckToken?: string | undefined;
   supplierPriceListFiles?: SupplierPriceListFiles;
+  supplierPriceListWebPages?: SupplierPriceListWebPages;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -368,9 +376,15 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     fiscalAddresses: backoffice,
     categories: backoffice,
     brands: backoffice,
-    purchasing: wiring.supplierPriceListFiles
-      ? { ...backoffice, supplierPriceListFiles: wiring.supplierPriceListFiles }
-      : backoffice,
+    purchasing: {
+      ...backoffice,
+      ...(wiring.supplierPriceListFiles
+        ? { supplierPriceListFiles: wiring.supplierPriceListFiles }
+        : {}),
+      ...(wiring.supplierPriceListWebPages
+        ? { supplierPriceListWebPages: wiring.supplierPriceListWebPages }
+        : {}),
+    },
     tags: backoffice,
     products: backoffice,
     alerts: backoffice,
@@ -685,6 +699,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registers) {
         registerRegistersListRoute(api, { ...options.registers, now });
         registerReportRegistersRoute(api, { ...options.registers, now });
+        registerCashSessionClosesReportRoute(api, { ...options.registers, now });
         registerRegisterSyncStatusRoute(api, { ...options.registers, now });
         registerRegisterCreationRoute(api, { ...options.registers, now });
         registerRegisterCoverageRoute(api, { ...options.registers, now });
@@ -712,6 +727,9 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
+        registerFiscalTasksListRoute(api, { ...options.registersPointsOfSale, now });
+        registerFiscalTaskClosingRoute(api, { ...options.registersPointsOfSale, now });
+        registerUnbilledDeferredSalesRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
         registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });

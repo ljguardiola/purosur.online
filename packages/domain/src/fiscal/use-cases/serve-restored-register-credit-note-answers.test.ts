@@ -134,6 +134,61 @@ describe("serveRestoredRegisterCreditNoteAnswers", () => {
     expect(served.unrequestedCreditNoteIds).toEqual(["note-1"]);
   });
 
+  describe("a credit note the cloud holds as issued offline", () => {
+    const ISSUED_AT = new Date("2026-10-07T10:29:00.000Z");
+    const offline = {
+      registerId: REGISTER,
+      creditNoteId: "note-1",
+      pointOfSale: 31,
+      number: 4,
+      issuedOn: "2026-10-07",
+      issuedAt: ISSUED_AT,
+      offlineAuthorizationCode: "71234567890123",
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+    };
+
+    it("answers it as issued offline at the moment it was issued, and does not name it unrequested", async () => {
+      const creditNotes = aCloud([]);
+      creditNotes.offlineCreditNotes = [offline];
+
+      const served = await serveRestoredRegisterCreditNoteAnswers(
+        { creditNotes },
+        { registerId: REGISTER, creditNoteIds: ["note-1", "note-2"] },
+      );
+
+      expect(served).toEqual({
+        answers: [
+          {
+            creditNoteId: "note-1",
+            answeredAt: ISSUED_AT,
+            answer: {
+              kind: "issued_offline",
+              pointOfSale: 31,
+              number: 4,
+              issuedOn: "2026-10-07",
+              issuedAt: ISSUED_AT,
+              offlineAuthorizationCode: "71234567890123",
+              fortnight: { start: "2026-10-01", end: "2026-10-15" },
+            },
+          },
+        ],
+        unrequestedCreditNoteIds: ["note-2"],
+      });
+    });
+
+    it("answers only for the register's own credit notes", async () => {
+      const creditNotes = aCloud([]);
+      creditNotes.offlineCreditNotes = [{ ...offline, registerId: "register-2" }];
+
+      const served = await serveRestoredRegisterCreditNoteAnswers(
+        { creditNotes },
+        { registerId: REGISTER, creditNoteIds: ["note-1"] },
+      );
+
+      expect(served).toEqual({ answers: [], unrequestedCreditNoteIds: ["note-1"] });
+    });
+  });
+
   it("neither answers nor names as unrequested the credit notes the tax authority has not answered, or answered unclearly", async () => {
     const requested = {
       kind: "requested",

@@ -263,7 +263,11 @@ describe("POST /api/devices", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(expect.anything(), 7);
+    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(
+      expect.anything(),
+      7,
+      "factura_c",
+    );
   });
 });
 
@@ -281,9 +285,12 @@ describe("POST /api/devices numbering reconciliation", () => {
       issuedAt: APP_CLOCK,
       expiresAt: new Date(APP_CLOCK.getTime() + 10 * 60 * 1000),
     });
-    await testDatabase.db
-      .insert(taxAuthorityLastAuthorizedNumbers)
-      .values({ pointOfSaleNumber: 7, lastAuthorized: 11, readAt: APP_CLOCK });
+    await testDatabase.db.insert(taxAuthorityLastAuthorizedNumbers).values({
+      pointOfSaleNumber: 7,
+      documentType: "factura_c",
+      lastAuthorized: 11,
+      readAt: APP_CLOCK,
+    });
     const enqueueNumberingReconciliationOnEnrollment = vi.fn(async () => undefined);
     const app = buildApp({
       now: () => APP_CLOCK,
@@ -1372,6 +1379,12 @@ describe("wiring the purchasing routes", () => {
         url: `/api/supplier-price-lists/${ID}/discard`,
         headers: ORIGIN,
       }),
+      app.inject({ method: "POST", url: "/api/supplier-price-lists/web-page", headers: ORIGIN }),
+      app.inject({
+        method: "POST",
+        url: `/api/supplier-price-lists/${ID}/refresh`,
+        headers: ORIGIN,
+      }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1379,7 +1392,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(25).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(27).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1389,7 +1402,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(25).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(27).fill(401));
   });
 });
 
@@ -1829,6 +1842,9 @@ describe("wiring the register point of sale routes", () => {
   it.each([
     ["GET", "/api/registers/points-of-sale"],
     ["GET", "/api/registers/fortnight-presentations"],
+    ["GET", "/api/fiscal/tasks"],
+    ["GET", "/api/fiscal/unbilled-deferred-sales"],
+    ["PUT", "/api/fiscal/tasks/00000000-0000-0000-0000-000000000000/closure"],
     ["POST", "/api/registers/fortnight-presentations/rejected-document-remedies"],
     ["GET", "/api/registers/buyer-tax-statuses"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
@@ -2685,6 +2701,16 @@ describe("the route access inventory", () => {
         access: capabilityAccess("supplier_price_lists"),
       },
       {
+        method: "POST",
+        url: "/api/supplier-price-lists/web-page",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/refresh",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
         method: "GET",
         url: "/api/tags",
         access: capabilityAccess("products_and_categories"),
@@ -2979,6 +3005,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/cash-session-closes",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/registers/sync-status",
         access: OPEN_SESSION_ACCESS,
       },
@@ -3086,6 +3117,21 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/registers/fortnight-presentations",
         access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/tasks",
+        access: capabilityAccess("fiscal_information"),
+      },
+      {
+        method: "PUT",
+        url: "/api/fiscal/tasks/:id/closure",
+        access: capabilityAccess("close_fiscal_tasks"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/unbilled-deferred-sales",
+        access: capabilityAccess("fiscal_information"),
       },
       {
         method: "POST",

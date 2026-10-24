@@ -19,7 +19,7 @@ export const CAPABILITY_PERMISSIONS = {
   cash_area: ["change_fiscal_configuration"],
   alerts_area: ["view_branch_alerts", "view_all_alerts"],
   close_alerts_manually: ["dismiss_alerts_manually"],
-  registers_area: ["enroll_register_devices", "view_bitlocker_key"],
+  registers_area: ["enroll_register_devices", "view_bitlocker_key", "revoke_register_devices"],
   enroll_registers: ["enroll_register_devices"],
   revoke_installations: ["revoke_register_devices"],
   bitlocker_recovery_key: ["view_bitlocker_key"],
@@ -56,6 +56,8 @@ export const CAPABILITY_PERMISSIONS = {
   reports_area: ["view_reports"],
   refunds_area: ["confirm_refunds"],
   backups_area: ["view_backups_and_rotate_key"],
+  fiscal_information: ["view_fiscal_documents"],
+  close_fiscal_tasks: ["close_fiscal_tasks"],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
 export type Capability = keyof typeof CAPABILITY_PERMISSIONS;

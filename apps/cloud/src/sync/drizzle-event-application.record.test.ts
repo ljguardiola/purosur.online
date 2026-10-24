@@ -1,17 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { ManualAdjustment } from "@purosur/domain";
-import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
-import {
-  A_DEFERRED_SALE_RECORDED_FACT,
-  aDeferredSaleSatisfiedFact,
-} from "@purosur/domain/sync/test-support";
 import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
+  aDeferredSaleRecordedFact,
+  aDeferredSaleSatisfiedFactOf,
+} from "../fiscal/test-support/deferred-sale-fixtures.js";
+import {
   cashMovements,
   cashSessions,
+  deferredSales,
   paymentRefunds,
   saleLines,
   salePayments,
@@ -880,12 +880,14 @@ describe("recording a failed fiscal gate", () => {
 });
 
 describe("recording a deferred sale", () => {
-  it("writes nothing", async () => {
+  it("keeps the deferred sale and writes no sale, session or cash movement", async () => {
     const { deviceId } = await system.enrollInstallation();
     await insertInboxEvent(system.db, deviceId);
+    const fact = aDeferredSaleRecordedFact();
 
-    await record(A_DEFERRED_SALE_RECORDED_FACT, { deviceId });
+    await record(fact, { deviceId });
 
+    expect(await system.db.select().from(deferredSales)).toHaveLength(1);
     expect(await system.db.select().from(sales)).toEqual([]);
     expect(await system.db.select().from(cashSessions)).toEqual([]);
     expect(await system.db.select().from(cashMovements)).toEqual([]);
@@ -893,12 +895,15 @@ describe("recording a deferred sale", () => {
 });
 
 describe("recording a deferred sale satisfied", () => {
-  it("writes nothing", async () => {
+  it("writes nothing when the cloud holds no such deferred sale", async () => {
     const { deviceId } = await system.enrollInstallation();
     await insertInboxEvent(system.db, deviceId);
 
-    await record(aDeferredSaleSatisfiedFact(FICTIONAL_ISSUER), { deviceId });
+    await record(aDeferredSaleSatisfiedFactOf(randomUUID(), new Date("2026-10-09T10:00:00.000Z")), {
+      deviceId,
+    });
 
+    expect(await system.db.select().from(deferredSales)).toEqual([]);
     expect(await system.db.select().from(sales)).toEqual([]);
     expect(await system.db.select().from(cashSessions)).toEqual([]);
     expect(await system.db.select().from(cashMovements)).toEqual([]);

@@ -14,12 +14,6 @@ describe("voidRefusalReason", () => {
     );
   });
 
-  it("says a sale with an invoice is voided once the connection with the tax authority is back", () => {
-    expect(voidRefusalReason("invoice_needs_connection")).toBe(
-      "Sin conexión con ARCA, la venta con factura se anula cuando vuelva la conexión.",
-    );
-  });
-
   it("has no reason for a sale that is already voided", () => {
     expect(voidRefusalReason("not_completed")).toBeUndefined();
   });

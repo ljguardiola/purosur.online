@@ -222,6 +222,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"fiscal_unknown">>().toEqualTypeOf<AlertDetails["fiscal_unknown"]>();
     expectTypeOf<WireDetail<"clock_drift">>().toEqualTypeOf<AlertDetails["clock_drift"]>();
+    expectTypeOf<WireDetail<"register_replenishment_failed">>().toEqualTypeOf<
+      AlertDetails["register_replenishment_failed"]
+    >();
     expectTypeOf<WireDetail<"outbox_chain_broken">>().toEqualTypeOf<
       AlertDetails["outbox_chain_broken"]
     >();
@@ -247,6 +250,12 @@ describe("alertDetailSchema", () => {
     expectTypeOf<
       Omit<WireDetail<"fortnight_report_document_rejected">, "registerName">
     >().toEqualTypeOf<AlertDetails["fortnight_report_document_rejected"]>();
+    expectTypeOf<Omit<WireDetail<"deferred_sale_due">, "registerName">>().toEqualTypeOf<
+      AlertDetails["deferred_sale_due"]
+    >();
+    expectTypeOf<WireDetail<"deferred_sale_due">["registerName"]>().toEqualTypeOf<
+      string | undefined
+    >();
     expectTypeOf<WireDetail<"fortnight_report_owed_elsewhere">>().toEqualTypeOf<
       AlertDetails["fortnight_report_owed_elsewhere"]
     >();
@@ -398,6 +407,7 @@ describe("alertDetailSchema", () => {
       },
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
       clock_drift: { deviceId: "device-1" },
+      register_replenishment_failed: { deviceId: "device-1", failure: "refused" },
       outbox_chain_broken: { deviceId: "device-1" },
       lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
       offsite_dump_unverified: { night: "2026-10-14", reason: "not_reported" },
@@ -449,6 +459,16 @@ describe("alertDetailSchema", () => {
         fortnightEnd: "2026-09-15",
         documentType: "factura_c",
         rejectedNumber: 17,
+      },
+      deferred_sale_due: {
+        registerId: "register-1",
+        registerName: "Caja 1",
+        saleId: "sale-1",
+        saleOccurredAt: "2026-10-10T15:00:00.000Z",
+        total: 1234500,
+        shortCode: "ABCD2345",
+        expiresOn: "2026-10-15",
+        escalatesAt: "2026-10-14T03:00:00.000Z",
       },
       fortnight_report_owed_elsewhere: {
         pointOfSaleNumber: 9,
@@ -587,6 +607,19 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
+    it("accepts a rejected document alert about a credit note, and refuses one about another type", () => {
+      const rejected = (documentType: string) => ({
+        ...base,
+        kind: "fortnight_report_document_rejected",
+        detail: { ...detailOf.fortnight_report_document_rejected, documentType },
+      });
+
+      expect(alertDetailSchema.safeParse(rejected("credit_note_c")).data).toEqual(
+        rejected("credit_note_c"),
+      );
+      expect(alertDetailSchema.safeParse(rejected("factura_a")).success).toBe(false);
+    });
+
     it.each(["blocked", "missing_document", "refused", "pending"])(
       "accepts a pending fortnight report alert waiting for the reason %s",
       (reason) => {
@@ -670,6 +703,16 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "sales_denied",
         detail: { deviceId: "device-1", reason: "installation_revoked" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it("refuses a register-replenishment-failed alert with a failure the register does not report", () => {
+      const alert = {
+        ...base,
+        kind: "register_replenishment_failed",
+        detail: { deviceId: "device-1", failure: "lost" },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);

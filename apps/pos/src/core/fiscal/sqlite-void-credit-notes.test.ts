@@ -7,6 +7,7 @@ import { CHAIN_KEY, outboxEventDraft } from "../sync/test-support/sqlite-local-o
 import { insertPendingCreditNote, SqliteVoidCreditNotes } from "./sqlite-void-credit-notes";
 import {
   insertCompletedSale,
+  insertOfflineCreditNote,
   insertPointOfSale,
   openFiscalDatabase,
   POINT_OF_SALE,
@@ -323,5 +324,56 @@ describe("one credit note of a voided sale", () => {
   it("answers nothing for a credit note the register does not hold", async () => {
     await expect(creditNotes.recordedAnswer("missing")).resolves.toBeNull();
     await expect(creditNotes.pendingCreditNote("missing")).resolves.toBeNull();
+  });
+});
+
+describe("a credit note issued offline", () => {
+  function issuedOffline(saleId: string, creditNoteId: string): void {
+    voidSaleWithCreditNote(saleId, creditNoteId);
+    database.exec("DELETE FROM sale_void_credit_notes");
+    insertOfflineCreditNote(database, {
+      id: `offline-${creditNoteId}`,
+      saleId,
+      creditNoteId,
+      number: 41,
+    });
+    database
+      .prepare(
+        `INSERT INTO sale_void_credit_notes (
+           id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+           corrected_point_of_sale, corrected_number, state, recorded_at, answered_at,
+           offline_fiscal_document_id
+         ) VALUES (?, ?, 3000, 5, 11, ?, 41, 'ISSUED_OFFLINE', ?, ?, ?)`,
+      )
+      .run(creditNoteId, saleId, POINT_OF_SALE, VOIDED_AT, VOIDED_AT, `offline-${creditNoteId}`);
+  }
+
+  it("is answered from the register's record with its number, code, fortnight and moment of issue", async () => {
+    issuedOffline("sale-1", "note-1");
+
+    expect(await creditNotes.recordedAnswer("note-1")).toEqual({
+      kind: "issued_offline",
+      pointOfSale: expect.any(Number),
+      number: 41,
+      issuedOn: "2026-09-30",
+      issuedAt: new Date(VOIDED_AT),
+      offlineAuthorizationCode: "36251478963214",
+      fortnight: { start: "2026-09-16", end: "2026-09-30" },
+    });
+  });
+
+  it("is never in progress, so nothing asks the cloud for it", async () => {
+    issuedOffline("sale-1", "note-1");
+
+    expect(await creditNotes.inProgress()).toEqual([]);
+    expect(await creditNotes.pendingCreditNote("note-1")).toBeNull();
+  });
+
+  it("keeps its answer when the cloud's answer to the same credit note arrives later", async () => {
+    issuedOffline("sale-1", "note-1");
+
+    await creditNotes.recordAnswer("note-1", AUTHORIZED, ANSWERED_AT);
+
+    expect(await creditNotes.recordedAnswer("note-1")).toMatchObject({ kind: "issued_offline" });
   });
 });

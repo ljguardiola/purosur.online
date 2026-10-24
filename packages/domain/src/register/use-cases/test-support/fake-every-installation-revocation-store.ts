@@ -1,4 +1,4 @@
-import type { VersionedKey } from "../../model/installation-key.js";
+import type { VersionedKey } from "../../../shared/index.js";
 import type {
   EveryInstallationRevocationRecord,
   EveryInstallationRevocationStore,

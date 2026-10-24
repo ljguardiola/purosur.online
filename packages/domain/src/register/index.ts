@@ -39,6 +39,7 @@ export type {
   OpenedCashSession,
 } from "./model/cash-session.js";
 export { CASH_MOVEMENT_TYPES } from "./model/cash-session.js";
+export type { CashSessionClose } from "./model/cash-session-closes.js";
 export type {
   CashMovementRecordedFact,
   CashSessionClosedFact,
@@ -69,7 +70,6 @@ export {
   INSTALLATION_KEY_BYTES,
   isHeldSnapshotKeyOutdated,
   isWellFormedInstallationKey,
-  latestKey,
   latestKeyVersion,
 } from "./model/installation-key.js";
 export {

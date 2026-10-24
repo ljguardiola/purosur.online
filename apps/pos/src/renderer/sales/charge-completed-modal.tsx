@@ -1,4 +1,8 @@
-import type { ReceiptPrintStatusOutcome } from "@purosur/contracts";
+import type {
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
+  ReceiptPrintStatusOutcome,
+} from "@purosur/contracts";
 import type { CompletedCharge } from "./cash-charge-modal";
 import type { CompletedPointPayment } from "./point-payment-wait-modal";
 import type { CompletedQrPayment } from "./qr-payment-wait-modal";
@@ -17,16 +21,27 @@ export function ChargeCompletedModal({
   saleId,
   payment,
   readReceiptStatus,
+  readBackupTicket,
+  readBackupTickets,
   mayChangePrinter,
   onNewSale,
 }: {
   saleId: string;
   payment: CompletedPayment;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  readBackupTicket: (saleId: string) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
+  readBackupTickets: () => Promise<ReadContingencyBackupTicketsOutcome>;
   mayChangePrinter: boolean;
   onNewSale: () => void;
 }) {
-  const shared = { saleId, readReceiptStatus, mayChangePrinter, onNewSale };
+  const shared = {
+    saleId,
+    readReceiptStatus,
+    readBackupTicket,
+    readBackupTickets,
+    mayChangePrinter,
+    onNewSale,
+  };
   switch (payment.method) {
     case "CASH":
       return (

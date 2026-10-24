@@ -4,6 +4,10 @@ import {
   type RestoredUnclearDeferral,
   rebuiltUnclearDeferral,
 } from "../../fiscal/index.js";
+import {
+  heldReplenishmentFailure,
+  type ReplenishmentFailure,
+} from "../model/replenishment-failure.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type {
   RegisterPredecessor,
@@ -22,7 +26,8 @@ export type ReplenishRestoredRegisterOutcome<TFailure> =
   | { kind: "refused"; refusal: ReplenishmentRefusal }
   | { kind: "unreachable" }
   | { kind: "failed"; failure: TFailure }
-  | { kind: "unreadable_event"; eventId: string; reason: string };
+  | { kind: "unreadable_event"; eventId: string; reason: string }
+  | { kind: "held_failure"; failure: ReplenishmentFailure };
 
 interface DecodedPageEvent {
   replenished: ReplenishedEvent;
@@ -137,11 +142,16 @@ export async function replenishRestoredRegister<TFailure>(
   if (predecessor === undefined) {
     return { kind: "nothing_to_replenish" };
   }
+  const held = heldReplenishmentFailure(await ports.store.lastFailure(), ports.appVersion);
+  if (held !== undefined) {
+    return { kind: "held_failure", failure: held };
+  }
   let after: EventPosition | undefined;
   let unapplied = 0;
   for (;;) {
     const answer = await ports.feed.pageAfter(predecessor, after);
     if (answer.kind === "refused") {
+      await ports.store.recordFailure({ kind: "refused", refusal: answer.refusal });
       return { kind: "refused", refusal: answer.refusal };
     }
     if (answer.kind === "unreachable") {
@@ -153,6 +163,12 @@ export async function replenishRestoredRegister<TFailure>(
     await ports.store.applyUsers(answer.page.users);
     const decoded = decodedPage(ports, answer.page);
     if (decoded.kind === "unreadable") {
+      await ports.store.recordFailure({
+        kind: "unreadable_event",
+        eventId: decoded.eventId,
+        reason: decoded.reason,
+        appVersion: ports.appVersion,
+      });
       return { kind: "unreadable_event", eventId: decoded.eventId, reason: decoded.reason };
     }
     unapplied += await applyPage(ports, {
@@ -167,6 +183,7 @@ export async function replenishRestoredRegister<TFailure>(
     after = answer.page.next;
   }
   if (unapplied > 0) {
+    await ports.store.clearFailure();
     return { kind: "partially_replenished", unapplied };
   }
   await ports.store.finish();

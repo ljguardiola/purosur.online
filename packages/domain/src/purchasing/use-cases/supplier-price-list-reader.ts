@@ -1,14 +1,16 @@
 import type {
   SupplierPriceListReadFailure,
-  SupplierPriceListSourceKind,
   SupplierPriceListState,
 } from "../model/supplier-price-list.js";
+
+export type SupplierPriceListSource =
+  | { kind: "PDF"; fileName: string }
+  | { kind: "WEB_PAGE"; url: string };
 
 export interface SupplierPriceListListing {
   id: string;
   supplier: { id: string; name: string };
-  sourceKind: SupplierPriceListSourceKind;
-  fileName: string;
+  source: SupplierPriceListSource;
   listDate: string | null;
   rowCount: number;
   unpricedRowCount: number;
@@ -42,5 +44,6 @@ export interface SupplierPriceListReader {
   lists(): Promise<SupplierPriceListListing[]>;
   // The rows in the order the reading found them.
   review(listId: string): Promise<SupplierPriceListReview | undefined>;
+  // Undefined for a list that did not come from an uploaded file.
   fileName(listId: string): Promise<string | undefined>;
 }

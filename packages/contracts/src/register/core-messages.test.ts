@@ -1355,50 +1355,55 @@ describe("register status messages", () => {
         cloud,
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each(["real_time", "offline_code", "deferring"])(
-    "accepts a status whose fiscal mode is %s",
-    (fiscalMode) => {
-      const message = {
-        type: "register-status",
-        request_id: REQUEST_ID,
-        status: {
-          conditions: [],
-          cloud: "reachable",
-          serial_devices: STANDINGS,
-          serial_devices_setup_offered: false,
-          fiscal_mode: fiscalMode,
-        },
-      };
+  it.each([
+    ["no contingency", null],
+    ["an offline code contingency with a notice", { kind: "offline_code", notice: true }],
+    ["an offline code contingency without a notice", { kind: "offline_code", notice: false }],
+    ["a deferring contingency with a notice", { kind: "deferring", notice: true }],
+    ["a deferring contingency without a notice", { kind: "deferring", notice: false }],
+  ])("accepts a status with %s", (_name, contingency) => {
+    const message = {
+      type: "register-status",
+      request_id: REQUEST_ID,
+      status: {
+        conditions: [],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+        contingency,
+      },
+    };
 
-      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-    },
-  );
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
 
-  it.each([["contingency"], [undefined]])(
-    "rejects a status whose fiscal mode is %s",
-    (fiscalMode) => {
-      const message = {
-        type: "register-status",
-        request_id: REQUEST_ID,
-        status: {
-          conditions: [],
-          cloud: "reachable",
-          serial_devices: STANDINGS,
-          serial_devices_setup_offered: false,
-          fiscal_mode: fiscalMode,
-        },
-      };
+  it.each([
+    ["real time as a contingency kind", { kind: "real_time", notice: true }],
+    ["a contingency without a notice flag", { kind: "deferring" }],
+    ["a contingency without a kind", { notice: true }],
+    ["a missing contingency", undefined],
+  ])("rejects a status with %s", (_name, contingency) => {
+    const message = {
+      type: "register-status",
+      request_id: REQUEST_ID,
+      status: {
+        conditions: [],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+        contingency,
+      },
+    };
 
-      expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   it.each([
     [
@@ -1408,7 +1413,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1418,7 +1423,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1428,7 +1433,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1438,7 +1443,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1450,7 +1455,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1462,7 +1467,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1480,7 +1485,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1492,7 +1497,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1509,7 +1514,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1526,7 +1531,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1544,7 +1549,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1554,7 +1559,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1564,7 +1569,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1574,7 +1579,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1584,7 +1589,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1596,7 +1601,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1608,7 +1613,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1620,7 +1625,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1630,7 +1635,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1642,7 +1647,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1654,7 +1659,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1671,7 +1676,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1681,7 +1686,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1691,7 +1696,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1701,7 +1706,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1711,7 +1716,7 @@ describe("register status messages", () => {
         cloud: "slow",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1720,7 +1725,7 @@ describe("register status messages", () => {
         conditions: [],
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
     [
@@ -1729,7 +1734,7 @@ describe("register status messages", () => {
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       },
     ],
   ])("rejects the status with %s", (_name, status) => {
@@ -1751,7 +1756,7 @@ describe("register status messages", () => {
           cloud: "unknown",
           serial_devices: STANDINGS,
           serial_devices_setup_offered: false,
-          fiscal_mode: "real_time",
+          contingency: null,
         },
       }).success,
     ).toBe(false);
@@ -2021,7 +2026,7 @@ describe("serial device messages", () => {
           cloud: "reachable",
           serial_devices: { scale: kind, reader: "not_registered" },
           serial_devices_setup_offered: false,
-          fiscal_mode: "real_time",
+          contingency: null,
         },
       };
 
@@ -2044,7 +2049,7 @@ describe("serial device messages", () => {
           cloud: "reachable",
           serial_devices: serialDevices,
           serial_devices_setup_offered: false,
-          fiscal_mode: "real_time",
+          contingency: null,
         },
       }).success,
     ).toBe(false);
@@ -2059,7 +2064,7 @@ describe("serial device messages", () => {
           conditions: [],
           cloud: "reachable",
           serial_devices_setup_offered: false,
-          fiscal_mode: "real_time",
+          contingency: null,
         },
       }).success,
     ).toBe(false);
@@ -2076,7 +2081,7 @@ describe("serial device messages", () => {
           cloud: "reachable",
           serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: offered,
-          fiscal_mode: "real_time",
+          contingency: null,
         },
       };
 
@@ -2097,7 +2102,7 @@ describe("serial device messages", () => {
           conditions: [],
           cloud: "reachable",
           serial_devices: { scale: "matching", reader: "matching" },
-          fiscal_mode: "real_time",
+          contingency: null,
           ...offered,
         },
       }).success,
@@ -2149,6 +2154,8 @@ describe("restoration standing messages", () => {
     { kind: "in_progress", step: "replenish", origin: "no_copy" },
     { kind: "without_connection", step: "replenish", origin: "no_copy" },
     { kind: "failed", step: "restore" },
+    { kind: "failed", step: "replenish", failure: "refused", origin: "copy" },
+    { kind: "failed", step: "replenish", failure: "unreadable_event", origin: "no_copy" },
   ])("accepts the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
 
@@ -2164,6 +2171,10 @@ describe("restoration standing messages", () => {
     { kind: "without_connection", step: "open_session", origin: "copy" },
     { kind: "failed" },
     { kind: "failed", step: "replenish" },
+    { kind: "failed", step: "replenish", failure: "lost", origin: "copy" },
+    { kind: "failed", step: "replenish", failure: "refused" },
+    { kind: "failed", step: "replenish", failure: "refused", origin: "somewhere_else" },
+    { kind: "failed", step: "enroll", failure: "refused", origin: "copy" },
     { kind: "in_progress", step: "replenish", origin: "somewhere_else" },
     { kind: "in_progress", step: "replenish" },
     { kind: "without_connection", step: "replenish" },

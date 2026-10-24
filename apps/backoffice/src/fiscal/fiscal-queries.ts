@@ -1,3 +1,4 @@
+import type { FiscalTasks, UnbilledDeferredSales } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -9,6 +10,7 @@ import type {
 import type { BuyerTaxStatus, fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
 import type { ClockCorrection, fetchClockCorrections } from "./clock-corrections-api";
 import type { FiscalAddress, fetchFiscalAddresses } from "./fiscal-addresses-api";
+import type { fetchFiscalTasks } from "./fiscal-tasks-api";
 import type {
   FortnightPresentation,
   fetchFortnightPresentations,
@@ -16,6 +18,7 @@ import type {
 import type { fetchIssuerIdentification, IssuerIdentification } from "./issuer-identification-api";
 import type { fetchOfflinePointsOfSale, OfflinePointOfSale } from "./offline-points-of-sale-api";
 import type { fetchRegisterPointsOfSale, RegisterPointOfSale } from "./register-points-of-sale-api";
+import type { fetchUnbilledDeferredSales } from "./unbilled-deferred-sales-api";
 
 export const fiscalKey = ["fiscal"] as const;
 
@@ -28,6 +31,8 @@ export const fiscalKeys = {
   fortnightPresentations: [...fiscalKey, "fortnight-presentations"] as const,
   buyerTaxStatuses: [...fiscalKey, "buyer-tax-statuses"] as const,
   clockCorrections: [...fiscalKey, "clock-corrections"] as const,
+  fiscalTasks: [...fiscalKey, "tasks"] as const,
+  unbilledDeferredSales: [...fiscalKey, "unbilled-deferred-sales"] as const,
 };
 
 export function useIssuerIdentificationQuery(params: {
@@ -195,5 +200,34 @@ export function useBuyerTaxStatusesQuery(params: {
     enabled: params.enabled,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
+  });
+}
+
+export function useFiscalTasksQuery(params: {
+  fetchFiscalTasks: typeof fetchFiscalTasks;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<FiscalTasks>({
+    queryKey: fiscalKeys.fiscalTasks,
+    read: params.fetchFiscalTasks,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useReloadFiscalTasks() {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: fiscalKey });
+}
+
+export function useUnbilledDeferredSalesQuery(params: {
+  fetchUnbilledDeferredSales: typeof fetchUnbilledDeferredSales;
+  onSessionEnded: () => void;
+}) {
+  return useCloudQuery<UnbilledDeferredSales>({
+    queryKey: fiscalKeys.unbilledDeferredSales,
+    read: params.fetchUnbilledDeferredSales,
+    onSessionEnded: params.onSessionEnded,
   });
 }

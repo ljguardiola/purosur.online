@@ -57,6 +57,15 @@ export const ErrorDescription: Story = {
   },
 };
 
+export const WarningDescription: Story = {
+  args: {
+    children: "06/09/2026",
+    strong: true,
+    description: "hace 3 días",
+    descriptionTone: "warning",
+  },
+};
+
 export const MonospaceText: Story = {
   args: { children: "L-2409", monospace: true, strong: true },
 };

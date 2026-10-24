@@ -580,28 +580,36 @@ describe("DrizzleRegisterStore", () => {
   describe("requiring a fresh tax authority count", () => {
     const READ_AT = new Date("2026-10-06T15:00:00.000Z");
 
-    async function storedCountPointsOfSale() {
+    async function storedCounts() {
       const rows = await db
-        .select({ pointOfSale: taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber })
+        .select({
+          pointOfSale: taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
+          documentType: taxAuthorityLastAuthorizedNumbers.documentType,
+        })
         .from(taxAuthorityLastAuthorizedNumbers);
-      return rows.map((row) => row.pointOfSale).sort();
+      return rows
+        .map((row) => `${row.pointOfSale}:${row.documentType}`)
+        .sort((a, b) => a.localeCompare(b));
     }
 
-    function storeEnqueueingInto(enqueued: number[]) {
+    function storeEnqueueingInto(enqueued: string[]) {
       return new DrizzleRegisterStore(
         db,
         installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY),
-        async (_transaction, pointOfSale) => {
-          enqueued.push(pointOfSale);
+        async (_transaction, pointOfSale, documentType) => {
+          enqueued.push(`${pointOfSale}:${documentType}`);
         },
       );
     }
 
     async function seedCounts(...pointsOfSale: number[]) {
       for (const pointOfSaleNumber of pointsOfSale) {
-        await db
-          .insert(taxAuthorityLastAuthorizedNumbers)
-          .values({ pointOfSaleNumber, lastAuthorized: 11, readAt: READ_AT });
+        await db.insert(taxAuthorityLastAuthorizedNumbers).values({
+          pointOfSaleNumber,
+          documentType: "factura_c",
+          lastAuthorized: 11,
+          readAt: READ_AT,
+        });
       }
     }
 
@@ -612,17 +620,17 @@ describe("DrizzleRegisterStore", () => {
       });
       await insertRegisterWithPointOfSale(db, { pointOfSaleNumber: 8, name: "caja-2" });
       await seedCounts(7, 8);
-      const enqueued: number[] = [];
+      const enqueued: string[] = [];
 
       await storeEnqueueingInto(enqueued).transaction((tx) =>
         tx.requireFreshTaxAuthorityCount(registerId),
       );
 
-      expect(await storedCountPointsOfSale()).toEqual([7, 8]);
-      expect(enqueued).toEqual([7]);
+      expect(await storedCounts()).toEqual(["7:factura_c", "8:factura_c"]);
+      expect(enqueued).toEqual(["7:factura_c"]);
     });
 
-    it("deletes the count of the register's offline point of sale, leaves the others, and enqueues the read of each", async () => {
+    it("deletes the counts of the register's offline point of sale, leaves the others, and enqueues the read of each count", async () => {
       const registerId = await configureOfflinePointOfSale(db, {
         registerName: "caja-1",
         realTimePointOfSale: 7,
@@ -636,26 +644,43 @@ describe("DrizzleRegisterStore", () => {
         now: READ_AT,
       });
       await seedCounts(7, 3);
-      const enqueued: number[] = [];
+      await db.insert(taxAuthorityLastAuthorizedNumbers).values(
+        [8, 4].map((pointOfSaleNumber) => ({
+          pointOfSaleNumber,
+          documentType: "credit_note_c" as const,
+          lastAuthorized: 2,
+          readAt: READ_AT,
+        })),
+      );
+      const enqueued: string[] = [];
 
       await storeEnqueueingInto(enqueued).transaction((tx) =>
         tx.requireFreshTaxAuthorityCount(registerId),
       );
 
-      expect(await storedCountPointsOfSale()).toEqual([3, 4, 7]);
-      expect(enqueued.sort()).toEqual([7, 8]);
+      expect(await storedCounts()).toEqual([
+        "3:factura_c",
+        "4:credit_note_c",
+        "4:factura_c",
+        "7:factura_c",
+      ]);
+      expect(enqueued.sort((a, b) => a.localeCompare(b))).toEqual([
+        "7:factura_c",
+        "8:credit_note_c",
+        "8:factura_c",
+      ]);
     });
 
     it("does nothing for a register with no point of sale", async () => {
       const registerId = await insertRegister("Caja sin punto de venta");
       await seedCounts(7);
-      const enqueued: number[] = [];
+      const enqueued: string[] = [];
 
       await storeEnqueueingInto(enqueued).transaction((tx) =>
         tx.requireFreshTaxAuthorityCount(registerId),
       );
 
-      expect(await storedCountPointsOfSale()).toEqual([7]);
+      expect(await storedCounts()).toEqual(["7:factura_c"]);
       expect(enqueued).toEqual([]);
     });
 
@@ -668,7 +693,7 @@ describe("DrizzleRegisterStore", () => {
 
       await adapterStore().transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId));
 
-      expect(await storedCountPointsOfSale()).toEqual([7]);
+      expect(await storedCounts()).toEqual(["7:factura_c"]);
     });
 
     it("keeps the count when the transaction rolls back after the enqueue fails", async () => {
@@ -689,7 +714,7 @@ describe("DrizzleRegisterStore", () => {
         store.transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId)),
       ).rejects.toThrow("the queue is down");
 
-      expect(await storedCountPointsOfSale()).toEqual([7]);
+      expect(await storedCounts()).toEqual(["7:factura_c"]);
     });
   });
 });

@@ -1,4 +1,4 @@
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType } from "../model/fiscal-task.js";
 import {
   firstOfflineNumberBlock,
   lastUsedOfflineNumber,
@@ -8,7 +8,7 @@ import type { OfflineNumberBlockStore } from "./offline-number-block-store.js";
 
 export interface AssignOfflineNumberBlockInput {
   pointOfSaleNumber: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   registerId: string;
 }
 
@@ -34,9 +34,10 @@ export async function assignFirstOfflineNumberBlockLocked(
   }
   const taxAuthorityLastAuthorized = await store.taxAuthorityLastAuthorized(
     input.pointOfSaleNumber,
+    input.documentType,
   );
   if (taxAuthorityLastAuthorized === null) {
-    await store.requireTaxAuthorityCount(input.pointOfSaleNumber);
+    await store.requireTaxAuthorityCount(input.pointOfSaleNumber, input.documentType);
     return { kind: "tax_authority_count_unknown" };
   }
   const highestSyncedNumber = await store.highestSyncedOfflineNumber(

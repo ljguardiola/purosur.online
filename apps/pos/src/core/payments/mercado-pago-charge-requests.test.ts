@@ -24,6 +24,7 @@ import {
 } from "./test-support/mercado-pago-charge-requests";
 
 const NOW = CHARGE_NOW;
+const UNTICKETED = <TSettle>(settle: TSettle) => settle;
 const CHAIN_KEY = CHARGE_CHAIN_KEY;
 
 let database: LocalDatabase;
@@ -528,8 +529,12 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     orders.reading = { kind: "read", state: "APPROVED" };
 
     const leftPending = mercadoPagoChargesLeftPendingFor(deps(orders));
-    const first = await followInterruptedMercadoPagoChargesFor(deps(orders), leftPending);
-    await followInterruptedMercadoPagoChargesFor(deps(orders), leftPending);
+    const first = await followInterruptedMercadoPagoChargesFor(
+      deps(orders),
+      leftPending,
+      UNTICKETED,
+    );
+    await followInterruptedMercadoPagoChargesFor(deps(orders), leftPending, UNTICKETED);
 
     expect(first).toEqual({
       followed: [
@@ -548,6 +553,34 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     ]);
   });
 
+  it("leaves each sale it completes to the ticketing of its settlement", async () => {
+    const saleId = await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "APPROVED" };
+    const ticketed: unknown[] = [];
+
+    await followInterruptedMercadoPagoChargesFor(
+      deps(orders),
+      mercadoPagoChargesLeftPendingFor(deps(orders)),
+      (settle) =>
+        (...args) => {
+          const settlement = settle(...args);
+          ticketed.push({
+            settlement,
+            events: database.prepare("SELECT event_type FROM outbox").all(),
+          });
+          return settlement;
+        },
+    );
+
+    expect(ticketed).toEqual([
+      {
+        settlement: expect.objectContaining({ kind: "completed", saleId }),
+        events: [{ event_type: "sale_completed" }, { event_type: "deferred_sale_recorded" }],
+      },
+    ]);
+  });
+
   it("leaves the charge pending on its open sale while the cloud cannot be reached", async () => {
     await chargeLeftPending();
     const orders = new FakeOrders();
@@ -556,6 +589,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     await followInterruptedMercadoPagoChargesFor(
       deps(orders),
       mercadoPagoChargesLeftPendingFor(deps(orders)),
+      UNTICKETED,
     );
 
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
@@ -568,7 +602,9 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     await chargeLeftPending();
     orders.reading = { kind: "read", state: "APPROVED" };
 
-    expect(await followInterruptedMercadoPagoChargesFor(deps(orders), leftPending)).toEqual({
+    expect(
+      await followInterruptedMercadoPagoChargesFor(deps(orders), leftPending, UNTICKETED),
+    ).toEqual({
       followed: [],
       failures: [],
     });
@@ -585,6 +621,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
       await followInterruptedMercadoPagoChargesFor(
         setBack,
         mercadoPagoChargesLeftPendingFor(setBack),
+        UNTICKETED,
       ),
     ).toEqual({
       followed: [
@@ -606,6 +643,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
       await followInterruptedMercadoPagoChargesFor(
         deps(orders),
         mercadoPagoChargesLeftPendingFor(deps(orders)),
+        UNTICKETED,
       ),
     ).toEqual({
       followed: [
@@ -623,6 +661,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     await followInterruptedMercadoPagoChargesFor(
       deps(orders),
       mercadoPagoChargesLeftPendingFor(deps(orders)),
+      UNTICKETED,
     );
 
     expect(qrRows()).toMatchObject([{ state: "EXPIRED" }]);
@@ -637,6 +676,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     await followInterruptedMercadoPagoChargesFor(
       withoutChainKey,
       mercadoPagoChargesLeftPendingFor(withoutChainKey),
+      UNTICKETED,
     );
 
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
@@ -655,6 +695,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
       await followInterruptedMercadoPagoChargesFor(
         deps(orders),
         mercadoPagoChargesLeftPendingFor(deps(orders)),
+        UNTICKETED,
       ),
     ).toEqual({
       followed: [],

@@ -1,5 +1,6 @@
 export type { Clock } from "../../shared/index.js";
 export type { LimitedEndpoint } from "../model/installation-request-limit.js";
+export type { ReplenishmentFailure } from "../model/replenishment-failure.js";
 export type { SyncedFact } from "../model/synced-fact.js";
 export type {
   AdmitInstallationRequestInput,
@@ -49,6 +50,11 @@ export type {
   ReleaseQuarantinedEventPorts,
 } from "./quarantine-release-ports.js";
 export type {
+  ReceiveAttachedEventInput,
+  ReceiveAttachedEventOutcome,
+} from "./receive-attached-event.js";
+export { receiveAttachedEvent } from "./receive-attached-event.js";
+export type {
   ReceivePushedEventsInput,
   ReceivePushedEventsOutcome,
 } from "./receive-pushed-events.js";
@@ -96,6 +102,7 @@ export type {
 } from "./reset-sync-identity-without-copy-ports.js";
 export type {
   EventPosition,
+  InstallationReceivedSeqs,
   ReplenishedEvent,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,

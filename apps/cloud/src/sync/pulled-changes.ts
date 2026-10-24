@@ -1,5 +1,5 @@
 import type {
-  FiscalDocumentType,
+  FiscalTaskDocumentType,
   NetContentUnit,
   OfflineNumberBlockStatus,
   SaleUnit,
@@ -89,10 +89,15 @@ export interface RegisterQrPointOfSaleRow {
   version: number;
 }
 
-export interface RegisterOfflinePointOfSaleRow {
-  pointOfSaleNumber: number;
+interface OfflineSeriesCountRow {
+  documentType: FiscalTaskDocumentType;
   taxAuthorityLastAuthorizedNumber: number | null;
   highestSyncedOfflineNumber: number | null;
+}
+
+export interface RegisterOfflinePointOfSaleRow {
+  pointOfSaleNumber: number;
+  seriesCounts: OfflineSeriesCountRow[];
   version: number;
 }
 
@@ -106,7 +111,7 @@ export interface OfflineAuthorizationCodeRow {
 
 export interface OfflineNumberBlockRow {
   pointOfSaleNumber: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   firstNumber: number;
   lastNumber: number;
   status: OfflineNumberBlockStatus;

@@ -1,4 +1,4 @@
-import type { OfflineDocumentCorrection } from "@purosur/domain";
+import type { FiscalTaskDocumentType, OfflineDocumentCorrection } from "@purosur/domain";
 import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { rejectedDocumentRemedies } from "../../platform/db/schema.js";
@@ -12,6 +12,7 @@ export async function insertRejectedDocumentRemedy<TQueryResult extends PgQueryR
     correction,
     rejectedAt = null,
     recordedAt,
+    documentType = "factura_c",
   }: {
     pointOfSale: number;
     fortnight: Fortnight;
@@ -19,12 +20,13 @@ export async function insertRejectedDocumentRemedy<TQueryResult extends PgQueryR
     correction: OfflineDocumentCorrection | null;
     rejectedAt?: Date | null;
     recordedAt: Date;
+    documentType?: FiscalTaskDocumentType;
   },
 ): Promise<void> {
   await db.insert(rejectedDocumentRemedies).values({
     pointOfSaleNumber: pointOfSale,
     fortnightStart: fortnight.start,
-    documentType: "factura_c",
+    documentType,
     number,
     kind: correction === null ? "report" : "printed",
     correction,

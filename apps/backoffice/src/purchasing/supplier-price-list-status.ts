@@ -8,12 +8,22 @@ export type SupplierPriceListStatus = {
   reason?: string;
 };
 
+type ReadFailureReasons = Record<NonNullable<SupplierPriceListSummary["readFailure"]>, string>;
+
 const READ_FAILURE_REASONS = {
-  unreadable_document: "No se pudo leer el contenido del archivo.",
-  no_items_found: "No se encontró ningún ítem en el archivo.",
-  reading_unavailable: "La lectura no estuvo disponible.",
-  interrupted: "La lectura se interrumpió.",
-} satisfies Record<NonNullable<SupplierPriceListSummary["readFailure"]>, string>;
+  PDF: {
+    unreadable_document: "No se pudo leer el contenido del archivo.",
+    no_items_found: "No se encontró ningún ítem en el archivo.",
+    reading_unavailable: "La lectura no estuvo disponible.",
+    interrupted: "La lectura se interrumpió.",
+  },
+  WEB_PAGE: {
+    unreadable_document: "No se pudo leer el contenido de la página.",
+    no_items_found: "No se encontró ningún ítem en la página.",
+    reading_unavailable: "La lectura no estuvo disponible.",
+    interrupted: "La lectura se interrumpió.",
+  },
+} satisfies Record<SupplierPriceListSummary["source"]["kind"], ReadFailureReasons>;
 
 export function supplierPriceListStatusOf(list: SupplierPriceListSummary): SupplierPriceListStatus {
   switch (list.state) {
@@ -35,7 +45,9 @@ export function supplierPriceListStatusOf(list: SupplierPriceListSummary): Suppl
         tone: "error",
         label: "No se pudo leer",
         busy: false,
-        ...(list.readFailure === null ? {} : { reason: READ_FAILURE_REASONS[list.readFailure] }),
+        ...(list.readFailure === null
+          ? {}
+          : { reason: READ_FAILURE_REASONS[list.source.kind][list.readFailure] }),
       };
     case "REVIEWED":
       return list.replaced

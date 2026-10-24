@@ -28,6 +28,7 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
+import { createContingencyBackupTickets } from "./backups/contingency-backup-tickets-wiring";
 import { resetWithoutCopy } from "./backups/reset-without-copy";
 import { createRestoreAttempts } from "./backups/restore-attempts";
 import { createRestoreLaunch } from "./backups/restore-launch";
@@ -35,6 +36,8 @@ import { afterEnrollment, storingEnrollmentCredentials } from "./backups/restore
 import { restorePendingIn } from "./backups/restore-pending";
 import { syncUnlessRestorePending } from "./backups/restore-sync-hold";
 import { setAsideStaleDatabase } from "./backups/set-aside-stale-database";
+import type { TicketedOperations } from "./backups/ticketed-operation";
+import { ticketedRendererRequests } from "./backups/ticketed-renderer-requests";
 import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
@@ -56,6 +59,7 @@ import { createInterruptedChargesWiring } from "./payments/interrupted-charges-w
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
 import { createPaidOrderDiscoveryWiring } from "./payments/paid-order-discovery-wiring";
 import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
+import { SqliteMercadoPagoCharges } from "./payments/sqlite-mercado-pago-charges";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -119,6 +123,7 @@ import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession, readRegisterIdentity } from "./register/sqlite-cash-ledger";
 import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
+import { SqliteReceiptPrinterSettings } from "./register/sqlite-receipt-printer-settings";
 import { SqliteRestorationEvidence } from "./register/sqlite-restoration-evidence";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
@@ -132,7 +137,7 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
-import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
+import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   addWeighedProductFor,
@@ -195,6 +200,7 @@ import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
+import { readPendingReplenishment } from "./sync/sqlite-register-replenishment-store";
 import {
   nodeStorageFileSystem,
   storageReadingReader,
@@ -259,6 +265,7 @@ const ENROLLMENT_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
 const QUIT_REGISTER_MESSAGE: QuitRegisterMessage = { type: "quit-register" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 const BARCODE_READER_RETRY_MS = 3_000;
+const CONTINGENCY_BACKUP_TICKET_RETRY_MS = 30_000;
 
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
@@ -369,6 +376,7 @@ const restorationOf = (database: NonNullable<typeof localDatabase>) =>
     restorePending,
     () => cloudReachability,
     restoreAttempts.noUsableGeneration,
+    appVersionFromCoreArguments(process.argv),
   );
 const localInstallation =
   localDatabase === undefined ? undefined : new SqliteLocalInstallation(localDatabase, now);
@@ -519,6 +527,8 @@ async function pushOutboxToCloud() {
                 localDatabaseDamaged,
                 batteryShutdown.newSalesStoppedByBattery,
                 () => readLatestClockOffsetMs(localDatabase),
+                () => readPendingReplenishment(localDatabase),
+                appVersionFromCoreArguments(process.argv),
               ),
         acceptedPush:
           localDatabase === undefined
@@ -571,6 +581,7 @@ const syncSchedule = createSyncSchedule({
               : (path, bearerToken, body) =>
                   postToCloudWithBearer(cloudClient, path, bearerToken, body),
           ids: uuidV7Ids,
+          appVersion: appVersionFromCoreArguments(process.argv),
         }),
       report: (attempt) => {
         const report = replenishmentReportOf(attempt);
@@ -694,6 +705,37 @@ const restorationStandingWatch =
         read: () => restorationStandingFor(restorationOf(localDatabase)),
         onChanged: () => rendererConnection.tell(RESTORATION_STANDING_CHANGED_NOTICE),
       });
+const contingencyBackupTickets =
+  localDatabase === undefined || actionGate === undefined
+    ? undefined
+    : createContingencyBackupTickets({
+        database: localDatabase,
+        now,
+        ids: uuidV7Ids,
+        readContingencyTicketKey: async () =>
+          (await mainRequests.readCredentials())?.keys?.contingency_ticket_key,
+        appVersion: appVersionFromCoreArguments(process.argv),
+        readEmissionMode: () => readFiscalEmissionModeIn(localDatabase, now()),
+        printers: savedReceiptPrinters(new SqliteReceiptPrinterSettings(localDatabase), undefined),
+        scheduleNext: (run, delayMs) => {
+          const timer = setTimeout(run, delayMs);
+          return () => clearTimeout(timer);
+        },
+        intervalMs: CONTINGENCY_BACKUP_TICKET_RETRY_MS,
+        reportFailure,
+        signedInUserId: () => signedInPerson.userId(),
+        gate: actionGate,
+      });
+contingencyBackupTickets?.worker.start();
+
+const ticketed: TicketedOperations["ticketed"] =
+  contingencyBackupTickets?.ticketed ?? ((_operation, handler) => handler);
+const ticketedSettlement: TicketedOperations["ticketedSettlement"] =
+  contingencyBackupTickets?.ticketedSettlement ?? ((settle) => settle);
+const ticketedSteps: TicketedOperations["ticketedSteps"] =
+  contingencyBackupTickets?.ticketedSteps ??
+  ((_operation, _subjectId, operate) => operate((step) => step()));
+
 const readEnrollmentStanding = () =>
   enrollmentStandingOf({
     readCredentials: () => mainRequests.readCredentials(),
@@ -720,6 +762,7 @@ const mercadoPagoCharging = createMercadoPagoCharging({
   now,
   ids: uuidV7Ids,
   restoration: localDatabase === undefined ? undefined : restorationOf(localDatabase),
+  ticketedSettlement,
 });
 
 const receiptPrinting = createReceiptPrinting({
@@ -734,7 +777,11 @@ const receiptPrinting = createReceiptPrinting({
     fiscalModeWatch?.check();
   },
   reportFailure,
-  syncNow: () => syncSchedule.syncNow(),
+  syncNow: () => {
+    syncSchedule.syncNow();
+    void contingencyBackupTickets?.worker.kick();
+  },
+  ticketedSteps,
 });
 
 const interruptedCharges = createInterruptedChargesWiring({
@@ -754,6 +801,7 @@ const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
   now,
   ids: uuidV7Ids,
   reportFailure,
+  ticketedSettlement,
 });
 
 const startupRecovery = recoverAtStartup({
@@ -1376,12 +1424,11 @@ const rendererRequestDeps: RendererRequestDeps = {
   salesHistory:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (request) => salesHistoryFor({ database: localDatabase, gate: actionGate, now }, request),
+      : (request) => salesHistoryFor({ database: localDatabase, gate: actionGate }, request),
   saleHistoryDetail:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (saleId) =>
-          saleHistoryDetailFor({ database: localDatabase, gate: actionGate, now }, saleId),
+      : (saleId) => saleHistoryDetailFor({ database: localDatabase, gate: actionGate }, saleId),
   readReceiptPrinter:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1411,6 +1458,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             devices,
           ),
+  contingencyBackupTickets: contingencyBackupTickets?.requests,
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   printOriginalReceipt: receiptPrinting.printOriginalReceipt,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
@@ -1419,22 +1467,31 @@ const rendererRequestDeps: RendererRequestDeps = {
   reportFailure,
 };
 
-const answeredRendererRequestDeps: RendererRequestDeps = {
-  ...rendererRequestDeps,
-  chargeSaleInCash: receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
-  chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.chargeSaleByTransfer,
-  ),
-  chargeSaleOnStandaloneTerminal: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.chargeSaleOnStandaloneTerminal,
-  ),
-  followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.followMercadoPagoCharge,
-  ),
-  abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.abandonMercadoPagoCharge,
-  ),
-};
+const answeredRendererRequestDeps: RendererRequestDeps = ticketedRendererRequests(
+  {
+    ...rendererRequestDeps,
+    chargeSaleInCash: receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
+    chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
+      rendererRequestDeps.chargeSaleByTransfer,
+    ),
+    chargeSaleOnStandaloneTerminal: receiptPrinting.afterCompletedSale(
+      rendererRequestDeps.chargeSaleOnStandaloneTerminal,
+    ),
+    followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
+      rendererRequestDeps.followMercadoPagoCharge,
+    ),
+    abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
+      rendererRequestDeps.abandonMercadoPagoCharge,
+    ),
+  },
+  {
+    ticketed,
+    saleOfCharge: (paymentTransactionId) =>
+      localDatabase === undefined
+        ? null
+        : new SqliteMercadoPagoCharges(localDatabase).saleOfCharge(paymentTransactionId),
+  },
+);
 
 startRegisterHealthChecks({
   database: localDatabase,

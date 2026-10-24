@@ -423,10 +423,13 @@ describe("recording the regularization of an orphan authorization on a real Post
         documentType: "factura_c",
         number: 100,
         creditNoteId: null,
+        deferredSaleId: null,
         reason: { issuedOn: "2026-10-05", total: 12_500, authorizationCode: "74123456789012" },
         state: "open",
         createdAt: OPENED_AT,
         closedAt: null,
+        closedBy: null,
+        closingNote: null,
       });
       const alert = (await db.select().from(alerts)).find((row) => row.scope === "9:factura_c:100");
       expect(alert).toMatchObject({
