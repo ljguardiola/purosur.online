@@ -18,6 +18,20 @@ describe("reportCoreReadinessMiss", () => {
     expect(captureMessage).toHaveBeenCalledExactlyOnceWith(line, "error");
   });
 
+  it("says how long the core was at its step in whole milliseconds", () => {
+    const log = vi.fn();
+
+    reportCoreReadinessMiss(
+      { log, captureMessage: vi.fn() },
+      { step: "check_local_database", stepElapsedMs: 29_584.432_1 },
+      30_000,
+    );
+
+    expect(log).toHaveBeenCalledExactlyOnceWith(
+      "core process: not ready within 30000 ms, still at step check_local_database after 29584 ms, so it was stopped",
+    );
+  });
+
   it("says no step was reported when the core never reported one", () => {
     const log = vi.fn();
     const captureMessage = vi.fn();
