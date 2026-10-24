@@ -6,3 +6,7 @@ export interface PrintedDocumentKey {
   document: PrintedDocument;
   saleId: string;
 }
+
+export function isReprintedOnlyAsDuplicate(document: PrintedDocument): boolean {
+  return document === "deferred_invoice";
+}

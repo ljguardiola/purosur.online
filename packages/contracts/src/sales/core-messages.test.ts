@@ -1618,6 +1618,7 @@ describe("reprinting a deferred sale's invoice", () => {
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
     { kind: "locked", consecutive_failures: 8 },
+    { kind: "original_not_printed" },
   ])("accepts the result $kind", (outcome) => {
     const message = {
       type: "reprint-deferred-sale-invoice-result",

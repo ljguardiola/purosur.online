@@ -18,6 +18,7 @@ export type FindDeferredSaleOutcome =
   | { kind: "not_found" }
   | { kind: "voided" }
   | { kind: "expired" }
+  | { kind: "out_of_date_order" }
   | {
       kind: "found";
       saleId: string;

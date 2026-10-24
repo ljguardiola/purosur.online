@@ -17,7 +17,7 @@ export interface DeferredSaleFacts {
   lastIssuedOn: string | null;
 }
 
-export type DeferredSaleAvailability = "available" | "voided" | "expired";
+export type DeferredSaleAvailability = "available" | "voided" | "expired" | "out_of_date_order";
 
 export function deferredSaleAvailability(
   facts: DeferredSaleFacts,
@@ -29,8 +29,10 @@ export function deferredSaleAvailability(
   if (facts.invoice.kind === "issued") {
     return "available";
   }
-  return isDeferredSaleExpired(facts.occurredAt, now) ||
-    isDateOrderBroken(facts.occurredAt, facts.lastIssuedOn)
-    ? "expired"
+  if (isDeferredSaleExpired(facts.occurredAt, now)) {
+    return "expired";
+  }
+  return isDateOrderBroken(facts.occurredAt, facts.lastIssuedOn)
+    ? "out_of_date_order"
     : "available";
 }

@@ -1,14 +1,15 @@
-import type { PrintedDocumentKey } from "../model/printed-document.js";
+import { isReprintedOnlyAsDuplicate, type PrintedDocumentKey } from "../model/printed-document.js";
 import {
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
   receiptReprintReason,
 } from "../model/receipt-reprint-reason.js";
 import type { ReceiptPrintWatch } from "./receipt-ports.js";
 import {
+  type DuplicateReceiptPrintOutcome,
+  printDuplicateOnly,
   printReceipt,
   type ReceiptPrintGrant,
   type ReceiptPrintingPorts,
-  type ReceiptPrintOutcome,
 } from "./receipt-printing.js";
 
 export type ReprintReceiptInput = PrintedDocumentKey & { reason: string };
@@ -19,7 +20,7 @@ export type ReprintReceiptPorts<Grant extends ReceiptPrintGrant, Refusal> = Rece
 >;
 
 export type ReprintReceiptOutcome =
-  | ReceiptPrintOutcome
+  | DuplicateReceiptPrintOutcome
   | { kind: "invalid_reason"; maxLength: number };
 
 export async function reprintReceipt<Grant extends ReceiptPrintGrant, Refusal>(
@@ -31,5 +32,8 @@ export async function reprintReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   if (text === undefined) {
     return { kind: "invalid_reason", maxLength: RECEIPT_REPRINT_REASON_MAX_LENGTH };
   }
-  return printReceipt(ports, key, { kind: "requested", text }, watch);
+  const requested = { kind: "requested", text } as const;
+  return isReprintedOnlyAsDuplicate(key.document)
+    ? printDuplicateOnly(ports, key, requested, watch)
+    : printReceipt(ports, key, requested, watch);
 }

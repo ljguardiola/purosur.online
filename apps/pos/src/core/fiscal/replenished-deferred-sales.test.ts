@@ -13,13 +13,13 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { insertOpenedSession } from "../register/sqlite-cash-ledger";
 import { applyReplenishedSaleFact } from "../sales/replenished-sale-facts";
+import { SqliteDeferredSaleLookup } from "../sales/sqlite-deferred-sale-lookup";
 import { applyReplenishedDeferredSaleSatisfaction } from "./replenished-deferred-sale-satisfactions";
 import {
   applyReplenishedDeferredSale,
   holdsDeferredSaleRecord,
   rebuildReplenishedUnclearDeferredSale,
 } from "./replenished-deferred-sales";
-import { SqliteDeferredSaleLookup } from "./sqlite-deferred-sales";
 
 type DeferredSaleFact = Extract<SyncedFact, { kind: "deferred_sale_recorded" }>;
 

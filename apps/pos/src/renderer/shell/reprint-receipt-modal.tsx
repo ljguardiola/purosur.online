@@ -44,6 +44,8 @@ const BUSY_MESSAGES: Record<PrintedDocument, string> = {
 };
 const PRINTER_NOT_CONFIGURED_MESSAGE = "La impresora no está configurada.";
 const SALE_VOIDED_MESSAGE = "La venta está anulada: no se reimprime su ticket.";
+const ORIGINAL_NOT_PRINTED_MESSAGE =
+  "La factura todavía no se imprimió como original: no se reimprime.";
 const REQUIRED_REASON_MESSAGE = "Escribí el motivo de la reimpresión.";
 const SUBJECTS: Record<PrintedDocument, string> = {
   sale_receipt: "VENTA",
@@ -132,6 +134,9 @@ export function ReprintReceiptModal({
           break;
         case "sale_voided":
           setNotice(SALE_VOIDED_MESSAGE);
+          break;
+        case "original_not_printed":
+          setNotice(ORIGINAL_NOT_PRINTED_MESSAGE);
           break;
         case "invalid_reason":
           showFieldError("reason", invalidReasonMessage(outcome.max_length));

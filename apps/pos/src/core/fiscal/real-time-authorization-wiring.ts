@@ -5,14 +5,12 @@ import {
   type CloudCreditNotes as CloudCreditNotesPort,
   catchUpDeferredSales,
   type IdGenerator,
-  invoiceDeferredSalesUpTo,
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
   requestVoidCreditNotes,
   type ShortCodeRandomness,
   settleInterruptedRealTimeAuthorizations,
 } from "@purosur/domain/fiscal/use-cases";
-import type { DeferredSaleInvoicing } from "@purosur/domain/sales/use-cases";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -43,7 +41,7 @@ export interface RealTimeAuthorizationWiringDeps {
   reportFailure: (error: unknown) => void;
 }
 
-interface DeferralIdentities {
+export interface DeferralIdentities {
   ids: IdGenerator;
   shortCodes: ShortCodeRandomness;
   readOutboxChainKey: () => Promise<string | undefined>;
@@ -70,7 +68,7 @@ function realTimeTaxAuthority({
       });
 }
 
-function deferredSaleCatchUpPorts(
+export function deferredSaleCatchUpPorts(
   database: LocalDatabase,
   outboxChainKey: string | undefined,
   {
@@ -90,31 +88,6 @@ function deferredSaleCatchUpPorts(
     clock: { now },
     ids,
     shortCodes,
-  };
-}
-
-export function createDeferredSaleInvoicing({
-  database,
-  readOutboxChainKey,
-  serialize,
-  ...deps
-}: RealTimeAuthorizationWiringDeps & DeferralIdentities & { serialize: DeferredBacklogSerializer }):
-  | DeferredSaleInvoicing
-  | undefined {
-  if (database === undefined) {
-    return undefined;
-  }
-  return {
-    invoiceUpTo: (saleId) =>
-      serialize(async () => {
-        const outboxChainKey = await readOutboxChainKey();
-        if (outboxChainKey === undefined) {
-          throw new Error("the register has no outbox chain key");
-        }
-        return invoiceDeferredSalesUpTo(deferredSaleCatchUpPorts(database, outboxChainKey, deps), {
-          saleId,
-        });
-      }),
   };
 }
 

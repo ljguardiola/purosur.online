@@ -16,7 +16,6 @@ import {
   InlineNotice,
   ScreenHeader,
   SidePanel,
-  Tag,
   useRequestForm,
 } from "@purosur/ui";
 import { Info, Printer, ScanBarcode, TriangleAlert } from "lucide-react";
@@ -36,9 +35,10 @@ import {
   INVALID_SHORT_CODE_MESSAGE,
   scannedDeferredSaleReading,
 } from "./deferred-sale-form";
-import { DeferredSaleInvoiceModal } from "./deferred-sale-invoice-modal";
 import type { DeferredSaleRefusalKind, FoundDeferredSale } from "./deferred-sale-text";
 import { deferredSaleRefusal } from "./deferred-sale-text";
+import { originalPrintNotice } from "./original-print-text";
+import { PrintDeferredInvoiceModal } from "./print-deferred-invoice-modal";
 
 export type DeferredSaleScreenProps = {
   person: SignedInPerson;
@@ -70,6 +70,7 @@ export function DeferredSaleScreen({
   const [refusal, setRefusal] = useState<DeferredSaleRefusalKind>();
   const [found, setFound] = useState<FoundDeferredSale>();
   const [printed, setPrinted] = useState(false);
+  const lastReading = useRef<DeferredSaleReading>(undefined);
   const [printedSale, setPrintedSale] = useState<FoundDeferredSale>();
   const [reprinting, setReprinting] = useState(false);
   const [reprinted, setReprinted] = useState<ReceiptCopyShown>();
@@ -80,6 +81,7 @@ export function DeferredSaleScreen({
       return;
     }
     finding.current = true;
+    lastReading.current = reading;
     setRefusal(undefined);
     setPrintedSale(undefined);
     const outcome = await findDeferredSale(reading)
@@ -160,11 +162,6 @@ export function DeferredSaleScreen({
               title="Acercá el QR del documento al lector"
               description="Sirve el QR del documento no fiscal de una venta diferida."
             />
-            <div className="flex justify-center">
-              <Tag variant="status" tone="success">
-                Lector listo
-              </Tag>
-            </div>
           </Card>
         </div>
       </main>
@@ -215,7 +212,7 @@ export function DeferredSaleScreen({
         ) : null}
       </SidePanel>
       {found === undefined ? null : (
-        <DeferredSaleInvoiceModal
+        <PrintDeferredInvoiceModal
           sale={found}
           printInvoice={printDeferredSaleInvoice}
           onPrinted={() => {
@@ -224,7 +221,11 @@ export function DeferredSaleScreen({
           }}
           onRefused={(reason) => {
             setFound(undefined);
-            setRefusal(reason);
+            if (reason === "already_printed" && lastReading.current !== undefined) {
+              void look(lastReading.current);
+            } else {
+              setRefusal(reason);
+            }
           }}
           onSessionInvalid={onSessionInvalid}
           onClose={() => setFound(undefined)}
@@ -274,10 +275,8 @@ export function DeferredSaleScreen({
       )}
       {printed ? (
         <FloatingNotification
-          tone="success"
           icon={<Printer />}
-          title="La factura salió como original"
-          description="Entregásela al cliente."
+          {...originalPrintNotice("deferred_invoice", "started")}
           onDismiss={() => setPrinted(false)}
         />
       ) : null}

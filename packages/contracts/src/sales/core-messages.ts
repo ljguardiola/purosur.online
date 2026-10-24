@@ -344,6 +344,7 @@ const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_reason"), max_length: z.number() }),
   z.object({ kind: z.literal("printer_not_configured") }),
   z.object({ kind: z.literal("sale_voided") }),
+  z.object({ kind: z.literal("original_not_printed") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_signed_in") }),
   ...authorizationRefusalSchema.options,

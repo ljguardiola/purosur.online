@@ -1,4 +1,4 @@
-import { runDeferredSalesCatchUp } from "./catch-up-deferred-sales.js";
+import { type CatchUpStopReason, runDeferredSalesCatchUp } from "./catch-up-deferred-sales.js";
 import type { CatchUpDeferredSalesPorts } from "./catch-up-deferred-sales-ports.js";
 
 export interface InvoiceDeferredSalesUpToInput {
@@ -8,7 +8,12 @@ export interface InvoiceDeferredSalesUpToInput {
 export type InvoiceDeferredSalesUpToOutcome =
   | { kind: "invoiced" }
   | { kind: "not_pending" }
-  | { kind: "not_yet"; cause: "cannot_authorize" | "older_sale_blocking" };
+  | { kind: "not_yet"; cause: InvoiceDeferredSalesUpToCause };
+
+export type InvoiceDeferredSalesUpToCause =
+  | "cannot_authorize"
+  | "older_sale_blocking"
+  | "not_authorized";
 
 export async function invoiceDeferredSalesUpTo(
   ports: CatchUpDeferredSalesPorts,
@@ -18,9 +23,24 @@ export async function invoiceDeferredSalesUpTo(
   if (outcome.kind === "completed") {
     return outcome.invoiced.includes(saleId) ? { kind: "invoiced" } : { kind: "not_pending" };
   }
-  const blockedByOlderSale = stoppedAtSaleId !== undefined && stoppedAtSaleId !== saleId;
-  return {
-    kind: "not_yet",
-    cause: blockedByOlderSale ? "older_sale_blocking" : "cannot_authorize",
-  };
+  return { kind: "not_yet", cause: causeOf(outcome.reason, stoppedAtSaleId, saleId) };
+}
+
+function causeOf(
+  reason: CatchUpStopReason,
+  stoppedAtSaleId: string | undefined,
+  saleId: string,
+): InvoiceDeferredSalesUpToCause {
+  const stoppedAtOlderSale = stoppedAtSaleId !== saleId;
+  switch (reason.kind) {
+    case "retry_later":
+      return stoppedAtOlderSale ? "older_sale_blocking" : "cannot_authorize";
+    case "authorization_not_granted":
+      if (stoppedAtOlderSale) {
+        return "older_sale_blocking";
+      }
+      return reason.outcome === "rejected" ? "not_authorized" : "cannot_authorize";
+    default:
+      return "cannot_authorize";
+  }
 }

@@ -69,10 +69,10 @@ describe("findDeferredSale", () => {
     expect(find(SHORT_CODE, [old]).outcome).toEqual({ kind: "expired" });
   });
 
-  it("is expired when the sale is pending and dated before the last issued document", () => {
+  it("is out of date order when the sale is pending and dated before the last issued document", () => {
     const behind = deferredSaleFacts({ lastIssuedOn: "2026-10-08" });
 
-    expect(find(SHORT_CODE, [behind]).outcome).toEqual({ kind: "expired" });
+    expect(find(SHORT_CODE, [behind]).outcome).toEqual({ kind: "out_of_date_order" });
   });
 
   it("finds an invoiced sale with its document, even past its window", () => {

@@ -88,6 +88,7 @@ describe("printDeferredSaleInvoice", () => {
     it.each([
       { kind: "not_yet", cause: "cannot_authorize" },
       { kind: "not_yet", cause: "older_sale_blocking" },
+      { kind: "not_yet", cause: "not_authorized" },
     ] as const)("prints nothing and says it cannot be invoiced yet: $cause", async (answer) => {
       const run = scenario(undefined, answer);
 
@@ -141,6 +142,11 @@ describe("printDeferredSaleInvoice", () => {
       ["its deferred record is cancelled", { cancelled: true }, "voided"],
       ["its sale is voided", { saleVoided: true }, "voided"],
       ["its window ran out", { occurredAt: new Date("2026-09-01T12:00:00.000Z") }, "expired"],
+      [
+        "dated before the last issued document",
+        { lastIssuedOn: "2026-10-08" },
+        "out_of_date_order",
+      ],
     ] as const)("is %s: invoices and prints nothing", async (_case, overrides, kind) => {
       const run = scenario(deferredSaleFacts(overrides));
 

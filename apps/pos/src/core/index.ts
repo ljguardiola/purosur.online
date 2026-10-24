@@ -46,7 +46,6 @@ import { createDeferredBacklogSerializer } from "./fiscal/deferred-backlog-seria
 import { createFiscalModeWatch } from "./fiscal/fiscal-mode-watch";
 import {
   cloudCreditNotes,
-  createDeferredSaleInvoicing,
   createRealTimeAuthorization,
   settleInterruptedAuthorizations,
   startRegisterHealthChecks,
@@ -137,6 +136,7 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
+import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
 import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,

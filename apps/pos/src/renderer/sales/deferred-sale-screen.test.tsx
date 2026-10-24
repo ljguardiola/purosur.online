@@ -26,7 +26,7 @@ describe("DeferredSaleScreen reading the customer's document", () => {
     await expect
       .element(screen.getByText("Sirve el QR del documento no fiscal de una venta diferida."))
       .toBeVisible();
-    await expect.element(screen.getByText("Lector listo")).toBeVisible();
+    await expect.element(screen.getByText("Lector listo")).not.toBeInTheDocument();
     await expect.element(screen.getByText("SI EL LECTOR NO LEE EL QR")).toBeVisible();
     await expect
       .element(screen.getByText("Tipeá el código de consulta impreso en el documento"))
@@ -96,41 +96,18 @@ describe("DeferredSaleScreen reading the customer's document", () => {
     expect(findDeferredSale).not.toHaveBeenCalled();
   });
 
-  it.each([
-    [
-      { kind: "not_found" },
-      "No hay una venta diferida con ese código en esta caja",
-      "Revisá el código, o buscala en la caja donde se hizo la venta.",
-    ],
-    [{ kind: "voided" }, "Esa venta se anuló", "Una venta anulada no se factura."],
-    [
-      { kind: "expired" },
-      "Pasó el plazo para facturar esta venta",
-      "Quedó como tarea para el dueño.",
-    ],
-    [
-      { ...FOUND_ISSUED, original_printed: true },
-      "La factura ya se imprimió",
-      "Si el cliente la perdió, reimprimí un duplicado.",
-    ],
-    [
-      { kind: "lacks_permission" },
-      "No tenés permiso para facturar ventas diferidas",
-      "Pedile a alguien con permiso que la facture.",
-    ],
-  ] as const satisfies readonly (readonly [FindDeferredSaleOutcome, string, string])[])(
-    "tells what it found when the core answers %j",
-    async (outcome, title, description) => {
-      const { screen, codeField } = await renderScreen({ findDeferredSale: async () => outcome });
+  it("tells the refusal the core answers, without opening the invoice", async () => {
+    const { screen, codeField } = await renderScreen({
+      findDeferredSale: async () => ({ kind: "voided" }),
+    });
 
-      await userEvent.fill(codeField, "7KQ4-M2P9");
-      await userEvent.click(screen.getByRole("button", { name: SEARCH }));
+    await userEvent.fill(codeField, "7KQ4-M2P9");
+    await userEvent.click(screen.getByRole("button", { name: SEARCH }));
 
-      await expect.element(screen.getByText(title)).toBeVisible();
-      await expect.element(screen.getByText(description)).toBeVisible();
-      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-    },
-  );
+    await expect.element(screen.getByText("Esa venta se anuló")).toBeVisible();
+    await expect.element(screen.getByText("Una venta anulada no se factura.")).toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
 
   it("says it could not look the sale up when the core does not answer", async () => {
     const { screen, codeField } = await renderScreen({
@@ -223,13 +200,15 @@ describe("DeferredSaleScreen invoicing the sale it found", () => {
     await expect.element(screen.getByRole("dialog", { name: "Imprimí la factura" })).toBeVisible();
   });
 
-  it("prints the found sale's invoice, closes the window and says it came out as an original", async () => {
+  it("prints the found sale's invoice, closes the window and says it comes out once the printer is ready", async () => {
     const { screen, printDeferredSaleInvoice } = await findAndOpen();
 
     await userEvent.click(screen.getByRole("button", { name: "Imprimir la factura" }));
 
     expect(printDeferredSaleInvoice).toHaveBeenCalledExactlyOnceWith("sale-1");
-    await expect.element(screen.getByText("La factura salió como original")).toBeVisible();
+    await expect
+      .element(screen.getByText("La factura sale en cuanto la impresora esté lista"))
+      .toBeVisible();
     await expect.element(screen.getByText("Entregásela al cliente.")).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });

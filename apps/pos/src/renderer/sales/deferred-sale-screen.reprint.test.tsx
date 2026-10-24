@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { FOUND_ISSUED, FOUND_PENDING, renderScreen } from "./test-support/deferred-sale-screen";
 
@@ -32,6 +32,25 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
 
     await expect.element(screen.getByRole("dialog")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: REPRINT })).not.toBeInTheDocument();
+  });
+
+  it("offers the duplicate once printing from the window finds the factura already printed", async () => {
+    const findDeferredSale = vi
+      .fn()
+      .mockResolvedValueOnce(FOUND_ISSUED)
+      .mockResolvedValueOnce(PRINTED);
+    const { screen, codeField } = await renderScreen({
+      findDeferredSale,
+      printDeferredSaleInvoice: async () => ({ kind: "already_printed" }),
+    });
+    await userEvent.fill(codeField, "7KQ4-M2P9");
+    await userEvent.click(screen.getByRole("button", { name: SEARCH }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir la factura" }));
+
+    await expect.element(screen.getByText("La factura ya se imprimió")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: REPRINT })).toBeVisible();
+    expect(findDeferredSale).toHaveBeenNthCalledWith(2, { kind: "typed", code: "7KQ4-M2P9" });
   });
 
   it("opens the reprint of the factura with the sale's time and comprobante", async () => {

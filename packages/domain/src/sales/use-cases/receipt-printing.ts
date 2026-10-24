@@ -39,7 +39,11 @@ export type ReceiptPrintOutcome =
 
 export type OriginalReceiptPrintOutcome = ReceiptPrintOutcome | { kind: "already_attempted" };
 
-type PrintScope = "any_copy" | "original_only";
+export type DuplicateReceiptPrintOutcome = ReceiptPrintOutcome | { kind: "original_not_printed" };
+
+type PrintScope = "any_copy" | "original_only" | "duplicate_only";
+
+type ScopedPrintOutcome = OriginalReceiptPrintOutcome | DuplicateReceiptPrintOutcome;
 
 class CopyIsNoLongerTheOriginal extends Error {}
 
@@ -50,6 +54,15 @@ export function printReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   watch: ReceiptPrintWatch,
 ): Promise<ReceiptPrintOutcome | Refusal> {
   return printWithAuthority(ports, key, reasonOfDuplicate, watch, "any_copy");
+}
+
+export function printDuplicateOnly<Grant extends ReceiptPrintGrant, Refusal>(
+  ports: ReceiptPrintingPorts<Grant, Refusal>,
+  key: PrintedDocumentKey,
+  reasonOfDuplicate: ReceiptReason,
+  watch: ReceiptPrintWatch,
+): Promise<DuplicateReceiptPrintOutcome | Refusal> {
+  return printWithAuthority(ports, key, reasonOfDuplicate, watch, "duplicate_only");
 }
 
 export function printOriginalOnly<Grant extends ReceiptPrintGrant, Refusal>(
@@ -74,13 +87,20 @@ function printWithAuthority<Grant extends ReceiptPrintGrant, Refusal>(
   watch: ReceiptPrintWatch,
   scope: "original_only",
 ): Promise<OriginalReceiptPrintOutcome | Refusal>;
+function printWithAuthority<Grant extends ReceiptPrintGrant, Refusal>(
+  ports: ReceiptPrintingPorts<Grant, Refusal>,
+  key: PrintedDocumentKey,
+  reasonOfDuplicate: ReceiptReason,
+  watch: ReceiptPrintWatch,
+  scope: "duplicate_only",
+): Promise<DuplicateReceiptPrintOutcome | Refusal>;
 async function printWithAuthority<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReceiptPrintingPorts<Grant, Refusal>,
   key: PrintedDocumentKey,
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
   scope: PrintScope,
-): Promise<OriginalReceiptPrintOutcome | Refusal> {
+): Promise<ScopedPrintOutcome | Refusal> {
   const authorization = await ports.authority.authorize();
   if (authorization.kind === "refused") {
     return authorization.refusal;
@@ -95,12 +115,12 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
   scope: PrintScope,
-): Promise<OriginalReceiptPrintOutcome> {
+): Promise<ScopedPrintOutcome> {
   const printer = printers.configured();
   if (printer === undefined) {
     return { kind: "printer_not_configured" };
   }
-  const decided = ledger.transaction<ReceiptCopy | OriginalReceiptPrintOutcome>((tx) => {
+  const decided = ledger.transaction<ReceiptCopy | ScopedPrintOutcome>((tx) => {
     const delivery = tx.receiptDelivery(key);
     if (delivery === undefined) {
       return { kind: "not_found" };
@@ -119,6 +139,9 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
       return { kind: "unavailable" };
     }
     const copy = nextReceiptCopy(delivery);
+    if (scope === "duplicate_only" && copy.kind === "original") {
+      return { kind: "original_not_printed" };
+    }
     return scope === "original_only" && copy.kind === "duplicate"
       ? { kind: "already_attempted" }
       : copy;

@@ -23,6 +23,11 @@ describe("deferredSaleRefusal", () => {
     ["voided", "Esa venta se anuló", "Una venta anulada no se factura."],
     ["expired", "Pasó el plazo para facturar esta venta", "Quedó como tarea para el dueño."],
     [
+      "out_of_date_order",
+      "Esta venta ya no se puede facturar",
+      "Ya hay facturas con fecha posterior a esta venta.",
+    ],
+    [
       "already_printed",
       "La factura ya se imprimió",
       "Si el cliente la perdió, reimprimí un duplicado.",

@@ -43,8 +43,19 @@ describe("deferredSaleAvailability", () => {
     expect(deferredSaleAvailability(old, NOW)).toBe("expired");
   });
 
-  it("is expired when it is pending and dated before the last issued document", () => {
-    expect(deferredSaleAvailability(facts({ lastIssuedOn: "2026-10-04" }), NOW)).toBe("expired");
+  it("is out of date order when it is pending and dated before the last issued document", () => {
+    expect(deferredSaleAvailability(facts({ lastIssuedOn: "2026-10-04" }), NOW)).toBe(
+      "out_of_date_order",
+    );
+  });
+
+  it("is expired when its window ran out, even when it is also dated before the last issued document", () => {
+    const old = facts({
+      occurredAt: new Date("2026-09-20T14:00:00.000Z"),
+      lastIssuedOn: "2026-10-04",
+    });
+
+    expect(deferredSaleAvailability(old, NOW)).toBe("expired");
   });
 
   it("is available when it is pending and dated on the last issued day", () => {

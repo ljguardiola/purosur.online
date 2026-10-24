@@ -9,7 +9,6 @@ import {
   findDeferredSale,
   printDeferredSaleInvoice,
 } from "@purosur/domain/sales/use-cases";
-import { SqliteDeferredSaleLookup } from "../fiscal/sqlite-deferred-sales";
 import {
   type ReceiptRequestDeps,
   type ReprintSaleReceiptRequest,
@@ -17,6 +16,7 @@ import {
   signedSellerAuthority,
   startOriginalPrint,
 } from "./receipt-requests";
+import { SqliteDeferredSaleLookup } from "./sqlite-deferred-sale-lookup";
 
 export type FindDeferredSaleReading = FindDeferredSaleInput;
 

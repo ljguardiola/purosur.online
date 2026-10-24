@@ -473,6 +473,22 @@ describe("ReprintReceiptModal", () => {
           "Todavía puede salir una impresión de la factura. Esperá a que termine antes de reimprimir.",
         );
     });
+
+    it("says a factura whose original was never printed is not reprinted as a duplicate", async () => {
+      const { screen, onReprinted } = await renderModal({
+        document: "deferred_invoice",
+        sale: INVOICE_SALE,
+        reprintSaleReceipt: async () => ({ kind: "original_not_printed" }),
+      });
+      await typeReason(screen, "Otra copia");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("La factura todavía no se imprimió como original: no se reimprime.");
+      expect(onReprinted).not.toHaveBeenCalled();
+    });
   });
 
   describe("for the credit note of a voided sale", () => {

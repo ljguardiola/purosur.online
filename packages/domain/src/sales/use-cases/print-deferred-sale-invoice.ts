@@ -31,6 +31,7 @@ export type PrintDeferredSaleInvoiceOutcome =
   | { kind: "already_printed" }
   | { kind: "voided" }
   | { kind: "expired" }
+  | { kind: "out_of_date_order" }
   | Extract<DeferredSaleInvoicingOutcome, { kind: "not_yet" }>;
 
 export async function printDeferredSaleInvoice<Grant extends ReceiptPrintGrant, Refusal>(
@@ -78,7 +79,7 @@ export async function printDeferredSaleInvoice<Grant extends ReceiptPrintGrant, 
 
 type UnavailableOutcome = Extract<
   PrintDeferredSaleInvoiceOutcome,
-  { kind: "not_found" | "voided" | "expired" }
+  { kind: "not_found" | "voided" | "expired" | "out_of_date_order" }
 >;
 
 function unavailableOutcome(

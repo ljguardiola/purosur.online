@@ -8,6 +8,7 @@ export type DeferredSaleRefusalKind =
   | "not_found"
   | "voided"
   | "expired"
+  | "out_of_date_order"
   | "already_printed"
   | "not_a_deferred_sale_qr"
   | "lacks_permission"
@@ -37,6 +38,11 @@ const REFUSALS: Record<
     tone: "error",
     title: "Pasó el plazo para facturar esta venta",
     description: "Quedó como tarea para el dueño.",
+  },
+  out_of_date_order: {
+    tone: "error",
+    title: "Esta venta ya no se puede facturar",
+    description: "Ya hay facturas con fecha posterior a esta venta.",
   },
   already_printed: {
     tone: "info",

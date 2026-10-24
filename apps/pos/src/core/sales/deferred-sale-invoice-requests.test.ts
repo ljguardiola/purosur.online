@@ -436,6 +436,31 @@ describe("reprinting a deferred sale's invoice", () => {
     expect(printer.waiting).toHaveLength(1);
   });
 
+  it.each([
+    ["not invoiced yet", () => addDeferredSale("sale-1", "7KQ4M2P9")],
+    [
+      "invoiced and never printed",
+      () => {
+        addDeferredSale("sale-1", "7KQ4M2P9");
+        invoiceSale("sale-1");
+      },
+    ],
+  ])(
+    "answers original_not_printed, printing and storing nothing, for a factura %s",
+    async (_case, arrange) => {
+      arrange();
+      signedInPerson.set("supervisor");
+
+      expect(
+        await reprintDeferredSaleInvoiceFor(deps(), { saleId: "sale-1", reason: REASON }),
+      ).toEqual({ kind: "original_not_printed" });
+      expect(printer.waiting).toEqual([]);
+      expect(printer.handed).toEqual([]);
+      expect(database.prepare("SELECT * FROM deferred_invoice_prints").all()).toEqual([]);
+      expect(database.prepare("SELECT * FROM sale_reprints").all()).toEqual([]);
+    },
+  );
+
   it("answers not_found for a sale the register does not hold", async () => {
     signedInPerson.set("supervisor");
 

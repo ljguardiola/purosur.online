@@ -15,7 +15,7 @@ import { deferredSaleInvoiceNumber } from "./deferred-sale-text";
 import { originalPrintNotice } from "./original-print-text";
 
 type Notice =
-  | { kind: "not_yet"; cause: "cannot_authorize" | "older_sale_blocking" }
+  | Extract<PrintDeferredSaleInvoiceOutcome, { kind: "not_yet" }>
   | { kind: "printing"; notice: ReturnType<typeof originalPrintNotice> };
 
 const NOT_YET_DESCRIPTIONS = {
@@ -23,30 +23,32 @@ const NOT_YET_DESCRIPTIONS = {
     "La caja no puede pedir facturas a ARCA ahora. No se imprimió nada; pedile al cliente que vuelva más tarde.",
   older_sale_blocking:
     "Una venta anterior está frenando la facturación. No se imprimió nada; pedile al cliente que vuelva más tarde.",
+  not_authorized:
+    "ARCA no autorizó la factura de esta venta. No se imprimió nada; pedile al cliente que vuelva más tarde.",
 } as const;
 
-export type DeferredSaleInvoiceModalProps = {
+export type PrintDeferredInvoiceModalProps = {
   sale: Pick<FoundDeferredSale, "sale_id" | "occurred_at" | "total" | "invoice">;
   printInvoice: (saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>;
   onPrinted: () => void;
   onRefused: (
     refusal: Extract<
       DeferredSaleRefusalKind,
-      "already_printed" | "voided" | "expired" | "not_found"
+      "already_printed" | "voided" | "expired" | "out_of_date_order" | "not_found"
     >,
   ) => void;
   onSessionInvalid: () => void;
   onClose: () => void;
 };
 
-export function DeferredSaleInvoiceModal({
+export function PrintDeferredInvoiceModal({
   sale,
   printInvoice,
   onPrinted,
   onRefused,
   onSessionInvalid,
   onClose,
-}: DeferredSaleInvoiceModalProps) {
+}: PrintDeferredInvoiceModalProps) {
   const [printing, setPrinting] = useState(false);
   const [notice, setNotice] = useState<Notice>();
 
@@ -72,6 +74,7 @@ export function DeferredSaleInvoiceModal({
       case "already_printed":
       case "voided":
       case "expired":
+      case "out_of_date_order":
       case "not_found":
         onRefused(outcome.kind);
         break;
@@ -129,7 +132,7 @@ export function DeferredSaleInvoiceModal({
             dataStatus={printing ? "loading" : "loaded"}
             onPress={() => void print()}
           >
-            {printing ? "Emitiendo la factura…" : "Imprimir la factura"}
+            {printing ? pendingLabel(sale.invoice) : "Imprimir la factura"}
           </Button>
         </>
       }
@@ -163,4 +166,8 @@ export function DeferredSaleInvoiceModal({
       </div>
     </Modal>
   );
+}
+
+function pendingLabel(invoice: PrintDeferredInvoiceModalProps["sale"]["invoice"]): string {
+  return invoice.kind === "pending" ? "Emitiendo la factura…" : "Imprimiendo la factura…";
 }

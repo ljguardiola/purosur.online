@@ -12,7 +12,7 @@ export interface DeferredSaleLookup {
 export type DeferredSaleInvoicingOutcome =
   | { kind: "invoiced" }
   | { kind: "not_pending" }
-  | { kind: "not_yet"; cause: "cannot_authorize" | "older_sale_blocking" };
+  | { kind: "not_yet"; cause: "cannot_authorize" | "older_sale_blocking" | "not_authorized" };
 
 export interface DeferredSaleInvoicing {
   invoiceUpTo(saleId: string): Promise<DeferredSaleInvoicingOutcome>;

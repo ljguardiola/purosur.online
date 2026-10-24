@@ -95,11 +95,10 @@ describe("invoicing the deferred sales up to one", () => {
       },
     );
 
-    it("the sale asked for is the one the tax authority does not authorize", async () => {
-      const { register, outcome } = invoiceUpTo("sale-2", {}, [AUTHORIZED, REJECTED]);
+    it("the outcome of the sale asked for is unclear", async () => {
+      const { outcome } = invoiceUpTo("sale-2", {}, [AUTHORIZED, { kind: "unclear" }]);
 
       expect(await outcome).toEqual({ kind: "not_yet", cause: "cannot_authorize" });
-      expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-1", "sale-2"]);
     });
 
     it("the sale asked for has to wait to be retried", async () => {
@@ -115,12 +114,22 @@ describe("invoicing the deferred sales up to one", () => {
       expect(register.reservations).toEqual([]);
     });
 
-    it("the pre-emission gate refuses the sale asked for", async () => {
-      const { register, outcome } = invoiceUpTo("sale-1", { issuer: undefined });
+    it.each([
+      ["the sale asked for", "sale-1"],
+      ["an older sale", "sale-2"],
+    ])("the pre-emission gate refuses %s", async (_case, saleId) => {
+      const { register, outcome } = invoiceUpTo(saleId, { issuer: undefined });
 
       expect(await outcome).toEqual({ kind: "not_yet", cause: "cannot_authorize" });
       expect(register.reservations).toEqual([]);
     });
+  });
+
+  it("is not yet possible, because the tax authority did not authorize it, when it rejects the sale asked for", async () => {
+    const { register, outcome } = invoiceUpTo("sale-2", {}, [AUTHORIZED, REJECTED]);
+
+    expect(await outcome).toEqual({ kind: "not_yet", cause: "not_authorized" });
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-1", "sale-2"]);
   });
 
   describe("is not yet possible, because an older sale is blocking the backlog, when", () => {
@@ -145,13 +154,6 @@ describe("invoicing the deferred sales up to one", () => {
           SECOND,
         ],
       });
-
-      expect(await outcome).toEqual({ kind: "not_yet", cause: "older_sale_blocking" });
-      expect(register.reservations).toEqual([]);
-    });
-
-    it("the pre-emission gate refuses an older sale", async () => {
-      const { register, outcome } = invoiceUpTo("sale-2", { issuer: undefined });
 
       expect(await outcome).toEqual({ kind: "not_yet", cause: "older_sale_blocking" });
       expect(register.reservations).toEqual([]);
