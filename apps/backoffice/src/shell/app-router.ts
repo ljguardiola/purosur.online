@@ -23,6 +23,7 @@ import {
   newPurchaseRoute,
   packagingsListRoute,
   purchasesListRoute,
+  supplierPriceComparisonRoute,
   supplierPriceListReviewRoute,
   supplierPriceListsRoute,
   suppliersListRoute,
@@ -105,7 +106,11 @@ const routeTree = rootRoute.addChildren([
       assemblyBatchesRoute,
       initialInventoryRoute,
     ]),
-    ordersAreaRoute.addChildren([supplierPriceListsRoute, supplierPriceListReviewRoute]),
+    ordersAreaRoute.addChildren([
+      supplierPriceListsRoute,
+      supplierPriceListReviewRoute,
+      supplierPriceComparisonRoute,
+    ]),
     cashAndFiscalAreaRoute.addChildren([
       pointsOfSaleRoute,
       fiscalConfigurationRoute,

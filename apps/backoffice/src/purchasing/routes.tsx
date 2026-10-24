@@ -2,6 +2,7 @@ import { freightPeriodSchema } from "@purosur/contracts";
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
+  canComparePrices,
   canManageFreights,
   canManagePurchasePackagings,
   canManageSupplierPriceLists,
@@ -12,6 +13,7 @@ import { lazyScreen } from "../shell/lazy-screen";
 import { ordersAreaRoute } from "../shell/orders-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
+import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import {
   supplierPriceListReviewFilters,
   supplierPriceListsFilters,
@@ -99,5 +101,17 @@ export const supplierPriceListReviewRoute = createRoute({
   component: lazyScreen(
     () => import("./supplier-price-list-review-page"),
     "SupplierPriceListReviewPage",
+  ),
+});
+
+export const supplierPriceComparisonRoute = createRoute({
+  getParentRoute: () => ordersAreaRoute,
+  path: "price-comparison",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canComparePrices),
+  validateSearch: supplierPriceComparisonFilters,
+  search: { middlewares: [stripSearchParams(supplierPriceComparisonFilters.parse({}))] },
+  component: lazyScreen(
+    () => import("./supplier-price-comparison-page"),
+    "SupplierPriceComparisonPage",
   ),
 });

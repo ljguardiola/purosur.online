@@ -32,6 +32,7 @@ import type { FreightsListScreenServices } from "../purchasing/freights-list-ser
 import type { NewPurchaseScreenServices } from "../purchasing/new-purchase-services";
 import type { PackagingsListScreenServices } from "../purchasing/packagings-list-services";
 import type { PurchasesListScreenServices } from "../purchasing/purchases-list-services";
+import type { SupplierPriceComparisonScreenServices } from "../purchasing/supplier-price-comparison-services";
 import type { SupplierPriceListReviewScreenServices } from "../purchasing/supplier-price-list-review-services";
 import type { SupplierPriceListsScreenServices } from "../purchasing/supplier-price-lists-services";
 import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-services";
@@ -123,6 +124,7 @@ export type AppServices = {
   freightsListScreen: FreightsListScreenServices;
   supplierPriceListsScreen: SupplierPriceListsScreenServices;
   supplierPriceListReviewScreen: SupplierPriceListReviewScreenServices;
+  supplierPriceComparisonScreen: SupplierPriceComparisonScreenServices;
   recipesListScreen: RecipesListScreenServices;
   assemblyBatchesScreen: AssemblyBatchesScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
