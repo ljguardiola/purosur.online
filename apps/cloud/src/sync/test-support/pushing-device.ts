@@ -85,6 +85,34 @@ export function cashSessionClosed(sessionId: string, closedAt: string): PushedEv
   };
 }
 
+export function saleVoided(options: {
+  saleId: string;
+  creditNoteId: string;
+  total: number;
+  corrects: { voucherType: number; pointOfSale: number; number: number };
+  voidedAt: string;
+}): PushedEventDraft {
+  return {
+    aggregate_type: "sale",
+    aggregate_id: options.saleId,
+    event_type: "sale_voided",
+    schema_version: 3,
+    occurred_at: options.voidedAt,
+    payload: {
+      credit_note: {
+        id: options.creditNoteId,
+        total: options.total,
+        receiver_tax_status_code: 5,
+        corrects: {
+          voucher_type: options.corrects.voucherType,
+          point_of_sale: options.corrects.pointOfSale,
+          number: options.corrects.number,
+        },
+      },
+    },
+  };
+}
+
 export function saleCompleted(options: {
   saleId: string;
   sessionId: string;

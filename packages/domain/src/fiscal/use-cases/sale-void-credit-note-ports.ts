@@ -1,4 +1,5 @@
 import type { VoucherReference } from "../model/orphan-authorization.js";
+import type { AttachedSaleEvents } from "./attached-sale-event-ports.js";
 import type { CreditNote } from "./credit-note-ports.js";
 
 export class VoucherAlreadyCredited extends Error {}
@@ -49,4 +50,5 @@ export interface SaleVoidCreditNoteLanes {
 
 export interface RequestSaleVoidCreditNotePorts {
   lanes: SaleVoidCreditNoteLanes;
+  attachedSaleEvents: AttachedSaleEvents;
 }
