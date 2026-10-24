@@ -10,10 +10,7 @@ export type InvoiceDeferredSalesUpToOutcome =
   | { kind: "not_pending" }
   | { kind: "not_yet"; cause: InvoiceDeferredSalesUpToCause };
 
-type InvoiceDeferredSalesUpToCause =
-  | "cannot_authorize"
-  | "older_sale_blocking"
-  | "not_authorized";
+type InvoiceDeferredSalesUpToCause = "cannot_authorize" | "older_sale_blocking" | "not_authorized";
 
 export async function invoiceDeferredSalesUpTo(
   ports: CatchUpDeferredSalesPorts,
