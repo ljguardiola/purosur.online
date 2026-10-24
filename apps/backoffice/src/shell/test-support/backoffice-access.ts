@@ -37,6 +37,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   batches: true,
   freights: true,
   supplier_price_lists: true,
+  price_comparison: true,
   orders_area: true,
   reports_area: true,
   refunds_area: true,
