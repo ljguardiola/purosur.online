@@ -480,6 +480,7 @@ describe("GET /supplier-price-lists/:id with linked rows", () => {
             vatRate: null,
           },
           status: "new",
+          needsReview: true,
           previousPriceCents: null,
           pricePerSaleUnit: { numerator: "100", denominator: "1" },
         },

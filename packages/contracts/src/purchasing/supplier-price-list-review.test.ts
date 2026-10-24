@@ -15,6 +15,7 @@ const row = {
     vatRate: 1050,
   },
   status: "price_changed",
+  needsReview: true,
   previousPriceCents: 140_000,
   pricePerSaleUnit: { numerator: "165805", denominator: "10" },
 };
@@ -28,6 +29,7 @@ const bareRow = {
   barcode: null,
   link: null,
   status: "new",
+  needsReview: true,
   previousPriceCents: null,
   pricePerSaleUnit: null,
 };
@@ -72,6 +74,14 @@ describe("supplierPriceListReviewSchema", () => {
     const empty = { ...review, rows: [] };
 
     expect(supplierPriceListReviewSchema.safeParse(empty).data).toEqual(empty);
+  });
+
+  it("requires each row to say whether it needs review", () => {
+    const { needsReview: _needsReview, ...unmarked } = bareRow;
+
+    expect(supplierPriceListReviewSchema.safeParse({ ...review, rows: [unmarked] }).success).toBe(
+      false,
+    );
   });
 
   it("requires the version the review changes are made against", () => {

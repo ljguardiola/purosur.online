@@ -77,6 +77,7 @@ describe("findSupplierPriceListReview", () => {
           barcode: null,
           link: null,
           status: "new",
+          needsReview: true,
           previousPriceCents: null,
           pricePerSaleUnit: null,
         },
@@ -90,6 +91,7 @@ describe("findSupplierPriceListReview", () => {
           barcode: null,
           link: null,
           status: "new",
+          needsReview: true,
           previousPriceCents: null,
           pricePerSaleUnit: null,
         },
@@ -226,6 +228,23 @@ describe("findSupplierPriceListReview", () => {
       );
       expect((await reviewOf(withoutRate, { pricesIncludeVat: true }))?.rows[0]?.status).toBe(
         "linked",
+      );
+    });
+
+    it("answers that a row needs review for every status but linked and reviewed", async () => {
+      const needing = async (
+        row: Parameters<typeof reviewOf>[0],
+        list?: Parameters<typeof reviewOf>[1],
+      ) => (await reviewOf(row, list))?.rows[0]?.needsReview;
+
+      expect(await needing({})).toBe(false);
+      expect(await needing({ reviewed: true, link: null })).toBe(false);
+      expect(await needing({ earlier: null, link: null })).toBe(true);
+      expect(await needing({ link: null })).toBe(true);
+      expect(await needing({ priceCents: 12_000 })).toBe(true);
+      expect(await needing({ description: "Yerba 1 kg x" })).toBe(true);
+      expect(await needing({ link: { ...LINK, vatRate: null } }, { pricesIncludeVat: false })).toBe(
+        true,
       );
     });
 

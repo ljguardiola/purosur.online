@@ -44,10 +44,7 @@ export function formatCentsFraction({ numerator, denominator }: CentsFraction): 
   return `$ ${formatNumber(Number(cents / 100n), { maximumFractionDigits: 0 })},${String(cents % 100n).padStart(2, "0")}`;
 }
 
-export function formatPricePerSaleUnit(
-  fraction: CentsFraction,
-  saleUnit: "UNIT" | "KG",
-): string {
+export function formatPricePerSaleUnit(fraction: CentsFraction, saleUnit: "UNIT" | "KG"): string {
   const price = formatCentsFraction(fraction);
   return saleUnit === "KG" ? `${price} / kg` : price;
 }
