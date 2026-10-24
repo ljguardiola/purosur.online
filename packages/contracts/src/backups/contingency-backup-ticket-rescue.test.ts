@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   contingencyBackupTicketRescueRequestSchema,
@@ -114,5 +115,15 @@ describe("contingencyBackupTicketRescueResponseSchema", () => {
     };
 
     expect(contingencyBackupTicketRescueResponseSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("contingencyBackupTicketRescueResponseSchema, declared time zone", () => {
+  it("declares the zone a rescued ticket's moment is shown in", () => {
+    const [rescuedShape] = contingencyBackupTicketRescueResponseSchema.options;
+
+    expect(rescuedShape.shape.summary.shape.occurred_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
