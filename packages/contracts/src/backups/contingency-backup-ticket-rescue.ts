@@ -1,4 +1,8 @@
-import { CONTINGENCY_BACKUP_OPERATIONS, OFFLINE_SERIES_DOCUMENT_TYPES } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  CONTINGENCY_BACKUP_OPERATIONS,
+  OFFLINE_SERIES_DOCUMENT_TYPES,
+} from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
 
@@ -15,7 +19,7 @@ export type ContingencyBackupTicketRescueRequest = z.output<
 
 const rescuedTicketSummarySchema = z.object({
   operation: z.enum(CONTINGENCY_BACKUP_OPERATIONS).nullable(),
-  occurred_at: z.iso.datetime().nullable(),
+  occurred_at: z.iso.datetime().nullable().meta({ timeZone: ARGENTINA_TIME_ZONE }),
   vouchers: z.array(
     z.object({
       point_of_sale: z.int().positive(),
