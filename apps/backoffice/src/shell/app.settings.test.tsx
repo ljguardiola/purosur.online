@@ -500,5 +500,7 @@ test("redirects a typed /contingency-ticket-rescue to Mi cuenta for a user witho
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/account");
-  expect(services.contingencyTicketRescueScreen.rescueContingencyBackupTicket).not.toHaveBeenCalled();
+  expect(
+    services.contingencyTicketRescueScreen.rescueContingencyBackupTicket,
+  ).not.toHaveBeenCalled();
 });

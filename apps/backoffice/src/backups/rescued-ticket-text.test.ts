@@ -41,7 +41,9 @@ test.each([
 });
 
 test("titles a ticket whose operation is unknown by what it is", () => {
-  expect(rescuedTicketTitle({ ...saleSummary, operation: null })).toBe("Ticket del 14/09/2026 17:22");
+  expect(rescuedTicketTitle({ ...saleSummary, operation: null })).toBe(
+    "Ticket del 14/09/2026 17:22",
+  );
 });
 
 test("titles a ticket without a moment by its operation alone", () => {

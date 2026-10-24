@@ -67,7 +67,7 @@ test("says the camera is blocked and offers to try again when the person refused
   await expect
     .element(screen.getByText("Permitila desde el navegador para leer los tickets."))
     .toBeVisible();
-  expect(fake.isShown()).toBe(false);
+  await expect.poll(() => fake.isShown()).toBe(false);
   await expect.element(screen.getByRole("button", { name: "Probar de nuevo" })).toBeVisible();
 });
 

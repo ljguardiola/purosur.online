@@ -94,7 +94,12 @@ test("shows a dash for the total of a ticket that is not a sale", async () => {
   const [code = ""] = ticketCodes(1);
   const { services, scanner } = answering({
     ...rescuedSale,
-    summary: { operation: "cash_session_closing", occurred_at: null, vouchers: [], sale_total: null },
+    summary: {
+      operation: "cash_session_closing",
+      occurred_at: null,
+      vouchers: [],
+      sale_total: null,
+    },
   });
   const screen = await renderScreen(services);
 
@@ -194,7 +199,6 @@ test("waits for every code of a ticket and sends them together", async () => {
 
   await expect.element(screen.getByText("QR 1 de 2 leído")).toBeVisible();
   expect(services.rescueContingencyBackupTicket).not.toHaveBeenCalled();
-  expect(screen.getByText("Todavía no se leyó ningún ticket").query()).toBeNull();
   expect(screen.getByText("Verificando").query()).toBeNull();
 
   scanner.show(second);

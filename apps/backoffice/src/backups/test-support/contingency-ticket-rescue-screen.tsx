@@ -27,7 +27,9 @@ export function renderScreen(
   onSessionEnded: () => void = vi.fn(),
 ) {
   return render(
-    <ContingencyTicketRescueScreen onSessionEnded={onSessionEnded} services={services} />,
+    <main>
+      <ContingencyTicketRescueScreen onSessionEnded={onSessionEnded} services={services} />
+    </main>,
   );
 }
 
