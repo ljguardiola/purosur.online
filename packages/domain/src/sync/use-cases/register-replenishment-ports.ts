@@ -4,8 +4,10 @@ import type {
   RestoredUnclearDeferral,
   SaleVoidCreditNote,
 } from "../../fiscal/index.js";
+import type { RegisterVersion } from "../../register/index.js";
 import type { ReplenishedUser } from "../../users/index.js";
 import type { PushedEvent } from "../model/push-batch.js";
+import type { ReplenishmentFailure, ReplenishmentRefusal } from "../model/replenishment-failure.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type { DecodedEvent } from "./event-application-ports.js";
 import type { EventPosition, ReplenishedEvent } from "./restored-register-replenishment-ports.js";
@@ -15,10 +17,7 @@ export interface RegisterPredecessor {
   lastAcknowledgedSeq: number;
 }
 
-export type ReplenishmentRefusal =
-  | "predecessor_not_of_register"
-  | "predecessor_not_revoked"
-  | "cursor_not_of_replenishment";
+export type { ReplenishmentRefusal };
 
 export interface ReplenishmentPage {
   events: ReplenishedEvent[];
@@ -68,6 +67,9 @@ export interface RegisterReplenishmentTransaction {
 
 export interface RegisterReplenishmentStore {
   predecessor(): Promise<RegisterPredecessor | undefined>;
+  lastFailure(): Promise<ReplenishmentFailure | undefined>;
+  recordFailure(failure: ReplenishmentFailure): Promise<void>;
+  clearFailure(): Promise<void>;
   // All or nothing, in a local transaction of its own.
   applyUsers(users: readonly ReplenishedUser[]): Promise<void>;
   // All or nothing: a page that fails leaves no fact or applied event behind.
@@ -85,4 +87,5 @@ export interface ReplenishRestoredRegisterPorts<TFailure> {
   feed: RegisterReplenishmentFeed<TFailure>;
   store: RegisterReplenishmentStore;
   decoder: RegisterReplenishmentDecoder;
+  appVersion: RegisterVersion | null;
 }

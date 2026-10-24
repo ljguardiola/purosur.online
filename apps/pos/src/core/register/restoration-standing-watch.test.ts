@@ -100,4 +100,19 @@ describe("the restoration standing watch", () => {
 
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
+
+  it("says so once when the replenishment's failure changes", () => {
+    const { watch, onChanged, become } = watchOver({
+      kind: "failed",
+      step: "replenish",
+      failure: "unreadable_event",
+      origin: "copy",
+    });
+
+    become({ kind: "failed", step: "replenish", failure: "refused", origin: "copy" });
+    watch.check();
+    watch.check();
+
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
 });

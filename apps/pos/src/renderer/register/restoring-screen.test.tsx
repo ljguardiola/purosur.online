@@ -175,4 +175,86 @@ describe("RestoringScreen", () => {
 
     await expectNoAccessibilityViolations(screen.container);
   });
+
+  it.each(["refused", "unreadable_event"] as const)(
+    "says the register restored from a copy could not catch up and cannot sell, when the failure is %s",
+    async (failure) => {
+      const screen = await render(
+        <RestoringScreen
+          registerName="Caja 2"
+          standing={{ kind: "failed", step: "replenish", failure, origin: "copy" }}
+        />,
+      );
+
+      await expect.element(screen.getByText("CAJA 2 · RESTAURADA DESDE UNA COPIA")).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "La caja no pudo ponerse al día" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByText("La caja no puede vender hasta ponerse al día con la nube."))
+        .toBeVisible();
+      await expect.element(screen.getByText("Sin conexión con la nube")).not.toBeInTheDocument();
+    },
+  );
+
+  it("says the register reinstalled without a copy could not catch up", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "failed", step: "replenish", failure: "refused", origin: "no_copy" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("CAJA 2 · REINSTALADA SIN COPIA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "La caja no pudo ponerse al día" }))
+      .toBeVisible();
+  });
+
+  it("tells to update the register when it received what its version cannot read", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{
+          kind: "failed",
+          step: "replenish",
+          failure: "unreadable_event",
+          origin: "copy",
+        }}
+      />,
+    );
+
+    await expect.element(screen.getByText("Actualizá la caja")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Esta versión no puede leer parte de lo que mandó la nube. Después de actualizar, la caja lo intenta sola.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("Llamá a un Administrador")).not.toBeInTheDocument();
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("tells to call an Administrator when the cloud refused to bring the register up to date", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "failed", step: "replenish", failure: "refused", origin: "copy" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("Llamá a un Administrador")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "La nube rechazó ponerla al día. Un Administrador tiene que dar de alta la caja de nuevo.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("Actualizá la caja")).not.toBeInTheDocument();
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
 });

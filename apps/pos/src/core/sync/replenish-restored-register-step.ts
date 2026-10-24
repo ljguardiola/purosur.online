@@ -5,6 +5,7 @@ import {
   replenishRestoredRegister,
 } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { registerVersionOf } from "../register/register-version";
 import type { PostToCloudWithBearer } from "./cloud-event-inbox";
 import type { CloudFailure } from "./cloud-failure";
 import { CloudRegisterReplenishment } from "./cloud-register-replenishment";
@@ -16,6 +17,7 @@ export interface ReplenishRestoredRegisterStepDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
   post: PostToCloudWithBearer | undefined;
   ids: IdGenerator;
+  appVersion: string | undefined;
 }
 
 export type ReplenishAttempt =
@@ -46,6 +48,7 @@ export async function replenishRestoredRegisterStep(
       ids: deps.ids,
     }),
     decoder: replenishedEventDecoder,
+    appVersion: registerVersionOf(deps.appVersion),
   });
 }
 
@@ -71,6 +74,8 @@ export function replenishmentReportOf(attempt: ReplenishAttempt): ReplenishmentR
         level: "warn",
         message: `core: ${attempt.unapplied} events of the restored register's predecessor cannot be applied yet, so its replenishment stays pending`,
       };
+    case "held_failure":
+      return undefined;
     case "failed":
       return attempt.failure.kind === "unreachable"
         ? undefined

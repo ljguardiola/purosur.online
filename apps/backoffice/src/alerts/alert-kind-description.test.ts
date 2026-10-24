@@ -136,6 +136,12 @@ test("describes a register whose clock differs from the real time by more than a
   );
 });
 
+test("describes a register whose replenishment can never complete", () => {
+  expect(alertKindDescription("register_replenishment_failed")).toBe(
+    "Una caja restaurada no puede ponerse al día con la nube y no puede vender",
+  );
+});
+
 test("describes a presentation whose document ARCA rejected and that waits for its remedy", () => {
   expect(alertKindDescription("fortnight_report_document_rejected")).toBe(
     "ARCA rechazó un comprobante de una quincena y los que le siguen quedan sin procesar hasta que se corrija",

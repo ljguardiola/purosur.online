@@ -163,6 +163,27 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it.each(["refused", "unreadable_event"] as const)(
+    "accepts the device and the %s failure for a register-replenishment-failed alert",
+    (failure) => {
+      expectTypeOf<{
+        kind: "register_replenishment_failed";
+        scope: string;
+        locationId: string;
+        detail: { deviceId: string; failure: typeof failure };
+      }>().toExtend<OpenAlertInput>();
+    },
+  );
+
+  it("refuses a register-replenishment-failed alert with a failure the register does not report", () => {
+    expectTypeOf<{
+      kind: "register_replenishment_failed";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; failure: "lost" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a fiscal-emission-stopped alert with a reason the pre-emission check does not fail for", () => {
     expectTypeOf<{
       kind: "fiscal_emission_stopped";

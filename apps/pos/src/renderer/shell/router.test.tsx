@@ -1245,6 +1245,21 @@ describe("the register's router", () => {
       .toBeVisible();
   });
 
+  it("tells the restoring screen when the replenishment can never complete", async () => {
+    const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "failed",
+      step: "replenish",
+      failure: "unreadable_event",
+      origin: "copy",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "La caja no pudo ponerse al día" }))
+      .toBeVisible();
+  });
+
   it("renders the restore-required screen while the register has to be enrolled again", async () => {
     const router = routerAt("/restore-required", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "in_progress",

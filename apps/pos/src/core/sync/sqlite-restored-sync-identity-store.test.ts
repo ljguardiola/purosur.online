@@ -127,9 +127,9 @@ describe("the restored sync identity store", () => {
       sales_stopped_reason: null,
       last_accepted_push_at: null,
     });
-    expect(database.prepare("SELECT * FROM register_predecessor").all()).toEqual([
-      { device_id: OLD_DEVICE, last_acknowledged_seq: 4 },
-    ]);
+    expect(
+      database.prepare("SELECT device_id, last_acknowledged_seq FROM register_predecessor").all(),
+    ).toEqual([{ device_id: OLD_DEVICE, last_acknowledged_seq: 4 }]);
     expect(count("outbox")).toBe(0);
     expect(count("pin_verifiers")).toBe(0);
     expect(count("pin_sign_in_failures")).toBe(0);
@@ -193,6 +193,20 @@ describe("the restored sync identity store", () => {
 
     expect(outcome).toEqual({ kind: "already_reset" });
     expect(count("register_predecessor")).toBe(1);
+  });
+
+  it("starts the replenishment with no failure left from an earlier restoration", async () => {
+    database.exec(
+      `INSERT INTO register_predecessor (device_id, last_acknowledged_seq, failure_kind, failure_refusal)
+       VALUES ('earlier-device', 3, 'refused', 'predecessor_not_revoked')`,
+    );
+    carryOldInstallation(5);
+
+    await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
+
+    expect(
+      database.prepare("SELECT failure_kind, failure_refusal FROM register_predecessor").all(),
+    ).toEqual([{ failure_kind: null, failure_refusal: null }]);
   });
 
   it("leaves everything as it was when the work fails midway", async () => {
