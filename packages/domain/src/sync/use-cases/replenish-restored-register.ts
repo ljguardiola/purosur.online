@@ -5,7 +5,7 @@ import {
   rebuiltUnclearDeferral,
 } from "../../fiscal/index.js";
 import {
-  isReplenishmentRetryable,
+  heldReplenishmentFailure,
   type ReplenishmentFailure,
 } from "../model/replenishment-failure.js";
 import type { SyncedFact } from "../model/synced-fact.js";
@@ -142,8 +142,8 @@ export async function replenishRestoredRegister<TFailure>(
   if (predecessor === undefined) {
     return { kind: "nothing_to_replenish" };
   }
-  const held = await ports.store.lastFailure();
-  if (held !== undefined && !isReplenishmentRetryable(held, ports.appVersion)) {
+  const held = heldReplenishmentFailure(await ports.store.lastFailure(), ports.appVersion);
+  if (held !== undefined) {
     return { kind: "held_failure", failure: held };
   }
   let after: EventPosition | undefined;

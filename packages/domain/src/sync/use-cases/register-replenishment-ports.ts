@@ -4,6 +4,7 @@ import type {
   RestoredUnclearDeferral,
   SaleVoidCreditNote,
 } from "../../fiscal/index.js";
+import type { RegisterVersion } from "../../register/index.js";
 import type { ReplenishedUser } from "../../users/index.js";
 import type { PushedEvent } from "../model/push-batch.js";
 import type { ReplenishmentFailure, ReplenishmentRefusal } from "../model/replenishment-failure.js";
@@ -86,5 +87,5 @@ export interface ReplenishRestoredRegisterPorts<TFailure> {
   feed: RegisterReplenishmentFeed<TFailure>;
   store: RegisterReplenishmentStore;
   decoder: RegisterReplenishmentDecoder;
-  appVersion: string | null;
+  appVersion: RegisterVersion | null;
 }

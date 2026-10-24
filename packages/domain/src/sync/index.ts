@@ -21,11 +21,12 @@ export { PUSH_BATCH_MAX_EVENTS } from "./model/push-batch.js";
 export { isQuarantined } from "./model/quarantine-release.js";
 export { isLeftBehindByMinimum, isWellFormedRegisterVersion } from "./model/register-version.js";
 export type {
+  PendingReplenishment,
   ReplenishmentFailedReport,
   ReplenishmentFailure,
 } from "./model/replenishment-failure.js";
 export {
-  isReplenishmentRetryable,
+  heldReplenishmentFailure,
   replenishmentFailedReportOf,
 } from "./model/replenishment-failure.js";
 export { REPLENISHMENT_PAGE_MAX_EVENTS } from "./model/replenishment-page.js";

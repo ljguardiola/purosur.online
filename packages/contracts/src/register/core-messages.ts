@@ -7,6 +7,7 @@ import {
   CONTINGENCY_KINDS,
   isAuthorizablePermissionKey,
   REGISTER_OWN_CONDITIONS,
+  REPLENISHMENT_FAILURE_KINDS,
   RESTORATION_STEPS,
   SALES_DENIED_REASONS,
   STORAGE_SALES_DENIED_REASONS,
@@ -412,7 +413,8 @@ const restorationStandingSchema = z.union([
   z.object({
     kind: z.literal("failed"),
     step: z.literal("replenish"),
-    failure: z.enum(["refused", "unreadable_event"]),
+    failure: z.enum(REPLENISHMENT_FAILURE_KINDS),
+    origin: z.enum(["copy", "no_copy"]),
   }),
 ]);
 export type RestorationStandingAnswer = z.infer<typeof restorationStandingSchema>;

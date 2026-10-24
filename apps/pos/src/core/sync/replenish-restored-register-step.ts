@@ -5,6 +5,7 @@ import {
   replenishRestoredRegister,
 } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { registerVersionOf } from "../register/register-version";
 import type { PostToCloudWithBearer } from "./cloud-event-inbox";
 import type { CloudFailure } from "./cloud-failure";
 import { CloudRegisterReplenishment } from "./cloud-register-replenishment";
@@ -47,7 +48,7 @@ export async function replenishRestoredRegisterStep(
       ids: deps.ids,
     }),
     decoder: replenishedEventDecoder,
-    appVersion: deps.appVersion ?? null,
+    appVersion: registerVersionOf(deps.appVersion),
   });
 }
 

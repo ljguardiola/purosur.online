@@ -1,3 +1,5 @@
+import { registerVersionText } from "@purosur/contracts";
+import type { PendingReplenishment } from "@purosur/domain";
 import type { IdGenerator } from "@purosur/domain/register/use-cases";
 import type {
   RegisterPredecessor,
@@ -22,6 +24,7 @@ import {
 import { applyReplenishedGateFailure } from "../fiscal/replenished-gate-failures";
 import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-offline-fiscal-documents";
 import type { LocalDatabase } from "../platform/local-database";
+import { registerVersionOf } from "../register/register-version";
 import { applyReplenishedCashFact } from "../register/replenished-cash-facts";
 import { applyReplenishedReceiptFact } from "../sales/replenished-receipt-facts";
 import { applyReplenishedSaleFact } from "../sales/replenished-sale-facts";
@@ -36,27 +39,19 @@ export interface SqliteRegisterReplenishmentStoreDeps {
 }
 
 interface FailureRow {
-  failure_kind: "refused" | "unreadable_event" | null;
+  failure_kind: ReplenishmentFailure["kind"] | null;
   failure_refusal: ReplenishmentRefusal | null;
   failure_event_id: string | null;
   failure_reason: string | null;
   failure_app_version: string | null;
 }
 
-export function readReplenishmentFailure(
-  database: LocalDatabase,
-): ReplenishmentFailure | undefined {
-  const row = database
-    .prepare<[], FailureRow>(
-      `SELECT failure_kind, failure_refusal, failure_event_id, failure_reason, failure_app_version
-         FROM register_predecessor`,
-    )
-    .get();
-  if (row?.failure_kind === "refused" && row.failure_refusal !== null) {
+function failureOf(row: FailureRow): ReplenishmentFailure | undefined {
+  if (row.failure_kind === "refused" && row.failure_refusal !== null) {
     return { kind: "refused", refusal: row.failure_refusal };
   }
   if (
-    row?.failure_kind === "unreadable_event" &&
+    row.failure_kind === "unreadable_event" &&
     row.failure_event_id !== null &&
     row.failure_reason !== null
   ) {
@@ -64,10 +59,22 @@ export function readReplenishmentFailure(
       kind: "unreadable_event",
       eventId: row.failure_event_id,
       reason: row.failure_reason,
-      appVersion: row.failure_app_version,
+      appVersion: registerVersionOf(row.failure_app_version),
     };
   }
   return undefined;
+}
+
+export function readPendingReplenishment(
+  database: LocalDatabase,
+): PendingReplenishment | undefined {
+  const row = database
+    .prepare<[], FailureRow>(
+      `SELECT failure_kind, failure_refusal, failure_event_id, failure_reason, failure_app_version
+         FROM register_predecessor`,
+    )
+    .get();
+  return row && { failure: failureOf(row) };
 }
 
 export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentStore {
@@ -91,7 +98,7 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
   }
 
   async lastFailure(): Promise<ReplenishmentFailure | undefined> {
-    return readReplenishmentFailure(this.database);
+    return readPendingReplenishment(this.database)?.failure;
   }
 
   async recordFailure(failure: ReplenishmentFailure): Promise<void> {
@@ -106,7 +113,9 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
         failure.kind === "refused" ? failure.refusal : null,
         failure.kind === "unreadable_event" ? failure.eventId : null,
         failure.kind === "unreadable_event" ? failure.reason : null,
-        failure.kind === "unreadable_event" ? failure.appVersion : null,
+        failure.kind === "unreadable_event" && failure.appVersion !== null
+          ? registerVersionText(failure.appVersion)
+          : null,
       );
   }
 

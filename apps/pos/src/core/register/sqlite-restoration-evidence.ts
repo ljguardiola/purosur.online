@@ -1,9 +1,11 @@
-import type { RestorationEvidence } from "@purosur/domain";
+import { heldReplenishmentFailure, type RestorationEvidence } from "@purosur/domain";
 import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { RestorePending } from "../backups/restore-pending";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { staleSequenceDetected } from "../sync/sqlite-installation-presence";
+import { readPendingReplenishment } from "../sync/sqlite-register-replenishment-store";
+import { registerVersionOf } from "./register-version";
 
 export function awaitsRestoredNumbering(database: LocalDatabase): boolean {
   return (
@@ -21,17 +23,20 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
   private readonly restorePending: RestorePending;
   private readonly cloudReachability: () => CloudReachability;
   private readonly noUsableGeneration: () => boolean;
+  private readonly appVersion: string | undefined;
 
   constructor(
     database: LocalDatabase,
     restorePending: RestorePending,
     cloudReachability: () => CloudReachability,
     noUsableGeneration: () => boolean,
+    appVersion?: string,
   ) {
     this.database = database;
     this.restorePending = restorePending;
     this.cloudReachability = cloudReachability;
     this.noUsableGeneration = noUsableGeneration;
+    this.appVersion = appVersion;
   }
 
   evidence(): RestorationEvidence {
@@ -70,15 +75,12 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
     return row?.from_copy === 0 ? "no_copy" : "copy";
   }
 
-  private replenishEvidence(): "completed" | "pending" | "refused" | "unreadable_event" {
-    const held = this.database
-      .prepare<[], { failure_kind: "refused" | "unreadable_event" | null }>(
-        "SELECT failure_kind FROM register_predecessor LIMIT 1",
-      )
-      .get();
-    if (held === undefined) {
+  private replenishEvidence(): RestorationEvidence["replenish"] {
+    const pending = readPendingReplenishment(this.database);
+    if (pending === undefined) {
       return "completed";
     }
-    return held.failure_kind ?? "pending";
+    const held = heldReplenishmentFailure(pending.failure, registerVersionOf(this.appVersion));
+    return held?.kind ?? "pending";
   }
 }

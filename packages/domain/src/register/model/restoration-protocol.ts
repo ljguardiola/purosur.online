@@ -1,3 +1,5 @@
+import type { ReplenishmentFailureKind } from "../../shared/index.js";
+
 export const RESTORATION_STEPS = [
   "enroll",
   "restore",
@@ -22,7 +24,7 @@ type DeliveredRestorationStep = Exclude<
 
 type RestorationStepEvidence = "completed" | "pending";
 
-type ReplenishmentFailureEvidence = "refused" | "unreadable_event";
+type ReplenishmentFailureEvidence = ReplenishmentFailureKind;
 
 type RestoringStepEvidence<Step extends DeliveredRestorationStep> = Step extends "restore"
   ? RestorationStepEvidence | "failed"
@@ -52,7 +54,12 @@ export type RestorationStanding =
       origin: ReplenishmentOrigin;
     }
   | { kind: "failed"; step: "restore" }
-  | { kind: "failed"; step: "replenish"; failure: ReplenishmentFailureEvidence };
+  | {
+      kind: "failed";
+      step: "replenish";
+      failure: ReplenishmentFailureEvidence;
+      origin: ReplenishmentOrigin;
+    };
 
 const DELIVERED_STEPS = [
   "enroll",
@@ -73,7 +80,7 @@ export function restorationStanding(evidence: RestorationEvidence): RestorationS
   }
   const { replenish } = evidence;
   if (held === "replenish" && (replenish === "refused" || replenish === "unreadable_event")) {
-    return { kind: "failed", step: held, failure: replenish };
+    return { kind: "failed", step: held, failure: replenish, origin: evidence.origin };
   }
   if (held !== "enroll" && evidence.cloud === "unreachable") {
     return { kind: "without_connection", step: held, origin: evidence.origin };

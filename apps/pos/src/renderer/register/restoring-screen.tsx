@@ -16,11 +16,13 @@ export function RestoringScreen({
   standing: RestoringStanding;
 }) {
   if (standing.kind === "failed" && standing.step === "replenish") {
+    const originEyebrow =
+      standing.origin === "no_copy" ? "REINSTALADA SIN COPIA" : "RESTAURADA DESDE UNA COPIA";
     return (
       <BrandPanelScreen>
         <main className="flex w-full max-w-110 flex-col gap-4">
           <ScreenHeader
-            eyebrow={registerEyebrow(registerName, "NO SE PUDO PONER AL DÍA")}
+            eyebrow={registerEyebrow(registerName, originEyebrow)}
             title="La caja no pudo ponerse al día"
             description="La caja no puede vender hasta ponerse al día con la nube."
           />

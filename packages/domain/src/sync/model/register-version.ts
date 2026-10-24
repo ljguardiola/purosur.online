@@ -36,7 +36,3 @@ export function isWellFormedRegisterVersion(version: string): boolean {
 export function isLeftBehindByMinimum(reportedVersion: string | null, minimum: string): boolean {
   return reportedVersion === null || !versionAtLeast(reportedVersion, minimum);
 }
-
-export function isVersionTextNewer(installed: string, offered: string): boolean {
-  return versionAtLeast(offered, installed) && !versionAtLeast(installed, offered);
-}

@@ -1,6 +1,7 @@
 import {
   PRE_EMISSION_GATE_FAILURE_REASONS,
   PUSH_BATCH_MAX_EVENTS,
+  REPLENISHMENT_FAILURE_KINDS,
   SALES_DENIED_REASONS,
   SERIAL_DEVICE_REPORT_STANDINGS,
 } from "@purosur/domain";
@@ -74,7 +75,7 @@ const clockDriftReportSchema = z.union([
 
 const replenishmentFailedReportSchema = z.union([
   z.object({
-    replenishment_failed: z.union([z.literal(false), z.enum(["refused", "unreadable_event"])]),
+    replenishment_failed: z.union([z.literal(false), z.enum(REPLENISHMENT_FAILURE_KINDS)]),
   }),
   z.object({ replenishment_failed: absent }),
 ]);

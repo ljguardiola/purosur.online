@@ -10,6 +10,7 @@ import {
   OFFSITE_DUMP_UNVERIFIED_REASONS,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
+  REPLENISHMENT_FAILURE_KINDS,
   SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -216,7 +217,7 @@ const clockDriftDetailSchema = z.object({
 
 const registerReplenishmentFailedDetailSchema = z.object({
   deviceId: z.string(),
-  failure: z.enum(["refused", "unreadable_event"]),
+  failure: z.enum(REPLENISHMENT_FAILURE_KINDS),
 });
 
 const outboxChainBrokenDetailSchema = z.object({

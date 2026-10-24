@@ -198,7 +198,7 @@ import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
-import { readReplenishmentFailure } from "./sync/sqlite-register-replenishment-store";
+import { readPendingReplenishment } from "./sync/sqlite-register-replenishment-store";
 import {
   nodeStorageFileSystem,
   storageReadingReader,
@@ -364,6 +364,7 @@ const restorationOf = (database: NonNullable<typeof localDatabase>) =>
     restorePending,
     () => cloudReachability,
     restoreAttempts.noUsableGeneration,
+    appVersionFromCoreArguments(process.argv),
   );
 const localInstallation =
   localDatabase === undefined ? undefined : new SqliteLocalInstallation(localDatabase, now);
@@ -514,7 +515,8 @@ async function pushOutboxToCloud() {
                 localDatabaseDamaged,
                 batteryShutdown.newSalesStoppedByBattery,
                 () => readLatestClockOffsetMs(localDatabase),
-                () => readReplenishmentFailure(localDatabase),
+                () => readPendingReplenishment(localDatabase),
+                appVersionFromCoreArguments(process.argv),
               ),
         acceptedPush:
           localDatabase === undefined

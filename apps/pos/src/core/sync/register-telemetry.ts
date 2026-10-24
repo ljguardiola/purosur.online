@@ -3,8 +3,8 @@ import {
   clockDriftReportOf,
   fiscalEmissionStoppedReportOf,
   type LatestPreEmissionGateOutcome,
+  type PendingReplenishment,
   type RegisterTelemetry,
-  type ReplenishmentFailure,
   replenishmentFailedReportOf,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   type SalesStopState,
@@ -13,6 +13,7 @@ import {
   type StorageTelemetry,
   salesDeniedReportOf,
 } from "@purosur/domain";
+import { registerVersionOf } from "../register/register-version";
 
 function batteryTelemetryOf(battery: BatteryReport | undefined): { battery?: BatteryReport } {
   return battery === undefined ? {} : { battery };
@@ -28,7 +29,8 @@ export function registerTelemetryReader(
   readLocalDatabaseDamaged: () => boolean = () => false,
   readBatteryCritical: () => boolean = () => false,
   readClockOffsetMs: () => number | null = () => null,
-  readReplenishmentFailure: () => ReplenishmentFailure | undefined = () => undefined,
+  readPendingReplenishment: () => PendingReplenishment | undefined = () => undefined,
+  appVersion: string | undefined = undefined,
 ): () => Promise<RegisterTelemetry> {
   return async () => ({
     ...(await readStorage()),
@@ -40,7 +42,7 @@ export function registerTelemetryReader(
     ),
     ...fiscalEmissionStoppedReportOf(readLatestPreEmissionGate()),
     ...clockDriftReportOf(readClockOffsetMs()),
-    ...replenishmentFailedReportOf(readReplenishmentFailure()),
+    ...replenishmentFailedReportOf(readPendingReplenishment(), registerVersionOf(appVersion)),
     serial_devices: readSerialDevices(),
     ...batteryTelemetryOf(readBattery()),
   });
