@@ -71,6 +71,10 @@ export function canCloseAlertsManually(access: BackofficeAccess): boolean {
   return grants(access, "close_alerts_manually");
 }
 
+export function canCloseFiscalTasks(access: BackofficeAccess): boolean {
+  return grants(access, "close_fiscal_tasks");
+}
+
 export function canSeeRegistersArea(access: BackofficeAccess): boolean {
   return grants(access, "registers_area");
 }

@@ -318,7 +318,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
-    fiscalTasksScreen: { fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})) },
+    fiscalTasksScreen: {
+      fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
+      closeFiscalTask: vi.fn(),
+    },
     pointsOfSaleScreen: {
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),

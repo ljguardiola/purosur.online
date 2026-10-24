@@ -15,16 +15,25 @@ import {
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { reportError } from "../platform/error-reporting.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
+import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
+import { DrizzleInbox } from "../sync/drizzle-inbox.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
+import {
+  type EnqueueEventApplication,
+  enqueueEventApplicationJob,
+} from "../sync/graphile-event-application-queue.js";
+import { hmacEventChain } from "../sync/hmac-event-chain.js";
+import { InboxAttachedSaleEvents } from "../sync/inbox-attached-sale-events.js";
 import { type CreditNoteInput, creditNoteIssuancePorts } from "./credit-note-task.js";
 import { DrizzleSaleVoidCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
@@ -33,6 +42,8 @@ export type CreditNoteRouteOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult> &
     CreditNoteInput<TQueryResult> & {
       enqueueCreditNote: EnqueueCreditNote;
+      enqueueEventApplication?: EnqueueEventApplication;
+      report?: typeof reportError;
     };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
@@ -110,6 +121,18 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
   const tokenPorts = installationTokenPorts(options);
   const requestPorts = {
     lanes: new DrizzleSaleVoidCreditNoteLanes(options.connections, options.enqueueCreditNote),
+    attachedSaleEvents: new InboxAttachedSaleEvents(
+      {
+        inbox: new DrizzleInbox(
+          options.db,
+          installationKeyCipher(options.keysEncryptionKey),
+          options.enqueueEventApplication ?? enqueueEventApplicationJob,
+        ),
+        eventChain: hmacEventChain,
+        clock: { now: options.now },
+      },
+      options.report ?? reportError,
+    ),
   };
   const issuancePorts = creditNoteIssuancePorts(options);
   const admission = {
@@ -161,11 +184,13 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
         const { corrects } = payload.credit_note;
 
         const outcome = await requestSaleVoidCreditNote(requestPorts, {
+          deviceId: authentication.installation.deviceId,
           registerId: authentication.installation.registerId,
           receivedAt,
           request: {
             creditNoteId: body.credit_note_id,
             pointOfSale: body.point_of_sale,
+            saleEvent: body.sale_event,
             voided: {
               creditNoteId: payload.credit_note.id,
               saleId,

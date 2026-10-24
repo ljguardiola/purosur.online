@@ -1844,6 +1844,7 @@ describe("wiring the register point of sale routes", () => {
     ["GET", "/api/registers/fortnight-presentations"],
     ["GET", "/api/fiscal/tasks"],
     ["GET", "/api/fiscal/unbilled-deferred-sales"],
+    ["PUT", "/api/fiscal/tasks/00000000-0000-0000-0000-000000000000/closure"],
     ["POST", "/api/registers/fortnight-presentations/rejected-document-remedies"],
     ["GET", "/api/registers/buyer-tax-statuses"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
@@ -3126,6 +3127,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/fiscal/tasks",
         access: capabilityAccess("fiscal_information"),
+      },
+      {
+        method: "PUT",
+        url: "/api/fiscal/tasks/:id/closure",
+        access: capabilityAccess("close_fiscal_tasks"),
       },
       {
         method: "GET",

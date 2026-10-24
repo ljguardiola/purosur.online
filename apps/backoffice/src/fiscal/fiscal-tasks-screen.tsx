@@ -1,5 +1,6 @@
 import type { FiscalTaskItem } from "@purosur/contracts";
 import {
+  actionsColumn,
   dataColumn,
   formatTimeAgo,
   StatusIndicator,
@@ -7,13 +8,16 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
-import { ListChecks } from "lucide-react";
+import { Check, ListChecks } from "lucide-react";
+import { useState } from "react";
 import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
 import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { type BackofficeAccess, canCloseFiscalTasks } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
-import { useFiscalTasksQuery } from "./fiscal-queries";
+import { CloseFiscalTaskModal } from "./close-fiscal-task-modal";
+import { useFiscalTasksQuery, useReloadFiscalTasks } from "./fiscal-queries";
 import { fiscalTaskDate, fiscalTaskDayAndTime } from "./fiscal-task-moments";
 import {
   fiscalTaskDescription,
@@ -23,6 +27,7 @@ import {
 import type { FiscalTasksScreenServices } from "./fiscal-tasks-services";
 
 export type FiscalTasksScreenProps = {
+  access: BackofficeAccess;
   onSessionEnded: () => void;
   services: FiscalTasksScreenServices;
 };
@@ -77,7 +82,7 @@ function alertCell(task: FiscalTaskItem) {
   );
 }
 
-const columns = [
+const dataColumns = [
   dataColumn({ id: "openedSince", header: "Abierta", width: 140, render: openedSince }),
   dataColumn({
     id: "task",
@@ -97,7 +102,25 @@ const columns = [
   dataColumn({ id: "alert", header: "Aviso", width: 210, render: alertCell }),
 ] as const;
 
-export function FiscalTasksScreen({ onSessionEnded, services }: FiscalTasksScreenProps) {
+export function FiscalTasksScreen({ access, onSessionEnded, services }: FiscalTasksScreenProps) {
+  const [closing, setClosing] = useState<FiscalTaskItem | null>(null);
+  const reload = useReloadFiscalTasks();
+  const columns = canCloseFiscalTasks(access)
+    ? ([
+        ...dataColumns,
+        actionsColumn({
+          id: "actions",
+          header: "Acciones",
+          actions: [
+            (task: FiscalTaskItem) => ({
+              icon: <Check />,
+              "aria-label": "Cerrar tarea",
+              onPress: () => setClosing(task),
+            }),
+          ],
+        }),
+      ] as const)
+    : dataColumns;
   const data = useFiscalTasksQuery({
     fetchFiscalTasks: services.fetchFiscalTasks,
     onSessionEnded,
@@ -126,6 +149,14 @@ export function FiscalTasksScreen({ onSessionEnded, services }: FiscalTasksScree
             <p className="text-text-subtle text-detail">{openFiscalTasksCountText(tasks.length)}</p>
           )
         }
+      />
+      <CloseFiscalTaskModal
+        target={closing}
+        onClose={() => setClosing(null)}
+        onClosed={() => setClosing(null)}
+        reload={reload}
+        onSessionEnded={onSessionEnded}
+        services={services}
       />
     </ScreenLayout>
   );
