@@ -1,9 +1,9 @@
+import type { ContingencyBackupTicketRescueResponse } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import {
   createServices,
   deferred,
-  type RescuedResponse,
   renderScreen,
   rescuedEarlierSale,
   rescuedSale,
@@ -14,12 +14,12 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function answering(value: unknown) {
+function answering(value: ContingencyBackupTicketRescueResponse) {
   const setup = createServices();
   vi.mocked(setup.services.rescueContingencyBackupTicket).mockResolvedValue({
     kind: "ok",
     value,
-  } as never);
+  });
   return setup;
 }
 
@@ -96,7 +96,7 @@ test("shows a dash for the total of a ticket that is not a sale", async () => {
   const { services, scanner } = answering({
     ...rescuedSale,
     summary: { operation: "cash_session_closing", occurred_at: null, vouchers: [], sale_total: null },
-  } satisfies RescuedResponse);
+  });
   const screen = await renderScreen(services);
 
   scanner.show(code);
@@ -112,7 +112,7 @@ test.each([
   ["not_authentic", "El ticket no es auténtico"],
   ["foreign_installation", "Ticket de otra instalación"],
   ["conflicting", "Los QR no son del mismo ticket"],
-])("says nothing was recovered when the cloud answers %s", async (outcome, title) => {
+] as const)("says nothing was recovered when the cloud answers %s", async (outcome, title) => {
   const [code = ""] = ticketCodes(1);
   const { services, scanner } = answering({ outcome });
   const screen = await renderScreen(services);
