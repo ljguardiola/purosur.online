@@ -1,7 +1,7 @@
 import type {
   BatteryReport,
   LatestPreEmissionGateOutcome,
-  ReplenishmentFailure,
+  PendingReplenishment,
   SalesStopState,
   SerialDevicesReport,
   StorageSalesStop,
@@ -246,8 +246,9 @@ describe("the register's clock drift telemetry", () => {
 });
 
 describe("the register's replenishment failure telemetry", () => {
-  function readerOfReplenishmentFailure(
-    readReplenishmentFailure: () => ReplenishmentFailure | undefined,
+  function readerOfReplenishment(
+    readPendingReplenishment: () => PendingReplenishment | undefined,
+    appVersion: string | undefined = "1.4.0",
   ) {
     return registerTelemetryReader(
       async () => STORAGE,
@@ -259,32 +260,62 @@ describe("the register's replenishment failure telemetry", () => {
       () => false,
       () => false,
       () => null,
-      readReplenishmentFailure,
+      readPendingReplenishment,
+      appVersion,
     );
   }
 
-  it("reports no failure for a register whose replenishment has not failed", async () => {
-    const read = readerOfReplenishmentFailure(() => undefined);
+  it("reports no failure for a register with no replenishment pending", async () => {
+    const read = readerOfReplenishment(() => undefined);
 
     expect(await read()).toMatchObject({ replenishment_failed: false });
   });
 
-  it("reads the failure each time it reports, naming its kind", async () => {
-    let failure: ReplenishmentFailure | undefined;
-    const read = readerOfReplenishmentFailure(() => failure);
+  it("reports nothing about a replenishment still pending that has not failed", async () => {
+    const read = readerOfReplenishment(() => ({ failure: undefined }));
+
+    expect(await read()).not.toHaveProperty("replenishment_failed");
+  });
+
+  it("reads the pending replenishment each time it reports, naming the kind of its failure", async () => {
+    let pending: PendingReplenishment | undefined = { failure: undefined };
+    const read = readerOfReplenishment(() => pending);
 
     const before = await read();
-    failure = { kind: "refused", refusal: "predecessor_not_revoked" };
+    pending = { failure: { kind: "refused", refusal: "predecessor_not_revoked" } };
     const refused = await read();
-    failure = { kind: "unreadable_event", eventId: "event-1", reason: "garbled", appVersion: null };
+    pending = {
+      failure: {
+        kind: "unreadable_event",
+        eventId: "event-1",
+        reason: "garbled",
+        appVersion: { major: 1, minor: 4, patch: 0 },
+      },
+    };
     const unreadable = await read();
-    failure = undefined;
+    pending = undefined;
     const after = await read();
 
-    expect(before).toMatchObject({ replenishment_failed: false });
+    expect(before).not.toHaveProperty("replenishment_failed");
     expect(refused).toMatchObject({ replenishment_failed: "refused" });
     expect(unreadable).toMatchObject({ replenishment_failed: "unreadable_event" });
     expect(after).toMatchObject({ replenishment_failed: false });
+  });
+
+  it("reports nothing about an unreadable event the running version is newer than", async () => {
+    const read = readerOfReplenishment(
+      () => ({
+        failure: {
+          kind: "unreadable_event",
+          eventId: "event-1",
+          reason: "garbled",
+          appVersion: { major: 1, minor: 4, patch: 0 },
+        },
+      }),
+      "1.4.1",
+    );
+
+    expect(await read()).not.toHaveProperty("replenishment_failed");
   });
 
   it("is not reported by a register whose local database is damaged", async () => {

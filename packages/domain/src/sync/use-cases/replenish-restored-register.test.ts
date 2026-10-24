@@ -10,6 +10,7 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
+import type { RegisterVersion } from "../../register/index.js";
 import type { ReplenishmentFailure } from "../model/replenishment-failure.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import {
@@ -47,11 +48,13 @@ const A_FACTURA_C: FacturaC = {
 
 const PREDECESSOR = { deviceId: "device-old", lastAcknowledgedSeq: 52 };
 
-const APP_VERSION = "1.4.0";
+const APP_VERSION: RegisterVersion = { major: 1, minor: 4, patch: 0 };
+
+const OLDER_VERSION: RegisterVersion = { major: 1, minor: 3, patch: 9 };
 
 function aRestoredRegister(
   failure?: ReplenishmentFailure,
-  appVersion: string | null = APP_VERSION,
+  appVersion: RegisterVersion | null = APP_VERSION,
 ) {
   const feed = new FakeRegisterReplenishmentFeed();
   const store = new FakeRegisterReplenishmentStore(PREDECESSOR, failure);
@@ -1053,7 +1056,7 @@ describe("the failure of a replenishment", () => {
 
   it("tries an unreadable event again on a newer version and forgets the failure once it completes", async () => {
     const { feed, store, run } = aRestoredRegister(
-      { ...UNREADABLE, appVersion: "1.3.9" },
+      { ...UNREADABLE, appVersion: OLDER_VERSION },
       APP_VERSION,
     );
     feed.answers = [aPage([anEvent("device-old", 54)])];
@@ -1068,7 +1071,7 @@ describe("the failure of a replenishment", () => {
 
   it("records the failure again when the newer version cannot read the event either", async () => {
     const { feed, store, decoder, run } = aRestoredRegister(
-      { ...UNREADABLE, appVersion: "1.3.9" },
+      { ...UNREADABLE, appVersion: OLDER_VERSION },
       APP_VERSION,
     );
     decoder.unreadable.set("event-device-old-54", "still garbled");
@@ -1080,7 +1083,7 @@ describe("the failure of a replenishment", () => {
   });
 
   it("forgets the failure when the replenishment only ends partially replenished", async () => {
-    const { feed, store, run } = aRestoredRegister({ ...UNREADABLE, appVersion: "1.3.9" });
+    const { feed, store, run } = aRestoredRegister({ ...UNREADABLE, appVersion: OLDER_VERSION });
     store.notYetApplicable.add("event-device-old-54");
     feed.answers = [aPage([anEvent("device-old", 54)])];
 
@@ -1094,12 +1097,12 @@ describe("the failure of a replenishment", () => {
     ["unreachable", { kind: "unreachable" } as const],
     ["failed", { kind: "failed", failure: { kind: "unreadable" } } as const],
   ])("keeps the held failure when the cloud answers %s", async (_name, answer) => {
-    const { feed, store, run } = aRestoredRegister({ ...UNREADABLE, appVersion: "1.3.9" });
+    const { feed, store, run } = aRestoredRegister({ ...UNREADABLE, appVersion: OLDER_VERSION });
     feed.answers = [answer];
 
     await run();
 
-    expect(store.state.failure).toEqual({ ...UNREADABLE, appVersion: "1.3.9" });
+    expect(store.state.failure).toEqual({ ...UNREADABLE, appVersion: OLDER_VERSION });
   });
 
   it.each([

@@ -257,9 +257,19 @@ describe("restorationStanding when the replenishment failed", () => {
         kind: "failed",
         step: "replenish",
         failure,
+        origin: "copy",
       });
     },
   );
+
+  it("carries the origin of a register reinstalled without a copy", () => {
+    expect(restorationStanding(evidence({ replenish: "refused", origin: "no_copy" }))).toEqual({
+      kind: "failed",
+      step: "replenish",
+      failure: "refused",
+      origin: "no_copy",
+    });
+  });
 
   it("is failed rather than without connection whatever the cloud answers", () => {
     for (const cloud of ["reachable", "unreachable", "unknown"] as const) {
@@ -267,6 +277,7 @@ describe("restorationStanding when the replenishment failed", () => {
         kind: "failed",
         step: "replenish",
         failure: "refused",
+        origin: "copy",
       });
     }
   });
@@ -286,6 +297,6 @@ describe("restorationStanding when the replenishment failed", () => {
       restorationStanding(
         evidence({ replenish: "unreadable_event", reconcile_fiscal_counters: "pending" }),
       ),
-    ).toEqual({ kind: "failed", step: "replenish", failure: "unreadable_event" });
+    ).toEqual({ kind: "failed", step: "replenish", failure: "unreadable_event", origin: "copy" });
   });
 });

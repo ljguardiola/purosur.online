@@ -176,29 +176,51 @@ describe("RestoringScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("says the register could not catch up and cannot sell, whatever the failure", async () => {
+  it.each(["refused", "unreadable_event"] as const)(
+    "says the register restored from a copy could not catch up and cannot sell, when the failure is %s",
+    async (failure) => {
+      const screen = await render(
+        <RestoringScreen
+          registerName="Caja 2"
+          standing={{ kind: "failed", step: "replenish", failure, origin: "copy" }}
+        />,
+      );
+
+      await expect.element(screen.getByText("CAJA 2 · RESTAURADA DESDE UNA COPIA")).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "La caja no pudo ponerse al día" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByText("La caja no puede vender hasta ponerse al día con la nube."))
+        .toBeVisible();
+      await expect.element(screen.getByText("Sin conexión con la nube")).not.toBeInTheDocument();
+    },
+  );
+
+  it("says the register reinstalled without a copy could not catch up", async () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
-        standing={{ kind: "failed", step: "replenish", failure: "refused" }}
+        standing={{ kind: "failed", step: "replenish", failure: "refused", origin: "no_copy" }}
       />,
     );
 
-    await expect.element(screen.getByText("CAJA 2 · NO SE PUDO PONER AL DÍA")).toBeVisible();
+    await expect.element(screen.getByText("CAJA 2 · REINSTALADA SIN COPIA")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: "La caja no pudo ponerse al día" }))
       .toBeVisible();
-    await expect
-      .element(screen.getByText("La caja no puede vender hasta ponerse al día con la nube."))
-      .toBeVisible();
-    await expect.element(screen.getByText("Sin conexión con la nube")).not.toBeInTheDocument();
   });
 
   it("tells to update the register when it received what its version cannot read", async () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
-        standing={{ kind: "failed", step: "replenish", failure: "unreadable_event" }}
+        standing={{
+          kind: "failed",
+          step: "replenish",
+          failure: "unreadable_event",
+          origin: "copy",
+        }}
       />,
     );
 
@@ -219,7 +241,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
-        standing={{ kind: "failed", step: "replenish", failure: "refused" }}
+        standing={{ kind: "failed", step: "replenish", failure: "refused", origin: "copy" }}
       />,
     );
 

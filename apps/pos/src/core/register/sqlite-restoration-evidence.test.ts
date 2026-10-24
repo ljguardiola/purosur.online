@@ -19,6 +19,7 @@ let pending: RestorePending;
 let evidence: SqliteRestorationEvidence;
 let cloud: CloudReachability;
 let noUsableGeneration: boolean;
+const RUNNING_VERSION = "1.4.0";
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
@@ -31,6 +32,7 @@ beforeEach(() => {
     pending,
     () => cloud,
     () => noUsableGeneration,
+    RUNNING_VERSION,
   );
 });
 
@@ -143,6 +145,16 @@ describe("the evidence of the restoration protocol", () => {
     );
 
     expect(evidence.evidence().replenish).toBe("unreadable_event");
+  });
+
+  it("holds the replenishment pending when a newer version runs than the one that could not read its event", () => {
+    holdPredecessor();
+    database.exec(
+      `UPDATE register_predecessor SET failure_kind = 'unreadable_event',
+         failure_event_id = 'event-1', failure_reason = 'garbled', failure_app_version = '1.3.9'`,
+    );
+
+    expect(evidence.evidence().replenish).toBe("pending");
   });
 
   it("holds the replenishment pending again once its failure is cleared", async () => {

@@ -1250,6 +1250,7 @@ describe("the register's router", () => {
       kind: "failed",
       step: "replenish",
       failure: "unreadable_event",
+      origin: "copy",
     });
 
     const screen = await render(<RouterProvider router={router} />);

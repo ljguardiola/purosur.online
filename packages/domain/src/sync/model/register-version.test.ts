@@ -2,7 +2,6 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   isLeftBehindByMinimum,
-  isVersionTextNewer,
   isWellFormedRegisterVersion,
   MINIMUM_ACCEPTED_REGISTER_VERSION,
   registerVersionAccepted,
@@ -118,35 +117,5 @@ describe("isLeftBehindByMinimum", () => {
 
   it("leaves behind a reported version that is not of the form X.Y.Z", () => {
     expect(isLeftBehindByMinimum("garbage", "0.0.0")).toBe(true);
-  });
-});
-
-describe("isVersionTextNewer", () => {
-  it("is true when the offered version is ahead in its first differing part", () => {
-    fc.assert(
-      fc.property(part, part, part, part, (major, minor, patch, bump) => {
-        const installed = `${major}.${minor}.${patch}`;
-        expect(isVersionTextNewer(installed, `${major}.${minor}.${patch + bump + 1}`)).toBe(true);
-        expect(isVersionTextNewer(installed, `${major}.${minor + bump + 1}.0`)).toBe(true);
-        expect(isVersionTextNewer(installed, `${major + bump + 1}.0.0`)).toBe(true);
-      }),
-    );
-  });
-
-  it("is false for the same version and for an older one", () => {
-    expect(isVersionTextNewer("1.4.0", "1.4.0")).toBe(false);
-    expect(isVersionTextNewer("1.4.1", "1.4.0")).toBe(false);
-    expect(isVersionTextNewer("1.5.0", "1.4.9")).toBe(false);
-    expect(isVersionTextNewer("2.0.0", "1.99.99")).toBe(false);
-  });
-
-  it("compares the parts as numbers", () => {
-    expect(isVersionTextNewer("1.9.0", "1.10.0")).toBe(true);
-    expect(isVersionTextNewer("1.10.0", "1.9.0")).toBe(false);
-  });
-
-  it("is false when either version is malformed", () => {
-    expect(isVersionTextNewer("1.4", "1.5.0")).toBe(false);
-    expect(isVersionTextNewer("1.4.0", "v1.5.0")).toBe(false);
   });
 });
