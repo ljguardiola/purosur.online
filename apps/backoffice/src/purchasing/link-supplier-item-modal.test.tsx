@@ -95,8 +95,18 @@ async function chooseProduct(screen: ModalScreen, name: string) {
   (screen.getByRole("option", { name }).element() as HTMLElement).click();
 }
 
+async function chooseRadio(screen: ModalScreen, name: string) {
+  const radio = screen.getByRole("dialog").getByRole("radio", { name });
+  await expect.element(radio).toBeVisible();
+  const label = radio.element().closest("label");
+  if (!label) {
+    throw new Error(`no label for the radio ${name}`);
+  }
+  label.click();
+}
+
 async function choosePackaging(screen: ModalScreen, name: string) {
-  await userEvent.click(screen.getByRole("dialog").getByRole("radio", { name }));
+  await chooseRadio(screen, name);
 }
 
 async function link(screen: ModalScreen) {
@@ -160,7 +170,9 @@ test("offers no link to a page for a list read from a web page", async () => {
     },
   });
 
-  await expect.element(screen.getByRole("dialog").getByText("Nuez mariposa")).toBeVisible();
+  await expect
+    .element(screen.getByRole("dialog").getByRole("heading", { name: nutRow.description }))
+    .toBeVisible();
   expect(screen.getByRole("link", { name: /^Ver la página/ }).query()).toBeNull();
 });
 
@@ -181,7 +193,7 @@ test("says the proposal is being looked for while it loads", async () => {
   const screen = await renderModal({ services });
 
   await expect
-    .element(screen.getByRole("dialog").getByText("Buscando una propuesta"))
+    .element(screen.getByRole("dialog").getByText("Buscando una propuesta…").first())
     .toBeVisible();
 });
 
@@ -195,7 +207,7 @@ test("proposes the product of the barcode and chooses it without linking", async
   const dialog = screen.getByRole("dialog");
 
   await expect
-    .element(dialog.getByText("Propuesto por código de barras: Pasas de uva"))
+    .element(dialog.getByText("Propuesto por código de barras: Pasas de uva").first())
     .toBeVisible();
   await expect
     .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
@@ -211,7 +223,7 @@ test("proposes the product the model chose", async () => {
   const screen = await renderModal({ services });
 
   await expect
-    .element(screen.getByRole("dialog").getByText("Propuesto por IA: Pasas de uva"))
+    .element(screen.getByRole("dialog").getByText("Propuesto por IA: Pasas de uva").first())
     .toBeVisible();
 });
 
@@ -231,7 +243,7 @@ test("does not choose a proposed product the person already chose another over",
   resolveProposal({ kind: "ok", value: PROPOSED_BY_AI });
 
   await expect
-    .element(screen.getByRole("dialog").getByText("Propuesto por IA: Pasas de uva"))
+    .element(screen.getByRole("dialog").getByText("Propuesto por IA: Pasas de uva").first())
     .toBeVisible();
   await expect
     .element(screen.getByRole("dialog").getByRole("combobox", { name: /^Producto del catálogo/ }))
@@ -248,7 +260,7 @@ test("does not choose a proposed product the catalog no longer offers", async ()
   const screen = await renderModal({ services });
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Propuesto por IA: Descontinuado")).toBeVisible();
+  await expect.element(dialog.getByText("Propuesto por IA: Descontinuado").first()).toBeVisible();
   await expect
     .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
     .toHaveValue("");
@@ -258,7 +270,7 @@ test("says quietly that there is no proposal", async () => {
   const screen = await renderModal();
 
   await expect
-    .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem"))
+    .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem."))
     .toBeVisible();
 });
 
@@ -274,7 +286,9 @@ test.each([
     const screen = await renderModal({ services });
     const dialog = screen.getByRole("dialog");
 
-    await expect.element(dialog.getByText("No pudimos proponer un producto")).toBeVisible();
+    await expect
+      .element(dialog.getByText("No pudimos proponer un producto. Podés buscarlo vos."))
+      .toBeVisible();
     await expect
       .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
       .toBeEnabled();
@@ -310,7 +324,9 @@ test("shows the packagings of the chosen product with what each holds", async ()
 test("shows no packagings until a product is chosen", async () => {
   const screen = await renderModal();
 
-  await expect.element(screen.getByRole("dialog").getByText("Nuez mariposa")).toBeVisible();
+  await expect
+    .element(screen.getByRole("dialog").getByRole("heading", { name: nutRow.description }))
+    .toBeVisible();
   expect(screen.getByRole("radio").query()).toBeNull();
 });
 
@@ -409,7 +425,9 @@ test("asks for the product and the packaging without calling the cloud", async (
 test("offers no VAT rate when the list's prices include VAT", async () => {
   const screen = await renderModal({ list: { ...LIST, pricesIncludeVat: true } });
 
-  await expect.element(screen.getByRole("dialog").getByText("Nuez mariposa")).toBeVisible();
+  await expect
+    .element(screen.getByRole("dialog").getByRole("heading", { name: nutRow.description }))
+    .toBeVisible();
   expect(screen.getByText("IVA del ítem").query()).toBeNull();
 });
 
@@ -438,7 +456,7 @@ test("links with the 10,5 % rate when it is chosen", async () => {
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
   const screen = await renderModal({ services, list: { ...LIST, pricesIncludeVat: false } });
 
-  await userEvent.click(screen.getByRole("dialog").getByRole("radio", { name: "10,5 %" }));
+  await chooseRadio(screen, "10,5 %");
   await linkPasas(screen);
 
   expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
@@ -700,7 +718,7 @@ test("creates a packaging for the chosen product, reads the choices again and ch
 test("has no accessibility violations loaded and with the product's packagings shown", async () => {
   const screen = await renderModal({ list: { ...LIST, pricesIncludeVat: false } });
   await expect
-    .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem"))
+    .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem."))
     .toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
