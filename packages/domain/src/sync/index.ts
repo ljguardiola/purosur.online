@@ -23,7 +23,6 @@ export { isLeftBehindByMinimum, isWellFormedRegisterVersion } from "./model/regi
 export type {
   ReplenishmentFailedReport,
   ReplenishmentFailure,
-  ReplenishmentRefusal,
 } from "./model/replenishment-failure.js";
 export {
   isReplenishmentRetryable,

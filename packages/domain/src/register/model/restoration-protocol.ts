@@ -22,7 +22,7 @@ type DeliveredRestorationStep = Exclude<
 
 type RestorationStepEvidence = "completed" | "pending";
 
-export type ReplenishmentFailureEvidence = "refused" | "unreadable_event";
+type ReplenishmentFailureEvidence = "refused" | "unreadable_event";
 
 type RestoringStepEvidence<Step extends DeliveredRestorationStep> = Step extends "restore"
   ? RestorationStepEvidence | "failed"
