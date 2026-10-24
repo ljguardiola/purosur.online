@@ -110,13 +110,23 @@ export function receiptAllocations(
 }
 
 export function saleVoidAllocations(
+  lots: readonly StockLot[],
   saleAllocations: readonly { lotId: string; quantity: number }[],
+  delta: number,
 ): PlannedLotAllocation[] {
   const returned = new Map<string, number>();
   for (const { lotId, quantity } of saleAllocations) {
     returned.set(lotId, (returned.get(lotId) ?? 0) - quantity);
   }
-  return [...returned]
+  const uncovered = [...returned.values()].reduce((rest, quantity) => rest - quantity, delta);
+  const target = shortfallTarget(lots);
+  if (target.kind === "lot") {
+    returned.set(target.lotId, (returned.get(target.lotId) ?? 0) + uncovered);
+  }
+  const allocations = [...returned]
     .filter(([, quantity]) => quantity !== 0)
     .map(([lotId, quantity]) => ({ target: lotTarget(lotId), quantity }));
+  return target.kind === "lot" || uncovered === 0
+    ? allocations
+    : [...allocations, { target, quantity: uncovered }];
 }

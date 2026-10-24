@@ -51,7 +51,11 @@ export async function applyRegisterStockMovements(
     const coveringCount = await tx.earliestCountAtOrAfter(key, input.occurredAt);
     const returnedToLots =
       movement.kind === "sale_void"
-        ? saleVoidAllocations(await tx.saleLineLotAllocations(key, movement.saleLineId))
+        ? saleVoidAllocations(
+            await tx.productLots(key),
+            await tx.saleLineLotAllocations(key, movement.saleLineId),
+            movement.delta,
+          )
         : undefined;
     await recordStockMovement(
       tx,
