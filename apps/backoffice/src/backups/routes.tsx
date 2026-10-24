@@ -8,5 +8,8 @@ export const contingencyTicketRescueRoute = createRoute({
   getParentRoute: () => settingsAreaRoute,
   path: "contingency-ticket-rescue",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeContingencyTicketRescue),
-  component: lazyScreen(() => import("./contingency-ticket-rescue-page"), "ContingencyTicketRescuePage"),
+  component: lazyScreen(
+    () => import("./contingency-ticket-rescue-page"),
+    "ContingencyTicketRescuePage",
+  ),
 });
