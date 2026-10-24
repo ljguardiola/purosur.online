@@ -67,6 +67,7 @@ import {
   postToCloudWithBearer,
 } from "./platform/cloud-client";
 import { initializeErrorReporting } from "./platform/error-reporting";
+import { applyMigrations, openLocalDatabaseFile } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainLink } from "./platform/main-link";
 import { refreshKeysWhenAnnounced } from "./register/announced-key-refresh";
@@ -300,6 +301,7 @@ const restoreAttempts = createRestoreAttempts({
 });
 
 function reportStartupStep(step: CoreStartupStep): void {
+  console.error(`diag: step ${step} at ${Math.round(performance.now())} ms`);
   process.parentPort.postMessage({
     type: "core-startup-step",
     step,
@@ -356,6 +358,40 @@ if (localDataFolder !== undefined) {
 }
 
 const startedLocalDatabase = await startLocalDatabaseFile();
+console.error(`diag: started ${startedLocalDatabase?.kind} at ${Math.round(performance.now())} ms`);
+if (process.env["POS_E2E_STARTUP_DIAG"] === "1" && localDataFolder !== undefined) {
+  for (const mode of ["per_migration", "one_transaction"] as const) {
+    try {
+      const diagnostic = openLocalDatabaseFile(join(localDataFolder, `diag-${mode}.sqlite`));
+      const startedAt = performance.now();
+      if (mode === "per_migration") {
+        applyMigrations(diagnostic, LOCAL_MIGRATIONS, now);
+      } else {
+        diagnostic.pragma("journal_mode = WAL");
+        diagnostic.exec(
+          "CREATE TABLE IF NOT EXISTS applied_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)",
+        );
+        const record = diagnostic.prepare<[string, string]>(
+          "INSERT INTO applied_migrations (name, applied_at) VALUES (?, ?)",
+        );
+        diagnostic.transaction(() => {
+          for (const migration of [...LOCAL_MIGRATIONS].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          )) {
+            diagnostic.exec(migration.sql);
+            record.run(migration.name, now().toISOString());
+          }
+        })();
+      }
+      console.error(
+        `diag: ${mode} ${LOCAL_MIGRATIONS.length} migrations took ${Math.round(performance.now() - startedAt)} ms`,
+      );
+      diagnostic.close();
+    } catch (error) {
+      console.error(`diag: ${mode} failed`, error);
+    }
+  }
+}
 if (
   refuseNewerDatabase(startedLocalDatabase, {
     post: (message) => process.parentPort.postMessage(message),
