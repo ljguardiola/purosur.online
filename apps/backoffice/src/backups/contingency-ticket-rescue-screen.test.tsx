@@ -1,6 +1,7 @@
 import type { ContingencyBackupTicketRescueResponse } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
+import { resetPageState } from "../shell/test-support/app";
 import {
   createServices,
   deferred,
@@ -10,9 +11,7 @@ import {
   ticketCodes,
 } from "./test-support/contingency-ticket-rescue-screen";
 
-beforeEach(() => {
-  window.history.pushState(null, "", "/");
-});
+beforeEach(resetPageState);
 
 function answering(value: ContingencyBackupTicketRescueResponse) {
   const setup = createServices();

@@ -1,4 +1,4 @@
-import { act, useEffect } from "react";
+import { useEffect } from "react";
 import type { CameraUnavailableReason, QrScannerProps } from "../qr-camera-scanner";
 
 export function createFakeQrScanner() {
@@ -27,10 +27,10 @@ export function createFakeQrScanner() {
     mounts: () => state.mounts,
     isShown: () => live !== undefined,
     show(text: string) {
-      act(() => live?.onCode(text));
+      live?.onCode(text);
     },
     fail(reason: CameraUnavailableReason) {
-      act(() => live?.onUnavailable(reason));
+      live?.onUnavailable(reason);
     },
   };
 }
