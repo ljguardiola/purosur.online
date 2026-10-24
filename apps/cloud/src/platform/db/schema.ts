@@ -29,10 +29,10 @@ import {
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_LIFECYCLE_LIMITS,
+  SUPPLIER_ITEM_VAT_RATES,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_READ_FAILURES,
   SUPPLIER_PRICE_LIST_SOURCE_KINDS,
-  SUPPLIER_ITEM_VAT_RATES,
   SUPPLIER_PRICE_LIST_STATES,
   type TaxAuthorityRejection,
 } from "@purosur/domain";
@@ -3061,10 +3061,7 @@ export const supplierItems = pgTable(
       "supplier_items_link_check",
       sql`(${table.productId} is null) = (${table.packagingId} is null)`,
     ),
-    check(
-      "supplier_items_vat_rate_check",
-      sql`${table.vatRate} in (${supplierItemVatRates})`,
-    ),
+    check("supplier_items_vat_rate_check", sql`${table.vatRate} in (${supplierItemVatRates})`),
     index("supplier_items_product_id_idx").on(table.productId),
   ],
 );
