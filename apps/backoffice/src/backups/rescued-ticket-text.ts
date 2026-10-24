@@ -2,7 +2,7 @@ import {
   type ContingencyBackupTicketRescueResponse,
   contingencyBackupTicketRescueResponseSchema,
 } from "@purosur/contracts";
-import { formatDate, formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
+import { formatCents, formatDate, formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
 import { schemaText } from "../platform/schema-text";
 
 type Rescued = Extract<ContingencyBackupTicketRescueResponse, { outcome: "rescued" }>;
@@ -70,4 +70,8 @@ export function rescuedTicketVouchersText({ vouchers }: Summary): string | undef
       `${VOUCHER_LABEL[voucher.document_type]} ${formatPointOfSaleNumber(voucher.point_of_sale)}-${formatInvoiceNumber(voucher.number)}`,
   );
   return `${written.join(", ")} · CAEA`;
+}
+
+export function rescuedTicketTotalText({ sale_total }: Summary): string {
+  return sale_total === null ? "—" : formatCents(sale_total);
 }
