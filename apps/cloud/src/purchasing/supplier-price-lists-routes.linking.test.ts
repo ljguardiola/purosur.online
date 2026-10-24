@@ -114,6 +114,7 @@ describe("authorization of the linking routes", () => {
     ["PUT", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/link`],
     ["PUT", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/review`],
     ["GET", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/link-proposal`],
+    ["GET", "/supplier-price-lists/link-choices"],
   ] as const;
 
   it.each(routes)("%s %s answers 401 when no session cookie was sent", async (method, url) => {
@@ -503,5 +504,49 @@ describe("GET /supplier-price-lists/:id with linked rows", () => {
     expect(response.json()).toMatchObject({
       rows: [{ barcode: null, link: null, pricePerSaleUnit: null }],
     });
+  });
+});
+
+describe("GET /supplier-price-lists/link-choices", () => {
+  function choices(headers: Record<string, string>) {
+    return app.inject({ method: "GET", url: "/supplier-price-lists/link-choices", headers });
+  }
+
+  it("answers each active product with the packagings it may be bought by, including a product with none", async () => {
+    const { headers } = await manager();
+    const actorId = await insertActor(db);
+    const yerba = await insertProduct(db, { name: "Yerba 1 kg" });
+    const caja = await insertPackaging(db, {
+      productId: yerba.id,
+      actorId,
+      name: "Caja x 10",
+      quantityPerPackage: 10_000,
+    });
+    await insertPackaging(db, { productId: yerba.id, actorId, name: "Vieja", active: false });
+    const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
+    await insertProduct(db, { name: "Descontinuado", active: false });
+
+    const response = await choices(headers);
+
+    expect(response.statusCode).toBe(200);
+    const { products } = response.json();
+    expect(products).toHaveLength(2);
+    expect(products).toEqual(
+      expect.arrayContaining([
+        {
+          id: yerba.id,
+          name: "Yerba 1 kg",
+          saleUnit: "UNIT",
+          packagings: [{ id: caja, name: "Caja x 10", quantityPerPackage: 10_000 }],
+        },
+        { id: harina.id, name: "Harina", saleUnit: "KG", packagings: [] },
+      ]),
+    );
+  });
+
+  it("is read with the permission to manage supplier price lists alone", async () => {
+    const { headers } = await signedInWith(db, ["manage_supplier_price_lists"], NOW);
+
+    expect((await choices(headers)).statusCode).toBe(200);
   });
 });
