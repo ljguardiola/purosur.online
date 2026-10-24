@@ -92,7 +92,7 @@ test("shows the breadcrumb and the heading", async () => {
 test("shows a row for each offer, with the product and its category on the first offer of each", async () => {
   const screen = await loaded(createServices());
 
-  expect(offerRows(screen)).toHaveLength(4);
+  await expect.poll(() => offerRows(screen)).toHaveLength(4);
   const almonds = screen.getByRole("row", { name: /Frutos Secos Mendoza/ });
   await expect.element(almonds.getByText("Almendras peladas")).toBeVisible();
   await expect.element(almonds.getByText("Frutos secos")).toBeVisible();
