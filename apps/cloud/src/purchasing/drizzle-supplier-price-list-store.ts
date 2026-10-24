@@ -45,6 +45,16 @@ import {
 
 const ROW_AUDIT_ENTITY = "supplier_price_list_row";
 
+const ROWS_PER_STATEMENT = 1_000;
+
+function batchesOf<T>(rows: T[]): T[][] {
+  const batches: T[][] = [];
+  for (let start = 0; start < rows.length; start += ROWS_PER_STATEMENT) {
+    batches.push(rows.slice(start, start + ROWS_PER_STATEMENT));
+  }
+  return batches;
+}
+
 function linkColumns(link: SupplierItemLink | null) {
   return {
     productId: link?.productId ?? null,
@@ -68,6 +78,12 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
 {
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
+  // A list can hold thousands of items, so what is written per item is sent in batches before it
+  // is read back, before the list is confirmed and before the transaction ends.
+  private readonly newItems: (typeof supplierItems.$inferInsert)[] = [];
+  private readonly describedItems = new Map<string, string>();
+  private readonly linkedItems = new Map<string, SupplierItemLink>();
+  private readonly itemPrices: (typeof supplierItemPrices.$inferInsert)[] = [];
 
   constructor(tx: PgDatabase<TQueryResult>, now: () => Date) {
     this.tx = tx;
@@ -206,19 +222,20 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
     pricesIncludeVat: boolean | null,
     rows: ProposedPriceListRow[],
   ): Promise<void> {
-    await this.tx.insert(supplierPriceListRows).values(
-      rows.map((row, position) => ({
-        listId,
-        position,
-        description: row.description,
-        supplierCode: row.code,
-        presentation: row.presentation,
-        priceCents: row.priceCents,
-        page: row.page,
-        barcode: row.barcode,
-        ...linkColumns(row.link),
-      })),
-    );
+    const positioned = rows.map((row, position) => ({
+      listId,
+      position,
+      description: row.description,
+      supplierCode: row.code,
+      presentation: row.presentation,
+      priceCents: row.priceCents,
+      page: row.page,
+      barcode: row.barcode,
+      ...linkColumns(row.link),
+    }));
+    for (const batch of batchesOf(positioned)) {
+      await this.tx.insert(supplierPriceListRows).values(batch);
+    }
     await this.tx
       .update(supplierPriceLists)
       .set({
@@ -278,6 +295,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
     if (keys.length === 0) {
       return [];
     }
+    await this.flushItems();
     const items = await this.tx
       .select({
         id: supplierItems.id,
@@ -348,32 +366,60 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
   }
 
   async addSupplierItem(fields: NewSupplierItemFields): Promise<{ id: string }> {
-    const [item] = await this.tx
-      .insert(supplierItems)
-      .values({
-        supplierId: fields.supplierId,
-        keyKind: fields.key.kind,
-        keyValue: fields.key.value,
-        description: fields.description,
-        ...linkColumns(fields.link),
-      })
-      .returning({ id: supplierItems.id });
-    if (!item) {
-      throw new Error("inserting the supplier item returned no row");
-    }
-    return item;
+    const id = crypto.randomUUID();
+    this.newItems.push({
+      id,
+      supplierId: fields.supplierId,
+      keyKind: fields.key.kind,
+      keyValue: fields.key.value,
+      description: fields.description,
+      ...linkColumns(fields.link),
+    });
+    return { id };
   }
 
   async describeSupplierItem(itemId: string, description: string): Promise<void> {
-    await this.tx.update(supplierItems).set({ description }).where(eq(supplierItems.id, itemId));
+    this.describedItems.set(itemId, description);
   }
 
   async rememberSupplierItemLink(itemId: string, link: SupplierItemLink): Promise<void> {
-    await this.tx.update(supplierItems).set(linkColumns(link)).where(eq(supplierItems.id, itemId));
+    this.linkedItems.set(itemId, link);
   }
 
   async recordSupplierItemPrice(entry: SupplierItemPriceEntry): Promise<void> {
-    await this.tx.insert(supplierItemPrices).values({ ...entry, confirmedAt: this.now() });
+    this.itemPrices.push({ ...entry, confirmedAt: this.now() });
+  }
+
+  async flushItems(): Promise<void> {
+    for (const batch of batchesOf(this.newItems.splice(0))) {
+      await this.tx.insert(supplierItems).values(batch);
+    }
+    for (const batch of batchesOf([...this.describedItems])) {
+      await this.tx.execute(sql`update ${supplierItems} as item
+        set description = described.description
+        from (values ${sql.join(
+          batch.map(([id, description]) => sql`(${id}::uuid, ${description}::text)`),
+          sql`, `,
+        )}) as described(id, description)
+        where item.id = described.id`);
+    }
+    this.describedItems.clear();
+    for (const batch of batchesOf([...this.linkedItems])) {
+      await this.tx.execute(sql`update ${supplierItems} as item
+        set product_id = linked.product_id, packaging_id = linked.packaging_id, vat_rate = linked.vat_rate
+        from (values ${sql.join(
+          batch.map(
+            ([id, link]) =>
+              sql`(${id}::uuid, ${link.productId}::uuid, ${link.packagingId}::uuid, ${link.vatRate}::integer)`,
+          ),
+          sql`, `,
+        )}) as linked(id, product_id, packaging_id, vat_rate)
+        where item.id = linked.id`);
+    }
+    this.linkedItems.clear();
+    for (const batch of batchesOf(this.itemPrices.splice(0))) {
+      await this.tx.insert(supplierItemPrices).values(batch);
+    }
   }
 
   async linkRow(
@@ -476,6 +522,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
     confirmedAt: Date,
     actorId: string,
   ): Promise<void> {
+    await this.flushItems();
     await this.tx
       .update(supplierPriceLists)
       .set({
@@ -527,8 +574,11 @@ export class DrizzleSupplierPriceListStore<TQueryResult extends PgQueryResultHKT
   transaction<TOutcome>(
     work: (tx: SupplierPriceListStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) =>
-      work(new DrizzleSupplierPriceListStoreTransaction(tx, this.now)),
-    );
+    return this.db.transaction(async (tx) => {
+      const transaction = new DrizzleSupplierPriceListStoreTransaction(tx, this.now);
+      const outcome = await work(transaction);
+      await transaction.flushItems();
+      return outcome;
+    });
   }
 }

@@ -80,6 +80,9 @@ export async function insertPriceList<TQueryResult extends PgQueryResultHKT>(
   return list.id;
 }
 
+// A statement carries at most 32,767 parameters in the lightweight test database.
+const ROWS_PER_INSERT = 1_000;
+
 export interface PriceListRowSeed {
   description?: string;
   code?: string | null;
@@ -98,25 +101,29 @@ export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>
   listId: string,
   rows: PriceListRowSeed[],
 ): Promise<string[]> {
-  const inserted = await db
-    .insert(supplierPriceListRows)
-    .values(
-      rows.map((row, position) => ({
-        listId,
-        position,
-        description: row.description ?? `Producto ${position}`,
-        supplierCode: row.code ?? null,
-        presentation: row.presentation ?? null,
-        priceCents: row.priceCents === undefined ? 100 : row.priceCents,
-        page: row.page ?? null,
-        barcode: row.barcode ?? null,
-        productId: row.productId ?? null,
-        packagingId: row.packagingId ?? null,
-        vatRate: row.vatRate ?? null,
-        reviewed: row.reviewed ?? false,
-      })),
-    )
-    .returning({ id: supplierPriceListRows.id, position: supplierPriceListRows.position });
+  const inserted: { id: string; position: number }[] = [];
+  for (let start = 0; start < rows.length; start += ROWS_PER_INSERT) {
+    const chunk = await db
+      .insert(supplierPriceListRows)
+      .values(
+        rows.slice(start, start + ROWS_PER_INSERT).map((row, offset) => ({
+          listId,
+          position: start + offset,
+          description: row.description ?? `Producto ${start + offset}`,
+          supplierCode: row.code ?? null,
+          presentation: row.presentation ?? null,
+          priceCents: row.priceCents === undefined ? 100 : row.priceCents,
+          page: row.page ?? null,
+          barcode: row.barcode ?? null,
+          productId: row.productId ?? null,
+          packagingId: row.packagingId ?? null,
+          vatRate: row.vatRate ?? null,
+          reviewed: row.reviewed ?? false,
+        })),
+      )
+      .returning({ id: supplierPriceListRows.id, position: supplierPriceListRows.position });
+    inserted.push(...chunk);
+  }
   return inserted.sort((first, second) => first.position - second.position).map(({ id }) => id);
 }
 
