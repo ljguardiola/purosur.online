@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  CORE_STARTUP_STEPS,
-  coreStartupStepMessageSchema,
-  coreStatusMessageSchema,
-  mainToCoreMessageSchema,
-} from "./main-messages.js";
+import { coreStatusMessageSchema, mainToCoreMessageSchema } from "./main-messages.js";
 
 const KEY_A = Buffer.alloc(32, 1).toString("base64");
 const KEY_B = Buffer.alloc(32, 2).toString("base64");
@@ -287,49 +282,5 @@ describe("update messages", () => {
     expect(mainToCoreMessageSchema.safeParse({ type: "update-safe-moment-request" }).success).toBe(
       false,
     );
-  });
-});
-
-describe("coreStartupStepMessageSchema", () => {
-  it("lists the startup steps in the order the core takes them", () => {
-    expect(CORE_STARTUP_STEPS).toEqual([
-      "set_aside_stale_database",
-      "adopt_staged_snapshot",
-      "check_local_database",
-      "apply_migrations",
-    ]);
-  });
-
-  it.each(CORE_STARTUP_STEPS)("accepts the notice that the core is at %s", (step) => {
-    const message = { type: "core-startup-step", step };
-
-    expect(coreStartupStepMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("refuses a step it does not know", () => {
-    expect(
-      coreStartupStepMessageSchema.safeParse({ type: "core-startup-step", step: "open_window" })
-        .success,
-    ).toBe(false);
-  });
-
-  it("refuses a notice without a step or of another type", () => {
-    expect(coreStartupStepMessageSchema.safeParse({ type: "core-startup-step" }).success).toBe(
-      false,
-    );
-    expect(
-      coreStartupStepMessageSchema.safeParse({ type: "core-ready", step: "apply_migrations" })
-        .success,
-    ).toBe(false);
-  });
-
-  it("refuses a notice carrying anything besides its type and step", () => {
-    expect(
-      coreStartupStepMessageSchema.safeParse({
-        type: "core-startup-step",
-        step: "apply_migrations",
-        path: "C:\\data",
-      }).success,
-    ).toBe(false);
   });
 });

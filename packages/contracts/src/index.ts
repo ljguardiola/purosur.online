@@ -433,8 +433,6 @@ export type {
   UpdateSafeMomentAnswer,
 } from "./register/main-messages.js";
 export {
-  CORE_STARTUP_STEPS,
-  coreStartupStepMessageSchema,
   coreStatusMessageSchema,
   deviceCredentialsAnswerSchema,
   mainToCoreMessageSchema,

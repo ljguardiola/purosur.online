@@ -114,19 +114,16 @@ export interface CoreRefusedMessage {
   reason: "newer_database";
 }
 
-export const CORE_STARTUP_STEPS = [
-  "set_aside_stale_database",
-  "adopt_staged_snapshot",
-  "check_local_database",
-  "apply_migrations",
-] as const;
-export type CoreStartupStep = (typeof CORE_STARTUP_STEPS)[number];
+export type CoreStartupStep =
+  | "set_aside_stale_database"
+  | "adopt_staged_snapshot"
+  | "check_local_database"
+  | "apply_migrations";
 
-export const coreStartupStepMessageSchema = z.strictObject({
-  type: z.literal("core-startup-step"),
-  step: z.enum(CORE_STARTUP_STEPS),
-});
-export type CoreStartupStepMessage = z.infer<typeof coreStartupStepMessageSchema>;
+export interface CoreStartupStepMessage {
+  type: "core-startup-step";
+  step: CoreStartupStep;
+}
 
 export const coreStatusMessageSchema = z.object({
   type: z.literal("core-status"),

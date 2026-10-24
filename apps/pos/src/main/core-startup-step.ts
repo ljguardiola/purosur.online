@@ -1,11 +1,15 @@
 import type { CoreStartupStep } from "@purosur/contracts";
 
-const KNOWN_STEPS: ReadonlySet<string> = new Set<CoreStartupStep>([
-  "set_aside_stale_database",
-  "adopt_staged_snapshot",
-  "check_local_database",
-  "apply_migrations",
-]);
+const KNOWN_STEPS: Record<CoreStartupStep, true> = {
+  set_aside_stale_database: true,
+  adopt_staged_snapshot: true,
+  check_local_database: true,
+  apply_migrations: true,
+};
+
+function isKnownStep(step: string): step is CoreStartupStep {
+  return Object.hasOwn(KNOWN_STEPS, step);
+}
 
 export function readCoreStartupStep(message: unknown): CoreStartupStep | undefined {
   if (
@@ -15,9 +19,9 @@ export function readCoreStartupStep(message: unknown): CoreStartupStep | undefin
     message.type === "core-startup-step" &&
     "step" in message &&
     typeof message.step === "string" &&
-    KNOWN_STEPS.has(message.step)
+    isKnownStep(message.step)
   ) {
-    return message.step as CoreStartupStep;
+    return message.step;
   }
   return undefined;
 }
