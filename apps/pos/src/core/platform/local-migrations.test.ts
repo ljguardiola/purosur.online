@@ -924,7 +924,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1026,7 +1026,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1123,7 +1123,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1219,7 +1219,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1344,7 +1344,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1459,7 +1459,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1578,7 +1578,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1705,7 +1705,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1799,7 +1799,7 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
-        "0080_replenishment_failure",
+        "0079_replenishment_failure",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -6787,7 +6787,7 @@ describe("the offline void credit notes migration", () => {
 });
 
 describe("the replenishment failure migration", () => {
-  const MIGRATION = "0080_replenishment_failure";
+  const MIGRATION = "0079_replenishment_failure";
 
   function withDatabase(test: (database: ReturnType<typeof openLocalDatabase>) => void) {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
