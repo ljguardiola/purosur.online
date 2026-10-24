@@ -76,6 +76,19 @@ describe("listSupplierItemLinkChoices", () => {
     ]);
   });
 
+  it("offers a product only the packagings of its own", async () => {
+    const otherUnit = { id: "p-other", name: "Azúcar", saleUnit: "UNIT", active: true } as const;
+    const reader = new FakePurchasingListReader({
+      products: [YERBA, otherUnit],
+      packagings: [packaging({ id: "k-1", name: "Caja x 12", productId: "p-other" })],
+    });
+
+    const [yerba, azucar] = await listSupplierItemLinkChoices(reader, [YERBA, otherUnit]);
+
+    expect(yerba?.packagings).toEqual([]);
+    expect(azucar?.packagings.map((choice) => choice.id)).toEqual(["k-1"]);
+  });
+
   it("offers the products it is given, in their order, with nothing else", async () => {
     const reader = new FakePurchasingListReader({
       products: [YERBA, HARINA],
