@@ -2,6 +2,7 @@ import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
 import type {
+  ProductChooser,
   SupplierPriceListFiles,
   SupplierPriceListWebPages,
 } from "@purosur/domain/purchasing/use-cases";
@@ -352,6 +353,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   offsiteDumpCheckToken?: string | undefined;
   supplierPriceListFiles?: SupplierPriceListFiles;
   supplierPriceListWebPages?: SupplierPriceListWebPages;
+  productChooser?: ProductChooser;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -384,6 +386,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
       ...(wiring.supplierPriceListWebPages
         ? { supplierPriceListWebPages: wiring.supplierPriceListWebPages }
         : {}),
+      ...(wiring.productChooser ? { productChooser: wiring.productChooser } : {}),
     },
     tags: backoffice,
     products: backoffice,
