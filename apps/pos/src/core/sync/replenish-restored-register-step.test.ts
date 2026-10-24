@@ -329,10 +329,10 @@ describe("replenishing a restored register from the cloud", () => {
   });
 
   it("holds the cloud's refusal and does not ask the cloud again", async () => {
-    const refusal = {
+    const refusal: CloudResponse = {
       kind: "error",
       error: { code: "predecessor_not_revoked", message: "not revoked", details: [] },
-    } as const;
+    };
     await step([refusal]);
 
     const outcome = await step([]);
