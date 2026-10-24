@@ -1,13 +1,12 @@
 import type { PushedEvent } from "../../../sync/index.js";
 import type { AttachedSaleEvents } from "../attached-sale-event-ports.js";
-import type { FakePointOfSaleLanes } from "./fake-fiscal-document-authorization.js";
 
 export class FakeAttachedSaleEvents implements AttachedSaleEvents {
   readonly recorded: { deviceId: string; event: PushedEvent }[] = [];
   failure: Error | undefined;
-  private readonly lanes: FakePointOfSaleLanes;
+  private readonly lanes: { readonly operations: string[] };
 
-  constructor(lanes: FakePointOfSaleLanes) {
+  constructor(lanes: { readonly operations: string[] }) {
     this.lanes = lanes;
   }
 
