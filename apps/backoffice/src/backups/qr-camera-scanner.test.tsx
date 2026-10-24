@@ -12,23 +12,15 @@ function cameraStream() {
   canvas.height = 48;
   const context = canvas.getContext("2d");
   const stream = canvas.captureStream(30);
-  let shade = 0;
-  const painter = setInterval(() => {
-    shade = (shade + 40) % 256;
-    if (context !== null) {
-      context.fillStyle = `rgb(${shade}, 90, 160)`;
-      context.fillRect(0, 0, 64, 48);
-    }
-  }, 20);
+  if (context !== null) {
+    context.fillStyle = "rgb(40, 90, 160)";
+    context.fillRect(0, 0, 64, 48);
+  }
   const [track] = stream.getVideoTracks();
   if (track === undefined) {
     throw new Error("the fake camera has no video track");
   }
   const stop = vi.spyOn(track, "stop");
-  stop.mockImplementation(() => {
-    clearInterval(painter);
-    MediaStreamTrack.prototype.stop.call(track);
-  });
   return { stream, stop };
 }
 
