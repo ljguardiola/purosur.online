@@ -65,6 +65,8 @@ export type { PurchaseChoices } from "./list-purchase-choices.js";
 export { listPurchaseChoices } from "./list-purchase-choices.js";
 export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
 export { findPurchaseListing, listPurchases } from "./list-purchases.js";
+export type { SupplierItemLinkChoice } from "./list-supplier-item-link-choices.js";
+export { listSupplierItemLinkChoices } from "./list-supplier-item-link-choices.js";
 export type {
   ComparedOffer,
   ComparedProduct,

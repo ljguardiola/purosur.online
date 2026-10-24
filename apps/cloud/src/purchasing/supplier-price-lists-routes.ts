@@ -1,4 +1,5 @@
 import {
+  supplierItemLinkChoicesSchema,
   supplierItemLinkProposalSchema,
   supplierPriceListConfirmationBodySchema,
   supplierPriceListDiscardBodySchema,
@@ -13,7 +14,10 @@ import {
   supplierPriceListUploadQuerySchema,
   supplierPriceListWebPageBodySchema,
 } from "@purosur/contracts";
-import { SUPPLIER_PRICE_LIST_PDF_MAX_BYTES } from "@purosur/domain";
+import {
+  PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR,
+  SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
+} from "@purosur/domain";
 import type {
   LinkSupplierPriceListRowOutcome,
   LoadSupplierPriceListWebPageOutcome,
@@ -25,6 +29,7 @@ import {
   findSupplierPriceListFile,
   findSupplierPriceListReview,
   linkSupplierPriceListRow,
+  listSupplierItemLinkChoices,
   listSupplierPriceLists,
   loadSupplierPriceListWebPage,
   markSupplierPriceListRowReviewed,
@@ -36,6 +41,7 @@ import {
 } from "@purosur/domain/purchasing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyError, FastifyInstance, FastifyReply } from "fastify";
+import { DrizzleCatalogListReader } from "../catalog/drizzle-catalog-list-reader.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
@@ -45,6 +51,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzleSupplierItemLinkProposalReader } from "./drizzle-supplier-item-link-proposal-reader.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
@@ -203,6 +210,8 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   const store = new DrizzleSupplierPriceListStore(options.db, now);
   const reader = new DrizzleSupplierPriceListReader(options.db);
   const proposalReader = new DrizzleSupplierItemLinkProposalReader(options.db);
+  const purchasingReader = new DrizzlePurchasingListReader(options.db);
+  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("supplier_price_lists"), sessionSource };
   const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
@@ -284,6 +293,12 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
           lists.map((list) => ({ ...list, uploadedAt: list.uploadedAt.toISOString() })),
         ),
       );
+  });
+
+  app.get("/supplier-price-lists/link-choices", readGuard, async (_request, reply) => {
+    const products = await catalog.products(PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR);
+    const choices = await listSupplierItemLinkChoices(purchasingReader, products);
+    await reply.code(200).send(supplierItemLinkChoicesSchema.parse({ products: choices }));
   });
 
   app.get("/supplier-price-lists/:id", readGuard, async (request, reply) => {
