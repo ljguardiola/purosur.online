@@ -20,6 +20,9 @@ test.each([
   [{ kind: "unpriced_rows" }, { kind: "unpricedRows" }],
   [{ kind: "list_date_missing" }, { kind: "listDateMissing" }],
   [{ kind: "vat_missing" }, { kind: "vatMissing" }],
+  [{ kind: "packaging_not_linkable" }, { kind: "packagingNotLinkable" }],
+  [{ kind: "vat_rate_missing" }, { kind: "vatRateMissing" }],
+  [{ kind: "vat_rate_invalid" }, { kind: "attemptFailed" }],
 ] as const)("turns the outcome %j into the notice %j", (outcome, notice) => {
   expect(supplierPriceListChangeNoticeOf(outcome)).toEqual(notice);
 });
@@ -44,6 +47,16 @@ test.each([
   [{ kind: "notEditable" }, "La lista ya no se puede modificar", undefined],
   [{ kind: "notFound" }, "Esta lista ya no existe", undefined],
   [{ kind: "noRows" }, "La lista no tiene ítems", "Cargá otra lista o descartá esta."],
+  [
+    { kind: "packagingNotLinkable" },
+    "Esta presentación ya no se puede vincular",
+    "Elegí otra o creá una nueva.",
+  ],
+  [
+    { kind: "vatRateMissing" },
+    "Elegí el IVA del ítem",
+    "La lista no incluye el IVA en sus precios.",
+  ],
   [
     { kind: "unpricedRows" },
     "Hay ítems sin precio",
