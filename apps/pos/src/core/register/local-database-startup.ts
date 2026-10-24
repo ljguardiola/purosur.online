@@ -44,7 +44,7 @@ export async function startLocalDatabase(deps: {
   path: string;
   migrations: readonly LocalMigration[];
   now: () => Date;
-  onStep: (step: CoreStartupStep) => void;
+  onStep: (step: CoreStartupStep) => Promise<void>;
 }): Promise<StartedLocalDatabase> {
   let opened: LocalDatabase | undefined;
   function open(): LocalDatabase {
@@ -57,7 +57,7 @@ export async function startLocalDatabase(deps: {
     integrityHolds: () => sqliteIntegrityHolds(open()),
   });
   try {
-    deps.onStep("check_local_database");
+    await deps.onStep("check_local_database");
     const check = await checkLocalDatabase({ health, migrations: migrationsOfFile(deps) });
     if (check.kind === "newer_than_version") {
       return { kind: "newer_than_version" };
@@ -66,7 +66,7 @@ export async function startLocalDatabase(deps: {
       opened?.close();
       return OUT_OF_SERVICE;
     }
-    deps.onStep("apply_migrations");
+    await deps.onStep("apply_migrations");
     const database = open();
     applyMigrations(database, deps.migrations, deps.now);
     return { kind: "ready", database, health };

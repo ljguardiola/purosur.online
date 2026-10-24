@@ -299,11 +299,12 @@ const restoreAttempts = createRestoreAttempts({
     ),
 });
 
-function reportStartupStep(step: CoreStartupStep): void {
+async function reportStartupStep(step: CoreStartupStep): Promise<void> {
   process.parentPort.postMessage({
     type: "core-startup-step",
     step,
   } satisfies CoreStartupStepMessage);
+  await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
@@ -338,10 +339,10 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
 }
 
 if (localDataFolder !== undefined) {
-  reportStartupStep("set_aside_stale_database");
+  await reportStartupStep("set_aside_stale_database");
   await setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now })
-    .then(() => {
-      reportStartupStep("adopt_staged_snapshot");
+    .then(async () => {
+      await reportStartupStep("adopt_staged_snapshot");
       return adoptStagedSnapshot({
         folder: localDataFolder,
         pending: restorePending,
