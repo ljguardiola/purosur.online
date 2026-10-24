@@ -153,6 +153,7 @@
                       "errorReportingOptions",
                       "CoreReadyMessage",
                       "CoreRefusedMessage",
+                      "CoreStartupStep",
                       "CoreStatusMessage",
                       "CredentialsReplacement",
                       "DeviceCredentials",

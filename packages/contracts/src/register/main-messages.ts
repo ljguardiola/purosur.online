@@ -114,6 +114,17 @@ export interface CoreRefusedMessage {
   reason: "newer_database";
 }
 
+export type CoreStartupStep =
+  | "set_aside_stale_database"
+  | "adopt_staged_snapshot"
+  | "check_local_database"
+  | "apply_migrations";
+
+export interface CoreStartupStepMessage {
+  type: "core-startup-step";
+  step: CoreStartupStep;
+}
+
 export const coreStatusMessageSchema = z.object({
   type: z.literal("core-status"),
   status: z.enum(["starting", "down", "up", "updating", "refused"]),

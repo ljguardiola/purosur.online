@@ -6,6 +6,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import {
   type CoreReadyMessage,
+  type CoreStartupStep,
+  type CoreStartupStepMessage,
   mainToCoreMessageSchema,
   type QuitRegisterMessage,
 } from "@purosur/contracts";
@@ -297,6 +299,19 @@ const restoreAttempts = createRestoreAttempts({
     ),
 });
 
+async function reportStartupStep(step: CoreStartupStep): Promise<void> {
+  process.parentPort.postMessage({
+    type: "core-startup-step",
+    step,
+  } satisfies CoreStartupStepMessage);
+  if (process.env["POS_E2E_NO_YIELD"] !== "1") {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  if (process.env["POS_E2E_BLOCK_AT_STEP"] === step) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 40_000);
+  }
+}
+
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
     console.error("core: no local data folder was handed over, so it can't pull or sign anyone in");
@@ -307,6 +322,7 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
       path: localDatabasePath,
       migrations: LOCAL_MIGRATIONS,
       now,
+      onStep: reportStartupStep,
     });
     console.info(
       {
@@ -328,15 +344,17 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
 }
 
 if (localDataFolder !== undefined) {
+  await reportStartupStep("set_aside_stale_database");
   await setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now })
-    .then(() =>
-      adoptStagedSnapshot({
+    .then(async () => {
+      await reportStartupStep("adopt_staged_snapshot");
+      return adoptStagedSnapshot({
         folder: localDataFolder,
         pending: restorePending,
         migrations: LOCAL_MIGRATIONS,
         now,
-      }),
-    )
+      });
+    })
     .catch((error: unknown) => {
       console.error("core: the restored snapshot could not be adopted", error);
       Sentry.captureException(error);
