@@ -8,11 +8,13 @@ export function createFakeQrScanner() {
   function FakeQrScanner(props: QrScannerProps) {
     useEffect(() => {
       state.mounts += 1;
-      live = props;
       return () => {
         live = undefined;
       };
-    }, [props]);
+    }, []);
+    useEffect(() => {
+      live = props;
+    });
     return <div role="img" aria-label="Cámara" />;
   }
 
