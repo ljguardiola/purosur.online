@@ -1,3 +1,4 @@
+import type { Clock } from "../../shared/index.js";
 import type { PushedEvent } from "../../sync/index.js";
 import type { RescuedTicketFact } from "../model/rescued-ticket-summary.js";
 
@@ -13,15 +14,10 @@ export type ContingencyBackupTicketOpening =
   | { kind: "unknown_key" }
   | { kind: "not_authentic" };
 
-export interface ContingencyBackupTicketOpener {
-  open(qrCodes: readonly string[]): Promise<ContingencyBackupTicketOpening>;
-}
-
 export interface RescuedTicketDelivery {
   registerId: string;
   deviceId: string;
   events: readonly PushedEvent[];
-  rescuedBy: string;
 }
 
 export type RescuedTicketDeliveryAnswer =
@@ -29,9 +25,24 @@ export type RescuedTicketDeliveryAnswer =
   | { kind: "foreign_installation" }
   | { kind: "conflicting" };
 
-// Records who rescued the ticket, and what it brought in, together with the events it receives.
-export interface RescuedTicketEvents {
+export interface RescuedTicketRecord {
+  registerId: string;
+  actorId: string;
+  received: number;
+  alreadyReceived: number;
+  at: Date;
+}
+
+export interface RescueContingencyBackupTicketTransaction {
+  open(qrCodes: readonly string[]): Promise<ContingencyBackupTicketOpening>;
   deliver(delivery: RescuedTicketDelivery): Promise<RescuedTicketDeliveryAnswer>;
+  recordRescue(rescue: RescuedTicketRecord): Promise<void>;
+}
+
+export interface ContingencyBackupTicketRescues {
+  transaction<TOutcome>(
+    work: (tx: RescueContingencyBackupTicketTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome>;
 }
 
 export interface RescuedEventDecoder {
@@ -39,7 +50,7 @@ export interface RescuedEventDecoder {
 }
 
 export interface RescueContingencyBackupTicketPorts {
-  opener: ContingencyBackupTicketOpener;
-  events: RescuedTicketEvents;
+  rescues: ContingencyBackupTicketRescues;
+  clock: Clock;
   decoder: RescuedEventDecoder;
 }

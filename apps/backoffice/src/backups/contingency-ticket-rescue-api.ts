@@ -1,4 +1,5 @@
 import {
+  type ContingencyBackupTicketRescueRequest,
   type ContingencyBackupTicketRescueResponse,
   contingencyBackupTicketRescueResponseSchema,
 } from "@purosur/contracts";
@@ -11,12 +12,13 @@ export type RescueContingencyBackupTicketOutcome =
 export async function rescueContingencyBackupTicket(
   qrCodes: string[],
 ): Promise<RescueContingencyBackupTicketOutcome> {
+  const request: ContingencyBackupTicketRescueRequest = { qr_codes: qrCodes };
   let response: Response;
   try {
     response = await fetch("/api/contingency-backup-tickets/rescue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ qr_codes: qrCodes }),
+      body: JSON.stringify(request),
     });
   } catch {
     return { kind: "failed" };

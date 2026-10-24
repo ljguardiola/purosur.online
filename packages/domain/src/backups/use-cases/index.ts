@@ -45,13 +45,14 @@ export type {
 } from "./rescue-contingency-backup-ticket.js";
 export { rescueContingencyBackupTicket } from "./rescue-contingency-backup-ticket.js";
 export type {
-  ContingencyBackupTicketOpener,
   ContingencyBackupTicketOpening,
+  ContingencyBackupTicketRescues,
   RescueContingencyBackupTicketPorts,
+  RescueContingencyBackupTicketTransaction,
   RescuedEventDecoder,
   RescuedTicketDelivery,
   RescuedTicketDeliveryAnswer,
-  RescuedTicketEvents,
+  RescuedTicketRecord,
 } from "./rescue-contingency-backup-ticket-ports.js";
 export type {
   FailedSnapshotGeneration,

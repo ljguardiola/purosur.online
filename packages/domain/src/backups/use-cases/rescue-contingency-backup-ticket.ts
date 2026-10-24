@@ -27,32 +27,45 @@ export type RescueContingencyBackupTicketOutcome =
   | { kind: "conflicting" };
 
 export async function rescueContingencyBackupTicket(
-  { opener, events, decoder }: RescueContingencyBackupTicketPorts,
+  { rescues, clock, decoder }: RescueContingencyBackupTicketPorts,
   { qrCodes, actorId }: RescueContingencyBackupTicketInput,
 ): Promise<RescueContingencyBackupTicketOutcome> {
-  const opening = await opener.open(qrCodes);
-  if (opening.kind !== "opened") {
-    return { kind: opening.kind };
-  }
-  const { registerId, registerName, content } = opening;
-  const delivery = await events.deliver({
-    registerId,
-    deviceId: content.deviceId,
-    events: content.events,
-    rescuedBy: actorId,
+  const rescue = await rescues.transaction(async (tx) => {
+    const opening = await tx.open(qrCodes);
+    if (opening.kind !== "opened") {
+      return opening;
+    }
+    const { registerId, content } = opening;
+    const delivery = await tx.deliver({
+      registerId,
+      deviceId: content.deviceId,
+      events: content.events,
+    });
+    if (delivery.kind !== "delivered") {
+      return delivery;
+    }
+    await tx.recordRescue({
+      registerId,
+      actorId,
+      received: delivery.received,
+      alreadyReceived: delivery.alreadyReceived,
+      at: clock.now(),
+    });
+    return { kind: "rescued" as const, opening, delivery };
   });
-  if (delivery.kind !== "delivered") {
-    return { kind: delivery.kind };
+  if (rescue.kind !== "rescued") {
+    return { kind: rescue.kind };
   }
-  const facts = content.events
+  const { opening, delivery } = rescue;
+  const facts = opening.content.events
     .map((event) => decoder.decode(event))
     .filter((fact): fact is RescuedTicketFact => fact !== null);
   return {
     kind: "rescued",
-    registerId,
-    registerName,
+    registerId: opening.registerId,
+    registerName: opening.registerName,
     received: delivery.received,
     alreadyReceived: delivery.alreadyReceived,
-    summary: rescuedTicketSummary(content.events, facts),
+    summary: rescuedTicketSummary(opening.content.events, facts),
   };
 }

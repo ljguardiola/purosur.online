@@ -1,10 +1,14 @@
-import { readContingencyBackupTicketQrCode } from "@purosur/contracts";
+import {
+  type ContingencyBackupTicketPart,
+  readContingencyBackupTicketQrCode,
+  sameContingencyBackupTicket,
+} from "@purosur/contracts";
 
-type PendingTicket = { partCount: number; codes: Record<number, string> };
+type PendingTicket = { part: ContingencyBackupTicketPart; codes: Record<number, string> };
 
-export type PendingTickets = Record<string, PendingTicket>;
+export type PendingTickets = readonly PendingTicket[];
 
-export const NO_PENDING_TICKETS: PendingTickets = {};
+export const NO_PENDING_TICKETS: PendingTickets = [];
 
 export type TicketScanStep =
   | { kind: "unreadable" }
@@ -12,30 +16,27 @@ export type TicketScanStep =
   | { kind: "waiting"; pending: PendingTickets; read: number; of: number }
   | { kind: "complete"; pending: PendingTickets; qrCodes: string[] };
 
-function ticketKey(part: NonNullable<ReturnType<typeof readContingencyBackupTicketQrCode>>) {
-  const nonce = [...part.nonce].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${part.registerId}:${part.keyVersion}:${nonce}`;
-}
-
 export function scanTicketCode(pending: PendingTickets, text: string): TicketScanStep {
   const part = readContingencyBackupTicketQrCode(text);
   if (part === null) {
     return { kind: "unreadable" };
   }
-  const key = ticketKey(part);
-  const ticket = pending[key] ?? { partCount: part.partCount, codes: {} };
+  const ticket = pending.find((held) => sameContingencyBackupTicket(held.part, part)) ?? {
+    part,
+    codes: {},
+  };
   if (part.partIndex in ticket.codes) {
     return { kind: "already_read" };
   }
   const codes = { ...ticket.codes, [part.partIndex]: text };
   const read = Object.keys(codes).length;
-  const { [key]: _finished, ...others } = pending;
-  if (read < ticket.partCount) {
+  const others = pending.filter((held) => held !== ticket);
+  if (read < part.partCount) {
     return {
       kind: "waiting",
-      pending: { ...others, [key]: { partCount: ticket.partCount, codes } },
+      pending: [...others, { part: ticket.part, codes }],
       read,
-      of: ticket.partCount,
+      of: part.partCount,
     };
   }
   const qrCodes = Object.entries(codes)

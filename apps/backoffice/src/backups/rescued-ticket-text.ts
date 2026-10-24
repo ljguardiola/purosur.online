@@ -36,8 +36,17 @@ export const REFUSED_TICKET_TITLE: Record<RefusedOutcome, string> = {
   incomplete: "Faltan QR de este ticket",
   unknown_key: "Clave de cifrado desconocida",
   not_authentic: "El ticket no es auténtico",
-  foreign_installation: "Ticket de otra instalación",
-  conflicting: "Los QR no son del mismo ticket",
+  foreign_installation: "La instalación del ticket es de otra caja",
+  conflicting: "Choca con datos ya recibidos de la caja",
+};
+
+export const REFUSED_TICKET_STATUS: Record<RefusedOutcome, string> = {
+  unreadable: "No se pudo verificar",
+  incomplete: "No se pudo verificar",
+  unknown_key: "No se pudo verificar",
+  not_authentic: "No se pudo verificar",
+  foreign_installation: "No se pudo recuperar",
+  conflicting: "No se pudo recuperar",
 };
 
 export function rescuedTicketTitle({ operation, occurred_at }: Summary): string {

@@ -20,6 +20,7 @@ export {
   contingencyBackupTicketQrCodes,
   joinContingencyBackupTicketParts,
   readContingencyBackupTicketQrCode,
+  sameContingencyBackupTicket,
 } from "./backups/contingency-backup-ticket.js";
 export type {
   ContingencyBackupTicketOfSaleAnswer,

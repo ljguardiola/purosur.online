@@ -22,8 +22,7 @@ import {
   type EnqueueEventApplication,
   enqueueEventApplicationJob,
 } from "../sync/graphile-event-application-queue.js";
-import { DrizzleContingencyBackupTicketOpener } from "./drizzle-contingency-backup-ticket-opener.js";
-import { InboxRescuedTicketEvents } from "./inbox-rescued-ticket-events.js";
+import { DrizzleContingencyBackupTicketRescues } from "./drizzle-contingency-backup-ticket-rescues.js";
 import { syncedRescuedEventDecoder } from "./synced-rescued-event-decoder.js";
 
 export interface ContingencyBackupTicketRescueRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -68,13 +67,13 @@ export function registerContingencyBackupTicketRescueRoute<TQueryResult extends 
   registerRouteAccess(app);
   const cipher = installationKeyCipher(options.keysEncryptionKey);
   const ports = {
-    opener: new DrizzleContingencyBackupTicketOpener(db, cipher),
-    events: new InboxRescuedTicketEvents(
+    rescues: new DrizzleContingencyBackupTicketRescues(
       db,
       cipher,
       options.enqueueEventApplication ?? enqueueEventApplicationJob,
       now,
     ),
+    clock: { now },
     decoder: syncedRescuedEventDecoder,
   };
 

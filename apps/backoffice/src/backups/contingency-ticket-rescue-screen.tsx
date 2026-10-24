@@ -9,6 +9,7 @@ import { ScreenTitle } from "../shell/screen-title";
 import type { RescueContingencyBackupTicketOutcome } from "./contingency-ticket-rescue-api";
 import type { ContingencyTicketRescueScreenServices } from "./contingency-ticket-rescue-services";
 import {
+  REFUSED_TICKET_STATUS,
   REFUSED_TICKET_TITLE,
   rescuedTicketTitle,
   rescuedTicketTotalText,
@@ -79,7 +80,11 @@ function resultCell({ result }: ScannedTicket) {
   }
   return (
     <div className="flex flex-col items-start gap-1">
-      <StatusIndicator tone="error">No se pudo verificar</StatusIndicator>
+      <StatusIndicator tone="error">
+        {result.kind === "send_failed"
+          ? "No se pudo verificar"
+          : REFUSED_TICKET_STATUS[result.outcome]}
+      </StatusIndicator>
       <span className="text-detail text-text-subtle">
         {result.kind === "send_failed" ? "Mostralo de nuevo" : "No se recuperó nada"}
       </span>

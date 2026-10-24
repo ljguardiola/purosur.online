@@ -13,6 +13,7 @@ export type QrScannerProps = {
 export type QrCameraScannerProps = QrScannerProps & { decoder?: QrDecoder };
 
 const SCAN_INTERVAL_MS = 100;
+const FRAMES_WITHOUT_A_CODE_BEFORE_IT_LEFT = 10;
 
 export function QrCameraScanner({
   onCode,
@@ -33,6 +34,7 @@ export function QrCameraScanner({
     let stream: MediaStream | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let lastReported: string | null = null;
+    let framesWithoutACode = 0;
     const canvas = document.createElement("canvas");
 
     async function scan() {
@@ -46,10 +48,18 @@ export function QrCameraScanner({
         if (stopped) {
           return;
         }
-        if (text !== null && text !== lastReported) {
-          reportCode(text);
+        if (text === null) {
+          framesWithoutACode += 1;
+          if (framesWithoutACode >= FRAMES_WITHOUT_A_CODE_BEFORE_IT_LEFT) {
+            lastReported = null;
+          }
+        } else {
+          framesWithoutACode = 0;
+          if (text !== lastReported) {
+            reportCode(text);
+            lastReported = text;
+          }
         }
-        lastReported = text;
       }
       timer = setTimeout(() => void scan(), SCAN_INTERVAL_MS);
     }

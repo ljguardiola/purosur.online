@@ -7,10 +7,7 @@ import {
   joinContingencyBackupTicketParts,
   readContingencyBackupTicketQrCode,
 } from "@purosur/contracts";
-import type {
-  ContingencyBackupTicketOpener,
-  ContingencyBackupTicketOpening,
-} from "@purosur/domain/backups/use-cases";
+import type { ContingencyBackupTicketOpening } from "@purosur/domain/backups/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerContingencyTicketKeys, registers } from "../platform/db/schema.js";
@@ -20,9 +17,7 @@ import type { InstallationKeyCipher } from "../register/installation-key-cipher.
 const AUTH_TAG_BYTES = 16;
 const MAX_TICKET_BYTES = 16 * 1024 * 1024;
 
-export class DrizzleContingencyBackupTicketOpener<TQueryResult extends PgQueryResultHKT>
-  implements ContingencyBackupTicketOpener
-{
+export class DrizzleContingencyBackupTicketOpener<TQueryResult extends PgQueryResultHKT> {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly cipher: InstallationKeyCipher;
 
