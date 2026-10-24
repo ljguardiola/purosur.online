@@ -2,11 +2,12 @@ import { sql as sqlTag } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { creditNotes, fiscalTasks } from "../platform/db/schema.js";
+import { creditNotes, fiscalTasks, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
 
 const CREATED_AT = new Date("2026-10-08T01:00:00.000Z");
@@ -85,6 +86,22 @@ async function aCreditNoteId(): Promise<string> {
   return id;
 }
 
+async function aUserId(): Promise<string> {
+  seeded += 1;
+  const [user] = await db
+    .insert(users)
+    .values({
+      firstName: "Marta Quiroga",
+      email: `closer-${seeded}@example.com`,
+      locationId: await seededLocationId(db),
+    })
+    .returning({ id: users.id });
+  if (!user) {
+    throw new Error("test setup: inserting the user returned no row");
+  }
+  return user.id;
+}
+
 function voidedSale(): Partial<typeof creditNotes.$inferInsert> {
   return {
     reason: "sale_void",
@@ -118,6 +135,41 @@ describe("the fiscal tasks table's constraints on a real Postgres", () => {
 
   it("accepts a closed task with its closing time", async () => {
     await expect(insertTask({ state: "closed", closedAt: ANSWERED_AT })).resolves.toBeDefined();
+  });
+
+  it("accepts a closed task with the person who closed it and their note", async () => {
+    await expect(
+      insertTask({
+        state: "closed",
+        closedAt: ANSWERED_AT,
+        closedBy: await aUserId(),
+        closingNote: "regularized with the accountant",
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("rejects a closing note with no person who closed the task", async () => {
+    await expect(
+      insertTask({ state: "closed", closedAt: ANSWERED_AT, closingNote: "regularized" }),
+    ).rejects.toSatisfy((error) =>
+      constraintViolatedBy(error, "fiscal_tasks_closing_record_check"),
+    );
+  });
+
+  it("rejects a person who closed the task with no closing note", async () => {
+    await expect(
+      insertTask({ state: "closed", closedAt: ANSWERED_AT, closedBy: await aUserId() }),
+    ).rejects.toSatisfy((error) =>
+      constraintViolatedBy(error, "fiscal_tasks_closing_record_check"),
+    );
+  });
+
+  it("rejects a closing record on an open task", async () => {
+    await expect(
+      insertTask({ state: "open", closedBy: await aUserId(), closingNote: "regularized" }),
+    ).rejects.toSatisfy((error) =>
+      constraintViolatedBy(error, "fiscal_tasks_closing_record_check"),
+    );
   });
 
   it("rejects a second task of the same kind for the same voucher", async () => {

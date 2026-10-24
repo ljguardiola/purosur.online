@@ -4,11 +4,13 @@ import {
   CLOSED_FISCAL_TASK_STATE,
   creditNoteRejectedTask,
   externalInvoicingTask,
+  FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH,
   FISCAL_TASK_KINDS,
   FISCAL_TASK_STATES,
   type FiscalTask,
   type FiscalTaskKind,
   type FiscalTaskState,
+  isFiscalTaskClosingNoteTooLong,
   OPEN_FISCAL_TASK_STATE,
 } from "./fiscal-task.js";
 
@@ -84,5 +86,21 @@ describe("fiscal task states", () => {
     expect(CLOSED_FISCAL_TASK_STATE).toBe("closed");
     expectTypeOf<FiscalTaskState>().toEqualTypeOf<(typeof FISCAL_TASK_STATES)[number]>();
     expectTypeOf<FiscalTask["state"]>().toEqualTypeOf<typeof OPEN_FISCAL_TASK_STATE>();
+  });
+});
+
+describe("the closing note of a fiscal task", () => {
+  it("allows at most 500 characters", () => {
+    expect(FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH).toBe(500);
+  });
+
+  it("accepts a note of exactly the maximum length and refuses one character more", () => {
+    expect(isFiscalTaskClosingNoteTooLong("a".repeat(500))).toBe(false);
+    expect(isFiscalTaskClosingNoteTooLong("a".repeat(501))).toBe(true);
+  });
+
+  it("counts characters outside the basic plane once", () => {
+    expect(isFiscalTaskClosingNoteTooLong("😀".repeat(500))).toBe(false);
+    expect(isFiscalTaskClosingNoteTooLong("😀".repeat(501))).toBe(true);
   });
 });
