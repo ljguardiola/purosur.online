@@ -49,11 +49,11 @@ describe("the products to compare", () => {
 });
 
 describe("the offers of the suppliers", () => {
-  async function linkedItem(supplierId: string, productId: string, overrides = {}) {
+  async function linkedItem(supplierId: string, productId: string, packagingName = "Caja x 10") {
     const packagingId = await insertPackaging(db, {
       productId,
       actorId,
-      name: "Caja x 10",
+      name: packagingName,
       quantityPerPackage: 10_000,
     });
     const itemId = await insertSupplierItem(db, {
@@ -61,7 +61,6 @@ describe("the offers of the suppliers", () => {
       productId,
       packagingId,
       vatRate: 1_050,
-      ...overrides,
     });
     return { itemId, packagingId };
   }
@@ -70,7 +69,7 @@ describe("the offers of the suppliers", () => {
     const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const zetaId = await insertSupplier(db, { actorId, name: "Zeta" });
     const alfaId = await insertSupplier(db, { actorId, name: "Alfa" });
-    const zeta = await linkedItem(zetaId, productId);
+    const zeta = await linkedItem(zetaId, productId, "Bolsa x 10");
     const alfa = await linkedItem(alfaId, productId);
     await insertSupplierItemPrice(db, {
       itemId: zeta.itemId,
@@ -100,7 +99,7 @@ describe("the offers of the suppliers", () => {
       {
         productId,
         supplier: { id: zetaId, name: "Zeta" },
-        packaging: { name: "Caja x 10", quantityPerPackage: 10_000 },
+        packaging: { name: "Bolsa x 10", quantityPerPackage: 10_000 },
         priceCents: 1_000,
         pricesIncludeVat: false,
         vatRate: 1_050,
