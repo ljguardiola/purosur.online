@@ -15,6 +15,7 @@ import {
   EVERY_REVIEW_ACTION,
   EXTRACTED_ROWS,
   FAILED_LIST,
+  itemRow,
   ONLY_DISCARD,
   READ_LIST,
   READING_LIST,
@@ -135,14 +136,7 @@ test("counts the items shown and the ones without a price", async () => {
 });
 
 test("shows the items in pages of 25", async () => {
-  const rows = Array.from({ length: 120 }, (_, index) => ({
-    id: `5b200000-0000-4000-8000-${String(index).padStart(12, "0")}`,
-    description: `Ítem ${index + 1}`,
-    code: null,
-    presentation: null,
-    priceCents: 1_000,
-    page: null,
-  }));
+  const rows = Array.from({ length: 120 }, (_, index) => itemRow(index));
   const screen = await loaded(
     createServices(),
     reviewOf({ ...READ_LIST, unpricedRowCount: 0 }, rows, EVERY_REVIEW_ACTION),
@@ -157,14 +151,7 @@ test("shows the items in pages of 25", async () => {
 });
 
 test("shows a very long list in pages of 25, and confirming sends none of its items", async () => {
-  const rows = Array.from({ length: 3_000 }, (_, index) => ({
-    id: `5b200000-0000-4000-8000-${String(index).padStart(12, "0")}`,
-    description: `Ítem ${index + 1}`,
-    code: null,
-    presentation: null,
-    priceCents: 1_000,
-    page: null,
-  }));
+  const rows = Array.from({ length: 3_000 }, (_, index) => itemRow(index));
   const services = createServices();
   vi.mocked(services.confirmSupplierPriceList).mockResolvedValue({ kind: "ok" });
   const screen = await loaded(
@@ -279,7 +266,12 @@ test("offers only the actions the cloud allows, even on a list waiting for revie
 test("offers the item actions the cloud allows, even on a reviewed list", async () => {
   const screen = await loaded(
     createServices(),
-    reviewOf(REVIEWED_LIST, EXTRACTED_ROWS, { changeRows: true, confirm: false, discard: false }),
+    reviewOf(REVIEWED_LIST, EXTRACTED_ROWS, {
+      changeRows: true,
+      confirm: false,
+      discard: false,
+      linkRows: false,
+    }),
   );
 
   await expect

@@ -93,29 +93,72 @@ export const WEB_FAILED_LIST: SupplierPriceListSummary = {
 };
 
 type ReviewActions = SupplierPriceListReview["actions"];
+type ReviewCounts = SupplierPriceListReview["counts"];
 
 export const EVERY_REVIEW_ACTION: ReviewActions = {
   changeRows: true,
   confirm: true,
   discard: true,
+  linkRows: true,
 };
 
-export const ONLY_DISCARD: ReviewActions = { changeRows: false, confirm: false, discard: true };
+export const ONLY_DISCARD: ReviewActions = {
+  changeRows: false,
+  confirm: false,
+  discard: true,
+  linkRows: false,
+};
 
 const NO_REVIEW_ACTION: ReviewActions = {
   changeRows: false,
   confirm: false,
   discard: false,
+  linkRows: false,
 };
+
+const NO_COUNTS: ReviewCounts = { needingReview: 0, linkedAutomatically: 0 };
 
 export function reviewOf(
   list: SupplierPriceListSummary,
   rows: SupplierPriceListReview["rows"],
   actions: ReviewActions = NO_REVIEW_ACTION,
   pricesIncludeVat: boolean | null = true,
+  counts: ReviewCounts = NO_COUNTS,
 ): SupplierPriceListReview {
-  return { list: { ...list, version: 3, pricesIncludeVat }, rows, actions };
+  return { list: { ...list, version: 3, pricesIncludeVat }, rows, actions, counts };
 }
+
+type ReviewRow = SupplierPriceListReview["rows"][number];
+
+export function itemRow(index: number): ReviewRow {
+  return {
+    id: `5b200000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    description: `Ítem ${index + 1}`,
+    code: null,
+    presentation: null,
+    priceCents: 1_000,
+    page: null,
+    barcode: null,
+    link: null,
+    status: "new",
+    previousPriceCents: null,
+    pricePerSaleUnit: null,
+  };
+}
+
+export const ALMOND_LINK: NonNullable<ReviewRow["link"]> = {
+  product: {
+    id: "90d00000-0000-4000-8000-000000000003",
+    name: "Almendras peladas",
+    saleUnit: "KG",
+  },
+  packaging: {
+    id: "9ac00000-0000-4000-8000-000000000010",
+    name: "Bolsa de 25 kg",
+    quantityPerPackage: 25_000,
+  },
+  vatRate: null,
+};
 
 export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
   {
@@ -125,6 +168,11 @@ export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
     presentation: "Bolsa 25 kg",
     priceCents: 25_450_000,
     page: 2,
+    barcode: null,
+    link: ALMOND_LINK,
+    status: "price_changed",
+    previousPriceCents: 24_800_000,
+    pricePerSaleUnit: { numerator: "25450000", denominator: "25" },
   },
   {
     id: "5b200000-0000-4000-8000-000000000002",
@@ -133,6 +181,11 @@ export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
     presentation: null,
     priceCents: null,
     page: null,
+    barcode: null,
+    link: null,
+    status: "new",
+    previousPriceCents: null,
+    pricePerSaleUnit: null,
   },
   {
     id: "5b200000-0000-4000-8000-000000000003",
@@ -141,5 +194,10 @@ export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
     presentation: "Caja 10 kg",
     priceCents: 14_200_000,
     page: 3,
+    barcode: "7790001000029",
+    link: null,
+    status: "new",
+    previousPriceCents: null,
+    pricePerSaleUnit: null,
   },
 ];
