@@ -1355,6 +1355,7 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "POST", url: "/api/freights", headers: ORIGIN }),
       app.inject({ method: "PUT", url: `/api/freights/${ID}`, headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/freights/linkable-purchases" }),
+      app.inject({ method: "GET", url: "/api/supplier-price-comparison" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
       app.inject({ method: "POST", url: "/api/supplier-price-lists", headers: ORIGIN }),
       app.inject({ method: "GET", url: `/api/supplier-price-lists/${ID}` }),
@@ -1406,7 +1407,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(30).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(31).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1416,7 +1417,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(30).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(31).fill(401));
   });
 });
 
@@ -2679,6 +2680,11 @@ describe("the route access inventory", () => {
       },
       { method: "POST", url: "/api/freights", access: capabilityAccess("freights") },
       { method: "PUT", url: "/api/freights/:id", access: capabilityAccess("freights") },
+      {
+        method: "GET",
+        url: "/api/supplier-price-comparison",
+        access: capabilityAccess("price_comparison"),
+      },
       {
         method: "GET",
         url: "/api/supplier-price-lists",
