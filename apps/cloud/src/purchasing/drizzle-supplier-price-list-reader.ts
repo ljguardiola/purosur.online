@@ -1,12 +1,25 @@
-import type { SupplierPriceListReadFailure, SupplierPriceListState } from "@purosur/domain";
+import {
+  type SaleUnit,
+  type SupplierPriceListReadFailure,
+  type SupplierPriceListState,
+  supplierItemKey,
+} from "@purosur/domain";
 import type {
   SupplierPriceListListing,
   SupplierPriceListReader,
   SupplierPriceListReview,
 } from "@purosur/domain/purchasing/use-cases";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { supplierPriceListRows, supplierPriceLists, suppliers } from "../platform/db/schema.js";
+import {
+  productPackagings,
+  products,
+  supplierItemPrices,
+  supplierItems,
+  supplierPriceListRows,
+  supplierPriceLists,
+  suppliers,
+} from "../platform/db/schema.js";
 
 const rowCount = sql<number>`(select count(*)::int from ${supplierPriceListRows} where ${supplierPriceListRows.listId} = ${supplierPriceLists.id})`;
 const unpricedRowCount = sql<number>`(select count(*)::int from ${supplierPriceListRows} where ${supplierPriceListRows.listId} = ${supplierPriceLists.id} and ${supplierPriceListRows.priceCents} is null)`;
@@ -96,18 +109,99 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
         presentation: supplierPriceListRows.presentation,
         priceCents: supplierPriceListRows.priceCents,
         page: supplierPriceListRows.page,
+        barcode: supplierPriceListRows.barcode,
+        reviewed: supplierPriceListRows.reviewed,
+        productId: products.id,
+        productName: products.name,
+        productSaleUnit: products.saleUnit,
+        packagingId: productPackagings.id,
+        packagingName: productPackagings.name,
+        quantityPerPackage: productPackagings.quantityPerPackage,
+        vatRate: supplierPriceListRows.vatRate,
       })
       .from(supplierPriceListRows)
+      .leftJoin(products, eq(products.id, supplierPriceListRows.productId))
+      .leftJoin(productPackagings, eq(productPackagings.id, supplierPriceListRows.packagingId))
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
+    const earlier = await this.earlierEntries(list.supplierId, listId, rows);
     return {
       list: {
         ...toListing(list),
         version: list.version,
         pricesIncludeVat: list.pricesIncludeVat,
       },
-      rows,
+      rows: rows.map((row) => {
+        const key = supplierItemKey(row);
+        return {
+          id: row.id,
+          description: row.description,
+          code: row.code,
+          presentation: row.presentation,
+          priceCents: row.priceCents,
+          page: row.page,
+          barcode: row.barcode,
+          link:
+            row.productId !== null && row.packagingId !== null
+              ? {
+                  product: {
+                    id: row.productId,
+                    name: row.productName as string,
+                    saleUnit: row.productSaleUnit as SaleUnit,
+                  },
+                  packaging: {
+                    id: row.packagingId,
+                    name: row.packagingName as string,
+                    quantityPerPackage: row.quantityPerPackage as number,
+                  },
+                  vatRate: row.vatRate,
+                }
+              : null,
+          reviewed: row.reviewed,
+          earlier:
+            earlier.find((entry) => entry.key.kind === key.kind && entry.key.value === key.value)
+              ?.latest ?? null,
+        };
+      }),
     };
+  }
+
+  // The latest price each matching item recorded in a list other than this one, by list date and,
+  // on a tie, by the instant its list was confirmed.
+  private async earlierEntries(
+    supplierId: string,
+    listId: string,
+    rows: { code: string | null; description: string }[],
+  ) {
+    const keys = rows.map(supplierItemKey);
+    if (keys.length === 0) {
+      return [];
+    }
+    const entries = await this.db
+      .selectDistinctOn([supplierItemPrices.itemId], {
+        keyKind: supplierItems.keyKind,
+        keyValue: supplierItems.keyValue,
+        description: supplierItems.description,
+        priceCents: supplierItemPrices.priceCents,
+      })
+      .from(supplierItemPrices)
+      .innerJoin(supplierItems, eq(supplierItems.id, supplierItemPrices.itemId))
+      .where(
+        and(
+          eq(supplierItems.supplierId, supplierId),
+          inArray(supplierItems.keyValue, [...new Set(keys.map((key) => key.value))]),
+          ne(supplierItemPrices.listId, listId),
+        ),
+      )
+      .orderBy(
+        supplierItemPrices.itemId,
+        desc(supplierItemPrices.listDate),
+        desc(supplierItemPrices.confirmedAt),
+      );
+    return entries.map((entry) => ({
+      key: { kind: entry.keyKind as "code" | "description", value: entry.keyValue },
+      latest: { description: entry.description, priceCents: entry.priceCents },
+    }));
   }
 
   async fileName(listId: string): Promise<string | undefined> {
