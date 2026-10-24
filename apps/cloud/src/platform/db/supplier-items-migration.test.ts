@@ -106,10 +106,10 @@ describe("the supplier items migration applied over a database that already hold
     ]);
   });
 
-  it.each([
-    ["a product and its packaging", true],
-    ["a product and its packaging with a VAT rate", true, 1050],
-  ])("accepts a row linked to %s", async (_name, _linked, vatRate = null) => {
+  it.each<[string, number | null]>([
+    ["a product and its packaging", null],
+    ["a product and its packaging with a VAT rate", 1050],
+  ])("accepts a row linked to %s", async (_name, vatRate) => {
     const { migrated, listId, productId, packagingId } = await migratedDatabase();
 
     await migrated.query(
