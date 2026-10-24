@@ -11,6 +11,7 @@ opensOnlyScreens([
   "/",
   "/account",
   "/backups",
+  "/contingency-ticket-rescue",
   "/help",
   "/location-settings",
   "/registers",

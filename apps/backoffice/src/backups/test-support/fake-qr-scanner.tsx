@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import type { CameraUnavailableReason, QrScannerProps } from "../qr-camera-scanner";
 
 export function createFakeQrScanner() {
@@ -12,7 +12,7 @@ export function createFakeQrScanner() {
         live = undefined;
       };
     }, []);
-    useEffect(() => {
+    useLayoutEffect(() => {
       live = props;
     });
     return (
