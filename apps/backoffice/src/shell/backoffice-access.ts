@@ -95,6 +95,10 @@ export function canSeeBackupsArea(access: BackofficeAccess): boolean {
   return grants(access, "backups_area");
 }
 
+export function canSeeContingencyTicketRescue(access: BackofficeAccess): boolean {
+  return grants(access, "contingency_ticket_rescue");
+}
+
 export function canSeeStockBalances(access: BackofficeAccess): boolean {
   return grants(access, "stock_balances");
 }

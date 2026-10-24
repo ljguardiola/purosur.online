@@ -11,6 +11,7 @@ opensOnlyScreens([
   "/",
   "/account",
   "/backups",
+  "/contingency-ticket-rescue",
   "/help",
   "/location-settings",
   "/registers",
@@ -418,4 +419,89 @@ test("redirects a non-Administrator's typed /roles to Mi cuenta, without listing
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/account");
   expect(services.rolesListScreen.fetchRoles).not.toHaveBeenCalled();
+});
+
+test("shows the Rescate de tickets item right after Backups for a user holding contingency_ticket_rescue", async () => {
+  window.history.pushState(null, "", "/account");
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Villalba",
+        isAdministrator: false,
+        capabilities: ["backups_area", "contingency_ticket_rescue"],
+      }),
+    ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await expect.element(screen.getByRole("link", { name: "Rescate de tickets" })).toBeVisible();
+  const labels = screen
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(labels.indexOf("Rescate de tickets")).toBe(labels.indexOf("Backups") + 1);
+});
+
+test("holding the Backups permission does not show the Rescate de tickets item", async () => {
+  window.history.pushState(null, "", "/account");
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Villalba",
+        isAdministrator: false,
+        capabilities: ["backups_area"],
+      }),
+    ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("link", { name: "Backups" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Rescate de tickets" }).query()).toBeNull();
+});
+
+test("following the sidebar's Rescate de tickets item opens the screen, with Config and the item active", async () => {
+  window.history.pushState(null, "", "/account");
+  const services = createAppServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Rescate de tickets" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Rescate de tickets", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/contingency-ticket-rescue");
+  const item = screen
+    .getByRole("link", { name: "Rescate de tickets" })
+    .element() as HTMLAnchorElement;
+  expect(item.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a typed /contingency-ticket-rescue to Mi cuenta for a user without contingency_ticket_rescue, without sending anything", async () => {
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Villalba",
+        isAdministrator: false,
+        capabilities: ["backups_area"],
+      }),
+    ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/contingency-ticket-rescue");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/account");
+  expect(
+    services.contingencyTicketRescueScreen.rescueContingencyBackupTicket,
+  ).not.toHaveBeenCalled();
 });
