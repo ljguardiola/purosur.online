@@ -2682,11 +2682,6 @@ describe("the route access inventory", () => {
       { method: "PUT", url: "/api/freights/:id", access: capabilityAccess("freights") },
       {
         method: "GET",
-        url: "/api/supplier-price-comparison",
-        access: capabilityAccess("price_comparison"),
-      },
-      {
-        method: "GET",
         url: "/api/supplier-price-lists",
         access: capabilityAccess("supplier_price_lists"),
       },
@@ -2744,6 +2739,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/supplier-price-lists/:id/refresh",
         access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-comparison",
+        access: capabilityAccess("price_comparison"),
       },
       {
         method: "GET",

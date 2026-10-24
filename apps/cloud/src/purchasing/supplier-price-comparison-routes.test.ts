@@ -111,8 +111,8 @@ describe("GET /supplier-price-comparison", () => {
         ],
       ),
     ).toEqual([
-      ["Beta", { numerator: "5000", denominator: "3" }, true],
-      ["Alfa", { numerator: "1200", denominator: "1" }, false],
+      ["Alfa", { numerator: "1200", denominator: "1" }, true],
+      ["Beta", { numerator: "5000", denominator: "3" }, false],
     ]);
   });
 
