@@ -1,7 +1,7 @@
 import type { SupplierItemLinkChoices, SupplierItemLinkProposal } from "@purosur/contracts";
 
 export const PASAS_ID = "90d00000-0000-4000-8000-000000000021";
-export const ALMENDRAS_ID = "90d00000-0000-4000-8000-000000000003";
+const ALMENDRAS_ID = "90d00000-0000-4000-8000-000000000003";
 
 export const CAJA_DE_PASAS = {
   id: "9ac00000-0000-4000-8000-000000000031",
