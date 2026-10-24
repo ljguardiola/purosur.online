@@ -1885,7 +1885,13 @@ describe("startServer reading supplier price lists", () => {
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
     const [appOptions] = buildApp.mock.calls[0] as [
-      { purchasing?: { supplierPriceListFiles?: unknown; supplierPriceListWebPages?: unknown } },
+      {
+        purchasing?: {
+          supplierPriceListFiles?: unknown;
+          supplierPriceListWebPages?: unknown;
+          productChooser?: unknown;
+        };
+      },
     ];
     return { backgroundJobsEnv: setUp.mock.calls[0]?.[0] as SetUpBackgroundJobsEnv, appOptions };
   }
@@ -1913,6 +1919,24 @@ describe("startServer reading supplier price lists", () => {
     expect(appOptions.purchasing?.supplierPriceListWebPages).toEqual(
       expect.objectContaining({ read: expect.any(Function) }),
     );
+  });
+
+  it("gives the purchasing routes a chooser of products when the AI key is configured, with or without the bucket", async () => {
+    const withBucket = await startedWith({ ...env, ...aiKey, ...priceListsBucket });
+    const withoutBucket = await startedWith({ ...env, ...aiKey });
+
+    for (const { appOptions } of [withBucket, withoutBucket]) {
+      expect(appOptions.purchasing?.productChooser).toEqual(
+        expect.objectContaining({ choose: expect.any(Function) }),
+      );
+    }
+  });
+
+  it("gives the purchasing routes no chooser of products without the AI key", async () => {
+    const { appOptions } = await startedWith({ ...env, ...priceListsBucket });
+
+    expect(appOptions.purchasing).toBeDefined();
+    expect(appOptions.purchasing).not.toHaveProperty("productChooser");
   });
 
   it("gives the purchasing routes no files and no reader of web pages without the AI key", async () => {
