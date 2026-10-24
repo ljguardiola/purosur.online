@@ -8,6 +8,7 @@ import { FakeStockStore } from "./test-support/fake-stock-store.js";
 const SOLD_AT = new Date("2026-10-09T14:20:00.000Z");
 const BEFORE_SALE = new Date("2026-10-09T12:00:00.000Z");
 const AFTER_SALE = new Date("2026-10-09T16:00:00.000Z");
+const AFTER_COUNT = new Date("2026-10-09T18:00:00.000Z");
 const BREAD = { productId: "product-bread", locationId: "branch-1" };
 const CHEESE = { productId: "product-cheese", locationId: "branch-1" };
 
@@ -407,17 +408,27 @@ describe("applyRegisterStockMovements", () => {
       expect(remainingByLot(store)).toEqual({ "this-line": 3000, "other-line": 0 });
     });
 
-    it("changes no lot when the sale made no allocation", async () => {
+    it("gives a void dated after the count that superseded its sale to the most recently received lot", async () => {
       const store = storeWithProducts();
-      store.seedLot({ ...BREAD, id: "stocked", remaining: 5000 });
-      seedSale(store, "sale-line-1", []);
+      store.seedLot({ ...BREAD, id: "stocked", remaining: 10_000 });
+      seedCount(store, AFTER_SALE);
+      await apply(
+        store,
+        sale([
+          {
+            id: "register-movement-1",
+            saleLineId: "sale-line-1",
+            productId: "product-bread",
+            kind: "sale",
+            delta: -3000,
+          },
+        ]),
+      );
 
-      const outcome = await apply(store, sale(returned(3000)));
+      await apply(store, { ...sale(returned(3000)), occurredAt: AFTER_COUNT });
 
-      expect(outcome).toEqual({ kind: "applied" });
       expect(store.balanceOf(BREAD)).toBe(13_000);
-      expect(remainingByLot(store)).toEqual({ stocked: 5000 });
-      expect(store.snapshot().allocations).toEqual([]);
+      expect(remainingByLot(store)).toEqual({ stocked: 13_000 });
     });
 
     it("records no allocation for a void a count already supersedes", async () => {
