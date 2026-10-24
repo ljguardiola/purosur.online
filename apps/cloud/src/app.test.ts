@@ -1365,6 +1365,20 @@ describe("wiring the purchasing routes", () => {
         headers: ORIGIN,
       }),
       app.inject({
+        method: "PUT",
+        url: `/api/supplier-price-lists/${ID}/rows/${ID}/link`,
+        headers: ORIGIN,
+      }),
+      app.inject({
+        method: "PUT",
+        url: `/api/supplier-price-lists/${ID}/rows/${ID}/review`,
+        headers: ORIGIN,
+      }),
+      app.inject({
+        method: "GET",
+        url: `/api/supplier-price-lists/${ID}/rows/${ID}/link-proposal`,
+      }),
+      app.inject({
         method: "DELETE",
         url: `/api/supplier-price-lists/${ID}/rows/${ID}`,
         headers: ORIGIN,
@@ -1392,7 +1406,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(27).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(30).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1402,7 +1416,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(27).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(30).fill(401));
   });
 });
 
@@ -2683,6 +2697,21 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/supplier-price-lists/:id/rows/:rowId/price",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "PUT",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/link",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "PUT",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/review",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/link-proposal",
         access: capabilityAccess("supplier_price_lists"),
       },
       {
