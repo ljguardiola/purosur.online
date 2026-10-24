@@ -304,12 +304,7 @@ async function reportStartupStep(step: CoreStartupStep): Promise<void> {
     type: "core-startup-step",
     step,
   } satisfies CoreStartupStepMessage);
-  if (process.env["POS_E2E_NO_YIELD"] !== "1") {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  }
-  if (process.env["POS_E2E_BLOCK_AT_STEP"] === step) {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 40_000);
-  }
+  await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {

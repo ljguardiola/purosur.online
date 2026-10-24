@@ -47,7 +47,7 @@ env:
 jobs:
   package:
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 12
     # Every run builds both channels' installers, so a change that breaks either one fails before
     # it merges. Only a merge to main runs under the staging environment, which admits nothing but
     # main, and keeps both installers. The job builds the app code once and packages both channels
