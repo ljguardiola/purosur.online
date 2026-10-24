@@ -27,6 +27,7 @@ interface SupplierPriceListReviewActions {
 export interface FoundSupplierPriceListReviewRow
   extends Omit<SupplierPriceListReviewRow, "reviewed" | "earlier"> {
   status: SupplierPriceListRowStatus;
+  needsReview: boolean;
   // What the supplier's other lists recorded as the price, only for a row whose price changed.
   previousPriceCents: number | null;
   // Cents per sale unit with VAT, exact; null for a row without a link, a price or the rate its
@@ -59,6 +60,7 @@ function reviewedRow(
   return {
     ...row,
     status,
+    needsReview: needsReview(status),
     previousPriceCents: status === "price_changed" ? (earlier?.priceCents ?? null) : null,
     pricePerSaleUnit:
       row.link === null || row.priceCents === null
@@ -88,7 +90,7 @@ export async function findSupplierPriceListReview(
     list: { ...list, replaced: replacedListIds(await reader.lists()).has(listId) },
     rows,
     counts: {
-      needingReview: rows.filter((row) => needsReview(row.status)).length,
+      needingReview: rows.filter((row) => row.needsReview).length,
       linkedAutomatically: rows.filter((row) => row.status === "linked").length,
     },
     actions: {
