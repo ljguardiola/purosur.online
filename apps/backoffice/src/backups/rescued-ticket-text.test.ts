@@ -3,6 +3,7 @@ import { expect, test } from "vitest";
 import {
   REFUSED_TICKET_TITLE,
   rescuedTicketTitle,
+  rescuedTicketTotalText,
   rescuedTicketVouchersText,
 } from "./rescued-ticket-text";
 
@@ -76,4 +77,12 @@ test("gives each refusal of the cloud its own title", () => {
     foreign_installation: "Ticket de otra instalación",
     conflicting: "Los QR no son del mismo ticket",
   });
+});
+
+test("writes the total of a sale in pesos", () => {
+  expect(rescuedTicketTotalText(saleSummary)).toBe("$ 8.940,00");
+});
+
+test("writes a dash for a ticket without a total", () => {
+  expect(rescuedTicketTotalText({ ...saleSummary, sale_total: null })).toBe("—");
 });
