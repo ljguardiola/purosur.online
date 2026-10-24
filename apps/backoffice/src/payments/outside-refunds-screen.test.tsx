@@ -4,11 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { createQueryClient } from "../platform/query-client";
+import { deferred } from "../platform/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
 import { OutsideRefundsScreen } from "./outside-refunds-screen";
 import type { OutsideRefundsScreenServices } from "./outside-refunds-services";
 import { type OutsideRefundsFilters, outsideRefundsFilters } from "./routes";
-import { deferred } from "./test-support/deferred";
 import { createOutsideRefundsServices } from "./test-support/outside-refunds-screen-services";
 import {
   LATE_POINT_PAYMENT_REFUND_ID,

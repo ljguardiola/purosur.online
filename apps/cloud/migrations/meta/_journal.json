@@ -915,8 +915,15 @@
     {
       "idx": 130,
       "version": "7",
-      "when": 1792792325546,
-      "tag": "0137_deferred_invoice_prints",
+      "when": 1792793976581,
+      "tag": "0137_fiscal_task_closing_record",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1792815818186,
+      "tag": "0138_deferred_invoice_prints",
       "breakpoints": true
     }
   ]

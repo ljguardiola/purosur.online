@@ -15,6 +15,36 @@ export function RestoringScreen({
   registerName: string | null;
   standing: RestoringStanding;
 }) {
+  if (standing.kind === "failed" && standing.step === "replenish") {
+    const originEyebrow =
+      standing.origin === "no_copy" ? "REINSTALADA SIN COPIA" : "RESTAURADA DESDE UNA COPIA";
+    return (
+      <BrandPanelScreen>
+        <main className="flex w-full max-w-110 flex-col gap-4">
+          <ScreenHeader
+            eyebrow={registerEyebrow(registerName, originEyebrow)}
+            title="La caja no pudo ponerse al día"
+            description="La caja no puede vender hasta ponerse al día con la nube."
+          />
+          {standing.failure === "unreadable_event" ? (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="Actualizá la caja"
+              description="Esta versión no puede leer parte de lo que mandó la nube. Después de actualizar, la caja lo intenta sola."
+            />
+          ) : (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="Llamá a un Administrador"
+              description="La nube rechazó ponerla al día. Un Administrador tiene que dar de alta la caja de nuevo."
+            />
+          )}
+        </main>
+      </BrandPanelScreen>
+    );
+  }
   if (standing.kind === "failed") {
     return (
       <BrandPanelScreen>

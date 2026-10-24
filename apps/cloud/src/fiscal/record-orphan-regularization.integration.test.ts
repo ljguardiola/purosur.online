@@ -428,6 +428,8 @@ describe("recording the regularization of an orphan authorization on a real Post
         state: "open",
         createdAt: OPENED_AT,
         closedAt: null,
+        closedBy: null,
+        closingNote: null,
       });
       const alert = (await db.select().from(alerts)).find((row) => row.scope === "9:factura_c:100");
       expect(alert).toMatchObject({

@@ -1,6 +1,7 @@
 import {
   PRE_EMISSION_GATE_FAILURE_REASONS,
   PUSH_BATCH_MAX_EVENTS,
+  REPLENISHMENT_FAILURE_KINDS,
   SALES_DENIED_REASONS,
   SERIAL_DEVICE_REPORT_STANDINGS,
 } from "@purosur/domain";
@@ -72,10 +73,18 @@ const clockDriftReportSchema = z.union([
   z.object({ clock_drift: absent }),
 ]);
 
+const replenishmentFailedReportSchema = z.union([
+  z.object({
+    replenishment_failed: z.union([z.literal(false), z.enum(REPLENISHMENT_FAILURE_KINDS)]),
+  }),
+  z.object({ replenishment_failed: absent }),
+]);
+
 const registerTelemetrySchema = storageTelemetrySchema
   .and(salesDeniedReportSchema)
   .and(fiscalEmissionStoppedReportSchema)
-  .and(clockDriftReportSchema);
+  .and(clockDriftReportSchema)
+  .and(replenishmentFailedReportSchema);
 
 export const PUSH_EVENTS_REQUEST_MAX_BYTES = 16_777_216;
 

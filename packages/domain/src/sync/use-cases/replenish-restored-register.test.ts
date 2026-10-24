@@ -10,6 +10,8 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
+import type { RegisterVersion } from "../../register/index.js";
+import type { ReplenishmentFailure } from "../model/replenishment-failure.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import {
   A_CLOCK_CORRECTED_FACT,
@@ -46,11 +48,18 @@ const A_FACTURA_C: FacturaC = {
 
 const PREDECESSOR = { deviceId: "device-old", lastAcknowledgedSeq: 52 };
 
-function aRestoredRegister() {
+const APP_VERSION: RegisterVersion = { major: 1, minor: 4, patch: 0 };
+
+const OLDER_VERSION: RegisterVersion = { major: 1, minor: 3, patch: 9 };
+
+function aRestoredRegister(
+  failure?: ReplenishmentFailure,
+  appVersion: RegisterVersion | null = APP_VERSION,
+) {
   const feed = new FakeRegisterReplenishmentFeed();
-  const store = new FakeRegisterReplenishmentStore(PREDECESSOR);
+  const store = new FakeRegisterReplenishmentStore(PREDECESSOR, failure);
   const decoder = new FakeRegisterReplenishmentDecoder();
-  const run = () => replenishRestoredRegister({ feed, store, decoder });
+  const run = () => replenishRestoredRegister({ feed, store, decoder, appVersion });
   return { feed, store, decoder, run };
 }
 
@@ -93,6 +102,7 @@ describe("replenishRestoredRegister", () => {
       feed,
       store,
       decoder: new FakeRegisterReplenishmentDecoder(),
+      appVersion: APP_VERSION,
     });
 
     expect(outcome).toEqual({ kind: "nothing_to_replenish" });
@@ -982,5 +992,128 @@ describe("replenishRestoredRegister", () => {
       expect(store.state.rebuiltUnclearDeferrals).toEqual([]);
       expect(store.state.appliedEventIds).toEqual([]);
     });
+  });
+});
+
+describe("the failure of a replenishment", () => {
+  const REFUSED: ReplenishmentFailure = {
+    kind: "refused",
+    refusal: "predecessor_not_of_register",
+  };
+  const UNREADABLE: ReplenishmentFailure = {
+    kind: "unreadable_event",
+    eventId: "event-device-old-54",
+    reason: "garbled",
+    appVersion: APP_VERSION,
+  };
+
+  it("records the cloud's refusal", async () => {
+    const { feed, store, run } = aRestoredRegister();
+    feed.answers = [{ kind: "refused", refusal: "cursor_not_of_replenishment" }];
+
+    const outcome = await run();
+
+    expect(outcome).toEqual({ kind: "refused", refusal: "cursor_not_of_replenishment" });
+    expect(store.state.failure).toEqual({
+      kind: "refused",
+      refusal: "cursor_not_of_replenishment",
+    });
+  });
+
+  it("records an event that cannot be read with the version that could not read it", async () => {
+    const { feed, store, decoder, run } = aRestoredRegister();
+    decoder.unreadable.set("event-device-old-54", "garbled");
+    feed.answers = [aPage([anEvent("device-old", 53), anEvent("device-old", 54)])];
+
+    await run();
+
+    expect(store.state.failure).toEqual(UNREADABLE);
+  });
+
+  it("records an unreadable event with no version when the register does not know its own", async () => {
+    const { feed, store, decoder, run } = aRestoredRegister(undefined, null);
+    decoder.unreadable.set("event-device-old-54", "garbled");
+    feed.answers = [aPage([anEvent("device-old", 54)])];
+
+    await run();
+
+    expect(store.state.failure).toEqual({ ...UNREADABLE, appVersion: null });
+  });
+
+  it.each([
+    ["a refusal", REFUSED],
+    ["an unreadable event on the same version", UNREADABLE],
+  ])("holds %s without asking the cloud again", async (_name, failure) => {
+    const { feed, store, run } = aRestoredRegister(failure);
+
+    const outcome = await run();
+
+    expect(outcome).toEqual({ kind: "held_failure", failure });
+    expect(feed.requests).toEqual([]);
+    expect(store.transactions).toBe(0);
+    expect(store.state.failure).toEqual(failure);
+  });
+
+  it("tries an unreadable event again on a newer version and forgets the failure once it completes", async () => {
+    const { feed, store, run } = aRestoredRegister(
+      { ...UNREADABLE, appVersion: OLDER_VERSION },
+      APP_VERSION,
+    );
+    feed.answers = [aPage([anEvent("device-old", 54)])];
+
+    const outcome = await run();
+
+    expect(outcome).toEqual({ kind: "replenished" });
+    expect(feed.requests).toHaveLength(1);
+    expect(store.state.failure).toBeUndefined();
+    expect(store.state.predecessor).toBeUndefined();
+  });
+
+  it("records the failure again when the newer version cannot read the event either", async () => {
+    const { feed, store, decoder, run } = aRestoredRegister(
+      { ...UNREADABLE, appVersion: OLDER_VERSION },
+      APP_VERSION,
+    );
+    decoder.unreadable.set("event-device-old-54", "still garbled");
+    feed.answers = [aPage([anEvent("device-old", 54)])];
+
+    await run();
+
+    expect(store.state.failure).toEqual({ ...UNREADABLE, reason: "still garbled" });
+  });
+
+  it("forgets the failure when the replenishment only ends partially replenished", async () => {
+    const { feed, store, run } = aRestoredRegister({ ...UNREADABLE, appVersion: OLDER_VERSION });
+    store.notYetApplicable.add("event-device-old-54");
+    feed.answers = [aPage([anEvent("device-old", 54)])];
+
+    const outcome = await run();
+
+    expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+    expect(store.state.failure).toBeUndefined();
+  });
+
+  it.each([
+    ["unreachable", { kind: "unreachable" } as const],
+    ["failed", { kind: "failed", failure: { kind: "unreadable" } } as const],
+  ])("keeps the held failure when the cloud answers %s", async (_name, answer) => {
+    const { feed, store, run } = aRestoredRegister({ ...UNREADABLE, appVersion: OLDER_VERSION });
+    feed.answers = [answer];
+
+    await run();
+
+    expect(store.state.failure).toEqual({ ...UNREADABLE, appVersion: OLDER_VERSION });
+  });
+
+  it.each([
+    ["unreachable", { kind: "unreachable" } as const],
+    ["failed", { kind: "failed", failure: { kind: "unreadable" } } as const],
+  ])("records nothing when the cloud answers %s", async (_name, answer) => {
+    const { feed, store, run } = aRestoredRegister();
+    feed.answers = [answer];
+
+    await run();
+
+    expect(store.state.failure).toBeUndefined();
   });
 });

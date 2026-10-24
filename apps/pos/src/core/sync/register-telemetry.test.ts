@@ -1,6 +1,7 @@
 import type {
   BatteryReport,
   LatestPreEmissionGateOutcome,
+  PendingReplenishment,
   SalesStopState,
   SerialDevicesReport,
   StorageSalesStop,
@@ -67,6 +68,7 @@ describe("the register's telemetry", () => {
       ...STORAGE,
       sales_denied: false,
       fiscal_emission_stopped: false,
+      replenishment_failed: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
@@ -82,6 +84,7 @@ describe("the register's telemetry", () => {
       sales_denied: false,
       fiscal_emission_stopped: true,
       fiscal_emission_stopped_reason: "gross_income_registration_missing",
+      replenishment_failed: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
@@ -107,6 +110,7 @@ describe("the register's telemetry", () => {
       sales_denied: true,
       sales_denied_reason: "event_history_broken",
       fiscal_emission_stopped: false,
+      replenishment_failed: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
@@ -115,6 +119,7 @@ describe("the register's telemetry", () => {
     expect(await readerStopped({ stopped: true, reason: "installation_revoked" })()).toEqual({
       ...STORAGE,
       fiscal_emission_stopped: false,
+      replenishment_failed: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
@@ -237,6 +242,89 @@ describe("the register's clock drift telemetry", () => {
 
     expect(before).toMatchObject({ clock_drift: false });
     expect(after).toMatchObject({ clock_drift: true });
+  });
+});
+
+describe("the register's replenishment failure telemetry", () => {
+  function readerOfReplenishment(
+    readPendingReplenishment: () => PendingReplenishment | undefined,
+    appVersion: string | undefined = "1.4.0",
+  ) {
+    return registerTelemetryReader(
+      async () => STORAGE,
+      () => ({ stopped: false }),
+      () => SERIAL_DEVICES,
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => false,
+      () => false,
+      () => null,
+      readPendingReplenishment,
+      appVersion,
+    );
+  }
+
+  it("reports no failure for a register with no replenishment pending", async () => {
+    const read = readerOfReplenishment(() => undefined);
+
+    expect(await read()).toMatchObject({ replenishment_failed: false });
+  });
+
+  it("reports nothing about a replenishment still pending that has not failed", async () => {
+    const read = readerOfReplenishment(() => ({ failure: undefined }));
+
+    expect(await read()).not.toHaveProperty("replenishment_failed");
+  });
+
+  it("reads the pending replenishment each time it reports, naming the kind of its failure", async () => {
+    let pending: PendingReplenishment | undefined = { failure: undefined };
+    const read = readerOfReplenishment(() => pending);
+
+    const before = await read();
+    pending = { failure: { kind: "refused", refusal: "predecessor_not_revoked" } };
+    const refused = await read();
+    pending = {
+      failure: {
+        kind: "unreadable_event",
+        eventId: "event-1",
+        reason: "garbled",
+        appVersion: { major: 1, minor: 4, patch: 0 },
+      },
+    };
+    const unreadable = await read();
+    pending = undefined;
+    const after = await read();
+
+    expect(before).not.toHaveProperty("replenishment_failed");
+    expect(refused).toMatchObject({ replenishment_failed: "refused" });
+    expect(unreadable).toMatchObject({ replenishment_failed: "unreadable_event" });
+    expect(after).toMatchObject({ replenishment_failed: false });
+  });
+
+  it("reports nothing about an unreadable event the running version is newer than", async () => {
+    const read = readerOfReplenishment(
+      () => ({
+        failure: {
+          kind: "unreadable_event",
+          eventId: "event-1",
+          reason: "garbled",
+          appVersion: { major: 1, minor: 4, patch: 0 },
+        },
+      }),
+      "1.4.1",
+    );
+
+    expect(await read()).not.toHaveProperty("replenishment_failed");
+  });
+
+  it("is not reported by a register whose local database is damaged", async () => {
+    const read = damagedRegisterTelemetryReader(
+      async () => STORAGE,
+      () => undefined,
+    );
+
+    expect(await read()).not.toHaveProperty("replenishment_failed");
   });
 });
 

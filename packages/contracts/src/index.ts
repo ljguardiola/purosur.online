@@ -165,6 +165,8 @@ export type { FiscalAddressCreationBody } from "./fiscal/fiscal-address-creation
 export { fiscalAddressCreationBodySchema } from "./fiscal/fiscal-address-creation.js";
 export type { FiscalAddressEditBody } from "./fiscal/fiscal-address-edit.js";
 export { fiscalAddressEditBodySchema } from "./fiscal/fiscal-address-edit.js";
+export type { FiscalTaskClosingBody } from "./fiscal/fiscal-task-closing.js";
+export { fiscalTaskClosingBodySchema } from "./fiscal/fiscal-task-closing.js";
 export type { FiscalTaskItem, FiscalTasks } from "./fiscal/fiscal-tasks.js";
 export { fiscalTaskItemSchema, fiscalTasksSchema } from "./fiscal/fiscal-tasks.js";
 export type { FortnightPresentationBody } from "./fiscal/fortnight-presentation.js";

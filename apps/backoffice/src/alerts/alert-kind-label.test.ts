@@ -72,6 +72,10 @@ test("names the alert of a register whose clock is off from the real time", () =
   expect(alertKindLabel("clock_drift")).toBe("Reloj de la caja desajustado");
 });
 
+test("names the alert of a register whose replenishment can never complete", () => {
+  expect(alertKindLabel("register_replenishment_failed")).toBe("Caja sin poder ponerse al día");
+});
+
 test("names the alert of a presentation whose document ARCA rejected", () => {
   expect(alertKindLabel("fortnight_report_document_rejected")).toBe(
     "Comprobante rechazado en un informe quincenal",

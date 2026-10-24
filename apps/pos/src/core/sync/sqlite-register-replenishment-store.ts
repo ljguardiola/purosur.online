@@ -1,3 +1,5 @@
+import { registerVersionText } from "@purosur/contracts";
+import type { PendingReplenishment } from "@purosur/domain";
 import type { IdGenerator } from "@purosur/domain/register/use-cases";
 import type {
   RegisterPredecessor,
@@ -5,6 +7,8 @@ import type {
   RegisterReplenishmentTransaction,
   ReplenishedEventApplication,
   ReplenishedEventSource,
+  ReplenishmentFailure,
+  ReplenishmentRefusal,
   SyncedFact,
 } from "@purosur/domain/sync/use-cases";
 import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
@@ -20,6 +24,7 @@ import {
 import { applyReplenishedGateFailure } from "../fiscal/replenished-gate-failures";
 import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-offline-fiscal-documents";
 import type { LocalDatabase } from "../platform/local-database";
+import { registerVersionOf } from "../register/register-version";
 import { applyReplenishedCashFact } from "../register/replenished-cash-facts";
 import { applyReplenishedReceiptFact } from "../sales/replenished-receipt-facts";
 import { applyReplenishedSaleFact } from "../sales/replenished-sale-facts";
@@ -31,6 +36,45 @@ export interface SqliteRegisterReplenishmentStoreDeps {
   database: LocalDatabase;
   pepper: string;
   ids: IdGenerator;
+}
+
+interface FailureRow {
+  failure_kind: ReplenishmentFailure["kind"] | null;
+  failure_refusal: ReplenishmentRefusal | null;
+  failure_event_id: string | null;
+  failure_reason: string | null;
+  failure_app_version: string | null;
+}
+
+function failureOf(row: FailureRow): ReplenishmentFailure | undefined {
+  if (row.failure_kind === "refused" && row.failure_refusal !== null) {
+    return { kind: "refused", refusal: row.failure_refusal };
+  }
+  if (
+    row.failure_kind === "unreadable_event" &&
+    row.failure_event_id !== null &&
+    row.failure_reason !== null
+  ) {
+    return {
+      kind: "unreadable_event",
+      eventId: row.failure_event_id,
+      reason: row.failure_reason,
+      appVersion: registerVersionOf(row.failure_app_version),
+    };
+  }
+  return undefined;
+}
+
+export function readPendingReplenishment(
+  database: LocalDatabase,
+): PendingReplenishment | undefined {
+  const row = database
+    .prepare<[], FailureRow>(
+      `SELECT failure_kind, failure_refusal, failure_event_id, failure_reason, failure_app_version
+         FROM register_predecessor`,
+    )
+    .get();
+  return row && { failure: failureOf(row) };
 }
 
 export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentStore {
@@ -51,6 +95,38 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
       )
       .get();
     return row && { deviceId: row.device_id, lastAcknowledgedSeq: row.last_acknowledged_seq };
+  }
+
+  async lastFailure(): Promise<ReplenishmentFailure | undefined> {
+    return readPendingReplenishment(this.database)?.failure;
+  }
+
+  async recordFailure(failure: ReplenishmentFailure): Promise<void> {
+    this.database
+      .prepare(
+        `UPDATE register_predecessor SET
+           failure_kind = ?, failure_refusal = ?, failure_event_id = ?,
+           failure_reason = ?, failure_app_version = ?`,
+      )
+      .run(
+        failure.kind,
+        failure.kind === "refused" ? failure.refusal : null,
+        failure.kind === "unreadable_event" ? failure.eventId : null,
+        failure.kind === "unreadable_event" ? failure.reason : null,
+        failure.kind === "unreadable_event" && failure.appVersion !== null
+          ? registerVersionText(failure.appVersion)
+          : null,
+      );
+  }
+
+  async clearFailure(): Promise<void> {
+    this.database
+      .prepare(
+        `UPDATE register_predecessor SET
+           failure_kind = NULL, failure_refusal = NULL, failure_event_id = NULL,
+           failure_reason = NULL, failure_app_version = NULL`,
+      )
+      .run();
   }
 
   async applyUsers(users: readonly ReplenishedUser[]): Promise<void> {

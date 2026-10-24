@@ -175,6 +175,22 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
     return allocated;
   }
 
+  async saleLineLotAllocations(
+    key: ProductStockKey,
+    saleLineId: string,
+  ): Promise<{ lotId: string; quantity: number }[]> {
+    this.store.operationOrder.push("saleLineLotAllocations");
+    return this.state.allocations.flatMap(({ movementId, lotId, quantity }) => {
+      const movement = this.state.movements.find((row) => row.id === movementId);
+      return movement &&
+        movement.kind === "sale" &&
+        movement.saleLineId === saleLineId &&
+        sameKey(movement, key)
+        ? [{ lotId, quantity }]
+        : [];
+    });
+  }
+
   async recordMovement(movement: NewStockMovement): Promise<string> {
     this.beforeWrite("recordMovement");
     const id = movement.id ?? `movement-${this.state.nextId++}`;

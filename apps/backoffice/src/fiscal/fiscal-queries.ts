@@ -216,6 +216,11 @@ export function useFiscalTasksQuery(params: {
   });
 }
 
+export function useReloadFiscalTasks() {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: fiscalKey });
+}
+
 export function useUnbilledDeferredSalesQuery(params: {
   fetchUnbilledDeferredSales: typeof fetchUnbilledDeferredSales;
   onSessionEnded: () => void;

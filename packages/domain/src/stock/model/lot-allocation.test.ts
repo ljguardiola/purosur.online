@@ -5,6 +5,7 @@ import {
   movementAllocations,
   receiptAllocations,
   type StockLot,
+  saleVoidAllocations,
 } from "./lot-allocation.js";
 
 function lot(id: string, overrides: Partial<StockLot> = {}): StockLot {
@@ -414,6 +415,106 @@ describe("receiptAllocations for any lots and any quantity", () => {
           expect(row.remaining + (allocated?.quantity ?? 0)).toBe(Math.max(row.remaining, 0));
         }
       }),
+    );
+  });
+});
+
+describe("saleVoidAllocations", () => {
+  it("gives back to each lot exactly what the sale took from it", () => {
+    expect(
+      saleVoidAllocations(
+        [lot("soon"), lot("late")],
+        [
+          { lotId: "soon", quantity: -2000 },
+          { lotId: "late", quantity: -4000 },
+        ],
+        6000,
+      ),
+    ).toEqual([
+      { target: target("soon"), quantity: 2000 },
+      { target: target("late"), quantity: 4000 },
+    ]);
+  });
+
+  it("adds up what the sale took from the same lot more than once", () => {
+    expect(
+      saleVoidAllocations(
+        [lot("soon"), lot("late")],
+        [
+          { lotId: "soon", quantity: -2000 },
+          { lotId: "late", quantity: -1000 },
+          { lotId: "soon", quantity: -500 },
+        ],
+        3500,
+      ),
+    ).toEqual([
+      { target: target("soon"), quantity: 2500 },
+      { target: target("late"), quantity: 1000 },
+    ]);
+  });
+
+  it("skips a lot whose allocations cancel out", () => {
+    expect(
+      saleVoidAllocations(
+        [lot("soon"), lot("late")],
+        [
+          { lotId: "soon", quantity: -2000 },
+          { lotId: "soon", quantity: 2000 },
+          { lotId: "late", quantity: -1000 },
+        ],
+        1000,
+      ),
+    ).toEqual([{ target: target("late"), quantity: 1000 }]);
+  });
+
+  it("gives what no allocation of the sale covers to the most recently received lot", () => {
+    const lots = [
+      lot("older", { receivedAt: new Date("2026-01-01T12:00:00.000Z") }),
+      lot("newest", { receivedAt: new Date("2026-09-01T12:00:00.000Z") }),
+    ];
+
+    expect(saleVoidAllocations(lots, [], 3000)).toEqual([
+      { target: target("newest"), quantity: 3000 },
+    ]);
+  });
+
+  it("opens a technical lot for what the sale's allocations don't cover when the product has no lot", () => {
+    expect(saleVoidAllocations([], [], 3000)).toEqual([
+      { target: { kind: "new_technical_lot" }, quantity: 3000 },
+    ]);
+  });
+
+  it("opens no technical lot when the sale's allocations cover the whole void", () => {
+    expect(saleVoidAllocations([], [{ lotId: "sold-from", quantity: -3000 }], 3000)).toEqual([
+      { target: target("sold-from"), quantity: 3000 },
+    ]);
+  });
+
+  it("adds what the sale's allocations don't cover to the same lot they give back to", () => {
+    expect(saleVoidAllocations([lot("only")], [{ lotId: "only", quantity: -2000 }], 3000)).toEqual([
+      { target: target("only"), quantity: 3000 },
+    ]);
+  });
+
+  it("allocates exactly the void's quantity, to each lot at most once", () => {
+    fc.assert(
+      fc.property(
+        lotsArbitrary,
+        fc.array(fc.integer({ min: -60, max: 60 }), { maxLength: 6 }),
+        fc.integer({ min: 1, max: 60 }),
+        (lots, quantities, delta) => {
+          const saleAllocations = quantities.map((quantity, index) => ({
+            lotId: `lot-${index % Math.max(lots.length, 1)}`,
+            quantity,
+          }));
+
+          const allocations = saleVoidAllocations(lots, saleAllocations, delta);
+
+          expect(total(allocations)).toBe(delta);
+          expect(new Set(targetKeys(allocations)).size).toBe(allocations.length);
+          expect(allocations.every((allocation) => allocation.quantity !== 0)).toBe(true);
+        },
+      ),
     );
   });
 });

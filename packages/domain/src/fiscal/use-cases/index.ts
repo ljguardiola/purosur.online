@@ -146,6 +146,15 @@ export type {
   BranchClockCorrection,
   ClockCorrectionReader,
 } from "./clock-correction-reader.js";
+export type { CloseFiscalTaskInput, CloseFiscalTaskOutcome } from "./close-fiscal-task.js";
+export { closeFiscalTask } from "./close-fiscal-task.js";
+export type {
+  CloseFiscalTaskPorts,
+  CloseFiscalTaskStore,
+  CloseFiscalTaskStoreTransaction,
+  FiscalTaskClosingAudit,
+  FiscalTaskClosingRecord,
+} from "./close-fiscal-task-ports.js";
 export type {
   ConfigureRegisterOfflinePointOfSaleInput,
   ConfigureRegisterOfflinePointOfSaleOutcome,

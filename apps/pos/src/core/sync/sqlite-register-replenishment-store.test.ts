@@ -23,7 +23,10 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { signIn } from "../sessions/sign-in";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
-import { SqliteRegisterReplenishmentStore } from "./sqlite-register-replenishment-store";
+import {
+  readPendingReplenishment,
+  SqliteRegisterReplenishmentStore,
+} from "./sqlite-register-replenishment-store";
 
 const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
@@ -119,6 +122,138 @@ describe("the register's store for replenishing a restored register", () => {
       await store.finish();
 
       expect(await store.predecessor()).toBeUndefined();
+    });
+  });
+
+  describe("the failure", () => {
+    beforeEach(() => {
+      database
+        .prepare(
+          "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)",
+        )
+        .run("device-old", 52);
+    });
+
+    it("is unknown while the replenishment has not failed", async () => {
+      expect(await store.lastFailure()).toBeUndefined();
+    });
+
+    it("is the refusal the cloud answered", async () => {
+      await store.recordFailure({ kind: "refused", refusal: "predecessor_not_revoked" });
+
+      expect(await store.lastFailure()).toEqual({
+        kind: "refused",
+        refusal: "predecessor_not_revoked",
+      });
+    });
+
+    it.each([{ major: 1, minor: 4, patch: 0 }, null])(
+      "is the event that could not be read by version %o",
+      async (appVersion) => {
+        const failure = {
+          kind: "unreadable_event",
+          eventId: "event-9",
+          reason: "garbled",
+          appVersion,
+        } as const;
+        await store.recordFailure(failure);
+
+        expect(await store.lastFailure()).toEqual(failure);
+      },
+    );
+
+    it("names no version for an event whose stored version cannot be read", async () => {
+      database.exec(
+        `UPDATE register_predecessor SET failure_kind = 'unreadable_event',
+           failure_event_id = 'event-9', failure_reason = 'garbled', failure_app_version = 'garbled'`,
+      );
+
+      expect(await store.lastFailure()).toEqual({
+        kind: "unreadable_event",
+        eventId: "event-9",
+        reason: "garbled",
+        appVersion: null,
+      });
+    });
+
+    it("keeps the predecessor it belongs to", async () => {
+      await store.recordFailure({ kind: "refused", refusal: "predecessor_not_revoked" });
+
+      expect(await store.predecessor()).toEqual({
+        deviceId: "device-old",
+        lastAcknowledgedSeq: 52,
+      });
+    });
+
+    it("is replaced by a later failure without leaving anything of the earlier one", async () => {
+      await store.recordFailure({
+        kind: "unreadable_event",
+        eventId: "event-9",
+        reason: "garbled",
+        appVersion: { major: 1, minor: 4, patch: 0 },
+      });
+
+      await store.recordFailure({ kind: "refused", refusal: "cursor_not_of_replenishment" });
+
+      expect(await store.lastFailure()).toEqual({
+        kind: "refused",
+        refusal: "cursor_not_of_replenishment",
+      });
+      expect(
+        database
+          .prepare(
+            "SELECT failure_event_id, failure_reason, failure_app_version FROM register_predecessor",
+          )
+          .get(),
+      ).toEqual({ failure_event_id: null, failure_reason: null, failure_app_version: null });
+    });
+
+    it("is cleared without forgetting the predecessor", async () => {
+      await store.recordFailure({ kind: "refused", refusal: "predecessor_not_revoked" });
+
+      await store.clearFailure();
+
+      expect(await store.lastFailure()).toBeUndefined();
+      expect(await store.predecessor()).toEqual({
+        deviceId: "device-old",
+        lastAcknowledgedSeq: 52,
+      });
+    });
+
+    it("is forgotten once finished", async () => {
+      await store.recordFailure({ kind: "refused", refusal: "predecessor_not_revoked" });
+
+      await store.finish();
+
+      expect(await store.lastFailure()).toBeUndefined();
+    });
+  });
+
+  describe("the pending replenishment", () => {
+    const holdPredecessor = () =>
+      database
+        .prepare(
+          "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)",
+        )
+        .run("device-old", 52);
+
+    it("is none when the register holds no predecessor", () => {
+      expect(readPendingReplenishment(database)).toBeUndefined();
+    });
+
+    it("has no failure while its predecessor holds none", () => {
+      holdPredecessor();
+
+      expect(readPendingReplenishment(database)).toEqual({ failure: undefined });
+    });
+
+    it("carries the failure its predecessor holds", async () => {
+      holdPredecessor();
+      await store.recordFailure({ kind: "refused", refusal: "predecessor_not_revoked" });
+
+      expect(readPendingReplenishment(database)).toEqual({
+        failure: { kind: "refused", refusal: "predecessor_not_revoked" },
+      });
     });
   });
 

@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import type { RestorationStandingAnswer } from "@purosur/contracts";
 
 export interface RestorationStandingWatchDeps {
@@ -17,14 +18,10 @@ export function createRestorationStandingWatch({
   return {
     check() {
       const current = read();
-      if (current.kind !== last.kind || stepOf(current) !== stepOf(last)) {
+      if (!isDeepStrictEqual(current, last)) {
         last = current;
         onChanged();
       }
     },
   };
-}
-
-function stepOf(standing: RestorationStandingAnswer): string | undefined {
-  return standing.kind === "completed" ? undefined : standing.step;
 }

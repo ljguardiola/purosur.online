@@ -1,5 +1,5 @@
 {
-  "id": "ba85965f-5fee-432f-b02e-daa3571817c9",
+  "id": "924051e8-58d3-4636-87a9-6febbdbe17d3",
   "prevId": "7d47d62d-2825-4e56-97cb-a9cc39387b1d",
   "version": "7",
   "dialect": "postgresql",
@@ -3101,6 +3101,18 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "closed_by": {
+          "name": "closed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closing_note": {
+          "name": "closing_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -3190,6 +3202,15 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "fiscal_tasks_closed_by_users_id_fk": {
+          "name": "fiscal_tasks_closed_by_users_id_fk",
+          "tableFrom": "fiscal_tasks",
+          "tableTo": "users",
+          "columnsFrom": ["closed_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3223,6 +3244,10 @@
         "fiscal_tasks_closed_time_check": {
           "name": "fiscal_tasks_closed_time_check",
           "value": "(\"fiscal_tasks\".\"state\" = 'closed') = (\"fiscal_tasks\".\"closed_at\" is not null)"
+        },
+        "fiscal_tasks_closing_record_check": {
+          "name": "fiscal_tasks_closing_record_check",
+          "value": "(\"fiscal_tasks\".\"closed_by\" is null) = (\"fiscal_tasks\".\"closing_note\" is null) and (\"fiscal_tasks\".\"closed_by\" is null or \"fiscal_tasks\".\"state\" = 'closed')"
         }
       },
       "isRLSEnabled": false
@@ -8945,7 +8970,7 @@
       "checkConstraints": {
         "sale_reprints_document_check": {
           "name": "sale_reprints_document_check",
-          "value": "\"sale_reprints\".\"document\" in ('sale_receipt', 'credit_note', 'deferred_invoice')"
+          "value": "\"sale_reprints\".\"document\" in ('sale_receipt', 'credit_note')"
         },
         "sale_reprints_order_number_positive_check": {
           "name": "sale_reprints_order_number_positive_check",
@@ -9151,18 +9176,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "deferred_invoice_print_attempted_at": {
-          "name": "deferred_invoice_print_attempted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deferred_invoice_printed_at": {
-          "name": "deferred_invoice_printed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "applied_at": {
           "name": "applied_at",
           "type": "timestamp with time zone",
@@ -9224,10 +9237,6 @@
         "sales_credit_note_printed_only_after_attempted_check": {
           "name": "sales_credit_note_printed_only_after_attempted_check",
           "value": "\"sales\".\"credit_note_printed_at\" is null or \"sales\".\"credit_note_print_attempted_at\" is not null"
-        },
-        "sales_deferred_invoice_printed_only_after_attempted_check": {
-          "name": "sales_deferred_invoice_printed_only_after_attempted_check",
-          "value": "\"sales\".\"deferred_invoice_printed_at\" is null or \"sales\".\"deferred_invoice_print_attempted_at\" is not null"
         },
         "sales_state_check": {
           "name": "sales_state_check",

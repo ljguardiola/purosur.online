@@ -2728,7 +2728,8 @@ export const deferredSales = pgTable(
 // detecting any of them again opens nothing new; credit notes rejected at the same number each
 // keep their own. A task about a voucher names the register that holds its point of sale when the
 // task is opened; a task about a deferred sale names the register that recorded the sale, and no
-// voucher: none was ever issued for it.
+// voucher: none was ever issued for it. A person closes a task with a note; one that closes by
+// itself keeps neither.
 export const fiscalTasks = pgTable(
   "fiscal_tasks",
   {
@@ -2746,6 +2747,8 @@ export const fiscalTasks = pgTable(
     state: text("state").notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    closedBy: uuid("closed_by").references(() => users.id),
+    closingNote: text("closing_note"),
   },
   (table) => [
     uniqueIndex("fiscal_tasks_voucher_key")
@@ -2780,6 +2783,10 @@ export const fiscalTasks = pgTable(
     check(
       "fiscal_tasks_closed_time_check",
       sql`(${table.state} = 'closed') = (${table.closedAt} is not null)`,
+    ),
+    check(
+      "fiscal_tasks_closing_record_check",
+      sql`(${table.closedBy} is null) = (${table.closingNote} is null) and (${table.closedBy} is null or ${table.state} = 'closed')`,
     ),
   ],
 );
