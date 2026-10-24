@@ -1,7 +1,10 @@
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import type { ConfirmSupplierPriceListOutcome } from "./supplier-price-lists-api";
+import type {
+  ConfirmSupplierPriceListOutcome,
+  LinkSupplierPriceListRowOutcome,
+} from "./supplier-price-lists-api";
 
 export type SupplierPriceListChangeNotice =
   | { kind: "attemptFailed" }
@@ -12,10 +15,12 @@ export type SupplierPriceListChangeNotice =
   | { kind: "noRows" }
   | { kind: "unpricedRows" }
   | { kind: "listDateMissing" }
-  | { kind: "vatMissing" };
+  | { kind: "vatMissing" }
+  | { kind: "packagingNotLinkable" }
+  | { kind: "vatRateMissing" };
 
 type RefusedChange = Exclude<
-  ConfirmSupplierPriceListOutcome,
+  ConfirmSupplierPriceListOutcome | LinkSupplierPriceListRowOutcome,
   { kind: "ok" | "unauthenticated" | "forbidden" }
 >;
 
@@ -39,8 +44,13 @@ export function supplierPriceListChangeNoticeOf(
       return { kind: "listDateMissing" };
     case "vat_missing":
       return { kind: "vatMissing" };
+    case "packaging_not_linkable":
+      return { kind: "packagingNotLinkable" };
+    case "vat_rate_missing":
+      return { kind: "vatRateMissing" };
     case "failed":
     case "validation_failed":
+    case "vat_rate_invalid":
       return { kind: "attemptFailed" };
   }
 }
@@ -107,6 +117,24 @@ export function SupplierPriceListChangeNotices({
           icon={<TriangleAlert />}
           title="La lista no tiene ítems"
           description="Cargá otra lista o descartá esta."
+        />
+      );
+    case "packagingNotLinkable":
+      return (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title="Esta presentación ya no se puede vincular"
+          description="Elegí otra o creá una nueva."
+        />
+      );
+    case "vatRateMissing":
+      return (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title="Elegí el IVA del ítem"
+          description="La lista no incluye el IVA en sus precios."
         />
       );
     case "unpricedRows":
