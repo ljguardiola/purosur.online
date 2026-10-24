@@ -4,7 +4,13 @@ import type {
   SupplierPriceListState,
 } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { supplierPriceListRows, supplierPriceLists, suppliers } from "../../platform/db/schema.js";
+import {
+  supplierItemPrices,
+  supplierItems,
+  supplierPriceListRows,
+  supplierPriceLists,
+  suppliers,
+} from "../../platform/db/schema.js";
 
 export async function insertSupplier<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -80,6 +86,11 @@ export interface PriceListRowSeed {
   presentation?: string | null;
   priceCents?: number | null;
   page?: number | null;
+  barcode?: string | null;
+  productId?: string | null;
+  packagingId?: string | null;
+  vatRate?: number | null;
+  reviewed?: boolean;
 }
 
 export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>(
@@ -98,8 +109,68 @@ export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>
         presentation: row.presentation ?? null,
         priceCents: row.priceCents === undefined ? 100 : row.priceCents,
         page: row.page ?? null,
+        barcode: row.barcode ?? null,
+        productId: row.productId ?? null,
+        packagingId: row.packagingId ?? null,
+        vatRate: row.vatRate ?? null,
+        reviewed: row.reviewed ?? false,
       })),
     )
     .returning({ id: supplierPriceListRows.id, position: supplierPriceListRows.position });
   return inserted.sort((first, second) => first.position - second.position).map(({ id }) => id);
+}
+
+export interface SupplierItemSeed {
+  supplierId: string;
+  keyKind?: "code" | "description";
+  keyValue?: string;
+  description?: string;
+  productId?: string | null;
+  packagingId?: string | null;
+  vatRate?: number | null;
+}
+
+export async function insertSupplierItem<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  seed: SupplierItemSeed,
+): Promise<string> {
+  const [item] = await db
+    .insert(supplierItems)
+    .values({
+      supplierId: seed.supplierId,
+      keyKind: seed.keyKind ?? "code",
+      keyValue: seed.keyValue ?? `C-${crypto.randomUUID()}`,
+      description: seed.description ?? "Yerba 1 kg",
+      productId: seed.productId ?? null,
+      packagingId: seed.packagingId ?? null,
+      vatRate: seed.vatRate ?? null,
+    })
+    .returning({ id: supplierItems.id });
+  if (!item) {
+    throw new Error("test setup: seeding the supplier item returned no row");
+  }
+  return item.id;
+}
+
+export interface SupplierItemPriceSeed {
+  itemId: string;
+  listId: string;
+  priceCents?: number;
+  listDate?: string;
+  pricesIncludeVat?: boolean;
+  confirmedAt?: Date;
+}
+
+export async function insertSupplierItemPrice<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  seed: SupplierItemPriceSeed,
+): Promise<void> {
+  await db.insert(supplierItemPrices).values({
+    itemId: seed.itemId,
+    listId: seed.listId,
+    priceCents: seed.priceCents ?? 1_500,
+    listDate: seed.listDate ?? "2026-03-01",
+    pricesIncludeVat: seed.pricesIncludeVat ?? false,
+    confirmedAt: seed.confirmedAt ?? new Date("2026-03-02T12:00:00.000Z"),
+  });
 }
