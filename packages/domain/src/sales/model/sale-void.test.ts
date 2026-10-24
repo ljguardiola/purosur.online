@@ -5,7 +5,6 @@ const VOIDABLE: SaleVoidFacts = {
   state: "COMPLETED",
   inOpenSession: true,
   fiscalDocumentStates: [],
-  fiscallyOnline: true,
 };
 
 function facts(changes: Partial<SaleVoidFacts>): SaleVoidFacts {
@@ -14,12 +13,7 @@ function facts(changes: Partial<SaleVoidFacts>): SaleVoidFacts {
 
 describe("SALE_VOID_REFUSALS", () => {
   it("lists every reason a sale cannot be voided, in the order they are checked", () => {
-    expect(SALE_VOID_REFUSALS).toEqual([
-      "not_completed",
-      "session_closed",
-      "invoice_in_flight",
-      "invoice_needs_connection",
-    ]);
+    expect(SALE_VOID_REFUSALS).toEqual(["not_completed", "session_closed", "invoice_in_flight"]);
   });
 });
 
@@ -52,32 +46,9 @@ describe("saleVoidRefusal", () => {
     },
   );
 
-  it("lets a sale that carries an authorized invoice be voided while the tax authority can be reached", () => {
+  it("lets a sale that carries an authorized invoice be voided", () => {
     expect(saleVoidRefusal(facts({ fiscalDocumentStates: ["AUTHORIZED"] }))).toBeNull();
     expect(saleVoidRefusal(facts({ fiscalDocumentStates: ["REJECTED", "AUTHORIZED"] }))).toBeNull();
-  });
-
-  it("refuses a sale that carries an authorized invoice while the tax authority cannot be reached", () => {
-    expect(
-      saleVoidRefusal(facts({ fiscalDocumentStates: ["AUTHORIZED"], fiscallyOnline: false })),
-    ).toBe("invoice_needs_connection");
-    expect(
-      saleVoidRefusal(
-        facts({ fiscalDocumentStates: ["REJECTED", "AUTHORIZED"], fiscallyOnline: false }),
-      ),
-    ).toBe("invoice_needs_connection");
-  });
-
-  it("lets a sale without an authorized invoice be voided without a connection", () => {
-    expect(saleVoidRefusal(facts({ fiscallyOnline: false }))).toBeNull();
-    expect(
-      saleVoidRefusal(
-        facts({
-          fiscalDocumentStates: ["REJECTED", "RELEASED", "CONFLICTING"],
-          fiscallyOnline: false,
-        }),
-      ),
-    ).toBeNull();
   });
 
   it("answers not completed before a closed session", () => {
@@ -88,13 +59,5 @@ describe("saleVoidRefusal", () => {
     expect(
       saleVoidRefusal(facts({ inOpenSession: false, fiscalDocumentStates: ["REQUESTING"] })),
     ).toBe("session_closed");
-  });
-
-  it("answers an invoice in flight before a missing connection", () => {
-    expect(
-      saleVoidRefusal(
-        facts({ fiscalDocumentStates: ["AUTHORIZED", "REQUESTING"], fiscallyOnline: false }),
-      ),
-    ).toBe("invoice_in_flight");
   });
 });

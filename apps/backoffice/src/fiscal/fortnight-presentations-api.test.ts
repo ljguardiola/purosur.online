@@ -74,6 +74,7 @@ const rejectedDocumentWire = {
   buyer_tax_status_code: 1,
   rejections: [{ code: 10016, message: "Fictional observation" }],
   remedy: "awaiting_remedy",
+  remedies: ["report", "printed"],
 };
 
 const partlyRejectedWire = {
@@ -112,9 +113,29 @@ test("fetchFortnightPresentations reads how a presentation was refused, the reje
           buyerTaxStatusCode: 1,
           rejections: [{ code: 10016, message: "Fictional observation" }],
           remedy: "awaiting_remedy",
+          remedies: ["report", "printed"],
         },
       },
     ],
+  });
+});
+
+test("fetchFortnightPresentations reads the remedies the cloud offers for a rejected credit note", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [
+      {
+        ...partlyRejectedWire,
+        document_type: "credit_note_c",
+        rejected_document: { ...rejectedDocumentWire, remedies: ["report"] },
+      },
+    ]),
+  );
+
+  const outcome = await fetchFortnightPresentations();
+
+  expect(outcome).toMatchObject({
+    kind: "ok",
+    value: [{ documentType: "credit_note_c", rejectedDocument: { remedies: ["report"] } }],
   });
 });
 

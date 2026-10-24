@@ -27,6 +27,7 @@ import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
 import type { fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
 import { FixedPair } from "./fiscal-data-pair";
 import { useBuyerTaxStatusesQuery } from "./fiscal-queries";
+import { presentationDocumentTypeLabel } from "./fortnight-presentation-labels";
 import type { remedyRejectedDocument } from "./fortnight-presentations-api";
 import {
   buyerCuitMessage,
@@ -199,6 +200,7 @@ export function ReviewRejectedDocumentModal({
   });
   const busy = running || submitting;
   const rejected = target?.rejectedDocument;
+  const asksWhereTheErrorIs = (rejected?.remedies.length ?? 0) > 1;
 
   return (
     <>
@@ -293,7 +295,10 @@ export function ReviewRejectedDocumentModal({
             )}
             <div className="flex flex-col gap-3 rounded-lg bg-surface-subtle p-4">
               <div className="flex gap-6">
-                <FixedPair label="Comprobante" value="Factura C · CAEA" />
+                <FixedPair
+                  label="Comprobante"
+                  value={`${presentationDocumentTypeLabel(target.documentType)} · CAEA`}
+                />
                 <FixedPair label="Número" value={`Nº ${formatInvoiceNumber(rejected.number)}`} />
                 <FixedPair label="Fecha" value={formatCalendarDayNumeric(rejected.issuedOn)} />
                 <FixedPair label="Total" value={formatCents(rejected.total)} />
@@ -307,11 +312,13 @@ export function ReviewRejectedDocumentModal({
                 ))}
               </div>
             </div>
-            <form.AppField name="errorIn">
-              {(field) => (
-                <field.OptionCardGroup label="¿Dónde está el error?" options={WHERE_OPTIONS} />
-              )}
-            </form.AppField>
+            {asksWhereTheErrorIs && (
+              <form.AppField name="errorIn">
+                {(field) => (
+                  <field.OptionCardGroup label="¿Dónde está el error?" options={WHERE_OPTIONS} />
+                )}
+              </form.AppField>
+            )}
             {printed ? (
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-4">

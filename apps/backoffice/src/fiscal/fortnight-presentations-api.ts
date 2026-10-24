@@ -24,6 +24,7 @@ export type RejectedDocument = {
   buyerTaxStatusCode: number;
   rejections: { code: number; message: string }[];
   remedy: "awaiting_remedy" | "awaiting_resend";
+  remedies: ("report" | "printed")[];
 };
 
 export type CorrectionRefusal =
@@ -79,6 +80,7 @@ function rejectedDocumentFromWire(row: RejectedDocumentBody): RejectedDocument {
     buyerTaxStatusCode: row.buyer_tax_status_code,
     rejections: row.rejections,
     remedy: row.remedy,
+    remedies: row.remedies,
   };
 }
 

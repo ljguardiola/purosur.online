@@ -323,6 +323,7 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.taxAuthorityCounts).toEqual([
       {
         pointOfSale: 12,
+        documentType: "factura_c",
         lastAuthorized: 41,
         readAt: new Date(RECEIVED_AT.getTime() + ANSWER_DELAY_MS),
       },

@@ -23,6 +23,10 @@ function rejected(
   };
 }
 
+function rejectedCreditNote(pointOfSaleNumber: number): RejectedFortnightDocumentCandidate {
+  return { ...rejected(pointOfSaleNumber), documentType: "credit_note_c" };
+}
+
 function holds(pointOfSaleNumber: number, fortnight = FIRST_HALF, rejectedNumber = 12) {
   return {
     holds: true,
@@ -107,5 +111,14 @@ describe("detectRejectedFortnightDocuments", () => {
 
     await expect(outcome).resolves.toBe(0);
     expect(alerts.observations).toEqual([]);
+  });
+
+  it("observes the rejection of a credit note as it does that of a factura, under a scope of its own type", async () => {
+    const { alerts, outcome } = detect([rejected(9), rejectedCreditNote(9)]);
+
+    expect(await outcome).toBe(2);
+    expect(
+      alerts.observations.map((observation) => observation.holds && observation.alert.scope),
+    ).toEqual(["9:2026-09-01:factura_c", "9:2026-09-01:credit_note_c"]);
   });
 });

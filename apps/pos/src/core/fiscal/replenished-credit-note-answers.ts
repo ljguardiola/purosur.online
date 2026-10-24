@@ -11,6 +11,9 @@ export function recordReplenishedCreditNoteAnswer(
   creditNote: SaleVoidCreditNote,
   { answer, answeredAt }: RestoredCreditNoteAnswer,
 ): void {
+  if (answer.kind === "issued_offline") {
+    return;
+  }
   const held = readCreditNoteOfSale(database, creditNote.saleId);
   if (held !== null && held.answer.kind !== "in_progress") {
     return;

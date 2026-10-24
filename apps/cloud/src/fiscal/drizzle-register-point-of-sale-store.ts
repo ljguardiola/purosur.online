@@ -1,3 +1,4 @@
+import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import type {
   LockBranchRegisterResult,
   PointOfSaleClaim,
@@ -120,7 +121,7 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
       version,
       op: previous ? "update" : "insert",
     });
-    await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber);
+    await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber, FACTURA_C_DOCUMENT_TYPE);
   }
 }
 

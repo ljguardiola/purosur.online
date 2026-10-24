@@ -166,11 +166,11 @@ export function insertOfflinePointOfSale(
 ): void {
   database
     .prepare(
-      `INSERT INTO register_offline_point_of_sale (
-         register_id, point_of_sale_number, tax_authority_last_authorized_number, version
-       ) VALUES ('register-1', ?, ?, 1)`,
+      `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+       VALUES ('register-1', ?, 1)`,
     )
-    .run(pointOfSale, taxAuthorityLastAuthorizedNumber);
+    .run(pointOfSale);
+  insertOfflineSeriesCount(database, pointOfSale, "factura_c", taxAuthorityLastAuthorizedNumber);
 }
 
 export function insertOfflineNumberBlock(
@@ -179,14 +179,46 @@ export function insertOfflineNumberBlock(
   firstNumber: number,
   lastNumber: number,
   pointOfSale = POINT_OF_SALE,
+  documentType: "factura_c" | "credit_note_c" = "factura_c",
 ): void {
   database
     .prepare(
       `INSERT INTO offline_number_blocks (
          id, point_of_sale, document_type, first_number, last_number, status, version
-       ) VALUES (?, ?, 'factura_c', ?, ?, 'in_use', 1)`,
+       ) VALUES (?, ?, ?, ?, ?, 'in_use', 1)`,
     )
-    .run(id, pointOfSale, firstNumber, lastNumber);
+    .run(id, pointOfSale, documentType, firstNumber, lastNumber);
+}
+
+function insertOfflineSeriesCount(
+  database: LocalDatabase,
+  pointOfSale: number,
+  documentType: "factura_c" | "credit_note_c",
+  taxAuthorityLastAuthorizedNumber: number | null,
+  highestSyncedOfflineNumber: number | null = null,
+): void {
+  database
+    .prepare(
+      `INSERT INTO offline_series_counts (
+         point_of_sale, document_type, tax_authority_last_authorized_number, highest_synced_offline_number
+       ) VALUES (?, ?, ?, ?)`,
+    )
+    .run(pointOfSale, documentType, taxAuthorityLastAuthorizedNumber, highestSyncedOfflineNumber);
+}
+
+export function insertOfflineCreditNoteSeriesCount(
+  database: LocalDatabase,
+  pointOfSale: number,
+  taxAuthorityLastAuthorizedNumber: number | null,
+  highestSyncedOfflineNumber: number | null = null,
+): void {
+  insertOfflineSeriesCount(
+    database,
+    pointOfSale,
+    "credit_note_c",
+    taxAuthorityLastAuthorizedNumber,
+    highestSyncedOfflineNumber,
+  );
 }
 
 export const OFFLINE_CODE = "36251478963214";
@@ -324,4 +356,51 @@ export function insertBuyerTaxStatusSet(database: LocalDatabase): void {
       "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
     )
     .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "C" }]));
+}
+
+export interface OfflineCreditNoteRow {
+  id: string;
+  saleId: string;
+  creditNoteId: string;
+  pointOfSale: number;
+  number: number;
+  corrects: { voucherType: number; pointOfSale: number; number: number };
+}
+
+export function insertOfflineCreditNote(
+  database: LocalDatabase,
+  {
+    id = "offline-note-1",
+    saleId = "sale-1",
+    creditNoteId = "note-1",
+    pointOfSale = OFFLINE_POINT_OF_SALE,
+    number = 1,
+    corrects = { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 1 },
+  }: Partial<OfflineCreditNoteRow> = {},
+): void {
+  database
+    .prepare(
+      `INSERT INTO offline_fiscal_documents (
+         id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+         offline_authorization_code, fortnight_start, fortnight_end, document,
+         buyer_document_type, buyer_document_number, cause,
+         corrected_voucher_type, corrected_point_of_sale, corrected_number, credit_note_id
+       ) VALUES (
+         @id, @sale_id, @point_of_sale, 'credit_note_c', @number, '2026-09-30',
+         '2026-09-30T12:30:00.000Z', '20260930093000', @code, '2026-09-16', '2026-09-30', @document,
+         99, 0, 'no_connectivity', @voucher_type, @corrected_point_of_sale, @corrected_number, @credit_note_id
+       )`,
+    )
+    .run({
+      id,
+      sale_id: saleId,
+      point_of_sale: pointOfSale,
+      number,
+      code: OFFLINE_CODE,
+      document: JSON.stringify({ id: creditNoteId }),
+      voucher_type: corrects.voucherType,
+      corrected_point_of_sale: corrects.pointOfSale,
+      corrected_number: corrects.number,
+      credit_note_id: creditNoteId,
+    });
 }

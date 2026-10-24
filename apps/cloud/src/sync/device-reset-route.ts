@@ -69,6 +69,18 @@ function creditNoteBody({
       return { ...common, state: "REJECTED" };
     case "already_credited":
       return { ...common, state: "ALREADY_CREDITED" };
+    case "issued_offline":
+      return {
+        ...common,
+        state: "ISSUED_OFFLINE",
+        point_of_sale: answer.pointOfSale,
+        number: answer.number,
+        issued_on: answer.issuedOn,
+        issued_at: answer.issuedAt.toISOString(),
+        offline_authorization_code: answer.offlineAuthorizationCode,
+        fortnight_start: answer.fortnight.start,
+        fortnight_end: answer.fortnight.end,
+      };
   }
 }
 

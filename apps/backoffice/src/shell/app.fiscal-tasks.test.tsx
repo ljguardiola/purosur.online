@@ -119,3 +119,20 @@ test("sends a user who only sees fiscal information and opens the points of sale
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
 });
+
+test("offers to close each fiscal task only to a user with the capability to close them", async () => {
+  const services = servicesFor(["fiscal_information"]);
+  window.history.pushState(null, "", "/fiscal-tasks");
+  const without = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(without.getByText("Venta diferida vencida")).toBeVisible();
+  expect(without.getByRole("button", { name: "Cerrar tarea" }).query()).toBeNull();
+  await without.unmount();
+
+  const withCapability = await render(
+    <App help={emptyHelp} services={servicesFor(["fiscal_information", "close_fiscal_tasks"])} />,
+  );
+
+  await expect
+    .element(withCapability.getByRole("button", { name: "Cerrar tarea" }).first())
+    .toBeVisible();
+});

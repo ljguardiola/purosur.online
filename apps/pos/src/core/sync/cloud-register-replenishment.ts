@@ -47,6 +47,16 @@ function answerOf(creditNote: WireCreditNote): RestoredCreditNoteAnswer["answer"
       return { kind: "rejected" };
     case "ALREADY_CREDITED":
       return { kind: "already_credited" };
+    case "ISSUED_OFFLINE":
+      return {
+        kind: "issued_offline",
+        pointOfSale: creditNote.point_of_sale,
+        number: creditNote.number,
+        issuedOn: creditNote.issued_on,
+        issuedAt: new Date(creditNote.issued_at),
+        offlineAuthorizationCode: creditNote.offline_authorization_code,
+        fortnight: { start: creditNote.fortnight_start, end: creditNote.fortnight_end },
+      };
   }
 }
 

@@ -1,11 +1,17 @@
+import { codePointLength } from "../../shared/index.js";
 import type { FiscalDocumentType, TaxAuthorityRejection } from "./fiscal-rejection-standing.js";
-
-export const CREDIT_NOTE_C_DOCUMENT_TYPE = "credit_note_c";
+import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./fiscal-voucher-type.js";
 
 export const OPEN_FISCAL_TASK_STATE = "open";
 export const CLOSED_FISCAL_TASK_STATE = "closed";
 export const FISCAL_TASK_STATES = [OPEN_FISCAL_TASK_STATE, CLOSED_FISCAL_TASK_STATE] as const;
 export type FiscalTaskState = (typeof FISCAL_TASK_STATES)[number];
+
+export const FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH = 500;
+
+export function isFiscalTaskClosingNoteTooLong(note: string): boolean {
+  return codePointLength(note) > FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH;
+}
 
 export const DEFERRED_SALE_EXPIRED_TASK_KIND = "deferred_sale_expired";
 export const FISCAL_TASK_KINDS = [

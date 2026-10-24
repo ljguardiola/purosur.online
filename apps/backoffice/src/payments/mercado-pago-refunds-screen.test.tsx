@@ -4,11 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { createQueryClient } from "../platform/query-client";
+import { deferred } from "../platform/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
 import { MercadoPagoRefundsScreen } from "./mercado-pago-refunds-screen";
 import type { MercadoPagoRefundsScreenServices } from "./mercado-pago-refunds-services";
 import { type MercadoPagoRefundsFilters, mercadoPagoRefundsFilters } from "./routes";
-import { deferred } from "./test-support/deferred";
 import { createMercadoPagoRefundsServices } from "./test-support/mercado-pago-refunds-screen-services";
 import {
   CLOUD_SENT_REFUND_ID,

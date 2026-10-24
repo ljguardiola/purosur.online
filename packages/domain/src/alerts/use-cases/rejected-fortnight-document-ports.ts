@@ -1,11 +1,11 @@
-import type { FiscalDocumentType, Fortnight } from "../../fiscal/index.js";
+import type { FiscalTaskDocumentType, Fortnight } from "../../fiscal/index.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 
 export interface RejectedFortnightDocumentCandidate {
   pointOfSaleNumber: number;
   registerId: string;
   fortnight: Fortnight;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   rejectedNumber: number;
 }
 

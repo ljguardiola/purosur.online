@@ -16,7 +16,9 @@ import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
   facturaCFiscalBlock,
+  type OfflineAuthorizedCreditNoteC,
   type OfflineAuthorizedFacturaC,
+  offlineCreditNoteCFiscalBlock,
   offlineFacturaCFiscalBlock,
   TAX_AUTHORITY_QR_URL,
 } from "./factura-c-fiscal-block.js";
@@ -209,5 +211,49 @@ describe("creditNoteCFiscalBlock", () => {
   it("encodes the total of the credit note, not that of the invoice it corrects", () => {
     const creditNote = { ...authorizedCreditNote(5900), total: 2500 };
     expect(qrPayload(creditNoteCFiscalBlock(creditNote).qrText)).toMatchObject({ importe: 25 });
+  });
+});
+
+function offlineAuthorizedCreditNote(total: number): OfflineAuthorizedCreditNoteC {
+  const { document } = authorized(total);
+  return {
+    pointOfSale: 7,
+    number: 12,
+    issuedOn: "2026-10-15",
+    total,
+    document,
+    offlineAuthorizationCode: "71234567890123",
+    fortnight: { start: "2026-10-01", end: "2026-10-15" },
+    corrects: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 101 },
+  };
+}
+
+describe("offlineCreditNoteCFiscalBlock", () => {
+  it("carries the voucher, the issuer, the code, the fortnight and the voucher it corrects", () => {
+    expect(offlineCreditNoteCFiscalBlock(offlineAuthorizedCreditNote(5900))).toMatchObject({
+      invoiceClass: "C",
+      voucherTypeCode: 13,
+      issuer: { legalName: FICTIONAL_LEGAL_NAME, cuit: FICTIONAL_CUIT },
+      buyerTaxStatusDescription: "Consumidor Final",
+      pointOfSale: 7,
+      number: 12,
+      authorizationCode: "71234567890123",
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+      corrects: { voucherType: 11, pointOfSale: 7, number: 101 },
+    });
+  });
+
+  it("encodes the credit note's own data in the QR as authorized by a pre-obtained code", () => {
+    const { qrText } = offlineCreditNoteCFiscalBlock(offlineAuthorizedCreditNote(123456));
+    expect(JSON.stringify(qrPayload(qrText))).toBe(
+      '{"ver":1,"fecha":"2026-10-15","cuit":20000000001,"ptoVta":7,"tipoCmp":13,"nroCmp":12,"importe":1234.56,"moneda":"PES","ctz":1,"tipoDocRec":99,"nroDocRec":0,"tipoCodAut":"A","codAut":71234567890123}',
+    );
+  });
+
+  it("encodes the total of the credit note, not that of the invoice it corrects", () => {
+    const creditNote = { ...offlineAuthorizedCreditNote(5900), total: 2500 };
+    expect(qrPayload(offlineCreditNoteCFiscalBlock(creditNote).qrText)).toMatchObject({
+      importe: 25,
+    });
   });
 });

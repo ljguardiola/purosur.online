@@ -86,7 +86,7 @@ function saleDocument(database: LocalDatabase, saleId: string): BackedDocument |
 
 function creditNote(database: LocalDatabase, saleId: string): BackedDocument | null {
   const answer = readCreditNoteOfSale(database, saleId)?.answer;
-  return answer?.kind === "authorized"
+  return answer?.kind === "authorized" || answer?.kind === "issued_offline"
     ? { kind: "credit_note", pointOfSale: answer.pointOfSale, number: answer.number }
     : null;
 }

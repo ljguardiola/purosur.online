@@ -206,26 +206,57 @@ export function invoiceOwnFortnight(occurredAt: Date): Fortnight {
   return fortnightContaining(invoiceDateOf(occurredAt));
 }
 
-function offlinePath(
-  cause: OfflineAuthorizationCause,
-  { occurredAt, offlineSeries, offlineAuthorizationCode }: SaleAuthorizationPathInput,
-): SaleAuthorizationPath {
-  if (isBehindClockMark(occurredAt, offlineSeries.clockMark)) {
-    return deferred("clock_behind");
+export interface OfflineRouteInput {
+  occurredAt: Date;
+  series: OfflineSeries;
+  offlineAuthorizationCode: string | null;
+}
+
+export type OfflineRoute =
+  | {
+      kind: "issue_offline";
+      pointOfSale: number;
+      number: number;
+      issuedOn: string;
+      fortnight: Fortnight;
+      offlineAuthorizationCode: string;
+    }
+  | { kind: "unavailable"; reason: "clock_behind" | "unavailable" };
+
+export function offlineRoute({
+  occurredAt,
+  series,
+  offlineAuthorizationCode,
+}: OfflineRouteInput): OfflineRoute {
+  if (isBehindClockMark(occurredAt, series.clockMark)) {
+    return { kind: "unavailable", reason: "clock_behind" };
   }
-  const number = nextOfflineNumber(offlineSeries);
-  if (offlineSeries.pointOfSale === null || offlineAuthorizationCode === null || number === null) {
-    return deferred(DEFERRAL_REASON_OF_CAUSE[cause]);
+  const number = nextOfflineNumber(series);
+  if (series.pointOfSale === null || offlineAuthorizationCode === null || number === null) {
+    return { kind: "unavailable", reason: "unavailable" };
   }
   return {
     kind: "issue_offline",
-    cause,
-    pointOfSale: offlineSeries.pointOfSale,
+    pointOfSale: series.pointOfSale,
     number,
     issuedOn: invoiceDateOf(occurredAt),
     fortnight: invoiceOwnFortnight(occurredAt),
     offlineAuthorizationCode,
   };
+}
+
+function offlinePath(
+  cause: OfflineAuthorizationCause,
+  { occurredAt, offlineSeries, offlineAuthorizationCode }: SaleAuthorizationPathInput,
+): SaleAuthorizationPath {
+  const route = offlineRoute({ occurredAt, series: offlineSeries, offlineAuthorizationCode });
+  if (route.kind === "unavailable") {
+    return deferred(
+      route.reason === "clock_behind" ? "clock_behind" : DEFERRAL_REASON_OF_CAUSE[cause],
+    );
+  }
+  const { kind: _kind, ...issued } = route;
+  return { kind: "issue_offline", cause, ...issued };
 }
 
 export function saleAuthorizationPath(input: SaleAuthorizationPathInput): SaleAuthorizationPath {

@@ -43,6 +43,7 @@ function blockChange(
   lastNumber: number,
   version: number,
   id = BLOCK_ID,
+  documentType: "factura_c" | "credit_note_c" = "factura_c",
 ): RegisterPulledChange {
   const change: SyncChange = {
     change_seq: changeSeq,
@@ -50,7 +51,7 @@ function blockChange(
     entity_id: id,
     row: {
       point_of_sale_number: 31,
-      document_type: "factura_c",
+      document_type: documentType,
       first_number: firstNumber,
       last_number: lastNumber,
       status: "in_use",
@@ -230,6 +231,57 @@ describe("the register's own history of documents issued under a pre-obtained co
 
     expect(database.prepare("SELECT sale_id, number FROM offline_fiscal_documents").all()).toEqual([
       { sale_id: "sale-1", number: 7 },
+    ]);
+  });
+});
+
+describe("the register's local copy of the number blocks of both series", () => {
+  it("holds a credit note block beside the factura block, each in its own series", async () => {
+    await save(
+      blockChange(1, 1, 1000, 1),
+      blockChange(2, 5, 1004, 1, SECOND_BLOCK_ID, "credit_note_c"),
+    );
+
+    expect(savedBlocks()).toEqual([
+      expect.objectContaining({ document_type: "factura_c", first_number: 1, last_number: 1000 }),
+      expect.objectContaining({
+        document_type: "credit_note_c",
+        first_number: 5,
+        last_number: 1004,
+      }),
+    ]);
+  });
+
+  it("advances the credit note block without touching the factura block", async () => {
+    await save(
+      blockChange(1, 1, 1000, 1),
+      blockChange(2, 5, 1004, 1, SECOND_BLOCK_ID, "credit_note_c"),
+    );
+
+    await save(blockChange(3, 5, 1004, 2, SECOND_BLOCK_ID, "credit_note_c"));
+
+    expect(savedBlocks().map(({ document_type, version }) => [document_type, version])).toEqual([
+      ["factura_c", 1],
+      ["credit_note_c", 2],
+    ]);
+  });
+
+  it("holds both series' blocks again from the pull that follows a reset", async () => {
+    await save(
+      blockChange(1, 1, 1000, 1),
+      blockChange(2, 5, 1004, 1, SECOND_BLOCK_ID, "credit_note_c"),
+    );
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: TEST_PEPPER });
+    expect(savedBlocks()).toEqual([]);
+    await save(
+      blockChange(1, 1, 1000, 1),
+      blockChange(2, 5, 1004, 1, SECOND_BLOCK_ID, "credit_note_c"),
+    );
+
+    expect(savedBlocks().map(({ document_type }) => document_type)).toEqual([
+      "factura_c",
+      "credit_note_c",
     ]);
   });
 });

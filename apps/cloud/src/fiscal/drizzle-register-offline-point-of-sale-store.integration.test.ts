@@ -49,9 +49,12 @@ beforeAll(async () => {
     throw new Error("test setup: the seeded register is missing");
   }
   registerId = register.id;
-  await db
-    .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber: OFFLINE_POINT_OF_SALE, lastAuthorized: 37, readAt: NOON });
+  await db.insert(taxAuthorityLastAuthorizedNumbers).values({
+    pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+    documentType: "factura_c",
+    lastAuthorized: 37,
+    readAt: NOON,
+  });
 }, 60_000);
 
 afterAll(async () => {
@@ -64,13 +67,16 @@ function offlineStore() {
 }
 
 function assignAwaited(pointOfSaleNumber: number) {
-  return assignAwaitedOfflineNumberBlock(offlineStore(), { pointOfSaleNumber });
+  return assignAwaitedOfflineNumberBlock(offlineStore(), {
+    pointOfSaleNumber,
+    documentType: "factura_c",
+  });
 }
 
 async function seedTaxAuthorityCount(pointOfSaleNumber: number, lastAuthorized: number) {
   await db
     .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber, lastAuthorized, readAt: NOON });
+    .values({ pointOfSaleNumber, documentType: "factura_c", lastAuthorized, readAt: NOON });
 }
 
 async function blocksOf(pointOfSaleNumber: number) {

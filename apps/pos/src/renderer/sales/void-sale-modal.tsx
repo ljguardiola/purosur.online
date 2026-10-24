@@ -134,7 +134,6 @@ export function VoidSaleModal({
       case "not_completed":
       case "session_closed":
       case "invoice_in_flight":
-      case "invoice_needs_connection":
         setRefusalReason(voidRefusalReason(outcome.kind) ?? NOT_COMPLETED_REASON);
         onRefused();
         break;

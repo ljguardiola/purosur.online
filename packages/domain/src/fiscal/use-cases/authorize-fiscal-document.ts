@@ -180,6 +180,7 @@ export async function authorizeFiscalDocument(
           answer.kind === "authorized"
             ? {
                 pointOfSale: request.pointOfSale,
+                documentType: FACTURA_C_DOCUMENT_TYPE,
                 lastAuthorized: request.number,
                 readAt: answeredAt,
               }

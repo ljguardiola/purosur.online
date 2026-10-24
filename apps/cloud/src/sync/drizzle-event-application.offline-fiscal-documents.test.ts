@@ -77,6 +77,10 @@ describe("recording the document a register issued under a pre-obtained code", (
         netAmount: 4800,
         cause: "numbering_conflict",
         recordedAt: new Date("2026-10-06T15:00:00.000Z"),
+        creditNoteId: null,
+        correctedVoucherType: null,
+        correctedPointOfSale: null,
+        correctedNumber: null,
       },
     ]);
   });

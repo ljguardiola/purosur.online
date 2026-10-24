@@ -787,6 +787,233 @@ describe("voidSale", () => {
     });
   });
 
+  describe("a sale that carries an authorized invoice, without a connection", () => {
+    const SERIES = {
+      pointOfSale: 9,
+      blocksInAssignmentOrder: [{ firstNumber: 41, lastNumber: 1040 }],
+      localLastUsed: null,
+      taxAuthorityLastAuthorized: 40,
+      highestSyncedNumber: null,
+      clockMark: null,
+    };
+    const CODE = "71234567890123";
+    const CREDIT_NOTE = {
+      creditNoteId: "id-4",
+      saleId: "sale-1",
+      total: 6750,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+    };
+    const OFFLINE_CREDIT_NOTE = {
+      id: "id-6",
+      saleId: "sale-1",
+      creditNoteId: "id-4",
+      pointOfSale: 9,
+      documentType: "credit_note_c",
+      number: 41,
+      issuedOn: "2026-10-07",
+      generatedAt: NOW,
+      generationStamp: "20261007123000",
+      offlineAuthorizationCode: CODE,
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+      total: 6750,
+      receiverTaxStatusCode: 5,
+      corrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
+      buyerDocumentType: 99,
+      buyerDocumentNumber: 0,
+      cause: "no_connectivity",
+    };
+
+    function offlineLedger(state: Partial<FakeSaleVoidLedgerState> = {}): FakeSaleVoidLedger {
+      return ledger({
+        fiscalDocuments: [REAL_TIME_INVOICE],
+        fiscalOnlineEvidence: OFFLINE,
+        offlineCreditNoteSeries: SERIES,
+        offlineAuthorizationCodes: { "2026-10-01": CODE },
+        ...state,
+      });
+    }
+
+    it("issues the credit note itself, numbered next in the credit note series of the offline point of sale", async () => {
+      const store = offlineLedger();
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({
+        kind: "voided",
+        creditNote: CREDIT_NOTE,
+      });
+      expect(store.state.issuedOfflineCreditNotes).toEqual([OFFLINE_CREDIT_NOTE]);
+      expect(store.transactions).toBe(1);
+    });
+
+    it("records no pending request for the cloud", async () => {
+      const store = offlineLedger();
+
+      await void_(store);
+
+      expect(store.state.creditNotes).toEqual([]);
+    });
+
+    it("continues after the numbers the register already used", async () => {
+      const store = offlineLedger({ offlineCreditNoteSeries: { ...SERIES, localLastUsed: 45 } });
+
+      await void_(store);
+
+      expect(store.state.issuedOfflineCreditNotes).toMatchObject([{ number: 46 }]);
+    });
+
+    it("numbers a second void after the first", async () => {
+      const store = offlineLedger({
+        sales: [COMPLETED_SALE, { ...COMPLETED_SALE, id: "sale-2" }],
+        payments: [CASH_PAYMENT, { ...CASH_PAYMENT, id: "payment-9", saleId: "sale-2" }],
+        fiscalDocuments: [
+          REAL_TIME_INVOICE,
+          { ...REAL_TIME_INVOICE, saleId: "sale-2", number: 1205 },
+        ],
+      });
+
+      await void_(store);
+      await void_(store, { saleId: "sale-2" });
+
+      expect(store.state.issuedOfflineCreditNotes.map(({ number }) => number)).toEqual([41, 42]);
+    });
+
+    it("credits the contingency document the customer received when the sale has both", async () => {
+      const store = offlineLedger({ fiscalDocuments: [REAL_TIME_INVOICE, OFFLINE_INVOICE] });
+
+      await void_(store);
+
+      expect(store.state.issuedOfflineCreditNotes).toMatchObject([
+        { corrects: { voucherType: 11, pointOfSale: 8, number: 77 } },
+      ]);
+    });
+
+    it("raises the mark of the credit note series to the moment of the void", async () => {
+      const store = offlineLedger({
+        offlineCreditNoteSeries: { ...SERIES, clockMark: new Date(NOW.getTime() - 5_000) },
+      });
+
+      await void_(store);
+
+      expect(store.state.clockMarks).toEqual([
+        { pointOfSale: 9, documentType: "credit_note_c", reading: NOW },
+      ]);
+    });
+
+    it("appends the voiding first and the contingency credit note's report event after it", async () => {
+      const store = offlineLedger();
+
+      await void_(store);
+
+      expect(store.state.outbox.map(({ event_type }) => event_type)).toEqual([
+        "sale_voided",
+        "offline_fiscal_document_issued",
+      ]);
+      expect(store.state.outbox[1]).toMatchObject({
+        event_id: "id-7",
+        aggregate_id: "sale-1",
+        actor_id: "cashier",
+        schema_version: 3,
+        payload: {
+          fiscal_document_id: "id-6",
+          register_id: "register-1",
+          document_type: "credit_note_c",
+          number: 41,
+          credit_note_id: "id-4",
+          corrects: { voucher_type: 11, point_of_sale: 3, number: 1204 },
+          cause: "no_connectivity",
+        },
+      });
+    });
+
+    it.each<[string, Partial<FakeSaleVoidLedgerState>]>([
+      [
+        "the register has no offline point of sale",
+        { offlineCreditNoteSeries: { ...SERIES, pointOfSale: null } },
+      ],
+      [
+        "the tax authority's count of the series is unknown",
+        { offlineCreditNoteSeries: { ...SERIES, taxAuthorityLastAuthorized: null } },
+      ],
+      [
+        "the register holds no number block",
+        { offlineCreditNoteSeries: { ...SERIES, blocksInAssignmentOrder: [] } },
+      ],
+      ["the block is used up", { offlineCreditNoteSeries: { ...SERIES, localLastUsed: 1040 } }],
+      ["the fortnight has no contingency code", { offlineAuthorizationCodes: {} }],
+      [
+        "the clock is behind the series' mark",
+        { offlineCreditNoteSeries: { ...SERIES, clockMark: new Date(NOW.getTime() + 61_000) } },
+      ],
+    ])("leaves the credit note in progress for the cloud when %s", async (_case, changes) => {
+      const store = offlineLedger(changes);
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({
+        kind: "voided",
+        creditNote: CREDIT_NOTE,
+      });
+      expect(store.state.creditNotes).toEqual([CREDIT_NOTE]);
+      expect(store.state.issuedOfflineCreditNotes).toEqual([]);
+      expect(store.state.clockMarks).toEqual([]);
+      expect(store.state.outbox.map(({ event_type }) => event_type)).toEqual(["sale_voided"]);
+    });
+
+    it("requests the credit note from the cloud as usual while the register is online", async () => {
+      const store = offlineLedger({ fiscalOnlineEvidence: ONLINE });
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({ kind: "voided" });
+      expect(store.state.creditNotes).toEqual([CREDIT_NOTE]);
+      expect(store.state.issuedOfflineCreditNotes).toEqual([]);
+    });
+
+    it("issues no credit note for a sale without an authorized invoice", async () => {
+      const store = offlineLedger({ fiscalDocuments: [invoice("REJECTED")] });
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({ kind: "voided", creditNote: null });
+      expect(store.state.issuedOfflineCreditNotes).toEqual([]);
+      expect(store.state.clockMarks).toEqual([]);
+    });
+
+    it("reads the credit note series only for a sale that has a credit note to issue", async () => {
+      const store = offlineLedger({ fiscalDocuments: [invoice("REJECTED")] });
+
+      await void_(store);
+
+      expect(store.offlineSeriesReads).toBe(0);
+    });
+
+    it("issues no second credit note when the void is repeated", async () => {
+      const store = offlineLedger();
+      await void_(store);
+
+      const outcome = await void_(store);
+
+      expect(outcome).toEqual({ kind: "not_completed" });
+      expect(store.state.issuedOfflineCreditNotes).toHaveLength(1);
+      expect(store.state.outbox).toHaveLength(2);
+    });
+
+    it.each(["issueOfflineCreditNote", "recordClockMark", "appendOutboxEvent"] as const)(
+      "changes nothing when %s fails",
+      async (write) => {
+        const store = offlineLedger();
+        store.failOn = write;
+        const before = structuredClone(store.state);
+
+        await expect(void_(store)).rejects.toThrow(`${write} failed`);
+
+        expect(store.state).toEqual(before);
+      },
+    );
+  });
+
   describe("what keeps a sale from being voided", () => {
     const REFUSED_CASES: [SaleVoidRefusal, Partial<FakeSaleVoidLedgerState>][] = [
       ["not_completed", { sales: [{ ...COMPLETED_SALE, state: "VOIDED" }] }],
@@ -800,24 +1027,6 @@ describe("voidSale", () => {
       [
         "invoice_in_flight",
         { fiscalDocuments: [OFFLINE_INVOICE, invoice("UNKNOWN")], fiscalOnlineEvidence: OFFLINE },
-      ],
-      [
-        "invoice_needs_connection",
-        { fiscalDocuments: [REAL_TIME_INVOICE], fiscalOnlineEvidence: OFFLINE },
-      ],
-      [
-        "invoice_needs_connection",
-        { fiscalDocuments: [OFFLINE_INVOICE], fiscalOnlineEvidence: OFFLINE },
-      ],
-      [
-        "invoice_needs_connection",
-        {
-          fiscalDocuments: [REAL_TIME_INVOICE],
-          fiscalOnlineEvidence: {
-            ...ONLINE,
-            lastHealthCheckOkAt: new Date(NOW.getTime() - 15_001),
-          },
-        },
       ],
     ];
 

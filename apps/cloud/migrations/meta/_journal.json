@@ -908,8 +908,15 @@
     {
       "idx": 129,
       "version": "7",
-      "when": 1792803266277,
-      "tag": "0136_supplier_items",
+      "when": 1792788410344,
+      "tag": "0136_offline_credit_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1792793976581,
+      "tag": "0137_fiscal_task_closing_record",
       "breakpoints": true
     }
   ]

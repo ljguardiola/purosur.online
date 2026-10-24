@@ -18,6 +18,12 @@ describe("rejectedDocumentRemedyBodySchema", () => {
     expect(rejectedDocumentRemedyBodySchema.parse(body)).toEqual(body);
   });
 
+  it("reads the remedy of a rejected credit note", () => {
+    const body = { ...base, document_type: "credit_note_c", remedy: { kind: "report" } };
+
+    expect(rejectedDocumentRemedyBodySchema.parse(body)).toEqual(body);
+  });
+
   it("reads the remedy that corrects what was printed, with any of the corrected fields", () => {
     const bodies = [
       { ...base, remedy: { kind: "printed", correction: { issued_on: "2026-09-03" } } },

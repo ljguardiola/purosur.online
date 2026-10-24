@@ -488,10 +488,6 @@ describe("VoidSaleModal", () => {
         "invoice_in_flight",
         "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.",
       ],
-      [
-        "invoice_needs_connection",
-        "Sin conexión con ARCA, la venta con factura se anula cuando vuelva la conexión.",
-      ],
       ["not_completed", "La venta ya no se puede anular."],
     ] as const)(
       "locks voiding on %s, says why only in its tooltip, and tells the screen to read the sale again",

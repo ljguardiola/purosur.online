@@ -17,6 +17,7 @@ import {
   FISCAL_TASK_KINDS,
   FISCAL_TASK_STATES,
   type FiscalDocumentType,
+  type FiscalTaskDocumentType,
   type JsonValue,
   OFFLINE_AUTHORIZATION_CAUSES,
   OFFLINE_NUMBER_BLOCK_STATUSES,
@@ -1134,7 +1135,7 @@ export const offlineNumberBlocks = pgTable(
     check("offline_number_blocks_mechanism_offline", sql`${table.mechanism} = 'offline'`),
     check(
       "offline_number_blocks_document_type_known",
-      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
     ),
     check(
       "offline_number_blocks_range_valid",
@@ -2243,6 +2244,7 @@ export const fortnightReportState = pgEnum("fortnight_report_state", [
   "accepted",
   "needs_regularization",
   "missing_document",
+  "awaiting_invoice_report",
 ]);
 
 export const fortnightReportMovement = pgEnum("fortnight_report_movement", ["none", "documents"]);
@@ -2252,6 +2254,7 @@ export const documentTypeReportState = pgEnum("document_type_report_state", [
   "refused",
   "accepted",
   "missing_document",
+  "awaiting_invoice_report",
 ]);
 
 export const fortnightReports = pgTable(
@@ -2292,7 +2295,7 @@ export const fortnightDocumentReports = pgTable(
       .notNull()
       .references(() => caeaCodes.fortnightStart),
     fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
-    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    documentType: text("document_type").$type<FiscalTaskDocumentType>().notNull(),
     state: documentTypeReportState("state").notNull(),
     reportedThrough: integer("reported_through").notNull(),
     rejectedNumber: integer("rejected_number"),
@@ -2311,7 +2314,7 @@ export const fortnightDocumentReports = pgTable(
     ),
     check(
       "fortnight_document_reports_document_type_known",
-      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
     ),
   ],
 );
@@ -2326,7 +2329,7 @@ export const rejectedDocumentRemedies = pgTable(
       .notNull()
       .references(() => pointOfSaleClaims.pointOfSaleNumber),
     fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
-    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    documentType: text("document_type").$type<FiscalTaskDocumentType>().notNull(),
     number: integer("number").notNull(),
     kind: text("kind").$type<RejectedDocumentRemedy["kind"]>().notNull(),
     correction: jsonb("correction").$type<OfflineDocumentCorrection>(),
@@ -2368,12 +2371,12 @@ export const offlineFiscalDocuments = pgTable(
   "offline_fiscal_documents",
   {
     id: uuid("id").primaryKey(),
-    saleId: uuid("sale_id").notNull().unique(),
+    saleId: uuid("sale_id").notNull(),
     registerId: uuid("register_id")
       .notNull()
       .references(() => registers.id),
     pointOfSale: integer("point_of_sale").notNull(),
-    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    documentType: text("document_type").$type<FiscalTaskDocumentType>().notNull(),
     number: integer("number").notNull(),
     issuedOn: date("issued_on", { mode: "string" }).notNull(),
     generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
@@ -2388,8 +2391,23 @@ export const offlineFiscalDocuments = pgTable(
     netAmount: bigint("net_amount", { mode: "number" }).notNull(),
     cause: text("cause").$type<OfflineAuthorizationCause>().notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    creditNoteId: uuid("credit_note_id"),
+    correctedVoucherType: integer("corrected_voucher_type"),
+    correctedPointOfSale: integer("corrected_point_of_sale"),
+    correctedNumber: integer("corrected_number"),
   },
   (table) => [
+    unique("offline_fiscal_documents_sale_document_key").on(table.saleId, table.documentType),
+    index("offline_fiscal_documents_corrected_voucher_idx")
+      .on(table.correctedVoucherType, table.correctedPointOfSale, table.correctedNumber)
+      .where(sql`${table.documentType} = ${sql.raw(`'${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)}`),
+    check(
+      "offline_fiscal_documents_credit_note_data",
+      sql`(${table.documentType} = ${sql.raw(`'${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)}) = (${table.creditNoteId} is not null)
+        and (${table.creditNoteId} is null) = (${table.correctedVoucherType} is null)
+        and (${table.creditNoteId} is null) = (${table.correctedPointOfSale} is null)
+        and (${table.creditNoteId} is null) = (${table.correctedNumber} is null)`,
+    ),
     unique("offline_fiscal_documents_number_key").on(
       table.pointOfSale,
       table.documentType,
@@ -2397,7 +2415,7 @@ export const offlineFiscalDocuments = pgTable(
     ),
     check(
       "offline_fiscal_documents_document_type_known",
-      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
     ),
     check(
       "offline_fiscal_documents_cause_known",
@@ -2614,12 +2632,21 @@ export const arcaInvoicingEvidence = pgTable(
 export const taxAuthorityLastAuthorizedNumbers = pgTable(
   "tax_authority_last_authorized_numbers",
   {
-    pointOfSaleNumber: integer("point_of_sale_number").primaryKey(),
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    documentType: text("document_type").$type<FiscalTaskDocumentType>().notNull(),
     lastAuthorized: integer("last_authorized").notNull(),
     issuedOn: date("issued_on", { mode: "string" }),
     readAt: timestamp("read_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    primaryKey({
+      name: "tax_authority_last_authorized_numbers_pkey",
+      columns: [table.pointOfSaleNumber, table.documentType],
+    }),
+    check(
+      "tax_authority_last_authorized_numbers_document_type_known",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
+    ),
     check(
       "tax_authority_last_authorized_numbers_non_negative_check",
       sql`${table.lastAuthorized} >= 0`,
@@ -2694,7 +2721,8 @@ export const deferredSales = pgTable(
 // detecting any of them again opens nothing new; credit notes rejected at the same number each
 // keep their own. A task about a voucher names the register that holds its point of sale when the
 // task is opened; a task about a deferred sale names the register that recorded the sale, and no
-// voucher: none was ever issued for it.
+// voucher: none was ever issued for it. A person closes a task with a note; one that closes by
+// itself keeps neither.
 export const fiscalTasks = pgTable(
   "fiscal_tasks",
   {
@@ -2712,6 +2740,8 @@ export const fiscalTasks = pgTable(
     state: text("state").notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    closedBy: uuid("closed_by").references(() => users.id),
+    closingNote: text("closing_note"),
   },
   (table) => [
     uniqueIndex("fiscal_tasks_voucher_key")
@@ -2746,6 +2776,10 @@ export const fiscalTasks = pgTable(
     check(
       "fiscal_tasks_closed_time_check",
       sql`(${table.state} = 'closed') = (${table.closedAt} is not null)`,
+    ),
+    check(
+      "fiscal_tasks_closing_record_check",
+      sql`(${table.closedBy} is null) = (${table.closingNote} is null) and (${table.closedBy} is null or ${table.state} = 'closed')`,
     ),
   ],
 );

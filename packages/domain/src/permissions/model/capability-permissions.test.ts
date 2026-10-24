@@ -41,6 +41,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
   ["view_fiscal_documents", ["fiscal_information"]],
+  ["close_fiscal_tasks", ["close_fiscal_tasks"]],
 ];
 
 function inCapabilityOrder(capabilities: readonly Capability[]): Capability[] {
@@ -152,6 +153,26 @@ describe("the revoke_installations capability", () => {
           permissionKeys: PERMISSION_KEYS.filter((key) => key !== "revoke_register_devices"),
         },
         "revoke_installations",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the close_fiscal_tasks capability", () => {
+  it("is granted to whoever may close fiscal tasks and to no one else", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["close_fiscal_tasks"] },
+        "close_fiscal_tasks",
+      ),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => key !== "close_fiscal_tasks"),
+        },
+        "close_fiscal_tasks",
       ),
     ).toBe(false);
   });

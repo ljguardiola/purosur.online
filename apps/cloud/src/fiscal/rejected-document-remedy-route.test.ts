@@ -14,7 +14,10 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { registerRejectedDocumentRemedyRoute } from "./rejected-document-remedy-route.js";
-import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
+import {
+  insertOfflineCreditNote,
+  insertOfflineFiscalDocument,
+} from "./test-support/offline-fiscal-document-fixtures.js";
 import { configureOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 import { WITHOUT_CREDIT_NOTES } from "./test-support/rejected-document-remedy-fixtures.js";
 
@@ -64,7 +67,10 @@ function sessionWith(
   );
 }
 
-async function seedRejectedDocument(rejectedNumber = 3) {
+async function seedRejectedDocument(
+  rejectedNumber = 3,
+  documentType: "factura_c" | "credit_note_c" = "factura_c",
+) {
   const registerId = await configureOfflinePointOfSale(db, {
     registerName: "caja-1",
     realTimePointOfSale: 7,
@@ -79,6 +85,16 @@ async function seedRejectedDocument(rejectedNumber = 3) {
     }),
   );
   for (const number of [2, 3, 4]) {
+    if (documentType === "credit_note_c") {
+      await insertOfflineCreditNote(db, {
+        registerId,
+        pointOfSale: 8,
+        fortnight: FORTNIGHT,
+        number,
+        corrects: { voucherType: 11, pointOfSale: 8, number },
+      });
+      continue;
+    }
     await insertOfflineFiscalDocument(db, {
       registerId,
       pointOfSale: 8,
@@ -91,7 +107,7 @@ async function seedRejectedDocument(rejectedNumber = 3) {
     { pointOfSaleNumber: 8, fortnight: FORTNIGHT },
     (report) =>
       report.recordDocumentType({
-        documentType: "factura_c",
+        documentType,
         state: "refused",
         at: ATTEMPTED_AT,
         reportedThrough: rejectedNumber - 1,
@@ -268,6 +284,37 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
     expect(await remedyAudits()).toMatchObject([
       { actorId: session.userId, at: SESSION_NOON, newValue: { remedy: "report", number: 3 } },
     ]);
+  });
+
+  it("records the remedy that reports a rejected credit note again, audited under the actor", async () => {
+    await seedRejectedDocument(3, "credit_note_c");
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    const response = await remedy(REPORT, session.headers, { document_type: "credit_note_c" });
+
+    expect(response.statusCode).toBe(204);
+    expect(await remedies()).toMatchObject([
+      { documentType: "credit_note_c", number: 3, kind: "report", rejectedAt: ATTEMPTED_AT },
+    ]);
+    expect(await remedyAudits()).toMatchObject([
+      { actorId: session.userId, newValue: { remedy: "report", number: 3 } },
+    ]);
+  });
+
+  it("answers 422 remedy_not_offered to a correction of what was printed of a credit note, changing nothing", async () => {
+    await seedRejectedDocument(3, "credit_note_c");
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    const response = await remedy(
+      { kind: "printed", correction: { total: 9_900 } },
+      session.headers,
+      { document_type: "credit_note_c" },
+    );
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({ code: "remedy_not_offered" });
+    expect(await remedies()).toEqual([]);
+    expect(await remedyAudits()).toEqual([]);
   });
 
   it("records a correction, audited under the actor with the fields it changed and their values before and after", async () => {

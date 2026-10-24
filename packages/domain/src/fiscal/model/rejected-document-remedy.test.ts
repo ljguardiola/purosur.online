@@ -10,6 +10,7 @@ import {
   offlineDocumentCorrectionRefusal,
   presentedOfflineDocument,
   rejectedDocumentCreditNote,
+  remediesOfferedFor,
   remedyAwaitsResend,
 } from "./rejected-document-remedy.js";
 
@@ -449,5 +450,15 @@ describe("rejectedDocumentCreditNote", () => {
 
   it("is not decided while nothing of the document's type was reported", () => {
     expect(decide({ reportedThrough: null })).toBeNull();
+  });
+});
+
+describe("remediesOfferedFor", () => {
+  it("offers a rejected factura both to report it again and to correct what was printed", () => {
+    expect(remediesOfferedFor("factura_c")).toEqual(["report", "printed"]);
+  });
+
+  it("offers a rejected credit note only to report it again, since what was printed cannot be credited by another credit note", () => {
+    expect(remediesOfferedFor("credit_note_c")).toEqual(["report"]);
   });
 });
