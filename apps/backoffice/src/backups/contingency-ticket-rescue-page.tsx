@@ -12,7 +12,9 @@ export function ContingencyTicketRescuePage(): ReactElement {
   return (
     <ContingencyTicketRescueScreen
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.contingencyTicketRescueScreen ?? defaultContingencyTicketRescueScreenServices}
+      services={
+        services.contingencyTicketRescueScreen ?? defaultContingencyTicketRescueScreenServices
+      }
     />
   );
 }

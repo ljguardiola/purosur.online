@@ -7,8 +7,7 @@ export type ContingencyTicketRescueScreenServices = {
   scanner: ComponentType<QrScannerProps>;
 };
 
-export const defaultContingencyTicketRescueScreenServices: ContingencyTicketRescueScreenServices =
-  {
-    rescueContingencyBackupTicket,
-    scanner: QrCameraScanner,
-  };
+export const defaultContingencyTicketRescueScreenServices: ContingencyTicketRescueScreenServices = {
+  rescueContingencyBackupTicket,
+  scanner: QrCameraScanner,
+};

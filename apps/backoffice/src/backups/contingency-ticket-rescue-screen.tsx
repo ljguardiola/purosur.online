@@ -92,7 +92,9 @@ export function ContingencyTicketRescueScreen({
   services,
 }: ContingencyTicketRescueScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const rescue = useMutation({ mutationFn: services.rescueContingencyBackupTicket });
+  const rescue = useMutation({
+    mutationFn: (qrCodes: string[]) => services.rescueContingencyBackupTicket(qrCodes),
+  });
   const [pending, setPending] = useState(NO_PENDING_TICKETS);
   const [progress, setProgress] = useState<{ read: number; of: number } | null>(null);
   const [tickets, setTickets] = useState<ScannedTicket[]>([]);
@@ -102,9 +104,7 @@ export function ContingencyTicketRescueScreen({
   function settle(id: number, key: string, outcome: RescueContingencyBackupTicketOutcome) {
     const result: ScannedTicketResult =
       outcome.kind === "ok" ? resultOf(outcome.value) : { kind: "send_failed" };
-    setTickets((current) =>
-      current.map((ticket) => (ticket.id === id ? { id, result } : ticket)),
-    );
+    setTickets((current) => current.map((ticket) => (ticket.id === id ? { id, result } : ticket)));
     setInFlight((current) => current.filter((sent) => sent !== key));
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
@@ -136,7 +136,10 @@ export function ContingencyTicketRescueScreen({
     if (step.kind === "unreadable") {
       const id = sentCount;
       setSentCount(id + 1);
-      setTickets((current) => [{ id, result: { kind: "refused", outcome: "unreadable" } }, ...current]);
+      setTickets((current) => [
+        { id, result: { kind: "refused", outcome: "unreadable" } },
+        ...current,
+      ]);
       return;
     }
     setPending(step.pending);
