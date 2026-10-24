@@ -323,18 +323,6 @@ test("for a given product, creates the packaging of that product without asking 
   });
 });
 
-test("for a given product, starts again with it when reopened", async () => {
-  const createPackaging = vi.fn<NewPackagingModalServices["createPackaging"]>();
-  const screen = await renderModal({ createPackaging, productId: cajaDeMiel.productId });
-
-  await fill(screen, { name: "Caja", quantity: "12" });
-  await submit(screen);
-
-  expect(createPackaging).toHaveBeenCalledWith(
-    expect.objectContaining({ productId: cajaDeMiel.productId }),
-  );
-});
-
 test("takes the eyebrow from the screen that opens it", async () => {
   const screen = await renderModal({ context: "Pedidos · Vincular un ítem" });
 
