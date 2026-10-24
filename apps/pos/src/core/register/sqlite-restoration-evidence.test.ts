@@ -19,6 +19,7 @@ let pending: RestorePending;
 let evidence: SqliteRestorationEvidence;
 let cloud: CloudReachability;
 let noUsableGeneration: boolean;
+const RUNNING_VERSION = "1.4.0";
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
@@ -31,6 +32,7 @@ beforeEach(() => {
     pending,
     () => cloud,
     () => noUsableGeneration,
+    RUNNING_VERSION,
   );
 });
 
@@ -124,6 +126,49 @@ describe("the evidence of the restoration protocol", () => {
       origin: "copy",
       cloud: "unknown",
     });
+  });
+
+  it("holds the replenishment as refused while its predecessor holds the cloud's refusal", () => {
+    holdPredecessor();
+    database.exec(
+      "UPDATE register_predecessor SET failure_kind = 'refused', failure_refusal = 'predecessor_not_revoked'",
+    );
+
+    expect(evidence.evidence().replenish).toBe("refused");
+  });
+
+  it("holds the replenishment as unreadable while its predecessor holds an event the register could not read", () => {
+    holdPredecessor();
+    database.exec(
+      `UPDATE register_predecessor SET failure_kind = 'unreadable_event',
+         failure_event_id = 'event-1', failure_reason = 'garbled', failure_app_version = '1.4.0'`,
+    );
+
+    expect(evidence.evidence().replenish).toBe("unreadable_event");
+  });
+
+  it("holds the replenishment pending when a newer version runs than the one that could not read its event", () => {
+    holdPredecessor();
+    database.exec(
+      `UPDATE register_predecessor SET failure_kind = 'unreadable_event',
+         failure_event_id = 'event-1', failure_reason = 'garbled', failure_app_version = '1.3.9'`,
+    );
+
+    expect(evidence.evidence().replenish).toBe("pending");
+  });
+
+  it("holds the replenishment pending again once its failure is cleared", async () => {
+    holdPredecessor();
+    const store = new SqliteRegisterReplenishmentStore({
+      database,
+      pepper: "pepper",
+      ids: { next: () => "id" },
+    });
+    await store.recordFailure({ kind: "refused", refusal: "predecessor_not_revoked" });
+
+    await store.clearFailure();
+
+    expect(evidence.evidence().replenish).toBe("pending");
   });
 
   it("holds that the register came from a copy while it awaits what a restored copy awaits", () => {

@@ -18,6 +18,7 @@ import {
   registerBackupOverdueObservation,
   registerClockDriftObservation,
   registerFiscalEmissionObservation,
+  registerReplenishmentObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
@@ -182,6 +183,40 @@ describe("registerClockDriftObservation", () => {
 
   it("observes nothing of a register that reports nothing about its clock", () => {
     expect(registerClockDriftObservation({ ...register, report: {} })).toBeUndefined();
+  });
+});
+
+describe("registerReplenishmentObservation", () => {
+  const register = { registerId: "register-1", deviceId: "device-1", locationId: "location-1" };
+
+  it.each(["refused", "unreadable_event"] as const)(
+    "holds the replenishment-failed condition of the register, in its branch, naming the device and the %s failure",
+    (failure) => {
+      expect(
+        registerReplenishmentObservation({
+          ...register,
+          report: { replenishment_failed: failure },
+        }),
+      ).toEqual({
+        holds: true,
+        alert: {
+          kind: "register_replenishment_failed",
+          scope: "register-1",
+          locationId: "location-1",
+          detail: { deviceId: "device-1", failure },
+        },
+      });
+    },
+  );
+
+  it("clears the replenishment-failed condition of the register for a register that reports none", () => {
+    expect(
+      registerReplenishmentObservation({ ...register, report: { replenishment_failed: false } }),
+    ).toEqual({ holds: false, kind: "register_replenishment_failed", scope: "register-1" });
+  });
+
+  it("observes nothing of a register that reports nothing about its replenishment", () => {
+    expect(registerReplenishmentObservation({ ...register, report: {} })).toBeUndefined();
   });
 });
 

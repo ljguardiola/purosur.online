@@ -71,6 +71,10 @@ export interface StockStoreTransaction {
   appliedDeltaAfter(key: ProductStockKey, at: Date): Promise<number>;
   recordMovement(movement: NewStockMovement): Promise<string>;
   lotAllocationsAfter(key: ProductStockKey, at: Date): Promise<Map<string, number>>;
+  saleLineLotAllocations(
+    key: ProductStockKey,
+    saleLineId: string,
+  ): Promise<{ lotId: string; quantity: number }[]>;
   recordCount(count: NewStockCount): Promise<void>;
   recordCountedLots(movementId: string, lots: readonly CountedLot[]): Promise<void>;
   lotProduct(lotId: string, locationId: string): Promise<string | undefined>;

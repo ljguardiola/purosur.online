@@ -1,5 +1,6 @@
 export type { Clock } from "../../shared/index.js";
 export type { LimitedEndpoint } from "../model/installation-request-limit.js";
+export type { ReplenishmentFailure } from "../model/replenishment-failure.js";
 export type { SyncedFact } from "../model/synced-fact.js";
 export type {
   AdmitInstallationRequestInput,

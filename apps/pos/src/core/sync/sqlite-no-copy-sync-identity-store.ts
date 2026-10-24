@@ -35,6 +35,7 @@ export class SqliteNoCopySyncIdentityStore implements NoCopySyncIdentityStore {
         return row?.device_id ?? undefined;
       },
       async recordPredecessor(predecessor) {
+        database.exec("DELETE FROM register_predecessor");
         database
           .prepare(
             "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)",

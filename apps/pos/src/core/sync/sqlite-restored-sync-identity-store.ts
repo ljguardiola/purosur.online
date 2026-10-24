@@ -57,6 +57,7 @@ export class SqliteRestoredSyncIdentityStore implements RestoredSyncIdentityStor
         };
       },
       async recordPredecessor(predecessor) {
+        database.exec("DELETE FROM register_predecessor");
         database
           .prepare(
             "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)",

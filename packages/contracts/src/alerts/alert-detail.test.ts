@@ -222,6 +222,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"fiscal_unknown">>().toEqualTypeOf<AlertDetails["fiscal_unknown"]>();
     expectTypeOf<WireDetail<"clock_drift">>().toEqualTypeOf<AlertDetails["clock_drift"]>();
+    expectTypeOf<WireDetail<"register_replenishment_failed">>().toEqualTypeOf<
+      AlertDetails["register_replenishment_failed"]
+    >();
     expectTypeOf<WireDetail<"outbox_chain_broken">>().toEqualTypeOf<
       AlertDetails["outbox_chain_broken"]
     >();
@@ -404,6 +407,7 @@ describe("alertDetailSchema", () => {
       },
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
       clock_drift: { deviceId: "device-1" },
+      register_replenishment_failed: { deviceId: "device-1", failure: "refused" },
       outbox_chain_broken: { deviceId: "device-1" },
       lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
       offsite_dump_unverified: { night: "2026-10-14", reason: "not_reported" },
@@ -699,6 +703,16 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "sales_denied",
         detail: { deviceId: "device-1", reason: "installation_revoked" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it("refuses a register-replenishment-failed alert with a failure the register does not report", () => {
+      const alert = {
+        ...base,
+        kind: "register_replenishment_failed",
+        detail: { deviceId: "device-1", failure: "lost" },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);

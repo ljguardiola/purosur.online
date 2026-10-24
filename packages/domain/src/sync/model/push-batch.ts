@@ -1,6 +1,7 @@
 import type { FiscalEmissionStoppedReport } from "../../fiscal/index.js";
 import type { BatteryReport, ClockDriftReport, SerialDevicesReport } from "../../register/index.js";
 import type { OutboxEvent, SalesDeniedReport } from "../../shared/index.js";
+import type { ReplenishmentFailedReport } from "./replenishment-failure.js";
 
 export const PUSH_BATCH_MAX_EVENTS = 200;
 
@@ -15,7 +16,8 @@ export interface StorageTelemetry {
 export type RegisterTelemetry = StorageTelemetry &
   SalesDeniedReport &
   FiscalEmissionStoppedReport &
-  ClockDriftReport & {
+  ClockDriftReport &
+  ReplenishmentFailedReport & {
     serial_devices?: SerialDevicesReport | undefined;
     battery?: BatteryReport | undefined;
   };

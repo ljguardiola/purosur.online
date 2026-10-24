@@ -1,9 +1,11 @@
-import type { RestorationEvidence } from "@purosur/domain";
+import { heldReplenishmentFailure, type RestorationEvidence } from "@purosur/domain";
 import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { RestorePending } from "../backups/restore-pending";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { staleSequenceDetected } from "../sync/sqlite-installation-presence";
+import { readPendingReplenishment } from "../sync/sqlite-register-replenishment-store";
+import { registerVersionOf } from "./register-version";
 
 export function awaitsRestoredNumbering(database: LocalDatabase): boolean {
   return (
@@ -21,17 +23,20 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
   private readonly restorePending: RestorePending;
   private readonly cloudReachability: () => CloudReachability;
   private readonly noUsableGeneration: () => boolean;
+  private readonly appVersion: string | undefined;
 
   constructor(
     database: LocalDatabase,
     restorePending: RestorePending,
     cloudReachability: () => CloudReachability,
     noUsableGeneration: () => boolean,
+    appVersion?: string,
   ) {
     this.database = database;
     this.restorePending = restorePending;
     this.cloudReachability = cloudReachability;
     this.noUsableGeneration = noUsableGeneration;
+    this.appVersion = appVersion;
   }
 
   evidence(): RestorationEvidence {
@@ -40,7 +45,7 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       enroll: staleSequenceDetected(this.database) && !restoring ? "pending" : "completed",
       restore: this.restoreEvidence(restoring),
       reset_sync_identity: restoring ? "pending" : "completed",
-      replenish: this.holdsPredecessor() ? "pending" : "completed",
+      replenish: this.replenishEvidence(),
       reconcile_fiscal_counters: awaitsRestoredNumbering(this.database) ? "pending" : "completed",
       regularize_orphan_authorizations: this.awaitsOrphanSweep() ? "pending" : "completed",
       origin: this.replenishmentOrigin(),
@@ -70,11 +75,12 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
     return row?.from_copy === 0 ? "no_copy" : "copy";
   }
 
-  private holdsPredecessor(): boolean {
-    return (
-      this.database
-        .prepare<[], { held: 1 }>("SELECT 1 AS held FROM register_predecessor LIMIT 1")
-        .get() !== undefined
-    );
+  private replenishEvidence(): RestorationEvidence["replenish"] {
+    const pending = readPendingReplenishment(this.database);
+    if (pending === undefined) {
+      return "completed";
+    }
+    const held = heldReplenishmentFailure(pending.failure, registerVersionOf(this.appVersion));
+    return held?.kind ?? "pending";
   }
 }

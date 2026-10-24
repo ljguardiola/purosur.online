@@ -206,6 +206,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: true,
   },
+  register_replenishment_failed: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "register",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
   outbox_chain_broken: {
     level: "warning",
     escalation: AFTER_OPENING,
