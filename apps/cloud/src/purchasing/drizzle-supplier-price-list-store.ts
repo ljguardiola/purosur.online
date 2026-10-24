@@ -1,6 +1,8 @@
 import {
   countsTowardDailyExtractionCap,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
+  type SaleUnit,
+  type SupplierItemKey,
   type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
   type SupplierPriceListSourceKind,
@@ -9,18 +11,28 @@ import {
 import type {
   FindPriceListSupplierResult,
   FindSupplierPriceListSourceResult,
+  LockProductPackagingResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
+  NewSupplierItemFields,
   NewSupplierPriceListFields,
   ProposedPriceListRow,
+  StoredPriceListRow,
+  SupplierItem,
+  SupplierItemLink,
+  SupplierItemPriceEntry,
   SupplierPriceListStore,
   SupplierPriceListStoreTransaction,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   auditLog,
   locations,
+  productPackagings,
+  products,
+  supplierItemPrices,
+  supplierItems,
   supplierPriceListExtractionCaps,
   supplierPriceListRows,
   supplierPriceLists,
@@ -32,6 +44,24 @@ import {
 } from "./supplier-price-list-reading-task-identifier.js";
 
 const ROW_AUDIT_ENTITY = "supplier_price_list_row";
+
+function linkColumns(link: SupplierItemLink | null) {
+  return {
+    productId: link?.productId ?? null,
+    packagingId: link?.packagingId ?? null,
+    vatRate: link?.vatRate ?? null,
+  };
+}
+
+function linkOf(columns: {
+  productId: string | null;
+  packagingId: string | null;
+  vatRate: number | null;
+}): SupplierItemLink | null {
+  return columns.productId === null || columns.packagingId === null
+    ? null
+    : { productId: columns.productId, packagingId: columns.packagingId, vatRate: columns.vatRate };
+}
 
 class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements SupplierPriceListStoreTransaction
@@ -150,6 +180,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
       kind: "locked",
       list: {
         id: list.id,
+        supplierId: list.supplierId,
         sourceKind: list.sourceKind as SupplierPriceListSourceKind,
         contentKind: list.fileContentKind as SupplierPriceListContentKind,
         state: list.state as SupplierPriceListState,
@@ -184,6 +215,8 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
         presentation: row.presentation,
         priceCents: row.priceCents,
         page: row.page,
+        barcode: row.barcode,
+        ...linkColumns(row.link),
       })),
     );
     await this.tx
@@ -211,11 +244,182 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
 
   async lockRow(listId: string, rowId: string): Promise<LockSupplierPriceListRowResult> {
     const [row] = await this.tx
-      .select({ id: supplierPriceListRows.id })
+      .select({
+        description: supplierPriceListRows.description,
+        code: supplierPriceListRows.supplierCode,
+      })
       .from(supplierPriceListRows)
       .where(and(eq(supplierPriceListRows.id, rowId), eq(supplierPriceListRows.listId, listId)))
       .for("update");
-    return row ? { kind: "locked" } : { kind: "not_found" };
+    return row ? { kind: "locked", row } : { kind: "not_found" };
+  }
+
+  async listRows(listId: string): Promise<StoredPriceListRow[]> {
+    const rows = await this.tx
+      .select({
+        id: supplierPriceListRows.id,
+        description: supplierPriceListRows.description,
+        code: supplierPriceListRows.supplierCode,
+        priceCents: supplierPriceListRows.priceCents,
+        productId: supplierPriceListRows.productId,
+        packagingId: supplierPriceListRows.packagingId,
+        vatRate: supplierPriceListRows.vatRate,
+      })
+      .from(supplierPriceListRows)
+      .where(eq(supplierPriceListRows.listId, listId))
+      .orderBy(asc(supplierPriceListRows.position));
+    return rows.map(({ productId, packagingId, vatRate, ...row }) => ({
+      ...row,
+      link: linkOf({ productId, packagingId, vatRate }),
+    }));
+  }
+
+  async supplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]> {
+    if (keys.length === 0) {
+      return [];
+    }
+    const items = await this.tx
+      .select({
+        id: supplierItems.id,
+        keyKind: supplierItems.keyKind,
+        keyValue: supplierItems.keyValue,
+        description: supplierItems.description,
+        productId: supplierItems.productId,
+        packagingId: supplierItems.packagingId,
+        vatRate: supplierItems.vatRate,
+        currentListDate: sql<
+          string | null
+        >`(select max(${supplierItemPrices.listDate})::text from ${supplierItemPrices} where ${supplierItemPrices.itemId} = ${supplierItems.id})`,
+      })
+      .from(supplierItems)
+      .where(
+        and(
+          eq(supplierItems.supplierId, supplierId),
+          inArray(supplierItems.keyValue, [...new Set(keys.map((key) => key.value))]),
+        ),
+      );
+    return items
+      .filter((item) =>
+        keys.some((key) => key.kind === item.keyKind && key.value === item.keyValue),
+      )
+      .map((item) => ({
+        id: item.id,
+        key: { kind: item.keyKind as SupplierItemKey["kind"], value: item.keyValue },
+        description: item.description,
+        link: linkOf(item),
+        currentListDate: item.currentListDate,
+      }));
+  }
+
+  async lockSupplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]> {
+    await this.tx
+      .select({ id: suppliers.id })
+      .from(suppliers)
+      .where(eq(suppliers.id, supplierId))
+      .for("no key update");
+    return this.supplierItems(supplierId, keys);
+  }
+
+  async lockProductPackaging(
+    productId: string,
+    packagingId: string,
+  ): Promise<LockProductPackagingResult> {
+    const [product] = await this.tx
+      .select({ active: products.active, saleUnit: products.saleUnit })
+      .from(products)
+      .where(eq(products.id, productId))
+      .for("share");
+    const [packaging] = await this.tx
+      .select({
+        productId: productPackagings.productId,
+        active: productPackagings.active,
+        saleUnit: productPackagings.saleUnit,
+      })
+      .from(productPackagings)
+      .where(eq(productPackagings.id, packagingId))
+      .for("share");
+    return product && packaging
+      ? {
+          kind: "locked",
+          product: { active: product.active, saleUnit: product.saleUnit as SaleUnit },
+          packaging: { ...packaging, saleUnit: packaging.saleUnit as SaleUnit },
+        }
+      : { kind: "not_found" };
+  }
+
+  async addSupplierItem(fields: NewSupplierItemFields): Promise<{ id: string }> {
+    const [item] = await this.tx
+      .insert(supplierItems)
+      .values({
+        supplierId: fields.supplierId,
+        keyKind: fields.key.kind,
+        keyValue: fields.key.value,
+        description: fields.description,
+        ...linkColumns(fields.link),
+      })
+      .returning({ id: supplierItems.id });
+    if (!item) {
+      throw new Error("inserting the supplier item returned no row");
+    }
+    return item;
+  }
+
+  async describeSupplierItem(itemId: string, description: string): Promise<void> {
+    await this.tx.update(supplierItems).set({ description }).where(eq(supplierItems.id, itemId));
+  }
+
+  async rememberSupplierItemLink(itemId: string, link: SupplierItemLink): Promise<void> {
+    await this.tx.update(supplierItems).set(linkColumns(link)).where(eq(supplierItems.id, itemId));
+  }
+
+  async recordSupplierItemPrice(entry: SupplierItemPriceEntry): Promise<void> {
+    await this.tx.insert(supplierItemPrices).values({ ...entry, confirmedAt: this.now() });
+  }
+
+  async linkRow(
+    listId: string,
+    rowId: string,
+    link: SupplierItemLink,
+    actorId: string,
+  ): Promise<void> {
+    const [previous] = await this.tx
+      .select({
+        productId: supplierPriceListRows.productId,
+        packagingId: supplierPriceListRows.packagingId,
+        vatRate: supplierPriceListRows.vatRate,
+        reviewed: supplierPriceListRows.reviewed,
+      })
+      .from(supplierPriceListRows)
+      .where(eq(supplierPriceListRows.id, rowId));
+    await this.tx
+      .update(supplierPriceListRows)
+      .set({ ...linkColumns(link), reviewed: true })
+      .where(eq(supplierPriceListRows.id, rowId));
+    await this.advanceVersion(listId);
+    await this.tx.insert(auditLog).values({
+      entity: ROW_AUDIT_ENTITY,
+      entityId: rowId,
+      actorId,
+      at: this.now(),
+      previousValue: previous ?? null,
+      newValue: { ...linkColumns(link), reviewed: true },
+    });
+  }
+
+  async markRowReviewed(listId: string, rowId: string, actorId: string): Promise<void> {
+    await this.tx
+      .update(supplierPriceListRows)
+      .set({ reviewed: true })
+      .where(eq(supplierPriceListRows.id, rowId));
+    await this.advanceVersion(listId);
+    await this.tx.insert(auditLog).values({
+      entity: ROW_AUDIT_ENTITY,
+      entityId: rowId,
+      actorId,
+      at: this.now(),
+      previousValue: { reviewed: false },
+      newValue: { reviewed: true },
+    });
   }
 
   async setRowPrice(
@@ -283,6 +487,10 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
         version: sql`${supplierPriceLists.version} + 1`,
       })
       .where(eq(supplierPriceLists.id, listId));
+    await this.tx
+      .update(supplierItemPrices)
+      .set({ confirmedAt })
+      .where(eq(supplierItemPrices.listId, listId));
   }
 
   async discardList(listId: string, discardedAt: Date, actorId: string): Promise<void> {
