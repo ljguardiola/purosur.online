@@ -302,9 +302,6 @@ const restoreAttempts = createRestoreAttempts({
 
 function reportStartupStep(step: CoreStartupStep): void {
   console.error(`diag: step ${step} at ${Math.round(performance.now())} ms`);
-  if (process.env["POS_E2E_BLOCK_AT_STEP"] === step) {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 40_000);
-  }
   process.parentPort.postMessage({
     type: "core-startup-step",
     step,
