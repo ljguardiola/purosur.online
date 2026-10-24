@@ -21,6 +21,7 @@ export interface RescuedTicketDelivery {
   registerId: string;
   deviceId: string;
   events: readonly PushedEvent[];
+  rescuedBy: string;
 }
 
 export type RescuedTicketDeliveryAnswer =
@@ -28,6 +29,7 @@ export type RescuedTicketDeliveryAnswer =
   | { kind: "foreign_installation" }
   | { kind: "conflicting" };
 
+// Records who rescued the ticket, and what it brought in, together with the events it receives.
 export interface RescuedTicketEvents {
   deliver(delivery: RescuedTicketDelivery): Promise<RescuedTicketDeliveryAnswer>;
 }
@@ -36,20 +38,8 @@ export interface RescuedEventDecoder {
   decode(event: PushedEvent): RescuedTicketFact | null;
 }
 
-export interface RescuedTicketAuditEntry {
-  registerId: string;
-  actorId: string;
-  received: number;
-  alreadyReceived: number;
-}
-
-export interface RescuedTicketAudit {
-  recordRescue(entry: RescuedTicketAuditEntry): Promise<void>;
-}
-
 export interface RescueContingencyBackupTicketPorts {
   opener: ContingencyBackupTicketOpener;
   events: RescuedTicketEvents;
   decoder: RescuedEventDecoder;
-  audit: RescuedTicketAudit;
 }

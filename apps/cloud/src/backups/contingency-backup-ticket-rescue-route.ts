@@ -18,13 +18,11 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
-import { DrizzleInbox } from "../sync/drizzle-inbox.js";
 import {
   type EnqueueEventApplication,
   enqueueEventApplicationJob,
 } from "../sync/graphile-event-application-queue.js";
 import { DrizzleContingencyBackupTicketOpener } from "./drizzle-contingency-backup-ticket-opener.js";
-import { DrizzleRescuedTicketAudit } from "./drizzle-rescued-ticket-audit.js";
 import { InboxRescuedTicketEvents } from "./inbox-rescued-ticket-events.js";
 import { syncedRescuedEventDecoder } from "./synced-rescued-event-decoder.js";
 
@@ -72,11 +70,12 @@ export function registerContingencyBackupTicketRescueRoute<TQueryResult extends 
   const ports = {
     opener: new DrizzleContingencyBackupTicketOpener(db, cipher),
     events: new InboxRescuedTicketEvents(
-      new DrizzleInbox(db, cipher, options.enqueueEventApplication ?? enqueueEventApplicationJob),
+      db,
+      cipher,
+      options.enqueueEventApplication ?? enqueueEventApplicationJob,
       now,
     ),
     decoder: syncedRescuedEventDecoder,
-    audit: new DrizzleRescuedTicketAudit(db, now),
   };
 
   app.post(

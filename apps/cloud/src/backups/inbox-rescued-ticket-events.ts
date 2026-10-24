@@ -3,27 +3,57 @@ import type {
   RescuedTicketDeliveryAnswer,
   RescuedTicketEvents,
 } from "@purosur/domain/backups/use-cases";
-import type { Inbox } from "@purosur/domain/sync/use-cases";
 import {
   type ReceiveRescuedEventsOutcome,
   receiveRescuedEvents,
 } from "@purosur/domain/sync/use-cases";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { auditLog } from "../platform/db/schema.js";
+import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
+import { DrizzleInbox } from "../sync/drizzle-inbox.js";
+import type { EnqueueEventApplication } from "../sync/graphile-event-application-queue.js";
 
-export class InboxRescuedTicketEvents implements RescuedTicketEvents {
-  private readonly inbox: Inbox;
+export class InboxRescuedTicketEvents<TQueryResult extends PgQueryResultHKT>
+  implements RescuedTicketEvents
+{
+  private readonly db: PgDatabase<TQueryResult>;
+  private readonly cipher: InstallationKeyCipher;
+  private readonly enqueueApplication: EnqueueEventApplication;
   private readonly now: () => Date;
 
-  constructor(inbox: Inbox, now: () => Date) {
-    this.inbox = inbox;
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    cipher: InstallationKeyCipher,
+    enqueueApplication: EnqueueEventApplication,
+    now: () => Date,
+  ) {
+    this.db = db;
+    this.cipher = cipher;
+    this.enqueueApplication = enqueueApplication;
     this.now = now;
   }
 
-  async deliver(delivery: RescuedTicketDelivery): Promise<RescuedTicketDeliveryAnswer> {
-    const outcome = await receiveRescuedEvents(
-      { inbox: this.inbox, clock: { now: this.now } },
-      delivery,
-    );
-    return answerOf(outcome);
+  deliver({ rescuedBy, ...delivery }: RescuedTicketDelivery): Promise<RescuedTicketDeliveryAnswer> {
+    return this.db.transaction(async (tx) => {
+      const outcome = await receiveRescuedEvents(
+        {
+          inbox: new DrizzleInbox(tx, this.cipher, this.enqueueApplication),
+          clock: { now: this.now },
+        },
+        delivery,
+      );
+      if (outcome.kind === "received") {
+        await tx.insert(auditLog).values({
+          entity: "contingency_backup_ticket_rescue",
+          entityId: delivery.registerId,
+          actorId: rescuedBy,
+          previousValue: null,
+          newValue: { received: outcome.received, already_received: outcome.alreadyReceived },
+          at: this.now(),
+        });
+      }
+      return answerOf(outcome);
+    });
   }
 }
 

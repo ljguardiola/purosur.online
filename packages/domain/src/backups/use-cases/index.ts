@@ -49,8 +49,6 @@ export type {
   ContingencyBackupTicketOpening,
   RescueContingencyBackupTicketPorts,
   RescuedEventDecoder,
-  RescuedTicketAudit,
-  RescuedTicketAuditEntry,
   RescuedTicketDelivery,
   RescuedTicketDeliveryAnswer,
   RescuedTicketEvents,

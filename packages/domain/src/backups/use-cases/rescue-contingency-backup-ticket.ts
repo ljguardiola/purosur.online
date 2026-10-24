@@ -27,7 +27,7 @@ export type RescueContingencyBackupTicketOutcome =
   | { kind: "conflicting" };
 
 export async function rescueContingencyBackupTicket(
-  { opener, events, decoder, audit }: RescueContingencyBackupTicketPorts,
+  { opener, events, decoder }: RescueContingencyBackupTicketPorts,
   { qrCodes, actorId }: RescueContingencyBackupTicketInput,
 ): Promise<RescueContingencyBackupTicketOutcome> {
   const opening = await opener.open(qrCodes);
@@ -39,16 +39,11 @@ export async function rescueContingencyBackupTicket(
     registerId,
     deviceId: content.deviceId,
     events: content.events,
+    rescuedBy: actorId,
   });
   if (delivery.kind !== "delivered") {
     return { kind: delivery.kind };
   }
-  await audit.recordRescue({
-    registerId,
-    actorId,
-    received: delivery.received,
-    alreadyReceived: delivery.alreadyReceived,
-  });
   const facts = content.events
     .map((event) => decoder.decode(event))
     .filter((fact): fact is RescuedTicketFact => fact !== null);
