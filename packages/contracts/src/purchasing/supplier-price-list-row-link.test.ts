@@ -26,7 +26,10 @@ describe("supplierPriceListRowLinkBodySchema", () => {
     const result = supplierPriceListRowLinkBodySchema.safeParse({ ...body, vatRate });
 
     expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.path).toEqual(["vatRate"]);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["vatRate"],
+      message: "vatRate must be one of the VAT rates offered, in basis points",
+    });
   });
 
   it.each(["productId", "packagingId"])("requires %s to be an id", (field) => {
@@ -34,7 +37,13 @@ describe("supplierPriceListRowLinkBodySchema", () => {
       const result = supplierPriceListRowLinkBodySchema.safeParse({ ...body, [field]: value });
 
       expect(result.success).toBe(false);
-      expect(result.error?.issues[0]?.path).toEqual([field]);
+      expect(result.error?.issues[0]).toMatchObject({
+        path: [field],
+        message:
+          field === "productId"
+            ? "productId must be a product's id"
+            : "packagingId must be a packaging's id",
+      });
     }
   });
 
