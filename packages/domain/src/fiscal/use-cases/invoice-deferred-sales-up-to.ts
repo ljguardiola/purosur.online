@@ -10,7 +10,7 @@ export type InvoiceDeferredSalesUpToOutcome =
   | { kind: "not_pending" }
   | { kind: "not_yet"; cause: InvoiceDeferredSalesUpToCause };
 
-export type InvoiceDeferredSalesUpToCause =
+type InvoiceDeferredSalesUpToCause =
   | "cannot_authorize"
   | "older_sale_blocking"
   | "not_authorized";
