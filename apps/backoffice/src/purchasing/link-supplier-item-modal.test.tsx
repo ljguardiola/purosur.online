@@ -216,14 +216,19 @@ test("proposes the product the model chose", async () => {
 });
 
 test("does not choose a proposed product the person already chose another over", async () => {
-  const proposal = Promise.withResolvers<{ kind: "ok"; value: typeof PROPOSED_BY_AI }>();
+  let resolveProposal: (outcome: { kind: "ok"; value: typeof PROPOSED_BY_AI }) => void = () => {};
+  const proposal = {
+    promise: new Promise<{ kind: "ok"; value: typeof PROPOSED_BY_AI }>((settle) => {
+      resolveProposal = settle;
+    }),
+  };
   const services = createServices({
     fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(proposal.promise),
   });
   const screen = await renderModal({ services });
   await chooseProduct(screen, "Almendras peladas");
 
-  proposal.resolve({ kind: "ok", value: PROPOSED_BY_AI });
+  resolveProposal({ kind: "ok", value: PROPOSED_BY_AI });
 
   await expect
     .element(screen.getByRole("dialog").getByText("Propuesto por IA: Pasas de uva"))
