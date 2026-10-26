@@ -34,13 +34,14 @@ export const SUPPLIER_ITEM_LINK_FIELD_MESSAGES = {
   vatRate: "Elegí el IVA del ítem.",
 };
 
-type VatRates = SupplierItemLinkChoices["vatRates"];
+type VatRates = { offered: readonly number[]; default: number };
 
-export function vatRateOptionsOf(vatRates: VatRates): { value: string; label: string }[] {
-  return vatRates.offered.map((rate) => ({
+export function vatRateOptionsOf(vatRates: VatRates): Options<{ value: string; label: string }> {
+  const [first, ...rest] = vatRates.offered.map((rate) => ({
     value: String(rate),
     label: formatPercent(rate / 100),
   }));
+  return first && [first, ...rest];
 }
 
 export function vatRateOrDefault(chosen: string, vatRates: VatRates): string {

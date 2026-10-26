@@ -172,6 +172,7 @@ export function LinkSupplierItemModal({
   }, [target, list.version, reset]);
 
   const vatRates = choices.status === "loaded" ? choices.value.vatRates : null;
+  const vatRateOptions = vatRates === null ? undefined : vatRateOptionsOf(vatRates);
 
   useEffect(() => {
     if (target && vatRates !== null) {
@@ -293,13 +294,11 @@ export function LinkSupplierItemModal({
             ) : null}
           </div>
         )}
-        {asksForVatRate && vatRates !== null ? (
+        {asksForVatRate && vatRateOptions !== undefined ? (
           <div className="flex flex-col gap-2">
             <FieldHeading>IVA del ítem</FieldHeading>
             <form.AppField name="vatRate">
-              {(field) => (
-                <field.SegmentedControl label="IVA del ítem" options={vatRateOptionsOf(vatRates)} />
-              )}
+              {(field) => <field.SegmentedControl label="IVA del ítem" options={vatRateOptions} />}
             </form.AppField>
           </div>
         ) : null}
