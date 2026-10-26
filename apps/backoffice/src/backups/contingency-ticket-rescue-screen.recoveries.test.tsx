@@ -11,7 +11,7 @@ beforeEach(resetPageState);
 
 function awaiting() {
   const setup = createServices();
-  vi.mocked(setup.services.fetchContingencyTicketRecoveries)
+  setup.fetchContingencyTicketRecoveries
     .mockResolvedValueOnce({ kind: "ok", value: { recoveries: [awaitingRecovery] } })
     .mockResolvedValue({ kind: "ok", value: { recoveries: [] } });
   return setup;
@@ -82,7 +82,8 @@ test.each([
 ] as const)(
   "tells when the cloud answers %s and refreshes the list",
   async (outcome, role, notice) => {
-    const { services, finishContingencyTicketRecovery } = awaiting();
+    const { services, finishContingencyTicketRecovery, fetchContingencyTicketRecoveries } =
+      awaiting();
     finishContingencyTicketRecovery.mockResolvedValue({
       kind: "ok",
       value: { outcome },
@@ -93,12 +94,12 @@ test.each([
     await userEvent.click(dialog.getByRole("button", { name: "Terminar el rescate" }));
 
     await expect.element(screen.getByRole(role)).toHaveTextContent(notice);
-    expect(services.fetchContingencyTicketRecoveries).toHaveBeenCalledTimes(2);
+    expect(fetchContingencyTicketRecoveries).toHaveBeenCalledTimes(2);
   },
 );
 
 test("cancelling the question leaves the list as it was", async () => {
-  const { services } = awaiting();
+  const { services, fetchContingencyTicketRecoveries } = awaiting();
   const screen = await renderScreen(services);
   const dialog = await openFinishQuestion(screen);
 
@@ -106,12 +107,12 @@ test("cancelling the question leaves the list as it was", async () => {
 
   expect(screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByRole("cell", { name: "Caja 1" })).toBeVisible();
-  expect(services.fetchContingencyTicketRecoveries).toHaveBeenCalledTimes(1);
+  expect(fetchContingencyTicketRecoveries).toHaveBeenCalledTimes(1);
 });
 
 test("ends the session when the recoveries come back unauthenticated", async () => {
-  const { services } = createServices();
-  vi.mocked(services.fetchContingencyTicketRecoveries).mockResolvedValue({
+  const { services, fetchContingencyTicketRecoveries } = createServices();
+  fetchContingencyTicketRecoveries.mockResolvedValue({
     kind: "unauthenticated",
   });
   const onSessionEnded = vi.fn();

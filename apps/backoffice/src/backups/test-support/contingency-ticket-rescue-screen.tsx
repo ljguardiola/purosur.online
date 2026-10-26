@@ -4,6 +4,7 @@ import {
 } from "@purosur/contracts";
 import { vi } from "vitest";
 import { render } from "../../shell/test-support/render-with-router";
+import type { fetchContingencyTicketRecoveries } from "../contingency-ticket-recovery-api";
 import { ContingencyTicketRescueScreen } from "../contingency-ticket-rescue-screen";
 import type { ContingencyTicketRescueScreenServices } from "../contingency-ticket-rescue-services";
 import type { FinishTicketRecoveryModalServices } from "../finish-ticket-recovery-modal";
@@ -18,15 +19,16 @@ export function createServices() {
   const scanner = createFakeQrScanner();
   const finishContingencyTicketRecovery =
     vi.fn<FinishTicketRecoveryModalServices["finishContingencyTicketRecovery"]>();
+  const fetchContingencyTicketRecoveries = vi
+    .fn<typeof fetchContingencyTicketRecoveries>()
+    .mockResolvedValue({ kind: "ok", value: { recoveries: [] } });
   const services: ContingencyTicketRescueScreenServices = {
     rescueContingencyBackupTicket: vi.fn(),
-    fetchContingencyTicketRecoveries: vi
-      .fn<ContingencyTicketRescueScreenServices["fetchContingencyTicketRecoveries"]>()
-      .mockResolvedValue({ kind: "ok", value: { recoveries: [] } }),
+    fetchContingencyTicketRecoveries,
     finishTicketRecoveryModal: { finishContingencyTicketRecovery },
     scanner: scanner.Scanner,
   };
-  return { services, scanner, finishContingencyTicketRecovery };
+  return { services, scanner, finishContingencyTicketRecovery, fetchContingencyTicketRecoveries };
 }
 
 export function renderScreen(
