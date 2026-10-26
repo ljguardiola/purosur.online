@@ -657,6 +657,7 @@ export type {
   StorageStanding,
   WatchedRegister,
   ZoneRulesVersionReport,
+  ZoneRulesVersionReport,
 } from "./register/index.js";
 export {
   BATTERY_READ_INTERVAL_MS,
