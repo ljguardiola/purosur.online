@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { argentinaInstant } from "../../shared/index.js";
 import {
   type ReturnAgainstHistory,
-  type SaleReturnHistory,
   returnHistoryBreaks,
+  type SaleReturnHistory,
 } from "./return-history-breaks.js";
 
 const HISTORY: SaleReturnHistory = {
