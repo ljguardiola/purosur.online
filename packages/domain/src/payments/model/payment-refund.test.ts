@@ -17,6 +17,7 @@ import {
   REFUND_ORIGINS,
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
+  RETURN_REFUND_ORIGIN,
   refundAlertKind,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
@@ -211,9 +212,10 @@ describe("PlannedRefundState", () => {
 
 describe("REFUND_ORIGINS", () => {
   it("tells a refund of a cancelled sale from one of a payment that arrived late", () => {
-    expect(REFUND_ORIGINS).toEqual(["sale_cancelled", "late_payment", "sale_voided"]);
+    expect(REFUND_ORIGINS).toEqual(["sale_cancelled", "late_payment", "sale_voided", "return"]);
     expect(SALE_CANCELLED_REFUND_ORIGIN).toBe("sale_cancelled");
     expect(SALE_VOIDED_REFUND_ORIGIN).toBe("sale_voided");
+    expect(RETURN_REFUND_ORIGIN).toBe("return");
     expect(LATE_PAYMENT_REFUND_ORIGIN).toBe("late_payment");
   });
 });
@@ -256,9 +258,19 @@ describe("refundAlertKind", () => {
   });
 });
 
+describe("refundAlertKind of a return", () => {
+  it("is the refund task alert for a returned sale", () => {
+    expect(refundAlertKind(RETURN_REFUND_ORIGIN)).toBe("refund_task");
+  });
+});
+
 describe("REFUND_TASK_ORIGINS", () => {
   it("lists every origin whose refund gets the refund task alert, leaving out a payment that arrived late", () => {
-    expect(REFUND_TASK_ORIGINS).toEqual([SALE_CANCELLED_REFUND_ORIGIN, SALE_VOIDED_REFUND_ORIGIN]);
+    expect(REFUND_TASK_ORIGINS).toEqual([
+      SALE_CANCELLED_REFUND_ORIGIN,
+      SALE_VOIDED_REFUND_ORIGIN,
+      RETURN_REFUND_ORIGIN,
+    ]);
   });
 });
 
