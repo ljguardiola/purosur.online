@@ -19,6 +19,8 @@ import {
   type ContingencyBackupTicketRescueRouteOptions,
   registerContingencyBackupTicketRescueRoute,
 } from "./backups/contingency-backup-ticket-rescue-route.js";
+import { registerContingencyTicketRecoveriesRoutes } from "./backups/contingency-ticket-recoveries-route.js";
+import { registerContingencyTicketRecoveryRoute } from "./backups/contingency-ticket-recovery-route.js";
 import {
   type RecordOffsiteDumpCheckRouteOptions,
   registerRecordOffsiteDumpCheckRoute,
@@ -726,6 +728,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           ...options.contingencyTicketRescue,
           now,
         });
+        registerContingencyTicketRecoveriesRoutes(api, {
+          ...options.contingencyTicketRescue,
+          now,
+        });
       }
 
       if (options.registerRevocations) {
@@ -836,6 +842,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerSignInLookupRoute(api, { ...options.devices, now });
         registerDeviceTokenRotationRoute(api, { ...options.devices, now });
         registerDeviceResetRoute(api, { ...options.devices, now });
+        registerContingencyTicketRecoveryRoute(api, { ...options.devices, now });
       }
 
       if (options.mercadoPagoNotifications) {

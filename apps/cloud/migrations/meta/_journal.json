@@ -918,6 +918,13 @@
       "when": 1792793976581,
       "tag": "0137_fiscal_task_closing_record",
       "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1793037029733,
+      "tag": "0138_contingency_ticket_recoveries",
+      "breakpoints": true
     }
   ]
 }
