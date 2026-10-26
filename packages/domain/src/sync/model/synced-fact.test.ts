@@ -11,6 +11,7 @@ import {
   AN_OPENING_COUNT_WITHDRAWN_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
+  aReturnedSaleFact,
   aVoidedSaleFact,
 } from "./test-support/synced-facts.js";
 
@@ -31,6 +32,15 @@ describe("what a synced fact needs applied before it", () => {
     expect(dependenciesOf(aVoidedSaleFact({ sessionId: "session-9" }))).toEqual([
       { aggregateType: "CashSession", aggregateId: "session-9" },
     ]);
+  });
+
+  it("is the sale a return is made against and the cash session it refunds in", () => {
+    expect(dependenciesOf(aReturnedSaleFact({ saleId: "sale-9", sessionId: "session-9" }))).toEqual(
+      [
+        { aggregateType: "Sale", aggregateId: "sale-9" },
+        { aggregateType: "CashSession", aggregateId: "session-9" },
+      ],
+    );
   });
 
   it("is nothing outside its own aggregate for the events of a cash session", () => {
@@ -180,6 +190,10 @@ describe("what a synced fact breaks that only its own history shows", () => {
       "refunds_do_not_match_payments",
       "stock_movements_do_not_match_lines",
     ]);
+  });
+
+  it("is nothing for a return, whose breaks only the history of its sale shows", () => {
+    expect(invariantBreaksOf(aReturnedSaleFact())).toEqual([]);
   });
 
   it("is nothing for any other fact", () => {
