@@ -222,6 +222,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"fiscal_unknown">>().toEqualTypeOf<AlertDetails["fiscal_unknown"]>();
     expectTypeOf<WireDetail<"clock_drift">>().toEqualTypeOf<AlertDetails["clock_drift"]>();
+    expectTypeOf<WireDetail<"tz_rules_mismatch">>().toEqualTypeOf<
+      AlertDetails["tz_rules_mismatch"]
+    >();
     expectTypeOf<WireDetail<"register_replenishment_failed">>().toEqualTypeOf<
       AlertDetails["register_replenishment_failed"]
     >();
@@ -408,6 +411,7 @@ describe("alertDetailSchema", () => {
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
       clock_drift: { deviceId: "device-1" },
       register_replenishment_failed: { deviceId: "device-1", failure: "refused" },
+      tz_rules_mismatch: { deviceId: "device-1", registerVersion: null, cloudVersion: "2026a" },
       outbox_chain_broken: { deviceId: "device-1" },
       lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
       offsite_dump_unverified: { night: "2026-10-14", reason: "not_reported" },
@@ -703,6 +707,26 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "sales_denied",
         detail: { deviceId: "device-1", reason: "installation_revoked" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it("accepts a zone-rules-mismatch alert of a register that received no version", () => {
+      const alert = {
+        ...base,
+        kind: "tz_rules_mismatch",
+        detail: { deviceId: "device-1", registerVersion: null, cloudVersion: "2026a" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(true);
+    });
+
+    it("refuses a zone-rules-mismatch alert that does not name the cloud's version", () => {
+      const alert = {
+        ...base,
+        kind: "tz_rules_mismatch",
+        detail: { deviceId: "device-1", registerVersion: "2025c" },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
