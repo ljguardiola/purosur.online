@@ -87,7 +87,11 @@ import {
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
 import { coreFailureReporters } from "./register/core-failure-reporters";
-import { prepareLocalDataFolder, startupStepReporter } from "./register/core-startup-steps";
+import {
+  prepareLocalDataFolder,
+  startupStepReporter,
+  takingStartupStep,
+} from "./register/core-startup-steps";
 import { createDeviceTokenRotation } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import {
@@ -450,8 +454,9 @@ const storageWatch =
         onStartupFailure: (error) =>
           reportFailure("checking the free disk space at startup", error),
       });
-reportStartupStep("check_free_disk_space");
-await storageWatch?.checkAtStartup();
+await takingStartupStep(reportStartupStep, "check_free_disk_space", () =>
+  storageWatch?.checkAtStartup(),
+)();
 
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
@@ -800,8 +805,11 @@ const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
   ticketedSettlement,
 });
 
-reportStartupStep("settle_interrupted_authorizations");
-const startupRecovery = recoverAtStartup({
+const startupRecovery = takingStartupStep(
+  reportStartupStep,
+  "settle_interrupted_authorizations",
+  recoverAtStartup,
+)({
   settleInterruptedAuthorizations: () =>
     settleInterruptedAuthorizations({
       database: localDatabase,

@@ -8,6 +8,17 @@ export function startupStepReporter(
   return (step) => post({ type: "core-startup-step", step });
 }
 
+export function takingStartupStep<Args extends unknown[], Answer>(
+  reportStep: ReportStartupStep,
+  step: CoreStartupStep,
+  take: (...args: Args) => Answer,
+): (...args: Args) => Answer {
+  return (...args) => {
+    reportStep(step);
+    return take(...args);
+  };
+}
+
 export async function prepareLocalDataFolder(deps: {
   setAsideStaleDatabase: () => Promise<unknown>;
   adoptStagedSnapshot: () => Promise<unknown>;
