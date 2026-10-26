@@ -4,6 +4,7 @@ import { SALE_VOID_REFUSALS, type SaleVoidFacts, saleVoidRefusal } from "./sale-
 const VOIDABLE: SaleVoidFacts = {
   state: "COMPLETED",
   inOpenSession: true,
+  hasReturn: false,
   fiscalDocumentStates: [],
 };
 
@@ -13,7 +14,12 @@ function facts(changes: Partial<SaleVoidFacts>): SaleVoidFacts {
 
 describe("SALE_VOID_REFUSALS", () => {
   it("lists every reason a sale cannot be voided, in the order they are checked", () => {
-    expect(SALE_VOID_REFUSALS).toEqual(["not_completed", "session_closed", "invoice_in_flight"]);
+    expect(SALE_VOID_REFUSALS).toEqual([
+      "not_completed",
+      "has_return",
+      "session_closed",
+      "invoice_in_flight",
+    ]);
   });
 });
 
@@ -53,6 +59,18 @@ describe("saleVoidRefusal", () => {
 
   it("answers not completed before a closed session", () => {
     expect(saleVoidRefusal(facts({ state: "VOIDED", inOpenSession: false }))).toBe("not_completed");
+  });
+
+  it("refuses a sale that already has a return", () => {
+    expect(saleVoidRefusal(facts({ hasReturn: true }))).toBe("has_return");
+  });
+
+  it("answers not completed before a return", () => {
+    expect(saleVoidRefusal(facts({ state: "VOIDED", hasReturn: true }))).toBe("not_completed");
+  });
+
+  it("answers a return before a closed session, which every returned sale is likely to have", () => {
+    expect(saleVoidRefusal(facts({ hasReturn: true, inOpenSession: false }))).toBe("has_return");
   });
 
   it("answers a closed session before an invoice in flight", () => {
