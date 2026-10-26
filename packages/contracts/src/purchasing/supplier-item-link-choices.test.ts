@@ -11,6 +11,7 @@ const choices = {
     },
     { id: "p-2", name: "Harina", saleUnit: "KG", packagings: [] },
   ],
+  vatRates: { offered: [2100, 1050], default: 2100 },
 };
 
 describe("supplierItemLinkChoicesSchema", () => {
@@ -19,11 +20,11 @@ describe("supplierItemLinkChoicesSchema", () => {
   });
 
   it("accepts no products", () => {
-    expect(supplierItemLinkChoicesSchema.safeParse({ products: [] }).success).toBe(true);
+    expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [] }).success).toBe(true);
   });
 
   it("refuses a sale unit the catalog does not know", () => {
-    const unknown = { products: [{ ...choices.products[0], saleUnit: "LITER" }] };
+    const unknown = { ...choices, products: [{ ...choices.products[0], saleUnit: "LITER" }] };
 
     expect(supplierItemLinkChoicesSchema.safeParse(unknown).success).toBe(false);
   });
@@ -33,11 +34,12 @@ describe("supplierItemLinkChoicesSchema", () => {
       packagings: unknown;
     };
 
-    expect(supplierItemLinkChoicesSchema.safeParse({ products: [bare] }).success).toBe(false);
+    expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [bare] }).success).toBe(false);
   });
 
   it("refuses a packaging whose quantity is not a whole number", () => {
     const fractional = {
+      ...choices,
       products: [
         {
           ...choices.products[0],
@@ -47,5 +49,23 @@ describe("supplierItemLinkChoicesSchema", () => {
     };
 
     expect(supplierItemLinkChoicesSchema.safeParse(fractional).success).toBe(false);
+  });
+
+  it("refuses choices without the VAT rates", () => {
+    const { vatRates: _vatRates, ...bare } = choices;
+
+    expect(supplierItemLinkChoicesSchema.safeParse(bare).success).toBe(false);
+  });
+
+  it("refuses a VAT rate the items cannot carry", () => {
+    const unknown = { ...choices, vatRates: { offered: [2100, 1234], default: 2100 } };
+
+    expect(supplierItemLinkChoicesSchema.safeParse(unknown).success).toBe(false);
+  });
+
+  it("refuses no VAT rate offered", () => {
+    const none = { ...choices, vatRates: { offered: [], default: 2100 } };
+
+    expect(supplierItemLinkChoicesSchema.safeParse(none).success).toBe(false);
   });
 });

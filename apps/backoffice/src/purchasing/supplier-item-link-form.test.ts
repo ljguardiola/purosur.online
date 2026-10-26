@@ -9,7 +9,8 @@ import {
   SUPPLIER_ITEM_LINK_FIELDS,
   supplierItemLinkFormValuesOf,
   supplierItemLinkRequestFrom,
-  VAT_RATE_OPTIONS,
+  vatRateOrDefault,
+  vatRateOptionsOf,
 } from "./supplier-item-link-form";
 import {
   BOLSA_DE_PASAS,
@@ -82,11 +83,11 @@ describe("the fields", () => {
 });
 
 describe("supplierItemLinkFormValuesOf", () => {
-  it("starts empty with the loaded version and the default VAT rate for an item not linked", () => {
+  it("starts empty, with the loaded version and no VAT rate chosen, for an item not linked", () => {
     expect(supplierItemLinkFormValuesOf(null, 3)).toEqual({
       productId: null,
       packagingId: null,
-      vatRate: "2100",
+      vatRate: "",
       version: 3,
     });
   });
@@ -100,17 +101,29 @@ describe("supplierItemLinkFormValuesOf", () => {
     });
   });
 
-  it("keeps the default rate for a link made without one", () => {
-    expect(supplierItemLinkFormValuesOf(ALMOND_LINK, 3).vatRate).toBe("2100");
+  it("leaves the rate unchosen for a link made without one", () => {
+    expect(supplierItemLinkFormValuesOf(ALMOND_LINK, 3).vatRate).toBe("");
   });
 });
 
-describe("VAT_RATE_OPTIONS", () => {
-  it("offers 21 % first and 10,5 %", () => {
-    expect(VAT_RATE_OPTIONS).toEqual([
-      { value: "2100", label: "21 %" },
+describe("vatRateOptionsOf", () => {
+  it("offers each rate the cloud offers, in its order, labelled as a percentage", () => {
+    expect(vatRateOptionsOf({ offered: [2700, 1050], default: 1050 })).toEqual([
+      { value: "2700", label: "27 %" },
       { value: "1050", label: "10,5 %" },
     ]);
+  });
+});
+
+describe("vatRateOrDefault", () => {
+  const vatRates = { offered: [2700, 1050], default: 1050 };
+
+  it("chooses the default rate the cloud answers when none is chosen", () => {
+    expect(vatRateOrDefault("", vatRates)).toBe("1050");
+  });
+
+  it("keeps the rate already chosen", () => {
+    expect(vatRateOrDefault("2700", vatRates)).toBe("2700");
   });
 });
 
@@ -124,7 +137,7 @@ describe("linkProductOptions", () => {
   });
 
   it("offers nothing when there are no products", () => {
-    expect(linkProductOptions({ products: [] })).toBeUndefined();
+    expect(linkProductOptions({ ...LINK_CHOICES, products: [] })).toBeUndefined();
   });
 });
 

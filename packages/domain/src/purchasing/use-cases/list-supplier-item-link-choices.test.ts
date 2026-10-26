@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_SUPPLIER_ITEM_VAT_RATE, SUPPLIER_ITEM_VAT_RATES } from "../model/supplier-item.js";
 import { listSupplierItemLinkChoices } from "./list-supplier-item-link-choices.js";
 import { FakePurchasingListReader } from "./test-support/fake-purchasing-list-reader.js";
 
@@ -34,7 +35,7 @@ describe("listSupplierItemLinkChoices", () => {
       ],
     });
 
-    expect(await listSupplierItemLinkChoices(reader, [YERBA, HARINA])).toEqual([
+    expect((await listSupplierItemLinkChoices(reader, [YERBA, HARINA])).products).toEqual([
       {
         id: "p-unit",
         name: "Yerba",
@@ -63,7 +64,9 @@ describe("listSupplierItemLinkChoices", () => {
       ],
     });
 
-    const [yerba] = await listSupplierItemLinkChoices(reader, [YERBA]);
+    const {
+      products: [yerba],
+    } = await listSupplierItemLinkChoices(reader, [YERBA]);
 
     expect(yerba?.packagings.map((choice) => choice.id)).toEqual(["k-1"]);
   });
@@ -71,7 +74,7 @@ describe("listSupplierItemLinkChoices", () => {
   it("offers a product that has no packaging yet, so one can be added", async () => {
     const reader = new FakePurchasingListReader({ products: [HARINA] });
 
-    expect(await listSupplierItemLinkChoices(reader, [HARINA])).toEqual([
+    expect((await listSupplierItemLinkChoices(reader, [HARINA])).products).toEqual([
       { id: "p-kg", name: "Harina", saleUnit: "KG", packagings: [] },
     ]);
   });
@@ -83,7 +86,9 @@ describe("listSupplierItemLinkChoices", () => {
       packagings: [packaging({ id: "k-1", name: "Caja x 12", productId: "p-other" })],
     });
 
-    const [yerba, azucar] = await listSupplierItemLinkChoices(reader, [YERBA, otherUnit]);
+    const {
+      products: [yerba, azucar],
+    } = await listSupplierItemLinkChoices(reader, [YERBA, otherUnit]);
 
     expect(yerba?.packagings).toEqual([]);
     expect(azucar?.packagings.map((choice) => choice.id)).toEqual(["k-1"]);
@@ -95,8 +100,17 @@ describe("listSupplierItemLinkChoices", () => {
       packagings: [packaging({ id: "k-1", name: "Caja x 12" })],
     });
 
-    const choices = await listSupplierItemLinkChoices(reader, [HARINA]);
+    const { products } = await listSupplierItemLinkChoices(reader, [HARINA]);
 
-    expect(choices.map((choice) => choice.id)).toEqual(["p-kg"]);
+    expect(products.map((choice) => choice.id)).toEqual(["p-kg"]);
+  });
+
+  it("offers the VAT rates an item may carry and the one preselected", async () => {
+    const { vatRates } = await listSupplierItemLinkChoices(new FakePurchasingListReader({}), []);
+
+    expect(vatRates).toEqual({
+      offered: [...SUPPLIER_ITEM_VAT_RATES],
+      default: DEFAULT_SUPPLIER_ITEM_VAT_RATE,
+    });
   });
 });

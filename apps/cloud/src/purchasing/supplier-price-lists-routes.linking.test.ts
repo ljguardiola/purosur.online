@@ -544,6 +544,14 @@ describe("GET /supplier-price-lists/link-choices", () => {
     );
   });
 
+  it("answers the VAT rates an item may carry and the one preselected", async () => {
+    const { headers } = await manager();
+
+    const response = await choices(headers);
+
+    expect(response.json().vatRates).toEqual({ offered: [2100, 1050], default: 2100 });
+  });
+
   it("is read with the permission to manage supplier price lists alone", async () => {
     const { headers } = await signedInWith(db, ["manage_supplier_price_lists"], NOW);
 

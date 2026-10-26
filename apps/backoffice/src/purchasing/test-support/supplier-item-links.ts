@@ -36,6 +36,7 @@ export const LINK_CHOICES: SupplierItemLinkChoices = {
       ],
     },
   ],
+  vatRates: { offered: [2100, 1050], default: 2100 },
 };
 
 export const PROPOSED_BY_BARCODE: SupplierItemLinkProposal = {

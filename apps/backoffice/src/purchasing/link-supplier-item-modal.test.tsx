@@ -451,6 +451,29 @@ test.each([false, null])(
   },
 );
 
+test("offers the VAT rates the cloud answers, with its default chosen", async () => {
+  const services = createServices({
+    fetchSupplierItemLinkChoices: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { ...LINK_CHOICES, vatRates: { offered: [2700, 1050], default: 1050 } },
+    }),
+  });
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ services, list: { ...LIST, pricesIncludeVat: false } });
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByRole("radio", { name: "27 %" })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "10,5 %" })).toBeChecked();
+  expect(dialog.getByRole("radio", { name: "21 %" }).query()).toBeNull();
+  await linkPasas(screen);
+
+  expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({ vatRate: 1_050 }),
+  );
+});
+
 test("links with the 10,5 % rate when it is chosen", async () => {
   const services = createServices();
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
@@ -476,6 +499,7 @@ test("starts with the product, packaging and rate an item is already linked with
         packagings: [ALMOND_LINK.packaging],
       },
     ],
+    vatRates: LINK_CHOICES.vatRates,
   };
   const services = createServices({
     fetchSupplierItemLinkChoices: vi.fn().mockResolvedValue({ kind: "ok", value: choices }),
@@ -664,6 +688,7 @@ test("creates a packaging for the chosen product, reads the choices again and ch
     version: 1,
   };
   const withCreated = {
+    ...LINK_CHOICES,
     products: LINK_CHOICES.products.map((product) =>
       product.id === PASAS_ID
         ? {
