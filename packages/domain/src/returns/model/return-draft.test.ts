@@ -297,6 +297,7 @@ describe("acceptedLines", () => {
         quantity: 2,
         reason: "change_of_mind",
         disposition: "restock",
+        refusal: null,
         refundAmount: 5000,
       },
     ]);
