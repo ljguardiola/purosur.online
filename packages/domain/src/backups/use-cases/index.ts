@@ -1,4 +1,9 @@
 export type {
+  AskContingencyTicketRecoveryInput,
+  AskContingencyTicketRecoveryOutcome,
+} from "./ask-contingency-ticket-recovery.js";
+export { askContingencyTicketRecovery } from "./ask-contingency-ticket-recovery.js";
+export type {
   ContingencyBackupTicketIds,
   ContingencyBackupTicketPrinter,
   ContingencyBackupTicketPrinting,
@@ -14,9 +19,25 @@ export type {
   RecordContingencyBackupTicketPorts,
   RecordContingencyBackupTicketTransaction,
 } from "./contingency-backup-ticket-ports.js";
+export type {
+  AwaitingContingencyTicketRecoveries,
+  AwaitingContingencyTicketRecovery,
+  ContingencyTicketRecoveries,
+  ContingencyTicketRecoveryPorts,
+  ContingencyTicketRecoveryStanding,
+  ContingencyTicketRecoveryTransaction,
+  FinishedContingencyTicketRecovery,
+  LockedContingencyTicketRecovery,
+  OpenContingencyTicketRecovery,
+} from "./contingency-ticket-recovery-ports.js";
 export { detectOverdueRegisterBackups } from "./detect-overdue-register-backups.js";
 export type { DiscardContingencyBackupTicketsOutcome } from "./discard-contingency-backup-tickets.js";
 export { discardContingencyBackupTickets } from "./discard-contingency-backup-tickets.js";
+export type {
+  FinishContingencyTicketRecoveryInput,
+  FinishContingencyTicketRecoveryOutcome,
+} from "./finish-contingency-ticket-recovery.js";
+export { finishContingencyTicketRecovery } from "./finish-contingency-ticket-recovery.js";
 export type {
   OffsiteDumpCheckPorts,
   OffsiteDumpCheckStore,
