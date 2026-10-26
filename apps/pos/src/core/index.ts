@@ -68,6 +68,7 @@ import {
 import { initializeErrorReporting } from "./platform/error-reporting";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainLink } from "./platform/main-link";
+import { ZoneRulesHolder } from "./platform/zone-rules-holder";
 import { refreshKeysWhenAnnounced } from "./register/announced-key-refresh";
 import { createBatteryShutdown } from "./register/battery-shutdown";
 import { createBatteryWatch } from "./register/battery-watch";
@@ -357,7 +358,11 @@ if (
 
 const register = registerServiceOf(startedLocalDatabase, () => process.exit(1));
 const localDatabase = register.database;
-const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
+const zoneRules = localDatabase === undefined ? undefined : new ZoneRulesHolder(localDatabase);
+const replica =
+  localDatabase === undefined
+    ? undefined
+    : new SqliteLocalReplica(localDatabase, () => zoneRules?.refresh());
 const localOutbox =
   localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
 const restorationOf = (database: NonNullable<typeof localDatabase>) =>
@@ -519,6 +524,7 @@ async function pushOutboxToCloud() {
                 () => readLatestClockOffsetMs(localDatabase),
                 () => readPendingReplenishment(localDatabase),
                 appVersionFromCoreArguments(process.argv),
+                () => zoneRules?.current().version ?? null,
               ),
         acceptedPush:
           localDatabase === undefined

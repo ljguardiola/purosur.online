@@ -24,6 +24,7 @@ export const PULLED_TABLES = {
   issuer_identification_versions: "issuer_identification",
   buyer_identification_thresholds: "buyer_identification_threshold",
   buyer_tax_status_sets: "buyer_tax_status_set",
+  zone_rules: "zone_rules",
   stock_movements: "stock_movement",
   stock_balances: "stock_movement",
   refund_completions: "refund_completion",

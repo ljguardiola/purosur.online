@@ -31,6 +31,7 @@ export function registerTelemetryReader(
   readClockOffsetMs: () => number | null = () => null,
   readPendingReplenishment: () => PendingReplenishment | undefined = () => undefined,
   appVersion: string | undefined = undefined,
+  readZoneRulesVersion: (() => string | null) | undefined = undefined,
 ): () => Promise<RegisterTelemetry> {
   return async () => ({
     ...(await readStorage()),
@@ -43,6 +44,7 @@ export function registerTelemetryReader(
     ...fiscalEmissionStoppedReportOf(readLatestPreEmissionGate()),
     ...clockDriftReportOf(readClockOffsetMs()),
     ...replenishmentFailedReportOf(readPendingReplenishment(), registerVersionOf(appVersion)),
+    ...(readZoneRulesVersion === undefined ? {} : { zone_rules_version: readZoneRulesVersion() }),
     serial_devices: readSerialDevices(),
     ...batteryTelemetryOf(readBattery()),
   });
