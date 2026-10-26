@@ -1,6 +1,7 @@
-import { editableBranchSettingsSchema } from "@purosur/contracts";
+import { branchSettingsReadSchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { latestPublishedZoneRulesVersion } from "../register/drizzle-zone-rules-store.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
@@ -34,9 +35,13 @@ export function registerBranchSettingsReadRoute<TQueryResult extends PgQueryResu
     },
     async (request, reply) => {
       const settings = await reader.currentBranchSettings(openSessionOf(request).locationId);
-      await reply
-        .code(200)
-        .send(editableBranchSettingsSchema.parse(toEditableBranchSettingsWire(settings)));
+      const zoneRulesVersion = await latestPublishedZoneRulesVersion(options.db);
+      await reply.code(200).send(
+        branchSettingsReadSchema.parse({
+          ...toEditableBranchSettingsWire(settings),
+          zone_rules_version: zoneRulesVersion,
+        }),
+      );
     },
   );
 }

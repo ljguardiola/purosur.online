@@ -175,6 +175,7 @@ function alertIcon(kind: string): Icon {
       return <TriangleAlert />;
     case "clock_corrected":
     case "clock_drift":
+    case "tz_rules_mismatch":
       return <Clock />;
     default:
       return <Bell />;
@@ -483,6 +484,7 @@ function alertTitle(alert: AlertDetail): string {
     case "late_payment_refund":
       return "Reembolso pendiente por un pago tardío";
     case "register_replenishment_failed":
+    case "tz_rules_mismatch":
       return alertKindLabel(alert.kind);
     case "refund_task":
       return "Reembolso pendiente de confirmar";
@@ -574,6 +576,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return alert.detail.failure === "refused"
         ? `La nube rechazó ponerla al día. La caja «${targetName}» no puede vender hasta que un Administrador la dé de alta de nuevo.`
         : `La caja «${targetName}» recibió un evento que su versión no puede leer. No puede vender hasta que se actualice; después lo intenta sola.`;
+    case "tz_rules_mismatch":
+      return `Versión de la caja: ${alert.detail.registerVersion ?? "Sin recibir"}. Versión de la nube: ${alert.detail.cloudVersion}.`;
     case "outbox_chain_broken":
       return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":
