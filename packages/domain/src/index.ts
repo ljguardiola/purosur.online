@@ -282,6 +282,7 @@ export {
   creditNoteCFiscalBlock,
   DEFERRAL_REASONS,
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
+  DEFERRED_RETRY_DELAYING_STATES,
   DEFERRED_SALE_STATES,
   deferredSaleAgeInDays,
   deferredSaleExpiresOn,
