@@ -27,6 +27,7 @@ const filled = {
   ...EMPTY_SUPPLIER_ITEM_LINK_FORM,
   productId: PASAS_ID,
   packagingId: CAJA_DE_PASAS.id,
+  vatRate: "2100",
   version: 3,
 };
 
@@ -40,8 +41,14 @@ describe("supplierItemLinkRequestFrom", () => {
     });
   });
 
-  it("sends the default rate when the list does not say whether its prices include VAT", () => {
+  it("sends the chosen rate when the list does not say whether its prices include VAT", () => {
     expect(supplierItemLinkRequestFrom(filled, null).vatRate).toBe(2_100);
+  });
+
+  it("sends a rate the shape refuses when none is chosen for a list excluding VAT", () => {
+    const request = supplierItemLinkRequestFrom({ ...filled, vatRate: "" }, false);
+
+    expect(supplierPriceListRowLinkBodySchema.safeParse(request).success).toBe(false);
   });
 
   it("sends no rate when the list's prices already include VAT", () => {
