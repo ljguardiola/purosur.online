@@ -4,13 +4,14 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   latestIssuedOn,
   PENDING_DEFERRED_SALE_STATE,
+  UNCLEAR_ANSWER_KINDS,
 } from "@purosur/domain";
 import type {
   DeferredSaleCandidate,
   DeferredSaleExpiryStore,
   DeferredSaleExpiryTransaction,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, asc, eq, max, sql } from "drizzle-orm";
+import { and, asc, eq, exists, inArray, isNull, max, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   deferredSales,
@@ -19,6 +20,22 @@ import {
   registerPointsOfSale,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
+
+const heldByTaxAuthority = or(
+  eq(fiscalRequests.answerKind, "authorized"),
+  eq(fiscalRequests.decision, "adopted"),
+);
+
+const possiblyHeldByTaxAuthority = or(
+  heldByTaxAuthority,
+  and(
+    isNull(fiscalRequests.decision),
+    or(
+      isNull(fiscalRequests.answerKind),
+      inArray(fiscalRequests.answerKind, [...UNCLEAR_ANSWER_KINDS]),
+    ),
+  ),
+);
 
 class DrizzleDeferredSaleExpiryTransaction<TQueryResult extends PgQueryResultHKT>
   implements DeferredSaleExpiryTransaction
@@ -48,9 +65,13 @@ class DrizzleDeferredSaleExpiryTransaction<TQueryResult extends PgQueryResultHKT
       .where(
         and(
           eq(fiscalRequests.pointOfSale, registerPointsOfSale.pointOfSaleNumber),
-          eq(fiscalRequests.answerKind, "authorized"),
+          heldByTaxAuthority,
         ),
       );
+    const saleDocument = this.tx
+      .select({ id: fiscalRequests.fiscalDocumentId })
+      .from(fiscalRequests)
+      .where(and(eq(fiscalRequests.saleId, deferredSales.saleId), possiblyHeldByTaxAuthority));
     const rows = await this.tx
       .select({
         id: deferredSales.id,
@@ -62,6 +83,7 @@ class DrizzleDeferredSaleExpiryTransaction<TQueryResult extends PgQueryResultHKT
         shortCode: deferredSales.shortCode,
         taxAuthorityDay: sql<string | null>`(${taxAuthorityDay})`,
         authorizedRequestDay: sql<string | null>`(${authorizedRequestDay})`,
+        saleMayBeInvoiced: exists(saleDocument).mapWith(Boolean),
       })
       .from(deferredSales)
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, deferredSales.registerId))

@@ -6,6 +6,7 @@ import type {
 
 export interface DeferredSaleCandidate extends PendingDeferredSale {
   lastAuthorizedIssuedOn: string | null;
+  saleMayBeInvoiced: boolean;
 }
 
 export interface DeferredSaleExpiryTransaction {
@@ -19,7 +20,7 @@ export interface DeferredSaleExpiryStore {
   ): Promise<TOutcome>;
 }
 
-export interface RegularizeExpiredDeferredSalesPorts {
+export interface RegularizeUninvoiceableDeferredSalesPorts {
   store: DeferredSaleExpiryStore;
   clock: Clock;
 }
