@@ -24,7 +24,7 @@ const NOT_YET_DESCRIPTIONS = {
   older_sale_blocking:
     "Una venta anterior está frenando la facturación. No se imprimió nada; pedile al cliente que vuelva más tarde.",
   not_authorized:
-    "ARCA no autorizó la factura de esta venta. No se imprimió nada; pedile al cliente que vuelva más tarde.",
+    "ARCA no autorizó la factura de esta venta y no se imprimió nada. La caja la vuelve a pedir sola: buscala de nuevo más tarde. Si vence el plazo sin autorizarse, queda como tarea para el dueño.",
 } as const;
 
 export type PrintDeferredInvoiceModalProps = {
