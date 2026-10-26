@@ -36,6 +36,7 @@ import {
   registers,
   serialDeviceState,
 } from "../platform/db/schema.js";
+import { latestPublishedZoneRulesVersion } from "../register/drizzle-zone-rules-store.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
@@ -228,6 +229,10 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       throw new Error(`installation ${deviceId} does not exist`);
     }
     return installation;
+  }
+
+  latestPublishedZoneRulesVersion(): Promise<string | null> {
+    return latestPublishedZoneRulesVersion(this.tx);
   }
 
   async recordRegisterVersionStanding(standing: RegisterVersionStanding, at: Date): Promise<void> {

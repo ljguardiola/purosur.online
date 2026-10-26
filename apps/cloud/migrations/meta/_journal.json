@@ -925,6 +925,13 @@
       "when": 1792815818186,
       "tag": "0138_deferred_invoice_prints",
       "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1793039866618,
+      "tag": "0139_zone_rules",
+      "breakpoints": true
     }
   ]
 }

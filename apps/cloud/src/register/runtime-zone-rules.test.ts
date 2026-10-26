@@ -29,7 +29,7 @@ describe("runtimeZoneRules", () => {
   const rules = runtimeZoneRules();
 
   it("is versioned with the time zone database of the runtime", () => {
-    expect(rules.version).toBe(process.versions.tz);
+    expect(rules.version).toBe(process.versions["tz"]);
   });
 
   it("starts at the beginning of the scanned years with its first offset", () => {

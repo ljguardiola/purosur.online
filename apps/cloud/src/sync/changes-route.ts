@@ -222,6 +222,20 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           })),
         },
       };
+    case "zone_rules":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          version: change.row.version,
+          transitions: change.row.transitions.map(({ from, offsetMinutes }) => ({
+            from,
+            offset_minutes: offsetMinutes,
+          })),
+          published_at: change.row.publishedAt,
+        },
+      };
     case "stock_movement":
       return {
         change_seq,

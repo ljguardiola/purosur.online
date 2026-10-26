@@ -39,6 +39,7 @@ import {
   userPins,
   userRoles,
   users,
+  zoneRules,
 } from "../platform/db/schema.js";
 import { discountFieldsOf } from "../pricing/drizzle-discount-store.js";
 import { PRICE_VERSION } from "../pricing/price-version.js";
@@ -65,6 +66,7 @@ import type {
   StockMovementRow,
   TagRow,
   UserRow,
+  ZoneRulesRow,
 } from "./pulled-changes.js";
 
 export async function readBranchFirstCashSessions<TQueryResult extends PgQueryResultHKT>(
@@ -572,6 +574,31 @@ export async function readBuyerTaxStatusSets<TQueryResult extends PgQueryResultH
     .where(inArray(buyerTaxStatusSets.id, [...ids]))
     .orderBy(asc(buyerTaxStatusSets.id));
   return new Map(rows.map(({ id, ...row }) => [id, row]));
+}
+
+export async function readZoneRules<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, ZoneRulesRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      id: zoneRules.id,
+      version: zoneRules.version,
+      transitions: zoneRules.transitions,
+      publishedAt: zoneRules.publishedAt,
+    })
+    .from(zoneRules)
+    .where(inArray(zoneRules.id, [...ids]))
+    .orderBy(asc(zoneRules.id));
+  return new Map(
+    rows.map(({ id, publishedAt, ...row }) => [
+      id,
+      { ...row, publishedAt: publishedAt.toISOString() },
+    ]),
+  );
 }
 
 export async function readStockMovements<TQueryResult extends PgQueryResultHKT>(

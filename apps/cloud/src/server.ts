@@ -9,7 +9,7 @@ import type {
   PriceListExtractor,
   SupplierPriceListFiles,
 } from "@purosur/domain/purchasing/use-cases";
-import type { SnapshotObjects } from "@purosur/domain/register/use-cases";
+import { publishZoneRules, type SnapshotObjects } from "@purosur/domain/register/use-cases";
 import * as Sentry from "@sentry/node";
 import {
   drizzle,
@@ -108,9 +108,11 @@ import { supplierPriceListReadingJobs } from "./purchasing/supplier-price-list-r
 import { resolveSupplierPriceListsBucketConfig } from "./purchasing/supplier-price-lists-bucket-config.js";
 import { BucketRegisterReleases } from "./register/bucket-register-releases.js";
 import { BucketRegisterSnapshots } from "./register/bucket-register-snapshots.js";
+import { DrizzleZoneRulesStore } from "./register/drizzle-zone-rules-store.js";
 import { registerSnapshotJobs } from "./register/register-snapshot-jobs.js";
 import { resolveRegisterSnapshotsBucketConfig } from "./register/register-snapshots-bucket-config.js";
 import { resolveRegisterUpdatesBucketConfig } from "./register/register-updates-bucket-config.js";
+import { runtimeZoneRules } from "./register/runtime-zone-rules.js";
 import { applySyncedEventsJobs } from "./sync/apply-synced-events-task.js";
 
 export interface ServerEnv {
@@ -694,6 +696,7 @@ export interface StartServerDeps {
     db: BackgroundJobInfrastructure["db"],
     authorizedCuit: string,
   ) => Promise<unknown>;
+  publishZoneRules?: (db: BackgroundJobInfrastructure["db"]) => Promise<unknown>;
 }
 
 function recordAuthorizedCuitInDatabase(
@@ -704,6 +707,16 @@ function recordAuthorizedCuitInDatabase(
   return recordAuthorizedCuit(
     { store: new DrizzleIssuerIdentificationStore(db, now) },
     { authorizedCuit },
+  );
+}
+
+function publishRuntimeZoneRulesToDatabase(
+  db: BackgroundJobInfrastructure["db"],
+  now: () => Date,
+): Promise<unknown> {
+  return publishZoneRules(
+    { store: new DrizzleZoneRulesStore(db), clock: { now } },
+    runtimeZoneRules(),
   );
 }
 
@@ -728,6 +741,10 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     deps.recordAuthorizedCuit ??
     ((db: BackgroundJobInfrastructure["db"], authorizedCuit: string) =>
       recordAuthorizedCuitInDatabase(db, authorizedCuit, now));
+
+  const doPublishZoneRules =
+    deps.publishZoneRules ??
+    ((db: BackgroundJobInfrastructure["db"]) => publishRuntimeZoneRulesToDatabase(db, now));
 
   const version = resolveVersion(env);
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT, release: version });
@@ -879,6 +896,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   if (database) {
     app.addHook("onClose", () => database.backgroundJobs.close());
     await doRecordAuthorizedCuit(database.backgroundJobs.db, database.authorizedCuit);
+    await doPublishZoneRules(database.backgroundJobs.db);
     await doEnqueueArcaCertificateExpiryCheck(database.backgroundJobs.workerUtils);
     if (database.setUpBackgroundJobsEnv.arcaBuyerTaxStatus) {
       await doEnqueueBuyerTaxStatusFetch(database.backgroundJobs.workerUtils);

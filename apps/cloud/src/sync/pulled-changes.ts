@@ -153,6 +153,12 @@ export interface BuyerTaxStatusSetRow {
   options: { code: number; description: string; invoiceClass: string }[];
 }
 
+export interface ZoneRulesRow {
+  version: string;
+  transitions: { from: string; offsetMinutes: number }[];
+  publishedAt: string;
+}
+
 export type RemovedEntity =
   | "category"
   | "product"
@@ -182,6 +188,7 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "issuer_identification"; row: IssuerIdentificationVersionRow }
   | { entity: "buyer_identification_threshold"; row: BuyerIdentificationThresholdRow }
   | { entity: "buyer_tax_status_set"; row: BuyerTaxStatusSetRow }
+  | { entity: "zone_rules"; row: ZoneRulesRow }
   | { entity: "stock_movement"; row: StockMovementRow }
   | { entity: "refund_completion"; row: RefundCompletionRow }
   | { entity: "offline_authorization_code"; row: OfflineAuthorizationCodeRow }

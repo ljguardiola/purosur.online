@@ -259,7 +259,13 @@ describe("observeRegisterStops", () => {
   it("opens nothing for a register that reports nothing about selling or emitting", async () => {
     await observeRegisterStops(
       db,
-      { registerId: REGISTER, deviceId: DEVICE, locationId: location, report: REPORT },
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        report: REPORT,
+        cloudZoneRulesVersion: null,
+      },
       NOW,
     );
 
@@ -275,7 +281,6 @@ describe("observeRegisterSynced", () => {
         kind: "register_silent",
         scope: REGISTER,
         locationId: location,
-        cloudZoneRulesVersion: null,
         detail: { deviceId: DEVICE, lastAcceptedPushAt: NOW.toISOString() },
       },
       { now: () => NOW },
