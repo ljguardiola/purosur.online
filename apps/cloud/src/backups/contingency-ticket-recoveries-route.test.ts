@@ -11,9 +11,11 @@ import { registerRouteAccess } from "../sessions/route-access.js";
 import {
   BACKOFFICE_ORIGIN,
   type BackofficeSession,
+  openBackofficeSession,
   SESSION_NOON,
 } from "../test-support/backoffice-session.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerContingencyTicketRecoveriesRoutes } from "./contingency-ticket-recoveries-route.js";
 import { rescueSession } from "./test-support/contingency-backup-ticket-rescue-route.js";
 import { insertContingencyTicketRecovery } from "./test-support/contingency-ticket-recoveries.js";
@@ -203,7 +205,12 @@ describe("POST /contingency-backup-tickets/recoveries/:id/finish", () => {
     const { recoveryId } = await anAwaitingRecovery();
     const first = await rescueSession(db);
     await finishing(recoveryId, first);
-    const second = await rescueSession(db);
+    const second = await openBackofficeSession(db, {
+      now: SESSION_NOON,
+      locationId: await seededLocationId(db),
+      permissionKeys: ["recover_contingency_receipts", "configure_branch"],
+      email: "second@example.com",
+    });
 
     const response = await finishing(recoveryId, second);
 
