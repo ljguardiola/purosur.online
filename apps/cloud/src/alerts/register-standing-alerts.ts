@@ -5,6 +5,7 @@ import {
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerZoneRulesObservation,
 } from "@purosur/domain";
 import type { RegisterStops, RegisterVersionStanding } from "@purosur/domain/sync/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -42,6 +43,10 @@ export async function observeRegisterStops<TQueryResult extends PgQueryResultHKT
   const clockDrift = registerClockDriftObservation(stops);
   if (clockDrift !== undefined) {
     await observeAlertCondition(tx, clockDrift, { now: () => at });
+  }
+  const zoneRules = registerZoneRulesObservation(stops);
+  if (zoneRules !== undefined) {
+    await observeAlertCondition(tx, zoneRules, { now: () => at });
   }
   const replenishment = registerReplenishmentObservation(stops);
   if (replenishment !== undefined) {

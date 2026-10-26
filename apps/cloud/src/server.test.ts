@@ -1086,6 +1086,7 @@ describe("startServer recording the certificate's CUIT", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpBackgroundJobs,
       recordAuthorizedCuit,
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(recordAuthorizedCuit).toHaveBeenCalledWith(db, FICTIONAL_CERTIFICATE_CUIT);
@@ -1103,6 +1104,7 @@ describe("startServer recording the certificate's CUIT", () => {
         initSentry: vi.fn(),
         buildApp: vi.fn().mockReturnValue(fakeApp),
         recordAuthorizedCuit,
+        publishZoneRules: vi.fn().mockResolvedValue(undefined),
       },
     );
 
