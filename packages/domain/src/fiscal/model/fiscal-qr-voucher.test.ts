@@ -62,9 +62,14 @@ describe("fiscalQrVoucher", () => {
   });
 
   it("reads a payload whose base64 padding arrived percent-encoded", () => {
-    const encoded = qrOf({ ptoVta: 3, tipoCmp: 11, nroCmp: 1204, x: "??" }).replaceAll("=", "%3D");
+    const body = btoa(JSON.stringify({ ptoVta: 3, tipoCmp: 11, nroCmp: 1204, x: "abc" }));
+    expect(body.endsWith("=")).toBe(true);
 
-    expect(fiscalQrVoucher(encoded)).toEqual({ pointOfSale: 3, voucherType: 11, number: 1204 });
+    expect(fiscalQrVoucher(`${TAX_AUTHORITY_QR_URL}${body.replaceAll("=", "%3D")}`)).toEqual({
+      pointOfSale: 3,
+      voucherType: 11,
+      number: 1204,
+    });
   });
 
   it.each([
