@@ -857,11 +857,18 @@ export {
   signInLockoutWindowStart,
   signInLookupAttemptWindowStart,
 } from "./sessions/index.js";
-export type { IsoWeekday, ReportPeriod, SalesDeniedReason } from "./shared/index.js";
+export type {
+  IsoWeekday,
+  ReportPeriod,
+  SalesDeniedReason,
+  ZoneRules,
+  ZoneTransition,
+} from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
   argentinaCalendarDay,
   argentinaInstant,
+  FIXED_ARGENTINA_ZONE_RULES,
   isCalendarDay,
   isoWeekdayOf,
   isReportPeriodAsked,
@@ -869,6 +876,7 @@ export {
   lastDayOfMonth,
   latestKey,
   MAX_CASH_AMOUNT_CENTS,
+  offsetAt,
   REPLENISHMENT_FAILURE_KINDS,
   SALE_COMPLETED_EVENT_TYPE,
   SALE_VOIDED_EVENT_TYPE,
