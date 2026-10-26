@@ -6,7 +6,7 @@ import { QrCameraScanner, type QrScannerProps } from "./qr-camera-scanner";
 
 export type ContingencyTicketRescueScreenServices = {
   rescueContingencyBackupTicket: typeof rescueContingencyBackupTicket;
-  fetchContingencyTicketRecoveries: typeof fetchContingencyTicketRecoveries;
+  fetchContingencyTicketRecoveries?: typeof fetchContingencyTicketRecoveries;
   finishTicketRecoveryModal?: FinishTicketRecoveryModalServices;
   scanner: ComponentType<QrScannerProps>;
 };
