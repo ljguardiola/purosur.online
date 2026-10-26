@@ -3064,6 +3064,16 @@ describe("the route access inventory", () => {
         access: capabilityAccess("contingency_ticket_rescue"),
       },
       {
+        method: "GET",
+        url: "/api/contingency-backup-tickets/recoveries",
+        access: capabilityAccess("contingency_ticket_rescue"),
+      },
+      {
+        method: "POST",
+        url: "/api/contingency-backup-tickets/recoveries/:id/finish",
+        access: capabilityAccess("contingency_ticket_rescue"),
+      },
+      {
         method: "POST",
         url: "/api/registers/:id/revocations",
         access: capabilityAccess("revoke_installations"),
@@ -3202,6 +3212,11 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/reset", access: PUBLIC_ACCESS },
+      {
+        method: "POST",
+        url: "/api/devices/current/contingency-ticket-recovery",
+        access: PUBLIC_ACCESS,
+      },
       { method: "POST", url: "/api/first-pin-codes", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
