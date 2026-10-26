@@ -76,6 +76,10 @@ test("names the alert of a register whose replenishment can never complete", () 
   expect(alertKindLabel("register_replenishment_failed")).toBe("Caja sin poder ponerse al día");
 });
 
+test("names the alert of a register whose zone rules differ from the cloud's", () => {
+  expect(alertKindLabel("tz_rules_mismatch")).toBe("Reglas de zona horaria distintas de la nube");
+});
+
 test("names the alert of a presentation whose document ARCA rejected", () => {
   expect(alertKindLabel("fortnight_report_document_rejected")).toBe(
     "Comprobante rechazado en un informe quincenal",
