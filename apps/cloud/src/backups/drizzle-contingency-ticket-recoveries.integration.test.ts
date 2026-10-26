@@ -60,7 +60,11 @@ describe("DrizzleContingencyTicketRecoveries against Postgres", () => {
   });
 
   it("lets only one of two concurrent finishes finish the recovery", async () => {
-    const predecessor = await insertEnrolledInstallation(db, { now: NOW, revokedAt: NOW });
+    const predecessor = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 2",
+      revokedAt: NOW,
+    });
     const current = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: predecessor.registerId,

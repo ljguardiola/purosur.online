@@ -29,6 +29,7 @@ import {
   clockCorrections,
   compromiseResponseCompletions,
   compromiseResponses,
+  contingencyTicketRecoveries,
   creditNotes,
   deferredSales,
   deviceState,
@@ -540,6 +541,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       registerId: register.id,
       version: 1,
       key: "sealed-ticket-key",
+    });
+    await db.insert(contingencyTicketRecoveries).values({
+      registerId: register.id,
+      restoredDeviceId: installation.id,
+      openedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(registerEnrollmentAttempts).values({
       keyKind: "source_address",
