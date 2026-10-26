@@ -58,7 +58,11 @@ async function migratedDatabase() {
        values (${columns.map((_column, index) => `$${index + 1}`).join(", ")}) returning *`,
       Object.values(values),
     );
-    return rows[0] as unknown as { id: string };
+    const [row] = rows;
+    if (row === undefined) {
+      throw new Error(`${table} returned no inserted row`);
+    }
+    return row;
   };
   const insertItem = (overrides: Record<string, Value> = {}) =>
     insert("supplier_items", {
