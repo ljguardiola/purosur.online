@@ -785,6 +785,7 @@ describe("startServer", () => {
       buildApp,
       setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1009,6 +1010,7 @@ describe("startServer checking the offsite dump", () => {
         buildApp,
         setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        publishZoneRules: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1108,6 +1110,71 @@ describe("startServer recording the certificate's CUIT", () => {
   });
 });
 
+describe("startServer publishing the zone rules of its runtime", () => {
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  it("publishes them to the database before it starts listening", async () => {
+    const steps: string[] = [];
+    const fakeApp = appListeningBy(
+      vi.fn(async () => {
+        steps.push("listen");
+      }),
+    );
+    const db = { marker: "fake-db" };
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
+      db,
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    });
+    const publishZoneRules = vi.fn(async () => {
+      steps.push("publishZoneRules");
+    });
+
+    await startServer(env, {
+      arcaEndpoints: unreachableArcaEndpoints,
+      initSentry: vi.fn(),
+      buildApp: vi.fn().mockReturnValue(fakeApp),
+      setUpBackgroundJobs,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules,
+    });
+
+    expect(publishZoneRules).toHaveBeenCalledWith(db);
+    expect(steps).toEqual(["publishZoneRules", "listen"]);
+  });
+
+  it("publishes nothing when no database is configured", async () => {
+    const publishZoneRules = vi.fn();
+    const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
+
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp: vi.fn().mockReturnValue(fakeApp),
+        publishZoneRules,
+      },
+    );
+
+    expect(publishZoneRules).not.toHaveBeenCalled();
+  });
+});
+
 describe("startServer checking the certificate's expiry", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
@@ -1147,6 +1214,7 @@ describe("startServer checking the certificate's expiry", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpBackgroundJobs: vi.fn().mockResolvedValue(backgroundJobs),
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1220,6 +1288,7 @@ describe("startServer with the ARCA private key", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1411,6 +1480,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1516,6 +1586,7 @@ describe("startServer authorizing sales in real time", () => {
       buildApp,
       setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
@@ -1744,6 +1815,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       buildApp,
       setUpBackgroundJobs: setUp,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -1883,6 +1955,7 @@ describe("startServer reading supplier price lists", () => {
       buildApp,
       setUpBackgroundJobs: setUp,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -1999,6 +2072,7 @@ describe("startServer with the real app", () => {
         buildApp: buildAppWithoutListening,
         setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        publishZoneRules: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -2260,6 +2334,7 @@ describe("startServer ARCA endpoints", () => {
         buildApp: vi.fn().mockReturnValue(fakeApp),
         setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        publishZoneRules: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),

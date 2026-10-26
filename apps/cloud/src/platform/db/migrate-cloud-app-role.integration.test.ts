@@ -247,7 +247,11 @@ describe("the cloud_app role runMigrations creates", () => {
     const [issuerVersion] = await cloudApp<{ version: number }[]>`
       insert into issuer_identification_versions (version) values (900) returning version
     `;
-    if (!threshold || !taxStatusSet || !issuerVersion) {
+    const [rules] = await cloudApp<{ id: string }[]>`
+      insert into zone_rules (version, transitions)
+      values ('2026a', '[]'::jsonb) returning id
+    `;
+    if (!threshold || !taxStatusSet || !issuerVersion || !rules) {
       throw new Error("test setup: appending the fiscal configuration rows returned no row");
     }
 
@@ -265,6 +269,11 @@ describe("the cloud_app role runMigrations creates", () => {
       cloudApp`delete from buyer_tax_status_sets where id = ${taxStatusSet.id}`,
     );
     await expectPermissionDenied(cloudApp`truncate buyer_tax_status_sets`);
+    await expectPermissionDenied(
+      cloudApp`update zone_rules set version = '2026b' where id = ${rules.id}`,
+    );
+    await expectPermissionDenied(cloudApp`delete from zone_rules where id = ${rules.id}`);
+    await expectPermissionDenied(cloudApp`truncate zone_rules`);
     await expectPermissionDenied(
       cloudApp`update issuer_identification_versions set legal_name = 'x' where version = ${issuerVersion.version}`,
     );

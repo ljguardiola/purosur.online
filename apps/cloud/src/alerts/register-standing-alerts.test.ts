@@ -89,6 +89,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: { ...REPORT, sales_denied: true, sales_denied_reason: "event_history_broken" },
       },
       NOW,
@@ -109,6 +110,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: {
           ...REPORT,
           fiscal_emission_stopped: true,
@@ -130,6 +132,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: { ...REPORT, clock_drift: true },
       },
       NOW,
@@ -147,6 +150,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: { ...REPORT, clock_drift: true },
       },
       NOW,
@@ -158,6 +162,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: { ...REPORT, clock_drift: false },
       },
       LATER,
@@ -177,6 +182,7 @@ describe("observeRegisterStops", () => {
           registerId: REGISTER,
           deviceId: DEVICE,
           locationId: location,
+          cloudZoneRulesVersion: null,
           report: { ...REPORT, replenishment_failed: failure },
         },
         NOW,
@@ -195,6 +201,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: { ...REPORT, replenishment_failed: "refused" },
       },
       NOW,
@@ -206,6 +213,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: { ...REPORT, replenishment_failed: false },
       },
       LATER,
@@ -223,6 +231,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: { ...REPORT, replenishment_failed: false },
       },
       NOW,
@@ -238,6 +247,7 @@ describe("observeRegisterStops", () => {
         registerId: REGISTER,
         deviceId: DEVICE,
         locationId: location,
+        cloudZoneRulesVersion: null,
         report: { ...REPORT, clock_drift: false },
       },
       NOW,
@@ -265,6 +275,7 @@ describe("observeRegisterSynced", () => {
         kind: "register_silent",
         scope: REGISTER,
         locationId: location,
+        cloudZoneRulesVersion: null,
         detail: { deviceId: DEVICE, lastAcceptedPushAt: NOW.toISOString() },
       },
       { now: () => NOW },
@@ -274,5 +285,86 @@ describe("observeRegisterSynced", () => {
 
     const rows = await alertsOfKind("register_silent");
     expect(rows).toEqual([expect.objectContaining({ conditionClearedAt: LATER })]);
+  });
+});
+
+describe("observeRegisterStops zone rules", () => {
+  const register = { registerId: REGISTER, deviceId: DEVICE };
+
+  it.each(["2025c", null])(
+    "opens an alert naming both versions for a register that runs %s while the cloud has published 2026a",
+    async (registerVersion) => {
+      await observeRegisterStops(
+        db,
+        {
+          ...register,
+          locationId: location,
+          report: { ...REPORT, zone_rules_version: registerVersion },
+          cloudZoneRulesVersion: "2026a",
+        },
+        NOW,
+      );
+
+      expect(await alertsOfKind("tz_rules_mismatch")).toEqual([
+        expect.objectContaining({
+          detail: { deviceId: DEVICE, registerVersion, cloudVersion: "2026a" },
+          resolvedAt: null,
+          openedAt: NOW,
+        }),
+      ]);
+    },
+  );
+
+  it("clears the register's open alert once it reports the cloud's version", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        ...register,
+        locationId: location,
+        report: { ...REPORT, zone_rules_version: null },
+        cloudZoneRulesVersion: "2026a",
+      },
+      NOW,
+    );
+
+    await observeRegisterStops(
+      db,
+      {
+        ...register,
+        locationId: location,
+        report: { ...REPORT, zone_rules_version: "2026a" },
+        cloudZoneRulesVersion: "2026a",
+      },
+      LATER,
+    );
+
+    expect(await alertsOfKind("tz_rules_mismatch")).toEqual([
+      expect.objectContaining({ conditionClearedAt: LATER }),
+    ]);
+  });
+
+  it("opens nothing for a register that reports nothing about its zone rules", async () => {
+    await observeRegisterStops(
+      db,
+      { ...register, locationId: location, report: REPORT, cloudZoneRulesVersion: "2026a" },
+      NOW,
+    );
+
+    expect(await alertsOfKind("tz_rules_mismatch")).toEqual([]);
+  });
+
+  it("opens nothing while the cloud has published no version", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        ...register,
+        locationId: location,
+        report: { ...REPORT, zone_rules_version: null },
+        cloudZoneRulesVersion: null,
+      },
+      NOW,
+    );
+
+    expect(await alertsOfKind("tz_rules_mismatch")).toEqual([]);
   });
 });
