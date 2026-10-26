@@ -7,13 +7,19 @@ export type {
 } from "./model/refund-allocation.js";
 export { refundAllocationRefusal, returnablePayments } from "./model/refund-allocation.js";
 export type {
+  AcceptedReturnLine,
   ReturnDraftLine,
   ReturnLineAssessment,
   ReturnLineRefusal,
   ReturnSaleContext,
   ReturnSaleLine,
 } from "./model/return-draft.js";
-export { assessReturnDraft, firstLineRefusal, refundableTotal } from "./model/return-draft.js";
+export {
+  acceptedLines,
+  assessReturnDraft,
+  firstLineRefusal,
+  refundableTotal,
+} from "./model/return-draft.js";
 export type {
   ReturnAgainstHistory,
   ReturnHistoryBreak,
@@ -24,6 +30,10 @@ export type { ReturnedLineStanding } from "./model/return-line.js";
 export { lineRefundAmount, mustBeReturnedWhole, returnableQuantity } from "./model/return-line.js";
 export type { ReturnDisposition, ReturnReason, TicketSource } from "./model/return-reasons.js";
 export { RETURN_DISPOSITIONS, RETURN_REASONS, TICKET_SOURCES } from "./model/return-reasons.js";
+export type { ReturnedFromLine, ReturnStandingLine, SaleForReturn } from "./model/return-sale.js";
+export { returnSaleLines } from "./model/return-sale.js";
+export type { ReturnStockMovementPlan } from "./model/return-stock.js";
+export { returnStockDelta, returnStockMovements } from "./model/return-stock.js";
 export type { ReturnWindow } from "./model/return-window.js";
 export {
   DEFECT_RETURN_MONTHS,

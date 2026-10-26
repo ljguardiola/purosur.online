@@ -20,6 +20,7 @@ export {
   canonicalOutboxEvent,
   canonicalOutboxPayload,
   SALE_COMPLETED_EVENT_TYPE,
+  SALE_RETURNED_EVENT_TYPE,
   SALE_VOIDED_EVENT_TYPE,
 } from "./outbox-event.js";
 export type { ReplenishmentFailureKind } from "./replenishment-failure-kind.js";

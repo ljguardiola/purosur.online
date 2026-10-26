@@ -36,12 +36,18 @@ export type ReturnLineRefusal =
   | { kind: "promotion_whole_only"; returnable: number }
   | { kind: "outside_window"; reason: ReturnReason; lastAllowedDay: string };
 
-export type ReturnLineAssessment = ReturnDraftLine &
-  ({ refusal: null; refundAmount: number } | { refusal: ReturnLineRefusal; refundAmount: null });
+type AcceptedVerdict = {
+  refusal: null;
+  refundAmount: number;
+  reason: ReturnReason;
+  disposition: ReturnDisposition;
+};
 
-type LineVerdict =
-  | { refusal: null; refundAmount: number }
-  | { refusal: ReturnLineRefusal; refundAmount: null };
+type LineVerdict = AcceptedVerdict | { refusal: ReturnLineRefusal; refundAmount: null };
+
+export type ReturnLineAssessment = ReturnDraftLine & LineVerdict;
+
+export type AcceptedReturnLine = ReturnDraftLine & AcceptedVerdict;
 
 function refused(refusal: ReturnLineRefusal): LineVerdict {
   return { refusal, refundAmount: null };
@@ -83,7 +89,12 @@ function verdictOf(
   if (!isReturnWindowOpen(lastAllowedDay, context.now)) {
     return refused({ kind: "outside_window", reason: draft.reason, lastAllowedDay });
   }
-  return { refusal: null, refundAmount: lineRefundAmount(line, draft.quantity) };
+  return {
+    refusal: null,
+    refundAmount: lineRefundAmount(line, draft.quantity),
+    reason: draft.reason,
+    disposition: draft.disposition,
+  };
 }
 
 export function assessReturnDraft(
@@ -108,6 +119,10 @@ export function firstLineRefusal(
     }
   }
   return null;
+}
+
+export function acceptedLines(assessments: readonly ReturnLineAssessment[]): AcceptedReturnLine[] {
+  return assessments.filter((line): line is AcceptedReturnLine => line.refusal === null);
 }
 
 export function refundableTotal(assessments: readonly ReturnLineAssessment[]): number {

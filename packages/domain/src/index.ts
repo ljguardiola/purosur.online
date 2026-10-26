@@ -737,6 +737,24 @@ export {
   walOversized,
 } from "./register/index.js";
 export type {
+  PaymentIneligibleReason,
+  PaymentRefundability,
+  RefundAllocation,
+  RefundAllocationRefusal,
+  ReturnDisposition,
+  ReturnLineRefusal,
+  ReturnReason,
+  ReturnWindow,
+  TicketReference,
+  TicketSource,
+} from "./returns/index.js";
+export {
+  RETURN_DISPOSITIONS,
+  RETURN_REASONS,
+  TICKET_SOURCES,
+  ticketReferenceFromQrText,
+} from "./returns/index.js";
+export type {
   CreditNoteReceiptContent,
   DeferredSaleFacts,
   DeferredSaleInvoice,
