@@ -39,13 +39,18 @@ const BUSY_MESSAGES: Record<PrintedDocument, string> = {
     "Todavía puede salir una impresión de esta venta. Esperá a que termine antes de reimprimir.",
   credit_note:
     "Todavía puede salir una impresión de la nota de crédito. Esperá a que termine antes de reimprimir.",
+  deferred_invoice:
+    "Todavía puede salir una impresión de la factura. Esperá a que termine antes de reimprimir.",
 };
 const PRINTER_NOT_CONFIGURED_MESSAGE = "La impresora no está configurada.";
 const SALE_VOIDED_MESSAGE = "La venta está anulada: no se reimprime su ticket.";
+const ORIGINAL_NOT_PRINTED_MESSAGE =
+  "La factura todavía no se imprimió como original: no se reimprime.";
 const REQUIRED_REASON_MESSAGE = "Escribí el motivo de la reimpresión.";
 const SUBJECTS: Record<PrintedDocument, string> = {
   sale_receipt: "VENTA",
   credit_note: "NOTA DE CRÉDITO DE LA VENTA",
+  deferred_invoice: "FACTURA DE LA VENTA",
 };
 const AUTHORIZING = "reimprimir comprobantes";
 const PERMISSION: AuthorizablePermissionKey = "reprint_receipt";
@@ -129,6 +134,9 @@ export function ReprintReceiptModal({
           break;
         case "sale_voided":
           setNotice(SALE_VOIDED_MESSAGE);
+          break;
+        case "original_not_printed":
+          setNotice(ORIGINAL_NOT_PRINTED_MESSAGE);
           break;
         case "invalid_reason":
           showFieldError("reason", invalidReasonMessage(outcome.max_length));

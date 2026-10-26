@@ -30,6 +30,7 @@ const SALE: SaleDetail = {
   next_copy: { kind: "original" },
   credit_note: null,
   credit_note_next_copy: null,
+  deferred_invoice_next_copy: null,
 };
 const INVOICED_SALE: SaleDetail = {
   ...SALE,

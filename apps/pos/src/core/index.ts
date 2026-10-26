@@ -42,6 +42,7 @@ import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
 import { createClockGuardRequests } from "./fiscal/clock-guard-answers";
 import { cryptoShortCodes } from "./fiscal/crypto-short-codes";
+import { createDeferredBacklogSerializer } from "./fiscal/deferred-backlog-serializer";
 import { createFiscalModeWatch } from "./fiscal/fiscal-mode-watch";
 import {
   cloudCreditNotes,
@@ -135,6 +136,7 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
+import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
 import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
@@ -679,6 +681,7 @@ const realTimeAuthorization = createRealTimeAuthorization({
   shortCodes: cryptoShortCodes,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
 });
+const deferredBacklogSerializer = createDeferredBacklogSerializer();
 const fiscalModeWatch =
   localDatabase === undefined
     ? undefined
@@ -760,6 +763,17 @@ const receiptPrinting = createReceiptPrinting({
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   signedInUserId: () => signedInPerson.userId(),
+  deferredSaleInvoicing: createDeferredSaleInvoicing({
+    database: localDatabase,
+    cloudClient,
+    readDeviceToken,
+    now,
+    reportFailure: (error) => reportFailure("invoicing a deferred sale", error),
+    ids: uuidV7Ids,
+    shortCodes: cryptoShortCodes,
+    readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+    serialize: deferredBacklogSerializer,
+  }),
   beforePrinting: async (saleId) => {
     await realTimeAuthorization.authorizeSale(saleId);
     fiscalModeWatch?.check();
@@ -1449,9 +1463,12 @@ const rendererRequestDeps: RendererRequestDeps = {
   contingencyBackupTickets: contingencyBackupTickets?.requests,
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   printOriginalReceipt: receiptPrinting.printOriginalReceipt,
+  findDeferredSale: receiptPrinting.findDeferredSale,
+  printDeferredSaleInvoice: receiptPrinting.printDeferredSaleInvoice,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   printCreditNote: receiptPrinting.printCreditNote,
   reprintCreditNote: receiptPrinting.reprintCreditNote,
+  reprintDeferredSaleInvoice: receiptPrinting.reprintDeferredSaleInvoice,
   reportFailure,
 };
 
@@ -1495,6 +1512,7 @@ startRegisterHealthChecks({
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  serialize: deferredBacklogSerializer,
 });
 
 const deviceTokenRotation =

@@ -652,8 +652,27 @@ describe("SqliteRegisterSalesHistory", () => {
           },
         ],
         creditNote: null,
+        deferredInvoiceIssued: false,
       });
     });
+
+    it.each([
+      ["satisfied", true],
+      [true, false],
+      ["cancelled", false],
+      [false, false],
+    ] as const)(
+      "says whether the invoice of a deferred sale was issued when its record is %s",
+      (deferred, issued) => {
+        addSale({
+          id: "late",
+          fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 },
+          deferred,
+        });
+
+        expect(history.saleOfRegister("late")?.deferredInvoiceIssued).toBe(issued);
+      },
+    );
 
     it("carries every fiscal document of the sale, its contingency document included", () => {
       addSale({

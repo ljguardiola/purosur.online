@@ -7,6 +7,12 @@ import {
   restorationInProgressOutcomeSchema,
 } from "../shared/index.js";
 import {
+  findDeferredSaleMessageSchema,
+  findDeferredSaleResultMessageSchema,
+  printDeferredSaleInvoiceMessageSchema,
+  printDeferredSaleInvoiceResultMessageSchema,
+} from "./deferred-sale-lookup.js";
+import {
   addProductOutcomeSchema,
   addWeighedProductOutcomeSchema,
   adjustSaleLineOutcomeSchema,
@@ -175,6 +181,14 @@ export const reprintCreditNoteMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
+const reprintDeferredSaleInvoiceMessageSchema = z.object({
+  type: z.literal("reprint-deferred-sale-invoice"),
+  request_id: requestId,
+  sale_id: z.string(),
+  reason: z.string(),
+  authorization: authorizationSchema.optional(),
+});
+
 export const reprintSaleReceiptMessageSchema = z.object({
   type: z.literal("reprint-sale-receipt"),
   request_id: requestId,
@@ -261,9 +275,12 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cancelLockedSaleMessageSchema,
   receiptPrintStatusMessageSchema,
   printOriginalReceiptMessageSchema,
+  findDeferredSaleMessageSchema,
+  printDeferredSaleInvoiceMessageSchema,
   printCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
   reprintCreditNoteMessageSchema,
+  reprintDeferredSaleInvoiceMessageSchema,
   salesHistoryMessageSchema,
   saleHistoryDetailMessageSchema,
 ]);
@@ -327,6 +344,7 @@ const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_reason"), max_length: z.number() }),
   z.object({ kind: z.literal("printer_not_configured") }),
   z.object({ kind: z.literal("sale_voided") }),
+  z.object({ kind: z.literal("original_not_printed") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_signed_in") }),
   ...authorizationRefusalSchema.options,
@@ -440,6 +458,8 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     request_id: requestId,
     outcome: printOriginalReceiptOutcomeSchema,
   }),
+  findDeferredSaleResultMessageSchema,
+  printDeferredSaleInvoiceResultMessageSchema,
   z.object({
     type: z.literal("print-credit-note-result"),
     request_id: requestId,
@@ -452,6 +472,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("reprint-credit-note-result"),
+    request_id: requestId,
+    outcome: reprintSaleReceiptOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("reprint-deferred-sale-invoice-result"),
     request_id: requestId,
     outcome: reprintSaleReceiptOutcomeSchema,
   }),

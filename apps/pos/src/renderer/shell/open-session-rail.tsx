@@ -12,6 +12,7 @@ const SCREEN_ROUTES = {
   sale: "/session",
   cash: "/cash",
   history: "/history",
+  deferred_sale: "/deferred-sale",
   receipt_printer: "/receipt-printer",
   serial_devices: "/serial-devices",
   help: "/help",
@@ -47,7 +48,7 @@ export function OpenSessionRail({
             : { label: "Venta", icon: ShoppingBasket, to: "/session" }
         }
         links={[
-          ...linksTo(["/history"]),
+          ...linksTo(["/history", "/deferred-sale"]),
           { label: "Caja", icon: Wallet, to: "/cash", current: current === "cash" },
           ...linksTo(["/receipt-printer", "/serial-devices", "/help"]),
         ]}

@@ -70,6 +70,12 @@ describe("ACTION_ENTRIES", () => {
     ).toEqual([{ label: "Historial", to: "/history" }]);
   });
 
+  it("offers the deferred sale lookup to a person who may invoice deferred sales, opening its screen", () => {
+    expect(
+      entriesFor(ACTION_ENTRIES, ["invoice_deferred_sale"]).map(({ label, to }) => ({ label, to })),
+    ).toEqual([{ label: "Venta diferida", to: "/deferred-sale" }]);
+  });
+
   it("offers nothing to a person who may not view the sales history", () => {
     expect(entriesFor(ACTION_ENTRIES, ["reprint_receipt"])).toEqual([]);
   });

@@ -20,7 +20,7 @@ describe("the person who redeemed a code", () => {
     expect(personFor(record(["sell_and_charge"]))).toEqual({
       user_id: "u1",
       first_name: "Ada",
-      abilities: ["open_cash_session"],
+      abilities: ["open_cash_session", "invoice_deferred_sale"],
     });
   });
 
@@ -28,7 +28,7 @@ describe("the person who redeemed a code", () => {
     expect(personFor(record(["sell_and_charge", "view_sales_history", "adjust_stock"]))).toEqual({
       user_id: "u1",
       first_name: "Ada",
-      abilities: ["open_cash_session", "view_sales_history"],
+      abilities: ["open_cash_session", "invoice_deferred_sale", "view_sales_history"],
     });
   });
 

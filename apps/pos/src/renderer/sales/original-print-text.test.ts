@@ -82,3 +82,38 @@ describe("originalPrintNotice of a credit note", () => {
     expect(originalPrintNotice("credit_note", kind)).toEqual({ tone: "error", title, description });
   });
 });
+
+describe("originalPrintNotice of a deferred sale's invoice", () => {
+  it("says it comes out as soon as the printer is ready, for the customer", () => {
+    expect(originalPrintNotice("deferred_invoice", "started")).toEqual({
+      tone: "success",
+      title: "La factura sale en cuanto la impresora esté lista",
+      description: "Entregásela al cliente.",
+    });
+  });
+
+  it.each([
+    [
+      "busy",
+      "Todavía puede salir una impresión de esta venta",
+      "Esperá a que termine antes de imprimir la factura.",
+    ],
+    [
+      "printer_not_configured",
+      "La impresora no está configurada",
+      "Configurala para imprimir la factura.",
+    ],
+    [
+      "lacks_permission",
+      "No tenés permiso para imprimir la factura",
+      "Pedile a alguien con permiso que la imprima.",
+    ],
+    ["unavailable", "No se pudo imprimir la factura", "Probá de nuevo."],
+  ] as const)("refuses %s", (kind, title, description) => {
+    expect(originalPrintNotice("deferred_invoice", kind)).toEqual({
+      tone: "error",
+      title,
+      description,
+    });
+  });
+});

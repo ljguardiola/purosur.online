@@ -17,6 +17,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   EnrollmentStandingAnswer,
+  FindDeferredSaleOutcome,
   FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
@@ -26,6 +27,7 @@ import type {
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
+  PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
   ReadInitialCountOutcome,
@@ -57,6 +59,7 @@ import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
 import type { StartupPendingAnswer } from "./register/startup-pending-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import type { FindDeferredSaleReading } from "./sales/deferred-sale-invoice-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
   AdjustSaleLineRequest,
@@ -286,9 +289,34 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleChanges.push(["original-print", saleId].join(" "));
         return { kind: "already_attempted" };
       },
+      findDeferredSale: async (
+        reading: FindDeferredSaleReading,
+      ): Promise<FindDeferredSaleOutcome> => {
+        saleChanges.push(["find-deferred", reading.kind, reading.shortCode].join(" "));
+        return { kind: "not_found" };
+      },
+      printDeferredSaleInvoice: async (
+        saleId: string,
+      ): Promise<PrintDeferredSaleInvoiceOutcome> => {
+        saleChanges.push(["deferred-invoice-print", saleId].join(" "));
+        return { kind: "not_found" };
+      },
       printCreditNote: async (saleId: string): Promise<PrintCreditNoteOutcome> => {
         saleChanges.push(["credit-note-print", saleId].join(" "));
         return { kind: "not_found" };
+      },
+      reprintDeferredSaleInvoice: async (
+        request: ReprintSaleReceiptRequest,
+      ): Promise<ReprintSaleReceiptOutcome> => {
+        saleChanges.push(
+          [
+            "deferred-invoice-reprint",
+            request.saleId,
+            request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "busy" };
       },
       reprintCreditNote: async (
         request: ReprintSaleReceiptRequest,
@@ -2912,6 +2940,38 @@ describe("answerRendererRequest", () => {
         "printing a sale's original receipt",
         "original-print s1",
         "print-original-receipt-result",
+      ],
+      [
+        "find-deferred-sale",
+        {
+          type: "find-deferred-sale",
+          reading: { kind: "short_code", shortCode: "7KQ4M2P9" },
+        } as const,
+        "findDeferredSale",
+        "finding a deferred sale",
+        "find-deferred short_code 7KQ4M2P9",
+        "find-deferred-sale-result",
+      ],
+      [
+        "print-deferred-sale-invoice",
+        { type: "print-deferred-sale-invoice", sale_id: "s1" } as const,
+        "printDeferredSaleInvoice",
+        "printing a deferred sale's invoice",
+        "deferred-invoice-print s1",
+        "print-deferred-sale-invoice-result",
+      ],
+      [
+        "reprint-deferred-sale-invoice",
+        {
+          type: "reprint-deferred-sale-invoice",
+          sale_id: "s1",
+          reason: "se mojó",
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "reprintDeferredSaleInvoice",
+        "reprinting a deferred sale's invoice",
+        "deferred-invoice-reprint s1 se mojó u2",
+        "reprint-deferred-sale-invoice-result",
       ],
       [
         "print-credit-note",

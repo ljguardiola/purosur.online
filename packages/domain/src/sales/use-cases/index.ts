@@ -91,6 +91,18 @@ export type {
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
 export type {
+  DeferredSaleInvoicing,
+  DeferredSaleInvoicingOutcome,
+  DeferredSaleLookup,
+  DeferredSaleSearch,
+} from "./deferred-sale-lookup-ports.js";
+export type {
+  FindDeferredSaleInput,
+  FindDeferredSaleOutcome,
+  FindDeferredSalePorts,
+} from "./find-deferred-sale.js";
+export { findDeferredSale } from "./find-deferred-sale.js";
+export type {
   ManualDiscountsQuery,
   ManualDiscountsReportReader,
 } from "./manual-discounts-report-reader.js";
@@ -106,6 +118,12 @@ export type {
   PreviewSaleLineAdjustmentPorts,
 } from "./preview-sale-line-adjustment.js";
 export { previewSaleLineAdjustment } from "./preview-sale-line-adjustment.js";
+export type {
+  PrintDeferredSaleInvoiceInput,
+  PrintDeferredSaleInvoiceOutcome,
+  PrintDeferredSaleInvoicePorts,
+} from "./print-deferred-sale-invoice.js";
+export { printDeferredSaleInvoice } from "./print-deferred-sale-invoice.js";
 export type {
   PrintOriginalReceiptInput,
   PrintOriginalReceiptOutcome,
