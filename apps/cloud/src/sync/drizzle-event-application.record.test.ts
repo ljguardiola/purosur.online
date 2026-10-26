@@ -190,6 +190,8 @@ describe("recording the sales of applied events", () => {
       printedAt: null,
       creditNotePrintAttemptedAt: null,
       creditNotePrintedAt: null,
+      deferredInvoicePrintAttemptedAt: null,
+      deferredInvoicePrintedAt: null,
     });
   });
 
@@ -681,6 +683,8 @@ describe("recording the cancelled sales of applied events", () => {
       printedAt: null,
       creditNotePrintAttemptedAt: null,
       creditNotePrintedAt: null,
+      deferredInvoicePrintAttemptedAt: null,
+      deferredInvoicePrintedAt: null,
     });
   });
 
