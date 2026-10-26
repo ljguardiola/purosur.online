@@ -926,6 +926,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1029,6 +1030,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1127,6 +1129,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1224,6 +1227,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1350,6 +1354,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1466,6 +1471,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1586,6 +1592,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1714,6 +1721,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1809,6 +1817,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -6961,6 +6970,48 @@ describe("the replenishment failure migration", () => {
   ])("accepts a failure written as %s", (statement) => {
     withDatabase((database) => {
       expect(() => database.exec(statement)).not.toThrow();
+    });
+  });
+});
+
+describe("the zone rules migration", () => {
+  function withDatabase(test: (database: ReturnType<typeof openLocalDatabase>) => void) {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    try {
+      test(database);
+    } finally {
+      database.close();
+    }
+  }
+
+  it("starts with no zone rules, so the register applies the fixed rules until its first delivery", () => {
+    withDatabase((database) => {
+      expect(database.prepare("SELECT version FROM zone_rules").all()).toEqual([]);
+    });
+  });
+
+  it("keeps the transitions and publication moment of each version", () => {
+    withDatabase((database) => {
+      database
+        .prepare("INSERT INTO zone_rules (version, transitions, published_at) VALUES (?, ?, ?)")
+        .run("2026a", "[]", "2026-10-26T12:00:00.000Z");
+
+      expect(
+        database.prepare("SELECT version, transitions, published_at FROM zone_rules").all(),
+      ).toEqual([
+        { version: "2026a", transitions: "[]", published_at: "2026-10-26T12:00:00.000Z" },
+      ]);
+    });
+  });
+
+  it("refuses two rows of one version", () => {
+    withDatabase((database) => {
+      const insert = database.prepare(
+        "INSERT INTO zone_rules (version, transitions, published_at) VALUES ('2026a', '[]', ?)",
+      );
+      insert.run("2026-10-26T12:00:00.000Z");
+
+      expect(() => insert.run("2026-10-27T12:00:00.000Z")).toThrow(/UNIQUE|PRIMARY/);
     });
   });
 });

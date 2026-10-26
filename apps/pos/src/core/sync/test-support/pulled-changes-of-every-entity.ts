@@ -178,6 +178,16 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
           options: [{ code: 5, description: "Consumidor Final", invoice_class: "C" }],
         },
       };
+    case "zone_rules":
+      return {
+        ...base,
+        entity,
+        row: {
+          version: "2026a",
+          transitions: [{ from: "1970-01-01T00:00:00.000Z", offset_minutes: -180 }],
+          published_at: "2026-10-26T12:00:00.000Z",
+        },
+      };
     case "refund_completion":
       return {
         ...base,
