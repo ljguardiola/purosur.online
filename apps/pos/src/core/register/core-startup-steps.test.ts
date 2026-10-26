@@ -1,6 +1,10 @@
 import type { CoreStartupStep, CoreStartupStepMessage } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
-import { prepareLocalDataFolder, startupStepReporter } from "./core-startup-steps";
+import {
+  prepareLocalDataFolder,
+  startupStepReporter,
+  takingStartupStep,
+} from "./core-startup-steps";
 
 describe("startupStepReporter", () => {
   it("posts the notice of the step the core is at", () => {
@@ -9,6 +13,27 @@ describe("startupStepReporter", () => {
     startupStepReporter((message) => posted.push(message))("check_free_disk_space");
 
     expect(posted).toEqual([{ type: "core-startup-step", step: "check_free_disk_space" }]);
+  });
+});
+
+describe("takingStartupStep", () => {
+  it("reports the step before taking it, and answers what taking it answers", () => {
+    const events: string[] = [];
+    const take = takingStartupStep(
+      (step: CoreStartupStep) => events.push(`reported ${step}`),
+      "settle_interrupted_authorizations",
+      (subject: string) => {
+        events.push(`took ${subject}`);
+        return "settling";
+      },
+    );
+
+    expect(events).toEqual([]);
+    expect(take("the authorizations")).toBe("settling");
+    expect(events).toEqual([
+      "reported settle_interrupted_authorizations",
+      "took the authorizations",
+    ]);
   });
 });
 
