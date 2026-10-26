@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { argentinaInstant } from "../../shared/index.js";
 import {
+  acceptedLines,
   assessReturnDraft,
   firstLineRefusal,
   type ReturnDraftLine,
@@ -278,6 +279,33 @@ describe("firstLineRefusal", () => {
         ]),
       ),
     ).toEqual({ saleLineId: "line-3", refusal: { kind: "missing_disposition" } });
+  });
+});
+
+describe("acceptedLines", () => {
+  it("keeps the lines that were accepted, with the reason and disposition the cashier chose", () => {
+    expect(
+      acceptedLines(
+        assessReturnDraft(sale(WITHIN_WINDOW), [
+          draftLine({ quantity: 2 }),
+          draftLine({ saleLineId: "line-3", disposition: null }),
+        ]),
+      ),
+    ).toEqual([
+      {
+        saleLineId: "line-1",
+        quantity: 2,
+        reason: "change_of_mind",
+        disposition: "restock",
+        refundAmount: 5000,
+      },
+    ]);
+  });
+
+  it("is nothing when every line was refused", () => {
+    expect(
+      acceptedLines(assessReturnDraft(sale(WITHIN_WINDOW), [draftLine({ quantity: 9 })])),
+    ).toEqual([]);
   });
 });
 
