@@ -6,8 +6,8 @@ describe("isSafeMomentToUpdate", () => {
     expect(isSafeMomentToUpdate({ hasOpenSale: false, hasOpenCashSession: false })).toBe(true);
   });
 
-  it("is not safe while a sale is open", () => {
-    expect(isSafeMomentToUpdate({ hasOpenSale: true, hasOpenCashSession: true })).toBe(false);
+  it("is not safe while a sale is open, even with no cash session open", () => {
+    expect(isSafeMomentToUpdate({ hasOpenSale: true, hasOpenCashSession: false })).toBe(false);
   });
 
   it("is not safe while a cash session is open, even with no sale open", () => {
