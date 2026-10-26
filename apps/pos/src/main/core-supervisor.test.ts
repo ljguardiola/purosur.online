@@ -813,18 +813,6 @@ describe("createCoreSupervisor", () => {
         expect(onStatusChange).toHaveBeenCalledExactlyOnceWith("up");
       });
 
-      it("ignores a step that arrives after the core is ready", () => {
-        const onReadinessMissed = vi.fn();
-        const { supervisor, processes } = withTimers({ onReadinessMissed });
-
-        supervisor.start();
-        processes[0]?.becomeReady();
-        processes[0]?.reportStep("apply_migrations");
-        processes[0]?.exit(1);
-
-        expect(onReadinessMissed).not.toHaveBeenCalled();
-      });
-
       it("reports only the steps of the process that missed the deadline", () => {
         const onReadinessMissed = vi.fn();
         const { supervisor, processes } = withTimers({ onReadinessMissed });

@@ -7,6 +7,8 @@ describe("readCoreStartupStep", () => {
     "adopt_staged_snapshot",
     "check_local_database",
     "apply_migrations",
+    "check_free_disk_space",
+    "settle_interrupted_authorizations",
   ])("reads the notice that the core is at %s", (step) => {
     expect(readCoreStartupStep({ type: "core-startup-step", step })).toBe(step);
   });

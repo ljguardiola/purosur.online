@@ -215,6 +215,15 @@ describe("starting the register's local database", () => {
       expect(fileExistedAtCheck).toBe(false);
     });
 
+    it("goes on without waiting for a step's report to settle", async () => {
+      const dataFolder = folder();
+      healthyDatabaseIn(dataFolder);
+
+      const started = await startWith(dataFolder, [NOTES], () => new Promise<never>(() => {}));
+
+      expect(started.kind).toBe("ready");
+    });
+
     it("reports no migrations step for a database that is out of service", async () => {
       const dataFolder = folder();
       healthyDatabaseIn(dataFolder);
