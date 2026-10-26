@@ -215,6 +215,12 @@ const clockDriftDetailSchema = z.object({
   deviceId: z.string(),
 });
 
+const tzRulesMismatchDetailSchema = z.object({
+  deviceId: z.string(),
+  registerVersion: z.string().nullable(),
+  cloudVersion: z.string(),
+});
+
 const registerReplenishmentFailedDetailSchema = z.object({
   deviceId: z.string(),
   failure: z.enum(REPLENISHMENT_FAILURE_KINDS),
@@ -407,6 +413,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("register_replenishment_failed" satisfies AlertKind),
     detail: registerReplenishmentFailedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("tz_rules_mismatch" satisfies AlertKind),
+    detail: tzRulesMismatchDetailSchema,
   }),
   z.object({
     ...alertBase,

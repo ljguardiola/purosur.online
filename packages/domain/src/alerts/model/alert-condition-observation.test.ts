@@ -19,10 +19,10 @@ import {
   registerClockDriftObservation,
   registerFiscalEmissionObservation,
   registerReplenishmentObservation,
-  registerZoneRulesObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerZoneRulesObservation,
 } from "./alert-condition-observation.js";
 
 describe("registerVersionObservation", () => {

@@ -71,6 +71,7 @@ export {
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerZoneRulesObservation,
   showsAlertScope,
 } from "./alerts/index.js";
 export type {
