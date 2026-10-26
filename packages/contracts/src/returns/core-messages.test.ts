@@ -92,6 +92,25 @@ describe("finding the sale to return from the ticket", () => {
     ).toBe(false);
   });
 
+  function messagesOf(reading: unknown): string[] {
+    const result = returnsRendererToCoreMessageSchema.safeParse(finding(reading));
+    if (result.success) {
+      return [];
+    }
+    return result.error.issues.flatMap((issue) =>
+      "errors" in issue ? issue.errors.flat().map(({ message }) => message) : [issue.message],
+    );
+  }
+
+  it.each([
+    ["a QR of another kind", "https://example.test/qr"],
+    ["a text that is not text", 7_000_000],
+  ])("says the text must be the QR of a sale's ticket for %s", (_case, text) => {
+    expect(messagesOf({ kind: "scanned", text })).toContain(
+      "text must be the QR of a sale's ticket",
+    );
+  });
+
   it("rejects a reading that is neither scanned nor typed, since no sale is searched by date, amount or product", () => {
     expect(
       returnsRendererToCoreMessageSchema.safeParse(
@@ -293,6 +312,21 @@ describe("the answer to finding the sale to return", () => {
     ...AUTHORIZATION_REFUSALS,
   ])("accepts the outcome $kind", (outcome) => {
     const message = result("find-sale-for-return-result", outcome);
+
+    expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts the date of the sale with the offset it was written in, and a payment with nothing left", () => {
+    const message = result("find-sale-for-return-result", {
+      ...FOUND,
+      sale: {
+        ...FOUND.sale,
+        occurred_at: "2026-09-12T15:30:00-03:00",
+        payments: [
+          { ...FOUND.sale.payments[0], eligible: false, ineligible_reason: "nothing_left" },
+        ],
+      },
+    });
 
     expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
