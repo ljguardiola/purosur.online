@@ -13,4 +13,10 @@ describe("RegisterTelemetry", () => {
       false | "refused" | "unreadable_event" | undefined
     >();
   });
+
+  it("lets a register report the zone rules version it runs, that it has received none, or nothing", () => {
+    expectTypeOf<RegisterTelemetry["zone_rules_version"]>().toEqualTypeOf<
+      string | null | undefined
+    >();
+  });
 });
