@@ -1,6 +1,5 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { FiscalDocumentState } from "./real-time-authorization.js";
 import {
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
   DEFERRED_RETRY_DELAYING_STATES,
@@ -11,6 +10,7 @@ import {
   latestIssuedOn,
   nextDeferredBacklogStep,
 } from "./deferred-backlog.js";
+import type { FiscalDocumentState } from "./real-time-authorization.js";
 
 const now = new Date("2026-10-12T12:00:00-03:00");
 
