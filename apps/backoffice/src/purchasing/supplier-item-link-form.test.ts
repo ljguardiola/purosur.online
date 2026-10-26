@@ -9,8 +9,8 @@ import {
   SUPPLIER_ITEM_LINK_FIELDS,
   supplierItemLinkFormValuesOf,
   supplierItemLinkRequestFrom,
-  vatRateOrDefault,
   vatRateOptionsOf,
+  vatRateOrDefault,
 } from "./supplier-item-link-form";
 import {
   BOLSA_DE_PASAS,

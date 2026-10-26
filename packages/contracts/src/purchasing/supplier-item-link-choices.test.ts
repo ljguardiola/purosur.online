@@ -20,7 +20,9 @@ describe("supplierItemLinkChoicesSchema", () => {
   });
 
   it("accepts no products", () => {
-    expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [] }).success).toBe(true);
+    expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [] }).success).toBe(
+      true,
+    );
   });
 
   it("refuses a sale unit the catalog does not know", () => {
@@ -34,7 +36,9 @@ describe("supplierItemLinkChoicesSchema", () => {
       packagings: unknown;
     };
 
-    expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [bare] }).success).toBe(false);
+    expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [bare] }).success).toBe(
+      false,
+    );
   });
 
   it("refuses a packaging whose quantity is not a whole number", () => {

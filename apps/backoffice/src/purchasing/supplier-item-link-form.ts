@@ -14,12 +14,10 @@ export type SupplierItemLinkFormValues = {
   version: number;
 };
 
-const DEFAULT_VAT_RATE = "2100";
-
 export const EMPTY_SUPPLIER_ITEM_LINK_FORM: SupplierItemLinkFormValues = {
   productId: null,
   packagingId: null,
-  vatRate: DEFAULT_VAT_RATE,
+  vatRate: "",
   version: 1,
 };
 
@@ -36,10 +34,18 @@ export const SUPPLIER_ITEM_LINK_FIELD_MESSAGES = {
   vatRate: "Elegí el IVA del ítem.",
 };
 
-export const VAT_RATE_OPTIONS = [
-  { value: "2100", label: formatPercent(21) },
-  { value: "1050", label: formatPercent(10.5) },
-] as const;
+type VatRates = SupplierItemLinkChoices["vatRates"];
+
+export function vatRateOptionsOf(vatRates: VatRates): { value: string; label: string }[] {
+  return vatRates.offered.map((rate) => ({
+    value: String(rate),
+    label: formatPercent(rate / 100),
+  }));
+}
+
+export function vatRateOrDefault(chosen: string, vatRates: VatRates): string {
+  return chosen === "" ? String(vatRates.default) : chosen;
+}
 
 export function supplierItemLinkFormValuesOf(
   link: SupplierPriceListRow["link"],
@@ -48,7 +54,7 @@ export function supplierItemLinkFormValuesOf(
   return {
     productId: link?.product.id ?? null,
     packagingId: link?.packaging.id ?? null,
-    vatRate: link?.vatRate == null ? DEFAULT_VAT_RATE : String(link.vatRate),
+    vatRate: link?.vatRate == null ? "" : String(link.vatRate),
     version,
   };
 }

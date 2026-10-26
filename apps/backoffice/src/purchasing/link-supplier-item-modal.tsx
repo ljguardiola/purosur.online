@@ -41,7 +41,8 @@ import {
   SUPPLIER_ITEM_LINK_FIELDS,
   supplierItemLinkFormValuesOf,
   supplierItemLinkRequestFrom,
-  VAT_RATE_OPTIONS,
+  vatRateOptionsOf,
+  vatRateOrDefault,
 } from "./supplier-item-link-form";
 import type {
   fetchSupplierItemLinkChoices,
@@ -170,6 +171,14 @@ export function LinkSupplierItemModal({
     }
   }, [target, list.version, reset]);
 
+  const vatRates = choices.status === "loaded" ? choices.value.vatRates : null;
+
+  useEffect(() => {
+    if (target && vatRates !== null) {
+      form.setFieldValue("vatRate", vatRateOrDefault(form.getFieldValue("vatRate"), vatRates));
+    }
+  }, [target, vatRates, form]);
+
   useEffect(() => {
     if (target && proposedOffered && form.getFieldValue("productId") === null) {
       form.setFieldValue("productId", proposedId);
@@ -284,12 +293,12 @@ export function LinkSupplierItemModal({
             ) : null}
           </div>
         )}
-        {asksForVatRate ? (
+        {asksForVatRate && vatRates !== null ? (
           <div className="flex flex-col gap-2">
             <FieldHeading>IVA del ítem</FieldHeading>
             <form.AppField name="vatRate">
               {(field) => (
-                <field.SegmentedControl label="IVA del ítem" options={VAT_RATE_OPTIONS} />
+                <field.SegmentedControl label="IVA del ítem" options={vatRateOptionsOf(vatRates)} />
               )}
             </form.AppField>
           </div>

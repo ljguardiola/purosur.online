@@ -298,7 +298,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   app.get("/supplier-price-lists/link-choices", readGuard, async (_request, reply) => {
     const products = await catalog.products(PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR);
     const choices = await listSupplierItemLinkChoices(purchasingReader, products);
-    await reply.code(200).send(supplierItemLinkChoicesSchema.parse({ products: choices }));
+    await reply.code(200).send(supplierItemLinkChoicesSchema.parse(choices));
   });
 
   app.get("/supplier-price-lists/:id", readGuard, async (request, reply) => {
