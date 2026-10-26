@@ -19,16 +19,21 @@ export function createServices() {
   const scanner = createFakeQrScanner();
   const finishContingencyTicketRecovery =
     vi.fn<FinishTicketRecoveryModalServices["finishContingencyTicketRecovery"]>();
-  const fetchContingencyTicketRecoveries = vi
+  const fetchRecoveries = vi
     .fn<typeof fetchContingencyTicketRecoveries>()
     .mockResolvedValue({ kind: "ok", value: { recoveries: [] } });
   const services: ContingencyTicketRescueScreenServices = {
     rescueContingencyBackupTicket: vi.fn(),
-    fetchContingencyTicketRecoveries,
+    fetchContingencyTicketRecoveries: fetchRecoveries,
     finishTicketRecoveryModal: { finishContingencyTicketRecovery },
     scanner: scanner.Scanner,
   };
-  return { services, scanner, finishContingencyTicketRecovery, fetchContingencyTicketRecoveries };
+  return {
+    services,
+    scanner,
+    finishContingencyTicketRecovery,
+    fetchContingencyTicketRecoveries: fetchRecoveries,
+  };
 }
 
 export function renderScreen(
