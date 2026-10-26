@@ -59,7 +59,11 @@ test("finishing the rescue asks first and refreshes the list with a notice", asy
     .toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Terminar el rescate" }));
 
-  await expect.element(screen.getByText("Rescate de Caja 1 terminado")).toBeVisible();
+  await expect
+    .element(screen.getByRole("status"))
+    .toHaveTextContent(
+      "Rescate de Caja 1 terminado Los tickets que se escaneen ahora ya no llegan a esa caja.",
+    );
   expect(screen.getByRole("dialog").query()).toBeNull();
   await expect
     .poll(() =>
@@ -69,22 +73,29 @@ test("finishing the rescue asks first and refreshes the list with a notice", asy
 });
 
 test.each([
-  ["already_finished", "El rescate de Caja 1 ya estaba terminado"],
-  ["not_found", "No se encontró el rescate de Caja 1"],
-] as const)("tells when the cloud answers %s and refreshes the list", async (outcome, notice) => {
-  const { services, finishContingencyTicketRecovery } = awaiting();
-  finishContingencyTicketRecovery.mockResolvedValue({
-    kind: "ok",
-    value: { outcome },
-  });
-  const screen = await renderScreen(services);
-  const dialog = await openFinishQuestion(screen);
+  [
+    "already_finished",
+    "status",
+    "El rescate de Caja 1 ya estaba terminado La lista ya está actualizada.",
+  ],
+  ["not_found", "alert", "No se encontró el rescate de Caja 1 La lista ya está actualizada."],
+] as const)(
+  "tells when the cloud answers %s and refreshes the list",
+  async (outcome, role, notice) => {
+    const { services, finishContingencyTicketRecovery } = awaiting();
+    finishContingencyTicketRecovery.mockResolvedValue({
+      kind: "ok",
+      value: { outcome },
+    });
+    const screen = await renderScreen(services);
+    const dialog = await openFinishQuestion(screen);
 
-  await userEvent.click(dialog.getByRole("button", { name: "Terminar el rescate" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Terminar el rescate" }));
 
-  await expect.element(screen.getByText(notice)).toBeVisible();
-  expect(services.fetchContingencyTicketRecoveries).toHaveBeenCalledTimes(2);
-});
+    await expect.element(screen.getByRole(role)).toHaveTextContent(notice);
+    expect(services.fetchContingencyTicketRecoveries).toHaveBeenCalledTimes(2);
+  },
+);
 
 test("cancelling the question leaves the list as it was", async () => {
   const { services } = awaiting();

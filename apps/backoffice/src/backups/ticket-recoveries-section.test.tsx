@@ -45,12 +45,10 @@ test("tells to check the printer and the counter before scanning", async () => {
   const screen = await renderSection(loaded([recovery]));
 
   await expect
-    .element(
-      screen.getByText(
-        "Antes de escanear, revisá la impresora y el mostrador: el último ticket de respaldo suele seguir ahí.",
-      ),
-    )
-    .toBeVisible();
+    .element(screen.getByRole("status"))
+    .toHaveTextContent(
+      "Antes de escanear, revisá la impresora y el mostrador: el último ticket de respaldo suele seguir ahí.",
+    );
 });
 
 test("lists each register awaiting since when", async () => {
