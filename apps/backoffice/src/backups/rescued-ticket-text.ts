@@ -10,7 +10,7 @@ type Summary = Rescued["summary"];
 export type RefusedOutcome = Exclude<ContingencyBackupTicketRescueResponse["outcome"], "rescued">;
 
 const [rescuedShape] = contingencyBackupTicketRescueResponseSchema.options;
-const OCCURRED_AT_TIME_ZONE = schemaText(
+export const OCCURRED_AT_TIME_ZONE = schemaText(
   rescuedShape.shape.summary.shape.occurred_at.meta()?.["timeZone"],
 );
 
