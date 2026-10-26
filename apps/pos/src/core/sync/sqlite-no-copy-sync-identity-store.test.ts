@@ -70,6 +70,18 @@ describe("the sync identity store of a register reinstalled with no copy", () =>
     ]);
   });
 
+  it("holds the first installation's contingency ticket recovery as awaited from the start", async () => {
+    await resetSyncIdentityWithoutCopy({ store }, INPUT);
+
+    expect(
+      database
+        .prepare(
+          "SELECT device_id, last_acknowledged_seq FROM awaiting_contingency_ticket_recovery",
+        )
+        .all(),
+    ).toEqual([{ device_id: "first-device", last_acknowledged_seq: 0 }]);
+  });
+
   it("is a no-op the second time", async () => {
     await resetSyncIdentityWithoutCopy({ store }, INPUT);
 

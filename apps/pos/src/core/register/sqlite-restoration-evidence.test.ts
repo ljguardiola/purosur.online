@@ -308,3 +308,22 @@ describe("the evidence of the restoration protocol", () => {
     expect(evidence.evidence().restore).toBe("completed");
   });
 });
+
+describe("the evidence of the contingency ticket recovery", () => {
+  it("holds the recovery pending while the register awaits it", () => {
+    database.exec(
+      "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES ('d0', 4)",
+    );
+
+    expect(evidence.evidence().recover_contingency_tickets).toBe("pending");
+  });
+
+  it("holds the recovery completed once the register no longer awaits it", () => {
+    database.exec(
+      "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES ('d0', 4)",
+    );
+    database.exec("DELETE FROM awaiting_contingency_ticket_recovery");
+
+    expect(evidence.evidence().recover_contingency_tickets).toBe("completed");
+  });
+});
