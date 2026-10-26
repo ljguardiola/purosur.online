@@ -55,6 +55,7 @@ const loaded: BranchSettings = {
   unreviewedPriceAlertDays: 30,
   goodConditionReturnDays: 15,
   supplierPriceListDailyExtractionCap: 10,
+  zoneRulesVersion: "2026a",
   version: 1,
 };
 
@@ -78,6 +79,7 @@ function wire(settings: BranchSettings) {
     unreviewed_price_alert_days: settings.unreviewedPriceAlertDays,
     good_condition_return_days: settings.goodConditionReturnDays,
     supplier_price_list_daily_extraction_cap: settings.supplierPriceListDailyExtractionCap,
+    zone_rules_version: settings.zoneRulesVersion,
     version: settings.version,
   };
 }
@@ -180,6 +182,49 @@ test("shows the breadcrumb, heading, and the branch's loaded values", async () =
   expect(screen.getByRole("textbox", { name: "Nombre" }).query()).toBeNull();
   expect(screen.getByRole("textbox", { name: "Zona horaria" }).query()).toBeNull();
   expect(screen.getByRole("textbox", { name: "Cambio con defecto" }).query()).toBeNull();
+});
+
+test("shows the cloud's zone rules version after the opening hours, as a value the person cannot edit", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+
+  const screen = await renderScreen(services);
+
+  const field = screen.getByRole("textbox", { name: "Reglas de zona" });
+  await expect.element(field).toHaveValue("2026a");
+  await expect.element(field).toHaveAttribute("readonly");
+  const hours = screen.getByRole("checkbox", { name: "Domingo — Cerrado" }).element();
+  const position = hours.compareDocumentPosition(field.element());
+  expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+test("shows that no zone rules version was published yet when the cloud has none", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({
+    kind: "ok",
+    value: { ...loaded, zoneRulesVersion: null },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Reglas de zona" }))
+    .toHaveValue("Sin publicar");
+});
+
+test("keeps the zone rules version out of what it saves", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await vi.waitFor(() => expect(services.saveBranchSettings).toHaveBeenCalled());
+  expect(JSON.stringify(vi.mocked(services.saveBranchSettings).mock.calls[0])).not.toContain(
+    "2026a",
+  );
 });
 
 test("shows a form-shaped placeholder instead of a loading line while the settings load", async () => {
