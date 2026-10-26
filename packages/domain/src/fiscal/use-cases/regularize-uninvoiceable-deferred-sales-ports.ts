@@ -6,7 +6,7 @@ import type {
 
 export interface DeferredSaleCandidate extends PendingDeferredSale {
   lastAuthorizedIssuedOn: string | null;
-  saleMayBeInvoiced: boolean;
+  mayAlreadyBeInvoiced: boolean;
 }
 
 export interface DeferredSaleExpiryTransaction {

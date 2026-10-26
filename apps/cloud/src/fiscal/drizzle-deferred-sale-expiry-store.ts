@@ -83,7 +83,7 @@ class DrizzleDeferredSaleExpiryTransaction<TQueryResult extends PgQueryResultHKT
         shortCode: deferredSales.shortCode,
         taxAuthorityDay: sql<string | null>`(${taxAuthorityDay})`,
         authorizedRequestDay: sql<string | null>`(${authorizedRequestDay})`,
-        saleMayBeInvoiced: exists(saleDocument).mapWith(Boolean),
+        mayAlreadyBeInvoiced: exists(saleDocument).mapWith(Boolean),
       })
       .from(deferredSales)
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, deferredSales.registerId))

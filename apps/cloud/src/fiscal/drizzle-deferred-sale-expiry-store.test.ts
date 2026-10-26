@@ -142,9 +142,9 @@ async function pendingSaleOf(registerId: string): Promise<typeof deferredSales.$
   return insertDeferredSaleRow(db, { registerId, locationId: installation.locationId });
 }
 
-async function mayBeInvoicedOf(deferredSaleId: string): Promise<boolean | undefined> {
+async function mayAlreadyBeInvoicedOf(deferredSaleId: string): Promise<boolean | undefined> {
   const locked = await store().transaction((transaction) => transaction.lockPendingDeferredSales());
-  return locked.find((sale) => sale.id === deferredSaleId)?.saleMayBeInvoiced;
+  return locked.find((sale) => sale.id === deferredSaleId)?.mayAlreadyBeInvoiced;
 }
 
 describe("DrizzleDeferredSaleExpiryStore", () => {
@@ -186,7 +186,7 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
         total: 9900,
         shortCode: "AAAA2222",
         lastAuthorizedIssuedOn: null,
-        saleMayBeInvoiced: false,
+        mayAlreadyBeInvoiced: false,
       },
       {
         id: newer.id,
@@ -197,7 +197,7 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
         total: 4800,
         shortCode: "7KQ4M2P9",
         lastAuthorizedIssuedOn: null,
-        saleMayBeInvoiced: false,
+        mayAlreadyBeInvoiced: false,
       },
       {
         id: newest.id,
@@ -208,7 +208,7 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
         total: 700,
         shortCode: "BBBB3333",
         lastAuthorizedIssuedOn: null,
-        saleMayBeInvoiced: false,
+        mayAlreadyBeInvoiced: false,
       },
     ]);
   });
@@ -285,7 +285,7 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
     const withoutRequest = await pendingSaleOf(registerId);
     await insertFiscalRequestRow(registerId, 7, "2026-10-03", "authorized");
 
-    const flags = await Promise.all(sales.map((sale) => mayBeInvoicedOf(sale.id)));
+    const flags = await Promise.all(sales.map((sale) => mayAlreadyBeInvoicedOf(sale.id)));
     expect(
       Object.fromEntries(outcomes.map((outcome, index) => [String(outcome), flags[index]])),
     ).toEqual({
@@ -298,7 +298,7 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
       released: false,
       conflicting: false,
     });
-    expect(await mayBeInvoicedOf(withoutRequest.id)).toBe(false);
+    expect(await mayAlreadyBeInvoicedOf(withoutRequest.id)).toBe(false);
   });
 
   it("takes the later of the tax authority's day and the authorized fiscal requests' day", async () => {

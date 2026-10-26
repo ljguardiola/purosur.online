@@ -13,7 +13,7 @@ export async function regularizeUninvoiceableDeferredSales({
     const candidates = await transaction.lockPendingDeferredSales();
     const uninvoiceable = candidates.filter(
       (sale) =>
-        !sale.saleMayBeInvoiced &&
+        !sale.mayAlreadyBeInvoiced &&
         isDeferredSaleUninvoiceable(sale.occurredAt, now, sale.lastAuthorizedIssuedOn),
     );
     for (const sale of uninvoiceable) {

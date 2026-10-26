@@ -2676,8 +2676,9 @@ export const numberingFreezes = pgTable(
 // The cloud's copy of a deferred sale a register recorded, kept up to date from the register's
 // synchronized events: pending until a fiscal document satisfies it, its sale is voided, or it can
 // no longer be invoiced, because its expiry passed or its point of sale already authorized a
-// document dated after its day; it is then expired. It keeps the time it expired at even when a
-// document satisfies it afterwards.
+// document dated after its day; it is then expired. A sale with a fiscal request of its own that
+// the tax authority holds or may hold stays pending, past its expiry too. It keeps the time it
+// expired at even when a document satisfies it afterwards.
 export const deferredSales = pgTable(
   "deferred_sales",
   {

@@ -13,7 +13,7 @@ function pendingSale(
   id: string,
   occurredAt: Date,
   lastAuthorizedIssuedOn: string | null = null,
-  saleMayBeInvoiced = false,
+  mayAlreadyBeInvoiced = false,
 ): DeferredSaleCandidate {
   return {
     id,
@@ -24,7 +24,7 @@ function pendingSale(
     total: 250000,
     shortCode: `CODE${id}`.slice(0, 8).padEnd(8, "2"),
     lastAuthorizedIssuedOn,
-    saleMayBeInvoiced,
+    mayAlreadyBeInvoiced,
   };
 }
 
