@@ -268,7 +268,7 @@ describe("readRealTimeSeries", () => {
       expect(backlogOf()).toEqual([]);
     });
 
-    it("reports when the latest earlier document of the sale ended without being authorized", () => {
+    it("reports when the latest earlier document of the sale was rejected or left conflicting", () => {
       insertPointOfSale(database, 40);
       insertCompletedSale(database, "sale-1");
       insertCompletedSale(database, "sale-2");
