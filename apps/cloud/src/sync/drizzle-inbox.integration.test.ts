@@ -874,14 +874,6 @@ describe("the inbox reporting how a register stands, on a real Postgres", () => 
     expect(cleared).toMatchObject({ conditionClearedAt: NOW });
   });
 
-  it("opens no zone rules alert for a register that reports none while the cloud has published none", async () => {
-    const { deviceId, registerId } = await insertEnrolledInstallation();
-
-    await push(deviceId, [], "1.4.0", { ...TELEMETRY, zone_rules_version: null });
-
-    expect(await db.select().from(alerts).where(eq(alerts.scope, registerId))).toEqual([]);
-  });
-
   it("opens a critical alert shown to the register's branch when it reports it can't sell, once for as many reports as it makes", async () => {
     const { deviceId, registerId, locationId } = await insertEnrolledInstallation();
     const cannotSell: RegisterTelemetry = {

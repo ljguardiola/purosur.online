@@ -79,7 +79,6 @@ function wire(settings: BranchSettings) {
     unreviewed_price_alert_days: settings.unreviewedPriceAlertDays,
     good_condition_return_days: settings.goodConditionReturnDays,
     supplier_price_list_daily_extraction_cap: settings.supplierPriceListDailyExtractionCap,
-    zone_rules_version: settings.zoneRulesVersion,
     version: settings.version,
   };
 }
