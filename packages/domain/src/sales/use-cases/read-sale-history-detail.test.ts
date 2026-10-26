@@ -63,6 +63,7 @@ function historySale(
         },
       ],
       creditNote: null,
+      deferredInvoiceIssued: false,
       ...overrides,
     },
   };
@@ -106,6 +107,7 @@ describe("readSaleHistoryDetail", () => {
         reprint: { kind: "available" },
         nextCopy: { kind: "original" },
         creditNoteNextCopy: null,
+        deferredInvoiceNextCopy: null,
       },
     });
   });
@@ -514,6 +516,70 @@ describe("readSaleHistoryDetail", () => {
       const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({ kind: "found", detail: { standing: "voided" } });
+    });
+  });
+
+  describe("the invoice of a sale that was deferred", () => {
+    const REPRINT = {
+      document: "deferred_invoice",
+      saleId: "sale-1",
+      orderNumber: 1,
+      requestedBy: "cashier",
+      authorizedBy: null,
+      reason: { kind: "retry" },
+      occurredAt: SENT_AT,
+    } as const;
+
+    it("has no next copy for a sale that was never deferred", () => {
+      const history = new FakeRegisterSalesHistory([historySale()]);
+      const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+      expect(outcome).toMatchObject({ kind: "found", detail: { deferredInvoiceNextCopy: null } });
+    });
+
+    it("shows its original as the next copy while it was never printed, whatever the sale's receipt did", () => {
+      const history = new FakeRegisterSalesHistory([historySale({ deferredInvoiceIssued: true })]);
+      const ledger = new FakeReceiptLedger({
+        sales: [completedSale({ printAttemptedAt: FIRST_PRINT_AT, printedAt: SENT_AT })],
+      });
+
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+      expect(outcome).toMatchObject({
+        kind: "found",
+        detail: {
+          deferredInvoiceNextCopy: { kind: "original" },
+          nextCopy: { kind: "duplicate", orderNumber: 1 },
+        },
+      });
+    });
+
+    it("shows the numbered duplicate it would print next once its original was attempted, apart from the sale receipt's", () => {
+      const history = new FakeRegisterSalesHistory([historySale({ deferredInvoiceIssued: true })]);
+      const ledger = new FakeReceiptLedger({
+        sales: [
+          completedSale({
+            deferredInvoice: {
+              printAttemptedAt: FIRST_PRINT_AT,
+              printedAt: SENT_AT,
+              stored: undefined,
+              reprints: [REPRINT],
+            },
+          }),
+        ],
+      });
+
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+      expect(outcome).toMatchObject({
+        kind: "found",
+        detail: {
+          deferredInvoiceNextCopy: { kind: "duplicate", orderNumber: 2 },
+          nextCopy: { kind: "original" },
+        },
+      });
     });
   });
 });

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { DeferredBacklogEntry } from "../model/deferred-backlog.js";
 import { DEFERRED_BACKLOG_RETRY_INTERVAL_MS } from "../model/deferred-backlog.js";
 import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
 import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
@@ -11,25 +10,20 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "../test-support/fictional-tax-identities.js";
 import { catchUpDeferredSales } from "./catch-up-deferred-sales.js";
-import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
-  type BacklogSale,
-  FakeDeferredSaleCatchUp,
-  type FakeDeferredSaleCatchUpState,
-  ScriptedRealTimeTaxAuthority,
-} from "./test-support/fake-deferred-sale-catch-up.js";
-import { FakeRoundTripSamples } from "./test-support/fake-real-time-authorization.js";
-import { SequentialIds } from "./test-support/fake-sale-authorization.js";
-import { ScriptedShortCodes } from "./test-support/scripted-short-codes.js";
+  AUTHORIZED,
+  deferredCatchUpRig,
+  FIRST,
+  NOW,
+  ORIGIN,
+  REJECTED,
+  SECOND,
+  sale,
+  state,
+  THIRD,
+} from "./test-support/deferred-catch-up-rig.js";
+import type { FakeDeferredSaleCatchUpState } from "./test-support/fake-deferred-sale-catch-up.js";
 
-const NOW = new Date("2026-10-03T15:00:00.000Z");
-const ORIGIN = { registerId: "register-1", actorId: "cashier" };
-
-const AUTHORIZED: RealTimeAuthorizationAnswer = {
-  kind: "authorized",
-  authorizationCode: "75123456789012",
-  authorizationCodeDueOn: "2026-10-13",
-};
 const HELD_RESERVED_AT = new Date("2026-10-01T14:00:05.000Z");
 const HELD_INVOICE: FacturaC = {
   invoiceClass: "C",
@@ -47,81 +41,13 @@ const HELD_INVOICE: FacturaC = {
   buyerTaxStatusCode: 5,
   buyerTaxStatusDescription: "Consumidor Final",
 };
-const REJECTED: RealTimeAuthorizationAnswer = {
-  kind: "rejected",
-  codes: [10015],
-  rejectionClass: "content",
-};
-
-function sale(
-  id: string,
-  occurredAt: string,
-  overrides: Partial<DeferredBacklogEntry> = {},
-): BacklogSale {
-  return {
-    origin: ORIGIN,
-    entry: {
-      deferredSaleId: `deferred-of-${id}`,
-      saleId: id,
-      occurredAt: new Date(occurredAt),
-      routedAt: new Date(occurredAt),
-      total: 1_000,
-      lastAttemptEndedAt: null,
-      ...overrides,
-    },
-  };
-}
-
-const FIRST = sale("sale-1", "2026-10-01T14:00:00.000Z");
-const SECOND = sale("sale-2", "2026-10-02T02:30:00.000Z");
-const THIRD = sale("sale-3", "2026-10-02T13:00:00.000Z");
-
-function state(
-  overrides: Partial<FakeDeferredSaleCatchUpState> = {},
-): FakeDeferredSaleCatchUpState {
-  return {
-    series: {
-      pointOfSale: 12,
-      taxAuthorityLastAuthorized: 100,
-      numberingFrozen: false,
-      clockMark: null,
-      taxAuthorityLastIssuedOn: "2026-09-30",
-      clockCorrections: [],
-    },
-    online: { lastHealthCheckOkAt: NOW, tokenValid: true, arcaReachable: true },
-    issuer: {
-      legalName: FICTIONAL_LEGAL_NAME,
-      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
-      activityStartDate: "2020-01-01",
-      authorizedCuit: FICTIONAL_CUIT,
-      taxStatus: "MONOTRIBUTO",
-      version: 3,
-    },
-    buyerTaxStatuses: [{ code: 5, description: "Consumidor Final", invoiceClass: "C" }],
-    awaitingRestoredNumbering: false,
-    backlog: [FIRST, SECOND, THIRD],
-    holdingAuthorizedDocument: [],
-    ...overrides,
-  };
-}
 
 function catchUp(
   overrides: Partial<FakeDeferredSaleCatchUpState> = {},
   answers: readonly RealTimeAuthorizationAnswer[] = [AUTHORIZED],
 ) {
-  const register = new FakeDeferredSaleCatchUp(state(overrides));
-  const taxAuthority = new ScriptedRealTimeTaxAuthority(answers);
-  const ids = new SequentialIds();
-  const outcome = catchUpDeferredSales({
-    catchUp: register,
-    documents: register,
-    roundTrips: new FakeRoundTripSamples([100]),
-    taxAuthority,
-    clock: new ManualClock(NOW),
-    ids,
-    shortCodes: new ScriptedShortCodes(["7KQ4M2P9"]),
-  });
-  return { register, taxAuthority, outcome };
+  const { register, taxAuthority, ports } = deferredCatchUpRig(overrides, answers);
+  return { register, taxAuthority, outcome: catchUpDeferredSales(ports) };
 }
 
 describe("catching up the deferred sales", () => {

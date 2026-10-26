@@ -22,6 +22,7 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   EnrollmentStandingAnswer,
+  FindDeferredSaleOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
@@ -34,6 +35,7 @@ import type {
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
+  PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -69,6 +71,7 @@ import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
 import type { StartupPendingAnswer } from "./register/startup-pending-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
+import type { FindDeferredSaleReading } from "./sales/deferred-sale-invoice-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
   AdjustSaleLineRequest,
@@ -181,7 +184,16 @@ export interface RendererRequestDeps {
   voidSale: ((request: VoidSaleRequest) => Promise<VoidSaleOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
   printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
+  findDeferredSale:
+    | ((reading: FindDeferredSaleReading) => Promise<FindDeferredSaleOutcome>)
+    | undefined;
+  printDeferredSaleInvoice:
+    | ((saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>)
+    | undefined;
   printCreditNote: ((saleId: string) => Promise<PrintCreditNoteOutcome>) | undefined;
+  reprintDeferredSaleInvoice:
+    | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
+    | undefined;
   reprintCreditNote:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
@@ -939,6 +951,48 @@ export async function answerRendererRequest(
           deps,
           "printing a sale's original receipt",
           printOriginalReceipt && (() => printOriginalReceipt(message.sale_id)),
+        ),
+      };
+    }
+    case "find-deferred-sale": {
+      const { findDeferredSale } = deps;
+      return {
+        type: "find-deferred-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "finding a deferred sale",
+          findDeferredSale && (() => findDeferredSale(message.reading)),
+        ),
+      };
+    }
+    case "print-deferred-sale-invoice": {
+      const { printDeferredSaleInvoice } = deps;
+      return {
+        type: "print-deferred-sale-invoice-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "printing a deferred sale's invoice",
+          printDeferredSaleInvoice && (() => printDeferredSaleInvoice(message.sale_id)),
+        ),
+      };
+    }
+    case "reprint-deferred-sale-invoice": {
+      const { reprintDeferredSaleInvoice } = deps;
+      return {
+        type: "reprint-deferred-sale-invoice-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reprinting a deferred sale's invoice",
+          reprintDeferredSaleInvoice &&
+            (() =>
+              reprintDeferredSaleInvoice({
+                saleId: message.sale_id,
+                reason: message.reason,
+                authorization: message.authorization,
+              })),
         ),
       };
     }

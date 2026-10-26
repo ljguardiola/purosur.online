@@ -343,6 +343,15 @@ function coreAnswering(
     async printOriginalReceipt() {
       return { kind: "unavailable" };
     },
+    async findDeferredSale() {
+      return { kind: "not_found" };
+    },
+    async printDeferredSaleInvoice() {
+      return { kind: "unavailable" };
+    },
+    async reprintDeferredSaleInvoice() {
+      return { kind: "unavailable" };
+    },
     async reprintSaleReceipt(saleId, reason, authorization) {
       return sales.reprintSaleReceipt === undefined
         ? { kind: "unavailable" }

@@ -29,10 +29,12 @@ import type {
   EnrollmentOutcome,
   EnrollmentStandingAnswer,
   FindCountableProductOutcome,
+  FindDeferredSaleOutcome,
   FirstPinCodeRequestOutcome,
   FiscalCoreToRendererMessage,
   FiscalRendererToCoreMessage,
   FollowMercadoPagoChargeOutcome,
+  findDeferredSaleMessageSchema,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   ManualAdjustmentRequest,
@@ -46,6 +48,7 @@ import type {
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
+  PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
@@ -136,6 +139,16 @@ type RendererToCoreMessage =
   | StockRendererToCoreMessage
   | FiscalRendererToCoreMessage
   | BackupsRendererToCoreMessage;
+
+export type DeferredSaleReading = NonNullable<
+  (typeof findDeferredSaleMessageSchema)["~standard"]["types"]
+>["input"]["reading"];
+
+type FindDeferredSaleRequest = {
+  type: "find-deferred-sale";
+  request_id: string;
+  reading: DeferredSaleReading;
+};
 
 export interface CorePort {
   postMessage(message: unknown): void;
@@ -249,7 +262,14 @@ export interface CoreClient {
   contingencyBackupTicketOfSale(saleId: string): Promise<ReadContingencyBackupTicketOfSaleOutcome>;
   discardContingencyBackupTickets(): Promise<DiscardContingencyBackupTicketsAnswer>;
   printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
+  findDeferredSale(reading: DeferredSaleReading): Promise<FindDeferredSaleOutcome>;
+  printDeferredSaleInvoice(saleId: string): Promise<PrintDeferredSaleInvoiceOutcome>;
   printCreditNote(saleId: string): Promise<PrintCreditNoteOutcome>;
+  reprintDeferredSaleInvoice(
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ): Promise<ReprintSaleReceiptOutcome>;
   reprintCreditNote(
     saleId: string,
     reason: string,
@@ -306,7 +326,7 @@ export interface CoreClient {
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
-type CoreRequest = Exclude<RendererToCoreMessage, { type: "ping" }>;
+type CoreRequest = Exclude<RendererToCoreMessage, { type: "ping" }> | FindDeferredSaleRequest;
 
 type CoreAnswer = Exclude<CoreToRendererMessage, { type: "pulled" }>;
 
@@ -769,10 +789,36 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "print-original-receipt-result" ? answer.outcome : undefined),
       );
     },
+    findDeferredSale(reading) {
+      return ask(
+        { type: "find-deferred-sale", request_id: deps.newRequestId(), reading },
+        (answer) => (answer.type === "find-deferred-sale-result" ? answer.outcome : undefined),
+      );
+    },
+    printDeferredSaleInvoice(saleId) {
+      return ask(
+        { type: "print-deferred-sale-invoice", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) =>
+          answer.type === "print-deferred-sale-invoice-result" ? answer.outcome : undefined,
+      );
+    },
     printCreditNote(saleId) {
       return ask(
         { type: "print-credit-note", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "print-credit-note-result" ? answer.outcome : undefined),
+      );
+    },
+    reprintDeferredSaleInvoice(saleId, reason, authorization) {
+      return ask(
+        {
+          type: "reprint-deferred-sale-invoice",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) =>
+          answer.type === "reprint-deferred-sale-invoice-result" ? answer.outcome : undefined,
       );
     },
     reprintCreditNote(saleId, reason, authorization) {

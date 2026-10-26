@@ -2075,6 +2075,61 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to reprint a deferred sale's invoice with its reason and the authorization given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const reprinted = client.reprintDeferredSaleInvoice(
+      "sale-1",
+      "El cliente la perdió",
+      authorization,
+    );
+    port.answer({
+      type: "reprint-deferred-sale-invoice-result",
+      request_id: "request-1",
+      outcome: { kind: "started", copy: { kind: "duplicate", order_number: 1 } },
+    });
+
+    expect(await reprinted).toEqual({
+      kind: "started",
+      copy: { kind: "duplicate", order_number: 1 },
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-deferred-sale-invoice",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "El cliente la perdió",
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to reprint a deferred sale's invoice without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const reprinted = client.reprintDeferredSaleInvoice("sale-1", "Otra copia", undefined);
+    port.answer({
+      type: "reprint-deferred-sale-invoice-result",
+      request_id: "request-1",
+      outcome: { kind: "busy" },
+    });
+
+    expect(await reprinted).toEqual({ kind: "busy" });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-deferred-sale-invoice",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "Otra copia",
+      },
+    ]);
+  });
+
   it("asks the core to reprint a sale's receipt with its reason and the authorization given", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -2145,6 +2200,71 @@ describe("createCoreClient", () => {
     expect(await printed).toEqual({ kind: "started", copy: { kind: "original" } });
     expect(port.posted).toEqual([
       { type: "print-original-receipt", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
+
+  it("asks the core to find a deferred sale from the code the cashier typed", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const found = client.findDeferredSale({ kind: "typed", code: "7kq4-m2p9" });
+    port.answer({
+      type: "find-deferred-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "not_found" },
+    });
+
+    expect(await found).toEqual({ kind: "not_found" });
+    expect(port.posted).toEqual([
+      {
+        type: "find-deferred-sale",
+        request_id: "request-1",
+        reading: { kind: "typed", code: "7kq4-m2p9" },
+      },
+    ]);
+  });
+
+  it("asks the core to find a deferred sale from the text of the QR the reader scanned", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const found = client.findDeferredSale({
+      kind: "scanned",
+      text: "purosur-deferred-sale:0198-abc:7KQ4M2P9",
+    });
+    port.answer({
+      type: "find-deferred-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "voided" },
+    });
+
+    expect(await found).toEqual({ kind: "voided" });
+    expect(port.posted).toEqual([
+      {
+        type: "find-deferred-sale",
+        request_id: "request-1",
+        reading: { kind: "scanned", text: "purosur-deferred-sale:0198-abc:7KQ4M2P9" },
+      },
+    ]);
+  });
+
+  it("asks the core to print a deferred sale's invoice as an original", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const printed = client.printDeferredSaleInvoice("sale-1");
+    port.answer({
+      type: "print-deferred-sale-invoice-result",
+      request_id: "request-1",
+      outcome: { kind: "not_yet", cause: "cannot_authorize" },
+    });
+
+    expect(await printed).toEqual({ kind: "not_yet", cause: "cannot_authorize" });
+    expect(port.posted).toEqual([
+      { type: "print-deferred-sale-invoice", request_id: "request-1", sale_id: "sale-1" },
     ]);
   });
 

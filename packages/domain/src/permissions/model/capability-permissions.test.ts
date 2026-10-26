@@ -40,6 +40,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_reports", ["reports_area"]],
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
+  ["recover_contingency_receipts", ["contingency_ticket_rescue"]],
   ["view_fiscal_documents", ["fiscal_information"]],
   ["close_fiscal_tasks", ["close_fiscal_tasks"]],
 ];
@@ -84,6 +85,38 @@ describe("grantsCapability", () => {
       ),
     ).toBe(false);
   });
+});
+
+describe("the backups, ticket rescue and branch screens", () => {
+  const screens = [
+    ["backups_area", "view_backups_and_rotate_key"],
+    ["contingency_ticket_rescue", "recover_contingency_receipts"],
+    ["branch_area", "configure_branch"],
+  ] as const;
+
+  it.each(screens)("%s is granted only by %s", (capability, permission) => {
+    expect(
+      grantsCapability({ isAdministrator: false, permissionKeys: [permission] }, capability),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => key !== permission),
+        },
+        capability,
+      ),
+    ).toBe(false);
+  });
+
+  it.each(screens)(
+    "whoever holds only the permission of %s is granted nothing else",
+    (own, permission) => {
+      const granted = grantedCapabilities({ isAdministrator: false, permissionKeys: [permission] });
+
+      expect(granted).toEqual([own]);
+    },
+  );
 });
 
 describe("the reports_area capability", () => {

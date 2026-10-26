@@ -286,6 +286,7 @@ export {
   deferredSaleAgeInDays,
   deferredSaleExpiresOn,
   deferredSaleRecordedEvent,
+  deferredSaleReferenceFromQrText,
   deferredSaleRegularizationTask,
   deferredSaleSatisfiedEvent,
   deferredSaleSettlement,
@@ -736,6 +737,8 @@ export {
 } from "./register/index.js";
 export type {
   CreditNoteReceiptContent,
+  DeferredSaleFacts,
+  DeferredSaleInvoice,
   DeferredSaleRecord,
   DiscountedLinesOfPromotion,
   LineDiscountRecord,

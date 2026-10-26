@@ -38,6 +38,7 @@ const FISCAL_SALE: SaleDetail = {
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_note: null,
   credit_note_next_copy: null,
+  deferred_invoice_next_copy: null,
 };
 
 async function renderPanel(
@@ -57,6 +58,7 @@ async function renderPanel(
   const onVoid = vi.fn();
   const onPrintCreditNote = vi.fn();
   const onReprintCreditNote = vi.fn();
+  const onReprintDeferredInvoice = vi.fn();
   const screen = await render(
     <SaleHistoryDetailPanel
       saleId={"saleId" in options ? options.saleId : "sale-1"}
@@ -66,6 +68,7 @@ async function renderPanel(
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
       onReprintCreditNote={onReprintCreditNote}
+      onReprintDeferredInvoice={onReprintDeferredInvoice}
     />,
   );
   return {
@@ -76,6 +79,7 @@ async function renderPanel(
     onVoid,
     onPrintCreditNote,
     onReprintCreditNote,
+    onReprintDeferredInvoice,
   };
 }
 
@@ -389,6 +393,63 @@ describe("SaleHistoryDetailPanel", () => {
       await expect.element(screen.getByText("Anulada", { exact: true })).toBeVisible();
       await expect
         .element(screen.getByText("Nota de crédito C", { exact: true }))
+        .not.toBeInTheDocument();
+    });
+  });
+
+  describe("the factura of a sale that was deferred", () => {
+    const INVOICED: SaleDetail = {
+      ...FISCAL_SALE,
+      deferred_invoice_next_copy: { kind: "duplicate", order_number: 1 },
+    };
+
+    it("offers a duplicate of the factura already printed, asking before printing it", async () => {
+      const { screen, onReprint, onReprintDeferredInvoice } = await renderPanel({
+        read: async () => ({ kind: "found", detail: INVOICED }),
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Reimprimir factura" }));
+
+      expect(onReprintDeferredInvoice).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          sale_id: "sale-1",
+          deferred_invoice_next_copy: { kind: "duplicate", order_number: 1 },
+        }),
+      );
+      expect(onReprint).not.toHaveBeenCalled();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it.each([
+      ["never printed", { kind: "original" } as const],
+      ["not a deferred sale", null],
+    ])("offers no reprint of the factura when it is %s", async (_case, nextCopy) => {
+      const { screen } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: { ...FISCAL_SALE, deferred_invoice_next_copy: nextCopy },
+        }),
+      });
+
+      await expect
+        .element(screen.getByRole("button", { name: "Reimprimir duplicado" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Reimprimir factura" }))
+        .not.toBeInTheDocument();
+    });
+
+    it("offers no reprint of the factura of a voided sale", async () => {
+      const { screen } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: { ...INVOICED, state: "voided", reprint: { kind: "sale_voided" } },
+        }),
+      });
+
+      await expect.element(screen.getByText("Anulada", { exact: true })).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Reimprimir factura" }))
         .not.toBeInTheDocument();
     });
   });

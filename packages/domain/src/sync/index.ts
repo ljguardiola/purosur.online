@@ -39,3 +39,4 @@ export {
   salesDenialOf,
   salesDeniedReportOf,
 } from "./model/sales-stop.js";
+export type { SyncedFact } from "./model/synced-fact.js";

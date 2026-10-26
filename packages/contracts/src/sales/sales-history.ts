@@ -96,6 +96,7 @@ const saleHistoryDetailSchema = z.object({
   ]),
   next_copy: receiptCopySchema,
   credit_note_next_copy: receiptCopySchema.nullable(),
+  deferred_invoice_next_copy: receiptCopySchema.nullable(),
 });
 
 export const saleHistoryDetailOutcomeSchema = z.discriminatedUnion("kind", [

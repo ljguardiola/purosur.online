@@ -75,7 +75,11 @@ describe("signing in", () => {
 
     expect(await signIn(built, "u1", "1234")).toEqual({
       kind: "signed_in",
-      person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
+      person: {
+        user_id: "u1",
+        first_name: "Ada",
+        abilities: ["open_cash_session", "invoice_deferred_sale"],
+      },
       cash_session: OPEN_CASH_SESSION,
     });
     expect(readFor).toEqual(["u1"]);

@@ -1,3 +1,4 @@
+import type { PrintedDocument } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -12,6 +13,30 @@ function notApplied(saleId: string, { registerId }: AppliedOrigin): Error {
   return new Error(`sale ${saleId} is not applied for register ${registerId}`);
 }
 
+function printStateColumns(
+  document: PrintedDocument,
+  attemptedAt: string,
+  printedMoment: string | null,
+) {
+  switch (document) {
+    case "credit_note":
+      return {
+        creditNotePrintAttemptedAt: sql`greatest(${sales.creditNotePrintAttemptedAt}, ${attemptedAt}::timestamptz)`,
+        creditNotePrintedAt: sql`greatest(${sales.creditNotePrintedAt}, ${printedMoment}::timestamptz)`,
+      };
+    case "deferred_invoice":
+      return {
+        deferredInvoicePrintAttemptedAt: sql`greatest(${sales.deferredInvoicePrintAttemptedAt}, ${attemptedAt}::timestamptz)`,
+        deferredInvoicePrintedAt: sql`greatest(${sales.deferredInvoicePrintedAt}, ${printedMoment}::timestamptz)`,
+      };
+    case "sale_receipt":
+      return {
+        printAttemptedAt: sql`greatest(${sales.printAttemptedAt}, ${attemptedAt}::timestamptz)`,
+        printedAt: sql`greatest(${sales.printedAt}, ${printedMoment}::timestamptz)`,
+      };
+  }
+}
+
 export async function recordAppliedPrintState<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   origin: AppliedOrigin,
@@ -22,17 +47,7 @@ export async function recordAppliedPrintState<TQueryResult extends PgQueryResult
   const printedMoment = printedAt?.toISOString() ?? null;
   const updated = await tx
     .update(sales)
-    .set(
-      document === "credit_note"
-        ? {
-            creditNotePrintAttemptedAt: sql`greatest(${sales.creditNotePrintAttemptedAt}, ${attemptedAt}::timestamptz)`,
-            creditNotePrintedAt: sql`greatest(${sales.creditNotePrintedAt}, ${printedMoment}::timestamptz)`,
-          }
-        : {
-            printAttemptedAt: sql`greatest(${sales.printAttemptedAt}, ${attemptedAt}::timestamptz)`,
-            printedAt: sql`greatest(${sales.printedAt}, ${printedMoment}::timestamptz)`,
-          },
-    )
+    .set(printStateColumns(document, attemptedAt, printedMoment))
     .where(ofTheRegister(saleId, origin))
     .returning({ id: sales.id });
   if (updated.length === 0) {

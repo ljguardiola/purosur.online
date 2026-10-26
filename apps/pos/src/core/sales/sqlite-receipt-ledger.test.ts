@@ -419,6 +419,29 @@ describe("a receipt ledger's fiscal document of a sale", () => {
 
     expect(fiscal).toEqual({ kind: "deferred", deferred: reference });
   });
+
+  it("is the authorized factura C, not the deferred record, once the deferred sale was invoiced", () => {
+    insertSaleWithEverything();
+    insertDeferredSale(database, "sale-1", "fiscally_offline");
+    insertFiscalDocument(database, { state: "AUTHORIZED", pointOfSale: 12, number: 41 });
+    database
+      .prepare(
+        "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-1', satisfied_at = '2026-10-01T12:06:00.000Z'",
+      )
+      .run();
+
+    const { fiscal } = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(fiscal).toMatchObject({
+      kind: "authorized",
+      authorized: {
+        pointOfSale: 12,
+        number: 41,
+        authorizationCode: "75123456789012",
+        document: FACTURA_C,
+      },
+    });
+  });
 });
 
 describe("a receipt ledger's payments", () => {
@@ -700,5 +723,131 @@ describe("a receipt ledger's credit note of a voided sale", () => {
       { method: "CASH", amount: 700000 },
       { method: "TRANSFER", amount: 490000 },
     ]);
+  });
+});
+
+describe("a receipt ledger's invoice of a deferred sale", () => {
+  const invoice = { document: "deferred_invoice", saleId: "sale-1" } as const;
+  const receipt = { document: "sale_receipt", saleId: "sale-1" } as const;
+  const reprint = (document: "sale_receipt" | "deferred_invoice") => ({
+    document,
+    saleId: "sale-1",
+    orderNumber: 1,
+    requestedBy: "u1",
+    authorizedBy: null,
+    reason: { kind: "retry" } as const,
+    occurredAt: new Date("2026-09-30T16:10:00.000Z"),
+  });
+
+  beforeEach(() => {
+    insertCompletedSale("sale-1");
+  });
+
+  it("starts with nothing attempted, printed or reprinted", () => {
+    inTransaction((tx) => {
+      tx.recordPrintAttempt(receipt, new Date("2026-09-30T15:06:00.000Z"));
+      tx.recordPrinted(receipt, new Date("2026-09-30T15:06:03.000Z"));
+    });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(invoice))).toMatchObject({
+      printAttemptedAt: null,
+      printedAt: null,
+      reprintCount: 0,
+    });
+  });
+
+  it("holds its own print attempt, printed moment and reprints apart from the sale receipt's", () => {
+    const attemptedAt = new Date("2026-09-30T16:00:00.000Z");
+    const printedAt = new Date("2026-09-30T16:00:04.000Z");
+
+    inTransaction((tx) => {
+      tx.recordPrintAttempt(invoice, attemptedAt);
+      tx.recordPrinted(invoice, printedAt);
+      tx.recordReprint(reprint("deferred_invoice"));
+    });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(invoice))).toMatchObject({
+      printAttemptedAt: attemptedAt,
+      printedAt,
+      reprintCount: 1,
+    });
+    expect(inTransaction((tx) => tx.receiptDelivery(receipt))).toMatchObject({
+      printAttemptedAt: null,
+      printedAt: null,
+      reprintCount: 0,
+    });
+    expect(database.prepare("SELECT print_attempted_at, printed_at FROM sales").get()).toEqual({
+      print_attempted_at: null,
+      printed_at: null,
+    });
+  });
+
+  it("is untouched when the sale receipt is printed and reprinted", () => {
+    inTransaction((tx) => {
+      tx.recordPrintAttempt(receipt, new Date("2026-09-30T15:06:00.000Z"));
+      tx.recordPrinted(receipt, new Date("2026-09-30T15:06:03.000Z"));
+      tx.recordReprint(reprint("sale_receipt"));
+    });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(invoice))).toMatchObject({
+      printAttemptedAt: null,
+      printedAt: null,
+      reprintCount: 0,
+    });
+    expect(inTransaction((tx) => tx.receiptDelivery(receipt))).toMatchObject({ reprintCount: 1 });
+  });
+
+  it("moves the attempt to the moment it is recorded again", () => {
+    inTransaction((tx) => {
+      tx.recordPrintAttempt(invoice, new Date("2026-09-30T16:00:00.000Z"));
+    });
+
+    inTransaction((tx) => {
+      tx.recordPrintAttempt(invoice, new Date("2026-09-30T16:30:00.000Z"));
+    });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(invoice))?.printAttemptedAt).toEqual(
+      new Date("2026-09-30T16:30:00.000Z"),
+    );
+  });
+
+  it("numbers its reprints apart from the sale receipt's", () => {
+    inTransaction((tx) => {
+      tx.recordReprint(reprint("sale_receipt"));
+      tx.recordReprint(reprint("deferred_invoice"));
+    });
+
+    expect(() =>
+      inTransaction((tx) => {
+        tx.recordReprint(reprint("deferred_invoice"));
+      }),
+    ).toThrow();
+  });
+
+  it("stores the rendered invoice apart from the sale receipt, byte for byte", () => {
+    inTransaction((tx) => {
+      tx.recordStoredReceipt(receipt, {
+        templateVersion: "1",
+        head: Uint8Array.from([0x58]),
+        body: Uint8Array.from([0x0a]),
+      });
+    });
+    expect(inTransaction((tx) => tx.storedReceipt(invoice))).toBeUndefined();
+
+    inTransaction((tx) => {
+      tx.recordStoredReceipt(invoice, {
+        templateVersion: "2",
+        head: Uint8Array.from([0x1b, 0x40, 0x00, 0xff]),
+        body: Uint8Array.from([0x41, 0x0a]),
+      });
+    });
+
+    const stored = inTransaction((tx) => tx.storedReceipt(invoice));
+    expect(stored?.templateVersion).toBe("2");
+    expect(Array.from(stored?.head ?? [])).toEqual([0x1b, 0x40, 0x00, 0xff]);
+    expect(Array.from(stored?.body ?? [])).toEqual([0x41, 0x0a]);
+    const own = inTransaction((tx) => tx.storedReceipt(receipt));
+    expect(own?.templateVersion).toBe("1");
+    expect(Array.from(own?.head ?? [])).toEqual([0x58]);
   });
 });
