@@ -1222,7 +1222,10 @@ describe("changesPageSchema", () => {
       "zone rules without their version",
       pageOf(change(1, "zone_rules", { ...zoneRulesRow, version: undefined })),
     ],
-    ["zone rules of an empty version", pageOf(change(1, "zone_rules", { ...zoneRulesRow, version: "" }))],
+    [
+      "zone rules of an empty version",
+      pageOf(change(1, "zone_rules", { ...zoneRulesRow, version: "" })),
+    ],
     [
       "zone rules without transitions",
       pageOf(change(1, "zone_rules", { ...zoneRulesRow, transitions: [] })),

@@ -866,6 +866,7 @@ export type {
 } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
+  areZoneTransitionsOrdered,
   argentinaCalendarDay,
   argentinaInstant,
   FIXED_ARGENTINA_ZONE_RULES,

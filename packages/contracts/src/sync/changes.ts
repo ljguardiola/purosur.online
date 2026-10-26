@@ -1,4 +1,5 @@
 import {
+  areZoneTransitionsOrdered,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   isBuyerIdentificationThresholdAmount,
@@ -282,6 +283,23 @@ const buyerTaxStatusSetChangeSchema = z.object({
   }),
 });
 
+const zoneRulesChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("zone_rules"),
+  row: z.object({
+    version: z.string().min(1),
+    transitions: z
+      .array(z.object({ from: z.iso.datetime(), offset_minutes: z.int() }))
+      .min(1)
+      .refine((transitions) =>
+        areZoneTransitionsOrdered(
+          transitions.map(({ from }) => ({ from: new Date(from), offsetMinutes: 0 })),
+        ),
+      ),
+    published_at: z.iso.datetime(),
+  }),
+});
+
 const priceChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("price"),
@@ -353,6 +371,7 @@ export const changesPageSchema = z.object({
         offlineAuthorizationCodeChangeSchema,
         offlineNumberBlockChangeSchema,
         buyerTaxStatusSetChangeSchema,
+        zoneRulesChangeSchema,
         stockMovementChangeSchema,
         refundCompletionChangeSchema,
         removalChangeSchema,

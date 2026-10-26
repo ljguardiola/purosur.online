@@ -23,3 +23,10 @@ export function offsetAt(rules: ZoneRules, instant: Date): number {
   }
   return offsetMinutes;
 }
+
+export function areZoneTransitionsOrdered(transitions: readonly ZoneTransition[]): boolean {
+  return transitions.every(
+    (transition, index) =>
+      index === 0 || (transitions[index - 1]?.from.getTime() ?? 0) < transition.from.getTime(),
+  );
+}

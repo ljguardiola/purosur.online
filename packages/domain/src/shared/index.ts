@@ -36,4 +36,4 @@ export { compareSpanishText } from "./text-order.js";
 export type { VersionedKey } from "./versioned-key.js";
 export { inVersionOrder, latestKey } from "./versioned-key.js";
 export type { ZoneRules, ZoneTransition } from "./zone-rules.js";
-export { FIXED_ARGENTINA_ZONE_RULES, offsetAt } from "./zone-rules.js";
+export { areZoneTransitionsOrdered, FIXED_ARGENTINA_ZONE_RULES, offsetAt } from "./zone-rules.js";
