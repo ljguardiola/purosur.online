@@ -1,6 +1,6 @@
 import type { RestorationStandingAnswer } from "@purosur/contracts";
 import { InlineNotice, ScreenHeader } from "@purosur/ui";
-import { TriangleAlert, WifiOff } from "lucide-react";
+import { Printer, QrCode, TriangleAlert, WifiOff } from "lucide-react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { registerEyebrow } from "./register-eyebrow";
 
@@ -82,6 +82,22 @@ export function RestoringScreen({
             title="Sin conexión con la nube"
             description="Si el local no tiene internet, conectá la notebook al hotspot de un celular. La caja sigue sola en cuanto hay conexión."
           />
+        ) : null}
+        {standing.step === "recover_contingency_tickets" ? (
+          <>
+            <InlineNotice
+              tone="info"
+              icon={<Printer />}
+              title="Revisá la impresora y el mostrador"
+              description="Buscá un ticket de respaldo que todavía no se haya guardado en la caja del local: el último suele seguir ahí."
+            />
+            <InlineNotice
+              tone="info"
+              icon={<QrCode />}
+              title="Escaneá los tickets en el backoffice"
+              description="En Rescate de tickets. La caja sigue sola cuando se termina el rescate."
+            />
+          </>
         ) : null}
       </main>
     </BrandPanelScreen>

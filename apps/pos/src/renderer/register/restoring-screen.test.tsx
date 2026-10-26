@@ -264,35 +264,44 @@ describe("RestoringScreen", () => {
       "without_connection",
       { kind: "without_connection", step: "recover_contingency_tickets", origin: "copy" },
     ],
-  ] as const)("asks to look for an unfiled backup ticket and to scan the tickets in the backoffice while %s at the ticket recovery", async (_kind, standing) => {
-    const screen = await render(<RestoringScreen registerName="Caja 2" standing={standing} />);
+  ] as const)(
+    "asks to look for an unfiled backup ticket and to scan the tickets in the backoffice while %s at the ticket recovery",
+    async (_kind, standing) => {
+      const screen = await render(<RestoringScreen registerName="Caja 2" standing={standing} />);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
-      .toBeVisible();
-    await expect.element(screen.getByText("Revisá la impresora y el mostrador")).toBeVisible();
-    await expect
-      .element(
-        screen.getByText(
-          "Buscá un ticket de respaldo que todavía no se haya guardado en la caja del local: el último suele seguir ahí.",
-        ),
-      )
-      .toBeVisible();
-    await expect.element(screen.getByText("Escaneá los tickets en el backoffice")).toBeVisible();
-    await expect
-      .element(
-        screen.getByText("En Rescate de tickets. La caja sigue sola cuando se termina el rescate."),
-      )
-      .toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("Revisá la impresora y el mostrador")).toBeVisible();
+      await expect
+        .element(
+          screen.getByText(
+            "Buscá un ticket de respaldo que todavía no se haya guardado en la caja del local: el último suele seguir ahí.",
+          ),
+        )
+        .toBeVisible();
+      await expect.element(screen.getByText("Escaneá los tickets en el backoffice")).toBeVisible();
+      await expect
+        .element(
+          screen.getByText(
+            "En Rescate de tickets. La caja sigue sola cuando se termina el rescate.",
+          ),
+        )
+        .toBeVisible();
 
-    await expectNoAccessibilityViolations(screen.container);
-  });
+      await expectNoAccessibilityViolations(screen.container);
+    },
+  );
 
   it("keeps the hotspot notice beside the ticket recovery notices while there is no connection", async () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
-        standing={{ kind: "without_connection", step: "recover_contingency_tickets", origin: "copy" }}
+        standing={{
+          kind: "without_connection",
+          step: "recover_contingency_tickets",
+          origin: "copy",
+        }}
       />,
     );
 
