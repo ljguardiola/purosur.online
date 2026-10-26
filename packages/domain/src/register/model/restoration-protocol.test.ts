@@ -74,11 +74,8 @@ describe("restorationStanding", () => {
     });
   });
 
-  it("is held by every step that is neither undelivered nor the session opening", () => {
-    const undelivered: readonly string[] = UNDELIVERED_RESTORATION_STEPS;
-    const heldBy = RESTORATION_STEPS.filter(
-      (step) => step !== "open_session" && !undelivered.includes(step),
-    );
+  it("is held by every step but the session opening", () => {
+    const heldBy = RESTORATION_STEPS.filter((step) => step !== "open_session");
 
     for (const step of heldBy) {
       expect(restorationStanding({ ...ALL_COMPLETED, [step]: "pending" })).toEqual({

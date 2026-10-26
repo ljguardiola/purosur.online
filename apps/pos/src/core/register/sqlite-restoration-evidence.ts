@@ -46,6 +46,7 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       restore: this.restoreEvidence(restoring),
       reset_sync_identity: restoring ? "pending" : "completed",
       replenish: this.replenishEvidence(),
+      recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: awaitsRestoredNumbering(this.database) ? "pending" : "completed",
       regularize_orphan_authorizations: this.awaitsOrphanSweep() ? "pending" : "completed",
       origin: this.replenishmentOrigin(),
