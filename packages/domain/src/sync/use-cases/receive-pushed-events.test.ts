@@ -666,10 +666,33 @@ describe("reporting how the register stands", () => {
           deviceId: DEVICE,
           locationId: "location-1",
           report: telemetry,
+          cloudZoneRulesVersion: null,
         },
         at: NOW,
       },
     ]);
+  });
+
+  it("records the stops with the zone rules version the cloud has published, when it has", async () => {
+    const inbox = new FakeInbox();
+    inbox.publishedZoneRulesVersion = "2026a";
+
+    await receive(inbox, eventsOf(1), { telemetry: { ...TELEMETRY, zone_rules_version: "2025c" } });
+
+    expect(inbox.state.registerStops.map(({ stops }) => stops.cloudZoneRulesVersion)).toEqual([
+      "2026a",
+    ]);
+  });
+
+  it("reads the zone rules version the cloud has published once per push, in the push's own transaction", async () => {
+    const inbox = new FakeInbox();
+    inbox.publishedZoneRulesVersion = "2026a";
+
+    await receive(inbox, [], { telemetry: TELEMETRY });
+
+    expect(inbox.calls.filter((call) => call === "latestPublishedZoneRulesVersion")).toHaveLength(
+      1,
+    );
   });
 
   it("records the stops of a push that carries no event", async () => {

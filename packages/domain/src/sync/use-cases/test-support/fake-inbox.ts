@@ -68,6 +68,7 @@ export class FakeInbox implements Inbox {
   revokedDevices = new Set<string>();
   registerIds = new Map<string, string>();
   locationIds = new Map<string, string>();
+  publishedZoneRulesVersion: string | null = null;
 
   constructor(receivedSeqs: { deviceId: string; seqs: number[] }[] = []) {
     for (const { deviceId, seqs } of receivedSeqs) {
@@ -209,6 +210,10 @@ export class FakeInbox implements Inbox {
           registerId: this.registerIds.get(deviceId) ?? `register-of-${deviceId}`,
           locationId: this.locationIds.get(deviceId) ?? `location-of-${deviceId}`,
         };
+      },
+      latestPublishedZoneRulesVersion: async () => {
+        this.calls.push("latestPublishedZoneRulesVersion");
+        return this.publishedZoneRulesVersion;
       },
       recordRegisterVersionStanding: async (standing, at) => {
         this.calls.push("recordRegisterVersionStanding");
