@@ -40,7 +40,16 @@ export async function receivePushedEvents(
     const keptInService = async (
       outcome: ReceivePushedEventsOutcome,
     ): Promise<ReceivePushedEventsOutcome> => {
-      await tx.recordRegisterStops({ registerId, deviceId, locationId, report: telemetry }, now);
+      await tx.recordRegisterStops(
+        {
+          registerId,
+          deviceId,
+          locationId,
+          report: telemetry,
+          cloudZoneRulesVersion: await tx.latestPublishedZoneRulesVersion(),
+        },
+        now,
+      );
       return outcome;
     };
     const heldSeqs = await tx.receivedDeviceSeqs(deviceId);

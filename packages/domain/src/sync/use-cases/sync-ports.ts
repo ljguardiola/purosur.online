@@ -125,6 +125,7 @@ export interface RegisterStops {
   deviceId: string;
   locationId: string;
   report: RegisterTelemetry;
+  cloudZoneRulesVersion: string | null;
 }
 
 export interface InboxTransaction {
@@ -143,6 +144,7 @@ export interface InboxTransaction {
   advanceOfflineNumbering(offlineDocuments: readonly PushedEvent[], at: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
   installationRegister(deviceId: string): Promise<InstallationRegister>;
+  latestPublishedZoneRulesVersion(): Promise<string | null>;
   recordRegisterVersionStanding(standing: RegisterVersionStanding, at: Date): Promise<void>;
   recordRegisterStops(stops: RegisterStops, at: Date): Promise<void>;
   recordRegisterSynced(registerId: string, at: Date): Promise<void>;
