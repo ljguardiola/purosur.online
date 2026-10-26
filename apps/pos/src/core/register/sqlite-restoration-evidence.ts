@@ -46,7 +46,7 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       restore: this.restoreEvidence(restoring),
       reset_sync_identity: restoring ? "pending" : "completed",
       replenish: this.replenishEvidence(),
-      recover_contingency_tickets: "completed",
+      recover_contingency_tickets: this.awaitsContingencyTicketRecovery() ? "pending" : "completed",
       reconcile_fiscal_counters: awaitsRestoredNumbering(this.database) ? "pending" : "completed",
       regularize_orphan_authorizations: this.awaitsOrphanSweep() ? "pending" : "completed",
       origin: this.replenishmentOrigin(),
@@ -59,6 +59,16 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       return "completed";
     }
     return this.noUsableGeneration() ? "failed" : "pending";
+  }
+
+  private awaitsContingencyTicketRecovery(): boolean {
+    return (
+      this.database
+        .prepare<[], { awaiting: 1 }>(
+          "SELECT 1 AS awaiting FROM awaiting_contingency_ticket_recovery LIMIT 1",
+        )
+        .get() !== undefined
+    );
   }
 
   private awaitsOrphanSweep(): boolean {

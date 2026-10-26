@@ -27,6 +27,11 @@ import {
 } from "../shared/channel";
 import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
 import { createContingencyBackupTickets } from "./backups/contingency-backup-tickets-wiring";
+import {
+  contingencyTicketRecoveryReportOf,
+  recoverContingencyTicketsStep,
+} from "./backups/recover-contingency-tickets-step";
+import { replenishWithContingencyTicketRecovery } from "./backups/replenish-with-contingency-ticket-recovery";
 import { resetWithoutCopy } from "./backups/reset-without-copy";
 import { createRestoreAttempts } from "./backups/restore-attempts";
 import { createRestoreLaunch } from "./backups/restore-launch";
@@ -559,18 +564,38 @@ const syncSchedule = createSyncSchedule({
     replenishBeforeSync({
       holdsRegisterIdentity: () =>
         localDatabase !== undefined && readRegisterIdentity(localDatabase) !== undefined,
-      replenish: () =>
-        replenishRestoredRegisterStep({
-          database: localDatabase,
-          readCredentials: () => mainRequests.readCredentials(),
-          post:
-            cloudClient === undefined
-              ? undefined
-              : (path, bearerToken, body) =>
-                  postToCloudWithBearer(cloudClient, path, bearerToken, body),
-          ids: uuidV7Ids,
-          appVersion: appVersionFromCoreArguments(process.argv),
-        }),
+      replenish: replenishWithContingencyTicketRecovery({
+        replenish: () =>
+          replenishRestoredRegisterStep({
+            database: localDatabase,
+            readCredentials: () => mainRequests.readCredentials(),
+            post:
+              cloudClient === undefined
+                ? undefined
+                : (path, bearerToken, body) =>
+                    postToCloudWithBearer(cloudClient, path, bearerToken, body),
+            ids: uuidV7Ids,
+            appVersion: appVersionFromCoreArguments(process.argv),
+          }),
+        recover: () =>
+          recoverContingencyTicketsStep({
+            database: localDatabase,
+            evidence: restorationOf,
+            readCredentials: () => mainRequests.readCredentials(),
+            post:
+              cloudClient === undefined
+                ? undefined
+                : (path, bearerToken, body) =>
+                    postToCloudWithBearer(cloudClient, path, bearerToken, body),
+          }),
+        report: (attempt) => {
+          const report = contingencyTicketRecoveryReportOf(attempt);
+          if (report !== undefined) {
+            console.warn(report.message, attempt);
+          }
+        },
+        onFailure: (error) => reportFailure("the contingency ticket recovery wait", error),
+      }),
       report: (attempt) => {
         const report = replenishmentReportOf(attempt);
         if (report === undefined) {

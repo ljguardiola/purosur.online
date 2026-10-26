@@ -63,6 +63,12 @@ export class SqliteRestoredSyncIdentityStore implements RestoredSyncIdentityStor
             "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)",
           )
           .run(predecessor.deviceId, predecessor.lastAcknowledgedSeq);
+        database.exec("DELETE FROM awaiting_contingency_ticket_recovery");
+        database
+          .prepare(
+            "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES (?, ?)",
+          )
+          .run(predecessor.deviceId, predecessor.lastAcknowledgedSeq);
       },
       async discardCarriedOutboxEvents() {
         database.exec("DELETE FROM outbox");
