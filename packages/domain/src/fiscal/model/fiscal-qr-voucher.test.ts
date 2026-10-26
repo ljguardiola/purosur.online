@@ -77,6 +77,10 @@ describe("fiscalQrVoucher", () => {
     ["an empty text", ""],
     ["the tax authority's address without a payload", TAX_AUTHORITY_QR_URL],
     ["another address", `https://example.com/fe/qr/?p=${btoa(JSON.stringify(PAYLOAD))}`],
+    [
+      "an address of the same length as the tax authority's",
+      `${TAX_AUTHORITY_QR_URL.replace("arca", "arcb")}${btoa(JSON.stringify(PAYLOAD))}`,
+    ],
     ["a payload that is not base64", `${TAX_AUTHORITY_QR_URL}%%%`],
     ["a payload that is not JSON", `${TAX_AUTHORITY_QR_URL}${btoa("not json")}`],
     ["a payload that is not an object", qrOf([3, 11, 1204])],
