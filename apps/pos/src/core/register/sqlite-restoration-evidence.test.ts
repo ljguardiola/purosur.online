@@ -199,6 +199,13 @@ describe("the evidence of the restoration protocol", () => {
 
     expect(evidence.evidence()).toMatchObject({
       replenish: "completed",
+      recover_contingency_tickets: "pending",
+      origin: "no_copy",
+    });
+
+    database.exec("DELETE FROM awaiting_contingency_ticket_recovery");
+
+    expect(evidence.evidence()).toMatchObject({
       recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: "pending",
       origin: "no_copy",
