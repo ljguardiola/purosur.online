@@ -812,6 +812,7 @@ export {
   SALES_REPORT_SALE_STATE,
   saleComprobanteOf,
   saleDiscountUnavailability,
+  saleFiscalDocumentAmong,
   saleStandingOf,
   saleTotal,
   saleUnitOfWeightSource,
