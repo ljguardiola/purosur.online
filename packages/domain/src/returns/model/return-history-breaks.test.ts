@@ -136,6 +136,45 @@ describe("returnHistoryBreaks", () => {
     });
   });
 
+  it("flags a break of any one refund, line or quantity, not only when all of them break", () => {
+    const occurredAt = new Date(argentinaInstant("2026-09-28", "10:00"));
+
+    expect(
+      returnHistoryBreaks(
+        returned({
+          refunds: [
+            { paymentId: "pay-1", amount: 100 },
+            { paymentId: "pay-2", amount: 2001 },
+          ],
+        }),
+        HISTORY,
+      ),
+    ).toEqual(["return_refund_exceeds_payment"]);
+    expect(
+      returnHistoryBreaks(
+        returned({
+          occurredAt,
+          lines: [
+            { saleLineId: "line-1", quantity: 1, reason: "defective" },
+            { saleLineId: "line-2", quantity: 1, reason: "change_of_mind" },
+          ],
+        }),
+        HISTORY,
+      ),
+    ).toEqual(["return_line_outside_window"]);
+    expect(
+      returnHistoryBreaks(
+        returned({
+          lines: [
+            { saleLineId: "line-2", quantity: 1, reason: "change_of_mind" },
+            { saleLineId: "line-1", quantity: 3, reason: "change_of_mind" },
+          ],
+        }),
+        HISTORY,
+      ),
+    ).toEqual(["return_quantity_exceeds_sale"]);
+  });
+
   it("flags every break a return has, refunds first, then the window, then the quantities", () => {
     expect(
       returnHistoryBreaks(
