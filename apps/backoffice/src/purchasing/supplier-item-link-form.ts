@@ -62,13 +62,13 @@ export function supplierItemLinkFormValuesOf(
 
 export function supplierItemLinkRequestFrom(
   { productId, packagingId, vatRate, version }: SupplierItemLinkFormValues,
-  pricesIncludeVat: boolean | null,
+  requiresVatRate: boolean,
 ): SupplierPriceListRowLinkBody {
   return {
     version,
     productId: productId ?? "",
     packagingId: packagingId ?? "",
-    vatRate: pricesIncludeVat === true ? null : Number(vatRate),
+    vatRate: requiresVatRate ? Number(vatRate) : null,
   };
 }
 

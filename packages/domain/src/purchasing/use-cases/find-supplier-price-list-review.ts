@@ -1,4 +1,6 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import type { Fraction } from "../../shared/index.js";
+import { mayBuyByPackaging } from "../model/packaging.js";
 import {
   needsReview,
   pricePerSaleUnit,
@@ -15,6 +17,7 @@ import { type ListedSupplierPriceList, replacedListIds } from "./list-supplier-p
 import type {
   SupplierPriceListReader,
   SupplierPriceListReviewRow,
+  SupplierPriceListReviewRowLink,
 } from "./supplier-price-list-reader.js";
 
 interface SupplierPriceListReviewActions {
@@ -22,16 +25,25 @@ interface SupplierPriceListReviewActions {
   confirm: boolean;
   discard: boolean;
   linkRows: boolean;
+  markRowsReviewed: boolean;
+}
+
+export interface FoundSupplierPriceListReviewRowLink {
+  product: { id: string; name: string; saleUnit: SaleUnit };
+  // Whether the item may still be bought by the packaging, which only then prices its sale unit.
+  packaging: { id: string; name: string; quantityPerPackage: number; buyable: boolean };
+  vatRate: number | null;
 }
 
 export interface FoundSupplierPriceListReviewRow
-  extends Omit<SupplierPriceListReviewRow, "reviewed" | "earlier"> {
+  extends Omit<SupplierPriceListReviewRow, "reviewed" | "earlier" | "link"> {
+  link: FoundSupplierPriceListReviewRowLink | null;
   status: SupplierPriceListRowStatus;
   needsReview: boolean;
   // What the supplier's other lists recorded as the price, only for a row whose price changed.
   previousPriceCents: number | null;
   // Cents per sale unit with VAT, exact; null for a row without a link, a price or the rate its
-  // list needs.
+  // list needs, and for one linked to a packaging it may no longer be bought by.
   pricePerSaleUnit: Fraction | null;
 }
 
@@ -39,37 +51,54 @@ export type FoundSupplierPriceListReview =
   | { kind: "not_found" }
   | {
       kind: "found";
-      list: ListedSupplierPriceList & { version: number; pricesIncludeVat: boolean | null };
+      list: ListedSupplierPriceList & {
+        version: number;
+        pricesIncludeVat: boolean | null;
+        requiresVatRate: boolean;
+      };
       rows: FoundSupplierPriceListReviewRow[];
       counts: { needingReview: number; linkedAutomatically: number };
       actions: SupplierPriceListReviewActions;
     };
 
+function foundLink(link: SupplierPriceListReviewRowLink): FoundSupplierPriceListReviewRowLink {
+  const { active, saleUnit, ...packaging } = link.packaging;
+  return {
+    ...link,
+    packaging: {
+      ...packaging,
+      buyable: mayBuyByPackaging({ active, saleUnit }, link.product.saleUnit),
+    },
+  };
+}
+
 function reviewedRow(
-  { reviewed, earlier, ...row }: SupplierPriceListReviewRow,
+  { reviewed, earlier, link: readLink, ...row }: SupplierPriceListReviewRow,
   pricesIncludeVat: boolean | null,
 ): FoundSupplierPriceListReviewRow {
+  const link = readLink === null ? null : foundLink(readLink);
   const status = supplierPriceListRowStatus({
     reviewed,
     description: row.description,
     priceCents: row.priceCents,
-    link: row.link,
+    link,
     earlier,
     requiresVatRate: requiresVatRate(pricesIncludeVat),
   });
   return {
     ...row,
+    link,
     status,
     needsReview: needsReview(status),
     previousPriceCents: status === "price_changed" ? (earlier?.priceCents ?? null) : null,
     pricePerSaleUnit:
-      row.link === null || row.priceCents === null
+      link === null || row.priceCents === null || !link.packaging.buyable
         ? null
         : pricePerSaleUnit({
             priceCents: row.priceCents,
             pricesIncludeVat,
-            vatRate: row.link.vatRate,
-            quantityPerPackage: row.link.packaging.quantityPerPackage,
+            vatRate: link.vatRate,
+            quantityPerPackage: link.packaging.quantityPerPackage,
           }),
   };
 }
@@ -87,7 +116,11 @@ export async function findSupplierPriceListReview(
   const rows = review.rows.map((row) => reviewedRow(row, list.pricesIncludeVat));
   return {
     kind: "found",
-    list: { ...list, replaced: replacedListIds(await reader.lists()).has(listId) },
+    list: {
+      ...list,
+      replaced: replacedListIds(await reader.lists()).has(listId),
+      requiresVatRate: requiresVatRate(list.pricesIncludeVat),
+    },
     rows,
     counts: {
       needingReview: rows.filter((row) => row.needsReview).length,
@@ -98,6 +131,7 @@ export async function findSupplierPriceListReview(
       confirm: underReview,
       discard: isSupplierPriceListDiscardable(list.state),
       linkRows: maySupplierPriceListRowBeLinked(list.state),
+      markRowsReviewed: underReview,
     },
   };
 }

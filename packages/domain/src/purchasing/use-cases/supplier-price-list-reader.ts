@@ -24,7 +24,13 @@ export interface SupplierPriceListListing {
 
 export interface SupplierPriceListReviewRowLink {
   product: { id: string; name: string; saleUnit: SaleUnit };
-  packaging: { id: string; name: string; quantityPerPackage: number };
+  packaging: {
+    id: string;
+    name: string;
+    quantityPerPackage: number;
+    active: boolean;
+    saleUnit: SaleUnit;
+  };
   // In basis points, null for an item whose list prices include VAT.
   vatRate: number | null;
 }
@@ -40,8 +46,8 @@ export interface SupplierPriceListReviewRow {
   link: SupplierPriceListReviewRowLink | null;
   // Whether a person linked the row or marked it reviewed in this list.
   reviewed: boolean;
-  // The description and price the supplier's other confirmed lists last recorded for the row's
-  // item, null when none did.
+  // The item's description and the price of its latest confirmed list before this one, null when
+  // none came before it.
   earlier: { description: string; priceCents: number } | null;
 }
 

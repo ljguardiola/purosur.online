@@ -1,7 +1,9 @@
 import {
+  latestEarlierPrice,
   type SaleUnit,
   type SupplierPriceListReadFailure,
   type SupplierPriceListState,
+  sameSupplierItemKey,
   supplierItemKey,
 } from "@purosur/domain";
 import type {
@@ -117,6 +119,8 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
         packagingId: productPackagings.id,
         packagingName: productPackagings.name,
         quantityPerPackage: productPackagings.quantityPerPackage,
+        packagingActive: productPackagings.active,
+        packagingSaleUnit: productPackagings.saleUnit,
         vatRate: supplierPriceListRows.vatRate,
       })
       .from(supplierPriceListRows)
@@ -124,7 +128,7 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
       .leftJoin(productPackagings, eq(productPackagings.id, supplierPriceListRows.packagingId))
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
-    const earlier = await this.earlierEntries(list.supplierId, listId, rows);
+    const earlier = await this.earlierEntries(list, rows);
     return {
       list: {
         ...toListing(list),
@@ -153,24 +157,23 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
                     id: row.packagingId,
                     name: row.packagingName as string,
                     quantityPerPackage: row.quantityPerPackage as number,
+                    active: row.packagingActive as boolean,
+                    saleUnit: row.packagingSaleUnit as SaleUnit,
                   },
                   vatRate: row.vatRate,
                 }
               : null,
           reviewed: row.reviewed,
-          earlier:
-            earlier.find((entry) => entry.key.kind === key.kind && entry.key.value === key.value)
-              ?.latest ?? null,
+          earlier: earlier.find((entry) => sameSupplierItemKey(entry.key, key))?.latest ?? null,
         };
       }),
     };
   }
 
-  // The latest price each matching item recorded in a list other than this one, by list date and,
-  // on a tie, by the instant its list was confirmed.
+  // The item's description with the price of its latest list before this one, among the prices
+  // recorded by the supplier's other lists.
   private async earlierEntries(
-    supplierId: string,
-    listId: string,
+    list: { id: string; supplierId: string; listDate: string | null; confirmedAt: Date | null },
     rows: { code: string | null; description: string }[],
   ) {
     const keys = rows.map(supplierItemKey);
@@ -178,30 +181,39 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
       return [];
     }
     const entries = await this.db
-      .selectDistinctOn([supplierItemPrices.itemId], {
+      .select({
+        itemId: supplierItemPrices.itemId,
         keyKind: supplierItems.keyKind,
         keyValue: supplierItems.keyValue,
         description: supplierItems.description,
         priceCents: supplierItemPrices.priceCents,
+        listDate: supplierItemPrices.listDate,
+        confirmedAt: supplierItemPrices.confirmedAt,
       })
       .from(supplierItemPrices)
       .innerJoin(supplierItems, eq(supplierItems.id, supplierItemPrices.itemId))
       .where(
         and(
-          eq(supplierItems.supplierId, supplierId),
+          eq(supplierItems.supplierId, list.supplierId),
           inArray(supplierItems.keyValue, [...new Set(keys.map((key) => key.value))]),
-          ne(supplierItemPrices.listId, listId),
+          ne(supplierItemPrices.listId, list.id),
         ),
-      )
-      .orderBy(
-        supplierItemPrices.itemId,
-        desc(supplierItemPrices.listDate),
-        desc(supplierItemPrices.confirmedAt),
       );
-    return entries.map((entry) => ({
-      key: { kind: entry.keyKind as "code" | "description", value: entry.keyValue },
-      latest: { description: entry.description, priceCents: entry.priceCents },
-    }));
+    const byItem = new Map<string, typeof entries>();
+    for (const entry of entries) {
+      byItem.set(entry.itemId, [...(byItem.get(entry.itemId) ?? []), entry]);
+    }
+    return [...byItem.values()].flatMap((prices) => {
+      const latest = latestEarlierPrice(prices, list);
+      return latest === undefined
+        ? []
+        : [
+            {
+              key: { kind: latest.keyKind as "code" | "description", value: latest.keyValue },
+              latest: { description: latest.description, priceCents: latest.priceCents },
+            },
+          ];
+    });
   }
 
   async fileName(listId: string): Promise<string | undefined> {

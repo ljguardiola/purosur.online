@@ -124,8 +124,8 @@ export function SupplierPriceListChangeNotices({
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title="Esta presentación ya no se puede vincular"
-          description="Elegí otra o creá una nueva."
+          title="El producto o la presentación ya no se pueden vincular"
+          description="Elegí otro producto o presentación."
         />
       );
     case "vatRateMissing":

@@ -7,6 +7,7 @@ import {
   type SupplierPriceListReadFailure,
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
+  sameSupplierItemKey,
 } from "@purosur/domain";
 import type {
   FindPriceListSupplierResult,
@@ -281,6 +282,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
         productId: supplierPriceListRows.productId,
         packagingId: supplierPriceListRows.packagingId,
         vatRate: supplierPriceListRows.vatRate,
+        reviewed: supplierPriceListRows.reviewed,
       })
       .from(supplierPriceListRows)
       .where(eq(supplierPriceListRows.listId, listId))
@@ -317,16 +319,14 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
         ),
       );
     return items
-      .filter((item) =>
-        keys.some((key) => key.kind === item.keyKind && key.value === item.keyValue),
-      )
       .map((item) => ({
         id: item.id,
         key: { kind: item.keyKind as SupplierItemKey["kind"], value: item.keyValue },
         description: item.description,
         link: linkOf(item),
         currentListDate: item.currentListDate,
-      }));
+      }))
+      .filter((item) => keys.some((key) => sameSupplierItemKey(key, item.key)));
   }
 
   async lockSupplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]> {

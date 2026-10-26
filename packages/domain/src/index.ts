@@ -543,6 +543,7 @@ export type {
   ReceiptType,
   SupplierItemKey,
   SupplierItemVatRate,
+  SupplierOfferUnpricedReason,
   SupplierPriceListContentKind,
   SupplierPriceListReadFailure,
   SupplierPriceListRowStatus,
@@ -583,6 +584,7 @@ export {
   isSupplierPriceListWebPageScheme,
   isValidFreightMeans,
   LOT_NUMBER_MAX_LENGTH,
+  latestEarlierPrice,
   MIN_FREIGHT_PURCHASES,
   MIN_PURCHASE_LINES,
   ONE_SALE_UNIT_QUANTITY,
@@ -599,6 +601,7 @@ export {
   SUPPLIER_ITEM_VAT_RATES,
   SUPPLIER_NAME_MAX_LENGTH,
   SUPPLIER_NOTE_MAX_LENGTH,
+  SUPPLIER_OFFER_UNPRICED_REASONS,
   SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
@@ -616,6 +619,7 @@ export {
   SUPPLIER_PRICE_LIST_WEB_PAGE_REFUSALS,
   SUPPLIER_PRICE_LIST_WEB_PAGE_SCHEMES,
   SUPPLIER_PRICE_LIST_WEB_PAGE_TIME_LIMIT_MS,
+  sameSupplierItemKey,
   supplierItemKey,
 } from "./purchasing/index.js";
 export type {

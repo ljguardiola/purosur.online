@@ -31,6 +31,7 @@ export { findSupplierPriceListFile } from "./find-supplier-price-list-file.js";
 export type {
   FoundSupplierPriceListReview,
   FoundSupplierPriceListReviewRow,
+  FoundSupplierPriceListReviewRowLink,
 } from "./find-supplier-price-list-review.js";
 export { findSupplierPriceListReview } from "./find-supplier-price-list-review.js";
 export type {
@@ -70,6 +71,7 @@ export { listSupplierItemLinkChoices } from "./list-supplier-item-link-choices.j
 export type {
   ComparedOffer,
   ComparedProduct,
+  UnpricedOffer,
 } from "./list-supplier-price-comparison.js";
 export { listSupplierPriceComparison } from "./list-supplier-price-comparison.js";
 export type { ListedSupplierPriceList } from "./list-supplier-price-lists.js";

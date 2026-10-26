@@ -7,12 +7,12 @@ export interface ComparableProduct {
   saleUnit: SaleUnit;
 }
 
-// What a supplier's current confirmed list says about an item linked to a product: each linked
-// item's latest price by list date, ties going to the list confirmed later.
+// What a supplier's confirmed lists say about an item linked to a product: the item's latest
+// price by list date, ties going to the list confirmed later.
 export interface SupplierOffer {
   productId: string;
   supplier: { id: string; name: string };
-  packaging: { name: string; quantityPerPackage: number };
+  packaging: { name: string; quantityPerPackage: number; active: boolean; saleUnit: SaleUnit };
   priceCents: number;
   pricesIncludeVat: boolean;
   // In basis points, null for an item whose list prices include VAT.

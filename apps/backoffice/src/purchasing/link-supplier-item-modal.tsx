@@ -15,7 +15,6 @@ import {
   Check,
   ExternalLink,
   Link2,
-  LoaderCircle,
   Package,
   Plus,
   RotateCcw,
@@ -67,9 +66,10 @@ export type LinkSupplierItemModalServices = {
 } & NewPackagingModalServices;
 
 type LinkSupplierItemModalProps = {
-  list: Pick<SupplierPriceListReviewList, "id" | "version" | "pricesIncludeVat" | "source">;
+  list: Pick<SupplierPriceListReviewList, "id" | "version" | "requiresVatRate" | "source">;
   target: SupplierPriceListRow | null;
   mayCreatePackaging: boolean;
+  remembersOnConfirm: boolean;
   services: LinkSupplierItemModalServices;
   onLinked: () => void;
   onOutdated: () => void;
@@ -96,6 +96,7 @@ export function LinkSupplierItemModal({
   list,
   target,
   mayCreatePackaging,
+  remembersOnConfirm,
   services,
   onLinked,
   onOutdated,
@@ -125,7 +126,7 @@ export function LinkSupplierItemModal({
     defaultValues: EMPTY_SUPPLIER_ITEM_LINK_FORM,
     request: {
       schema: supplierPriceListRowLinkBodySchema,
-      from: (current) => supplierItemLinkRequestFrom(current, list.pricesIncludeVat),
+      from: (current) => supplierItemLinkRequestFrom(current, list.requiresVatRate),
     },
     fields: SUPPLIER_ITEM_LINK_FIELDS,
     messages: SUPPLIER_ITEM_LINK_FIELD_MESSAGES,
@@ -196,7 +197,6 @@ export function LinkSupplierItemModal({
     choices.status === "loaded"
       ? choices.value.products.find((product) => product.id === values.productId)
       : undefined;
-  const asksForVatRate = list.pricesIncludeVat !== true;
   const pageLink =
     row?.page != null && list.source.kind === "PDF"
       ? `/api/supplier-price-lists/${list.id}/file#page=${row.page}`
@@ -204,9 +204,12 @@ export function LinkSupplierItemModal({
 
   function proposalNotice() {
     if (proposal.status === "loading") {
-      return <InlineNotice tone="info" icon={<LoaderCircle />} title="Buscando una propuesta…" />;
+      return <LoadingPlaceholder variant="card" lines={0} />;
     }
-    if (proposal.status === "failed" || proposal.value.kind === "unavailable") {
+    if (proposal.status === "failed") {
+      return <LoadFailure {...cloudLoadFailure(proposal, "la propuesta de producto")} />;
+    }
+    if (proposal.value.kind === "unavailable") {
       return (
         <p className="text-detail text-text-subtle">
           No pudimos proponer un producto. Podés buscarlo vos.
@@ -294,7 +297,7 @@ export function LinkSupplierItemModal({
             ) : null}
           </div>
         )}
-        {asksForVatRate && vatRateOptions !== undefined ? (
+        {list.requiresVatRate && vatRateOptions !== undefined ? (
           <div className="flex flex-col gap-2">
             <FieldHeading>IVA del ítem</FieldHeading>
             <form.AppField name="vatRate">
@@ -384,8 +387,9 @@ export function LinkSupplierItemModal({
             {proposalNotice()}
             {choiceFields()}
             <p className="text-detail text-text-subtle">
-              El vínculo se recuerda: en las próximas listas de este proveedor el ítem se reconoce
-              solo.
+              {remembersOnConfirm
+                ? "Al confirmar la lista, el vínculo se recuerda y las próximas listas de este proveedor reconocen el ítem solas."
+                : "El vínculo se recuerda: en las próximas listas de este proveedor el ítem se reconoce solo."}
             </p>
           </div>
         ) : null}

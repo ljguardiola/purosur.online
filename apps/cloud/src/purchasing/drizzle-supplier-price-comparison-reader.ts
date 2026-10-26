@@ -46,6 +46,8 @@ export class DrizzleSupplierPriceComparisonReader<TQueryResult extends PgQueryRe
         supplierName: sql<string>`${suppliers.name}`.as("supplier_name"),
         packagingName: sql<string>`${productPackagings.name}`.as("packaging_name"),
         quantityPerPackage: productPackagings.quantityPerPackage,
+        packagingActive: sql<boolean>`${productPackagings.active}`.as("packaging_active"),
+        packagingSaleUnit: sql<string>`${productPackagings.saleUnit}`.as("packaging_sale_unit"),
         priceCents: supplierItemPrices.priceCents,
         pricesIncludeVat: supplierItemPrices.pricesIncludeVat,
         vatRate: supplierItems.vatRate,
@@ -67,10 +69,23 @@ export class DrizzleSupplierPriceComparisonReader<TQueryResult extends PgQueryRe
       .from(latest)
       .orderBy(asc(latest.supplierName), asc(latest.supplierId), asc(latest.packagingName));
     return rows.map(
-      ({ supplierId, supplierName, packagingName, quantityPerPackage, ...offer }) => ({
+      ({
+        supplierId,
+        supplierName,
+        packagingName,
+        quantityPerPackage,
+        packagingActive,
+        packagingSaleUnit,
+        ...offer
+      }) => ({
         ...offer,
         supplier: { id: supplierId, name: supplierName },
-        packaging: { name: packagingName, quantityPerPackage },
+        packaging: {
+          name: packagingName,
+          quantityPerPackage,
+          active: packagingActive,
+          saleUnit: packagingSaleUnit as SaleUnit,
+        },
       }),
     );
   }

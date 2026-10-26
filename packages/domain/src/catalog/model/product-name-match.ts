@@ -1,4 +1,5 @@
-import { foldedText, wordsOf } from "./folded-text.js";
+import { foldedText } from "../../shared/index.js";
+import { wordsOf } from "./text-words.js";
 
 export interface NameMatch {
   start: number;

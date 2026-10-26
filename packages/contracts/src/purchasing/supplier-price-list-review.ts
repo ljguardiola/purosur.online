@@ -14,7 +14,12 @@ const supplierPriceListRowSchema = z.object({
   link: z
     .object({
       product: z.object({ id: z.string(), name: z.string(), saleUnit: z.enum(SALE_UNITS) }),
-      packaging: z.object({ id: z.string(), name: z.string(), quantityPerPackage: z.int() }),
+      packaging: z.object({
+        id: z.string(),
+        name: z.string(),
+        quantityPerPackage: z.int(),
+        buyable: z.boolean(),
+      }),
       vatRate: z.int().nullable(),
     })
     .nullable(),
@@ -28,6 +33,7 @@ export const supplierPriceListReviewSchema = z.object({
   list: supplierPriceListSummarySchema.extend({
     version: z.int(),
     pricesIncludeVat: z.boolean().nullable(),
+    requiresVatRate: z.boolean(),
   }),
   rows: z.array(supplierPriceListRowSchema),
   counts: z.object({ needingReview: z.int(), linkedAutomatically: z.int() }),
@@ -36,6 +42,7 @@ export const supplierPriceListReviewSchema = z.object({
     confirm: z.boolean(),
     discard: z.boolean(),
     linkRows: z.boolean(),
+    markRowsReviewed: z.boolean(),
   }),
 });
 

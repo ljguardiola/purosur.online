@@ -33,30 +33,40 @@ export type SupplierPriceComparisonScreenProps = {
 
 type ComparedProduct = SupplierPriceComparison["products"][number];
 type Offer = ComparedProduct["offers"][number];
+type UnpricedOffer = ComparedProduct["unpricedOffers"][number];
 
 type OfferRow = {
   id: string;
   product: ComparedProduct;
-  offer: Offer | null;
+  offer: { kind: "priced"; offer: Offer } | { kind: "unpriced"; offer: UnpricedOffer } | null;
   first: boolean;
 };
 
 const NO_PRODUCTS: ComparedProduct[] = [];
 const ALL_CATEGORIES = "";
 
+const UNPRICED_REASONS: Record<UnpricedOffer["reason"], string> = {
+  vat_rate_missing: "Falta el IVA del ítem",
+  packaging_not_buyable: "Ya no se compra en esta presentación",
+};
+
 const categoryOrder = textOrder((name: string) => name);
 
 function rowsOf(products: readonly ComparedProduct[]): OfferRow[] {
-  return products.flatMap((product): OfferRow[] =>
-    product.offers.length === 0
+  return products.flatMap((product): OfferRow[] => {
+    const offers = [
+      ...product.offers.map((offer) => ({ kind: "priced" as const, offer })),
+      ...product.unpricedOffers.map((offer) => ({ kind: "unpriced" as const, offer })),
+    ];
+    return offers.length === 0
       ? [{ id: product.id, product, offer: null, first: true }]
-      : product.offers.map((offer, index) => ({
-          id: `${product.id}/${offer.supplier.id}/${offer.packagingName}`,
+      : offers.map((entry, index) => ({
+          id: `${product.id}/${entry.kind}/${entry.offer.supplier.id}/${entry.offer.packagingName}`,
           product,
-          offer,
+          offer: entry,
           first: index === 0,
-        })),
-  );
+        }));
+  });
 }
 
 const columns = [
@@ -79,8 +89,8 @@ const columns = [
         <span className="text-text-subtle">Sin precio en ninguna lista cargada</span>
       ) : (
         <div className="flex items-center gap-2">
-          <span>{row.offer.supplier.name}</span>
-          {row.offer.cheapest ? (
+          <span>{row.offer.offer.supplier.name}</span>
+          {row.offer.kind === "priced" && row.offer.offer.cheapest ? (
             <Tag tone="success" variant="status">
               El más barato
             </Tag>
@@ -94,23 +104,32 @@ const columns = [
     render: (row: OfferRow) =>
       row.offer === null
         ? null
-        : `${row.offer.packagingName} · ${formatCents(row.offer.priceCents)}`,
+        : `${row.offer.offer.packagingName} · ${formatCents(row.offer.offer.priceCents)}`,
   }),
   dataColumn({
     id: "perSaleUnit",
     header: "Por unidad de venta",
     align: "end",
-    render: (row: OfferRow) =>
-      row.offer === null ? null : (
+    render: (row: OfferRow) => {
+      if (row.offer === null) {
+        return null;
+      }
+      return row.offer.kind === "priced" ? (
         <span className="font-bold">
-          {formatPricePerSaleUnit(row.offer.pricePerSaleUnit, row.product.saleUnit)}
+          {formatPricePerSaleUnit(row.offer.offer.pricePerSaleUnit, row.product.saleUnit)}
         </span>
-      ),
+      ) : (
+        <span className="text-detail text-warning-strong">
+          {UNPRICED_REASONS[row.offer.offer.reason]}
+        </span>
+      );
+    },
   }),
   dataColumn({
     id: "listDate",
     header: "Fecha de la lista",
-    render: (row: OfferRow) => (row.offer === null ? null : formatDisplayDate(row.offer.listDate)),
+    render: (row: OfferRow) =>
+      row.offer === null ? null : formatDisplayDate(row.offer.offer.listDate),
   }),
 ] as const;
 
@@ -140,7 +159,14 @@ export function SupplierPriceComparisonScreen({
     order: categoryOrder,
     direction: "ascending",
   });
-  const shownCategory = categories.includes(category) ? category : ALL_CATEGORIES;
+  const categoryIsOffered = category === ALL_CATEGORIES || categories.includes(category);
+  const shownCategory = categoryIsOffered ? category : ALL_CATEGORIES;
+
+  useEffect(() => {
+    if (data.status === "loaded" && !categoryIsOffered) {
+      setCategory(ALL_CATEGORIES);
+    }
+  }, [data.status, categoryIsOffered]);
 
   const table = useTableModel({
     items: rowsOf(products),

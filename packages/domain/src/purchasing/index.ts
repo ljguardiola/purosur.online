@@ -53,13 +53,17 @@ export {
 export type {
   SupplierItemKey,
   SupplierItemVatRate,
+  SupplierOfferUnpricedReason,
   SupplierPriceListRowStatus,
 } from "./model/supplier-item.js";
 export {
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
   isSupplierItemVatRate,
+  latestEarlierPrice,
   SUPPLIER_ITEM_VAT_RATES,
+  SUPPLIER_OFFER_UNPRICED_REASONS,
   SUPPLIER_PRICE_LIST_ROW_STATUSES,
+  sameSupplierItemKey,
   supplierItemKey,
 } from "./model/supplier-item.js";
 export type {

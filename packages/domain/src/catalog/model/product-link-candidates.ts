@@ -1,5 +1,5 @@
-import { compareSpanishText } from "../../shared/index.js";
-import { foldedText, wordsOf } from "./folded-text.js";
+import { compareSpanishText, foldedText } from "../../shared/index.js";
+import { wordsOf } from "./text-words.js";
 
 export const PRODUCT_LINK_CANDIDATE_LIMIT = 20;
 

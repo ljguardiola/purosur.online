@@ -1,5 +1,10 @@
 import { mayBuyByPackaging } from "../model/packaging.js";
-import { isSupplierItemVatRate, requiresVatRate, supplierItemKey } from "../model/supplier-item.js";
+import {
+  isSupplierItemVatRate,
+  keepingRememberedVatRate,
+  requiresVatRate,
+  supplierItemKey,
+} from "../model/supplier-item.js";
 import { maySupplierPriceListRowBeLinked } from "../model/supplier-price-list.js";
 import type { SupplierItemLink, SupplierPriceListStore } from "./supplier-price-list-store.js";
 
@@ -73,7 +78,7 @@ export function linkSupplierPriceListRow(
       const key = supplierItemKey(lockedRow.row);
       const [item] = await tx.lockSupplierItems(list.supplierId, [key]);
       if (item) {
-        await tx.rememberSupplierItemLink(item.id, link);
+        await tx.rememberSupplierItemLink(item.id, keepingRememberedVatRate(link, item.link));
       }
     }
     return { kind: "linked" };

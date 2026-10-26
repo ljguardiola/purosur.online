@@ -1,4 +1,4 @@
-import type { Fraction } from "../../shared/index.js";
+import { type Fraction, foldedText } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
 
 export interface SupplierItemKey {
@@ -7,12 +7,7 @@ export interface SupplierItemKey {
 }
 
 export function normalizeSupplierItemDescription(description: string): string {
-  return description
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/\s+/gu, " ")
-    .trim();
+  return foldedText(description).replace(/\s+/gu, " ").trim();
 }
 
 export function supplierItemKey(item: {
@@ -33,6 +28,51 @@ export function sameSupplierItemKey(a: SupplierItemKey, b: SupplierItemKey): boo
 // list confirmed later, which is the one being confirmed now.
 export function supersedesCurrentPrice(listDate: string, currentListDate: string | null): boolean {
   return currentListDate === null || listDate >= currentListDate;
+}
+
+export interface PriceDating {
+  listDate: string;
+  confirmedAt: Date;
+}
+
+// A price came before a list when its list is dated earlier, or the same day and was confirmed
+// before it; a list not confirmed yet comes after every confirmed one of its date, and a list with
+// no date yet after every confirmed one.
+export function isEarlierPrice(
+  price: PriceDating,
+  list: { listDate: string | null; confirmedAt: Date | null },
+): boolean {
+  if (list.listDate === null || price.listDate < list.listDate) {
+    return true;
+  }
+  return (
+    price.listDate === list.listDate &&
+    (list.confirmedAt === null || price.confirmedAt.getTime() < list.confirmedAt.getTime())
+  );
+}
+
+export function latestEarlierPrice<T extends PriceDating>(
+  prices: readonly T[],
+  list: { listDate: string | null; confirmedAt: Date | null },
+): T | undefined {
+  let latest: T | undefined;
+  for (const price of prices) {
+    if (isEarlierPrice(price, list) && (latest === undefined || isEarlierPrice(latest, price))) {
+      latest = price;
+    }
+  }
+  return latest;
+}
+
+// A link made in a list whose prices include VAT carries no rate, and keeps the one the item
+// remembers for its lists that exclude it.
+export function keepingRememberedVatRate<T extends { vatRate: number | null }>(
+  link: T,
+  remembered: { vatRate: number | null } | null,
+): T {
+  return link.vatRate === null && remembered !== null
+    ? { ...link, vatRate: remembered.vatRate }
+    : link;
 }
 
 // Basis points, so a rate is exact: 2100 is 21% and 1050 is 10.5%.
@@ -75,6 +115,13 @@ export function pricePerSaleUnit(item: {
   const divisor = greatestCommonDivisor(numerator, denominator);
   return { numerator: numerator / divisor, denominator: denominator / divisor };
 }
+
+export const SUPPLIER_OFFER_UNPRICED_REASONS = [
+  "vat_rate_missing",
+  "packaging_not_buyable",
+] as const;
+
+export type SupplierOfferUnpricedReason = (typeof SUPPLIER_OFFER_UNPRICED_REASONS)[number];
 
 export function compareFractions(a: Fraction, b: Fraction): number {
   const difference = a.numerator * b.denominator - b.numerator * a.denominator;

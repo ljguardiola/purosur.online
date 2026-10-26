@@ -46,6 +46,11 @@ export function RowLinkCell({ row }: { row: SupplierPriceListRow }) {
     <div className="flex flex-col">
       <span>{row.link.product.name}</span>
       <span className="text-detail text-text-subtle">{row.link.packaging.name}</span>
+      {row.link.packaging.buyable ? null : (
+        <span className="text-detail text-warning-strong">
+          Ya no se compra en esta presentación
+        </span>
+      )}
     </div>
   );
 }

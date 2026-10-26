@@ -65,7 +65,7 @@ export type SupplierPriceListReviewScreenProps = {
 };
 
 type ShowFilter = SupplierPriceListReviewFilters["show"];
-type Notice = "priceSaved" | "rowRemoved" | "rowLinked" | "rowReviewed";
+type Notice = "priceSaved" | "rowRemoved" | "rowLinked" | "rowLinkedUntilConfirmed" | "rowReviewed";
 type ErrorNotice = "listChanged" | "rowNotReviewed";
 
 const NO_ROWS: SupplierPriceListRow[] = [];
@@ -82,6 +82,10 @@ const NOTICES: Record<Notice, { title: string; description: string }> = {
   rowLinked: {
     title: "Ítem vinculado",
     description: "Las próximas listas del proveedor lo reconocen solas.",
+  },
+  rowLinkedUntilConfirmed: {
+    title: "Ítem vinculado",
+    description: "Se recuerda para las próximas listas al confirmar esta.",
   },
   rowReviewed: {
     title: "Ítem revisado",
@@ -199,7 +203,7 @@ export function SupplierPriceListReviewScreen({
               }
             : undefined,
         (row: SupplierPriceListRow) =>
-          actions?.linkRows && row.needsReview
+          actions?.markRowsReviewed && row.needsReview
             ? {
                 icon: <Check />,
                 "aria-label": `Marcar como revisado ${row.description}`,
@@ -433,8 +437,11 @@ export function SupplierPriceListReviewScreen({
             list={list}
             target={linkTarget}
             mayCreatePackaging={canManagePurchasePackagings(access)}
+            remembersOnConfirm={actions?.confirm === true}
             services={services}
-            onLinked={() => refreshAfter("rowLinked")}
+            onLinked={() =>
+              refreshAfter(actions?.confirm === true ? "rowLinkedUntilConfirmed" : "rowLinked")
+            }
             onOutdated={() => refreshAfter(null)}
             onClose={() => setLinkTarget(null)}
             onSessionEnded={onSessionEnded}
