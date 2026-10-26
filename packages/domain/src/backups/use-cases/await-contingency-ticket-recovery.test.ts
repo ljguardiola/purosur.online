@@ -27,10 +27,12 @@ const PREDECESSOR: ContingencyTicketRecoveryPredecessor = {
 function scenario(
   evidence: RestorationEvidence,
   status?: ContingencyTicketRecoveryStatus<string>,
-  awaiting: ContingencyTicketRecoveryPredecessor | undefined = PREDECESSOR,
+  awaiting: ContingencyTicketRecoveryPredecessor | "none" = PREDECESSOR,
 ) {
   const cloud = new FakeContingencyTicketRecoveryRequester(status);
-  const awaited = new FakeAwaitedContingencyTicketRecovery(awaiting);
+  const awaited = new FakeAwaitedContingencyTicketRecovery(
+    awaiting === "none" ? undefined : awaiting,
+  );
   return {
     cloud,
     awaited,
@@ -87,7 +89,7 @@ describe("awaitContingencyTicketRecovery", () => {
   });
 
   it("does nothing when no predecessor is kept for the recovery", async () => {
-    const { cloud, ports } = scenario(AT_THE_RECOVERY, undefined, undefined);
+    const { cloud, ports } = scenario(AT_THE_RECOVERY, undefined, "none");
 
     expect(await awaitContingencyTicketRecovery(ports)).toEqual({ kind: "not_this_step" });
     expect(cloud.asked).toEqual([]);

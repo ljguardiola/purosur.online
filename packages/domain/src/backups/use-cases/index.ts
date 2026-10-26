@@ -3,6 +3,16 @@ export type {
   AskContingencyTicketRecoveryOutcome,
 } from "./ask-contingency-ticket-recovery.js";
 export { askContingencyTicketRecovery } from "./ask-contingency-ticket-recovery.js";
+export type { AwaitContingencyTicketRecoveryOutcome } from "./await-contingency-ticket-recovery.js";
+export { awaitContingencyTicketRecovery } from "./await-contingency-ticket-recovery.js";
+export type {
+  AwaitContingencyTicketRecoveryPorts,
+  AwaitedContingencyTicketRecovery,
+  ContingencyTicketRecoveryPredecessor,
+  ContingencyTicketRecoveryRequester,
+  ContingencyTicketRecoveryStatus,
+  RestorationEvidenceReader,
+} from "./await-contingency-ticket-recovery-ports.js";
 export type {
   ContingencyBackupTicketIds,
   ContingencyBackupTicketPrinter,
