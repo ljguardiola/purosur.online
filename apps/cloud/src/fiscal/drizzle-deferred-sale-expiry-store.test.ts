@@ -39,23 +39,79 @@ function store() {
 
 let requestNumber = 0;
 
+type RecordedOutcome =
+  | "authorized"
+  | "rejected"
+  | "unclear"
+  | "not_attempted"
+  | "adopted"
+  | "released"
+  | "conflicting"
+  | null;
+
+function outcomeColumns(outcome: RecordedOutcome) {
+  switch (outcome) {
+    case "authorized":
+      return {
+        answerKind: outcome,
+        answeredAt: NOW,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-20",
+      };
+    case "rejected":
+      return {
+        answerKind: outcome,
+        answeredAt: NOW,
+        rejectionCodes: [10016],
+        rejectionClass: "content",
+      };
+    case "unclear":
+      return { answerKind: outcome, answeredAt: NOW, unclearCodes: [] };
+    case "not_attempted":
+      return { answerKind: outcome, answeredAt: NOW };
+    case "adopted":
+      return {
+        answerKind: "unclear",
+        answeredAt: NOW,
+        unclearCodes: [],
+        decision: outcome,
+        decidedAt: NOW,
+        adoptedAuthorizationCode: "75123456789012",
+        adoptedAuthorizationCodeDueOn: "2026-10-20",
+      };
+    case "released":
+      return {
+        answerKind: "unclear",
+        answeredAt: NOW,
+        unclearCodes: [],
+        decision: outcome,
+        decidedAt: NOW,
+      };
+    case "conflicting":
+      return {
+        answerKind: "unclear",
+        answeredAt: NOW,
+        unclearCodes: [],
+        decision: outcome,
+        decidedAt: NOW,
+      };
+    case null:
+      return {};
+  }
+}
+
 async function insertFiscalRequestRow(
   registerId: string,
   pointOfSale: number,
   issuedOn: string,
-  answer: "authorized" | "rejected" | null,
+  outcome: RecordedOutcome,
+  saleId: string = crypto.randomUUID(),
 ): Promise<void> {
   requestNumber += 1;
-  const answered =
-    answer === "authorized"
-      ? { authorizationCode: "75123456789012", authorizationCodeDueOn: "2026-10-20" }
-      : answer === "rejected"
-        ? { rejectionCodes: [10016], rejectionClass: "content" }
-        : {};
   await db.insert(fiscalRequests).values({
     fiscalDocumentId: crypto.randomUUID(),
     registerId,
-    saleId: crypto.randomUUID(),
+    saleId,
     pointOfSale,
     number: requestNumber,
     issuedOn,
@@ -63,9 +119,7 @@ async function insertFiscalRequestRow(
     buyerTaxStatusCode: 5,
     receivedAt: NOW,
     notAfter: NOW,
-    answerKind: answer,
-    answeredAt: answer === null ? null : NOW,
-    ...answered,
+    ...outcomeColumns(outcome),
   });
 }
 
@@ -84,8 +138,13 @@ async function lastAuthorizedDayOf(registerId: string): Promise<string | null | 
   return locked.find((sale) => sale.registerId === registerId)?.lastAuthorizedIssuedOn;
 }
 
-async function pendingSaleOf(registerId: string): Promise<void> {
-  await insertDeferredSaleRow(db, { registerId, locationId: installation.locationId });
+async function pendingSaleOf(registerId: string): Promise<typeof deferredSales.$inferSelect> {
+  return insertDeferredSaleRow(db, { registerId, locationId: installation.locationId });
+}
+
+async function mayBeInvoicedOf(deferredSaleId: string): Promise<boolean | undefined> {
+  const locked = await store().transaction((transaction) => transaction.lockPendingDeferredSales());
+  return locked.find((sale) => sale.id === deferredSaleId)?.saleMayBeInvoiced;
 }
 
 describe("DrizzleDeferredSaleExpiryStore", () => {
@@ -127,6 +186,7 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
         total: 9900,
         shortCode: "AAAA2222",
         lastAuthorizedIssuedOn: null,
+        saleMayBeInvoiced: false,
       },
       {
         id: newer.id,
@@ -137,6 +197,7 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
         total: 4800,
         shortCode: "7KQ4M2P9",
         lastAuthorizedIssuedOn: null,
+        saleMayBeInvoiced: false,
       },
       {
         id: newest.id,
@@ -147,6 +208,7 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
         total: 700,
         shortCode: "BBBB3333",
         lastAuthorizedIssuedOn: null,
+        saleMayBeInvoiced: false,
       },
     ]);
   });
@@ -183,6 +245,60 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
     await pendingSaleOf(registerId);
 
     expect(await lastAuthorizedDayOf(registerId)).toBe("2026-10-06");
+  });
+
+  it("reads the last authorized day also from the fiscal requests whose unclear answer was adopted from the tax authority", async () => {
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 7,
+      name: "caja-7",
+    });
+    await insertFiscalRequestRow(registerId, 7, "2026-10-03", "authorized");
+    await insertFiscalRequestRow(registerId, 7, "2026-10-06", "adopted");
+    await insertFiscalRequestRow(registerId, 7, "2026-10-08", "released");
+    await insertFiscalRequestRow(registerId, 7, "2026-10-09", "unclear");
+    await pendingSaleOf(registerId);
+
+    expect(await lastAuthorizedDayOf(registerId)).toBe("2026-10-06");
+  });
+
+  it("marks a pending deferred sale as possibly invoiced while its own sale has a fiscal request the tax authority holds or may hold", async () => {
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 7,
+      name: "caja-7",
+    });
+    const outcomes: RecordedOutcome[] = [
+      "authorized",
+      "adopted",
+      null,
+      "unclear",
+      "not_attempted",
+      "rejected",
+      "released",
+      "conflicting",
+    ];
+    const sales = [];
+    for (const outcome of outcomes) {
+      const sale = await pendingSaleOf(registerId);
+      await insertFiscalRequestRow(registerId, 7, "2026-10-03", outcome, sale.saleId);
+      sales.push(sale);
+    }
+    const withoutRequest = await pendingSaleOf(registerId);
+    await insertFiscalRequestRow(registerId, 7, "2026-10-03", "authorized");
+
+    const flags = await Promise.all(sales.map((sale) => mayBeInvoicedOf(sale.id)));
+    expect(
+      Object.fromEntries(outcomes.map((outcome, index) => [String(outcome), flags[index]])),
+    ).toEqual({
+      authorized: true,
+      adopted: true,
+      null: true,
+      unclear: true,
+      not_attempted: true,
+      rejected: false,
+      released: false,
+      conflicting: false,
+    });
+    expect(await mayBeInvoicedOf(withoutRequest.id)).toBe(false);
   });
 
   it("takes the later of the tax authority's day and the authorized fiscal requests' day", async () => {
@@ -234,7 +350,6 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
         occurredAt: sale.occurredAt,
         total: sale.total,
         shortCode: sale.shortCode,
-        lastAuthorizedIssuedOn: null,
       },
       NOW,
     );
@@ -273,7 +388,6 @@ describe("DrizzleDeferredSaleExpiryStore", () => {
         occurredAt: sale.occurredAt,
         total: sale.total,
         shortCode: sale.shortCode,
-        lastAuthorizedIssuedOn: null,
       },
       NOW,
     );

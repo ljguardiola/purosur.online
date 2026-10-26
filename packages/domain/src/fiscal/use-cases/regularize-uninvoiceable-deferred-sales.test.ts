@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { argentinaInstant } from "../../shared/index.js";
-import { regularizeExpiredDeferredSales } from "./regularize-expired-deferred-sales.js";
-import type { DeferredSaleCandidate } from "./regularize-expired-deferred-sales-ports.js";
+import { regularizeUninvoiceableDeferredSales } from "./regularize-uninvoiceable-deferred-sales.js";
+import type { DeferredSaleCandidate } from "./regularize-uninvoiceable-deferred-sales-ports.js";
 import { FakeDeferredSaleExpiryStore } from "./test-support/fake-deferred-sale-expiry.js";
 import { FixedClock } from "./test-support/fixed-clock.js";
 
@@ -13,6 +13,7 @@ function pendingSale(
   id: string,
   occurredAt: Date,
   lastAuthorizedIssuedOn: string | null = null,
+  saleMayBeInvoiced = false,
 ): DeferredSaleCandidate {
   return {
     id,
@@ -23,14 +24,15 @@ function pendingSale(
     total: 250000,
     shortCode: `CODE${id}`.slice(0, 8).padEnd(8, "2"),
     lastAuthorizedIssuedOn,
+    saleMayBeInvoiced,
   };
 }
 
 function regularize(store: FakeDeferredSaleExpiryStore, now: Date) {
-  return regularizeExpiredDeferredSales({ store, clock: new FixedClock(now) });
+  return regularizeUninvoiceableDeferredSales({ store, clock: new FixedClock(now) });
 }
 
-describe("regularizeExpiredDeferredSales", () => {
+describe("regularizeUninvoiceableDeferredSales", () => {
   it("turns a sale past its expiry into an open regularization task named for the sale", async () => {
     const sale = pendingSale("sale-1", at("2026-10-10"));
     const store = new FakeDeferredSaleExpiryStore([sale]);
@@ -169,6 +171,19 @@ describe("regularizeExpiredDeferredSales", () => {
     const outcome = await regularize(store, at("2026-10-16", "09:00"));
 
     expect(outcome).toEqual({ kind: "regularized", count: 1 });
+  });
+
+  it("leaves pending a sale that may already be invoiced, whether past its expiry or behind the last authorized day", async () => {
+    const store = new FakeDeferredSaleExpiryStore([
+      pendingSale("expired", at("2026-10-01"), null, true),
+      pendingSale("behind", at("2026-10-14"), "2026-10-15", true),
+    ]);
+
+    const outcome = await regularize(store, at("2026-10-16", "09:00"));
+
+    expect(outcome).toEqual({ kind: "regularized", count: 0 });
+    expect(store.pendingIds).toEqual(["expired", "behind"]);
+    expect(store.tasks).toEqual([]);
   });
 
   it("reads and records within one transaction", async () => {

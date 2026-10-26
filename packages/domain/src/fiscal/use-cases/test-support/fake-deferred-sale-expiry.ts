@@ -3,7 +3,7 @@ import type {
   DeferredSaleCandidate,
   DeferredSaleExpiryStore,
   DeferredSaleExpiryTransaction,
-} from "../regularize-expired-deferred-sales-ports.js";
+} from "../regularize-uninvoiceable-deferred-sales-ports.js";
 
 interface ExpiryState {
   pending: DeferredSaleCandidate[];
