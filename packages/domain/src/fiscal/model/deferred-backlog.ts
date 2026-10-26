@@ -1,7 +1,13 @@
 import { argentinaCalendarDay } from "../../shared/index.js";
 import { isDeferredSaleExpired } from "./deferred-sale-expiry.js";
+import type { FiscalDocumentState } from "./real-time-authorization.js";
 
 export const DEFERRED_BACKLOG_RETRY_INTERVAL_MS = 10 * 60_000;
+
+export const DEFERRED_RETRY_DELAYING_STATES: readonly FiscalDocumentState[] = [
+  "REJECTED",
+  "CONFLICTING",
+];
 
 export interface DeferredBacklogEntry {
   deferredSaleId: string;
