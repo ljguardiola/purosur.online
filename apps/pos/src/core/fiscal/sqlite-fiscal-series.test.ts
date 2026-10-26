@@ -293,8 +293,17 @@ describe("readRealTimeSeries", () => {
       );
 
       const bySale = Object.fromEntries(backlogOf().map((entry) => [entry.saleId, entry]));
-      expect(bySale["sale-1"]?.lastAttemptEndedAt).toEqual(new Date("2026-09-30T12:30:00.000Z"));
+      expect(bySale["sale-1"]?.lastAttemptEndedAt).toEqual(new Date("2026-09-30T12:12:00.000Z"));
       expect(bySale["sale-2"]?.lastAttemptEndedAt).toBeNull();
+    });
+
+    it("does not take an attempt the cloud released as an ended attempt", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertDeferredSale(database, "sale-1");
+      insertFiscalDocument(database, { state: "RELEASED", resolvedAt: "2026-09-30T12:30:00.000Z" });
+
+      expect(backlogOf()).toMatchObject([{ saleId: "sale-1", lastAttemptEndedAt: null }]);
     });
 
     it("does not take a document still waiting for an answer as an ended attempt", () => {
