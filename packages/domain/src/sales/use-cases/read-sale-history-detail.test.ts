@@ -53,6 +53,7 @@ function historySale(
       },
       voided: false,
       inOpenSession: true,
+      hasReturn: false,
       invoices: [
         {
           origin: "real_time",
@@ -221,6 +222,13 @@ describe("readSaleHistoryDetail", () => {
       expect(voidability({ ...NOT_INVOICED, payments: CASH_ONLY, inOpenSession: false })).toEqual({
         kind: "not_voidable",
         refusal: "session_closed",
+      });
+    });
+
+    it("says a sale that already has a return cannot be voided, even one of the open session", () => {
+      expect(voidability({ ...NOT_INVOICED, payments: CASH_ONLY, hasReturn: true })).toEqual({
+        kind: "not_voidable",
+        refusal: "has_return",
       });
     });
 
