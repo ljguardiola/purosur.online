@@ -159,4 +159,5 @@ export {
   isSafeMomentToUpdate,
   REGISTER_UPDATE_HOLD_LIMIT_MS,
 } from "./model/update-safe-moment.js";
+export type { ZoneRulesVersionReport } from "./model/zone-rules-version.js";
 export { runsCloudZoneRulesVersion } from "./model/zone-rules-version.js";
