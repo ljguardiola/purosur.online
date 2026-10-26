@@ -18,7 +18,10 @@ import {
   OFFLINE_AUTHORIZATION_CAUSES,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   PRINTED_DOCUMENTS,
+  RETURN_DISPOSITIONS,
+  RETURN_REASONS,
   receiptReprintReason,
+  TICKET_SOURCES,
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -430,6 +433,60 @@ const saleVoidedV3Schema = saleVoidedV2Schema.extend({
   credit_note: voidCreditNoteSchema.nullable(),
 });
 
+const saleReturnedV1Schema = z.object({
+  id: text,
+  sale_id: text,
+  register_id: text,
+  device_id: text,
+  session_id: text,
+  actor_id: text,
+  authorized_by: text.nullable(),
+  ticket_source: z.enum(TICKET_SOURCES),
+  occurred_at: instant,
+  lines: z
+    .array(
+      z.object({
+        sale_line_id: text,
+        product_id: text,
+        quantity: z.int().positive(),
+        reason: z.enum(RETURN_REASONS),
+        disposition: z.enum(RETURN_DISPOSITIONS),
+        refunded_amount: cents,
+      }),
+    )
+    .min(1),
+  refunds: z.array(
+    z.object({
+      ...saleRefundFields,
+      method: z.literal("CASH"),
+      provider: z.literal("NONE"),
+      state: z.literal("APPROVED"),
+    }),
+  ),
+  cash_movements: z.array(
+    z.object({
+      id: text,
+      type: z.literal("REFUND"),
+      amount: cents,
+      ref_type: z.literal("return"),
+      ref_id: text,
+      actor_id: text,
+      occurred_at: instant,
+    }),
+  ),
+  stock_movements: z.array(
+    z.object({
+      id: text,
+      sale_line_id: text,
+      product_id: text,
+      kind: z.enum(["return", "loss"]),
+      reason: z.literal("return_discard").nullable(),
+      delta: z.int(),
+      occurred_at: instant,
+    }),
+  ),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -602,6 +659,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_voided@1": saleVoidedV1Schema,
   "sale_voided@2": saleVoidedV2Schema,
   "sale_voided@3": saleVoidedV3Schema,
+  "sale_returned@1": saleReturnedV1Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
