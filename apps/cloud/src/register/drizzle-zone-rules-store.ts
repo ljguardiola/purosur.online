@@ -8,7 +8,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { zoneRules } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
-export const ZONE_RULES_LOCK_KEY = "zone_rules";
+const ZONE_RULES_LOCK_KEY = "zone_rules";
 
 export async function latestPublishedZoneRulesVersion<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
