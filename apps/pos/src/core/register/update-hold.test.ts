@@ -14,9 +14,12 @@ function deferred() {
   return { promise, resolve };
 }
 
-function setup(options: { openSale?: () => boolean; limitMs?: number } = {}) {
+function setup(
+  options: { openSale?: () => boolean; openCashSession?: () => boolean; limitMs?: number } = {},
+) {
   const hold = createUpdateHold({
     hasOpenSale: options.openSale ?? (() => false),
+    hasOpenCashSession: options.openCashSession ?? (() => false),
     schedule: (run, delayMs) => {
       const timer = setTimeout(run, delayMs);
       return () => clearTimeout(timer);
@@ -65,7 +68,20 @@ describe("createUpdateHold", () => {
     expect(handled).toEqual([request("q-1")]);
   });
 
-  it("answers safe and refuses requests when no sale is open", async () => {
+  it("answers not safe and keeps taking requests while a cash session is open with no sale", async () => {
+    const { hold, gate, handled } = setup({ openCashSession: () => true });
+
+    expect(await hold.answerSafeMomentRequest("r-1")).toEqual({
+      type: "update-safe-moment",
+      request_id: "r-1",
+      safe: false,
+    });
+    gate(request("q-1"));
+
+    expect(handled).toEqual([request("q-1")]);
+  });
+
+  it("answers safe and refuses requests when neither a sale nor a cash session is open", async () => {
     const { hold, gate, handled, refused } = setup();
 
     expect(await hold.answerSafeMomentRequest("r-2")).toEqual({

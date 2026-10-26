@@ -1555,6 +1555,8 @@ if (deviceTokenRotation !== undefined) {
 
 const updateHold = createUpdateHold({
   hasOpenSale: anySaleOpen,
+  hasOpenCashSession: () =>
+    localDatabase !== undefined && readOpenSession(localDatabase) !== undefined,
   schedule: (run, delayMs) => {
     const timer = setTimeout(run, delayMs);
     return () => clearTimeout(timer);
