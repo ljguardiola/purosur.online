@@ -1,5 +1,4 @@
-import { argentinaCalendarDay, argentinaInstant } from "../../shared/index.js";
-import { isDeferredSaleExpired } from "../model/deferred-sale-expiry.js";
+import { isDeferredSaleUninvoiceable } from "../model/deferred-backlog.js";
 import { deferredSaleRegularizationTask } from "../model/deferred-sale-record.js";
 import type { RegularizeExpiredDeferredSalesPorts } from "./regularize-expired-deferred-sales-ports.js";
 
@@ -10,13 +9,14 @@ export async function regularizeExpiredDeferredSales({
   clock,
 }: RegularizeExpiredDeferredSalesPorts): Promise<RegularizeExpiredDeferredSalesOutcome> {
   const now = clock.now();
-  const startOfToday = new Date(argentinaInstant(argentinaCalendarDay(now), "00:00"));
   return store.transaction(async (transaction) => {
-    const candidates = await transaction.lockPendingDeferredSalesOccurredBefore(startOfToday);
-    const expired = candidates.filter((sale) => isDeferredSaleExpired(sale.occurredAt, now));
-    for (const sale of expired) {
+    const candidates = await transaction.lockPendingDeferredSales();
+    const uninvoiceable = candidates.filter((sale) =>
+      isDeferredSaleUninvoiceable(sale.occurredAt, now, sale.lastAuthorizedIssuedOn),
+    );
+    for (const sale of uninvoiceable) {
       await transaction.recordExpiry(sale.id, deferredSaleRegularizationTask(sale, now));
     }
-    return { kind: "regularized", count: expired.length };
+    return { kind: "regularized", count: uninvoiceable.length };
   });
 }

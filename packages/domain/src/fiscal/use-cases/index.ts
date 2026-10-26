@@ -438,6 +438,7 @@ export { PointOfSaleClaimConflict } from "./register-point-of-sale-store.js";
 export type { RegularizeExpiredDeferredSalesOutcome } from "./regularize-expired-deferred-sales.js";
 export { regularizeExpiredDeferredSales } from "./regularize-expired-deferred-sales.js";
 export type {
+  DeferredSaleCandidate,
   DeferredSaleExpiryStore,
   DeferredSaleExpiryTransaction,
   RegularizeExpiredDeferredSalesPorts,
