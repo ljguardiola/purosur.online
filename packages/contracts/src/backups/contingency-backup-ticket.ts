@@ -114,6 +114,19 @@ export function readContingencyBackupTicketQrCode(
   };
 }
 
+export function sameContingencyBackupTicket(
+  one: ContingencyBackupTicketPart,
+  other: ContingencyBackupTicketPart,
+): boolean {
+  return (
+    one.registerId === other.registerId &&
+    one.keyVersion === other.keyVersion &&
+    one.partCount === other.partCount &&
+    one.nonce.length === other.nonce.length &&
+    one.nonce.every((byte, index) => byte === other.nonce[index])
+  );
+}
+
 export function joinContingencyBackupTicketParts(
   parts: readonly ContingencyBackupTicketPart[],
 ): Uint8Array | null {
@@ -121,13 +134,8 @@ export function joinContingencyBackupTicketParts(
   if (first === undefined) return null;
   const ordered = new Array<ContingencyBackupTicketPart | undefined>(first.partCount);
   for (const part of parts) {
-    const sameTicket =
-      part.registerId === first.registerId &&
-      part.keyVersion === first.keyVersion &&
-      part.partCount === first.partCount &&
-      part.nonce.length === first.nonce.length &&
-      part.nonce.every((byte, index) => byte === first.nonce[index]);
-    if (!sameTicket || ordered[part.partIndex - 1] !== undefined) return null;
+    if (!sameContingencyBackupTicket(part, first) || ordered[part.partIndex - 1] !== undefined)
+      return null;
     ordered[part.partIndex - 1] = part;
   }
   const chunks: Uint8Array[] = [];

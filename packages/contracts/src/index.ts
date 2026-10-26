@@ -20,6 +20,7 @@ export {
   contingencyBackupTicketQrCodes,
   joinContingencyBackupTicketParts,
   readContingencyBackupTicketQrCode,
+  sameContingencyBackupTicket,
 } from "./backups/contingency-backup-ticket.js";
 export type {
   ContingencyBackupTicketOfSaleAnswer,
@@ -31,6 +32,14 @@ export {
   contingencyBackupTicketsAnswerSchema,
   discardContingencyBackupTicketsOutcomeSchema,
 } from "./backups/contingency-backup-ticket-answers.js";
+export type {
+  ContingencyBackupTicketRescueRequest,
+  ContingencyBackupTicketRescueResponse,
+} from "./backups/contingency-backup-ticket-rescue.js";
+export {
+  contingencyBackupTicketRescueRequestSchema,
+  contingencyBackupTicketRescueResponseSchema,
+} from "./backups/contingency-backup-ticket-rescue.js";
 export type {
   BackupsCoreToRendererMessage,
   BackupsRendererToCoreMessage,

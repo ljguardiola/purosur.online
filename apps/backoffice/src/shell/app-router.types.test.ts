@@ -11,6 +11,12 @@ test("accepts navigation to a declared screen", () => {
   >();
 });
 
+test("accepts navigation to the contingency ticket rescue screen", () => {
+  expectTypeOf<{ to: "/contingency-ticket-rescue" }>().toExtend<
+    Navigable<{ to: "/contingency-ticket-rescue" }>
+  >();
+});
+
 test("refuses navigation to a route that is not declared", () => {
   expectTypeOf<{ to: "/settings/people" }>().not.toExtend<Navigable<{ to: "/settings/people" }>>();
 });
