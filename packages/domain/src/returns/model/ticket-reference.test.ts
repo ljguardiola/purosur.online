@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deferredSaleQrText, TAX_AUTHORITY_QR_URL } from "../../fiscal/index.js";
+import { TAX_AUTHORITY_QR_URL } from "../../fiscal/index.js";
 import { ticketReferenceFromQrText } from "./ticket-reference.js";
 
 function fiscalQr(voucherType: number): string {
@@ -17,9 +17,11 @@ describe("ticketReferenceFromQrText", () => {
   });
 
   it("names the deferred sale a non-fiscal ticket's QR carries", () => {
-    expect(
-      ticketReferenceFromQrText(deferredSaleQrText({ id: "0198-abc", shortCode: "7KQ4M2P9" })),
-    ).toEqual({ kind: "deferred", id: "0198-abc", shortCode: "7KQ4M2P9" });
+    expect(ticketReferenceFromQrText("purosur-deferred-sale:0198-abc:7KQ4M2P9")).toEqual({
+      kind: "deferred",
+      id: "0198-abc",
+      shortCode: "7KQ4M2P9",
+    });
   });
 
   it("answers nothing for the QR of a credit note, which is not a sale's ticket", () => {
