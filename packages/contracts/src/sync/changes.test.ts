@@ -147,6 +147,15 @@ const taxStatusSetRow = {
   ],
 };
 
+const zoneRulesRow = {
+  version: "2026a",
+  transitions: [
+    { from: "1970-01-01T00:00:00.000Z", offset_minutes: -180 },
+    { from: "2030-03-01T03:00:00.000Z", offset_minutes: -120 },
+  ],
+  published_at: "2026-10-26T12:00:00.000Z",
+};
+
 const discountRow = {
   name: "Martes de infusiones",
   benefit: { kind: "PERCENT_OFF", percent: 10 },
@@ -410,6 +419,7 @@ describe("changesPageSchema", () => {
       }),
     ],
     ["a set of buyer tax statuses", change(1, "buyer_tax_status_set", taxStatusSetRow)],
+    ["the zone rules of a version", change(1, "zone_rules", zoneRulesRow)],
     ["a discount", change(1, "discount", discountRow)],
     ["a discount that applies every day", change(1, "discount", { ...discountRow, weekdays: [] })],
     [
@@ -587,6 +597,7 @@ describe("changesPageSchema", () => {
     ["an issuer identification", "issuer_identification", issuerIdentificationRow],
     ["a buyer-identification threshold", "buyer_identification_threshold", thresholdRow],
     ["a set of buyer tax statuses", "buyer_tax_status_set", taxStatusSetRow],
+    ["the zone rules of a version", "zone_rules", zoneRulesRow],
     ["the point of sale of a register", "register_point_of_sale", pointOfSaleRow],
     ["the point terminal of a register", "register_point_terminal", pointTerminalRow],
     ["the QR point of sale of a register", "register_qr_point_of_sale", qrPointOfSaleRow],
@@ -1206,6 +1217,46 @@ describe("changesPageSchema", () => {
           options: [{ code: 9.5, description: "Condicion de prueba A", invoice_class: "A" }],
         }),
       ),
+    ],
+    [
+      "zone rules without their version",
+      pageOf(change(1, "zone_rules", { ...zoneRulesRow, version: undefined })),
+    ],
+    ["zone rules of an empty version", pageOf(change(1, "zone_rules", { ...zoneRulesRow, version: "" }))],
+    [
+      "zone rules without transitions",
+      pageOf(change(1, "zone_rules", { ...zoneRulesRow, transitions: [] })),
+    ],
+    [
+      "a zone transition whose offset is not whole minutes",
+      pageOf(
+        change(1, "zone_rules", {
+          ...zoneRulesRow,
+          transitions: [{ from: "1970-01-01T00:00:00.000Z", offset_minutes: -90.5 }],
+        }),
+      ),
+    ],
+    [
+      "a zone transition that does not start at an instant",
+      pageOf(
+        change(1, "zone_rules", {
+          ...zoneRulesRow,
+          transitions: [{ from: "yesterday", offset_minutes: -180 }],
+        }),
+      ),
+    ],
+    [
+      "zone transitions out of order",
+      pageOf(
+        change(1, "zone_rules", {
+          ...zoneRulesRow,
+          transitions: [...zoneRulesRow.transitions].reverse(),
+        }),
+      ),
+    ],
+    [
+      "zone rules without their publication moment",
+      pageOf(change(1, "zone_rules", { ...zoneRulesRow, published_at: undefined })),
     ],
     [
       "a discount of a benefit kind it does not know",

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { FIXED_ARGENTINA_ZONE_RULES, offsetAt, type ZoneRules } from "./zone-rules.js";
+import {
+  areZoneTransitionsOrdered,
+  FIXED_ARGENTINA_ZONE_RULES,
+  offsetAt,
+  type ZoneRules,
+} from "./zone-rules.js";
 
 const SUMMER_TIME: ZoneRules = {
   version: "2026a",
@@ -32,5 +37,26 @@ describe("offsetAt", () => {
     expect(offsetAt(FIXED_ARGENTINA_ZONE_RULES, new Date(-8.64e15))).toBe(-180);
     expect(offsetAt(FIXED_ARGENTINA_ZONE_RULES, new Date("2026-10-26T12:00:00Z"))).toBe(-180);
     expect(offsetAt(FIXED_ARGENTINA_ZONE_RULES, new Date(8.64e15))).toBe(-180);
+  });
+});
+
+describe("areZoneTransitionsOrdered", () => {
+  it("holds when every transition starts after the one before it", () => {
+    expect(areZoneTransitionsOrdered(SUMMER_TIME.transitions)).toBe(true);
+    expect(areZoneTransitionsOrdered([])).toBe(true);
+  });
+
+  it("does not hold when a transition starts before the one before it", () => {
+    expect(areZoneTransitionsOrdered([...SUMMER_TIME.transitions].reverse())).toBe(false);
+  });
+
+  it("does not hold when two transitions start at the same instant", () => {
+    const at = new Date("2030-03-01T03:00:00Z");
+    expect(
+      areZoneTransitionsOrdered([
+        { from: at, offsetMinutes: -180 },
+        { from: at, offsetMinutes: -120 },
+      ]),
+    ).toBe(false);
   });
 });

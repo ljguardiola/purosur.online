@@ -11,7 +11,7 @@ const BRANCH = "branch-a";
 const PRICE_LIST = "price-list-a";
 
 describe("what a register may pull", () => {
-  it("is its branch's settings, first cash session, users, stock movements, refund completions, price list and prices, its own register, points of sale, point terminal, QR point of sale and offline number blocks, and everything shared by every branch", () => {
+  it("is its branch's settings, first cash session, users, stock movements, refund completions, price list and prices, its own register, points of sale, point terminal, QR point of sale and offline number blocks, the zone rules, and everything shared by every branch", () => {
     expect(
       pullAudienceOf({ registerId: REGISTER, locationId: BRANCH, priceListId: PRICE_LIST }),
     ).toEqual({
@@ -33,6 +33,7 @@ describe("what a register may pull", () => {
       issuer_identification: { kind: "every_row" },
       buyer_identification_threshold: { kind: "every_row" },
       buyer_tax_status_set: { kind: "every_row" },
+      zone_rules: { kind: "every_row" },
       stock_movement: { kind: "rows_of_branch", locationId: BRANCH },
       refund_completion: { kind: "rows_of_branch", locationId: BRANCH },
       offline_authorization_code: { kind: "every_row" },
