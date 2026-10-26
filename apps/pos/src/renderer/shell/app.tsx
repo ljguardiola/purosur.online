@@ -487,6 +487,7 @@ function Register({ core }: { core: CoreClient }) {
         void queryClient.invalidateQueries({ queryKey: credentialsKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.cashSession });
         void queryClient.invalidateQueries({ queryKey: salesKeys.paymentMethodAvailabilityRoot });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
         void queryClient.invalidateQueries({ queryKey: stockKeys.initialCount });
@@ -523,6 +524,7 @@ function Register({ core }: { core: CoreClient }) {
     () =>
       core.onRestorationStandingChanged(() => {
         void queryClient.invalidateQueries({ queryKey: registerKeys.restorationStanding });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.cashSession });
       }),
     [core, queryClient],
   );
