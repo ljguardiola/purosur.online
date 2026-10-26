@@ -6,7 +6,7 @@ describe("supplierPriceListRowStatusOf", () => {
     ["new", "info", "Nuevo"],
     ["price_changed", "warning", "Cambió el precio"],
     ["description_changed", "warning", "Cambió la descripción"],
-    ["unlinked", "warning", "Sin vincular"],
+    ["unlinked", "warning", "Visto en otra lista"],
     ["vat_rate_missing", "warning", "Falta el IVA"],
     ["linked", "success", "Vinculado"],
     ["reviewed", "success", "Revisado"],

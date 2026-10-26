@@ -27,6 +27,7 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
           cheapest: false,
         },
       ],
+      unpricedOffers: [],
     },
     {
       id: "90d00000-0000-4000-8000-000000000042",
@@ -44,6 +45,7 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
           cheapest: true,
         },
       ],
+      unpricedOffers: [],
     },
     {
       id: "90d00000-0000-4000-8000-000000000043",
@@ -51,6 +53,7 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
       categoryName: "Almacén",
       saleUnit: "UNIT",
       offers: [],
+      unpricedOffers: [],
     },
   ],
 };

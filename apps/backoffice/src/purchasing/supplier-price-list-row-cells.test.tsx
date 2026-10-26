@@ -52,6 +52,19 @@ test("shows the product and the packaging an item is linked to, or that it is no
   await expect.element(notLinked.getByText("Sin vincular")).toBeVisible();
 });
 
+test("says the item may no longer be bought by the packaging it is linked to", async () => {
+  const link = LINKED_ROW.link as NonNullable<typeof LINKED_ROW.link>;
+  const notBuyable = await render(
+    <RowLinkCell
+      row={{ ...LINKED_ROW, link: { ...link, packaging: { ...link.packaging, buyable: false } } }}
+    />,
+  );
+  await expect.element(notBuyable.getByText("Ya no se compra en esta presentación")).toBeVisible();
+
+  const buyable = await render(<RowLinkCell row={LINKED_ROW} />);
+  expect(buyable.container.textContent).not.toContain("Ya no se compra");
+});
+
 test("shows the status, and the earlier price only when there is one", async () => {
   const changed = await render(<RowStatusCell row={priced} />);
   await expect.element(changed.getByText("Cambió el precio")).toBeVisible();

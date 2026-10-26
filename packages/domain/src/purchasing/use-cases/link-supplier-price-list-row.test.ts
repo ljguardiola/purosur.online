@@ -99,6 +99,25 @@ describe("linkSupplierPriceListRow", () => {
     });
   });
 
+  it("keeps the VAT rate the item remembers when linking a row of a confirmed list that includes VAT", async () => {
+    const store = setup({ state: "REVIEWED", pricesIncludeVat: true });
+    store.seedSupplierItem({
+      description: "Yerba 1 kg",
+      key: { kind: "code", value: "Y-1" },
+      link: { productId: "old", packagingId: "old", vatRate: 1050 },
+    });
+
+    await linkSupplierPriceListRow(store, { ...input, vatRate: null });
+
+    const state = store.snapshot();
+    expect(state.rows[0]?.link?.vatRate).toBeNull();
+    expect(state.items[0]?.link).toEqual({
+      productId: "product-1",
+      packagingId: "packaging-1",
+      vatRate: 1050,
+    });
+  });
+
   it("does not touch another supplier's item with the same code", async () => {
     const store = setup({ state: "REVIEWED" });
     store.seedSupplierItem({

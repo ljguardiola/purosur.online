@@ -477,7 +477,12 @@ describe("GET /supplier-price-lists/:id with linked rows", () => {
           barcode: "7790000000011",
           link: {
             product: { id: productId, name: "Yerba 1 kg", saleUnit: "UNIT" },
-            packaging: { id: packagingId, name: "Caja x 10", quantityPerPackage: 10_000 },
+            packaging: {
+              id: packagingId,
+              name: "Caja x 10",
+              quantityPerPackage: 10_000,
+              buyable: true,
+            },
             vatRate: null,
           },
           status: "new",
@@ -487,8 +492,9 @@ describe("GET /supplier-price-lists/:id with linked rows", () => {
         },
       ],
       counts: { needingReview: 1, linkedAutomatically: 0 },
-      actions: { linkRows: true },
+      actions: { linkRows: true, markRowsReviewed: true },
     });
+    expect(response.json().list.requiresVatRate).toBe(false);
   });
 
   it("answers a row not linked without a link and without a price per sale unit", async () => {

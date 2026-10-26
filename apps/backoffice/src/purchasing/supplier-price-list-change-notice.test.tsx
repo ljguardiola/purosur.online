@@ -49,8 +49,8 @@ test.each([
   [{ kind: "noRows" }, "La lista no tiene ítems", "Cargá otra lista o descartá esta."],
   [
     { kind: "packagingNotLinkable" },
-    "Esta presentación ya no se puede vincular",
-    "Elegí otra o creá una nueva.",
+    "El producto o la presentación ya no se pueden vincular",
+    "Elegí otro producto o presentación.",
   ],
   [
     { kind: "vatRateMissing" },

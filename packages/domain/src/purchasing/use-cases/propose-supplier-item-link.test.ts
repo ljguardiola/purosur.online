@@ -3,8 +3,8 @@ import { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
 import { FakeProductChooser } from "./test-support/fake-product-chooser.js";
 import { FakeSupplierItemLinkProposalReader } from "./test-support/fake-supplier-item-link-proposal-reader.js";
 
-const YERBA = { id: "product-1", name: "Yerba Taragüi 1 kg", barcodes: ["7790001000012"] };
-const AZUCAR = { id: "product-2", name: "Azúcar Ledesma 1 kg" };
+const YERBA = { id: "product-1", name: "Yerba Piragüé 1 kg", barcodes: ["7790001000012"] };
+const AZUCAR = { id: "product-2", name: "Azúcar Cañaral 1 kg" };
 
 function setup(
   row: { description?: string; presentation?: string | null; barcode?: string | null } = {},
@@ -15,7 +15,7 @@ function setup(
       {
         listId: "list-1",
         id: "row-1",
-        description: "YERBA TARAGUI 1KG",
+        description: "YERBA PIRAGUE 1KG",
         presentation: "Caja x 10",
         barcode: null,
         ...row,
@@ -54,7 +54,7 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "barcode",
-        product: { id: "product-1", name: "Yerba Taragüi 1 kg" },
+        product: { id: "product-1", name: "Yerba Piragüé 1 kg" },
       });
       expect(reader.barcodeLookups).toEqual(["7790001000012"]);
       expect(chooser.asked).toEqual([]);
@@ -75,19 +75,19 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "ai",
-        product: { id: "product-1", name: "Yerba Taragüi 1 kg" },
+        product: { id: "product-1", name: "Yerba Piragüé 1 kg" },
       });
     });
 
     it("asks the model when several active products carry the barcode", async () => {
-      const twin = { id: "product-3", name: "Yerba Taragüi 500 g", barcodes: ["7790001000012"] };
+      const twin = { id: "product-3", name: "Yerba Piragüé 500 g", barcodes: ["7790001000012"] };
       const { chooser, ports } = setup({ barcode: "7790001000012" }, [YERBA, twin, AZUCAR]);
       chooser.answer = { kind: "chosen", productId: "product-3" };
 
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "ai",
-        product: { id: "product-3", name: "Yerba Taragüi 500 g" },
+        product: { id: "product-3", name: "Yerba Piragüé 500 g" },
       });
     });
   });
@@ -101,8 +101,8 @@ describe("proposeSupplierItemLink", () => {
 
       expect(chooser.asked).toEqual([
         {
-          item: { description: "YERBA TARAGUI 1KG", presentation: "Caja x 10" },
-          candidates: [{ id: "product-1", name: "Yerba Taragüi 1 kg" }],
+          item: { description: "YERBA PIRAGUE 1KG", presentation: "Caja x 10" },
+          candidates: [{ id: "product-1", name: "Yerba Piragüé 1 kg" }],
         },
       ]);
     });
@@ -114,7 +114,7 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "ai",
-        product: { id: "product-2", name: "Azúcar Ledesma 1 kg" },
+        product: { id: "product-2", name: "Azúcar Cañaral 1 kg" },
       });
     });
 

@@ -10,10 +10,31 @@ const offer = {
   listDate: "2026-03-01",
   cheapest: true,
 };
+const unpricedOffer = {
+  supplier: { id: "s-2", name: "Mayorista Norte" },
+  packagingName: "Bolsa x 5",
+  priceCents: 9_000,
+  listDate: "2026-02-01",
+  reason: "vat_rate_missing",
+};
 const comparison = {
   products: [
-    { id: "p-1", name: "Yerba", categoryName: "Almacén", saleUnit: "UNIT", offers: [offer] },
-    { id: "p-2", name: "Azúcar", categoryName: "Almacén", saleUnit: "KG", offers: [] },
+    {
+      id: "p-1",
+      name: "Yerba",
+      categoryName: "Almacén",
+      saleUnit: "UNIT",
+      offers: [offer],
+      unpricedOffers: [unpricedOffer],
+    },
+    {
+      id: "p-2",
+      name: "Azúcar",
+      categoryName: "Almacén",
+      saleUnit: "KG",
+      offers: [],
+      unpricedOffers: [],
+    },
   ],
 };
 
@@ -37,7 +58,41 @@ describe("supplierPriceComparisonSchema", () => {
     expect(supplierPriceComparisonSchema.safeParse(incomplete).success).toBe(false);
   });
 
-  it.each(["id", "name", "categoryName", "saleUnit", "offers"])(
+  it.each(["vat_rate_missing", "packaging_not_buyable"])(
+    "accepts an offer with no price per sale unit because of %s",
+    (reason) => {
+      const withReason = {
+        products: [{ ...comparison.products[0], unpricedOffers: [{ ...unpricedOffer, reason }] }],
+      };
+
+      expect(supplierPriceComparisonSchema.safeParse(withReason).data).toEqual(withReason);
+    },
+  );
+
+  it.each(["", "other", null])(
+    "refuses an offer with no price per sale unit because of %j",
+    (reason) => {
+      const bad = {
+        products: [{ ...comparison.products[0], unpricedOffers: [{ ...unpricedOffer, reason }] }],
+      };
+
+      expect(supplierPriceComparisonSchema.safeParse(bad).success).toBe(false);
+    },
+  );
+
+  it.each(Object.keys(unpricedOffer))(
+    "requires %s in an offer with no price per sale unit",
+    (field) => {
+      const { [field as keyof typeof unpricedOffer]: _omitted, ...rest } = unpricedOffer;
+      const incomplete = {
+        products: [{ ...comparison.products[0], unpricedOffers: [rest] }],
+      };
+
+      expect(supplierPriceComparisonSchema.safeParse(incomplete).success).toBe(false);
+    },
+  );
+
+  it.each(["id", "name", "categoryName", "saleUnit", "offers", "unpricedOffers"])(
     "requires %s in a product",
     (field) => {
       const { [field as keyof (typeof comparison.products)[0]]: _omitted, ...rest } =

@@ -100,6 +100,7 @@ export const EVERY_REVIEW_ACTION: ReviewActions = {
   confirm: true,
   discard: true,
   linkRows: true,
+  markRowsReviewed: true,
 };
 
 export const ONLY_DISCARD: ReviewActions = {
@@ -107,6 +108,7 @@ export const ONLY_DISCARD: ReviewActions = {
   confirm: false,
   discard: true,
   linkRows: false,
+  markRowsReviewed: false,
 };
 
 const NO_REVIEW_ACTION: ReviewActions = {
@@ -114,6 +116,7 @@ const NO_REVIEW_ACTION: ReviewActions = {
   confirm: false,
   discard: false,
   linkRows: false,
+  markRowsReviewed: false,
 };
 
 const NO_COUNTS: ReviewCounts = { needingReview: 0, linkedAutomatically: 0 };
@@ -125,7 +128,12 @@ export function reviewOf(
   pricesIncludeVat: boolean | null = true,
   counts: ReviewCounts = NO_COUNTS,
 ): SupplierPriceListReview {
-  return { list: { ...list, version: 3, pricesIncludeVat }, rows, actions, counts };
+  return {
+    list: { ...list, version: 3, pricesIncludeVat, requiresVatRate: false },
+    rows,
+    actions,
+    counts,
+  };
 }
 
 type ReviewRow = SupplierPriceListReview["rows"][number];
@@ -157,6 +165,7 @@ export const ALMOND_LINK: NonNullable<ReviewRow["link"]> = {
     id: "9ac00000-0000-4000-8000-000000000010",
     name: "Bolsa de 25 kg",
     quantityPerPackage: 25_000,
+    buyable: true,
   },
   vatRate: null,
 };
@@ -224,6 +233,7 @@ export const LINKED_ROW: ReviewRow = {
       id: "9ac00000-0000-4000-8000-000000000051",
       name: "Caja de 11,34 kg",
       quantityPerPackage: 11_340,
+      buyable: true,
     },
     vatRate: null,
   },

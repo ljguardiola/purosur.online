@@ -63,8 +63,14 @@ describe("findSupplierPriceListReview", () => {
     const { confirmedAt: _confirmedAt, ...listed } = LIST;
     expect(outcome).toEqual({
       kind: "found",
-      list: { ...listed, replaced: false },
-      actions: { changeRows: true, confirm: true, discard: true, linkRows: true },
+      list: { ...listed, replaced: false, requiresVatRate: true },
+      actions: {
+        changeRows: true,
+        confirm: true,
+        discard: true,
+        linkRows: true,
+        markRowsReviewed: true,
+      },
       counts: { needingReview: 2, linkedAutomatically: 0 },
       rows: [
         {
@@ -127,11 +133,50 @@ describe("findSupplierPriceListReview", () => {
   });
 
   it.each([
-    ["READING", { changeRows: false, confirm: false, discard: false, linkRows: false }],
-    ["READ_FAILED", { changeRows: false, confirm: false, discard: true, linkRows: false }],
-    ["EXTRACTED", { changeRows: true, confirm: true, discard: true, linkRows: true }],
-    ["REVIEWED", { changeRows: false, confirm: false, discard: false, linkRows: true }],
-    ["DISCARDED", { changeRows: false, confirm: false, discard: false, linkRows: false }],
+    [
+      "READING",
+      {
+        changeRows: false,
+        confirm: false,
+        discard: false,
+        linkRows: false,
+        markRowsReviewed: false,
+      },
+    ],
+    [
+      "READ_FAILED",
+      {
+        changeRows: false,
+        confirm: false,
+        discard: true,
+        linkRows: false,
+        markRowsReviewed: false,
+      },
+    ],
+    [
+      "EXTRACTED",
+      { changeRows: true, confirm: true, discard: true, linkRows: true, markRowsReviewed: true },
+    ],
+    [
+      "REVIEWED",
+      {
+        changeRows: false,
+        confirm: false,
+        discard: false,
+        linkRows: true,
+        markRowsReviewed: false,
+      },
+    ],
+    [
+      "DISCARDED",
+      {
+        changeRows: false,
+        confirm: false,
+        discard: false,
+        linkRows: false,
+        markRowsReviewed: false,
+      },
+    ],
   ] as const)("answers which actions a list in state %s allows", async (state, actions) => {
     const reader = new FakeSupplierPriceListReader({ lists: [{ ...LIST, state }] });
 
@@ -140,10 +185,31 @@ describe("findSupplierPriceListReview", () => {
     expect(outcome.kind === "found" && outcome.actions).toEqual(actions);
   });
 
+  it.each([
+    [false, true],
+    [null, true],
+    [true, false],
+  ] as const)(
+    "answers whether the links of a list whose prices include VAT (%j) need a rate: %s",
+    async (pricesIncludeVat, requiresVatRate) => {
+      const reader = new FakeSupplierPriceListReader({ lists: [{ ...LIST, pricesIncludeVat }] });
+
+      const outcome = await findSupplierPriceListReview(reader, "list-1");
+
+      expect(outcome.kind === "found" && outcome.list.requiresVatRate).toBe(requiresVatRate);
+    },
+  );
+
   describe("the status and price of each linked row", () => {
     const LINK = {
-      product: { id: "product-1", name: "Yerba Taragüi", saleUnit: "UNIT" as const },
-      packaging: { id: "packaging-1", name: "Caja x 10", quantityPerPackage: 10_000 },
+      product: { id: "product-1", name: "Yerba Piragüé", saleUnit: "UNIT" as const },
+      packaging: {
+        id: "packaging-1",
+        name: "Caja x 10",
+        quantityPerPackage: 10_000,
+        active: true,
+        saleUnit: "UNIT" as "UNIT" | "KG",
+      },
       vatRate: 1050 as number | null,
     };
 
@@ -203,8 +269,38 @@ describe("findSupplierPriceListReview", () => {
 
       expect(outcome.kind === "found" && outcome.rows[0]).toMatchObject({
         barcode: "7790001000012",
-        link: LINK,
+        link: {
+          product: LINK.product,
+          packaging: { id: "packaging-1", name: "Caja x 10", quantityPerPackage: 10_000 },
+          vatRate: 1050,
+        },
       });
+    });
+
+    it("answers whether the packaging of the link may still be bought by", async () => {
+      const buyable = await reviewOf({});
+      const inactive = await reviewOf({
+        link: { ...LINK, packaging: { ...LINK.packaging, active: false } },
+      });
+      const otherSaleUnit = await reviewOf({
+        link: { ...LINK, packaging: { ...LINK.packaging, saleUnit: "KG" } },
+      });
+
+      expect(buyable?.rows[0]?.link?.packaging.buyable).toBe(true);
+      expect(inactive?.rows[0]?.link?.packaging.buyable).toBe(false);
+      expect(otherSaleUnit?.rows[0]?.link?.packaging.buyable).toBe(false);
+    });
+
+    it("answers no price per sale unit through a packaging that may no longer be bought by", async () => {
+      const inactive = await reviewOf({
+        link: { ...LINK, packaging: { ...LINK.packaging, active: false } },
+      });
+      const otherSaleUnit = await reviewOf({
+        link: { ...LINK, packaging: { ...LINK.packaging, saleUnit: "KG" } },
+      });
+
+      expect(inactive?.rows[0]?.pricePerSaleUnit).toBeNull();
+      expect(otherSaleUnit?.rows[0]?.pricePerSaleUnit).toBeNull();
     });
 
     it("derives the status from the row and what the supplier's other lists recorded", async () => {

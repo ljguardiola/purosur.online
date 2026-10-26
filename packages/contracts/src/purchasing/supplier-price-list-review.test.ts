@@ -10,8 +10,8 @@ const row = {
   page: 3,
   barcode: "7790001000012",
   link: {
-    product: { id: "p-1", name: "Yerba Taragüi", saleUnit: "UNIT" },
-    packaging: { id: "pk-1", name: "Caja x 10", quantityPerPackage: 10_000 },
+    product: { id: "p-1", name: "Yerba Piragüé", saleUnit: "UNIT" },
+    packaging: { id: "pk-1", name: "Caja x 10", quantityPerPackage: 10_000, buyable: true },
     vatRate: 1050,
   },
   status: "price_changed",
@@ -47,10 +47,17 @@ const review = {
     replaced: false,
     version: 4,
     pricesIncludeVat: true,
+    requiresVatRate: false,
   },
   rows: [row, bareRow],
   counts: { needingReview: 2, linkedAutomatically: 0 },
-  actions: { changeRows: true, confirm: true, discard: true, linkRows: true },
+  actions: {
+    changeRows: true,
+    confirm: true,
+    discard: true,
+    linkRows: true,
+    markRowsReviewed: true,
+  },
 };
 
 describe("supplierPriceListReviewSchema", () => {
@@ -117,9 +124,12 @@ describe("supplierPriceListReviewSchema", () => {
     expect(supplierPriceListReviewSchema.safeParse(withoutActions).success).toBe(false);
   });
 
-  it.each(["changeRows", "confirm", "discard", "linkRows"])(
+  it.each(["changeRows", "confirm", "discard", "linkRows", "markRowsReviewed"])(
     "requires whether the list allows %s",
     (action) => {
+      const { [action as keyof typeof review.actions]: _omitted, ...actions } = review.actions;
+
+      expect(supplierPriceListReviewSchema.safeParse({ ...review, actions }).success).toBe(false);
       expect(
         supplierPriceListReviewSchema.safeParse({
           ...review,
@@ -128,6 +138,29 @@ describe("supplierPriceListReviewSchema", () => {
       ).toBe(false);
     },
   );
+
+  it("requires whether the links of the list need a VAT rate", () => {
+    const { requiresVatRate: _requiresVatRate, ...list } = review.list;
+
+    expect(supplierPriceListReviewSchema.safeParse({ ...review, list }).success).toBe(false);
+    expect(
+      supplierPriceListReviewSchema.safeParse({
+        ...review,
+        list: { ...review.list, requiresVatRate: "yes" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires whether the linked packaging may still be bought by", () => {
+    const { buyable: _buyable, ...packaging } = row.link.packaging;
+
+    expect(
+      supplierPriceListReviewSchema.safeParse({
+        ...review,
+        rows: [{ ...row, link: { ...row.link, packaging } }],
+      }).success,
+    ).toBe(false);
+  });
 
   it("strips keys it does not define from the rows", () => {
     const parsed = supplierPriceListReviewSchema.safeParse({

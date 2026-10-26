@@ -26,7 +26,7 @@ const [, , nutRow] = EXTRACTED_ROWS as [
   (typeof EXTRACTED_ROWS)[number],
 ];
 const [almondRow] = EXTRACTED_ROWS as [(typeof EXTRACTED_ROWS)[number]];
-const LIST = { ...READ_LIST, version: 3, pricesIncludeVat: true };
+const LIST = { ...READ_LIST, version: 3, requiresVatRate: false };
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -53,6 +53,7 @@ function renderModal({
   list = LIST,
   target = nutRow,
   mayCreatePackaging = true,
+  remembersOnConfirm = true,
   onLinked = () => {},
   onOutdated = () => {},
   onClose = () => {},
@@ -62,6 +63,7 @@ function renderModal({
   list?: Parameters<typeof LinkSupplierItemModal>[0]["list"];
   target?: typeof nutRow | null;
   mayCreatePackaging?: boolean;
+  remembersOnConfirm?: boolean;
   onLinked?: () => void;
   onOutdated?: () => void;
   onClose?: () => void;
@@ -74,6 +76,7 @@ function renderModal({
           list={list}
           target={target}
           mayCreatePackaging={mayCreatePackaging}
+          remembersOnConfirm={remembersOnConfirm}
           services={services}
           onLinked={onLinked}
           onOutdated={onOutdated}
@@ -186,15 +189,40 @@ test("reads the proposal for the item of the list, and the choices", async () =>
   expect(services.fetchSupplierItemLinkChoices).toHaveBeenCalledTimes(1);
 });
 
-test("says the proposal is being looked for while it loads", async () => {
+test("shows the proposal loading in the shape of its notice", async () => {
   const services = createServices({
     fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
   });
   const screen = await renderModal({ services });
+  const dialog = screen.getByRole("dialog");
 
   await expect
-    .element(screen.getByRole("dialog").getByText("Buscando una propuesta…").first())
+    .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
     .toBeVisible();
+  await expect.element(dialog.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(dialog.getByText("Buscando una propuesta…").query()).toBeNull();
+});
+
+test("shows a load error for the proposal whose retry looks for it again from its loading placeholder", async () => {
+  let resolveRetry: (outcome: { kind: "ok"; value: typeof NO_PROPOSAL }) => void = () => {};
+  const retry = new Promise<{ kind: "ok"; value: typeof NO_PROPOSAL }>((settle) => {
+    resolveRetry = settle;
+  });
+  const services = createServices({
+    fetchSupplierItemLinkProposal: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockReturnValueOnce(retry),
+  });
+  const screen = await renderModal({ services });
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("No pudimos abrir la propuesta de producto")).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(dialog.getByRole("status").first()).toHaveTextContent("Cargando…");
+  resolveRetry({ kind: "ok", value: NO_PROPOSAL });
+  await expect.element(dialog.getByText("Sin propuesta para este ítem.")).toBeVisible();
 });
 
 test("proposes the product of the barcode and chooses it without linking", async () => {
@@ -274,26 +302,33 @@ test("says quietly that there is no proposal", async () => {
     .toBeVisible();
 });
 
-test.each([
-  ["it could not be made", { kind: "ok", value: UNAVAILABLE_PROPOSAL }],
-  ["reading it failed", { kind: "failed" }],
-] as const)(
-  "says the proposal could not be made when %s, and a product can still be searched",
-  async (_name, outcome) => {
-    const services = createServices({
-      fetchSupplierItemLinkProposal: vi.fn().mockResolvedValue(outcome),
-    });
-    const screen = await renderModal({ services });
-    const dialog = screen.getByRole("dialog");
+test("says the proposal could not be made, and a product can still be searched", async () => {
+  const services = createServices({
+    fetchSupplierItemLinkProposal: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: UNAVAILABLE_PROPOSAL }),
+  });
+  const screen = await renderModal({ services });
+  const dialog = screen.getByRole("dialog");
 
-    await expect
-      .element(dialog.getByText("No pudimos proponer un producto. Podés buscarlo vos."))
-      .toBeVisible();
-    await expect
-      .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
-      .toBeEnabled();
-  },
-);
+  await expect
+    .element(dialog.getByText("No pudimos proponer un producto. Podés buscarlo vos."))
+    .toBeVisible();
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
+    .toBeEnabled();
+});
+
+test("a product can still be searched when reading the proposal failed", async () => {
+  const services = createServices({
+    fetchSupplierItemLinkProposal: vi.fn().mockResolvedValue({ kind: "failed" }),
+  });
+  const screen = await renderModal({ services });
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("combobox", { name: /^Producto del catálogo/ }))
+    .toBeEnabled();
+});
 
 test("searches the products of the catalog by typing", async () => {
   const screen = await renderModal();
@@ -356,8 +391,23 @@ test("says a product has no packagings to buy it by", async () => {
   expect(dialog.getByRole("radio").query()).toBeNull();
 });
 
-test("remembers the link for the next lists of the supplier", async () => {
-  const screen = await renderModal();
+test("says the link is remembered for the next lists of the supplier once the list is confirmed", async () => {
+  const screen = await renderModal({ remembersOnConfirm: true });
+
+  await expect
+    .element(
+      screen
+        .getByRole("dialog")
+        .getByText(
+          "Al confirmar la lista, el vínculo se recuerda y las próximas listas de este proveedor reconocen el ítem solas.",
+        ),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/^El vínculo se recuerda:/).query()).toBeNull();
+});
+
+test("remembers the link for the next lists of the supplier of a confirmed list", async () => {
+  const screen = await renderModal({ remembersOnConfirm: false });
 
   await expect
     .element(
@@ -422,34 +472,31 @@ test("asks for the product and the packaging without calling the cloud", async (
   expect(services.linkSupplierPriceListRow).not.toHaveBeenCalled();
 });
 
-test("offers no VAT rate when the list's prices include VAT", async () => {
-  const screen = await renderModal({ list: { ...LIST, pricesIncludeVat: true } });
+test("offers no VAT rate when the cloud says the list's links need none", async () => {
+  const screen = await renderModal({ list: { ...LIST, requiresVatRate: false } });
 
   await expect
-    .element(screen.getByRole("dialog").getByRole("heading", { name: nutRow.description }))
+    .element(screen.getByRole("dialog").getByRole("combobox", { name: /^Producto del catálogo/ }))
     .toBeVisible();
   expect(screen.getByText("IVA del ítem").query()).toBeNull();
 });
 
-test.each([false, null])(
-  "offers the VAT rate with 21 %% chosen when the list's prices include VAT: %s",
-  async (pricesIncludeVat) => {
-    const services = createServices();
-    vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
-    const screen = await renderModal({ services, list: { ...LIST, pricesIncludeVat } });
-    const dialog = screen.getByRole("dialog");
+test("offers the VAT rate with 21 % chosen when the cloud says the list's links need one", async () => {
+  const services = createServices();
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ services, list: { ...LIST, requiresVatRate: true } });
+  const dialog = screen.getByRole("dialog");
 
-    await expect.element(dialog.getByText("IVA del ítem")).toBeVisible();
-    await expect.element(dialog.getByRole("radio", { name: "21 %" })).toBeChecked();
-    await linkPasas(screen);
+  await expect.element(dialog.getByText("IVA del ítem")).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "21 %" })).toBeChecked();
+  await linkPasas(screen);
 
-    expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
-      LIST.id,
-      nutRow.id,
-      expect.objectContaining({ vatRate: 2_100 }),
-    );
-  },
-);
+  expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({ vatRate: 2_100 }),
+  );
+});
 
 test("offers the VAT rates the cloud answers, with its default chosen", async () => {
   const services = createServices({
@@ -459,7 +506,7 @@ test("offers the VAT rates the cloud answers, with its default chosen", async ()
     }),
   });
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
-  const screen = await renderModal({ services, list: { ...LIST, pricesIncludeVat: false } });
+  const screen = await renderModal({ services, list: { ...LIST, requiresVatRate: true } });
   const dialog = screen.getByRole("dialog");
 
   await expect.element(dialog.getByRole("radio", { name: "27 %" })).toBeVisible();
@@ -477,7 +524,7 @@ test("offers the VAT rates the cloud answers, with its default chosen", async ()
 test("links with the 10,5 % rate when it is chosen", async () => {
   const services = createServices();
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
-  const screen = await renderModal({ services, list: { ...LIST, pricesIncludeVat: false } });
+  const screen = await renderModal({ services, list: { ...LIST, requiresVatRate: true } });
 
   await chooseRadio(screen, "10,5 %");
   await linkPasas(screen);
@@ -509,7 +556,7 @@ test("starts with the product, packaging and rate an item is already linked with
   const screen = await renderModal({
     services,
     target,
-    list: { ...LIST, pricesIncludeVat: false },
+    list: { ...LIST, requiresVatRate: true },
   });
   const dialog = screen.getByRole("dialog");
 
@@ -541,7 +588,7 @@ test("tells the list changed, and updating it reports it", async () => {
   expect(onOutdated).toHaveBeenCalledTimes(1);
 });
 
-test("tells the packaging can no longer be linked, and reads the choices again", async () => {
+test("tells the product or the packaging can no longer be linked, and reads the choices again", async () => {
   const services = createServices();
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({
     kind: "packaging_not_linkable",
@@ -550,7 +597,10 @@ test("tells the packaging can no longer be linked, and reads the choices again",
 
   const dialog = await linkPasas(screen);
 
-  await expect.element(dialog.getByText("Esta presentación ya no se puede vincular")).toBeVisible();
+  await expect
+    .element(dialog.getByText("El producto o la presentación ya no se pueden vincular"))
+    .toBeVisible();
+  expect(dialog.getByText(/creá una nueva/).query()).toBeNull();
   await expect
     .poll(() => vi.mocked(services.fetchSupplierItemLinkChoices).mock.calls.length)
     .toBeGreaterThan(1);
@@ -741,7 +791,7 @@ test("creates a packaging for the chosen product, reads the choices again and ch
 });
 
 test("has no accessibility violations loaded and with the product's packagings shown", async () => {
-  const screen = await renderModal({ list: { ...LIST, pricesIncludeVat: false } });
+  const screen = await renderModal({ list: { ...LIST, requiresVatRate: true } });
   await expect
     .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem."))
     .toBeVisible();

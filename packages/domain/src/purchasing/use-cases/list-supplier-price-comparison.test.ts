@@ -4,7 +4,7 @@ import { FakeSupplierPriceComparisonReader } from "./test-support/fake-supplier-
 
 const YERBA = {
   id: "product-1",
-  name: "Yerba Taragüi 1 kg",
+  name: "Yerba Piragüé 1 kg",
   categoryName: "Almacén",
   saleUnit: "UNIT" as const,
 };
@@ -20,6 +20,8 @@ function offer(
     pricesIncludeVat: boolean;
     vatRate: number | null;
     listDate: string;
+    packagingActive: boolean;
+    packagingSaleUnit: "UNIT" | "KG";
   }> = {},
 ) {
   return {
@@ -31,6 +33,8 @@ function offer(
     packaging: {
       name: fields.packagingName ?? "Caja x 10",
       quantityPerPackage: fields.quantityPerPackage ?? 10_000,
+      active: fields.packagingActive ?? true,
+      saleUnit: fields.packagingSaleUnit ?? "UNIT",
     },
     priceCents: fields.priceCents ?? 10_000,
     pricesIncludeVat: fields.pricesIncludeVat ?? true,
@@ -97,7 +101,7 @@ describe("listSupplierPriceComparison", () => {
     const reader = new FakeSupplierPriceComparisonReader([{ ...YERBA, saleUnit: "KG" }], []);
 
     expect(await listSupplierPriceComparison(reader)).toEqual([
-      { ...YERBA, saleUnit: "KG", offers: [] },
+      { ...YERBA, saleUnit: "KG", offers: [], unpricedOffers: [] },
     ]);
   });
 
@@ -119,7 +123,7 @@ describe("listSupplierPriceComparison", () => {
     expect(product?.offers[0]?.pricePerSaleUnit).toEqual({ numerator: 1_105n, denominator: 1n });
   });
 
-  it("leaves out an offer whose price excludes VAT with no rate known", async () => {
+  it("answers apart, as missing its VAT rate, an offer whose price excludes VAT with no rate known", async () => {
     const reader = new FakeSupplierPriceComparisonReader(
       [YERBA],
       [
@@ -131,6 +135,65 @@ describe("listSupplierPriceComparison", () => {
     const [product] = await listSupplierPriceComparison(reader);
 
     expect(product?.offers.map((entry) => entry.supplier.id)).toEqual(["b"]);
+    expect(product?.unpricedOffers).toEqual([
+      {
+        supplier: { id: "a", name: "Distribuidora Sur" },
+        packagingName: "Caja x 10",
+        priceCents: 90_000,
+        listDate: "2026-03-01",
+        reason: "vat_rate_missing",
+      },
+    ]);
+  });
+
+  it.each([
+    ["deactivated", { packagingActive: false }],
+    ["measuring a sale unit the product no longer has", { packagingSaleUnit: "KG" as const }],
+  ])(
+    "answers apart, with no price per sale unit, an offer through a packaging %s",
+    async (_name, packaging) => {
+      const reader = new FakeSupplierPriceComparisonReader(
+        [YERBA],
+        [
+          offer({ supplierId: "a", priceCents: 1_000, ...packaging }),
+          offer({ supplierId: "b", priceCents: 20_000 }),
+        ],
+      );
+
+      const [product] = await listSupplierPriceComparison(reader);
+
+      expect(product?.offers.map((entry) => [entry.supplier.id, entry.cheapest])).toEqual([
+        ["b", true],
+      ]);
+      expect(product?.unpricedOffers.map((entry) => [entry.supplier.id, entry.reason])).toEqual([
+        ["a", "packaging_not_buyable"],
+      ]);
+    },
+  );
+
+  it("tells a packaging that may no longer be bought by before a missing VAT rate", async () => {
+    const reader = new FakeSupplierPriceComparisonReader(
+      [YERBA],
+      [offer({ pricesIncludeVat: false, vatRate: null, packagingActive: false })],
+    );
+
+    const [product] = await listSupplierPriceComparison(reader);
+
+    expect(product?.unpricedOffers.map((entry) => entry.reason)).toEqual(["packaging_not_buyable"]);
+  });
+
+  it("keeps the products' offers apart when answering those without a price per sale unit", async () => {
+    const reader = new FakeSupplierPriceComparisonReader(
+      [YERBA, { ...YERBA, id: "product-2", name: "Azúcar" }],
+      [offer({ productId: "product-2", pricesIncludeVat: false, vatRate: null })],
+    );
+
+    const products = await listSupplierPriceComparison(reader);
+
+    expect(products.map((product) => [product.id, product.unpricedOffers.length])).toEqual([
+      ["product-2", 1],
+      ["product-1", 0],
+    ]);
   });
 
   it("includes a product with no offer, with an empty list", async () => {

@@ -5,7 +5,7 @@ const choices = {
   products: [
     {
       id: "p-1",
-      name: "Yerba Taragüi",
+      name: "Yerba Piragüé",
       saleUnit: "UNIT",
       packagings: [{ id: "pk-1", name: "Caja x 10", quantityPerPackage: 10_000 }],
     },

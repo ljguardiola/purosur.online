@@ -172,6 +172,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     description: string;
     priceCents: number | null;
     link?: SupplierItemLink | null;
+    reviewed?: boolean;
   };
 
   function setupRows(rows: SeededRow[]) {
@@ -241,7 +242,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
   describe("a list dated before the item's latest price", () => {
     function setupOlder() {
       const store = setupRows([
-        { code: "Y-1", description: "Yerba vieja", priceCents: 100, link: LINK },
+        { code: "Y-1", description: "Yerba vieja", priceCents: 100, link: LINK, reviewed: true },
       ]);
       const itemId = store.seedSupplierItem({
         description: "Yerba nueva",
@@ -300,8 +301,8 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
 
   it("copies the link of a linked row to its item, replacing the one it had", async () => {
     const store = setupRows([
-      { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK },
-      { code: "Z-1", description: "Azúcar", priceCents: 100, link: LINK },
+      { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK, reviewed: true },
+      { code: "Z-1", description: "Azúcar", priceCents: 100, link: LINK, reviewed: true },
     ]);
     store.seedSupplierItem({
       description: "Yerba",
@@ -312,6 +313,59 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     await confirmSupplierPriceList(store, input);
 
     expect(store.snapshot().items.map((item) => item.link)).toEqual([LINK, LINK]);
+  });
+
+  it("leaves the item's link alone when the row only carries the link copied when the list was read", async () => {
+    const relinked = { productId: "product-2", packagingId: "packaging-2", vatRate: 1050 };
+    const store = setupRows([
+      { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK, reviewed: false },
+    ]);
+    store.seedSupplierItem({
+      description: "Yerba",
+      key: { kind: "code", value: "Y-1" },
+      link: relinked,
+    });
+
+    await confirmSupplierPriceList(store, input);
+
+    expect(store.snapshot().items[0]?.link).toEqual(relinked);
+  });
+
+  it("takes the link of the last row a person linked over a later row's copied link", async () => {
+    const copied = { productId: "product-2", packagingId: "packaging-2", vatRate: 1050 };
+    const store = setupRows([
+      { code: "Y-1", description: "A", priceCents: 100, link: LINK, reviewed: true },
+      { code: "Y-1", description: "B", priceCents: 200, link: copied, reviewed: false },
+    ]);
+
+    await confirmSupplierPriceList(store, input);
+
+    expect(store.snapshot().items[0]?.link).toEqual(LINK);
+  });
+
+  it("keeps the VAT rate the item remembers when the row was linked in a list that includes VAT", async () => {
+    const store = setupRows([
+      {
+        code: "Y-1",
+        description: "Yerba",
+        priceCents: 100,
+        link: { productId: "product-2", packagingId: "packaging-2", vatRate: null },
+        reviewed: true,
+      },
+    ]);
+    store.seedSupplierItem({
+      description: "Yerba",
+      key: { kind: "code", value: "Y-1" },
+      link: { productId: "product-1", packagingId: "packaging-1", vatRate: 1050 },
+    });
+
+    await confirmSupplierPriceList(store, input);
+
+    expect(store.snapshot().items[0]?.link).toEqual({
+      productId: "product-2",
+      packagingId: "packaging-2",
+      vatRate: 1050,
+    });
   });
 
   it("never erases the link an item already has when its row has none", async () => {
@@ -365,10 +419,10 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
       expect(state.itemPrices.map((entry) => entry.priceCents)).toEqual([150]);
     });
 
-    it("keeps the link of the last linked row when the last row has none", async () => {
+    it("keeps the link of the last linked row when the last row, though reviewed, has none", async () => {
       const store = setupRows([
-        { code: "Y-1", description: "A", priceCents: 100, link: LINK },
-        { code: "Y-1", description: "B", priceCents: 200, link: null },
+        { code: "Y-1", description: "A", priceCents: 100, link: LINK, reviewed: true },
+        { code: "Y-1", description: "B", priceCents: 200, link: null, reviewed: true },
       ]);
 
       await confirmSupplierPriceList(store, input);
@@ -379,8 +433,8 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     it("takes the link of the last row when several are linked", async () => {
       const other = { productId: "product-2", packagingId: "packaging-2", vatRate: null };
       const store = setupRows([
-        { code: "Y-1", description: "A", priceCents: 100, link: LINK },
-        { code: "Y-1", description: "B", priceCents: 200, link: other },
+        { code: "Y-1", description: "A", priceCents: 100, link: LINK, reviewed: true },
+        { code: "Y-1", description: "B", priceCents: 200, link: other, reviewed: true },
       ]);
 
       await confirmSupplierPriceList(store, input);
@@ -467,8 +521,8 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     "confirmList",
   ] as const)("leaves the list unconfirmed and nothing remembered when %s fails", async (write) => {
     const store = setupRows([
-      { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK },
-      { code: "Z-1", description: "Azúcar", priceCents: 100, link: LINK },
+      { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK, reviewed: true },
+      { code: "Z-1", description: "Azúcar", priceCents: 100, link: LINK, reviewed: true },
     ]);
     store.seedSupplierItem({ description: "Yerba", key: { kind: "code", value: "Y-1" } });
     store.failingWrites.add(write);

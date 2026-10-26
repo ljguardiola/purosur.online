@@ -280,9 +280,30 @@ describe("what a review says about the link and the earlier price of each row", 
 
     expect(review?.rows[0]?.link).toEqual({
       product: { id: productId, name: "Yerba 1 kg", saleUnit: "UNIT" },
-      packaging: { id: packagingId, name: "Caja x 10", quantityPerPackage: 10_000 },
+      packaging: {
+        id: packagingId,
+        name: "Caja x 10",
+        quantityPerPackage: 10_000,
+        active: true,
+        saleUnit: "UNIT",
+      },
       vatRate: 1_050,
     });
+  });
+
+  it("tells whether the linked packaging is active and the sale unit it holds", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
+    const packagingId = await insertPackaging(db, {
+      productId,
+      actorId,
+      saleUnit: "UNIT",
+      active: false,
+    });
+    const { listId } = await extractedList([{ productId, packagingId }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.link?.packaging).toMatchObject({ active: false, saleUnit: "UNIT" });
   });
 
   it("gives a row the description and price the supplier's other lists last recorded for its code", async () => {
@@ -369,6 +390,80 @@ describe("what a review says about the link and the earlier price of each row", 
     const review = await reader().review(listId);
 
     expect(review?.rows[0]?.earlier?.priceCents).toBe(300);
+  });
+
+  it("takes, for a dated list, the latest price of a list dated before it and never one dated after", async () => {
+    const itemId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    for (const price of [
+      { listDate: "2026-01-15", priceCents: 100 },
+      { listDate: "2026-02-01", priceCents: 200 },
+      { listDate: "2026-04-01", priceCents: 900 },
+    ]) {
+      await insertSupplierItemPrice(db, { itemId, listId: await confirmedList(), ...price });
+    }
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+    });
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier?.priceCents).toBe(200);
+  });
+
+  it("takes, among prices of the list's own date, only one confirmed before the list", async () => {
+    const itemId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    for (const price of [
+      { listDate: "2026-02-01", confirmedAt: "2026-02-02T10:00:00Z", priceCents: 100 },
+      { listDate: "2026-03-01", confirmedAt: "2026-03-02T09:00:00Z", priceCents: 200 },
+      { listDate: "2026-03-01", confirmedAt: "2026-03-02T11:00:00Z", priceCents: 300 },
+    ]) {
+      await insertSupplierItemPrice(db, {
+        itemId,
+        listId: await confirmedList(),
+        priceCents: price.priceCents,
+        listDate: price.listDate,
+        confirmedAt: new Date(price.confirmedAt),
+      });
+    }
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "REVIEWED",
+      listDate: "2026-03-01",
+      confirmedAt: new Date("2026-03-02T10:00:00Z"),
+    });
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier?.priceCents).toBe(200);
+  });
+
+  it("gives no earlier price when every other list is dated after the list", async () => {
+    const itemId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    await insertSupplierItemPrice(db, {
+      itemId,
+      listId: await confirmedList(),
+      listDate: "2026-04-01",
+    });
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+    });
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier).toBeNull();
   });
 
   it("leaves out the price the list itself recorded", async () => {

@@ -7,13 +7,13 @@ const product = (id: string, name: string) => ({ id, name });
 describe("productLinkCandidates", () => {
   it("proposes the products whose name words appear in the text", () => {
     const products = [
-      product("1", "Yerba Taragüi"),
-      product("2", "Azúcar Ledesma"),
-      product("3", "Fideos Matarazzo"),
+      product("1", "Yerba Piragüé"),
+      product("2", "Azúcar Cañaral"),
+      product("3", "Fideos Montefino"),
     ];
 
-    expect(productLinkCandidates(products, "YERBA MATE TARAGUI 1 KG")).toEqual([
-      product("1", "Yerba Taragüi"),
+    expect(productLinkCandidates(products, "YERBA MATE PIRAGUE 1 KG")).toEqual([
+      product("1", "Yerba Piragüé"),
     ]);
   });
 
@@ -24,12 +24,12 @@ describe("productLinkCandidates", () => {
   it("puts the product with more words in common first", () => {
     const products = [
       product("1", "Yerba"),
-      product("2", "Yerba Taragüi Suave"),
-      product("3", "Yerba Taragüi"),
+      product("2", "Yerba Piragüé Suave"),
+      product("3", "Yerba Piragüé"),
     ];
 
     expect(
-      productLinkCandidates(products, "yerba taragui suave 500 g").map(({ id }) => id),
+      productLinkCandidates(products, "yerba pirague suave 500 g").map(({ id }) => id),
     ).toEqual(["2", "3", "1"]);
   });
 
@@ -110,10 +110,10 @@ describe("productLinkCandidates", () => {
   });
 
   it("caps the answer at the limit given, keeping the best ones", () => {
-    const products = [product("1", "Yerba"), product("2", "Yerba Taragüi")];
+    const products = [product("1", "Yerba"), product("2", "Yerba Piragüé")];
 
-    expect(productLinkCandidates(products, "yerba taragui", 1)).toEqual([
-      product("2", "Yerba Taragüi"),
+    expect(productLinkCandidates(products, "yerba pirague", 1)).toEqual([
+      product("2", "Yerba Piragüé"),
     ]);
   });
 

@@ -4,13 +4,17 @@ import {
   cheapestOffer,
   compareFractions,
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
+  isEarlierPrice,
   isSupplierItemVatRate,
+  keepingRememberedVatRate,
   lastRowOfEachItem,
+  latestEarlierPrice,
   needsReview,
   normalizeSupplierItemDescription,
   pricePerSaleUnit,
   requiresVatRate,
   SUPPLIER_ITEM_VAT_RATES,
+  SUPPLIER_OFFER_UNPRICED_REASONS,
   SUPPLIER_PRICE_LIST_ROW_STATUSES,
   sameSupplierItemKey,
   supersedesCurrentPrice,
@@ -20,8 +24,8 @@ import {
 
 describe("normalizeSupplierItemDescription", () => {
   it("lowers the case, removes accents and collapses spaces", () => {
-    expect(normalizeSupplierItemDescription("  AZÚCAR   Ledesma\t1 Kg \n")).toBe(
-      "azucar ledesma 1 kg",
+    expect(normalizeSupplierItemDescription("  AZÚCAR   Cañaral\t1 Kg \n")).toBe(
+      "azucar canaral 1 kg",
     );
   });
 
@@ -449,5 +453,147 @@ describe("supersedesCurrentPrice", () => {
 
   it("is false for a list dated before the item's latest price", () => {
     expect(supersedesCurrentPrice("2026-02-28", "2026-03-01")).toBe(false);
+  });
+});
+
+describe("isEarlierPrice", () => {
+  const list = { listDate: "2026-03-01", confirmedAt: new Date("2026-03-02T10:00:00Z") };
+
+  it("is true for a price of a list dated before", () => {
+    expect(
+      isEarlierPrice(
+        { listDate: "2026-02-28", confirmedAt: new Date("2026-03-05T10:00:00Z") },
+        list,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for a price of a list dated after", () => {
+    expect(
+      isEarlierPrice(
+        { listDate: "2026-03-02", confirmedAt: new Date("2026-03-01T10:00:00Z") },
+        list,
+      ),
+    ).toBe(false);
+  });
+
+  it("is true for a price of a list dated the same day and confirmed before", () => {
+    expect(
+      isEarlierPrice(
+        { listDate: "2026-03-01", confirmedAt: new Date("2026-03-02T09:59:59Z") },
+        list,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for a price of a list dated the same day and confirmed at the same instant or after", () => {
+    expect(isEarlierPrice({ ...list }, list)).toBe(false);
+    expect(
+      isEarlierPrice(
+        { listDate: "2026-03-01", confirmedAt: new Date("2026-03-02T10:00:01Z") },
+        list,
+      ),
+    ).toBe(false);
+  });
+
+  it("is true for a price of a list dated the same day as a list not yet confirmed", () => {
+    expect(
+      isEarlierPrice(
+        { listDate: "2026-03-01", confirmedAt: new Date("2026-03-09T10:00:00Z") },
+        { listDate: "2026-03-01", confirmedAt: null },
+      ),
+    ).toBe(true);
+  });
+
+  it("is true for any price when the list has no date yet", () => {
+    expect(
+      isEarlierPrice(
+        { listDate: "2026-12-31", confirmedAt: new Date("2026-12-31T10:00:00Z") },
+        { listDate: null, confirmedAt: null },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("latestEarlierPrice", () => {
+  const price = (listId: string, listDate: string, confirmedAt: string) => ({
+    listId,
+    listDate,
+    confirmedAt: new Date(confirmedAt),
+  });
+  const PRICES = [
+    price("january", "2026-01-10", "2026-01-11T10:00:00Z"),
+    price("april", "2026-04-01", "2026-04-02T10:00:00Z"),
+    price("february-late", "2026-02-01", "2026-02-03T10:00:00Z"),
+    price("february-early", "2026-02-01", "2026-02-02T10:00:00Z"),
+  ];
+
+  it("answers the latest price dated before the list, never one dated after it", () => {
+    expect(latestEarlierPrice(PRICES, { listDate: "2026-03-01", confirmedAt: null })?.listId).toBe(
+      "february-late",
+    );
+  });
+
+  it("answers, among prices of the list's own date, the one confirmed before it", () => {
+    expect(
+      latestEarlierPrice(PRICES, {
+        listDate: "2026-02-01",
+        confirmedAt: new Date("2026-02-02T12:00:00Z"),
+      })?.listId,
+    ).toBe("february-early");
+  });
+
+  it("answers the latest price of all for a list with no date yet", () => {
+    expect(latestEarlierPrice(PRICES, { listDate: null, confirmedAt: null })?.listId).toBe("april");
+  });
+
+  it("answers nothing when every price is later than the list", () => {
+    expect(
+      latestEarlierPrice(PRICES, { listDate: "2026-01-01", confirmedAt: null }),
+    ).toBeUndefined();
+  });
+
+  it("answers the first of two prices of the same date and instant", () => {
+    const twins = [
+      price("first", "2026-02-01", "2026-02-02T10:00:00Z"),
+      price("second", "2026-02-01", "2026-02-02T10:00:00Z"),
+    ];
+
+    expect(latestEarlierPrice(twins, { listDate: null, confirmedAt: null })?.listId).toBe("first");
+  });
+});
+
+describe("keepingRememberedVatRate", () => {
+  const LINK = { productId: "product-2", packagingId: "packaging-2" };
+
+  it("keeps the rate the item remembers for a link made with no rate", () => {
+    expect(keepingRememberedVatRate({ ...LINK, vatRate: null }, { vatRate: 1050 })).toEqual({
+      ...LINK,
+      vatRate: 1050,
+    });
+  });
+
+  it("takes the rate the link was made with over the remembered one", () => {
+    expect(keepingRememberedVatRate({ ...LINK, vatRate: 2100 }, { vatRate: 1050 })).toEqual({
+      ...LINK,
+      vatRate: 2100,
+    });
+  });
+
+  it("leaves a link with no rate as it is when the item remembers none", () => {
+    expect(keepingRememberedVatRate({ ...LINK, vatRate: null }, null)).toEqual({
+      ...LINK,
+      vatRate: null,
+    });
+    expect(keepingRememberedVatRate({ ...LINK, vatRate: null }, { vatRate: null })).toEqual({
+      ...LINK,
+      vatRate: null,
+    });
+  });
+});
+
+describe("SUPPLIER_OFFER_UNPRICED_REASONS", () => {
+  it("names why an offer has no price per sale unit", () => {
+    expect(SUPPLIER_OFFER_UNPRICED_REASONS).toEqual(["vat_rate_missing", "packaging_not_buyable"]);
   });
 });

@@ -32,8 +32,8 @@ const filled = {
 };
 
 describe("supplierItemLinkRequestFrom", () => {
-  it("sends the chosen VAT rate in basis points when the list's prices exclude VAT", () => {
-    expect(supplierItemLinkRequestFrom({ ...filled, vatRate: "1050" }, false)).toEqual({
+  it("sends the chosen VAT rate in basis points when the cloud says the link needs one", () => {
+    expect(supplierItemLinkRequestFrom({ ...filled, vatRate: "1050" }, true)).toEqual({
       version: 3,
       productId: PASAS_ID,
       packagingId: CAJA_DE_PASAS.id,
@@ -41,22 +41,18 @@ describe("supplierItemLinkRequestFrom", () => {
     });
   });
 
-  it("sends the chosen rate when the list does not say whether its prices include VAT", () => {
-    expect(supplierItemLinkRequestFrom(filled, null).vatRate).toBe(2_100);
-  });
-
-  it("sends a rate the shape refuses when none is chosen for a list excluding VAT", () => {
-    const request = supplierItemLinkRequestFrom({ ...filled, vatRate: "" }, false);
+  it("sends a rate the shape refuses when none is chosen for a link that needs one", () => {
+    const request = supplierItemLinkRequestFrom({ ...filled, vatRate: "" }, true);
 
     expect(supplierPriceListRowLinkBodySchema.safeParse(request).success).toBe(false);
   });
 
-  it("sends no rate when the list's prices already include VAT", () => {
-    expect(supplierItemLinkRequestFrom({ ...filled, vatRate: "1050" }, true).vatRate).toBeNull();
+  it("sends no rate when the cloud says the link needs none", () => {
+    expect(supplierItemLinkRequestFrom({ ...filled, vatRate: "1050" }, false).vatRate).toBeNull();
   });
 
   it("sends an empty id for what is not chosen, so the shape refuses it", () => {
-    const request = supplierItemLinkRequestFrom(EMPTY_SUPPLIER_ITEM_LINK_FORM, true);
+    const request = supplierItemLinkRequestFrom(EMPTY_SUPPLIER_ITEM_LINK_FORM, false);
 
     expect(supplierPriceListRowLinkBodySchema.safeParse(request).success).toBe(false);
     expect(request).toMatchObject({ productId: "", packagingId: "" });
@@ -64,7 +60,7 @@ describe("supplierItemLinkRequestFrom", () => {
 
   it("builds a request the shape accepts", () => {
     expect(
-      supplierPriceListRowLinkBodySchema.safeParse(supplierItemLinkRequestFrom(filled, false))
+      supplierPriceListRowLinkBodySchema.safeParse(supplierItemLinkRequestFrom(filled, true))
         .success,
     ).toBe(true);
   });
@@ -114,6 +110,10 @@ describe("supplierItemLinkFormValuesOf", () => {
 });
 
 describe("vatRateOptionsOf", () => {
+  it("offers no options when the cloud offers no rate", () => {
+    expect(vatRateOptionsOf({ offered: [], default: 2100 })).toBeUndefined();
+  });
+
   it("offers each rate the cloud offers, in its order, labelled as a percentage", () => {
     expect(vatRateOptionsOf({ offered: [2700, 1050], default: 1050 })).toEqual([
       { value: "2700", label: "27 %" },

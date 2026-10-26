@@ -126,6 +126,57 @@ describe("GET /supplier-price-comparison", () => {
       headers,
     });
 
-    expect(response.json().products).toMatchObject([{ name: "Harina", offers: [] }]);
+    expect(response.json().products).toMatchObject([
+      { name: "Harina", offers: [], unpricedOffers: [] },
+    ]);
+  });
+
+  it("answers apart, with the reason, an offer with no price per sale unit", async () => {
+    const { headers } = await signedInWith(db, ["compare_prices_and_suggest_orders"], NOW);
+    const actorId = await insertActor(db);
+    const locationId = await seededLocationId(db);
+    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
+    const packagingId = await insertPackaging(db, { productId, actorId, name: "Caja x 10" });
+    const itemId = await insertSupplierItem(db, { supplierId, productId, packagingId });
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "REVIEWED",
+    });
+    await insertSupplierItemPrice(db, {
+      itemId,
+      listId,
+      priceCents: 9_000,
+      pricesIncludeVat: false,
+      listDate: "2026-03-01",
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/supplier-price-comparison",
+      headers,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().products).toEqual([
+      {
+        id: productId,
+        name: "Yerba 1 kg",
+        categoryName: expect.any(String),
+        saleUnit: "UNIT",
+        offers: [],
+        unpricedOffers: [
+          {
+            supplier: { id: supplierId, name: "Alfa" },
+            packagingName: "Caja x 10",
+            priceCents: 9_000,
+            listDate: "2026-03-01",
+            reason: "vat_rate_missing",
+          },
+        ],
+      },
+    ]);
   });
 });

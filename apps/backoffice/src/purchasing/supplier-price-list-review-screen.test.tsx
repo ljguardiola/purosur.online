@@ -315,6 +315,7 @@ test("offers the item actions the cloud allows, even on a reviewed list", async 
       confirm: false,
       discard: false,
       linkRows: false,
+      markRowsReviewed: false,
     }),
   );
 
@@ -592,6 +593,22 @@ test("shows the product and presentation an item is linked to, or that it is not
     .toBeVisible();
 });
 
+test("says only once that an item seen in another list is not linked", async () => {
+  const unlinked = {
+    ...itemRow(7),
+    description: "Maní tostado x 5 kg",
+    status: "unlinked" as const,
+  };
+  const screen = await loaded(
+    createServices(),
+    reviewOf(READ_LIST, [unlinked], EVERY_REVIEW_ACTION),
+  );
+
+  const row = screen.getByRole("row", { name: /Maní tostado/ });
+  await expect.element(row.getByText("Visto en otra lista")).toBeVisible();
+  expect(row.getByText("Sin vincular").elements()).toHaveLength(1);
+});
+
 test("shows each item's status, and the earlier price of one whose price changed", async () => {
   const screen = await loaded(createServices(), withEveryKindOfRow, {
     filters: supplierPriceListReviewFilters.parse({ show: "all" }),
@@ -677,6 +694,53 @@ test("opens the link modal for the item, with the proposal and the choices read 
   );
 });
 
+async function linkPasasInTheOpenModal(screen: Screen) {
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("combobox", { name: /Producto del catálogo/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Pasas de uva" }));
+  const radio = dialog.getByRole("radio", { name: "Caja de 10 kg" });
+  await expect.element(radio).toBeVisible();
+  radio.element().closest("label")?.click();
+  await userEvent.click(dialog.getByRole("button", { name: "Vincular" }));
+}
+
+test.each([
+  [
+    "a list waiting for confirmation",
+    READ_LIST,
+    EVERY_REVIEW_ACTION,
+    "Se recuerda para las próximas listas al confirmar esta.",
+    "Al confirmar la lista, el vínculo se recuerda y las próximas listas de este proveedor reconocen el ítem solas.",
+  ],
+  [
+    "a confirmed list",
+    REVIEWED_LIST,
+    { changeRows: false, confirm: false, discard: false, linkRows: true, markRowsReviewed: false },
+    "Las próximas listas del proveedor lo reconocen solas.",
+    "El vínculo se recuerda: en las próximas listas de este proveedor el ítem se reconoce solo.",
+  ],
+] as const)(
+  "says when the link of an item of %s is remembered",
+  async (_name, list, actions, notice, modalText) => {
+    const services = createServices();
+    vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
+      kind: "ok",
+      value: LINK_CHOICES,
+    });
+    vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
+    const screen = await loaded(services, reviewOf(list, EXTRACTED_ROWS, actions));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
+    );
+    await expect.element(screen.getByRole("dialog").getByText(modalText)).toBeVisible();
+    await linkPasasInTheOpenModal(screen);
+
+    await expect.element(screen.getByText("Ítem vinculado")).toBeVisible();
+    await expect.element(screen.getByText(notice)).toBeVisible();
+  },
+);
+
 test("does not read the proposal or the choices until a link modal opens", async () => {
   const services = createServices();
   await loaded(services, extracted);
@@ -692,6 +756,23 @@ test("offers no link action when the cloud does not allow linking", async () => 
   );
 
   expect(screen.getByRole("button", { name: /^Vincular / }).query()).toBeNull();
+});
+
+test("offers to mark an item as reviewed only when the cloud allows it, even where linking is allowed", async () => {
+  const screen = await loaded(
+    createServices(),
+    reviewOf(REVIEWED_LIST, EXTRACTED_ROWS, {
+      changeRows: false,
+      confirm: false,
+      discard: false,
+      linkRows: true,
+      markRowsReviewed: false,
+    }),
+  );
+
+  await expect
+    .element(screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }))
+    .toBeVisible();
   expect(screen.getByRole("button", { name: /^Marcar como revisado/ }).query()).toBeNull();
 });
 

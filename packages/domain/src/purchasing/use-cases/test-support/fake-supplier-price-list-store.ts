@@ -299,6 +299,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
         code: row.code,
         priceCents: row.priceCents,
         link: cloneLink(row.link),
+        reviewed: row.reviewed,
       }));
   }
 

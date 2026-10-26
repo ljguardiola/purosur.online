@@ -516,7 +516,7 @@ describe("closing the review", () => {
 });
 
 describe("the rows of a list", () => {
-  it("lists them in the order the reading found them with their price and the link they carry", async () => {
+  it("lists them in the order the reading found them with their price, the link they carry and whether a person reviewed them", async () => {
     const listId = await insertPriceList(db, { supplierId, locationId, actorId });
     const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const packagingId = await insertPackaging(db, { productId, actorId });
@@ -528,6 +528,7 @@ describe("the rows of a list", () => {
         productId,
         packagingId,
         vatRate: 2_100,
+        reviewed: true,
       },
       { description: "Azúcar 1 kg", priceCents: null },
     ]);
@@ -541,8 +542,16 @@ describe("the rows of a list", () => {
         code: "Y-01",
         priceCents: 900,
         link: { productId, packagingId, vatRate: 2_100 },
+        reviewed: true,
       },
-      { id: secondId, description: "Azúcar 1 kg", code: null, priceCents: null, link: null },
+      {
+        id: secondId,
+        description: "Azúcar 1 kg",
+        code: null,
+        priceCents: null,
+        link: null,
+        reviewed: false,
+      },
     ]);
   });
 

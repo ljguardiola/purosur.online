@@ -140,6 +140,70 @@ test("shows a product with no offers as having no price in any loaded list", asy
   await expect.element(cookies.getByText("Sin precio en ninguna lista cargada")).toBeVisible();
 });
 
+const [almonds] = PRICE_COMPARISON.products as [SupplierPriceComparison["products"][number]];
+
+test.each([
+  ["missing its VAT rate", "vat_rate_missing", "Falta el IVA del ítem"],
+  [
+    "through a packaging no longer bought by",
+    "packaging_not_buyable",
+    "Ya no se compra en esta presentación",
+  ],
+] as const)(
+  "shows an offer %s after the compared ones, with its price and why it has no price per sale unit",
+  async (_name, reason, text) => {
+    const screen = await loaded(createServices(), {
+      products: [
+        {
+          ...almonds,
+          unpricedOffers: [
+            {
+              supplier: { id: "5a900000-0000-4000-8000-000000000009", name: "Mayorista Norte" },
+              packagingName: "Bolsa 10 kg",
+              priceCents: 9_900_000,
+              listDate: "2026-08-15",
+              reason,
+            },
+          ],
+        },
+      ],
+    });
+
+    await expect.poll(() => offerRows(screen)).toHaveLength(3);
+    const unpriced = screen.getByRole("row", { name: /Mayorista Norte/ });
+    await expect.element(unpriced.getByText("Bolsa 10 kg · $ 99.000,00")).toBeVisible();
+    await expect.element(unpriced.getByText(text)).toBeVisible();
+    await expect.element(unpriced.getByText("15/08/2026")).toBeVisible();
+    expect(unpriced.getByText("El más barato").query()).toBeNull();
+    expect(offerRows(screen).at(-1)?.element().textContent).toContain("Mayorista Norte");
+  },
+);
+
+test("does not say a product priced only by an offer without a price per sale unit has no price", async () => {
+  const screen = await loaded(createServices(), {
+    products: [
+      {
+        ...almonds,
+        offers: [],
+        unpricedOffers: [
+          {
+            supplier: { id: "5a900000-0000-4000-8000-000000000009", name: "Mayorista Norte" },
+            packagingName: "Bolsa 10 kg",
+            priceCents: 9_900_000,
+            listDate: "2026-08-15",
+            reason: "vat_rate_missing",
+          },
+        ],
+      },
+    ],
+  });
+
+  const row = screen.getByRole("row", { name: /Mayorista Norte/ });
+  await expect.element(row.getByText("Almendras peladas")).toBeVisible();
+  await expect.element(row.getByText("Falta el IVA del ítem")).toBeVisible();
+  expect(screen.getByText("Sin precio en ninguna lista cargada").query()).toBeNull();
+});
+
 test("counts the products shown", async () => {
   const screen = await loaded(createServices());
 
@@ -147,7 +211,6 @@ test("counts the products shown", async () => {
 });
 
 test("counts a single product in the singular", async () => {
-  const [almonds] = PRICE_COMPARISON.products as [SupplierPriceComparison["products"][number]];
   const screen = await loaded(createServices(), { products: [almonds] });
 
   await expect.element(screen.getByText("1 producto", { exact: true })).toBeVisible();
@@ -195,12 +258,30 @@ test("opens on the filters the URL carries", async () => {
   await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue("galle");
 });
 
-test("shows every product when the URL names a category the list does not offer", async () => {
+test("shows every product when the URL names a category the list does not offer, and reports Todas", async () => {
+  const onFiltersChange = vi.fn();
   const screen = await loaded(createServices(), PRICE_COMPARISON, {
     filters: supplierPriceComparisonFilters.parse({ category: "Bebidas" }),
+    onFiltersChange,
   });
 
   await expect.poll(() => offerRows(screen)).toHaveLength(4);
+  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({ search: "", category: "" });
+});
+
+test("keeps the category of the URL while the comparison loads", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSupplierPriceComparison).mockReturnValue(new Promise(() => {}));
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, {
+    filters: supplierPriceComparisonFilters.parse({ category: "Almacén" }),
+    onFiltersChange,
+  });
+
+  await expect
+    .element(screen.getByRole("table", { name: "Comparación de precios" }))
+    .toHaveAttribute("aria-busy", "true");
+  expect(onFiltersChange).not.toHaveBeenCalled();
 });
 
 test("says there is nothing to compare yet when no product is linked", async () => {
