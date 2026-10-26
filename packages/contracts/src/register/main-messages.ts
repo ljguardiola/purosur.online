@@ -118,7 +118,9 @@ export type CoreStartupStep =
   | "set_aside_stale_database"
   | "adopt_staged_snapshot"
   | "check_local_database"
-  | "apply_migrations";
+  | "apply_migrations"
+  | "check_free_disk_space"
+  | "settle_interrupted_authorizations";
 
 export interface CoreStartupStepMessage {
   type: "core-startup-step";

@@ -6,8 +6,6 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import {
   type CoreReadyMessage,
-  type CoreStartupStep,
-  type CoreStartupStepMessage,
   mainToCoreMessageSchema,
   type QuitRegisterMessage,
 } from "@purosur/contracts";
@@ -89,6 +87,7 @@ import {
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
 import { coreFailureReporters } from "./register/core-failure-reporters";
+import { prepareLocalDataFolder, startupStepReporter } from "./register/core-startup-steps";
 import { createDeviceTokenRotation } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import {
@@ -299,12 +298,7 @@ const restoreAttempts = createRestoreAttempts({
     ),
 });
 
-function reportStartupStep(step: CoreStartupStep): void {
-  process.parentPort.postMessage({
-    type: "core-startup-step",
-    step,
-  } satisfies CoreStartupStepMessage);
-}
+const reportStartupStep = startupStepReporter((message) => process.parentPort.postMessage(message));
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
@@ -338,21 +332,22 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
 }
 
 if (localDataFolder !== undefined) {
-  reportStartupStep("set_aside_stale_database");
-  await setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now })
-    .then(() => {
-      reportStartupStep("adopt_staged_snapshot");
-      return adoptStagedSnapshot({
+  await prepareLocalDataFolder({
+    setAsideStaleDatabase: () =>
+      setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now }),
+    adoptStagedSnapshot: () =>
+      adoptStagedSnapshot({
         folder: localDataFolder,
         pending: restorePending,
         migrations: LOCAL_MIGRATIONS,
         now,
-      });
-    })
-    .catch((error: unknown) => {
+      }),
+    reportStep: reportStartupStep,
+    onFailure: (error) => {
       console.error("core: the restored snapshot could not be adopted", error);
       Sentry.captureException(error);
-    });
+    },
+  });
 }
 
 const startedLocalDatabase = await startLocalDatabaseFile();
@@ -455,6 +450,7 @@ const storageWatch =
         onStartupFailure: (error) =>
           reportFailure("checking the free disk space at startup", error),
       });
+reportStartupStep("check_free_disk_space");
 await storageWatch?.checkAtStartup();
 
 const systelScale = createSystelScale({
@@ -804,6 +800,7 @@ const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
   ticketedSettlement,
 });
 
+reportStartupStep("settle_interrupted_authorizations");
 const startupRecovery = recoverAtStartup({
   settleInterruptedAuthorizations: () =>
     settleInterruptedAuthorizations({

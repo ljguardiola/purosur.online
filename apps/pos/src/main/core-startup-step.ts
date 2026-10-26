@@ -5,6 +5,8 @@ const KNOWN_STEPS: Record<CoreStartupStep, true> = {
   adopt_staged_snapshot: true,
   check_local_database: true,
   apply_migrations: true,
+  check_free_disk_space: true,
+  settle_interrupted_authorizations: true,
 };
 
 function isKnownStep(step: string): step is CoreStartupStep {
