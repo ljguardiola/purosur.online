@@ -27,6 +27,8 @@ describe("offsetAt", () => {
 
   it("is the fixed UTC-3 for every instant under the rules a register applies before its first delivery", () => {
     expect(FIXED_ARGENTINA_ZONE_RULES.version).toBeNull();
+    expect(FIXED_ARGENTINA_ZONE_RULES.transitions).toHaveLength(1);
+    expect(FIXED_ARGENTINA_ZONE_RULES.transitions[0]?.from.getTime()).toBe(-8.64e15);
     expect(offsetAt(FIXED_ARGENTINA_ZONE_RULES, new Date(-8.64e15))).toBe(-180);
     expect(offsetAt(FIXED_ARGENTINA_ZONE_RULES, new Date("2026-10-26T12:00:00Z"))).toBe(-180);
     expect(offsetAt(FIXED_ARGENTINA_ZONE_RULES, new Date(8.64e15))).toBe(-180);
