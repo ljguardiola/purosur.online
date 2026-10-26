@@ -13,6 +13,7 @@ import type {
   CashSessionClosedFact,
   CashSessionOpenedFact,
 } from "../../register/index.js";
+import type { ReturnedSale } from "../../returns/index.js";
 import {
   type CancelledSale,
   type CompletedSale,
@@ -28,6 +29,7 @@ export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
   | { kind: "sale_cancelled"; sale: CancelledSale }
   | { kind: "sale_voided"; sale: VoidedSale; creditNote: SaleVoidCreditNote | null }
+  | { kind: "sale_returned"; saleReturn: ReturnedSale }
   | { kind: "sale_print_state_changed"; printState: SalePrintState }
   | { kind: "reprint_recorded"; reprint: SaleReprint }
   | { kind: "cash_session_opened"; session: CashSessionOpenedFact }
@@ -64,6 +66,12 @@ export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
     fact.kind === "sale_voided"
   ) {
     return [{ aggregateType: "CashSession", aggregateId: fact.sale.sessionId }];
+  }
+  if (fact.kind === "sale_returned") {
+    return [
+      { aggregateType: "Sale", aggregateId: fact.saleReturn.saleId },
+      { aggregateType: "CashSession", aggregateId: fact.saleReturn.sessionId },
+    ];
   }
   if (fact.kind === "opening_count_withdrawn") {
     return [{ aggregateType: "StockMovement", aggregateId: fact.withdrawal.withdrawnMovementId }];
