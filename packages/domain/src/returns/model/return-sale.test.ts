@@ -38,7 +38,7 @@ function sale(
 }
 
 describe("returnSaleLines", () => {
-  it("stands each line at what it sold, charged and promotion, with nothing returned yet", () => {
+  it("stands each line at its product, what it sold, charged and promotion, with nothing returned yet", () => {
     expect(
       returnSaleLines({
         sale: sale([
@@ -50,6 +50,9 @@ describe("returnSaleLines", () => {
     ).toEqual([
       {
         id: "line-1",
+        productId: "yerba",
+        productName: "Yerba 1 kg",
+        saleUnit: "UNIT",
         soldQuantity: 3,
         promotionId: null,
         chargedAmount: 7500,
@@ -58,6 +61,9 @@ describe("returnSaleLines", () => {
       },
       {
         id: "line-2",
+        productId: "yerba",
+        productName: "Yerba 1 kg",
+        saleUnit: "UNIT",
         soldQuantity: 1250,
         promotionId: "ten",
         chargedAmount: 10_000,
