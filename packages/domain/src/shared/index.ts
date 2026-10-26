@@ -3,7 +3,12 @@ export {
   argentinaCalendarDay,
   argentinaInstant,
 } from "./argentina-calendar.js";
-export { isCalendarDay, lastDayOfMonth, shiftCalendarDay } from "./calendar-day.js";
+export {
+  addCalendarMonths,
+  isCalendarDay,
+  lastDayOfMonth,
+  shiftCalendarDay,
+} from "./calendar-day.js";
 export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./cash-amount.js";
 export type { Clock } from "./clock.js";
 export { codePointLength } from "./code-point-length.js";
