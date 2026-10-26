@@ -257,4 +257,62 @@ describe("RestoringScreen", () => {
 
     await expectNoAccessibilityViolations(screen.container);
   });
+
+  it.each([
+    ["in_progress", { kind: "in_progress", step: "recover_contingency_tickets", origin: "copy" }],
+    [
+      "without_connection",
+      { kind: "without_connection", step: "recover_contingency_tickets", origin: "copy" },
+    ],
+  ] as const)("asks to look for an unfiled backup ticket and to scan the tickets in the backoffice while %s at the ticket recovery", async (_kind, standing) => {
+    const screen = await render(<RestoringScreen registerName="Caja 2" standing={standing} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Revisá la impresora y el mostrador")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Buscá un ticket de respaldo que todavía no se haya guardado en la caja del local: el último suele seguir ahí.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("Escaneá los tickets en el backoffice")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText("En Rescate de tickets. La caja sigue sola cuando se termina el rescate."),
+      )
+      .toBeVisible();
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("keeps the hotspot notice beside the ticket recovery notices while there is no connection", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "without_connection", step: "recover_contingency_tickets", origin: "copy" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
+    await expect.element(screen.getByText("Revisá la impresora y el mostrador")).toBeVisible();
+  });
+
+  it("shows no ticket recovery notice at another step", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "in_progress", step: "replenish", origin: "copy" }}
+      />,
+    );
+
+    await expect
+      .element(screen.getByText("Revisá la impresora y el mostrador"))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Escaneá los tickets en el backoffice"))
+      .not.toBeInTheDocument();
+  });
 });
