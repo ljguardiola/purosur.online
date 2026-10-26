@@ -11,7 +11,7 @@ export const RESTORATION_STEPS = [
   "open_session",
 ] as const;
 
-export type RestorationStep = (typeof RESTORATION_STEPS)[number];
+type RestorationStep = (typeof RESTORATION_STEPS)[number];
 
 type DeliveredRestorationStep = Exclude<RestorationStep, "open_session">;
 
