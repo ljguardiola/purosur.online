@@ -1,25 +1,22 @@
+import type { DeferredSaleRegularizationTask } from "../../model/deferred-sale-record.js";
 import type {
-  DeferredSaleRegularizationTask,
-  PendingDeferredSale,
-} from "../../model/deferred-sale-record.js";
-import type {
+  DeferredSaleCandidate,
   DeferredSaleExpiryStore,
   DeferredSaleExpiryTransaction,
 } from "../regularize-expired-deferred-sales-ports.js";
 
 interface ExpiryState {
-  pending: PendingDeferredSale[];
+  pending: DeferredSaleCandidate[];
   tasks: DeferredSaleRegularizationTask[];
 }
 
 export class FakeDeferredSaleExpiryStore implements DeferredSaleExpiryStore {
-  readonly lockedBounds: Date[] = [];
   readonly readSaleIds: string[] = [];
   transactions = 0;
   failOnRecordingFor: string | null = null;
   private state: ExpiryState;
 
-  constructor(pending: readonly PendingDeferredSale[]) {
+  constructor(pending: readonly DeferredSaleCandidate[]) {
     this.state = { pending: structuredClone([...pending]), tasks: [] };
   }
 
@@ -37,13 +34,9 @@ export class FakeDeferredSaleExpiryStore implements DeferredSaleExpiryStore {
     this.transactions += 1;
     const staged = structuredClone(this.state);
     const outcome = await work({
-      lockPendingDeferredSalesOccurredBefore: async (instant) => {
-        this.lockedBounds.push(new Date(instant));
-        const locked = staged.pending.filter(
-          (sale) => sale.occurredAt.getTime() < instant.getTime(),
-        );
-        this.readSaleIds.push(...locked.map((sale) => sale.id));
-        return structuredClone(locked);
+      lockPendingDeferredSales: async () => {
+        this.readSaleIds.push(...staged.pending.map((sale) => sale.id));
+        return structuredClone(staged.pending);
       },
       recordExpiry: async (deferredSaleId, task) => {
         if (this.failOnRecordingFor === deferredSaleId) {
