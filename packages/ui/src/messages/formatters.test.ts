@@ -18,6 +18,7 @@ import {
   formatNumber,
   formatOperationNumber,
   formatPercent,
+  formatShortCode,
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
   formatSignedCents,
@@ -398,5 +399,11 @@ describe("formatPricePerSaleUnit", () => {
 
   it("writes a price per unit with no unit", () => {
     expect(formatPricePerSaleUnit(fraction, "UNIT")).toBe("$ 10.180,00");
+  });
+});
+
+describe("formatShortCode", () => {
+  it("groups the consultation code in two blocks of four characters", () => {
+    expect(formatShortCode("7KQ4M2P9")).toBe("7KQ4-M2P9");
   });
 });

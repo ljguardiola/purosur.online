@@ -65,6 +65,7 @@ function historySale(
       ],
       creditNote: null,
       deferredInvoiceIssued: false,
+      deferredShortCode: null,
       ...overrides,
     },
   };
@@ -109,8 +110,30 @@ describe("readSaleHistoryDetail", () => {
         nextCopy: { kind: "original" },
         creditNoteNextCopy: null,
         deferredInvoiceNextCopy: null,
+        shortCode: null,
       },
     });
+  });
+
+  it("carries the short code recorded for the sale's deferred invoicing", () => {
+    const history = new FakeRegisterSalesHistory([
+      historySale({ deferredShortCode: "7KQ4M2P9" }),
+    ]);
+    const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome.kind === "found" && outcome.detail.shortCode).toBe("7KQ4M2P9");
+    expect(outcome.kind === "found" && "deferredShortCode" in outcome.detail).toBe(false);
+  });
+
+  it("shows no short code for a sale without a deferred record", () => {
+    const history = new FakeRegisterSalesHistory([historySale()]);
+    const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome.kind === "found" && outcome.detail.shortCode).toBeNull();
   });
 
   it("shows the numbered duplicate the next printing would be once the receipt printed", () => {
