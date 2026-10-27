@@ -5,6 +5,7 @@ import {
   type AcceptSaleCreditNoteRequestInput,
   acceptSaleCreditNoteRequest,
 } from "./accept-sale-credit-note-request.js";
+import { VoucherAlreadyCredited } from "./accept-sale-credit-note-request-ports.js";
 import type { CreditNote, CreditNoteStanding } from "./credit-note-ports.js";
 import { FakeAttachedSaleEvents } from "./test-support/fake-attached-sale-events.js";
 import {
@@ -435,6 +436,15 @@ describe("acceptSaleCreditNoteRequest", () => {
       expect(await run()).toEqual({ kind: "voucher_already_credited" });
       expect(store.records).toEqual([]);
       expect(store.alertsRaised).toHaveLength(1);
+    });
+
+    it("refuses, raising the alert, a credit note whose storage finds the invoice credited beyond its total by a request racing it", async () => {
+      const { store, run } = request({ request: returned });
+      store.recordFailure = new VoucherAlreadyCredited();
+
+      expect(await run()).toEqual({ kind: "voucher_already_credited" });
+      expect(store.alertsRaised).toHaveLength(1);
+      expect(store.refusalsKept).toHaveLength(1);
     });
 
     it("does not count a credit note the tax authority rejected", async () => {
