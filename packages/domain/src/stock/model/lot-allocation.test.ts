@@ -25,12 +25,17 @@ function target(lotId: string) {
 }
 
 describe("allocatesToLots", () => {
-  it.each(["sale", "sale_void", "return", "loss", "adjustment", "assembly_out"] as const)(
-    "allocates a %s by the lots rule",
-    (kind) => {
-      expect(allocatesToLots(kind)).toBe(true);
-    },
-  );
+  it.each([
+    "sale",
+    "sale_void",
+    "return",
+    "loss",
+    "adjustment",
+    "assembly_out",
+    "assembly_void",
+  ] as const)("allocates a %s by the lots rule", (kind) => {
+    expect(allocatesToLots(kind)).toBe(true);
+  });
 
   it.each(["count", "receipt", "assembly_in"] as const)("leaves a %s to its own rule", (kind) => {
     expect(allocatesToLots(kind)).toBe(false);
@@ -491,9 +496,9 @@ describe("voidedMovementAllocations", () => {
   });
 
   it("adds what the sale's allocations don't cover to the same lot they give back to", () => {
-    expect(voidedMovementAllocations([lot("only")], [{ lotId: "only", quantity: -2000 }], 3000)).toEqual([
-      { target: target("only"), quantity: 3000 },
-    ]);
+    expect(
+      voidedMovementAllocations([lot("only")], [{ lotId: "only", quantity: -2000 }], 3000),
+    ).toEqual([{ target: target("only"), quantity: 3000 }]);
   });
 
   it("allocates exactly the void's quantity, to each lot at most once", () => {
