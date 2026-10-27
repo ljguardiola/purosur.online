@@ -7,6 +7,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GuardedWebPageReader } from "./guarded-web-page-reader.js";
 import { deferred } from "./test-support/deferred.js";
 import { FakeTimer, FakeWebPageNetwork, text } from "./test-support/fake-web-page-network.js";
+import {
+  FICTIONAL_TIENDISTA_PRODUCT_DATA_URL,
+  FICTIONAL_TIENDISTA_STORE_ADDRESS,
+  fictionalTiendistaProductDataBytes,
+} from "./test-support/fictional-tiendista-store.js";
 
 const PUBLIC_ADDRESS = "93.184.216.34";
 const OTHER_PUBLIC_ADDRESS = "151.101.1.69";
@@ -495,6 +500,155 @@ describe("GuardedWebPageReader", () => {
       });
 
       expect(await reader.read(PAGE)).toEqual({ kind: "refused", reason: "unreachable" });
+    });
+  });
+
+  describe("a Tiendista store", () => {
+    const PRODUCT_DATA_HOST = "datostienda-pc3gz7vuxa-uc.a.run.app";
+    const products = fictionalTiendistaProductDataBytes();
+
+    beforeEach(() => {
+      network.answerLookups(PRODUCT_DATA_HOST, [PUBLIC_ADDRESS]);
+      network.answerLookups("tiendista.com", [PUBLIC_ADDRESS]);
+    });
+
+    it("reads the product data of the store instead of its page", async () => {
+      network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
+        contentType: "application/json",
+        chunks: [products],
+      });
+
+      expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toEqual({
+        kind: "read",
+        contentKind: "STORE_CATALOG",
+        bytes: products,
+      });
+      expect(network.connections.map((connection) => connection.url.href)).toEqual([
+        FICTIONAL_TIENDISTA_PRODUCT_DATA_URL,
+      ]);
+      expect(network.lookups).toEqual([PRODUCT_DATA_HOST]);
+    });
+
+    it("accepts a charset in the content type of the product data", async () => {
+      network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
+        contentType: "Application/JSON; charset=utf-8",
+        chunks: [products],
+      });
+
+      expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toMatchObject({
+        kind: "read",
+        contentKind: "STORE_CATALOG",
+      });
+    });
+
+    it.each(["text/html", "application/pdf", "text/plain", undefined])(
+      "refuses product data answered as %s",
+      async (contentType) => {
+        network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
+          contentType,
+          chunks: [text("%PDF-1.7 <p>x</p>")],
+        });
+
+        expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toEqual({
+          kind: "refused",
+          reason: "unsupported_content",
+        });
+      },
+    );
+
+    it("refuses product data that redirects to an internal address", async () => {
+      network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
+        status: 302,
+        location: "http://169.254.169.254/latest/meta-data",
+      });
+
+      expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toEqual({
+        kind: "refused",
+        reason: "address_not_public",
+      });
+      expect(network.connections).toHaveLength(1);
+    });
+
+    it("refuses product data hosted on an internal address", async () => {
+      network.answerLookups(PRODUCT_DATA_HOST, ["10.0.0.7"]);
+
+      expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toEqual({
+        kind: "refused",
+        reason: "address_not_public",
+      });
+      expect(network.connections).toEqual([]);
+    });
+
+    it("follows a redirect of the product data and reads what it leads to as the catalog", async () => {
+      network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
+        status: 302,
+        location: "https://supplier.example/productos.json",
+      });
+      network.servePage("https://supplier.example/productos.json", {
+        contentType: "application/json",
+        chunks: [products],
+      });
+
+      expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toMatchObject({
+        kind: "read",
+        contentKind: "STORE_CATALOG",
+      });
+    });
+
+    it("refuses product data over the size limit", async () => {
+      network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
+        contentType: "application/json",
+        contentLength: SUPPLIER_PRICE_LIST_WEB_PAGE_MAX_BYTES + 1,
+      });
+
+      expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toEqual({
+        kind: "refused",
+        reason: "too_large",
+      });
+    });
+
+    it("refuses product data whose body grows past the size limit", async () => {
+      network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
+        contentType: "application/json",
+        chunks: [new Uint8Array(SUPPLIER_PRICE_LIST_WEB_PAGE_MAX_BYTES), new Uint8Array(1)],
+      });
+
+      expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toEqual({
+        kind: "refused",
+        reason: "too_large",
+      });
+    });
+
+    it("refuses product data that is not answered in time", async () => {
+      network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
+        contentType: "application/json",
+        body: () =>
+          (async function* () {
+            yield products.slice(0, 5);
+            timer.fire();
+            throw new Error("aborted");
+          })(),
+      });
+
+      expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toEqual({
+        kind: "refused",
+        reason: "too_slow",
+      });
+    });
+
+    it("still refuses JSON answered by an ordinary page", async () => {
+      network.servePage(PAGE, { contentType: "application/json", chunks: [products] });
+
+      expect(await reader.read(PAGE)).toEqual({ kind: "refused", reason: "unsupported_content" });
+    });
+
+    it("still reads the page of a Tiendista address that is not a store", async () => {
+      network.servePage("https://tiendista.com/almacen-del-sur/productos", html("<p>x</p>"));
+
+      expect(await reader.read("https://tiendista.com/almacen-del-sur/productos")).toMatchObject({
+        kind: "read",
+        contentKind: "HTML",
+      });
     });
   });
 });
