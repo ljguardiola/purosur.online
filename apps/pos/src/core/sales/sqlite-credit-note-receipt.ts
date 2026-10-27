@@ -4,9 +4,9 @@ import {
   type FacturaC,
   offlineCreditNoteCFiscalBlock,
   receiptContent,
-  type SaleUnit,
+  returnedReceiptLine,
 } from "@purosur/domain";
-import { readCreditNoteById, type StoredCreditNote } from "../fiscal/sqlite-void-credit-notes";
+import { readCreditNoteById, type StoredCreditNote } from "../fiscal/sqlite-sale-credit-notes";
 import type { LocalDatabase } from "../platform/local-database";
 import { readReceiptSource } from "./sqlite-receipt-source";
 
@@ -47,10 +47,8 @@ function refundsOf(database: LocalDatabase, saleId: string, returnId: string | n
 }
 
 interface ReturnedLineRow {
-  product_name: string;
-  sale_unit: string;
+  sale_line_index: number;
   quantity: number;
-  list_unit_price: number;
   refunded_amount: number;
 }
 
@@ -83,28 +81,29 @@ function returnedContent(
   if (header === undefined || header.operation_number === null) {
     throw new Error("the return's credit note cannot be sourced");
   }
+  const sold = receiptContent(readReceiptSource(database, saleId, "COMPLETED")).lines;
   const lines = database
     .prepare<[string], ReturnedLineRow>(
-      `SELECT sale_lines.product_name AS product_name, sale_lines.sale_unit AS sale_unit,
-              return_lines.quantity AS quantity, sale_lines.list_unit_price AS list_unit_price,
-              return_lines.refunded_amount AS refunded_amount
+      `SELECT (SELECT COUNT(*) FROM sale_lines AS earlier
+                WHERE earlier.sale_id = sale_lines.sale_id
+                  AND earlier.position < sale_lines.position) AS sale_line_index,
+              return_lines.quantity AS quantity, return_lines.refunded_amount AS refunded_amount
        FROM return_lines
        JOIN sale_lines ON sale_lines.id = return_lines.sale_line_id
        WHERE return_lines.return_id = ?
        ORDER BY sale_lines.position`,
     )
     .all(returnId)
-    .map((line): CreditNoteReceiptContent["lines"][number] => ({
-      productName: line.product_name,
-      saleUnit: line.sale_unit as SaleUnit,
-      quantity: line.quantity,
-      listUnitPrice: line.list_unit_price,
-      chargedUnitPrice: line.list_unit_price,
-      manualAdjustment: null,
-      promotion: null,
-      discountAmount: 0,
-      lineTotal: line.refunded_amount,
-    }));
+    .map((line) => {
+      const soldLine = sold[line.sale_line_index];
+      if (soldLine === undefined) {
+        throw new Error("the return's credit note cannot be sourced");
+      }
+      return returnedReceiptLine(soldLine, {
+        quantity: line.quantity,
+        refundedAmount: line.refunded_amount,
+      });
+    });
   return {
     header: {
       address: header.address,

@@ -31,16 +31,13 @@ export function creditNoteBreaksDateOrder(
   );
 }
 
-export const CREDIT_NOTE_ANSWERS_CREDITING_NOTHING = [
+const CREDIT_NOTE_ANSWERS_CREDITING_NOTHING: readonly string[] = [
   "rejected",
   "regularization_required",
-] as const;
+];
 
 export function creditsItsInvoice(answerKind: string | null): boolean {
-  return (
-    answerKind === null ||
-    !(CREDIT_NOTE_ANSWERS_CREDITING_NOTHING as readonly string[]).includes(answerKind)
-  );
+  return answerKind === null || !CREDIT_NOTE_ANSWERS_CREDITING_NOTHING.includes(answerKind);
 }
 
 export function creditWithinInvoice({
@@ -52,7 +49,21 @@ export function creditWithinInvoice({
   alreadyCredited: number;
   asked: number;
 }): boolean {
-  return invoiceTotal === null || alreadyCredited + asked <= invoiceTotal;
+  if (invoiceTotal === null) {
+    return true;
+  }
+  return asked <= (creditLeftOnInvoice({ invoiceTotal, alreadyCredited }) ?? 0);
+}
+
+export function creditLeftOnInvoice({
+  invoiceTotal,
+  alreadyCredited,
+}: {
+  invoiceTotal: number;
+  alreadyCredited: number;
+}): number | null {
+  const left = invoiceTotal - alreadyCredited;
+  return left > 0 ? left : null;
 }
 
 export function mayTakeCreditNoteNumber(otherCreditNotes: readonly { kind: string }[]): boolean {

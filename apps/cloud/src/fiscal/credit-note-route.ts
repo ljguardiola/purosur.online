@@ -37,7 +37,7 @@ import {
 import { hmacEventChain } from "../sync/hmac-event-chain.js";
 import { InboxAttachedSaleEvents } from "../sync/inbox-attached-sale-events.js";
 import { type CreditNoteInput, creditNoteIssuancePorts } from "./credit-note-task.js";
-import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
+import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-credit-notes.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 
 export type CreditNoteRouteOptions<TQueryResult extends PgQueryResultHKT> =

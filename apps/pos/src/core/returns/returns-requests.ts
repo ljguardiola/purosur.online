@@ -7,7 +7,12 @@ import type {
   PreviewReturnOutcome,
 } from "@purosur/contracts";
 import type { RefundAllocation, ReturnDraftLine, TicketSource } from "@purosur/domain";
-import { type CloudCreditNotes, requestSaleCreditNote } from "@purosur/domain/fiscal/use-cases";
+import {
+  type CloudCreditNotes,
+  type ReturnCreditNoteToRequest,
+  type ReturnedSaleInvoicing,
+  requestReturnCreditNote,
+} from "@purosur/domain/fiscal/use-cases";
 import {
   type CompleteReturnGrant,
   completeReturn,
@@ -17,7 +22,7 @@ import {
   type SaleReturnSearch,
 } from "@purosur/domain/returns/use-cases";
 import type { DeferredSaleInvoicing } from "@purosur/domain/sales/use-cases";
-import { SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
+import { SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import type { OutboxSaleRequestDeps } from "../sales/sale-requests";
 import {
   toWireLineRefusal,
@@ -41,32 +46,31 @@ export type ReturnRequestDeps = Pick<
 };
 
 const NO_ANSWER_FROM_CLOUD: CloudCreditNotes = { request: async () => null };
+const NO_INVOICING: ReturnedSaleInvoicing = { invoiceUpTo: async () => undefined };
 
 async function settleCreditNote(
   { database, now, creditNotes, invoicing, printCreditNote, reportFailure }: ReturnRequestDeps,
   saleId: string,
-  {
-    kind,
-    creditNoteId,
-  }: { kind: "pending" | "awaiting_invoice" | "issued_offline"; creditNoteId: string },
+  creditNote: ReturnCreditNoteToRequest,
 ): Promise<void> {
   const report = reportFailure ?? (() => undefined);
-  if (kind === "awaiting_invoice") {
-    await invoicing?.invoiceUpTo(saleId).catch(report);
-  }
-  const outcome = await requestSaleCreditNote(
+  const outcome = await requestReturnCreditNote(
     {
-      creditNotes: new SqliteVoidCreditNotes(database),
+      creditNotes: new SqliteSaleCreditNotes(database),
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
       clock: { now },
       printer: {
-        startPrinting: (creditNote) => void printCreditNote?.(creditNote).catch(report),
+        startPrinting: (printed) => void printCreditNote?.(printed).catch(report),
       },
+      invoicing: invoicing ?? NO_INVOICING,
     },
-    { creditNoteId, saleId },
+    { saleId, creditNote },
   );
-  if (outcome.kind === "failed") {
-    report(outcome.error);
+  if (outcome.invoicing.kind === "failed") {
+    report(outcome.invoicing.error);
+  }
+  if (outcome.creditNote.kind === "failed") {
+    report(outcome.creditNote.error);
   }
 }
 

@@ -148,10 +148,10 @@ export class SqliteReceiptLedger implements ReceiptLedger {
                 (SELECT count(*) FROM sale_reprints
                   WHERE sale_reprints.sale_id = sales.id AND sale_reprints.document = @document) AS reprint_count,
                 (state = 'VOIDED') AS voided,
-                EXISTS (SELECT 1 FROM sale_void_credit_notes
-                  WHERE sale_void_credit_notes.id = @credit_note_id
-                    AND sale_void_credit_notes.sale_id = sales.id
-                    AND sale_void_credit_notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')) AS credit_note_authorized
+                EXISTS (SELECT 1 FROM sale_credit_notes
+                  WHERE sale_credit_notes.id = @credit_note_id
+                    AND sale_credit_notes.sale_id = sales.id
+                    AND sale_credit_notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')) AS credit_note_authorized
          FROM sales WHERE id = @sale_id AND state IN ('COMPLETED', 'VOIDED')`,
       )
       .get({

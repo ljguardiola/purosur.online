@@ -21,11 +21,11 @@ import {
 import { readFiscalOnlineEvidence } from "../fiscal/sqlite-fiscal-online-evidence";
 import { readOfflineAuthorizationCodeOf, readOfflineSeries } from "../fiscal/sqlite-fiscal-series";
 import { insertOfflineCreditNote, upsertClockMark } from "../fiscal/sqlite-sale-authorization";
-import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import {
   insertCreditNoteIssuedOffline,
   insertPendingCreditNote,
-} from "../fiscal/sqlite-void-credit-notes";
+} from "../fiscal/sqlite-sale-credit-notes";
+import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { insertPaymentRefund, readRecordedPayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";

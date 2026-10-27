@@ -57,7 +57,7 @@ export async function reprintCreditNoteFor(
   return reprintFor(deps, keyOf({ saleId, creditNoteId }), request);
 }
 
-export async function printVoidedSaleCreditNoteFor(
+export async function printSaleCreditNoteFor(
   deps: ReceiptRequestDeps,
   creditNote: IssuedCreditNote,
 ): Promise<void> {

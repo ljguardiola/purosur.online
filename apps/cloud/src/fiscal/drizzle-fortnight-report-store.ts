@@ -1,4 +1,5 @@
 import {
+  creditLeftOnInvoice,
   FACTURA_C_DOCUMENT_TYPE,
   FACTURA_C_VOUCHER_TYPE,
   isOfflineDocumentReported,
@@ -26,11 +27,7 @@ import {
   registerPointsOfSale,
   rejectedDocumentRemedies,
 } from "../platform/db/schema.js";
-import {
-  lockCreditedVoucher,
-  voucherCreditedOffline,
-  voucherCreditedOnline,
-} from "./credited-voucher.js";
+import { lockCreditedVoucher, totalCreditedToInvoice } from "./credited-voucher.js";
 import { recordedDocumentTypeReports } from "./drizzle-recorded-document-type-reports.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import { fortnightReportLock } from "./fortnight-report-lock.js";
@@ -197,10 +194,11 @@ class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
     const { associatedVoucher } = creditNote;
     await this.db.transaction(async (tx) => {
       await lockCreditedVoucher(tx, associatedVoucher);
-      if (
-        (await voucherCreditedOffline(tx, associatedVoucher)) ||
-        (await voucherCreditedOnline(tx, associatedVoucher))
-      ) {
+      const total = creditLeftOnInvoice({
+        invoiceTotal: creditNote.total,
+        alreadyCredited: await totalCreditedToInvoice(tx, associatedVoucher),
+      });
+      if (total === null) {
         return;
       }
       const [holder] = await tx
@@ -220,7 +218,7 @@ class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
         associatedVoucherType: associatedVoucher.voucherType,
         associatedPointOfSale: associatedVoucher.pointOfSale,
         associatedNumber: associatedVoucher.number,
-        total: creditNote.total,
+        total,
         receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
         createdAt: this.options.now(),
       });

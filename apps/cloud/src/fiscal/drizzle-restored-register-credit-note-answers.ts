@@ -10,7 +10,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   creditNotes,
   offlineFiscalDocuments,
-  saleVoidCreditNoteRefusals,
+  saleCreditNoteRefusals,
 } from "../platform/db/schema.js";
 import { creditNoteOf } from "./drizzle-credit-notes.js";
 
@@ -55,14 +55,14 @@ export class DrizzleRestoredRegisterCreditNoteAnswers<TQueryResult extends PgQue
   ): Promise<KeptAlreadyCreditedRefusalOfRegister[]> {
     return this.db
       .select({
-        creditNoteId: saleVoidCreditNoteRefusals.creditNoteId,
-        refusedAt: saleVoidCreditNoteRefusals.refusedAt,
+        creditNoteId: saleCreditNoteRefusals.creditNoteId,
+        refusedAt: saleCreditNoteRefusals.refusedAt,
       })
-      .from(saleVoidCreditNoteRefusals)
+      .from(saleCreditNoteRefusals)
       .where(
         and(
-          eq(saleVoidCreditNoteRefusals.registerId, registerId),
-          inArray(saleVoidCreditNoteRefusals.creditNoteId, [...creditNoteIds]),
+          eq(saleCreditNoteRefusals.registerId, registerId),
+          inArray(saleCreditNoteRefusals.creditNoteId, [...creditNoteIds]),
         ),
       );
   }

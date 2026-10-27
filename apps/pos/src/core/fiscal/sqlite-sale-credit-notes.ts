@@ -158,7 +158,7 @@ function readCreditNote(
               documents.offline_authorization_code,
               documents.fortnight_start AS offline_fortnight_start,
               documents.fortnight_end AS offline_fortnight_end
-       FROM sale_void_credit_notes AS notes
+       FROM sale_credit_notes AS notes
        LEFT JOIN offline_fiscal_documents AS documents
          ON documents.id = notes.offline_fiscal_document_id
        WHERE ${condition}`,
@@ -209,13 +209,12 @@ export function insertCreditNoteIssuedOffline(
     corrects,
     id,
     generatedAt,
-    issuedOn,
   }: OfflineCreditNote,
-  returnId: string | null = null,
+  forReturn: { returnId: string; issuedOn: string } | null = null,
 ): void {
   database
     .prepare(
-      `INSERT INTO sale_void_credit_notes (
+      `INSERT INTO sale_credit_notes (
          id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
          corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at,
          answered_at, offline_fiscal_document_id
@@ -228,8 +227,8 @@ export function insertCreditNoteIssuedOffline(
     .run({
       id: creditNoteId,
       sale_id: saleId,
-      return_id: returnId,
-      requested_issue_on: returnId === null ? null : issuedOn,
+      return_id: forReturn?.returnId ?? null,
+      requested_issue_on: forReturn?.issuedOn ?? null,
       total,
       receiver_tax_status_code: receiverTaxStatusCode,
       voucher_type: corrects.voucherType,
@@ -254,7 +253,7 @@ export function insertPendingCreditNote(
   const fromReturn = origin.kind === "sale_return";
   database
     .prepare(
-      `INSERT INTO sale_void_credit_notes (
+      `INSERT INTO sale_credit_notes (
          id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
          corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at
        )
@@ -293,7 +292,7 @@ export function writeCreditNoteAnswer(
 ): number {
   return database
     .prepare(
-      `UPDATE sale_void_credit_notes
+      `UPDATE sale_credit_notes
        SET state = @state, point_of_sale = @point_of_sale, number = @number,
            issued_on = @issued_on, issued_at = @issued_at,
            authorization_code = @authorization_code,
@@ -320,7 +319,7 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
   payload: string;
 }
 
-export class SqliteVoidCreditNotes implements RegisterCreditNotes {
+export class SqliteSaleCreditNotes implements RegisterCreditNotes {
   private readonly database: LocalDatabase;
 
   constructor(database: LocalDatabase) {
@@ -331,7 +330,7 @@ export class SqliteVoidCreditNotes implements RegisterCreditNotes {
     return this.database
       .prepare<[], InProgressRow>(
         `SELECT ${NOTE_COLUMNS}
-         FROM sale_void_credit_notes AS notes
+         FROM sale_credit_notes AS notes
          WHERE notes.state IN ('IN_PROGRESS', 'AWAITING_INVOICE')
          ORDER BY notes.recorded_at, notes.id`,
       )
@@ -343,7 +342,7 @@ export class SqliteVoidCreditNotes implements RegisterCreditNotes {
     const row = this.database
       .prepare<[string], InProgressRow>(
         `SELECT ${NOTE_COLUMNS}
-         FROM sale_void_credit_notes AS notes
+         FROM sale_credit_notes AS notes
          WHERE notes.id = ? AND notes.state IN ('IN_PROGRESS', 'AWAITING_INVOICE')`,
       )
       .get(creditNoteId);
@@ -393,7 +392,7 @@ export class SqliteVoidCreditNotes implements RegisterCreditNotes {
   async tieToInvoice(creditNoteId: string, { voucher, buyerTaxStatusCode }: CorrectedInvoice) {
     this.database
       .prepare(
-        `UPDATE sale_void_credit_notes
+        `UPDATE sale_credit_notes
          SET receiver_tax_status_code = @receiver_tax_status_code,
              corrected_voucher_type = @voucher_type,
              corrected_point_of_sale = @point_of_sale,

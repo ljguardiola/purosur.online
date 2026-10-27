@@ -44,7 +44,7 @@ function requireHeldSale(database: LocalDatabase, saleId: string): void {
 
 function heldCreditNoteId(database: LocalDatabase, saleId: string, named: string | null): string {
   const held = database
-    .prepare<[string], { id: string }>("SELECT id FROM sale_void_credit_notes WHERE sale_id = ?")
+    .prepare<[string], { id: string }>("SELECT id FROM sale_credit_notes WHERE sale_id = ?")
     .all(saleId)
     .map(({ id }) => id);
   if (named === null) {

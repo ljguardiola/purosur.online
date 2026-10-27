@@ -3,6 +3,7 @@ export type { CancelledSale } from "./model/cancelled-sale.js";
 export type { CompletedSale } from "./model/completed-sale.js";
 export { stockMovementsMatchLines } from "./model/completed-sale.js";
 export type { CreditNoteReceiptContent } from "./model/credit-note-receipt-content.js";
+export { returnedReceiptLine } from "./model/credit-note-receipt-content.js";
 export type { DeferredSaleFacts, DeferredSaleInvoice } from "./model/deferred-sale-lookup.js";
 export type { ManualAdjustment, ManualAdjustmentValue } from "./model/manual-adjustment.js";
 export {

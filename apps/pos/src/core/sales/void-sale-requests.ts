@@ -10,7 +10,7 @@ import {
   type VoidSaleGrant,
   voidSale,
 } from "@purosur/domain/sales/use-cases";
-import { SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
+import { SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import { toWireCreditNote } from "../fiscal/wire-credit-note";
 import { toWireRefund } from "../payments/wire-refund";
 import type { OutboxSaleRequestDeps } from "./sale-requests";
@@ -53,7 +53,7 @@ async function answerOfCreditNote(
 ): Promise<VoidCreditNoteStanding> {
   const outcome = await requestSaleCreditNote(
     {
-      creditNotes: new SqliteVoidCreditNotes(database),
+      creditNotes: new SqliteSaleCreditNotes(database),
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
       clock: { now },
       printer: {

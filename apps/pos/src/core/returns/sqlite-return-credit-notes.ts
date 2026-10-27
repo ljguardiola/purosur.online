@@ -12,7 +12,7 @@ import {
   insertCreditNoteIssuedOffline,
   insertPendingCreditNote,
   readSaleInvoiceStanding,
-} from "../fiscal/sqlite-void-credit-notes";
+} from "../fiscal/sqlite-sale-credit-notes";
 import type { LocalDatabase } from "../platform/local-database";
 
 type ReturnCreditNotePorts = Pick<
@@ -49,10 +49,11 @@ export function returnCreditNotePorts(database: LocalDatabase): ReturnCreditNote
       insertPendingCreditNote(database, creditNote),
     issueOfflineCreditNote: (document: OfflineCreditNote) => {
       insertOfflineCreditNote(database, document);
+      const returnId = latestReturnOfSale(database, document.saleId);
       insertCreditNoteIssuedOffline(
         database,
         document,
-        latestReturnOfSale(database, document.saleId),
+        returnId === null ? null : { returnId, issuedOn: document.issuedOn },
       );
     },
     recordClockMark: (mark) => upsertClockMark(database, mark),

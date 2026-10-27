@@ -20,8 +20,8 @@ import type {
   SalesHistoryPage,
 } from "@purosur/domain/sales/use-cases";
 import { readUncancelledDeferredSaleRecord } from "../fiscal/sqlite-deferred-sales";
+import { readCreditNoteOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
-import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { saleTotalOf } from "./sqlite-sale-total";

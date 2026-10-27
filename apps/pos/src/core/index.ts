@@ -886,7 +886,7 @@ const returnRequestDeps = (
   ids: uuidV7Ids,
   creditNotes: cloudCreditNotes({ cloudClient, readDeviceToken }),
   invoicing: deferredSaleInvoicing,
-  printCreditNote: receiptPrinting.printVoidedSaleCreditNote,
+  printCreditNote: receiptPrinting.printSaleCreditNote,
   reportFailure: (error) => reportFailure("settling the credit note of a return", error),
 });
 
@@ -1305,7 +1305,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               now,
               ids: uuidV7Ids,
               creditNotes: cloudCreditNotes({ cloudClient, readDeviceToken }),
-              printCreditNote: receiptPrinting.printVoidedSaleCreditNote,
+              printCreditNote: receiptPrinting.printSaleCreditNote,
               reportFailure: (error) => reportFailure("printing a credit note", error),
             },
             request,

@@ -18,7 +18,7 @@ import {
   creditNotes,
   pointOfSaleClaims,
   registerPointsOfSale,
-  saleVoidCreditNoteRefusals,
+  saleCreditNoteRefusals,
 } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import {
@@ -141,7 +141,7 @@ class DrizzleSaleCreditNoteLane<TQueryResult extends PgQueryResultHKT>
 
   async keepAlreadyCreditedRefusal(refusal: AlreadyCreditedRefusal, at: Date): Promise<void> {
     await this.db
-      .insert(saleVoidCreditNoteRefusals)
+      .insert(saleCreditNoteRefusals)
       .values({ ...refusal, refusedAt: at })
       .onConflictDoNothing();
   }

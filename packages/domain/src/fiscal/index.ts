@@ -34,9 +34,10 @@ export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/con
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
 export {
-  CREDIT_NOTE_ANSWERS_CREDITING_NOTHING,
   CREDIT_NOTE_C_VOUCHER_TYPE,
   CREDIT_NOTE_REASONS,
+  creditLeftOnInvoice,
+  creditsItsInvoice,
   creditWithinInvoice,
 } from "./model/credit-note.js";
 export { isValidCuit } from "./model/cuit.js";

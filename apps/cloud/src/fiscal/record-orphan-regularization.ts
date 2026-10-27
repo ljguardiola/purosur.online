@@ -1,4 +1,4 @@
-import { externalBillingObservation, type JsonValue } from "@purosur/domain";
+import { creditLeftOnInvoice, externalBillingObservation, type JsonValue } from "@purosur/domain";
 import type {
   ExternalInvoicingRegularization,
   FiscalTask,
@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { creditNotes, fiscalTasks, registerPointsOfSale } from "../platform/db/schema.js";
-import { lockCreditedVoucher, voucherCreditedOnline } from "./credited-voucher.js";
+import { lockCreditedVoucher, totalCreditedToInvoice } from "./credited-voucher.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 
 async function registerHoldingPointOfSale<TQueryResult extends PgQueryResultHKT>(
@@ -76,7 +76,11 @@ export async function recordOrphanRegularization<TQueryResult extends PgQueryRes
   const registerId = await registerHoldingPointOfSale(tx, regularization.pointOfSale);
   const { creditNoteId, saleId, pointOfSale, associatedVoucher, keptVoucher } = regularization;
   await lockCreditedVoucher(tx, associatedVoucher);
-  if (await voucherCreditedOnline(tx, associatedVoucher)) {
+  const total = creditLeftOnInvoice({
+    invoiceTotal: regularization.total,
+    alreadyCredited: await totalCreditedToInvoice(tx, associatedVoucher),
+  });
+  if (total === null) {
     return;
   }
   await tx.insert(creditNotes).values({
@@ -91,7 +95,7 @@ export async function recordOrphanRegularization<TQueryResult extends PgQueryRes
     keptVoucherType: keptVoucher.voucherType,
     keptPointOfSale: keptVoucher.pointOfSale,
     keptNumber: keptVoucher.number,
-    total: regularization.total,
+    total,
     receiverTaxStatusCode: regularization.receiverTaxStatusCode,
     createdAt: at,
   });

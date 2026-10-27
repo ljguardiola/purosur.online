@@ -31,7 +31,7 @@ import { SqliteDeferredSaleCatchUp } from "./sqlite-deferred-sale-catch-up";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
 import { SqliteRegisterHealthChecks } from "./sqlite-register-health-checks";
 import { SqliteRoundTripSamples } from "./sqlite-round-trip-samples";
-import { SqliteVoidCreditNotes } from "./sqlite-void-credit-notes";
+import { SqliteSaleCreditNotes } from "./sqlite-sale-credit-notes";
 
 export interface RealTimeAuthorizationWiringDeps {
   database: LocalDatabase | undefined;
@@ -194,7 +194,7 @@ export function startRegisterHealthChecks({
     post: (path, bearerToken, body, options) =>
       postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
   });
-  const creditNotes = new SqliteVoidCreditNotes(database);
+  const creditNotes = new SqliteSaleCreditNotes(database);
   const creditNotesCloud = cloudCreditNotes({ cloudClient, readDeviceToken });
   return startRegisterHealthMonitor({
     check: async () => {

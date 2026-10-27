@@ -134,14 +134,14 @@ export class SqliteLocalOutbox implements LocalOutbox, OutboxPruning {
             AND NOT (
               event_type = ?
               AND aggregate_id IN (
-                SELECT sale_id FROM sale_void_credit_notes
+                SELECT sale_id FROM sale_credit_notes
                 WHERE state IN ('IN_PROGRESS', 'AWAITING_INVOICE') AND return_id IS NULL
               )
             )
             AND NOT (
               event_type = ?
               AND aggregate_id IN (
-                SELECT return_id FROM sale_void_credit_notes
+                SELECT return_id FROM sale_credit_notes
                 WHERE state IN ('IN_PROGRESS', 'AWAITING_INVOICE') AND return_id IS NOT NULL
               )
             )`,

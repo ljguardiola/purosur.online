@@ -536,6 +536,14 @@ export type {
 } from "./request-real-time-authorization.js";
 export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 export type {
+  RequestReturnCreditNoteInput,
+  RequestReturnCreditNoteOutcome,
+  RequestReturnCreditNotePorts,
+  ReturnCreditNoteToRequest,
+  ReturnedSaleInvoicing,
+} from "./request-return-credit-note.js";
+export { requestReturnCreditNote } from "./request-return-credit-note.js";
+export type {
   RequestSaleCreditNoteInput,
   RequestSaleCreditNoteOutcome,
 } from "./request-sale-credit-note.js";

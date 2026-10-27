@@ -153,18 +153,20 @@ FROM sale_void_credit_notes_held;
 
 DROP TABLE sale_void_credit_notes_held;
 
-CREATE UNIQUE INDEX sale_void_credit_notes_one_per_voided_sale
-  ON sale_void_credit_notes (sale_id)
+ALTER TABLE sale_void_credit_notes RENAME TO sale_credit_notes;
+
+CREATE UNIQUE INDEX sale_credit_notes_one_per_voided_sale
+  ON sale_credit_notes (sale_id)
   WHERE return_id IS NULL;
 
-CREATE INDEX sale_void_credit_notes_by_sale ON sale_void_credit_notes (sale_id);
+CREATE INDEX sale_credit_notes_by_sale ON sale_credit_notes (sale_id);
 
-CREATE INDEX sale_void_credit_notes_in_progress
-  ON sale_void_credit_notes (recorded_at, id)
+CREATE INDEX sale_credit_notes_in_progress
+  ON sale_credit_notes (recorded_at, id)
   WHERE state IN ('IN_PROGRESS', 'AWAITING_INVOICE');
 
 CREATE TABLE credit_note_prints (
-  credit_note_id TEXT PRIMARY KEY REFERENCES sale_void_credit_notes (id),
+  credit_note_id TEXT PRIMARY KEY REFERENCES sale_credit_notes (id),
   print_attempted_at TEXT NOT NULL,
   printed_at TEXT
 );
@@ -175,7 +177,7 @@ SELECT credit_note_id, print_attempted_at, printed_at FROM credit_note_prints_he
 DROP TABLE credit_note_prints_held;
 
 CREATE TABLE credit_note_receipts (
-  credit_note_id TEXT PRIMARY KEY REFERENCES sale_void_credit_notes (id),
+  credit_note_id TEXT PRIMARY KEY REFERENCES sale_credit_notes (id),
   template_version TEXT NOT NULL,
   head BLOB NOT NULL,
   body BLOB NOT NULL

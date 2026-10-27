@@ -2886,9 +2886,9 @@ export const fiscalTasks = pgTable(
 // A credit note the cloud issues: the one that cancels an authorization no sale accounts for, the
 // one that cancels the invoice of a voided sale, or the one that credits a return. The row is the
 // request to issue it: it exists from the moment it is asked for, gets its number when the tax
-// authority is first asked, and keeps the answer. A number is held by one request at a time, and
-// the credit notes of an invoice never add up to more than its total. A return's credit note names
-// its return and the day it is issued on; one that cannot be issued keeps no number.
+// authority is first asked, and keeps the answer. A number is held by one request at a time. A
+// return's credit note names its return and the day it is issued on; one that cannot be issued
+// keeps no number.
 export const creditNotes = pgTable(
   "credit_notes",
   {
@@ -2972,9 +2972,9 @@ export const creditNotes = pgTable(
   ],
 );
 
-// Append-only: the cloud keeps the first refusal of a voided sale's credit note whose invoice
-// another credit note had already corrected, to hand it to a restored register.
-export const saleVoidCreditNoteRefusals = pgTable("sale_void_credit_note_refusals", {
+// Append-only: the cloud keeps the first refusal of a sale's credit note, of a void or of a return,
+// whose invoice other credit notes had already credited, to hand it to a restored register.
+export const saleCreditNoteRefusals = pgTable("sale_void_credit_note_refusals", {
   creditNoteId: uuid("credit_note_id").primaryKey(),
   registerId: uuid("register_id")
     .notNull()
