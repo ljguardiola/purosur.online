@@ -299,15 +299,15 @@ export function CreateProductFromSupplierItemModal({
               )}
             </form.AppField>
           </FieldGroup>
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
+          <div className="grid grid-cols-3 items-start gap-3">
+            <div className="col-span-2">
               <form.AppField name="packagingName">
                 {(field) => (
                   <field.TextField kind="plain-text" label="Presentación de compra" required />
                 )}
               </form.AppField>
             </div>
-            <div className="flex-1">
+            <div>
               <form.AppField name="quantity">
                 {(field) => (
                   <field.TextField
@@ -320,10 +320,12 @@ export function CreateProductFromSupplierItemModal({
             </div>
           </div>
           <FieldHeading>Para guardarlo falta completar:</FieldHeading>
-          <form.AppField name="barcodes">
-            {() => <BarcodeChips chips={chips} generation={generate.generation} />}
-          </form.AppField>
-          {categoryField()}
+          <div className="grid grid-cols-2 items-start gap-3">
+            <form.AppField name="barcodes">
+              {() => <BarcodeChips chips={chips} generation={generate.generation} />}
+            </form.AppField>
+            {categoryField()}
+          </div>
           {list.requiresVatRate ? (
             choices.status === "failed" ? (
               <LoadFailure {...cloudLoadFailure(choices, "el IVA")} />
