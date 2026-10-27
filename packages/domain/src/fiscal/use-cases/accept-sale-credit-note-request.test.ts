@@ -159,6 +159,7 @@ describe("acceptSaleCreditNoteRequest", () => {
 
     it("credits an invoice of the real-time point of sale as well as one of the contingency point of sale", async () => {
       const { store, run } = request({
+        invoices: [[{ voucherType: 11, pointOfSale: 12, number: 1204 }, 7_500]],
         request: {
           creditNote: {
             ...VOIDED,
