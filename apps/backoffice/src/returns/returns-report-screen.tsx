@@ -46,6 +46,8 @@ const OCCURRED_TIME_ZONE = schemaText(
 
 const UNIDENTIFIED = "Sin identificar";
 const NO_FIGURE = "—";
+const NO_RETURNS = "No hay devoluciones en este período";
+const NO_REGISTER_RETURNS = "No hay devoluciones de esta caja en este período";
 
 const returnColumns = [
   dataColumn({
@@ -192,9 +194,7 @@ export function ReturnsReportScreen({
               {...cloudTableState(data, "el reporte de devoluciones")}
               empty={{
                 icon: <Undo2 />,
-                title: filtered
-                  ? "Ninguna devolución iniciada con el número tipeado coincide con estos filtros"
-                  : "No hay devoluciones iniciadas con el número tipeado en este período",
+                title: filtered ? NO_REGISTER_RETURNS : NO_RETURNS,
                 variant: filtered ? "filtered" : "blank",
               }}
             />
@@ -209,9 +209,7 @@ export function ReturnsReportScreen({
               {...cloudTableState(data, "el reporte de devoluciones")}
               empty={{
                 icon: <Undo2 />,
-                title: filtered
-                  ? "Ninguna devolución iniciada escaneando el QR coincide con estos filtros"
-                  : "No hay devoluciones iniciadas escaneando el QR en este período",
+                title: filtered ? NO_REGISTER_RETURNS : NO_RETURNS,
                 variant: filtered ? "filtered" : "blank",
               }}
             />
