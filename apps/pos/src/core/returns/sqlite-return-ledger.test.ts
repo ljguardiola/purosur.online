@@ -1,4 +1,4 @@
-import { completeReturn } from "@purosur/domain/returns/use-cases";
+import { completeReturn, type RecordedReturn } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   insertDeferredSale,
@@ -255,7 +255,7 @@ describe("completing a return in the register", () => {
 });
 
 describe("recording a return of a sale another register rang up", () => {
-  const RETURN = {
+  const RETURN: RecordedReturn = {
     id: "return-elsewhere",
     saleId: "sale-elsewhere",
     sessionId: "session-2",
@@ -274,7 +274,7 @@ describe("recording a return of a sale another register rang up", () => {
         refundedAmount: 2500,
       },
     ],
-  } as const;
+  };
 
   it("keeps the return under the register and device of the session it was made in", () => {
     ledger().transaction((tx) => {

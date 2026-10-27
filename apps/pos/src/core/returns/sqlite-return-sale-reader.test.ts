@@ -1,3 +1,4 @@
+import type { BranchSaleFacts } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   insertDeferredSale,
@@ -185,7 +186,7 @@ describe("the days a good-condition return is accepted", () => {
 });
 
 describe("the sale of another register a return starts from", () => {
-  const KEPT = {
+  const KEPT: BranchSaleFacts = {
     sale: {
       sale: {
         id: "sale-elsewhere",
@@ -224,7 +225,7 @@ describe("the sale of another register a return starts from", () => {
     invoiceStanding: { fiscalDocuments: [], deferralPending: false },
     goodConditionReturnDays: 15,
     countedReturnIds: ["return-counted"],
-  } as const;
+  };
 
   function keep(): void {
     new SqliteRetainedBranchSales(database).keep(KEPT);
