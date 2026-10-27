@@ -33,7 +33,9 @@ describe("a return draft", () => {
   });
 
   it("changes only what is asked of one line", () => {
-    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, { reason: "defective" });
+    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
+      reason: "defective",
+    });
 
     expect(draft[PASTA.id]).toEqual({ quantity: "3", reason: "defective", disposition: null });
   });

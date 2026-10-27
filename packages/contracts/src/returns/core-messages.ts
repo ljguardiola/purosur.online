@@ -37,7 +37,7 @@ const scannedReadingSchema = z
   })
   .transform(({ text }) => ({ source: "QR" as const, ticket: text }));
 
-const findSaleForReturnMessageSchema = z.object({
+export const findSaleForReturnMessageSchema = z.object({
   type: z.literal("find-sale-for-return"),
   request_id: requestIdSchema,
   reading: z.union([typedReadingSchema, scannedReadingSchema]),
