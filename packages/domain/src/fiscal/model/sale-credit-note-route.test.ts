@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { FiscalOnlineSignalEvidence } from "./fiscal-online-signal.js";
 import type { CorrectedInvoice } from "./sale-credit-note.js";
 import {
   type CreditNoteRoutingFacts,
@@ -27,7 +28,10 @@ const ONLINE = {
 };
 const OFFLINE = { ...ONLINE, lastHealthCheckOkAt: null };
 
-function facts(changes: Partial<CreditNoteRoutingFacts> = {}, evidence = ONLINE) {
+function facts(
+  changes: Partial<CreditNoteRoutingFacts> = {},
+  evidence: FiscalOnlineSignalEvidence = ONLINE,
+) {
   const reads: string[] = [];
   const routing: CreditNoteRoutingFacts = {
     fiscalOnlineEvidence: () => {
