@@ -9,6 +9,7 @@ export function paymentRecord(payment: SalePayment): JsonValue {
     kind: payment.kind,
     method: payment.method,
     provider: payment.provider,
+    ...pointCardTypeRecord(payment),
     amount: payment.amount,
     tendered: payment.tendered ?? null,
     state: payment.state,
@@ -16,4 +17,14 @@ export function paymentRecord(payment: SalePayment): JsonValue {
     authorized_by: confirmed?.authorizedBy ?? null,
     confirmed_at: confirmed?.confirmedAt.toISOString() ?? null,
   };
+}
+
+function pointCardTypeRecord(payment: SalePayment) {
+  if (payment.method !== "POINT") {
+    return {};
+  }
+  if (payment.cardType === null) {
+    throw new Error("A Point payment must name its card type");
+  }
+  return { card_type: payment.cardType };
 }
