@@ -216,6 +216,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     currentStockReportScreen: {
       fetchCurrentStockReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    expiringLotsReportScreen: {
+      fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     salesByCashierScreen: {
       fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
     },
