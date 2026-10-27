@@ -55,6 +55,8 @@ jobs:
     # environment; the production DSN and cloud are repository variables a push to main reads, as
     # that is where the production installer that ships is built.
     environment: ${{ github.event_name == 'push' && 'staging' || '' }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,6 +77,13 @@ jobs:
         run: pnpm audit
         continue-on-error: true
 
+      - name: Name the installer version
+        id: version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          PACKAGE_JSON_FILE: apps/pos/package.json
+        run: node .github/scripts/register-candidate.mjs installer-version
+
       - run: pnpm --filter @purosur/pos build
 
       # The built app code carries nothing channel-specific; the channel, its Sentry DSN and its
@@ -82,7 +91,7 @@ jobs:
       # leaves that feature off.
       - run: pnpm --filter @purosur/pos pack:production
         env:
-          POS_VERSION: 0.0.${{ github.run_number }}
+          POS_VERSION: ${{ steps.version.outputs.version }}
           POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_PRODUCTION_SENTRY_DSN || '' }}
           POS_CLOUD_URL: ${{ github.event_name == 'push' && vars.POS_PRODUCTION_CLOUD_URL || '' }}
 
@@ -90,7 +99,7 @@ jobs:
       # is also the only run that keeps the staging installer.
       - run: pnpm --filter @purosur/pos pack:staging
         env:
-          POS_VERSION: 0.0.${{ github.run_number }}
+          POS_VERSION: ${{ steps.version.outputs.version }}
           POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_SENTRY_DSN || '' }}
           POS_CLOUD_URL: ${{ vars.POS_CLOUD_URL }}
 
@@ -137,7 +146,7 @@ jobs:
       # that folder's channel.json without a DSN or cloud, and runs after every step that reads it.
       - run: pnpm --filter @purosur/pos test:packaged
         env:
-          POS_VERSION: 0.0.${{ github.run_number }}
+          POS_VERSION: ${{ steps.version.outputs.version }}
 
   independent-build:
     name: independent build of the production app.asar
@@ -162,11 +171,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Name the installer version
+        id: version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          PACKAGE_JSON_FILE: apps/pos/package.json
+        run: node .github/scripts/register-candidate.mjs installer-version
+
       - run: pnpm --filter @purosur/pos build
 
       - run: pnpm --filter @purosur/pos pack:production --dir
         env:
-          POS_VERSION: 0.0.${{ github.run_number }}
+          POS_VERSION: ${{ steps.version.outputs.version }}
           POS_SENTRY_DSN: ""
           POS_CLOUD_URL: ""
 
@@ -252,7 +268,7 @@ jobs:
         if: vars.POS_UPDATES_BUCKET_NAME != ''
         run: node .github/scripts/publish-pos-update.mjs staging-installer
         env:
-          POS_VERSION: 0.0.${{ github.run_number }}
+          POS_VERSION: ${{ needs.package.outputs.version }}
           POS_UPDATES_BUCKET_NAME: ${{ vars.POS_UPDATES_BUCKET_NAME }}
           POS_UPDATES_BUCKET_ENDPOINT: ${{ vars.POS_UPDATES_BUCKET_ENDPOINT }}
           POS_UPDATES_BUCKET_REGION: ${{ vars.POS_UPDATES_BUCKET_REGION }}
@@ -297,7 +313,7 @@ jobs:
       - name: Record the commit, the installer version and the staging installer's digest
         env:
           TARGET_SHA: ${{ github.sha }}
-          POS_VERSION: 0.0.${{ github.run_number }}
+          POS_VERSION: ${{ needs.package.outputs.version }}
           MANIFEST_FILE: candidate/candidate.json
           STAGING_INSTALLER_DIR: candidate/staging-installer
         run: node .github/scripts/register-candidate.mjs write-manifest
@@ -305,7 +321,7 @@ jobs:
       - name: Name the candidate image
         id: candidate
         env:
-          INSTALLER_VERSION: 0.0.${{ github.run_number }}
+          INSTALLER_VERSION: ${{ needs.package.outputs.version }}
         run: node .github/scripts/register-candidate.mjs run-of-version
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
