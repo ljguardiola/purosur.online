@@ -56,21 +56,27 @@ function facts(overrides: Partial<SaleForReturn> = {}): SaleForReturn {
 
 describe("saleForReturnOutcome", () => {
   it("answers not found when there are no facts", () => {
-    expect(saleForReturnOutcome(undefined, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({ kind: "not_found" });
+    expect(saleForReturnOutcome(undefined, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
+      kind: "not_found",
+    });
   });
 
   it("answers not found for a sale that was never completed", () => {
     const open = facts();
     open.sale.state = "OPEN";
 
-    expect(saleForReturnOutcome(open, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({ kind: "not_found" });
+    expect(saleForReturnOutcome(open, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
+      kind: "not_found",
+    });
   });
 
   it.each(["VOIDED", "CANCELLED"] as const)("answers voided for a %s sale", (state) => {
     const gone = facts();
     gone.sale.state = state;
 
-    expect(saleForReturnOutcome(gone, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({ kind: "voided" });
+    expect(saleForReturnOutcome(gone, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
+      kind: "voided",
+    });
   });
 
   it("shows the sale's identity, total, invoice, lines, payments and windows", () => {

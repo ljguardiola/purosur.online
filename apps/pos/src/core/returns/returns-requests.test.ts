@@ -1,7 +1,7 @@
 import { encodePinHash } from "@purosur/contracts";
 import type { TicketReference } from "@purosur/domain";
-import type { BranchSaleLookupAnswer } from "@purosur/domain/returns/use-cases";
 import type { CloudCreditNoteAnswer, CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
+import type { BranchSaleLookupAnswer } from "@purosur/domain/returns/use-cases";
 import type { DeferredSaleInvoicingOutcome } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
