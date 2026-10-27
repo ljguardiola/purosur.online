@@ -3,6 +3,7 @@ import type {
   ReturnDraftLineBody,
   ReturnLineRefusalBody,
 } from "@purosur/contracts";
+import type { PaymentMethod } from "@purosur/domain";
 import type { NoticeTone } from "@purosur/ui";
 import { formatCalendarDayNumeric, formatCents, formatWeight } from "@purosur/ui";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
@@ -33,7 +34,12 @@ export function quantityText(saleUnit: SaleLineForReturn["sale_unit"], quantity:
   return saleUnit === "KG" ? formatWeight(quantity) : `${quantity} u`;
 }
 
-export type FindRefusalKind = "not_found" | "voided" | "lacks_permission" | "unavailable";
+export type FindRefusalKind =
+  | "not_found"
+  | "voided"
+  | "lacks_permission"
+  | "not_a_ticket_qr"
+  | "unavailable";
 
 export function findRefusalText(kind: FindRefusalKind): { title: string; description?: string } {
   switch (kind) {
@@ -45,6 +51,12 @@ export function findRefusalText(kind: FindRefusalKind): { title: string; descrip
       return {
         title: "Hacer devoluciones necesita permiso",
         description: "Elegí quién autoriza, ingresá su PIN y volvé a escanear el ticket.",
+      };
+    case "not_a_ticket_qr":
+      return {
+        title: "Ese QR no es de un ticket",
+        description:
+          "Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
       };
     case "unavailable":
       return { title: "No se pudo buscar la venta", description: "Probá de nuevo." };
@@ -110,4 +122,16 @@ export function windowTags(
       ? { label: `${name} hasta ${formatCalendarDayNumeric(day)}`, tone: "success" as const }
       : { label: `${name} vencido`, tone: "warning" as const };
   return [tag("Arrepentimiento", windows.change_of_mind), tag("Defecto", windows.defective)];
+}
+
+const PAYMENT_METHOD_NAMES = {
+  CASH: "Efectivo",
+  TRANSFER: "Transferencia",
+  QR: "QR de Mercado Pago",
+  POINT: "Point integrada",
+  STANDALONE_TERMINAL: "Terminal independiente",
+} as const satisfies Record<PaymentMethod, string>;
+
+export function paymentMethodName(method: PaymentMethod): string {
+  return PAYMENT_METHOD_NAMES[method];
 }
