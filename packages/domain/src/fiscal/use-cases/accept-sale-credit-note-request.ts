@@ -30,7 +30,8 @@ export type AcceptSaleCreditNoteRequestOutcome =
   | { kind: "point_of_sale_not_owned" }
   | { kind: "credit_note_not_owned" }
   | { kind: "voucher_not_owned" }
-  | { kind: "voucher_already_credited" };
+  | { kind: "voucher_already_credited" }
+  | { kind: "invoice_not_yet_known" };
 
 export async function acceptSaleCreditNoteRequest(
   { lanes, attachedSaleEvents }: AcceptSaleCreditNoteRequestPorts,
@@ -63,6 +64,10 @@ export async function acceptSaleCreditNoteRequest(
       ) {
         return { kind: "voucher_not_owned" };
       }
+      const invoiceTotal = await lane.invoiceTotalOf(asked.correctedVoucher);
+      if (invoiceTotal === null) {
+        return { kind: "invoice_not_yet_known" };
+      }
       const refuseAsAlreadyCredited = async (): Promise<AcceptSaleCreditNoteRequestOutcome> => {
         await lane.raiseInvoiceAlreadyCredited(
           { voucher: asked.correctedVoucher, saleId: asked.saleId },
@@ -75,7 +80,7 @@ export async function acceptSaleCreditNoteRequest(
         return { kind: "voucher_already_credited" };
       };
       const withinInvoice = creditWithinInvoice({
-        invoiceTotal: await lane.invoiceTotalOf(asked.correctedVoucher),
+        invoiceTotal,
         alreadyCredited: await lane.creditedToInvoice(asked.correctedVoucher),
         asked: asked.total,
       });

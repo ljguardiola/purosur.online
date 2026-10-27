@@ -141,11 +141,14 @@ function refusalOf(
       return VOUCHER_ALREADY_CREDITED;
     case "recorded":
     case "already_recorded":
+    case "invoice_not_yet_known":
       return null;
   }
 }
 
 type CreditNoteAnswer = NonNullable<ReturnType<typeof creditNoteAnswerOf>>;
+
+const IN_PROGRESS: CreditNoteAnswer = { kind: "in_progress" };
 
 function toWire(answer: CreditNoteAnswer): SaleVoidCreditNoteResponseBody {
   switch (answer.kind) {
@@ -252,6 +255,11 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
         const refusal = refusalOf(outcome);
         if (refusal !== null) {
           await reply.code(cloudErrorStatus(refusal.code)).send(refusal);
+          return;
+        }
+
+        if (outcome.kind === "invoice_not_yet_known") {
+          await reply.code(200).send(saleVoidCreditNoteResponseSchema.parse(toWire(IN_PROGRESS)));
           return;
         }
 
