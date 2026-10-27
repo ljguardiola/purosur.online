@@ -16,7 +16,7 @@ import { addToStockBalance, insertReturnStockMovement } from "../stock/sqlite-st
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { readGoodConditionReturnDays, readSaleForReturn } from "./sqlite-return-sale-reader";
 
-function insertReturn(database: LocalDatabase, returned: RecordedReturn): void {
+export function insertReturn(database: LocalDatabase, returned: RecordedReturn): void {
   database
     .prepare(
       `INSERT INTO returns (

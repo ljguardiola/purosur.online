@@ -27,6 +27,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { registerVersionOf } from "../register/register-version";
 import { applyReplenishedCashFact } from "../register/replenished-cash-facts";
 import { applyReplenishedReceiptFact } from "../sales/replenished-receipt-facts";
+import { applyReplenishedReturnFact } from "../sales/replenished-return-facts";
 import { applyReplenishedSaleFact } from "../sales/replenished-sale-facts";
 import { applyReplenishedSaleVoidFact } from "../sales/replenished-sale-void-facts";
 import { applyReplenishedOpeningCountFact } from "../stock/replenished-opening-count-facts";
@@ -223,6 +224,9 @@ function applyFact(
       return "applied";
     case "sale_voided":
       applyReplenishedSaleVoidFact(database, fact);
+      return "applied";
+    case "sale_returned":
+      applyReplenishedReturnFact(database, fact);
       return "applied";
     case "sale_print_state_changed":
     case "reprint_recorded":
