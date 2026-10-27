@@ -35,13 +35,28 @@ import { mercadoPagoOrderRoutesUnderTest } from "./test-support/mercado-pago-ord
 
 const route = mercadoPagoOrderRoutesUnderTest();
 
-function orderRequest(
-  overrides: Partial<MercadoPagoOrderRequestBody> = {},
-): MercadoPagoOrderRequestBody {
+type QrOrderRequestBody = Extract<MercadoPagoOrderRequestBody, { provider: "MERCADOPAGO_QR" }>;
+type PointOrderRequestBody = Extract<
+  MercadoPagoOrderRequestBody,
+  { provider: "MERCADOPAGO_POINT" }
+>;
+
+function orderRequest(overrides: Partial<QrOrderRequestBody> = {}): QrOrderRequestBody {
   return {
     payment_transaction_id: crypto.randomUUID(),
     sale_id: crypto.randomUUID(),
     provider: "MERCADOPAGO_QR",
+    amount: 5000,
+    ...overrides,
+  };
+}
+
+function pointOrderRequest(overrides: Partial<PointOrderRequestBody> = {}): PointOrderRequestBody {
+  return {
+    payment_transaction_id: crypto.randomUUID(),
+    sale_id: crypto.randomUUID(),
+    provider: "MERCADOPAGO_POINT",
+    card_type: "DEBIT",
     amount: 5000,
     ...overrides,
   };
@@ -372,10 +387,6 @@ describe("the Mercado Pago order routes", () => {
   });
 
   describe("an order on the integrated terminal", () => {
-    function pointOrderRequest(overrides: Partial<MercadoPagoOrderRequestBody> = {}) {
-      return orderRequest({ provider: "MERCADOPAGO_POINT", amount: 5000, ...overrides });
-    }
-
     it("creates the order on the terminal and answers the pending payment of that provider", async () => {
       const { deviceToken, registerId } = await enroll();
       await assignTerminal(registerId, POINT_TERMINAL_ID);
@@ -397,6 +408,7 @@ describe("the Mercado Pago order routes", () => {
           amount: 5000,
           expiresAfterMinutes: 5,
           terminalId: POINT_TERMINAL_ID,
+          cardType: "DEBIT",
         },
       ]);
       expect(route.mercadoPago.creations).toEqual([]);
@@ -410,6 +422,18 @@ describe("the Mercado Pago order routes", () => {
         },
       ]);
     });
+
+    it.each(["DEBIT", "CREDIT"] as const)(
+      "passes the %s card type the register chose to the terminal's order",
+      async (cardType) => {
+        const { deviceToken, registerId } = await enroll();
+        await assignTerminal(registerId, POINT_TERMINAL_ID);
+
+        await createOrder(pointOrderRequest({ card_type: cardType }), `Bearer ${deviceToken}`);
+
+        expect(route.mercadoPago.pointCreations).toMatchObject([{ cardType }]);
+      },
+    );
 
     it("refuses an amount below the terminal's minimum, recording nothing and not calling Mercado Pago", async () => {
       const { deviceToken } = await enroll();
@@ -760,7 +784,7 @@ describe("the Mercado Pago order routes", () => {
       );
       const { deviceToken, registerId } = await enroll();
       await assignTerminal(registerId, POINT_TERMINAL_ID);
-      const body = orderRequest({ provider: "MERCADOPAGO_POINT" });
+      const body = pointOrderRequest();
 
       const created = await createOrder(body, `Bearer ${deviceToken}`);
       const read = await readPayment(body.payment_transaction_id, `Bearer ${deviceToken}`);
