@@ -20,6 +20,8 @@ export type {
   PreviewReturnPorts,
 } from "./preview-return.js";
 export { previewReturn } from "./preview-return.js";
+export type { ReadReturnsReportInput, ReturnsReport } from "./read-returns-report.js";
+export { readReturnsReport } from "./read-returns-report.js";
 export type {
   IdGenerator,
   RecordedReturn,
@@ -32,3 +34,4 @@ export type {
   ReturnTransaction,
   SaleReturnSearch,
 } from "./return-ports.js";
+export type { ReturnsReportQuery, ReturnsReportReader } from "./returns-report-reader.js";
