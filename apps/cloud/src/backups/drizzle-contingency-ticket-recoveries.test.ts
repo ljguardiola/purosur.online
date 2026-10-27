@@ -1,6 +1,10 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, contingencyTicketRecoveries } from "../platform/db/schema.js";
+import {
+  auditLog,
+  contingencyTicketRecoveries,
+  registerInstallations,
+} from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleContingencyTicketRecoveries } from "./drizzle-contingency-ticket-recoveries.js";
@@ -179,6 +183,33 @@ describe("DrizzleContingencyTicketRecoveries", () => {
         registerName: "Caja 2",
         openedAt: FINISHED_AT,
       },
+    ]);
+  });
+
+  it("lists only the recovery of the installation the register still runs on", async () => {
+    const restoredFirst = await aRestoredInstallation("Caja 1");
+    const recoveries = new DrizzleContingencyTicketRecoveries(db);
+    await recoveries.transaction((tx) => tx.openRecovery({ ...restoredFirst, at: OPENED_AT }));
+    await db
+      .update(registerInstallations)
+      .set({ revokedAt: FINISHED_AT })
+      .where(eq(registerInstallations.id, restoredFirst.restoredDeviceId));
+    const restoredAgain = await insertEnrolledInstallation(db, {
+      now: FINISHED_AT,
+      existingRegisterId: restoredFirst.registerId,
+    });
+    await recoveries.transaction((tx) =>
+      tx.openRecovery({
+        registerId: restoredFirst.registerId,
+        restoredDeviceId: restoredAgain.deviceId,
+        at: FINISHED_AT,
+      }),
+    );
+
+    const awaiting = await recoveries.awaiting();
+
+    expect(awaiting).toEqual([
+      expect.objectContaining({ registerName: "Caja 1", openedAt: FINISHED_AT }),
     ]);
   });
 });

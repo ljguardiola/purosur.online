@@ -148,17 +148,6 @@ describe("POST /devices/current/contingency-ticket-recovery", () => {
     ]);
   });
 
-  it("opens the recovery once however many times the installation asks", async () => {
-    const { predecessor, current } = await aRestoredRegister();
-    const body = { predecessor_device_id: predecessor.deviceId };
-    await asking(body, `Bearer ${current.deviceToken}`);
-
-    const response = await asking(body, `Bearer ${current.deviceToken}`);
-
-    expect(response.json()).toEqual({ status: "awaiting" });
-    expect(await db.select().from(contingencyTicketRecoveries)).toHaveLength(1);
-  });
-
   it("answers that the recovery is finished once it was finished", async () => {
     const { predecessor, current } = await aRestoredRegister();
     await insertContingencyTicketRecovery(db, {

@@ -89,6 +89,24 @@ test("cancel closes the question without calling the API", async () => {
   expect(finishContingencyTicketRecovery).not.toHaveBeenCalled();
 });
 
+test("cannot be closed while the cloud has not answered yet", async () => {
+  const finishContingencyTicketRecovery = vi
+    .fn<FinishTicketRecoveryModalServices["finishContingencyTicketRecovery"]>()
+    .mockReturnValue(new Promise(() => {}));
+  const onClose = vi.fn();
+  const screen = await renderModal({ finishContingencyTicketRecovery, onClose });
+  const dialog = await confirm(screen);
+
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  await userEvent.click(
+    dialog.getByText("Los tickets que se escaneen después no van a llegar a la caja restaurada."),
+  );
+  await userEvent.keyboard("{Escape}");
+
+  await expect.element(dialog).toBeVisible();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
 test("shows the failure notice, and the confirmation stays available", async () => {
   const finishContingencyTicketRecovery = vi
     .fn<FinishTicketRecoveryModalServices["finishContingencyTicketRecovery"]>()

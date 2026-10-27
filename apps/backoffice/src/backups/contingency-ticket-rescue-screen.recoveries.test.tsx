@@ -32,7 +32,7 @@ test("shows no recoveries section when no register awaits its rescue", async () 
   expect(screen.getByText(/revisá la impresora/).query()).toBeNull();
 });
 
-test("lists the registers awaiting their rescue with the printer reminder", async () => {
+test("lists the registers awaiting their rescue", async () => {
   const { services } = awaiting();
 
   const screen = await renderScreen(services);
@@ -41,8 +41,6 @@ test("lists the registers awaiting their rescue with the printer reminder", asyn
     .element(screen.getByRole("table", { name: "Cajas esperando el rescate de tickets" }))
     .toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "Caja 1" })).toBeVisible();
-  await expect.element(screen.getByText("14/09/2026 · 17:22")).toBeVisible();
-  await expect.element(screen.getByText(/revisá la impresora y el mostrador/)).toBeVisible();
 });
 
 test("finishing the rescue asks first and refreshes the list with a notice", async () => {

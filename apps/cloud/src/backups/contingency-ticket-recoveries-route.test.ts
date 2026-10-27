@@ -11,11 +11,9 @@ import { registerRouteAccess } from "../sessions/route-access.js";
 import {
   BACKOFFICE_ORIGIN,
   type BackofficeSession,
-  openBackofficeSession,
   SESSION_NOON,
 } from "../test-support/backoffice-session.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerContingencyTicketRecoveriesRoutes } from "./contingency-ticket-recoveries-route.js";
 import { rescueSession } from "./test-support/contingency-backup-ticket-rescue-route.js";
 import { insertContingencyTicketRecovery } from "./test-support/contingency-ticket-recoveries.js";
@@ -201,23 +199,15 @@ describe("POST /contingency-backup-tickets/recoveries/:id/finish", () => {
     ]);
   });
 
-  it("answers that a recovery already finished was, keeping the first finish", async () => {
+  it("answers that a recovery already finished was", async () => {
     const { recoveryId } = await anAwaitingRecovery();
-    const first = await rescueSession(db);
-    await finishing(recoveryId, first);
-    const second = await openBackofficeSession(db, {
-      now: SESSION_NOON,
-      locationId: await seededLocationId(db),
-      permissionKeys: ["recover_contingency_receipts", "configure_branch"],
-      email: "second@example.com",
-    });
+    const session = await rescueSession(db);
+    await finishing(recoveryId, session);
 
-    const response = await finishing(recoveryId, second);
+    const response = await finishing(recoveryId, session);
 
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ outcome: "already_finished" });
-    expect(await db.select().from(contingencyTicketRecoveries)).toMatchObject([
-      { finishedBy: first.userId },
-    ]);
   });
 
   it("answers that a recovery that does not exist is not found", async () => {

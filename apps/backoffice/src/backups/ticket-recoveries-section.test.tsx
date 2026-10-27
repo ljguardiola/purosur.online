@@ -72,21 +72,37 @@ test("finishing a register's rescue hands over that register's recovery", async 
   expect(onFinish).toHaveBeenCalledWith(second);
 });
 
-test("shows a placeholder while the recoveries load", async () => {
+const TABLE_NAME = "Cajas esperando el rescate de tickets";
+
+test("shows the table loading while the recoveries load", async () => {
   const screen = await renderSection({ status: "loading" });
 
-  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
-  expect(screen.getByRole("table").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("table", { name: TABLE_NAME }))
+    .toHaveAttribute("aria-busy", "true");
 });
 
-test("offers to retry when the recoveries fail to load", async () => {
+test("keeps the rows shown while the recoveries are read again", async () => {
+  const screen = await renderSection({
+    status: "loaded",
+    value: { recoveries: [recovery] },
+    refreshing: true,
+  });
+
+  const table = screen.getByRole("table", { name: TABLE_NAME });
+  await expect.element(table).toHaveAttribute("aria-busy", "true");
+  await expect.element(table.getByText("Caja 1")).toBeVisible();
+});
+
+test("offers to retry inside the table when the recoveries fail to load", async () => {
   const retry = vi.fn();
   const screen = await renderSection({ status: "failed", retry });
+  const table = screen.getByRole("table", { name: TABLE_NAME });
 
   await expect
-    .element(screen.getByText("No pudimos abrir las cajas esperando el rescate"))
+    .element(table.getByText("No pudimos abrir las cajas esperando el rescate"))
     .toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await userEvent.click(table.getByRole("button", { name: "Reintentar" }));
 
   expect(retry).toHaveBeenCalledTimes(1);
 });
