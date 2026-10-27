@@ -1,4 +1,5 @@
 import {
+  type FiscalDocumentState,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   PAYMENT_METHODS,
@@ -61,6 +62,21 @@ const saleDiscountSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+const ROUTABLE_INVOICE_STATES = ["AUTHORIZED", "REQUESTING"] as const satisfies readonly FiscalDocumentState[];
+
+const invoiceStandingSchema = z.object({
+  fiscal_documents: z.array(
+    z.object({
+      origin: z.enum(["real_time", "offline"]),
+      state: z.enum(ROUTABLE_INVOICE_STATES),
+      point_of_sale: pointOfSaleNumberSchema,
+      number: z.int().positive(),
+      buyer_tax_status_code: z.int().positive(),
+    }),
+  ),
+  deferral_pending: z.boolean(),
+});
+
 export const branchSaleForReturnAnswerSchema = z.object({
   sale: z.object({
     id: z.string(),
@@ -86,6 +102,7 @@ export const branchSaleForReturnAnswerSchema = z.object({
   invoice: z
     .object({ point_of_sale: pointOfSaleNumberSchema, number: z.int().positive() })
     .nullable(),
+  invoice_standing: invoiceStandingSchema,
   payments: z.array(
     z.object({
       id: z.string(),
