@@ -39,6 +39,7 @@ import {
   registersListRoute,
   snapshotBackupsRoute,
 } from "../register/routes";
+import { returnsReportRoute } from "../returns/routes";
 import {
   averageTicketRoute,
   manualDiscountsRoute,
@@ -138,6 +139,7 @@ const routeTree = rootRoute.addChildren([
       currentStockReportRoute,
       salesByPromotionRoute,
       manualDiscountsRoute,
+      returnsReportRoute,
     ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,

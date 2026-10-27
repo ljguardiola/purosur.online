@@ -30,6 +30,7 @@ import {
   canSeePricesArea,
   canSeeRefundsArea,
   canSeeReports,
+  canSeeReturnsReport,
   canSeeStockArea,
   canSeeStockBalances,
   canSeeStockMovements,
@@ -94,6 +95,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
     : canSeeRefundsArea(session)
       ? "/refunds/mercado-pago"
       : "/fiscal-tasks";
+  const reportsTarget = canSeeReports(session) ? "/reports" : "/reports/returns";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -137,9 +139,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "cash-and-fiscal"}
             />
           )}
-          {canSeeReports(session) && (
+          {(canSeeReports(session) || canSeeReturnsReport(session)) && (
             <AreaLink
-              to="/reports"
+              to={reportsTarget}
               label="Reportes"
               icon={<ChartColumn />}
               active={area === "reports"}
