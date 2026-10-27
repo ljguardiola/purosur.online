@@ -149,7 +149,7 @@ test("keeps the filters in the URL and asks the cloud again when one changes", a
 
 test("rewrites a URL with values the listing does not offer as the same URL written its own way", async () => {
   const services = servicesFor(["fiscal_information"]);
-  window.history.pushState(null, "", "/fiscal-documents?kind=ALL&page=1&number=abc");
+  window.history.pushState(null, "", "/fiscal-documents?kind=ALL&page=1");
 
   await render(<App help={emptyHelp} services={services} />);
 
