@@ -4,7 +4,7 @@ export const FICTIONAL_TIENDISTA_STORE_ADDRESS = `https://tiendista.com/${FICTIO
 
 export const FICTIONAL_TIENDISTA_PRODUCT_DATA_URL = `https://datostienda-pc3gz7vuxa-uc.a.run.app/${FICTIONAL_TIENDISTA_STORE}/producto`;
 
-export const fictionalTiendistaProducts = [
+const fictionalTiendistaProducts = [
   {
     id: 101,
     nombre: "Yerba mate suave",
