@@ -407,7 +407,7 @@ test("the CLI refuses a manifest whose installer version is not the release tag'
   assert.deepEqual(other.outputs, []);
 });
 
-test("the CLI names the production installer of a version", async () => {
+test("the CLI names the production installer of a version and the name its release shows", async () => {
   const harness = cliHarness(
     { INSTALLER_DIR: "installer", POS_VERSION: "1.0.1302" },
     {},
@@ -416,7 +416,9 @@ test("the CLI names the production installer of a version", async () => {
   );
 
   assert.equal(await runCli({ ...harness.options, argv: ["installer-of-version"] }), 0);
-  assert.deepEqual(harness.outputs, ["path=installer/Puro Sur Setup 1.0.1302.exe\n"]);
+  assert.deepEqual(harness.outputs, [
+    "asset=installer/Puro Sur Setup 1.0.1302.exe#Puro Sur Setup 1.0.1302.exe\n",
+  ]);
 });
 
 test("the CLI refuses an installer not named after the production register and the version", async () => {
