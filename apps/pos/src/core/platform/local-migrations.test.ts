@@ -7904,6 +7904,33 @@ describe("the returns of other registers' sales migration", () => {
          VALUES ('refund-1', 'pay-1', 'return-1', 'CASH', 'NONE', 1500, 'APPROVED', '2026-10-12T12:00:00.000Z');
          INSERT INTO sale_credit_notes (id, sale_id, return_id, requested_issue_on, total, state, recorded_at)
          VALUES ('credit-note-1', 'sale-1', 'return-1', '2026-10-12', 1500, 'AWAITING_INVOICE', '2026-10-12T12:00:00.000Z');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, voided_at)
+         VALUES ('sale-2', 'r1', 'device-a', 's1', 'u1', 'VOIDED', '2026-10-09T13:00:00.000Z', '2026-10-09T13:05:00.000Z');
+         INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause,
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, credit_note_id
+         ) VALUES
+           ('offline-invoice', 'sale-2', 3, 'factura_c', 8, '2026-10-09', '2026-10-09T13:00:00.000Z', '20261009130000',
+            '21403471111111', '2026-10-01', '2026-10-15', '{"buyerTaxStatusCode":5}', 99, 0, 'no_connectivity',
+            NULL, NULL, NULL, NULL),
+           ('offline-credit-note', 'sale-2', 3, 'credit_note_c', 9, '2026-10-09', '2026-10-09T13:05:00.000Z', '20261009130500',
+            '21403472222222', '2026-10-01', '2026-10-15', '{}', 99, 0, 'no_connectivity',
+            11, 3, 8, 'credit-note-2');
+         INSERT INTO sale_credit_notes (
+           id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code, corrected_voucher_type,
+           corrected_point_of_sale, corrected_number, state, recorded_at, answered_at, offline_fiscal_document_id
+         ) VALUES ('credit-note-2', 'sale-2', NULL, NULL, 3000, 5, 11, 3, 8, 'ISSUED_OFFLINE',
+                   '2026-10-09T13:05:00.000Z', '2026-10-09T13:05:00.000Z', 'offline-credit-note');
+         INSERT INTO credit_note_prints (credit_note_id, print_attempted_at, printed_at)
+         VALUES ('credit-note-1', '2026-10-12T12:01:00.000Z', NULL), ('credit-note-2', '2026-10-09T13:06:00.000Z', '2026-10-09T13:06:01.000Z');
+         INSERT INTO credit_note_receipts (credit_note_id, template_version, head, body)
+         VALUES ('credit-note-1', 'v1', x'01', x'02'), ('credit-note-2', 'v1', x'03', x'04');
+         INSERT INTO replenished_credit_note_requests (
+           credit_note_id, event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
+           payload, occurred_at, actor_id, chain_hmac
+         ) VALUES ('credit-note-1', 'event-1', 1, 'Sale', 'sale-1', 'sale_returned', 1, '{}', '2026-10-12T12:00:00.000Z', 'u1', 'hmac');
          INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
          VALUES ('movement-1', 'p1', 'return', 'line-1', 1, '2026-10-12T12:00:00.000Z'),
                 ('movement-2', 'p1', 'loss', NULL, -1, '2026-10-12T12:07:00.000Z');`,
@@ -8067,6 +8094,229 @@ describe("the returns of other registers' sales migration", () => {
       expect(() => insertRefund(database, { provider: "MERCADOPAGO_QR" })).toThrow(/CHECK/);
       expect(() => insertMovement(database, { kind: "sale_returned" })).toThrow(/CHECK/);
       expect(() => insertMovement(database, { kind: "loss" })).toThrow(/CHECK/);
+    });
+  });
+
+  describe("the credit notes of sales a register does not hold", () => {
+    const insertCreditNote = (
+      database: Database,
+      values: Record<string, string | number | null> = {},
+    ) =>
+      database
+        .prepare(
+          `INSERT INTO sale_credit_notes (
+             id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code, corrected_voucher_type,
+             corrected_point_of_sale, corrected_number, state, recorded_at, answered_at, offline_fiscal_document_id
+           ) VALUES (
+             @id, @sale_id, @return_id, @requested_issue_on, 1500, 5, 11, 4, 88, @state,
+             '2026-10-13T12:00:00.000Z', NULL, @offline_fiscal_document_id
+           )`,
+        )
+        .run({
+          id: "credit-note-3",
+          sale_id: "sale-of-another-register",
+          return_id: null,
+          requested_issue_on: null,
+          state: "IN_PROGRESS",
+          offline_fiscal_document_id: null,
+          ...values,
+        });
+
+    const insertOfflineDocument = (
+      database: Database,
+      values: Record<string, string | number | null> = {},
+    ) =>
+      database
+        .prepare(
+          `INSERT INTO offline_fiscal_documents (
+             id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+             offline_authorization_code, fortnight_start, fortnight_end, document,
+             buyer_document_type, buyer_document_number, cause,
+             corrected_voucher_type, corrected_point_of_sale, corrected_number, credit_note_id
+           ) VALUES (
+             @id, @sale_id, 3, @document_type, @number, '2026-10-13', '2026-10-13T12:00:00.000Z', '20261013120000',
+             '21403473333333', '2026-10-01', '2026-10-15', '{}', 99, 0, 'no_connectivity',
+             @corrected_voucher_type, @corrected_point_of_sale, @corrected_number, @credit_note_id
+           )`,
+        )
+        .run({
+          id: "offline-3",
+          sale_id: "sale-of-another-register",
+          document_type: "credit_note_c",
+          number: 20,
+          corrected_voucher_type: 11,
+          corrected_point_of_sale: 4,
+          corrected_number: 88,
+          credit_note_id: "credit-note-3",
+          ...values,
+        });
+
+    it("keeps the credit notes of a void and of a return, their prints and receipts, their requests and their offline documents", () => {
+      withHeldReturn((database) => {
+        expect(
+          database
+            .prepare(
+              "SELECT id, sale_id, return_id, state, offline_fiscal_document_id FROM sale_credit_notes ORDER BY id",
+            )
+            .all(),
+        ).toEqual([
+          {
+            id: "credit-note-1",
+            sale_id: "sale-1",
+            return_id: "return-1",
+            state: "AWAITING_INVOICE",
+            offline_fiscal_document_id: null,
+          },
+          {
+            id: "credit-note-2",
+            sale_id: "sale-2",
+            return_id: null,
+            state: "ISSUED_OFFLINE",
+            offline_fiscal_document_id: "offline-credit-note",
+          },
+        ]);
+        expect(
+          database
+            .prepare(
+              "SELECT id, sale_id, document_type, credit_note_id FROM offline_fiscal_documents ORDER BY id",
+            )
+            .all(),
+        ).toEqual([
+          {
+            id: "offline-credit-note",
+            sale_id: "sale-2",
+            document_type: "credit_note_c",
+            credit_note_id: "credit-note-2",
+          },
+          {
+            id: "offline-invoice",
+            sale_id: "sale-2",
+            document_type: "factura_c",
+            credit_note_id: null,
+          },
+        ]);
+        expect(
+          database
+            .prepare(
+              "SELECT credit_note_id, printed_at FROM credit_note_prints ORDER BY credit_note_id",
+            )
+            .all(),
+        ).toEqual([
+          { credit_note_id: "credit-note-1", printed_at: null },
+          { credit_note_id: "credit-note-2", printed_at: "2026-10-09T13:06:01.000Z" },
+        ]);
+        expect(
+          database
+            .prepare(
+              "SELECT credit_note_id, template_version FROM credit_note_receipts ORDER BY credit_note_id",
+            )
+            .all(),
+        ).toEqual([
+          { credit_note_id: "credit-note-1", template_version: "v1" },
+          { credit_note_id: "credit-note-2", template_version: "v1" },
+        ]);
+        expect(
+          database
+            .prepare("SELECT credit_note_id, event_id FROM replenished_credit_note_requests")
+            .all(),
+        ).toEqual([{ credit_note_id: "credit-note-1", event_id: "event-1" }]);
+        expect(database.pragma("foreign_key_check")).toEqual([]);
+      });
+    });
+
+    it("keeps the indexes of the credit notes and the offline documents", () => {
+      withHeldReturn((database) => {
+        expect(
+          database
+            .prepare<[], { name: string }>(
+              `SELECT name FROM sqlite_schema WHERE type = 'index' AND name IN (
+                 'offline_fiscal_documents_one_invoice_per_sale', 'sale_credit_notes_one_per_voided_sale',
+                 'sale_credit_notes_by_sale', 'sale_credit_notes_in_progress'
+               ) ORDER BY name`,
+            )
+            .all()
+            .map(({ name }) => name),
+        ).toEqual([
+          "offline_fiscal_documents_one_invoice_per_sale",
+          "sale_credit_notes_by_sale",
+          "sale_credit_notes_in_progress",
+          "sale_credit_notes_one_per_voided_sale",
+        ]);
+      });
+    });
+
+    it("records a credit note, and an offline credit note, for a sale the register does not hold", () => {
+      withHeldReturn((database) => {
+        insertReturn(database);
+        expect(() => insertCreditNote(database)).not.toThrow();
+        expect(() =>
+          insertCreditNote(database, {
+            id: "credit-note-4",
+            sale_id: "sale-elsewhere-too",
+            return_id: "return-2",
+            requested_issue_on: "2026-10-13",
+          }),
+        ).not.toThrow();
+        expect(() =>
+          insertCreditNote(database, {
+            id: "credit-note-5",
+            sale_id: "sale-third",
+            state: "ISSUED_OFFLINE",
+            offline_fiscal_document_id: "offline-3",
+          }),
+        ).toThrow(/FOREIGN KEY/);
+        database.exec("PRAGMA defer_foreign_keys = ON");
+        expect(() =>
+          insertOfflineDocument(database, { id: "offline-5", credit_note_id: "credit-note-5" }),
+        ).not.toThrow();
+      });
+    });
+
+    it("still refuses what the credit notes, their prints and their offline documents refused", () => {
+      withHeldReturn((database) => {
+        expect(() =>
+          insertCreditNote(database, { return_id: "missing", requested_issue_on: "2026-10-13" }),
+        ).toThrow(/FOREIGN KEY/);
+        expect(() =>
+          insertCreditNote(database, {
+            state: "ISSUED_OFFLINE",
+            offline_fiscal_document_id: "missing",
+          }),
+        ).toThrow(/FOREIGN KEY/);
+        expect(() => insertCreditNote(database, { state: "SENT" })).toThrow(/CHECK/);
+        expect(() =>
+          insertCreditNote(database, { sale_id: "sale-2", id: "credit-note-6" }),
+        ).toThrow(/UNIQUE/);
+        expect(() =>
+          database.exec(
+            "INSERT INTO credit_note_prints (credit_note_id, print_attempted_at) VALUES ('missing', '2026-10-13T12:00:00.000Z')",
+          ),
+        ).toThrow(/FOREIGN KEY/);
+        expect(() =>
+          database.exec(
+            "INSERT INTO credit_note_receipts (credit_note_id, template_version, head, body) VALUES ('missing', 'v1', x'01', x'02')",
+          ),
+        ).toThrow(/FOREIGN KEY/);
+        expect(() =>
+          database.exec(
+            `INSERT INTO replenished_credit_note_requests (credit_note_id, event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version, payload, occurred_at, actor_id, chain_hmac)
+             VALUES ('missing', 'event-9', 2, 'Sale', 'sale-1', 'sale_returned', 1, '{}', '2026-10-13T12:00:00.000Z', 'u1', 'hmac')`,
+          ),
+        ).toThrow(/FOREIGN KEY/);
+        expect(() => insertOfflineDocument(database, { corrected_number: null })).toThrow(/CHECK/);
+        expect(() =>
+          insertOfflineDocument(database, {
+            id: "offline-6",
+            document_type: "factura_c",
+            sale_id: "sale-2",
+            number: 30,
+            corrected_voucher_type: null,
+            corrected_point_of_sale: null,
+            corrected_number: null,
+            credit_note_id: null,
+          }),
+        ).toThrow(/UNIQUE/);
+      });
     });
   });
 
