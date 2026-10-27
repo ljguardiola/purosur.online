@@ -25,6 +25,8 @@ describe("branchSaleForReturnQuerySchema", () => {
     ["only a deferred id", { deferred_id: "deferred-1" }],
     ["a point of sale that is not a number", { point_of_sale: "x", number: "1204" }],
     ["a fractional number", { point_of_sale: "3", number: "1.5" }],
+    ["a number written with an exponent", { point_of_sale: "3", number: "1e3" }],
+    ["a number with a space before it", { point_of_sale: "3", number: " 1204" }],
     ["a number of zero", { point_of_sale: "3", number: "0" }],
     ["a point of sale above the allowed ones", { point_of_sale: "100000", number: "1" }],
     [
@@ -112,6 +114,12 @@ describe("branchSaleForReturnAnswerSchema", () => {
     };
 
     expect(branchSaleForReturnAnswerSchema.parse(percent)).toEqual(percent);
+  });
+
+  it("reads a date the cloud sends with its time zone offset", () => {
+    const withOffset = { ...answer, occurred_at: "2026-09-12T15:30:00.000-03:00" };
+
+    expect(branchSaleForReturnAnswerSchema.parse(withOffset)).toEqual(withOffset);
   });
 
   it("reads a voided sale so the register can say it was voided", () => {
