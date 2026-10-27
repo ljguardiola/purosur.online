@@ -614,12 +614,12 @@ test("caps the sheet at 2400 labels in total, disabling a row's + once the total
     clickManyTimesNatively(increase(product), count);
   }
 
-  await expect.element(dialog.getByText("2400 etiquetas")).toBeVisible();
+  await expect.element(dialog.getByText("2.400 etiquetas")).toBeVisible();
   await expect.element(dialog.getByText("402", { exact: true })).toBeVisible();
   await expect.element(increase(walnutsWithInternalBarcode)).toBeDisabled();
 
   (increase(walnutsWithInternalBarcode).element() as HTMLButtonElement).click();
-  await expect.element(dialog.getByText("2400 etiquetas")).toBeVisible();
+  await expect.element(dialog.getByText("2.400 etiquetas")).toBeVisible();
 
   await userEvent.click(
     dialog.getByRole("button", {
