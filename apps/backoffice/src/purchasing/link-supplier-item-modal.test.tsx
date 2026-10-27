@@ -344,7 +344,9 @@ test("does not offer to create the product when a product is proposed", async ()
   const screen = await renderModal({ services, onCreateProduct: () => {} });
 
   await expect
-    .element(screen.getByRole("dialog").getByText("Propuesto por código de barras: Pasas de uva"))
+    .element(
+      screen.getByRole("dialog").getByText("Propuesto por código de barras: Pasas de uva").first(),
+    )
     .toBeVisible();
   expect(screen.getByRole("button", { name: "Crear producto" }).query()).toBeNull();
 });

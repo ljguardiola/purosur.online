@@ -471,7 +471,7 @@ test.each([
 
   const dialog = await create(screen);
 
-  await expect.element(dialog.getByText(title)).toBeVisible();
+  await expect.element(dialog.getByText(title).first()).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
   expect(onOutdated).toHaveBeenCalledTimes(1);
 });

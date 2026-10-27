@@ -1,6 +1,7 @@
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import type { CreateProductFromSupplierItemOutcome } from "./supplier-item-products-api";
 import type {
   ConfirmSupplierPriceListOutcome,
   LinkSupplierPriceListRowOutcome,
@@ -17,11 +18,14 @@ export type SupplierPriceListChangeNotice =
   | { kind: "listDateMissing" }
   | { kind: "vatMissing" }
   | { kind: "packagingNotLinkable" }
-  | { kind: "vatRateMissing" };
+  | { kind: "vatRateMissing" }
+  | { kind: "alreadyLinked" };
 
 type RefusedChange = Exclude<
-  ConfirmSupplierPriceListOutcome | LinkSupplierPriceListRowOutcome,
-  { kind: "ok" | "unauthenticated" | "forbidden" }
+  | ConfirmSupplierPriceListOutcome
+  | LinkSupplierPriceListRowOutcome
+  | CreateProductFromSupplierItemOutcome,
+  { kind: "ok" | "unauthenticated" | "forbidden" | "barcode_taken" | "category_not_leaf" }
 >;
 
 export function supplierPriceListChangeNoticeOf(
@@ -48,6 +52,8 @@ export function supplierPriceListChangeNoticeOf(
       return { kind: "packagingNotLinkable" };
     case "vat_rate_missing":
       return { kind: "vatRateMissing" };
+    case "already_linked":
+      return { kind: "alreadyLinked" };
     case "failed":
     case "validation_failed":
     case "vat_rate_invalid":
@@ -58,7 +64,12 @@ export function supplierPriceListChangeNoticeOf(
 export function supplierPriceListChangeOutdates(
   notice: SupplierPriceListChangeNotice | null,
 ): boolean {
-  return notice?.kind === "stale" || notice?.kind === "notEditable" || notice?.kind === "notFound";
+  return (
+    notice?.kind === "stale" ||
+    notice?.kind === "notEditable" ||
+    notice?.kind === "notFound" ||
+    notice?.kind === "alreadyLinked"
+  );
 }
 
 export function SupplierPriceListChangeNotices({
@@ -110,6 +121,15 @@ export function SupplierPriceListChangeNotices({
       );
     case "notFound":
       return <InlineNotice tone="error" icon={<TriangleAlert />} title="Esta lista ya no existe" />;
+    case "alreadyLinked":
+      return (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title="Este ítem ya tiene un producto"
+          description="Actualizá la lista para verlo."
+        />
+      );
     case "noRows":
       return (
         <InlineNotice
