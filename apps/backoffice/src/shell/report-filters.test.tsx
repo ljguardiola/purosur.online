@@ -147,3 +147,25 @@ test("asks again once a range that was out of order is put right", async () => {
     screen.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
   ).toBeNull();
 });
+
+test("reports the range typed without a register when it offers no register filter", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await render(
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <ReportFilters
+          filters={{ from: "", to: "" }}
+          onFiltersChange={onFiltersChange}
+          answeredPeriod={ANSWERED}
+        />
+      </main>
+    </FieldSizeProvider>,
+  );
+  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+
+  await typeDate(screen, "Desde", "02102026");
+
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toEqual({ from: "2026-10-02", to: "2026-10-07" });
+});
