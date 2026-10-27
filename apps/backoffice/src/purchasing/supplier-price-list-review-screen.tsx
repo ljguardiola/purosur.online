@@ -24,6 +24,7 @@ import {
   FileX,
   Link2,
   LoaderCircle,
+  PackagePlus,
   Pencil,
   Search,
   SearchX,
@@ -38,6 +39,7 @@ import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canManagePurchasePackagings } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ConfirmSupplierPriceListModal } from "./confirm-supplier-price-list-modal";
+import { CreateProductFromSupplierItemModal } from "./create-product-from-supplier-item-modal";
 import { DiscardSupplierPriceListModal } from "./discard-supplier-price-list-modal";
 import { EditSupplierPriceListRowPriceModal } from "./edit-supplier-price-list-row-price-modal";
 import { LinkSupplierItemModal } from "./link-supplier-item-modal";
@@ -65,7 +67,13 @@ export type SupplierPriceListReviewScreenProps = {
 };
 
 type ShowFilter = SupplierPriceListReviewFilters["show"];
-type Notice = "priceSaved" | "rowRemoved" | "rowLinked" | "rowLinkedUntilConfirmed" | "rowReviewed";
+type Notice =
+  | "priceSaved"
+  | "rowRemoved"
+  | "rowLinked"
+  | "rowLinkedUntilConfirmed"
+  | "rowReviewed"
+  | "productCreated";
 type ErrorNotice = "listChanged" | "rowNotReviewed";
 
 const NO_ROWS: SupplierPriceListRow[] = [];
@@ -86,6 +94,10 @@ const NOTICES: Record<Notice, { title: string; description: string }> = {
   rowLinkedUntilConfirmed: {
     title: "Ítem vinculado",
     description: "Se recuerda para las próximas listas al confirmar esta.",
+  },
+  productCreated: {
+    title: "Producto creado",
+    description: "El ítem quedó vinculado al producto nuevo.",
   },
   rowReviewed: {
     title: "Ítem revisado",
@@ -145,6 +157,7 @@ export function SupplierPriceListReviewScreen({
   const [page, setPage] = useState(1);
   const [priceTarget, setPriceTarget] = useState<SupplierPriceListRow | null>(null);
   const [linkTarget, setLinkTarget] = useState<SupplierPriceListRow | null>(null);
+  const [createTarget, setCreateTarget] = useState<SupplierPriceListRow | null>(null);
   const [removeTarget, setRemoveTarget] = useState<SupplierPriceListRow | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<SupplierPriceListReviewList | null>(null);
   const [discardTarget, setDiscardTarget] = useState<SupplierPriceListReviewList | null>(null);
@@ -163,6 +176,7 @@ export function SupplierPriceListReviewScreen({
   const list = review?.list ?? null;
   const status = list === null ? null : supplierPriceListStatusOf(list);
   const actions = review?.actions ?? null;
+  const mayCreateProducts = actions?.linkRows === true;
   const unread = list?.state === "READING" || list?.state === "READ_FAILED";
 
   const columns = [
@@ -200,6 +214,14 @@ export function SupplierPriceListReviewScreen({
                     ? `Vincular ${row.description}`
                     : `Cambiar el vínculo de ${row.description}`,
                 onPress: () => setLinkTarget(row),
+              }
+            : undefined,
+        (row: SupplierPriceListRow) =>
+          mayCreateProducts && row.mayCreateProduct
+            ? {
+                icon: <PackagePlus />,
+                "aria-label": `Crear producto ${row.description}`,
+                onPress: () => setCreateTarget(row),
               }
             : undefined,
         (row: SupplierPriceListRow) =>
@@ -272,6 +294,7 @@ export function SupplierPriceListReviewScreen({
 
   function refreshAfter(shown: Notice | null) {
     setLinkTarget(null);
+    setCreateTarget(null);
     setErrorNotice(null);
     setPriceTarget(null);
     setRemoveTarget(null);
@@ -438,12 +461,29 @@ export function SupplierPriceListReviewScreen({
             target={linkTarget}
             mayCreatePackaging={canManagePurchasePackagings(access)}
             remembersOnConfirm={actions?.confirm === true}
+            onCreateProduct={
+              mayCreateProducts
+                ? (row) => {
+                    setLinkTarget(null);
+                    setCreateTarget(row);
+                  }
+                : null
+            }
             services={services}
             onLinked={() =>
               refreshAfter(actions?.confirm === true ? "rowLinkedUntilConfirmed" : "rowLinked")
             }
             onOutdated={() => refreshAfter(null)}
             onClose={() => setLinkTarget(null)}
+            onSessionEnded={onSessionEnded}
+          />
+          <CreateProductFromSupplierItemModal
+            list={list}
+            target={createTarget}
+            services={services}
+            onCreated={() => refreshAfter("productCreated")}
+            onOutdated={() => refreshAfter(null)}
+            onClose={() => setCreateTarget(null)}
             onSessionEnded={onSessionEnded}
           />
           <RemoveSupplierPriceListRowModal

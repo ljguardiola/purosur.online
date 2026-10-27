@@ -20,6 +20,8 @@ const ROOT_BUILD_PATHS = [
 // The fields `pnpm install --filter <package>...` follows to the workspace packages a build needs.
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies"];
 
+const VERSION_RE = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+
 export class ReleaseRefusal extends Error {}
 
 function escapeRegExp(text) {
@@ -191,10 +193,25 @@ async function listCommits({ previousTag, sha, paths, runGit }) {
     });
 }
 
-export async function planRelease({ spec, sha, runGit }) {
+async function assertGivenVersionReleasable({ prefix, version, previousTag, runGit }) {
+  if (!VERSION_RE.test(version)) {
+    throw new ReleaseRefusal(`${LOG_PREFIX}: the version ${JSON.stringify(version)} is not X.Y.Z`);
+  }
+  if (previousTag !== null && compareVersions(version, previousTag.slice(prefix.length)) <= 0) {
+    throw new ReleaseRefusal(`${LOG_PREFIX}: ${version} is not newer than ${previousTag}`);
+  }
+  if ((await releaseTags({ prefix, runGit })).includes(`${prefix}${version}`)) {
+    throw new ReleaseRefusal(`${LOG_PREFIX}: ${prefix}${version} already exists`);
+  }
+}
+
+export async function planRelease({ spec, sha, runGit, version: givenVersion }) {
   const { prefix, rootPackages } = spec;
   await assertNotAlreadyReleased({ prefix, sha, runGit });
   const previousTag = await newestReleaseTag({ prefix, sha, runGit });
+  if (givenVersion !== undefined) {
+    await assertGivenVersionReleasable({ prefix, version: givenVersion, previousTag, runGit });
+  }
   const paths = await includedPathsAt({ sha, rootPackages, runGit });
   const commits = await listCommits({ previousTag, sha, paths, runGit });
   if (commits.length === 0) {
@@ -202,10 +219,12 @@ export async function planRelease({ spec, sha, runGit }) {
       `${LOG_PREFIX}: nothing to release: no included change since ${previousTag ?? "the start"}`,
     );
   }
-  const version = nextVersion({
-    previousVersion: previousTag === null ? null : previousTag.slice(prefix.length),
-    kinds: commits.map(kindOf),
-  });
+  const version =
+    givenVersion ??
+    nextVersion({
+      previousVersion: previousTag === null ? null : previousTag.slice(prefix.length),
+      kinds: commits.map(kindOf),
+    });
   return {
     version,
     tag: `${prefix}${version}`,
@@ -234,6 +253,7 @@ export async function runCli({
     RELEASE_ROOT_PACKAGES,
     TARGET_SHA,
     RELEASE_NOTES_FILE,
+    RELEASE_VERSION,
     GITHUB_OUTPUT,
   } = env;
   const [command] = argv;
@@ -252,7 +272,12 @@ export async function runCli({
         return 1;
       }
       const spec = { prefix: RELEASE_TAG_PREFIX, rootPackages };
-      const release = await planRelease({ spec, sha: TARGET_SHA, runGit });
+      const release = await planRelease({
+        spec,
+        sha: TARGET_SHA,
+        runGit,
+        version: RELEASE_VERSION || undefined,
+      });
       log(
         `${LOG_PREFIX}: ${release.tag} from ${release.commits.length} change(s) since ${release.previousTag ?? "the start"}`,
       );

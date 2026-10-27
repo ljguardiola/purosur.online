@@ -13,6 +13,7 @@ import {
   isSupplierPriceListFileNameTooLong,
   isSupplierPriceListPdfTooLarge,
   isSupplierPriceListUnderReview,
+  mayCreateProductFromRow,
   maySupplierPriceListRowBeLinked,
   pricedRows,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
@@ -333,6 +334,18 @@ describe("maySupplierPriceListRowBeLinked", () => {
     expect(
       SUPPLIER_PRICE_LIST_STATES.filter((state) => maySupplierPriceListRowBeLinked(state)),
     ).toEqual(["EXTRACTED", "REVIEWED"]);
+  });
+});
+
+describe("mayCreateProductFromRow", () => {
+  const link = { productId: "product-1", packagingId: "packaging-1", vatRate: null };
+
+  it("is true of a row that has no link", () => {
+    expect(mayCreateProductFromRow({ link: null })).toBe(true);
+  });
+
+  it("is false of a row that has a link", () => {
+    expect(mayCreateProductFromRow({ link })).toBe(false);
   });
 });
 

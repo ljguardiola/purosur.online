@@ -64,7 +64,7 @@ function linkColumns(link: SupplierItemLink | null) {
   };
 }
 
-function linkOf(columns: {
+export function linkOf(columns: {
   productId: string | null;
   packagingId: string | null;
   vatRate: number | null;
@@ -74,7 +74,7 @@ function linkOf(columns: {
     : { productId: columns.productId, packagingId: columns.packagingId, vatRate: columns.vatRate };
 }
 
-class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements SupplierPriceListStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;

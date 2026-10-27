@@ -15,6 +15,7 @@ const row = {
     vatRate: 1050,
   },
   status: "price_changed",
+  mayCreateProduct: false,
   needsReview: true,
   previousPriceCents: 140_000,
   pricePerSaleUnit: { numerator: "165805", denominator: "10" },
@@ -29,6 +30,7 @@ const bareRow = {
   barcode: null,
   link: null,
   status: "new",
+  mayCreateProduct: true,
   needsReview: true,
   previousPriceCents: null,
   pricePerSaleUnit: null,
@@ -89,6 +91,20 @@ describe("supplierPriceListReviewSchema", () => {
     expect(supplierPriceListReviewSchema.safeParse({ ...review, rows: [unmarked] }).success).toBe(
       false,
     );
+  });
+
+  it("requires each row to say whether a product may be created from it", () => {
+    const { mayCreateProduct: _mayCreateProduct, ...unmarked } = bareRow;
+
+    expect(supplierPriceListReviewSchema.safeParse({ ...review, rows: [unmarked] }).success).toBe(
+      false,
+    );
+    expect(
+      supplierPriceListReviewSchema.safeParse({
+        ...review,
+        rows: [{ ...bareRow, mayCreateProduct: "yes" }],
+      }).success,
+    ).toBe(false);
   });
 
   it("requires the version the review changes are made against", () => {

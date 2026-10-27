@@ -2,6 +2,7 @@ import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   BadgePercent,
   Calculator,
+  CalendarClock,
   ChartColumn,
   HandCoins,
   List,
@@ -38,6 +39,7 @@ function ReportsArea() {
   const salesByPromotionShown = Boolean(matchRoute({ to: "/reports/sales-by-promotion" }));
   const manualDiscountsShown = Boolean(matchRoute({ to: "/reports/manual-discounts" }));
   const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
+  const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   const returnsShown = Boolean(matchRoute({ to: "/reports/returns" }));
   return (
@@ -129,6 +131,15 @@ function ReportsArea() {
                     icon={<Warehouse />}
                     search={currentStockShown ? true : {}}
                     active={currentStockShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/expiring-lots"
+                    label="Lotes por vencer"
+                    icon={<CalendarClock />}
+                    search={expiringLotsShown ? true : {}}
+                    active={expiringLotsShown}
                   />
                 </li>
                 <li>

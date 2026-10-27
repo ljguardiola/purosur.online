@@ -53,6 +53,7 @@ import { compromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
   assemblyBatchesRoute,
   currentStockReportRoute,
+  expiringLotsReportRoute,
   expiringLotsRoute,
   initialInventoryRoute,
   recipesListRoute,
@@ -137,6 +138,7 @@ const routeTree = rootRoute.addChildren([
       salesByCashierRoute,
       averageTicketRoute,
       currentStockReportRoute,
+      expiringLotsReportRoute,
       salesByPromotionRoute,
       manualDiscountsRoute,
       returnsReportRoute,

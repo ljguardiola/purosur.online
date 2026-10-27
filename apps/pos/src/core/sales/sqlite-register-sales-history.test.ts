@@ -670,6 +670,7 @@ describe("SqliteRegisterSalesHistory", () => {
         ],
         creditNote: null,
         deferredInvoiceIssued: false,
+        deferredShortCode: null,
         hasReturn: false,
       });
     });
@@ -703,6 +704,28 @@ describe("SqliteRegisterSalesHistory", () => {
         expect(history.saleOfRegister("late")?.deferredInvoiceIssued).toBe(issued);
       },
     );
+
+    it.each(["pending", "cancelled", "satisfied"] as const)(
+      "carries the short code recorded for the sale's deferral when it is %s",
+      (state) => {
+        addSale({
+          id: "late",
+          fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 },
+          deferred: state === "pending" ? true : state,
+        });
+        database.exec("UPDATE deferred_sales SET short_code = '7KQ4M2P9' WHERE sale_id = 'late'");
+
+        expect(history.saleOfRegister("late")?.deferredShortCode).toBe("7KQ4M2P9");
+      },
+    );
+
+    it("carries no short code for a sale invoiced in real time or by contingency", () => {
+      addSale({ id: "real-time", fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 } });
+      addSale({ id: "contingency", offlineDocument: { pointOfSale: 31, number: 8 } });
+
+      expect(history.saleOfRegister("real-time")?.deferredShortCode).toBeNull();
+      expect(history.saleOfRegister("contingency")?.deferredShortCode).toBeNull();
+    });
 
     it("carries every fiscal document of the sale, its contingency document included", () => {
       addSale({

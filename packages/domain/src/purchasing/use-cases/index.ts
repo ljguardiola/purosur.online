@@ -5,6 +5,11 @@ export type {
 export { confirmSupplierPriceList } from "./confirm-supplier-price-list.js";
 export type { CreatePackagingInput, CreatePackagingOutcome } from "./create-packaging.js";
 export { createPackaging } from "./create-packaging.js";
+export type {
+  CreateProductFromSupplierItemInput,
+  CreateProductFromSupplierItemOutcome,
+} from "./create-product-from-supplier-item.js";
+export { createProductFromSupplierItem } from "./create-product-from-supplier-item.js";
 export type { CreateSupplierInput, CreateSupplierOutcome } from "./create-supplier.js";
 export { createSupplier } from "./create-supplier.js";
 export type { DeactivatePackagingOutcome } from "./deactivate-packaging.js";
@@ -178,6 +183,13 @@ export type {
   ProposalRow,
   SupplierItemLinkProposalReader,
 } from "./supplier-item-link-proposal-reader.js";
+export type {
+  CreateCatalogProductInput,
+  CreateCatalogProductOutcome,
+  LockSupplierItemRowResult,
+  SupplierItemProductStore,
+  SupplierItemProductStoreTransaction,
+} from "./supplier-item-product-store.js";
 export type {
   ComparableProduct,
   SupplierOffer,

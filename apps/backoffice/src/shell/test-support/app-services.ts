@@ -197,6 +197,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       createPackaging: vi.fn(),
+      createProductFromSupplierItem: vi.fn(),
+      fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      generateInternalBarcode: vi.fn(),
       confirmSupplierPriceList: vi.fn(),
       discardSupplierPriceList: vi.fn(),
     },
@@ -215,6 +218,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     currentStockReportScreen: {
       fetchCurrentStockReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    expiringLotsReportScreen: {
+      fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     salesByCashierScreen: {
       fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
