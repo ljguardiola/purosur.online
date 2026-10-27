@@ -307,6 +307,23 @@ test("totals and pluralizes the summary as counts change", async () => {
   await expect.element(dialog.getByText("2 etiquetas")).toBeVisible();
 });
 
+test("shows a total in the thousands with the es-AR thousands separator", async () => {
+  const services = createServices();
+  const screen = await renderModal(services, {
+    products: [honeyWithInternalBarcode, almondsWithInternalBarcode],
+  });
+  const dialog = await openPrintLabelsModal(screen);
+
+  for (const product of [honeyWithInternalBarcode, almondsWithInternalBarcode]) {
+    clickManyTimesNatively(
+      dialog.getByRole("button", { name: `Sumar una etiqueta a ${product.name}` }),
+      999,
+    );
+  }
+
+  await expect.element(dialog.getByText("1.998 etiquetas")).toBeVisible();
+});
+
 test("previews the first product with a count above zero, defaulting to the first row", async () => {
   const services = createServices();
   const screen = await renderModal(services, {
