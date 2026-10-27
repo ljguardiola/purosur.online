@@ -8288,6 +8288,7 @@ describe("the returns of other registers' sales migration", () => {
         expect(() =>
           insertCreditNote(database, {
             state: "ISSUED_OFFLINE",
+            answered_at: "2026-10-13T12:00:00.000Z",
             offline_fiscal_document_id: "missing",
           }),
         ).toThrow(/FOREIGN KEY/);
