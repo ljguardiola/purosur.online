@@ -26,7 +26,10 @@ export type {
   AssemblyBatchPorts,
   AssemblyBatchStore,
   AssemblyBatchTransaction,
+  AssemblyBatchVoid,
   BatchLotCost,
+  BatchMovementAllocation,
+  LockedAssemblyBatch,
   NewAssemblyBatch,
 } from "./assembly-batch-store.js";
 export type { BatchLotReader, PreviewLot } from "./batch-lot-reader.js";
@@ -197,6 +200,11 @@ export type {
   StockStore,
   StockStoreTransaction,
 } from "./stock-store.js";
+export type {
+  VoidAssemblyBatchInput,
+  VoidAssemblyBatchOutcome,
+} from "./void-assembly-batch.js";
+export { voidAssemblyBatch } from "./void-assembly-batch.js";
 export type {
   WeighCountedProductInput,
   WeighCountedProductOutcome,

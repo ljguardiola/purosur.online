@@ -21,12 +21,37 @@ export interface BatchLotCost {
   expiresOn: string | null;
 }
 
+export interface LockedAssemblyBatch {
+  id: string;
+  productId: string;
+  lotId: string;
+  voided: boolean;
+  componentProductIds: string[];
+}
+
+export interface BatchMovementAllocation {
+  productId: string;
+  kind: "assembly_out" | "assembly_in";
+  lotId: string;
+  quantity: number;
+}
+
+export interface AssemblyBatchVoid {
+  batchId: string;
+  voidedAt: Date;
+  actorId: string;
+}
+
 export interface AssemblyBatchTransaction extends StockStoreTransaction {
   recipe(productId: string): Promise<Recipe | undefined>;
   activeProductIds(productIds: readonly string[]): Promise<string[]>;
   lotCosts(lotIds: readonly string[]): Promise<BatchLotCost[]>;
   insertAssemblyBatch(batch: NewAssemblyBatch): Promise<string>;
   recordBatchLot(lot: NewBatchLot): Promise<string>;
+  lockAssemblyBatch(batchId: string, locationId: string): Promise<LockedAssemblyBatch | undefined>;
+  assemblyBatchAllocations(batchId: string): Promise<BatchMovementAllocation[]>;
+  isBatchLotConsumed(batchId: string): Promise<boolean>;
+  recordAssemblyBatchVoid(batchVoid: AssemblyBatchVoid): Promise<void>;
 }
 
 export interface AssemblyBatchStore extends StockStore {
