@@ -1,4 +1,4 @@
-import type { CurrentStockReportBody } from "@purosur/contracts";
+import { type CurrentStockReportBody, currentStockReportQuerySchema } from "@purosur/contracts";
 import {
   actionsColumn,
   Card,
@@ -115,7 +115,9 @@ export function CurrentStockReportScreen({
   const [opened, setOpened] = useState<readonly string[]>([]);
   const reportFilters = useEffectEvent(onFiltersChange);
   const data = useCurrentStockReportQuery({
-    query: filters.category === ALL_CATEGORIES ? {} : { category_id: filters.category },
+    query: currentStockReportQuerySchema.catch({}).parse({
+      ...(filters.category === ALL_CATEGORIES ? {} : { category_id: filters.category }),
+    }),
     fetchCurrentStockReport: services.fetchCurrentStockReport,
     onSessionEnded,
   });

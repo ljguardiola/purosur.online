@@ -232,10 +232,10 @@ test("asks for every category and reports it when the URL's category is not an i
   });
 
   await expect.poll(() => services.fetchCurrentStockReport).toHaveBeenCalledWith({});
-  expect(services.fetchCurrentStockReport).not.toHaveBeenCalledWith({ category_id: "frutos-secos" });
-  await expect
-    .poll(() => onFiltersChange.mock.lastCall?.[0])
-    .toMatchObject({ category: "ALL" });
+  expect(services.fetchCurrentStockReport).not.toHaveBeenCalledWith({
+    category_id: "frutos-secos",
+  });
+  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ category: "ALL" });
 });
 
 test("keeps showing the report while the next category loads", async () => {
