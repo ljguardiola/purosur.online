@@ -834,6 +834,10 @@ describe("startServer", () => {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
+      returns: {
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+      },
       roles: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
