@@ -926,6 +926,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1029,6 +1030,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1127,6 +1129,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1224,6 +1227,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1350,6 +1354,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1466,6 +1471,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1586,6 +1592,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1714,6 +1721,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1809,6 +1817,7 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
+        "0081_sale_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
