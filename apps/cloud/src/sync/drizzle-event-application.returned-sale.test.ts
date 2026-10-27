@@ -261,14 +261,16 @@ describe("recording the returns of applied events", () => {
 });
 
 describe("reading the history of a sale before a return", () => {
-  function history(saleId: string) {
-    return system.application.transaction((tx) => tx.saleReturnHistory(saleId));
+  function history(saleId: string, deviceId: string) {
+    return system.application.transaction((tx) =>
+      tx.saleReturnHistory(saleId, eventOf(deviceId, "sale_returned", randomUUID())),
+    );
   }
 
   it("holds when the sale was made and what each of its lines and payments sold and gave", async () => {
-    const { completed } = await setUp();
+    const { completed, deviceId } = await setUp();
 
-    expect(await history(completed.id)).toEqual({
+    expect(await history(completed.id, deviceId)).toEqual({
       saleOccurredAt: COMPLETED_AT,
       goodConditionReturnDays: 15,
       lines: [{ saleLineId: completed.lines[0]?.id, soldQuantity: 2, returnedQuantity: 0 }],
@@ -277,13 +279,13 @@ describe("reading the history of a sale before a return", () => {
   });
 
   it("holds the days the sale's branch accepts a change of mind", async () => {
-    const { completed, locationId } = await setUp();
+    const { completed, locationId, deviceId } = await setUp();
     await system.db
       .update(branchSettings)
       .set({ goodConditionReturnDays: 7 })
       .where(eq(branchSettings.locationId, locationId));
 
-    expect((await history(completed.id)).goodConditionReturnDays).toBe(7);
+    expect((await history(completed.id, deviceId))?.goodConditionReturnDays).toBe(7);
   });
 
   it("counts what earlier returns took back from each line and each payment", async () => {
@@ -299,14 +301,14 @@ describe("reading the history of a sale before a return", () => {
       eventOf(setup.deviceId, "sale_returned", second.id),
     );
 
-    expect(await history(setup.completed.id)).toMatchObject({
+    expect(await history(setup.completed.id, setup.deviceId)).toMatchObject({
       lines: [{ soldQuantity: 2, returnedQuantity: 2 }],
       payments: [{ amount: 5000, refundedAmount: 4800 }],
     });
   });
 
   it("counts what a refund of any other origin already gave back from a payment, and ignores a discarded one", async () => {
-    const { completed } = await setUp();
+    const { completed, deviceId } = await setUp();
     const paymentId = completed.payments[0]?.id as string;
     await system.db.insert(paymentRefunds).values([
       {
@@ -344,7 +346,7 @@ describe("reading the history of a sale before a return", () => {
       },
     ]);
 
-    expect((await history(completed.id)).payments).toEqual([
+    expect((await history(completed.id, deviceId))?.payments).toEqual([
       { paymentId, amount: 5000, refundedAmount: 1000 },
     ]);
   });

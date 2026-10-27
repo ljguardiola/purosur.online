@@ -170,15 +170,20 @@ async function recordFact(
 async function breaksAgainstSaleHistory(
   tx: EventApplicationTransaction,
   fact: SyncedFact,
+  event: UnappliedEvent,
   rules: ZoneRules,
 ): Promise<InvariantBreak[]> {
-  return fact.kind === "sale_returned"
-    ? returnHistoryBreaks(
-        fact.saleReturn,
-        await tx.saleReturnHistory(fact.saleReturn.saleId),
-        rules,
-      )
-    : [];
+  if (fact.kind !== "sale_returned") {
+    return [];
+  }
+  const history = await tx.saleReturnHistory(fact.saleReturn.saleId, event);
+  if (history === undefined) {
+    throw new EventRefused(
+      { kind: "not_recorded" },
+      `sale ${fact.saleReturn.saleId} is not a completed sale of the branch of the register that returned it`,
+    );
+  }
+  return returnHistoryBreaks(fact.saleReturn, history, rules);
 }
 
 async function applyEvent(
@@ -204,7 +209,12 @@ async function applyEvent(
   if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {
     await requireMercadoPagoPaymentsBacked(tx, fact.sale);
   }
-  const historyBreaks = await breaksAgainstSaleHistory(tx, fact, ports.zoneRules.zoneRules());
+  const historyBreaks = await breaksAgainstSaleHistory(
+    tx,
+    fact,
+    event,
+    ports.zoneRules.zoneRules(),
+  );
   await recordFact(tx, fact, event, now);
   await tx.markApplied(event.eventId, now);
   const breaks = [...invariantBreaksOf(fact), ...historyBreaks];
