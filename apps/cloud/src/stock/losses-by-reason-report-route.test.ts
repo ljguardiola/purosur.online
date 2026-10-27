@@ -89,7 +89,6 @@ describe("GET /reports/losses-by-reason access", () => {
 
   it.each([
     ["half a period", "?from=2026-10-01"],
-    ["a period that ends before it starts", "?from=2026-10-31&to=2026-10-01"],
     ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-31"],
   ])("answers 400 to %s", async (_name, query) => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);

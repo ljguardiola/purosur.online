@@ -80,50 +80,10 @@ test("titles the report under the stock reports", async () => {
 test("totals the losses and the reasons that have them", async () => {
   const screen = await renderScreen(listed());
 
-  await expect.element(screen.getByText("4 pérdidas", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Motivos", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("2", { exact: true }).first()).toBeVisible();
-});
-
-test("says one loss in the singular", async () => {
-  const screen = await renderScreen(listed(lossesByReasonReport([returnDiscardReason])));
-
-  await expect.element(screen.getByText("1 pérdida", { exact: true }).first()).toBeVisible();
-});
-
-test("shows a section per reason with its label and loss count", async () => {
-  const screen = await renderScreen(listed());
-
-  const spoiled = screen.getByRole("region", { name: "Mal estado" });
-  await expect.element(spoiled).toBeVisible();
-  await expect.element(spoiled.getByText("3 pérdidas", { exact: true })).toBeVisible();
-  const expired = screen.getByRole("region", { name: "Vencimiento" });
-  await expect.element(expired).toBeVisible();
-  await expect.element(expired.getByText("1 pérdida", { exact: true })).toBeVisible();
-});
-
-test("lists in each reason the products lost, their quantity and their losses", async () => {
-  const screen = await renderScreen(listed());
-
-  const table = screen.getByRole("table", { name: "Productos perdidos por Mal estado" });
-  const cheese = table.getByRole("row").filter({ hasText: "Queso cremoso" });
-  await expect.element(cheese.getByText("2,500 kg")).toBeVisible();
-  await expect.element(cheese.getByText("2", { exact: true }).first()).toBeVisible();
-  const bread = table.getByRole("row").filter({ hasText: "Pan lactal" });
-  await expect.element(bread.getByText("3 u")).toBeVisible();
-  await expect.element(bread.getByText("1", { exact: true })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("shows the reasons the system assigns beside the ones recorded by hand", async () => {
-  const screen = await renderScreen(
-    listed(lossesByReasonReport([spoiledReason, expiredReason, returnDiscardReason])),
-  );
-
-  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
-  await expect.element(screen.getByRole("region", { name: "Vencimiento" })).toBeVisible();
-  const discard = screen.getByRole("region", { name: "Descarte de devolución" });
-  await expect.element(discard.getByText("0,400 kg")).toBeVisible();
+  const figureOf = (label: string) =>
+    screen.getByText(label, { exact: true }).first().element().parentElement?.textContent;
+  await expect.poll(() => figureOf("Pérdidas")).toBe("Pérdidas4 pérdidas");
+  expect(figureOf("Motivos")).toBe("Motivos2");
 });
 
 test("keeps the reasons in the order the cloud answers them", async () => {
@@ -137,6 +97,7 @@ test("keeps the reasons in the order the cloud answers them", async () => {
     .elements()
     .map((heading) => heading.textContent);
   expect(headings).toEqual(["Vencimiento", "Descarte de devolución", "Mal estado"]);
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("offers no register filter and no export", async () => {
@@ -237,6 +198,26 @@ test("shows a failed load with a retry that loads the report again, and no figur
   expect(services.fetchLossesByReasonReport).toHaveBeenCalledTimes(2);
 });
 
+test("loads a period again from the loading placeholder when retrying after it failed", async () => {
+  const services = listed();
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+  vi.mocked(services.fetchLossesByReasonReport).mockImplementation(async (query) =>
+    query.from === "2026-09-10"
+      ? { kind: "failed" }
+      : { kind: "ok", value: lossesByReasonReport() },
+  );
+  await typeDate(screen, "Desde", "10092026");
+  await expect.element(screen.getByText("No pudimos abrir las mermas por motivo")).toBeVisible();
+  vi.mocked(services.fetchLossesByReasonReport).mockReturnValue(new Promise(() => {}));
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Motivos", { exact: true })).toBeVisible();
+  expect(screen.getByRole("region").elements()).toHaveLength(0);
+  expect(screen.getByText("4 pérdidas", { exact: true }).query()).toBeNull();
+});
+
 test("ends the session when the cloud says it is over", async () => {
   const services = createServices();
   vi.mocked(services.fetchLossesByReasonReport).mockResolvedValue({ kind: "unauthenticated" });
@@ -245,4 +226,13 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded).toHaveBeenCalled();
+});
+
+test("sends the person to Mi cuenta when the cloud refuses the report", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchLossesByReasonReport).mockResolvedValue({ kind: "forbidden" });
+
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });

@@ -78,4 +78,13 @@ describe("lossesByReason", () => {
 
     expect(group?.products.map(({ id }) => id)).toEqual(["a", "d", "c", "e", "b"]);
   });
+
+  it("breaks a tie between products of one name by their id in Spanish order, whatever its case", () => {
+    const [group] = lossesByReason([
+      loss({ product: { id: "B", name: "Arroz", saleUnit: "UNIT" } }),
+      loss({ product: { id: "a", name: "Arroz", saleUnit: "UNIT" } }),
+    ]);
+
+    expect(group?.products.map(({ id }) => id)).toEqual(["a", "B"]);
+  });
 });
