@@ -176,6 +176,7 @@ describe("completeReturn", () => {
             occurredAt: RETURNED_AT,
           },
         ],
+        creditNote: { kind: "none" },
         grant: OWN_GRANT,
       });
       expect(store.state.returns).toEqual([RETURN_RECORD]);

@@ -27,12 +27,12 @@ const ONLINE = {
 };
 const OFFLINE = { ...ONLINE, lastHealthCheckOkAt: null };
 
-function facts(changes: Partial<CreditNoteRoutingFacts> = {}) {
+function facts(changes: Partial<CreditNoteRoutingFacts> = {}, evidence = ONLINE) {
   const reads: string[] = [];
   const routing: CreditNoteRoutingFacts = {
     fiscalOnlineEvidence: () => {
       reads.push("evidence");
-      return ONLINE;
+      return evidence;
     },
     offlineCreditNoteSeries: () => {
       reads.push("series");
@@ -86,11 +86,15 @@ describe("routeSaleCreditNote", () => {
   });
 
   it("dates the credit note of a return with the Argentine day of the return", () => {
-    const { routing } = facts();
+    const occurredAt = new Date("2026-10-08T01:30:00.000Z");
+    const { routing } = facts(
+      {},
+      { ...ONLINE, lastHealthCheckOkAt: new Date(occurredAt.getTime() - 1_000) },
+    );
 
     expect(
       route(routing, {
-        occurredAt: new Date("2026-10-08T01:30:00.000Z"),
+        occurredAt,
         origin: { kind: "sale_return", returnId: "return-1" },
       }),
     ).toMatchObject({
@@ -113,7 +117,7 @@ describe("routeSaleCreditNote", () => {
   });
 
   it("holds a credit note for the invoice of a sale that is about to be invoiced", () => {
-    const { routing, reads } = facts({ fiscalOnlineEvidence: () => OFFLINE });
+    const { routing, reads } = facts({}, OFFLINE);
 
     expect(
       route(routing, {
@@ -146,8 +150,7 @@ describe("routeSaleCreditNote", () => {
   });
 
   describe("without a connection", () => {
-    const offline = (changes: Partial<CreditNoteRoutingFacts> = {}) =>
-      facts({ fiscalOnlineEvidence: () => OFFLINE, ...changes });
+    const offline = (changes: Partial<CreditNoteRoutingFacts> = {}) => facts(changes, OFFLINE);
 
     it("issues the credit note offline in the next number of the credit note series", () => {
       const { routing } = offline();
