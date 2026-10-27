@@ -194,6 +194,7 @@ describe("chargeSaleInCash", () => {
         id: "point-1",
         method: "POINT",
         provider: "MERCADOPAGO_POINT",
+        cardType: "DEBIT",
       },
     ],
     ["a QR charge in its wait", { ...REPLACED_QR, waitEndsAt: new Date(NOW.getTime() + 60_000) }],
