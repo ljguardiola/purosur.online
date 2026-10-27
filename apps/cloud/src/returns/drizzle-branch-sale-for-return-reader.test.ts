@@ -12,11 +12,17 @@ import {
   offlineFiscalDocuments,
   paymentRefunds,
   products,
+  registers,
   sales,
   users,
 } from "../platform/db/schema.js";
-import { eventApplicationUnderTest } from "../sync/test-support/drizzle-event-application.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
+  APPLICATION_NOW,
+  eventApplicationUnderTest,
+} from "../sync/test-support/drizzle-event-application.js";
+import {
+  aCancelledSale,
   aCashSessionOpenedFact,
   aCompletedSale,
   aReturnOf,
@@ -53,9 +59,30 @@ async function record(fact: SyncedFact, event: UnappliedEvent) {
   await system.application.transaction((tx) => tx.record(fact, event));
 }
 
-async function setUp(overrides: Partial<CompletedSale> = {}, saleUnit: "UNIT" | "KG" = "UNIT") {
+async function enrollInOtherBranch() {
+  const [otherBranch] = await system.db
+    .insert(locations)
+    .values({})
+    .returning({ id: locations.id });
+  const [register] = await system.db
+    .insert(registers)
+    .values({ locationId: otherBranch?.id as string, name: "Caja 3" })
+    .returning({ id: registers.id });
+  return insertEnrolledInstallation(system.db, {
+    now: APPLICATION_NOW,
+    existingRegisterId: register?.id as string,
+  });
+}
+
+async function setUp(
+  overrides: Partial<CompletedSale> = {},
+  saleUnit: "UNIT" | "KG" = "UNIT",
+  sellingInOtherBranch = false,
+) {
   const asking = await system.enrollInstallation({ registerName: "Caja 1" });
-  const selling = await system.enrollInstallation({ registerName: "Caja 2" });
+  const selling = sellingInOtherBranch
+    ? await enrollInOtherBranch()
+    : await system.enrollInstallation({ registerName: "Caja 2" });
   await system.db.insert(users).values({
     id: CASHIER,
     firstName: "Ada",
@@ -175,18 +202,16 @@ describe("reading a sale of the branch to return it from another register", () =
   });
 
   it("holds the discount on the sale's total", async () => {
-    const { asking, selling, completed } = await setUp();
+    const { asking, selling, completed } = await setUp({
+      saleDiscount: {
+        kind: "PERCENT",
+        percent: 10,
+        reason: "cliente frecuente",
+        authorizedBy: null,
+      },
+      saleDiscountAmount: 480,
+    });
     await authorizeInvoice(selling.registerId, completed.id);
-    await system.db
-      .update(sales)
-      .set({
-        saleDiscountKind: "PERCENT",
-        saleDiscountValue: 10,
-        saleDiscountAmount: 480,
-        saleDiscountReason: "cliente frecuente",
-        saleDiscountAuthorizedBy: null,
-      })
-      .where(eq(sales.id, completed.id));
 
     const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
 
@@ -329,17 +354,14 @@ describe("reading a sale of the branch to return it from another register", () =
 
   describe("only within the asking register's branch", () => {
     it("does not find the sale of another branch", async () => {
-      const { asking, selling, completed } = await setUp();
+      const { asking, selling, completed } = await setUp({}, "UNIT", true);
       await authorizeInvoice(selling.registerId, completed.id);
-      const [otherBranch] = await system.db
-        .insert(locations)
-        .values({})
-        .returning({ id: locations.id });
-      await system.db
-        .update(sales)
-        .set({ locationId: otherBranch?.id as string })
-        .where(eq(sales.id, completed.id));
 
+      const [sold] = await system.db
+        .select({ locationId: sales.locationId })
+        .from(sales)
+        .where(eq(sales.id, completed.id));
+      expect(sold?.locationId).not.toBe(asking.locationId);
       expect(await reader().saleForReturnInBranchOf(asking.registerId, INVOICE)).toBeUndefined();
     });
 
@@ -417,12 +439,13 @@ describe("reading a sale of the branch to return it from another register", () =
     });
 
     it("does not find a cancelled sale", async () => {
-      const { asking, selling, completed } = await setUp();
-      await authorizeInvoice(selling.registerId, completed.id);
-      await system.db
-        .update(sales)
-        .set({ state: "CANCELLED", completedAt: null, cancelledAt: COMPLETED_AT })
-        .where(eq(sales.id, completed.id));
+      const { asking, selling, sessionId } = await setUp();
+      const cancelled = aCancelledSale({ sessionId });
+      await record(
+        { kind: "sale_cancelled", sale: cancelled },
+        eventOf(selling.deviceId, "sale_cancelled", cancelled.id),
+      );
+      await authorizeInvoice(selling.registerId, cancelled.id);
 
       expect(await reader().saleForReturnInBranchOf(asking.registerId, INVOICE)).toBeUndefined();
     });

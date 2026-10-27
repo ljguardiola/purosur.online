@@ -32,6 +32,13 @@ export interface BranchSaleLookup {
   saleForReturn(ticket: TicketReference): Promise<BranchSaleLookupAnswer>;
 }
 
+export interface BranchSaleForReturnReader {
+  saleForReturnInBranchOf(
+    registerId: string,
+    ticket: TicketReference,
+  ): Promise<BranchSaleFacts | undefined>;
+}
+
 export interface OwnReturnsOfSale {
   returnsOfSale(saleId: string): LocalReturnOfSale[];
 }

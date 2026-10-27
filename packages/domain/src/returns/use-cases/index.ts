@@ -28,6 +28,7 @@ export type {
 export { previewReturn } from "./preview-return.js";
 export type {
   BranchSaleFacts,
+  BranchSaleForReturnReader,
   BranchSaleLookup,
   BranchSaleLookupAnswer,
   IdGenerator,
