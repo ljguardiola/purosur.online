@@ -804,6 +804,14 @@ export { recipeSaveRefusalSchema } from "./stock/recipe-save-refusal.js";
 export type { RecipeList, RecipeSummary } from "./stock/recipe-summary.js";
 export { recipeListSchema, recipeSummarySchema } from "./stock/recipe-summary.js";
 export type {
+  CurrentStockReportBody,
+  CurrentStockReportQuery,
+} from "./stock/current-stock-report.js";
+export {
+  currentStockReportQuerySchema,
+  currentStockReportSchema,
+} from "./stock/current-stock-report.js";
+export type {
   StockBalance,
   StockBalanceList,
   StockCount,

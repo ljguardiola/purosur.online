@@ -35,7 +35,12 @@ describe("currentStockSummary", () => {
         { balance: 1_000, valueCents: 20_000 },
         { balance: 2_000, valueCents: 5_000 },
       ]),
-    ).toEqual({ valueCents: 25_000, productCount: 2, negativeBalanceCount: 0, withoutCostCount: 0 });
+    ).toEqual({
+      valueCents: 25_000,
+      productCount: 2,
+      negativeBalanceCount: 0,
+      withoutCostCount: 0,
+    });
   });
 
   it("counts a product without a value apart and leaves it out of the total", () => {
@@ -44,7 +49,12 @@ describe("currentStockSummary", () => {
         { balance: 1_000, valueCents: 20_000 },
         { balance: 3_000, valueCents: null },
       ]),
-    ).toEqual({ valueCents: 20_000, productCount: 2, negativeBalanceCount: 0, withoutCostCount: 1 });
+    ).toEqual({
+      valueCents: 20_000,
+      productCount: 2,
+      negativeBalanceCount: 0,
+      withoutCostCount: 1,
+    });
   });
 
   it("counts the products with a negative balance and subtracts their value", () => {
@@ -54,7 +64,12 @@ describe("currentStockSummary", () => {
         { balance: -1_000, valueCents: -3_000 },
         { balance: -500, valueCents: null },
       ]),
-    ).toEqual({ valueCents: 17_000, productCount: 3, negativeBalanceCount: 2, withoutCostCount: 1 });
+    ).toEqual({
+      valueCents: 17_000,
+      productCount: 3,
+      negativeBalanceCount: 2,
+      withoutCostCount: 1,
+    });
   });
 
   it("does not count a zero balance as negative", () => {

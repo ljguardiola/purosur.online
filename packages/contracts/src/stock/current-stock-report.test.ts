@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  currentStockReportQuerySchema,
-  currentStockReportSchema,
-} from "./current-stock-report.js";
+import { currentStockReportQuerySchema, currentStockReportSchema } from "./current-stock-report.js";
 
 const CATEGORY_ID = "9a3f6c52-1d84-4b07-8c1e-5e7a2b9d4f10";
 
@@ -103,7 +100,10 @@ describe("currentStockReportSchema", () => {
     ["a sale unit that is not offered", { sale_unit: "LITRO" }],
     ["a balance with decimals", { balance: 1.5 }],
     ["a value with decimals", { value_cents: 10.5 }],
-    ["a lot with an expiry that is not a calendar day", { lots: [{ ...lot, expires_on: "pronto" }] }],
+    [
+      "a lot with an expiry that is not a calendar day",
+      { lots: [{ ...lot, expires_on: "pronto" }] },
+    ],
     ["a lot quantity with decimals", { lots: [{ ...lot, remaining: 0.5 }] }],
     ["a lot cost with decimals", { lots: [{ ...lot, unit_cost_cents: 1.5 }] }],
     ["a lot value that is not a number", { lots: [{ ...lot, value_cents: "20000" }] }],
