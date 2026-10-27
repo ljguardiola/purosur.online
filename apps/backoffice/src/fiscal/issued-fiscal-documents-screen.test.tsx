@@ -21,7 +21,6 @@ import {
   issuedFiscalDocuments,
   noIssuedFiscalDocuments,
   pagedIssuedFiscalDocuments,
-  singleDayIssuedFiscalDocuments,
 } from "./test-support/issued-fiscal-documents-fixtures";
 import { createIssuedFiscalDocumentsServices } from "./test-support/issued-fiscal-documents-screen-services";
 
@@ -193,6 +192,10 @@ test("asks the cloud for every filter the URL carries", async () => {
 
 test("asks the cloud again for the kind chosen, from the first page", async () => {
   const services = createServices();
+  vi.mocked(services.fetchIssuedFiscalDocuments).mockResolvedValue({
+    kind: "ok",
+    value: pagedIssuedFiscalDocuments,
+  });
   const screen = await renderScreen(services, {
     filters: issuedFiscalDocumentsFilters.parse({ page: "3" }),
   });
@@ -245,6 +248,23 @@ test("searches by the document number typed, from the first page", async () => {
   expect(onFiltersChange).toHaveBeenLastCalledWith(expect.objectContaining({ number: "1247" }));
 });
 
+test("searches by a document number typed as the list shows it", async () => {
+  const services = createServices();
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, { onFiltersChange });
+  await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar por número" }), "00001247");
+
+  await expect
+    .poll(() => vi.mocked(services.fetchIssuedFiscalDocuments).mock.lastCall)
+    .toEqual([{ number: 1247, page: 1 }]);
+  expect(onFiltersChange).toHaveBeenLastCalledWith(expect.objectContaining({ number: "1247" }));
+  await expect
+    .element(screen.getByRole("searchbox", { name: "Buscar por número" }))
+    .toHaveValue("00001247");
+});
+
 test("keeps what is typed without asking the cloud while it is not a document number", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
@@ -286,26 +306,39 @@ test("shows no pages when every document fits in one", async () => {
   expect(screen.getByRole("navigation", { name: "Páginas de comprobantes" }).query()).toBeNull();
 });
 
-test("names a one-day period once", async () => {
+test("brings a page past the last one back to the last page that has documents", async () => {
   const services = createServices();
-  vi.mocked(services.fetchIssuedFiscalDocuments).mockResolvedValue({
+  vi.mocked(services.fetchIssuedFiscalDocuments).mockImplementation(async (query) => ({
     kind: "ok",
-    value: singleDayIssuedFiscalDocuments,
+    value: query.page === 1 ? issuedFiscalDocuments : { ...issuedFiscalDocuments, documents: [] },
+  }));
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, {
+    filters: issuedFiscalDocumentsFilters.parse({ page: "3" }),
+    onFiltersChange,
   });
 
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("1 comprobante · 12/09/2026")).toBeVisible();
+  await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
+  expect(onFiltersChange).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }));
+  expect(screen.getByText("No hay comprobantes en este período").query()).toBeNull();
 });
 
 test("keeps the previous rows, marked as updating, while the next page loads", async () => {
   const services = createServices();
+  vi.mocked(services.fetchIssuedFiscalDocuments).mockResolvedValue({
+    kind: "ok",
+    value: pagedIssuedFiscalDocuments,
+  });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
   vi.mocked(services.fetchIssuedFiscalDocuments).mockReturnValue(new Promise(() => {}));
 
-  await userEvent.click(screen.getByRole("button", { name: /Tipo:/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Facturas" }));
+  await userEvent.click(
+    screen.getByRole("navigation", { name: "Páginas de comprobantes" }).getByRole("button", {
+      name: /^(Página )?2$/,
+    }),
+  );
 
   await expect
     .element(screen.getByRole("table", { name: "Comprobantes y notas de crédito" }))

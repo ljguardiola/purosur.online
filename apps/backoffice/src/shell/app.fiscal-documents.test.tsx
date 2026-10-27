@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import {
   issuedFiscalDocuments,
   noIssuedFiscalDocuments,
+  pagedIssuedFiscalDocuments,
 } from "../fiscal/test-support/issued-fiscal-documents-fixtures";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
@@ -124,6 +125,10 @@ test("offers the registers of the fiscal listing, not those of the reports, in t
 
 test("keeps the filters in the URL and asks the cloud again when one changes", async () => {
   const services = servicesFor(["fiscal_information"]);
+  vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mockResolvedValue({
+    kind: "ok",
+    value: pagedIssuedFiscalDocuments,
+  });
   window.history.pushState(null, "", "/fiscal-documents?kind=receipt&page=2");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -149,7 +154,7 @@ test("keeps the filters in the URL and asks the cloud again when one changes", a
 
 test("rewrites a URL with values the listing does not offer as the same URL written its own way", async () => {
   const services = servicesFor(["fiscal_information"]);
-  window.history.pushState(null, "", "/fiscal-documents?kind=ALL&page=1");
+  window.history.pushState(null, "", "/fiscal-documents?kind=ALL&page=1000000000&number=abc");
 
   await render(<App help={emptyHelp} services={services} />);
 

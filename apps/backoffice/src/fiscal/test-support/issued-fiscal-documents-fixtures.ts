@@ -82,13 +82,6 @@ export const noIssuedFiscalDocuments: IssuedFiscalDocumentsBody = {
   page_size: 25,
 };
 
-export const singleDayIssuedFiscalDocuments: IssuedFiscalDocumentsBody = {
-  range: { from: "2026-09-12", to: "2026-09-12" },
-  documents: [authorizedReceipt],
-  total: 1,
-  page_size: 25,
-};
-
 export const pagedIssuedFiscalDocuments: IssuedFiscalDocumentsBody = {
   range: { from: "2026-09-01", to: "2026-09-30" },
   documents: [authorizedReceipt, creditNote],

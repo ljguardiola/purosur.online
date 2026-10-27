@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  CAEA_DOCUMENT_ISSUED_STATE,
   ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
-  issuedStateOfOnlineDocument,
   LISTED_ONLINE_DOCUMENT_STATES,
 } from "./issued-fiscal-document.js";
 
-describe("issuedStateOfOnlineDocument", () => {
+describe("LISTED_ONLINE_DOCUMENT_STATES", () => {
   it.each([
     ["authorized by the tax authority", "authorized", null, "authorized"],
     [
@@ -23,32 +23,49 @@ describe("issuedStateOfOnlineDocument", () => {
     ["requested and not answered yet", null, null, "awaiting_authorization"],
     ["unclear and not decided yet", "unclear", null, "awaiting_authorization"],
     ["never attempted and not decided yet", "not_attempted", null, "awaiting_authorization"],
-  ] as const)("lists a document %s as %s", (_name, answer, decision, state) => {
-    expect(issuedStateOfOnlineDocument({ answer, decision })).toBe(state);
+  ] as const)("lists a requested document %s as %s", (_name, answer, decision, state) => {
+    expect(LISTED_ONLINE_DOCUMENT_STATES).toContainEqual({
+      requested: true,
+      answer,
+      decision,
+      state,
+    });
   });
 
   it.each([
-    ["rejected", "rejected", null],
-    ["unclear and released", "unclear", "released"],
-    ["unclear and conflicting", "unclear", "conflicting"],
-    ["never attempted and released", "not_attempted", "released"],
-    ["never attempted and conflicting", "not_attempted", "conflicting"],
-  ] as const)("does not list a document %s", (_name, answer, decision) => {
-    expect(issuedStateOfOnlineDocument({ answer, decision })).toBeNull();
+    ["rejected", true, "rejected", null],
+    ["unclear and released", true, "unclear", "released"],
+    ["unclear and conflicting", true, "unclear", "conflicting"],
+    ["never attempted and released", true, "not_attempted", "released"],
+    ["never attempted and conflicting", true, "not_attempted", "conflicting"],
+    ["not requested yet", false, null, null],
+  ] as const)("does not list a document %s", (_name, requested, answer, decision) => {
+    expect(LISTED_ONLINE_DOCUMENT_STATES).not.toContainEqual(
+      expect.objectContaining({ requested, answer, decision }),
+    );
   });
 
   it("names every combination it lists, once", () => {
     expect(LISTED_ONLINE_DOCUMENT_STATES).toEqual([
-      { answer: "authorized", decision: null, state: "authorized" },
-      { answer: "unclear", decision: "adopted", state: "authorized" },
-      { answer: "not_attempted", decision: "adopted", state: "authorized" },
-      { answer: null, decision: null, state: "awaiting_authorization" },
-      { answer: "unclear", decision: null, state: "awaiting_authorization" },
-      { answer: "not_attempted", decision: null, state: "awaiting_authorization" },
+      { requested: true, answer: "authorized", decision: null, state: "authorized" },
+      { requested: true, answer: "unclear", decision: "adopted", state: "authorized" },
+      { requested: true, answer: "not_attempted", decision: "adopted", state: "authorized" },
+      { requested: true, answer: null, decision: null, state: "awaiting_authorization" },
+      { requested: true, answer: "unclear", decision: null, state: "awaiting_authorization" },
+      {
+        requested: true,
+        answer: "not_attempted",
+        decision: null,
+        state: "awaiting_authorization",
+      },
     ]);
   });
+});
 
-  it("pages fifty documents at a time", () => {
-    expect(ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE).toBe(50);
-  });
+it("lists a document issued under a CAEA as authorized", () => {
+  expect(CAEA_DOCUMENT_ISSUED_STATE).toBe("authorized");
+});
+
+it("pages fifty documents at a time", () => {
+  expect(ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE).toBe(50);
 });

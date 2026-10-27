@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   issuedFiscalDocumentsQuerySchema,
@@ -96,6 +97,12 @@ describe("issuedFiscalDocumentsSchema", () => {
     };
 
     expect(issuedFiscalDocumentsSchema.parse(withOffset)).toEqual(withOffset);
+  });
+
+  it("declares the zone the issue time is shown in", () => {
+    expect(issuedFiscalDocumentsSchema.shape.documents.element.shape.issued_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 
   it("accepts a range without documents", () => {

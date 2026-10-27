@@ -1,10 +1,7 @@
 import { expect, test } from "vitest";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import { issuedFiscalDocumentsFilters } from "./issued-fiscal-documents-filters";
-import {
-  isDocumentNumberText,
-  issuedFiscalDocumentsQueryOf,
-} from "./issued-fiscal-documents-query";
+import { issuedFiscalDocumentsQueryOf } from "./issued-fiscal-documents-query";
 
 test("asks the cloud for nothing but the page when the filters are the defaults", () => {
   expect(issuedFiscalDocumentsQueryOf(issuedFiscalDocumentsFilters.parse({}))).toEqual({
@@ -40,12 +37,3 @@ test.each(["abc", "0041", "12a"])(
     expect(issuedFiscalDocumentsQueryOf(filters)).toEqual({ page: 1 });
   },
 );
-
-test.each([
-  ["", true],
-  ["41", true],
-  ["abc", false],
-  ["0041", false],
-])("tells whether %j is a document number: %s", (text, expected) => {
-  expect(isDocumentNumberText(text)).toBe(expected);
-});

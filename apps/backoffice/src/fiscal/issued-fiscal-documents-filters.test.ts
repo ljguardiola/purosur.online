@@ -1,6 +1,9 @@
 import { expect, test } from "vitest";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
-import { issuedFiscalDocumentsFilters } from "./issued-fiscal-documents-filters";
+import {
+  isDocumentNumberText,
+  issuedFiscalDocumentsFilters,
+} from "./issued-fiscal-documents-filters";
 
 test("opens on every kind, every register, the cloud's own period, no number and the first page", () => {
   expect(issuedFiscalDocumentsFilters.parse({})).toEqual({
@@ -29,9 +32,13 @@ test("keeps the period, register, kind, number and page a URL names", () => {
 test.each([
   ["a kind that is not offered", { kind: "invoice" }, { kind: "ALL" }],
   ["a number that is not text", { number: { a: 1 } }, { number: "" }],
+  ["a number that is not a document number", { number: "abc" }, { number: "" }],
+  ["a number starting with zero", { number: "0041" }, { number: "" }],
+  ["a number longer than the cloud searches by", { number: "1000000000" }, { number: "" }],
   ["a page that is not a positive whole number", { page: "0" }, { page: 1 }],
   ["a page that is not whole", { page: "1.5" }, { page: 1 }],
   ["a page written as text", { page: "two" }, { page: 1 }],
+  ["a page longer than the cloud reads", { page: "1000000000" }, { page: 1 }],
   [
     "a period the cloud would refuse",
     { from: "2026-09-30", to: "2026-09-01" },
@@ -43,4 +50,13 @@ test.each([
 
 test("keeps a page it already parsed, as the router hands the filters back", () => {
   expect(issuedFiscalDocumentsFilters.parse({ page: 3 })).toMatchObject({ page: 3 });
+});
+
+test.each([
+  ["", true],
+  ["41", true],
+  ["abc", false],
+  ["0041", false],
+])("tells whether %j is a document number: %s", (text, expected) => {
+  expect(isDocumentNumberText(text)).toBe(expected);
 });
