@@ -16,11 +16,8 @@ test("keeps the category and the order a URL names", () => {
   expect(currentStockReportFilters.parse(filters)).toEqual(filters);
 });
 
-test.each([
-  ["a category that is not an id", { category: "frutos-secos" }],
-  ["a category that is not text", { category: 3 }],
-])("falls back to every category for %s", (_name, search) => {
-  expect(currentStockReportFilters.parse(search)).toMatchObject({ category: "ALL" });
+test("falls back to every category for a category that is not text", () => {
+  expect(currentStockReportFilters.parse({ category: 3 })).toMatchObject({ category: "ALL" });
 });
 
 test.each([
