@@ -154,7 +154,7 @@ describe("ReturnScreen completing the return", () => {
     await complete(screen);
 
     await expect
-      .element(screen.getByText("No se pudo completar la devolución. Probá de nuevo."))
+      .element(screen.getByText("No se pudo completar la devolución. Probá de nuevo.").first())
       .toBeVisible();
   });
 

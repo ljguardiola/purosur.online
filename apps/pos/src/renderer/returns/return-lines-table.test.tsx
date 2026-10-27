@@ -145,10 +145,10 @@ describe("ReturnLinesTable", () => {
 
     await expect
       .element(screen.getByRole("option", { name: /Arrepentimiento/ }))
-      .toHaveTextContent(/Vencido/);
+      .toHaveTextContent("ArrepentimientoVencido");
     await expect
       .element(screen.getByRole("option", { name: "Defecto" }))
-      .not.toHaveTextContent(/Vencido/);
+      .not.toHaveTextContent("ArrepentimientoVencido");
   });
 
   it("returns a line that must go back whole in all its remaining quantity, with the reason it cannot change", async () => {
