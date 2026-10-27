@@ -10,7 +10,7 @@ import {
   useBarcodeChips,
   useGenerateInternalBarcode,
 } from "./barcode-chips";
-import { barcodeProblemMessage, barcodesWithScan } from "./barcode-list";
+import { barcodeListMessage, barcodeProblemMessage, barcodesWithScan } from "./barcode-list";
 import type {
   GenerateInternalBarcodeOutcome,
   generateInternalBarcode,
@@ -35,12 +35,7 @@ function Harness({ initialCodes, generateInternalBarcode, onSessionEnded }: Harn
       from: (current) => ({ barcodes: barcodesWithScan(current.barcodes) }),
     },
     fields: { barcodes: "barcodes" },
-    messages: {
-      barcodes: ({ barcodes }) =>
-        barcodesWithScan(barcodes).length === 0
-          ? "Escaneá al menos un código de barras."
-          : "Alguno de los códigos de barras no es válido.",
-    },
+    messages: { barcodes: barcodeListMessage },
     onSubmit: async () => {},
   });
   const chips = useBarcodeChips({
