@@ -1,9 +1,20 @@
-import { registerAssemblyBatch, saveRecipe } from "@purosur/domain/stock/use-cases";
-import { eq, inArray } from "drizzle-orm";
+import {
+  recordLoss,
+  registerAssemblyBatch,
+  saveRecipe,
+  voidAssemblyBatch,
+} from "@purosur/domain/stock/use-cases";
+import { eq, inArray, sql as sqlExpression } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { assemblyBatches, lotAllocations, lots, stockBalances } from "../platform/db/schema.js";
+import {
+  assemblyBatches,
+  lotAllocations,
+  lots,
+  stockBalances,
+  stockMovements,
+} from "../platform/db/schema.js";
 import { insertActor, insertProduct } from "../purchasing/test-support/purchasing-fixtures.js";
 import {
   createIntegrationDatabase,
@@ -12,6 +23,7 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleAssemblyBatchStore } from "./drizzle-assembly-batch-store.js";
 import { DrizzleRecipeStore } from "./drizzle-recipe-store.js";
+import { DrizzleStockStore } from "./drizzle-stock-store.js";
 import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 
 // PGlite serializes all transactions on one connection, so only a real Postgres pool can interleave
@@ -122,5 +134,100 @@ describe("assembled batches sharing component lots, made at the same time on a r
       .select({ productId: stockBalances.productId, quantity: stockBalances.quantity })
       .from(stockBalances);
     expect(balances.find((row) => row.productId === nuts.id)?.quantity).toBe(-4_000);
+  });
+});
+
+describe("voiding a batch on a real Postgres", () => {
+  async function untouchedBatch() {
+    const actorId = await insertActor(db);
+    const locationId = await seededLocationId(db);
+    const nuts = await insertProduct(db, { name: "Nueces", saleUnit: "KG" });
+    await insertPurchasedLot(db, {
+      productId: nuts.id,
+      locationId,
+      actorId,
+      remaining: 10_000,
+    });
+    await db.insert(stockBalances).values({ productId: nuts.id, locationId, quantity: 10_000 });
+    const mix = await recipeOf(actorId, "Mix", [{ id: nuts.id, quantity: 1_000 }]);
+    const recorded = await batchOf(actorId, locationId, mix, [{ id: nuts.id, quantity: 8_000 }]);
+    if (recorded.kind !== "recorded") {
+      throw new Error("test setup: the batch was not recorded");
+    }
+    return { actorId, locationId, nuts: nuts.id, mix, batchId: recorded.batch.id };
+  }
+
+  function voidOf(setUp: Awaited<ReturnType<typeof untouchedBatch>>) {
+    return voidAssemblyBatch(
+      { store: new DrizzleAssemblyBatchStore(db), clock: { now } },
+      { batchId: setUp.batchId, locationId: setUp.locationId, actorId: setUp.actorId },
+    );
+  }
+
+  async function lotDrift() {
+    const rows = await db
+      .select({
+        id: lots.id,
+        drift: sqlExpression<number>`${lots.remaining} - coalesce((select sum(${lotAllocations.quantity}) from ${lotAllocations} where ${lotAllocations.lotId} = ${lots.id}), 0)`,
+      })
+      .from(lots);
+    return Object.fromEntries(rows.map((row) => [row.id, Number(row.drift)]));
+  }
+
+  it("voids a batch once when two voids race for it, recording its movements once", async () => {
+    const setUp = await untouchedBatch();
+
+    const outcomes = await Promise.all(Array.from({ length: 4 }, () => voidOf(setUp)));
+
+    expect(outcomes.map((outcome) => outcome.kind).sort()).toEqual([
+      "already_voided",
+      "already_voided",
+      "already_voided",
+      "voided",
+    ]);
+    const voids = await db
+      .select()
+      .from(stockMovements)
+      .where(eq(stockMovements.kind, "assembly_void"));
+    expect(voids).toHaveLength(2);
+    const balances = Object.fromEntries(
+      (await db.select().from(stockBalances)).map((row) => [row.productId, row.quantity]),
+    );
+    expect(balances).toMatchObject({ [setUp.nuts]: 10_000, [setUp.mix]: 0 });
+  });
+
+  it("leaves the ledger consistent when a loss of the batch's finished product races its void", async () => {
+    const setUp = await untouchedBatch();
+    const driftBefore = await lotDrift();
+
+    const [voided] = await Promise.all([
+      voidOf(setUp),
+      recordLoss(
+        { store: new DrizzleStockStore(db), clock: { now } },
+        {
+          productId: setUp.mix,
+          locationId: setUp.locationId,
+          reason: "spoiled",
+          quantity: 1_000,
+          actorId: setUp.actorId,
+        },
+      ),
+    ]);
+
+    expect(["voided", "consumed"]).toContain(voided.kind);
+    const [batch] = await db.select().from(assemblyBatches);
+    expect(batch?.voidedAt !== null).toBe(voided.kind === "voided");
+    expect(await lotDrift()).toEqual(driftBefore);
+    const movements = await db.select().from(stockMovements);
+    const balances = await db.select().from(stockBalances);
+    for (const { productId, quantity } of balances) {
+      const initial = productId === setUp.nuts ? 10_000 : 0;
+      const moved = movements
+        .filter((movement) => movement.productId === productId)
+        .reduce((sum, movement) => sum + movement.delta, 0);
+      expect(quantity).toBe(initial + moved);
+    }
+    const voidMovements = movements.filter((movement) => movement.kind === "assembly_void");
+    expect(voidMovements).toHaveLength(voided.kind === "voided" ? 2 : 0);
   });
 });

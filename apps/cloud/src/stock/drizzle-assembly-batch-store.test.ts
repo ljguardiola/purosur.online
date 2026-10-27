@@ -1,4 +1,9 @@
-import { registerAssemblyBatch, saveRecipe } from "@purosur/domain/stock/use-cases";
+import {
+  recordLoss,
+  registerAssemblyBatch,
+  saveRecipe,
+  voidAssemblyBatch,
+} from "@purosur/domain/stock/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -14,7 +19,12 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzleAssemblyBatchStore } from "./drizzle-assembly-batch-store.js";
 import { DrizzleRecipeStore } from "./drizzle-recipe-store.js";
 import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
-import { insertBalance, insertProduct, signedInWith } from "./test-support/stock-route-fixtures.js";
+import {
+  insertBalance,
+  insertLocation,
+  insertProduct,
+  signedInWith,
+} from "./test-support/stock-route-fixtures.js";
 
 const NOW = new Date("2026-09-16T15:00:00.000Z");
 
@@ -220,5 +230,151 @@ describe("DrizzleAssemblyBatchStore", () => {
     expect(
       await db.select().from(stockBalances).where(eq(stockBalances.productId, seeded.mix)),
     ).toEqual([]);
+  });
+});
+
+describe("DrizzleAssemblyBatchStore voiding a batch", () => {
+  const VOIDED_AT = new Date("2026-09-16T16:30:00.000Z");
+
+  async function registered() {
+    const seeded = await seededMix();
+    const outcome = await register(seeded);
+    if (outcome.kind !== "recorded") {
+      throw new Error("test setup: the batch was not recorded");
+    }
+    return { ...seeded, batchId: outcome.batch.id };
+  }
+
+  function voidIt(
+    seeded: Awaited<ReturnType<typeof registered>>,
+    overrides: { batchId?: string; locationId?: string } = {},
+  ) {
+    return voidAssemblyBatch(
+      { store: new DrizzleAssemblyBatchStore(db), clock: { now: () => VOIDED_AT } },
+      {
+        batchId: overrides.batchId ?? seeded.batchId,
+        locationId: overrides.locationId ?? seeded.locationId,
+        actorId: seeded.actorId,
+      },
+    );
+  }
+
+  it("keeps who voided the batch and when", async () => {
+    const seeded = await registered();
+
+    const outcome = await voidIt(seeded);
+
+    expect(outcome).toEqual({
+      kind: "voided",
+      batch: { id: seeded.batchId, voidedAt: VOIDED_AT },
+    });
+    const [batch] = await db.select().from(assemblyBatches);
+    expect(batch).toMatchObject({ voidedAt: VOIDED_AT, voidedBy: seeded.actorId });
+  });
+
+  it("adds the components back to the lots they were taken from, empties the batch's lot and returns every balance", async () => {
+    const seeded = await registered();
+
+    await voidIt(seeded);
+
+    const remaining = Object.fromEntries(
+      (await db.select().from(lots)).map((lot) => [lot.productId + lot.id, lot.remaining]),
+    );
+    const byLot = (lotId: string) =>
+      (Object.entries(remaining).find(([key]) => key.endsWith(lotId)) ?? [])[1];
+    expect(byLot(seeded.soon)).toBe(5_000);
+    expect(byLot(seeded.late)).toBe(10_000);
+    const [batchLot] = await db.select().from(lots).where(eq(lots.productId, seeded.mix));
+    expect(batchLot?.remaining).toBe(0);
+    const balances = Object.fromEntries(
+      (await db.select().from(stockBalances)).map((row) => [row.productId, row.quantity]),
+    );
+    expect(balances).toMatchObject({
+      [seeded.nuts]: 15_000,
+      [seeded.bag]: 50_000,
+      [seeded.mix]: 0,
+    });
+  });
+
+  it("records one movement per product the batch moved, linked to it, with the opposite delta and no reason", async () => {
+    const seeded = await registered();
+
+    await voidIt(seeded);
+
+    const voids = await db
+      .select()
+      .from(stockMovements)
+      .where(eq(stockMovements.kind, "assembly_void"));
+    expect(
+      voids
+        .map((movement) => [movement.productId, movement.delta, movement.assemblyBatchId])
+        .sort(),
+    ).toEqual(
+      [
+        [seeded.nuts, 12_000, seeded.batchId],
+        [seeded.bag, 2_000, seeded.batchId],
+        [seeded.mix, -14_000, seeded.batchId],
+      ].sort(),
+    );
+    expect(voids.every((movement) => movement.reason === null)).toBe(true);
+    expect(voids.every((movement) => movement.occurredAt.getTime() === VOIDED_AT.getTime())).toBe(
+      true,
+    );
+  });
+
+  it("logs each void movement for the registers of the branch to pull", async () => {
+    const seeded = await registered();
+    const before = (await db.select().from(changes).where(eq(changes.entity, "stock_movement")))
+      .length;
+
+    await voidIt(seeded);
+
+    const logged = await db.select().from(changes).where(eq(changes.entity, "stock_movement"));
+    expect(logged.length - before).toBe(3);
+  });
+
+  it("refuses a batch that was already voided, writing nothing more", async () => {
+    const seeded = await registered();
+    await voidIt(seeded);
+    const movements = (await db.select().from(stockMovements)).length;
+
+    const outcome = await voidIt(seeded);
+
+    expect(outcome).toEqual({ kind: "already_voided" });
+    expect(await db.select().from(stockMovements)).toHaveLength(movements);
+  });
+
+  it("refuses a batch whose lot had a consumption, writing nothing", async () => {
+    const seeded = await registered();
+    await recordLoss(
+      { store: new DrizzleAssemblyBatchStore(db), clock: { now: () => NOW } },
+      {
+        productId: seeded.mix,
+        locationId: seeded.locationId,
+        reason: "spoiled",
+        quantity: 1_000,
+        actorId: seeded.actorId,
+      },
+    );
+    const movements = (await db.select().from(stockMovements)).length;
+
+    const outcome = await voidIt(seeded);
+
+    expect(outcome).toEqual({ kind: "consumed" });
+    expect(await db.select().from(stockMovements)).toHaveLength(movements);
+    const [batch] = await db.select().from(assemblyBatches);
+    expect(batch).toMatchObject({ voidedAt: null, voidedBy: null });
+  });
+
+  it("does not find a batch of another branch or one that does not exist", async () => {
+    const seeded = await registered();
+    const otherLocationId = await insertLocation(db);
+
+    expect(await voidIt(seeded, { locationId: otherLocationId })).toEqual({ kind: "not_found" });
+    expect(await voidIt(seeded, { batchId: "00000000-0000-4000-8000-000000000000" })).toEqual({
+      kind: "not_found",
+    });
+    const [batch] = await db.select().from(assemblyBatches);
+    expect(batch?.voidedAt).toBeNull();
   });
 });

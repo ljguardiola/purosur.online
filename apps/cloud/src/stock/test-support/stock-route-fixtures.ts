@@ -141,6 +141,7 @@ export async function insertMovement(
     delta: number;
     occurredAt: Date;
     supersededByCountId?: string | null;
+    assemblyBatchId?: string;
     count?: { counted: number; expected: number; lots?: { lotId: string; counted: number }[] };
   },
 ): Promise<string> {

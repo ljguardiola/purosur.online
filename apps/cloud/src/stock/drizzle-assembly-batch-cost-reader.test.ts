@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { assemblyBatches } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleAssemblyBatchCostReader } from "./drizzle-assembly-batch-cost-reader.js";
 import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
@@ -153,5 +155,31 @@ describe("DrizzleAssemblyBatchCostReader.batchLotCostsOf", () => {
     expect(
       await new DrizzleAssemblyBatchCostReader(db).batchLotCostsOf(locationId, [productId]),
     ).toEqual([]);
+  });
+
+  it("does not answer the lot of a voided batch, which never happened", async () => {
+    const { actorId, locationId, productId } = await setUp();
+    const voided = await insertAssemblyBatch(db, {
+      productId,
+      locationId,
+      actorId,
+      assembledAt,
+    });
+    const kept = await insertAssemblyBatch(db, {
+      productId,
+      locationId,
+      actorId,
+      assembledAt: new Date("2026-10-04T10:00:00.000Z"),
+    });
+    await db
+      .update(assemblyBatches)
+      .set({ voidedAt: new Date("2026-10-06T10:00:00.000Z"), voidedBy: actorId })
+      .where(eq(assemblyBatches.id, voided.batchId));
+
+    const batches = await new DrizzleAssemblyBatchCostReader(db).batchLotCostsOf(locationId, [
+      productId,
+    ]);
+
+    expect(batches.map((batch) => batch.batchId)).toEqual([kept.batchId]);
   });
 });
