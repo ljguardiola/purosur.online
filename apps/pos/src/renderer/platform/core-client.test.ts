@@ -2011,7 +2011,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const printed = client.printCreditNote("sale-1");
+    const printed = client.printCreditNote("sale-1", "credit-note-1");
     port.answer({
       type: "print-credit-note-result",
       request_id: "request-1",
@@ -2020,7 +2020,12 @@ describe("createCoreClient", () => {
 
     expect(await printed).toEqual({ kind: "started", copy: { kind: "original" } });
     expect(port.posted).toEqual([
-      { type: "print-credit-note", request_id: "request-1", sale_id: "sale-1" },
+      {
+        type: "print-credit-note",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        credit_note_id: "credit-note-1",
+      },
     ]);
   });
 
@@ -2030,7 +2035,12 @@ describe("createCoreClient", () => {
     client.connect(port);
     const authorization = { user_id: "u2", pin: "1234" };
 
-    const reprinted = client.reprintCreditNote("sale-1", "El cliente la perdió", authorization);
+    const reprinted = client.reprintCreditNote(
+      "sale-1",
+      "credit-note-1",
+      "El cliente la perdió",
+      authorization,
+    );
     port.answer({
       type: "reprint-credit-note-result",
       request_id: "request-1",
@@ -2046,6 +2056,7 @@ describe("createCoreClient", () => {
         type: "reprint-credit-note",
         request_id: "request-1",
         sale_id: "sale-1",
+        credit_note_id: "credit-note-1",
         reason: "El cliente la perdió",
         authorization,
       },
@@ -2057,7 +2068,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const reprinted = client.reprintCreditNote("sale-1", "Otra copia", undefined);
+    const reprinted = client.reprintCreditNote("sale-1", "credit-note-1", "Otra copia", undefined);
     port.answer({
       type: "reprint-credit-note-result",
       request_id: "request-1",
@@ -2070,6 +2081,7 @@ describe("createCoreClient", () => {
         type: "reprint-credit-note",
         request_id: "request-1",
         sale_id: "sale-1",
+        credit_note_id: "credit-note-1",
         reason: "Otra copia",
       },
     ]);

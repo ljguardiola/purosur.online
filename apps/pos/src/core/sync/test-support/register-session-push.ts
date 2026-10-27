@@ -365,6 +365,7 @@ async function printAndReprintCreditNote({
     { ...deps, printers },
     {
       saleId,
+      creditNoteId,
       reason: "El cliente la perdio",
       authorization: { user_id: GRACE, pin: PIN },
     },

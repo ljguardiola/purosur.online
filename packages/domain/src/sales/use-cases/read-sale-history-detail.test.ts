@@ -463,6 +463,25 @@ describe("readSaleHistoryDetail", () => {
       });
     });
 
+    it("names the credit note of the voided sale, and none for a sale without one", () => {
+      const named = new FakeRegisterSalesHistory([
+        historySale({
+          voided: true,
+          creditNote: AUTHORIZED_CREDIT_NOTE,
+          creditNoteId: "credit-note-1",
+        }),
+      ]);
+      const none = new FakeRegisterSalesHistory([historySale()]);
+      const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
+
+      expect(readSaleHistoryDetail({ history: named, ledger }, { saleId: "sale-1" })).toMatchObject(
+        { detail: { creditNoteId: "credit-note-1" } },
+      );
+      expect(readSaleHistoryDetail({ history: none, ledger }, { saleId: "sale-1" })).toMatchObject({
+        detail: { creditNoteId: null },
+      });
+    });
+
     it("shows the original of a credit note issued offline as its next copy while it was never printed", () => {
       const history = new FakeRegisterSalesHistory([
         historySale({

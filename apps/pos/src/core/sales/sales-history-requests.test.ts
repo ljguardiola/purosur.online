@@ -315,6 +315,7 @@ describe("the detail of a sale of the history", () => {
         },
         void_authorization_required: true,
         credit_note: null,
+        credit_note_id: null,
         reprint: { kind: "available" },
         next_copy: { kind: "original" },
         credit_note_next_copy: null,
@@ -512,6 +513,14 @@ describe("the detail of a sale of the history", () => {
       authorization_code_due_on: "2026-10-18",
       answered_at: "2026-10-08T10:00:05.000Z",
     };
+
+    it("names the credit note the sale holds", async () => {
+      addCreditNote({});
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_note_id).toBe("note-1");
+    });
 
     it("answers its original as the next printing of an authorized credit note never printed", async () => {
       addCreditNote(AUTHORIZED);

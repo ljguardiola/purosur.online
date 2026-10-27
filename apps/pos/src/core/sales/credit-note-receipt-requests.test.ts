@@ -105,7 +105,7 @@ function outboxEvents(): { event_type: string; schema_version: number; payload: 
 }
 
 async function printedOnce(): Promise<void> {
-  await printCreditNoteFor(deps(), "sale-1");
+  await printCreditNoteFor(deps(), NOTE_OF_SALE);
   printer.becomeReady();
   await vi.waitFor(() =>
     expect(creditNotePrinting()).toMatchObject({ printed_at: expect.any(String) }),
@@ -137,7 +137,7 @@ afterEach(() => {
 
 describe("printing the credit note of a voided sale from its history", () => {
   it("hands the original to the printer once it reports ready, answering the copy that started", async () => {
-    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({
+    await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({
       kind: "started",
       copy: { kind: "original" },
     });
@@ -152,7 +152,7 @@ describe("printing the credit note of a voided sale from its history", () => {
   });
 
   it("records the attempt as it sends and the print and its event once the printer took it, asking no reason", async () => {
-    await printCreditNoteFor(deps(), "sale-1");
+    await printCreditNoteFor(deps(), NOTE_OF_SALE);
     printer.becomeReady();
     await vi.waitFor(() => expect(outboxEvents()).toHaveLength(1));
 
@@ -194,35 +194,39 @@ describe("printing the credit note of a voided sale from its history", () => {
   it("refuses a second original: once attempted, the history only reprints it as a duplicate", async () => {
     await printedOnce();
 
-    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({
+    await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({
       kind: "already_attempted",
     });
     expect(printer.waiting).toHaveLength(1);
   });
 
   it("answers busy while the previous print of the credit note waits for the printer", async () => {
-    await printCreditNoteFor(deps(), "sale-1");
+    await printCreditNoteFor(deps(), NOTE_OF_SALE);
 
-    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({ kind: "busy" });
+    await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({ kind: "busy" });
   });
 
   it("answers not_signed_in when nobody is signed in", async () => {
     signedInPerson.clear();
 
-    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({ kind: "not_signed_in" });
+    await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({
+      kind: "not_signed_in",
+    });
     expect(printer.waiting).toEqual([]);
   });
 
   it("answers lacks_permission to a person who may not view the sales history", async () => {
     signedInPerson.set("cashier-without-history");
 
-    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({
+    await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({
       kind: "lacks_permission",
     });
   });
 
   it("answers not_found for a sale without a credit note", async () => {
-    await expect(printCreditNoteFor(deps(), "missing")).resolves.toEqual({ kind: "not_found" });
+    await expect(
+      printCreditNoteFor(deps(), { saleId: "missing", creditNoteId: "note-1" }),
+    ).resolves.toEqual({ kind: "not_found" });
   });
 
   it.each(["IN_PROGRESS", "REJECTED", "ALREADY_CREDITED"])(
@@ -240,29 +244,74 @@ describe("printing the credit note of a voided sale from its history", () => {
         answered_at: state === "IN_PROGRESS" ? null : "2026-09-30T15:40:05.000Z",
       });
 
-      await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({ kind: "not_found" });
+      await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({
+        kind: "not_found",
+      });
       expect(printer.waiting).toEqual([]);
     },
   );
 
   it("answers printer_not_configured when the register has no printer", async () => {
-    await expect(printCreditNoteFor(deps({ printers: NO_PRINTERS }), "sale-1")).resolves.toEqual({
+    await expect(
+      printCreditNoteFor(deps({ printers: NO_PRINTERS }), NOTE_OF_SALE),
+    ).resolves.toEqual({
       kind: "printer_not_configured",
     });
   });
 
   it("answers unavailable, printing nothing, when the outbox is not ready", async () => {
     await expect(
-      printCreditNoteFor(deps({ readOutboxChainKey: async () => undefined }), "sale-1"),
+      printCreditNoteFor(deps({ readOutboxChainKey: async () => undefined }), NOTE_OF_SALE),
     ).resolves.toEqual({ kind: "unavailable" });
     expect(printer.waiting).toEqual([]);
   });
 
-  it("fails, for the request that asked, when the credit note of the sale cannot be read", async () => {
+  it("answers unavailable, reporting the failure, when the credit note cannot be read", async () => {
     database.exec("DROP TABLE sale_void_credit_notes");
 
-    await expect(printCreditNoteFor(deps(), "sale-1")).rejects.toThrow("sale_void_credit_notes");
+    await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({
+      kind: "unavailable",
+    });
+    expect(failures).toHaveLength(1);
+  });
+
+  it("answers not_found for a credit note that is not one of the sale's", async () => {
+    await expect(
+      printCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-missing" }),
+    ).resolves.toEqual({ kind: "not_found" });
     expect(printer.waiting).toEqual([]);
+  });
+
+  describe("without the permission to view the sales history", () => {
+    async function askAndReadSql() {
+      const reads: string[] = [];
+      const watched = new Proxy(database, {
+        get(target, property, receiver) {
+          const value = Reflect.get(target, property, receiver);
+          if (property !== "prepare") {
+            return typeof value === "function" ? value.bind(target) : value;
+          }
+          return (sql: string) => {
+            reads.push(sql);
+            return target.prepare(sql);
+          };
+        },
+      });
+      signedInPerson.set("cashier-without-history");
+      const outcomes = await Promise.all([
+        printCreditNoteFor({ ...deps(), database: watched }, NOTE_OF_SALE),
+        reprintCreditNoteFor({ ...deps(), database: watched }, { ...NOTE_OF_SALE, reason: REASON }),
+      ]);
+      return { reads, outcomes };
+    }
+
+    it("is refused before anything of the credit note is read", async () => {
+      const { reads, outcomes } = await askAndReadSql();
+
+      expect(outcomes.map(({ kind }) => kind)).toEqual(["lacks_permission", "lacks_permission"]);
+      expect(reads.length).toBeGreaterThan(0);
+      expect(reads.filter((sql) => /credit_note|sale_void/.test(sql))).toEqual([]);
+    });
   });
 });
 
@@ -271,7 +320,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     signedInPerson.set("supervisor");
 
     await expect(
-      reprintCreditNoteFor(deps(), { saleId: "sale-1", reason: REASON }),
+      reprintCreditNoteFor(deps(), { ...NOTE_OF_SALE, reason: REASON }),
     ).resolves.toEqual({ kind: "started", copy: { kind: "original" } });
     printer.becomeReady();
 
@@ -284,7 +333,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     signedInPerson.set("supervisor");
 
     const outcome = await reprintCreditNoteFor(deps(), {
-      saleId: "sale-1",
+      ...NOTE_OF_SALE,
       reason: `  ${REASON} `,
     });
     await printer.whenWaiting(2);
@@ -338,7 +387,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
       reportFailure: (_context, error) => failures.push(error),
     });
 
-    await reprintCreditNoteFor(deps({ ticketedSteps }), { saleId: "sale-1", reason: REASON });
+    await reprintCreditNoteFor(deps({ ticketedSteps }), { ...NOTE_OF_SALE, reason: REASON });
     await printer.whenWaiting(2);
     printer.becomeReady();
 
@@ -353,7 +402,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
 
     for (const orderNumber of [1, 2]) {
       await expect(
-        reprintCreditNoteFor(deps(), { saleId: "sale-1", reason: REASON }),
+        reprintCreditNoteFor(deps(), { ...NOTE_OF_SALE, reason: REASON }),
       ).resolves.toEqual({
         kind: "started",
         copy: { kind: "duplicate", order_number: orderNumber },
@@ -369,7 +418,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     await printedOnce();
 
     await expect(
-      reprintCreditNoteFor(deps(), { saleId: "sale-1", reason: REASON }),
+      reprintCreditNoteFor(deps(), { ...NOTE_OF_SALE, reason: REASON }),
     ).resolves.toEqual({ kind: "lacks_permission" });
     expect(printer.waiting).toHaveLength(1);
     expect(creditNoteReprints()).toEqual([]);
@@ -380,7 +429,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
 
     await expect(
       reprintCreditNoteFor(deps(), {
-        saleId: "sale-1",
+        ...NOTE_OF_SALE,
         reason: REASON,
         authorization: { user_id: "supervisor", pin: AUTHORIZER_PIN },
       }),
@@ -397,7 +446,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     await printedOnce();
 
     const outcome = await reprintCreditNoteFor(deps(), {
-      saleId: "sale-1",
+      ...NOTE_OF_SALE,
       reason: REASON,
       authorization: { user_id: "supervisor", pin: "0000" },
     });
@@ -411,9 +460,10 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     await printedOnce();
     signedInPerson.set("supervisor");
 
-    await expect(reprintCreditNoteFor(deps(), { saleId: "sale-1", reason: "  " })).resolves.toEqual(
-      { kind: "invalid_reason", max_length: 200 },
-    );
+    await expect(reprintCreditNoteFor(deps(), { ...NOTE_OF_SALE, reason: "  " })).resolves.toEqual({
+      kind: "invalid_reason",
+      max_length: 200,
+    });
     expect(printer.waiting).toHaveLength(1);
   });
 
@@ -421,7 +471,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     signedInPerson.clear();
 
     await expect(
-      reprintCreditNoteFor(deps(), { saleId: "sale-1", reason: REASON }),
+      reprintCreditNoteFor(deps(), { ...NOTE_OF_SALE, reason: REASON }),
     ).resolves.toEqual({ kind: "not_signed_in" });
   });
 
@@ -429,17 +479,17 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     signedInPerson.set("supervisor");
 
     await expect(
-      reprintCreditNoteFor(deps(), { saleId: "missing", reason: REASON }),
+      reprintCreditNoteFor(deps(), { saleId: "missing", creditNoteId: "note-1", reason: REASON }),
     ).resolves.toEqual({ kind: "not_found" });
   });
 
   it("answers busy while the previous print of the credit note waits for the printer", async () => {
     await printedOnce();
     signedInPerson.set("supervisor");
-    await reprintCreditNoteFor(deps(), { saleId: "sale-1", reason: REASON });
+    await reprintCreditNoteFor(deps(), { ...NOTE_OF_SALE, reason: REASON });
 
     await expect(
-      reprintCreditNoteFor(deps(), { saleId: "sale-1", reason: REASON }),
+      reprintCreditNoteFor(deps(), { ...NOTE_OF_SALE, reason: REASON }),
     ).resolves.toEqual({ kind: "busy" });
   });
 });
@@ -464,7 +514,7 @@ describe("printing the credit note right after the void", () => {
     printer.becomeReady();
     await vi.waitFor(() => expect(outboxEvents()).toHaveLength(1));
 
-    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({
+    await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({
       kind: "already_attempted",
     });
   });
@@ -606,7 +656,7 @@ describe("printing the credit notes of the returns of a sale", () => {
   });
 
   it("answers not_found to the history, which only prints the credit note of a void", async () => {
-    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({ kind: "not_found" });
+    await expect(printCreditNoteFor(deps(), NOTE_OF_SALE)).resolves.toEqual({ kind: "not_found" });
     expect(printer.waiting).toEqual([]);
   });
 });

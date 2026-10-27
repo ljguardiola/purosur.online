@@ -88,6 +88,7 @@ export const DETAIL: SaleDetail = {
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_note: null,
+  credit_note_id: null,
   credit_note_next_copy: null,
   deferred_invoice_next_copy: null,
   short_code: null,
@@ -104,9 +105,10 @@ export type Overrides = Partial<Pick<SalesHistoryScreenProps, "person" | "sessio
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
   printOriginalReceipt?: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
-  printCreditNote?: (saleId: string) => Promise<PrintCreditNoteOutcome>;
+  printCreditNote?: (saleId: string, creditNoteId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote?: (
     saleId: string,
+    creditNoteId: string,
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
