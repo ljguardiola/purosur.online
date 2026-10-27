@@ -59,6 +59,23 @@ describe("returnRows", () => {
     ]);
   });
 
+  it.each([
+    ["a", "b"],
+    ["b", "a"],
+  ])(
+    "breaks a tie by return id whichever order the records come in (%s then %s)",
+    (first, second) => {
+      const moment = new Date("2026-10-06T10:00:00.000Z");
+
+      const rows = returnRows([
+        record({ returnId: first, occurredAt: moment }),
+        record({ returnId: second, occurredAt: moment }),
+      ]);
+
+      expect(rows.map((row) => row.returnId)).toEqual(["a", "b"]);
+    },
+  );
+
   it("does not reorder the records it is given", () => {
     const records = [
       record({ returnId: "a", occurredAt: new Date("2026-10-06T10:00:00.000Z") }),
