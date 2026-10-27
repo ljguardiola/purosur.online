@@ -284,6 +284,17 @@ describe("requestPendingCreditNotes", () => {
         });
       });
 
+      it("is not asked again for a sale with an invoice, even while another one is on its way", async () => {
+        const { creditNotes, run } = register([awaitingNote(1)], [AUTHORIZED], 12, {
+          "sale-1": { fiscalDocuments: [AUTHORIZED_INVOICE], deferralPending: true },
+        });
+
+        await run();
+
+        expect(creditNotes.refreshLookups).toEqual([]);
+        expect([...creditNotes.tied.keys()]).toEqual(["credit-note-1"]);
+      });
+
       it.each([
         ["an invoice", INVOICED],
         ["no invoice on its way", NEVER],
