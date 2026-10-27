@@ -4,7 +4,11 @@ import type { ReturnsReportQuery, ReturnsReportReader } from "../returns-report-
 export class FakeReturnsReportReader implements ReturnsReportReader {
   readonly reads: ReturnsReportQuery[] = [];
 
-  constructor(private readonly records: readonly ReturnRecord[] = []) {}
+  private readonly records: readonly ReturnRecord[];
+
+  constructor(records: readonly ReturnRecord[] = []) {
+    this.records = records;
+  }
 
   async returnsMade(query: ReturnsReportQuery): Promise<ReturnRecord[]> {
     this.reads.push({ ...query, range: { ...query.range } });
