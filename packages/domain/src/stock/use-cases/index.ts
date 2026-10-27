@@ -99,6 +99,14 @@ export type {
 } from "./read-initial-count-lots.js";
 export { readInitialCountLots } from "./read-initial-count-lots.js";
 export type {
+  CurrentStockCategory,
+  CurrentStockLot,
+  CurrentStockProduct,
+  CurrentStockReport,
+  ReadCurrentStockReportInput,
+} from "./read-current-stock-report.js";
+export { readCurrentStockReport } from "./read-current-stock-report.js";
+export type {
   LotOrigin,
   ReadStockBalancesInput,
   StockBalancesView,
