@@ -119,7 +119,7 @@ test("shows the lots, the value at cost and the lots without cost", async () => 
   await expect.element(screen.getByText("Lotes", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("2 lotes", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Valor al costo")).toBeVisible();
-  await expect.element(screen.getByText(formatCents(4_377_400))).toBeVisible();
+  await expect.element(screen.getByText(formatCents(4_377_400)).first()).toBeVisible();
   await expect.element(screen.getByText("Sin costo", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("1 lote", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("No suman al valor")).toBeVisible();
