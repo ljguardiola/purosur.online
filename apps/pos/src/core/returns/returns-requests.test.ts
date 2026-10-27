@@ -208,8 +208,8 @@ describe("finding the sale to return", () => {
   });
 
   it("refuses a cashier without the permission who brings no authorization", async () => {
-    signedInPerson.set("u1");
-    addPerson("u1", "Ada", ["sell_and_charge"]);
+    signedInPerson.set("u4");
+    addPerson("u4", "Ada", ["sell_and_charge"]);
 
     expect(await findSaleForReturnFor(deps(), { ticket: BY_SALE })).toEqual({
       kind: "lacks_permission",
@@ -217,8 +217,8 @@ describe("finding the sale to return", () => {
   });
 
   it("finds the sale for a cashier without the permission when a person who holds it authorizes with their PIN", async () => {
-    addPerson("u1", "Ada", ["sell_and_charge"]);
-    signedInPerson.set("u1");
+    addPerson("u4", "Ada", ["sell_and_charge"]);
+    signedInPerson.set("u4");
 
     expect(
       await findSaleForReturnFor(deps(), {
@@ -229,8 +229,8 @@ describe("finding the sale to return", () => {
   });
 
   it("refuses a wrong PIN", async () => {
-    addPerson("u1", "Ada", ["sell_and_charge"]);
-    signedInPerson.set("u1");
+    addPerson("u4", "Ada", ["sell_and_charge"]);
+    signedInPerson.set("u4");
 
     expect(
       await findSaleForReturnFor(deps(), {
@@ -363,8 +363,8 @@ describe("completing a return", () => {
   });
 
   it("names who authorized it, in the answer and in the return, with the PIN of a person who holds the permission", async () => {
-    addPerson("u1", "Ada", ["sell_and_charge"]);
-    signedInPerson.set("u1");
+    addPerson("u4", "Ada", ["sell_and_charge"]);
+    signedInPerson.set("u4");
 
     const outcome = await completeReturnFor(
       deps(),
@@ -376,16 +376,16 @@ describe("completing a return", () => {
       authorized_by: { user_id: "u2", first_name: "Grace" },
     });
     expect(database.prepare("SELECT actor_id, authorized_by FROM returns").all()).toEqual([
-      { actor_id: "u1", authorized_by: "u2" },
+      { actor_id: "u4", authorized_by: "u2" },
     ]);
     expect(database.prepare("SELECT actor_id, authorized_by FROM cash_movements").all()).toEqual([
-      { actor_id: "u1", authorized_by: "u2" },
+      { actor_id: "u4", authorized_by: "u2" },
     ]);
   });
 
   it("refuses a cashier without the permission who brings no authorization, changing nothing", async () => {
-    addPerson("u1", "Ada", ["sell_and_charge"]);
-    signedInPerson.set("u1");
+    addPerson("u4", "Ada", ["sell_and_charge"]);
+    signedInPerson.set("u4");
 
     expect(await completeReturnFor(deps(), completion())).toEqual({ kind: "lacks_permission" });
     expect(count("returns")).toBe(0);
