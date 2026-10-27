@@ -27,6 +27,7 @@ describe("returnsReportQuerySchema", () => {
 const line = {
   sale_line_id: "5d2b8f14-9c3e-4a70-b1e6-7a4c0d9e3f58",
   product_name: "Yerba 1 kg",
+  sale_unit: "UNIT",
   quantity: 2,
   reason: "defective",
   disposition: "discard",
@@ -149,6 +150,8 @@ describe("returnsReportSchema", () => {
     ["a refunded amount with decimals", { ...row, refunded: 1.5 }],
     ["a line without an id", { ...row, lines: [{ ...line, sale_line_id: "" }] }],
     ["a line without a product name", { ...row, lines: [{ ...line, product_name: undefined }] }],
+    ["a line without a sale unit", { ...row, lines: [{ ...line, sale_unit: undefined }] }],
+    ["a line with a sale unit that does not exist", { ...row, lines: [{ ...line, sale_unit: "LITER" }] }],
     ["a line of zero units", { ...row, lines: [{ ...line, quantity: 0 }] }],
     ["a line with a fraction of units", { ...row, lines: [{ ...line, quantity: 1.5 }] }],
     ["a reason that does not exist", { ...row, lines: [{ ...line, reason: "regalo" }] }],

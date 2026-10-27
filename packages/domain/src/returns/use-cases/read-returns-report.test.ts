@@ -20,6 +20,7 @@ function record(overrides: Partial<ReturnRecord> = {}): ReturnRecord {
       {
         saleLineId: "l1",
         productName: "Yerba 1 kg",
+        saleUnit: "UNIT",
         quantity: 1,
         reason: "defective",
         disposition: "discard",

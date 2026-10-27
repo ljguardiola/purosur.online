@@ -10,6 +10,7 @@ function line(overrides: Partial<ReturnRecordLine> = {}): ReturnRecordLine {
   return {
     saleLineId: "l1",
     productName: "Yerba 1 kg",
+    saleUnit: "UNIT",
     quantity: 1,
     reason: "change_of_mind",
     disposition: "restock",
