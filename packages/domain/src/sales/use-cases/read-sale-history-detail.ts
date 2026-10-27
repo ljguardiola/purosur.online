@@ -87,11 +87,13 @@ export function readSaleHistoryDetail(
     invoices: _invoices,
     deferredInvoiceIssued,
     deferredShortCode,
+    creditNoteId,
     ...shown
   } = record;
   const creditNoteDelivery =
-    record.creditNote?.kind === "authorized" || record.creditNote?.kind === "issued_offline"
-      ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId })
+    creditNoteId !== null &&
+    (record.creditNote?.kind === "authorized" || record.creditNote?.kind === "issued_offline")
+      ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId, creditNoteId })
       : undefined;
   const deferredInvoiceDelivery = deferredInvoiceIssued
     ? receiptDeliveryOf({ ledger }, { document: "deferred_invoice", saleId })

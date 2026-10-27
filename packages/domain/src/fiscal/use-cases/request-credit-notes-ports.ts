@@ -55,7 +55,7 @@ export interface RequestPendingCreditNotesPorts {
 }
 
 export interface CreditNotePrinter {
-  startPrinting(saleId: string): void;
+  startPrinting(creditNote: { saleId: string; creditNoteId: string }): void;
 }
 
 export interface RequestSaleCreditNotePorts extends RequestPendingCreditNotesPorts {

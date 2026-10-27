@@ -397,18 +397,26 @@ function deferredSaleRecorded(
   };
 }
 
+type PrintStatePayload = SyncedEventPayloads[
+  | "sale_print_state_changed@1"
+  | "sale_print_state_changed@2"
+  | "sale_print_state_changed@3"];
+
 function printStateChanged(
-  payload: SyncedEventPayloads["sale_print_state_changed@1"],
+  payload: PrintStatePayload,
   document: PrintedDocument,
+  creditNoteId: string | null,
 ): SyncedFact {
+  const printTimes = {
+    printAttemptedAt: new Date(payload.print_attempted_at),
+    printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
+  };
   return {
     kind: "sale_print_state_changed",
-    printState: {
-      saleId: payload.sale_id,
-      document,
-      printAttemptedAt: new Date(payload.print_attempted_at),
-      printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
-    },
+    printState:
+      document === "credit_note"
+        ? { saleId: payload.sale_id, document, creditNoteId, ...printTimes }
+        : { saleId: payload.sale_id, document, ...printTimes },
   };
 }
 
@@ -486,8 +494,14 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
-  "sale_print_state_changed@1": (payload) => printStateChanged(payload, "sale_receipt"),
-  "sale_print_state_changed@2": (payload) => printStateChanged(payload, payload.document),
+  "sale_print_state_changed@1": (payload) => printStateChanged(payload, "sale_receipt", null),
+  "sale_print_state_changed@2": (payload) => printStateChanged(payload, payload.document, null),
+  "sale_print_state_changed@3": (payload) =>
+    printStateChanged(
+      payload,
+      payload.document,
+      payload.document === "credit_note" ? payload.credit_note_id : null,
+    ),
   "reprint_recorded@1": (payload, event) => reprintRecorded(payload, "sale_receipt", event),
   "reprint_recorded@2": (payload, event) => reprintRecorded(payload, payload.document, event),
   "sale_cancelled@1": cancelledSale,

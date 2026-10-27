@@ -276,6 +276,18 @@ const salePrintStateChangedV2Schema = salePrintStateChangedV1Schema.extend({
   document: printedDocumentSchema,
 });
 
+const salePrintStateChangedV3Schema = z.discriminatedUnion("document", [
+  z.strictObject({
+    ...salePrintStateChangedV1Schema.shape,
+    document: z.enum(PRINTED_DOCUMENTS.filter((document) => document !== "credit_note")),
+  }),
+  z.strictObject({
+    ...salePrintStateChangedV1Schema.shape,
+    document: z.literal("credit_note"),
+    credit_note_id: text,
+  }),
+]);
+
 const reprintRecordedFields = {
   sale_id: text,
   order_number: z.int().positive(),
@@ -656,6 +668,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@8": saleCompletedV8Schema,
   "sale_print_state_changed@1": salePrintStateChangedV1Schema,
   "sale_print_state_changed@2": salePrintStateChangedV2Schema,
+  "sale_print_state_changed@3": salePrintStateChangedV3Schema,
   "reprint_recorded@1": reprintRecordedV1Schema,
   "reprint_recorded@2": reprintRecordedV2Schema,
   "sale_cancelled@1": saleCancelledV1Schema,
