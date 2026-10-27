@@ -399,7 +399,7 @@ describe("forgetting the acknowledged events after a register session", () => {
         session.prepare("SELECT state FROM sale_void_credit_notes ORDER BY state").all(),
       ).toEqual([
         { state: "AUTHORIZED" },
-        { state: "IN_PROGRESS" },
+        { state: "AWAITING_INVOICE" },
         { state: "IN_PROGRESS" },
         { state: "ISSUED_OFFLINE" },
       ]);
