@@ -1,0 +1,248 @@
+import { FieldSizeProvider } from "@purosur/ui";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useState } from "react";
+import { beforeEach, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { render } from "../shell/test-support/render-with-router";
+import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import {
+  type LossesByReasonReportFilters,
+  lossesByReasonReportFilters,
+} from "./losses-by-reason-report-filters";
+import { LossesByReasonReportScreen } from "./losses-by-reason-report-screen";
+import type { LossesByReasonReportScreenServices } from "./losses-by-reason-report-services";
+import {
+  expiredReason,
+  lossesByReasonReport,
+  returnDiscardReason,
+  spoiledReason,
+} from "./test-support/losses-by-reason-report-fixtures";
+
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+});
+
+function createServices(): LossesByReasonReportScreenServices {
+  return { fetchLossesByReasonReport: vi.fn() };
+}
+
+function listed(report = lossesByReasonReport()) {
+  const services = createServices();
+  vi.mocked(services.fetchLossesByReasonReport).mockResolvedValue({ kind: "ok", value: report });
+  return services;
+}
+
+function Harness({
+  services,
+  initial = lossesByReasonReportFilters.parse({}),
+  onFiltersChange = () => {},
+  onSessionEnded = () => {},
+}: {
+  services: LossesByReasonReportScreenServices;
+  initial?: LossesByReasonReportFilters;
+  onFiltersChange?: (filters: LossesByReasonReportFilters) => void;
+  onSessionEnded?: () => void;
+}) {
+  const [filters, setFilters] = useState(initial);
+  return (
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <LossesByReasonReportScreen
+          services={services}
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange(next);
+            setFilters(next);
+          }}
+          onSessionEnded={onSessionEnded}
+        />
+      </main>
+    </FieldSizeProvider>
+  );
+}
+
+function renderScreen(
+  services: LossesByReasonReportScreenServices,
+  props: Omit<Parameters<typeof Harness>[0], "services"> = {},
+) {
+  return render(<Harness services={services} {...props} />);
+}
+
+test("titles the report under the stock reports", async () => {
+  const screen = await renderScreen(listed());
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Mermas por motivo", level: 1 }))
+    .toBeVisible();
+  await expect.element(screen.getByText("Reportes · Stock")).toBeVisible();
+});
+
+test("totals the losses and the reasons that have them", async () => {
+  const screen = await renderScreen(listed());
+
+  await expect.element(screen.getByText("4 pérdidas", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Motivos", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("2", { exact: true })).toBeVisible();
+});
+
+test("says one loss in the singular", async () => {
+  const screen = await renderScreen(listed(lossesByReasonReport([returnDiscardReason])));
+
+  await expect.element(screen.getByText("1 pérdida", { exact: true }).first()).toBeVisible();
+});
+
+test("shows a section per reason with its label and loss count", async () => {
+  const screen = await renderScreen(listed());
+
+  const spoiled = screen.getByRole("region", { name: "Mal estado" });
+  await expect.element(spoiled).toBeVisible();
+  await expect.element(spoiled.getByText("3 pérdidas", { exact: true })).toBeVisible();
+  const expired = screen.getByRole("region", { name: "Vencimiento" });
+  await expect.element(expired).toBeVisible();
+  await expect.element(expired.getByText("1 pérdida", { exact: true })).toBeVisible();
+});
+
+test("lists in each reason the products lost, their quantity and their losses", async () => {
+  const screen = await renderScreen(listed());
+
+  const table = screen.getByRole("table", { name: "Productos perdidos por Mal estado" });
+  const cheese = table.getByRole("row").filter({ hasText: "Queso cremoso" });
+  await expect.element(cheese.getByText("2,500 kg")).toBeVisible();
+  await expect.element(cheese.getByText("2", { exact: true })).toBeVisible();
+  const bread = table.getByRole("row").filter({ hasText: "Pan lactal" });
+  await expect.element(bread.getByText("3 u")).toBeVisible();
+  await expect.element(bread.getByText("1", { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the reasons the system assigns beside the ones recorded by hand", async () => {
+  const screen = await renderScreen(
+    listed(lossesByReasonReport([spoiledReason, expiredReason, returnDiscardReason])),
+  );
+
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+  await expect.element(screen.getByRole("region", { name: "Vencimiento" })).toBeVisible();
+  const discard = screen.getByRole("region", { name: "Descarte de devolución" });
+  await expect.element(discard.getByText("0,400 kg")).toBeVisible();
+});
+
+test("keeps the reasons in the order the cloud answers them", async () => {
+  const screen = await renderScreen(
+    listed(lossesByReasonReport([expiredReason, returnDiscardReason, spoiledReason])),
+  );
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+
+  const headings = screen
+    .getByRole("heading", { level: 2 })
+    .elements()
+    .map((heading) => heading.textContent);
+  expect(headings).toEqual(["Vencimiento", "Descarte de devolución", "Mal estado"]);
+});
+
+test("offers no register filter and no export", async () => {
+  const screen = await renderScreen(listed());
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+
+  expect(screen.getByText("Caja", { exact: false }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: /Exportar/ }).query()).toBeNull();
+});
+
+test("shows the period the cloud answered while the URL names none", async () => {
+  const screen = await renderScreen(listed());
+
+  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["01", "10", "2026"]);
+  expect(dateSegments(screen, "Hasta")).toEqual(["31", "10", "2026"]);
+});
+
+test("asks for the cloud's default period when the URL names none", async () => {
+  const services = listed();
+
+  await renderScreen(services);
+
+  await expect.poll(() => services.fetchLossesByReasonReport).toHaveBeenCalledWith({});
+});
+
+test("asks for the period the URL carries", async () => {
+  const services = listed();
+
+  await renderScreen(services, {
+    initial: lossesByReasonReportFilters.parse({ from: "2026-12-01", to: "2026-12-31" }),
+  });
+
+  await expect
+    .poll(() => services.fetchLossesByReasonReport)
+    .toHaveBeenCalledWith({ from: "2026-12-01", to: "2026-12-31" });
+});
+
+test("reports the period typed once both days are complete", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(listed(), { onFiltersChange });
+  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["01", "10", "2026"]);
+
+  await typeDate(screen, "Desde", "05102026");
+
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toEqual({ from: "2026-10-05", to: "2026-10-31" });
+});
+
+test("keeps showing the report while the next period loads", async () => {
+  const services = listed();
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+  vi.mocked(services.fetchLossesByReasonReport).mockReturnValue(new Promise(() => {}));
+
+  await typeDate(screen, "Desde", "05102026");
+
+  await expect
+    .poll(() => services.fetchLossesByReasonReport)
+    .toHaveBeenLastCalledWith({ from: "2026-10-05", to: "2026-10-31" });
+  await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: "Productos perdidos por Mal estado" }))
+    .toHaveAttribute("aria-busy", "true");
+});
+
+test("shows the screen loading while the report is on its way", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchLossesByReasonReport).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Pérdidas", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Motivos", { exact: true })).toBeVisible();
+  expect(screen.getByRole("region").query()).toBeNull();
+  expect(screen.getByText("No hay mermas en este período").query()).toBeNull();
+});
+
+test("says there are no losses when the report is empty", async () => {
+  const screen = await renderScreen(listed(lossesByReasonReport([])));
+
+  await expect.element(screen.getByText("No hay mermas en este período")).toBeVisible();
+  await expect.element(screen.getByText("0 pérdidas", { exact: true })).toBeVisible();
+});
+
+test("shows a failed load with a retry that loads the report again, and no figures", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchLossesByReasonReport)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: lossesByReasonReport() });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir las mermas por motivo")).toBeVisible();
+  expect(screen.getByText("Motivos").query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+  expect(services.fetchLossesByReasonReport).toHaveBeenCalledTimes(2);
+});
+
+test("ends the session when the cloud says it is over", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchLossesByReasonReport).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+
+  await renderScreen(services, { onSessionEnded });
+
+  await expect.poll(() => onSessionEnded).toHaveBeenCalled();
+});
