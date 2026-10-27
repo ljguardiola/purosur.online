@@ -1,4 +1,9 @@
-import type { FiscalTasks, UnbilledDeferredSales } from "@purosur/contracts";
+import type {
+  FiscalTasks,
+  IssuedFiscalDocumentsBody,
+  IssuedFiscalDocumentsQuery,
+  UnbilledDeferredSales,
+} from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -15,6 +20,7 @@ import type {
   FortnightPresentation,
   fetchFortnightPresentations,
 } from "./fortnight-presentations-api";
+import type { fetchIssuedFiscalDocuments } from "./issued-fiscal-documents-api";
 import type { fetchIssuerIdentification, IssuerIdentification } from "./issuer-identification-api";
 import type { fetchOfflinePointsOfSale, OfflinePointOfSale } from "./offline-points-of-sale-api";
 import type { fetchRegisterPointsOfSale, RegisterPointOfSale } from "./register-points-of-sale-api";
@@ -33,6 +39,17 @@ export const fiscalKeys = {
   clockCorrections: [...fiscalKey, "clock-corrections"] as const,
   fiscalTasks: [...fiscalKey, "tasks"] as const,
   unbilledDeferredSales: [...fiscalKey, "unbilled-deferred-sales"] as const,
+  issuedDocuments: (query: IssuedFiscalDocumentsQuery) =>
+    [
+      ...fiscalKey,
+      "issued-documents",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
+      query.kind ?? "",
+      query.number ?? "",
+      query.page ?? 1,
+    ] as const,
 };
 
 export function useIssuerIdentificationQuery(params: {
@@ -229,5 +246,20 @@ export function useUnbilledDeferredSalesQuery(params: {
     queryKey: fiscalKeys.unbilledDeferredSales,
     read: params.fetchUnbilledDeferredSales,
     onSessionEnded: params.onSessionEnded,
+  });
+}
+
+export function useIssuedFiscalDocumentsQuery(params: {
+  query: IssuedFiscalDocumentsQuery;
+  fetchIssuedFiscalDocuments: typeof fetchIssuedFiscalDocuments;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<IssuedFiscalDocumentsBody>({
+    queryKey: fiscalKeys.issuedDocuments(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchIssuedFiscalDocuments(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
   });
 }

@@ -1,3 +1,4 @@
+import { PACKAGING_NAME_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -23,6 +24,9 @@ test.each([
   [{ kind: "packaging_not_linkable" }, { kind: "packagingNotLinkable" }],
   [{ kind: "vat_rate_missing" }, { kind: "vatRateMissing" }],
   [{ kind: "vat_rate_invalid" }, { kind: "attemptFailed" }],
+  [{ kind: "already_linked" }, { kind: "alreadyLinked" }],
+  [{ kind: "name_too_long" }, { kind: "nameTooLong" }],
+  [{ kind: "presentation_too_long" }, { kind: "presentationTooLong" }],
 ] as const)("turns the outcome %j into the notice %j", (outcome, notice) => {
   expect(supplierPriceListChangeNoticeOf(outcome)).toEqual(notice);
 });
@@ -31,6 +35,7 @@ test("a notice says the list changed only when what the person saw is out of dat
   expect(supplierPriceListChangeOutdates({ kind: "stale" })).toBe(true);
   expect(supplierPriceListChangeOutdates({ kind: "notEditable" })).toBe(true);
   expect(supplierPriceListChangeOutdates({ kind: "notFound" })).toBe(true);
+  expect(supplierPriceListChangeOutdates({ kind: "alreadyLinked" })).toBe(true);
   expect(supplierPriceListChangeOutdates({ kind: "attemptFailed" })).toBe(false);
   expect(supplierPriceListChangeOutdates({ kind: "unpricedRows" })).toBe(false);
   expect(supplierPriceListChangeOutdates(null)).toBe(false);
@@ -46,6 +51,7 @@ test.each([
   [{ kind: "stale" }, "La lista cambió", "Actualizala para ver los cambios y volvé a intentarlo."],
   [{ kind: "notEditable" }, "La lista ya no se puede modificar", undefined],
   [{ kind: "notFound" }, "Esta lista ya no existe", undefined],
+  [{ kind: "alreadyLinked" }, "Este ítem ya tiene un producto", "Actualizá la lista para verlo."],
   [{ kind: "noRows" }, "La lista no tiene ítems", "Cargá otra lista o descartá esta."],
   [
     { kind: "packagingNotLinkable" },
@@ -61,6 +67,16 @@ test.each([
     { kind: "unpricedRows" },
     "Hay ítems sin precio",
     "Escribí el precio de cada uno o quitalos antes de confirmar.",
+  ],
+  [
+    { kind: "nameTooLong" },
+    "El nombre de la lista es demasiado largo",
+    `Tiene más de ${PRODUCT_NAME_MAX_LENGTH} caracteres, el máximo de un producto. No se puede crear el producto desde esta lista.`,
+  ],
+  [
+    { kind: "presentationTooLong" },
+    "La presentación de la lista es demasiado larga",
+    `Tiene más de ${PACKAGING_NAME_MAX_LENGTH} caracteres, el máximo de una presentación de compra. No se puede crear el producto desde esta lista.`,
   ],
 ] as const)("shows the notice %j", async (notice, title, description) => {
   const screen = await render(

@@ -1898,6 +1898,7 @@ describe("asking for the detail of one sale of the history", () => {
     next_copy: { kind: "duplicate", order_number: 2 },
     credit_note_next_copy: null,
     deferred_invoice_next_copy: null,
+    short_code: null,
   };
   const answer = (outcome: unknown) => ({
     type: "sale-history-detail-result",
@@ -1923,6 +1924,7 @@ describe("asking for the detail of one sale of the history", () => {
       kind: "found",
       detail: { ...detail, deferred_invoice_next_copy: { kind: "duplicate", order_number: 1 } },
     },
+    { kind: "found", detail: { ...detail, short_code: "7KQ4M2P9" } },
     { kind: "found", detail: { ...detail, reprint: { kind: "sale_voided" } } },
     {
       kind: "found",
@@ -1981,6 +1983,8 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, credit_note_next_copy: { kind: "reprint" } } },
     { kind: "found", detail: { ...detail, deferred_invoice_next_copy: undefined } },
     { kind: "found", detail: { ...detail, deferred_invoice_next_copy: { kind: "reprint" } } },
+    { kind: "found", detail: { ...detail, short_code: undefined } },
+    { kind: "found", detail: { ...detail, short_code: 12345678 } },
     { kind: "found", detail: { ...detail, served_by_first_name: undefined } },
     { kind: "found", detail: { ...detail, state: "cancelled" } },
     { kind: "found", detail: { ...detail, void_authorization_required: undefined } },

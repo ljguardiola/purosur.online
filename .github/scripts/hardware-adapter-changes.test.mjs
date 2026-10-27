@@ -162,7 +162,7 @@ test("there is no baseline when production serves no register yet", async () => 
 test("refuses a baseline it cannot resolve", async () => {
   const sha = "c3".repeat(20);
   for (const [servedVersion, readCandidateManifest, message] of [
-    ["1.2.3", async () => manifestOf(sha, "0.0.41"), /0\.0\.N/],
+    ["1.2", async () => manifestOf(sha, "0.0.41"), /not an installer version/],
     ["0.0.41", async () => manifestOf(sha, "0.0.42"), /0\.0\.42/],
     ["0.0.41", async () => "not json", /candidate manifest/],
     [

@@ -2,9 +2,9 @@ import type { InternalBarcodeGenerationBody } from "@purosur/contracts";
 import { FieldGroup, fieldErrorMessage, IconButton, useFieldContext } from "@purosur/ui";
 import { Barcode, ScanBarcode, X } from "lucide-react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { type BarcodeListValue, internalBarcodeGenerationRequestFrom } from "./product-form";
-import type { generateInternalBarcode } from "./products-api";
+import { type BarcodeListValue, internalBarcodeGenerationRequestFrom } from "./barcode-list";
+import type { generateInternalBarcode } from "./internal-barcodes-api";
+import { useSendToMyAccount } from "./send-to-my-account";
 
 export const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";

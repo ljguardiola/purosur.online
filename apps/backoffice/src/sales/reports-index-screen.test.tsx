@@ -103,3 +103,19 @@ test("lists the cash session closes report as a link to it", async () => {
     .element(screen.getByRole("link", { name: "Cierres de sesión" }))
     .toHaveAttribute("href", "/reports/cash-session-closes");
 });
+
+test("groups the stock reports in a card titled Stock", async () => {
+  const screen = await renderScreen();
+
+  const stock = screen.getByRole("region", { name: "Stock" });
+  await expect.element(stock).toBeVisible();
+  expect(stock.getByRole("link").elements()).toHaveLength(1);
+});
+
+test("lists the valued current stock report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Stock actual valorizado" }))
+    .toHaveAttribute("href", "/reports/current-stock");
+});
