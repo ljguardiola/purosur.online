@@ -1,6 +1,6 @@
 import { LinkListCard, LinkListRow } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { CalendarClock, ShoppingBag, Wallet, Warehouse } from "lucide-react";
+import { ShoppingBag, Wallet, Warehouse } from "lucide-react";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 

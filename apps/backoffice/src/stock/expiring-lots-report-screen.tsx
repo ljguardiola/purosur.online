@@ -1,4 +1,4 @@
-import { type ExpiringLotsReportBody, expiringLotsReportQuerySchema } from "@purosur/contracts";
+import type { ExpiringLotsReportBody } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
@@ -13,7 +13,6 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { CalendarClock } from "lucide-react";
-import { useEffect, useEffectEvent } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { ReportFilters } from "../shell/report-filters";
@@ -35,20 +34,12 @@ type Lot = ExpiringLotsReportBody["lots"][number];
 
 const NO_LOTS: Lot[] = [];
 
-const NO_PERIOD: ExpiringLotsReportFilters = { from: "", to: "" };
-
 function lotsText(count: number): string {
   return plural(count, { one: "1 lote", other: `${count} lotes` });
 }
 
 function windowText(windowDays: number): string {
   return `Ventana de aviso de la sucursal: ${plural(windowDays, { one: "1 día", other: `${windowDays} días` })}`;
-}
-
-function periodText({ from, to }: { from: string; to: string }): string {
-  return from === to
-    ? `Vencen el ${formatCalendarDayNumeric(from)}`
-    : `Vencen del ${formatCalendarDayNumeric(from)} al ${formatCalendarDayNumeric(to)}`;
 }
 
 function SummaryCards({ report }: { report: ExpiringLotsReportBody | undefined }) {
@@ -155,21 +146,8 @@ export function ExpiringLotsReportScreen({
   onSessionEnded,
   services,
 }: ExpiringLotsReportScreenProps) {
-  const reportFilters = useEffectEvent(onFiltersChange);
-  const asked = expiringLotsReportQuerySchema.safeParse({
-    from: filters.from || undefined,
-    to: filters.to || undefined,
-  });
-  const periodIsAsked = asked.success;
-
-  useEffect(() => {
-    if (!periodIsAsked) {
-      reportFilters(NO_PERIOD);
-    }
-  }, [periodIsAsked]);
-
   const data = useExpiringLotsReportQuery({
-    query: asked.success ? asked.data : {},
+    query: filters.from === "" ? {} : { from: filters.from, to: filters.to },
     fetchExpiringLotsReport: services.fetchExpiringLotsReport,
     onSessionEnded,
   });
@@ -187,17 +165,14 @@ export function ExpiringLotsReportScreen({
     >
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
-          filters={periodIsAsked ? filters : NO_PERIOD}
+          filters={filters}
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.period}
         />
       </div>
-      {shown ? (
-        <div className="flex flex-col gap-1 text-detail text-text-subtle">
-          <p>{windowText(shown.window_days)}</p>
-          <p>{periodText(shown.period)}</p>
-        </div>
-      ) : null}
+      {data.status === "failed" || shown === undefined ? null : (
+        <p className="text-detail text-text-subtle">{windowText(shown.window_days)}</p>
+      )}
       {data.status === "failed" ? null : (
         <SummaryCards report={data.status === "loaded" ? data.value : undefined} />
       )}
