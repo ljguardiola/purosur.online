@@ -1,3 +1,4 @@
+import { branchOfflinePointOfSaleListSchema } from "@purosur/contracts";
 import {
   actionsColumn,
   dataColumn,
@@ -9,6 +10,7 @@ import {
 } from "@purosur/ui";
 import { Laptop, Trash2 } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { schemaText } from "../platform/schema-text";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
 
@@ -18,6 +20,10 @@ type OfflinePointsOfSaleSectionProps = {
 };
 
 const NO_ITEMS: OfflinePointOfSale[] = [];
+
+const RETIRED_AT_TIME_ZONE = schemaText(
+  branchOfflinePointOfSaleListSchema.element.shape.retired_at.meta()?.["timeZone"],
+);
 
 export function OfflinePointsOfSaleSection({ data, onRetire }: OfflinePointsOfSaleSectionProps) {
   const columns = [
@@ -40,7 +46,9 @@ export function OfflinePointsOfSaleSection({ data, onRetire }: OfflinePointsOfSa
         ) : (
           <span className="flex items-center gap-2">
             <StatusIndicator tone="neutral">Dado de baja</StatusIndicator>
-            <span className="text-text-subtle text-detail">{formatDayAndTime(item.retiredAt)}</span>
+            <span className="text-text-subtle text-detail">
+              {formatDayAndTime(item.retiredAt, RETIRED_AT_TIME_ZONE)}
+            </span>
           </span>
         ),
     }),

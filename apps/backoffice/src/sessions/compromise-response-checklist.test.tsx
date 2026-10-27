@@ -58,10 +58,10 @@ test("names the notification item", async () => {
     .toBeVisible();
 });
 
-test("offers to mark each pending item and shows the done one with its day and time", async () => {
+test("offers to mark each pending item and shows the done one with its day and time in Argentine time", async () => {
   const screen = await renderChecklist();
 
-  await expect.element(screen.getByText("Hecho el 01/10/2026 · 15:30")).toBeVisible();
+  await expect.element(screen.getByText("Hecho el 01/10/2026 · 12:30")).toBeVisible();
   expect(screen.getByRole("button", { name: "Marcar como hecho" }).elements()).toHaveLength(7);
 });
 
