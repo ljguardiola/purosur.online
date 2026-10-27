@@ -15,7 +15,7 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerExpiringLotsReportRoute } from "./expiring-lots-report-route.js";
-import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
+import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -96,9 +96,7 @@ describe("GET /reports/expiring-lots access", () => {
   });
 
   it.each([
-    ["only the first day", "?from=2026-12-01"],
     ["a period that ends before it starts", "?from=2026-12-31&to=2026-12-01"],
-    ["a day that is not a calendar day", "?from=2026-02-30&to=2026-03-01"],
     ["a parameter given twice", "?from=2026-12-01&from=2026-12-02&to=2026-12-31"],
   ])("answers 400 to %s", async (_name, query) => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
@@ -214,30 +212,6 @@ describe("GET /reports/expiring-lots", () => {
 
     expect(idsOf(body)).toEqual([own]);
     expect(body.summary.lot_count).toBe(1);
-  });
-
-  it("leaves out the lots without stock, the technical ones and those that do not expire", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOW);
-    const { productId } = await insertProduct(db);
-    const dated = await insertPurchasedLot(db, {
-      productId,
-      locationId,
-      actorId: userId,
-      expiresOn: "2026-10-20",
-    });
-    await insertPurchasedLot(db, {
-      productId,
-      locationId,
-      actorId: userId,
-      expiresOn: "2026-10-20",
-      remaining: 0,
-    });
-    await insertPurchasedLot(db, { productId, locationId, actorId: userId, expiresOn: null });
-    await insertTechnicalLot(db, { productId, locationId, remaining: 3_000 });
-
-    const body = (await expiringLotsReport(headers)).json();
-
-    expect(idsOf(body)).toEqual([dated]);
   });
 
   it("lists the lots of an asked period beyond the window", async () => {

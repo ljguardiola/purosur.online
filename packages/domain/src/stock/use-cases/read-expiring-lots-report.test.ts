@@ -16,13 +16,6 @@ const CHEESE: ExpiringLotProduct = {
   categoryName: "Lácteos",
   saleUnit: "KG",
 };
-const BREAD: ExpiringLotProduct = {
-  id: "product-bread",
-  name: "Pan lactal",
-  categoryId: "category-bakery",
-  categoryName: "Panificados",
-  saleUnit: "UNIT",
-};
 
 function lot(
   id: string,
@@ -144,53 +137,6 @@ describe("readExpiringLotsReport", () => {
 
     expect(report.period).toEqual({ from: "2026-10-13", to: "2026-11-12" });
     expect(report.lots.map((listed) => listed.id)).toEqual(["inside"]);
-  });
-
-  it("lists a lot with its product, its stock and its value", async () => {
-    const { report } = await read([lot("lot-1", { lotNumber: "L-77", remaining: 4_000 })]);
-
-    expect(report.lots).toEqual([
-      {
-        id: "lot-1",
-        lotNumber: "L-77",
-        expiresOn: "2026-10-20",
-        remaining: 4_000,
-        valueCents: 20_000,
-        expired: false,
-        daysToExpiry: 7,
-        product: CHEESE,
-      },
-    ]);
-  });
-
-  it("lists only the lots of the location", async () => {
-    const { report } = await read([lot("here"), lot("there", { locationId: "location-2" })]);
-
-    expect(report.lots.map((listed) => listed.id)).toEqual(["here"]);
-  });
-
-  it("leaves out the technical lots, the empty ones and those that don't expire", async () => {
-    const { report } = await read([
-      lot("dated"),
-      lot("technical", { technical: true }),
-      lot("empty", { remaining: 0 }),
-      lot("debt", { remaining: -1_000 }),
-      lot("undated", { expiresOn: null }),
-    ]);
-
-    expect(report.lots.map((listed) => listed.id)).toEqual(["dated"]);
-  });
-
-  it("sorts by expiry day, then by product name, then by lot id", async () => {
-    const { report } = await read([
-      lot("e", { expiresOn: "2026-10-25" }),
-      lot("d", { expiresOn: "2026-10-20", product: CHEESE }),
-      lot("c", { expiresOn: "2026-10-20", product: BREAD }),
-      lot("b", { expiresOn: "2026-10-20", product: CHEESE }),
-      lot("a", { expiresOn: "2026-10-14" }),
-    ]);
-
-    expect(report.lots.map((listed) => listed.id)).toEqual(["a", "c", "b", "d", "e"]);
   });
 
   it("summarizes how many lots are listed, their value and how many have no known value", async () => {

@@ -14,6 +14,10 @@ test("keeps the period a URL names", () => {
 test.each([
   ["a period that is not text", { from: 3, to: false }],
   ["no period at all", { from: undefined, to: undefined }],
+  ["a period that ends before it starts", { from: "2026-12-31", to: "2026-12-01" }],
+  ["a period with only its start", { from: "2026-12-01" }],
+  ["a period with only its end", { to: "2026-12-31" }],
+  ["a period whose bounds are not days", { from: "2026-02-30", to: "mañana" }],
 ])("falls back to no period for %s", (_name, search) => {
   expect(expiringLotsReportFilters.parse(search)).toEqual({ from: "", to: "" });
 });

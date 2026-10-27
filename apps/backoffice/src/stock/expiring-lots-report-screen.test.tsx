@@ -84,33 +84,17 @@ test("titles the report under the stock reports", async () => {
   await expect.element(screen.getByText("Reportes · Stock")).toBeVisible();
 });
 
-test("states the branch's warning window and the period the report covers", async () => {
+test("states the branch's warning window and leaves the period to the date fields", async () => {
   const screen = await renderScreen(listed());
 
   await expect.element(screen.getByText("Ventana de aviso de la sucursal: 30 días")).toBeVisible();
-  await expect
-    .element(
-      screen.getByText(
-        `Vencen del ${formatCalendarDayNumeric("2026-10-13")} al ${formatCalendarDayNumeric("2026-11-12")}`,
-      ),
-    )
-    .toBeVisible();
+  expect(screen.getByText(/^Vencen/).query()).toBeNull();
 });
 
-test("says the window in the singular and the period of a single day", async () => {
-  const screen = await renderScreen(
-    listed(
-      expiringLotsReport([cheeseLot], {
-        window_days: 1,
-        period: { from: "2026-10-13", to: "2026-10-13" },
-      }),
-    ),
-  );
+test("says the window in the singular", async () => {
+  const screen = await renderScreen(listed(expiringLotsReport([cheeseLot], { window_days: 1 })));
 
   await expect.element(screen.getByText("Ventana de aviso de la sucursal: 1 día")).toBeVisible();
-  await expect
-    .element(screen.getByText(`Vencen el ${formatCalendarDayNumeric("2026-10-13")}`))
-    .toBeVisible();
 });
 
 test("shows the lots, the value at cost and the lots without cost", async () => {
@@ -216,24 +200,6 @@ test("asks for the period the URL carries", async () => {
     .toHaveBeenCalledWith({ from: "2026-12-01", to: "2026-12-31" });
 });
 
-test.each([
-  ["only the first day", { from: "2026-12-01", to: "" }],
-  ["a period that ends before it starts", { from: "2026-12-31", to: "2026-12-01" }],
-  ["days that are not days", { from: "pronto", to: "luego" }],
-])("asks for the window and clears the period when the URL carries %s", async (_name, period) => {
-  const services = listed();
-  const onFiltersChange = vi.fn();
-
-  await renderScreen(services, {
-    initial: expiringLotsReportFilters.parse(period),
-    onFiltersChange,
-  });
-
-  await expect.poll(() => services.fetchExpiringLotsReport).toHaveBeenCalledWith({});
-  expect(services.fetchExpiringLotsReport).toHaveBeenCalledTimes(1);
-  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({ from: "", to: "" });
-});
-
 test("reports the period typed once both days are complete", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(listed(), { onFiltersChange });
@@ -259,6 +225,18 @@ test("keeps showing the report while the next period loads", async () => {
     .toHaveBeenLastCalledWith({ from: "2026-11-01", to: "2026-11-12" });
   await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
   await expect.element(screen.getByRole("table", TABLE)).toHaveAttribute("aria-busy", "true");
+});
+
+test("drops the previous report's window when the next period fails to load", async () => {
+  const services = listed();
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Ventana de aviso de la sucursal: 30 días")).toBeVisible();
+  vi.mocked(services.fetchExpiringLotsReport).mockResolvedValue({ kind: "failed" });
+
+  await typeDate(screen, "Desde", "01112026");
+
+  await expect.element(screen.getByText("No pudimos abrir los lotes por vencer")).toBeVisible();
+  expect(screen.getByText("Ventana de aviso de la sucursal", { exact: false }).query()).toBeNull();
 });
 
 test("shows the screen loading while the report is on its way", async () => {
