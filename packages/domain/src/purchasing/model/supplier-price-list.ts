@@ -14,7 +14,7 @@ export const SUPPLIER_PRICE_LIST_SOURCE_KINDS = ["PDF", "WEB_PAGE"] as const;
 
 export type SupplierPriceListSourceKind = (typeof SUPPLIER_PRICE_LIST_SOURCE_KINDS)[number];
 
-export const SUPPLIER_PRICE_LIST_CONTENT_KINDS = ["PDF", "HTML"] as const;
+export const SUPPLIER_PRICE_LIST_CONTENT_KINDS = ["PDF", "HTML", "STORE_CATALOG"] as const;
 
 export type SupplierPriceListContentKind = (typeof SUPPLIER_PRICE_LIST_CONTENT_KINDS)[number];
 
@@ -86,6 +86,14 @@ export function isSupplierPriceListDailyExtractionCap(value: number): boolean {
     value >= SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN &&
     value <= SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX
   );
+}
+
+// A store's catalog shows the prices it charges today, which include VAT.
+export function storeCatalogListTerms(readOn: string): {
+  listDate: string;
+  pricesIncludeVat: true;
+} {
+  return { listDate: readOn, pricesIncludeVat: true };
 }
 
 export function isPriceListRowPrice(cents: number): boolean {

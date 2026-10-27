@@ -15,6 +15,7 @@ import {
   type WebPageConnection,
   type WebPageConnector,
 } from "./pinned-web-page-connector.js";
+import { tiendistaStoreProductDataUrl } from "./tiendista-store.js";
 import { admitWebPageUrl, checkWebPageHost, type WebPageHostResolver } from "./web-page-host.js";
 import { startsWithUtf8ByteOrderMark, UTF8_BYTE_ORDER_MARK } from "./web-page-text.js";
 
@@ -27,6 +28,7 @@ export interface GuardedWebPageReaderDependencies {
 const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
 const HTML_MEDIA_TYPES = ["text/html", "application/xhtml+xml"];
 const PDF_MEDIA_TYPE = "application/pdf";
+const JSON_MEDIA_TYPE = "application/json";
 
 export class GuardedWebPageReader implements SupplierPriceListWebPages {
   private readonly dependencies: GuardedWebPageReaderDependencies;
@@ -43,7 +45,12 @@ export class GuardedWebPageReader implements SupplierPriceListWebPages {
       controller.abort();
     }, SUPPLIER_PRICE_LIST_WEB_PAGE_TIME_LIMIT_MS);
     try {
-      return await this.follow(url, controller.signal);
+      const productDataUrl = tiendistaStoreProductDataUrl(url);
+      return await this.follow(
+        productDataUrl ?? url,
+        controller.signal,
+        productDataUrl === null ? "page" : "store_catalog",
+      );
     } catch {
       return refused(timedOut ? "too_slow" : "unreachable");
     } finally {
@@ -55,6 +62,7 @@ export class GuardedWebPageReader implements SupplierPriceListWebPages {
   private async follow(
     address: string,
     signal: AbortSignal,
+    expected: "page" | "store_catalog",
   ): Promise<SupplierPriceListWebPageRead> {
     let current = address;
     for (let redirects = 0; ; redirects += 1) {
@@ -74,7 +82,7 @@ export class GuardedWebPageReader implements SupplierPriceListWebPages {
         signal,
       });
       if (!REDIRECT_STATUSES.includes(connection.status)) {
-        return readPage(connection);
+        return readPage(connection, expected);
       }
       const location = connection.headers.location;
       if (location === undefined) {
@@ -103,7 +111,10 @@ export function createGuardedWebPageReader(): SupplierPriceListWebPages {
   });
 }
 
-async function readPage(connection: WebPageConnection): Promise<SupplierPriceListWebPageRead> {
+async function readPage(
+  connection: WebPageConnection,
+  expected: "page" | "store_catalog",
+): Promise<SupplierPriceListWebPageRead> {
   if (connection.status < 200 || connection.status > 299) {
     return refused("unreachable");
   }
@@ -112,12 +123,7 @@ async function readPage(connection: WebPageConnection): Promise<SupplierPriceLis
     return refused("too_large");
   }
   const mediaType = contentType?.split(";")[0]?.trim().toLowerCase() ?? "";
-  const contentKind =
-    mediaType === PDF_MEDIA_TYPE
-      ? "PDF"
-      : HTML_MEDIA_TYPES.includes(mediaType)
-        ? "HTML"
-        : undefined;
+  const contentKind = contentKindOf(mediaType, expected);
   if (contentKind === undefined) {
     return refused("unsupported_content");
   }
@@ -144,6 +150,19 @@ async function readPage(connection: WebPageConnection): Promise<SupplierPriceLis
     contentKind,
     bytes: contentKind === "HTML" ? inUtf8(bytes, contentType ?? "") : bytes,
   };
+}
+
+function contentKindOf(
+  mediaType: string,
+  expected: "page" | "store_catalog",
+): "PDF" | "HTML" | "STORE_CATALOG" | undefined {
+  if (expected === "store_catalog") {
+    return mediaType === JSON_MEDIA_TYPE ? "STORE_CATALOG" : undefined;
+  }
+  if (mediaType === PDF_MEDIA_TYPE) {
+    return "PDF";
+  }
+  return HTML_MEDIA_TYPES.includes(mediaType) ? "HTML" : undefined;
 }
 
 function inUtf8(html: Uint8Array, contentType: string): Uint8Array {

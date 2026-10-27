@@ -15,6 +15,7 @@ import { type BackgroundJobs, crontabLineEvery } from "../platform/background-jo
 import { DrizzleSupplierPriceListReadings } from "./drizzle-supplier-price-list-readings.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER } from "./supplier-price-list-reading-task-identifier.js";
+import { TiendistaStoreCatalogs } from "./tiendista-store-catalogs.js";
 
 const SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_TASK_IDENTIFIER =
   "supplier-price-list-abandoned-reading-check";
@@ -41,7 +42,13 @@ export function supplierPriceListReadingJobs<TQueryResult extends PgQueryResultH
       [SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER]: async (payload, helpers) => {
         const { listId } = payloadSchema.parse(payload);
         await readSupplierPriceList(
-          { store: new DrizzleSupplierPriceListStore(db, now), files, extractor, zoneRules },
+          {
+            store: new DrizzleSupplierPriceListStore(db, now),
+            files,
+            extractor,
+            storeCatalogs: new TiendistaStoreCatalogs(),
+            zoneRules,
+          },
           { listId, now, finalAttempt: helpers.job.attempts >= helpers.job.max_attempts },
         );
       },

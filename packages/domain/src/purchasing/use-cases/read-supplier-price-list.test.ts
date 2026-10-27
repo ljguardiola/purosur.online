@@ -7,8 +7,8 @@ import {
 import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
 import { FakePriceListExtractor } from "./test-support/fake-price-list-extractor.js";
-import { FakeSupplierPriceListFiles } from "./test-support/fake-supplier-price-list-files.js";
 import { FakeStoreCatalogs } from "./test-support/fake-store-catalogs.js";
+import { FakeSupplierPriceListFiles } from "./test-support/fake-supplier-price-list-files.js";
 import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
 
 const NOW = new Date("2026-03-11T01:30:00Z");
