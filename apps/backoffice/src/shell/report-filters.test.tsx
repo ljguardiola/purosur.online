@@ -148,7 +148,11 @@ test("asks again once a range that was out of order is put right", async () => {
   ).toBeNull();
 });
 
-function ControlledPeriod({ onFiltersChange }: Pick<Handlers, "onFiltersChange">) {
+function ControlledPeriod({
+  onFiltersChange,
+}: {
+  onFiltersChange?: (filters: { from: string; to: string }) => void;
+}) {
   const [filters, setFilters] = useState({ from: "", to: "" });
   return (
     <FieldSizeProvider size="backoffice">
