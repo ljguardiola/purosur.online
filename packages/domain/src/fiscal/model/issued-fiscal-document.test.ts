@@ -22,13 +22,13 @@ describe("issuedStateOfOnlineDocument", () => {
     ],
     ["requested and not answered yet", null, null, "awaiting_authorization"],
     ["unclear and not decided yet", "unclear", null, "awaiting_authorization"],
+    ["never attempted and not decided yet", "not_attempted", null, "awaiting_authorization"],
   ] as const)("lists a document %s as %s", (_name, answer, decision, state) => {
     expect(issuedStateOfOnlineDocument({ answer, decision })).toBe(state);
   });
 
   it.each([
     ["rejected", "rejected", null],
-    ["never attempted", "not_attempted", null],
     ["unclear and released", "unclear", "released"],
     ["unclear and conflicting", "unclear", "conflicting"],
     ["never attempted and released", "not_attempted", "released"],
@@ -44,6 +44,7 @@ describe("issuedStateOfOnlineDocument", () => {
       { answer: "not_attempted", decision: "adopted", state: "authorized" },
       { answer: null, decision: null, state: "awaiting_authorization" },
       { answer: "unclear", decision: null, state: "awaiting_authorization" },
+      { answer: "not_attempted", decision: null, state: "awaiting_authorization" },
     ]);
   });
 

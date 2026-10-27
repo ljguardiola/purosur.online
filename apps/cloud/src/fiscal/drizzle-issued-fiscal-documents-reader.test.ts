@@ -125,6 +125,10 @@ describe("DrizzleIssuedFiscalDocumentsReader.issuedInPeriod", () => {
           authorizationCodeDueOn: null,
         },
       ],
+      [
+        "never attempted and not decided",
+        { answerKind: "not_attempted", authorizationCode: null, authorizationCodeDueOn: null },
+      ],
     ])("lists a receipt %s as awaiting its authorization, without one", async (_name, columns) => {
       const { registerId, locationId } = await aBranchWithRegister();
       await insertReceiptRequest(db, registerId, columns);
@@ -144,10 +148,6 @@ describe("DrizzleIssuedFiscalDocumentsReader.issuedInPeriod", () => {
           authorizationCode: null,
           authorizationCodeDueOn: null,
         },
-      ],
-      [
-        "never attempted",
-        { answerKind: "not_attempted", authorizationCode: null, authorizationCodeDueOn: null },
       ],
       [
         "unclear and released",
