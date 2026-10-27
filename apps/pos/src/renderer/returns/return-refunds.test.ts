@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { refundDraftFor, refundsOf } from "./return-refunds";
-import { CARD, CASH } from "./test-support/sale-for-return";
+import { CASH, TRANSFER } from "./test-support/sale-for-return";
 
 const OTHER_CASH = { ...CASH, payment_id: "pay-cash-2", amount: 500_000, remaining: 500_000 };
 
 describe("the refund shown for each payment", () => {
   it("puts all the refundable total in the first payment that can be refunded", () => {
-    expect(refundDraftFor([CARD, OTHER_CASH, CASH], 1_393_500, {})).toEqual([
-      { payment: CARD, text: "", cents: 0 },
+    expect(refundDraftFor([TRANSFER, OTHER_CASH, CASH], 1_393_500, {})).toEqual([
+      { payment: TRANSFER, text: "", cents: 0 },
       { payment: OTHER_CASH, text: "13.935,00", cents: 1_393_500 },
       { payment: CASH, text: "", cents: 0 },
     ]);

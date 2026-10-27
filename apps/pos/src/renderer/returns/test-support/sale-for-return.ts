@@ -62,9 +62,9 @@ export const CASH: PaymentForReturn = {
   ineligible_reason: null,
 };
 
-export const CARD: PaymentForReturn = {
-  payment_id: "pay-card",
-  method: "CARD",
+export const TRANSFER: PaymentForReturn = {
+  payment_id: "pay-transfer",
+  method: "TRANSFER",
   amount: 1_033_500,
   refunded_amount: 0,
   remaining: 1_033_500,
@@ -82,5 +82,5 @@ export const SALE: SaleForReturn = {
     defective: { last_allowed_day: "2027-03-12", open: true },
   },
   lines: [PASTA, NIBS, HONEY, TEA],
-  payments: [CASH, CARD],
+  payments: [CASH, TRANSFER],
 };

@@ -5,6 +5,7 @@ import {
   findRefusalText,
   lineRefusalNotice,
   paymentIneligibleText,
+  paymentMethodName,
   quantityText,
   REASON_OPTIONS,
   refundRefusalText,
@@ -60,6 +61,14 @@ describe("the refusal of finding the sale", () => {
     expect(findRefusalText("lacks_permission")).toEqual({
       title: "Hacer devoluciones necesita permiso",
       description: "Elegí quién autoriza, ingresá su PIN y volvé a escanear el ticket.",
+    });
+  });
+
+  it("says a scanned code is not a ticket's QR", () => {
+    expect(findRefusalText("not_a_ticket_qr")).toEqual({
+      title: "Ese QR no es de un ticket",
+      description:
+        "Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
     });
   });
 
@@ -183,5 +192,17 @@ describe("the windows of a sale", () => {
       { label: "Arrepentimiento vencido", tone: "warning" },
       { label: "Defecto vencido", tone: "warning" },
     ]);
+  });
+});
+
+describe("the name of a payment method", () => {
+  it.each([
+    ["CASH", "Efectivo"],
+    ["TRANSFER", "Transferencia"],
+    ["QR", "QR de Mercado Pago"],
+    ["POINT", "Point integrada"],
+    ["STANDALONE_TERMINAL", "Terminal independiente"],
+  ] as const)("is %s for the cashier: %s", (method, name) => {
+    expect(paymentMethodName(method)).toBe(name);
   });
 });
