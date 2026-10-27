@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { inbox } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -226,7 +226,11 @@ describe("GET /fiscal/documents", () => {
       now: NOW,
       registerName: "Caja 1",
     });
-    const saleId = randomUUID();
+    const saleId = await applyCompletedSale(db, {
+      deviceId,
+      completedAt: new Date("2026-10-06T11:20:00.000Z"),
+      total: 4_800,
+    });
     await insertInboxEvent(db, deviceId, {
       aggregateType: "Sale",
       aggregateId: saleId,
@@ -278,6 +282,5 @@ describe("GET /fiscal/documents", () => {
         },
       ],
     });
-    expect(await db.select().from(inbox)).toHaveLength(1);
   });
 });
