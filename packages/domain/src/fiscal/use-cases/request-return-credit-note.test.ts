@@ -5,6 +5,7 @@ import type {
   VoidCreditNoteStanding,
 } from "../model/sale-credit-note.js";
 import type { SaleInvoiceStanding } from "../model/sale-credit-note-route.js";
+import type { InvoiceDeferredSalesUpToOutcome } from "./invoice-deferred-sales-up-to.js";
 import type { PendingCreditNote } from "./request-credit-notes-ports.js";
 import {
   type ReturnCreditNoteToRequest,
@@ -93,7 +94,7 @@ function register(note: PendingCreditNote, standing: SaleInvoiceStanding) {
     steps.push("cloud");
   };
   const printer = new FakeCreditNotePrinter();
-  let catchUp: () => Promise<unknown> = async () => {
+  let catchUp: () => Promise<InvoiceDeferredSalesUpToOutcome> = async () => {
     standings["sale-1"] = { fiscalDocuments: [AUTHORIZED_INVOICE], deferralPending: false };
     return { kind: "invoiced" };
   };
@@ -108,7 +109,7 @@ function register(note: PendingCreditNote, standing: SaleInvoiceStanding) {
     creditNotes,
     cloud,
     printer,
-    onCatchUp(answer: () => Promise<unknown>) {
+    onCatchUp(answer: () => Promise<InvoiceDeferredSalesUpToOutcome>) {
       catchUp = answer;
     },
     run: (creditNote: ReturnCreditNoteToRequest) =>
@@ -131,7 +132,7 @@ describe("requestReturnCreditNote", () => {
     expect(steps).toEqual(["catch-up:sale-1", "cloud"]);
     expect(cloud.calls).toMatchObject([{ invoice: { voucher: INVOICE } }]);
     expect(outcome).toEqual({
-      invoicing: { kind: "caught_up" },
+      invoicing: { kind: "invoiced" },
       creditNote: { kind: "answered", answer: AUTHORIZED },
     });
   });
@@ -144,8 +145,21 @@ describe("requestReturnCreditNote", () => {
 
     expect(steps).toEqual(["catch-up:sale-1"]);
     expect(outcome).toEqual({
-      invoicing: { kind: "caught_up" },
+      invoicing: { kind: "not_yet", cause: "cannot_authorize" },
       creditNote: { kind: "answered", answer: { kind: "in_progress" } },
+    });
+  });
+
+  it("asks the cloud for the credit note when the sale was already invoiced before it was asked to", async () => {
+    const { steps, onCatchUp, run } = register(AWAITING_NOTE, INVOICED);
+    onCatchUp(async () => ({ kind: "not_pending" }));
+
+    const outcome = await run({ kind: "awaiting_invoice", creditNoteId: "credit-note-1" });
+
+    expect(steps).toEqual(["catch-up:sale-1", "cloud"]);
+    expect(outcome).toEqual({
+      invoicing: { kind: "not_pending" },
+      creditNote: { kind: "answered", answer: AUTHORIZED },
     });
   });
 

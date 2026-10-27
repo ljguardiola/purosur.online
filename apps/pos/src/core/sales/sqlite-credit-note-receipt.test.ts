@@ -329,6 +329,25 @@ describe("the receipt of the credit note of a return", () => {
     ]);
   });
 
+  it("reads a later return of a weighed line at its share of the price, counting only what earlier returns gave back", () => {
+    database.exec(
+      `UPDATE sale_lines SET sale_unit = 'KG', weight_source = 'SCALE', quantity = 300,
+         list_unit_price = 4003, discount_amount = 100, line_total = 1101 WHERE id = 'line-1';
+       UPDATE return_lines SET quantity = 100, refunded_amount = 367;
+       INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-0', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-01T15:00:00.000Z'),
+              ('return-2', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-03T15:00:00.000Z');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('return-0', 'line-1', 100, 'change_of_mind', 'restock', 367),
+              ('return-2', 'line-1', 100, 'change_of_mind', 'restock', 367);`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.lines).toMatchObject([
+      { saleUnit: "KG", quantity: 100, chargedUnitPrice: 4003, discountAmount: 34, lineTotal: 367 },
+    ]);
+  });
+
   it("leaves out what another return of the sale gave back", () => {
     database.exec(
       `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
