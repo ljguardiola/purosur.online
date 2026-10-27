@@ -237,7 +237,7 @@ describe("POST /fiscal/credit-notes", () => {
         `Bearer ${other.deviceToken}`,
       );
 
-      expect(response.statusCode).toBe(404);
+      expect(response.statusCode).toBe(409);
       expect(await rows()).toMatchObject([{ registerId: owner.registerId }]);
     });
   });
