@@ -1,4 +1,9 @@
-import { ARGENTINA_TIME_ZONE, RETURN_DISPOSITIONS, RETURN_REASONS } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  RETURN_DISPOSITIONS,
+  RETURN_REASONS,
+  SALE_UNITS,
+} from "@purosur/domain";
 import { z } from "zod";
 import {
   answeredRangeSchema,
@@ -15,6 +20,7 @@ export const returnsReportQuerySchema = reportQuerySchema;
 const line = z.object({
   sale_line_id: z.string().min(1),
   product_name: z.string(),
+  sale_unit: z.enum(SALE_UNITS),
   quantity: z.int().positive(),
   reason: z.enum(RETURN_REASONS),
   disposition: z.enum(RETURN_DISPOSITIONS),

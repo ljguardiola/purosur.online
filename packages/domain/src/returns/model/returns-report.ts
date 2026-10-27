@@ -1,9 +1,11 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import { compareSpanishText } from "../../shared/index.js";
 import type { ReturnDisposition, ReturnReason, TicketSource } from "./return-reasons.js";
 
 export interface ReturnRecordLine {
   saleLineId: string;
   productName: string;
+  saleUnit: SaleUnit;
   quantity: number;
   reason: ReturnReason;
   disposition: ReturnDisposition;

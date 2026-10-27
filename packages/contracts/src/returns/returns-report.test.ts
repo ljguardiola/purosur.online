@@ -151,7 +151,10 @@ describe("returnsReportSchema", () => {
     ["a line without an id", { ...row, lines: [{ ...line, sale_line_id: "" }] }],
     ["a line without a product name", { ...row, lines: [{ ...line, product_name: undefined }] }],
     ["a line without a sale unit", { ...row, lines: [{ ...line, sale_unit: undefined }] }],
-    ["a line with a sale unit that does not exist", { ...row, lines: [{ ...line, sale_unit: "LITER" }] }],
+    [
+      "a line with a sale unit that does not exist",
+      { ...row, lines: [{ ...line, sale_unit: "LITER" }] },
+    ],
     ["a line of zero units", { ...row, lines: [{ ...line, quantity: 0 }] }],
     ["a line with a fraction of units", { ...row, lines: [{ ...line, quantity: 1.5 }] }],
     ["a reason that does not exist", { ...row, lines: [{ ...line, reason: "regalo" }] }],
