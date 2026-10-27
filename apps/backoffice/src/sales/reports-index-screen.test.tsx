@@ -85,7 +85,7 @@ test("groups the cash reports in a card titled Caja", async () => {
 
   const cash = screen.getByRole("region", { name: "Caja" });
   await expect.element(cash).toBeVisible();
-  expect(cash.getByRole("link").elements()).toHaveLength(3);
+  expect(cash.getByRole("link").elements()).toHaveLength(2);
 });
 
 test("lists the returns report as a link to it in the Caja card when it is shown", async () => {
@@ -125,7 +125,7 @@ test("groups the stock reports in a card titled Stock", async () => {
 
   const stock = screen.getByRole("region", { name: "Stock" });
   await expect.element(stock).toBeVisible();
-  expect(stock.getByRole("link").elements()).toHaveLength(2);
+  expect(stock.getByRole("link").elements()).toHaveLength(3);
 });
 
 test("lists the valued current stock report as a link to it", async () => {
