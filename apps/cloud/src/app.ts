@@ -197,6 +197,7 @@ import {
 } from "./register/snapshot-backups-routes.js";
 import { registerSnapshotKeyVersionRoute } from "./register/snapshot-key-version-route.js";
 import { registerSnapshotOnDiskRoute } from "./register/snapshot-on-disk-route.js";
+import { registerBranchSaleForReturnRoute } from "./returns/branch-sale-for-return-route.js";
 import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
@@ -805,6 +806,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         });
         registerSnapshotOnDiskRoute(api, { ...options.devices, now });
         registerSnapshotKeyVersionRoute(api, { ...options.devices, now });
+        registerBranchSaleForReturnRoute(api, { ...options.devices, now });
         if (options.fiscalAuthorization) {
           registerFiscalAuthorizationRoute(api, {
             ...options.devices,
