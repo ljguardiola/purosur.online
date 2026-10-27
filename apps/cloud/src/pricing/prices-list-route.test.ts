@@ -16,6 +16,7 @@ import {
 import { insertPurchaseLine } from "../purchasing/test-support/purchase-line-fixtures.js";
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
+import { insertAssemblyBatch } from "../stock/test-support/assembly-batch-fixtures.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
@@ -282,9 +283,43 @@ describe("GET /prices", () => {
           freightPerUnitCents: 0,
           totalCostCents: 1200,
           marginTenthsOfPercent: 400,
+          costIncomplete: false,
         },
       ],
       [noodlesId, null],
+    ]);
+  });
+
+  it("answers an assembled product's cost from its last batch's lot, flagged when incomplete", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    const priceListId = await seededPriceListId(db);
+    const locationId = await seededLocationId(db);
+    const mixId = await insertProduct("Mix de frutos secos", categoryId);
+    await insertPrice(mixId, priceListId, 2000, NOON);
+    await insertAssemblyBatch(db, {
+      productId: mixId,
+      locationId,
+      actorId: userId,
+      assembledAt: new Date("2026-01-04T12:00:00.000Z"),
+      output: 1_000,
+      cost: { totalCents: 1500, quantity: 1_000 },
+      costIncomplete: true,
+    });
+
+    const response = await listPricesRequest(rawSessionId);
+
+    expect(response.json().products).toMatchObject([
+      {
+        costReference: {
+          lastCostCents: 1500,
+          freightPerUnitCents: 0,
+          totalCostCents: 1500,
+          marginTenthsOfPercent: 250,
+          costIncomplete: true,
+        },
+      },
     ]);
   });
 

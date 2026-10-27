@@ -2,6 +2,7 @@ import type { PriceProduct } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { Card, EmptyState, FigureStat } from "@purosur/ui";
 import { Receipt } from "lucide-react";
+import { IncompleteCostTag } from "./incomplete-cost-tag";
 import { formatCentsWithUnit } from "./money";
 
 const FREIGHT_LABEL = {
@@ -19,7 +20,7 @@ export function PriceCostBreakdown({ product }: PriceCostBreakdownProps) {
       <EmptyState
         icon={<Receipt />}
         title="Sin costo registrado"
-        description="El margen aparece cuando el producto tenga una compra o un costo de inventario inicial."
+        description="El margen aparece cuando el producto tenga una compra, una tanda o un costo de inventario inicial."
         variant="blank"
       />
     );
@@ -44,6 +45,7 @@ export function PriceCostBreakdown({ product }: PriceCostBreakdownProps) {
           value={formatCentsWithUnit(costReference.totalCostCents, saleUnit)}
         />
       </div>
+      {costReference.costIncomplete ? <IncompleteCostTag /> : null}
     </Card>
   );
 }

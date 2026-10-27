@@ -16,6 +16,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleAssemblyBatchCostReader } from "../stock/drizzle-assembly-batch-cost-reader.js";
 import { DrizzleInitialCountCostReader } from "../stock/drizzle-initial-count-cost-reader.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 
@@ -81,6 +82,7 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
     reviews: new DrizzlePriceReviewReader(options.db),
     purchaseCosts: new DrizzlePurchaseCostReader(options.db),
     initialCountCosts: new DrizzleInitialCountCostReader(options.db),
+    batchCosts: new DrizzleAssemblyBatchCostReader(options.db),
     zoneRules: options.zoneRules,
   };
   registerRouteAccess(app);
