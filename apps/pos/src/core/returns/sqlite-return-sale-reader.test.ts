@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  insertDeferredSale,
   insertFiscalDocument,
   insertOfflineFiscalDocument,
-  insertDeferredSale,
   OFFLINE_POINT_OF_SALE,
   POINT_OF_SALE,
 } from "../fiscal/test-support/real-time-authorization-database";
