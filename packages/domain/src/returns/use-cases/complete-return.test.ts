@@ -900,7 +900,12 @@ describe("completeReturn credit note", () => {
     it("dates the credit note with the Argentine day of the return", async () => {
       const store = invoiced();
 
-      await complete(store, {}, OWN_GRANT, new Date(argentinaInstant("2026-09-20", "23:30")));
+      await complete(
+        store,
+        {},
+        OWN_GRANT,
+        new Date(argentinaInstant("2026-09-20", "23:30", FIXED_ARGENTINA_ZONE_RULES)),
+      );
 
       expect(store.state.creditNotes).toMatchObject([
         { origin: { kind: "sale_return", issuedOn: "2026-09-20" } },

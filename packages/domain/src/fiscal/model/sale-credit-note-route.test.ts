@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OutboxEventDraft } from "../../shared/index.js";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import type { FiscalOnlineSignalEvidence } from "./fiscal-online-signal.js";
 import type { OfflineCreditNote } from "./offline-fiscal-document.js";
 import type { CorrectedInvoice } from "./sale-credit-note.js";
@@ -73,6 +74,7 @@ function route(
       ...input,
     },
     routing,
+    FIXED_ARGENTINA_ZONE_RULES,
   );
 }
 
@@ -305,6 +307,7 @@ describe("issueOfflineSaleCreditNote", () => {
       registerId: "register-1",
       actorId: "user-1",
       generatedAt: GENERATED_AT,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
     });
     return { steps, recorded };
   }
