@@ -116,4 +116,24 @@ describe("DrizzlePublishedZoneRulesReader", () => {
 
     expect(await new DrizzlePublishedZoneRulesReader(db).currentZoneRulesVersion()).toBe("2025c");
   });
+
+  it("answers no rules while the cloud has published none", async () => {
+    expect(await new DrizzlePublishedZoneRulesReader(db).currentZoneRules()).toBeNull();
+  });
+
+  it("answers the version and the transitions published last", async () => {
+    await publish("2026a");
+    await publishZoneRules(
+      { store: new DrizzleZoneRulesStore(db) },
+      {
+        version: "2025c",
+        transitions: [{ from: new Date("1970-01-01T00:00:00.000Z"), offsetMinutes: -180 }],
+      },
+    );
+
+    expect(await new DrizzlePublishedZoneRulesReader(db).currentZoneRules()).toEqual({
+      version: "2025c",
+      transitions: [{ from: new Date("1970-01-01T00:00:00.000Z"), offsetMinutes: -180 }],
+    });
+  });
 });

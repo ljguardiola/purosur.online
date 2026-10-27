@@ -8,6 +8,7 @@ import {
   signedInWithPermissions,
 } from "../catalog/test-support/catalog-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerDiscountsListRoute } from "./discounts-list-route.js";
 import {
   insertCategory,
@@ -34,7 +35,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerDiscountsListRoute(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOON });
+  registerDiscountsListRoute(app, {
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOON,
+    zoneRules: fixedZoneRulesSource(),
+  });
 });
 
 afterEach(async () => {
@@ -226,5 +232,29 @@ describe("GET /discounts", () => {
     const response = await getDiscounts(rawSessionId);
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("gives each discount its status on the calendar day of the zone rules the route is given", async () => {
+    const earlyUtcPlus12 = Fastify();
+    registerDiscountsListRoute(earlyUtcPlus12, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOON,
+      zoneRules: fixedZoneRulesSource(720),
+    });
+    const category = await insertCategory(db, "Infusiones");
+    await insertDiscount(db, { now: NOON, categoryId: category });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await earlyUtcPlus12.inject({
+      method: "GET",
+      url: "/discounts",
+      headers: sessionCookie(rawSessionId),
+    });
+    await earlyUtcPlus12.close();
+
+    expect(response.json<{ discounts: { status: string }[] }>().discounts[0]?.status).toBe(
+      "current",
+    );
   });
 });

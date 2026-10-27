@@ -2219,6 +2219,31 @@ describe("wiring the branch settings routes", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
+  it("does not register GET /api/zone-rules/current when no currentZoneRules option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    const response = await app.inject({ method: "GET", url: "/api/zone-rules/current" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers GET /api/zone-rules/current when a currentZoneRules option is given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      currentZoneRules: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/zone-rules/current",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+
   it("does not register PUT /api/locations/current/settings when no branchSettings option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
@@ -2557,6 +2582,7 @@ describe("the route access inventory", () => {
         url: "/api/locations/current/settings",
         access: capabilityAccess("branch_area"),
       },
+      { method: "GET", url: "/api/zone-rules/current", access: OPEN_SESSION_ACCESS },
       {
         method: "GET",
         url: "/api/fiscal-settings/issuer-identification",

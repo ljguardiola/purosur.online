@@ -12,6 +12,7 @@ import {
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./buyer-identification-thresholds-list-route.js";
@@ -42,6 +43,7 @@ beforeEach(async () => {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => clock,
+    zoneRules: fixedZoneRulesSource(),
   });
 });
 
@@ -169,6 +171,25 @@ describe("GET /buyer-identification-thresholds", () => {
     expect(body.in_effect?.valid_from).toBe("2026-01-01");
     expect(body.scheduled?.valid_from).toBe("2026-01-06");
     expect(body.earliest_valid_from).toBe("2026-01-05");
+  });
+
+  it("takes today from the calendar of the zone rules the route is given", async () => {
+    clock = new Date("2026-01-06T01:30:00.000Z");
+    await app.close();
+    app = Fastify();
+    registerBuyerIdentificationThresholdsListRoute(app, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => clock,
+      zoneRules: fixedZoneRulesSource(0),
+    });
+    const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
+
+    const response = await get(await insertSession(userId));
+
+    expect(buyerIdentificationThresholdOverviewSchema.parse(response.json())).toMatchObject({
+      earliest_valid_from: "2026-01-06",
+    });
   });
 
   it("answers today as the earliest day a threshold may start", async () => {

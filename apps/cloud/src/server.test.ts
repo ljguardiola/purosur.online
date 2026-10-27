@@ -1155,8 +1155,48 @@ describe("startServer publishing the zone rules of its runtime", () => {
       publishZoneRules,
     });
 
-    expect(publishZoneRules).toHaveBeenCalledWith(db);
+    expect(publishZoneRules).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({ version: expect.any(String) }),
+    );
     expect(steps).toEqual(["publishZoneRules", "listen"]);
+  });
+
+  it("computes the runtime rules once and gives the same rules to what it publishes and to the routes", async () => {
+    const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
+    const db = { marker: "fake-db" };
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
+      db,
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    });
+    const publishZoneRules = vi.fn().mockResolvedValue(undefined);
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: -180 }],
+    };
+    const runtimeZoneRules = vi.fn(() => rules);
+
+    await startServer(env, {
+      arcaEndpoints: unreachableArcaEndpoints,
+      initSentry: vi.fn(),
+      buildApp,
+      setUpBackgroundJobs,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules,
+      runtimeZoneRules,
+    });
+
+    const [options] = buildApp.mock.calls[0] as [
+      { discounts: { zoneRules: { zoneRules(): unknown } } },
+    ];
+    expect(publishZoneRules).toHaveBeenCalledWith(db, rules);
+    expect(options.discounts.zoneRules.zoneRules()).toBe(rules);
+    expect(runtimeZoneRules).toHaveBeenCalledTimes(1);
   });
 
   it("publishes nothing when no database is configured", async () => {
