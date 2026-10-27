@@ -845,6 +845,7 @@ describe("startServer", () => {
       returns: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       roles: {
         db: fakeBackgroundJobs.db,
