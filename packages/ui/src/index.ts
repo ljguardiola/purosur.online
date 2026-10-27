@@ -209,6 +209,7 @@ export {
   formatTimeAgoInHours,
   formatWeight,
   formatWeightInput,
+  parseInvoiceNumber,
   parsePointOfSaleNumber,
   plural,
 } from "./messages/formatters";

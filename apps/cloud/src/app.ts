@@ -96,11 +96,13 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import { registerFiscalRegistersRoute } from "./fiscal/fiscal-registers-route.js";
 import { registerFiscalTaskClosingRoute } from "./fiscal/fiscal-task-closing-route.js";
 import { registerFiscalTasksListRoute } from "./fiscal/fiscal-tasks-list-route.js";
 import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
+import { registerIssuedFiscalDocumentsRoute } from "./fiscal/issued-fiscal-documents-route.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
@@ -221,6 +223,7 @@ import { registerSessionSignOutRoute } from "./sessions/session-sign-out-route.j
 import { registerSessionStatusRoute } from "./sessions/session-status-route.js";
 import { registerSignInLookupRoute } from "./sessions/sign-in-lookup-route.js";
 import { registerAssemblyBatchesRoutes } from "./stock/assembly-batches-routes.js";
+import { registerCurrentStockReportRoute } from "./stock/current-stock-report-route.js";
 import { registerExpiringLotsRoutes } from "./stock/expiring-lots-route.js";
 import { registerInitialInventoryLotsRoutes } from "./stock/initial-inventory-lots-route.js";
 import { registerRecipesRoutes } from "./stock/recipes-routes.js";
@@ -705,6 +708,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.stock) {
         registerStockBalancesRoute(api, { ...options.stock, now });
+        registerCurrentStockReportRoute(api, { ...options.stock, now });
         registerStockProductsRoute(api, { ...options.stock, now });
         registerRecipesRoutes(api, { ...options.stock, now });
         registerAssemblyBatchesRoutes(api, { ...options.stock, now });
@@ -771,6 +775,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerFiscalTasksListRoute(api, { ...options.registersPointsOfSale, now });
         registerFiscalTaskClosingRoute(api, { ...options.registersPointsOfSale, now });
         registerUnbilledDeferredSalesRoute(api, { ...options.registersPointsOfSale, now });
+        registerIssuedFiscalDocumentsRoute(api, { ...options.registersPointsOfSale, now });
+        registerFiscalRegistersRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
         registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });
