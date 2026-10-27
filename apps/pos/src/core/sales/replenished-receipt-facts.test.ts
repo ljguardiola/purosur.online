@@ -19,15 +19,18 @@ function printState(
   attemptedAt: string,
   printedAt: string | null,
   document: PrintedDocumentKey["document"] = "sale_receipt",
+  creditNoteId: string | null = "note-1",
 ): ReceiptFact {
+  const times = {
+    printAttemptedAt: new Date(attemptedAt),
+    printedAt: printedAt === null ? null : new Date(printedAt),
+  };
   return {
     kind: "sale_print_state_changed",
-    printState: {
-      saleId,
-      document,
-      printAttemptedAt: new Date(attemptedAt),
-      printedAt: printedAt === null ? null : new Date(printedAt),
-    },
+    printState:
+      document === "credit_note"
+        ? { saleId, document, creditNoteId, ...times }
+        : { saleId, document, ...times },
   };
 }
 
@@ -262,6 +265,75 @@ describe("replenishing the credit note of a sale into a restored register", () =
         printState("sale-9", "2026-10-07T11:00:05.000Z", null, "credit_note"),
       ),
     ).toThrow("sale sale-9 is not held");
+  });
+
+  it("is refused for a credit note the sale does not hold", () => {
+    expect(() =>
+      applyReplenishedReceiptFact(
+        database,
+        printState("sale-1", "2026-10-07T11:00:05.000Z", null, "credit_note", "note-9"),
+      ),
+    ).toThrow("credit note note-9 is not held by sale sale-1");
+  });
+
+  it("holds the print of an event that names no credit note on the only one the sale holds", () => {
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-07T11:00:05.000Z", null, "credit_note", null),
+    );
+
+    expect(creditNotePrinting()).toEqual({
+      print_attempted_at: "2026-10-07T11:00:05.000Z",
+      printed_at: null,
+    });
+  });
+
+  describe("when the sale holds the credit notes of its returns too", () => {
+    beforeEach(() => {
+      database.exec(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'register-new', 'device-new', 'session-1', 'cashier-1', 'QR', '2026-10-08T10:00:00.000Z');
+         INSERT INTO sale_void_credit_notes (
+           id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at,
+           answered_at
+         ) VALUES (
+           'note-r1', 'sale-1', 'return-1', '2026-10-08', 1000, 5, 11, 3, 41, 'REJECTED',
+           '2026-10-08T10:00:00.000Z', '2026-10-08T10:00:01.000Z'
+         )`,
+      );
+    });
+
+    it("holds the print on the credit note the event names, leaving the others untouched", () => {
+      applyReplenishedReceiptFact(
+        database,
+        printState("sale-1", "2026-10-08T11:00:05.000Z", null, "credit_note", "note-r1"),
+      );
+
+      expect(database.prepare("SELECT credit_note_id FROM credit_note_prints").all()).toEqual([
+        { credit_note_id: "note-r1" },
+      ]);
+    });
+
+    it("is refused for an event that names no credit note: the sale holds more than one", () => {
+      expect(() =>
+        applyReplenishedReceiptFact(
+          database,
+          printState("sale-1", "2026-10-08T11:00:05.000Z", null, "credit_note", null),
+        ),
+      ).toThrow("sale sale-1 holds 2 credit notes and the print names none");
+    });
+  });
+
+  it("is refused for an event that names no credit note when the sale holds none", () => {
+    database.exec("DELETE FROM sale_void_credit_notes");
+
+    expect(() =>
+      applyReplenishedReceiptFact(
+        database,
+        printState("sale-1", "2026-10-07T11:00:05.000Z", null, "credit_note", null),
+      ),
+    ).toThrow("sale sale-1 holds 0 credit notes and the print names none");
   });
 });
 

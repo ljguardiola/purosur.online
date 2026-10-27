@@ -512,7 +512,7 @@ describe("the credit note of a completed return", () => {
   interface Rig {
     steps: string[];
     calls: CloudCreditNoteCall[];
-    printed: string[];
+    printed: { saleId: string; creditNoteId: string }[];
     failures: unknown[];
     deps: Partial<ReturnRequestDeps>;
   }
@@ -536,8 +536,8 @@ describe("the credit note of a completed return", () => {
           return catchUp();
         },
       },
-      printCreditNote: async (saleId) => {
-        state.printed.push(saleId);
+      printCreditNote: async (creditNote) => {
+        state.printed.push(creditNote);
       },
       reportFailure: (error) => {
         state.failures.push(error);
@@ -579,7 +579,7 @@ describe("the credit note of a completed return", () => {
     expect(storedNotes()).toEqual([
       { return_id: "id-1", state: "AUTHORIZED", corrected_number: 41 },
     ]);
-    expect(printed).toEqual(["sale-1"]);
+    expect(printed).toEqual([{ saleId: "sale-1", creditNoteId: calls[0]?.creditNoteId }]);
   });
 
   it("stays in progress, nothing printed, while the cloud gives no answer", async () => {

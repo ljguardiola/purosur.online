@@ -258,18 +258,35 @@ export function aCashMovementRecordedFact(
   };
 }
 
+type PrintState = FactOf<"sale_print_state_changed">["printState"];
+
+type PrintTimes = Partial<Pick<PrintState, "saleId" | "printAttemptedAt" | "printedAt">>;
+
+export type CreditNotePrintStateOverrides = PrintTimes & { creditNoteId?: string | null };
+
+type PrintStateOverrides =
+  | (PrintTimes & { document?: "sale_receipt" | "deferred_invoice" })
+  | (CreditNotePrintStateOverrides & { document: "credit_note" });
+
 export function aSalePrintStateFact(
-  overrides: Partial<FactOf<"sale_print_state_changed">["printState"]> = {},
+  overrides: PrintStateOverrides = {},
 ): FactOf<"sale_print_state_changed"> {
+  const times = {
+    saleId: overrides.saleId ?? randomUUID(),
+    printAttemptedAt: overrides.printAttemptedAt ?? new Date("2026-10-06T11:21:00.000Z"),
+    printedAt: overrides.printedAt ?? null,
+  };
   return {
     kind: "sale_print_state_changed",
-    printState: {
-      saleId: randomUUID(),
-      document: "sale_receipt",
-      printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
-      printedAt: null,
-      ...overrides,
-    },
+    printState:
+      overrides.document === "credit_note"
+        ? {
+            ...times,
+            document: "credit_note",
+            creditNoteId:
+              overrides.creditNoteId === undefined ? randomUUID() : overrides.creditNoteId,
+          }
+        : { ...times, document: overrides.document ?? "sale_receipt" },
   };
 }
 

@@ -27,6 +27,7 @@ const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
 const AUTHORIZER_PIN = "1234";
 const REASON = "el cliente la perdió";
 const NO_PRINTERS = { configured: () => undefined };
+const NOTE_OF_SALE = { saleId: "sale-1", creditNoteId: "note-1" };
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -162,10 +163,11 @@ describe("printing the credit note of a voided sale from its history", () => {
     expect(outboxEvents()).toEqual([
       {
         event_type: "sale_print_state_changed",
-        schema_version: 2,
+        schema_version: 3,
         payload: {
           sale_id: "sale-1",
           document: "credit_note",
+          credit_note_id: "note-1",
           print_attempted_at: "2026-09-30T16:00:00.000Z",
           printed_at: "2026-09-30T16:00:00.000Z",
         },
@@ -444,7 +446,7 @@ describe("reprinting the credit note of a voided sale from its history", () => {
 
 describe("printing the credit note right after the void", () => {
   it("hands the original to the printer on behalf of the person who is signed in", async () => {
-    await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+    await printVoidedSaleCreditNoteFor(deps(), NOTE_OF_SALE);
     printer.becomeReady();
     await vi.waitFor(() => expect(outboxEvents()).toHaveLength(1));
 
@@ -452,13 +454,13 @@ describe("printing the credit note right after the void", () => {
     expect(creditNotePrinting()).toMatchObject({ print_attempted_at: "2026-09-30T16:00:00.000Z" });
     expect(outboxEvents()[0]).toMatchObject({
       event_type: "sale_print_state_changed",
-      payload: { document: "credit_note" },
+      payload: { document: "credit_note", credit_note_id: "note-1" },
     });
     expect(database.prepare("SELECT actor_id FROM outbox").get()).toEqual({ actor_id: "clerk" });
   });
 
   it("makes the next print from the history a duplicate", async () => {
-    await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+    await printVoidedSaleCreditNoteFor(deps(), NOTE_OF_SALE);
     printer.becomeReady();
     await vi.waitFor(() => expect(outboxEvents()).toHaveLength(1));
 
@@ -470,7 +472,7 @@ describe("printing the credit note right after the void", () => {
   it("prints nothing when nobody is signed in to be recorded as the one who printed it", async () => {
     signedInPerson.clear();
 
-    await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+    await printVoidedSaleCreditNoteFor(deps(), NOTE_OF_SALE);
 
     expect(printer.waiting).toEqual([]);
     expect(creditNotePrinting()).toBeUndefined();
@@ -489,7 +491,7 @@ describe("printing the credit note right after the void", () => {
       answered_at: null,
     });
 
-    await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+    await printVoidedSaleCreditNoteFor(deps(), NOTE_OF_SALE);
 
     expect(printer.waiting).toEqual([]);
   });
@@ -497,7 +499,7 @@ describe("printing the credit note right after the void", () => {
   it("prints nothing while the outbox is not ready", async () => {
     await printVoidedSaleCreditNoteFor(
       deps({ readOutboxChainKey: async () => undefined }),
-      "sale-1",
+      NOTE_OF_SALE,
     );
 
     expect(printer.waiting).toEqual([]);
@@ -505,7 +507,7 @@ describe("printing the credit note right after the void", () => {
 
   it("does nothing when the register has no printer", async () => {
     await expect(
-      printVoidedSaleCreditNoteFor(deps({ printers: NO_PRINTERS }), "sale-1"),
+      printVoidedSaleCreditNoteFor(deps({ printers: NO_PRINTERS }), NOTE_OF_SALE),
     ).resolves.toBeUndefined();
   });
 });
@@ -553,27 +555,27 @@ describe("printing the credit notes of the returns of a sale", () => {
     insertReturnWithNote("return-2", "note-r2", "line-2", 350000, "2026-10-03T15:00:00.000Z", 9);
   });
 
-  it("prints the oldest one not printed yet, then the next, each stored under its own credit note", async () => {
-    await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+  it("prints the credit note it is given, whichever is older or unprinted, each stored under its own id", async () => {
+    await printVoidedSaleCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-r2" });
     printer.becomeReady();
     await vi.waitFor(() =>
       expect(
         database
           .prepare("SELECT credit_note_id FROM credit_note_prints WHERE printed_at IS NOT NULL")
           .all(),
-      ).toEqual([{ credit_note_id: "note-r1" }]),
+      ).toEqual([{ credit_note_id: "note-r2" }]),
     );
     expect(printoutOf(printer.handed[0] ?? new Uint8Array()).text).toContain("NOTA DE CRÉDITO C");
 
     await vi.waitFor(async () => {
-      await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+      await printVoidedSaleCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-r1" });
       expect(printer.waiting).toHaveLength(2);
     });
     printer.becomeReady();
     await vi.waitFor(() =>
       expect(printedNotes()).toEqual([
-        { credit_note_id: "note-r1" },
         { credit_note_id: "note-r2" },
+        { credit_note_id: "note-r1" },
       ]),
     );
 
@@ -582,5 +584,29 @@ describe("printing the credit notes of the returns of a sale", () => {
         .prepare("SELECT credit_note_id FROM credit_note_receipts ORDER BY credit_note_id")
         .all(),
     ).toEqual([{ credit_note_id: "note-r1" }, { credit_note_id: "note-r2" }]);
+  });
+
+  it("names the credit note it printed in the event of its print state", async () => {
+    await printVoidedSaleCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-r2" });
+    printer.becomeReady();
+    await vi.waitFor(() => expect(outboxEvents()).toHaveLength(1));
+
+    expect(outboxEvents()[0]).toMatchObject({
+      event_type: "sale_print_state_changed",
+      schema_version: 3,
+      payload: { document: "credit_note", credit_note_id: "note-r2" },
+    });
+  });
+
+  it("prints nothing for a credit note that is not one of the sale's", async () => {
+    await printVoidedSaleCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-missing" });
+
+    expect(printer.waiting).toEqual([]);
+    expect(printedNotes()).toEqual([]);
+  });
+
+  it("answers not_found to the history, which only prints the credit note of a void", async () => {
+    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({ kind: "not_found" });
+    expect(printer.waiting).toEqual([]);
   });
 });

@@ -92,7 +92,14 @@ const AUTHORIZED_CREDIT_NOTE: CloudCreditNoteAnswer = {
 
 let creditNoteCalls: CloudCreditNoteCall[];
 let creditNoteAnswer: CloudCreditNoteAnswer | null;
-let printedCreditNotes: string[];
+let printedCreditNotes: { saleId: string; creditNoteId: string }[];
+
+function creditNoteIdOf(saleId: string): string {
+  const row = database
+    .prepare<[string], { id: string }>("SELECT id FROM sale_void_credit_notes WHERE sale_id = ?")
+    .get(saleId);
+  return row?.id ?? "";
+}
 let reportedFailures: unknown[];
 
 function voidDeps(overrides: Partial<VoidSaleRequestDeps> = {}): VoidSaleRequestDeps {
@@ -104,8 +111,8 @@ function voidDeps(overrides: Partial<VoidSaleRequestDeps> = {}): VoidSaleRequest
         return creditNoteAnswer;
       },
     },
-    printCreditNote: async (saleId) => {
-      printedCreditNotes.push(saleId);
+    printCreditNote: async (creditNote) => {
+      printedCreditNotes.push(creditNote);
     },
     reportFailure: (error) => reportedFailures.push(error),
     ...overrides,
@@ -446,7 +453,7 @@ describe("voiding a sale of the sales history", () => {
 
         await voidSaleFor(voidDeps(), request(saleId, { authorization }));
 
-        expect(printedCreditNotes).toEqual([saleId]);
+        expect(printedCreditNotes).toEqual([{ saleId, creditNoteId: creditNoteIdOf(saleId) }]);
       });
 
       it("credits the contingency document the customer received when the sale was invoiced under a contingency code", async () => {
@@ -556,7 +563,7 @@ describe("voiding a sale of the sales history", () => {
 
         await voidSaleFor(voidDeps(), request(saleId, { authorization }));
 
-        expect(printedCreditNotes).toEqual([saleId]);
+        expect(printedCreditNotes).toEqual([{ saleId, creditNoteId: creditNoteIdOf(saleId) }]);
       });
 
       it("answers and prints the credit note the register's health check recorded while the void's own request got no answer", async () => {
@@ -579,7 +586,7 @@ describe("voiding a sale of the sales history", () => {
         );
 
         expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "authorized" } });
-        expect(printedCreditNotes).toEqual([saleId]);
+        expect(printedCreditNotes).toEqual([{ saleId, creditNoteId: creditNoteIdOf(saleId) }]);
         expect(reportedFailures).toEqual([]);
       });
 
