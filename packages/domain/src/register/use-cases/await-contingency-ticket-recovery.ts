@@ -1,4 +1,4 @@
-import { restorationStanding } from "../../register/index.js";
+import { restorationStanding } from "../model/restoration-protocol.js";
 import type { AwaitContingencyTicketRecoveryPorts } from "./await-contingency-ticket-recovery-ports.js";
 
 export type AwaitContingencyTicketRecoveryOutcome<TFailure> =
@@ -8,13 +8,13 @@ export type AwaitContingencyTicketRecoveryOutcome<TFailure> =
   | { kind: "failed"; failure: TFailure };
 
 export async function awaitContingencyTicketRecovery<TFailure>({
-  restoration,
+  evidence,
   cloud,
   awaited,
 }: AwaitContingencyTicketRecoveryPorts<TFailure>): Promise<
   AwaitContingencyTicketRecoveryOutcome<TFailure>
 > {
-  const standing = restorationStanding(restoration.evidence());
+  const standing = restorationStanding(evidence.evidence());
   const atTheRecovery =
     (standing.kind === "in_progress" || standing.kind === "without_connection") &&
     standing.step === "recover_contingency_tickets";

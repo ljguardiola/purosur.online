@@ -1,4 +1,4 @@
-import type { RestorationEvidence } from "../../register/index.js";
+import type { RestorationProtocolEvidence } from "./restoration-protocol-evidence.js";
 
 export interface ContingencyTicketRecoveryPredecessor {
   deviceId: string;
@@ -10,10 +10,6 @@ export type ContingencyTicketRecoveryStatus<TFailure> =
   | { kind: "finished" }
   | { kind: "failed"; failure: TFailure };
 
-export interface RestorationEvidenceReader {
-  evidence(): RestorationEvidence;
-}
-
 export interface ContingencyTicketRecoveryRequester<TFailure> {
   ask(predecessorDeviceId: string): Promise<ContingencyTicketRecoveryStatus<TFailure>>;
 }
@@ -24,7 +20,7 @@ export interface AwaitedContingencyTicketRecovery {
 }
 
 export interface AwaitContingencyTicketRecoveryPorts<TFailure> {
-  restoration: RestorationEvidenceReader;
+  evidence: RestorationProtocolEvidence;
   cloud: ContingencyTicketRecoveryRequester<TFailure>;
   awaited: AwaitedContingencyTicketRecovery;
 }

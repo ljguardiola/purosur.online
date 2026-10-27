@@ -1,7 +1,7 @@
 import type {
   AwaitedContingencyTicketRecovery,
   ContingencyTicketRecoveryPredecessor,
-} from "@purosur/domain/backups/use-cases";
+} from "@purosur/domain/register/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
 export class SqliteAwaitedContingencyTicketRecovery implements AwaitedContingencyTicketRecovery {

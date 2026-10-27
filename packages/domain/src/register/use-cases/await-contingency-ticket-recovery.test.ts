@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { RestorationEvidence } from "../../register/index.js";
+import type { RestorationEvidence } from "../model/restoration-protocol.js";
 import { awaitContingencyTicketRecovery } from "./await-contingency-ticket-recovery.js";
 import type {
   ContingencyTicketRecoveryPredecessor,
   ContingencyTicketRecoveryStatus,
 } from "./await-contingency-ticket-recovery-ports.js";
 import {
-  COMPLETED_RESTORATION,
   FakeAwaitedContingencyTicketRecovery,
   FakeContingencyTicketRecoveryRequester,
-  FakeRestorationEvidenceReader,
 } from "./test-support/fake-awaited-contingency-ticket-recovery.js";
+import {
+  COMPLETED_RESTORATION,
+  FakeRestorationProtocolEvidence,
+} from "./test-support/fake-restoration-protocol-evidence.js";
 
 const AT_THE_RECOVERY: RestorationEvidence = {
   ...COMPLETED_RESTORATION,
@@ -36,7 +38,7 @@ function scenario(
   return {
     cloud,
     awaited,
-    ports: { restoration: new FakeRestorationEvidenceReader(evidence), cloud, awaited },
+    ports: { evidence: new FakeRestorationProtocolEvidence(evidence), cloud, awaited },
   };
 }
 

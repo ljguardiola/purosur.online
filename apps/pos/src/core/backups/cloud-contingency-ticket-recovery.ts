@@ -5,7 +5,7 @@ import {
 import type {
   ContingencyTicketRecoveryRequester,
   ContingencyTicketRecoveryStatus,
-} from "@purosur/domain/backups/use-cases";
+} from "@purosur/domain/register/use-cases";
 import type { PostToCloudWithBearer } from "../sync/cloud-event-inbox";
 import { type CloudFailure, failureOf } from "../sync/cloud-failure";
 

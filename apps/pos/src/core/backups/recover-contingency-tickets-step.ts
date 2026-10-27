@@ -2,8 +2,8 @@ import type { DeviceCredentials } from "@purosur/contracts";
 import {
   type AwaitContingencyTicketRecoveryOutcome,
   awaitContingencyTicketRecovery,
-} from "@purosur/domain/backups/use-cases";
-import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
+  type RestorationProtocolEvidence,
+} from "@purosur/domain/register/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import type { PostToCloudWithBearer } from "../sync/cloud-event-inbox";
 import type { CloudFailure } from "../sync/cloud-failure";
@@ -38,7 +38,7 @@ export async function recoverContingencyTicketsStep(
     return { kind: "not_enrolled" };
   }
   return awaitContingencyTicketRecovery({
-    restoration: deps.evidence(database),
+    evidence: deps.evidence(database),
     cloud: new CloudContingencyTicketRecovery({ post, deviceToken: credentials.device_token }),
     awaited: new SqliteAwaitedContingencyTicketRecovery(database),
   });
