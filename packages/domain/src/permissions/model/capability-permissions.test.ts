@@ -39,6 +39,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["manage_supplier_price_lists", ["orders_area", "supplier_price_lists"]],
   ["compare_prices_and_suggest_orders", ["orders_area", "price_comparison"]],
   ["view_reports", ["reports_area"]],
+  ["view_returns_report", ["returns_report"]],
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
   ["recover_contingency_receipts", ["contingency_ticket_rescue"]],
@@ -93,6 +94,7 @@ describe("the backups, ticket rescue and branch screens", () => {
     ["backups_area", "view_backups_and_rotate_key"],
     ["contingency_ticket_rescue", "recover_contingency_receipts"],
     ["branch_area", "configure_branch"],
+    ["returns_report", "view_returns_report"],
   ] as const;
 
   it.each(screens)("%s is granted only by %s", (capability, permission) => {
