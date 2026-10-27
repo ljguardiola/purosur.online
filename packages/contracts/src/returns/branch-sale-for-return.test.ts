@@ -72,6 +72,18 @@ const answer = {
   },
   occurred_at: "2026-09-12T18:30:00.000Z",
   invoice: { point_of_sale: 3, number: 1204 },
+  invoice_standing: {
+    fiscal_documents: [
+      {
+        origin: "real_time",
+        state: "AUTHORIZED",
+        point_of_sale: 3,
+        number: 1204,
+        buyer_tax_status_code: 5,
+      },
+    ],
+    deferral_pending: false,
+  },
   payments: [
     {
       id: "pay-cash",
@@ -97,6 +109,7 @@ describe("branchSaleForReturnAnswerSchema", () => {
       ...answer,
       sale: { ...answer.sale, sale_discount: null },
       invoice: null,
+      invoice_standing: { fiscal_documents: [], deferral_pending: false },
       returned: [],
       counted_return_ids: [],
     };
@@ -122,6 +135,33 @@ describe("branchSaleForReturnAnswerSchema", () => {
     expect(branchSaleForReturnAnswerSchema.parse(withOffset)).toEqual(withOffset);
   });
 
+  it("reads an invoice another register issued offline and one still being requested", () => {
+    const standing = {
+      fiscal_documents: [
+        {
+          origin: "offline",
+          state: "AUTHORIZED",
+          point_of_sale: 4,
+          number: 80,
+          buyer_tax_status_code: 5,
+        },
+        {
+          origin: "real_time",
+          state: "REQUESTING",
+          point_of_sale: 3,
+          number: 1205,
+          buyer_tax_status_code: 6,
+        },
+      ],
+      deferral_pending: true,
+    };
+
+    expect(
+      branchSaleForReturnAnswerSchema.parse({ ...answer, invoice_standing: standing })
+        .invoice_standing,
+    ).toEqual(standing);
+  });
+
   it("reads a voided sale so the register can say it was voided", () => {
     expect(
       branchSaleForReturnAnswerSchema.safeParse({
@@ -141,6 +181,37 @@ describe("branchSaleForReturnAnswerSchema", () => {
       {
         ...answer,
         sale: { ...answer.sale, lines: [{ ...answer.sale.lines[0], sale_unit: "LITER" }] },
+      },
+    ],
+    ["no invoice standing", { ...answer, invoice_standing: undefined }],
+    [
+      "an invoice state the register cannot route a credit note by",
+      {
+        ...answer,
+        invoice_standing: {
+          fiscal_documents: [
+            {
+              origin: "real_time",
+              state: "REJECTED",
+              point_of_sale: 3,
+              number: 1204,
+              buyer_tax_status_code: 5,
+            },
+          ],
+          deferral_pending: false,
+        },
+      },
+    ],
+    [
+      "an invoice without its buyer tax status",
+      {
+        ...answer,
+        invoice_standing: {
+          fiscal_documents: [
+            { origin: "real_time", state: "AUTHORIZED", point_of_sale: 3, number: 1204 },
+          ],
+          deferral_pending: false,
+        },
       },
     ],
     ["no counted return ids", { ...answer, counted_return_ids: undefined }],
