@@ -13,9 +13,11 @@ import type {
   StockProductBalance,
   StockProductList,
 } from "@purosur/contracts";
+import type { ZoneRules } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
 import type {
   AssemblyBatchPreviewRequest,
   fetchAssemblyBatches,
@@ -50,6 +52,7 @@ export const stockKeys = {
   movementReasons: [...stockKey, "movement-reasons"] as const,
   expectedBalance: (productId: string, at: string) =>
     [...stockKey, "expected-balance", productId, at] as const,
+  zoneRules: [...stockKey, "zone-rules"] as const,
   initialLots: ({ cost, product }: InitialInventoryLotsQuery) =>
     [...stockKey, "initial-lots", cost ?? "all", product ?? ""] as const,
 };
@@ -237,4 +240,16 @@ export function useAssemblyBatchLotQuery(
 export function useRefreshStock(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: stockKey });
+}
+
+export function useCountZoneRulesQuery(
+  params: ReadParams & { fetchCurrentZoneRules: typeof fetchCurrentZoneRules },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ZoneRules>({
+    queryKey: stockKeys.zoneRules,
+    read: params.fetchCurrentZoneRules,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
 }

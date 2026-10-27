@@ -28,7 +28,6 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { parseStockQuantity, quantityFieldKind, quantityMessage } from "../platform/stock-quantity";
 import type { CloudData } from "../platform/use-cloud-query";
-import { useCurrentZoneRulesQuery } from "../platform/zone-rules-queries";
 import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
 import type { RegisterCountOutcome } from "./stock-api";
 import { CountBalance } from "./stock-count-balance";
@@ -42,7 +41,12 @@ import {
 import { CountLotsField } from "./stock-count-lots";
 import type { StockCountsScreenServices } from "./stock-counts-services";
 import { productOptions } from "./stock-movement-form";
-import { useExpectedBalanceQuery, useRefreshStock, useStockProductsQuery } from "./stock-queries";
+import {
+  useCountZoneRulesQuery,
+  useExpectedBalanceQuery,
+  useRefreshStock,
+  useStockProductsQuery,
+} from "./stock-queries";
 
 type Notice =
   | { kind: "attemptFailed" }
@@ -116,7 +120,7 @@ export function NewCountModal({
     fetchStockProducts: services.fetchStockProducts,
     onSessionEnded,
   });
-  const zoneRules = useCurrentZoneRulesQuery({
+  const zoneRules = useCountZoneRulesQuery({
     fetchCurrentZoneRules: services.fetchCurrentZoneRules,
     onSessionEnded,
   });

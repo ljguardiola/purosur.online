@@ -20,8 +20,8 @@ import type {
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
-import { useCurrentZoneRulesQuery } from "../platform/zone-rules-queries";
 import { FixedPair } from "./fiscal-data-pair";
+import { useIssuerZoneRulesQuery } from "./fiscal-queries";
 import type {
   IssuerIdentification,
   SaveIssuerIdentificationOutcome,
@@ -280,7 +280,7 @@ function LoadedEditIssuerIdentificationModal({
 
 export function EditIssuerIdentificationModal(props: EditIssuerIdentificationModalProps) {
   const open = props.target !== null;
-  const rules = useCurrentZoneRulesQuery({
+  const rules = useIssuerZoneRulesQuery({
     fetchCurrentZoneRules: props.services.fetchCurrentZoneRules,
     enabled: open,
     onSessionEnded: props.onSessionEnded,
