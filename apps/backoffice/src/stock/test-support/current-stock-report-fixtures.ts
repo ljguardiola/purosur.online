@@ -3,7 +3,7 @@ import type { CurrentStockReportBody } from "@purosur/contracts";
 type Product = CurrentStockReportBody["products"][number];
 
 export const NUTS_CATEGORY_ID = "9a3f6c52-1d84-4b07-8c1e-5e7a2b9d4f10";
-export const PANTRY_CATEGORY_ID = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
+const PANTRY_CATEGORY_ID = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
 
 export const almondsProduct: Product = {
   id: "11111111-1111-4111-8111-111111111111",
