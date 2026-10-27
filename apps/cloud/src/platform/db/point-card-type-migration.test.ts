@@ -37,8 +37,8 @@ async function databaseBefore() {
   );
   const saleId = await first(
     `insert into sales
-       (id, location_id, register_id, device_id, session_id, actor_id, state, total, applied_at)
-     values (gen_random_uuid(), $1, $2, $3, $4, 'user-1', 'COMPLETED', 100, now()) returning id`,
+       (id, location_id, register_id, device_id, session_id, actor_id, state, completed_at, total, applied_at)
+     values (gen_random_uuid(), $1, $2, $3, $4, 'user-1', 'COMPLETED', now(), 100, now()) returning id`,
     [locationId, registerId, deviceId, sessionId],
   );
   await database.query(
