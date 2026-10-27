@@ -34,6 +34,7 @@ export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/con
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
 export {
+  CREDIT_NOTE_ANSWERS_CREDITING_NOTHING,
   CREDIT_NOTE_C_VOUCHER_TYPE,
   CREDIT_NOTE_REASONS,
   creditWithinInvoice,
@@ -316,6 +317,8 @@ export {
 } from "./model/sale-credit-note-route.js";
 export {
   awaitsUnclearOutcomeDecision,
+  TAX_AUTHORITY_HOLDING_ANSWER_KIND,
+  TAX_AUTHORITY_HOLDING_DECISION_KIND,
   UNCLEAR_ANSWER_KINDS,
   unclearOutcomeSince,
 } from "./model/unclear-outcome-decision.js";

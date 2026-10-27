@@ -1,5 +1,6 @@
 import type { VoucherReference } from "@purosur/domain";
 import {
+  CREDIT_NOTE_ANSWERS_CREDITING_NOTHING,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   FACTURA_C_VOUCHER_TYPE,
@@ -7,6 +8,7 @@ import {
 import { and, eq, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { creditNotes, fiscalRequests, offlineFiscalDocuments } from "../platform/db/schema.js";
+import { heldByTaxAuthority } from "./held-by-tax-authority.js";
 
 export function creditedVoucherLockKey({ voucherType, pointOfSale, number }: VoucherReference) {
   return `credited_voucher:${voucherType}:${pointOfSale}:${number}`;
@@ -76,7 +78,7 @@ export async function invoiceTotalHeld<TQueryResult extends PgQueryResultHKT>(
       and(
         eq(fiscalRequests.pointOfSale, pointOfSale),
         eq(fiscalRequests.number, number),
-        or(eq(fiscalRequests.answerKind, "authorized"), eq(fiscalRequests.decision, "adopted")),
+        heldByTaxAuthority,
       ),
     )
     .limit(1);
@@ -111,7 +113,7 @@ export async function totalCreditedToInvoice<TQueryResult extends PgQueryResultH
         eq(creditNotes.associatedNumber, number),
         or(
           isNull(creditNotes.answerKind),
-          notInArray(creditNotes.answerKind, ["rejected", "regularization_required"]),
+          notInArray(creditNotes.answerKind, [...CREDIT_NOTE_ANSWERS_CREDITING_NOTHING]),
         ),
       ),
     );

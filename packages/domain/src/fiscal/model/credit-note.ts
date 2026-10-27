@@ -31,6 +31,18 @@ export function creditNoteBreaksDateOrder(
   );
 }
 
+export const CREDIT_NOTE_ANSWERS_CREDITING_NOTHING = [
+  "rejected",
+  "regularization_required",
+] as const;
+
+export function creditsItsInvoice(answerKind: string | null): boolean {
+  return (
+    answerKind === null ||
+    !(CREDIT_NOTE_ANSWERS_CREDITING_NOTHING as readonly string[]).includes(answerKind)
+  );
+}
+
 export function creditWithinInvoice({
   invoiceTotal,
   alreadyCredited,
