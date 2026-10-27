@@ -159,6 +159,9 @@ describe("completing a return in the register", () => {
     expect(
       database.prepare("SELECT payment_id, method, amount, state FROM payment_refunds").all(),
     ).toEqual([{ payment_id: "pay-cash", method: "CASH", amount: 5000, state: "APPROVED" }]);
+    expect(database.prepare("SELECT return_id FROM payment_refunds").all()).toEqual(
+      database.prepare("SELECT id AS return_id FROM returns").all(),
+    );
     expect(
       database
         .prepare<[], { ref_id: string; id: string }>("SELECT id, ref_id FROM cash_movements")

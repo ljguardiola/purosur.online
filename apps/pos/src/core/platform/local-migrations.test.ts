@@ -7285,6 +7285,10 @@ describe("the return credit notes migration", () => {
            'note-pending', 'event-1', 3, 'Sale', 'sale-void-3', 'sale_voided', 1, '{}',
            '2026-09-30T12:42:00.000Z', 'u1', 'hmac'
          );
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
+         VALUES ('pay-void-1', 'sale-void-1', 'SALE', 'CASH', 'NONE', 1190000, 1190000, NULL, NULL, 'APPROVED', '2026-09-30T12:05:00.000Z');
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-void-1', 'pay-void-1', 'CASH', 'NONE', 1190000, 'APPROVED', '2026-09-30T12:40:00.000Z');
          INSERT INTO credit_note_prints (sale_id, print_attempted_at, printed_at)
          VALUES ('sale-void-1', '2026-09-30T12:53:00.000Z', '2026-09-30T12:53:04.000Z'),
                 ('sale-void-2', '2026-09-30T12:54:00.000Z', NULL);
@@ -7465,6 +7469,31 @@ describe("the return credit notes migration", () => {
       ).toEqual([
         { credit_note_id: "note-authorized", template_version: "v1", head: [1, 2], body: [3, 4] },
       ]);
+    });
+  });
+
+  it("keeps the refunds the register already holds, tied to no return", () => {
+    withMigratedRegister((database) => {
+      expect(
+        database.prepare("SELECT id, amount, return_id FROM payment_refunds ORDER BY id").all(),
+      ).toEqual([{ id: "refund-void-1", amount: 1190000, return_id: null }]);
+    });
+  });
+
+  it("lets a refund name the return it gives back, and only a return the register holds", () => {
+    withMigratedRegister((database) => {
+      insertReturn(database, "return-1");
+      const refund = (id: string, returnId: string | null) =>
+        database
+          .prepare(
+            `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+             VALUES (?, 'pay-void-1', 'CASH', 'NONE', 100, 'APPROVED', '2026-10-13T12:00:00.000Z', ?)`,
+          )
+          .run(id, returnId);
+
+      expect(() => refund("refund-of-return", "return-1")).not.toThrow();
+      expect(() => refund("refund-of-sale", null)).not.toThrow();
+      expect(() => refund("refund-of-nothing", "missing")).toThrow(/FOREIGN KEY/);
     });
   });
 

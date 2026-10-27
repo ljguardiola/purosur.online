@@ -258,8 +258,8 @@ describe("the receipt of the credit note of a return", () => {
        VALUES ('return-1', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '${RETURNED_AT}');
        INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
        VALUES ('return-1', 'line-1', 1, 'change_of_mind', 'restock', 420000);
-       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-       VALUES ('refund-r1', 'pay-1', 'CASH', 'NONE', 420000, 'APPROVED', '${RETURNED_AT}');`,
+       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+       VALUES ('refund-r1', 'pay-1', 'CASH', 'NONE', 420000, 'APPROVED', '${RETURNED_AT}', 'return-1');`,
     );
     insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
   });
@@ -293,8 +293,8 @@ describe("the receipt of the credit note of a return", () => {
        VALUES ('return-2', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-03T15:00:00.000Z');
        INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
        VALUES ('return-2', 'line-2', 1, 'defective', 'discard', 350000);
-       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-       VALUES ('refund-r2', 'pay-2', 'TRANSFER', 'NONE', 350000, 'PENDING', '2026-10-03T15:00:00.000Z');`,
+       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+       VALUES ('refund-r2', 'pay-2', 'TRANSFER', 'NONE', 350000, 'PENDING', '2026-10-03T15:00:00.000Z', 'return-2');`,
     );
     insertReturnCreditNote();
 
@@ -302,6 +302,22 @@ describe("the receipt of the credit note of a return", () => {
 
     expect(receipt?.lines.map(({ productName }) => productName)).toEqual(["Alfajor"]);
     expect(receipt?.refunds).toEqual([{ method: "CASH", amount: 420000 }]);
+  });
+
+  it("leaves out the refund of a return made at the very same moment", () => {
+    database.exec(
+      `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-2', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '${RETURNED_AT}');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('return-2', 'line-2', 1, 'defective', 'discard', 350000);
+       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+       VALUES ('refund-r2', 'pay-2', 'TRANSFER', 'NONE', 350000, 'PENDING', '${RETURNED_AT}', 'return-2');`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.refunds).toEqual([
+      { method: "CASH", amount: 420000 },
+    ]);
   });
 
   it("is none while the credit note of the return is not authorized", () => {
