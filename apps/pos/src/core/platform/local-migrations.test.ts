@@ -3380,8 +3380,8 @@ describe("the register's local migrations", () => {
         insert.run({ ...issued, id: "offline-5", sale_id: "later", number: 2, cause: "other" }),
       ).toThrow(/CHECK/);
       expect(() =>
-        insert.run({ ...issued, id: "offline-6", sale_id: "missing", number: 3 }),
-      ).toThrow(/FOREIGN KEY/);
+        insert.run({ ...issued, id: "offline-6", sale_id: "of-another-register", number: 9 }),
+      ).not.toThrow();
       for (const cause of ["unclear_outcome", "numbering_conflict"]) {
         insert.run({
           ...issued,
@@ -5600,9 +5600,9 @@ describe("the register's local migrations", () => {
     expect(() => insert.run(inProgress)).not.toThrow();
     expect(() => insert.run({ ...inProgress, id: "note-again" })).toThrow(/UNIQUE/);
     expect(() => insert.run({ ...authorized, id: "note-2", sale_id: "sale-2" })).not.toThrow();
-    expect(() => insert.run({ ...inProgress, id: "note-3", sale_id: "missing" })).toThrow(
-      /FOREIGN KEY/,
-    );
+    expect(() =>
+      insert.run({ ...inProgress, id: "note-3", sale_id: "of-another-register" }),
+    ).not.toThrow();
     expect(() =>
       insert.run({ ...authorized, id: "note-4", sale_id: "sale-3", authorization_code: null }),
     ).toThrow(/CHECK/);
@@ -8015,9 +8015,11 @@ describe("the returns of other registers' sales migration", () => {
       expect(
         database.prepare("SELECT id, payment_id, return_id, amount FROM payment_refunds").all(),
       ).toEqual([{ id: "refund-1", payment_id: "pay-1", return_id: "return-1", amount: 1500 }]);
-      expect(database.prepare("SELECT id, return_id FROM sale_credit_notes").all()).toEqual([
-        { id: "credit-note-1", return_id: "return-1" },
-      ]);
+      expect(
+        database
+          .prepare("SELECT id, return_id FROM sale_credit_notes WHERE id = 'credit-note-1'")
+          .all(),
+      ).toEqual([{ id: "credit-note-1", return_id: "return-1" }]);
       expect(
         database.prepare("SELECT id, kind, sale_line_id FROM stock_movements ORDER BY id").all(),
       ).toEqual([
@@ -8109,7 +8111,7 @@ describe("the returns of other registers' sales migration", () => {
              corrected_point_of_sale, corrected_number, state, recorded_at, answered_at, offline_fiscal_document_id
            ) VALUES (
              @id, @sale_id, @return_id, @requested_issue_on, 1500, 5, 11, 4, 88, @state,
-             '2026-10-13T12:00:00.000Z', NULL, @offline_fiscal_document_id
+             '2026-10-13T12:00:00.000Z', @answered_at, @offline_fiscal_document_id
            )`,
         )
         .run({
@@ -8118,6 +8120,7 @@ describe("the returns of other registers' sales migration", () => {
           return_id: null,
           requested_issue_on: null,
           state: "IN_PROGRESS",
+          answered_at: null,
           offline_fiscal_document_id: null,
           ...values,
         });
@@ -8258,16 +8261,21 @@ describe("the returns of other registers' sales migration", () => {
           }),
         ).not.toThrow();
         expect(() =>
+          insertOfflineDocument(database, {
+            id: "offline-5",
+            sale_id: "sale-third",
+            number: 21,
+            credit_note_id: "credit-note-5",
+          }),
+        ).not.toThrow();
+        expect(() =>
           insertCreditNote(database, {
             id: "credit-note-5",
             sale_id: "sale-third",
             state: "ISSUED_OFFLINE",
-            offline_fiscal_document_id: "offline-3",
+            answered_at: "2026-10-13T12:00:00.000Z",
+            offline_fiscal_document_id: "offline-5",
           }),
-        ).toThrow(/FOREIGN KEY/);
-        database.exec("PRAGMA defer_foreign_keys = ON");
-        expect(() =>
-          insertOfflineDocument(database, { id: "offline-5", credit_note_id: "credit-note-5" }),
         ).not.toThrow();
       });
     });
