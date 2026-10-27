@@ -339,7 +339,13 @@ async function printAndReprintCreditNote({
 }): Promise<void> {
   const printer = new ControllableReceiptPrinter();
   const printers = { configured: () => printer };
-  const standing = () => deps.jobs.standingOf(`credit-note:${saleId}`);
+  const creditNoteId = deps.database
+    .prepare<[string], { id: string }>("SELECT id FROM sale_void_credit_notes WHERE sale_id = ?")
+    .get(saleId)?.id;
+  if (creditNoteId === undefined) {
+    throw new Error("The register session's voided sale has no credit note to print");
+  }
+  const standing = () => deps.jobs.standingOf(`credit-note:${creditNoteId}`);
   const untilCreditNotePrinted = async () => {
     for (let attempt = 0; attempt < 1000 && standing() !== "printed"; attempt += 1) {
       await new Promise((resolve) => setImmediate(resolve));
@@ -350,7 +356,7 @@ async function printAndReprintCreditNote({
     await new Promise((resolve) => setImmediate(resolve));
   };
   nextStep();
-  await printVoidedSaleCreditNoteFor({ ...deps, printers }, saleId);
+  await printVoidedSaleCreditNoteFor({ ...deps, printers }, { saleId, creditNoteId });
   nextStep();
   printer.becomeReady();
   await untilCreditNotePrinted();

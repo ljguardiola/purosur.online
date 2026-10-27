@@ -24,8 +24,7 @@ let database: LocalDatabase;
 let ledger: SqliteReceiptLedger;
 
 function recordReprintOf(tx: ReceiptLedgerTransaction, reprint: ReceiptReprint): void {
-  recordReprintOf(
-    tx,
+  tx.recordReprint(
     reprint.document === "credit_note"
       ? { document: "credit_note", saleId: reprint.saleId, creditNoteId: "note-1" }
       : { document: reprint.document, saleId: reprint.saleId },

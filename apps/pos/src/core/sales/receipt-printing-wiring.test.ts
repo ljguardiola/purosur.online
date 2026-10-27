@@ -53,7 +53,9 @@ describe("the register's receipt printing without a local database", () => {
   });
 
   it("prints no credit note right after a void", async () => {
-    await expect(printing.printVoidedSaleCreditNote("sale-1")).resolves.toBeUndefined();
+    await expect(
+      printing.printVoidedSaleCreditNote({ saleId: "sale-1", creditNoteId: "note-1" }),
+    ).resolves.toBeUndefined();
   });
 
   it("leaves a charge as it is", () => {
@@ -364,7 +366,10 @@ describe("the register's receipt printing over its local database", () => {
     });
 
     it("is printed on the printer right after the void, without anyone asking", async () => {
-      await printingOverDatabase().printVoidedSaleCreditNote("sale-1");
+      await printingOverDatabase().printVoidedSaleCreditNote({
+        saleId: "sale-1",
+        creditNoteId: "note-1",
+      });
 
       await vi.waitFor(() => expect(connections).toHaveLength(1));
       const [connection] = connections;
