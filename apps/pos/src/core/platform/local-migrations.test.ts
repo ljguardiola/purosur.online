@@ -7900,8 +7900,10 @@ describe("the returns of other registers' sales migration", () => {
          VALUES ('return-1', 'sale-1', 'r1', 'device-a', 's1', 'u1', 'u2', 'TYPED', '2026-10-12T12:00:00.000Z');
          INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
          VALUES ('return-1', 'line-1', 1, 'defective', 'discard', 1500);
-         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-         VALUES ('refund-1', 'pay-1', 'CASH', 'NONE', 1500, 'APPROVED', '2026-10-12T12:00:00.000Z');
+         INSERT INTO payment_refunds (id, payment_id, return_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'pay-1', 'return-1', 'CASH', 'NONE', 1500, 'APPROVED', '2026-10-12T12:00:00.000Z');
+         INSERT INTO sale_credit_notes (id, sale_id, return_id, requested_issue_on, total, state, recorded_at)
+         VALUES ('credit-note-1', 'sale-1', 'return-1', '2026-10-12', 1500, 'AWAITING_INVOICE', '2026-10-12T12:00:00.000Z');
          INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
          VALUES ('movement-1', 'p1', 'return', 'line-1', 1, '2026-10-12T12:00:00.000Z'),
                 ('movement-2', 'p1', 'loss', NULL, -1, '2026-10-12T12:07:00.000Z');`,
@@ -7975,7 +7977,7 @@ describe("the returns of other registers' sales migration", () => {
         ...values,
       });
 
-  it("keeps the returns, their lines, their refunds and their stock movements a register holds", () => {
+  it("keeps the returns, their lines, their refunds, their credit notes and their stock movements a register holds", () => {
     withHeldReturn((database) => {
       expect(database.prepare("SELECT id, sale_id, authorized_by FROM returns").all()).toEqual([
         { id: "return-1", sale_id: "sale-1", authorized_by: "u2" },
@@ -7985,7 +7987,10 @@ describe("the returns of other registers' sales migration", () => {
       ).toEqual([{ return_id: "return-1", sale_line_id: "line-1", refunded_amount: 1500 }]);
       expect(
         database.prepare("SELECT id, payment_id, return_id, amount FROM payment_refunds").all(),
-      ).toEqual([{ id: "refund-1", payment_id: "pay-1", return_id: null, amount: 1500 }]);
+      ).toEqual([{ id: "refund-1", payment_id: "pay-1", return_id: "return-1", amount: 1500 }]);
+      expect(database.prepare("SELECT id, return_id FROM sale_credit_notes").all()).toEqual([
+        { id: "credit-note-1", return_id: "return-1" },
+      ]);
       expect(
         database.prepare("SELECT id, kind, sale_line_id FROM stock_movements ORDER BY id").all(),
       ).toEqual([
@@ -8002,13 +8007,15 @@ describe("the returns of other registers' sales migration", () => {
         database
           .prepare<[], { name: string }>(
             `SELECT name FROM sqlite_schema WHERE type = 'index' AND name IN (
-               'returns_by_sale', 'return_lines_by_sale_line', 'payment_refunds_by_payment', 'stock_movements_by_product'
+               'returns_by_sale', 'return_lines_by_sale_line', 'payment_refunds_by_payment',
+               'payment_refunds_by_return', 'stock_movements_by_product'
              ) ORDER BY name`,
           )
           .all()
           .map(({ name }) => name),
       ).toEqual([
         "payment_refunds_by_payment",
+        "payment_refunds_by_return",
         "return_lines_by_sale_line",
         "returns_by_sale",
         "stock_movements_by_product",
