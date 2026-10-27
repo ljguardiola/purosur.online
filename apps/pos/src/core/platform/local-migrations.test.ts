@@ -7002,7 +7002,13 @@ describe("the sale returns migration", () => {
 
   function insertReturn(
     database: Database,
-    fields: { id: string; saleId?: string; sessionId?: string; authorizedBy?: string; source?: string },
+    fields: {
+      id: string;
+      saleId?: string;
+      sessionId?: string;
+      authorizedBy?: string;
+      source?: string;
+    },
   ) {
     return database
       .prepare(
@@ -7108,9 +7114,9 @@ describe("the sale returns migration", () => {
       expect(() => insertLine(database, {})).not.toThrow();
       expect(() => insertLine(database, {})).toThrow(/UNIQUE|PRIMARY KEY/);
       expect(() => insertLine(database, { return_id: "missing" })).toThrow(/FOREIGN KEY/);
-      expect(() => insertLine(database, { return_id: "return-2", sale_line_id: "missing" })).toThrow(
-        /FOREIGN KEY/,
-      );
+      expect(() =>
+        insertLine(database, { return_id: "return-2", sale_line_id: "missing" }),
+      ).toThrow(/FOREIGN KEY/);
       expect(() =>
         insertLine(database, { return_id: "return-2", disposition: "discard", refunded_amount: 0 }),
       ).not.toThrow();
