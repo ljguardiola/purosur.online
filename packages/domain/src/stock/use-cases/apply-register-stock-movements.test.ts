@@ -591,4 +591,102 @@ describe("applyRegisterStockMovements", () => {
       expect(store.snapshot()).toEqual(before);
     });
   });
+
+  describe("a customer's return", () => {
+    function restocked(delta: number): ApplyRegisterStockMovementsInput["movements"] {
+      return [
+        {
+          id: "return-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "return",
+          delta,
+        },
+      ];
+    }
+
+    function discarded(delta: number): ApplyRegisterStockMovementsInput["movements"] {
+      return [
+        ...restocked(delta),
+        {
+          id: "return-movement-2",
+          productId: "product-bread",
+          kind: "loss",
+          reason: "return_discard",
+          delta: -delta,
+        },
+      ];
+    }
+
+    it("adds the returned quantity to its product's balance in the return's branch only", async () => {
+      const store = storeWithProducts();
+
+      const outcome = await apply(store, sale(restocked(3000)));
+
+      expect(outcome).toEqual({ kind: "applied" });
+      expect(store.balanceOf(BREAD)).toBe(13_000);
+      expect(store.balanceOf({ productId: "product-bread", locationId: "branch-2" })).toBe(8000);
+    });
+
+    it("records the movement as a return of the sale line, under the id the register gave it", async () => {
+      const store = storeWithProducts();
+
+      await apply(store, sale(restocked(3000)));
+
+      expect(store.snapshot().movements).toEqual([
+        {
+          id: "return-movement-1",
+          ...BREAD,
+          saleLineId: "sale-line-1",
+          kind: "return",
+          reason: null,
+          delta: 3000,
+          occurredAt: SOLD_AT,
+          actorId: "cashier-1",
+          supersededByCountId: null,
+        },
+      ]);
+    });
+
+    it("leaves the balance unchanged when the returned merchandise is discarded, recording the loss with its system reason", async () => {
+      const store = storeWithProducts();
+
+      const outcome = await apply(store, sale(discarded(3000)));
+
+      expect(outcome).toEqual({ kind: "applied" });
+      expect(store.balanceOf(BREAD)).toBe(10_000);
+      expect(
+        store
+          .snapshot()
+          .movements.map(({ id, kind, reason, delta }) => ({ id, kind, reason, delta })),
+      ).toEqual([
+        { id: "return-movement-1", kind: "return", reason: null, delta: 3000 },
+        { id: "return-movement-2", kind: "loss", reason: "return_discard", delta: -3000 },
+      ]);
+    });
+
+    it("takes the discarded loss from the lots that expire soonest first", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "late", expiresOn: "2027-06-01", remaining: 4000 });
+      store.seedLot({ ...BREAD, id: "soon", expiresOn: "2027-01-01", remaining: 2000 });
+
+      await apply(store, sale(discarded(3000)));
+
+      expect(store.snapshot().allocations).toContainEqual({
+        movementId: "return-movement-2",
+        lotId: "soon",
+        quantity: -2000,
+      });
+    });
+
+    it("answers invalid_quantity for a quantity the product's unit can't be returned in, writing nothing", async () => {
+      const store = storeWithProducts();
+      const before = store.snapshot();
+
+      const outcome = await apply(store, sale(discarded(1500)));
+
+      expect(outcome).toEqual({ kind: "invalid_quantity", productId: "product-bread" });
+      expect(store.snapshot()).toEqual(before);
+    });
+  });
 });
