@@ -2,6 +2,7 @@ import {
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   PAYMENT_METHODS,
+  SALE_STATES_AFTER_COMPLETION,
   SALE_UNITS,
   type TicketReference,
 } from "@purosur/domain";
@@ -65,7 +66,7 @@ export const branchSaleForReturnAnswerSchema = z.object({
     id: z.string(),
     register_id: z.string(),
     device_id: z.string(),
-    state: z.enum(["COMPLETED", "CANCELLED", "VOIDED"]),
+    state: z.enum(SALE_STATES_AFTER_COMPLETION),
     sale_discount: saleDiscountSchema.nullable(),
     lines: z.array(
       z.object({
