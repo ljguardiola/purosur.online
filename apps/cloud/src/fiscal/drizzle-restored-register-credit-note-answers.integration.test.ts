@@ -56,7 +56,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
       anAuthorizedAnswer(9),
     );
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [creditNoteId]);
+    const found = await answers.saleCreditNotesOf(registerId, [creditNoteId]);
 
     expect(found).toEqual([
       {
@@ -80,7 +80,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const saleId = crypto.randomUUID();
     const creditNoteId = await insertSaleVoidCreditNote(db, registerId, saleId, aRejectedAnswer());
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [creditNoteId]);
+    const found = await answers.saleCreditNotesOf(registerId, [creditNoteId]);
 
     expect(found).toMatchObject([
       { creditNoteId, standing: { kind: "rejected" }, answeredAt: ANSWERED_AT },
@@ -100,7 +100,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     });
     const unclearNote = await insertSaleVoidCreditNote(db, registerId, unclear, anUnclearAnswer());
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [
+    const found = await answers.saleCreditNotesOf(registerId, [
       unrequestedNote,
       requestedNote,
       unclearNote,
@@ -126,7 +126,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
       anAuthorizedAnswer(),
     );
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [creditNoteId]);
+    const found = await answers.saleCreditNotesOf(registerId, [creditNoteId]);
 
     expect(found).toEqual([]);
   });
@@ -138,7 +138,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const askedNote = await insertSaleVoidCreditNote(db, registerId, asked, anAuthorizedAnswer());
     await insertSaleVoidCreditNote(db, registerId, notAsked, anAuthorizedAnswer());
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [askedNote]);
+    const found = await answers.saleCreditNotesOf(registerId, [askedNote]);
 
     expect(found.map(({ creditNoteId }) => creditNoteId)).toEqual([askedNote]);
   });
@@ -154,7 +154,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
       keptNumber: 5000,
     });
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [creditNoteId]);
+    const found = await answers.saleCreditNotesOf(registerId, [creditNoteId]);
 
     expect(found).toEqual([]);
   });

@@ -14,7 +14,9 @@ const FISCAL_TASK_TITLES = {
 } as const satisfies Record<FiscalTaskItem["kind"], string>;
 
 export function fiscalTaskTitle(task: FiscalTaskItem): string {
-  return FISCAL_TASK_TITLES[task.kind];
+  return task.kind === "credit_note_rejected" && task.number === null
+    ? "Nota de crédito a regularizar"
+    : FISCAL_TASK_TITLES[task.kind];
 }
 
 function voucherNumber(task: { point_of_sale: number; number: number }): string {
@@ -28,7 +30,9 @@ export function fiscalTaskDescription(task: FiscalTaskItem): string {
         ? `Nota de crédito ${voucherNumber(task)} autorizada por ARCA fuera del sistema`
         : `Comprobante ${voucherNumber(task)} autorizado por ARCA fuera del sistema`;
     case "credit_note_rejected":
-      return `ARCA rechazó la nota de crédito ${voucherNumber(task)}`;
+      return task.number === null
+        ? "La nota de crédito no pudo emitirse con su fecha y debe regularizarse ante ARCA"
+        : `ARCA rechazó la nota de crédito ${voucherNumber({ ...task, number: task.number })}`;
     case "deferred_sale_expired":
       return `Venta del ${fiscalTaskDate(task.sale_occurred_at)} por ${formatCents(task.total)} que no llegó a facturarse`;
   }

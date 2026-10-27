@@ -531,7 +531,7 @@ export type {
   IssuedOfflineCreditNoteOfRegister,
   KeptAlreadyCreditedRefusalOfRegister,
   RestoredRegisterCreditNoteAnswers,
-  SaleVoidCreditNoteOfRegister,
+  SaleCreditNoteOfRegister,
   ServeRestoredRegisterCreditNoteAnswersPorts,
 } from "./restored-register-credit-note-answers-ports.js";
 export type {

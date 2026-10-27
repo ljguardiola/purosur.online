@@ -3,7 +3,7 @@ import type {
   IssuedOfflineCreditNoteOfRegister,
   KeptAlreadyCreditedRefusalOfRegister,
   RestoredRegisterCreditNoteAnswers,
-  SaleVoidCreditNoteOfRegister,
+  SaleCreditNoteOfRegister,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -23,17 +23,17 @@ export class DrizzleRestoredRegisterCreditNoteAnswers<TQueryResult extends PgQue
     this.db = db;
   }
 
-  async saleVoidCreditNotesOf(
+  async saleCreditNotesOf(
     registerId: string,
     creditNoteIds: readonly string[],
-  ): Promise<SaleVoidCreditNoteOfRegister[]> {
+  ): Promise<SaleCreditNoteOfRegister[]> {
     const rows = await this.db
       .select()
       .from(creditNotes)
       .where(
         and(
           eq(creditNotes.registerId, registerId),
-          eq(creditNotes.reason, "sale_void"),
+          inArray(creditNotes.reason, ["sale_void", "sale_return"]),
           inArray(creditNotes.id, [...creditNoteIds]),
         ),
       )

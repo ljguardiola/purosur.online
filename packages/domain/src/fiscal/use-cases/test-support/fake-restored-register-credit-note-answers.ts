@@ -2,10 +2,10 @@ import type {
   IssuedOfflineCreditNoteOfRegister,
   KeptAlreadyCreditedRefusalOfRegister,
   RestoredRegisterCreditNoteAnswers,
-  SaleVoidCreditNoteOfRegister,
+  SaleCreditNoteOfRegister,
 } from "../restored-register-credit-note-answers-ports.js";
 
-export interface StoredSaleVoidCreditNote extends SaleVoidCreditNoteOfRegister {
+export interface StoredSaleVoidCreditNote extends SaleCreditNoteOfRegister {
   registerId: string;
 }
 
@@ -28,10 +28,10 @@ export class FakeRestoredRegisterCreditNoteAnswers implements RestoredRegisterCr
   offlineCreditNotes: StoredOfflineCreditNote[] = [];
   reads: CreditNotesRead[] = [];
 
-  async saleVoidCreditNotesOf(
+  async saleCreditNotesOf(
     registerId: string,
     creditNoteIds: readonly string[],
-  ): Promise<SaleVoidCreditNoteOfRegister[]> {
+  ): Promise<SaleCreditNoteOfRegister[]> {
     this.reads.push({ registerId, creditNoteIds });
     return this.creditNotes
       .filter((note) => note.registerId === registerId && creditNoteIds.includes(note.creditNoteId))

@@ -1,6 +1,6 @@
 import type { CreditNoteIssuedOffline, CreditNoteStanding } from "../model/sale-credit-note.js";
 
-export interface SaleVoidCreditNoteOfRegister {
+export interface SaleCreditNoteOfRegister {
   creditNoteId: string;
   pointOfSale: number;
   standing: CreditNoteStanding;
@@ -17,10 +17,10 @@ export interface IssuedOfflineCreditNoteOfRegister extends Omit<CreditNoteIssued
 }
 
 export interface RestoredRegisterCreditNoteAnswers {
-  saleVoidCreditNotesOf(
+  saleCreditNotesOf(
     registerId: string,
     creditNoteIds: readonly string[],
-  ): Promise<SaleVoidCreditNoteOfRegister[]>;
+  ): Promise<SaleCreditNoteOfRegister[]>;
   keptRefusalsOf(
     registerId: string,
     creditNoteIds: readonly string[],

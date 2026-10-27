@@ -5,6 +5,7 @@ import {
   type RegisterResetResponse,
   registerResetRequestSchema,
   registerResetResponseSchema,
+  saleReturnedEventCreditNoteSchema,
   saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
 import type { RestoredCreditNoteAnswer, RestoredUnclearDeferral } from "@purosur/domain";
@@ -68,7 +69,7 @@ function creditNoteBody({
     case "rejected":
       return { ...common, state: "REJECTED" };
     case "regularization_required":
-      throw new Error(`credit note ${creditNoteId} of a voided sale cannot await regularization`);
+      return { ...common, state: "REGULARIZATION_REQUIRED" };
     case "already_credited":
       return { ...common, state: "ALREADY_CREDITED" };
     case "issued_offline":
@@ -173,13 +174,17 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
             after: { deviceId: body.after.device_id, deviceSeq: body.after.device_seq },
           }),
         });
-        const voidedCreditNoteIds = page.events.flatMap(({ event }) => {
+        const creditNoteIds = page.events.flatMap(({ event }) => {
           const voided = saleVoidedEventCreditNoteSchema.safeParse(event);
-          return voided.success ? [voided.data.payload.credit_note.id] : [];
+          if (voided.success) {
+            return [voided.data.payload.credit_note.id];
+          }
+          const returned = saleReturnedEventCreditNoteSchema.safeParse(event);
+          return returned.success ? [returned.data.payload.credit_note.id] : [];
         });
         const creditNoteAnswers = await serveRestoredRegisterCreditNoteAnswers(
           { creditNotes },
-          { registerId, creditNoteIds: voidedCreditNoteIds },
+          { registerId, creditNoteIds },
         );
         const unclearDeferralDocumentIds = page.events.flatMap(({ event }) => {
           const deferral = deferredSaleUnclearDocumentEventSchema.safeParse(event);
