@@ -1,5 +1,5 @@
 import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
-import type { UnclearOutcomeDecision } from "./unclear-outcome-decision.js";
+import { UNCLEAR_ANSWER_KINDS, type UnclearOutcomeDecision } from "./unclear-outcome-decision.js";
 
 export const ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE = 50;
 
@@ -14,14 +14,23 @@ export interface OnlineDocumentAuthorizationFacts {
   decision: UnclearOutcomeDecision["kind"] | null;
 }
 
-export const LISTED_ONLINE_DOCUMENT_STATES: readonly (OnlineDocumentAuthorizationFacts & {
+type ListedOnlineDocumentState = OnlineDocumentAuthorizationFacts & {
   state: IssuedDocumentState;
-})[] = [
+};
+
+export const LISTED_ONLINE_DOCUMENT_STATES: readonly ListedOnlineDocumentState[] = [
   { answer: "authorized", decision: null, state: "authorized" },
-  { answer: "unclear", decision: "adopted", state: "authorized" },
-  { answer: "not_attempted", decision: "adopted", state: "authorized" },
+  ...UNCLEAR_ANSWER_KINDS.map(
+    (answer): ListedOnlineDocumentState => ({ answer, decision: "adopted", state: "authorized" }),
+  ),
   { answer: null, decision: null, state: "awaiting_authorization" },
-  { answer: "unclear", decision: null, state: "awaiting_authorization" },
+  ...UNCLEAR_ANSWER_KINDS.map(
+    (answer): ListedOnlineDocumentState => ({
+      answer,
+      decision: null,
+      state: "awaiting_authorization",
+    }),
+  ),
 ];
 
 export function issuedStateOfOnlineDocument({
