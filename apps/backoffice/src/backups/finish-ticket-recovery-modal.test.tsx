@@ -1,4 +1,5 @@
-import { beforeEach, expect, test, vi } from "vitest";
+import type { ComponentProps } from "react";
+import { beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -152,4 +153,9 @@ test("ends the session when finishing finds no open session", async () => {
   await confirm(screen);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("refuses to render without the services the screen composes", () => {
+  type Props = ComponentProps<typeof FinishTicketRecoveryModal>;
+  expectTypeOf<Omit<Props, "services">>().not.toExtend<Props>();
 });
