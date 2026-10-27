@@ -35,12 +35,21 @@ test("reads the installer version and digest the staging feed serves, signed, fr
   assert.match(requests[0].authorization, /^AWS4-HMAC-SHA256 /);
 });
 
-test("refuses a feed that is empty, unreadable, or serves something else than 0.0.N", async () => {
+test("reads a 1.0 installer version the staging feed serves", async () => {
+  const release = await readStagingRelease({
+    bucket,
+    fetchImpl: async () => new Response(entry("1.0.1302")),
+  });
+
+  assert.deepEqual(release, { version: "1.0.1302", sha512: SHA512 });
+});
+
+test("refuses a feed that is empty, unreadable, or serves something else than an installer version", async () => {
   for (const [response, message] of [
     [new Response("", { status: 404 }), /no register has been published/],
     [new Response("", { status: 403 }), /403/],
     [new Response("not json"), /not a release entry/],
-    [new Response(entry("1.2.3")), /0\.0\.N/],
+    [new Response(entry("1.2.0")), /installer version/],
     [new Response(JSON.stringify({})), /not a release entry/],
     [new Response(entry("0.0.57", { sha512: "x" })), /not a release entry/],
     [new Response(entry("0.0.57", { size: 0 })), /not a release entry/],
