@@ -4,6 +4,7 @@ import {
   formatInvoiceNumber,
   formatOperationNumber,
   formatPointOfSaleNumber,
+  formatShortCode,
 } from "@purosur/ui/formatters";
 import { encodePc850 } from "../sales/receipt-printer/pc850";
 
@@ -42,7 +43,6 @@ const QR_CORRECTION_LEVEL_M = 0x31;
 const QR_STORE_OVERHEAD = 3;
 const CENTER_ALIGNMENT = 1;
 const LEFT_ALIGNMENT = 0;
-const SHORT_CODE_GROUP_LENGTH = 4;
 
 const OPERATION_NAMES = {
   cash_session_opening: "Apertura de caja",
@@ -106,7 +106,7 @@ function backedDocumentName(document: BackedDocument): string {
     case "credit_note":
       return `Nota de crédito C ${formatPointOfSaleNumber(document.pointOfSale)}-${formatInvoiceNumber(document.number)}`;
     case "deferred_sale_document":
-      return `Documento X ${document.shortCode.slice(0, SHORT_CODE_GROUP_LENGTH)}-${document.shortCode.slice(SHORT_CODE_GROUP_LENGTH)}`;
+      return `Documento X ${formatShortCode(document.shortCode)}`;
   }
 }
 
