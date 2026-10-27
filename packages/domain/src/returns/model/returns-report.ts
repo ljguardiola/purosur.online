@@ -1,3 +1,4 @@
+import { compareSpanishText } from "../../shared/index.js";
 import type { ReturnDisposition, ReturnReason, TicketSource } from "./return-reasons.js";
 
 export interface ReturnRecordLine {
@@ -38,12 +39,10 @@ export interface ReturnsGroup {
   totals: ReturnsTotals;
 }
 
-function codeUnitOrder(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-
 function newestFirst(a: ReturnRow, b: ReturnRow): number {
-  return b.occurredAt.getTime() - a.occurredAt.getTime() || codeUnitOrder(a.returnId, b.returnId);
+  return (
+    b.occurredAt.getTime() - a.occurredAt.getTime() || compareSpanishText(a.returnId, b.returnId)
+  );
 }
 
 export function returnRows(records: readonly ReturnRecord[]): ReturnRow[] {
