@@ -2712,6 +2712,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("supplier_price_lists"),
       },
       {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/product",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
         method: "PUT",
         url: "/api/supplier-price-lists/:id/rows/:rowId/review",
         access: capabilityAccess("supplier_price_lists"),
