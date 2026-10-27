@@ -453,11 +453,7 @@ export function PricesListScreen({
       render: (item: PriceProduct) =>
         item.costReference ? (
           <div className="flex items-center justify-end gap-2">
-            {item.costReference.costIncomplete ? (
-              <Tag tone="warning" icon={<TriangleAlert aria-hidden="true" />}>
-                Costo incompleto
-              </Tag>
-            ) : null}
+            {item.costReference.costIncomplete ? <IncompleteCostTag /> : null}
             <span>{formatCentsWithUnit(item.costReference.totalCostCents, item.saleUnit)}</span>
           </div>
         ) : (

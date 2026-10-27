@@ -45,11 +45,7 @@ export function PriceCostBreakdown({ product }: PriceCostBreakdownProps) {
           value={formatCentsWithUnit(costReference.totalCostCents, saleUnit)}
         />
       </div>
-      {costReference.costIncomplete ? (
-        <Tag tone="warning" icon={<TriangleAlert aria-hidden="true" />}>
-          Costo incompleto
-        </Tag>
-      ) : null}
+      {costReference.costIncomplete ? <IncompleteCostTag /> : null}
     </Card>
   );
 }
