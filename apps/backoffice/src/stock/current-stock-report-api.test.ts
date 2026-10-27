@@ -3,7 +3,10 @@ import { fetchCurrentStockReport } from "./current-stock-report-api";
 import { currentStockReport, NUTS_CATEGORY_ID } from "./test-support/current-stock-report-fixtures";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
-  return new Response(body === undefined ? null : JSON.stringify(body), { status, headers });
+  return new Response(body === undefined ? null : JSON.stringify(body), {
+    status,
+    ...(headers === undefined ? {} : { headers }),
+  });
 }
 
 beforeEach(() => {
