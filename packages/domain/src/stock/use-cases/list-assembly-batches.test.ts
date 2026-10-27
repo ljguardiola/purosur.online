@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { AssemblyBatchListing } from "./assembly-batch-list-reader.js";
+import type { ReadAssemblyBatch } from "./assembly-batch-list-reader.js";
 import { listAssemblyBatches } from "./list-assembly-batches.js";
 import { FakeAssemblyBatchListReader } from "./test-support/fake-assembly-batch-list-reader.js";
 
-function batch(id: string, assembledAt: string): AssemblyBatchListing {
+function batch(id: string, assembledAt: string): ReadAssemblyBatch {
   return {
     id,
     productId: "mix",
@@ -14,6 +14,8 @@ function batch(id: string, assembledAt: string): AssemblyBatchListing {
     unitCostCents: 3_586,
     costIncomplete: false,
     expiresOn: null,
+    voided: false,
+    lotConsumed: false,
   };
 }
 
@@ -54,4 +56,26 @@ describe("listAssemblyBatches", () => {
 
     expect(listed.map((item) => item.id)).toEqual(["b", "a"]);
   });
+});
+
+describe("listAssemblyBatches status", () => {
+  it.each([
+    { voided: false, lotConsumed: false, status: "voidable" },
+    { voided: false, lotConsumed: true, status: "consumed" },
+    { voided: true, lotConsumed: false, status: "voided" },
+    { voided: true, lotConsumed: true, status: "voided" },
+  ] as const)(
+    "answers a batch voided $voided with its lot consumed $lotConsumed as $status",
+    async ({ voided, lotConsumed, status }) => {
+      const reader = new FakeAssemblyBatchListReader([
+        { ...batch("one", "2026-05-10T10:00:00.000Z"), voided, lotConsumed },
+      ]);
+
+      const [listed] = await listAssemblyBatches(reader, QUERY);
+
+      expect(listed?.status).toBe(status);
+      expect(listed).not.toHaveProperty("voided");
+      expect(listed).not.toHaveProperty("lotConsumed");
+    },
+  );
 });
