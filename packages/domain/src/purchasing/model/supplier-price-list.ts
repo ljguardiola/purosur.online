@@ -51,8 +51,8 @@ export function isSupplierPriceListFileNameTooLong(fileName: string): boolean {
   return codePointLength(fileName) > SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH;
 }
 
-// An extraction counts on the Argentina calendar day it was sent to the AI service, whatever its
-// outcome. One still waiting to be read counts too, because it will be sent.
+// A list counts on the Argentina calendar day it was sent to be read, whatever its outcome. One
+// still waiting to be read counts too, because it will be sent.
 export function countsTowardDailyExtractionCap(
   list: { state: SupplierPriceListState; sentOn: string | null },
   day: string,

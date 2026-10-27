@@ -125,7 +125,9 @@ async function readPage(
   const mediaType = contentType?.split(";")[0]?.trim().toLowerCase() ?? "";
   const contentKind = contentKindOf(mediaType, expected);
   if (contentKind === undefined) {
-    return refused("unsupported_content");
+    return refused(
+      expected === "store_catalog" ? "store_catalog_unavailable" : "unsupported_content",
+    );
   }
   const chunks: Uint8Array[] = [];
   let total = 0;

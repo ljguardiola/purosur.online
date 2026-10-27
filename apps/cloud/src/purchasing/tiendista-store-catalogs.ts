@@ -73,12 +73,13 @@ export class TiendistaStoreCatalogs implements StoreCatalogs {
     } catch {
       return { kind: "unreadable" };
     }
-    if (!Array.isArray(entries) || entries.length > PRICE_LIST_EXTRACTION_MAX_ROWS) {
+    if (!Array.isArray(entries)) {
       return { kind: "unreadable" };
     }
-    return {
-      kind: "read",
-      rows: entries.flatMap((item) => rowOf(item) ?? []),
-    };
+    const rows = entries.flatMap((item) => rowOf(item) ?? []);
+    if (rows.length > PRICE_LIST_EXTRACTION_MAX_ROWS) {
+      return { kind: "unreadable" };
+    }
+    return { kind: "read", rows };
   }
 }
