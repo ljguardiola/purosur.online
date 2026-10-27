@@ -213,9 +213,11 @@ test("leaves the returns report out of the list for someone without its permissi
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("navigation", { name: "Reportes" }).getByRole("link", {
-      name: "Todos los reportes",
-    }))
+    .element(
+      screen.getByRole("navigation", { name: "Reportes" }).getByRole("link", {
+        name: "Todos los reportes",
+      }),
+    )
     .toBeVisible();
   expect(screen.getByRole("link", { name: "Devoluciones" }).query()).toBeNull();
 });

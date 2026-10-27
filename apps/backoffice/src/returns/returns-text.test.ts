@@ -19,9 +19,9 @@ test.each([
 });
 
 test("writes the operation number of a sale and its invoice", () => {
-  expect(returnSaleText({ operation_number: 12, invoice: { point_of_sale: 5, number: 41 } })).toEqual(
-    { operation: "Operación 000012", invoice: "Comprobante 00005-00000041" },
-  );
+  expect(
+    returnSaleText({ operation_number: 12, invoice: { point_of_sale: 5, number: 41 } }),
+  ).toEqual({ operation: "Operación 000012", invoice: "Comprobante 00005-00000041" });
 });
 
 test("leaves out the operation and the invoice a sale does not have", () => {

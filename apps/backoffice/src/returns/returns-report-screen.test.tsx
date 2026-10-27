@@ -192,7 +192,9 @@ test("shows the scanned returns in their own table", async () => {
   await expect.element(row.getByText("Dora")).toBeVisible();
   await expect.element(row.getByText("Azúcar 1 kg × 3 u")).toBeVisible();
   await expect.element(row.getByText("$ 1.500,00", { exact: true })).toBeVisible();
-  expect(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Azúcar 1 kg").query()).toBeNull();
+  expect(
+    screen.getByRole("table", { name: TYPED_TABLE }).getByText("Azúcar 1 kg").query(),
+  ).toBeNull();
 });
 
 test("asks the cloud with no range when the URL has none, and shows the range it answered", async () => {
@@ -224,7 +226,9 @@ test("asks the cloud for the range and the register the URL names", async () => 
 test("asks the cloud again for the register chosen in the filters", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto")).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
+    .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
@@ -237,7 +241,9 @@ test("asks the cloud again for the register chosen in the filters", async () => 
 test("keeps the previous rows, marked as updating, while another register loads", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto")).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
+    .toBeVisible();
   vi.mocked(services.fetchReturnsReport).mockReturnValue(new Promise(() => {}));
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
@@ -246,7 +252,9 @@ test("keeps the previous rows, marked as updating, while another register loads"
   await expect
     .element(screen.getByRole("table", { name: TYPED_TABLE }))
     .toHaveAttribute("aria-busy", "true");
-  await expect.element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto")).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
+    .toBeVisible();
 });
 
 test("shows placeholders while the report loads", async () => {
@@ -271,19 +279,23 @@ test("gives each table its own empty text when its group has no returns", async 
     .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
     .toBeVisible();
   await expect
-    .element(screen.getByText("No hay devoluciones escaneando el QR en este período"))
+    .element(screen.getByText("No hay devoluciones iniciadas escaneando el QR en este período"))
     .toBeVisible();
-  expect(screen.getByText("No hay devoluciones con el número tipeado en este período").query()).toBeNull();
+  expect(
+    screen.getByText("No hay devoluciones iniciadas con el número tipeado en este período").query(),
+  ).toBeNull();
 });
 
 test("says there are no returns in either group when there are none", async () => {
   const screen = await renderScreen(servicesAnswering(noReturnsReport));
 
   await expect
-    .element(screen.getByText("No hay devoluciones con el número tipeado en este período"))
+    .element(
+      screen.getByText("No hay devoluciones iniciadas con el número tipeado en este período"),
+    )
     .toBeVisible();
   await expect
-    .element(screen.getByText("No hay devoluciones escaneando el QR en este período"))
+    .element(screen.getByText("No hay devoluciones iniciadas escaneando el QR en este período"))
     .toBeVisible();
   await expect.element(screen.getByText("$ 0,00")).toBeVisible();
 });
@@ -294,10 +306,16 @@ test("says no return matches the filters when a register is chosen and none were
   });
 
   await expect
-    .element(screen.getByText("No hay devoluciones con el número tipeado con estos filtros en este período"))
+    .element(
+      screen.getByText(
+        "Ninguna devolución iniciada con el número tipeado coincide con estos filtros",
+      ),
+    )
     .toBeVisible();
   await expect
-    .element(screen.getByText("No hay devoluciones escaneando el QR con estos filtros en este período"))
+    .element(
+      screen.getByText("Ninguna devolución iniciada escaneando el QR coincide con estos filtros"),
+    )
     .toBeVisible();
 });
 
@@ -308,11 +326,15 @@ test("shows a failed load with a retry that loads the report again", async () =>
     .mockResolvedValueOnce({ kind: "ok", value: returnsReport });
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("No pudimos abrir el reporte de devoluciones")).toBeVisible();
+  await expect
+    .element(screen.getByText("No pudimos abrir el reporte de devoluciones"))
+    .toBeVisible();
   expect(screen.getByRole("table").query()).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto")).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
+    .toBeVisible();
   expect(services.fetchReturnsReport).toHaveBeenCalledTimes(2);
 });
 
