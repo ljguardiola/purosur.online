@@ -24,10 +24,16 @@ import {
 import {
   insertRegisterWithPointOfSale,
   saleCompletedEvent,
+  saleReturnedEvent,
   saleVoidedEvent,
 } from "./test-support/authorization-request-fixtures.js";
 import { creditNoteRouteUnderTest, NOW } from "./test-support/credit-note-route-under-test.js";
 import { answersInTurn } from "./test-support/fake-wsfe-server.js";
+import { insertRealTimeInvoice } from "./test-support/held-invoice-fixtures.js";
+import {
+  anAuthorizedAnswer,
+  insertSaleVoidCreditNote,
+} from "./test-support/sale-void-credit-notes.js";
 
 const route = creditNoteRouteUnderTest();
 
@@ -344,8 +350,14 @@ describe("POST /fiscal/credit-notes", () => {
       expect(route.enqueuedCreditNotes).toEqual([body.credit_note_id]);
     });
 
-    it("refuses a second credit note for an invoice that already has one, issuing nothing", async () => {
-      const { deviceToken } = await enrollRegister();
+    it("refuses a credit note that takes the credits of an invoice over its total, issuing nothing", async () => {
+      const { deviceToken, registerId } = await enrollRegister();
+      await insertRealTimeInvoice(route.db, {
+        registerId,
+        pointOfSale: 31,
+        number: 42,
+        total: 12_550,
+      });
       await requestCreditNote(requestBody(), `Bearer ${deviceToken}`);
       route.wsfe.requests.length = 0;
 
@@ -358,7 +370,13 @@ describe("POST /fiscal/credit-notes", () => {
     });
 
     it("opens, once, an alert about the invoice that already had a credit note, naming the voided sale", async () => {
-      const { deviceToken } = await enrollRegister();
+      const { deviceToken, registerId } = await enrollRegister();
+      await insertRealTimeInvoice(route.db, {
+        registerId,
+        pointOfSale: 31,
+        number: 42,
+        total: 12_550,
+      });
       const first = requestBody();
       await requestCreditNote(first, `Bearer ${deviceToken}`);
       expect(await route.db.select().from(alerts)).toEqual([]);
@@ -391,6 +409,152 @@ describe("POST /fiscal/credit-notes", () => {
       await requestCreditNote(body, `Bearer ${deviceToken}`);
 
       expect(await route.db.select().from(alerts)).toEqual([]);
+    });
+  });
+
+  describe("the credit note of a returned sale", () => {
+    function returnRequestBody(issuedOn = "2026-10-08") {
+      const creditNoteId = crypto.randomUUID();
+      const returnId = crypto.randomUUID();
+      return {
+        returnId,
+        body: requestBody({
+          credit_note_id: creditNoteId,
+          sale_event: saleReturnedEvent(crypto.randomUUID(), returnId, {
+            id: creditNoteId,
+            total: 3_000,
+            issuedOn,
+            corrects: { voucherType: 11, pointOfSale: 31, number: 42 },
+          }),
+        }),
+      };
+    }
+
+    it("records the credit note with its return and its day, issues it and answers AUTHORIZED", async () => {
+      const { deviceToken } = await enrollRegister();
+      await route.issueWsaaToken();
+      route.wsfe.behave(AUTHORIZED_IN_TURN);
+      const { body, returnId } = returnRequestBody("2026-10-08");
+
+      const response = await requestCreditNote(body, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(saleVoidCreditNoteResponseSchema.parse(response.json()).state).toBe("AUTHORIZED");
+      expect(await rows()).toMatchObject([
+        {
+          id: body.credit_note_id,
+          reason: "sale_return",
+          returnId,
+          issueOn: "2026-10-08",
+          total: 3_000,
+          associatedNumber: 42,
+          answerKind: "authorized",
+        },
+      ]);
+    });
+
+    it("answers REGULARIZATION_REQUIRED and opens a task for a person when a later credit note was already authorized", async () => {
+      const { deviceToken, registerId } = await enrollRegister();
+      await route.issueWsaaToken();
+      await insertSaleVoidCreditNote(route.db, registerId, crypto.randomUUID(), {
+        associatedNumber: 7,
+        ...anAuthorizedAnswer(),
+        issuedOn: "2026-10-08",
+      });
+      const { body } = returnRequestBody("2026-10-05");
+
+      const response = await requestCreditNote(body, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(saleVoidCreditNoteResponseSchema.parse(response.json())).toEqual({
+        state: "REGULARIZATION_REQUIRED",
+      });
+      expect(await route.db.select().from(fiscalTasks)).toMatchObject([
+        { kind: "credit_note_rejected", creditNoteId: body.credit_note_id, number: null },
+      ]);
+    });
+
+    it("answers the same REGULARIZATION_REQUIRED when the request is repeated", async () => {
+      const { deviceToken, registerId } = await enrollRegister();
+      await route.issueWsaaToken();
+      await insertSaleVoidCreditNote(route.db, registerId, crypto.randomUUID(), {
+        associatedNumber: 7,
+        ...anAuthorizedAnswer(),
+        issuedOn: "2026-10-08",
+      });
+      const { body } = returnRequestBody("2026-10-05");
+      await requestCreditNote(body, `Bearer ${deviceToken}`);
+
+      const again = await requestCreditNote(body, `Bearer ${deviceToken}`);
+
+      expect(saleVoidCreditNoteResponseSchema.parse(again.json())).toEqual({
+        state: "REGULARIZATION_REQUIRED",
+      });
+      expect(await route.db.select().from(fiscalTasks)).toHaveLength(1);
+    });
+
+    function waitingForItsInvoice() {
+      const creditNoteId = crypto.randomUUID();
+      const saleEvent = saleReturnedEvent(crypto.randomUUID(), crypto.randomUUID(), {
+        id: creditNoteId,
+        total: 3_000,
+        issuedOn: "2026-10-08",
+        corrects: { voucherType: 11, pointOfSale: 31, number: 1 },
+      });
+      return {
+        creditNoteId,
+        request: {
+          credit_note_id: creditNoteId,
+          point_of_sale: 7,
+          sale_event: {
+            ...saleEvent,
+            payload: {
+              ...(saleEvent.payload as Record<string, unknown>),
+              credit_note: {
+                id: creditNoteId,
+                total: 3_000,
+                receiver_tax_status_code: null,
+                corrects: null,
+                issued_on: "2026-10-08",
+              },
+            },
+          },
+        },
+      };
+    }
+
+    it("refuses a credit note that waits for its invoice when the request does not name it", async () => {
+      const { deviceToken } = await enrollRegister();
+      const { request } = waitingForItsInvoice();
+
+      const response = await requestCreditNote(request, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(400);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
+      expect(await rows()).toEqual([]);
+    });
+
+    it("corrects the invoice a credit note that waited for it now names", async () => {
+      const { deviceToken } = await enrollRegister();
+      await route.issueWsaaToken();
+      route.wsfe.behave(AUTHORIZED_IN_TURN);
+      const { creditNoteId, request } = waitingForItsInvoice();
+
+      const response = await requestCreditNote(
+        {
+          ...request,
+          invoice: {
+            corrects: { voucher_type: 11, point_of_sale: 31, number: 66 },
+            receiver_tax_status_code: 5,
+          },
+        },
+        `Bearer ${deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(await rows()).toMatchObject([
+        { id: creditNoteId, associatedNumber: 66, receiverTaxStatusCode: 5, reason: "sale_return" },
+      ]);
     });
   });
 

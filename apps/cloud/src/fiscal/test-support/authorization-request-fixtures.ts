@@ -158,3 +158,41 @@ export function saleVoidedEvent(
     chain_hmac: "hmac",
   };
 }
+
+export function saleReturnedEvent(
+  saleId: string,
+  returnId: string,
+  creditNote: {
+    id: string;
+    total: number;
+    issuedOn: string;
+    corrects: { voucherType: number; pointOfSale: number; number: number };
+  },
+): PushedEvent {
+  return {
+    event_id: crypto.randomUUID(),
+    device_seq: 9,
+    aggregate_type: "Return",
+    aggregate_id: returnId,
+    event_type: "sale_returned",
+    schema_version: 2,
+    payload: {
+      id: returnId,
+      sale_id: saleId,
+      credit_note: {
+        id: creditNote.id,
+        total: creditNote.total,
+        receiver_tax_status_code: 5,
+        issued_on: creditNote.issuedOn,
+        corrects: {
+          voucher_type: creditNote.corrects.voucherType,
+          point_of_sale: creditNote.corrects.pointOfSale,
+          number: creditNote.corrects.number,
+        },
+      },
+    },
+    occurred_at: "2026-10-08T01:29:58.000Z",
+    actor_id: "user-1",
+    chain_hmac: "hmac",
+  };
+}
