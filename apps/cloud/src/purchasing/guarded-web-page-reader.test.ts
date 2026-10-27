@@ -542,7 +542,7 @@ describe("GuardedWebPageReader", () => {
     });
 
     it.each(["text/html", "application/pdf", "text/plain", undefined])(
-      "refuses product data answered as %s",
+      "refuses product data answered as %s as a store that did not hand over its products",
       async (contentType) => {
         network.servePage(FICTIONAL_TIENDISTA_PRODUCT_DATA_URL, {
           contentType,
@@ -551,7 +551,7 @@ describe("GuardedWebPageReader", () => {
 
         expect(await reader.read(FICTIONAL_TIENDISTA_STORE_ADDRESS)).toEqual({
           kind: "refused",
-          reason: "unsupported_content",
+          reason: "store_catalog_unavailable",
         });
       },
     );

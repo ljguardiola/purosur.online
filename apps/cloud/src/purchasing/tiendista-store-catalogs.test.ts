@@ -70,6 +70,19 @@ describe("TiendistaStoreCatalogs", () => {
     expect(await rowsOf(entries)).toHaveLength(PRICE_LIST_EXTRACTION_MAX_ROWS);
   });
 
+  it("reads a catalog whose readable rows fit in a list, whatever entries it skips", async () => {
+    const entries = [
+      ...Array.from({ length: PRICE_LIST_EXTRACTION_MAX_ROWS }, (_, index) => ({
+        id: index,
+        nombre: `Producto ${index}`,
+        precio: 100,
+      })),
+      { id: "sin-nombre", precio: 100 },
+    ];
+
+    expect(await rowsOf(entries)).toHaveLength(PRICE_LIST_EXTRACTION_MAX_ROWS);
+  });
+
   it("skips entries that are not objects or have no name", async () => {
     expect(
       await rowsOf([
