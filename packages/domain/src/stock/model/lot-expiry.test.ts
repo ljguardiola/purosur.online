@@ -1,7 +1,13 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { shiftCalendarDay } from "../../shared/index.js";
-import { canExpireWithStock, daysToExpiry, expiryWindowEnd, isExpired } from "./lot-expiry.js";
+import {
+  canExpireWithStock,
+  daysToExpiry,
+  expiryReportPeriodOf,
+  expiryWindowEnd,
+  isExpired,
+} from "./lot-expiry.js";
 
 const day = fc
   .integer({ min: Date.UTC(2000, 0, 1), max: Date.UTC(2100, 11, 31) })
@@ -91,5 +97,40 @@ describe("canExpireWithStock", () => {
 
   it("holds for a lot with the smallest quantity left", () => {
     expect(canExpireWithStock({ ...lot, remaining: 0.001 })).toBe(true);
+  });
+});
+
+describe("expiryReportPeriodOf", () => {
+  it("is the asked period when both bounds are given", () => {
+    expect(
+      expiryReportPeriodOf({ from: "2026-12-01", to: "2026-12-31" }, "2026-10-13", 30),
+    ).toEqual({ from: "2026-12-01", to: "2026-12-31" });
+  });
+
+  it("is the asked period even when it lies in the past", () => {
+    expect(
+      expiryReportPeriodOf({ from: "2026-01-01", to: "2026-01-31" }, "2026-10-13", 30),
+    ).toEqual({ from: "2026-01-01", to: "2026-01-31" });
+  });
+
+  it("runs from today to the end of the warning window when no bound is given", () => {
+    expect(expiryReportPeriodOf({}, "2026-10-13", 30)).toEqual({
+      from: "2026-10-13",
+      to: "2026-11-12",
+    });
+  });
+
+  it("is the window when only one bound is given", () => {
+    const window = { from: "2026-10-13", to: "2026-11-12" };
+
+    expect(expiryReportPeriodOf({ from: "2026-12-01" }, "2026-10-13", 30)).toEqual(window);
+    expect(expiryReportPeriodOf({ to: "2026-12-31" }, "2026-10-13", 30)).toEqual(window);
+  });
+
+  it("is a single day when the warning window is zero days", () => {
+    expect(expiryReportPeriodOf({}, "2026-10-13", 0)).toEqual({
+      from: "2026-10-13",
+      to: "2026-10-13",
+    });
   });
 });
