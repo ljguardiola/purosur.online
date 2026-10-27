@@ -119,6 +119,7 @@ import {
   userPins,
   userRoles,
   users,
+  zoneRules,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import { seededLocationId } from "./seeded-location.js";
@@ -939,6 +940,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     await db.insert(buyerTaxStatusSets).values({
       paramsVersion: 1,
       options: [{ code: 901, description: "Condicion de prueba A", invoiceClass: "A" }],
+    });
+    await db.insert(zoneRules).values({
+      version: "2026a",
+      transitions: [{ from: "1970-01-01T00:00:00.000Z", offsetMinutes: -180 }],
+      publicationNumber: 1,
     });
     await db.insert(issuerIdentificationVersions).values({ version: 2 });
     await db.insert(branchFirstCashSessions).values({

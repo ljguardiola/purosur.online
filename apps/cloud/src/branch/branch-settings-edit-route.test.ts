@@ -290,7 +290,7 @@ describe("PUT /locations/current/settings", () => {
 
     const getResponse = await getBranchSettings(rawSessionId);
 
-    expect(getResponse.json()).toEqual({ ...validBody(), version: 2 });
+    expect(getResponse.json()).toEqual({ ...validBody(), version: 2, zone_rules_version: null });
   });
 
   it("audits the actor and the previous/new values", async () => {
