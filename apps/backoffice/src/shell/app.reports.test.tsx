@@ -7,6 +7,7 @@ import {
   weekPaymentsReport,
 } from "../payments/test-support/payments-report-fixtures";
 import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
+import { returnsReport } from "../returns/test-support/returns-fixtures";
 import {
   ANA_USER_ID,
   averageTicketReport,
@@ -37,6 +38,7 @@ opensOnlyScreens([
   "/reports/sales-by-promotion",
   "/reports/manual-discounts",
   "/reports/average-ticket",
+  "/reports/returns",
 ]);
 
 beforeEach(resetPageState);
@@ -88,6 +90,10 @@ function reportsServices(capabilities: Capability[]) {
     kind: "ok",
     value: averageTicketReport,
   });
+  vi.mocked(services.returnsReportScreen.fetchReturnsReport).mockResolvedValue({
+    kind: "ok",
+    value: returnsReport,
+  });
   vi.mocked(services.reportRegisterFilter.fetchReportRegisters).mockResolvedValue({
     kind: "ok",
     value: registers,
@@ -121,6 +127,109 @@ test("opens the list of reports from the rail's Reportes item", async () => {
     .toBeVisible();
   await expect.element(sections.getByRole("link", { name: "Ventas por cajero" })).toBeVisible();
   await expect.element(sections.getByRole("link", { name: "Ticket promedio" })).toBeVisible();
+});
+
+test("lists the returns report beside the others for someone who can see both", async () => {
+  const services = reportsServices(["reports_area", "returns_report"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const sections = screen.getByRole("navigation", { name: "Reportes" });
+  await expect.element(sections.getByRole("link", { name: "Devoluciones" })).toBeVisible();
+  await expect.element(sections.getByRole("link", { name: "Todos los reportes" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("main").getByRole("link", { name: "Devoluciones" }))
+    .toBeVisible();
+});
+
+test("opens the returns report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area", "returns_report"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("main").getByRole("link", { name: "Devoluciones" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Devoluciones", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/returns");
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Devoluciones iniciadas con el número tipeado" })
+        .getByText("Beto"),
+    )
+    .toBeVisible();
+  expect(services.returnsReportScreen.fetchReturnsReport).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Devoluciones · Puro Sur");
+});
+
+test("keeps the returns report's filters in the address", async () => {
+  const services = reportsServices(["returns_report"]);
+  window.history.pushState(null, "", "/reports/returns");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
+
+  await expect
+    .poll(() => window.location.search)
+    .toBe("?register=11111111-1111-4111-8111-111111111111");
+});
+
+test("takes someone who can only see the returns report to it from the rail's Reportes item", async () => {
+  const services = reportsServices(["returns_report"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Reportes" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Devoluciones", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/returns");
+  const sections = screen.getByRole("navigation", { name: "Reportes" });
+  await expect.element(sections.getByRole("link", { name: "Devoluciones" })).toBeVisible();
+  expect(sections.getByRole("link", { name: "Todos los reportes" }).query()).toBeNull();
+  expect(sections.getByRole("link", { name: "Ventas por cajero" }).query()).toBeNull();
+  expect(sections.getByRole("link", { name: "Stock actual valorizado" }).query()).toBeNull();
+});
+
+test("sends someone who can only see the returns report away from the list of reports", async () => {
+  const services = reportsServices(["returns_report"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+});
+
+test("leaves the returns report out of the list for someone without its permission", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(
+      screen.getByRole("navigation", { name: "Reportes" }).getByRole("link", {
+        name: "Todos los reportes",
+      }),
+    )
+    .toBeVisible();
+  expect(screen.getByRole("link", { name: "Devoluciones" }).query()).toBeNull();
+});
+
+test("sends someone with the reports permission but not the returns one away from the returns report", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/returns");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(services.returnsReportScreen.fetchReturnsReport).not.toHaveBeenCalled();
 });
 
 test("opens the sales by day report from the list and reads it from the cloud", async () => {
@@ -596,6 +705,7 @@ test.each([
   "/reports/sales-by-promotion",
   "/reports/manual-discounts",
   "/reports/average-ticket",
+  "/reports/returns",
 ])("sends a user without the reports permission who opens %s to Mi cuenta", async (path) => {
   const services = reportsServices(["stock_area"]);
   window.history.pushState(null, "", path);
@@ -614,4 +724,5 @@ test.each([
   expect(services.salesByPromotionScreen.fetchSalesByPromotion).not.toHaveBeenCalled();
   expect(services.manualDiscountsScreen.fetchManualDiscounts).not.toHaveBeenCalled();
   expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
+  expect(services.returnsReportScreen.fetchReturnsReport).not.toHaveBeenCalled();
 });
