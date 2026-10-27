@@ -14,8 +14,19 @@ const SOURCE = { eventId: "event-1", deviceId: "device-old" };
 
 let database: LocalDatabase;
 
+const RETURN_CASH_MOVEMENT = {
+  id: "return-movement-1",
+  type: "REFUND",
+  amount: 1000,
+  actorId: "cashier-1",
+  occurredAt: new Date("2026-10-08T10:00:00.000Z"),
+} as const;
+
 function returnSale(overrides: Parameters<typeof aReturnedSaleFact>[0] = {}): void {
-  applyReplenishedReturnFact(database, aReturnedSaleFact(overrides));
+  applyReplenishedReturnFact(
+    database,
+    aReturnedSaleFact({ cashMovements: [RETURN_CASH_MOVEMENT], ...overrides }),
+  );
 }
 
 function rows(query: string): unknown[] {
@@ -110,7 +121,7 @@ describe("replenishing a return into a restored register", () => {
       ),
     ).toEqual([
       {
-        id: "movement-1",
+        id: "return-movement-1",
         session_id: "session-2",
         type: "REFUND",
         amount: 1000,
@@ -182,7 +193,7 @@ describe("replenishing a return into a restored register", () => {
     expect(rows("SELECT id FROM returns")).toEqual([{ id: "return-1" }]);
     expect(rows("SELECT id FROM payment_refunds")).toEqual([{ id: "refund-1" }]);
     expect(rows("SELECT id FROM cash_movements WHERE type = 'REFUND'")).toEqual([
-      { id: "movement-1" },
+      { id: "return-movement-1" },
     ]);
     expect(rows("SELECT * FROM stock_balances")).toEqual(before);
   });
