@@ -102,7 +102,6 @@ export async function createProductFromSupplierItem(
 ): Promise<CreateProductFromSupplierItemOutcome> {
   const body: SupplierPriceListRowProductCreationBody = {
     version: input.version,
-    name: input.name,
     saleUnit: input.saleUnit,
     categoryId: input.categoryId,
     barcodes: input.barcodes,

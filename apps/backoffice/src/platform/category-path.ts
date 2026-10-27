@@ -40,6 +40,10 @@ export function categoryPathLabels<T extends CategoryNode>(
   return labels;
 }
 
+export function categoryMessage({ categoryId }: { categoryId: string | null }): string {
+  return categoryId ? "Revisá la categoría." : "Elegí una categoría.";
+}
+
 export const categoryNameOrder = textOrder((category: CategoryNode) => category.name);
 
 export function categoryParentId(category: CategoryNode): string | null {

@@ -22,7 +22,12 @@ export type LockSupplierItemRowResult =
   | { kind: "not_found" }
   | {
       kind: "locked";
-      row: { description: string; code: string | null; link: SupplierItemLink | null };
+      row: {
+        description: string;
+        code: string | null;
+        presentation: string | null;
+        link: SupplierItemLink | null;
+      };
     };
 
 export interface SupplierItemProductStoreTransaction

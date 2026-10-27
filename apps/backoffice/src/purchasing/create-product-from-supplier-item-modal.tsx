@@ -21,6 +21,7 @@ import {
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
 import { categorySelectOptions } from "../platform/category-path";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
@@ -175,8 +176,9 @@ export function CreateProductFromSupplierItemModal({
 
   const categoryOptions =
     categories.status === "loaded" ? categorySelectOptions(categories.value) : undefined;
-  const dataStatus =
-    categories.status !== "loaded" || !list.requiresVatRate ? categories.status : choices.status;
+  const dataStatus = list.requiresVatRate
+    ? combineCloudData(categories, choices).status
+    : categories.status;
 
   function categoryField() {
     if (categories.status === "loading") {
@@ -186,14 +188,7 @@ export function CreateProductFromSupplierItemModal({
       return <LoadFailure {...cloudLoadFailure(categories, "las categorías")} />;
     }
     if (!categoryOptions) {
-      return (
-        <EmptyState
-          icon={<Tags />}
-          title="No hay categorías para elegir"
-          description="Creá una en Categorías para crear el producto."
-          variant="blank"
-        />
-      );
+      return <EmptyState icon={<Tags />} title="No hay categorías para elegir" variant="blank" />;
     }
     return (
       <form.AppField name="categoryId">
@@ -220,7 +215,7 @@ export function CreateProductFromSupplierItemModal({
       width="standard"
       tone="info"
       icon={<PackagePlus />}
-      context={row === null ? "" : `${row.description} · ${list.supplier.name}`}
+      context={list.supplier.name}
       title="Crear producto desde la lista"
       closable
       footer={
@@ -275,19 +270,17 @@ export function CreateProductFromSupplierItemModal({
             />
           )}
           <div className="flex flex-wrap items-end gap-6">
+            <SupplierItemFact label="Nombre">{row.description}</SupplierItemFact>
             {row.code === null ? null : (
               <SupplierItemFact label="Código">{row.code}</SupplierItemFact>
             )}
             {row.presentation === null ? null : (
-              <SupplierItemFact label="Presentación">{row.presentation}</SupplierItemFact>
+              <SupplierItemFact label="Presentación de compra">{row.presentation}</SupplierItemFact>
             )}
             {row.priceCents === null ? null : (
               <SupplierItemFact label="Precio">{formatCents(row.priceCents)}</SupplierItemFact>
             )}
           </div>
-          <form.AppField name="name">
-            {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
-          </form.AppField>
           <FieldGroup label="Unidad de venta" required>
             <form.AppField name="saleUnit">
               {(field) => (
@@ -300,13 +293,15 @@ export function CreateProductFromSupplierItemModal({
             </form.AppField>
           </FieldGroup>
           <div className="grid grid-cols-3 items-start gap-3">
-            <div className="col-span-2">
-              <form.AppField name="packagingName">
-                {(field) => (
-                  <field.TextField kind="plain-text" label="Presentación de compra" required />
-                )}
-              </form.AppField>
-            </div>
+            {row.presentation === null ? (
+              <div className="col-span-2">
+                <form.AppField name="packagingName">
+                  {(field) => (
+                    <field.TextField kind="plain-text" label="Presentación de compra" required />
+                  )}
+                </form.AppField>
+              </div>
+            ) : null}
             <div>
               <form.AppField name="quantity">
                 {(field) => (
@@ -319,7 +314,6 @@ export function CreateProductFromSupplierItemModal({
               </form.AppField>
             </div>
           </div>
-          <FieldHeading>Para guardarlo falta completar:</FieldHeading>
           <div className="grid grid-cols-2 items-start gap-3">
             <form.AppField name="barcodes">
               {() => <BarcodeChips chips={chips} generation={generate.generation} />}

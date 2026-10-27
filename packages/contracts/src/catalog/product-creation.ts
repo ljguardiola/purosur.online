@@ -1,17 +1,20 @@
 import {
   isNetContentUnit,
+  isProductNameTooLong,
   isValidNetContentQuantity,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   type NetContentUnit,
   newProductBarcodeListProblem,
+  PRODUCT_NAME_MAX_LENGTH,
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
-import { barcodeListSchema, productNameSchema, recordIdSchema } from "../shared/index.js";
+import { barcodeListSchema, recordIdSchema } from "../shared/index.js";
 import { optionalBrandIdSchema } from "./product-brand-id.js";
 import { optionalTagIdsSchema } from "./product-tag-ids.js";
 
+const NAME_EMPTY_MESSAGE = "name must not be empty";
 const NET_CONTENT_MESSAGE =
   "netContent must be an object with a quantity and a listed unit, or absent/null";
 
@@ -24,6 +27,16 @@ export const netContentQuantitySchema = z
     maxValue: NET_CONTENT_QUANTITY_MAX,
     maxDecimals: NET_CONTENT_QUANTITY_MAX_DECIMALS,
   });
+
+const productNameSchema = z
+  .string({ error: NAME_EMPTY_MESSAGE })
+  .trim()
+  .min(1, NAME_EMPTY_MESSAGE)
+  .refine(
+    (name) => !isProductNameTooLong(name),
+    `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
+  )
+  .meta({ maxLength: PRODUCT_NAME_MAX_LENGTH });
 
 const netContentSchema = z
   .object(

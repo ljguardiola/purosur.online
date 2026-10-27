@@ -1,5 +1,5 @@
-import type { SaleUnit } from "../../catalog/index.js";
-import { isQuantityPerPackage } from "../model/packaging.js";
+import { isProductNameTooLong, type SaleUnit } from "../../catalog/index.js";
+import { isPackagingNameTooLong, isQuantityPerPackage } from "../model/packaging.js";
 import {
   mayCreateProductFromRow,
   maySupplierPriceListRowBeLinked,
@@ -14,11 +14,11 @@ export interface CreateProductFromSupplierItemInput {
   listId: string;
   rowId: string;
   version: number;
-  name: string;
   saleUnit: SaleUnit;
   categoryId: string;
   barcodes: string[];
-  packagingName: string;
+  // Names the presentation only for an item whose list states none.
+  packagingName: string | null;
   quantityPerPackage: number;
   // In basis points; null when none was chosen.
   vatRate: number | null;
@@ -30,6 +30,9 @@ export type CreateProductFromSupplierItemOutcome =
   | { kind: "not_editable" }
   | { kind: "stale_version" }
   | { kind: "already_linked" }
+  | { kind: "presentation_missing" }
+  | { kind: "name_too_long" }
+  | { kind: "presentation_too_long" }
   | { kind: "invalid_quantity" }
   | { kind: "vat_rate_missing" }
   | { kind: "vat_rate_invalid" }
@@ -56,8 +59,19 @@ export function createProductFromSupplierItem(
     if (lockedRow.kind === "not_found") {
       return { kind: "not_found" };
     }
-    if (!mayCreateProductFromRow(lockedRow.row)) {
+    const { row } = lockedRow;
+    if (!mayCreateProductFromRow(row)) {
       return { kind: "already_linked" };
+    }
+    const packagingName = row.presentation ?? input.packagingName;
+    if (packagingName === null) {
+      return { kind: "presentation_missing" };
+    }
+    if (isProductNameTooLong(row.description)) {
+      return { kind: "name_too_long" };
+    }
+    if (isPackagingNameTooLong(packagingName)) {
+      return { kind: "presentation_too_long" };
     }
 
     if (!isQuantityPerPackage(input.saleUnit, input.quantityPerPackage)) {
@@ -69,7 +83,7 @@ export function createProductFromSupplierItem(
     }
 
     const product = await tx.createCatalogProduct({
-      name: input.name,
+      name: row.description,
       categoryId: input.categoryId,
       saleUnit: input.saleUnit,
       barcodes: input.barcodes,
@@ -79,7 +93,7 @@ export function createProductFromSupplierItem(
     }
     const packaging = await tx.insertPackaging({
       productId: product.productId,
-      name: input.packagingName,
+      name: packagingName,
       quantityPerPackage: input.quantityPerPackage,
       saleUnit: input.saleUnit,
       actorId: input.actorId,
@@ -87,7 +101,7 @@ export function createProductFromSupplierItem(
 
     await linkRowAndRememberItem(
       tx,
-      { list, listId: input.listId, rowId: input.rowId, row: lockedRow.row },
+      { list, listId: input.listId, rowId: input.rowId, row },
       { productId: product.productId, packagingId: packaging.id, vatRate: decision.vatRate },
       input.actorId,
     );

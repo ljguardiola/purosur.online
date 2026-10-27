@@ -214,6 +214,17 @@ const ALREADY_LINKED = {
   message: "this item already has a product, so none can be created from it",
 } as const;
 
+const PRESENTATION_MISSING_RESPONSE = {
+  code: "validation_failed",
+  message: "packagingName must be given for an item whose list states no presentation",
+  details: [{ field: "packagingName" }],
+} as const;
+
+const LIST_TEXT_TOO_LONG = {
+  name_too_long: "the item's description is longer than a product's name may be",
+  presentation_too_long: "the item's presentation is longer than a presentation's name may be",
+} as const;
+
 async function answerProductCreation(
   reply: FastifyReply,
   outcome: CreateProductFromSupplierItemOutcome,
@@ -232,6 +243,13 @@ async function answerProductCreation(
       return;
     case "invalid_quantity":
       await reply.code(400).send(PART_OF_A_UNIT_RESPONSE);
+      return;
+    case "presentation_missing":
+      await reply.code(400).send(PRESENTATION_MISSING_RESPONSE);
+      return;
+    case "name_too_long":
+    case "presentation_too_long":
+      await reply.code(409).send({ code: outcome.kind, message: LIST_TEXT_TOO_LONG[outcome.kind] });
       return;
     case "vat_rate_missing":
     case "vat_rate_invalid":

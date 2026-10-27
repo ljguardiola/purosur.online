@@ -61,6 +61,7 @@ class DrizzleSupplierItemProductStoreTransaction<TQueryResult extends PgQueryRes
       .select({
         description: supplierPriceListRows.description,
         code: supplierPriceListRows.supplierCode,
+        presentation: supplierPriceListRows.presentation,
         productId: supplierPriceListRows.productId,
         packagingId: supplierPriceListRows.packagingId,
         vatRate: supplierPriceListRows.vatRate,
@@ -71,7 +72,12 @@ class DrizzleSupplierItemProductStoreTransaction<TQueryResult extends PgQueryRes
     return row
       ? {
           kind: "locked",
-          row: { description: row.description, code: row.code, link: linkOf(row) },
+          row: {
+            description: row.description,
+            code: row.code,
+            presentation: row.presentation,
+            link: linkOf(row),
+          },
         }
       : { kind: "not_found" };
   }

@@ -11,11 +11,13 @@ import type { NetContentUnit } from "@purosur/domain";
 import { type Option, type Options, plural } from "@purosur/ui";
 import {
   type BarcodeListValue,
-  barcodeProblemMessage,
+  barcodeListMessage,
+  barcodeListMessageOf,
   barcodeProblemMessageOf,
   barcodesWithScan,
   barcodeTakenError,
 } from "../platform/barcode-list";
+import { categoryMessage } from "../platform/category-path";
 import { NET_CONTENT_UNIT_LABELS } from "../platform/net-content";
 import { schemaLimit } from "../platform/schema-limit";
 import {
@@ -112,8 +114,6 @@ export const PRODUCT_FIELDS = {
 
 export const PRODUCT_EDIT_FIELDS = { ...PRODUCT_FIELDS, version: null } as const;
 
-const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
-
 const nameSchema = productCreationBodySchema.shape.name;
 
 export function editedProductBarcodeProblemMessage(codes: string[]): string | undefined {
@@ -129,10 +129,6 @@ export function productMessage({ name }: ProductFormValues): string {
     return `El nombre puede tener hasta ${schemaLimit(nameSchema.meta()?.["maxLength"])} caracteres.`;
   }
   return "Revisá el nombre del producto.";
-}
-
-export function categoryMessage({ categoryId }: ProductFormValues): string {
-  return categoryId ? "Revisá la categoría." : "Elegí una categoría.";
 }
 
 export function brandMessage(): string {
@@ -158,21 +154,6 @@ export function netContentMessage({ netContent }: ProductFormValues): string {
   return "Revisá el contenido neto.";
 }
 
-function barcodeListMessageFrom(
-  { barcodes }: ProductFormValues,
-  problemMessage: (codes: string[]) => string | undefined,
-): string {
-  const list = barcodesWithScan(barcodes);
-  if (list.length === 0) {
-    return PRODUCT_BARCODE_REQUIRED;
-  }
-  return problemMessage(list) ?? "Alguno de los códigos de barras no es válido.";
-}
-
-export function barcodeListMessage(values: ProductFormValues): string {
-  return barcodeListMessageFrom(values, barcodeProblemMessage);
-}
-
 export const PRODUCT_MESSAGES = {
   name: productMessage,
   categoryId: categoryMessage,
@@ -185,8 +166,8 @@ export const PRODUCT_MESSAGES = {
 
 export const PRODUCT_EDIT_MESSAGES = {
   ...PRODUCT_MESSAGES,
-  barcodes: (values: ProductFormValues) =>
-    barcodeListMessageFrom(values, editedProductBarcodeProblemMessage),
+  barcodes: ({ barcodes }: ProductFormValues) =>
+    barcodeListMessageOf(barcodes, editedProductBarcodeProblemMessage),
 };
 
 export const NET_CONTENT_UNIT_OPTIONS: Options<Option<NetContentUnit>> = [

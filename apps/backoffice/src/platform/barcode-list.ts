@@ -38,6 +38,21 @@ export function barcodeProblemMessage(codes: string[]): string | undefined {
   return barcodeProblemMessageOf(barcodesSchema, codes);
 }
 
+export function barcodeListMessageOf(
+  barcodes: BarcodeListValue,
+  problemMessage: (codes: string[]) => string | undefined,
+): string {
+  const list = barcodesWithScan(barcodes);
+  if (list.length === 0) {
+    return "Escaneá al menos un código de barras.";
+  }
+  return problemMessage(list) ?? "Alguno de los códigos de barras no es válido.";
+}
+
+export function barcodeListMessage({ barcodes }: { barcodes: BarcodeListValue }): string {
+  return barcodeListMessageOf(barcodes, barcodeProblemMessage);
+}
+
 export function internalBarcodeGenerationRequestFrom(
   codes: string[],
 ): InternalBarcodeGenerationBody | undefined {

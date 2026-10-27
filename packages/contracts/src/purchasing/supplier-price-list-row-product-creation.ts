@@ -8,7 +8,6 @@ import { z } from "zod";
 import {
   barcodeListSchema,
   loadedVersionSchema,
-  productNameSchema,
   recordIdSchema,
   requiredTextSchema,
 } from "../shared/index.js";
@@ -17,7 +16,6 @@ import { supplierItemVatRateSchema } from "./supplier-price-list-row-link.js";
 
 export const supplierPriceListRowProductCreationBodySchema = z.object({
   version: loadedVersionSchema,
-  name: productNameSchema,
   saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
   categoryId: recordIdSchema("categoryId must be an existing category's id"),
   barcodes: barcodeListSchema(newProductBarcodeListProblem),
@@ -25,7 +23,10 @@ export const supplierPriceListRowProductCreationBodySchema = z.object({
     "packagingName",
     PACKAGING_NAME_MAX_LENGTH,
     isPackagingNameTooLong,
-  ),
+  )
+    .nullish()
+    .transform((name) => name ?? null)
+    .meta({ maxLength: PACKAGING_NAME_MAX_LENGTH }),
   quantityPerPackage: packagingQuantitySchema,
   vatRate: supplierItemVatRateSchema,
 });
