@@ -16,6 +16,8 @@ export function voidRefusalReason(refusal: VoidRefusal): string | undefined {
   switch (refusal) {
     case "session_closed":
       return "La sesión de la venta ya cerró. Se tramita como devolución.";
+    case "has_return":
+      return "Esta venta ya tiene una devolución: lo que queda se devuelve con otra devolución.";
     case "invoice_in_flight":
       return "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.";
     case "not_completed":
