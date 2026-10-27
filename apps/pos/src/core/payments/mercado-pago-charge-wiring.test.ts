@@ -136,6 +136,7 @@ describe("the register's Mercado Pago QR charging", () => {
           payment_transaction_id: "point-1",
           sale_id: saleId,
           provider: "MERCADOPAGO_POINT",
+          card_type: "DEBIT",
           amount: 3000,
         },
       ],
