@@ -1,6 +1,11 @@
+import {
+  productCreationBodySchema,
+  supplierPriceListRowProductCreationBodySchema,
+} from "@purosur/contracts";
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { schemaLimit } from "../platform/schema-limit";
 import type { CreateProductFromSupplierItemOutcome } from "./supplier-item-products-api";
 import type {
   ConfirmSupplierPriceListOutcome,
@@ -19,7 +24,14 @@ export type SupplierPriceListChangeNotice =
   | { kind: "vatMissing" }
   | { kind: "packagingNotLinkable" }
   | { kind: "vatRateMissing" }
-  | { kind: "alreadyLinked" };
+  | { kind: "alreadyLinked" }
+  | { kind: "nameTooLong" }
+  | { kind: "presentationTooLong" };
+
+const PRODUCT_NAME_LIMIT = schemaLimit(productCreationBodySchema.shape.name.meta()?.["maxLength"]);
+const PRESENTATION_LIMIT = schemaLimit(
+  supplierPriceListRowProductCreationBodySchema.shape.packagingName.meta()?.["maxLength"],
+);
 
 type RefusedChange = Exclude<
   | ConfirmSupplierPriceListOutcome
@@ -54,6 +66,10 @@ export function supplierPriceListChangeNoticeOf(
       return { kind: "vatRateMissing" };
     case "already_linked":
       return { kind: "alreadyLinked" };
+    case "name_too_long":
+      return { kind: "nameTooLong" };
+    case "presentation_too_long":
+      return { kind: "presentationTooLong" };
     case "failed":
     case "validation_failed":
     case "vat_rate_invalid":
@@ -128,6 +144,24 @@ export function SupplierPriceListChangeNotices({
           icon={<TriangleAlert />}
           title="Este ítem ya tiene un producto"
           description="Actualizá la lista para verlo."
+        />
+      );
+    case "nameTooLong":
+      return (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title="El nombre de la lista es demasiado largo"
+          description={`Tiene más de ${PRODUCT_NAME_LIMIT} caracteres, el máximo de un producto. No se puede crear el producto desde esta lista.`}
+        />
+      );
+    case "presentationTooLong":
+      return (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title="La presentación de la lista es demasiado larga"
+          description={`Tiene más de ${PRESENTATION_LIMIT} caracteres, el máximo de una presentación de compra. No se puede crear el producto desde esta lista.`}
         />
       );
     case "noRows":

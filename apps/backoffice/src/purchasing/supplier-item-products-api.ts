@@ -25,6 +25,8 @@ export type CreateProductFromSupplierItemOutcome =
   | { kind: "already_linked" }
   | { kind: "vat_rate_missing" }
   | { kind: "vat_rate_invalid" }
+  | { kind: "name_too_long" }
+  | { kind: "presentation_too_long" }
   | { kind: "not_editable" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
@@ -40,6 +42,8 @@ const CONFLICTS = [
   "vat_rate_missing",
   "vat_rate_invalid",
   "category_not_leaf",
+  "name_too_long",
+  "presentation_too_long",
 ] as const;
 
 export function fetchProductCreationCategories(): Promise<FetchProductCreationCategoriesOutcome> {
