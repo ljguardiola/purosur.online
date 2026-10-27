@@ -2,6 +2,8 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { SaleUnit } from "../../catalog/index.js";
 import {
+  ASSEMBLY_BATCH_STATUSES,
+  assemblyBatchStatus,
   assemblyProposal,
   batchLotFacts,
   batchQuantityRefusal,
@@ -462,5 +464,26 @@ describe("pairedWithRecipe", () => {
     ["swaps a component for another", [use("a"), use("c")]],
   ])("refuses a list that %s", (_name, used) => {
     expect(pairedWithRecipe(recipe, used)).toBeNull();
+  });
+});
+
+describe("ASSEMBLY_BATCH_STATUSES", () => {
+  it("lists what can be done with a batch: still voidable, already consumed, or voided", () => {
+    expect(ASSEMBLY_BATCH_STATUSES).toEqual(["voidable", "consumed", "voided"]);
+  });
+});
+
+describe("assemblyBatchStatus", () => {
+  it("is voidable while nothing was taken from the batch's lot", () => {
+    expect(assemblyBatchStatus({ voided: false, lotConsumed: false })).toBe("voidable");
+  });
+
+  it("is consumed once the batch's lot had any consumption", () => {
+    expect(assemblyBatchStatus({ voided: false, lotConsumed: true })).toBe("consumed");
+  });
+
+  it("is voided whether or not its lot had consumption", () => {
+    expect(assemblyBatchStatus({ voided: true, lotConsumed: false })).toBe("voided");
+    expect(assemblyBatchStatus({ voided: true, lotConsumed: true })).toBe("voided");
   });
 });
