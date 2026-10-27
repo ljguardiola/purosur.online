@@ -1,14 +1,9 @@
-import type { CategorySummary } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import { NET_CONTENT_QUANTITY_INVALID } from "./net-content-quantity";
 import {
-  barcodeListMessage,
   brandMessage,
-  categoryMessage,
-  categorySelectOptions,
   EMPTY_PRODUCT_FORM,
   editedProductBarcodeProblemMessage,
-  internalBarcodeGenerationRequestFrom,
   netContentMessage,
   PRODUCT_EDIT_MESSAGES,
   productFormValues,
@@ -41,20 +36,6 @@ describe("productMessage", () => {
   it("asks to review a name that passes every local check", () => {
     expect(productMessage({ ...EMPTY_PRODUCT_FORM, name: `  ${"a".repeat(100)}  ` })).toBe(
       "Revisá el nombre del producto.",
-    );
-  });
-});
-
-describe("categoryMessage", () => {
-  it("asks to choose a category when none is chosen", () => {
-    expect(categoryMessage({ ...EMPTY_PRODUCT_FORM, categoryId: null })).toBe(
-      "Elegí una categoría.",
-    );
-  });
-
-  it("asks to review a chosen category", () => {
-    expect(categoryMessage({ ...EMPTY_PRODUCT_FORM, categoryId: "category-1" })).toBe(
-      "Revisá la categoría.",
     );
   });
 });
@@ -94,57 +75,17 @@ describe("netContentMessage", () => {
   );
 });
 
-describe("barcodeListMessage", () => {
-  const withBarcodes = (codes: string[], scan = "") => ({
-    ...EMPTY_PRODUCT_FORM,
-    barcodes: { codes, scan },
-  });
-
-  it("asks for a code when there is neither a listed one nor one typed", () => {
-    expect(barcodeListMessage(withBarcodes([], "  "))).toBe(
-      "Escaneá al menos un código de barras.",
-    );
-  });
-
-  it("names the problem of the listed codes together with the one typed", () => {
-    expect(barcodeListMessage(withBarcodes(["779"], "779 0"))).toBe(
-      "El código de barras no puede tener espacios.",
-    );
-    expect(barcodeListMessage(withBarcodes(["779"], "779"))).toBe(
-      "Ese código ya está en la lista.",
-    );
-    expect(barcodeListMessage(withBarcodes([], "1".repeat(65)))).toBe(
-      "El código de barras puede tener hasta 64 caracteres.",
-    );
-    expect(
-      barcodeListMessage(
-        withBarcodes(
-          Array.from({ length: 20 }, (_, index) => `c${index}`),
-          "x",
-        ),
-      ),
-    ).toBe("El producto puede tener hasta 20 códigos de barras.");
-    expect(barcodeListMessage(withBarcodes(["2000000000015"], "2000000000022"))).toBe(
-      "El producto puede tener un solo código interno.",
-    );
-    expect(barcodeListMessage(withBarcodes(["2000000000015"], "7790987000015"))).toBe(
-      "El código interno tiene que ser el único del producto.",
-    );
-  });
-
+describe("PRODUCT_EDIT_MESSAGES", () => {
   it("lets an edited product keep its internal code beside others, still refusing a second one", () => {
-    expect(PRODUCT_EDIT_MESSAGES.barcodes(withBarcodes(["2000000000015"], "7790987000015"))).toBe(
-      "Alguno de los códigos de barras no es válido.",
-    );
+    expect(
+      PRODUCT_EDIT_MESSAGES.barcodes({
+        ...EMPTY_PRODUCT_FORM,
+        barcodes: { codes: ["2000000000015"], scan: "7790987000015" },
+      }),
+    ).toBe("Alguno de los códigos de barras no es válido.");
     expect(editedProductBarcodeProblemMessage(["2000000000015", "7790987000015"])).toBeUndefined();
     expect(editedProductBarcodeProblemMessage(["2000000000015", "2000000000022"])).toBe(
       "El producto puede tener un solo código interno.",
-    );
-  });
-
-  it("says a list that passes every local check was refused by the cloud", () => {
-    expect(barcodeListMessage(withBarcodes(["779"], "780"))).toBe(
-      "Alguno de los códigos de barras no es válido.",
     );
   });
 });
@@ -289,33 +230,5 @@ describe("reactivationBarcodeTakenError", () => {
     expect(reactivationBarcodeTakenError([])).toBe(
       "Alguno de los códigos ya es de otro producto. Revisá los códigos de este producto y volvé a intentarlo.",
     );
-  });
-});
-
-describe("categorySelectOptions", () => {
-  it("only offers leaf categories, labeled by their full path", () => {
-    const groceries: CategorySummary = {
-      id: "category-1",
-      name: "Almacén",
-      version: 1,
-      parentId: null,
-    };
-    const spreads: CategorySummary = {
-      id: "category-3",
-      name: "Untables",
-      version: 1,
-      parentId: "category-1",
-    };
-
-    expect(categorySelectOptions([groceries, spreads])).toEqual([
-      { value: "category-3", label: "Almacén › Untables" },
-    ]);
-  });
-});
-
-describe("internalBarcodeGenerationRequestFrom", () => {
-  it("builds the request to generate an internal code only for a list with no barcode", () => {
-    expect(internalBarcodeGenerationRequestFrom([])).toEqual({ barcodes: [] });
-    expect(internalBarcodeGenerationRequestFrom(["7790987000015"])).toBeUndefined();
   });
 });

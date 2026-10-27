@@ -11,6 +11,7 @@ import {
 import {
   isSupplierPriceListDiscardable,
   isSupplierPriceListUnderReview,
+  mayCreateProductFromRow,
   maySupplierPriceListRowBeLinked,
 } from "../model/supplier-price-list.js";
 import { type ListedSupplierPriceList, replacedListIds } from "./list-supplier-price-lists.js";
@@ -38,6 +39,7 @@ export interface FoundSupplierPriceListReviewRowLink {
 export interface FoundSupplierPriceListReviewRow
   extends Omit<SupplierPriceListReviewRow, "reviewed" | "remembered" | "earlier" | "link"> {
   link: FoundSupplierPriceListReviewRowLink | null;
+  mayCreateProduct: boolean;
   status: SupplierPriceListRowStatus;
   needsReview: boolean;
   // What the supplier's other lists recorded as the price, only for a row whose price changed.
@@ -75,6 +77,7 @@ function foundLink(link: SupplierPriceListReviewRowLink): FoundSupplierPriceList
 function reviewedRow(
   { reviewed, remembered, earlier, link: readLink, ...row }: SupplierPriceListReviewRow,
   pricesIncludeVat: boolean | null,
+  rowsMayBeLinked: boolean,
 ): FoundSupplierPriceListReviewRow {
   const link = readLink === null ? null : foundLink(readLink);
   const status = supplierPriceListRowStatus({
@@ -89,6 +92,7 @@ function reviewedRow(
   return {
     ...row,
     link,
+    mayCreateProduct: rowsMayBeLinked && mayCreateProductFromRow({ link }),
     status,
     needsReview: needsReview(status),
     previousPriceCents: status === "price_changed" ? (earlier?.priceCents ?? null) : null,
@@ -114,7 +118,8 @@ export async function findSupplierPriceListReview(
   }
   const { confirmedAt: _confirmedAt, ...list } = review.list;
   const underReview = isSupplierPriceListUnderReview(list.state);
-  const rows = review.rows.map((row) => reviewedRow(row, list.pricesIncludeVat));
+  const rowsMayBeLinked = maySupplierPriceListRowBeLinked(list.state);
+  const rows = review.rows.map((row) => reviewedRow(row, list.pricesIncludeVat, rowsMayBeLinked));
   return {
     kind: "found",
     list: {
@@ -131,7 +136,7 @@ export async function findSupplierPriceListReview(
       changeRows: underReview,
       confirm: underReview,
       discard: isSupplierPriceListDiscardable(list.state),
-      linkRows: maySupplierPriceListRowBeLinked(list.state),
+      linkRows: rowsMayBeLinked,
       markRowsReviewed: underReview,
     },
   };

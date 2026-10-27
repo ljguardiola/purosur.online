@@ -31,6 +31,7 @@ const SALE: SaleDetail = {
   credit_note: null,
   credit_note_next_copy: null,
   deferred_invoice_next_copy: null,
+  short_code: null,
 };
 const INVOICED_SALE: SaleDetail = {
   ...SALE,

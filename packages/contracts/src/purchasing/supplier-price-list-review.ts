@@ -24,6 +24,7 @@ const supplierPriceListRowSchema = z.object({
     })
     .nullable(),
   status: z.enum(SUPPLIER_PRICE_LIST_ROW_STATUSES),
+  mayCreateProduct: z.boolean(),
   needsReview: z.boolean(),
   previousPriceCents: z.int().nullable(),
   pricePerSaleUnit: exactFractionSchema.nullable(),

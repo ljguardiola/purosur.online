@@ -431,6 +431,14 @@ export type { SupplierPriceListRowLinkBody } from "./purchasing/supplier-price-l
 export { supplierPriceListRowLinkBodySchema } from "./purchasing/supplier-price-list-row-link.js";
 export type { SupplierPriceListRowPriceBody } from "./purchasing/supplier-price-list-row-price.js";
 export { supplierPriceListRowPriceBodySchema } from "./purchasing/supplier-price-list-row-price.js";
+export type {
+  SupplierPriceListRowProductCreated,
+  SupplierPriceListRowProductCreationBody,
+} from "./purchasing/supplier-price-list-row-product-creation.js";
+export {
+  supplierPriceListRowProductCreatedSchema,
+  supplierPriceListRowProductCreationBodySchema,
+} from "./purchasing/supplier-price-list-row-product-creation.js";
 export type { SupplierPriceListRowRemovalBody } from "./purchasing/supplier-price-list-row-removal.js";
 export { supplierPriceListRowRemovalBodySchema } from "./purchasing/supplier-price-list-row-removal.js";
 export type { SupplierPriceListRowReviewBody } from "./purchasing/supplier-price-list-row-review.js";

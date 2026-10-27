@@ -63,6 +63,7 @@ export interface SaleHistoryDetail {
   nextCopy: ReceiptCopy;
   creditNoteNextCopy: ReceiptCopy | null;
   deferredInvoiceNextCopy: ReceiptCopy | null;
+  shortCode: string | null;
 }
 
 export type ReadSaleHistoryDetailOutcome =
@@ -85,6 +86,7 @@ export function readSaleHistoryDetail(
     hasReturn: _hasReturn,
     invoices: _invoices,
     deferredInvoiceIssued,
+    deferredShortCode,
     ...shown
   } = record;
   const creditNoteDelivery =
@@ -106,6 +108,7 @@ export function readSaleHistoryDetail(
       creditNoteNextCopy: creditNoteDelivery?.kind === "found" ? creditNoteDelivery.nextCopy : null,
       deferredInvoiceNextCopy:
         deferredInvoiceDelivery?.kind === "found" ? deferredInvoiceDelivery.nextCopy : null,
+      shortCode: deferredShortCode,
     },
   };
 }

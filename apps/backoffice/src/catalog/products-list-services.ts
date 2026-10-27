@@ -1,3 +1,4 @@
+import { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { createBrand, fetchBrands } from "./brands-api";
 import { fetchCategories } from "./categories-api";
 import type { DeactivateProductModalServices } from "./deactivate-product-modal";
@@ -9,7 +10,6 @@ import {
   deactivateProduct,
   editProduct,
   fetchProducts,
-  generateInternalBarcode,
   printLabels,
   reactivateProduct,
 } from "./products-api";
