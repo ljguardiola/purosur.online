@@ -1,5 +1,11 @@
 import { fileURLToPath } from "node:url";
-import { offsetAt, utcOffsetText, type ZoneRules, type ZoneRulesSource } from "@purosur/domain";
+import {
+  localClock,
+  offsetAt,
+  utcOffsetText,
+  type ZoneRules,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import type {
   WsaaAuthentication,
   WsaaAuthenticationResult,
@@ -33,13 +39,10 @@ export function wsaaEndpointOf(environment: string): string {
   return endpoint;
 }
 
-const MINUTE_MS = 60_000;
-
 /** ARCA reads a ticket's times as the store's local time, so the offset is always written out. */
 function argentinaTimestamp(instant: Date, rules: ZoneRules): string {
-  const offsetMinutes = offsetAt(rules, instant);
-  const clock = new Date(instant.getTime() + offsetMinutes * MINUTE_MS).toISOString().slice(0, 19);
-  return `${clock}${utcOffsetText(offsetMinutes)}`;
+  const clock = localClock(instant, rules).toISOString().slice(0, 19);
+  return `${clock}${utcOffsetText(offsetAt(rules, instant))}`;
 }
 
 function loginTicketRequestOf(service: string, now: Date, rules: ZoneRules): string {

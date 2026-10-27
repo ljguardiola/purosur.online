@@ -1,8 +1,7 @@
 import { offsetAt, type ZoneRules } from "./zone-rules.js";
 
 // The business operates only in Argentina, so "today" means Argentina's calendar day: the UTC
-// day is already tomorrow after 21:00 local time. Only display metadata names the zone; every
-// computation takes the rules that say its offset.
+// day is already tomorrow after 21:00 local time.
 export const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
 
 const MINUTE_MS = 60_000;
@@ -25,7 +24,11 @@ export function utcOffsetText(offsetMinutes: number): string {
 
 export function argentinaInstant(day: string, time: string, rules: ZoneRules): string {
   const wallClock = Date.parse(`${day}T${time}:00Z`);
-  const guessed = offsetAt(rules, new Date(wallClock));
-  const settled = offsetAt(rules, new Date(wallClock - guessed * MINUTE_MS));
-  return `${day}T${time}:00${utcOffsetText(settled)}`;
+  const offsetReadingTheWallClockAt = (offsetMinutes: number) =>
+    offsetAt(rules, new Date(wallClock - offsetMinutes * MINUTE_MS));
+  const settled = offsetReadingTheWallClockAt(offsetAt(rules, new Date(wallClock)));
+  // A wall-clock time a forward transition skips settles on neither offset; the smaller one is the
+  // offset before the transition, which moves it forward past the gap instead of into the day before.
+  const offset = Math.min(settled, offsetReadingTheWallClockAt(settled));
+  return `${day}T${time}:00${utcOffsetText(offset)}`;
 }

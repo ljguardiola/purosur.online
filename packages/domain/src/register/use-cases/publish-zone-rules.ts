@@ -1,5 +1,8 @@
 import type { ZoneTransition } from "../../shared/index.js";
-import { nextZoneRulesPublicationNumber } from "../model/zone-rules-version.js";
+import {
+  currentZoneRulesPublication,
+  nextZoneRulesPublicationNumber,
+} from "../model/zone-rules-version.js";
 import type { ZoneRulesPorts } from "./zone-rules-store.js";
 
 export interface PublishZoneRulesInput {
@@ -18,7 +21,7 @@ export async function publishZoneRules(
   return store.transaction<PublishZoneRulesOutcome>(async (tx) => {
     await tx.lockZoneRulesPublication();
     const publications = await tx.zoneRulesPublications();
-    if (publications.some((publication) => publication.version === version)) {
+    if (currentZoneRulesPublication(publications)?.version === version) {
       return { kind: "already_published", version };
     }
     await tx.publishZoneRules({

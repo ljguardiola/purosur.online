@@ -1,11 +1,10 @@
-import type { CashMovementKind, ZoneRules } from "@purosur/domain";
+import { type CashMovementKind, localClock, type ZoneRules } from "@purosur/domain";
 import {
   formatDate,
   formatInvoiceNumber,
   formatOperationNumber,
   formatPointOfSaleNumber,
 } from "@purosur/ui/formatters";
-import { argentinaWallClock } from "../platform/argentina-time";
 import { encodePc850 } from "../sales/receipt-printer/pc850";
 
 export type BackedDocument =
@@ -166,7 +165,7 @@ export function renderContingencyBackupTicket(
   }: ContingencyBackupTicketPrintout,
   rules: ZoneRules,
 ): Uint8Array {
-  const wallClock = argentinaWallClock(createdAt, rules);
+  const wallClock = localClock(createdAt, rules);
   const date = formatDate(wallClock, {
     day: "2-digit",
     month: "2-digit",

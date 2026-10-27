@@ -934,6 +934,7 @@ export {
   isValidCashAmount,
   lastDayOfMonth,
   latestKey,
+  localClock,
   MAX_CASH_AMOUNT_CENTS,
   offsetAt,
   REPLENISHMENT_FAILURE_KINDS,

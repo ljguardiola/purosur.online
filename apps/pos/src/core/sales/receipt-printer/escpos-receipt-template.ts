@@ -2,6 +2,7 @@ import {
   type CreditNoteCFiscalBlock,
   type CreditNoteReceiptContent,
   type DeferredSaleDocumentBlock,
+  localClock,
   type ReceiptContent,
   type ReceiptCopy,
   STOCK_QUANTITY_DECIMALS,
@@ -19,7 +20,6 @@ import {
   formatPercent,
   formatPointOfSaleNumber,
 } from "@purosur/ui/formatters";
-import { argentinaWallClock } from "../../platform/argentina-time";
 import { encodePc850 } from "./pc850";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
@@ -250,7 +250,7 @@ function operation(
   rules: ZoneRules,
   creditNote?: CorrectedInvoice,
 ): void {
-  const wallClock = argentinaWallClock(occurredAt, rules);
+  const wallClock = localClock(occurredAt, rules);
   const date =
     creditNote === undefined
       ? formatDate(wallClock, {

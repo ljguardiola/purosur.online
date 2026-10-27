@@ -1,5 +1,5 @@
 CREATE TABLE zone_rules (
-  version TEXT PRIMARY KEY,
-  transitions TEXT NOT NULL,
-  publication_number INTEGER NOT NULL
+  publication_number INTEGER PRIMARY KEY,
+  version TEXT NOT NULL,
+  transitions TEXT NOT NULL
 );

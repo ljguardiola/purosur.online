@@ -44,10 +44,10 @@ export function prepareFiscalPageWrites(database: LocalDatabase, mode: PageWrite
   const saveZoneRules = database.prepare(
     `INSERT INTO zone_rules (version, transitions, publication_number)
      VALUES (@version, @transitions, @publication_number)
-     ON CONFLICT (version) DO ${
+     ON CONFLICT (publication_number) DO ${
        mode === "pull"
          ? "NOTHING"
-         : "UPDATE SET transitions = excluded.transitions, publication_number = excluded.publication_number"
+         : "UPDATE SET version = excluded.version, transitions = excluded.transitions"
      }`,
   );
   const saveOfflineAuthorizationCode = database.prepare(

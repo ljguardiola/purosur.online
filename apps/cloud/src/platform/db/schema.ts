@@ -213,8 +213,9 @@ export const buyerTaxStatusSets = pgTable(
   ],
 );
 
-// Append-only: the rules each version of the cloud's time zone database implies are kept as they
-// were published; a new version is a new row, never an edit of one registers already pulled.
+// Append-only: the rules of each publication are kept as they were published; a version published
+// again after a later one, as when the cloud runs an earlier time zone database, is a new row, never
+// an edit of one registers already pulled.
 export const zoneRules = pgTable(
   "zone_rules",
   {
@@ -223,10 +224,7 @@ export const zoneRules = pgTable(
     transitions: jsonb("transitions").$type<{ from: string; offsetMinutes: number }[]>().notNull(),
     publicationNumber: integer("publication_number").notNull(),
   },
-  (table) => [
-    uniqueIndex("zone_rules_version_key").on(table.version),
-    uniqueIndex("zone_rules_publication_number_key").on(table.publicationNumber),
-  ],
+  (table) => [uniqueIndex("zone_rules_publication_number_key").on(table.publicationNumber)],
 );
 
 export const roles = pgTable(

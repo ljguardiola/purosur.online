@@ -11716,21 +11716,6 @@
         }
       },
       "indexes": {
-        "zone_rules_version_key": {
-          "name": "zone_rules_version_key",
-          "columns": [
-            {
-              "expression": "version",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "zone_rules_publication_number_key": {
           "name": "zone_rules_publication_number_key",
           "columns": [
