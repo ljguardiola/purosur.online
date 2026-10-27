@@ -41,6 +41,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   price_comparison: true,
   orders_area: true,
   reports_area: true,
+  returns_report: true,
   refunds_area: true,
   fiscal_information: true,
   close_fiscal_tasks: true,
