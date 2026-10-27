@@ -1,7 +1,11 @@
-import type { VoidCreditNoteStanding } from "@purosur/domain";
+import type { TicketReference, VoidCreditNoteStanding } from "@purosur/domain";
+import type { BranchSaleLookupAnswer } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { SqliteRetainedBranchSales } from "../returns/sqlite-retained-branch-sales";
+import {
+  readRetainedBranchSale,
+  SqliteRetainedBranchSales,
+} from "../returns/sqlite-retained-branch-sales";
 import { insertReturn } from "../returns/sqlite-return-ledger";
 import { SqliteLocalOutbox } from "../sync/sqlite-local-outbox";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -693,5 +697,134 @@ describe("the invoice standing of a sale another register rang up", () => {
       fiscalDocuments: [],
       deferralPending: false,
     });
+  });
+});
+
+describe("asking the branch again for the invoice of a sale another register rang up", () => {
+  const TICKET: TicketReference = { kind: "deferred", id: "deferred-9", shortCode: "7KQ4M2P9" };
+  const ON_ITS_WAY = { fiscalDocuments: [], deferralPending: true } as const;
+  const INVOICED = {
+    fiscalDocuments: [
+      {
+        origin: "real_time",
+        state: "AUTHORIZED",
+        pointOfSale: 4,
+        number: 88,
+        buyerTaxStatusCode: 5,
+      },
+    ],
+    deferralPending: false,
+  } as const;
+
+  let asked: TicketReference[];
+  let answer: BranchSaleLookupAnswer;
+
+  function keepCopy(invoiceStanding: Parameters<typeof facts>[0]): void {
+    new SqliteRetainedBranchSales(database).keep(facts(invoiceStanding));
+  }
+
+  function facts(invoiceStanding: {
+    fiscalDocuments: readonly unknown[];
+    deferralPending: boolean;
+  }) {
+    return {
+      sale: {
+        sale: {
+          id: "sale-elsewhere",
+          registerId: "register-2",
+          deviceId: "device-2",
+          sessionId: "session-2",
+          actorId: "cashier",
+          state: "COMPLETED" as const,
+          saleDiscount: null,
+          lines: [],
+        },
+        occurredAt: new Date("2026-09-12T18:30:00.000Z"),
+        invoice: null,
+        payments: [],
+        returned: [],
+      },
+      invoiceStanding: invoiceStanding as typeof INVOICED,
+      ticket: TICKET,
+      goodConditionReturnDays: 15,
+      countedReturnIds: [],
+    };
+  }
+
+  function refreshing(): SqliteSaleCreditNotes {
+    return new SqliteSaleCreditNotes(database, {
+      async saleForReturn(ticket) {
+        asked.push(ticket);
+        return answer;
+      },
+    });
+  }
+
+  beforeEach(() => {
+    asked = [];
+    answer = { kind: "unreachable" };
+  });
+
+  it("learns the invoice the branch now has, asking with the ticket the sale was found by, and keeps it", async () => {
+    keepCopy(ON_ITS_WAY);
+    answer = {
+      kind: "found",
+      ...facts(INVOICED),
+      goodConditionReturnDays: 30,
+      countedReturnIds: ["return-cloud"],
+    };
+
+    await expect(refreshing().refreshBranchSaleInvoiceStanding("sale-elsewhere")).resolves.toEqual(
+      INVOICED,
+    );
+
+    expect(asked).toEqual([TICKET]);
+    expect(readRetainedBranchSale(database, "sale-elsewhere")).toMatchObject({
+      invoiceStanding: INVOICED,
+      ticket: TICKET,
+      goodConditionReturnDays: 30,
+      countedReturnIds: ["return-cloud"],
+    });
+    await expect(creditNotes.saleInvoiceStanding("sale-elsewhere")).resolves.toEqual(INVOICED);
+  });
+
+  it.each<[string, BranchSaleLookupAnswer]>([
+    ["cannot be reached", { kind: "unreachable" }],
+    ["has no such sale", { kind: "not_found" }],
+  ])("keeps the copy as it was when the branch %s", async (_name, reply) => {
+    keepCopy(ON_ITS_WAY);
+    answer = reply;
+
+    await expect(
+      refreshing().refreshBranchSaleInvoiceStanding("sale-elsewhere"),
+    ).resolves.toBeUndefined();
+
+    expect(asked).toEqual([TICKET]);
+    expect(readRetainedBranchSale(database, "sale-elsewhere")).toEqual(facts(ON_ITS_WAY));
+  });
+
+  it("asks nothing for a sale the register did not keep a copy of", async () => {
+    await expect(
+      refreshing().refreshBranchSaleInvoiceStanding("sale-unknown"),
+    ).resolves.toBeUndefined();
+
+    expect(asked).toEqual([]);
+  });
+
+  it("asks nothing for a sale the register holds itself", async () => {
+    insertCompletedSale(database, "sale-1");
+    answer = { kind: "found", ...facts(INVOICED) };
+
+    await expect(refreshing().refreshBranchSaleInvoiceStanding("sale-1")).resolves.toBeUndefined();
+
+    expect(asked).toEqual([]);
+  });
+
+  it("asks nothing when the register is wired to no branch lookup", async () => {
+    keepCopy(ON_ITS_WAY);
+
+    await expect(
+      creditNotes.refreshBranchSaleInvoiceStanding("sale-elsewhere"),
+    ).resolves.toBeUndefined();
   });
 });

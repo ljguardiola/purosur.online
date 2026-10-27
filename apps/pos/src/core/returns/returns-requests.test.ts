@@ -1010,6 +1010,82 @@ describe("returning a sale another register rang up", () => {
     ]);
   });
 
+  describe("a credit note held for an invoice that was on its way", () => {
+    const ON_ITS_WAY = {
+      ...BRANCH_SALE,
+      invoiceStanding: { fiscalDocuments: [], deferralPending: true },
+    };
+    const DEFERRED_TICKET = { kind: "deferred", id: "deferred-9", shortCode: "7KQ4M2P9" } as const;
+
+    async function completeWith(
+      reply: BranchSaleLookupAnswer,
+      cloudReply: CloudCreditNoteAnswer | null,
+    ) {
+      cloudAnswer = ON_ITS_WAY;
+      await findSaleForReturnFor(deps(), { ticket: DEFERRED_TICKET });
+      cloudAnswer = reply;
+      askedTickets = [];
+      const calls: CloudCreditNoteCall[] = [];
+      await completeReturnFor(
+        deps({
+          creditNotes: {
+            request: async (call) => {
+              calls.push(call);
+              return cloudReply;
+            },
+          },
+        }),
+        COMPLETION,
+      );
+      return calls;
+    }
+
+    it("is tied to the invoice and requested once the branch says the invoice exists", async () => {
+      insertPointOfSale(database, 0);
+      const calls = await completeWith(BRANCH_SALE, AUTHORIZED);
+
+      expect(askedTickets).toEqual([DEFERRED_TICKET]);
+      expect(calls).toMatchObject([{ invoice: { voucher: { pointOfSale: 7, number: 501 } } }]);
+      expect(storedNotes()).toEqual([
+        {
+          sale_id: "sale-elsewhere",
+          return_id: "id-1",
+          state: "AUTHORIZED",
+          corrected_point_of_sale: 7,
+          corrected_number: 501,
+        },
+      ]);
+      expect(readRetainedBranchSale(database, "sale-elsewhere")?.invoiceStanding).toEqual(
+        BRANCH_SALE.invoiceStanding,
+      );
+    });
+
+    it.each<[string, BranchSaleLookupAnswer]>([
+      ["cannot be reached", { kind: "unreachable" }],
+      ["has no such sale", { kind: "not_found" }],
+    ])("keeps waiting, and keeps the copy, when the branch %s", async (_name, reply) => {
+      insertPointOfSale(database, 0);
+      const calls = await completeWith(reply, AUTHORIZED);
+
+      expect(askedTickets).toEqual([DEFERRED_TICKET]);
+      expect(calls).toEqual([]);
+      expect(storedNotes()).toMatchObject([{ state: "AWAITING_INVOICE", corrected_number: null }]);
+      expect(readRetainedBranchSale(database, "sale-elsewhere")?.invoiceStanding).toEqual(
+        ON_ITS_WAY.invoiceStanding,
+      );
+    });
+  });
+
+  it("does not ask the branch again for a sale whose invoice is already known", async () => {
+    insertPointOfSale(database, 0);
+    insertHealthCheck(database, { checkedAt: "2026-09-20T14:59:58.000Z" });
+    await findWithConnection();
+
+    await completeReturnFor(deps({ creditNotes: { request: async () => AUTHORIZED } }), COMPLETION);
+
+    expect(askedTickets).toEqual([]);
+  });
+
   it("asks for no credit note when the sale was never invoiced", async () => {
     await findWithConnection({
       ...BRANCH_SALE,
