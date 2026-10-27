@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paymentMethodName, pointCardName } from "./payment-method-names";
+import { paidPaymentName, paymentMethodName, pointCardName } from "./payment-method-names";
 
 describe("paymentMethodName", () => {
   it.each([
@@ -20,5 +20,17 @@ describe("pointCardName", () => {
     [null, "Point"],
   ] as const)("names a %s card charge as %s", (cardType, name) => {
     expect(pointCardName(cardType)).toBe(name);
+  });
+});
+
+describe("paidPaymentName", () => {
+  it.each([
+    ["POINT", "DEBIT", "Point · Débito"],
+    ["POINT", "CREDIT", "Point · Crédito"],
+    ["POINT", null, "Point"],
+    ["CASH", null, "Efectivo"],
+    ["QR", null, "QR de Mercado Pago"],
+  ] as const)("names a %s payment of card type %s as %s", (method, cardType, name) => {
+    expect(paidPaymentName(method, cardType)).toBe(name);
   });
 });
