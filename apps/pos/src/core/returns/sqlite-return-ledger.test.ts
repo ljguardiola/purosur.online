@@ -219,7 +219,7 @@ describe("completing a return in the register", () => {
   it("leaves no trace when a write fails half way", async () => {
     database.exec(
       `INSERT INTO stock_movements (id, product_id, kind, delta, occurred_at)
-       VALUES ('id-5', 'yerba', 'loss', -1, '2026-09-13T12:00:00.000Z')`,
+       VALUES ('id-4', 'yerba', 'loss', -1, '2026-09-13T12:00:00.000Z')`,
     );
 
     await expect(returnYerba()).rejects.toThrow(/UNIQUE|PRIMARY KEY/);
