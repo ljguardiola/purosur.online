@@ -8,6 +8,7 @@ import {
   type VoidCreditNoteStanding,
 } from "@purosur/domain";
 import type { PendingCreditNote, RegisterCreditNotes } from "@purosur/domain/fiscal/use-cases";
+import type { BranchSaleLookup } from "@purosur/domain/returns/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
 import { readRetainedBranchSale } from "../returns/sqlite-retained-branch-sales";
@@ -327,9 +328,21 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
 
 export class SqliteSaleCreditNotes implements RegisterCreditNotes {
   private readonly database: LocalDatabase;
+  private readonly branchSales: BranchSaleLookup | undefined;
 
-  constructor(database: LocalDatabase) {
+  constructor(database: LocalDatabase, branchSales?: BranchSaleLookup) {
     this.database = database;
+    this.branchSales = branchSales;
+  }
+
+  async refreshBranchSaleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding | undefined> {
+    if (
+      this.branchSales === undefined ||
+      readRetainedBranchSale(this.database, saleId) === undefined
+    ) {
+      return undefined;
+    }
+    return undefined;
   }
 
   async inProgress(): Promise<PendingCreditNote[]> {

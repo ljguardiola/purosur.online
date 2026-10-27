@@ -44,7 +44,7 @@ export interface OwnReturnsOfSale {
   returnsOfSale(saleId: string): LocalReturnOfSale[];
 }
 
-export type KeptBranchSale = BranchSaleFacts;
+export type KeptBranchSale = BranchSaleFacts & { ticket: TicketReference };
 
 export interface RetainedBranchSales {
   keep(sale: KeptBranchSale): void;

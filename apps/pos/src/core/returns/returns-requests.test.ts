@@ -316,6 +316,7 @@ describe("finding the sale to return", () => {
     expect(readRetainedBranchSale(database, "sale-elsewhere")).toEqual({
       sale: BRANCH_SALE.sale,
       invoiceStanding: BRANCH_SALE.invoiceStanding,
+      ticket: BRANCH_SALE_TICKET,
       goodConditionReturnDays: 15,
       countedReturnIds: [],
     });

@@ -653,6 +653,7 @@ describe("the invoice standing of a sale another register rang up", () => {
         returned: [],
       },
       invoiceStanding,
+      ticket: { kind: "invoice", pointOfSale: 4, number: 88 },
       goodConditionReturnDays: 15,
       countedReturnIds: [],
     });

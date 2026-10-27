@@ -1,10 +1,11 @@
-import type { BranchSaleFacts } from "@purosur/domain/returns/use-cases";
+import type { KeptBranchSale } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { readRetainedBranchSale, SqliteRetainedBranchSales } from "./sqlite-retained-branch-sales";
 import { openSoldSaleDatabase } from "./test-support/sold-sale-database";
 
-const FACTS: BranchSaleFacts = {
+const FACTS: KeptBranchSale = {
+  ticket: { kind: "invoice", pointOfSale: 3, number: 1204 },
   sale: {
     sale: {
       id: "sale-9",

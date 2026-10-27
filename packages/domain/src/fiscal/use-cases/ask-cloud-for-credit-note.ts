@@ -25,7 +25,10 @@ async function invoicedCreditNote(
   if (pending.correctedVoucher !== null) {
     return { note: pending };
   }
-  const standing = await creditNotes.saleInvoiceStanding(pending.saleId);
+  let standing = await creditNotes.saleInvoiceStanding(pending.saleId);
+  if (invoiceToCorrect(standing.fiscalDocuments) === null && isInvoiceOnItsWay(standing)) {
+    standing = (await creditNotes.refreshBranchSaleInvoiceStanding(pending.saleId)) ?? standing;
+  }
   const invoice = invoiceToCorrect(standing.fiscalDocuments);
   if (invoice === null) {
     return { reply: isInvoiceOnItsWay(standing) ? IN_PROGRESS : REGULARIZATION_REQUIRED };

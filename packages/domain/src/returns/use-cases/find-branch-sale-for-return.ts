@@ -48,7 +48,13 @@ export async function findBranchSaleForReturn(
     zoneRules.zoneRules(),
   );
   if (outcome.kind === "found") {
-    retained.keep({ sale, invoiceStanding, goodConditionReturnDays, countedReturnIds });
+    retained.keep({
+      sale,
+      invoiceStanding,
+      ticket: search,
+      goodConditionReturnDays,
+      countedReturnIds,
+    });
   }
   return outcome;
 }

@@ -1,4 +1,4 @@
-import type { BranchSaleFacts } from "@purosur/domain/returns/use-cases";
+import type { KeptBranchSale } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   insertDeferredSale,
@@ -186,7 +186,8 @@ describe("the days a good-condition return is accepted", () => {
 });
 
 describe("the sale of another register a return starts from", () => {
-  const KEPT: BranchSaleFacts = {
+  const KEPT: KeptBranchSale = {
+    ticket: { kind: "invoice", pointOfSale: 7, number: 501 },
     sale: {
       sale: {
         id: "sale-elsewhere",

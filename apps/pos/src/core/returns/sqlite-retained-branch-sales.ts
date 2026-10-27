@@ -1,4 +1,4 @@
-import type { BranchSaleFacts, RetainedBranchSales } from "@purosur/domain/returns/use-cases";
+import type { KeptBranchSale, RetainedBranchSales } from "@purosur/domain/returns/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
 interface RetainedRow {
@@ -8,14 +8,14 @@ interface RetainedRow {
 export function readRetainedBranchSale(
   database: LocalDatabase,
   saleId: string,
-): BranchSaleFacts | undefined {
+): KeptBranchSale | undefined {
   const row = database
     .prepare<[string], RetainedRow>("SELECT facts FROM branch_sales_for_return WHERE sale_id = ?")
     .get(saleId);
   if (row === undefined) {
     return undefined;
   }
-  const facts: BranchSaleFacts & { sale: { occurredAt: string } } = JSON.parse(row.facts);
+  const facts: KeptBranchSale & { sale: { occurredAt: string } } = JSON.parse(row.facts);
   return { ...facts, sale: { ...facts.sale, occurredAt: new Date(facts.sale.occurredAt) } };
 }
 
@@ -26,7 +26,7 @@ export class SqliteRetainedBranchSales implements RetainedBranchSales {
     this.database = database;
   }
 
-  keep(facts: BranchSaleFacts): void {
+  keep(facts: KeptBranchSale): void {
     this.database
       .prepare(
         `INSERT INTO branch_sales_for_return (sale_id, facts) VALUES (@sale_id, @facts)
