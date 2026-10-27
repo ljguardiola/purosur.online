@@ -1,4 +1,4 @@
-import { MERCADO_PAGO_PAYMENT_METHODS } from "@purosur/domain";
+import { POINT_CARD_TYPES } from "@purosur/domain";
 import { z } from "zod";
 import {
   noThresholdRefusalSchema,
@@ -10,13 +10,21 @@ import {
 } from "../shared/index.js";
 import { paymentMethodAvailabilitySchema } from "./payment-method-availability.js";
 
-export const startMercadoPagoChargeMessageSchema = z.object({
+const startMercadoPagoChargeFields = {
   type: z.literal("start-mercado-pago-charge"),
   request_id: requestIdSchema,
   sale_id: z.string(),
-  method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
   amount: z.int(),
-});
+};
+
+export const startMercadoPagoChargeMessageSchema = z.discriminatedUnion("method", [
+  z.object({ ...startMercadoPagoChargeFields, method: z.literal("QR") }),
+  z.object({
+    ...startMercadoPagoChargeFields,
+    method: z.literal("POINT"),
+    card_type: z.enum(POINT_CARD_TYPES),
+  }),
+]);
 
 const followMercadoPagoChargeMessageSchema = z.object({
   type: z.literal("follow-mercado-pago-charge"),
