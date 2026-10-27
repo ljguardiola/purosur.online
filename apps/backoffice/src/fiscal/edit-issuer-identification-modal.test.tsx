@@ -263,6 +263,8 @@ test("lines up the Ingresos Brutos and Inicio de actividades labels and boxes, s
   await page.viewport(1440, 1000);
   const { dialog } = await renderModal();
 
+  await expect.element(dialog.getByRole("group", { name: /^Inicio de actividades/ })).toBeVisible();
+
   const grossIncomeLabel = dialog.getByText("Ingresos Brutos").element() as HTMLElement;
   const activityStartLabel = dialog.getByText("Inicio de actividades").element() as HTMLElement;
   const grossIncomeBox = dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }).element()
@@ -340,6 +342,7 @@ function describedTextOf(element: HTMLElement): string {
 
 test("marks the activity start date required, and invalid and described by its own message once refused", async () => {
   const { dialog } = await renderModal({ target: incomplete });
+  await expect.element(dialog.getByRole("group", { name: /^Inicio de actividades/ })).toBeVisible();
   for (const segment of dateSegments(dialog)) {
     expect(segment.getAttribute("aria-required")).toBe("true");
   }
