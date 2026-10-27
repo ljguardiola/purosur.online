@@ -118,6 +118,21 @@ describe("argentinaInstant under given rules", () => {
     expect(argentinaCalendarDay(new Date(skipped), SUMMER_TIME)).toBe("2030-03-01");
   });
 
+  it("writes a wall-clock time a forward transition skips before midnight on the offset after it, so the instant stays on its own day", () => {
+    const summerTimeFromMidnight: ZoneRules = {
+      version: "2026a",
+      transitions: [
+        { from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: -180 },
+        { from: new Date("2030-03-01T02:00:00Z"), offsetMinutes: -120 },
+      ],
+    };
+
+    const skipped = argentinaInstant("2030-02-28", "23:30", summerTimeFromMidnight);
+
+    expect(skipped).toBe("2030-02-28T23:30:00-02:00");
+    expect(argentinaCalendarDay(new Date(skipped), summerTimeFromMidnight)).toBe("2030-02-28");
+  });
+
   it("names the same instant as the wall-clock time read back under the same rules", () => {
     const instant = new Date(argentinaInstant("2030-06-01", "23:30", SUMMER_TIME));
 
