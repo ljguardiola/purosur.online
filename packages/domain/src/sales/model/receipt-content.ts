@@ -12,6 +12,7 @@ import {
   facturaCFiscalBlock,
   offlineFacturaCFiscalBlock,
 } from "../../fiscal/index.js";
+import type { PointCardType } from "../../payments/index.js";
 import type { CompletedSalePayment } from "./completed-sale.js";
 import type { ManualAdjustmentValue } from "./manual-adjustment.js";
 import type { LinePromotion } from "./sale.js";
@@ -41,6 +42,7 @@ interface ReceiptSourcePayment {
   method: PaymentMethod;
   amount: number;
   tendered: number | null;
+  cardType: PointCardType | null;
 }
 
 type ReceiptSourceFiscalDocument =
@@ -86,7 +88,7 @@ export interface ReceiptContent {
     subtotal: number;
     saleDiscount: ReceiptSaleDiscount | null;
     total: number;
-    payments: { method: PaymentMethod; amount: number }[];
+    payments: { method: PaymentMethod; amount: number; cardType: PointCardType | null }[];
     change: number;
   };
   fiscal: FacturaCFiscalBlock | OfflineFacturaCFiscalBlock | DeferredSaleDocumentBlock | null;
@@ -137,9 +139,10 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
       subtotal,
       saleDiscount: receiptSaleDiscount(subtotal, source.saleDiscount),
       total: source.total,
-      payments: source.payments.map(({ method, amount, tendered }) => ({
+      payments: source.payments.map(({ method, amount, tendered, cardType }) => ({
         method,
         amount: method === "CASH" && tendered !== null ? tendered : amount,
+        cardType,
       })),
       change: source.payments.reduce(
         (sum, { method, amount, tendered }) =>

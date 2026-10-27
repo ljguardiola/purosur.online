@@ -52,4 +52,51 @@ describe("paymentRecord", () => {
       confirmed_at: "2026-10-09T12:00:30.000Z",
     });
   });
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "records the %s card a Point payment was charged on",
+    (cardType) => {
+      expect(
+        paymentRecord({
+          id: "payment-3",
+          saleId: "sale-1",
+          kind: "SALE",
+          method: "POINT",
+          provider: "MERCADOPAGO_POINT",
+          cardType,
+          amount: 5000,
+          state: "APPROVED",
+          occurredAt: OCCURRED_AT,
+        }),
+      ).toEqual({
+        id: "payment-3",
+        kind: "SALE",
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        card_type: cardType,
+        amount: 5000,
+        tendered: null,
+        state: "APPROVED",
+        occurred_at: "2026-10-09T12:01:00.000Z",
+        authorized_by: null,
+        confirmed_at: null,
+      });
+    },
+  );
+
+  it("refuses to record a Point payment charged on no card type", () => {
+    expect(() =>
+      paymentRecord({
+        id: "payment-3",
+        saleId: "sale-1",
+        kind: "SALE",
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        cardType: null,
+        amount: 5000,
+        state: "APPROVED",
+        occurredAt: OCCURRED_AT,
+      }),
+    ).toThrow("A Point payment must name its card type");
+  });
 });

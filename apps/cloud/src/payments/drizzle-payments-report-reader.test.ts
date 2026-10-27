@@ -42,6 +42,7 @@ function aPayment(method: keyof typeof PROVIDERS, amount: number, state = "APPRO
     id: randomUUID(),
     method,
     provider: PROVIDERS[method],
+    cardType: method === "POINT" ? ("DEBIT" as const) : null,
     amount,
     tendered: method === "CASH" ? amount : null,
     state,

@@ -1,17 +1,21 @@
 import type { Clock } from "../../shared/index.js";
+import type { PointCardType } from "../model/payment.js";
 import type {
   MercadoPagoPaymentTransaction,
   PaymentTransactionState,
 } from "../model/payment-transaction.js";
 
-export interface PendingMercadoPagoPayment {
+export type MercadoPagoChargeMethod =
+  | { method: "QR"; cardType?: never }
+  | { method: "POINT"; cardType: PointCardType };
+
+export type PendingMercadoPagoPayment = {
   actorId: string;
   saleId: string;
-  method: MercadoPagoPaymentTransaction["method"];
   amount: number;
   occurredAt: Date;
   waitEndsAt: Date;
-}
+} & MercadoPagoChargeMethod;
 
 export interface PendingMercadoPagoCharge {
   paymentTransactionId: string;
@@ -64,8 +68,14 @@ export interface MercadoPagoChargeOrder {
   amount: number;
 }
 
+export type MercadoPagoChargeOrderRequest = {
+  paymentTransactionId: string;
+  saleId: string;
+  amount: number;
+} & MercadoPagoChargeMethod;
+
 export interface MercadoPagoChargeOrders {
-  requestOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderAnswer>;
+  requestOrder(order: MercadoPagoChargeOrderRequest): Promise<MercadoPagoChargeOrderAnswer>;
   readOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderReading>;
   cancelOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderCancellation>;
 }

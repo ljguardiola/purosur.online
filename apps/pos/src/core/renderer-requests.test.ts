@@ -1484,6 +1484,30 @@ describe("answerRendererRequest", () => {
     expect(requests).toEqual([{ saleId: "s1", method: "QR", amount: 1200 }]);
   });
 
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "starts a Mercado Pago terminal charge for the %s card type the message names",
+    async (cardType) => {
+      const requests: unknown[] = [];
+      const { deps: withPoint } = deps(true, {
+        startMercadoPagoCharge: async (request) => {
+          requests.push(request);
+          return { kind: "order_refused" };
+        },
+      });
+
+      await answerRendererRequest(withPoint, {
+        type: "start-mercado-pago-charge",
+        request_id: "r61",
+        sale_id: "s1",
+        method: "POINT",
+        card_type: cardType,
+        amount: 2000,
+      });
+
+      expect(requests).toEqual([{ saleId: "s1", method: "POINT", cardType, amount: 2000 }]);
+    },
+  );
+
   it("answers which payment methods are available for the sale being charged", async () => {
     const availability = { qr: "available", point: "below_minimum", point_minimum: 1500 } as const;
     const { deps: withAvailability } = deps(true, {

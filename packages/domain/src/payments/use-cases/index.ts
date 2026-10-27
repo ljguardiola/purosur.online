@@ -104,6 +104,7 @@ export type {
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
   MercadoPagoChargeOrderReading,
+  MercadoPagoChargeOrderRequest,
   MercadoPagoChargeOrders,
   MercadoPagoChargePorts,
   MercadoPagoChargeSale,

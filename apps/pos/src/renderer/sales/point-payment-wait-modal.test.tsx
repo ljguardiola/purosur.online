@@ -45,6 +45,7 @@ async function renderModal(
   follow: Follow = answering(WAITING),
   abandon: Abandon = async () => ({ kind: "cancelled" }),
   order: ShownPointOrder = ORDER,
+  cardType: "DEBIT" | "CREDIT" | null = "DEBIT",
 ) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
@@ -62,6 +63,7 @@ async function renderModal(
       total={TOTAL}
       paid={1_000_000}
       order={order}
+      cardType={cardType}
       follow={followCharge}
       abandon={abandonCharge}
       {...callbacks}
@@ -78,11 +80,20 @@ function buttonLabels(screen: Awaited<ReturnType<typeof renderModal>>["screen"])
 }
 
 describe("PointPaymentWaitModal", () => {
+  it.each([
+    ["CREDIT", "POINT · CRÉDITO"],
+    [null, "POINT"],
+  ] as const)("names a %s card charge as %s", async (cardType, name) => {
+    const { screen } = await renderModal(answering(WAITING), undefined, ORDER, cardType);
+
+    await expect.element(screen.getByText(name, { exact: true })).toBeVisible();
+  });
+
   describe("while the customer pays on the terminal", () => {
     it("shows what is owed, the steps, the time left and that the terminal must cancel first", async () => {
       const { screen } = await renderModal();
 
-      await expect.element(screen.getByText("POINT INTEGRADA")).toBeVisible();
+      await expect.element(screen.getByText("POINT · DÉBITO")).toBeVisible();
       await expect
         .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
         .toBeVisible();
@@ -94,7 +105,7 @@ describe("PointPaymentWaitModal", () => {
       await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
       await expect.element(screen.getByText("Cobro enviado a la terminal")).toBeVisible();
       await expect.element(screen.getByText("Esperando el pago")).toBeVisible();
-      await expect.element(screen.getByText("Tarjeta o QR, en la terminal")).toBeVisible();
+      await expect.element(screen.getByText("Tarjeta, en la terminal")).toBeVisible();
       await expect.element(screen.getByText("Pago aprobado")).toBeVisible();
       await expect.element(screen.getByRole("timer", { name: "Tiempo para pagar" })).toBeVisible();
       await expect.element(screen.getByText("2:41")).toBeVisible();
@@ -515,7 +526,7 @@ describe("PointPaymentWaitModal", () => {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
         .toBeVisible();
-      await expect.element(screen.getByText("POINT INTEGRADA")).toBeVisible();
+      await expect.element(screen.getByText("POINT · DÉBITO")).toBeVisible();
       await expect.element(screen.getByText("No se cobró nada.")).toBeVisible();
       expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
@@ -531,7 +542,7 @@ describe("PointPaymentWaitModal", () => {
     it("says nothing was charged and goes back to the methods from Elegir otro medio", async () => {
       const { screen, callbacks } = await renderModal(answering({ kind: "declined" }));
 
-      await expect.element(screen.getByText("POINT INTEGRADA")).toBeVisible();
+      await expect.element(screen.getByText("POINT · DÉBITO")).toBeVisible();
       await expect
         .element(screen.getByRole("heading", { name: "La terminal rechazó el pago" }))
         .toBeVisible();

@@ -58,6 +58,7 @@ function aPayment(
     id: randomUUID(),
     method,
     provider: PROVIDERS[method],
+    cardType: method === "POINT" ? ("DEBIT" as const) : null,
     amount,
     tendered: method === "CASH" ? amount : null,
     state: "APPROVED",

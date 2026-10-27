@@ -921,7 +921,7 @@ export async function withRegisterSession<TResult>(
     nextStep();
     const pointDeposit = await startMercadoPagoChargeFor(
       { ...deps(), orders: APPROVED_QR_ORDERS },
-      { saleId: onPoint.sale.id, method: "POINT", amount: 1500 },
+      { saleId: onPoint.sale.id, method: "POINT", cardType: "DEBIT", amount: 1500 },
     );
     if (pointDeposit.kind !== "order_shown") {
       throw new Error(

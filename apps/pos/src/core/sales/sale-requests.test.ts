@@ -3289,7 +3289,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 7 },
+      { event_type: "sale_cancelled", schema_version: 8 },
     ]);
   });
 
@@ -3319,7 +3319,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 7 },
+      { event_type: "sale_cancelled", schema_version: 8 },
     ]);
   });
 
@@ -3330,7 +3330,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
     const saleId = await sellTwoForPayments();
     database
       .prepare(
-        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 1000, 'APPROVED', ?, ?)",
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 'DEBIT', 1000, 'APPROVED', ?, ?)",
       )
       .run(saleId, NOW.toISOString(), NOW.toISOString());
 
@@ -3355,7 +3355,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 7 },
+      { event_type: "sale_cancelled", schema_version: 8 },
     ]);
   });
 

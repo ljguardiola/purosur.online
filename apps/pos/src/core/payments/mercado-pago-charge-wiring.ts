@@ -22,6 +22,7 @@ import {
   followMercadoPagoChargeFor,
   type MercadoPagoChargeRequestDeps,
   mercadoPagoChargesLeftPendingFor,
+  type StartMercadoPagoChargeRequest,
   startMercadoPagoChargeFor,
 } from "./mercado-pago-charge-requests";
 
@@ -39,11 +40,7 @@ export interface MercadoPagoChargingWiringDeps {
 
 export interface MercadoPagoCharging {
   start:
-    | ((request: {
-        saleId: string;
-        method: "QR" | "POINT";
-        amount: number;
-      }) => Promise<StartMercadoPagoChargeOutcome>)
+    | ((request: StartMercadoPagoChargeRequest) => Promise<StartMercadoPagoChargeOutcome>)
     | undefined;
   follow:
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)

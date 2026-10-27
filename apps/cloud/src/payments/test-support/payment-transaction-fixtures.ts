@@ -49,6 +49,7 @@ export function pendingPointTransaction(
     ...pendingTransaction(registerId),
     method: "POINT",
     provider: "MERCADOPAGO_POINT",
+    cardType: "DEBIT",
     ...overrides,
   };
 }
