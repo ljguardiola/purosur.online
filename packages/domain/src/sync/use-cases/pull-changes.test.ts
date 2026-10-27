@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { ZoneRules } from "../../shared/index.js";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import { pullAudienceOf } from "../model/pull-audience.js";
 import { pullChanges } from "./pull-changes.js";
 import { FakeChangeLog, type FakeLoggedChange } from "./test-support/fake-change-log.js";
@@ -33,10 +38,20 @@ function pull(
   {
     now = NOW,
     offlineAuthorizationCodes = new FakeOfflineAuthorizationCodeRequests(),
-  }: { now?: Date; offlineAuthorizationCodes?: FakeOfflineAuthorizationCodeRequests } = {},
+    zoneRules,
+  }: {
+    now?: Date;
+    offlineAuthorizationCodes?: FakeOfflineAuthorizationCodeRequests;
+    zoneRules?: ZoneRules;
+  } = {},
 ) {
   return pullChanges(
-    { changeLog, offlineAuthorizationCodes, clock: { now: () => now } },
+    {
+      changeLog,
+      offlineAuthorizationCodes,
+      clock: { now: () => now },
+      zoneRules: new FakeZoneRulesSource(zoneRules),
+    },
     { deviceId: DEVICE, since },
   );
 }
@@ -202,6 +217,20 @@ describe("pulling changes", () => {
       await pull(fakeChangeLog([]), 0, { now: new Date(now), offlineAuthorizationCodes });
 
       expect(offlineAuthorizationCodes.heldCodeQuestions).toEqual([fortnight]);
+    });
+
+    it("is the one of the calendar day of the zone rules it is given", async () => {
+      const offlineAuthorizationCodes = codesOfARegisterWithAnOfflinePointOfSale();
+
+      await pull(fakeChangeLog([]), 0, {
+        now: new Date("2026-10-16T01:00:00.000Z"),
+        offlineAuthorizationCodes,
+        zoneRules: fixedOffsetZoneRules(0),
+      });
+
+      expect(offlineAuthorizationCodes.heldCodeQuestions).toEqual([
+        { start: "2026-10-16", end: "2026-10-31" },
+      ]);
     });
   });
 });

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import type { ZoneRules } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import { detectExpiringLots } from "./detect-expiring-lots.js";
 import { FixedClock } from "./test-support/fake-alert-store.js";
 import {
@@ -33,11 +38,13 @@ function detect({
   lots = [],
   openScopes = [],
   now = NOW,
+  zoneRules = FIXED_ARGENTINA_ZONE_RULES,
 }: {
   branches?: { locationId: string; windowDays: number }[];
   lots?: ReturnType<typeof lot>[];
   openScopes?: string[];
   now?: Date;
+  zoneRules?: ZoneRules;
 }) {
   const reader = new FakeBranchExpiringLotReader(lots);
   const alerts = new FakeExpiringLotAlerts(openScopes);
@@ -46,6 +53,7 @@ function detect({
     lots: reader,
     alerts,
     clock: new FixedClock(now),
+    zoneRules: new FakeZoneRulesSource(zoneRules),
   });
   return { reader, alerts, outcome };
 }
@@ -97,6 +105,16 @@ describe("detectExpiringLots", () => {
       { locationId: "branch-1", lastDay: "2026-11-11" },
       { locationId: "branch-2", lastDay: "2026-10-19" },
     ]);
+  });
+
+  it("counts the days from the calendar day of the zone rules it is given", async () => {
+    const { reader, outcome } = detect({
+      now: new Date("2026-10-13T02:30:00.000Z"),
+      zoneRules: fixedOffsetZoneRules(0),
+    });
+    await outcome;
+
+    expect(reader.reads).toEqual([{ locationId: "branch-1", lastDay: "2026-11-12" }]);
   });
 
   it("counts a lot expiring on the last day of the window but not the day after", async () => {

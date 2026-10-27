@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { ZoneRules } from "../../shared/index.js";
 import { argentinaInstant } from "../../shared/index.js";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import { type FindSaleForReturnInput, findSaleForReturn } from "./find-sale-for-return.js";
 import { FakeReturnLedger, type FakeReturnLedgerState } from "./test-support/fake-return-ledger.js";
 import { FixedClock } from "./test-support/fixed-clock.js";
@@ -14,9 +19,13 @@ function find(
   state: Partial<FakeReturnLedgerState>,
   search: FindSaleForReturnInput,
   now: Date = RETURNED_AT,
+  zoneRules?: ZoneRules,
 ) {
   const ledger = new FakeReturnLedger({ sales: [aSaleForReturn()], ...state });
-  return findSaleForReturn({ reader: ledger, clock: new FixedClock(now) }, search);
+  return findSaleForReturn(
+    { reader: ledger, clock: new FixedClock(now), zoneRules: new FakeZoneRulesSource(zoneRules) },
+    search,
+  );
 }
 
 const BY_INVOICE: FindSaleForReturnInput = { kind: "invoice", pointOfSale: 3, number: 1204 };
@@ -195,6 +204,18 @@ describe("findSaleForReturn", () => {
         change_of_mind: { lastAllowedDay: "2026-09-27", open: false },
         defective: { lastAllowedDay: "2027-03-12", open: true },
       });
+    });
+
+    it("closes a window at the end of the last day on the calendar of the zone rules it is given", () => {
+      const justAfterMidnightUtc = new Date("2026-09-28T02:00:00.000Z");
+
+      const underArgentina = find({}, BY_INVOICE, justAfterMidnightUtc, fixedOffsetZoneRules(-180));
+      const underUtc = find({}, BY_INVOICE, justAfterMidnightUtc, fixedOffsetZoneRules(0));
+
+      expect(
+        underArgentina.kind === "found" && underArgentina.sale.windows.change_of_mind.open,
+      ).toBe(true);
+      expect(underUtc.kind === "found" && underUtc.sale.windows.change_of_mind.open).toBe(false);
     });
 
     it("follows the days the branch allows for a change of mind", () => {

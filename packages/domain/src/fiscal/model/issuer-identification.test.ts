@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { fixedOffsetZoneRules } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
@@ -172,6 +173,18 @@ describe("isIssuerIdentificationActivityStartDate", () => {
     expect(isIssuerIdentificationActivityStartDate("2026-09-25", lateEveningInArgentina)).toBe(
       true,
     );
+  });
+
+  it("takes today from the zone rules it is given", () => {
+    const lateEveningInArgentina = new Date("2026-09-25T23:30:00-03:00");
+
+    expect(
+      isIssuerIdentificationActivityStartDate(
+        "2026-09-26",
+        lateEveningInArgentina,
+        fixedOffsetZoneRules(0),
+      ),
+    ).toBe(true);
   });
 });
 

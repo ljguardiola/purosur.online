@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { fixedOffsetZoneRules } from "../../shared/test-support/fake-zone-rules-source.js";
 import { DEFAULT_SNAPSHOT_LIFECYCLE_RULES } from "./snapshot-lifecycle-rules.js";
 import {
   type RetainableSnapshotGeneration,
@@ -305,5 +306,39 @@ describe("snapshotRetentionTiers", () => {
         },
       ),
     );
+  });
+});
+
+describe("snapshotRetentionTiers under given zone rules", () => {
+  const rules = { hourly: 2, daily: 2, monthly: 2 };
+
+  it("counts hours on the clock of the offset the rules give", () => {
+    const generations = [
+      verified("older", new Date("2026-10-14T15:10:00.000Z")),
+      verified("newer", new Date("2026-10-14T15:40:00.000Z")),
+    ];
+    const now = new Date("2026-10-14T15:50:00.000Z");
+
+    expect(snapshotRetentionTiers(generations, rules, now, fixedOffsetZoneRules(0)).hourly).toEqual(
+      ["newer"],
+    );
+    expect(
+      snapshotRetentionTiers(generations, rules, now, fixedOffsetZoneRules(30)).hourly,
+    ).toEqual(["newer", "older"]);
+  });
+
+  it("counts days on the calendar of the offset the rules give", () => {
+    const generations = [
+      verified("before-midnight", new Date("2026-10-14T01:30:00.000Z")),
+      verified("after-midnight", new Date("2026-10-14T03:30:00.000Z")),
+    ];
+    const now = new Date("2026-10-14T15:50:00.000Z");
+
+    expect(
+      snapshotRetentionTiers(generations, rules, now, fixedOffsetZoneRules(-180)).daily,
+    ).toEqual(["after-midnight", "before-midnight"]);
+    expect(snapshotRetentionTiers(generations, rules, now, fixedOffsetZoneRules(0)).daily).toEqual([
+      "after-midnight",
+    ]);
   });
 });

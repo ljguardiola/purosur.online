@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { StoredDiscount } from "./discount-reader.js";
 import { listDiscounts } from "./list-discounts.js";
 import { fakeDiscountReader } from "./test-support/fake-discount-reader.js";
@@ -55,6 +59,21 @@ describe("listDiscounts", () => {
 
     expect(lateEvening[0]?.status).toBe("current");
     expect(nextMorning[0]?.status).toBe("ended");
+  });
+
+  it("gives each discount its status on the calendar day of the zone rules it is given", async () => {
+    const discounts = fakeDiscountReader([
+      stored({ validFrom: "2026-12-15", validTo: "2026-12-15" }),
+    ]);
+    const clock = clockAt("2026-12-16T01:00:00Z");
+
+    const underUtc = await listDiscounts({
+      discounts,
+      clock,
+      zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)),
+    });
+
+    expect(underUtc[0]?.status).toBe("ended");
   });
 
   it("marks a discount that has not started as scheduled", async () => {

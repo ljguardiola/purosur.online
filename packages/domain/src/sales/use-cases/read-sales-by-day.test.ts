@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import { readSalesByDay } from "./read-sales-by-day.js";
 import { FakeSalesReportReader } from "./test-support/fake-sales-report-reader.js";
 
@@ -60,6 +64,21 @@ describe("readSalesByDay", () => {
     );
 
     expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+  });
+
+  it("resolves the current day on the calendar of the zone rules it is given", async () => {
+    const reader = new FakeSalesReportReader();
+
+    const report = await readSalesByDay(
+      {
+        reader,
+        clock: { now: () => new Date("2026-10-07T01:30:00.000Z") },
+        zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)),
+      },
+      { locationId: "branch-1", asked: noRange, registerId: undefined },
+    );
+
+    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
   });
 
   it("limits the read to the asked register", async () => {

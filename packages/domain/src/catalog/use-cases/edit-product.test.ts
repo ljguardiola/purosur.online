@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import { editProduct } from "./edit-product.js";
 import { FakeCatalogStore } from "./test-support/fake-catalog-store.js";
 
@@ -973,9 +977,14 @@ describe("editProduct", () => {
       return store;
     }
 
-    function edit(store: FakeCatalogStore, saleUnit: "UNIT" | "KG", now = clock) {
+    function edit(
+      store: FakeCatalogStore,
+      saleUnit: "UNIT" | "KG",
+      now = clock,
+      zoneRules = new FakeZoneRulesSource(),
+    ) {
       return editProduct(
-        { store, clock: now },
+        { store, clock: now, zoneRules },
         {
           id: "product-1",
           name: "Yerba",
@@ -1017,6 +1026,15 @@ describe("editProduct", () => {
         kind: "sale_unit_held_by_discount",
         discountName: "3x2 Yerba",
       });
+    });
+
+    it("judges the last day of the discount by the calendar day of the zone rules it is given", async () => {
+      const store = unitProductWithDiscount({ validFrom: "2026-06-01", validTo: "2026-06-15" });
+      const lateInArgentina = { now: () => new Date("2026-06-16T01:00:00Z") };
+
+      expect(
+        await edit(store, "KG", lateInArgentina, new FakeZoneRulesSource(fixedOffsetZoneRules(0))),
+      ).toMatchObject({ kind: "applied" });
     });
 
     it("is allowed once the discount has ended", async () => {

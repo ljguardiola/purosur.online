@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { argentinaInstant } from "../../shared/index.js";
+import { fixedOffsetZoneRules } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   BRANCH_HOURS_RANGES_PER_DAY_MAX,
   branchHoursRangesOverlap,
@@ -170,6 +171,18 @@ describe("isSpanWithinBranchHours", () => {
         mondayEvening,
       ),
     ).toBe(false);
+  });
+
+  it("reads the day and the hours on the clock of the offset the rules give", () => {
+    const mondayEvening = weekdayHours("20:00", "23:00");
+    const span = {
+      start: new Date("2026-10-06T01:00:00.000Z"),
+      end: new Date("2026-10-06T01:15:00.000Z"),
+    };
+
+    expect(isSpanWithinBranchHours(span, mondayEvening, fixedOffsetZoneRules(-180))).toBe(true);
+    expect(isSpanWithinBranchHours(span, mondayEvening, fixedOffsetZoneRules(0))).toBe(false);
+    expect(isSpanWithinBranchHours(span, mondayEvening, fixedOffsetZoneRules(-120))).toBe(true);
   });
 
   it("is false for a span that straddles the gap between two ranges", () => {
