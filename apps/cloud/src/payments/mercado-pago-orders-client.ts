@@ -1,4 +1,8 @@
-import type { MercadoPagoOrderRefund, MercadoPagoRefundAnswer } from "@purosur/domain";
+import type {
+  MercadoPagoOrderRefund,
+  MercadoPagoRefundAnswer,
+  PointCardType,
+} from "@purosur/domain";
 import type {
   MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
@@ -19,6 +23,10 @@ export interface MercadoPagoOrdersClientOptions {
 const MERCADO_PAGO_API_URL = "https://api.mercadopago.com";
 const MERCADO_PAGO_TIMEOUT_MS = 10_000;
 const CENTS_PER_PESO = 100;
+const DEFAULT_TYPE_OF_CARD: Readonly<Record<PointCardType, string>> = {
+  DEBIT: "debit_card",
+  CREDIT: "credit_card",
+};
 const DECIMAL_AMOUNT = /^(\d+)(?:\.(\d{1,2}))?$/;
 const REQUEST_TIMEOUT = 408;
 const TOO_MANY_REQUESTS = 429;
@@ -277,7 +285,10 @@ export function createMercadoPagoOrdersClient(
           external_reference: request.externalReference,
           expiration_time: `PT${request.expiresAfterMinutes}M`,
           transactions: { payments: [{ amount: pesosOfCents(request.amount) }] },
-          config: { point: { terminal_id: request.terminalId, print_on_terminal: "no_ticket" } },
+          config: {
+            point: { terminal_id: request.terminalId, print_on_terminal: "no_ticket" },
+            payment_method: { default_type: DEFAULT_TYPE_OF_CARD[request.cardType] },
+          },
         },
         pointCreationAnswerSchema,
       );

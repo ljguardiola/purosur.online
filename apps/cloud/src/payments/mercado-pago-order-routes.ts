@@ -164,7 +164,7 @@ export function registerMercadoPagoOrderRoutes<TQueryResult extends PgQueryResul
           body.provider === "MERCADOPAGO_POINT"
             ? await createMercadoPagoPointOrder(
                 { lanes, mercadoPago, pointTerminals, clock },
-                input,
+                { ...input, cardType: body.card_type },
               )
             : await createMercadoPagoQrOrder({ lanes, mercadoPago, qrPointsOfSale, clock }, input);
 
