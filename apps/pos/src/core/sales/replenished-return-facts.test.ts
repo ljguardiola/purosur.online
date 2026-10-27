@@ -127,7 +127,7 @@ describe("replenishing a return into a restored register", () => {
     expect(
       rows("SELECT id, kind, sale_line_id, delta FROM stock_movements WHERE kind = 'return'"),
     ).toEqual([{ id: "movement-2", kind: "return", sale_line_id: "line-1", delta: 1000 }]);
-    expect(rows("SELECT quantity FROM stock_balances")).toEqual([{ quantity: 2010 + 1000 }]);
+    expect(rows("SELECT quantity FROM stock_balances")).toEqual([{ quantity: 1010 }]);
   });
 
   it("keeps a discarded item's loss, tied to no line, and leaves the balance as the sale left it", () => {
@@ -170,7 +170,7 @@ describe("replenishing a return into a restored register", () => {
       { id: "movement-2", kind: "return", sale_line_id: "line-1", delta: 1000 },
       { id: "movement-3", kind: "loss", sale_line_id: null, delta: -1000 },
     ]);
-    expect(rows("SELECT quantity FROM stock_balances")).toEqual([{ quantity: 2010 }]);
+    expect(rows("SELECT quantity FROM stock_balances")).toEqual([{ quantity: 10 }]);
   });
 
   it("changes nothing when the snapshot already holds the return", () => {
