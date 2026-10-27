@@ -84,6 +84,16 @@ function factsOf(answer: BranchSaleForReturnAnswer): BranchSaleFacts {
         refundedAmount: line.refunded_amount,
       })),
     },
+    invoiceStanding: {
+      fiscalDocuments: answer.invoice_standing.fiscal_documents.map((document) => ({
+        origin: document.origin,
+        state: document.state,
+        pointOfSale: document.point_of_sale,
+        number: document.number,
+        buyerTaxStatusCode: document.buyer_tax_status_code,
+      })),
+      deferralPending: answer.invoice_standing.deferral_pending,
+    },
     goodConditionReturnDays: answer.good_condition_return_days,
     countedReturnIds: answer.counted_return_ids,
   };
