@@ -4,8 +4,13 @@ import type {
   PendingDeferredSale,
 } from "../model/deferred-sale-record.js";
 
+export interface DeferredSaleCandidate extends PendingDeferredSale {
+  lastAuthorizedIssuedOn: string | null;
+  mayAlreadyBeInvoiced: boolean;
+}
+
 export interface DeferredSaleExpiryTransaction {
-  lockPendingDeferredSalesOccurredBefore(instant: Date): Promise<PendingDeferredSale[]>;
+  lockPendingDeferredSales(): Promise<DeferredSaleCandidate[]>;
   recordExpiry(deferredSaleId: string, task: DeferredSaleRegularizationTask): Promise<void>;
 }
 
@@ -15,7 +20,7 @@ export interface DeferredSaleExpiryStore {
   ): Promise<TOutcome>;
 }
 
-export interface RegularizeExpiredDeferredSalesPorts {
+export interface RegularizeUninvoiceableDeferredSalesPorts {
   store: DeferredSaleExpiryStore;
   clock: Clock;
 }

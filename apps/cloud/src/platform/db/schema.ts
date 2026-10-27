@@ -2675,8 +2675,11 @@ export const numberingFreezes = pgTable(
 );
 
 // The cloud's copy of a deferred sale a register recorded, kept up to date from the register's
-// synchronized events: pending until a fiscal document satisfies it, its sale is voided, or its
-// expiry passes. It keeps the time it expired at even when a document satisfies it afterwards.
+// synchronized events: pending until a fiscal document satisfies it, its sale is voided, or it can
+// no longer be invoiced, because its expiry passed or its point of sale already authorized a
+// document dated after its day; it is then expired. A sale with a fiscal request of its own that
+// the tax authority holds or may hold stays pending, past its expiry too. It keeps the time it
+// expired at even when a document satisfies it afterwards.
 export const deferredSales = pgTable(
   "deferred_sales",
   {
@@ -2724,7 +2727,7 @@ export const deferredSales = pgTable(
 );
 
 // A task for a person: an authorization the tax authority holds that this system did not issue, a
-// credit note it rejected, or a deferred sale that expired without being invoiced. One per voucher
+// credit note it rejected, or a deferred sale that can no longer be invoiced. One per voucher
 // held outside the register, one per rejected credit note and one per expired deferred sale, so
 // detecting any of them again opens nothing new; credit notes rejected at the same number each
 // keep their own. A task about a voucher names the register that holds its point of sale when the
