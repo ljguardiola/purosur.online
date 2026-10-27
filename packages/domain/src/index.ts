@@ -774,6 +774,8 @@ export type {
   ReturnLineAssessment,
   ReturnLineRefusal,
   ReturnReason,
+  ReturnRecord,
+  ReturnRecordLine,
   ReturnStandingLine,
   ReturnWindow,
   SaleForReturn,
