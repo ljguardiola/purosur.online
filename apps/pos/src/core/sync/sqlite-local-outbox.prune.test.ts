@@ -365,7 +365,7 @@ function contentsOfEveryTableButTheOutbox(target: LocalDatabase): Record<string,
 }
 
 describe("forgetting the acknowledged events after a register session", () => {
-  it("touches nothing but the outbox: sales, payments and cash sessions stay as they were, and the void whose credit note is in progress stays held", async () => {
+  it("touches nothing but the outbox: sales, payments and cash sessions stay as they were, and the void and the return whose credit note is in progress stay held", async () => {
     await withRegisterSession(async ({ database: session, now }) => {
       await new SqliteLocalOutbox(session, now).acknowledgeThrough(Number.MAX_SAFE_INTEGER);
       const before = contentsOfEveryTableButTheOutbox(session);
@@ -393,11 +393,16 @@ describe("forgetting the acknowledged events after a register session", () => {
              ORDER BY event_type`,
           )
           .all(),
-      ).toEqual([{ event_type: "sale_voided" }]);
+      ).toEqual([{ event_type: "sale_returned" }, { event_type: "sale_voided" }]);
       expect(heldSeqs(session).length).toBeLessThan(outboxBefore.length);
       expect(
         session.prepare("SELECT state FROM sale_void_credit_notes ORDER BY state").all(),
-      ).toEqual([{ state: "AUTHORIZED" }, { state: "IN_PROGRESS" }, { state: "ISSUED_OFFLINE" }]);
+      ).toEqual([
+        { state: "AUTHORIZED" },
+        { state: "IN_PROGRESS" },
+        { state: "IN_PROGRESS" },
+        { state: "ISSUED_OFFLINE" },
+      ]);
       expect(contentsOfEveryTableButTheOutbox(session)).toEqual(before);
       for (const table of ["sales", "payment_transactions", "cash_sessions", "cash_movements"]) {
         expect(before[table]?.length, table).toBeGreaterThan(0);
