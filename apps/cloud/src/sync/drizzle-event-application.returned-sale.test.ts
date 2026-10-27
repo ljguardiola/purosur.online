@@ -561,6 +561,7 @@ describe("applying a pushed return", () => {
       eventType: "sale_returned",
       schemaVersion: 1,
       occurredAt: new Date(at),
+      receivedAt: new Date(at),
       payload: {
         id: returnId,
         sale_id: sale.saleId,
