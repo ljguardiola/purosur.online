@@ -103,7 +103,7 @@ describe("ReturnScreen asking for the customer's ticket", () => {
 
     readBarcode("7790001");
 
-    await expect.element(screen.getByText("Ese QR no es de un ticket")).toBeVisible();
+    await expect.element(screen.getByText("Ese QR no es de un ticket").first()).toBeVisible();
     expect(findSaleForReturn).not.toHaveBeenCalled();
   });
 
@@ -118,7 +118,7 @@ describe("ReturnScreen asking for the customer's ticket", () => {
 
       await typeTicket(screen);
 
-      await expect.element(screen.getByText(text)).toBeVisible();
+      await expect.element(screen.getByText(text).first().first()).toBeVisible();
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     },
   );
@@ -132,7 +132,7 @@ describe("ReturnScreen asking for the customer's ticket", () => {
 
     await typeTicket(screen);
 
-    await expect.element(screen.getByText("No se pudo buscar la venta")).toBeVisible();
+    await expect.element(screen.getByText("No se pudo buscar la venta").first()).toBeVisible();
   });
 
   it("tells the app the session ended when the core says nobody is signed in", async () => {

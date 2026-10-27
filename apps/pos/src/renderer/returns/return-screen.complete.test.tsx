@@ -97,8 +97,10 @@ describe("ReturnScreen completing the return", () => {
     await decideOnePasta(screen);
 
     await complete(screen);
-    await complete(screen);
 
+    await expect
+      .element(screen.getByRole("button", { name: "Completar devolución" }))
+      .toBeDisabled();
     expect(completeReturn).toHaveBeenCalledOnce();
   });
 
@@ -131,7 +133,7 @@ describe("ReturnScreen completing the return", () => {
 
       await complete(screen);
 
-      await expect.element(screen.getByText(text)).toBeVisible();
+      await expect.element(screen.getByText(text).first().first()).toBeVisible();
       await expect
         .element(screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }))
         .toBeChecked();

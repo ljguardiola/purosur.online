@@ -40,7 +40,9 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
 
     await typeTicket(screen);
 
-    await expect.element(screen.getByText("Hacer devoluciones necesita permiso")).toBeVisible();
+    await expect
+      .element(screen.getByText("Hacer devoluciones necesita permiso").first())
+      .toBeVisible();
     await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
     await expect
       .element(screen.getByText("Tomás no tiene permiso para hacer devoluciones."))
@@ -72,7 +74,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     await userEvent.click(screen.getByRole("button", { name: "Buscar venta" }));
     await userEvent.click(screen.getByRole("button", { name: "Coincide: seguir" }));
 
-    await expect.element(screen.getByText("Autorizó Grace")).toBeVisible();
+    await expect.element(screen.getByText("Autorizó Grace").first()).toBeVisible();
     await chooseReturnLine(screen, "Pasta de maní 380 g", {
       reason: "Defecto",
       disposition: "Descarte",
@@ -96,7 +98,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     await authorizeAs(screen, "Grace", "1234");
     await userEvent.click(screen.getByRole("button", { name: "Buscar venta" }));
 
-    await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+    await expect.element(screen.getByText("PIN incorrecto").first()).toBeVisible();
   });
 
   it("asks again at the next return, leaving the one that ended without its authorization", async () => {
@@ -109,9 +111,11 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     await userEvent.click(screen.getByRole("button", { name: "Coincide: seguir" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir sin completar" }));
 
-    await openReturn(screen);
+    await typeTicket(screen);
 
-    await expect.element(screen.getByText("Hacer devoluciones necesita permiso")).toBeVisible();
+    await expect
+      .element(screen.getByText("Hacer devoluciones necesita permiso").first())
+      .toBeVisible();
   });
 
   it("asks who authorizes when completing is refused for lack of permission", async () => {

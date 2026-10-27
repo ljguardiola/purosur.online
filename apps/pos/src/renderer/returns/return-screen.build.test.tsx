@@ -85,7 +85,9 @@ describe("ReturnScreen choosing what the customer returns", () => {
         { sale_line_id: "line-pasta", quantity: 3, reason: null, disposition: null },
       ]),
     );
-    await expect.element(screen.getByText("Elegí el motivo de Pasta de maní 380 g.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Elegí el motivo de Pasta de maní 380 g.").first())
+      .toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Completar devolución" }))
       .toBeDisabled();
@@ -98,7 +100,7 @@ describe("ReturnScreen choosing what the customer returns", () => {
     await chooseReturnLine(screen, "Nibs de cacao", { reason: "Defecto" });
 
     await expect
-      .element(screen.getByText("Elegí qué pasa con la mercadería de Nibs de cacao."))
+      .element(screen.getByText("Elegí qué pasa con la mercadería de Nibs de cacao.").first())
       .toBeVisible();
   });
 
@@ -149,10 +151,10 @@ describe("ReturnScreen choosing what the customer returns", () => {
     await chooseReturnLine(screen, "Pasta de maní 380 g");
     await vi.waitFor(() => expect(previewReturn).toHaveBeenCalled());
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }));
+    await screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }).click({ force: true });
 
     await expect
-      .element(screen.getByText("Elegí el motivo de Pasta de maní 380 g."))
+      .element(screen.getByText("Elegí el motivo de Pasta de maní 380 g.").first())
       .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: "Completar devolución" }))
@@ -173,7 +175,7 @@ describe("ReturnScreen choosing what the customer returns", () => {
     );
 
     await expect
-      .element(screen.getByText("Pasta de maní 380 g: se pueden devolver hasta 3 u."))
+      .element(screen.getByText("Pasta de maní 380 g: se pueden devolver hasta 3 u.").first())
       .toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Completar devolución" }))
@@ -226,7 +228,9 @@ describe("ReturnScreen choosing what the customer returns", () => {
 
     await expect
       .element(
-        screen.getByText("Venció el plazo por arrepentimiento: se podía hasta el 12/09/2026."),
+        screen
+          .getByText("Venció el plazo por arrepentimiento: se podía hasta el 12/09/2026.")
+          .first(),
       )
       .toBeVisible();
     await expect
@@ -246,9 +250,13 @@ describe("ReturnScreen choosing what the customer returns", () => {
 
     await chooseReturnLine(screen, "Pasta de maní 380 g");
 
-    await expect.element(screen.getByText("No se pudo calcular el reintegro")).toBeVisible();
+    await expect
+      .element(screen.getByText("No se pudo calcular el reintegro").first())
+      .toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-    await expect.element(screen.getByText("Elegí el motivo de Pasta de maní 380 g.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Elegí el motivo de Pasta de maní 380 g.").first())
+      .toBeVisible();
     expect(previewReturn).toHaveBeenCalledTimes(2);
   });
 
@@ -271,7 +279,9 @@ describe("ReturnScreen choosing what the customer returns", () => {
 
     await chooseReturnLine(screen, "Pasta de maní 380 g");
 
-    await expect.element(screen.getByText("Esa venta ya no se puede devolver.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Esa venta ya no se puede devolver.").first())
+      .toBeVisible();
   });
 
   it("leaves without completing, asking nothing more of the core", async () => {

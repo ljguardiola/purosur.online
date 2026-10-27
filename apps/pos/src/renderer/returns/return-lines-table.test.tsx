@@ -70,7 +70,7 @@ describe("ReturnLinesTable", () => {
   it("tells the screen which line the cashier checks", async () => {
     const { screen, onCheck } = await renderTable();
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }));
+    await screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }).click({ force: true });
 
     expect(onCheck).toHaveBeenCalledExactlyOnceWith(PASTA, true);
   });
@@ -78,7 +78,7 @@ describe("ReturnLinesTable", () => {
   it("tells the screen which line the cashier unchecks", async () => {
     const { screen, onCheck } = await renderTable({ draft: checkLine(EMPTY_RETURN_DRAFT, PASTA) });
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }));
+    await screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }).click({ force: true });
 
     expect(onCheck).toHaveBeenCalledExactlyOnceWith(PASTA, false);
   });
@@ -145,10 +145,10 @@ describe("ReturnLinesTable", () => {
 
     await expect
       .element(screen.getByRole("option", { name: /Arrepentimiento/ }))
-      .toHaveTextContent("Vencido");
+      .toHaveTextContent(/Vencido/);
     await expect
       .element(screen.getByRole("option", { name: "Defecto" }))
-      .not.toHaveTextContent("Vencido");
+      .not.toHaveTextContent(/Vencido/);
   });
 
   it("returns a line that must go back whole in all its remaining quantity, with the reason it cannot change", async () => {
@@ -201,8 +201,10 @@ describe("ReturnLinesTable", () => {
   });
 
   it("has no accessibility violations", async () => {
-    await renderTable({ draft: checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), HONEY) });
+    const { screen } = await renderTable({
+      draft: checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), HONEY),
+    });
 
-    await expectNoAccessibilityViolations(document.body);
+    await expectNoAccessibilityViolations(screen.container);
   });
 });

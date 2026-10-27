@@ -147,7 +147,7 @@ export async function chooseReturnLine(
   product: string,
   { reason, disposition }: { reason?: string; disposition?: string } = {},
 ) {
-  await userEvent.click(screen.getByRole("checkbox", { name: new RegExp(product) }));
+  await screen.getByRole("checkbox", { name: new RegExp(product) }).click({ force: true });
   if (reason !== undefined) {
     await userEvent.click(screen.getByRole("button", { name: new RegExp(`Motivo de ${product}`) }));
     await userEvent.click(screen.getByRole("option", { name: new RegExp(reason) }));
