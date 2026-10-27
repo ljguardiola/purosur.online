@@ -800,6 +800,18 @@ const mercadoPagoCharging = createMercadoPagoCharging({
   ticketedSettlement,
 });
 
+const deferredSaleInvoicing = createDeferredSaleInvoicing({
+  database: localDatabase,
+  cloudClient,
+  readDeviceToken,
+  now,
+  reportFailure: (error) => reportFailure("invoicing a deferred sale", error),
+  ids: uuidV7Ids,
+  shortCodes: cryptoShortCodes,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  serialize: deferredBacklogSerializer,
+});
+
 const receiptPrinting = createReceiptPrinting({
   database: localDatabase,
   gate: actionGate,
@@ -807,17 +819,7 @@ const receiptPrinting = createReceiptPrinting({
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   signedInUserId: () => signedInPerson.userId(),
-  deferredSaleInvoicing: createDeferredSaleInvoicing({
-    database: localDatabase,
-    cloudClient,
-    readDeviceToken,
-    now,
-    reportFailure: (error) => reportFailure("invoicing a deferred sale", error),
-    ids: uuidV7Ids,
-    shortCodes: cryptoShortCodes,
-    readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-    serialize: deferredBacklogSerializer,
-  }),
+  deferredSaleInvoicing,
   beforePrinting: async (saleId) => {
     await realTimeAuthorization.authorizeSale(saleId);
     fiscalModeWatch?.check();
@@ -882,6 +884,10 @@ const returnRequestDeps = (
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   now,
   ids: uuidV7Ids,
+  creditNotes: cloudCreditNotes({ cloudClient, readDeviceToken }),
+  invoicing: deferredSaleInvoicing,
+  printCreditNote: receiptPrinting.printVoidedSaleCreditNote,
+  reportFailure: (error) => reportFailure("settling the credit note of a return", error),
 });
 
 const rendererRequestDeps: RendererRequestDeps = {
