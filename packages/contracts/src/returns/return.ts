@@ -13,8 +13,8 @@ import {
   pointOfSaleNumberSchema,
 } from "../shared/index.js";
 
-export const returnReasonSchema = z.enum(RETURN_REASONS);
-export const returnDispositionSchema = z.enum(RETURN_DISPOSITIONS);
+const returnReasonSchema = z.enum(RETURN_REASONS);
+const returnDispositionSchema = z.enum(RETURN_DISPOSITIONS);
 export const ticketSourceSchema = z.enum(TICKET_SOURCES);
 
 const cents = z.int().nonnegative();
@@ -34,7 +34,7 @@ export const refundAllocationSchema = z.object({
   amount: z.int(),
 });
 
-export const returnLineRefusalSchema = z.discriminatedUnion("kind", [
+const returnLineRefusalSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unknown_line") }),
   z.object({ kind: z.literal("duplicate_line") }),
   z.object({ kind: z.literal("invalid_quantity") }),
@@ -50,7 +50,7 @@ export const returnLineRefusalSchema = z.discriminatedUnion("kind", [
 ]);
 export type ReturnLineRefusalBody = z.infer<typeof returnLineRefusalSchema>;
 
-export const refundAllocationRefusalSchema = z.discriminatedUnion("kind", [
+const refundAllocationRefusalSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unknown_payment"), payment_id: z.string() }),
   z.object({ kind: z.literal("invalid_amount"), payment_id: z.string() }),
   z.object({ kind: z.literal("not_cash"), payment_id: z.string() }),

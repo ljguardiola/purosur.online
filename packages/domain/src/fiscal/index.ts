@@ -130,7 +130,6 @@ export {
   isRegisterFiscallyOnline,
   REGISTER_HEALTH_CHECK_INTERVAL_MS,
 } from "./model/fiscal-online-signal.js";
-export type { FiscalQrVoucher } from "./model/fiscal-qr-voucher.js";
 export { fiscalQrVoucher } from "./model/fiscal-qr-voucher.js";
 export type {
   FiscalDocumentType,

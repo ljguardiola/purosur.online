@@ -3,7 +3,7 @@ import { argentinaInstant } from "../../../shared/index.js";
 import type { ReturnablePayment } from "../../model/refund-allocation.js";
 import type { FakeStoredSale } from "./fake-return-ledger.js";
 
-export const SOLD_AT = new Date(argentinaInstant("2026-09-12", "15:30"));
+const SOLD_AT = new Date(argentinaInstant("2026-09-12", "15:30"));
 export const RETURNED_AT = new Date(argentinaInstant("2026-09-20", "10:00"));
 
 export const YERBA_LINE: SaleLine = {
@@ -22,7 +22,7 @@ export const YERBA_LINE: SaleLine = {
   lineTotal: 7500,
 };
 
-export const PROMOTED_LINE: SaleLine = {
+const PROMOTED_LINE: SaleLine = {
   ...YERBA_LINE,
   id: "line-2",
   productId: "galletitas",
@@ -41,7 +41,7 @@ export const PROMOTED_LINE: SaleLine = {
   lineTotal: 4000,
 };
 
-export const CHEESE_LINE: SaleLine = {
+const CHEESE_LINE: SaleLine = {
   ...YERBA_LINE,
   id: "line-3",
   productId: "queso",
