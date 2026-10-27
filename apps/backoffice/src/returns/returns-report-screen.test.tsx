@@ -82,29 +82,27 @@ function servicesAnswering(value: typeof returnsReport) {
   return services;
 }
 
-test("names the report and the figures of the period", async () => {
+test("names the report", async () => {
   const screen = await renderScreen(createServices());
 
   await expect
     .element(screen.getByRole("heading", { name: "Devoluciones", level: 1 }))
     .toBeVisible();
   await expect.element(screen.getByText("Reportes · Caja", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Reintegrado", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("$ 5.750,00")).toBeVisible();
-  await expect.element(screen.getByText("Devoluciones", { exact: true }).nth(1)).toBeVisible();
-  await expect.element(screen.getByText("Iniciadas a mano", { exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
+    .toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("counts every return, and those started by hand apart", async () => {
+test("counts every return, what was refunded for them and those started by hand apart", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .poll(() => screen.getByText("Devoluciones", { exact: true }).nth(1).element().parentElement)
-    .toHaveTextContent("3");
-  await expect
-    .poll(() => screen.getByText("Iniciadas a mano").element().parentElement)
-    .toHaveTextContent("2");
+  const figureOf = (label: string, position: number) =>
+    screen.getByText(label, { exact: true }).nth(position).element().parentElement?.textContent;
+  await expect.poll(() => figureOf("Devoluciones", 1)).toContain("3");
+  expect(figureOf("Reintegrado", 0)).toContain("$ 5.750,00");
+  expect(figureOf("Iniciadas a mano", 0)).toContain("2");
 });
 
 test("shows the returns started with the typed number under their own heading, before the scanned ones", async () => {
