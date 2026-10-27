@@ -118,6 +118,7 @@ describe("holding a paid order as a pending payment of its sale", () => {
         sale_id: saleId,
         method: "QR",
         provider: "MERCADOPAGO_QR",
+        card_type: null,
         amount: 3000,
         state: "PENDING",
       },

@@ -928,6 +928,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1033,6 +1034,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1133,6 +1135,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1232,6 +1235,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1360,6 +1364,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1478,6 +1483,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1600,6 +1606,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1730,6 +1737,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1827,6 +1835,7 @@ describe("the register's local migrations", () => {
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
+        "0083_point_card_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before

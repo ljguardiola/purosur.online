@@ -11,6 +11,7 @@ import type {
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
   MercadoPagoChargeOrderReading,
+  MercadoPagoChargeOrderRequest,
   MercadoPagoChargeOrders,
 } from "@purosur/domain/payments/use-cases";
 import type { CloudCallOptions, CloudResponse } from "../platform/cloud-client";
@@ -30,6 +31,17 @@ export interface CloudMercadoPagoChargeOrdersDeps {
 const ORDERS_PATH = "/api/payments/mercado-pago/orders";
 const UNREACHABLE = { kind: "unreachable" } as const;
 const NOT_RECORDED = { kind: "not_recorded" } as const;
+
+function orderRequestOf(order: MercadoPagoChargeOrderRequest): MercadoPagoOrderRequestBody {
+  const common = {
+    payment_transaction_id: order.paymentTransactionId,
+    sale_id: order.saleId,
+    amount: order.amount,
+  };
+  return order.method === "POINT"
+    ? { ...common, provider: "MERCADOPAGO_POINT", card_type: order.cardType }
+    : { ...common, provider: "MERCADOPAGO_QR" };
+}
 
 function paymentRequestOf(order: MercadoPagoChargeOrder): MercadoPagoCancellationRequestBody {
   return {
@@ -104,16 +116,15 @@ export class CloudMercadoPagoChargeOrders implements MercadoPagoChargeOrders {
     this.deps = deps;
   }
 
-  async requestOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderAnswer> {
+  async requestOrder(order: MercadoPagoChargeOrderRequest): Promise<MercadoPagoChargeOrderAnswer> {
     const deviceToken = await this.deps.readDeviceToken();
     if (deviceToken === undefined) {
       return { kind: "refused" };
     }
-    const body: MercadoPagoOrderRequestBody = {
-      payment_transaction_id: order.paymentTransactionId,
-      ...paymentRequestOf(order),
-    };
-    return orderAnswerOf(await this.deps.post(ORDERS_PATH, deviceToken, body), order.method);
+    return orderAnswerOf(
+      await this.deps.post(ORDERS_PATH, deviceToken, orderRequestOf(order)),
+      order.method,
+    );
   }
 
   async readOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderReading> {
