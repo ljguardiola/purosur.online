@@ -313,6 +313,21 @@ describe("the open session's cash movements", () => {
     ]);
   });
 
+  it("writes when each happened on the clock of the zone rules it is given", async () => {
+    await recordCashMovementFor(
+      deps(),
+      request({ kind: "WITHDRAWAL", authorization: { user_id: "u2", pin: "1234" } }),
+    );
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    const movements = currentCashMovements(database, { zoneRules: () => rules });
+
+    expect(movements?.at(-1)?.occurred_at).toBe("2026-09-30T12:00:00.000+00:00");
+  });
+
   it("is none while no session is open", () => {
     database
       .prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = ?")

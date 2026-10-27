@@ -110,6 +110,20 @@ function openedSessions(): unknown[] {
 }
 
 describe("opening a cash session on the register", () => {
+  it("writes when it was opened on the clock of the zone rules it is given", async () => {
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    expect(
+      await openCashSessionFor(deps({ zoneRules: { zoneRules: () => rules } }), 5000),
+    ).toMatchObject({
+      kind: "opened",
+      cash_session: { opened_at: "2026-09-30T12:00:00.000+00:00" },
+    });
+  });
+
   it("opens it for the person signed in on the register and answers the cash session as it stands for them", async () => {
     expect(await openCashSessionFor(deps(), 5000)).toEqual({
       kind: "opened",

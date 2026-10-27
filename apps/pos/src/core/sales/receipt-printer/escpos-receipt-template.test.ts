@@ -558,6 +558,28 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain("Fecha 30/09/2026                      Hora 23:30");
   });
 
+  it("writes the moment of the sale on the clock of the zone rules the template is given", () => {
+    const template = escPosReceiptTemplate({
+      zoneRules: () => ({
+        version: "2026a",
+        transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+      }),
+    });
+    const stored = template.render(
+      receipt({
+        operation: {
+          occurredAt: new Date("2026-10-01T02:30:00.000Z"),
+          servedByFirstName: "Ada",
+          operationNumber: 482,
+        },
+      }),
+    );
+
+    expect(printoutOf(template.printable(stored, ORIGINAL)).textLines).toContain(
+      "Fecha 01/10/2026                      Hora 02:30",
+    );
+  });
+
   it("shows a promotion by its kept name and the line's discount, with no line total", () => {
     const { textLines } = printed(
       receipt({

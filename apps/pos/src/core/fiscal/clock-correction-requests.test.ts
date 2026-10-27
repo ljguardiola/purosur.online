@@ -124,6 +124,17 @@ describe("a restored register that holds no clock mark, with its clock before th
       .run();
   });
 
+  it("writes the register's reading on the clock of the zone rules it is given", () => {
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 120 }],
+    };
+
+    expect(readClockGuardFor({ ...deps(), zoneRules: { zoneRules: () => rules } })).toMatchObject({
+      reading: "2026-10-01T17:00:00.000+02:00",
+    });
+  });
+
   it("is offered the correction by the guard, blocked with no reading of the register's own to show", () => {
     expect(readClockGuardFor(deps())).toMatchObject({
       kind: "read",

@@ -31,6 +31,17 @@ function row(left: string, right: string): string {
 }
 
 describe("the contingency backup ticket", () => {
+  it("writes when it was made on the clock of the zone rules it is given", () => {
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    const { textLines } = printoutOf(renderContingencyBackupTicket(ticket(), rules));
+
+    expect(textLines).toContain(row("Fecha 09/10/2026", "Hora 15:07"));
+  });
+
   it("prints its title, its keeping instruction, where and when it was made, the operation and each QR code", () => {
     expect(printed().text).toBe(
       [

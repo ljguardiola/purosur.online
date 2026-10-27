@@ -138,6 +138,21 @@ describe("the sales history", () => {
     expect(await salesHistoryFor(deps(), ASK)).toEqual({ kind: "lacks_permission" });
   });
 
+  it("writes when each sale happened on the clock of the zone rules it is given", async () => {
+    addSale({ id: "only", occurredAt: "2026-10-08T15:00:00.000Z", operationNumber: 1 });
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    expect(
+      await salesHistoryFor({ ...deps(), zoneRules: { zoneRules: () => rules } }, ASK),
+    ).toMatchObject({
+      kind: "found",
+      rows: [{ occurred_at: "2026-10-08T15:00:00.000+00:00" }],
+    });
+  });
+
   it("answers the page of rows, the total and the page size, most recent first", async () => {
     addSale({ id: "early", occurredAt: "2026-10-08T09:00:00.000Z", operationNumber: 1 });
     addSale({
