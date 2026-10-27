@@ -3,8 +3,10 @@ import {
   type SupplierPriceListDiscardBody,
   type SupplierPriceListPageRefused,
   type SupplierPriceListReview,
+  type SupplierPriceListRowLinkBody,
   type SupplierPriceListRowPriceBody,
   type SupplierPriceListRowRemovalBody,
+  type SupplierPriceListRowReviewBody,
   type SupplierPriceListSummary,
   type SupplierPriceListUploadQuery,
   type SupplierPriceListWebPageBody,
@@ -70,6 +72,13 @@ type ReviewChangeRefusal =
 
 export type ChangeSupplierPriceListRowOutcome = { kind: "ok" } | ReviewChangeRefusal;
 
+export type LinkSupplierPriceListRowOutcome =
+  | { kind: "ok" }
+  | { kind: "packaging_not_linkable" }
+  | { kind: "vat_rate_missing" }
+  | { kind: "vat_rate_invalid" }
+  | ReviewChangeRefusal;
+
 export type ConfirmSupplierPriceListOutcome =
   | { kind: "ok" }
   | { kind: "no_rows" }
@@ -81,6 +90,7 @@ export type ConfirmSupplierPriceListOutcome =
 export type DiscardSupplierPriceListOutcome = { kind: "ok" } | ReviewChangeRefusal;
 
 const REVIEW_CONFLICTS = ["not_editable", "stale_version"] as const;
+const LINK_CONFLICTS = ["packaging_not_linkable", "vat_rate_missing", "vat_rate_invalid"] as const;
 const CONFIRMATION_CONFLICTS = [
   "no_rows",
   "unpriced_rows",
@@ -299,6 +309,37 @@ export function setSupplierPriceListRowPrice(
   return changeReview(
     "PUT",
     `/api/supplier-price-lists/${listId}/rows/${rowId}/price`,
+    body,
+    REVIEW_CONFLICTS,
+  );
+}
+
+export function linkSupplierPriceListRow(
+  listId: string,
+  rowId: string,
+  input: SupplierPriceListRowLinkBody,
+): Promise<LinkSupplierPriceListRowOutcome> {
+  const body: SupplierPriceListRowLinkBody = {
+    version: input.version,
+    productId: input.productId,
+    packagingId: input.packagingId,
+    vatRate: input.vatRate ?? null,
+  };
+  return changeReview("PUT", `/api/supplier-price-lists/${listId}/rows/${rowId}/link`, body, [
+    ...REVIEW_CONFLICTS,
+    ...LINK_CONFLICTS,
+  ]);
+}
+
+export function markSupplierPriceListRowReviewed(
+  listId: string,
+  rowId: string,
+  input: SupplierPriceListRowReviewBody,
+): Promise<ChangeSupplierPriceListRowOutcome> {
+  const body: SupplierPriceListRowReviewBody = { version: input.version };
+  return changeReview(
+    "PUT",
+    `/api/supplier-price-lists/${listId}/rows/${rowId}/review`,
     body,
     REVIEW_CONFLICTS,
   );

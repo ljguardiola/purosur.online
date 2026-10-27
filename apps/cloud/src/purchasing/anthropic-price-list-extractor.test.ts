@@ -6,10 +6,8 @@ import {
 } from "@purosur/domain";
 import { PDFDocument } from "pdf-lib";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  AnthropicPriceListExtractor,
-  SUPPLIER_PRICE_LIST_READING_MODEL,
-} from "./anthropic-price-list-extractor.js";
+import { AnthropicPriceListExtractor } from "./anthropic-price-list-extractor.js";
+import { PURCHASING_AI_MODEL as SUPPLIER_PRICE_LIST_READING_MODEL } from "./anthropic-structured-call.js";
 import {
   apiErrorResponse,
   streamEndingWithoutAMessageResponse,
@@ -68,6 +66,7 @@ const ROW = {
   presentation: "Caja x 10",
   priceCents: 1_234_50,
   page: 1,
+  barcode: "7790000000011",
 };
 
 describe("the request the extractor sends", () => {
@@ -149,6 +148,12 @@ describe("the request the extractor sends", () => {
       "pricesIncludeVat",
       "rows",
     ]);
+    const rowSchema = (
+      outputConfig.format.schema.properties["rows"] as {
+        items: { properties: Record<string, unknown> };
+      }
+    ).items;
+    expect(Object.keys(rowSchema.properties)).toContain("barcode");
     expect(request.body["fallbacks"]).toBe("default");
     expect(request.headers.get("anthropic-beta")).toContain("server-side-fallback-2026-07-01");
   });
@@ -178,6 +183,7 @@ describe("the rows the extractor reads", () => {
             presentation: null,
             priceCents: null,
             page: null,
+            barcode: null,
           },
         ],
       }),
@@ -195,6 +201,7 @@ describe("the rows the extractor reads", () => {
           presentation: null,
           priceCents: null,
           page: null,
+          barcode: null,
         },
       ],
     });
@@ -215,6 +222,37 @@ describe("the rows the extractor reads", () => {
       });
     },
   );
+
+  it("answers the barcode printed for an item and none for an item without one", async () => {
+    const { extractor } = extractorAnswering(() =>
+      streamedJsonResponse({
+        listDate: null,
+        pricesIncludeVat: null,
+        rows: [ROW, { ...ROW, description: "Azúcar 1 kg", barcode: null }],
+      }),
+    );
+
+    const extraction = await extractor.extract(SOURCE);
+
+    expect(extraction).toMatchObject({
+      rows: [{ barcode: "7790000000011" }, { barcode: null }],
+    });
+  });
+
+  it("asks the model for the barcode of each item, as the digits printed", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    );
+
+    await extractor.extract(SOURCE);
+    await extractor.extract({ kind: "web_page", html: new TextEncoder().encode("<p>Yerba</p>") });
+
+    for (const request of requests) {
+      const messages = request.body["messages"] as { content: { type: string; text?: string }[] }[];
+      const instruction = messages[0]?.content.find(({ type }) => type === "text")?.text;
+      expect(instruction).toMatch(/barcode/i);
+    }
+  });
 
   it("answers a list without a date", async () => {
     const { extractor } = extractorAnswering(() =>
@@ -317,6 +355,22 @@ describe("an answer the extractor does not accept", () => {
         listDate: null,
         pricesIncludeVat: null,
         rows: [{ ...ROW, code: "x".repeat(PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH + 1) }],
+      },
+    ],
+    [
+      "a barcode past the limit",
+      {
+        listDate: null,
+        pricesIncludeVat: null,
+        rows: [{ ...ROW, barcode: "7".repeat(PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH + 1) }],
+      },
+    ],
+    [
+      "a row without a barcode field",
+      {
+        listDate: null,
+        pricesIncludeVat: null,
+        rows: [{ ...ROW, barcode: undefined }],
       },
     ],
     [

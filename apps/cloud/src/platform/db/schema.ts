@@ -30,6 +30,7 @@ import {
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_LIFECYCLE_LIMITS,
+  SUPPLIER_ITEM_VAT_RATES,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_READ_FAILURES,
   SUPPLIER_PRICE_LIST_SOURCE_KINDS,
@@ -3047,6 +3048,8 @@ export const supplierPriceLists = pgTable(
   ],
 );
 
+const supplierItemVatRates = sql.raw(SUPPLIER_ITEM_VAT_RATES.join(", "));
+
 export const supplierPriceListRows = pgTable(
   "supplier_price_list_rows",
   {
@@ -3060,11 +3063,73 @@ export const supplierPriceListRows = pgTable(
     presentation: text("presentation"),
     priceCents: bigint("price_cents", { mode: "number" }),
     page: integer("page"),
+    barcode: text("barcode"),
+    productId: uuid("product_id").references(() => products.id),
+    packagingId: uuid("packaging_id").references(() => productPackagings.id),
+    vatRate: integer("vat_rate"),
+    reviewed: boolean("reviewed").notNull().default(false),
+    linkedByPerson: boolean("linked_by_person").notNull().default(false),
   },
   (table) => [
     unique("supplier_price_list_rows_list_position_key").on(table.listId, table.position),
     check("supplier_price_list_rows_price_check", sql`${table.priceCents} >= 0`),
     check("supplier_price_list_rows_page_check", sql`${table.page} > 0`),
+    check(
+      "supplier_price_list_rows_link_check",
+      sql`(${table.productId} is null) = (${table.packagingId} is null)`,
+    ),
+    check(
+      "supplier_price_list_rows_vat_rate_check",
+      sql`${table.vatRate} in (${supplierItemVatRates})`,
+    ),
+  ],
+);
+
+// A supplier's item is told apart by its code, or by its normalized description when it has none.
+export const supplierItems = pgTable(
+  "supplier_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    keyKind: text("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    description: text("description").notNull(),
+    productId: uuid("product_id").references(() => products.id),
+    packagingId: uuid("packaging_id").references(() => productPackagings.id),
+    vatRate: integer("vat_rate"),
+  },
+  (table) => [
+    unique("supplier_items_supplier_key_key").on(table.supplierId, table.keyKind, table.keyValue),
+    check("supplier_items_key_kind_check", sql`${table.keyKind} in ('code', 'description')`),
+    check(
+      "supplier_items_link_check",
+      sql`(${table.productId} is null) = (${table.packagingId} is null)`,
+    ),
+    check("supplier_items_vat_rate_check", sql`${table.vatRate} in (${supplierItemVatRates})`),
+    index("supplier_items_product_id_idx").on(table.productId),
+  ],
+);
+
+// One entry per confirmed list that priced the item.
+export const supplierItemPrices = pgTable(
+  "supplier_item_prices",
+  {
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => supplierItems.id),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => supplierPriceLists.id),
+    priceCents: bigint("price_cents", { mode: "number" }).notNull(),
+    listDate: date("list_date", { mode: "string" }).notNull(),
+    pricesIncludeVat: boolean("prices_include_vat").notNull(),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ name: "supplier_item_prices_pkey", columns: [table.itemId, table.listId] }),
+    check("supplier_item_prices_price_check", sql`${table.priceCents} >= 0`),
   ],
 );
 

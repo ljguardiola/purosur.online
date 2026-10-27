@@ -1,4 +1,5 @@
 import type {
+  ProductChooser,
   SupplierPriceListFiles,
   SupplierPriceListWebPages,
 } from "@purosur/domain/purchasing/use-cases";
@@ -11,4 +12,6 @@ export interface PurchasingRouteOptions<TQueryResult extends PgQueryResultHKT> {
   // Present only when the AI reading of supplier price lists is configured.
   supplierPriceListFiles?: SupplierPriceListFiles;
   supplierPriceListWebPages?: SupplierPriceListWebPages;
+  // Present only when the AI choice of a product for a supplier's item is configured.
+  productChooser?: ProductChooser;
 }

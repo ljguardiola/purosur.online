@@ -4,7 +4,9 @@ import {
   discardSupplierPriceList,
   fetchSupplierPriceListReview,
   fetchSupplierPriceLists,
+  linkSupplierPriceListRow,
   loadSupplierPriceListWebPage,
+  markSupplierPriceListRowReviewed,
   refreshSupplierPriceList,
   removeSupplierPriceListRow,
   setSupplierPriceListRowPrice,
@@ -371,6 +373,26 @@ const reviewChanges = [
     { priceCents: 1500, version: 3 },
   ],
   [
+    "linkSupplierPriceListRow",
+    () =>
+      linkSupplierPriceListRow("list-1", "row-1", {
+        version: 3,
+        productId: "product-1",
+        packagingId: "packaging-1",
+        vatRate: 1_050,
+      }),
+    "PUT",
+    "/api/supplier-price-lists/list-1/rows/row-1/link",
+    { version: 3, productId: "product-1", packagingId: "packaging-1", vatRate: 1_050 },
+  ],
+  [
+    "markSupplierPriceListRowReviewed",
+    () => markSupplierPriceListRowReviewed("list-1", "row-1", { version: 3 }),
+    "PUT",
+    "/api/supplier-price-lists/list-1/rows/row-1/review",
+    { version: 3 },
+  ],
+  [
     "removeSupplierPriceListRow",
     () => removeSupplierPriceListRow("list-1", "row-1", { version: 3 }),
     "DELETE",
@@ -494,5 +516,30 @@ describe("confirmSupplierPriceList refusals", () => {
         body: JSON.stringify({ version: 3, listDate: null, pricesIncludeVat: false }),
       }),
     );
+  });
+});
+
+describe("linkSupplierPriceListRow", () => {
+  const target = { version: 3, productId: "product-1", packagingId: "packaging-1" };
+
+  test("sends no VAT rate as null", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+    await linkSupplierPriceListRow("list-1", "row-1", target);
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/supplier-price-lists/list-1/rows/row-1/link",
+      expect.objectContaining({ body: JSON.stringify({ ...target, vatRate: null }) }),
+    );
+  });
+
+  test.each([
+    ["packaging_not_linkable", { kind: "packaging_not_linkable" }],
+    ["vat_rate_missing", { kind: "vat_rate_missing" }],
+    ["vat_rate_invalid", { kind: "vat_rate_invalid" }],
+  ])("answers a 409 with the code %s as %j", async (code, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
+
+    expect(await linkSupplierPriceListRow("list-1", "row-1", target)).toEqual(outcome);
   });
 });

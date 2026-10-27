@@ -31,6 +31,8 @@ export type NewPackagingModalServices = {
 type NewPackagingModalProps = {
   open: boolean;
   products: PackagingList["products"];
+  productId?: string;
+  context?: string;
   services: NewPackagingModalServices;
   onCreated: (packaging: PackagingSummary) => void;
   onClose: () => void;
@@ -42,6 +44,8 @@ type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSecon
 export function NewPackagingModal({
   open,
   products,
+  productId,
+  context = "Stock · Presentaciones de compra",
   services,
   onCreated,
   onClose,
@@ -50,8 +54,9 @@ export function NewPackagingModal({
   const sendToMyAccount = useSendToMyAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const [notice, setNotice] = useState<Notice | null>(null);
-  const unitOf = (productId: string | null): SaleUnit =>
-    products.find((product) => product.id === productId)?.saleUnit ?? "UNIT";
+  const given = products.find((product) => product.id === productId);
+  const unitOf = (chosenId: string | null): SaleUnit =>
+    products.find((product) => product.id === chosenId)?.saleUnit ?? "UNIT";
   const { form, values, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_PACKAGING_FORM,
     request: {
@@ -101,10 +106,10 @@ export function NewPackagingModal({
 
   useEffect(() => {
     if (open) {
-      reset();
+      reset({ ...EMPTY_PACKAGING_FORM, productId: productId ?? null });
       setNotice(null);
     }
-  }, [open, reset]);
+  }, [open, productId, reset]);
 
   const options = packagingProductOptions(products);
 
@@ -119,7 +124,7 @@ export function NewPackagingModal({
       width="standard"
       tone="info"
       icon={<Package />}
-      context="Stock · Presentaciones de compra"
+      context={context}
       title="Nueva presentación"
       closable
       footer={
@@ -165,16 +170,20 @@ export function NewPackagingModal({
         )}
         {options ? (
           <>
-            <form.AppField name="productId">
-              {(field) => (
-                <field.ComboBox
-                  label="Producto"
-                  placeholder="Elegí un producto"
-                  options={options}
-                  required
-                />
-              )}
-            </form.AppField>
+            {given ? (
+              <p className="text-body text-text-subtle">Producto: {given.name}</p>
+            ) : (
+              <form.AppField name="productId">
+                {(field) => (
+                  <field.ComboBox
+                    label="Producto"
+                    placeholder="Elegí un producto"
+                    options={options}
+                    required
+                  />
+                )}
+              </form.AppField>
+            )}
             <form.AppField name="name">
               {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
             </form.AppField>

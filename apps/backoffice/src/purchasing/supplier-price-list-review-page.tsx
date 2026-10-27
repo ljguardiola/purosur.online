@@ -7,7 +7,7 @@ import { defaultSupplierPriceListReviewScreenServices } from "./supplier-price-l
 const route = getRouteApi("/signed-in/orders-area/supplier-price-lists/$listId");
 
 export function SupplierPriceListReviewPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { session, services, sessionActions } = route.useRouteContext();
   const { listId } = route.useParams();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
@@ -15,6 +15,7 @@ export function SupplierPriceListReviewPage(): ReactElement {
   return (
     <SupplierPriceListReviewScreen
       listId={listId}
+      access={session}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onBack={() => void navigate({ to: "/supplier-price-lists" })}

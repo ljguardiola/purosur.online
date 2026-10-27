@@ -13,12 +13,16 @@ beforeEach(() => {
 function renderModal({
   createPackaging = vi.fn<NewPackagingModalServices["createPackaging"]>(),
   products = packagableProducts,
+  productId,
+  context,
   onCreated = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
 }: {
   createPackaging?: NewPackagingModalServices["createPackaging"];
   products?: PackagingList["products"];
+  productId?: string;
+  context?: string;
   onCreated?: (packaging: PackagingSummary) => void;
   onClose?: () => void;
   onSessionEnded?: () => void;
@@ -29,6 +33,8 @@ function renderModal({
         <NewPackagingModal
           open
           products={products}
+          {...(productId === undefined ? {} : { productId })}
+          {...(context === undefined ? {} : { context })}
           services={{ createPackaging }}
           onCreated={onCreated}
           onClose={onClose}
@@ -290,4 +296,37 @@ test("tells there is no active product to define a packaging for, offering no fi
   await expect
     .element(dialog.getByRole("button", { name: "Crear la presentación" }))
     .toBeDisabled();
+});
+
+test("for a given product, names it instead of asking for it, and the unit follows it", async () => {
+  const screen = await renderModal({ productId: bolsaDeAvena.productId });
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByText("Producto: Avena arrollada")).toBeVisible();
+  expect(dialog.getByRole("combobox").query()).toBeNull();
+  await expect.element(dialog.getByText("kg", { exact: true })).toBeVisible();
+});
+
+test("for a given product, creates the packaging of that product without asking for it", async () => {
+  const createPackaging = vi
+    .fn<NewPackagingModalServices["createPackaging"]>()
+    .mockResolvedValue({ kind: "ok", packaging: bolsaDeAvena });
+  const screen = await renderModal({ createPackaging, productId: bolsaDeAvena.productId });
+
+  await fill(screen, { name: "Bolsa de 25 kg", quantity: "25" });
+  await submit(screen);
+
+  expect(createPackaging).toHaveBeenCalledWith({
+    productId: bolsaDeAvena.productId,
+    name: "Bolsa de 25 kg",
+    quantityPerPackage: 25_000,
+  });
+});
+
+test("takes the eyebrow from the screen that opens it", async () => {
+  const screen = await renderModal({ context: "Pedidos · Vincular un ítem" });
+
+  await expect
+    .element(screen.getByRole("dialog").getByText("Pedidos · Vincular un ítem"))
+    .toBeVisible();
 });

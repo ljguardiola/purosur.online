@@ -2,11 +2,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
-import { insertActor } from "./test-support/purchasing-fixtures.js";
+import { insertActor, insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertPriceListRows,
   insertSupplier,
+  insertSupplierItem,
+  insertSupplierItemPrice,
 } from "./test-support/supplier-price-list-fixtures.js";
 
 let testDatabase: TestDatabase;
@@ -226,6 +228,287 @@ describe("reviewing a list", () => {
 
   it("answers nothing for a list that does not exist", async () => {
     expect(await reader().review("00000000-0000-4000-8000-000000000000")).toBeUndefined();
+  });
+});
+
+describe("what a review says about the link and the earlier price of each row", () => {
+  async function extractedList(rows: Parameters<typeof insertPriceListRows>[2]) {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+    const rowIds = await insertPriceListRows(db, listId, rows);
+    return { listId, rowIds };
+  }
+
+  async function confirmedList(overrides: { supplierId?: string } = {}) {
+    return insertPriceList(db, {
+      supplierId: overrides.supplierId ?? supplierId,
+      locationId,
+      actorId,
+      state: "REVIEWED",
+    });
+  }
+
+  it("gives each row its barcode, whether a person reviewed it and no link when it has none", async () => {
+    const { listId } = await extractedList([
+      { barcode: "7790000000011", reviewed: true },
+      { barcode: null },
+    ]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows).toMatchObject([
+      { barcode: "7790000000011", reviewed: true, link: null, remembered: false, earlier: null },
+      { barcode: null, reviewed: false, link: null, remembered: false, earlier: null },
+    ]);
+  });
+
+  it("gives a linked row its product, packaging and VAT rate", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg", saleUnit: "UNIT" });
+    const packagingId = await insertPackaging(db, {
+      productId,
+      actorId,
+      name: "Caja x 10",
+      quantityPerPackage: 10_000,
+    });
+    const { listId } = await extractedList([{ productId, packagingId, vatRate: 1_050 }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.link).toEqual({
+      product: { id: productId, name: "Yerba 1 kg", saleUnit: "UNIT" },
+      packaging: {
+        id: packagingId,
+        name: "Caja x 10",
+        quantityPerPackage: 10_000,
+        active: true,
+        saleUnit: "UNIT",
+      },
+      vatRate: 1_050,
+    });
+  });
+
+  it("tells whether the linked packaging is active and the sale unit it holds", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
+    const packagingId = await insertPackaging(db, {
+      productId,
+      actorId,
+      saleUnit: "UNIT",
+      active: false,
+    });
+    const { listId } = await extractedList([{ productId, packagingId }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.link?.packaging).toMatchObject({ active: false, saleUnit: "UNIT" });
+  });
+
+  it("gives a row the description and price the supplier's other lists last recorded for its code", async () => {
+    const itemId = await insertSupplierItem(db, {
+      supplierId,
+      keyValue: "Y-01",
+      description: "Yerba Suave 1 kg",
+    });
+    await insertSupplierItemPrice(db, {
+      itemId,
+      listId: await confirmedList(),
+      priceCents: 1_400,
+    });
+    const { listId } = await extractedList([
+      { code: "Y-01", description: "Yerba 1 kg", priceCents: 1_500 },
+    ]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier).toEqual({
+      description: "Yerba Suave 1 kg",
+      priceCents: 1_400,
+    });
+  });
+
+  it("matches a row without a code by its normalized description", async () => {
+    const itemId = await insertSupplierItem(db, {
+      supplierId,
+      keyKind: "description",
+      keyValue: "azucar 1 kg",
+      description: "Azúcar 1 kg",
+    });
+    await insertSupplierItemPrice(db, { itemId, listId: await confirmedList(), priceCents: 900 });
+    const { listId } = await extractedList([{ code: null, description: "  AZÚCAR   1 Kg " }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier).toEqual({ description: "Azúcar 1 kg", priceCents: 900 });
+  });
+
+  it("does not match an item of another supplier, one of the other kind or one that never had a price", async () => {
+    const otherSupplierId = await insertSupplier(db, { actorId });
+    const otherItemId = await insertSupplierItem(db, {
+      supplierId: otherSupplierId,
+      keyValue: "Y-01",
+    });
+    await insertSupplierItemPrice(db, {
+      itemId: otherItemId,
+      listId: await confirmedList({ supplierId: otherSupplierId }),
+    });
+    const byDescriptionId = await insertSupplierItem(db, {
+      supplierId,
+      keyKind: "description",
+      keyValue: "Y-01",
+    });
+    await insertSupplierItemPrice(db, { itemId: byDescriptionId, listId: await confirmedList() });
+    await insertSupplierItem(db, { supplierId, keyValue: "Z-09" });
+    const { listId } = await extractedList([{ code: "Y-01" }, { code: "Z-09" }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows.map((row) => [row.remembered, row.earlier])).toEqual([
+      [false, null],
+      [false, null],
+    ]);
+  });
+
+  it("takes the price of the latest list by date, and of the one confirmed later on a tie", async () => {
+    const itemId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    const prices = [
+      { listDate: "2026-02-01", confirmedAt: "2026-02-02T10:00:00Z", priceCents: 100 },
+      { listDate: "2026-03-01", confirmedAt: "2026-03-02T10:00:00Z", priceCents: 200 },
+      { listDate: "2026-03-01", confirmedAt: "2026-03-03T10:00:00Z", priceCents: 300 },
+      { listDate: "2026-01-01", confirmedAt: "2026-04-01T10:00:00Z", priceCents: 400 },
+    ];
+    for (const price of prices) {
+      await insertSupplierItemPrice(db, {
+        itemId,
+        listId: await confirmedList(),
+        priceCents: price.priceCents,
+        listDate: price.listDate,
+        confirmedAt: new Date(price.confirmedAt),
+      });
+    }
+    const { listId } = await extractedList([{ code: "Y-01" }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier?.priceCents).toBe(300);
+  });
+
+  it("takes, for a dated list, the latest price of a list dated before it and never one dated after", async () => {
+    const itemId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    for (const price of [
+      { listDate: "2026-01-15", priceCents: 100 },
+      { listDate: "2026-02-01", priceCents: 200 },
+      { listDate: "2026-04-01", priceCents: 900 },
+    ]) {
+      await insertSupplierItemPrice(db, { itemId, listId: await confirmedList(), ...price });
+    }
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+    });
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier?.priceCents).toBe(200);
+  });
+
+  it("takes, among prices of the list's own date, only one confirmed before the list", async () => {
+    const itemId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    for (const price of [
+      { listDate: "2026-02-01", confirmedAt: "2026-02-02T10:00:00Z", priceCents: 100 },
+      { listDate: "2026-03-01", confirmedAt: "2026-03-02T09:00:00Z", priceCents: 200 },
+      { listDate: "2026-03-01", confirmedAt: "2026-03-02T11:00:00Z", priceCents: 300 },
+    ]) {
+      await insertSupplierItemPrice(db, {
+        itemId,
+        listId: await confirmedList(),
+        priceCents: price.priceCents,
+        listDate: price.listDate,
+        confirmedAt: new Date(price.confirmedAt),
+      });
+    }
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "REVIEWED",
+      listDate: "2026-03-01",
+      confirmedAt: new Date("2026-03-02T10:00:00Z"),
+    });
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier?.priceCents).toBe(200);
+  });
+
+  it("gives no earlier price when every other list is dated after the list", async () => {
+    const itemId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    await insertSupplierItemPrice(db, {
+      itemId,
+      listId: await confirmedList(),
+      listDate: "2026-04-01",
+    });
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+    });
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]).toMatchObject({ remembered: true, earlier: null });
+  });
+
+  it("leaves out the price the list itself recorded", async () => {
+    const itemId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    const olderListId = await confirmedList();
+    await insertSupplierItemPrice(db, {
+      itemId,
+      listId: olderListId,
+      priceCents: 100,
+      listDate: "2026-02-01",
+    });
+    const listId = await confirmedList();
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }]);
+    await insertSupplierItemPrice(db, {
+      itemId,
+      listId,
+      priceCents: 500,
+      listDate: "2026-03-01",
+    });
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.earlier?.priceCents).toBe(100);
+  });
+
+  it("tells a remembered item from one only the list itself recorded", async () => {
+    const rememberedId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    await insertSupplierItemPrice(db, {
+      itemId: rememberedId,
+      listId: await confirmedList(),
+      listDate: "2026-02-01",
+    });
+    const onlyHereId = await insertSupplierItem(db, { supplierId, keyValue: "Z-09" });
+    const listId = await confirmedList();
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }, { code: "Z-09" }]);
+    for (const itemId of [rememberedId, onlyHereId]) {
+      await insertSupplierItemPrice(db, { itemId, listId, listDate: "2026-03-01" });
+    }
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows.map((row) => row.remembered)).toEqual([true, false]);
   });
 });
 

@@ -12,7 +12,7 @@ export type SupplierPriceListsFilters = z.output<typeof supplierPriceListsFilter
 
 export const supplierPriceListReviewFilters = z.object({
   search: z.string().default("").catch(""),
-  show: z.enum(["all", "unpriced"]).default("all").catch("all"),
+  show: z.enum(["review", "all", "unpriced"]).default("review").catch("review"),
 });
 
 export type SupplierPriceListReviewFilters = z.output<typeof supplierPriceListReviewFilters>;
