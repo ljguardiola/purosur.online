@@ -34,7 +34,7 @@ export function registerCurrentStockReportRoute<TQueryResult extends PgQueryResu
         return;
       }
       const report = await readCurrentStockReport(
-        { stockList: reader },
+        { currentStock: reader },
         {
           locationId: openSessionOf(request).locationId,
           ...(query.category_id === undefined ? {} : { categoryId: query.category_id }),

@@ -4,8 +4,8 @@ import {
   currentStockSummary,
   holdsCurrentStock,
 } from "../model/current-stock-summary.js";
+import type { CurrentStockReader } from "./current-stock-reader.js";
 import { readStockBalances, type StockBalanceView } from "./read-stock-balances.js";
-import type { StockListReader } from "./stock-reader.js";
 
 export interface ReadCurrentStockReportInput {
   locationId: string;
@@ -69,16 +69,17 @@ function productOf(balance: StockBalanceView): CurrentStockProduct {
 
 function categoriesOf(products: readonly CurrentStockProduct[]): CurrentStockCategory[] {
   const names = new Map(products.map(({ categoryId, categoryName }) => [categoryId, categoryName]));
-  return [...names]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name, "es") || a.id.localeCompare(b.id));
+  return [...names].map(([id, name]) => ({ id, name }));
 }
 
 export async function readCurrentStockReport(
-  { stockList }: { stockList: Pick<StockListReader, "stockLevels"> },
+  { currentStock }: { currentStock: CurrentStockReader },
   { locationId, categoryId }: ReadCurrentStockReportInput,
 ): Promise<CurrentStockReport> {
-  const { products: balances } = await readStockBalances({ stockList }, { locationId });
+  const { products: balances } = await readStockBalances(
+    { stockList: { stockLevels: (location) => currentStock.everyStockLevel(location) } },
+    { locationId },
+  );
   const held = balances
     .filter(({ balance, lotCount }) => holdsCurrentStock({ balance, lotCount }))
     .map(productOf);

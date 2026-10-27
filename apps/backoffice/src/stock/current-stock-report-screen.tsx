@@ -26,6 +26,7 @@ import { CurrentStockReportLots } from "./current-stock-report-lots";
 import type { CurrentStockReportScreenServices } from "./current-stock-report-services";
 import { formatStockValue } from "./stock-cost";
 import { useCurrentStockReportQuery } from "./stock-queries";
+import { categoryFilterOptions } from "./stock-screen-parts";
 
 export type CurrentStockReportScreenProps = {
   filters: CurrentStockReportFilters;
@@ -55,9 +56,13 @@ function productsText(count: number): string {
   return plural(count, { one: "1 producto", other: `${count} productos` });
 }
 
+function positiveValueTotal(products: readonly Product[]): number {
+  return products.reduce((sum, { value_cents }) => sum + Math.max(value_cents ?? 0, 0), 0);
+}
+
 function ShareOfTotal({ product, total }: { product: Product; total: number }) {
   const value = product.value_cents;
-  if (value === null || value <= 0 || total <= 0) {
+  if (value === null || value <= 0) {
     return <TableCellText tone="subtle">—</TableCellText>;
   }
   return <PercentBar value={shareOfTotal(value, total)} />;
@@ -122,10 +127,9 @@ export function CurrentStockReportScreen({
     onSessionEnded,
   });
   const shown = data.status === "loaded" ? data.value : data.lastValue;
-  const categoryOptions = [
-    { value: ALL_CATEGORIES, label: "Todas" },
-    ...(shown?.categories ?? []).map(({ id, name }) => ({ value: id, label: name })),
-  ] as [{ value: string; label: string }, ...{ value: string; label: string }[]];
+  const categoryOptions = categoryFilterOptions(
+    (shown?.categories ?? []).map(({ id, name }) => ({ categoryId: id, categoryName: name })),
+  );
   const categoryIsOffered = categoryOptions.some(({ value }) => value === filters.category);
 
   useEffect(() => {
@@ -134,7 +138,8 @@ export function CurrentStockReportScreen({
     }
   }, [data.status, categoryIsOffered, filters]);
 
-  const total = shown?.summary.value_cents ?? 0;
+  const products = shown?.products ?? NO_PRODUCTS;
+  const total = positiveValueTotal(products);
   const columns = [
     dataColumn({
       id: "product",
@@ -207,7 +212,7 @@ export function CurrentStockReportScreen({
   ] as const;
 
   const table = useTableModel({
-    items: shown?.products ?? NO_PRODUCTS,
+    items: products,
     id: (product) => product.id,
     columns,
     sort: { column: filters.sortBy, direction: filters.sort },
@@ -229,7 +234,9 @@ export function CurrentStockReportScreen({
           onChange={(category) => onFiltersChange({ ...filters, category })}
         />
       </div>
-      {data.status === "failed" ? null : <SummaryCards report={shown} />}
+      {data.status === "failed" ? null : (
+        <SummaryCards report={data.status === "loaded" ? data.value : undefined} />
+      )}
       <Table
         aria-label="Stock actual valorizado"
         table={table}

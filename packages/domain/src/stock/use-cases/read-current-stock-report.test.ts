@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readCurrentStockReport } from "./read-current-stock-report.js";
 import type { LotInStock, StockLevel } from "./stock-reader.js";
-import { FakeStockListReader } from "./test-support/fake-stock-list-reader.js";
+import { FakeCurrentStockReader } from "./test-support/fake-current-stock-reader.js";
 
 function level(id: string, overrides: Partial<StockLevel> = {}): StockLevel {
   return {
@@ -48,20 +48,20 @@ function lotWithoutCost(id: string, remaining: number): LotInStock {
 }
 
 async function read(levels: StockLevel[], categoryId?: string) {
-  const stockList = new FakeStockListReader(levels);
+  const currentStock = new FakeCurrentStockReader(levels);
   return readCurrentStockReport(
-    { stockList },
+    { currentStock },
     { locationId: "location-1", ...(categoryId === undefined ? {} : { categoryId }) },
   );
 }
 
 describe("readCurrentStockReport", () => {
   it("reads the levels of the location", async () => {
-    const stockList = new FakeStockListReader([]);
+    const currentStock = new FakeCurrentStockReader([]);
 
-    await readCurrentStockReport({ stockList }, { locationId: "location-1" });
+    await readCurrentStockReport({ currentStock }, { locationId: "location-1" });
 
-    expect(stockList.reads).toEqual(["location-1"]);
+    expect(currentStock.reads).toEqual(["location-1"]);
   });
 
   it("answers an empty report when no product holds stock", async () => {
@@ -184,7 +184,7 @@ describe("readCurrentStockReport", () => {
     });
   });
 
-  it("offers the categories of the products holding stock, by name", async () => {
+  it("offers each category of the products holding stock once", async () => {
     const { categories } = await read([
       level("p1", { balance: 1_000, categoryId: "c2", categoryName: "Limpieza" }),
       level("p2", { balance: 1_000, categoryId: "c1", categoryName: "Almacén" }),
@@ -192,19 +192,13 @@ describe("readCurrentStockReport", () => {
       level("p4", { balance: 0, categoryId: "c3", categoryName: "Bebidas" }),
     ]);
 
-    expect(categories).toEqual([
-      { id: "c1", name: "Almacén" },
-      { id: "c2", name: "Limpieza" },
-    ]);
-  });
-
-  it("orders categories with the same name by id", async () => {
-    const { categories } = await read([
-      level("p1", { balance: 1_000, categoryId: "c2", categoryName: "Almacén" }),
-      level("p2", { balance: 1_000, categoryId: "c1", categoryName: "Almacén" }),
-    ]);
-
-    expect(categories.map(({ id }) => id)).toEqual(["c1", "c2"]);
+    expect(categories).toHaveLength(2);
+    expect(categories).toEqual(
+      expect.arrayContaining([
+        { id: "c1", name: "Almacén" },
+        { id: "c2", name: "Limpieza" },
+      ]),
+    );
   });
 
   describe("filtered by category", () => {
@@ -228,7 +222,7 @@ describe("readCurrentStockReport", () => {
     it("keeps offering every category", async () => {
       const { categories } = await read(levels, "c2");
 
-      expect(categories.map(({ id }) => id)).toEqual(["c1", "c2"]);
+      expect(categories.map(({ id }) => id).sort()).toEqual(["c1", "c2"]);
     });
 
     it("answers an empty list for a category holding no stock", async () => {
