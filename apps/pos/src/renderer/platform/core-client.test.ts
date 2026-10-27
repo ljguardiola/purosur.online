@@ -2250,6 +2250,150 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to find the sale of a return from the numbers the cashier typed, naming who authorizes", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const found = client.findSaleForReturn(
+      { kind: "typed", point_of_sale: 3, number: 1192 },
+      authorization,
+    );
+    port.answer({
+      type: "find-sale-for-return-result",
+      request_id: "request-1",
+      outcome: { kind: "not_found" },
+    });
+
+    expect(await found).toEqual({ kind: "not_found" });
+    expect(port.posted).toEqual([
+      {
+        type: "find-sale-for-return",
+        request_id: "request-1",
+        reading: { kind: "typed", point_of_sale: 3, number: 1192 },
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to find the sale of a return from the text of the QR the reader scanned", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const text = `https://www.arca.gob.ar/fe/qr/?p=${btoa(JSON.stringify({ ptoVta: 3, tipoCmp: 11, nroCmp: 1192 }))}`;
+
+    const found = client.findSaleForReturn({ kind: "scanned", text }, undefined);
+    port.answer({
+      type: "find-sale-for-return-result",
+      request_id: "request-1",
+      outcome: { kind: "voided" },
+    });
+
+    expect(await found).toEqual({ kind: "voided" });
+    expect(port.posted).toEqual([
+      {
+        type: "find-sale-for-return",
+        request_id: "request-1",
+        reading: { kind: "scanned", text },
+      },
+    ]);
+  });
+
+  it("asks the core to preview the lines of a return", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const lines = [
+      { sale_line_id: "line-1", quantity: 2, reason: "defective" as const, disposition: null },
+    ];
+
+    const previewed = client.previewReturn("sale-1", lines);
+    port.answer({
+      type: "preview-return-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await previewed).toEqual({ kind: "unavailable" });
+    expect(port.posted).toEqual([
+      { type: "preview-return", request_id: "request-1", sale_id: "sale-1", lines },
+    ]);
+  });
+
+  it("asks the core to complete a return with the refunds the cashier chose and who authorizes", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const lines = [
+      {
+        sale_line_id: "line-1",
+        quantity: 2,
+        reason: "change_of_mind" as const,
+        disposition: "restock" as const,
+      },
+    ];
+    const refunds = [{ payment_id: "pay-1", amount: 5000 }];
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const completed = client.completeReturn({
+      saleId: "sale-1",
+      ticketSource: "TYPED",
+      lines,
+      refunds,
+      authorization,
+    });
+    port.answer({
+      type: "complete-return-result",
+      request_id: "request-1",
+      outcome: { kind: "no_open_session" },
+    });
+
+    expect(await completed).toEqual({ kind: "no_open_session" });
+    expect(port.posted).toEqual([
+      {
+        type: "complete-return",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        ticket_source: "TYPED",
+        lines,
+        refunds,
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to complete a return without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const completed = client.completeReturn({
+      saleId: "sale-1",
+      ticketSource: "QR",
+      lines: [],
+      refunds: [],
+      authorization: undefined,
+    });
+    port.answer({
+      type: "complete-return-result",
+      request_id: "request-1",
+      outcome: { kind: "no_lines" },
+    });
+
+    expect(await completed).toEqual({ kind: "no_lines" });
+    expect(port.posted).toEqual([
+      {
+        type: "complete-return",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        ticket_source: "QR",
+        lines: [],
+        refunds: [],
+      },
+    ]);
+  });
+
   it("asks the core to print a deferred sale's invoice as an original", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
