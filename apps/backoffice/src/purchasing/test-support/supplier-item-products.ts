@@ -4,7 +4,7 @@ import type {
   SupplierPriceListRowProductCreationBody,
 } from "@purosur/contracts";
 
-export const GROCERIES: CategorySummary = {
+const GROCERIES: CategorySummary = {
   id: "c1000000-0000-4000-8000-000000000001",
   name: "Almacén",
   version: 1,
