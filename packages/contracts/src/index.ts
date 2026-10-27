@@ -807,6 +807,14 @@ export type {
 } from "./stock/expiring-lots.js";
 export { expiredLotDiscardResultSchema, expiringLotListSchema } from "./stock/expiring-lots.js";
 export type {
+  ExpiringLotsReportBody,
+  ExpiringLotsReportQuery,
+} from "./stock/expiring-lots-report.js";
+export {
+  expiringLotsReportQuerySchema,
+  expiringLotsReportSchema,
+} from "./stock/expiring-lots-report.js";
+export type {
   FindCountableProductOutcome,
   InitialCountLine,
   ReadInitialCountOutcome,
