@@ -641,24 +641,16 @@ describe("readSupplierPriceList rows of a supplier with remembered items", () =>
 });
 
 describe("readSupplierPriceList of a store's catalog", () => {
-  const catalogRows = [
-    {
-      description: "Yerba Monte Verde 1 kg",
-      code: null,
-      presentation: "Unidad",
-      priceCents: 4_500_00,
-      page: null,
-      barcode: null,
-    },
-    {
-      description: "Yerba Monte Verde 1 kg",
-      code: null,
-      presentation: "Pack x 10",
-      priceCents: 42_000_00,
-      page: null,
-      barcode: null,
-    },
-  ];
+  const unitRow = {
+    description: "Yerba Monte Verde 1 kg",
+    code: null,
+    presentation: "Unidad",
+    priceCents: 4_500_00,
+    page: null,
+    barcode: null,
+  };
+  const packRow = { ...unitRow, presentation: "Pack x 10", priceCents: 42_000_00 };
+  const catalogRows = [unitRow, packRow];
 
   async function setupCatalog() {
     const context = setup({
@@ -688,8 +680,8 @@ describe("readSupplierPriceList of a store's catalog", () => {
       sentOn: SENT_ON,
     });
     expect(state.rows).toEqual([
-      expect.objectContaining({ ...catalogRows[0], listId: "list-1", position: 0 }),
-      expect.objectContaining({ ...catalogRows[1], listId: "list-1", position: 1 }),
+      expect.objectContaining({ ...unitRow, listId: "list-1", position: 0 }),
+      expect.objectContaining({ ...packRow, listId: "list-1", position: 1 }),
     ]);
   });
 
@@ -707,7 +699,7 @@ describe("readSupplierPriceList of a store's catalog", () => {
     const { store, storeCatalogs, ports } = await setupCatalog();
     storeCatalogs.answer = {
       kind: "read",
-      rows: [{ ...catalogRows[0], priceCents: -1 }, catalogRows[1]],
+      rows: [{ ...unitRow, priceCents: -1 }, packRow],
     };
 
     await readSupplierPriceList(ports, input);
@@ -723,7 +715,7 @@ describe("readSupplierPriceList of a store's catalog", () => {
       key: { kind: "description", value: "yerba monte verde 1 kg" },
       link,
     });
-    storeCatalogs.answer = { kind: "read", rows: [catalogRows[0]] };
+    storeCatalogs.answer = { kind: "read", rows: [unitRow] };
 
     await readSupplierPriceList(ports, input);
 
