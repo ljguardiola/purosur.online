@@ -10,12 +10,12 @@ export interface ReturnedFromLine {
   refundedAmount: number;
 }
 
-export type SaleLineForReturn = Pick<
+type SaleLineForReturn = Pick<
   SaleLine,
   "id" | "productId" | "productName" | "saleUnit" | "quantity" | "promotionId" | "lineTotal"
 >;
 
-export type SaleOfReturn = Omit<SaleWithLines, "lines"> & { lines: SaleLineForReturn[] };
+type SaleOfReturn = Omit<SaleWithLines, "lines"> & { lines: SaleLineForReturn[] };
 
 export interface SaleForReturn {
   sale: SaleOfReturn;
