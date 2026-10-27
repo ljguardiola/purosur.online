@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import type { AssemblyBatchCost } from "./assembly-batch-cost-reader.js";
 import type { InitialCountCost } from "./initial-count-cost-reader.js";
 import { listPrices } from "./list-prices.js";
 import type { PricesUnderReview, PriceUnderReview } from "./price-review-reader.js";
 import type { PurchaseLineCost } from "./purchase-cost-reader.js";
+import { fakeAssemblyBatchCostReader } from "./test-support/fake-assembly-batch-cost-reader.js";
 import { fakeInitialCountCostReader } from "./test-support/fake-initial-count-cost-reader.js";
 import { fakePriceReviewReader } from "./test-support/fake-price-review-reader.js";
 import { fakePurchaseCostReader } from "./test-support/fake-purchase-cost-reader.js";
@@ -60,6 +62,20 @@ function counted(productId: string, totalCents: number): InitialCountCost {
   };
 }
 
+function assembled(
+  productId: string,
+  totalCents: number,
+  costIncomplete = false,
+): AssemblyBatchCost {
+  return {
+    productId,
+    batchId: "batch-1",
+    assembledAt: new Date("2026-03-08T10:00:00Z"),
+    cost: { totalCents, quantity: 1000 },
+    costIncomplete,
+  };
+}
+
 const query = {
   locationId: "location-1",
   now: new Date("2026-03-10T12:00:00Z"),
@@ -77,6 +93,7 @@ describe("listPrices", () => {
           purchase("b", "line-b", 250),
         ]),
         initialCountCosts: fakeInitialCountCostReader([]),
+        batchCosts: fakeAssemblyBatchCostReader([]),
       },
       query,
     );
@@ -89,6 +106,7 @@ describe("listPrices", () => {
           freightPerUnitCents: 0,
           totalCostCents: 1200,
           marginTenthsOfPercent: 400,
+          costIncomplete: false,
         },
       },
       {
@@ -98,6 +116,7 @@ describe("listPrices", () => {
           freightPerUnitCents: 0,
           totalCostCents: 250,
           marginTenthsOfPercent: 500,
+          costIncomplete: false,
         },
       },
     ]);
@@ -112,6 +131,7 @@ describe("listPrices", () => {
         reviews: fakePriceReviewReader(answered),
         purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200)]),
         initialCountCosts: fakeInitialCountCostReader([]),
+        batchCosts: fakeAssemblyBatchCostReader([]),
       },
       query,
     );
@@ -144,6 +164,7 @@ describe("listPrices", () => {
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
         purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200, freights)]),
         initialCountCosts: fakeInitialCountCostReader([]),
+        batchCosts: fakeAssemblyBatchCostReader([]),
       },
       query,
     );
@@ -153,6 +174,7 @@ describe("listPrices", () => {
       freightPerUnitCents: 300,
       totalCostCents: 1500,
       marginTenthsOfPercent: 250,
+      costIncomplete: false,
     });
   });
 
@@ -163,6 +185,7 @@ describe("listPrices", () => {
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
         purchaseCosts: fakePurchaseCostReader([]),
         initialCountCosts: fakeInitialCountCostReader([]),
+        batchCosts: fakeAssemblyBatchCostReader([]),
       },
       query,
     );
@@ -177,6 +200,7 @@ describe("listPrices", () => {
         reviews: fakePriceReviewReader(listing([product("a", null)])),
         purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200)]),
         initialCountCosts: fakeInitialCountCostReader([]),
+        batchCosts: fakeAssemblyBatchCostReader([]),
       },
       query,
     );
@@ -186,6 +210,7 @@ describe("listPrices", () => {
       freightPerUnitCents: 0,
       totalCostCents: 1200,
       marginTenthsOfPercent: null,
+      costIncomplete: false,
     });
   });
 
@@ -196,11 +221,30 @@ describe("listPrices", () => {
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
         purchaseCosts: fakePurchaseCostReader([purchase("a", "line-1", 1200)]),
         initialCountCosts: fakeInitialCountCostReader([counted("a", 900)]),
+        batchCosts: fakeAssemblyBatchCostReader([]),
       },
       query,
     );
 
     expect(result.products[0]?.costReference?.lastCostCents).toBe(900);
+  });
+
+  it("takes the most recent batch's cost as an assembled product's last cost and flags it incomplete", async () => {
+    const result = await listPrices(
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reviews: fakePriceReviewReader(listing([product("a", 2000), product("b", 500)])),
+        purchaseCosts: fakePurchaseCostReader([purchase("a", "line-1", 1200)]),
+        initialCountCosts: fakeInitialCountCostReader([counted("a", 900)]),
+        batchCosts: fakeAssemblyBatchCostReader([assembled("a", 700, true), assembled("b", 300)]),
+      },
+      query,
+    );
+
+    expect(result.products.map(({ costReference }) => costReference)).toMatchObject([
+      { lastCostCents: 700, costIncomplete: true },
+      { lastCostCents: 300, costIncomplete: false },
+    ]);
   });
 
   it("takes an initial count's cost for a product with no purchase", async () => {
@@ -210,6 +254,7 @@ describe("listPrices", () => {
         reviews: fakePriceReviewReader(listing([product("a", 2000), product("b", 500)])),
         purchaseCosts: fakePurchaseCostReader([purchase("b", "line-b", 250)]),
         initialCountCosts: fakeInitialCountCostReader([counted("a", 900)]),
+        batchCosts: fakeAssemblyBatchCostReader([]),
       },
       query,
     );
@@ -219,18 +264,26 @@ describe("listPrices", () => {
     ]);
   });
 
-  it("reads the purchase and initial-count costs of the listed products at the query's branch", async () => {
+  it("reads the purchase, initial-count and batch costs of the listed products at the query's branch", async () => {
     const purchaseCosts = fakePurchaseCostReader([]);
     const initialCountCosts = fakeInitialCountCostReader([]);
+    const batchCosts = fakeAssemblyBatchCostReader([]);
     const reviews = fakePriceReviewReader(listing([product("a", 2000), product("b", 500)]));
 
     await listPrices(
-      { zoneRules: new FakeZoneRulesSource(), reviews, purchaseCosts, initialCountCosts },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reviews,
+        purchaseCosts,
+        initialCountCosts,
+        batchCosts,
+      },
       query,
     );
 
     expect(reviews.queries).toEqual([query]);
     expect(purchaseCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);
     expect(initialCountCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);
+    expect(batchCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);
   });
 });
