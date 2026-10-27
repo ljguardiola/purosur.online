@@ -27,6 +27,8 @@ export type {
   SaleForReturnView,
 } from "./model/sale-for-return-view.js";
 export { saleForReturnOutcome } from "./model/sale-for-return-view.js";
+export type { LocalReturnOfSale } from "./model/uncounted-returns.js";
+export { withUncountedReturns } from "./model/uncounted-returns.js";
 export type { ReturnWindow } from "./model/return-window.js";
 export type {
   ReturnedCashMovement,
