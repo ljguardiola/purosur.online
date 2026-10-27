@@ -27,7 +27,6 @@ import {
   type FindSaleForReturnDeps,
   findSaleForReturnFor,
   previewReturnFor,
-  type ReturnRequestDeps,
 } from "./returns-requests";
 import { readRetainedBranchSale } from "./sqlite-retained-branch-sales";
 import { openSecondSession, openSoldSaleDatabase } from "./test-support/sold-sale-database";
