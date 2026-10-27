@@ -450,9 +450,18 @@ export function PricesListScreen({
       header: "Costo total",
       align: "end",
       render: (item: PriceProduct) =>
-        item.costReference
-          ? formatCentsWithUnit(item.costReference.totalCostCents, item.saleUnit)
-          : "—",
+        item.costReference ? (
+          <div className="flex items-center justify-end gap-2">
+            {item.costReference.costIncomplete ? (
+              <Tag tone="warning" icon={<TriangleAlert aria-hidden="true" />}>
+                Costo incompleto
+              </Tag>
+            ) : null}
+            <span>{formatCentsWithUnit(item.costReference.totalCostCents, item.saleUnit)}</span>
+          </div>
+        ) : (
+          "—"
+        ),
     }),
     dataColumn({
       id: "margin",
