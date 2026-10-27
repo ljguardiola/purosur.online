@@ -44,6 +44,7 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RestorationStandingAnswer,
+  ReturnDraftLineBody,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -88,6 +89,14 @@ const NOTHING_PENDING = {
   selling_blocked: false,
   may_go_selling: true,
 };
+
+const RETURNED_LINES: ReturnDraftLineBody[] = [
+  { sale_line_id: "l1", quantity: 2, reason: "change_of_mind", disposition: "restock" },
+];
+const UNDECIDED_RETURN_LINES: ReturnDraftLineBody[] = [
+  { sale_line_id: "l1", quantity: 2, reason: null, disposition: "discard" },
+];
+const RETURN_REFUNDS = [{ payment_id: "pay-1", amount: 5000 }];
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
@@ -3012,10 +3021,8 @@ describe("answerRendererRequest", () => {
           type: "complete-return",
           sale_id: "s1",
           ticket_source: "QR",
-          lines: [
-            { sale_line_id: "l1", quantity: 2, reason: "change_of_mind", disposition: "restock" },
-          ],
-          refunds: [{ payment_id: "pay-1", amount: 5000 }],
+          lines: RETURNED_LINES,
+          refunds: RETURN_REFUNDS,
         } as const,
         "completeReturn",
         "completing a return",
@@ -3186,11 +3193,11 @@ describe("answerRendererRequest", () => {
       type: "preview-return",
       request_id: "r60",
       sale_id: "s1",
-      lines: [{ sale_line_id: "l1", quantity: 2, reason: null, disposition: "discard" }],
+      lines: UNDECIDED_RETURN_LINES,
     } as const;
 
     it("asks the register to preview it with the lines in the register's words and answers its outcome", async () => {
-      const outcome = { kind: "previewed", lines: [], refundable_total: 0 } as const;
+      const outcome: PreviewReturnOutcome = { kind: "previewed", lines: [], refundable_total: 0 };
       const recording = deps(true);
 
       expect(

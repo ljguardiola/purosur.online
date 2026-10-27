@@ -135,6 +135,12 @@ import { windowsCriticalBatteryActionReader } from "./register/windows-critical-
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import {
+  completeReturnFor,
+  findSaleForReturnFor,
+  previewReturnFor,
+  type ReturnRequestDeps,
+} from "./returns/returns-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
 import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
 import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
@@ -825,6 +831,17 @@ const startupRecovery = recoverAtStartup({
 });
 await startupRecovery.authorizationsSettled;
 
+const returnRequestDeps = (
+  database: NonNullable<typeof localDatabase>,
+  gate: NonNullable<typeof actionGate>,
+): ReturnRequestDeps => ({
+  database,
+  gate,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  now,
+  ids: uuidV7Ids,
+});
+
 const rendererRequestDeps: RendererRequestDeps = {
   enrollmentStanding: readEnrollmentStanding,
   registerStatus:
@@ -1245,6 +1262,18 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
+  findSaleForReturn:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) => findSaleForReturnFor(returnRequestDeps(localDatabase, actionGate), request),
+  previewReturn:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) => previewReturnFor(returnRequestDeps(localDatabase, actionGate), request),
+  completeReturn:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) => completeReturnFor(returnRequestDeps(localDatabase, actionGate), request),
   chargeSaleInCash:
     localDatabase === undefined || actionGate === undefined
       ? undefined

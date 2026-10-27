@@ -6,18 +6,14 @@ import type {
   FindSaleForReturnOutcome,
   PreviewReturnOutcome,
 } from "@purosur/contracts";
-import type {
-  RefundAllocation,
-  ReturnDraftLine,
-  TicketReference,
-  TicketSource,
-} from "@purosur/domain";
+import type { RefundAllocation, ReturnDraftLine, TicketSource } from "@purosur/domain";
 import {
   type CompleteReturnGrant,
   completeReturn,
   findSaleForReturn,
   type OperationAuthorization,
   previewReturn,
+  type SaleReturnSearch,
 } from "@purosur/domain/returns/use-cases";
 import type { OutboxSaleRequestDeps } from "../sales/sale-requests";
 import {
@@ -35,7 +31,7 @@ export type ReturnRequestDeps = Pick<
 >;
 
 export interface FindSaleForReturnRequest {
-  ticket: TicketReference;
+  ticket: SaleReturnSearch;
   authorization?: Authorization | undefined;
 }
 
