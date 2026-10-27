@@ -67,11 +67,14 @@ function toMercadoPagoPayment(
     : { ...common, method, provider: "MERCADOPAGO_POINT" };
 }
 
-export function insertPaymentRefund(database: LocalDatabase, refund: SaleRefund): void {
+export function insertPaymentRefund(
+  database: LocalDatabase,
+  refund: SaleRefund & { returnId?: string },
+): void {
   database
     .prepare(
-      `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-       VALUES (@id, @payment_id, @method, @provider, @amount, @state, @occurred_at)`,
+      `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+       VALUES (@id, @payment_id, @method, @provider, @amount, @state, @occurred_at, @return_id)`,
     )
     .run({
       id: refund.id,
@@ -81,6 +84,7 @@ export function insertPaymentRefund(database: LocalDatabase, refund: SaleRefund)
       amount: refund.amount,
       state: refund.state,
       occurred_at: refund.occurredAt.toISOString(),
+      return_id: refund.returnId ?? null,
     });
 }
 

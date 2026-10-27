@@ -185,3 +185,7 @@ INSERT INTO credit_note_receipts (credit_note_id, template_version, head, body)
 SELECT credit_note_id, template_version, head, body FROM credit_note_receipts_held;
 
 DROP TABLE credit_note_receipts_held;
+
+ALTER TABLE payment_refunds ADD COLUMN return_id TEXT REFERENCES returns (id);
+
+CREATE INDEX payment_refunds_by_return ON payment_refunds (return_id) WHERE return_id IS NOT NULL;

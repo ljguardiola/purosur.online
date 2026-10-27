@@ -35,15 +35,15 @@ function correctedDocument(
 
 function refundsOf(database: LocalDatabase, saleId: string, returnId: string | null): Refund[] {
   return database
-    .prepare<[string, string | null, string | null], Refund>(
+    .prepare<[string, string | null], Refund>(
       `SELECT payment_refunds.method AS method, payment_refunds.amount AS amount
        FROM payment_refunds
        JOIN payment_transactions ON payment_transactions.id = payment_refunds.payment_id
        WHERE payment_transactions.sale_id = ?
-         AND (? IS NULL OR payment_refunds.occurred_at = (SELECT occurred_at FROM returns WHERE id = ?))
+         AND payment_refunds.return_id IS ?
        ORDER BY payment_refunds.rowid`,
     )
-    .all(saleId, returnId, returnId);
+    .all(saleId, returnId);
 }
 
 interface ReturnedLineRow {
