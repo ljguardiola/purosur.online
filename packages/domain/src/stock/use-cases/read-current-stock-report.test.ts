@@ -184,7 +184,7 @@ describe("readCurrentStockReport", () => {
     });
   });
 
-  it("offers each category of the products holding stock once", async () => {
+  it("offers each category of the products holding stock once, in the order its products are read", async () => {
     const { categories } = await read([
       level("p1", { balance: 1_000, categoryId: "c2", categoryName: "Limpieza" }),
       level("p2", { balance: 1_000, categoryId: "c1", categoryName: "Almacén" }),
@@ -192,13 +192,10 @@ describe("readCurrentStockReport", () => {
       level("p4", { balance: 0, categoryId: "c3", categoryName: "Bebidas" }),
     ]);
 
-    expect(categories).toHaveLength(2);
-    expect(categories).toEqual(
-      expect.arrayContaining([
-        { id: "c1", name: "Almacén" },
-        { id: "c2", name: "Limpieza" },
-      ]),
-    );
+    expect(categories).toEqual([
+      { id: "c2", name: "Limpieza" },
+      { id: "c1", name: "Almacén" },
+    ]);
   });
 
   describe("filtered by category", () => {
