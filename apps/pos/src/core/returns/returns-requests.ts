@@ -41,6 +41,7 @@ export type ReturnRequestDeps = Pick<
   "database" | "gate" | "now" | "zoneRules" | "ids" | "readOutboxChainKey"
 > & {
   creditNotes?: CloudCreditNotes | undefined;
+  branchSales?: BranchSaleLookup | undefined;
   invoicing?: DeferredSaleInvoicing | undefined;
   printCreditNote?:
     | ((creditNote: { saleId: string; creditNoteId: string }) => Promise<void>)
@@ -54,14 +55,22 @@ const NO_INVOICING: ReturnedSaleInvoicing = {
 };
 
 async function settleCreditNote(
-  { database, now, creditNotes, invoicing, printCreditNote, reportFailure }: ReturnRequestDeps,
+  {
+    database,
+    now,
+    creditNotes,
+    branchSales,
+    invoicing,
+    printCreditNote,
+    reportFailure,
+  }: ReturnRequestDeps,
   saleId: string,
   creditNote: ReturnCreditNoteToRequest,
 ): Promise<void> {
   const report = reportFailure ?? (() => undefined);
   const outcome = await requestReturnCreditNote(
     {
-      creditNotes: new SqliteSaleCreditNotes(database),
+      creditNotes: new SqliteSaleCreditNotes(database, branchSales),
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
       clock: { now },
       printer: {

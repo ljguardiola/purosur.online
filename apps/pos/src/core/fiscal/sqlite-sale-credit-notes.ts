@@ -11,7 +11,10 @@ import type { PendingCreditNote, RegisterCreditNotes } from "@purosur/domain/fis
 import type { BranchSaleLookup } from "@purosur/domain/returns/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
-import { readRetainedBranchSale } from "../returns/sqlite-retained-branch-sales";
+import {
+  readRetainedBranchSale,
+  SqliteRetainedBranchSales,
+} from "../returns/sqlite-retained-branch-sales";
 import { readUncancelledDeferredSaleRecord } from "./sqlite-deferred-sales";
 import { readSaleInvoices } from "./sqlite-sale-invoices";
 
@@ -336,13 +339,17 @@ export class SqliteSaleCreditNotes implements RegisterCreditNotes {
   }
 
   async refreshBranchSaleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding | undefined> {
-    if (
-      this.branchSales === undefined ||
-      readRetainedBranchSale(this.database, saleId) === undefined
-    ) {
+    const kept = readRetainedBranchSale(this.database, saleId);
+    if (this.branchSales === undefined || kept === undefined) {
       return undefined;
     }
-    return undefined;
+    const answer = await this.branchSales.saleForReturn(kept.ticket);
+    if (answer.kind !== "found") {
+      return undefined;
+    }
+    const { kind: _kind, ...facts } = answer;
+    new SqliteRetainedBranchSales(this.database).keep({ ...facts, ticket: kept.ticket });
+    return facts.invoiceStanding;
   }
 
   async inProgress(): Promise<PendingCreditNote[]> {

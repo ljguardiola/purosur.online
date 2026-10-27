@@ -917,6 +917,7 @@ const returnRequestDeps = (
   now,
   ids: uuidV7Ids,
   creditNotes: cloudCreditNotes({ cloudClient, readDeviceToken }),
+  branchSales: branchSaleLookup,
   invoicing: deferredSaleInvoicing,
   printCreditNote: receiptPrinting.printSaleCreditNote,
   reportFailure: (error) => reportFailure("settling the credit note of a return", error),
