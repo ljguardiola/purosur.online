@@ -13,8 +13,10 @@ const LIST_ID = "5b0d1c52-6a0e-4f43-9d0e-2f6a4e9a1b11";
 const OBJECTS_URL = `https://supplier-price-lists-fictional.t3.storageapi.test/supplier-price-lists/${LIST_ID}`;
 const OBJECT_URL = `${OBJECTS_URL}.pdf`;
 const HTML_OBJECT_URL = `${OBJECTS_URL}.html`;
+const STORE_CATALOG_OBJECT_URL = `${OBJECTS_URL}.json`;
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]);
 const HTML = new TextEncoder().encode("<html><body><table></table></body></html>");
+const STORE_CATALOG = new TextEncoder().encode('[{"nombre":"Sal fina","precio":700}]');
 
 function bucketAnswering(respond: (request: Request) => Response | Promise<Response>) {
   const requests: Request[] = [];
@@ -58,6 +60,17 @@ describe("BucketSupplierPriceListFiles.store", () => {
     expect(new Uint8Array(await (request as Request).arrayBuffer())).toEqual(HTML);
   });
 
+  it("puts a store catalog under its json key as application/json", async () => {
+    const { files, requests } = bucketAnswering(() => new Response("", { status: 200 }));
+
+    await files.store(LIST_ID, STORE_CATALOG, "STORE_CATALOG");
+
+    const [request] = requests;
+    expect(request?.url).toBe(STORE_CATALOG_OBJECT_URL);
+    expect(request?.headers.get("content-type")).toBe("application/json");
+    expect(new Uint8Array(await (request as Request).arrayBuffer())).toEqual(STORE_CATALOG);
+  });
+
   it("fails when the bucket refuses the object", async () => {
     const { files } = bucketAnswering(() => new Response("", { status: 403 }));
 
@@ -88,7 +101,16 @@ describe("BucketSupplierPriceListFiles.read", () => {
     expect(requests.map((request) => request.url)).toEqual([HTML_OBJECT_URL]);
   });
 
-  it.each(["PDF", "HTML"] as const)(
+  it("gets a kept store catalog from its json key alone", async () => {
+    const { files, requests } = bucketAnswering(() => new Response(STORE_CATALOG, { status: 200 }));
+
+    const bytes = await files.read(LIST_ID, "STORE_CATALOG");
+
+    expect(bytes).toEqual(STORE_CATALOG);
+    expect(requests.map((request) => request.url)).toEqual([STORE_CATALOG_OBJECT_URL]);
+  });
+
+  it.each(["PDF", "HTML", "STORE_CATALOG"] as const)(
     "answers nothing when no %s is kept for the list",
     async (contentKind) => {
       const { files } = bucketAnswering(() => new Response("", { status: 404 }));

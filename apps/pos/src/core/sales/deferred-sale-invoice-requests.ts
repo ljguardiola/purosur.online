@@ -9,6 +9,7 @@ import {
   findDeferredSale,
   printDeferredSaleInvoice,
 } from "@purosur/domain/sales/use-cases";
+import { inArgentinaTime } from "../platform/argentina-time";
 import {
   type ReceiptRequestDeps,
   type ReprintSaleReceiptRequest,
@@ -46,7 +47,7 @@ export async function findDeferredSaleFor(
     ? {
         kind: "found",
         sale_id: result.saleId,
-        occurred_at: result.occurredAt.toISOString(),
+        occurred_at: inArgentinaTime(result.occurredAt, deps.zoneRules.zoneRules()),
         total: result.total,
         short_code: result.shortCode,
         invoice:

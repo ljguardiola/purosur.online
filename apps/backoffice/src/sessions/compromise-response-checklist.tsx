@@ -1,5 +1,6 @@
-import { Button, formatDayAndTime, Tag } from "@purosur/ui";
+import { Button, Tag } from "@purosur/ui";
 import type { CompromiseResponse, CompromiseResponseItem } from "./compromise-response-api";
+import { compromiseResponseDoneMoment } from "./compromise-response-moments";
 
 const ITEM_TEXT: Record<CompromiseResponseItem, { label: string; detail?: string }> = {
   mercado_pago_webhook_secret: { label: "Secreto del webhook de Mercado Pago" },
@@ -50,7 +51,7 @@ export function CompromiseResponseChecklist({
             </div>
             {done && doneAt !== null ? (
               <Tag tone="success" variant="status">
-                {`Hecho el ${formatDayAndTime(doneAt)}`}
+                {`Hecho el ${compromiseResponseDoneMoment(doneAt)}`}
               </Tag>
             ) : (
               <Button

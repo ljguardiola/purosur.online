@@ -120,7 +120,7 @@ test("shows the six steps in order, only the first one available", async () => {
 test("shows a done step with its date and the next one available", async () => {
   const screen = await renderScreen(servicesWith(runbook(["revoke_every_installation"])));
 
-  await expect.element(screen.getByText("Hecho el 01/10/2026 · 15:30")).toBeVisible();
+  await expect.element(screen.getByText("Hecho el 01/10/2026 · 12:30")).toBeVisible();
   await expect.element(screen.getByText("Disponible")).toBeVisible();
 });
 
@@ -183,7 +183,7 @@ test("revokes every installation from its modal and reads the runbook again", as
   await userEvent.click(dialog.getByRole("button", { name: "Revocar todas" }));
 
   await expect.element(screen.getByText("Instalaciones revocadas")).toBeVisible();
-  await expect.element(screen.getByText("Hecho el 01/10/2026 · 15:30")).toBeVisible();
+  await expect.element(screen.getByText("Hecho el 01/10/2026 · 12:30")).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
 });
 

@@ -1,4 +1,8 @@
-import { COMPROMISE_RESPONSE_ITEMS, COMPROMISE_RESPONSE_STEPS } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  COMPROMISE_RESPONSE_ITEMS,
+  COMPROMISE_RESPONSE_STEPS,
+} from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type CompromiseResponseBody,
@@ -33,6 +37,20 @@ const runbook = {
     },
   ],
 };
+
+describe("compromiseResponseSchema, declared time zone", () => {
+  it("declares the zone a step's done_at is shown in", () => {
+    expect(compromiseResponseSchema.shape.steps.element.shape.done_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  });
+
+  it("declares the zone an item's done_at is shown in", () => {
+    expect(compromiseResponseSchema.shape.items.element.shape.done_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  });
+});
 
 describe("compromiseResponseSchema", () => {
   it("accepts the runbook the cloud sends, with its steps and items", () => {

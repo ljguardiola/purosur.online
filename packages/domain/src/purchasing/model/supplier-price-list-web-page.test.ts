@@ -26,6 +26,7 @@ describe("supplier price list web page limits", () => {
       "too_large",
       "too_slow",
       "unsupported_content",
+      "store_catalog_unavailable",
       "unreachable",
     ]);
   });

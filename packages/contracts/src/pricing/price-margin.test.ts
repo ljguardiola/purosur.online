@@ -7,6 +7,7 @@ const costReference = {
   freightPerUnitCents: 0,
   totalCostCents: 1200,
   marginTenthsOfPercent: 400,
+  costIncomplete: false,
 };
 
 describe("priceMarginSchema", () => {
@@ -18,6 +19,12 @@ describe("priceMarginSchema", () => {
     expect(priceMarginSchema.safeParse({ costReference: null }).data).toEqual({
       costReference: null,
     });
+  });
+
+  it("requires the incomplete cost flag in the cost reference", () => {
+    const { costIncomplete: _omitted, ...rest } = costReference;
+
+    expect(priceMarginSchema.safeParse({ costReference: rest }).success).toBe(false);
   });
 
   it("requires the cost reference", () => {

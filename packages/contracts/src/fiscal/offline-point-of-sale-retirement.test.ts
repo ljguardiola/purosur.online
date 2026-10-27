@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   branchOfflinePointOfSaleListSchema,
@@ -48,6 +49,14 @@ describe("branchOfflinePointOfSaleListSchema", () => {
       branchOfflinePointOfSaleListSchema.safeParse([{ ...retired, retired_at: "yesterday" }])
         .success,
     ).toBe(false);
+  });
+});
+
+describe("branchOfflinePointOfSaleListSchema, declared time zone", () => {
+  it("declares the zone a retirement is shown in", () => {
+    expect(branchOfflinePointOfSaleListSchema.element.shape.retired_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
 

@@ -90,7 +90,7 @@ export interface LockedSupplierPriceList {
   listDate: string | null;
   // Whether the list's prices include VAT, null while neither the reading nor a person said.
   pricesIncludeVat: boolean | null;
-  // The instant the list was sent to the AI service, null while it has not been.
+  // The instant the list was sent to be read, null while it has not been.
   sentAt: Date | null;
   rowPrices: (number | null)[];
 }

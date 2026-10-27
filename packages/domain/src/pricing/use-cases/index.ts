@@ -2,6 +2,10 @@ export type { Clock } from "../../shared/index.js";
 export type { AssignableTargetCandidate } from "../model/discount-target-eligibility.js";
 export type { PriceCostReference } from "../model/price-cost-reference.js";
 export type { ActiveProductReader } from "./active-product-reader.js";
+export type {
+  AssemblyBatchCost,
+  AssemblyBatchCostReader,
+} from "./assembly-batch-cost-reader.js";
 export type { ConfirmPriceInput, ConfirmPriceOutcome } from "./confirm-price.js";
 export { confirmPrice } from "./confirm-price.js";
 export type { CreateDiscountInput, CreateDiscountOutcome } from "./create-discount.js";
