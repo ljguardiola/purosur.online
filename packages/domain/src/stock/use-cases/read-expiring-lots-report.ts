@@ -1,4 +1,9 @@
-import { argentinaCalendarDay, type Clock, type ReportPeriod } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  type Clock,
+  type ReportPeriod,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import { expiryReportPeriodOf } from "../model/lot-expiry.js";
 import { type LotsValueSummary, lotsValueSummary } from "../model/lot-value.js";
 import type { ExpiringLotReader, ExpiryWarningWindowReader } from "./expiring-lot-reader.js";
@@ -25,14 +30,16 @@ export async function readExpiringLotsReport(
     expiringLots,
     branchSettings,
     clock,
+    zoneRules,
   }: {
     expiringLots: ExpiringLotReader;
     branchSettings: ExpiryWarningWindowReader;
     clock: Clock;
+    zoneRules: ZoneRulesSource;
   },
   { locationId, asked }: ReadExpiringLotsReportInput,
 ): Promise<ExpiringLotsReport> {
-  const today = argentinaCalendarDay(clock.now());
+  const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
   const { expiringLotAlertDays: windowDays } =
     await branchSettings.currentBranchSettings(locationId);
   const period = expiryReportPeriodOf(asked, today, windowDays);
