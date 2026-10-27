@@ -956,7 +956,11 @@ describe("catching up the deferred sales, as the register's health is checked", 
     });
 
   function ticking(
-    answers: { unclear?: () => Promise<Response>; authorize?: () => Promise<Response> } = {},
+    answers: {
+      unclear?: () => Promise<Response>;
+      authorize?: () => Promise<Response>;
+      creditNote?: () => Promise<Response>;
+    } = {},
     failures: unknown[] = [],
     readOutboxChainKey: () => Promise<string | undefined> = async () => CHAIN_KEY,
     afterCheck: () => void = () => undefined,
@@ -967,6 +971,9 @@ describe("catching up the deferred sales, as the register's health is checked", 
       }
       if (path === AUTHORIZE_PATH) {
         return (answers.authorize ?? authorized)();
+      }
+      if (path === "/api/fiscal/credit-notes") {
+        return (answers.creditNote ?? (async () => json({ state: "IN_PROGRESS" })))();
       }
       return healthy();
     });
@@ -1052,6 +1059,55 @@ describe("catching up the deferred sales, as the register's health is checked", 
       { sale_id: "sale-9", number: 99, state: "RELEASED" },
       { sale_id: "sale-1", number: 101, state: "AUTHORIZED" },
     ]);
+  });
+
+  it("asks for the credit note of a return waiting for its sale's invoice only after the catch-up issued that invoice, correcting it", async () => {
+    addPendingSale(1);
+    database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'register-1', 'device-a', 'session-1', 'u1', 'QR', '2026-09-30T12:20:00.000Z')`,
+      )
+      .run();
+    appendOutboxEvent(database, CHAIN_KEY, {
+      ...outboxEventDraft(7),
+      aggregate_type: "Return",
+      aggregate_id: "return-1",
+      event_type: "sale_returned",
+      schema_version: 2,
+      payload: { id: "return-1", sale_id: "sale-1" },
+    });
+    insertPendingCreditNote(database, {
+      creditNoteId: "note-1",
+      saleId: "sale-1",
+      total: 3000,
+      receiverTaxStatusCode: null,
+      correctedVoucher: null,
+      origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-09-30" },
+    });
+    const { sent, tick } = ticking({
+      creditNote: async () =>
+        json({
+          state: "AUTHORIZED",
+          point_of_sale: 100,
+          number: 5,
+          issued_on: "2026-09-30",
+          issued_at: "2026-09-30T12:05:01.000Z",
+          authorization_code: "75123456789012",
+          authorization_code_due_on: "2026-10-10",
+        }),
+    });
+
+    await tick();
+
+    expect(sent.map(({ path }) => path)).toEqual([
+      "/api/health",
+      AUTHORIZE_PATH,
+      "/api/fiscal/credit-notes",
+    ]);
+    expect(
+      database.prepare("SELECT id, state, corrected_number FROM sale_void_credit_notes").all(),
+    ).toEqual([{ id: "note-1", state: "AUTHORIZED", corrected_number: 101 }]);
   });
 
   it("reports a failure of the catch-up without ending the tick", async () => {
