@@ -63,6 +63,12 @@ async function enrollRegister(pointOfSaleNumber = 7, outboxChainKey?: string) {
     mechanism: "offline",
     claimedBy: actor?.id ?? "",
   });
+  await insertRealTimeInvoice(route.db, {
+    registerId,
+    pointOfSale: pointOfSaleNumber + 24,
+    number: 42,
+    total: 12_550,
+  });
   return insertEnrolledInstallation(route.db, {
     now: NOW,
     existingRegisterId: registerId,
@@ -347,14 +353,37 @@ describe("POST /fiscal/credit-notes", () => {
       expect(route.enqueuedCreditNotes).toEqual([body.credit_note_id]);
     });
 
-    it("refuses a credit note that takes the credits of an invoice over its total, issuing nothing", async () => {
+    it("answers IN_PROGRESS, recording nothing and asking the tax authority nothing, while the cloud does not know the invoice", async () => {
       const { deviceToken, registerId } = await enrollRegister();
+      await route.issueWsaaToken();
+      route.wsfe.behave(AUTHORIZED_IN_TURN);
+      const body = requestBody({}, 99);
+
+      const waiting = await requestCreditNote(body, `Bearer ${deviceToken}`);
+
+      expect(waiting.statusCode).toBe(200);
+      expect(saleVoidCreditNoteResponseSchema.parse(waiting.json())).toEqual({
+        state: "IN_PROGRESS",
+      });
+      expect(await rows()).toEqual([]);
+      expect(await route.db.select().from(alerts)).toEqual([]);
+      expect(route.wsfe.requests).toEqual([]);
+      expect(route.enqueuedCreditNotes).toEqual([]);
+
       await insertRealTimeInvoice(route.db, {
         registerId,
         pointOfSale: 31,
-        number: 42,
+        number: 99,
         total: 12_550,
       });
+      const known = await requestCreditNote(body, `Bearer ${deviceToken}`);
+
+      expect(saleVoidCreditNoteResponseSchema.parse(known.json()).state).toBe("AUTHORIZED");
+      expect(await rows()).toMatchObject([{ id: body.credit_note_id, answerKind: "authorized" }]);
+    });
+
+    it("refuses a credit note that takes the credits of an invoice over its total, issuing nothing", async () => {
+      const { deviceToken } = await enrollRegister();
       await requestCreditNote(requestBody(), `Bearer ${deviceToken}`);
       route.wsfe.requests.length = 0;
 
@@ -367,13 +396,7 @@ describe("POST /fiscal/credit-notes", () => {
     });
 
     it("opens, once, an alert about the invoice that already had a credit note, naming the voided sale", async () => {
-      const { deviceToken, registerId } = await enrollRegister();
-      await insertRealTimeInvoice(route.db, {
-        registerId,
-        pointOfSale: 31,
-        number: 42,
-        total: 12_550,
-      });
+      const { deviceToken } = await enrollRegister();
       const first = requestBody();
       await requestCreditNote(first, `Bearer ${deviceToken}`);
       expect(await route.db.select().from(alerts)).toEqual([]);
@@ -532,7 +555,13 @@ describe("POST /fiscal/credit-notes", () => {
     });
 
     it("corrects the invoice a credit note that waited for it now names", async () => {
-      const { deviceToken } = await enrollRegister();
+      const { deviceToken, registerId } = await enrollRegister();
+      await insertRealTimeInvoice(route.db, {
+        registerId,
+        pointOfSale: 31,
+        number: 66,
+        total: 12_550,
+      });
       await route.issueWsaaToken();
       route.wsfe.behave(AUTHORIZED_IN_TURN);
       const { creditNoteId, request } = waitingForItsInvoice();

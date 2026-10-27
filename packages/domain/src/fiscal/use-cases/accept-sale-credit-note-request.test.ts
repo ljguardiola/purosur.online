@@ -467,14 +467,27 @@ describe("acceptSaleCreditNoteRequest", () => {
       expect(await run()).toEqual({ kind: "recorded" });
     });
 
-    it("records it when the cloud does not know the invoice's total", async () => {
-      const { run } = request({
+    it("records nothing and raises nothing while the cloud does not know the invoice's total", async () => {
+      const { store, run } = request({ request: returned, invoices: [] });
+
+      expect(await run()).toEqual({ kind: "invoice_not_yet_known" });
+      expect(store.records).toEqual([]);
+      expect(store.alertsRaised).toEqual([]);
+      expect(store.refusalsKept).toEqual([]);
+    });
+
+    it("caps the credit note once the cloud knows the invoice it waited for", async () => {
+      const unknown = request({ request: returned, invoices: [] });
+      expect(await unknown.run()).toEqual({ kind: "invoice_not_yet_known" });
+
+      const known = request({
         request: returned,
-        invoices: [],
-        seeded: [[REGISTER_ID, { ...STORED, creditNoteId: "credit-note-2" }]],
+        invoices: [[VOUCHER, 10_000]],
+        seeded: [[REGISTER_ID, { ...STORED, creditNoteId: "credit-note-2", total: 7_001 }]],
       });
 
-      expect(await run()).toEqual({ kind: "recorded" });
+      expect(await known.run()).toEqual({ kind: "voucher_already_credited" });
+      expect(known.store.records).toEqual([]);
     });
   });
 
