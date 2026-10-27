@@ -3240,6 +3240,7 @@ describe("the route access inventory", () => {
         url: "/api/devices/current/snapshots/:generationId/uploaded",
         access: PUBLIC_ACCESS,
       },
+      { method: "GET", url: "/api/devices/current/returns/sale", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/snapshot-corruption", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/devices/current/snapshots/verified", access: PUBLIC_ACCESS },
