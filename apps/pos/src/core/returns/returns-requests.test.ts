@@ -2,6 +2,7 @@ import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -41,6 +42,7 @@ function deps(overrides: Partial<ReturnRequestDeps> = {}): ReturnRequestDeps {
         return `id-${idCount}`;
       },
     },
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }

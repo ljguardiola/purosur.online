@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { fixedOffsetZoneRules } from "../../shared/test-support/fake-zone-rules-source.js";
 import { DEFAULT_SNAPSHOT_LIFECYCLE_RULES } from "./snapshot-lifecycle-rules.js";
 import {
@@ -29,7 +30,13 @@ function pruned(
   rules = DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
   frozen = false,
 ): string[] {
-  return snapshotGenerationsToPrune(generations, rules, NOW, frozen).sort();
+  return snapshotGenerationsToPrune(
+    generations,
+    rules,
+    NOW,
+    frozen,
+    FIXED_ARGENTINA_ZONE_RULES,
+  ).sort();
 }
 
 describe("snapshotGenerationsToPrune", () => {
@@ -163,9 +170,9 @@ describe("snapshotGenerationsToPrune", () => {
           const newest = generations.reduce((best, candidate) =>
             candidate.createdAt > best.createdAt ? candidate : best,
           );
-          expect(snapshotGenerationsToPrune(generations, rules, NOW, false)).not.toContain(
-            newest.id,
-          );
+          expect(
+            snapshotGenerationsToPrune(generations, rules, NOW, false, FIXED_ARGENTINA_ZONE_RULES),
+          ).not.toContain(newest.id);
         },
       ),
     );
@@ -176,7 +183,9 @@ describe("snapshotRetentionTiers", () => {
   const ONE_HOUR_RULES = { hourly: 1, daily: 1, monthly: 1 };
 
   it("keeps nothing in any tier when there are no generations", () => {
-    expect(snapshotRetentionTiers([], DEFAULT_SNAPSHOT_LIFECYCLE_RULES, NOW)).toEqual({
+    expect(
+      snapshotRetentionTiers([], DEFAULT_SNAPSHOT_LIFECYCLE_RULES, NOW, FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       recent: [],
       hourly: [],
       daily: [],
@@ -188,28 +197,18 @@ describe("snapshotRetentionTiers", () => {
     const generations = Array.from({ length: 8 }, (_, index) =>
       verified(`g${index}`, minutesBefore(index)),
     );
-    expect(snapshotRetentionTiers(generations, ONE_HOUR_RULES, NOW).recent).toEqual([
-      "g0",
-      "g1",
-      "g2",
-      "g3",
-      "g4",
-      "g5",
-    ]);
+    expect(
+      snapshotRetentionTiers(generations, ONE_HOUR_RULES, NOW, FIXED_ARGENTINA_ZONE_RULES).recent,
+    ).toEqual(["g0", "g1", "g2", "g3", "g4", "g5"]);
   });
 
   it("breaks a tie between generations created at the same instant by the larger id", () => {
     const generations = Array.from({ length: 7 }, (_, index) =>
       verified(`g${index}`, minutesBefore(0)),
     );
-    expect(snapshotRetentionTiers(generations, ONE_HOUR_RULES, NOW).recent).toEqual([
-      "g6",
-      "g5",
-      "g4",
-      "g3",
-      "g2",
-      "g1",
-    ]);
+    expect(
+      snapshotRetentionTiers(generations, ONE_HOUR_RULES, NOW, FIXED_ARGENTINA_ZONE_RULES).recent,
+    ).toEqual(["g6", "g5", "g4", "g3", "g2", "g1"]);
   });
 
   it("ignores generations that are not verified", () => {
@@ -219,7 +218,14 @@ describe("snapshotRetentionTiers", () => {
       { id: "failed", createdAt: minutesBefore(1), status: "failed" },
       verified("ok", minutesBefore(2)),
     ];
-    expect(snapshotRetentionTiers(generations, DEFAULT_SNAPSHOT_LIFECYCLE_RULES, NOW)).toEqual({
+    expect(
+      snapshotRetentionTiers(
+        generations,
+        DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
+        NOW,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       recent: ["ok"],
       hourly: ["ok"],
       daily: ["ok"],
@@ -236,7 +242,12 @@ describe("snapshotRetentionTiers", () => {
       verified("four-hours", minutesBefore(250)),
     ];
     expect(
-      snapshotRetentionTiers(generations, { hourly: 4, daily: 1, monthly: 1 }, NOW).hourly,
+      snapshotRetentionTiers(
+        generations,
+        { hourly: 4, daily: 1, monthly: 1 },
+        NOW,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ).hourly,
     ).toEqual(["recent0", "two-hours-newest", "three-hours"]);
   });
 
@@ -249,7 +260,12 @@ describe("snapshotRetentionTiers", () => {
       verified("three-days", new Date(NOW.getTime() - 3 * DAY_MS)),
     ];
     expect(
-      snapshotRetentionTiers(generations, { hourly: 1, daily: 3, monthly: 1 }, NOW).daily,
+      snapshotRetentionTiers(
+        generations,
+        { hourly: 1, daily: 3, monthly: 1 },
+        NOW,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ).daily,
     ).toEqual(["recent0", "yesterday-newest", "two-days"]);
   });
 
@@ -261,7 +277,12 @@ describe("snapshotRetentionTiers", () => {
       verified("august", new Date("2026-08-15T12:00:00.000Z")),
     ];
     expect(
-      snapshotRetentionTiers(generations, { hourly: 1, daily: 1, monthly: 2 }, NOW).monthly,
+      snapshotRetentionTiers(
+        generations,
+        { hourly: 1, daily: 1, monthly: 2 },
+        NOW,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ).monthly,
     ).toEqual(["recent0", "september-newest"]);
   });
 
@@ -270,6 +291,7 @@ describe("snapshotRetentionTiers", () => {
       [verified("only", minutesBefore(5))],
       DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
       NOW,
+      FIXED_ARGENTINA_ZONE_RULES,
     );
     expect([tiers.recent, tiers.hourly, tiers.daily, tiers.monthly]).toEqual([
       ["only"],
@@ -292,14 +314,20 @@ describe("snapshotRetentionTiers", () => {
           const generations = agesInMinutes.map((age, index) =>
             verified(`g${index}`, minutesBefore(age)),
           );
-          const tiers = snapshotRetentionTiers(generations, rules, NOW);
+          const tiers = snapshotRetentionTiers(generations, rules, NOW, FIXED_ARGENTINA_ZONE_RULES);
           const kept = new Set([
             ...tiers.recent,
             ...tiers.hourly,
             ...tiers.daily,
             ...tiers.monthly,
           ]);
-          const prunedIds = snapshotGenerationsToPrune(generations, rules, NOW, false);
+          const prunedIds = snapshotGenerationsToPrune(
+            generations,
+            rules,
+            NOW,
+            false,
+            FIXED_ARGENTINA_ZONE_RULES,
+          );
           expect(
             generations.map((generation) => generation.id).filter((id) => !kept.has(id)),
           ).toEqual(prunedIds);

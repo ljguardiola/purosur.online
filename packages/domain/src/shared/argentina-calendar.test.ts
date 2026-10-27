@@ -78,7 +78,7 @@ describe("argentinaInstant", () => {
     ["a day before Argentina's clocks followed a standard offset", "1900-01-01", "10:00"],
     ["a day in the first hundred years of the calendar", "0050-01-01", "10:00"],
   ])("writes %s on Argentina's current offset", (_case, day, time) => {
-    expect(argentinaInstant(day, time)).toBe(`${day}T${time}:00-03:00`);
+    expect(argentinaInstant(day, time, FIXED_ARGENTINA_ZONE_RULES)).toBe(`${day}T${time}:00-03:00`);
   });
 });
 

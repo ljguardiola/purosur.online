@@ -36,8 +36,16 @@ export function registerDiscountEditRoute<TQueryResult extends PgQueryResultHKT>
 ): void {
   const { now } = options;
   registerRouteAccess(app);
-  const ports = { store: new DrizzleDiscountStore(options.db), clock: { now } };
-  const reading = { discounts: new DrizzleDiscountReader(options.db), clock: { now } };
+  const ports = {
+    store: new DrizzleDiscountStore(options.db),
+    clock: { now },
+    zoneRules: options.zoneRules,
+  };
+  const reading = {
+    discounts: new DrizzleDiscountReader(options.db),
+    clock: { now },
+    zoneRules: options.zoneRules,
+  };
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put(

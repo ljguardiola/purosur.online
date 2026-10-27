@@ -398,6 +398,8 @@ export type {
 } from "./verify-snapshot-generations.js";
 export { verifySnapshotGenerations } from "./verify-snapshot-generations.js";
 export type {
+  CurrentZoneRules,
+  CurrentZoneRulesReader,
   PublishedZoneRules,
   ZoneRulesPorts,
   ZoneRulesStore,

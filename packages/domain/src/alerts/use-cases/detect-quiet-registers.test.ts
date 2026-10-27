@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { BranchWeeklyHoursRange } from "../../branch/index.js";
 import type { WatchedRegister } from "../../register/index.js";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { detectQuietRegisters } from "./detect-quiet-registers.js";
 import { seededAlert } from "./test-support/alert-fixtures.js";
 import { FakeAlertStore, FixedClock, PrefixHasher } from "./test-support/fake-alert-store.js";
@@ -9,7 +10,7 @@ import { FakeBranchHoursReader } from "./test-support/fake-branch-hours-reader.j
 import { FakeWatchedRegisterReader } from "./test-support/fake-watched-register-reader.js";
 
 const MINUTE_MS = 60 * 1000;
-const MONDAY_NOON = new Date(argentinaInstant("2026-10-05", "12:00"));
+const MONDAY_NOON = new Date(argentinaInstant("2026-10-05", "12:00", FIXED_ARGENTINA_ZONE_RULES));
 const OPEN_ALL_DAY = [{ dayOfWeek: 1, opensAt: "08:00", closesAt: "20:00" }];
 
 function minutesBeforeNoon(minutes: number): Date {
@@ -53,6 +54,7 @@ function detect(
     ...hoursOfBranch,
   });
   const outcome = detectQuietRegisters({
+    zoneRules: new FakeZoneRulesSource(),
     registers: reader,
     branchHours,
     store,

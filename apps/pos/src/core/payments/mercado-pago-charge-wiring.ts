@@ -3,6 +3,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import type { InterruptedMercadoPagoCharge } from "@purosur/domain/payments/use-cases";
 import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
@@ -32,6 +33,7 @@ export interface MercadoPagoChargingWiringDeps {
   readDeviceToken: () => Promise<string | undefined>;
   readOutboxChainKey: () => Promise<string | undefined>;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   restoration: RestorationProtocolEvidence | undefined;
   ticketedSettlement: TicketedOperations["ticketedSettlement"];
@@ -66,6 +68,7 @@ export function createMercadoPagoCharging({
   readDeviceToken,
   readOutboxChainKey,
   now,
+  zoneRules,
   ids,
   restoration,
   ticketedSettlement,
@@ -97,6 +100,7 @@ export function createMercadoPagoCharging({
     }),
     readOutboxChainKey,
     now,
+    zoneRules,
     ids,
     restoration,
   };

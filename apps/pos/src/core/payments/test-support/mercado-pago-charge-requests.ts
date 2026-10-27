@@ -12,6 +12,7 @@ import type {
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import { restorePendingIn } from "../../backups/restore-pending";
 import type { LocalDatabase } from "../../platform/local-database";
+import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
 import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";
 import { scanProductFor } from "../../sales/sale-requests";
 import { createActionGate } from "../../sessions/action-gate";
@@ -101,6 +102,7 @@ export function chargeRequestDeps(
         return `qr-${count}`;
       },
     },
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }
@@ -163,6 +165,7 @@ export async function openSaleOfTwoYerbas(
     database: register.database,
     gate: chargeRequestDeps(register, new FakeMercadoPagoOrders(() => register.database)).gate,
     now: () => CHARGE_NOW,
+    zoneRules: fixedZoneRulesSource(),
     ids: saleIds,
     paidOrderDiscovery: () => "checked" as const,
     newSalesStoppedByDisk: () => false,

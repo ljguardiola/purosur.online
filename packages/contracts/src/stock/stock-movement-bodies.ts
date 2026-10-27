@@ -11,6 +11,7 @@ import {
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
+  type ZoneRules,
 } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
@@ -71,9 +72,11 @@ export const stockCountBodySchema = z.object({
 
 export type StockCountBody = z.input<typeof stockCountBodySchema>;
 
-export const stockCountMomentSchema = z
-  .object({
-    day: z.string().refine(isCalendarDay),
-    time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  })
-  .transform(({ day, time }) => argentinaInstant(day, time));
+export function stockCountMomentSchema(rules: ZoneRules) {
+  return z
+    .object({
+      day: z.string().refine(isCalendarDay),
+      time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    })
+    .transform(({ day, time }) => argentinaInstant(day, time, rules));
+}

@@ -4,6 +4,7 @@ import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
 import { pendingPointTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
 import { paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { pushMercadoPagoSaleCancelled } from "./test-support/mercado-pago-cancelled-sale-push.js";
 
@@ -14,6 +15,7 @@ const AMOUNT = 30_700;
 function applyPending() {
   return applyPendingEvents(
     {
+      zoneRules: fixedZoneRulesSource(),
       eventApplication: system.application,
       upcaster: syncedEventUpcaster,
       clock: { now: () => new Date("2026-10-06T15:00:00.000Z") },

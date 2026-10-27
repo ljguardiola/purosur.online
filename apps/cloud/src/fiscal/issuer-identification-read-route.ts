@@ -1,5 +1,5 @@
 import { type IssuerIdentificationBody, issuerIdentificationSchema } from "@purosur/contracts";
-import { ISSUER_TAX_STATUS } from "@purosur/domain";
+import { ISSUER_TAX_STATUS, type ZoneRulesSource } from "@purosur/domain";
 import type { AuthorizedIssuerIdentification } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -14,6 +14,7 @@ import { DrizzleIssuerIdentificationReader } from "./drizzle-issuer-identificati
 export interface IssuerIdentificationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
+  zoneRules: ZoneRulesSource;
   // From deployment configuration (ARCA_CERTIFICATE); never accepted from a client.
   authorizedCuit: string;
   now: () => Date;

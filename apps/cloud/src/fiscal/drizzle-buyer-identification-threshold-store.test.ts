@@ -7,6 +7,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { auditLog, buyerIdentificationThresholds, changes, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "./drizzle-buyer-identification-threshold-store.js";
@@ -54,6 +55,7 @@ async function seedThreshold(amount: number, validFrom: string, actorId: string,
 function record(actorId: string, validFrom: string, amount = 1_000_000) {
   return recordBuyerIdentificationThreshold(
     {
+      zoneRules: fixedZoneRulesSource(),
       store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOON),
       clock: { now: () => NOON },
     },

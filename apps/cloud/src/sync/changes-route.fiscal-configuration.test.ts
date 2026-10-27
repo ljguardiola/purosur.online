@@ -23,6 +23,7 @@ import {
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { logChange } from "./change-log.js";
@@ -48,7 +49,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  app = buildChangesRouteApp(db, { now: () => NOW });
+  app = buildChangesRouteApp(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 });
 
 afterEach(async () => {
@@ -227,6 +228,7 @@ describe("GET /changes carrying the fiscal configuration", () => {
     const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
     const outcome = await recordBuyerIdentificationThreshold(
       {
+        zoneRules: fixedZoneRulesSource(),
         store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
         clock: { now: () => NOW },
       },
@@ -258,6 +260,7 @@ describe("GET /changes carrying the fiscal configuration", () => {
     const ports = {
       store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
       clock: { now: () => NOW },
+      zoneRules: fixedZoneRulesSource(),
     };
     const record = (amount: number) =>
       recordBuyerIdentificationThreshold(ports, {

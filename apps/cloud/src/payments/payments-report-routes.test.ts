@@ -9,6 +9,7 @@ import {
   signedInWith,
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerPaymentsReportRoutes } from "./payments-report-routes.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
@@ -29,7 +30,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerPaymentsReportRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
+  registerPaymentsReportRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOW,
+  });
 });
 
 afterEach(async () => {

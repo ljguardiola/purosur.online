@@ -1,22 +1,31 @@
+import { offsetAt, type ZoneRules } from "./zone-rules.js";
+
 // The business operates only in Argentina, so "today" means Argentina's calendar day: the UTC
-// day is already tomorrow after 21:00 local time.
+// day is already tomorrow after 21:00 local time. Only display metadata names the zone; every
+// computation takes the rules that say its offset.
 export const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
 
-// The en-CA locale formats a date as YYYY-MM-DD, the ISO calendar date shape.
-const ISO_DAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
-  timeZone: ARGENTINA_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+const MINUTE_MS = 60_000;
 
-export function argentinaCalendarDay(instant: Date): string {
-  return ISO_DAY_FORMAT.format(instant);
+export function localClock(instant: Date, rules: ZoneRules): Date {
+  return new Date(instant.getTime() + offsetAt(rules, instant) * MINUTE_MS);
 }
 
-// Argentina has kept UTC−3 all year, with no daylight saving time, since 2009.
-const ARGENTINA_OFFSET = "-03:00";
+export function argentinaCalendarDay(instant: Date, rules: ZoneRules): string {
+  return localClock(instant, rules).toISOString().slice(0, 10);
+}
 
-export function argentinaInstant(day: string, time: string): string {
-  return `${day}T${time}:00${ARGENTINA_OFFSET}`;
+export function utcOffsetText(offsetMinutes: number): string {
+  const sign = offsetMinutes < 0 ? "-" : "+";
+  const absolute = Math.abs(offsetMinutes);
+  const hours = String(Math.floor(absolute / 60)).padStart(2, "0");
+  const minutes = String(absolute % 60).padStart(2, "0");
+  return `${sign}${hours}:${minutes}`;
+}
+
+export function argentinaInstant(day: string, time: string, rules: ZoneRules): string {
+  const wallClock = Date.parse(`${day}T${time}:00Z`);
+  const guessed = offsetAt(rules, new Date(wallClock));
+  const settled = offsetAt(rules, new Date(wallClock - guessed * MINUTE_MS));
+  return `${day}T${time}:00${utcOffsetText(settled)}`;
 }

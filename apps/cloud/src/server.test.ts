@@ -808,6 +808,7 @@ describe("startServer", () => {
         offsiteDumpCheck: { environment: "homologation" },
       },
       now,
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
     expect(buildApp).toHaveBeenCalledWith({
       version: "unknown",
@@ -1026,6 +1027,7 @@ describe("startServer checking the offsite dump", () => {
     expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({ offsiteDumpCheck: { environment: "homologation" } }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1360,6 +1362,7 @@ describe("startServer with the ARCA private key", () => {
         },
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1378,6 +1381,7 @@ describe("startServer with the ARCA private key", () => {
         }),
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1397,6 +1401,7 @@ describe("startServer with the ARCA private key", () => {
         }),
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1552,6 +1557,7 @@ describe("startServer fetching the buyer tax-status values", () => {
         },
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1668,6 +1674,7 @@ describe("startServer authorizing sales in real time", () => {
         },
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -2416,6 +2423,7 @@ describe("startServer ARCA endpoints", () => {
         arcaWsaa: expect.objectContaining({ endpoint: endpoints.wsaa }),
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 });

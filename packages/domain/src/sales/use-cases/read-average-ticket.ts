@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import { averageTicket } from "../model/average-ticket.js";
 import {
   previousReportPeriod,
@@ -33,10 +38,14 @@ function ticketOf(totals: SalesReportTotals): TicketOfPeriod {
 }
 
 export async function readAverageTicket(
-  { reader, clock }: { reader: SalesReportReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: SalesReportReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId }: ReadAverageTicketInput,
 ): Promise<AverageTicketReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const previousRange = previousReportPeriod(range);
   const days = await reader.completedSalesByDay({ locationId, range, registerId });
   const previous =

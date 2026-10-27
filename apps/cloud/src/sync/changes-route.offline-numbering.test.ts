@@ -5,6 +5,7 @@ import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-regist
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
@@ -30,6 +31,7 @@ beforeEach(async () => {
   enqueueRequest.mockReset();
   enqueueRequest.mockResolvedValue(undefined);
   app = buildChangesRouteApp(db, {
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
     enqueueOfflineAuthorizationCodeRequest: enqueueRequest,
   });
@@ -173,6 +175,7 @@ describe("GET /changes asking for the current fortnight's offline authorization 
     const failure = new Error("the job queue is down");
     const reportError = vi.fn();
     const failing = buildChangesRouteApp(db, {
+      zoneRules: fixedZoneRulesSource(),
       now: () => NOW,
       enqueueOfflineAuthorizationCodeRequest: () => Promise.reject(failure),
       reportError,
@@ -187,7 +190,7 @@ describe("GET /changes asking for the current fortnight's offline authorization 
   });
 
   it("still answers when the cloud has no way to request codes", async () => {
-    const quiet = buildChangesRouteApp(db, { now: () => NOW });
+    const quiet = buildChangesRouteApp(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     const deviceToken = await installedRegisterWithOfflinePointOfSale();
 
     const page = await pulledPage(quiet, 0, deviceToken);

@@ -12,6 +12,7 @@ import {
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
   shiftCalendarDay,
+  type ZoneRulesSource,
 } from "@purosur/domain";
 import {
   closeAlert,
@@ -102,6 +103,7 @@ export type LoadSampleDataOutcome =
 
 export interface LoadSampleDataDeps {
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
@@ -326,7 +328,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       }
 
       const discountStore = new DrizzleDiscountStore(tx, pending);
-      const loadDay = argentinaCalendarDay(recentMoment);
+      const loadDay = argentinaCalendarDay(recentMoment, deps.zoneRules.zoneRules());
       for (const plan of SAMPLE_DISCOUNTS) {
         const targetId = {
           CATEGORY: categoryIdByName,
@@ -483,7 +485,9 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           "sample-data: no sample register available to scope an informational alert to",
         );
       }
-      const currentFortnight = fortnightContaining(argentinaCalendarDay(deps.now()));
+      const currentFortnight = fortnightContaining(
+        argentinaCalendarDay(deps.now(), deps.zoneRules.zoneRules()),
+      );
       const pastFortnight = fortnightContaining(shiftCalendarDay(currentFortnight.start, -1));
       const pastRequestWindowOpensOn = offlineAuthorizationCodeRequestOpensOn(pastFortnight);
       const pastWindowOpeningLevel = offlineAuthorizationCodeAcquisitionLevel(
@@ -495,7 +499,9 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           "sample-data: a fortnight's alert has no level on the day its request window opens",
         );
       }
-      const pastWindowOpeningMoment = new Date(argentinaInstant(pastRequestWindowOpensOn, "09:00"));
+      const pastWindowOpeningMoment = new Date(
+        argentinaInstant(pastRequestWindowOpensOn, "09:00", deps.zoneRules.zoneRules()),
+      );
       const conditionClearedMoment = new Date(pastWindowOpeningMoment.getTime() + MINUTE_MS);
       const stablyClearedMoment = new Date(
         conditionClearedMoment.getTime() + ALERT_CONDITION_STABLE_CLEAR_MS,

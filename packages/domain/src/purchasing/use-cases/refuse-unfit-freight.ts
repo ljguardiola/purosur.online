@@ -1,3 +1,4 @@
+import type { ZoneRules } from "../../shared/index.js";
 import {
   hasFreightPurchases,
   isFreightAmount,
@@ -26,6 +27,7 @@ export function sortedDistinct(ids: readonly string[]): string[] {
 export function refuseUnfitFreight(
   values: FreightValues,
   now: Date,
+  rules: ZoneRules,
 ): FreightInputRefusal | undefined {
   if (!hasFreightPurchases(values.purchaseIds.length)) {
     return { kind: "no_purchases" };
@@ -33,7 +35,7 @@ export function refuseUnfitFreight(
   if (!isFreightAmount(values.amountCents)) {
     return { kind: "invalid_amount" };
   }
-  if (isPurchaseDateInFuture(values.date, now)) {
+  if (isPurchaseDateInFuture(values.date, now, rules)) {
     return { kind: "date_in_future" };
   }
   if (!isFreightDescription(values.description)) {

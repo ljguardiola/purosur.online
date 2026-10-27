@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   arcaTestEnvironmentCheckSettingsOf,
   checkArcaTestEnvironment,
@@ -56,6 +57,7 @@ function optionsOf(timeoutMs = 5_000) {
     wsaaEndpoint: wsaa.endpoint,
     wsfeEndpoint: wsfe.endpoint,
     now: () => NOW,
+    zoneRules: fixedZoneRulesSource(),
     timeoutMs,
   };
 }

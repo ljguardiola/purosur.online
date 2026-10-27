@@ -2,7 +2,7 @@ import { createPrivateKey, X509Certificate } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isValidCuit } from "@purosur/domain";
+import { isValidCuit, type ZoneRulesSource } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
 import type {
@@ -445,12 +445,19 @@ function wsaaRenewalInput(
   environment: string,
   resumesWorkWaitingOnToken: boolean,
   now: () => Date,
+  zoneRules: ZoneRulesSource,
 ) {
   return {
     now,
     certificateFingerprint,
     environment,
-    authentication: new ArcaWsaaAuthentication({ endpoint, certificatePem, privateKeyPem, now }),
+    authentication: new ArcaWsaaAuthentication({
+      endpoint,
+      certificatePem,
+      privateKeyPem,
+      now,
+      zoneRules,
+    }),
     ...(resumesWorkWaitingOnToken
       ? { resumeWorkWaitingOnToken: resumeWorkWaitingOnWsaaToken }
       : {}),
@@ -518,6 +525,7 @@ export interface SetUpBackgroundJobsDeps {
 export async function setUpBackgroundJobs(
   backgroundJobsEnv: SetUpBackgroundJobsEnv,
   now: () => Date,
+  zoneRules: ZoneRulesSource,
   deps: SetUpBackgroundJobsDeps = {},
 ): Promise<BackgroundJobInfrastructure> {
   const sql = postgres(backgroundJobsEnv.databaseUrl);
@@ -536,7 +544,7 @@ export async function setUpBackgroundJobs(
     jobs: [
       accessEmailJobs({ now, backofficeOrigin: backgroundJobsEnv.backofficeOrigin, emailSender }),
       alertEscalationJobs({ now }),
-      alertConditionResolutionJobs({ now }),
+      alertConditionResolutionJobs({ now, zoneRules }),
       arcaCertificateExpiryJobs({ now, ...backgroundJobsEnv.arcaCertificate }),
       ...(backgroundJobsEnv.offsiteDumpCheck
         ? [unverifiedOffsiteDumpJobs({ now, ...backgroundJobsEnv.offsiteDumpCheck })]
@@ -551,12 +559,25 @@ export async function setUpBackgroundJobs(
             ),
         }),
       }),
-      applySyncedEventsJobs({ now }),
+      applySyncedEventsJobs({ now, zoneRules }),
       ...(backgroundJobsEnv.registerSnapshotObjects
-        ? [registerSnapshotJobs({ now, objects: backgroundJobsEnv.registerSnapshotObjects })]
+        ? [
+            registerSnapshotJobs({
+              now,
+              zoneRules,
+              objects: backgroundJobsEnv.registerSnapshotObjects,
+            }),
+          ]
         : []),
       ...(backgroundJobsEnv.supplierPriceListReading
-        ? [supplierPriceListReadingJobs({ now, db, ...backgroundJobsEnv.supplierPriceListReading })]
+        ? [
+            supplierPriceListReadingJobs({
+              now,
+              zoneRules,
+              db,
+              ...backgroundJobsEnv.supplierPriceListReading,
+            }),
+          ]
         : []),
       ...(backgroundJobsEnv.mercadoPago
         ? [
@@ -582,6 +603,7 @@ export async function setUpBackgroundJobs(
                 backgroundJobsEnv.arcaCertificate.environment,
                 backgroundJobsEnv.arcaInvoicing !== undefined,
                 now,
+                zoneRules,
               ),
             ),
           ]
@@ -615,6 +637,7 @@ export async function setUpBackgroundJobs(
             }),
             creditNoteJobs({
               now,
+              zoneRules,
               vouchers: new WsfeTaxAuthorityVouchers(backgroundJobsEnv.arcaInvoicing),
               taxAuthority: new WsfeTaxAuthorityLastAuthorized(backgroundJobsEnv.arcaInvoicing),
               creditNotes: new WsfeTaxAuthorityCreditNotes(backgroundJobsEnv.arcaInvoicing),
@@ -634,6 +657,7 @@ export async function setUpBackgroundJobs(
             }),
             offlineAuthorizationCodeJobs({
               now,
+              zoneRules,
               taxAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
                 backgroundJobsEnv.arcaInvoicing,
               ),
@@ -641,12 +665,14 @@ export async function setUpBackgroundJobs(
             }),
             fortnightReportJobs({
               now,
+              zoneRules,
               declarations: new WsfeTaxAuthorityNoMovementDeclarations(
                 backgroundJobsEnv.arcaInvoicing,
               ),
-              documentReports: new WsfeTaxAuthorityOfflineDocumentReports(
-                backgroundJobsEnv.arcaInvoicing,
-              ),
+              documentReports: new WsfeTaxAuthorityOfflineDocumentReports({
+                ...backgroundJobsEnv.arcaInvoicing,
+                zoneRules,
+              }),
               codeAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
                 backgroundJobsEnv.arcaInvoicing,
               ),
@@ -680,6 +706,7 @@ export interface StartServerDeps {
   setUpBackgroundJobs?: (
     backgroundJobsEnv: SetUpBackgroundJobsEnv,
     now: () => Date,
+    zoneRules: ZoneRulesSource,
   ) => Promise<BackgroundJobInfrastructure>;
   enqueueArcaCertificateExpiryCheck?: (
     workerUtils: BackgroundJobInfrastructure["workerUtils"],
@@ -697,7 +724,11 @@ export interface StartServerDeps {
     db: BackgroundJobInfrastructure["db"],
     authorizedCuit: string,
   ) => Promise<unknown>;
-  publishZoneRules?: (db: BackgroundJobInfrastructure["db"]) => Promise<unknown>;
+  publishZoneRules?: (
+    db: BackgroundJobInfrastructure["db"],
+    rules: RuntimeZoneRules,
+  ) => Promise<unknown>;
+  runtimeZoneRules?: () => RuntimeZoneRules;
 }
 
 function recordAuthorizedCuitInDatabase(
@@ -711,10 +742,13 @@ function recordAuthorizedCuitInDatabase(
   );
 }
 
+type RuntimeZoneRules = ReturnType<typeof runtimeZoneRules>;
+
 function publishRuntimeZoneRulesToDatabase(
   db: BackgroundJobInfrastructure["db"],
+  rules: RuntimeZoneRules,
 ): Promise<unknown> {
-  return publishZoneRules({ store: new DrizzleZoneRulesStore(db) }, runtimeZoneRules());
+  return publishZoneRules({ store: new DrizzleZoneRulesStore(db) }, rules);
 }
 
 export async function startServer(env: ServerEnv, deps: StartServerDeps): Promise<FastifyInstance> {
@@ -788,12 +822,23 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
         },
       }
     : undefined;
-  const database = configuration
-    ? {
-        ...configuration,
-        backgroundJobs: await doSetUpBackgroundJobs(configuration.setUpBackgroundJobsEnv, now),
-      }
+  const rulesOfThisRuntime = configuration
+    ? (deps.runtimeZoneRules ?? runtimeZoneRules)()
     : undefined;
+  const zoneRules = rulesOfThisRuntime && { zoneRules: () => rulesOfThisRuntime };
+  const database =
+    configuration && rulesOfThisRuntime && zoneRules
+      ? {
+          ...configuration,
+          rulesOfThisRuntime,
+          zoneRules,
+          backgroundJobs: await doSetUpBackgroundJobs(
+            configuration.setUpBackgroundJobsEnv,
+            now,
+            zoneRules,
+          ),
+        }
+      : undefined;
 
   const invoicing = database?.setUpBackgroundJobsEnv.arcaInvoicing;
   const app = doBuildApp({
@@ -806,6 +851,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       ? databaseRouteOptions({
           db: database.backgroundJobs.db,
           backofficeOrigin: database.backgroundJobs.backofficeOrigin,
+          zoneRules: database.zoneRules,
           recoveryJobQueue: database.backgroundJobs.jobQueue,
           authorizedCuit: database.authorizedCuit,
           certificateFingerprint: database.certificateFingerprint,
@@ -881,6 +927,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             enqueueCreditNote: enqueueCreditNoteJob,
           },
           creditNotes: {
+            zoneRules: database.zoneRules,
             connections: database.backgroundJobs.connections,
             vouchers: new WsfeTaxAuthorityVouchers(invoicing),
             taxAuthority: new WsfeTaxAuthorityLastAuthorized(invoicing),
@@ -894,7 +941,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   if (database) {
     app.addHook("onClose", () => database.backgroundJobs.close());
     await doRecordAuthorizedCuit(database.backgroundJobs.db, database.authorizedCuit);
-    await doPublishZoneRules(database.backgroundJobs.db);
+    await doPublishZoneRules(database.backgroundJobs.db, database.rulesOfThisRuntime);
     await doEnqueueArcaCertificateExpiryCheck(database.backgroundJobs.workerUtils);
     if (database.setUpBackgroundJobsEnv.arcaBuyerTaxStatus) {
       await doEnqueueBuyerTaxStatusFetch(database.backgroundJobs.workerUtils);

@@ -10,6 +10,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { categories, productBarcodes, products } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -159,7 +160,11 @@ describe("reactivating a product while another takes its barcode on a real Postg
     const [reactivation, edit] = await Promise.all([
       reactivateProduct(new DrizzleCatalogStore(db), reactivatedId),
       editProduct(
-        { store: new DrizzleCatalogStore(db), clock: { now: () => new Date() } },
+        {
+          zoneRules: fixedZoneRulesSource(),
+          store: new DrizzleCatalogStore(db),
+          clock: { now: () => new Date() },
+        },
         {
           id: edited.id,
           name: "Maceta C",

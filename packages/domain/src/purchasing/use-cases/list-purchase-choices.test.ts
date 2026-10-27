@@ -37,7 +37,9 @@ describe("listPurchaseChoices", () => {
       suppliers: [andina, supplier("s-2", "Cerrada", false)],
     });
 
-    expect((await listPurchaseChoices(reader, CLOCK)).suppliers).toEqual([andina]);
+    expect((await listPurchaseChoices(reader, CLOCK, new FakeZoneRulesSource())).suppliers).toEqual(
+      [andina],
+    );
   });
 
   it("offers only the packagings a line may be loaded by, with their product", async () => {
@@ -51,17 +53,23 @@ describe("listPurchaseChoices", () => {
       ],
     });
 
-    expect((await listPurchaseChoices(reader, CLOCK)).packagings).toEqual([
-      { ...caja, productName: "Yerba", productSaleUnit: "UNIT", saleUnitChanged: false },
-    ]);
+    expect(
+      (await listPurchaseChoices(reader, CLOCK, new FakeZoneRulesSource())).packagings,
+    ).toEqual([{ ...caja, productName: "Yerba", productSaleUnit: "UNIT", saleUnitChanged: false }]);
   });
 
   it("answers the day it is in Argentina as the day today's purchases are dated", async () => {
     const clock = { now: () => new Date("2026-09-17T01:00:00.000Z") };
 
-    expect((await listPurchaseChoices(new FakePurchasingListReader({}), clock)).today).toBe(
-      "2026-09-16",
-    );
+    expect(
+      (
+        await listPurchaseChoices(
+          new FakePurchasingListReader({}),
+          clock,
+          new FakeZoneRulesSource(),
+        )
+      ).today,
+    ).toBe("2026-09-16");
   });
 
   it("names today on the calendar day of the zone rules it is given", async () => {

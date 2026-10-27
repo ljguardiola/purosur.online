@@ -12,6 +12,7 @@ import {
 import type { StoredReceipt } from "@purosur/domain/sales/use-cases";
 import { formatPercent } from "@purosur/ui/formatters";
 import { describe, expect, it } from "vitest";
+import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
 import { printoutOf } from "../test-support/escpos-printout";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
 
@@ -107,8 +108,8 @@ function singleUnitReceipt(productName: string, price: number): ReceiptContent {
 }
 
 function printed(content: ReceiptContent, copy: ReceiptCopy = ORIGINAL) {
-  const stored = escPosReceiptTemplate.render(content);
-  return printoutOf(escPosReceiptTemplate.printable(stored, copy));
+  const stored = escPosReceiptTemplate(fixedZoneRulesSource()).render(content);
+  return printoutOf(escPosReceiptTemplate(fixedZoneRulesSource()).printable(stored, copy));
 }
 
 const HEAD = [
@@ -730,7 +731,7 @@ describe("the ESC/POS receipt template", () => {
   });
 
   it("writes Spanish letters and signs as their bytes of the PC850 code page", () => {
-    const stored = escPosReceiptTemplate.render(
+    const stored = escPosReceiptTemplate(fixedZoneRulesSource()).render(
       singleUnitReceipt("Ñandú ¿ü? ¡ºá é í ó ú ñ!·", 100),
     );
     const bytes = Array.from(stored.body);
@@ -742,13 +743,13 @@ describe("the ESC/POS receipt template", () => {
   });
 
   it("starts the head by initializing the printer and choosing the PC850 code page", () => {
-    const { head } = escPosReceiptTemplate.render(receipt());
+    const { head } = escPosReceiptTemplate(fixedZoneRulesSource()).render(receipt());
 
     expect(Array.from(head.slice(0, 5))).toEqual([0x1b, 0x40, 0x1b, 0x74, 0x02]);
   });
 
   it("prints the small rows in the printer's second font and goes back to the first one", () => {
-    const { head } = escPosReceiptTemplate.render(receipt());
+    const { head } = escPosReceiptTemplate(fixedZoneRulesSource()).render(receipt());
     const bytes = Array.from(head);
     const small = bytes.indexOf(0x4d);
 
@@ -757,13 +758,13 @@ describe("the ESC/POS receipt template", () => {
   });
 
   it("feeds blank paper past the cutter before cutting at the end of the body", () => {
-    const { body } = escPosReceiptTemplate.render(receipt());
+    const { body } = escPosReceiptTemplate(fixedZoneRulesSource()).render(receipt());
 
     expect(Array.from(body.slice(-6))).toEqual([0x1b, 0x64, 0x05, 0x1d, 0x56, 0x01]);
   });
 
   it("renders the version of the template with the head and the body apart", () => {
-    const stored = escPosReceiptTemplate.render(receipt());
+    const stored = escPosReceiptTemplate(fixedZoneRulesSource()).render(receipt());
 
     expect(stored.templateVersion).toBe("1");
     expect(printoutOf(stored.head).text).toBe(HEAD.join("\n"));
@@ -771,17 +772,17 @@ describe("the ESC/POS receipt template", () => {
   });
 
   it("prints an original as exactly its head followed by its body", () => {
-    const stored = escPosReceiptTemplate.render(receipt());
+    const stored = escPosReceiptTemplate(fixedZoneRulesSource()).render(receipt());
 
-    expect(escPosReceiptTemplate.printable(stored, ORIGINAL)).toEqual(
+    expect(escPosReceiptTemplate(fixedZoneRulesSource()).printable(stored, ORIGINAL)).toEqual(
       Uint8Array.from([...stored.head, ...stored.body]),
     );
   });
 
   it("prints a duplicate as its head, the legend and its body", () => {
-    const stored = escPosReceiptTemplate.render(receipt());
+    const stored = escPosReceiptTemplate(fixedZoneRulesSource()).render(receipt());
 
-    const duplicate = escPosReceiptTemplate.printable(stored, {
+    const duplicate = escPosReceiptTemplate(fixedZoneRulesSource()).printable(stored, {
       kind: "duplicate",
       orderNumber: 3,
     });
@@ -804,7 +805,10 @@ describe("the ESC/POS receipt template", () => {
     };
 
     expect(() =>
-      escPosReceiptTemplate.printable(stored, { kind: "duplicate", orderNumber: 1 }),
+      escPosReceiptTemplate(fixedZoneRulesSource()).printable(stored, {
+        kind: "duplicate",
+        orderNumber: 1,
+      }),
     ).toThrow(/2/);
   });
 
@@ -859,7 +863,7 @@ describe("the ESC/POS receipt template", () => {
     });
 
     it("puts the duplicate legend right below the voucher's type", () => {
-      const stored = escPosReceiptTemplate.render(fiscalReceipt());
+      const stored = escPosReceiptTemplate(fixedZoneRulesSource()).render(fiscalReceipt());
 
       expect(printoutOf(stored.head).text).toBe(FISCAL_HEAD.join("\n"));
       expect(printoutOf(stored.body).text).toBe(FISCAL_BODY.join("\n"));

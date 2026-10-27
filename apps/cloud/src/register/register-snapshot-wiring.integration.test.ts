@@ -11,6 +11,7 @@ import {
   registers,
 } from "../platform/db/schema.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -101,6 +102,7 @@ describe("the background worker the server sets up with a snapshots bucket on a 
         },
       },
       () => NOW,
+      fixedZoneRulesSource(),
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 

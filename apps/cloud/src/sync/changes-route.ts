@@ -5,6 +5,7 @@ import {
   cloudError,
   cloudErrorStatus,
 } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   admitInstallationRequest,
   type PullPage,
@@ -32,6 +33,7 @@ import type { PulledCloudChange } from "./pulled-changes.js";
 
 export type ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult> & {
+    zoneRules: ZoneRulesSource;
     enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
     reportError?: (error: unknown) => void;
   };
@@ -317,6 +319,7 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
       options.reportError,
     ),
     clock: { now: options.now },
+    zoneRules: options.zoneRules,
   };
   const admission = { admission: new DrizzleRequestAdmission(options.db), clock: ports.clock };
 

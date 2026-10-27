@@ -1,5 +1,8 @@
 import { recordIdSchema } from "@purosur/contracts";
-import { SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS } from "@purosur/domain";
+import {
+  SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import {
   type PriceListExtractor,
   readSupplierPriceList,
@@ -20,6 +23,7 @@ const payloadSchema = z.object({ listId: recordIdSchema() });
 
 export interface SupplierPriceListReadingInput<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   db: PgDatabase<TQueryResult>;
   files: SupplierPriceListFiles;
   extractor: PriceListExtractor;
@@ -27,6 +31,7 @@ export interface SupplierPriceListReadingInput<TQueryResult extends PgQueryResul
 
 export function supplierPriceListReadingJobs<TQueryResult extends PgQueryResultHKT>({
   now,
+  zoneRules,
   db,
   files,
   extractor,
@@ -36,7 +41,7 @@ export function supplierPriceListReadingJobs<TQueryResult extends PgQueryResultH
       [SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER]: async (payload, helpers) => {
         const { listId } = payloadSchema.parse(payload);
         await readSupplierPriceList(
-          { store: new DrizzleSupplierPriceListStore(db, now), files, extractor },
+          { store: new DrizzleSupplierPriceListStore(db, now), files, extractor, zoneRules },
           { listId, now, finalAttempt: helpers.job.attempts >= helpers.job.max_attempts },
         );
       },

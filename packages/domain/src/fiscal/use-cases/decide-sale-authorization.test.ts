@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 import type { FacturaC, PreEmissionGateOutcome } from "../model/pre-emission-gate.js";
 import type { OfflineSeries, RealTimeSeries } from "../model/real-time-authorization.js";
@@ -95,6 +96,7 @@ function decide({
   const ids = new SequentialIds();
   const shortCodes = new ScriptedShortCodes(SHORT_CODES);
   const outcome = decideSaleAuthorization(tx, ids, shortCodes, {
+    rules: FIXED_ARGENTINA_ZONE_RULES,
     saleId: SALE_ID,
     gate,
     decidedAt,

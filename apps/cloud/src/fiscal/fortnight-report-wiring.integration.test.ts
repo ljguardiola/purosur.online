@@ -6,6 +6,7 @@ import type { AccessEmailSender } from "../credentials/recovery-email-sender.js"
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpBackgroundJobs } from "../server.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -106,10 +107,15 @@ function backgroundJobsEnv() {
 }
 
 async function reportOnDemand(expectedRequests: number) {
-  const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-    emailSender: UNUSED_EMAIL_SENDER,
-    schedules: false,
-  });
+  const backgroundJobs = await setUpBackgroundJobs(
+    backgroundJobsEnv(),
+    () => NOW,
+    fixedZoneRulesSource(),
+    {
+      emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
+    },
+  );
   try {
     await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
     await vi.waitFor(
@@ -125,10 +131,15 @@ async function reportOnDemand(expectedRequests: number) {
 }
 
 async function reportOnDemandUntilDone() {
-  const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-    emailSender: UNUSED_EMAIL_SENDER,
-    schedules: false,
-  });
+  const backgroundJobs = await setUpBackgroundJobs(
+    backgroundJobsEnv(),
+    () => NOW,
+    fixedZoneRulesSource(),
+    {
+      emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
+    },
+  );
   try {
     await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
     await vi.waitFor(
@@ -289,10 +300,15 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
       number: 1,
     });
 
-    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-      emailSender: UNUSED_EMAIL_SENDER,
-      schedules: false,
-    });
+    const backgroundJobs = await setUpBackgroundJobs(
+      backgroundJobsEnv(),
+      () => NOW,
+      fixedZoneRulesSource(),
+      {
+        emailSender: UNUSED_EMAIL_SENDER,
+        schedules: false,
+      },
+    );
     try {
       await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
       await vi.waitFor(
@@ -320,10 +336,15 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
               values (8, '2026-10-01', ${NOW.toISOString()}::timestamptz)`;
     fakeWsfe.behave(answersInTurn("fe-caea-sin-movimiento-consultar-held.xml"));
 
-    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-      emailSender: UNUSED_EMAIL_SENDER,
-      schedules: false,
-    });
+    const backgroundJobs = await setUpBackgroundJobs(
+      backgroundJobsEnv(),
+      () => NOW,
+      fixedZoneRulesSource(),
+      {
+        emailSender: UNUSED_EMAIL_SENDER,
+        schedules: false,
+      },
+    );
     try {
       await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
       await vi.waitFor(

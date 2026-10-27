@@ -1,4 +1,9 @@
-import { argentinaCalendarDay, argentinaInstant, isoWeekdayOf } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  argentinaInstant,
+  isoWeekdayOf,
+  type ZoneRules,
+} from "../../shared/index.js";
 
 export const BRANCH_HOURS_RANGES_PER_DAY_MAX = 6;
 
@@ -36,9 +41,10 @@ function minutesOfDay(time: string): number {
 export function isSpanWithinBranchHours(
   span: { start: Date; end: Date },
   hours: readonly BranchWeeklyHoursRange[],
+  rules: ZoneRules,
 ): boolean {
-  const day = argentinaCalendarDay(span.start);
-  const dayStart = new Date(argentinaInstant(day, "00:00")).getTime();
+  const day = argentinaCalendarDay(span.start, rules);
+  const dayStart = new Date(argentinaInstant(day, "00:00", rules)).getTime();
   const startMinute = (span.start.getTime() - dayStart) / MINUTE_MS;
   const endMinute = (span.end.getTime() - dayStart) / MINUTE_MS;
   const dayOfWeek = isoWeekdayOf(day);

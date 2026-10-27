@@ -18,7 +18,7 @@ describe("readSalesByDay", () => {
     ]);
 
     const report = await readSalesByDay(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -47,7 +47,7 @@ describe("readSalesByDay", () => {
     const reader = new FakeSalesReportReader();
 
     const report = await readSalesByDay(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
@@ -59,7 +59,11 @@ describe("readSalesByDay", () => {
     const reader = new FakeSalesReportReader();
 
     const report = await readSalesByDay(
-      { reader, clock: { now: () => new Date("2026-10-07T01:30:00.000Z") } },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reader,
+        clock: { now: () => new Date("2026-10-07T01:30:00.000Z") },
+      },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
@@ -85,7 +89,7 @@ describe("readSalesByDay", () => {
     const reader = new FakeSalesReportReader();
 
     await readSalesByDay(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: "register-2" },
     );
 
@@ -94,7 +98,7 @@ describe("readSalesByDay", () => {
 
   it("reports no sales and zero totals for a range without sales", async () => {
     const report = await readSalesByDay(
-      { reader: new FakeSalesReportReader(), clock },
+      { zoneRules: new FakeZoneRulesSource(), reader: new FakeSalesReportReader(), clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 

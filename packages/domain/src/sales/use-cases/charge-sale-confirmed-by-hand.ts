@@ -1,7 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { ConfirmedByHandMethod, SalePayment } from "../../payments/index.js";
 import { nonCashCharge } from "../../payments/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { isSaleRefusal, type PartiallyPaid, saleOpenToNewPayment } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
@@ -17,6 +17,7 @@ export interface ChargeSaleConfirmedByHandPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -35,13 +36,20 @@ export type ChargeSaleConfirmedByHandOutcome =
   | { kind: "completed"; saleId: string; total: number };
 
 export function chargeSaleConfirmedByHand(
-  { ledger, restoration, clock, ids }: ChargeSaleConfirmedByHandPorts,
+  { ledger, restoration, clock, zoneRules, ids }: ChargeSaleConfirmedByHandPorts,
   { actorId, saleId, amount }: ChargeSaleConfirmedByHandInput,
   method: ConfirmedByHandMethod,
 ): ChargeSaleConfirmedByHandOutcome {
   return ledger.transaction<ChargeSaleConfirmedByHandOutcome>((tx) => {
     const completedAt = clock.now();
-    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, completedAt, restoration);
+    const chargeable = saleOpenToNewPayment(
+      tx,
+      actorId,
+      saleId,
+      completedAt,
+      restoration,
+      zoneRules.zoneRules(),
+    );
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }
@@ -83,6 +91,7 @@ export function chargeSaleConfirmedByHand(
       movements: tx.saleCashMovements(sale.id),
       actorId,
       completedAt,
+      rules: zoneRules.zoneRules(),
     });
     return { kind: "completed", saleId: sale.id, total };
   });

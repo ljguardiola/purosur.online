@@ -15,6 +15,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "./test-support/logged-changes.js";
@@ -365,6 +366,7 @@ describe("applying a pushed sale that moved stock", () => {
   function applyPending() {
     return applyPendingEvents(
       {
+        zoneRules: fixedZoneRulesSource(),
         eventApplication: system.application,
         upcaster: syncedEventUpcaster,
         clock: { now: () => new Date("2026-10-06T15:00:00.000Z") },

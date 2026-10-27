@@ -3,6 +3,7 @@ import type { JobHelpers } from "graphile-worker";
 import type { PoolClient } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER,
   alertConditionResolutionJobs,
@@ -19,7 +20,10 @@ function jobHelpers(client: PoolClient, borrowed: () => void): JobHelpers {
 
 describe("alertConditionResolutionJobs", () => {
   it("registers the alert condition resolution task and schedules it at the domain's evaluation interval", () => {
-    const jobs = alertConditionResolutionJobs({ now: () => new Date() });
+    const jobs = alertConditionResolutionJobs({
+      zoneRules: fixedZoneRulesSource(),
+      now: () => new Date(),
+    });
 
     expect(jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]).toBeInstanceOf(Function);
     const schedules = jobs.crontab.map(scheduleOfCrontabLine);
@@ -41,7 +45,7 @@ describe("alertConditionResolutionJobs", () => {
     const detectMissingCodes = vi.fn().mockResolvedValue(0);
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase,
         regularizeUninvoiceableDeferredSales: vi
@@ -90,7 +94,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -137,7 +141,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -187,7 +191,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -237,7 +241,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -287,7 +291,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -337,7 +341,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -387,7 +391,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -435,7 +439,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -485,7 +489,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -539,7 +543,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         regularizeUninvoiceableDeferredSales: vi
@@ -597,7 +601,7 @@ describe("alertConditionResolutionJobs", () => {
     });
 
     const jobs = alertConditionResolutionJobs(
-      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
       {
         createDatabase: vi.fn().mockReturnValue(fakeDb),
         resolve: vi.fn().mockResolvedValue(0),

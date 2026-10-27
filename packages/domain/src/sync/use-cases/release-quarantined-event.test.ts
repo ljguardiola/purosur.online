@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { A_CASH_MOVEMENT_FACT, A_SESSION_OPENED_FACT } from "../model/test-support/synced-facts.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
 import { releaseQuarantinedEvent } from "./release-quarantined-event.js";
@@ -246,6 +247,7 @@ describe("what a release does to the events applied after it", () => {
   ) =>
     applyPendingEvents(
       {
+        zoneRules: new FakeZoneRulesSource(),
         eventApplication: application,
         upcaster,
         clock: { now: () => now },

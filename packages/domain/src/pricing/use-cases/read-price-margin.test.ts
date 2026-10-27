@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { PurchaseLineCost } from "./purchase-cost-reader.js";
 import { readPriceMargin } from "./read-price-margin.js";
 import { fakeActiveProductReader } from "./test-support/fake-active-product-reader.js";
@@ -19,6 +20,7 @@ const input = { locationId: "location-1", productId: "a", unitPrice: 2000 };
 function ports(purchases: PurchaseLineCost[], activeProductIds: string[] = ["a"]) {
   return {
     products: fakeActiveProductReader(activeProductIds),
+    zoneRules: new FakeZoneRulesSource(),
     purchaseCosts: fakePurchaseCostReader(purchases),
     initialCountCosts: fakeInitialCountCostReader([
       {

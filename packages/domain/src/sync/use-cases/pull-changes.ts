@@ -1,5 +1,5 @@
 import { fortnightContaining } from "../../fiscal/index.js";
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 import { pullAudienceOf } from "../model/pull-audience.js";
 import { PULL_PAGE_READ_LIMIT, pullPageOf } from "../model/pull-page.js";
 import type {
@@ -18,11 +18,12 @@ async function requestMissingOfflineAuthorizationCode(
   offlineAuthorizationCodes: OfflineAuthorizationCodeRequests,
   deviceId: string,
   now: Date,
+  rules: ZoneRules,
 ): Promise<void> {
   if (!(await offlineAuthorizationCodes.installedRegisterHasOfflinePointOfSale(deviceId))) {
     return;
   }
-  const currentFortnight = fortnightContaining(argentinaCalendarDay(now));
+  const currentFortnight = fortnightContaining(argentinaCalendarDay(now, rules));
   if (await offlineAuthorizationCodes.holdsOfflineAuthorizationCodeFor(currentFortnight)) {
     return;
   }
@@ -30,11 +31,16 @@ async function requestMissingOfflineAuthorizationCode(
 }
 
 export async function pullChanges<TChange extends PulledChange>(
-  { changeLog, offlineAuthorizationCodes, clock }: PullPorts<TChange>,
+  { changeLog, offlineAuthorizationCodes, clock, zoneRules }: PullPorts<TChange>,
   input: PullChangesInput,
 ): Promise<PullPage<TChange>> {
   const now = clock.now();
-  await requestMissingOfflineAuthorizationCode(offlineAuthorizationCodes, input.deviceId, now);
+  await requestMissingOfflineAuthorizationCode(
+    offlineAuthorizationCodes,
+    input.deviceId,
+    now,
+    zoneRules.zoneRules(),
+  );
   return changeLog.transaction(async (tx) => {
     await tx.recordObservedPull(input.deviceId, input.since, now);
     const audience = pullAudienceOf(await tx.pullingRegister(input.deviceId));

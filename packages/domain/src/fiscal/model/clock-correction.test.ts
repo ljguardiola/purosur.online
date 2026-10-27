@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   CLOCK_CORRECTED_EVENT_TYPE,
   clockCorrectedEvent,
@@ -26,7 +27,7 @@ describe("clockLoweringsFor", () => {
       { pointOfSale: 7, documentType: "factura_c", reading: ahead(3_600_000) },
     ] as const;
 
-    expect(clockLoweringsFor(marks, READING, null)).toEqual([
+    expect(clockLoweringsFor(marks, READING, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual([
       {
         pointOfSale: 12,
         documentType: "factura_c",
@@ -50,13 +51,13 @@ describe("clockLoweringsFor", () => {
       { pointOfSale: 7, documentType: "factura_c", reading: ahead(-5_000) },
     ] as const;
 
-    expect(clockLoweringsFor(marks, READING, null)).toEqual([]);
+    expect(clockLoweringsFor(marks, READING, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual([]);
   });
 });
 
 describe("clockLoweringsFor against the tax authority's last authorized day", () => {
   it("lowers a series with no mark from the start of the tax authority's day, which is not a reading the register showed", () => {
-    expect(clockLoweringsFor([], READING, FLOOR)).toEqual([
+    expect(clockLoweringsFor([], READING, FLOOR, FIXED_ARGENTINA_ZONE_RULES)).toEqual([
       {
         pointOfSale: 12,
         documentType: "factura_c",
@@ -74,7 +75,7 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
       reading: new Date("2026-10-02T15:00:00.000Z"),
     } as const;
 
-    expect(clockLoweringsFor([mark], READING, FLOOR)).toEqual([
+    expect(clockLoweringsFor([mark], READING, FLOOR, FIXED_ARGENTINA_ZONE_RULES)).toEqual([
       {
         pointOfSale: 12,
         documentType: "factura_c",
@@ -92,7 +93,7 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
       reading: START_OF_TAX_AUTHORITY_DAY,
     } as const;
 
-    expect(clockLoweringsFor([mark], READING, FLOOR)).toEqual([
+    expect(clockLoweringsFor([mark], READING, FLOOR, FIXED_ARGENTINA_ZONE_RULES)).toEqual([
       {
         pointOfSale: 12,
         documentType: "factura_c",
@@ -110,7 +111,7 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
       reading: new Date("2026-10-02T01:00:00.000Z"),
     } as const;
 
-    expect(clockLoweringsFor([mark], READING, FLOOR)).toEqual([
+    expect(clockLoweringsFor([mark], READING, FLOOR, FIXED_ARGENTINA_ZONE_RULES)).toEqual([
       {
         pointOfSale: 12,
         documentType: "factura_c",
@@ -124,7 +125,7 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
   it("keeps the lowering of another series' mark beside the floor's", () => {
     const other = { pointOfSale: 7, documentType: "factura_c", reading: ahead(3_600_000) } as const;
 
-    expect(clockLoweringsFor([other], READING, FLOOR)).toEqual([
+    expect(clockLoweringsFor([other], READING, FLOOR, FIXED_ARGENTINA_ZONE_RULES)).toEqual([
       {
         pointOfSale: 7,
         documentType: "factura_c",
@@ -149,7 +150,7 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
       reading: new Date("2026-10-02T15:00:00.000Z"),
     } as const;
 
-    expect(clockLoweringsFor([other], READING, FLOOR)).toContainEqual({
+    expect(clockLoweringsFor([other], READING, FLOOR, FIXED_ARGENTINA_ZONE_RULES)).toContainEqual({
       pointOfSale: 12,
       documentType: "factura_c",
       previousReading: START_OF_TAX_AUTHORITY_DAY,
@@ -161,7 +162,7 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
   it("lowers nothing for the floor when the reading is on the tax authority's day", () => {
     const onTheDay = new Date("2026-10-02T12:00:00.000Z");
 
-    expect(clockLoweringsFor([], onTheDay, FLOOR)).toEqual([]);
+    expect(clockLoweringsFor([], onTheDay, FLOOR, FIXED_ARGENTINA_ZONE_RULES)).toEqual([]);
   });
 
   it("lowers nothing for the floor when a correction already opened the lapse", () => {
@@ -169,7 +170,9 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
       { previousReading: new Date("2026-10-02T15:00:00.000Z"), correctedReading: READING },
     ];
 
-    expect(clockLoweringsFor([], READING, { ...FLOOR, corrections })).toEqual([]);
+    expect(
+      clockLoweringsFor([], READING, { ...FLOOR, corrections }, FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual([]);
   });
 
   it("lowers from the start of the day again when the only correction belongs to an earlier episode", () => {
@@ -177,7 +180,9 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
       { previousReading: new Date("2026-09-20T15:00:00.000Z"), correctedReading: READING },
     ];
 
-    expect(clockLoweringsFor([], READING, { ...FLOOR, corrections })).toHaveLength(1);
+    expect(
+      clockLoweringsFor([], READING, { ...FLOOR, corrections }, FIXED_ARGENTINA_ZONE_RULES),
+    ).toHaveLength(1);
   });
 });
 

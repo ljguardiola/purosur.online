@@ -1,5 +1,9 @@
 import type { ConvertPaidOrderIntoRefundOutcome } from "@purosur/contracts";
-import { type PaidOrderDiscoveryState, restorationStanding } from "@purosur/domain";
+import {
+  type PaidOrderDiscoveryState,
+  restorationStanding,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import {
   type DiscoverPaidOrdersWithoutSaleOutcome,
   discoverPaidOrdersWithoutSale,
@@ -105,6 +109,7 @@ export interface PaidOrderDiscoveryWiringDeps {
   readOutboxChainKey: () => Promise<string | undefined>;
   restoration: RestorationProtocolEvidence | undefined;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   reportFailure: (activity: string, error: unknown) => void;
   ticketedSettlement: TicketedOperations["ticketedSettlement"];
@@ -134,6 +139,7 @@ export function createPaidOrderDiscoveryWiring({
   readOutboxChainKey,
   restoration,
   now,
+  zoneRules,
   ids,
   reportFailure,
   ticketedSettlement,
@@ -168,6 +174,7 @@ export function createPaidOrderDiscoveryWiring({
             outboxChainKey: await readOutboxChainKey(),
             restoration,
             now,
+            zoneRules,
             ids,
           }),
           ticketedSettlement,

@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import {
   type CashSessionClosesSummary,
   cashSessionClosesSummary,
@@ -16,10 +21,14 @@ export interface CashSessionClosesReport extends CashSessionClosesSummary {
 }
 
 export async function readCashSessionCloses(
-  { reader, clock }: { reader: CashSessionClosesReportReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: CashSessionClosesReportReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId }: ReadCashSessionClosesInput,
 ): Promise<CashSessionClosesReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const closes = await reader.closedCashSessions({ locationId, range, registerId });
   return { range, ...cashSessionClosesSummary(closes) };
 }

@@ -16,6 +16,7 @@ import {
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
@@ -41,7 +42,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerPriceConfirmationRoute(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOON });
+  registerPriceConfirmationRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOON,
+  });
 });
 
 afterEach(async () => {

@@ -5,6 +5,7 @@ import {
   isAlertKind,
   isAlertLevel,
   PAYMENT_METHODS,
+  type ZoneRulesSource,
 } from "@purosur/domain";
 import type {
   AlertSearch,
@@ -28,6 +29,7 @@ export interface AlertsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 function toAlertSummary(

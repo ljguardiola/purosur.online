@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
 import {
@@ -63,6 +64,7 @@ const noteEvent = (eventId: string, deviceSeq = 1) =>
 function apply(application: FakeEventApplication, facts: Record<string, SyncedFact>) {
   return applyPendingEvents(
     {
+      zoneRules: new FakeZoneRulesSource(),
       eventApplication: application,
       upcaster: new FakeEventUpcaster(facts),
       clock: { now: () => NOW },

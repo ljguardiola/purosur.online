@@ -49,7 +49,7 @@ export async function issueCreditNote(
   ports: IssueCreditNotePorts,
   { creditNoteId }: IssueCreditNoteInput,
 ): Promise<IssueCreditNoteOutcome> {
-  const { requests, lanes, clock, tokens, taxAuthority, creditNotes } = ports;
+  const { requests, lanes, clock, zoneRules, tokens, taxAuthority, creditNotes } = ports;
   const pointOfSale = await requests.pointOfSaleOf(creditNoteId);
   if (pointOfSale === null) {
     return { kind: "not_found" };
@@ -157,7 +157,7 @@ export async function issueCreditNote(
 
     const requestedAt = clock.now();
     const number = nextCreditNoteNumber(lastAuthorized.number);
-    const issuedOn = creditNoteIssueDate(requestedAt);
+    const issuedOn = creditNoteIssueDate(requestedAt, zoneRules.zoneRules());
     try {
       await lane.recordCreditNoteRequest({ creditNoteId, number, issuedOn, requestedAt });
     } catch (error) {

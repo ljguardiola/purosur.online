@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { uniqueShortCode } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -31,6 +32,7 @@ function deps(): SalesHistoryRequestDeps {
       hashPin: async () => "hash-of-a-pin",
       now: () => new Date("2026-10-08T12:00:00.000Z"),
     }),
+    zoneRules: fixedZoneRulesSource(),
   };
 }
 

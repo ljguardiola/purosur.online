@@ -6,6 +6,7 @@ import { databaseRouteOptions } from "../app.js";
 import { buildTestApp } from "./build-test-app.js";
 import type { TestDatabase } from "./build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "./device-token-rotation-key.js";
+import { fixedZoneRulesSource } from "./fixed-zone-rules-source.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "./installation-keys-encryption-key.js";
 
 export const APP_CLOCK = new Date("2020-06-15T12:00:00.000Z");
@@ -31,6 +32,7 @@ export function buildProductionWiredApp(db: TestDatabase["db"]) {
     ...databaseRouteOptions({
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
+      zoneRules: fixedZoneRulesSource(),
       recoveryJobQueue: { async enqueueRecoveryRequest() {} },
       authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
       certificateFingerprint: "AA:BB",

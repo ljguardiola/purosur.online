@@ -43,6 +43,7 @@ beforeEach(() => {
 
 function authenticationOf(endpoint: string, timeoutMs = 5_000) {
   return new ArcaWsaaAuthentication({
+    zoneRules: fixedZoneRulesSource(),
     endpoint,
     certificatePem: credentials.certificatePem,
     privateKeyPem: credentials.privateKeyPem,
@@ -142,6 +143,7 @@ describe("ArcaWsaaAuthentication", () => {
   it("sends a different unique id on a request made later", async () => {
     let now = NOW;
     const authentication = new ArcaWsaaAuthentication({
+      zoneRules: fixedZoneRulesSource(),
       endpoint: server.endpoint,
       certificatePem: credentials.certificatePem,
       privateKeyPem: credentials.privateKeyPem,
@@ -169,6 +171,7 @@ describe("ArcaWsaaAuthentication", () => {
   it("hands over the raw answer ARCA gave, a SOAP fault included", async () => {
     const received: string[] = [];
     const authentication = new ArcaWsaaAuthentication({
+      zoneRules: fixedZoneRulesSource(),
       endpoint: server.endpoint,
       certificatePem: credentials.certificatePem,
       privateKeyPem: credentials.privateKeyPem,
@@ -250,6 +253,7 @@ describe("ArcaWsaaAuthentication given no timeout", () => {
 
   async function answeredAfter(delayMs: number) {
     const authentication = new ArcaWsaaAuthentication({
+      zoneRules: fixedZoneRulesSource(),
       endpoint: server.endpoint,
       certificatePem: credentials.certificatePem,
       privateKeyPem: credentials.privateKeyPem,

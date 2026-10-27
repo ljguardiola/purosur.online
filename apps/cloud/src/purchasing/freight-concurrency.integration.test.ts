@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { auditLog, freights, locations } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -61,7 +62,11 @@ describe("two people editing the same freight at once, on a real Postgres", () =
         purchaseIds: [purchase.purchaseId],
       };
       return editFreight(
-        { store: new DrizzleFreightStore(db, () => NOW), clock: { now: () => NOW } },
+        {
+          zoneRules: fixedZoneRulesSource(),
+          store: new DrizzleFreightStore(db, () => NOW),
+          clock: { now: () => NOW },
+        },
         { ...values, freightId, locationId, actorId },
       );
     };

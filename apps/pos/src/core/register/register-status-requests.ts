@@ -1,4 +1,5 @@
 import type { RegisterStatus } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   areNewSalesStopped,
   type BatteryReport,
@@ -26,6 +27,7 @@ export interface RegisterStatusDeps {
   database: LocalDatabase;
   cloud: () => CloudReachability;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   signedInPerson: Pick<SignedInPerson, "userId">;
   serialDevices: () => SerialDeviceReading;
   storage: () => StorageStanding;
@@ -39,6 +41,7 @@ export async function registerStatusFor({
   database,
   cloud,
   now,
+  zoneRules,
   signedInPerson,
   serialDevices,
   storage,
@@ -63,6 +66,7 @@ export async function registerStatusFor({
       lastAcceptedPushAt: new SqliteAcceptedPushLog(database).lastAcceptedPushAt(),
       hours: new SqliteLocalReplica(database).ownBranchHours(),
       now: now(),
+      rules: zoneRules.zoneRules(),
       serialDevices: reading.kind === "listed" ? reading.standings : null,
       storage: storageStanding,
       localDatabaseDamaged: damaged,
@@ -81,7 +85,7 @@ export async function registerStatusFor({
       standings,
     }),
     contingency: contingencyOf(
-      readFiscalEmissionModeIn(database, now()),
+      readFiscalEmissionModeIn(database, now(), zoneRules),
       areNewSalesStopped(salesStop, storageSalesStopOf(storageStanding), damaged, stoppedByBattery),
     ),
   };

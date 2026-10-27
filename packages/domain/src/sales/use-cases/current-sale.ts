@@ -1,5 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
@@ -16,6 +16,7 @@ export interface CurrentSalePorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type CurrentSaleOutcome =
@@ -30,7 +31,7 @@ export type CurrentSaleOutcome =
     } & OpenSaleStanding);
 
 export function currentSale(
-  { ledger, restoration, clock }: CurrentSalePorts,
+  { ledger, restoration, clock, zoneRules }: CurrentSalePorts,
   { actorId }: CurrentSaleInput,
 ): CurrentSaleOutcome {
   return ledger.transaction<CurrentSaleOutcome>((tx) => {
@@ -45,7 +46,7 @@ export function currentSale(
     return {
       kind: "open",
       sale,
-      chargeRefusal: saleChargeRefusal(tx, sale, clock.now()),
+      chargeRefusal: saleChargeRefusal(tx, sale, clock.now(), zoneRules.zoneRules()),
       ...openSaleStanding(
         amountToCharge(sale),
         tx.salePayments(sale.id),

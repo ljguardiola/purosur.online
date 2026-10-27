@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   A_CASH_MOVEMENT_FACT,
   A_SESSION_OPENED_FACT,
@@ -26,6 +27,7 @@ function run(
 ) {
   return applyPendingEvents(
     {
+      zoneRules: new FakeZoneRulesSource(),
       eventApplication,
       upcaster,
       clock: { now: () => options.now ?? NOW },

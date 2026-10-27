@@ -1,3 +1,4 @@
+import type { ZoneRulesSource } from "@purosur/domain";
 import type {
   ProductChooser,
   SupplierPriceListFiles,
@@ -9,6 +10,7 @@ export interface PurchasingRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   // Present only when the AI reading of supplier price lists is configured.
   supplierPriceListFiles?: SupplierPriceListFiles;
   supplierPriceListWebPages?: SupplierPriceListWebPages;

@@ -2,6 +2,7 @@ import { canonicalOutboxEvent } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { alerts, clockCorrections, inbox, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
@@ -56,9 +57,9 @@ describe("a clock correction pushed through POST /events", () => {
       });
 
     expect((await push()).json()).toMatchObject({ status: "ok", ack_seq: 1 });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     expect((await push()).json()).toMatchObject({ status: "ok", ack_seq: 1 });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(clockCorrections)).toEqual([
       expect.objectContaining({
@@ -92,7 +93,7 @@ describe("a clock correction pushed through POST /events", () => {
       payload: pushOf(registerId, 2),
       headers: { authorization: `Bearer ${deviceToken}` },
     });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(clockCorrections)).toEqual([
       expect.objectContaining({ previousReadingSource: "tax_authority_day" }),

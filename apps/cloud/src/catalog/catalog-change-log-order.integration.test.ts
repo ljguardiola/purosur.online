@@ -2,6 +2,7 @@ import { createProduct, editProduct } from "@purosur/domain/catalog/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -50,7 +51,7 @@ describe("editing a product while another writer holds the change log, on a real
     await holder`begin`;
     await holder`select pg_advisory_xact_lock(hashtextextended('changes_log', 0))`;
     const edit = editProduct(
-      { store, clock: { now: () => new Date() } },
+      { zoneRules: fixedZoneRulesSource(), store, clock: { now: () => new Date() } },
       {
         id: productId,
         name: "Arroz largo fino",

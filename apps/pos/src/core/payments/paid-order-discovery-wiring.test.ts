@@ -2,6 +2,7 @@ import type { DiscoverPaidOrdersWithoutSaleOutcome } from "@purosur/domain/payme
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -266,6 +267,7 @@ describe("discovering the paid orders while the register is being restored", () 
     const saleId = await openSaleOfTwoYerbas({ database, signedInPerson }, uuidV7Ids);
     const failures: unknown[] = [];
     const discovery = createPaidOrderDiscoveryWiring({
+      zoneRules: fixedZoneRulesSource(),
       database,
       gate: chargeRequestDeps(
         { database, signedInPerson },

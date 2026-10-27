@@ -97,7 +97,7 @@ describe("recordBuyerIdentificationThreshold", () => {
     const lateAtNightUtc = new Date("2026-06-10T01:00:00.000Z");
 
     const outcome = await recordBuyerIdentificationThreshold(
-      { store, clock: { now: () => lateAtNightUtc } },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: { now: () => lateAtNightUtc } },
       {
         amount: 3_000_000,
         validFrom: "2026-06-09",

@@ -1,5 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { DiscountBenefit } from "../model/discount-benefit.js";
 import type { DiscountTarget } from "../model/discount-target.js";
 import type { AssignableTargetCandidate } from "../model/discount-target-eligibility.js";
@@ -10,6 +10,7 @@ export interface DiscountPorts {
 
 export interface EditDiscountPorts extends DiscountPorts {
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface DiscountFields {

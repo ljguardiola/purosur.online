@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { registerSnapshotGenerations } from "../platform/db/schema.js";
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
   applyRegisterSnapshotRetentionTask,
@@ -33,7 +34,11 @@ class ObjectsInMemory implements SnapshotObjects {
 
 describe("registerSnapshotJobs", () => {
   it("schedules the verification sweep and the retention at the domain's intervals", () => {
-    const jobs = registerSnapshotJobs({ now: () => NOW, objects: new ObjectsInMemory() });
+    const jobs = registerSnapshotJobs({
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
+      objects: new ObjectsInMemory(),
+    });
 
     const schedules = jobs.crontab.map(scheduleOfCrontabLine);
     expect(
@@ -65,7 +70,7 @@ describe("registerSnapshotJobs", () => {
       const objects = new ObjectsInMemory();
 
       const jobs = registerSnapshotJobs(
-        { now: () => NOW, objects },
+        { zoneRules: fixedZoneRulesSource(), now: () => NOW, objects },
         { createDatabase, [dependency]: run },
       );
       const task = jobs.taskList[identifier];
@@ -130,7 +135,11 @@ describe("the snapshot tasks against the database", () => {
     const objects = new ObjectsInMemory();
     objects.contents.set(`${installation.registerId}/${GENERATION_ID}`, { size: 4, sha256: SHA });
 
-    await verifyRegisterSnapshotsTask(db, { now: () => NOW, objects });
+    await verifyRegisterSnapshotsTask(db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
+      objects,
+    });
 
     expect(await db.select().from(registerSnapshotGenerations)).toMatchObject([
       { status: "verified" },
@@ -142,7 +151,11 @@ describe("the snapshot tasks against the database", () => {
     const objects = new ObjectsInMemory();
     objects.contents.set(`${installation.registerId}/${GENERATION_ID}`, { size: 4, sha256: SHA });
 
-    await applyRegisterSnapshotRetentionTask(db, { now: () => NOW, objects });
+    await applyRegisterSnapshotRetentionTask(db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
+      objects,
+    });
 
     expect(objects.contents.size).toBe(0);
     expect(await db.select().from(registerSnapshotGenerations)).toMatchObject([

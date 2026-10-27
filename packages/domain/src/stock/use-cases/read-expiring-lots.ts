@@ -1,4 +1,9 @@
-import { argentinaCalendarDay, type Clock, compareSpanishText } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  type Clock,
+  compareSpanishText,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import {
   canExpireWithStock,
   daysToExpiry,
@@ -64,14 +69,16 @@ export async function readExpiringLots(
     expiringLots,
     branchSettings,
     clock,
+    zoneRules,
   }: {
     expiringLots: ExpiringLotReader;
     branchSettings: ExpiryWarningWindowReader;
     clock: Clock;
+    zoneRules: ZoneRulesSource;
   },
   { locationId }: ReadExpiringLotsInput,
 ): Promise<ExpiringLotsView> {
-  const today = argentinaCalendarDay(clock.now());
+  const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
   const { expiringLotAlertDays: windowDays } =
     await branchSettings.currentBranchSettings(locationId);
   const rows = await expiringLots.lotsExpiringBy(locationId, expiryWindowEnd(today, windowDays));

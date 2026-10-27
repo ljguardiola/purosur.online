@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { supplierPriceLists } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -50,6 +51,7 @@ beforeEach(async () => {
   webPages = new FakeSupplierPriceListWebPages();
   app = Fastify();
   registerSupplierPriceListsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,

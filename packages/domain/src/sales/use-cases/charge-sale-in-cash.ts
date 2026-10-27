@@ -1,7 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { SalePayment } from "../../payments/index.js";
 import { cashCharge } from "../../payments/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { isSaleRefusal, type PartiallyPaid, saleOpenToNewPayment } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
@@ -18,6 +18,7 @@ export interface ChargeSaleInCashPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -35,12 +36,19 @@ export type ChargeSaleInCashOutcome =
   | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };
 
 export function chargeSaleInCash(
-  { ledger, restoration, clock, ids }: ChargeSaleInCashPorts,
+  { ledger, restoration, clock, zoneRules, ids }: ChargeSaleInCashPorts,
   { actorId, saleId, tendered }: ChargeSaleInCashInput,
 ): ChargeSaleInCashOutcome {
   return ledger.transaction<ChargeSaleInCashOutcome>((tx) => {
     const completedAt = clock.now();
-    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, completedAt, restoration);
+    const chargeable = saleOpenToNewPayment(
+      tx,
+      actorId,
+      saleId,
+      completedAt,
+      restoration,
+      zoneRules.zoneRules(),
+    );
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }
@@ -84,6 +92,7 @@ export function chargeSaleInCash(
       movements: tx.saleCashMovements(sale.id),
       actorId,
       completedAt,
+      rules: zoneRules.zoneRules(),
     });
     return { kind: "completed", saleId: sale.id, total, tendered, change };
   });

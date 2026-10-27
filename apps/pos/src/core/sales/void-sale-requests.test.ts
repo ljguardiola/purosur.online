@@ -21,6 +21,7 @@ import {
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -66,6 +67,7 @@ function deps(
     gate: gate(),
     readOutboxChainKey: async () => CHAIN_KEY,
     now: () => NOW,
+    zoneRules: fixedZoneRulesSource(),
     ids: {
       next: () => {
         idCount += 1;

@@ -1,5 +1,4 @@
 import {
-  areZoneTransitionsOrdered,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   isBuyerIdentificationThresholdAmount,
@@ -23,6 +22,7 @@ import {
   issuerIdentificationSchema,
   pointOfSaleNumberSchema,
   recordIdSchema,
+  zoneRulesTransitionsSchema,
 } from "../shared/index.js";
 
 const SINCE_MESSAGE = "since must be the cursor of the last page already pulled, 0 the first time";
@@ -288,14 +288,7 @@ const zoneRulesChangeSchema = z.object({
   entity: z.literal("zone_rules"),
   row: z.object({
     version: z.string().min(1),
-    transitions: z
-      .array(z.object({ from: z.iso.datetime(), offset_minutes: z.int() }))
-      .min(1)
-      .refine((transitions) =>
-        areZoneTransitionsOrdered(
-          transitions.map(({ from }) => ({ from: new Date(from), offsetMinutes: 0 })),
-        ),
-      ),
+    transitions: zoneRulesTransitionsSchema,
     publication_number: z.int().positive(),
   }),
 });

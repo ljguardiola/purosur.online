@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import {
   type DeferredSaleInvoice,
   deferredSaleAvailability,
@@ -12,6 +12,7 @@ export type FindDeferredSaleInput =
 export interface FindDeferredSalePorts {
   lookup: DeferredSaleLookup;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type FindDeferredSaleOutcome =
@@ -30,14 +31,14 @@ export type FindDeferredSaleOutcome =
     };
 
 export function findDeferredSale(
-  { lookup, clock }: FindDeferredSalePorts,
+  { lookup, clock, zoneRules }: FindDeferredSalePorts,
   input: FindDeferredSaleInput,
 ): FindDeferredSaleOutcome {
   const facts = lookup.find(input);
   if (facts === null) {
     return { kind: "not_found" };
   }
-  const availability = deferredSaleAvailability(facts, clock.now());
+  const availability = deferredSaleAvailability(facts, clock.now(), zoneRules.zoneRules());
   if (availability !== "available") {
     return { kind: availability };
   }

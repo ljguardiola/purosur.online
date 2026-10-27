@@ -9,6 +9,7 @@ import {
   SESSION_NOON,
 } from "../test-support/backoffice-session.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   insertDeferredSaleRow,
@@ -36,6 +37,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerUnbilledDeferredSalesRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => SESSION_NOON,

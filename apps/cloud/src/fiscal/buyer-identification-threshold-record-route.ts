@@ -25,6 +25,7 @@ export function registerBuyerIdentificationThresholdRecordRoute<
   const ports = {
     store: new DrizzleBuyerIdentificationThresholdStore(options.db, now),
     clock: { now },
+    zoneRules: options.zoneRules,
   };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

@@ -5,6 +5,7 @@ import { rolePermissions, roles, sessions, userRoles, users } from "../platform/
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerInternalBarcodeRoute } from "./internal-barcode-route.js";
 
@@ -33,7 +34,12 @@ describe("POST /internal-barcodes", () => {
 
   beforeEach(() => {
     app = Fastify();
-    registerInternalBarcodeRoute(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOON });
+    registerInternalBarcodeRoute(app, {
+      zoneRules: fixedZoneRulesSource(),
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOON,
+    });
   });
 
   afterEach(async () => {

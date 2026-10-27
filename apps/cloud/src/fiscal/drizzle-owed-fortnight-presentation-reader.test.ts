@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { pointOfSaleClaims } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOwedFortnightPresentationReader } from "./drizzle-owed-fortnight-presentation-reader.js";
@@ -65,7 +66,7 @@ function listedAsOwed(pointOfSaleNumber: number, fortnight: Fortnight) {
 }
 
 function reader() {
-  return new DrizzleOwedFortnightPresentationReader(db);
+  return new DrizzleOwedFortnightPresentationReader(db, fixedZoneRulesSource());
 }
 
 describe("DrizzleOwedFortnightPresentationReader.owedPresentations", () => {

@@ -35,6 +35,7 @@ import {
 } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -128,6 +129,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     );
     await recordBuyerIdentificationThreshold(
       {
+        zoneRules: fixedZoneRulesSource(),
         store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
         clock: { now: () => NOW },
       },
@@ -214,6 +216,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
         reportFailure,
       ),
       clock: { now: () => NOW },
+      zoneRules: fixedZoneRulesSource(),
     };
 
     const page = await pullChanges(ports, { deviceId, since: 0 });

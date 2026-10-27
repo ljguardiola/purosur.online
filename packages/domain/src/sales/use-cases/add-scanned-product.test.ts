@@ -105,6 +105,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 function scan(store: FakeSaleLedger, code = "7790001", actorId = "cashier") {
   return addScannedProduct(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       restoration: store.restoration,
       clock: new FixedClock(NOW),
@@ -849,6 +850,7 @@ describe("addScannedProduct", () => {
 
       const outcome = addScannedProduct(
         {
+          zoneRules: new FakeZoneRulesSource(),
           ledger: store,
           restoration: store.restoration,
           clock: new FixedClock(lateEvening),

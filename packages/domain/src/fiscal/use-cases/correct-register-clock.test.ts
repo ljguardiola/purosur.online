@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { CashSessionStanding, ClockMark } from "../model/clock-correction.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import { decideSaleAuthorizationRoute } from "../model/real-time-authorization.js";
@@ -46,6 +48,7 @@ function correct(store: FakeClockCorrectionLedger, correctorId = "ana") {
     grant: { correctorId },
   });
   return correctRegisterClock({
+    zoneRules: new FakeZoneRulesSource(),
     ledger: store,
     clock: new FixedClock(READING),
     ids: new SequentialIds(),
@@ -279,6 +282,7 @@ describe("correctRegisterClock", () => {
     } satisfies FacturaC;
 
     const route = decideSaleAuthorizationRoute({
+      rules: FIXED_ARGENTINA_ZONE_RULES,
       gate: { kind: "passed", document },
       online: { lastHealthCheckOkAt: ahead(-1_000), tokenValid: true, arcaReachable: true },
       now: READING,
@@ -342,6 +346,7 @@ describe("correctRegisterClock", () => {
     });
 
     const outcome = await correctRegisterClock({
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       clock: new FixedClock(READING),
       ids: new SequentialIds(),

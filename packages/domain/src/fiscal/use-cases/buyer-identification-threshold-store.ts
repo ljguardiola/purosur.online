@@ -1,9 +1,10 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { BuyerIdentificationThreshold } from "../model/buyer-identification-threshold.js";
 
 export interface BuyerIdentificationThresholdPorts {
   store: BuyerIdentificationThresholdStore;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface NewBuyerIdentificationThreshold {

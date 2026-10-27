@@ -1,5 +1,5 @@
 import { isInActivityScope, type ProductActivityScope } from "../../catalog/index.js";
-import { argentinaCalendarDay, codePointLength } from "../../shared/index.js";
+import { argentinaCalendarDay, codePointLength, type ZoneRules } from "../../shared/index.js";
 
 export const RECEIPT_TYPES = [
   "factura_b",
@@ -56,6 +56,6 @@ export function hasPurchaseLines(lineCount: number): boolean {
 }
 
 // ISO calendar days order the same as the days they name.
-export function isPurchaseDateInFuture(purchasedOn: string, now: Date): boolean {
-  return purchasedOn > argentinaCalendarDay(now);
+export function isPurchaseDateInFuture(purchasedOn: string, now: Date, rules: ZoneRules): boolean {
+  return purchasedOn > argentinaCalendarDay(now, rules);
 }

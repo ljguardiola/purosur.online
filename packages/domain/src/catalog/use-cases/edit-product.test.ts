@@ -86,7 +86,7 @@ describe("editProduct", () => {
     leafCategory(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "missing",
         name: "Yerba",
@@ -110,7 +110,7 @@ describe("editProduct", () => {
     activeProduct(store, { version: 2 });
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -133,7 +133,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -157,7 +157,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -193,7 +193,7 @@ describe("editProduct", () => {
     );
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -216,7 +216,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -252,7 +252,7 @@ describe("editProduct", () => {
 
     function editBarcodes(store: FakeCatalogStore, barcodes: string[], version = 1) {
       return editProduct(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         {
           id: "product-1",
           name: "Yerba",
@@ -333,7 +333,7 @@ describe("editProduct", () => {
     activeProduct(store, { active: false });
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -376,7 +376,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba Mate",
@@ -446,7 +446,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "PRODUCT-1",
         name: "Yerba Mate",
@@ -470,7 +470,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -496,7 +496,7 @@ describe("editProduct", () => {
     brandedProduct(store, "brand-1");
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -522,7 +522,7 @@ describe("editProduct", () => {
     brandedProduct(store, "brand-1");
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Miel pura de abeja 1 kg",
@@ -553,7 +553,7 @@ describe("editProduct", () => {
     brandedProduct(store, "brand-1");
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba Mate",
@@ -580,7 +580,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -603,7 +603,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -627,7 +627,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -653,7 +653,7 @@ describe("editProduct", () => {
     store.barcodeConflicts.set("444", "winner");
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -677,7 +677,7 @@ describe("editProduct", () => {
 
     await expect(
       editProduct(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         {
           id: "product-1",
           name: "Yerba",
@@ -699,7 +699,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -753,7 +753,7 @@ describe("editProduct", () => {
     );
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -790,7 +790,7 @@ describe("editProduct", () => {
     taggedProduct(store, ["tag-1"]);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -817,7 +817,7 @@ describe("editProduct", () => {
     taggedProduct(store, ["tag-1"]);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -846,7 +846,7 @@ describe("editProduct", () => {
     taggedProduct(store, ["tag-1"]);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba nueva",
@@ -871,7 +871,7 @@ describe("editProduct", () => {
     activeProduct(store);
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -904,10 +904,16 @@ describe("editProduct", () => {
     };
 
     expect(
-      await editProduct({ store, clock }, { ...input, brandId: "missing", tagIds: ["missing"] }),
+      await editProduct(
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
+        { ...input, brandId: "missing", tagIds: ["missing"] },
+      ),
     ).toEqual({ kind: "brand_not_found" });
     expect(
-      await editProduct({ store, clock }, { ...input, brandId: null, tagIds: ["missing"] }),
+      await editProduct(
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
+        { ...input, brandId: null, tagIds: ["missing"] },
+      ),
     ).toEqual({
       kind: "tag_not_found",
     });
@@ -934,7 +940,7 @@ describe("editProduct", () => {
     );
 
     const outcome = await editProduct(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         id: "product-1",
         name: "Yerba",
@@ -1158,7 +1164,7 @@ describe("editProduct", () => {
       const store = unitProductWithDiscount();
 
       const outcome = await editProduct(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         {
           id: "product-1",
           name: "Yerba",
@@ -1209,7 +1215,7 @@ describe("editProduct", () => {
 
     function edit(store: FakeCatalogStore, saleUnit: "UNIT" | "KG") {
       return editProduct(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         {
           id: "product-1",
           name: "Yerba",
@@ -1297,7 +1303,7 @@ describe("editProduct", () => {
       const store = productWithPackagings("UNIT", [{ name: "Caja x 12" }]);
 
       const outcome = await editProduct(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         {
           id: "product-1",
           name: "Yerba",

@@ -1,6 +1,7 @@
 import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import type {
   ProductChooser,
   SupplierPriceListFiles,
@@ -165,6 +166,10 @@ import {
   registerBitlockerRecoveryKeyRoute,
 } from "./register/bitlocker-recovery-key-route.js";
 import { registerCashSessionClosesReportRoute } from "./register/cash-session-closes-report-route.js";
+import {
+  type CurrentZoneRulesRouteOptions,
+  registerCurrentZoneRulesRoute,
+} from "./register/current-zone-rules-route.js";
 import { authenticateDevice } from "./register/device-authentication.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
@@ -262,6 +267,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   users?: WithoutClock<UsersRouteOptions<TQueryResult>>;
   roles?: WithoutClock<RolesRouteOptions<TQueryResult>>;
   branchSettings?: WithoutClock<BranchSettingsRouteOptions<TQueryResult>>;
+  currentZoneRules?: WithoutClock<CurrentZoneRulesRouteOptions<TQueryResult>>;
   issuerIdentification?: WithoutClock<IssuerIdentificationRouteOptions<TQueryResult>>;
   buyerIdentificationThresholds?: WithoutClock<
     BuyerIdentificationThresholdsRouteOptions<TQueryResult>
@@ -290,7 +296,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
   paymentsReports?: WithoutClock<PaymentsReportRouteOptions<TQueryResult>>;
   refunds?: WithoutClock<RefundRouteOptions<TQueryResult>>;
-  devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
+  devices?: WithoutClock<DeviceTokensOptions<TQueryResult> & { zoneRules: ZoneRulesSource }>;
   enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
   enqueueTaxAuthorityCountOnEnrollment?: EnqueueTaxAuthorityCount;
   enqueueNumberingReconciliationOnEnrollment?: EnqueueNumberingReconciliation;
@@ -350,6 +356,7 @@ interface HealthArcaOptions<TQueryResult extends PgQueryResultHKT> {
 interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
+  zoneRules: ZoneRulesSource;
   recoveryJobQueue: RecoveryJobQueue;
   authorizedCuit: string;
   certificateFingerprint: string;
@@ -368,9 +375,11 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
   wiring: DatabaseWiring<TQueryResult>,
 ): DatabaseRouteOptions<TQueryResult> {
   const { db, backofficeOrigin } = wiring;
-  const backoffice = { db, backofficeOrigin };
+  const { zoneRules } = wiring;
+  const backoffice = { db, backofficeOrigin, zoneRules };
   const devices = {
     db,
+    zoneRules,
     rotationKey: wiring.deviceTokenRotationKey,
     keysEncryptionKey: wiring.installationKeysEncryptionKey,
   };
@@ -381,6 +390,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     users: backoffice,
     roles: backoffice,
     branchSettings: backoffice,
+    currentZoneRules: backoffice,
     issuerIdentification: { ...backoffice, authorizedCuit: wiring.authorizedCuit },
     buyerIdentificationThresholds: backoffice,
     fiscalAddresses: backoffice,
@@ -586,6 +596,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.branchSettings) {
         registerBranchSettingsReadRoute(api, { ...options.branchSettings, now });
         registerBranchSettingsEditRoute(api, { ...options.branchSettings, now });
+      }
+
+      if (options.currentZoneRules) {
+        registerCurrentZoneRulesRoute(api, { ...options.currentZoneRules, now });
       }
 
       if (options.issuerIdentification) {

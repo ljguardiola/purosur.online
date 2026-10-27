@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { fixedOffsetZoneRules } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   BRANCH_HOURS_RANGES_PER_DAY_MAX,
@@ -80,7 +80,7 @@ const MONDAY = "2026-10-05";
 const TUESDAY = "2026-10-06";
 
 function argentina(day: string, time: string): Date {
-  return new Date(argentinaInstant(day, time));
+  return new Date(argentinaInstant(day, time, FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function weekdayHours(opensAt: string, closesAt: string) {
@@ -95,6 +95,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(MONDAY, "10:00"), end: argentina(MONDAY, "10:15") },
         hours,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(true);
   });
@@ -104,6 +105,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(MONDAY, "09:00"), end: argentina(MONDAY, "18:00") },
         hours,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(true);
   });
@@ -113,6 +115,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(MONDAY, "08:59"), end: argentina(MONDAY, "09:14") },
         hours,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -122,6 +125,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(MONDAY, "17:46"), end: argentina(MONDAY, "18:01") },
         hours,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -134,6 +138,7 @@ describe("isSpanWithinBranchHours", () => {
           end: new Date(argentina(MONDAY, "18:00").getTime() + 1000),
         },
         hours,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -143,6 +148,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(TUESDAY, "10:00"), end: argentina(TUESDAY, "10:15") },
         hours,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -152,6 +158,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(MONDAY, "10:00"), end: argentina(MONDAY, "10:15") },
         [],
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -163,12 +170,14 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: new Date("2026-10-06T01:00:00.000Z"), end: new Date("2026-10-06T01:15:00.000Z") },
         mondayEvening,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(true);
     expect(
       isSpanWithinBranchHours(
         { start: new Date("2026-10-05T20:00:00.000Z"), end: new Date("2026-10-05T20:15:00.000Z") },
         mondayEvening,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -176,8 +185,8 @@ describe("isSpanWithinBranchHours", () => {
   it("reads the day and the hours on the clock of the offset the rules give", () => {
     const mondayEvening = weekdayHours("20:00", "23:00");
     const span = {
-      start: new Date("2026-10-06T01:00:00.000Z"),
-      end: new Date("2026-10-06T01:15:00.000Z"),
+      start: new Date("2026-10-06T00:30:00.000Z"),
+      end: new Date("2026-10-06T00:45:00.000Z"),
     };
 
     expect(isSpanWithinBranchHours(span, mondayEvening, fixedOffsetZoneRules(-180))).toBe(true);
@@ -195,6 +204,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(MONDAY, "12:50"), end: argentina(MONDAY, "16:05") },
         split,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -204,8 +214,12 @@ describe("isSpanWithinBranchHours", () => {
     const afternoon = { dayOfWeek: 1, opensAt: "13:00", closesAt: "18:00" };
     const span = { start: argentina(MONDAY, "12:50"), end: argentina(MONDAY, "13:05") };
 
-    expect(isSpanWithinBranchHours(span, [morning, afternoon])).toBe(true);
-    expect(isSpanWithinBranchHours(span, [afternoon, morning])).toBe(true);
+    expect(isSpanWithinBranchHours(span, [morning, afternoon], FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      true,
+    );
+    expect(isSpanWithinBranchHours(span, [afternoon, morning], FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      true,
+    );
   });
 
   it("joins a chain of adjacent ranges", () => {
@@ -219,6 +233,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(MONDAY, "09:30"), end: argentina(MONDAY, "13:30") },
         chain,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(true);
   });
@@ -233,6 +248,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina(MONDAY, "23:50"), end: argentina(TUESDAY, "00:05") },
         nights,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -242,6 +258,7 @@ describe("isSpanWithinBranchHours", () => {
       isSpanWithinBranchHours(
         { start: argentina("2026-10-11", "10:00"), end: argentina("2026-10-11", "10:15") },
         [{ dayOfWeek: 7, opensAt: "09:00", closesAt: "13:00" }],
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(true);
   });
@@ -265,6 +282,7 @@ describe("isSpanWithinBranchHours", () => {
             end: argentina(dayOf(index), minuteOfDay(end)),
           },
           [{ dayOfWeek: index + 1, opensAt: minuteOfDay(opens), closesAt: minuteOfDay(closes) }],
+          FIXED_ARGENTINA_ZONE_RULES,
         );
       }),
     );
@@ -286,6 +304,7 @@ describe("isSpanWithinBranchHours", () => {
               end: argentina(dayOf(index), minuteOfDay(end)),
             },
             [{ dayOfWeek: index + 1, opensAt: minuteOfDay(opens), closesAt: minuteOfDay(closes) }],
+            FIXED_ARGENTINA_ZONE_RULES,
           );
         },
       ),
@@ -308,6 +327,7 @@ describe("isSpanWithinBranchHours", () => {
               end: argentina(dayOf(index), minuteOfDay(end)),
             },
             [{ dayOfWeek: index + 1, opensAt: minuteOfDay(opens), closesAt: minuteOfDay(closes) }],
+            FIXED_ARGENTINA_ZONE_RULES,
           );
         },
       ),
@@ -330,6 +350,7 @@ describe("isSpanWithinBranchHours", () => {
               closesAt: minuteOfDay(closes),
             },
           ],
+          FIXED_ARGENTINA_ZONE_RULES,
         );
       }),
     );

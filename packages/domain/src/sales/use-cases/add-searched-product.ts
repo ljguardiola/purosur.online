@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { AddProductToSaleOutcome } from "./add-product-to-sale.js";
 import { addProductToSale } from "./add-product-to-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
@@ -13,6 +13,7 @@ export interface AddSearchedProductPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -21,13 +22,14 @@ export type AddSearchedProductOutcome =
   | { kind: "product_unavailable" };
 
 export function addSearchedProduct(
-  { ledger, restoration, clock, ids }: AddSearchedProductPorts,
+  { ledger, restoration, clock, zoneRules, ids }: AddSearchedProductPorts,
   { actorId, productId }: AddSearchedProductInput,
 ): AddSearchedProductOutcome {
   const outcome = ledger.transaction((tx) =>
     addProductToSale(tx, {
       actorId,
       clock,
+      zoneRules,
       ids,
       restoration,
       findProduct: () => tx.activeProductById(productId),

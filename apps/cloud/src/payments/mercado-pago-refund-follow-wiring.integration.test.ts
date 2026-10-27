@@ -2,6 +2,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -59,6 +60,7 @@ describe("the Mercado Pago refund follow the server sets up on a real Postgres",
         mercadoPago: new FakeMercadoPagoOrders(),
       },
       () => FOLLOWED_AT,
+      fixedZoneRulesSource(),
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {

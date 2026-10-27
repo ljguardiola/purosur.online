@@ -1,3 +1,4 @@
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   type IssueCreditNotePorts,
   issueCreditNote,
@@ -23,6 +24,7 @@ export function creditNoteJobKey(creditNoteId: string): string {
 
 export interface CreditNoteInput<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   vouchers: TaxAuthorityVoucherLookup;
   taxAuthority: TaxAuthorityLastAuthorizedLookup;
   creditNotes: TaxAuthorityCreditNoteInvoicing;
@@ -44,6 +46,7 @@ function creditNoteIdOf(payload: unknown): string {
 
 export function creditNoteIssuancePorts<TQueryResult extends PgQueryResultHKT>({
   now,
+  zoneRules,
   vouchers,
   taxAuthority,
   creditNotes,
@@ -56,6 +59,7 @@ export function creditNoteIssuancePorts<TQueryResult extends PgQueryResultHKT>({
     requests: new DrizzleCreditNoteRequests(db),
     lanes: new DrizzleCreditNoteLanes(connections),
     clock,
+    zoneRules,
     tokens: new DrizzleWsaaTokenSource(db, clock, WSFE_SERVICE, certificateFingerprint),
     vouchers,
     taxAuthority,

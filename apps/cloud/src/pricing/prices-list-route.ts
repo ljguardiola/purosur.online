@@ -1,4 +1,5 @@
 import { priceListSchema, recordIdSchema } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   type ListedPrices,
   listPrices,
@@ -22,6 +23,7 @@ export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 function toPriceListBody(result: ListedPrices) {
@@ -79,6 +81,7 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
     reviews: new DrizzlePriceReviewReader(options.db),
     purchaseCosts: new DrizzlePurchaseCostReader(options.db),
     initialCountCosts: new DrizzleInitialCountCostReader(options.db),
+    zoneRules: options.zoneRules,
   };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

@@ -7,6 +7,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { discounts, products } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -81,7 +82,7 @@ function editToWeight(
 ) {
   return () =>
     editProduct(
-      { store: new DrizzleCatalogStore(db), clock },
+      { zoneRules: fixedZoneRulesSource(), store: new DrizzleCatalogStore(db), clock },
       {
         id: product.id,
         name: product.name,
@@ -99,7 +100,7 @@ function editToWeight(
 function switchOn(discountId: string, productId: string) {
   return () =>
     editDiscount(
-      { store: new DrizzleDiscountStore(db), clock },
+      { zoneRules: fixedZoneRulesSource(), store: new DrizzleDiscountStore(db), clock },
       {
         id: discountId,
         version: 1,

@@ -18,6 +18,7 @@ import {
   type StorageStanding,
   storageSalesStopOf,
 } from "../../register/index.js";
+import type { ZoneRules } from "../../shared/index.js";
 import {
   isInstallationRevoked,
   type SalesDenial,
@@ -117,6 +118,7 @@ interface RegisterOwnStanding {
   lastAcceptedPushAt: Date | null;
   hours: readonly BranchWeeklyHoursRange[];
   now: Date;
+  rules: ZoneRules;
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> | null;
   storage: StorageStanding;
   localDatabaseDamaged: boolean;
@@ -132,6 +134,7 @@ export function registerOwnConditions({
   lastAcceptedPushAt,
   hours,
   now,
+  rules,
   serialDevices,
   storage,
   localDatabaseDamaged,
@@ -159,7 +162,7 @@ export function registerOwnConditions({
     register_silent:
       !revoked &&
       lastAcceptedPushAt !== null &&
-      isRegisterQuiet({ lastSuccessfulSyncAt: lastAcceptedPushAt, hours, now })
+      isRegisterQuiet({ lastSuccessfulSyncAt: lastAcceptedPushAt, hours, now, rules })
         ? { kind: "register_silent" }
         : null,
     serial_device_missing:

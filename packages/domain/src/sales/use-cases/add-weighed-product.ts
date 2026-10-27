@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { mayBeSaleLineQuantity } from "../model/sale-line.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import {
@@ -27,6 +27,7 @@ export interface AddWeighedProductPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -38,7 +39,7 @@ export type AddWeighedProductOutcome =
   | AddedLineOutcome;
 
 export function addWeighedProduct(
-  { ledger, restoration, clock, ids }: AddWeighedProductPorts,
+  { ledger, restoration, clock, zoneRules, ids }: AddWeighedProductPorts,
   { actorId, productId, weightThousandths }: AddWeighedProductInput,
 ): AddWeighedProductOutcome {
   return ledger.transaction<AddWeighedProductOutcome>((tx) => {
@@ -54,7 +55,7 @@ export function addWeighedProduct(
     if (!mayBeSaleLineQuantity(weightThousandths, "KG")) {
       return { kind: "invalid_weight" };
     }
-    const priced = pricedWeighedProduct(tx, clock, product);
+    const priced = pricedWeighedProduct(tx, clock, zoneRules, product);
     if (isNoPrice(priced)) {
       return priced;
     }

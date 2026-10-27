@@ -14,7 +14,7 @@ import {
 } from "./test-support/fake-expiring-lot-alerts.js";
 
 const TODAY = "2026-10-13";
-const NOW = new Date(argentinaInstant(TODAY, "12:00"));
+const NOW = new Date(argentinaInstant(TODAY, "12:00", FIXED_ARGENTINA_ZONE_RULES));
 
 function lot(
   overrides: {

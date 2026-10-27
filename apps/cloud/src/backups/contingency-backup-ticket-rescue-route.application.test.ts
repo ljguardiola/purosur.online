@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { branchFirstCashSessions, inbox } from "../platform/db/schema.js";
 import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { SESSION_NOON } from "../test-support/backoffice-session.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   registerWithTicketKey,
   rescueRouteUnderTest,
@@ -32,7 +33,10 @@ describe("the events of a rescued ticket", () => {
       register.seal([cashSessionOpened(9, "2026-10-06T11:00:00.000Z")]),
     );
 
-    await applySyncedEventsTask(route.db, { now: () => SESSION_NOON });
+    await applySyncedEventsTask(route.db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => SESSION_NOON,
+    });
 
     const rows = await route.db.select({ appliedAt: inbox.appliedAt }).from(inbox);
     expect(rows).toHaveLength(1);

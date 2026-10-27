@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 import { isDeferredSaleExpired } from "./deferred-sale-expiry.js";
 import type { FiscalDocumentState } from "./real-time-authorization.js";
 
@@ -26,9 +26,11 @@ export type DeferredBacklogStep =
 export function isDateOrderBroken(
   occurredAt: Date,
   lastAuthorizedIssuedOn: string | null,
+  rules: ZoneRules,
 ): boolean {
   return (
-    lastAuthorizedIssuedOn !== null && argentinaCalendarDay(occurredAt) < lastAuthorizedIssuedOn
+    lastAuthorizedIssuedOn !== null &&
+    argentinaCalendarDay(occurredAt, rules) < lastAuthorizedIssuedOn
   );
 }
 
@@ -41,9 +43,11 @@ export function isDeferredSaleUninvoiceable(
   occurredAt: Date,
   now: Date,
   lastAuthorizedIssuedOn: string | null,
+  rules: ZoneRules,
 ): boolean {
   return (
-    isDeferredSaleExpired(occurredAt, now) || isDateOrderBroken(occurredAt, lastAuthorizedIssuedOn)
+    isDeferredSaleExpired(occurredAt, now, rules) ||
+    isDateOrderBroken(occurredAt, lastAuthorizedIssuedOn, rules)
   );
 }
 
@@ -51,16 +55,18 @@ export function isInDeferredBacklog(
   entry: DeferredBacklogEntry,
   now: Date,
   lastAuthorizedIssuedOn: string | null,
+  rules: ZoneRules,
 ): boolean {
-  return !isDeferredSaleUninvoiceable(entry.occurredAt, now, lastAuthorizedIssuedOn);
+  return !isDeferredSaleUninvoiceable(entry.occurredAt, now, lastAuthorizedIssuedOn, rules);
 }
 
 export function hasDeferredBacklog(
   entries: readonly DeferredBacklogEntry[],
   now: Date,
   lastAuthorizedIssuedOn: string | null,
+  rules: ZoneRules,
 ): boolean {
-  return entries.some((entry) => isInDeferredBacklog(entry, now, lastAuthorizedIssuedOn));
+  return entries.some((entry) => isInDeferredBacklog(entry, now, lastAuthorizedIssuedOn, rules));
 }
 
 function compareBacklogOrder(a: DeferredBacklogEntry, b: DeferredBacklogEntry): number {
@@ -78,9 +84,10 @@ export function nextDeferredBacklogStep(
   entries: readonly DeferredBacklogEntry[],
   now: Date,
   lastAuthorizedIssuedOn: string | null,
+  rules: ZoneRules,
 ): DeferredBacklogStep {
   const [first] = entries
-    .filter((entry) => isInDeferredBacklog(entry, now, lastAuthorizedIssuedOn))
+    .filter((entry) => isInDeferredBacklog(entry, now, lastAuthorizedIssuedOn, rules))
     .sort(compareBacklogOrder);
   if (first === undefined) {
     return { kind: "empty" };

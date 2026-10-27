@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FiscalOnlineSignalEvidence, SaleInvoice } from "../../fiscal/index.js";
 import type { SalePayment } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { SALE_VOID_REFUSALS, type SaleVoidRefusal } from "../model/sale-void.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
@@ -191,6 +192,7 @@ function void_(
 ): Promise<VoidSaleOutcome<VoidSaleGrant> | typeof NOT_SIGNED_IN> {
   return voidSale(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       clock: new FixedClock(NOW),
       ids: new SequentialIds(),
@@ -1108,7 +1110,13 @@ describe("voidSale", () => {
       });
 
       const outcome = await voidSale(
-        { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          clock: new FixedClock(NOW),
+          ids: new SequentialIds(),
+          authority,
+        },
         { saleId: "sale-1", pendingRefundsConfirmed: true },
       );
 
@@ -1129,7 +1137,13 @@ describe("voidSale", () => {
       );
 
       await voidSale(
-        { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          clock: new FixedClock(NOW),
+          ids: new SequentialIds(),
+          authority,
+        },
         { saleId: "sale-1", pendingRefundsConfirmed: false },
       );
 

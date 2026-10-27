@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   type ReturnAgainstHistory,
   returnHistoryBreaks,
@@ -7,7 +7,7 @@ import {
 } from "./return-history-breaks.js";
 
 const HISTORY: SaleReturnHistory = {
-  saleOccurredAt: new Date(argentinaInstant("2026-09-12", "15:30")),
+  saleOccurredAt: new Date(argentinaInstant("2026-09-12", "15:30", FIXED_ARGENTINA_ZONE_RULES)),
   goodConditionReturnDays: 15,
   lines: [
     { saleLineId: "line-1", soldQuantity: 3, returnedQuantity: 1 },
@@ -21,7 +21,7 @@ const HISTORY: SaleReturnHistory = {
 
 function returned(overrides: Partial<ReturnAgainstHistory> = {}): ReturnAgainstHistory {
   return {
-    occurredAt: new Date(argentinaInstant("2026-09-20", "10:00")),
+    occurredAt: new Date(argentinaInstant("2026-09-20", "10:00", FIXED_ARGENTINA_ZONE_RULES)),
     lines: [{ saleLineId: "line-1", quantity: 2, reason: "change_of_mind" }],
     refunds: [{ paymentId: "pay-1", amount: 4000 }],
     ...overrides,
@@ -30,17 +30,18 @@ function returned(overrides: Partial<ReturnAgainstHistory> = {}): ReturnAgainstH
 
 describe("returnHistoryBreaks", () => {
   it("finds nothing wrong with a return that fits what the sale's history left", () => {
-    expect(returnHistoryBreaks(returned(), HISTORY)).toEqual([]);
+    expect(returnHistoryBreaks(returned(), HISTORY, FIXED_ARGENTINA_ZONE_RULES)).toEqual([]);
   });
 
   it("accepts a return that takes exactly what is left of a line and of a payment, on a window's last day", () => {
     expect(
       returnHistoryBreaks(
         returned({
-          occurredAt: new Date(argentinaInstant("2026-09-27", "23:00")),
+          occurredAt: new Date(argentinaInstant("2026-09-27", "23:00", FIXED_ARGENTINA_ZONE_RULES)),
           refunds: [{ paymentId: "pay-1", amount: 4000 }],
         }),
         HISTORY,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toEqual([]);
   });
@@ -48,7 +49,11 @@ describe("returnHistoryBreaks", () => {
   describe("a refund beyond what the payment still had to give back", () => {
     it("is flagged", () => {
       expect(
-        returnHistoryBreaks(returned({ refunds: [{ paymentId: "pay-1", amount: 4001 }] }), HISTORY),
+        returnHistoryBreaks(
+          returned({ refunds: [{ paymentId: "pay-1", amount: 4001 }] }),
+          HISTORY,
+          FIXED_ARGENTINA_ZONE_RULES,
+        ),
       ).toEqual(["return_refund_exceeds_payment"]);
     });
 
@@ -62,13 +67,18 @@ describe("returnHistoryBreaks", () => {
             ],
           }),
           HISTORY,
+          FIXED_ARGENTINA_ZONE_RULES,
         ),
       ).toEqual(["return_refund_exceeds_payment"]);
     });
 
     it("is flagged for a payment the sale's history does not have", () => {
       expect(
-        returnHistoryBreaks(returned({ refunds: [{ paymentId: "pay-9", amount: 1 }] }), HISTORY),
+        returnHistoryBreaks(
+          returned({ refunds: [{ paymentId: "pay-9", amount: 1 }] }),
+          HISTORY,
+          FIXED_ARGENTINA_ZONE_RULES,
+        ),
       ).toEqual(["return_refund_exceeds_payment"]);
     });
   });
@@ -77,8 +87,13 @@ describe("returnHistoryBreaks", () => {
     it("is flagged for a change of mind after the branch's days", () => {
       expect(
         returnHistoryBreaks(
-          returned({ occurredAt: new Date(argentinaInstant("2026-09-28", "00:00")) }),
+          returned({
+            occurredAt: new Date(
+              argentinaInstant("2026-09-28", "00:00", FIXED_ARGENTINA_ZONE_RULES),
+            ),
+          }),
           HISTORY,
+          FIXED_ARGENTINA_ZONE_RULES,
         ),
       ).toEqual(["return_line_outside_window"]);
     });
@@ -90,18 +105,24 @@ describe("returnHistoryBreaks", () => {
         returnHistoryBreaks(
           returned({
             lines: [defective],
-            occurredAt: new Date(argentinaInstant("2027-03-12", "12:00")),
+            occurredAt: new Date(
+              argentinaInstant("2027-03-12", "12:00", FIXED_ARGENTINA_ZONE_RULES),
+            ),
           }),
           HISTORY,
+          FIXED_ARGENTINA_ZONE_RULES,
         ),
       ).toEqual([]);
       expect(
         returnHistoryBreaks(
           returned({
             lines: [defective],
-            occurredAt: new Date(argentinaInstant("2027-03-13", "00:00")),
+            occurredAt: new Date(
+              argentinaInstant("2027-03-13", "00:00", FIXED_ARGENTINA_ZONE_RULES),
+            ),
           }),
           HISTORY,
+          FIXED_ARGENTINA_ZONE_RULES,
         ),
       ).toEqual(["return_line_outside_window"]);
     });
@@ -109,8 +130,13 @@ describe("returnHistoryBreaks", () => {
     it("follows the branch's days of the history", () => {
       expect(
         returnHistoryBreaks(
-          returned({ occurredAt: new Date(argentinaInstant("2026-09-28", "00:00")) }),
+          returned({
+            occurredAt: new Date(
+              argentinaInstant("2026-09-28", "00:00", FIXED_ARGENTINA_ZONE_RULES),
+            ),
+          }),
           { ...HISTORY, goodConditionReturnDays: 16 },
+          FIXED_ARGENTINA_ZONE_RULES,
         ),
       ).toEqual([]);
     });
@@ -122,6 +148,7 @@ describe("returnHistoryBreaks", () => {
         returnHistoryBreaks(
           returned({ lines: [{ saleLineId: "line-1", quantity: 3, reason: "change_of_mind" }] }),
           HISTORY,
+          FIXED_ARGENTINA_ZONE_RULES,
         ),
       ).toEqual(["return_quantity_exceeds_sale"]);
     });
@@ -131,13 +158,16 @@ describe("returnHistoryBreaks", () => {
         returnHistoryBreaks(
           returned({ lines: [{ saleLineId: "line-9", quantity: 1, reason: "change_of_mind" }] }),
           HISTORY,
+          FIXED_ARGENTINA_ZONE_RULES,
         ),
       ).toEqual(["return_quantity_exceeds_sale"]);
     });
   });
 
   it("flags a break of any one refund, line or quantity, not only when all of them break", () => {
-    const occurredAt = new Date(argentinaInstant("2026-09-28", "10:00"));
+    const occurredAt = new Date(
+      argentinaInstant("2026-09-28", "10:00", FIXED_ARGENTINA_ZONE_RULES),
+    );
 
     expect(
       returnHistoryBreaks(
@@ -148,6 +178,7 @@ describe("returnHistoryBreaks", () => {
           ],
         }),
         HISTORY,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toEqual(["return_refund_exceeds_payment"]);
     expect(
@@ -160,6 +191,7 @@ describe("returnHistoryBreaks", () => {
           ],
         }),
         HISTORY,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toEqual(["return_line_outside_window"]);
     expect(
@@ -171,6 +203,7 @@ describe("returnHistoryBreaks", () => {
           ],
         }),
         HISTORY,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toEqual(["return_quantity_exceeds_sale"]);
   });
@@ -179,11 +212,12 @@ describe("returnHistoryBreaks", () => {
     expect(
       returnHistoryBreaks(
         {
-          occurredAt: new Date(argentinaInstant("2026-10-30", "10:00")),
+          occurredAt: new Date(argentinaInstant("2026-10-30", "10:00", FIXED_ARGENTINA_ZONE_RULES)),
           lines: [{ saleLineId: "line-1", quantity: 9, reason: "change_of_mind" }],
           refunds: [{ paymentId: "pay-2", amount: 2001 }],
         },
         HISTORY,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toEqual([
       "return_refund_exceeds_payment",
@@ -206,6 +240,7 @@ describe("returnHistoryBreaks", () => {
           ],
         }),
         HISTORY,
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toEqual(["return_refund_exceeds_payment", "return_quantity_exceeds_sale"]);
   });

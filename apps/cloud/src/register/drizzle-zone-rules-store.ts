@@ -1,7 +1,8 @@
 import { currentZoneRulesPublication, type ZoneRulesPublication } from "@purosur/domain";
 import type {
+  CurrentZoneRules,
+  CurrentZoneRulesReader,
   PublishedZoneRules,
-  PublishedZoneRulesReader,
   ZoneRulesStore,
   ZoneRulesStoreTransaction,
 } from "@purosur/domain/register/use-cases";
@@ -20,8 +21,18 @@ function zoneRulesPublications<TQueryResult extends PgQueryResultHKT>(
     .from(zoneRules);
 }
 
+function storedZoneRules<TQueryResult extends PgQueryResultHKT>(db: PgDatabase<TQueryResult>) {
+  return db
+    .select({
+      version: zoneRules.version,
+      publicationNumber: zoneRules.publicationNumber,
+      transitions: zoneRules.transitions,
+    })
+    .from(zoneRules);
+}
+
 export class DrizzlePublishedZoneRulesReader<TQueryResult extends PgQueryResultHKT>
-  implements PublishedZoneRulesReader
+  implements CurrentZoneRulesReader
 {
   private readonly db: PgDatabase<TQueryResult>;
 
@@ -31,6 +42,20 @@ export class DrizzlePublishedZoneRulesReader<TQueryResult extends PgQueryResultH
 
   async currentZoneRulesVersion(): Promise<string | null> {
     return currentZoneRulesPublication(await zoneRulesPublications(this.db))?.version ?? null;
+  }
+
+  async currentZoneRules(): Promise<CurrentZoneRules | null> {
+    const current = currentZoneRulesPublication(await storedZoneRules(this.db));
+    if (current === undefined) {
+      return null;
+    }
+    return {
+      version: current.version,
+      transitions: current.transitions.map(({ from, offsetMinutes }) => ({
+        from: new Date(from),
+        offsetMinutes,
+      })),
+    };
   }
 }
 

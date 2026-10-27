@@ -44,7 +44,7 @@ export function listSnapshotBackupRegisters({
 }
 
 export async function registerSnapshotBackups(
-  { reader, clock }: RegisterSnapshotBackupsPorts,
+  { reader, clock, zoneRules }: RegisterSnapshotBackupsPorts,
   { registerId }: { registerId: string },
 ): Promise<RegisterSnapshotBackupsOutcome> {
   if (!(await reader.registerExists(registerId))) {
@@ -54,7 +54,7 @@ export async function registerSnapshotBackups(
   const unpruned = (await reader.generationsOf(registerId)).filter(
     (generation) => !generation.pruned,
   );
-  const kept = snapshotRetentionTiers(unpruned, rules, clock.now());
+  const kept = snapshotRetentionTiers(unpruned, rules, clock.now(), zoneRules.zoneRules());
 
   return {
     kind: "listed",

@@ -36,7 +36,7 @@ describe("readCashSessionCloses", () => {
     ]);
 
     const report = await readCashSessionCloses(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -60,7 +60,11 @@ describe("readCashSessionCloses", () => {
     const reader = new FakeCashSessionClosesReader();
 
     const report = await readCashSessionCloses(
-      { reader, clock: { now: () => new Date("2026-10-07T01:30:00.000Z") } },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reader,
+        clock: { now: () => new Date("2026-10-07T01:30:00.000Z") },
+      },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
@@ -87,7 +91,7 @@ describe("readCashSessionCloses", () => {
     const reader = new FakeCashSessionClosesReader();
 
     await readCashSessionCloses(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: "register-2" },
     );
 
@@ -96,7 +100,7 @@ describe("readCashSessionCloses", () => {
 
   it("reports empty totals for a range without closes", async () => {
     const report = await readCashSessionCloses(
-      { reader: new FakeCashSessionClosesReader(), clock },
+      { zoneRules: new FakeZoneRulesSource(), reader: new FakeCashSessionClosesReader(), clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 

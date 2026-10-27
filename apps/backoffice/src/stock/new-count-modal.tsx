@@ -28,6 +28,7 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { parseStockQuantity, quantityFieldKind, quantityMessage } from "../platform/stock-quantity";
 import type { CloudData } from "../platform/use-cloud-query";
+import { useCurrentZoneRulesQuery } from "../platform/zone-rules-queries";
 import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
 import type { RegisterCountOutcome } from "./stock-api";
 import { CountBalance } from "./stock-count-balance";
@@ -115,6 +116,20 @@ export function NewCountModal({
     fetchStockProducts: services.fetchStockProducts,
     onSessionEnded,
   });
+  const zoneRules = useCurrentZoneRulesQuery({
+    fetchCurrentZoneRules: services.fetchCurrentZoneRules,
+    onSessionEnded,
+  });
+  const rules = zoneRules.status === "loaded" ? zoneRules.value : undefined;
+  const occurredAtOf = (moment: CountMoment) =>
+    rules === undefined ? undefined : countOccurredAt(moment, startMoment, rules);
+  const failedLoad =
+    products.status === "failed"
+      ? cloudLoadFailure(products, "los productos")
+      : zoneRules.status === "failed"
+        ? cloudLoadFailure(zoneRules, "las reglas horarias")
+        : undefined;
+  const loading = products.status === "loading" || zoneRules.status === "loading";
   const listed = products.status === "loaded" ? products.value.products : [];
   const productOf = (productId: string | null) =>
     listed.find((product) => product.id === productId);
@@ -133,7 +148,7 @@ export function NewCountModal({
         countBody(formValues, {
           saleUnit: productOf(formValues.productId)?.saleUnit ?? "UNIT",
           lots: countableLots,
-          at: countOccurredAt(formValues.moment, startMoment),
+          at: occurredAtOf(formValues.moment),
         }),
     },
     fields: { productId: "productId", counted: "counted", lots: "lots", occurredAt: "moment" },
@@ -187,7 +202,7 @@ export function NewCountModal({
   }
 
   const product = productOf(values.productId);
-  const at = countOccurredAt(values.moment, startMoment);
+  const at = occurredAtOf(values.moment);
   const options = productOptions(listed);
   const balance = useExpectedBalanceQuery({
     productId: product?.id ?? "",
@@ -248,11 +263,11 @@ export function NewCountModal({
         </>
       }
     >
-      {products.status === "loading" ? <LoadingPlaceholder variant="form" fields={3} /> : null}
-      {products.status === "failed" ? (
-        <LoadFailure {...cloudLoadFailure(products, "los productos")} />
+      {failedLoad === undefined && loading ? (
+        <LoadingPlaceholder variant="form" fields={3} />
       ) : null}
-      {products.status === "loaded" && !options ? (
+      {failedLoad === undefined ? null : <LoadFailure {...failedLoad} />}
+      {products.status === "loaded" && rules !== undefined && !options ? (
         <EmptyState
           icon={<Package />}
           title="No hay productos activos"
@@ -260,7 +275,7 @@ export function NewCountModal({
           variant="blank"
         />
       ) : null}
-      {products.status === "loaded" && options ? (
+      {products.status === "loaded" && rules !== undefined && options ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
             <InlineNotice

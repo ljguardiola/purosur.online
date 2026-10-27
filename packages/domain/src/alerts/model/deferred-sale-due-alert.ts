@@ -1,4 +1,5 @@
 import { deferredSaleExpiresOn, type PendingDeferredSale } from "../../fiscal/index.js";
+import type { ZoneRules } from "../../shared/index.js";
 import type { AlertConditionObservation } from "./alert-condition-observation.js";
 import {
   type DeferredSaleStanding,
@@ -8,6 +9,7 @@ import {
 export function deferredSaleDueObservation(
   { id, saleId, registerId, locationId, occurredAt, total, shortCode }: PendingDeferredSale,
   standing: Extract<DeferredSaleStanding, { kind: "due" | "pressing" }>,
+  rules: ZoneRules,
 ): AlertConditionObservation {
   return {
     holds: true,
@@ -22,8 +24,8 @@ export function deferredSaleDueObservation(
         saleOccurredAt: occurredAt.toISOString(),
         total,
         shortCode,
-        expiresOn: deferredSaleExpiresOn(occurredAt),
-        escalatesAt: deferredSaleAlertEscalatesAt(occurredAt).toISOString(),
+        expiresOn: deferredSaleExpiresOn(occurredAt, rules),
+        escalatesAt: deferredSaleAlertEscalatesAt(occurredAt, rules).toISOString(),
       },
     },
   };

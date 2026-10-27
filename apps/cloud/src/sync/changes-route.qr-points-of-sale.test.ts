@@ -5,6 +5,7 @@ import { DrizzleQrPointOfSaleAssignmentStore } from "../payments/drizzle-qr-poin
 import { locations } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
 import { insertActor, insertRegister } from "./test-support/configured-point-of-sale.js";
@@ -27,7 +28,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  app = buildChangesRouteApp(db, { now: () => NOW });
+  app = buildChangesRouteApp(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 });
 
 afterEach(async () => {

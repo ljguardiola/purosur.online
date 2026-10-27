@@ -912,6 +912,7 @@ export type {
   ReportPeriod,
   SalesDeniedReason,
   ZoneRules,
+  ZoneRulesSource,
   ZoneTransition,
 } from "./shared/index.js";
 export {
@@ -934,6 +935,7 @@ export {
   SALES_DENIED_REASONS,
   STORAGE_SALES_DENIED_REASONS,
   shiftCalendarDay,
+  utcOffsetText,
 } from "./shared/index.js";
 export type {
   AdjustmentReason,

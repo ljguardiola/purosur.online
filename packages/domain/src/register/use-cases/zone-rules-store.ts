@@ -1,8 +1,17 @@
-import type { ZoneTransition } from "../../shared/index.js";
+import type { PublishedZoneRulesReader, ZoneTransition } from "../../shared/index.js";
 import type { ZoneRulesPublication } from "../model/zone-rules-version.js";
 
 export interface PublishedZoneRules extends ZoneRulesPublication {
   transitions: readonly ZoneTransition[];
+}
+
+export interface CurrentZoneRules {
+  version: string;
+  transitions: readonly ZoneTransition[];
+}
+
+export interface CurrentZoneRulesReader extends PublishedZoneRulesReader {
+  currentZoneRules(): Promise<CurrentZoneRules | null>;
 }
 
 export interface ZoneRulesPorts {

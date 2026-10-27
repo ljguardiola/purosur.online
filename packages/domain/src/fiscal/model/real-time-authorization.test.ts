@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -207,15 +208,21 @@ describe("nextInvoiceNumber", () => {
 
 describe("invoiceDateOf", () => {
   it("is the calendar day in Argentina", () => {
-    expect(invoiceDateOf(new Date("2026-10-01T23:30:00.000Z"))).toBe("2026-10-01");
+    expect(invoiceDateOf(new Date("2026-10-01T23:30:00.000Z"), FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      "2026-10-01",
+    );
   });
 
   it("is still the day before in Argentina after midnight UTC", () => {
-    expect(invoiceDateOf(new Date("2026-10-02T02:59:59.000Z"))).toBe("2026-10-01");
+    expect(invoiceDateOf(new Date("2026-10-02T02:59:59.000Z"), FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      "2026-10-01",
+    );
   });
 
   it("is the next day in Argentina from 03:00 UTC", () => {
-    expect(invoiceDateOf(new Date("2026-10-02T03:00:00.000Z"))).toBe("2026-10-02");
+    expect(invoiceDateOf(new Date("2026-10-02T03:00:00.000Z"), FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      "2026-10-02",
+    );
   });
 });
 
@@ -279,6 +286,7 @@ function decide(changes: Partial<Parameters<typeof decideSaleAuthorizationRoute>
     series: SERIES,
     offlineSeries: OFFLINE_SERIES,
     offlineAuthorizationCode: CODE,
+    rules: FIXED_ARGENTINA_ZONE_RULES,
     ...changes,
   });
 }
@@ -1024,6 +1032,7 @@ describe("saleAuthorizationPath", () => {
       series: SERIES,
       offlineSeries: OFFLINE_SERIES,
       offlineAuthorizationCode: CODE,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
       ...changes,
     });
   }
@@ -1219,6 +1228,7 @@ describe("offlineRoute", () => {
       occurredAt: OCCURRED_AT,
       series: OFFLINE_SERIES,
       offlineAuthorizationCode: CODE,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
       ...changes,
     });
   }

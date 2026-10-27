@@ -17,6 +17,7 @@ import {
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerIssuerIdentificationReadRoute } from "./issuer-identification-read-route.js";
 
@@ -42,6 +43,7 @@ beforeEach(async () => {
 
   app = Fastify();
   registerIssuerIdentificationReadRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     authorizedCuit: TEST_AUTHORIZED_CUIT,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   hasPurchaseLines,
   hasValidReceiptNumber,
@@ -91,19 +92,35 @@ describe("hasPurchaseLines", () => {
 describe("isPurchaseDateInFuture", () => {
   it("accepts today in Argentina and any earlier day", () => {
     const now = new Date("2026-03-10T15:00:00Z");
-    expect(isPurchaseDateInFuture("2026-03-10", now)).toBe(false);
-    expect(isPurchaseDateInFuture("2026-03-09", now)).toBe(false);
-    expect(isPurchaseDateInFuture("2020-01-01", now)).toBe(false);
+    expect(isPurchaseDateInFuture("2026-03-10", now, FIXED_ARGENTINA_ZONE_RULES)).toBe(false);
+    expect(isPurchaseDateInFuture("2026-03-09", now, FIXED_ARGENTINA_ZONE_RULES)).toBe(false);
+    expect(isPurchaseDateInFuture("2020-01-01", now, FIXED_ARGENTINA_ZONE_RULES)).toBe(false);
   });
 
   it("refuses the day after today in Argentina", () => {
-    expect(isPurchaseDateInFuture("2026-03-11", new Date("2026-03-10T15:00:00Z"))).toBe(true);
-    expect(isPurchaseDateInFuture("2027-01-01", new Date("2026-03-10T15:00:00Z"))).toBe(true);
+    expect(
+      isPurchaseDateInFuture(
+        "2026-03-11",
+        new Date("2026-03-10T15:00:00Z"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(true);
+    expect(
+      isPurchaseDateInFuture(
+        "2027-01-01",
+        new Date("2026-03-10T15:00:00Z"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(true);
   });
 
   it("takes today from Argentina's calendar, not UTC's", () => {
     const lateEvening = new Date("2026-03-11T01:30:00Z");
-    expect(isPurchaseDateInFuture("2026-03-10", lateEvening)).toBe(false);
-    expect(isPurchaseDateInFuture("2026-03-11", lateEvening)).toBe(true);
+    expect(isPurchaseDateInFuture("2026-03-10", lateEvening, FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      false,
+    );
+    expect(isPurchaseDateInFuture("2026-03-11", lateEvening, FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      true,
+    );
   });
 });

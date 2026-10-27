@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { HandConfirmedPayment } from "../model/hand-confirmed-payments-reconciliation.js";
 import { readHandConfirmedPayments } from "./read-hand-confirmed-payments.js";
 import { FakeHandConfirmedPaymentsReader } from "./test-support/fake-hand-confirmed-payments-reader.js";
@@ -30,7 +31,7 @@ describe("readHandConfirmedPayments", () => {
     const reader = new FakeHandConfirmedPaymentsReader(payments);
 
     const report = await readHandConfirmedPayments(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -61,7 +62,11 @@ describe("readHandConfirmedPayments", () => {
     const reader = new FakeHandConfirmedPaymentsReader();
 
     const report = await readHandConfirmedPayments(
-      { reader, clock: { now: () => new Date("2026-10-07T01:30:00.000Z") } },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reader,
+        clock: { now: () => new Date("2026-10-07T01:30:00.000Z") },
+      },
       { locationId: "branch-1", asked: noRange, registerId: undefined, method: undefined },
     );
 
@@ -73,7 +78,7 @@ describe("readHandConfirmedPayments", () => {
     const reader = new FakeHandConfirmedPaymentsReader();
 
     await readHandConfirmedPayments(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: "register-2", method: "TRANSFER" },
     );
 
@@ -82,7 +87,11 @@ describe("readHandConfirmedPayments", () => {
 
   it("reports zero totals and both methods for a range without payments", async () => {
     const report = await readHandConfirmedPayments(
-      { reader: new FakeHandConfirmedPaymentsReader(), clock },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reader: new FakeHandConfirmedPaymentsReader(),
+        clock,
+      },
       { locationId: "branch-1", asked: noRange, registerId: undefined, method: undefined },
     );
 

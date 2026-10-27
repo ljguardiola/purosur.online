@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { auditLog, supplierPriceListRows, supplierPriceLists } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
 import {
@@ -39,6 +40,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerSupplierPriceListsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,
@@ -53,6 +55,7 @@ async function appChoosing(choice: ProductChoice): Promise<void> {
   await app.close();
   app = Fastify();
   registerSupplierPriceListsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,

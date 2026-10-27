@@ -3,6 +3,7 @@ import {
   PENDING_QR_TRANSACTION,
 } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { recordPendingMercadoPagoPayment } from "./record-pending-mercado-pago-payment.js";
 import {
@@ -61,7 +62,12 @@ function record(
   method: "QR" | "POINT" = "QR",
 ) {
   return recordPendingMercadoPagoPayment(
-    { ledger: store, restoration: store.restoration, ids: new SequentialIds() },
+    {
+      zoneRules: new FakeZoneRulesSource(),
+      ledger: store,
+      restoration: store.restoration,
+      ids: new SequentialIds(),
+    },
     { actorId, saleId: "sale-1", method, amount, occurredAt: STARTED_AT, waitEndsAt: WAIT_ENDS_AT },
   );
 }

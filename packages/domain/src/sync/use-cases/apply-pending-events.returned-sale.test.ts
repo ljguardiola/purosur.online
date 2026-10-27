@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { aReturnedSaleFact } from "../model/test-support/synced-facts.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
 import {
@@ -49,6 +50,7 @@ function application(...events: ReturnType<typeof aStoredEvent>[]): FakeEventApp
 function apply(fake: FakeEventApplication, fact = aReturnedSaleFact()) {
   return applyPendingEvents(
     {
+      zoneRules: new FakeZoneRulesSource(),
       eventApplication: fake,
       upcaster: new FakeEventUpcaster({ "return-event": fact }),
       clock: { now: () => NOW },

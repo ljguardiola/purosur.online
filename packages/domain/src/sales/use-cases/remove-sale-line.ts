@@ -1,5 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
@@ -19,6 +19,7 @@ export interface RemoveSaleLinePorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type RemoveSaleLineOutcome =
@@ -36,7 +37,7 @@ export type RemoveSaleLineOutcome =
     } & OpenSaleStanding);
 
 export function removeSaleLine(
-  { ledger, restoration, clock }: RemoveSaleLinePorts,
+  { ledger, restoration, clock, zoneRules }: RemoveSaleLinePorts,
   { actorId, lineId }: RemoveSaleLineInput,
 ): RemoveSaleLineOutcome {
   return ledger.transaction<RemoveSaleLineOutcome>((tx) => {
@@ -63,7 +64,7 @@ export function removeSaleLine(
       kind: "removed",
       removedSaleDiscount,
       sale: remaining,
-      chargeRefusal: saleChargeRefusal(tx, remaining, clock.now()),
+      chargeRefusal: saleChargeRefusal(tx, remaining, clock.now(), zoneRules.zoneRules()),
       ...openSaleStanding(
         amountToCharge(remaining),
         tx.salePayments(remaining.id),

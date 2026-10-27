@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { Freight, FreightStore, FreightValues } from "./freight-store.js";
 import {
   type FreightInputRefusal,
@@ -16,6 +16,7 @@ export interface RecordFreightInput extends FreightValues {
 export interface RecordFreightPorts {
   store: FreightStore;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type RecordFreightOutcome =
@@ -24,11 +25,11 @@ export type RecordFreightOutcome =
   | { kind: "recorded"; freight: Freight };
 
 export async function recordFreight(
-  { store, clock }: RecordFreightPorts,
+  { store, clock, zoneRules }: RecordFreightPorts,
   input: RecordFreightInput,
 ): Promise<RecordFreightOutcome> {
   const recordedAt = clock.now();
-  const refusal = refuseUnfitFreight(input, recordedAt);
+  const refusal = refuseUnfitFreight(input, recordedAt, zoneRules.zoneRules());
   if (refusal) {
     return refusal;
   }

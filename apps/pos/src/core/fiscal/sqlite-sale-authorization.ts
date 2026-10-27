@@ -205,7 +205,7 @@ function sqliteSaleAuthorizationTransaction(
 
 export function decideSaleAuthorizationIn(
   database: LocalDatabase,
-  { ids, saleId, gate, decidedAt, occurredAt, total }: SaleAuthorizationDecision,
+  { ids, saleId, gate, decidedAt, occurredAt, total, rules }: SaleAuthorizationDecision,
   appendOutboxEvent: (event: OutboxEventDraft) => void,
   shortCodes: ShortCodeRandomness = cryptoShortCodes,
 ): void {
@@ -219,6 +219,7 @@ export function decideSaleAuthorizationIn(
       decidedAt,
       occurredAt,
       total,
+      rules,
     },
   );
 }

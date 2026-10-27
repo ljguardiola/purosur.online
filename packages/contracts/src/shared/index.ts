@@ -59,3 +59,4 @@ export {
   authorizedVoidCreditNoteAnswerSchema,
   rejectedVoidCreditNoteAnswerSchema,
 } from "./void-credit-note-answer.js";
+export { zoneRulesTransitionsSchema } from "./zone-rules-transitions.js";

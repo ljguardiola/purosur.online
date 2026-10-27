@@ -1,6 +1,7 @@
 import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { changeLineQuantity } from "./change-line-quantity.js";
 import {
@@ -120,7 +121,12 @@ function change(
   expectedQuantity = storedLine(store, lineId)?.quantity ?? 1,
 ) {
   return changeLineQuantity(
-    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
+    {
+      zoneRules: new FakeZoneRulesSource(),
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+    },
     { actorId, lineId, quantity, expectedQuantity },
   );
 }

@@ -501,6 +501,8 @@ export {
   registerSerialDevicesMessageSchema,
   setReceiptPrinterMessageSchema,
 } from "./register/core-messages.js";
+export type { CurrentZoneRulesWire } from "./register/current-zone-rules.js";
+export { currentZoneRulesSchema } from "./register/current-zone-rules.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
 export {
   deviceEnrollmentBodySchema,

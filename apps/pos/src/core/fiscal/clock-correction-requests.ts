@@ -1,4 +1,5 @@
 import type { CorrectRegisterClockOutcome, ReadClockGuardOutcome } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   type ClockLowering,
   type CorrectRegisterClockGrant,
@@ -17,6 +18,7 @@ import {
 } from "./sqlite-clock-correction";
 
 export interface ClockCorrectionRequestDeps {
+  zoneRules: ZoneRulesSource;
   database: LocalDatabase;
   gate: ActionGate;
   signedInPerson: Pick<SignedInPerson, "userId">;
@@ -40,9 +42,14 @@ export function readClockGuardFor({
   database,
   signedInPerson,
   now,
-}: Pick<ClockCorrectionRequestDeps, "database" | "signedInPerson" | "now">): ReadClockGuardOutcome {
+  zoneRules,
+}: Pick<
+  ClockCorrectionRequestDeps,
+  "database" | "signedInPerson" | "now" | "zoneRules"
+>): ReadClockGuardOutcome {
   const state = readRegisterClockGuard(
     {
+      zoneRules,
       reader: new SqliteRegisterClockGuardReader(database, new SqliteSignInStore(database)),
       clock: { now },
     },
@@ -50,11 +57,14 @@ export function readClockGuardFor({
   );
   return {
     kind: "read",
-    reading: inArgentinaTime(state.reading),
+    reading: inArgentinaTime(state.reading, zoneRules.zoneRules()),
     blocks: state.blocks.map((block) => ({
       point_of_sale: block.pointOfSale,
       document_type: block.documentType,
-      latest_reading: block.latestReading === null ? null : inArgentinaTime(block.latestReading),
+      latest_reading:
+        block.latestReading === null
+          ? null
+          : inArgentinaTime(block.latestReading, zoneRules.zoneRules()),
       tax_authority_last_authorized_issued_on: block.taxAuthorityLastIssuedOn,
     })),
     may_correct: state.mayCorrect,
@@ -67,6 +77,7 @@ export async function correctRegisterClockFor({
   gate,
   readOutboxChainKey,
   now,
+  zoneRules,
   ids,
 }: ClockCorrectionRequestDeps): Promise<CorrectRegisterClockOutcome> {
   const outboxChainKey = await readOutboxChainKey();
@@ -74,6 +85,7 @@ export async function correctRegisterClockFor({
     return { kind: "unavailable" };
   }
   const outcome = await correctRegisterClock<CorrectRegisterClockGrant, CorrectionRefusal>({
+    zoneRules,
     ledger: new SqliteClockCorrectionLedger(
       database,
       new SqliteSignInStore(database),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ZoneRules } from "../../shared/index.js";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   FakeZoneRulesSource,
   fixedOffsetZoneRules,
@@ -198,7 +198,11 @@ describe("findSaleForReturn", () => {
     });
 
     it("tells that the change of mind window is closed from the sixteenth day while a defect is still allowed", () => {
-      const outcome = find({}, BY_INVOICE, new Date(argentinaInstant("2026-09-28", "09:00")));
+      const outcome = find(
+        {},
+        BY_INVOICE,
+        new Date(argentinaInstant("2026-09-28", "09:00", FIXED_ARGENTINA_ZONE_RULES)),
+      );
 
       expect(outcome.kind === "found" && outcome.sale.windows).toEqual({
         change_of_mind: { lastAllowedDay: "2026-09-27", open: false },
@@ -268,7 +272,10 @@ describe("findSaleForReturn", () => {
     const ledger = new FakeReturnLedger({ sales: [aSaleForReturn()] });
     const before = structuredClone(ledger.state);
 
-    findSaleForReturn({ reader: ledger, clock: new FixedClock(RETURNED_AT) }, BY_INVOICE);
+    findSaleForReturn(
+      { zoneRules: new FakeZoneRulesSource(), reader: ledger, clock: new FixedClock(RETURNED_AT) },
+      BY_INVOICE,
+    );
 
     expect(ledger.state).toEqual(before);
     expect(ledger.transactions).toBe(0);

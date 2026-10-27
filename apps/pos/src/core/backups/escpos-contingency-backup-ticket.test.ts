@@ -1,3 +1,4 @@
+import { FIXED_ARGENTINA_ZONE_RULES } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { printoutOf } from "../sales/test-support/escpos-printout";
 import {
@@ -23,7 +24,7 @@ function ticket(
 }
 
 function printed(overrides: Partial<ContingencyBackupTicketPrintout> = {}) {
-  return printoutOf(renderContingencyBackupTicket(ticket(overrides)));
+  return printoutOf(renderContingencyBackupTicket(ticket(overrides), FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function row(left: string, right: string): string {

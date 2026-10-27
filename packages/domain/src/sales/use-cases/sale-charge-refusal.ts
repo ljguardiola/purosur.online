@@ -1,4 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import type { ZoneRules } from "../../shared/index.js";
 import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
@@ -8,11 +9,13 @@ export function saleChargeRefusal(
   tx: SaleLedgerTransaction,
   sale: SaleWithLines,
   moment: Date,
+  rules: ZoneRules,
 ): ChargeRefusal | undefined {
   return buyerIdentificationRefusal(
     amountToCharge(sale),
     tx.salePayments(sale.id),
     tx.buyerIdentificationThresholds(),
     moment,
+    rules,
   );
 }

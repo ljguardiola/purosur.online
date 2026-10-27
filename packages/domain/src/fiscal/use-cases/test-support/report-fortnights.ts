@@ -1,3 +1,4 @@
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../../shared/index.js";
 import type { InstallationStreamReach } from "../../../sync/index.js";
 import type { Fortnight } from "../../model/offline-authorization-code.js";
 import type { OfflineAuthorizationCode } from "../offline-authorization-code-ports.js";
@@ -79,6 +80,7 @@ export function setUpReportFortnights({
   const clock = new ManualClock(now);
   const run = () =>
     reportFortnights({
+      zoneRules: { zoneRules: () => FIXED_ARGENTINA_ZONE_RULES },
       reports,
       documents,
       streams,

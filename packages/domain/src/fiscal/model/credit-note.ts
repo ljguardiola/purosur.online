@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 import type { ExternalInvoicingVoucher } from "./fiscal-task.js";
 import { decideUnclearOutcome, type TaxAuthorityEvidence } from "./unclear-outcome-decision.js";
 
@@ -8,8 +8,8 @@ export const CREDIT_NOTE_REASONS = ["orphan", "sale_void", "rejected_document"] 
 
 export type CreditNoteReason = (typeof CREDIT_NOTE_REASONS)[number];
 
-export function creditNoteIssueDate(issuedAt: Date): string {
-  return argentinaCalendarDay(issuedAt);
+export function creditNoteIssueDate(issuedAt: Date, rules: ZoneRules): string {
+  return argentinaCalendarDay(issuedAt, rules);
 }
 
 export function nextCreditNoteNumber(lastAuthorized: number): number {

@@ -254,7 +254,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
 
         const openSession = openSessionOf(request);
         const outcome = await uploadSupplierPriceList(
-          { store, files },
+          { zoneRules: options.zoneRules, store, files },
           {
             supplierId: query.supplierId,
             locationId: openSession.locationId,
@@ -533,7 +533,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
 
     const openSession = openSessionOf(request);
     const outcome = await loadSupplierPriceListWebPage(
-      { store, files, webPages },
+      { zoneRules: options.zoneRules, store, files, webPages },
       {
         supplierId: body.supplierId,
         locationId: openSession.locationId,
@@ -557,7 +557,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
 
     const openSession = openSessionOf(request);
     const outcome = await refreshSupplierPriceListWebPage(
-      { store, files, webPages },
+      { zoneRules: options.zoneRules, store, files, webPages },
       {
         listId: ids.id,
         locationId: openSession.locationId,

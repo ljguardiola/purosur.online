@@ -7,6 +7,7 @@ import { insertEnrolledInstallation } from "../register/test-support/enrolled-in
 import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import { signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
 import { lastLoggedChangeSeq } from "./test-support/logged-changes.js";
 import { aTransferCancelledSale } from "./test-support/synced-facts.js";
@@ -29,7 +30,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  app = buildChangesRouteApp(db, { now: () => NOW });
+  app = buildChangesRouteApp(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 });
 
 afterEach(async () => {

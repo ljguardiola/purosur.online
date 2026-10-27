@@ -10,6 +10,7 @@ import {
 } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
 import { FakeSupplierPriceListWebPages } from "./test-support/fake-supplier-price-list-web-pages.js";
@@ -47,6 +48,7 @@ beforeEach(async () => {
   webPages = new FakeSupplierPriceListWebPages();
   app = Fastify();
   registerSupplierPriceListsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,
@@ -497,6 +499,7 @@ describe("POST /supplier-price-lists", () => {
   it("answers 503 supplier_price_list_reading_unavailable when reading is not configured, storing nothing", async () => {
     const unconfigured = Fastify();
     registerSupplierPriceListsRoutes(unconfigured, {
+      zoneRules: fixedZoneRulesSource(),
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => NOW,
@@ -624,6 +627,7 @@ describe("POST /supplier-price-lists/web-page", () => {
   it("answers 503 supplier_price_list_reading_unavailable when reading is not configured, reading nothing", async () => {
     const unconfigured = Fastify();
     registerSupplierPriceListsRoutes(unconfigured, {
+      zoneRules: fixedZoneRulesSource(),
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => NOW,
@@ -737,6 +741,7 @@ describe("POST /supplier-price-lists/:id/refresh", () => {
   it("answers 503 supplier_price_list_reading_unavailable when reading is not configured", async () => {
     const unconfigured = Fastify();
     registerSupplierPriceListsRoutes(unconfigured, {
+      zoneRules: fixedZoneRulesSource(),
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => NOW,

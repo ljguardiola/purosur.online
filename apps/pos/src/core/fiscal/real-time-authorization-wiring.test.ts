@@ -3,6 +3,7 @@ import { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { CHAIN_KEY, outboxEventDraft } from "../sync/test-support/sqlite-local-outbox";
 import {
@@ -90,6 +91,7 @@ describe("authorizing a completed sale in real time", () => {
     readOutboxChainKey: () => Promise<string | undefined> = async () => CHAIN_KEY,
   ) {
     return createRealTimeAuthorization({
+      zoneRules: fixedZoneRulesSource(),
       database,
       cloudClient: cloud,
       readDeviceToken,
@@ -247,6 +249,7 @@ describe("authorizing a completed sale in real time", () => {
 
   it("resolves at once for a register with no local database", async () => {
     const withoutDatabase = createRealTimeAuthorization({
+      zoneRules: fixedZoneRulesSource(),
       database: undefined,
       cloudClient: undefined,
       readDeviceToken: async () => undefined,
@@ -401,6 +404,7 @@ describe("the register's health checks", () => {
   ) {
     const scheduled: { run: () => void; delayMs: number }[] = [];
     const stop = startRegisterHealthChecks({
+      zoneRules: fixedZoneRulesSource(),
       database,
       cloudClient: cloud,
       readDeviceToken: async () => "prefix.secret",
@@ -516,6 +520,7 @@ describe("applying the decisions of the documents left with an unclear outcome, 
     );
     const scheduled: { run: () => void; delayMs: number }[] = [];
     startRegisterHealthChecks({
+      zoneRules: fixedZoneRulesSource(),
       database,
       cloudClient: cloud,
       readDeviceToken: async () => "prefix.secret",
@@ -775,6 +780,7 @@ describe("asking for the credit notes of voided sales, as the register's health 
     );
     const scheduled: { run: () => void; delayMs: number }[] = [];
     startRegisterHealthChecks({
+      zoneRules: fixedZoneRulesSource(),
       database,
       cloudClient: cloud,
       readDeviceToken: async () => "prefix.secret",
@@ -971,6 +977,7 @@ describe("catching up the deferred sales, as the register's health is checked", 
     });
     const scheduled: { run: () => void; delayMs: number }[] = [];
     startRegisterHealthChecks({
+      zoneRules: fixedZoneRulesSource(),
       database,
       cloudClient: cloud,
       readDeviceToken: async () => "prefix.secret",

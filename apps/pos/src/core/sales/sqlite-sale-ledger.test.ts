@@ -32,6 +32,7 @@ import {
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
@@ -69,7 +70,13 @@ const ids = {
 
 function scan(code: string) {
   return addScannedProduct(
-    { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", code },
   );
 }
@@ -201,7 +208,13 @@ describe("scanning a barcode", () => {
 
 function weigh(productId: string, weightThousandths: number) {
   return addWeighedProduct(
-    { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", productId, weightThousandths },
   );
 }
@@ -227,7 +240,12 @@ describe("a line sold by weight", () => {
     weigh("p1", 1250);
 
     const outcome = currentSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+      },
       { actorId: "u1" },
     );
 
@@ -258,7 +276,12 @@ describe("a line sold by weight", () => {
     const lineId = added.kind === "added" ? (added.sale.lines[0]?.id as string) : "";
 
     changeLineWeight(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+      },
       { actorId: "u1", lineId, weightThousandths: 2000, expectedWeightThousandths: 1250 },
     );
 
@@ -273,7 +296,12 @@ describe("a line sold by weight", () => {
     database.prepare("UPDATE sale_lines SET weight_source = 'SCALE'").run();
 
     changeLineWeight(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+      },
       { actorId: "u1", lineId, weightThousandths: 1250, expectedWeightThousandths: 1250 },
     );
 
@@ -292,7 +320,12 @@ describe("a line sold by weight", () => {
     weigh("p1", 1000);
 
     const outcome = currentSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+      },
       { actorId: "u1" },
     );
 
@@ -412,7 +445,12 @@ describe("the sale being built", () => {
     scan("111");
 
     const outcome = currentSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+      },
       { actorId: "u1" },
     );
 
@@ -458,7 +496,12 @@ describe("the sale being built", () => {
 
     expect(
       currentSale(
-        { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+        {
+          zoneRules: fixedZoneRulesSource(),
+          ledger,
+          restoration: restorationOf(database),
+          clock: { now: () => NOW },
+        },
         { actorId: "u1" },
       ),
     ).toEqual({
@@ -562,7 +605,12 @@ describe("the sale after the register restarts", () => {
 
       expect(
         currentSale(
-          { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+          {
+            zoneRules: fixedZoneRulesSource(),
+            ledger,
+            restoration: restorationOf(database),
+            clock: { now: () => NOW },
+          },
           { actorId: "u1" },
         ),
       ).toMatchObject({
@@ -762,7 +810,13 @@ describe("charging an open sale in cash", () => {
 
   function charge(saleId: string, tendered: number) {
     return chargeSaleInCash(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+        ids,
+      },
       { actorId: "u1", saleId, tendered },
     );
   }
@@ -772,7 +826,13 @@ describe("charging an open sale in cash", () => {
     const chargedAt = new Date("2026-10-01T00:02:00.000Z");
 
     chargeSaleInCash(
-      { ledger, restoration: restorationOf(database), clock: { now: () => chargedAt }, ids },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => chargedAt },
+        ids,
+      },
       { actorId: "u1", saleId, tendered: 5000 },
     );
 
@@ -983,7 +1043,7 @@ describe("charging an open sale in cash", () => {
           ledger: new SqliteReceiptLedger(database, CHAIN_KEY),
           clock: { now: () => NOW },
           ids,
-          template: escPosReceiptTemplate,
+          template: escPosReceiptTemplate(fixedZoneRulesSource()),
           printers: {
             configured: () => ({
               print: async (_watch, sending) => {
@@ -1241,7 +1301,13 @@ describe("charging a sale with a line sold by weight", () => {
     const saleId = added.kind === "added" ? added.sale.id : "";
 
     chargeSaleInCash(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+        ids,
+      },
       { actorId: "u1", saleId, tendered: 12000 },
     );
 
@@ -1290,14 +1356,26 @@ describe("paying an open sale across several payments", () => {
 
   function payCash(saleId: string, tendered: number) {
     return chargeSaleInCash(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+        ids,
+      },
       { actorId: "u1", saleId, tendered },
     );
   }
 
   function payByTransfer(saleId: string, amount: number) {
     return chargeSaleByTransfer(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+        ids,
+      },
       { actorId: "u1", saleId, amount },
     );
   }
@@ -1570,7 +1648,12 @@ describe("a line's promotions", () => {
     scan("111");
 
     const outcome = currentSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+      },
       { actorId: "u1" },
     );
 
@@ -1601,7 +1684,12 @@ describe("a line's promotions", () => {
 
     scan("111");
     const outcome = currentSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+      },
       { actorId: "u1" },
     );
 
@@ -1616,7 +1704,12 @@ describe("a line's promotions", () => {
 
     scan("111");
     const outcome = currentSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+      },
       { actorId: "u1" },
     );
 
@@ -1669,6 +1762,7 @@ describe("the lines of the sale being changed", () => {
     ledger,
     restoration: restorationOf(database),
     clock: { now: () => NOW },
+    zoneRules: fixedZoneRulesSource(),
     ids,
   });
 
@@ -1974,14 +2068,26 @@ describe("cancelling an open sale with approved payments", () => {
 
   function payCash(saleId: string, tendered: number) {
     return chargeSaleInCash(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+        ids,
+      },
       { actorId: "u1", saleId, tendered },
     );
   }
 
   function payByTransfer(saleId: string, amount: number) {
     return chargeSaleByTransfer(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        ledger,
+        restoration: restorationOf(database),
+        clock: { now: () => NOW },
+        ids,
+      },
       { actorId: "u1", saleId, amount },
     );
   }

@@ -1,4 +1,4 @@
-import { argentinaCalendarDay, type Clock } from "../../shared/index.js";
+import { argentinaCalendarDay, type Clock, type ZoneRulesSource } from "../../shared/index.js";
 import { mayBuyByPackaging } from "../model/packaging.js";
 import { mayBePurchasedFrom } from "../model/purchase.js";
 import { type ListedPackaging, listedPackaging } from "./list-packagings.js";
@@ -14,6 +14,7 @@ export interface PurchaseChoices {
 export async function listPurchaseChoices(
   reader: PurchasingListReader,
   clock: Clock,
+  zoneRules: ZoneRulesSource,
 ): Promise<PurchaseChoices> {
   const [suppliers, packagings] = await Promise.all([reader.suppliers(), reader.packagings()]);
   return {
@@ -21,6 +22,6 @@ export async function listPurchaseChoices(
     packagings: packagings
       .filter((packaging) => mayBuyByPackaging(packaging, packaging.productSaleUnit))
       .map(listedPackaging),
-    today: argentinaCalendarDay(clock.now()),
+    today: argentinaCalendarDay(clock.now(), zoneRules.zoneRules()),
   };
 }

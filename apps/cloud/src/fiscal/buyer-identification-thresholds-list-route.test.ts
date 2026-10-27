@@ -213,6 +213,7 @@ describe("GET /buyer-identification-thresholds", () => {
     await app.close();
     app = Fastify();
     registerBuyerIdentificationThresholdsListRoute(app, {
+      zoneRules: fixedZoneRulesSource(),
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => readings.shift() ?? new Date("2026-01-06T03:00:00.000Z"),

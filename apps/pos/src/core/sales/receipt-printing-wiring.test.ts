@@ -14,6 +14,7 @@ import { scriptedDeferrals } from "../fiscal/test-support/scripted-deferrals";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer-settings";
@@ -32,6 +33,7 @@ const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base
 
 describe("the register's receipt printing without a local database", () => {
   const printing = createReceiptPrinting({
+    zoneRules: fixedZoneRulesSource(),
     database: undefined,
     gate: undefined,
     now: () => new Date(),
@@ -79,6 +81,7 @@ describe("the register's receipt printing over its local database", () => {
     const signedInPerson = createSignedInPerson();
     signedInPerson.set("cashier");
     return createReceiptPrinting({
+      zoneRules: fixedZoneRulesSource(),
       database,
       gate: createActionGate({
         store: new SqliteSignInStore(database),
@@ -466,6 +469,7 @@ describe("the register's receipt printing over its local database", () => {
       readDeviceToken: () => Promise<string | undefined> = async () => "prefix.secret",
     ) {
       const authorization = createRealTimeAuthorization({
+        zoneRules: fixedZoneRulesSource(),
         database,
         cloudClient: cloud,
         readDeviceToken,

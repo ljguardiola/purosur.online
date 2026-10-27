@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { PendingDeferredSale } from "../../fiscal/index.js";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { detectDeferredSaleDeadlines } from "./detect-deferred-sale-deadlines.js";
 import { FixedClock } from "./test-support/fake-alert-store.js";
 import { FakeDeferredSaleDeadlineAlerts } from "./test-support/fake-deferred-sale-deadlines.js";
 
 function at(day: string, time = "12:00"): Date {
-  return new Date(argentinaInstant(day, time));
+  return new Date(argentinaInstant(day, time, FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function pendingSale(
@@ -31,7 +32,10 @@ function detect(
   moment: Date,
   alerts = new FakeDeferredSaleDeadlineAlerts(),
 ) {
-  const outcome = detectDeferredSaleDeadlines({ alerts, clock: new FixedClock(moment) }, sales);
+  const outcome = detectDeferredSaleDeadlines(
+    { zoneRules: new FakeZoneRulesSource(), alerts, clock: new FixedClock(moment) },
+    sales,
+  );
   return { alerts, outcome };
 }
 

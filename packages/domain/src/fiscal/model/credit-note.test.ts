@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
   CREDIT_NOTE_REASONS,
@@ -39,8 +40,12 @@ describe("credit note C", () => {
   });
 
   it("is dated with the Argentine calendar day it is issued", () => {
-    expect(creditNoteIssueDate(new Date("2026-10-03T01:30:00.000Z"))).toBe("2026-10-02");
-    expect(creditNoteIssueDate(new Date("2026-10-03T03:00:00.000Z"))).toBe("2026-10-03");
+    expect(
+      creditNoteIssueDate(new Date("2026-10-03T01:30:00.000Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe("2026-10-02");
+    expect(
+      creditNoteIssueDate(new Date("2026-10-03T03:00:00.000Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe("2026-10-03");
   });
 });
 
