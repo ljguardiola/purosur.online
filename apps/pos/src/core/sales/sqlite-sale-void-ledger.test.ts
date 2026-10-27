@@ -307,7 +307,7 @@ describe("the credit note of a voided sale", () => {
     receiverTaxStatusCode: 5,
     correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
     origin: { kind: "sale_void" },
-  };
+  } as const;
 
   function recordCreditNote(saleId: string, creditNoteId = "note-1") {
     voidLedger().transaction((tx) => {

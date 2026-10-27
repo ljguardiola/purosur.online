@@ -556,10 +556,20 @@ describe("printing the credit notes of the returns of a sale", () => {
   it("prints the oldest one not printed yet, then the next, each stored under its own credit note", async () => {
     await printVoidedSaleCreditNoteFor(deps(), "sale-1");
     printer.becomeReady();
-    await vi.waitFor(() => expect(printedNotes()).toEqual([{ credit_note_id: "note-r1" }]));
+    await vi.waitFor(() =>
+      expect(
+        database
+          .prepare("SELECT credit_note_id FROM credit_note_prints WHERE printed_at IS NOT NULL")
+          .all(),
+      ).toEqual([{ credit_note_id: "note-r1" }]),
+    );
     expect(printoutOf(printer.handed[0] ?? new Uint8Array()).text).toContain("NOTA DE CRÉDITO C");
 
-    await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+    await vi.waitFor(async () => {
+      await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+      expect(printer.waiting).toHaveLength(2);
+    });
+    printer.becomeReady();
     await vi.waitFor(() =>
       expect(printedNotes()).toEqual([
         { credit_note_id: "note-r1" },

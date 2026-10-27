@@ -1,4 +1,8 @@
-import type { CreditNoteToIssue, RestoredCreditNoteAnswer } from "@purosur/domain";
+import type {
+  AwaitingCreditNote,
+  CreditNoteToIssue,
+  RestoredCreditNoteAnswer,
+} from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { recordReplenishedCreditNoteAnswer } from "./replenished-credit-note-answers";
@@ -173,5 +177,119 @@ describe("replenishing the credit note answer of a voided sale", () => {
 
     expect(await creditNotes.inProgress()).toEqual([]);
     expect(await creditNotes.recordedAnswer("note-1")).toEqual(AUTHORIZED.answer);
+  });
+});
+
+describe("replenishing the credit note answer of a return", () => {
+  const RETURNED_AT = "2026-10-08T10:00:00.000Z";
+  const ORIGIN = { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-08" } as const;
+  const RETURN_CREDIT_NOTE: CreditNoteToIssue = { ...CREDIT_NOTE, origin: ORIGIN };
+  const AWAITING_CREDIT_NOTE: AwaitingCreditNote = {
+    creditNoteId: "note-1",
+    saleId: "sale-1",
+    total: 3000,
+    receiverTaxStatusCode: null,
+    correctedVoucher: null,
+    origin: ORIGIN,
+  };
+
+  function returnSale(): void {
+    insertCompletedSale(database, "sale-1");
+    database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'register-1', 'device-a', 'session-1', 'u1', 'QR', ?)`,
+      )
+      .run(RETURNED_AT);
+  }
+
+  function storedNotes(): unknown[] {
+    return database
+      .prepare(
+        "SELECT id, return_id, requested_issue_on, state, number, corrected_number, recorded_at FROM sale_void_credit_notes",
+      )
+      .all();
+  }
+
+  it("writes the credit note the return asked for, dated by the return, with its authorization", () => {
+    returnSale();
+
+    recordReplenishedCreditNoteAnswer(database, RETURN_CREDIT_NOTE, AUTHORIZED);
+
+    expect(storedNotes()).toEqual([
+      {
+        id: "note-1",
+        return_id: "return-1",
+        requested_issue_on: "2026-10-08",
+        state: "AUTHORIZED",
+        number: 7,
+        corrected_number: 41,
+        recorded_at: RETURNED_AT,
+      },
+    ]);
+  });
+
+  it("writes the credit note that never found an invoice as to regularize, with no voucher", () => {
+    returnSale();
+
+    recordReplenishedCreditNoteAnswer(database, AWAITING_CREDIT_NOTE, {
+      creditNoteId: "note-1",
+      answeredAt: ANSWERED_AT,
+      answer: { kind: "regularization_required" },
+    });
+
+    expect(storedNotes()).toEqual([
+      expect.objectContaining({
+        return_id: "return-1",
+        state: "REGULARIZATION_REQUIRED",
+        corrected_number: null,
+      }),
+    ]);
+  });
+
+  it("answers the credit note of the return the restored backup still holds waiting for its invoice", () => {
+    returnSale();
+    insertPendingCreditNote(database, AWAITING_CREDIT_NOTE);
+
+    recordReplenishedCreditNoteAnswer(database, AWAITING_CREDIT_NOTE, {
+      creditNoteId: "note-1",
+      answeredAt: ANSWERED_AT,
+      answer: { kind: "regularization_required" },
+    });
+
+    expect(storedNotes()).toEqual([
+      expect.objectContaining({ state: "REGULARIZATION_REQUIRED", corrected_number: null }),
+    ]);
+  });
+
+  it("keeps a second credit note of the same sale apart, one per return", () => {
+    returnSale();
+    database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-2', 'sale-1', 'register-1', 'device-a', 'session-1', 'u1', 'QR', ?)`,
+      )
+      .run("2026-10-09T10:00:00.000Z");
+    recordReplenishedCreditNoteAnswer(database, RETURN_CREDIT_NOTE, AUTHORIZED);
+
+    recordReplenishedCreditNoteAnswer(
+      database,
+      {
+        ...RETURN_CREDIT_NOTE,
+        creditNoteId: "note-2",
+        origin: { kind: "sale_return", returnId: "return-2", issuedOn: "2026-10-09" },
+      },
+      { ...AUTHORIZED, creditNoteId: "note-2" },
+    );
+
+    expect(storedNotes()).toHaveLength(2);
+  });
+
+  it("is refused for a return the register does not hold", () => {
+    insertCompletedSale(database, "sale-1");
+
+    expect(() =>
+      recordReplenishedCreditNoteAnswer(database, RETURN_CREDIT_NOTE, AUTHORIZED),
+    ).toThrow("the register holds no credit note note-1");
   });
 });

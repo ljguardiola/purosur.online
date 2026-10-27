@@ -5811,29 +5811,6 @@ describe("the register's local migrations", () => {
           .run(),
       ).toThrow(/CHECK/);
 
-      const attempt = (saleId: string) =>
-        after
-          .prepare(
-            "INSERT INTO credit_note_prints (sale_id, print_attempted_at, printed_at) VALUES (?, '2026-09-30T16:00:00.000Z', NULL)",
-          )
-          .run(saleId);
-      expect(() => attempt("sale-1")).not.toThrow();
-      expect(() => attempt("sale-1")).toThrow(/UNIQUE|PRIMARY KEY/);
-      expect(() => attempt("missing")).toThrow(/FOREIGN KEY/);
-      expect(() =>
-        after
-          .prepare(
-            "INSERT INTO credit_note_receipts (sale_id, template_version, head, body) VALUES ('sale-1', '1', x'00', x'01')",
-          )
-          .run(),
-      ).not.toThrow();
-      expect(() =>
-        after
-          .prepare(
-            "INSERT INTO credit_note_receipts (sale_id, template_version, head, body) VALUES ('sale-1', '1', x'00', x'01')",
-          )
-          .run(),
-      ).toThrow(/UNIQUE|PRIMARY KEY/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
@@ -7491,7 +7468,7 @@ describe("the return credit notes migration", () => {
     });
   });
 
-  it("prints a credit note once and only a credit note the register holds", () => {
+  it("prints and stores the receipt of a credit note once, and only for a credit note the register holds", () => {
     withMigratedRegister((database) => {
       const print = (creditNoteId: string) =>
         database
@@ -7503,6 +7480,16 @@ describe("the return credit notes migration", () => {
       expect(() => print("note-pending")).not.toThrow();
       expect(() => print("note-pending")).toThrow(/UNIQUE|PRIMARY KEY/);
       expect(() => print("missing")).toThrow(/FOREIGN KEY/);
+
+      const store = (creditNoteId: string) =>
+        database
+          .prepare(
+            "INSERT INTO credit_note_receipts (credit_note_id, template_version, head, body) VALUES (?, '1', x'00', x'01')",
+          )
+          .run(creditNoteId);
+      expect(() => store("note-pending")).not.toThrow();
+      expect(() => store("note-pending")).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => store("missing")).toThrow(/FOREIGN KEY/);
     });
   });
 

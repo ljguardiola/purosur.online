@@ -7,6 +7,7 @@ import {
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
+  insertPointOfSale,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -544,6 +545,10 @@ describe("the credit note of a completed return", () => {
     };
     return state;
   }
+
+  beforeEach(() => {
+    insertPointOfSale(database, 0);
+  });
 
   function invoiceTheSale() {
     insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });

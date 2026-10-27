@@ -135,3 +135,59 @@ describe("holding the credit note of a voided sale the cloud never recorded", ()
     expect(count("sale_void_credit_notes") + count("replenished_credit_note_requests")).toBe(0);
   });
 });
+
+describe("holding the credit note of a return the cloud never recorded", () => {
+  const RETURNED_EVENT: PushedEvent = {
+    event_id: "event-54",
+    device_seq: 54,
+    aggregate_type: "Return",
+    aggregate_id: "return-1",
+    event_type: "sale_returned",
+    schema_version: 2,
+    payload: { id: "return-1", sale_id: "sale-1" },
+    occurred_at: "2026-10-08T10:00:00.000Z",
+    actor_id: "user-1",
+    chain_hmac: "hmac-54",
+  };
+  const WAITING_CREDIT_NOTE: CreditNoteToIssue = {
+    creditNoteId: "note-1",
+    saleId: "sale-1",
+    total: 3000,
+    receiverTaxStatusCode: null,
+    correctedVoucher: null,
+    origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-08" },
+  };
+
+  beforeEach(() => {
+    insertCompletedSale(database, "sale-1");
+    database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'register-1', 'device-a', 'session-1', 'u1', 'QR', ?)`,
+      )
+      .run(RETURNED_EVENT.occurred_at);
+  });
+
+  it("waits for the invoice, carrying the event of the return it requests under its id", async () => {
+    holdReplenishedCreditNoteToRequest(database, WAITING_CREDIT_NOTE, RETURNED_EVENT);
+
+    expect(
+      database
+        .prepare("SELECT id, return_id, state, corrected_number FROM sale_void_credit_notes")
+        .all(),
+    ).toEqual([
+      { id: "note-1", return_id: "return-1", state: "AWAITING_INVOICE", corrected_number: null },
+    ]);
+    expect(await new SqliteVoidCreditNotes(database).inProgress()).toEqual([
+      { ...WAITING_CREDIT_NOTE, saleEvent: RETURNED_EVENT },
+    ]);
+  });
+
+  it("holds it once, whatever the times the feed repeats it", () => {
+    holdReplenishedCreditNoteToRequest(database, WAITING_CREDIT_NOTE, RETURNED_EVENT);
+    holdReplenishedCreditNoteToRequest(database, WAITING_CREDIT_NOTE, RETURNED_EVENT);
+
+    expect(count("sale_void_credit_notes")).toBe(1);
+    expect(count("replenished_credit_note_requests")).toBe(1);
+  });
+});
