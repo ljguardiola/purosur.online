@@ -1,8 +1,9 @@
 import type { CategorySummary } from "@purosur/contracts";
-import { expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import {
   type CategoryNode,
   categoriesInTreeOrder,
+  categoryMessage,
   categoryPathLabels,
   categoryPathText,
   categorySelectOptions,
@@ -101,4 +102,14 @@ test("categorySelectOptions only offers leaf categories, labeled by their full p
   expect(categorySelectOptions([groceries, spreads])).toEqual([
     { value: "category-3", label: "Almacén › Untables" },
   ]);
+});
+
+describe("categoryMessage", () => {
+  it("asks to choose a category when none is chosen", () => {
+    expect(categoryMessage({ categoryId: null })).toBe("Elegí una categoría.");
+  });
+
+  it("asks to review a chosen category", () => {
+    expect(categoryMessage({ categoryId: "category-1" })).toBe("Revisá la categoría.");
+  });
 });

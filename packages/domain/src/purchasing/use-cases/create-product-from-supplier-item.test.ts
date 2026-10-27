@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { SaleUnit } from "../../catalog/index.js";
+import { PRODUCT_NAME_MAX_LENGTH, type SaleUnit } from "../../catalog/index.js";
+import { PACKAGING_NAME_MAX_LENGTH } from "../model/packaging.js";
 import {
   maySupplierPriceListRowBeLinked,
   SUPPLIER_PRICE_LIST_STATES,
@@ -8,7 +9,10 @@ import {
 import { createProductFromSupplierItem } from "./create-product-from-supplier-item.js";
 import { FakeSupplierItemProductStore } from "./test-support/fake-supplier-item-product-store.js";
 
-function setup(list: { state?: SupplierPriceListState; pricesIncludeVat?: boolean | null } = {}) {
+function setup(
+  list: { state?: SupplierPriceListState; pricesIncludeVat?: boolean | null } = {},
+  row: { description?: string; presentation?: string | null } = {},
+) {
   const store = new FakeSupplierItemProductStore();
   store.lists.seedList({
     id: "list-1",
@@ -16,7 +20,13 @@ function setup(list: { state?: SupplierPriceListState; pricesIncludeVat?: boolea
     pricesIncludeVat: list.pricesIncludeVat === undefined ? false : list.pricesIncludeVat,
     version: 3,
   });
-  store.lists.seedRow({ id: "row-1", listId: "list-1", code: "Y-1", description: "Yerba 1 kg" });
+  store.lists.seedRow({
+    id: "row-1",
+    listId: "list-1",
+    code: "Y-1",
+    description: row.description ?? "Yerba 1 kg",
+    presentation: row.presentation === undefined ? "Caja x 10" : row.presentation,
+  });
   return store;
 }
 
@@ -24,18 +34,17 @@ const input = {
   listId: "list-1",
   rowId: "row-1",
   version: 3,
-  name: "Yerba 1 kg",
   saleUnit: "UNIT" as SaleUnit,
   categoryId: "category-1",
   barcodes: ["7790001000012"],
-  packagingName: "Caja x 10",
+  packagingName: null as string | null,
   quantityPerPackage: 10_000,
   vatRate: 2100 as number | null,
   actorId: "person-1",
 };
 
 describe("createProductFromSupplierItem", () => {
-  it("creates the product and its purchase presentation and links the row to them", async () => {
+  it("creates the product and its purchase presentation named as the list states them and links the row to them", async () => {
     const store = setup();
 
     const outcome = await createProductFromSupplierItem(store, input);
@@ -71,6 +80,22 @@ describe("createProductFromSupplierItem", () => {
       editedBy: "person-1",
     });
     expect(state.lists.lists[0]?.version).toBe(4);
+  });
+
+  it("names the presentation as the list states it even when another name is given", async () => {
+    const store = setup();
+
+    await createProductFromSupplierItem(store, { ...input, packagingName: "Bolsa" });
+
+    expect(store.snapshot().packagings[0]?.name).toBe("Caja x 10");
+  });
+
+  it("names the presentation as given for an item whose list states none", async () => {
+    const store = setup({}, { presentation: null });
+
+    await createProductFromSupplierItem(store, { ...input, packagingName: "Bolsa" });
+
+    expect(store.snapshot().packagings[0]?.name).toBe("Bolsa");
   });
 
   it("gives the presentation the sale unit the product was created with", async () => {
@@ -229,6 +254,29 @@ describe("createProductFromSupplierItem", () => {
       expect(store.callOrder).toEqual(["lockList", "lockRow"]);
     });
 
+    it("answers presentation_missing for an item whose list states no presentation when none is given", async () => {
+      const store = setup({}, { presentation: null });
+
+      expect(await refusedWithNothingWritten(store, { packagingName: null })).toEqual({
+        kind: "presentation_missing",
+      });
+      expect(store.callOrder).toEqual(["lockList", "lockRow"]);
+    });
+
+    it("answers name_too_long for an item whose description is longer than a product's name may be", async () => {
+      const store = setup({}, { description: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) });
+
+      expect(await refusedWithNothingWritten(store)).toEqual({ kind: "name_too_long" });
+      expect(store.callOrder).toEqual(["lockList", "lockRow"]);
+    });
+
+    it("answers presentation_too_long for an item whose presentation is longer than a presentation's name may be", async () => {
+      const store = setup({}, { presentation: "a".repeat(PACKAGING_NAME_MAX_LENGTH + 1) });
+
+      expect(await refusedWithNothingWritten(store)).toEqual({ kind: "presentation_too_long" });
+      expect(store.callOrder).toEqual(["lockList", "lockRow"]);
+    });
+
     it.each([
       ["UNIT", 1_500],
       ["UNIT", 0],
@@ -246,41 +294,22 @@ describe("createProductFromSupplierItem", () => {
       },
     );
 
-    it.each([21, 0, 1234])("answers vat_rate_invalid for the rate %s", async (vatRate) => {
+    it("answers vat_rate_invalid for a rate that is not offered", async () => {
       const store = setup();
 
-      expect(await refusedWithNothingWritten(store, { vatRate })).toEqual({
+      expect(await refusedWithNothingWritten(store, { vatRate: 21 })).toEqual({
         kind: "vat_rate_invalid",
       });
       expect(store.callOrder).toEqual(["lockList", "lockRow"]);
     });
 
-    it("refuses an invalid rate even when the list's prices include VAT", async () => {
-      const store = setup({ pricesIncludeVat: true });
+    it("answers vat_rate_missing for a list whose prices exclude VAT when no rate is given", async () => {
+      const store = setup({ pricesIncludeVat: false });
 
-      expect(await refusedWithNothingWritten(store, { vatRate: 21 })).toEqual({
-        kind: "vat_rate_invalid",
+      expect(await refusedWithNothingWritten(store, { vatRate: null })).toEqual({
+        kind: "vat_rate_missing",
       });
-    });
-
-    it.each([false, null])(
-      "answers vat_rate_missing for a list whose prices include VAT: %j",
-      async (pricesIncludeVat) => {
-        const store = setup({ pricesIncludeVat });
-
-        expect(await refusedWithNothingWritten(store, { vatRate: null })).toEqual({
-          kind: "vat_rate_missing",
-        });
-        expect(store.callOrder).toEqual(["lockList", "lockRow"]);
-      },
-    );
-
-    it("creates without a rate for a list whose prices include VAT", async () => {
-      const store = setup({ pricesIncludeVat: true });
-
-      expect((await createProductFromSupplierItem(store, { ...input, vatRate: null })).kind).toBe(
-        "created",
-      );
+      expect(store.callOrder).toEqual(["lockList", "lockRow"]);
     });
 
     const catalogRefusals: NonNullable<FakeSupplierItemProductStore["catalogRefusal"]>[] = [

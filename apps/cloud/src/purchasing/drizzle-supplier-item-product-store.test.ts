@@ -59,13 +59,14 @@ function newProduct(categoryId: string, barcodes: string[] = ["7790000000001"]) 
 }
 
 describe("lockRow", () => {
-  it("answers the row with its description, code and no link when nothing is linked", async () => {
+  it("answers the row with its description, code, presentation and no link when nothing is linked", async () => {
     const { listId, rowId } = await extractedListWithRow(
       db,
       {},
       {
         description: "Yerba 1 kg",
         code: "Y1",
+        presentation: "Caja x 10",
       },
     );
 
@@ -73,7 +74,7 @@ describe("lockRow", () => {
 
     expect(result).toEqual({
       kind: "locked",
-      row: { description: "Yerba 1 kg", code: "Y1", link: null },
+      row: { description: "Yerba 1 kg", code: "Y1", presentation: "Caja x 10", link: null },
     });
   });
 
@@ -242,7 +243,6 @@ describe("creating a product from a supplier item through the use case", () => {
       listId,
       rowId,
       version: 1,
-      name: "Yerba 1 kg",
       saleUnit: "UNIT",
       categoryId,
       barcodes: ["7790000000001"],

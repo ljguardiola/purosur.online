@@ -55,8 +55,15 @@ export class FakeSupplierItemProductStore implements SupplierItemProductStore {
             if (locked.kind === "not_found") {
               return locked;
             }
-            const stored = (await inner.listRows(listId)).find((row) => row.id === rowId);
-            return { kind: "locked", row: { ...locked.row, link: stored?.link ?? null } };
+            const stored = this.lists.snapshot().rows.find((row) => row.id === rowId);
+            return {
+              kind: "locked",
+              row: {
+                ...locked.row,
+                presentation: stored?.presentation ?? null,
+                link: stored?.link ?? null,
+              },
+            };
           },
           linkRow: (listId, rowId, link, actorId) => {
             this.callOrder.push("linkRow");

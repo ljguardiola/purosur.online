@@ -8,7 +8,6 @@ import {
 const CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
 const body = {
   version: 3,
-  name: "Yerba 1 kg",
   saleUnit: "UNIT",
   categoryId: CATEGORY_ID,
   barcodes: ["7790001000012"],
@@ -28,10 +27,9 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
     expect(supplierPriceListRowProductCreationBodySchema.safeParse(body).data).toEqual(body);
   });
 
-  it("trims the names and the barcodes", () => {
+  it("trims the presentation's name and the barcodes", () => {
     const parsed = supplierPriceListRowProductCreationBodySchema.safeParse({
       ...body,
-      name: "  Yerba 1 kg ",
       packagingName: " Caja x 10  ",
       barcodes: [" 7790001000012 "],
     });
@@ -54,17 +52,6 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
 
   it.each([undefined, 0, -1, 1.5, "1", null])("rejects the version %j", (version) => {
     expect(firstFailure({ ...body, version })?.field).toBe("version");
-  });
-
-  it.each([undefined, "", "   ", 5, null])("rejects the name %j", (name) => {
-    expect(firstFailure({ ...body, name })).toEqual({
-      field: "name",
-      message: "name must not be empty",
-    });
-  });
-
-  it("rejects a product name longer than the catalog allows", () => {
-    expect(firstFailure({ ...body, name: "a".repeat(1_000) })?.field).toBe("name");
   });
 
   it.each([undefined, "", "KILO", 1])("rejects the sale unit %j", (saleUnit) => {
@@ -95,7 +82,14 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
     },
   );
 
-  it.each([undefined, "", "   ", 5, null])("rejects the presentation name %j", (packagingName) => {
+  it.each([null, undefined])("reads the presentation name %j as none", (packagingName) => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, packagingName }).data
+        ?.packagingName,
+    ).toBeNull();
+  });
+
+  it.each(["", "   ", 5])("rejects the presentation name %j", (packagingName) => {
     expect(firstFailure({ ...body, packagingName })).toEqual({
       field: "packagingName",
       message: `packagingName must be a non-empty string of at most ${PACKAGING_NAME_MAX_LENGTH} characters`,
@@ -114,6 +108,12 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
     ).toBe("packagingName");
   });
 
+  it("tells a form how long the presentation's name may be", () => {
+    expect(supplierPriceListRowProductCreationBodySchema.shape.packagingName.meta()).toEqual({
+      maxLength: PACKAGING_NAME_MAX_LENGTH,
+    });
+  });
+
   it.each([undefined, null, "12", 0, -1000, 1.5])(
     "rejects the quantity %j",
     (quantityPerPackage) => {
@@ -124,10 +124,14 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
     },
   );
 
-  it("strips keys it does not know", () => {
+  it("strips keys it does not know, the product's name among them", () => {
     expect(
-      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, brandId: "x", tagIds: [] })
-        .data,
+      supplierPriceListRowProductCreationBodySchema.safeParse({
+        ...body,
+        name: "Yerba",
+        brandId: "x",
+        tagIds: [],
+      }).data,
     ).toEqual(body);
   });
 });

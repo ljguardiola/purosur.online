@@ -27,11 +27,10 @@ export const PRODUCT_CREATED: SupplierPriceListRowProductCreated = {
 
 export const CREATION_BODY: SupplierPriceListRowProductCreationBody = {
   version: 3,
-  name: "Nuez mariposa extra light x 10 kg",
   saleUnit: "UNIT",
   categoryId: DRIED_FRUITS.id,
   barcodes: ["7790001000029"],
-  packagingName: "Caja 10 kg",
+  packagingName: null,
   quantityPerPackage: 10_000,
   vatRate: null,
 };

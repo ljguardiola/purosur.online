@@ -14,7 +14,6 @@ const [, unlinkedWithoutPresentation, nutRow] = EXTRACTED_ROWS as [
 ];
 
 const FILLED: SupplierItemProductFormValues = {
-  name: "  Nuez mariposa  ",
   saleUnit: "UNIT",
   packagingName: " Caja 10 kg ",
   quantity: "10",
@@ -25,11 +24,10 @@ const FILLED: SupplierItemProductFormValues = {
 };
 
 describe("supplierItemProductFormValuesOf", () => {
-  it("starts from the item's description, presentation and barcode, sold by the unit", () => {
+  it("starts from the item's barcode, sold by the unit, with no presentation to type when the list states one", () => {
     expect(supplierItemProductFormValuesOf(nutRow, 3)).toEqual({
-      name: "Nuez mariposa extra light x 10 kg",
       saleUnit: "UNIT",
-      packagingName: "Caja 10 kg",
+      packagingName: null,
       quantity: "",
       categoryId: null,
       barcodes: { codes: ["7790001000029"], scan: "" },
@@ -38,7 +36,7 @@ describe("supplierItemProductFormValuesOf", () => {
     });
   });
 
-  it("leaves the presentation and the barcodes empty when the item has none", () => {
+  it("leaves the presentation to type and the barcodes empty when the item has none", () => {
     const values = supplierItemProductFormValuesOf(unlinkedWithoutPresentation, 3);
 
     expect(values.packagingName).toBe("");
@@ -47,10 +45,9 @@ describe("supplierItemProductFormValuesOf", () => {
 });
 
 describe("supplierItemProductRequestFrom", () => {
-  it("builds the request with the names trimmed and the quantity in the stock's units", () => {
+  it("builds the request with the presentation's name trimmed and the quantity in the stock's units", () => {
     expect(supplierItemProductRequestFrom(FILLED, false)).toEqual({
       version: 3,
-      name: "Nuez mariposa",
       saleUnit: "UNIT",
       categoryId: "category-1",
       barcodes: ["7790001000029"],
@@ -58,6 +55,12 @@ describe("supplierItemProductRequestFrom", () => {
       quantityPerPackage: 10_000,
       vatRate: null,
     });
+  });
+
+  it("sends no presentation's name when the list states the presentation", () => {
+    expect(
+      supplierItemProductRequestFrom({ ...FILLED, packagingName: null }, false).packagingName,
+    ).toBeNull();
   });
 
   it("reads the quantity in kilos when the product is sold by weight", () => {
@@ -99,15 +102,6 @@ describe("supplierItemProductRequestFrom", () => {
 });
 
 describe("SUPPLIER_ITEM_PRODUCT_MESSAGES", () => {
-  it("asks for the name, then for a shorter one", () => {
-    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.name({ ...FILLED, name: "  " })).toBe(
-      "Ingresá el nombre del producto.",
-    );
-    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.name({ ...FILLED, name: "x".repeat(1000) })).toMatch(
-      /^El nombre puede tener hasta \d+ caracteres\.$/,
-    );
-  });
-
   it("asks for the presentation's name, then for a shorter one", () => {
     expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.packagingName({ ...FILLED, packagingName: " " })).toBe(
       "Ingresá el nombre de la presentación.",
@@ -130,25 +124,6 @@ describe("SUPPLIER_ITEM_PRODUCT_MESSAGES", () => {
     expect(
       SUPPLIER_ITEM_PRODUCT_MESSAGES.quantity({ ...FILLED, saleUnit: "KG", quantity: "x" }),
     ).toBe("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
-  });
-
-  it("asks for a category, or to review the one chosen", () => {
-    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.categoryId({ ...FILLED, categoryId: null })).toBe(
-      "Elegí una categoría.",
-    );
-    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.categoryId(FILLED)).toBe("Revisá la categoría.");
-  });
-
-  it("asks for a barcode, or names what is wrong with the ones listed", () => {
-    expect(
-      SUPPLIER_ITEM_PRODUCT_MESSAGES.barcodes({ ...FILLED, barcodes: { codes: [], scan: "" } }),
-    ).toBe("Escaneá al menos un código de barras.");
-    expect(
-      SUPPLIER_ITEM_PRODUCT_MESSAGES.barcodes({
-        ...FILLED,
-        barcodes: { codes: ["779 1"], scan: "" },
-      }),
-    ).toBe("El código de barras no puede tener espacios.");
   });
 
   it("asks for the sale unit and the VAT rate", () => {

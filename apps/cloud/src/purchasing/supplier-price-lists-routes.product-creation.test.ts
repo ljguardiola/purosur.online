@@ -1,3 +1,4 @@
+import { PACKAGING_NAME_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -63,7 +64,6 @@ const extractedListWithRow = (
 async function validBody(overrides: object = {}) {
   return {
     version: 1,
-    name: "Yerba 1 kg",
     saleUnit: "UNIT",
     categoryId: await insertLeafCategory(db),
     barcodes: ["7790000000001"],
@@ -130,27 +130,36 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it.each([
-    ["no name", { name: "" }],
-    ["a sale unit that is not offered", { saleUnit: "LITER" }],
-    ["a category that is not an id", { categoryId: "not-an-id" }],
-    ["a VAT rate that is not offered", { vatRate: 500 }],
-    ["no version", { version: undefined }],
-  ])("answers 400 for %s, creating nothing", async (_name, overrides) => {
+  it("answers 400 for a body the contract refuses, creating nothing", async () => {
     const { headers } = await manager();
     const { listId, rowId } = await extractedListWithRow();
 
-    const response = await createProduct(headers, listId, rowId, await validBody(overrides));
+    const response = await createProduct(
+      headers,
+      listId,
+      rowId,
+      await validBody({ saleUnit: "LITER" }),
+    );
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "saleUnit" }],
+    });
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it("creates the product with the given name and sale unit, its packaging and the link, and answers 201 with their ids", async () => {
+  it("creates the product and its packaging named as the list states them with the given sale unit, links them, and answers 201 with their ids", async () => {
     const { headers } = await manager();
-    const { listId, rowId } = await extractedListWithRow({}, { description: "Yerba 1 kg" });
-    const body = await validBody({ saleUnit: "KG", barcodes: ["7791234567890"] });
+    const { listId, rowId } = await extractedListWithRow(
+      {},
+      { description: "Yerba 1 kg", presentation: "Caja x 10" },
+    );
+    const body = await validBody({
+      saleUnit: "KG",
+      barcodes: ["7791234567890"],
+      packagingName: null,
+    });
 
     const response = await createProduct(headers, listId, rowId, body);
 
@@ -256,6 +265,42 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     });
     expect(await db.select().from(products)).toHaveLength(0);
   });
+
+  it("answers 400 naming packagingName for an item whose list states no presentation when none was given, creating nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow({}, { presentation: null });
+
+    const response = await createProduct(
+      headers,
+      listId,
+      rowId,
+      await validBody({ packagingName: null }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "packagingName" }],
+    });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it.each([
+    ["name_too_long", { description: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) }],
+    ["presentation_too_long", { presentation: "a".repeat(PACKAGING_NAME_MAX_LENGTH + 1) }],
+  ])(
+    "answers 409 %s for an item whose list text does not fit, creating nothing",
+    async (code, row) => {
+      const { headers } = await manager();
+      const { listId, rowId } = await extractedListWithRow({}, row);
+
+      const response = await createProduct(headers, listId, rowId, await validBody());
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ code });
+      expect(await db.select().from(products)).toHaveLength(0);
+    },
+  );
 
   it("answers 409 vat_rate_missing for a list whose prices exclude VAT when no rate was given, creating nothing", async () => {
     const { headers } = await manager();

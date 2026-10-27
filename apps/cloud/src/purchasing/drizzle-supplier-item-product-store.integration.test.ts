@@ -42,12 +42,11 @@ describe("creating two products with the same barcode from two supplier items on
     const first = await extractedListWithRow(db, {}, { description: "Yerba A" });
     const second = await extractedListWithRow(db, {}, { description: "Yerba B" });
 
-    const create = ({ listId, rowId, actorId }: typeof first, name: string) =>
+    const create = ({ listId, rowId, actorId }: typeof first) =>
       createProductFromSupplierItem(new DrizzleSupplierItemProductStore(db, () => NOW), {
         listId,
         rowId,
         version: 1,
-        name,
         saleUnit: "UNIT",
         categoryId: category.id,
         barcodes: [code],
@@ -57,7 +56,7 @@ describe("creating two products with the same barcode from two supplier items on
         actorId,
       });
 
-    const outcomes = await Promise.all([create(first, "Yerba A"), create(second, "Yerba B")]);
+    const outcomes = await Promise.all([create(first), create(second)]);
 
     expect(outcomes.map((outcome) => outcome.kind).sort()).toEqual(["barcode_taken", "created"]);
     const holders = await db.select().from(productBarcodes).where(eq(productBarcodes.code, code));

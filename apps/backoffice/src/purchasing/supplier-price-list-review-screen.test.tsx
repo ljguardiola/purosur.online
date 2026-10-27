@@ -944,9 +944,7 @@ test("opens the create product modal for the item, with the categories read for 
 
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByText("Crear producto desde la lista")).toBeVisible();
-  await expect
-    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
-    .toHaveValue("Nuez mariposa extra light x 10 kg");
+  await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
   expect(services.fetchProductCreationCategories).toHaveBeenCalledTimes(1);
 });
 
@@ -1002,9 +1000,7 @@ test("moves from the link modal to the create product modal for the same item", 
 
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByText("Crear producto desde la lista")).toBeVisible();
-  await expect
-    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
-    .toHaveValue("Nuez mariposa extra light x 10 kg");
+  await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
   expect(screen.getByText("Pedidos · Vincular un ítem").query()).toBeNull();
 });
 
