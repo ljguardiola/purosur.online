@@ -14,6 +14,8 @@ export type RegisterOperation =
   | { kind: "sell" }
   | { kind: "cancel_paid_sale" }
   | { kind: "void_sale" }
+  | { kind: "process_return" }
+  | { kind: "preview_return" }
   | { kind: "adjust_sale_line" }
   | { kind: "apply_sale_discount" }
   | { kind: "reprint_receipt" }
@@ -39,6 +41,7 @@ export type RegisterOperationAccess =
 
 const SELLING_PERMISSION = "sell_and_charge";
 const VOID_SALE_PERMISSION = "void_sale";
+const PROCESS_RETURN_PERMISSION = "process_return";
 const OVERRIDE_LINE_PERMISSION = "override_line_price_or_discount";
 const APPLY_TOTAL_DISCOUNT_PERMISSION = "apply_total_discount";
 const REPRINT_RECEIPT_PERMISSION = "reprint_receipt";
@@ -80,6 +83,14 @@ export function registerOperationAccess(
         : holdsPermission(actor.access, VOID_SALE_PERMISSION)
           ? PERMITTED
           : { kind: "needs_authorization", permission: VOID_SALE_PERMISSION };
+    case "process_return":
+      return actor.access === undefined
+        ? NO_ACCESS
+        : holdsPermission(actor.access, PROCESS_RETURN_PERMISSION)
+          ? PERMITTED
+          : { kind: "needs_authorization", permission: PROCESS_RETURN_PERMISSION };
+    case "preview_return":
+      return actor.access === undefined ? NO_ACCESS : PERMITTED;
     case "adjust_sale_line":
       return actor.access === undefined
         ? NO_ACCESS
@@ -143,6 +154,8 @@ export function mayAuthorize(
     case "cancel_paid_sale":
     case "void_sale":
       return holdsPermission(authorizer.access, VOID_SALE_PERMISSION);
+    case "process_return":
+      return holdsPermission(authorizer.access, PROCESS_RETURN_PERMISSION);
     case "adjust_sale_line":
       return holdsPermission(authorizer.access, OVERRIDE_LINE_PERMISSION);
     case "apply_sale_discount":

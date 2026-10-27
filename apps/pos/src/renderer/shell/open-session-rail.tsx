@@ -1,6 +1,6 @@
 import type { RegisterAbility } from "@purosur/domain";
 import { useNavigate } from "@tanstack/react-router";
-import { ShoppingBasket, Wallet } from "lucide-react";
+import { ShoppingBasket, Undo2, Wallet } from "lucide-react";
 import { useState } from "react";
 import type { ActionEntry } from "./action-entries";
 import { ACTION_ENTRIES, entriesFor } from "./action-entries";
@@ -12,6 +12,7 @@ const SCREEN_ROUTES = {
   sale: "/session",
   cash: "/cash",
   history: "/history",
+  return: "/return",
   deferred_sale: "/deferred-sale",
   receipt_printer: "/receipt-printer",
   serial_devices: "/serial-devices",
@@ -49,6 +50,7 @@ export function OpenSessionRail({
         }
         links={[
           ...linksTo(["/history", "/deferred-sale"]),
+          { label: "Devolver", icon: Undo2, to: "/return", current: current === "return" },
           { label: "Caja", icon: Wallet, to: "/cash", current: current === "cash" },
           ...linksTo(["/receipt-printer", "/serial-devices", "/help"]),
         ]}

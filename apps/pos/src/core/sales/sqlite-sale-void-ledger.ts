@@ -105,11 +105,20 @@ export class SqliteSaleVoidLedger implements SaleVoidLedger {
     return {
       sale,
       inOpenSession: this.isOpenSession(sale.sessionId),
+      hasReturn: this.hasReturn(saleId),
       payments: readRecordedPayments(this.database, saleId),
       fiscalDocuments: readSaleInvoices(this.database, saleId),
       deferredRecord: readUncancelledDeferredSaleRecord(this.database, saleId),
       stockMovements: readSaleStockMovements(this.database, saleId),
     };
+  }
+
+  private hasReturn(saleId: string): boolean {
+    return (
+      this.database
+        .prepare<[string], { id: string }>("SELECT id FROM returns WHERE sale_id = ? LIMIT 1")
+        .get(saleId) !== undefined
+    );
   }
 
   private isOpenSession(sessionId: string): boolean {

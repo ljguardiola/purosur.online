@@ -36,6 +36,7 @@ export interface SaleHistoryRecord {
   fiscal: SaleFiscalFacts;
   voided: boolean;
   inOpenSession: boolean;
+  hasReturn: boolean;
   invoices: SaleInvoice[];
   creditNote: VoidCreditNoteStanding | null;
   deferredInvoiceIssued: boolean;

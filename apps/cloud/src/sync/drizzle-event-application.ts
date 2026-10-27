@@ -3,11 +3,13 @@ import {
   type EventInvariantBreaks,
   type EventQuarantine,
   invoiceAlreadyCreditedObservation,
+  type SaleReturnHistory,
   type VoucherReference,
 } from "@purosur/domain";
 import {
   applyOpeningCount,
   applyRegisterStockMovements,
+  type RegisterStockMovement,
   withdrawOpeningCount,
 } from "@purosur/domain/stock/use-cases";
 import type {
@@ -48,6 +50,8 @@ import {
   openAppliedCashSession,
   recordAppliedCashMovement,
 } from "../register/drizzle-applied-cash-sessions.js";
+import { recordAppliedReturn } from "../returns/drizzle-applied-returns.js";
+import { saleReturnHistory } from "../returns/drizzle-sale-return-history.js";
 import {
   recordAppliedPrintState,
   recordAppliedReprint,
@@ -69,6 +73,7 @@ type OpeningCountWithdrawnFact = Extract<
 >["withdrawal"];
 type CompletedSale = Extract<SyncedFact, { kind: "sale_completed" }>["sale"];
 type VoidedSale = Extract<SyncedFact, { kind: "sale_voided" }>["sale"];
+type ReturnedSale = Extract<SyncedFact, { kind: "sale_returned" }>["saleReturn"];
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -192,6 +197,8 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         await recordAppliedVoidedSale(this.tx, origin, fact, event.eventId);
         return recordAppliedDeferredSaleCancellation(this.tx, origin, fact, this.now());
       }
+      case "sale_returned":
+        return recordAppliedReturn(this.tx, await this.originOf(event), fact, event.eventId);
       case "sale_print_state_changed":
         return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":
@@ -335,6 +342,42 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return {
           kind: "refused",
           reason: `a voided sale returned a quantity of product ${outcome.productId} it can't be sold in`,
+        };
+    }
+  }
+
+  saleReturnHistory(saleId: string): Promise<SaleReturnHistory> {
+    return saleReturnHistory(this.tx, saleId);
+  }
+
+  async applyReturnStock(
+    saleReturn: ReturnedSale,
+    event: UnappliedEvent,
+  ): Promise<StockApplication> {
+    const { locationId } = await this.originOf(event);
+    const outcome = await applyRegisterStockMovements(
+      new DrizzleStockStoreTransaction(this.tx, this.pending),
+      {
+        locationId,
+        occurredAt: saleReturn.occurredAt,
+        actorId: saleReturn.actorId,
+        movements: saleReturn.stockMovements.map(
+          ({ id, productId, saleLineId, kind, delta }): RegisterStockMovement =>
+            kind === "loss"
+              ? { id, productId, delta, kind, reason: "return_discard" }
+              : { id, productId, delta, kind, saleLineId },
+        ),
+      },
+    );
+    switch (outcome.kind) {
+      case "applied":
+        return { kind: "applied" };
+      case "not_found":
+        return { kind: "refused", reason: `product ${outcome.productId} is not in the catalog` };
+      case "invalid_quantity":
+        return {
+          kind: "refused",
+          reason: `a customer's return moved a quantity of product ${outcome.productId} it can't be sold in`,
         };
     }
   }

@@ -677,6 +677,7 @@ describe("voidSaleOutcomeSchema", () => {
     { ...voided, credit_note: { kind: "already_credited" } },
     { kind: "not_found" },
     { kind: "not_completed" },
+    { kind: "has_return" },
     { kind: "session_closed" },
     { kind: "invoice_in_flight" },
     { kind: "pending_refunds_unconfirmed" },

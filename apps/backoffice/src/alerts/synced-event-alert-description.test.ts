@@ -57,6 +57,27 @@ describe("the description of an event applied with an inconsistency", () => {
     );
   });
 
+  test.each([
+    [
+      "return_refund_exceeds_payment",
+      "la devolución reintegró más de lo que quedaba por devolver de un pago",
+    ],
+    ["return_line_outside_window", "la devolución incluye una línea fuera de su plazo"],
+    ["return_quantity_exceeds_sale", "la devolución supera la cantidad vendida de una línea"],
+  ])("says what is wrong with a return that breaks %s", (code, description) => {
+    expect(
+      invariantViolationDescription({
+        eventId: "event-1",
+        eventType: "sale_returned",
+        aggregateType: "Return",
+        aggregateId: "return-1",
+        breaks: [code],
+      }),
+    ).toBe(
+      `Se aplicó el evento de devolución (event-1) de la devolución return-1, pero tiene una inconsistencia: ${description}.`,
+    );
+  });
+
   test("names an inconsistency it does not know in general words, once, never by its code", () => {
     expect(
       invariantViolationDescription({

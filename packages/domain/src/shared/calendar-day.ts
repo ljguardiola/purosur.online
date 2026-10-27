@@ -19,3 +19,12 @@ export function lastDayOfMonth(day: string): string {
   first.setUTCMonth(first.getUTCMonth() + 1);
   return shiftCalendarDay(first.toISOString().slice(0, 10), -1);
 }
+
+export function addCalendarMonths(day: string, months: number): string {
+  const monthIndex = Number(day.slice(0, 4)) * 12 + Number(day.slice(5, 7)) - 1 + months;
+  const year = String(Math.floor(monthIndex / 12)).padStart(4, "0");
+  const month = String((monthIndex % 12) + 1).padStart(2, "0");
+  const lastDay = Number(lastDayOfMonth(`${year}-${month}-01`).slice(8));
+  const dayOfMonth = String(Math.min(Number(day.slice(8)), lastDay)).padStart(2, "0");
+  return `${year}-${month}-${dayOfMonth}`;
+}

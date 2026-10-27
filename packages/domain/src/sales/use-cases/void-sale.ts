@@ -86,13 +86,15 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
     if (found === undefined) {
       return { kind: "not_found" };
     }
-    const { sale, inOpenSession, fiscalDocuments, deferredRecord, stockMovements } = found;
+    const { sale, inOpenSession, hasReturn, fiscalDocuments, deferredRecord, stockMovements } =
+      found;
     const payments = found.payments.filter(
       (payment): payment is SalePayment => payment.state === APPROVED_PAYMENT_STATE,
     );
     const refusal = saleVoidRefusal({
       state: sale.state,
       inOpenSession,
+      hasReturn,
       fiscalDocumentStates: fiscalDocuments.map(({ state }) => state),
     });
     if (refusal !== null) {

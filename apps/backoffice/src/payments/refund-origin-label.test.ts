@@ -5,6 +5,7 @@ test.each([
   ["sale_cancelled", "Venta cancelada"],
   ["late_payment", "Aprobación tardía"],
   ["sale_voided", "Anulación de venta"],
+  ["return", "Devolución"],
 ] as const)("names a %s refund %s", (origin, label) => {
   expect(refundOriginLabel(origin)).toBe(label);
 });

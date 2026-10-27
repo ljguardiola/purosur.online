@@ -30,6 +30,7 @@ type StoredStockMovement = SaleStockMovement & { saleId: string; kind: "sale" | 
 export interface FakeSaleVoidLedgerState {
   openSessionId: string | undefined;
   sales: StoredSale[];
+  salesWithReturn: string[];
   payments: SaleToVoid["payments"];
   fiscalDocuments: (SaleInvoice & { saleId: string })[];
   fiscalOnlineEvidence: FiscalOnlineSignalEvidence;
@@ -69,6 +70,7 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
     this.state = {
       openSessionId: undefined,
       sales: [],
+      salesWithReturn: [],
       payments: [],
       fiscalDocuments: [],
       fiscalOnlineEvidence: { lastHealthCheckOkAt: null, tokenValid: false, arcaReachable: false },
@@ -108,6 +110,7 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
         return structuredClone({
           sale,
           inOpenSession: sale.sessionId === working.openSessionId,
+          hasReturn: working.salesWithReturn.includes(saleId),
           payments: working.payments.filter((payment) => payment.saleId === saleId),
           fiscalDocuments: working.fiscalDocuments
             .filter((document) => document.saleId === saleId)

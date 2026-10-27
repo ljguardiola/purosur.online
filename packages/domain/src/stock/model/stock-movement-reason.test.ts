@@ -24,7 +24,7 @@ describe("LOSS_REASONS", () => {
 
 describe("SYSTEM_LOSS_REASONS", () => {
   it("lists the reasons the system assigns to a loss, which a person never picks", () => {
-    expect(SYSTEM_LOSS_REASONS).toEqual(["expired"]);
+    expect(SYSTEM_LOSS_REASONS).toEqual(["expired", "return_discard"]);
     for (const reason of SYSTEM_LOSS_REASONS) {
       expect(LOSS_REASONS).not.toContain(reason);
     }

@@ -15,6 +15,7 @@ import {
 } from "@purosur/ui";
 import { CircleX, FileSearch, Lock, Printer, ReceiptText, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import { paymentMethodName } from "../platform/payment-method-names";
 import type { CoreData } from "../platform/use-core-query";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import {
@@ -23,7 +24,6 @@ import {
   receiptCopyPresentation,
 } from "../shell/sale-receipt-text";
 import { creditNoteRow } from "./credit-note-text";
-import { paymentMethodName } from "./sale-history-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
 import { useSaleHistoryDetailQuery } from "./sales-queries";
 import { voidRefusalReason } from "./void-sale-text";

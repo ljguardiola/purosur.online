@@ -217,6 +217,53 @@ function voidedSale(payload: VoidedSalePayload): SyncedFact {
   };
 }
 
+function returnedSale(payload: SyncedEventPayloads["sale_returned@1"]): SyncedFact {
+  return {
+    kind: "sale_returned",
+    saleReturn: {
+      id: payload.id,
+      saleId: payload.sale_id,
+      sessionId: payload.session_id,
+      actorId: payload.actor_id,
+      authorizedBy: payload.authorized_by,
+      ticketSource: payload.ticket_source,
+      occurredAt: new Date(payload.occurred_at),
+      lines: payload.lines.map((line) => ({
+        saleLineId: line.sale_line_id,
+        productId: line.product_id,
+        quantity: line.quantity,
+        reason: line.reason,
+        disposition: line.disposition,
+        refundedAmount: line.refunded_amount,
+      })),
+      refunds: payload.refunds.map((refund) => ({
+        id: refund.id,
+        paymentId: refund.parent_id,
+        method: refund.method,
+        provider: refund.provider,
+        amount: refund.amount,
+        state: refund.state,
+        occurredAt: new Date(refund.occurred_at),
+      })),
+      cashMovements: payload.cash_movements.map((movement) => ({
+        id: movement.id,
+        type: movement.type,
+        amount: movement.amount,
+        actorId: movement.actor_id,
+        occurredAt: new Date(movement.occurred_at),
+      })),
+      stockMovements: payload.stock_movements.map((movement) => ({
+        id: movement.id,
+        saleLineId: movement.sale_line_id,
+        productId: movement.product_id,
+        kind: movement.kind,
+        reason: movement.reason,
+        delta: movement.delta,
+      })),
+    },
+  };
+}
+
 function completedSale(
   payload: CompletedSalePayload,
   completedAt: string,
@@ -420,6 +467,7 @@ const FACT_OF: {
   "sale_voided@1": voidedSale,
   "sale_voided@2": voidedSale,
   "sale_voided@3": voidedSale,
+  "sale_returned@1": returnedSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

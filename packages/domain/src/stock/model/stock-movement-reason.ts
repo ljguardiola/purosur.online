@@ -9,7 +9,7 @@ export const LOSS_REASONS = [
 
 export type LossReason = (typeof LOSS_REASONS)[number];
 
-export const SYSTEM_LOSS_REASONS = ["expired"] as const;
+export const SYSTEM_LOSS_REASONS = ["expired", "return_discard"] as const;
 
 type SystemLossReason = (typeof SYSTEM_LOSS_REASONS)[number];
 
