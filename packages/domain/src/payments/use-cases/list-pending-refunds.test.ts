@@ -12,6 +12,7 @@ const TRANSFER_REFUND: FakePendingRefund = {
   registerId: "register-1",
   registerName: "Caja 1",
   method: "TRANSFER",
+  cardType: null,
   origin: "sale_cancelled",
   amount: 2000,
   occurredAt: new Date("2026-10-07T15:30:00.000Z"),
@@ -47,6 +48,15 @@ describe("listPendingRefunds", () => {
       },
     ]);
     expect(store.pendingReads).toEqual(["branch-1"]);
+  });
+
+  it("passes the card type of a Point refund through", async () => {
+    const point: FakePendingRefund = { ...TRANSFER_REFUND, method: "POINT", cardType: "DEBIT" };
+    const store = new FakeRefundStore([], [point]);
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund).toMatchObject({ method: "POINT", cardType: "DEBIT" });
   });
 
   it("lists a late-payment refund as discardable, with nobody who cancelled it", async () => {

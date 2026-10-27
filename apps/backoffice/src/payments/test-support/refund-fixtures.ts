@@ -9,6 +9,7 @@ export const transferRefund: PendingRefundsBody["refunds"][number] = {
   register_id: "11111111-1111-4111-8111-111111111111",
   register_name: "Caja principal",
   method: "TRANSFER",
+  card_type: null,
   origin: "sale_cancelled",
   discardable: false,
   amount: 250_000,
@@ -30,6 +31,7 @@ const secondRefund: PendingRefundsBody["refunds"][number] = {
   register_id: "22222222-2222-4222-8222-222222222222",
   register_name: "Caja del fondo",
   method: "TRANSFER",
+  card_type: null,
   origin: "sale_cancelled",
   discardable: false,
   amount: 98_000,
@@ -53,6 +55,7 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   register_id: "33333333-3333-4333-8333-333333333333",
   register_name: "Caja del frente",
   method: "QR",
+  card_type: null,
   origin: "late_payment",
   discardable: true,
   amount: 125_000,
@@ -135,6 +138,20 @@ const unconfirmedPointRefundOfCancelledSale: PendingRefund = {
   id: "55555555-5555-4555-8555-555555555556",
   method: "POINT",
   amount: 540_000,
+};
+
+export const debitPointRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  id: "55555555-5555-4555-8555-555555555557",
+  method: "POINT",
+  card_type: "DEBIT",
+  amount: 410_000,
+};
+
+export const creditPointRefund: PendingRefund = {
+  ...debitPointRefund,
+  id: "55555555-5555-4555-8555-555555555558",
+  card_type: "CREDIT",
 };
 
 export const confirmedUnsentCloudRefund: PendingRefund = {

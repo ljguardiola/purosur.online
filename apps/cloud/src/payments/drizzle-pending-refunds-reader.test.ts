@@ -9,7 +9,10 @@ import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePendingRefundsReader } from "./drizzle-pending-refunds-reader.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
-import { aPendingQrRefundOfCancelledSale } from "./test-support/mercado-pago-refund-fixtures.js";
+import {
+  aPendingPointRefundOfCancelledSale,
+  aPendingQrRefundOfCancelledSale,
+} from "./test-support/mercado-pago-refund-fixtures.js";
 import { aPendingRefundOfVoidedSale } from "./test-support/voided-sale-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
@@ -57,6 +60,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         registerId,
         registerName: "Caja 1",
         method: "TRANSFER",
+        cardType: null,
         origin: "sale_cancelled",
         amount: 2_000,
         occurredAt: refund?.occurredAt,
@@ -91,6 +95,22 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         coveredBy: [],
       }),
     ]);
+  });
+
+  it("tells the card type of the Point payment a cancelled sale is refunded for", async () => {
+    const refund = await aPendingPointRefundOfCancelledSale(db, { cancelledAt: NOW });
+
+    const pending = await reader().pendingRefunds(refund.locationId);
+
+    expect(pending).toEqual([expect.objectContaining({ method: "POINT", cardType: "DEBIT" })]);
+  });
+
+  it("tells the card type of the payment transaction for a late Point payment no sale holds", async () => {
+    const refund = await aPendingLatePaymentRefund(db, { openedAt: NOW, method: "POINT" });
+
+    const pending = await reader().pendingRefunds(refund.locationId);
+
+    expect(pending).toEqual([expect.objectContaining({ method: "POINT", cardType: "DEBIT" })]);
   });
 
   it("names nobody when the sale was cancelled by someone the cloud does not know", async () => {

@@ -14,6 +14,8 @@ import {
   useReportedFilters,
 } from "./payments-screen-parts";
 import {
+  creditPointRefund,
+  debitPointRefund,
   latePaymentRefund,
   noPendingRefunds,
   pendingRefunds,
@@ -109,6 +111,16 @@ test("names the Mercado Pago order under the method of a refund that carries one
 
   await expect.poll(() => rowTexts(screen)).toHaveLength(1);
   expect(rowTexts(screen)[0]).toContain("Point integradaOrden ORD01X");
+});
+
+test.each([
+  [debitPointRefund, "Point · Débito"],
+  [creditPointRefund, "Point · Crédito"],
+])("names the card type of a Point refund in the method column", async (refund, label) => {
+  const screen = await render(<ColumnsTable refunds={[refund]} />);
+
+  await expect.poll(() => rowTexts(screen)).toHaveLength(1);
+  expect(rowTexts(screen)[0]).toContain(label);
 });
 
 test("tells the delivery state of a refund the cloud sends, before its Mercado Pago order", async () => {
