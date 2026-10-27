@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { ReturnRecord } from "../model/returns-report.js";
 import { readReturnsReport } from "./read-returns-report.js";
 import { FakeReturnsReportReader } from "./test-support/fake-returns-report-reader.js";
@@ -36,7 +40,7 @@ describe("readReturnsReport", () => {
     const reader = new FakeReturnsReportReader();
 
     const report = await readReturnsReport(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -58,18 +62,37 @@ describe("readReturnsReport", () => {
     const reader = new FakeReturnsReportReader();
 
     const report = await readReturnsReport(
-      { reader, clock: { now: () => new Date("2026-10-07T02:30:00.000Z") } },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reader,
+        clock: { now: () => new Date("2026-10-07T02:30:00.000Z") },
+      },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
     expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
   });
 
+  it("answers today on the calendar of the zone rules it is given when no range is asked", async () => {
+    const reader = new FakeReturnsReportReader();
+
+    const report = await readReturnsReport(
+      {
+        zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)),
+        reader,
+        clock: { now: () => new Date("2026-10-07T02:30:00.000Z") },
+      },
+      { locationId: "branch-1", asked: noRange, registerId: undefined },
+    );
+
+    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+  });
+
   it("asks only for the register and the branch it was given", async () => {
     const reader = new FakeReturnsReportReader();
 
     await readReturnsReport(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-2", asked: noRange, registerId: "reg-9" },
     );
 
@@ -86,7 +109,7 @@ describe("readReturnsReport", () => {
     ]);
 
     const report = await readReturnsReport(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
