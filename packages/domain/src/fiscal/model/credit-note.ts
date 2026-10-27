@@ -4,7 +4,12 @@ import { decideUnclearOutcome, type TaxAuthorityEvidence } from "./unclear-outco
 
 export const CREDIT_NOTE_C_VOUCHER_TYPE = 13;
 
-export const CREDIT_NOTE_REASONS = ["orphan", "sale_void", "rejected_document"] as const;
+export const CREDIT_NOTE_REASONS = [
+  "orphan",
+  "sale_void",
+  "sale_return",
+  "rejected_document",
+] as const;
 
 export type CreditNoteReason = (typeof CREDIT_NOTE_REASONS)[number];
 
@@ -14,6 +19,28 @@ export function creditNoteIssueDate(issuedAt: Date): string {
 
 export function nextCreditNoteNumber(lastAuthorized: number): number {
   return lastAuthorized + 1;
+}
+
+export function creditNoteBreaksDateOrder(
+  issuedOn: string,
+  otherCreditNotes: readonly { kind: string; issuedOn?: string }[],
+): boolean {
+  return otherCreditNotes.some(
+    (other) =>
+      other.kind === "authorized" && other.issuedOn !== undefined && other.issuedOn > issuedOn,
+  );
+}
+
+export function creditWithinInvoice({
+  invoiceTotal,
+  alreadyCredited,
+  asked,
+}: {
+  invoiceTotal: number | null;
+  alreadyCredited: number;
+  asked: number;
+}): boolean {
+  return invoiceTotal === null || alreadyCredited + asked <= invoiceTotal;
 }
 
 export function mayTakeCreditNoteNumber(otherCreditNotes: readonly { kind: string }[]): boolean {

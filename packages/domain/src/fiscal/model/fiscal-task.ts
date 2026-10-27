@@ -33,14 +33,18 @@ interface FiscalTaskBase {
   state: typeof OPEN_FISCAL_TASK_STATE;
   pointOfSale: number;
   documentType: FiscalTaskDocumentType;
-  number: number;
   createdAt: Date;
 }
 
 export type FiscalTask =
-  | (FiscalTaskBase & { kind: "external_invoicing"; voucher: ExternalInvoicingVoucher })
+  | (FiscalTaskBase & {
+      kind: "external_invoicing";
+      number: number;
+      voucher: ExternalInvoicingVoucher;
+    })
   | (FiscalTaskBase & {
       kind: "credit_note_rejected";
+      number: number | null;
       creditNoteId: string;
       rejections: readonly TaxAuthorityRejection[];
     });
@@ -79,7 +83,7 @@ export function creditNoteRejectedTask(
   }: {
     creditNoteId: string;
     pointOfSale: number;
-    number: number;
+    number: number | null;
     rejections: readonly TaxAuthorityRejection[];
   },
   createdAt: Date,

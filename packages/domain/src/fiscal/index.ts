@@ -279,15 +279,37 @@ export type {
 } from "./model/restored-unclear-deferral.js";
 export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
 export type {
+  AwaitingCreditNote,
+  CorrectedInvoice,
   CreditNoteAnswer,
   CreditNoteIssuedOffline,
+  CreditNoteOrigin,
   CreditNoteToIssue,
+  InvoicedCreditNote,
   RequestedCreditNoteAnswer,
   RestoredCreditNoteAnswer,
   SaleInvoice,
   VoidCreditNoteStanding,
 } from "./model/sale-credit-note.js";
-export { creditNoteToIssuePayload, invoiceToCorrect } from "./model/sale-credit-note.js";
+export {
+  creditNoteToIssuePayload,
+  invoiceToCorrect,
+  tiedToInvoice,
+} from "./model/sale-credit-note.js";
+export type {
+  CreditNoteRecorder,
+  CreditNoteRoutingFacts,
+  OfflineCreditNoteClockMark,
+  SaleCreditNoteOriginRequest,
+  SaleCreditNoteRoute,
+  SaleCreditNoteTransaction,
+  SaleInvoiceStanding,
+} from "./model/sale-credit-note-route.js";
+export {
+  isInvoiceOnItsWay,
+  issueOfflineSaleCreditNote,
+  routeSaleCreditNote,
+} from "./model/sale-credit-note-route.js";
 export {
   awaitsUnclearOutcomeDecision,
   UNCLEAR_ANSWER_KINDS,

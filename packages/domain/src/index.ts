@@ -191,6 +191,7 @@ export {
 export type {
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,
+  AwaitingCreditNote,
   BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
   ChargeRefusal,
@@ -201,6 +202,7 @@ export type {
   CreditNoteAnswer,
   CreditNoteCFiscalBlock,
   CreditNoteIssuedOffline,
+  CreditNoteOrigin,
   CreditNoteReason,
   CreditNoteToIssue,
   DeferralReason,
@@ -228,6 +230,7 @@ export type {
   FortnightPresentationState,
   FortnightReportMovement,
   FortnightReportState,
+  InvoicedCreditNote,
   IssuerIdentificationInEffect,
   LatestPreEmissionGateOutcome,
   ListedOwedPresentation,

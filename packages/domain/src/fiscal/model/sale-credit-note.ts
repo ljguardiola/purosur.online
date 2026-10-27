@@ -17,12 +17,34 @@ export interface CorrectedInvoice {
   buyerTaxStatusCode: number;
 }
 
-export interface CreditNoteToIssue {
+export type CreditNoteOrigin =
+  | { kind: "sale_void" }
+  | { kind: "sale_return"; returnId: string; issuedOn: string };
+
+interface CreditNoteToIssueBase {
   creditNoteId: string;
   saleId: string;
   total: number;
+  origin: CreditNoteOrigin;
+}
+
+export interface InvoicedCreditNote extends CreditNoteToIssueBase {
   receiverTaxStatusCode: number;
   correctedVoucher: VoucherReference;
+}
+
+export interface AwaitingCreditNote extends CreditNoteToIssueBase {
+  receiverTaxStatusCode: null;
+  correctedVoucher: null;
+}
+
+export type CreditNoteToIssue = InvoicedCreditNote | AwaitingCreditNote;
+
+export function tiedToInvoice(
+  { receiverTaxStatusCode: _status, correctedVoucher: _voucher, ...note }: AwaitingCreditNote,
+  { voucher, buyerTaxStatusCode }: CorrectedInvoice,
+): InvoicedCreditNote {
+  return { ...note, receiverTaxStatusCode: buyerTaxStatusCode, correctedVoucher: voucher };
 }
 
 export type CreditNoteAnswer =
@@ -36,6 +58,7 @@ export type CreditNoteAnswer =
       authorizationCodeDueOn: string;
     }
   | { kind: "rejected" }
+  | { kind: "regularization_required" }
   | { kind: "in_progress" };
 
 export interface CreditNoteIssuedOffline {
@@ -83,7 +106,8 @@ export type CreditNoteStanding =
       authorizationCode: string;
       authorizationCodeDueOn: string;
     }
-  | { kind: "rejected" };
+  | { kind: "rejected" }
+  | { kind: "regularization_required" };
 
 export function creditNoteAnswerOf(
   standing: CreditNoteStanding,
@@ -96,6 +120,8 @@ export function creditNoteAnswerOf(
     }
     case "rejected":
       return { kind: "rejected" };
+    case "regularization_required":
+      return { kind: "regularization_required" };
     case "not_requested":
     case "requested":
       return { kind: "in_progress" };
@@ -157,15 +183,25 @@ export function creditNoteToIssuePayload({
   total,
   receiverTaxStatusCode,
   correctedVoucher,
-}: CreditNoteToIssue): { [member: string]: JsonValue } {
+  origin,
+}: Pick<
+  CreditNoteToIssue,
+  "creditNoteId" | "total" | "receiverTaxStatusCode" | "correctedVoucher"
+> & {
+  origin?: CreditNoteOrigin;
+}): { [member: string]: JsonValue } {
   return {
     id: creditNoteId,
     total,
     receiver_tax_status_code: receiverTaxStatusCode,
-    corrects: {
-      voucher_type: correctedVoucher.voucherType,
-      point_of_sale: correctedVoucher.pointOfSale,
-      number: correctedVoucher.number,
-    },
+    corrects:
+      correctedVoucher === null
+        ? null
+        : {
+            voucher_type: correctedVoucher.voucherType,
+            point_of_sale: correctedVoucher.pointOfSale,
+            number: correctedVoucher.number,
+          },
+    ...(origin?.kind === "sale_return" ? { issued_on: origin.issuedOn } : {}),
   };
 }

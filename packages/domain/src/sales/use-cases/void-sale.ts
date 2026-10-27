@@ -1,14 +1,9 @@
 import {
-  CREDIT_NOTE_C_DOCUMENT_TYPE,
   type CreditNoteToIssue,
   creditNoteToIssuePayload,
-  invoiceOwnFortnight,
   invoiceToCorrect,
-  isRegisterFiscallyOnline,
-  offlineCreditNote,
-  offlineCreditNoteIssuedEvent,
-  offlineRoute,
-  raisedClockMark,
+  issueOfflineSaleCreditNote,
+  routeSaleCreditNote,
 } from "../../fiscal/index.js";
 import {
   APPROVED_PAYMENT_STATE,
@@ -130,31 +125,21 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
     if (deferredRecordCancelled) {
       tx.cancelDeferredSale(sale.id, voidedAt);
     }
-    const invoice = invoiceToCorrect(fiscalDocuments);
-    const creditNote: CreditNoteToIssue | null =
-      invoice === null
-        ? null
-        : {
-            creditNoteId: ids.next(),
-            saleId: sale.id,
-            total: amountToCharge(sale),
-            receiverTaxStatusCode: invoice.buyerTaxStatusCode,
-            correctedVoucher: invoice.voucher,
-          };
-    const offlineSeries =
-      creditNote !== null && !isRegisterFiscallyOnline(tx.fiscalOnlineEvidence(), voidedAt)
-        ? tx.offlineCreditNoteSeries()
-        : null;
-    const offline =
-      offlineSeries === null
-        ? null
-        : offlineRoute({
-            occurredAt: voidedAt,
-            series: offlineSeries,
-            offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(voidedAt)),
-          });
-    if (creditNote !== null && offline?.kind !== "issue_offline") {
-      tx.recordPendingCreditNote(creditNote);
+    const route = routeSaleCreditNote(
+      {
+        occurredAt: voidedAt,
+        saleId: sale.id,
+        total: amountToCharge(sale),
+        origin: { kind: "sale_void" },
+        invoice: invoiceToCorrect(fiscalDocuments),
+        invoiceOnItsWay: false,
+        nextCreditNoteId: () => ids.next(),
+      },
+      tx,
+    );
+    const creditNote = route.kind === "none" ? null : route.creditNote;
+    if (route.kind === "pending") {
+      tx.recordPendingCreditNote(route.creditNote);
     }
     tx.appendOutboxEvent(
       saleVoidedEvent(ids.next(), {
@@ -169,36 +154,13 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
         voidedAt,
       }),
     );
-    if (creditNote !== null && offline?.kind === "issue_offline") {
-      const document = offlineCreditNote({
-        id: ids.next(),
-        saleId: sale.id,
-        creditNoteId: creditNote.creditNoteId,
-        pointOfSale: offline.pointOfSale,
-        number: offline.number,
-        issuedOn: offline.issuedOn,
+    if (route.kind === "issue_offline") {
+      issueOfflineSaleCreditNote(route, tx, {
+        nextId: () => ids.next(),
+        registerId: sale.registerId,
+        actorId: grant.actorId,
         generatedAt: voidedAt,
-        offlineAuthorizationCode: offline.offlineAuthorizationCode,
-        fortnight: offline.fortnight,
-        total: creditNote.total,
-        receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
-        corrects: creditNote.correctedVoucher,
-        cause: "no_connectivity",
       });
-      tx.issueOfflineCreditNote(document);
-      tx.recordClockMark({
-        pointOfSale: offline.pointOfSale,
-        documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
-        reading: raisedClockMark(offlineSeries?.clockMark ?? null, voidedAt),
-      });
-      tx.appendOutboxEvent(
-        offlineCreditNoteIssuedEvent({
-          eventId: ids.next(),
-          registerId: sale.registerId,
-          actorId: grant.actorId,
-          document,
-        }),
-      );
     }
     return { kind: "voided", refunds, grant, creditNote };
   });
