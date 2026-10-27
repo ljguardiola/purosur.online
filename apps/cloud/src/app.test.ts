@@ -1713,6 +1713,7 @@ describe("wiring the refund routes", () => {
 describe("wiring the stock routes", () => {
   const stockRequests = [
     { method: "GET", url: "/api/inventory-levels" },
+    { method: "GET", url: "/api/reports/current-stock" },
     { method: "GET", url: "/api/inventory-items" },
     { method: "GET", url: "/api/inventory-counts" },
     { method: "POST", url: "/api/inventory-counts" },
@@ -2890,6 +2891,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/inventory-levels",
         access: capabilityAccess("stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/current-stock",
+        access: capabilityAccess("reports_area"),
       },
       {
         method: "GET",

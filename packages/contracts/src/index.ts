@@ -793,6 +793,14 @@ export {
   assemblyBatchPreviewQuerySchema,
 } from "./stock/assembly-batch-body.js";
 export type {
+  CurrentStockReportBody,
+  CurrentStockReportQuery,
+} from "./stock/current-stock-report.js";
+export {
+  currentStockReportQuerySchema,
+  currentStockReportSchema,
+} from "./stock/current-stock-report.js";
+export type {
   ExpiredLotDiscardResult,
   ExpiringLot,
   ExpiringLotList,

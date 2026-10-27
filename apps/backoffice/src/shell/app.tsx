@@ -54,6 +54,7 @@ import type { EndEverySessionSectionServices } from "../sessions/end-every-sessi
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-services";
+import type { CurrentStockReportScreenServices } from "../stock/current-stock-report-services";
 import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
@@ -118,6 +119,7 @@ export type AppServices = {
   mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
   outsideRefundsScreen: OutsideRefundsScreenServices;
   expiringLotsScreen: ExpiringLotsScreenServices;
+  currentStockReportScreen: CurrentStockReportScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;
