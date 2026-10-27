@@ -110,8 +110,10 @@ test("shows each product with its category, lots, balance, value and share of th
 test("shows a product without a known value, and its share, as a dash", async () => {
   const screen = await renderScreen(listed(currentStockReport([teaProduct])));
 
+  await expect.element(screen.getByText("Té verde en hebras")).toBeVisible();
   const row = screen.getByRole("row").filter({ hasText: "Té verde en hebras" });
-  expect(row.element().textContent).toContain("—");
+  await expect.element(row).toBeVisible();
+  expect(row.getByText("—").elements()).toHaveLength(2);
 });
 
 test("lists the products from the most valuable, those without value last", async () => {
