@@ -114,7 +114,7 @@ test("a batch that was already voided or consumed offers to update the list, whi
   await confirmVoid(screen);
   await expect
     .element(screen.getByRole("dialog").getByRole("alert"))
-    .toHaveTextContent("La tanda ya tuvo consumo");
+    .toHaveTextContent("La tanda ya tuvo consumo: corregila con un ajuste y un recuento.");
   await userEvent.click(screen.getByRole("button", { name: "Actualizar la lista" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
