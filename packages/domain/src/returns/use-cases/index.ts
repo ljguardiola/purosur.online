@@ -7,6 +7,12 @@ export type {
 } from "./complete-return.js";
 export { completeReturn } from "./complete-return.js";
 export type {
+  FindBranchSaleForReturnInput,
+  FindBranchSaleForReturnOutcome,
+  FindBranchSaleForReturnPorts,
+} from "./find-branch-sale-for-return.js";
+export { findBranchSaleForReturn } from "./find-branch-sale-for-return.js";
+export type {
   FindSaleForReturnInput,
   FindSaleForReturnOutcome,
   FindSaleForReturnPorts,
@@ -21,8 +27,14 @@ export type {
 } from "./preview-return.js";
 export { previewReturn } from "./preview-return.js";
 export type {
+  BranchSaleFacts,
+  BranchSaleLookup,
+  BranchSaleLookupAnswer,
   IdGenerator,
+  KeptBranchSale,
+  OwnReturnsOfSale,
   RecordedReturn,
+  RetainedBranchSales,
   ReturnCashMovement,
   ReturningSession,
   ReturnLedger,

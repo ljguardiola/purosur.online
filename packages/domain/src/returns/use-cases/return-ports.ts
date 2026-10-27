@@ -8,12 +8,38 @@ import type {
   ReturnedStockMovement,
 } from "../model/returned-sale.js";
 import type { TicketReference } from "../model/ticket-reference.js";
+import type { LocalReturnOfSale } from "../model/uncounted-returns.js";
 
 export type SaleReturnSearch = TicketReference | { kind: "sale"; saleId: string };
 
 export interface ReturnSaleReader {
   saleForReturn(search: SaleReturnSearch): SaleForReturn | undefined;
   goodConditionReturnDays(): number;
+}
+
+export interface BranchSaleFacts {
+  sale: SaleForReturn;
+  goodConditionReturnDays: number;
+  countedReturnIds: string[];
+}
+
+export type BranchSaleLookupAnswer =
+  | ({ kind: "found" } & BranchSaleFacts)
+  | { kind: "not_found" }
+  | { kind: "unreachable" };
+
+export interface BranchSaleLookup {
+  saleForReturn(ticket: TicketReference): Promise<BranchSaleLookupAnswer>;
+}
+
+export interface OwnReturnsOfSale {
+  returnsOfSale(saleId: string): LocalReturnOfSale[];
+}
+
+export type KeptBranchSale = BranchSaleFacts;
+
+export interface RetainedBranchSales {
+  keep(sale: KeptBranchSale): void;
 }
 
 export interface IdGenerator {

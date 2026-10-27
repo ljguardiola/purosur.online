@@ -72,9 +72,10 @@ describe("withUncountedReturns", () => {
 
   it("adds what an uncounted return refunded to the payment it refunded", () => {
     expect(
-      withUncountedReturns(facts(), [], [localReturn()]).payments.map(
-        ({ id, refundedAmount }) => [id, refundedAmount],
-      ),
+      withUncountedReturns(facts(), [], [localReturn()]).payments.map(({ id, refundedAmount }) => [
+        id,
+        refundedAmount,
+      ]),
     ).toEqual([
       ["pay-cash", 3000],
       ["pay-card", 0],

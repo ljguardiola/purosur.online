@@ -21,14 +21,6 @@ export type {
   SaleLineForReturn,
   SaleOfReturn,
 } from "./model/return-sale.js";
-export type {
-  ReturnableLineView,
-  SaleForReturnOutcome,
-  SaleForReturnView,
-} from "./model/sale-for-return-view.js";
-export { saleForReturnOutcome } from "./model/sale-for-return-view.js";
-export type { LocalReturnOfSale } from "./model/uncounted-returns.js";
-export { withUncountedReturns } from "./model/uncounted-returns.js";
 export type { ReturnWindow } from "./model/return-window.js";
 export type {
   ReturnedCashMovement,
@@ -37,5 +29,13 @@ export type {
   ReturnedSale,
   ReturnedStockMovement,
 } from "./model/returned-sale.js";
+export type {
+  ReturnableLineView,
+  SaleForReturnOutcome,
+  SaleForReturnView,
+} from "./model/sale-for-return-view.js";
+export { saleForReturnOutcome } from "./model/sale-for-return-view.js";
 export type { TicketReference } from "./model/ticket-reference.js";
 export { ticketReferenceFromQrText } from "./model/ticket-reference.js";
+export type { LocalReturnOfSale } from "./model/uncounted-returns.js";
+export { withUncountedReturns } from "./model/uncounted-returns.js";

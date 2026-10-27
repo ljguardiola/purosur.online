@@ -1,3 +1,4 @@
+import type { TicketReference } from "../../model/ticket-reference.js";
 import type { LocalReturnOfSale } from "../../model/uncounted-returns.js";
 import type {
   BranchSaleLookup,
@@ -6,7 +7,6 @@ import type {
   OwnReturnsOfSale,
   RetainedBranchSales,
 } from "../return-ports.js";
-import type { TicketReference } from "../../model/ticket-reference.js";
 
 export class FakeBranchSaleLookup implements BranchSaleLookup {
   readonly asked: TicketReference[] = [];

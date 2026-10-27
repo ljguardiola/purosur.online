@@ -1,8 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import {
-  type SaleForReturnOutcome,
-  saleForReturnOutcome,
-} from "../model/sale-for-return-view.js";
+import { type SaleForReturnOutcome, saleForReturnOutcome } from "../model/sale-for-return-view.js";
 import type { ReturnSaleReader, SaleReturnSearch } from "./return-ports.js";
 
 export type { ReturnableLineView, SaleForReturnView } from "../model/sale-for-return-view.js";

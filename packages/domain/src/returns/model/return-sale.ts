@@ -15,7 +15,10 @@ export type SaleLineForReturn = Pick<
   "id" | "productId" | "productName" | "saleUnit" | "quantity" | "promotionId" | "lineTotal"
 >;
 
-export type SaleOfReturn = Pick<SaleWithLines, "id" | "registerId" | "deviceId" | "state" | "saleDiscount"> & {
+export type SaleOfReturn = Pick<
+  SaleWithLines,
+  "id" | "registerId" | "deviceId" | "state" | "saleDiscount"
+> & {
   lines: SaleLineForReturn[];
 };
 
