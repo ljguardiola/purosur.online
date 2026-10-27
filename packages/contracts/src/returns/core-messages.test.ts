@@ -471,3 +471,15 @@ describe("the answer to completing a return", () => {
     ).toBe(false);
   });
 });
+
+describe("the outcome of finding the sale to return", () => {
+  it("tells the renderer that a sale of another register needs a connection", () => {
+    const message = {
+      type: "find-sale-for-return-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "needs_connection" },
+    };
+
+    expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+});
