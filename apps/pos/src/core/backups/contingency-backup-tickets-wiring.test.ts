@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { FiscalEmissionMode } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { ControllableReceiptPrinter } from "../sales/test-support/controllable-receipt-printer";
 import { ManualTimers } from "../sales/test-support/manual-timers";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -26,6 +27,7 @@ let eventCount: number;
 
 function tickets() {
   return createContingencyBackupTickets({
+    zoneRules: fixedZoneRulesSource(),
     database,
     now: () => NOW,
     ids: { next: () => `ticket-${++nextId}` },

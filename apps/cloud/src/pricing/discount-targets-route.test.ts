@@ -10,6 +10,7 @@ import {
 } from "../catalog/test-support/catalog-route-fixtures.js";
 import { categories } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerDiscountTargetsRoute } from "./discount-targets-route.js";
 import {
   insertCategory,
@@ -36,6 +37,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerDiscountTargetsRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOON,

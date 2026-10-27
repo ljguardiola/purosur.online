@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { SUPPLIER_PRICE_LIST_WEB_PAGE_REFUSALS } from "../model/supplier-price-list-web-page.js";
 import {
   type LoadSupplierPriceListWebPageInput,
@@ -20,7 +21,12 @@ function setup() {
   const files = new FakeSupplierPriceListFiles();
   const webPages = new FakeSupplierPriceListWebPages();
   webPages.answer = { kind: "read", contentKind: "HTML", bytes: HTML };
-  return { store, files, webPages, ports: { store, files, webPages } };
+  return {
+    store,
+    files,
+    webPages,
+    ports: { store, files, webPages, zoneRules: new FakeZoneRulesSource() },
+  };
 }
 
 function input(

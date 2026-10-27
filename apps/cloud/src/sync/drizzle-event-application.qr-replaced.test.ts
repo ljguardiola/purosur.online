@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { pendingTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
 import { alerts, inbox, paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,
@@ -174,6 +175,7 @@ describe("recording the replacement of a pending QR payment", () => {
 
     const outcome = await applyPendingEvents(
       {
+        zoneRules: fixedZoneRulesSource(),
         eventApplication: system.application,
         upcaster: syncedEventUpcaster,
         clock: { now: () => new Date("2026-10-06T15:00:00.000Z") },

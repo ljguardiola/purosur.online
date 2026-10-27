@@ -1,4 +1,4 @@
-import { owedFortnightPresentationState } from "@purosur/domain";
+import { owedFortnightPresentationState, type ZoneRulesSource } from "@purosur/domain";
 import type {
   OwedFortnightPresentation,
   OwedFortnightPresentationReader,
@@ -10,13 +10,15 @@ export class DrizzleOwedFortnightPresentationReader<TQueryResult extends PgQuery
   implements OwedFortnightPresentationReader
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly zoneRules: ZoneRulesSource;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, zoneRules: ZoneRulesSource) {
     this.db = db;
+    this.zoneRules = zoneRules;
   }
 
   async owedPresentations(today: string): Promise<OwedFortnightPresentation[]> {
-    const owed = await owedFortnightReportsWithState(this.db, today);
+    const owed = await owedFortnightReportsWithState(this.db, today, this.zoneRules.zoneRules());
     return owed.map(({ owed: { pointOfSaleNumber, registerId, code }, state, listed }) => ({
       pointOfSaleNumber,
       registerId,

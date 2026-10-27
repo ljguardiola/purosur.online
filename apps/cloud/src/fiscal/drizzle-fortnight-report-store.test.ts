@@ -8,6 +8,7 @@ import {
   pointOfSaleClaims,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
@@ -74,7 +75,11 @@ function newStore(
     enqueuedCreditNotes.push(creditNoteId);
   },
 ) {
-  return new DrizzleFortnightReportStore(db, { enqueueCreditNote, now: () => AT });
+  return new DrizzleFortnightReportStore(db, {
+    zoneRules: fixedZoneRulesSource(),
+    enqueueCreditNote,
+    now: () => AT,
+  });
 }
 
 describe("DrizzleFortnightReportStore.owedReports", () => {

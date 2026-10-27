@@ -1,5 +1,5 @@
 import { isBarcodeTooLong } from "../../catalog/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { AddProductToSaleOutcome } from "./add-product-to-sale.js";
 import { addProductToSale } from "./add-product-to-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
@@ -14,6 +14,7 @@ export interface AddScannedProductPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -22,13 +23,14 @@ export type AddScannedProductOutcome =
   | { kind: "unknown_code" };
 
 export function addScannedProduct(
-  { ledger, restoration, clock, ids }: AddScannedProductPorts,
+  { ledger, restoration, clock, zoneRules, ids }: AddScannedProductPorts,
   { actorId, code }: AddScannedProductInput,
 ): AddScannedProductOutcome {
   const outcome = ledger.transaction((tx) =>
     addProductToSale(tx, {
       actorId,
       clock,
+      zoneRules,
       ids,
       restoration,
       findProduct: () => (isBarcodeTooLong(code) ? undefined : tx.activeProductByBarcode(code)),

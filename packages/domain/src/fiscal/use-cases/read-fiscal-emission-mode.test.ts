@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { LatestPreEmissionGateOutcome } from "../model/fiscal-emission-stop.js";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 import type { OfflineSeries, RealTimeSeries } from "../model/real-time-authorization.js";
@@ -77,7 +79,11 @@ function readsOf(
 }
 
 function modeOf(changes: Parameters<typeof transaction>[0] = {}) {
-  return readFiscalEmissionMode(readsOf(transaction(changes)), new FixedClock(NOW));
+  return readFiscalEmissionMode(
+    readsOf(transaction(changes)),
+    new FixedClock(NOW),
+    new FakeZoneRulesSource(),
+  );
 }
 
 describe("readFiscalEmissionMode", () => {
@@ -93,6 +99,7 @@ describe("readFiscalEmissionMode", () => {
           reason: "issuer_identification_missing",
         }),
         new FixedClock(NOW),
+        new FakeZoneRulesSource(),
       ),
     ).toEqual({ kind: "deferring", reason: "pre_emission_gate_failed" });
   });
@@ -100,7 +107,11 @@ describe("readFiscalEmissionMode", () => {
   it("looks the code up for the fortnight of the moment the clock gives", () => {
     const tx = transaction({ online: OFFLINE });
 
-    readFiscalEmissionMode(readsOf(tx), new FixedClock(new Date("2026-10-20T15:00:00.000Z")));
+    readFiscalEmissionMode(
+      readsOf(tx),
+      new FixedClock(new Date("2026-10-20T15:00:00.000Z")),
+      new FakeZoneRulesSource(),
+    );
 
     expect(tx.codeLookups).toEqual([SECOND_HALF]);
   });
@@ -140,7 +151,14 @@ describe("the mode and a real sale", () => {
       transaction(changes),
       new SequentialIds(),
       new ScriptedShortCodes(["7KQ4M2P9"]),
-      { saleId: "sale-1", gate: DOCUMENT, decidedAt: NOW, occurredAt: NOW, total: 100 },
+      {
+        rules: FIXED_ARGENTINA_ZONE_RULES,
+        saleId: "sale-1",
+        gate: DOCUMENT,
+        decidedAt: NOW,
+        occurredAt: NOW,
+        total: 100,
+      },
     );
 
     expect(outcome.kind === "issued_offline").toBe(mode.kind === "offline_code");

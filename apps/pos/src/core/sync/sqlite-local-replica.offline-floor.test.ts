@@ -1,4 +1,5 @@
 import type { SyncChange } from "@purosur/contracts";
+import { FIXED_ARGENTINA_ZONE_RULES } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import {
@@ -94,6 +95,7 @@ function numberOfNextOfflineDocument(): number | undefined {
       decidedAt: new Date("2026-09-30T12:05:00.000Z"),
       occurredAt: SALE_COMPLETED_AT,
       total: FACTURA_C.total,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
       ids: { next: () => `document-of-${saleId}` },
     },
     (event) => appendOutboxEvent(database, CHAIN_KEY, event),

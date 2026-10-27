@@ -22,6 +22,7 @@ import {
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerZoneRulesObservation,
 } from "./alert-condition-observation.js";
 
 describe("registerVersionObservation", () => {
@@ -183,6 +184,57 @@ describe("registerClockDriftObservation", () => {
 
   it("observes nothing of a register that reports nothing about its clock", () => {
     expect(registerClockDriftObservation({ ...register, report: {} })).toBeUndefined();
+  });
+});
+
+describe("registerZoneRulesObservation", () => {
+  const register = { registerId: "register-1", deviceId: "device-1", locationId: "location-1" };
+
+  it.each(["2025c", null])(
+    "holds the zone-rules-mismatch condition of the register, in its branch, naming the device and both versions, for a register that runs %s while the cloud publishes 2026a",
+    (registerVersion) => {
+      expect(
+        registerZoneRulesObservation({
+          ...register,
+          report: { zone_rules_version: registerVersion },
+          cloudZoneRulesVersion: "2026a",
+        }),
+      ).toEqual({
+        holds: true,
+        alert: {
+          kind: "tz_rules_mismatch",
+          scope: "register-1",
+          locationId: "location-1",
+          detail: { deviceId: "device-1", registerVersion, cloudVersion: "2026a" },
+        },
+      });
+    },
+  );
+
+  it("clears the zone-rules-mismatch condition of the register for a register that runs the cloud's version", () => {
+    expect(
+      registerZoneRulesObservation({
+        ...register,
+        report: { zone_rules_version: "2026a" },
+        cloudZoneRulesVersion: "2026a",
+      }),
+    ).toEqual({ holds: false, kind: "tz_rules_mismatch", scope: "register-1" });
+  });
+
+  it("observes nothing of a register that reports nothing about its zone rules", () => {
+    expect(
+      registerZoneRulesObservation({ ...register, report: {}, cloudZoneRulesVersion: "2026a" }),
+    ).toBeUndefined();
+  });
+
+  it("observes nothing while the cloud has published no version to compare with", () => {
+    expect(
+      registerZoneRulesObservation({
+        ...register,
+        report: { zone_rules_version: null },
+        cloudZoneRulesVersion: null,
+      }),
+    ).toBeUndefined();
   });
 });
 

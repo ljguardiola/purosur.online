@@ -1,5 +1,5 @@
 import { registerOperationAccess } from "../../register/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRules, ZoneRulesSource } from "../../shared/index.js";
 import {
   type ClockMark,
   clockCorrectionPeriodKey,
@@ -33,8 +33,9 @@ function clockCorrectionAvailability(
   reader: RegisterClockGuardReader,
   marks: readonly ClockMark[],
   reading: Date,
+  rules: ZoneRules,
 ): ClockCorrectionAvailability {
-  if (clockLoweringsFor(marks, reading, taxAuthorityClockFloor(reader)).length === 0) {
+  if (clockLoweringsFor(marks, reading, taxAuthorityClockFloor(reader), rules).length === 0) {
     return "not_behind";
   }
   return reader.clockCorrectionRecordedIn(clockCorrectionPeriodKey(reader.cashSessionStanding()))
@@ -45,23 +46,28 @@ function clockCorrectionAvailability(
 export interface ReadRegisterClockGuardPorts {
   reader: RegisterClockGuardReader;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export function readRegisterClockGuard(
-  { reader, clock }: ReadRegisterClockGuardPorts,
+  { reader, clock, zoneRules }: ReadRegisterClockGuardPorts,
   { userId }: { userId: string | undefined },
 ): RegisterClockGuardState {
   const reading = clock.now();
+  const rules = zoneRules.zoneRules();
   const marks = reader.clockMarks();
   const floor = reader.taxAuthorityFloor();
   const floorBehind =
     floor !== null &&
-    isBeforeTaxAuthorityLastIssuedDay(reading, floor.lastIssuedOn) &&
-    !isInClockCorrectionLapse({
-      reading,
-      taxAuthorityLastIssuedOn: floor.lastIssuedOn,
-      corrections: reader.clockCorrectionsOf(floor.pointOfSale, floor.documentType),
-    })
+    isBeforeTaxAuthorityLastIssuedDay(reading, floor.lastIssuedOn, rules) &&
+    !isInClockCorrectionLapse(
+      {
+        reading,
+        taxAuthorityLastIssuedOn: floor.lastIssuedOn,
+        corrections: reader.clockCorrectionsOf(floor.pointOfSale, floor.documentType),
+      },
+      rules,
+    )
       ? floor
       : null;
   const isFloorOf = (pointOfSale: number) => floor !== null && floor.pointOfSale === pointOfSale;
@@ -95,6 +101,6 @@ export function readRegisterClockGuard(
         { kind: "correct_register_clock" },
         { id: userId, access: reader.correctorAccess(userId) },
       ).kind === "permitted",
-    correction: clockCorrectionAvailability(reader, marks, reading),
+    correction: clockCorrectionAvailability(reader, marks, reading, rules),
   };
 }

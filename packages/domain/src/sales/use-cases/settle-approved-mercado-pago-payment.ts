@@ -1,5 +1,5 @@
 import { saleBalance } from "../../payments/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import {
   chargeableSale,
   isSaleRefusal,
@@ -19,6 +19,7 @@ export interface SettleApprovedMercadoPagoPaymentPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -29,7 +30,7 @@ export type SettleApprovedMercadoPagoPaymentOutcome =
   | { kind: "completed"; saleId: string; total: number };
 
 export function settleApprovedMercadoPagoPayment(
-  { ledger, restoration, clock, ids }: SettleApprovedMercadoPagoPaymentPorts,
+  { ledger, restoration, clock, zoneRules, ids }: SettleApprovedMercadoPagoPaymentPorts,
   { actorId, paymentTransactionId }: SettleApprovedMercadoPagoPaymentInput,
 ): SettleApprovedMercadoPagoPaymentOutcome {
   return ledger.transaction<SettleApprovedMercadoPagoPaymentOutcome>((tx) => {
@@ -38,7 +39,14 @@ export function settleApprovedMercadoPagoPayment(
       return { kind: "not_pending" };
     }
     const completedAt = clock.now();
-    const chargeable = chargeableSale(tx, actorId, pendingQr.saleId, completedAt, restoration);
+    const chargeable = chargeableSale(
+      tx,
+      actorId,
+      pendingQr.saleId,
+      completedAt,
+      restoration,
+      zoneRules.zoneRules(),
+    );
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }
@@ -57,6 +65,7 @@ export function settleApprovedMercadoPagoPayment(
       movements: tx.saleCashMovements(sale.id),
       actorId,
       completedAt,
+      rules: zoneRules.zoneRules(),
     });
     return { kind: "completed", saleId: sale.id, total };
   });

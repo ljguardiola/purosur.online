@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultReportPeriod, isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
+import { fixedOffsetZoneRules } from "./test-support/fake-zone-rules-source.js";
+import { FIXED_ARGENTINA_ZONE_RULES } from "./zone-rules.js";
 
 describe("isReportPeriodAsked", () => {
   it("accepts no range at all, which asks for the current day", () => {
@@ -38,21 +40,27 @@ describe("isReportPeriodAsked", () => {
 
 describe("defaultReportPeriod", () => {
   it("is the current Argentina calendar day", () => {
-    expect(defaultReportPeriod(new Date("2026-10-06T15:00:00.000Z"))).toEqual({
+    expect(
+      defaultReportPeriod(new Date("2026-10-06T15:00:00.000Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       from: "2026-10-06",
       to: "2026-10-06",
     });
   });
 
   it("is still the previous day after midnight UTC, until midnight in Argentina", () => {
-    expect(defaultReportPeriod(new Date("2026-10-07T02:59:00.000Z"))).toEqual({
+    expect(
+      defaultReportPeriod(new Date("2026-10-07T02:59:00.000Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       from: "2026-10-06",
       to: "2026-10-06",
     });
   });
 
   it("changes day at midnight in Argentina", () => {
-    expect(defaultReportPeriod(new Date("2026-10-07T03:00:00.000Z"))).toEqual({
+    expect(
+      defaultReportPeriod(new Date("2026-10-07T03:00:00.000Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       from: "2026-10-07",
       to: "2026-10-07",
     });
@@ -63,14 +71,18 @@ describe("reportPeriodOf", () => {
   const now = new Date("2026-10-06T15:00:00.000Z");
 
   it("is the asked range when both its bounds are asked", () => {
-    expect(reportPeriodOf({ from: "2026-10-01", to: "2026-10-03" }, now)).toEqual({
+    expect(
+      reportPeriodOf({ from: "2026-10-01", to: "2026-10-03" }, now, FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       from: "2026-10-01",
       to: "2026-10-03",
     });
   });
 
   it("is the current Argentina calendar day when no range is asked", () => {
-    expect(reportPeriodOf({ from: undefined, to: undefined }, now)).toEqual({
+    expect(
+      reportPeriodOf({ from: undefined, to: undefined }, now, FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       from: "2026-10-06",
       to: "2026-10-06",
     });
@@ -79,7 +91,31 @@ describe("reportPeriodOf", () => {
   it.each([[{ from: "2026-10-01", to: undefined }], [{ from: undefined, to: "2026-10-03" }]])(
     "is the current Argentina calendar day when only one bound is asked (%o)",
     (asked) => {
-      expect(reportPeriodOf(asked, now)).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+      expect(reportPeriodOf(asked, now, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
+        from: "2026-10-06",
+        to: "2026-10-06",
+      });
     },
   );
+});
+
+describe("report periods under given rules", () => {
+  const lateEvening = new Date("2026-10-07T01:30:00.000Z");
+
+  it("takes the current day from the offset the rules give", () => {
+    expect(defaultReportPeriod(lateEvening, fixedOffsetZoneRules(-180))).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+    });
+    expect(defaultReportPeriod(lateEvening, fixedOffsetZoneRules(0))).toEqual({
+      from: "2026-10-07",
+      to: "2026-10-07",
+    });
+  });
+
+  it("asks for that day when no range is asked", () => {
+    expect(
+      reportPeriodOf({ from: undefined, to: undefined }, lateEvening, fixedOffsetZoneRules(0)),
+    ).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+  });
 });

@@ -40,6 +40,7 @@ import {
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -90,6 +91,7 @@ async function pullEverything(installation: Installation): Promise<Pulled[]> {
     changeLog: new DrizzleChangeLog(db),
     offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
     clock: { now: () => NOW },
+    zoneRules: fixedZoneRulesSource(),
   };
   const received: Pulled[] = [];
   let since = 0;
@@ -305,6 +307,7 @@ beforeAll(async () => {
   const threshold = expectOutcome(
     await recordBuyerIdentificationThreshold(
       {
+        zoneRules: fixedZoneRulesSource(),
         store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
         clock: { now: () => NOW },
       },

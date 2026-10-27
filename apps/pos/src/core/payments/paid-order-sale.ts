@@ -1,3 +1,4 @@
+import type { ZoneRulesSource } from "@purosur/domain";
 import type { PaidOrderSale } from "@purosur/domain/payments/use-cases";
 import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import {
@@ -13,6 +14,7 @@ export interface PaidOrderSaleDeps {
   outboxChainKey: string | undefined;
   restoration: RestorationProtocolEvidence;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -21,13 +23,14 @@ export function paidOrderSale({
   outboxChainKey,
   restoration,
   now,
+  zoneRules,
   ids,
 }: PaidOrderSaleDeps): PaidOrderSale {
   const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
   return {
     settleApprovedPayment: (payment) => {
       const settled = settleApprovedMercadoPagoPayment(
-        { ledger, restoration, clock: { now }, ids },
+        { zoneRules, ledger, restoration, clock: { now }, ids },
         payment,
       );
       switch (settled.kind) {

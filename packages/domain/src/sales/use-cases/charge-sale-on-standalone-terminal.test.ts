@@ -4,6 +4,7 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { chargeSaleOnStandaloneTerminal } from "./charge-sale-on-standalone-terminal.js";
 import {
@@ -103,7 +104,13 @@ function charge(
   ids = new SequentialIds(),
 ) {
   return chargeSaleOnStandaloneTerminal(
-    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), ids },
+    {
+      zoneRules: new FakeZoneRulesSource(),
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+      ids,
+    },
     { actorId, saleId, amount },
   );
 }

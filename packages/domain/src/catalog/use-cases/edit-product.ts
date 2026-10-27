@@ -1,5 +1,5 @@
 import { isDiscountLive } from "../../pricing/index.js";
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRulesSource } from "../../shared/index.js";
 import { addsInternalBarcodeToProductWithBarcodes, type SaleUnit } from "../model/product.js";
 import type { CatalogNetContent, CatalogPorts, CatalogProduct } from "./catalog-store.js";
 import { CatalogBarcodeConflict } from "./catalog-store.js";
@@ -32,8 +32,12 @@ export type EditProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: CatalogProduct };
 
+export interface EditProductPorts extends CatalogPorts {
+  zoneRules: ZoneRulesSource;
+}
+
 export async function editProduct(
-  { store, clock }: CatalogPorts,
+  { store, clock, zoneRules }: EditProductPorts,
   input: EditProductInput,
 ): Promise<EditProductOutcome> {
   try {
@@ -63,7 +67,7 @@ export async function editProduct(
         // The product row is already locked and the discounts are only read, never locked: a
         // discount created meanwhile waits on this product row, so it either commits before this
         // read or sees the product sold by weight.
-        const today = argentinaCalendarDay(clock.now());
+        const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
         const [holding] = (await tx.buyNPayMDiscountsOn(id))
           .filter((discount) => isDiscountLive(discount, today))
           .map((discount) => discount.name)

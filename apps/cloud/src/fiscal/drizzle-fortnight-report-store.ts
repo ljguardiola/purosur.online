@@ -4,6 +4,7 @@ import {
   FACTURA_C_VOUCHER_TYPE,
   isOfflineDocumentReported,
   type VoucherReference,
+  type ZoneRulesSource,
 } from "@purosur/domain";
 import type {
   ContingencyInvoiceReport,
@@ -42,6 +43,7 @@ const STATES_THAT_ARE_AN_ATTEMPT = new Set<FortnightReportChange["state"]>([
 export interface FortnightReportStoreOptions {
   enqueueCreditNote: EnqueueCreditNote;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
@@ -249,7 +251,11 @@ export class DrizzleFortnightReportStore<TQueryResult extends PgQueryResultHKT>
   }
 
   async owedReports(today: string): Promise<OwedFortnightReport[]> {
-    const owed = await owedFortnightReportsWithState(this.db, today);
+    const owed = await owedFortnightReportsWithState(
+      this.db,
+      today,
+      this.options.zoneRules.zoneRules(),
+    );
     return owed.map(({ owed: report }) => report);
   }
 

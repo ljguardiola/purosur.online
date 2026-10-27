@@ -2,6 +2,10 @@ import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import { BARCODE_MAX_LENGTH } from "../../catalog/index.js";
 import type { SalePayment } from "../../payments/index.js";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { newWeighedSaleLine, withManualAdjustment, withQuantity } from "../model/sale-line.js";
 import { addScannedProduct } from "./add-scanned-product.js";
@@ -101,6 +105,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 function scan(store: FakeSaleLedger, code = "7790001", actorId = "cashier") {
   return addScannedProduct(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       restoration: store.restoration,
       clock: new FixedClock(NOW),
@@ -805,6 +810,33 @@ describe("addScannedProduct", () => {
       expect(outcome.kind === "added" && outcome.sale.lines[0]?.promotionId).toBe("ten");
     });
 
+    it("judges validity on the calendar day of the zone rules it is given", () => {
+      const lateEvening = new Date("2026-10-01T01:30:00.000Z");
+      const store = ledger({
+        promotionsByProduct: {
+          yerba: [
+            { ...TEN_PERCENT, id: "ends-that-day", validTo: "2026-09-30" },
+            { ...TEN_PERCENT, id: "starts-next-day", validFrom: "2026-10-01" },
+          ],
+        },
+      });
+
+      const outcome = addScannedProduct(
+        {
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(lateEvening),
+          zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)),
+          ids: new SequentialIds(),
+        },
+        { actorId: "cashier", code: "7790001" },
+      );
+
+      expect(outcome.kind === "added" && outcome.sale.lines[0]?.promotions).toEqual([
+        expect.objectContaining({ id: "starts-next-day" }),
+      ]);
+    });
+
     it("judges validity on the store's calendar day, not the UTC day", () => {
       const lateEvening = new Date("2026-10-01T01:30:00.000Z");
       const store = ledger({
@@ -818,6 +850,7 @@ describe("addScannedProduct", () => {
 
       const outcome = addScannedProduct(
         {
+          zoneRules: new FakeZoneRulesSource(),
           ledger: store,
           restoration: store.restoration,
           clock: new FixedClock(lateEvening),

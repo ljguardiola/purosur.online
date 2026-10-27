@@ -1,5 +1,10 @@
 import { averageTicket } from "../../sales/index.js";
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import type { PaymentsReportReader, SalesPaidByMethod } from "./payments-report-reader.js";
 
 export interface ReadSalesByPaymentMethodInput {
@@ -15,10 +20,14 @@ export interface SalesByPaymentMethodReport {
 }
 
 export async function readSalesByPaymentMethod(
-  { reader, clock }: { reader: PaymentsReportReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: PaymentsReportReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId }: ReadSalesByPaymentMethodInput,
 ): Promise<SalesByPaymentMethodReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const { methods, salesCount, total } = await reader.approvedPaymentsByMethod({
     locationId,
     period: range,

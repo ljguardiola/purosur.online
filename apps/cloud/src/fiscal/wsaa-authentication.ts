@@ -1,5 +1,11 @@
 import { fileURLToPath } from "node:url";
-import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
+import {
+  localClock,
+  offsetAt,
+  utcOffsetText,
+  type ZoneRules,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import type {
   WsaaAuthentication,
   WsaaAuthenticationResult,
@@ -33,36 +39,21 @@ export function wsaaEndpointOf(environment: string): string {
   return endpoint;
 }
 
-const ARGENTINA_TIME_FORMAT = new Intl.DateTimeFormat("en-CA", {
-  timeZone: ARGENTINA_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
-  timeZoneName: "longOffset",
-});
-
 /** ARCA reads a ticket's times as the store's local time, so the offset is always written out. */
-function argentinaTimestamp(instant: Date): string {
-  const parts = Object.fromEntries(
-    ARGENTINA_TIME_FORMAT.formatToParts(instant).map((part) => [part.type, part.value]),
-  );
-  const offset = parts["timeZoneName"]?.replace("GMT", "") || "+00:00";
-  return `${parts["year"]}-${parts["month"]}-${parts["day"]}T${parts["hour"]}:${parts["minute"]}:${parts["second"]}${offset}`;
+function argentinaTimestamp(instant: Date, rules: ZoneRules): string {
+  const clock = localClock(instant, rules).toISOString().slice(0, 19);
+  return `${clock}${utcOffsetText(offsetAt(rules, instant))}`;
 }
 
-function loginTicketRequestOf(service: string, now: Date): string {
+function loginTicketRequestOf(service: string, now: Date, rules: ZoneRules): string {
   const generation = new Date(now.getTime() - TICKET_REQUEST_GENERATION_SKEW_MS);
   const expiration = new Date(now.getTime() + TICKET_REQUEST_VALIDITY_MS);
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<loginTicketRequest version="1.0"><header>' +
     `<uniqueId>${Math.floor(now.getTime() / 1000)}</uniqueId>` +
-    `<generationTime>${argentinaTimestamp(generation)}</generationTime>` +
-    `<expirationTime>${argentinaTimestamp(expiration)}</expirationTime>` +
+    `<generationTime>${argentinaTimestamp(generation, rules)}</generationTime>` +
+    `<expirationTime>${argentinaTimestamp(expiration, rules)}</expirationTime>` +
     `</header><service>${service}</service></loginTicketRequest>`
   );
 }
@@ -114,6 +105,7 @@ export interface ArcaWsaaAuthenticationOptions {
   certificatePem: string;
   privateKeyPem: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   timeoutMs?: number;
   onRawResponse?: (raw: string) => void;
 }
@@ -123,6 +115,7 @@ export class ArcaWsaaAuthentication implements WsaaAuthentication {
   private readonly certificatePem: string;
   private readonly privateKeyPem: string;
   private readonly now: () => Date;
+  private readonly zoneRules: ZoneRulesSource;
   private readonly timeoutMs: number;
   private readonly onRawResponse: ((raw: string) => void) | undefined;
   private client: Promise<Client> | undefined;
@@ -132,6 +125,7 @@ export class ArcaWsaaAuthentication implements WsaaAuthentication {
     certificatePem,
     privateKeyPem,
     now,
+    zoneRules,
     timeoutMs = WSAA_TIMEOUT_MS,
     onRawResponse,
   }: ArcaWsaaAuthenticationOptions) {
@@ -139,6 +133,7 @@ export class ArcaWsaaAuthentication implements WsaaAuthentication {
     this.certificatePem = certificatePem;
     this.privateKeyPem = privateKeyPem;
     this.now = now;
+    this.zoneRules = zoneRules;
     this.timeoutMs = timeoutMs;
     this.onRawResponse = onRawResponse;
   }
@@ -146,7 +141,7 @@ export class ArcaWsaaAuthentication implements WsaaAuthentication {
   async requestToken(service: string): Promise<WsaaAuthenticationResult> {
     try {
       const cms = signedCms(
-        loginTicketRequestOf(service, this.now()),
+        loginTicketRequestOf(service, this.now(), this.zoneRules.zoneRules()),
         this.certificatePem,
         this.privateKeyPem,
       );

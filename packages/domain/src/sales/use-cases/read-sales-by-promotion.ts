@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import {
   type PromotionDiscountTotals,
   promotionDiscountTotals,
@@ -20,10 +25,14 @@ export interface SalesByPromotionReport {
 }
 
 export async function readSalesByPromotion(
-  { reader, clock }: { reader: PromotionSalesReportReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: PromotionSalesReportReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId }: ReadSalesByPromotionInput,
 ): Promise<SalesByPromotionReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const discounted = await reader.completedSalesByPromotion({ locationId, range, registerId });
   const rows = salesOfPromotions(discounted);
   return { range, rows, totals: promotionDiscountTotals(rows) };

@@ -1,7 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { deferredSaleExpiresOn } from "../../fiscal/index.js";
-import { argentinaCalendarDay, argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  argentinaInstant,
+  FIXED_ARGENTINA_ZONE_RULES,
+  shiftCalendarDay,
+} from "../../shared/index.js";
 import {
   deferredSaleAlertEscalatesAt,
   deferredSaleAlertOpensAt,
@@ -9,11 +14,11 @@ import {
 } from "./deferred-sale-alert-deadlines.js";
 
 function startOf(day: string): Date {
-  return new Date(argentinaInstant(day, "00:00"));
+  return new Date(argentinaInstant(day, "00:00", FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function sale(day: string, time = "12:00"): Date {
-  return new Date(argentinaInstant(day, time));
+  return new Date(argentinaInstant(day, time, FIXED_ARGENTINA_ZONE_RULES));
 }
 
 describe("deferredSaleAlertOpensAt and deferredSaleAlertEscalatesAt", () => {
@@ -25,54 +30,82 @@ describe("deferredSaleAlertOpensAt and deferredSaleAlertEscalatesAt", () => {
   ])(
     "a sale on %s opens on %s and escalates on %s at the start of the day",
     (saleDay, opens, escalates) => {
-      expect(deferredSaleAlertOpensAt(sale(saleDay))).toEqual(startOf(opens));
-      expect(deferredSaleAlertEscalatesAt(sale(saleDay))).toEqual(startOf(escalates));
+      expect(deferredSaleAlertOpensAt(sale(saleDay), FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+        startOf(opens),
+      );
+      expect(deferredSaleAlertEscalatesAt(sale(saleDay), FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+        startOf(escalates),
+      );
     },
   );
 
   it("brings both forward when the month-end limit comes first", () => {
     const occurredAt = sale("2026-09-28");
-    expect(deferredSaleExpiresOn(occurredAt)).toBe("2026-09-30");
-    expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(occurredAt);
-    expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(startOf("2026-09-29"));
+    expect(deferredSaleExpiresOn(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toBe("2026-09-30");
+    expect(deferredSaleAlertOpensAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(occurredAt);
+    expect(deferredSaleAlertEscalatesAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2026-09-29"),
+    );
   });
 
   it("brings only the opening forward when the limit is four days after the sale", () => {
     const occurredAt = sale("2026-09-26");
-    expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(startOf("2026-09-28"));
-    expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(startOf("2026-09-29"));
+    expect(deferredSaleAlertOpensAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2026-09-28"),
+    );
+    expect(deferredSaleAlertEscalatesAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2026-09-29"),
+    );
   });
 
   it("never goes earlier than the sale itself, for a sale on the last day of its month", () => {
     const occurredAt = sale("2026-09-30", "18:30");
-    expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(occurredAt);
-    expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(occurredAt);
+    expect(deferredSaleAlertOpensAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(occurredAt);
+    expect(deferredSaleAlertEscalatesAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      occurredAt,
+    );
   });
 
   it("clamps both to the sale on the day before the last day of its month", () => {
     const occurredAt = sale("2026-09-29", "18:30");
-    expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(occurredAt);
-    expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(occurredAt);
+    expect(deferredSaleAlertOpensAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(occurredAt);
+    expect(deferredSaleAlertEscalatesAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      occurredAt,
+    );
   });
 
   it("handles February and its leap day", () => {
-    expect(deferredSaleAlertOpensAt(sale("2026-02-26"))).toEqual(sale("2026-02-26"));
-    expect(deferredSaleAlertEscalatesAt(sale("2026-02-26"))).toEqual(startOf("2026-02-27"));
-    expect(deferredSaleAlertOpensAt(sale("2028-02-26"))).toEqual(startOf("2028-02-27"));
-    expect(deferredSaleAlertEscalatesAt(sale("2028-02-26"))).toEqual(startOf("2028-02-28"));
+    expect(deferredSaleAlertOpensAt(sale("2026-02-26"), FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      sale("2026-02-26"),
+    );
+    expect(deferredSaleAlertEscalatesAt(sale("2026-02-26"), FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2026-02-27"),
+    );
+    expect(deferredSaleAlertOpensAt(sale("2028-02-26"), FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2028-02-27"),
+    );
+    expect(deferredSaleAlertEscalatesAt(sale("2028-02-26"), FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2028-02-28"),
+    );
   });
 
   it("handles the end of December", () => {
     const occurredAt = sale("2026-12-29", "09:00");
-    expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(occurredAt);
-    expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(startOf("2026-12-30"));
+    expect(deferredSaleAlertOpensAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(occurredAt);
+    expect(deferredSaleAlertEscalatesAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2026-12-30"),
+    );
   });
 
   it("counts the sale's Argentine day when it is already the next UTC day", () => {
     const occurredAt = new Date("2026-10-11T01:30:00Z");
-    expect(argentinaCalendarDay(occurredAt)).toBe("2026-10-10");
-    expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(startOf("2026-10-13"));
-    expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(startOf("2026-10-14"));
+    expect(argentinaCalendarDay(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toBe("2026-10-10");
+    expect(deferredSaleAlertOpensAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2026-10-13"),
+    );
+    expect(deferredSaleAlertEscalatesAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      startOf("2026-10-14"),
+    );
   });
 
   it("opens no later than it escalates, which is within the expiry day, and never before the sale", () => {
@@ -80,9 +113,11 @@ describe("deferredSaleAlertOpensAt and deferredSaleAlertEscalatesAt", () => {
       fc.property(
         fc.date({ min: new Date("2020-01-01"), max: new Date("2040-01-01"), noInvalidDate: true }),
         (occurredAt) => {
-          const opensAt = deferredSaleAlertOpensAt(occurredAt);
-          const escalatesAt = deferredSaleAlertEscalatesAt(occurredAt);
-          const expiryEnd = startOf(shiftCalendarDay(deferredSaleExpiresOn(occurredAt), 1));
+          const opensAt = deferredSaleAlertOpensAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES);
+          const escalatesAt = deferredSaleAlertEscalatesAt(occurredAt, FIXED_ARGENTINA_ZONE_RULES);
+          const expiryEnd = startOf(
+            shiftCalendarDay(deferredSaleExpiresOn(occurredAt, FIXED_ARGENTINA_ZONE_RULES), 1),
+          );
           expect(opensAt.getTime()).toBeGreaterThanOrEqual(occurredAt.getTime());
           expect(escalatesAt.getTime()).toBeGreaterThanOrEqual(opensAt.getTime());
           expect(escalatesAt.getTime()).toBeLessThan(expiryEnd.getTime());
@@ -96,42 +131,92 @@ describe("deferredSaleStanding", () => {
   const occurredAt = sale("2026-10-10");
 
   it("is quiet until the opening instant", () => {
-    expect(deferredSaleStanding(occurredAt, new Date("2026-10-12T23:59:59.999-03:00"))).toEqual({
+    expect(
+      deferredSaleStanding(
+        occurredAt,
+        new Date("2026-10-12T23:59:59.999-03:00"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       kind: "quiet",
     });
   });
 
   it("is due from the opening instant", () => {
-    expect(deferredSaleStanding(occurredAt, new Date("2026-10-13T00:00:00-03:00"))).toEqual({
+    expect(
+      deferredSaleStanding(
+        occurredAt,
+        new Date("2026-10-13T00:00:00-03:00"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       kind: "due",
     });
-    expect(deferredSaleStanding(occurredAt, new Date("2026-10-13T23:59:59.999-03:00"))).toEqual({
+    expect(
+      deferredSaleStanding(
+        occurredAt,
+        new Date("2026-10-13T23:59:59.999-03:00"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       kind: "due",
     });
   });
 
   it("is pressing from the escalation instant through the end of the expiry day", () => {
-    expect(deferredSaleStanding(occurredAt, new Date("2026-10-14T00:00:00-03:00"))).toEqual({
+    expect(
+      deferredSaleStanding(
+        occurredAt,
+        new Date("2026-10-14T00:00:00-03:00"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       kind: "pressing",
     });
-    expect(deferredSaleStanding(occurredAt, new Date("2026-10-15T23:59:59.999-03:00"))).toEqual({
+    expect(
+      deferredSaleStanding(
+        occurredAt,
+        new Date("2026-10-15T23:59:59.999-03:00"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       kind: "pressing",
     });
   });
 
   it("is expired from the first instant after the expiry day", () => {
-    expect(deferredSaleStanding(occurredAt, new Date("2026-10-16T00:00:00-03:00"))).toEqual({
+    expect(
+      deferredSaleStanding(
+        occurredAt,
+        new Date("2026-10-16T00:00:00-03:00"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       kind: "expired",
     });
   });
 
   it("presses from the sale itself when the sale is on the last day of its month", () => {
     const lastDay = sale("2026-09-30", "18:30");
-    expect(deferredSaleStanding(lastDay, new Date("2026-09-30T18:29:59.999-03:00"))).toEqual({
+    expect(
+      deferredSaleStanding(
+        lastDay,
+        new Date("2026-09-30T18:29:59.999-03:00"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       kind: "quiet",
     });
-    expect(deferredSaleStanding(lastDay, lastDay)).toEqual({ kind: "pressing" });
-    expect(deferredSaleStanding(lastDay, new Date("2026-10-01T00:00:00-03:00"))).toEqual({
+    expect(deferredSaleStanding(lastDay, lastDay, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
+      kind: "pressing",
+    });
+    expect(
+      deferredSaleStanding(
+        lastDay,
+        new Date("2026-10-01T00:00:00-03:00"),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       kind: "expired",
     });
   });

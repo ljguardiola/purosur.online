@@ -19,12 +19,12 @@ function isReportableFailure(
 
 export async function reportOfflineAuthorizationCodeAcquisitionFailures(
   attempt: ObtainOfflineAuthorizationCodesOutcome,
-  { store, notifier, clock }: AcquisitionFailureReportPorts,
+  { store, notifier, clock, zoneRules }: AcquisitionFailureReportPorts,
 ): Promise<number> {
   if (attempt.kind === "no_offline_point_of_sale") {
     return 0;
   }
-  const day = argentinaCalendarDay(clock.now());
+  const day = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
   let notified = 0;
   for (const { fortnight, outcome } of attempt.fortnights) {
     if (!isReportableFailure(outcome)) {

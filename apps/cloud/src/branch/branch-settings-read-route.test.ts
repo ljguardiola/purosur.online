@@ -11,6 +11,7 @@ import {
   supplierPriceListExtractionCaps,
   userRoles,
   users,
+  zoneRules,
 } from "../platform/db/schema.js";
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
@@ -236,8 +237,35 @@ describe("GET /locations/current/settings", () => {
       unreviewed_price_alert_days: 30,
       good_condition_return_days: 15,
       supplier_price_list_daily_extraction_cap: 10,
+      zone_rules_version: null,
       version: 1,
     });
+  });
+
+  it("returns the zone rules version the cloud published last", async () => {
+    await db.insert(zoneRules).values([
+      {
+        version: "2025c",
+        transitions: [],
+        publicationNumber: 1,
+      },
+      {
+        version: "2026a",
+        transitions: [],
+        publicationNumber: 2,
+      },
+    ]);
+    const administratorId = await insertUser({
+      firstName: "Ada Lucero",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getBranchSettings(rawSessionId);
+
+    expect(response.json()).toMatchObject({ zone_rules_version: "2026a" });
   });
 
   it("returns the cap the branch has set for supplier price lists", async () => {

@@ -1,5 +1,5 @@
 import type { Fortnight, FortnightReportState } from "../../fiscal/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 import type { OpenAlertInput } from "../model/alert-details.js";
 
@@ -28,4 +28,5 @@ export interface FortnightReportDeadlineDetectionPorts {
   presentations: OwedFortnightPresentationReader;
   alerts: FortnightReportDeadlineAlerts;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }

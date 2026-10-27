@@ -74,10 +74,11 @@ export async function voidSaleFor(
   deps: VoidSaleRequestDeps,
   { saleId, pendingRefundsConfirmed, authorization }: VoidSaleRequest,
 ): Promise<VoidSaleOutcome> {
-  const { database, gate, now, ids, readOutboxChainKey } = deps;
+  const { database, gate, now, zoneRules, ids, readOutboxChainKey } = deps;
   const outboxChainKey = await readOutboxChainKey();
   const outcome = await voidSale<VoidSaleRequestGrant, VoidSaleRefusal>(
     {
+      zoneRules,
       ledger: new SqliteSaleVoidLedger(database, outboxChainKey),
       clock: { now },
       ids,

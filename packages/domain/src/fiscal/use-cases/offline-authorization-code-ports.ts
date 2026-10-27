@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { WithOwedPresentations } from "../model/owed-presentation-list.js";
@@ -65,4 +65,5 @@ export interface OfflineAuthorizationCodePorts {
   taxAuthority: TaxAuthorityOfflineAuthorizationCodes;
   owedPresentations: OwedPresentationList;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }

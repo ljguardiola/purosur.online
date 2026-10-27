@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import { ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE } from "../model/issued-fiscal-document.js";
 import type { IssuedFiscalDocument } from "./issued-fiscal-documents-reader.js";
 import { readIssuedFiscalDocuments } from "./read-issued-fiscal-documents.js";
@@ -33,7 +37,7 @@ describe("readIssuedFiscalDocuments", () => {
     const reader = new FakeIssuedFiscalDocumentsReader([receipt]);
 
     const listing = await readIssuedFiscalDocuments(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -67,7 +71,7 @@ describe("readIssuedFiscalDocuments", () => {
     const reader = new FakeIssuedFiscalDocumentsReader();
 
     const listing = await readIssuedFiscalDocuments(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, ...unfiltered },
     );
 
@@ -79,18 +83,37 @@ describe("readIssuedFiscalDocuments", () => {
     const reader = new FakeIssuedFiscalDocumentsReader();
 
     const listing = await readIssuedFiscalDocuments(
-      { reader, clock: { now: () => new Date("2026-10-07T01:30:00.000Z") } },
+      {
+        reader,
+        clock: { now: () => new Date("2026-10-07T01:30:00.000Z") },
+        zoneRules: new FakeZoneRulesSource(),
+      },
       { locationId: "branch-1", asked: noRange, ...unfiltered },
     );
 
     expect(listing.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
   });
 
+  it("resolves the current day on the calendar of the zone rules it is given", async () => {
+    const reader = new FakeIssuedFiscalDocumentsReader();
+
+    const listing = await readIssuedFiscalDocuments(
+      {
+        reader,
+        clock: { now: () => new Date("2026-10-07T01:30:00.000Z") },
+        zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)),
+      },
+      { locationId: "branch-1", asked: noRange, ...unfiltered },
+    );
+
+    expect(listing.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+  });
+
   it("asks for the requested page", async () => {
     const reader = new FakeIssuedFiscalDocumentsReader();
 
     await readIssuedFiscalDocuments(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, ...unfiltered, page: 3 },
     );
 

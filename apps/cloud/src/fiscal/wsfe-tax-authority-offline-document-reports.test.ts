@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import type { OfflineDocumentOfFortnight } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   answers,
   type FakeWsfeServer,
@@ -66,6 +67,7 @@ beforeEach(() => {
 
 function reportsAt(endpoint: string, timeoutMs = 5_000) {
   return new WsfeTaxAuthorityOfflineDocumentReports({
+    zoneRules: fixedZoneRulesSource(),
     endpoint,
     cuit: FICTIONAL_CERTIFICATE_CUIT,
     timeoutMs,
@@ -369,6 +371,7 @@ describe("WsfeTaxAuthorityOfflineDocumentReports.report", () => {
 it("hands over the raw answer ARCA gave to each call", async () => {
   const received: string[] = [];
   const reports = new WsfeTaxAuthorityOfflineDocumentReports({
+    zoneRules: fixedZoneRulesSource(),
     endpoint: server.endpoint,
     cuit: FICTIONAL_CERTIFICATE_CUIT,
     onRawResponse: (raw) => received.push(raw),

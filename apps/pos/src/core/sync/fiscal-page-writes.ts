@@ -41,6 +41,15 @@ export function prepareFiscalPageWrites(database: LocalDatabase, mode: PageWrite
          : "UPDATE SET set_id = excluded.set_id, options = excluded.options"
      }`,
   );
+  const saveZoneRules = database.prepare(
+    `INSERT INTO zone_rules (version, transitions, publication_number)
+     VALUES (@version, @transitions, @publication_number)
+     ON CONFLICT (publication_number) DO ${
+       mode === "pull"
+         ? "NOTHING"
+         : "UPDATE SET version = excluded.version, transitions = excluded.transitions"
+     }`,
+  );
   const saveOfflineAuthorizationCode = database.prepare(
     `INSERT INTO offline_authorization_codes (
        fortnight_start, fortnight_end, code, report_deadline, version
@@ -93,6 +102,14 @@ export function prepareFiscalPageWrites(database: LocalDatabase, mode: PageWrite
         params_version: row.params_version,
         set_id: entity_id,
         options: JSON.stringify(row.options),
+      });
+    },
+
+    zoneRules({ row }: Extract<SyncChange, { entity: "zone_rules" }>): void {
+      saveZoneRules.run({
+        version: row.version,
+        transitions: JSON.stringify(row.transitions),
+        publication_number: row.publication_number,
       });
     },
 

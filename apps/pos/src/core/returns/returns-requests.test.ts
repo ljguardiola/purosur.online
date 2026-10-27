@@ -10,6 +10,7 @@ import {
   insertPointOfSale,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -49,6 +50,7 @@ function deps(overrides: Partial<ReturnRequestDeps> = {}): ReturnRequestDeps {
         return `id-${idCount}`;
       },
     },
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }
@@ -115,6 +117,22 @@ afterEach(() => {
 });
 
 describe("finding the sale to return", () => {
+  it("writes when the sale happened on the clock of the zone rules it is given", async () => {
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    const outcome = await findSaleForReturnFor(deps({ zoneRules: { zoneRules: () => rules } }), {
+      ticket: BY_SALE,
+    });
+
+    expect(outcome).toMatchObject({
+      kind: "found",
+      sale: { occurred_at: "2026-09-12T18:30:00.000+00:00" },
+    });
+  });
+
   it("answers the sale, its returnable lines and its payments to a person who may process returns", async () => {
     const outcome = await findSaleForReturnFor(deps(), { ticket: BY_SALE });
 

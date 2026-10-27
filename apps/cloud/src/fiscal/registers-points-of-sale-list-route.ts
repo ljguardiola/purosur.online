@@ -1,4 +1,5 @@
 import { registerPointOfSaleOverviewListSchema } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import type { BranchRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -16,6 +17,7 @@ export interface RegistersPointsOfSaleRouteOptions<TQueryResult extends PgQueryR
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
 }
 

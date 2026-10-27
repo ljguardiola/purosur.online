@@ -6,6 +6,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { stockBalances } from "../platform/db/schema.js";
 import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -91,7 +92,11 @@ describe("a purchase and a loss of the same product queued behind each other, on
         ),
       () =>
         registerPurchase(
-          { store: new DrizzlePurchasingStore(db, clock.now), clock },
+          {
+            zoneRules: fixedZoneRulesSource(),
+            store: new DrizzlePurchasingStore(db, clock.now),
+            clock,
+          },
           {
             supplierId: ids.supplierId,
             purchasedOn: "2026-10-15",

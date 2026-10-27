@@ -11,8 +11,9 @@ export async function detectExpiringLots({
   lots,
   alerts,
   clock,
+  zoneRules,
 }: ExpiringLotDetectionPorts): Promise<number> {
-  const today = argentinaCalendarDay(clock.now());
+  const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
   const branchesWithLots = new Set<string>();
   for (const { locationId, windowDays } of await branches.branchExpiryWindows()) {
     const candidates = await lots.lotsExpiringBy(locationId, expiryWindowEnd(today, windowDays));

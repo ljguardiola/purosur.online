@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import {
   ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
   type IssuedDocumentKind,
@@ -25,10 +30,14 @@ export interface IssuedFiscalDocumentsListing {
 }
 
 export async function readIssuedFiscalDocuments(
-  { reader, clock }: { reader: IssuedFiscalDocumentsReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: IssuedFiscalDocumentsReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId, kind, number, page }: ReadIssuedFiscalDocumentsInput,
 ): Promise<IssuedFiscalDocumentsListing> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const { documents, total } = await reader.issuedInPeriod({
     locationId,
     range,

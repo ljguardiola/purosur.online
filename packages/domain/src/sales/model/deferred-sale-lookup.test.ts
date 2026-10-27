@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { type DeferredSaleFacts, deferredSaleAvailability } from "./deferred-sale-lookup.js";
 
 const NOW = new Date("2026-10-04T15:00:00.000Z");
@@ -21,32 +22,38 @@ function facts(overrides: Partial<DeferredSaleFacts> = {}): DeferredSaleFacts {
 
 describe("deferredSaleAvailability", () => {
   it("is available while the sale is pending inside its window", () => {
-    expect(deferredSaleAvailability(facts(), NOW)).toBe("available");
+    expect(deferredSaleAvailability(facts(), NOW, FIXED_ARGENTINA_ZONE_RULES)).toBe("available");
   });
 
   it.each([
     ["its deferred record is cancelled", { cancelled: true }],
     ["its sale is voided", { saleVoided: true }],
   ])("is voided when %s", (_case, overrides) => {
-    expect(deferredSaleAvailability(facts(overrides), NOW)).toBe("voided");
+    expect(deferredSaleAvailability(facts(overrides), NOW, FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      "voided",
+    );
   });
 
   it("is voided even when the window also ran out", () => {
     const old = facts({ cancelled: true, occurredAt: new Date("2026-09-01T14:00:00.000Z") });
 
-    expect(deferredSaleAvailability(old, NOW)).toBe("voided");
+    expect(deferredSaleAvailability(old, NOW, FIXED_ARGENTINA_ZONE_RULES)).toBe("voided");
   });
 
   it("is expired when it is pending and its window ran out", () => {
     const old = facts({ occurredAt: new Date("2026-09-20T14:00:00.000Z") });
 
-    expect(deferredSaleAvailability(old, NOW)).toBe("expired");
+    expect(deferredSaleAvailability(old, NOW, FIXED_ARGENTINA_ZONE_RULES)).toBe("expired");
   });
 
   it("is out of date order when it is pending and dated before the last issued document", () => {
-    expect(deferredSaleAvailability(facts({ lastIssuedOn: "2026-10-04" }), NOW)).toBe(
-      "out_of_date_order",
-    );
+    expect(
+      deferredSaleAvailability(
+        facts({ lastIssuedOn: "2026-10-04" }),
+        NOW,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe("out_of_date_order");
   });
 
   it("is expired when its window ran out, even when it is also dated before the last issued document", () => {
@@ -55,11 +62,17 @@ describe("deferredSaleAvailability", () => {
       lastIssuedOn: "2026-10-04",
     });
 
-    expect(deferredSaleAvailability(old, NOW)).toBe("expired");
+    expect(deferredSaleAvailability(old, NOW, FIXED_ARGENTINA_ZONE_RULES)).toBe("expired");
   });
 
   it("is available when it is pending and dated on the last issued day", () => {
-    expect(deferredSaleAvailability(facts({ lastIssuedOn: "2026-10-03" }), NOW)).toBe("available");
+    expect(
+      deferredSaleAvailability(
+        facts({ lastIssuedOn: "2026-10-03" }),
+        NOW,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe("available");
   });
 
   it("is available once invoiced, however old and whatever the last issued day", () => {
@@ -69,6 +82,6 @@ describe("deferredSaleAvailability", () => {
       invoice: { kind: "issued", pointOfSale: 12, number: 101 },
     });
 
-    expect(deferredSaleAvailability(invoiced, NOW)).toBe("available");
+    expect(deferredSaleAvailability(invoiced, NOW, FIXED_ARGENTINA_ZONE_RULES)).toBe("available");
   });
 });

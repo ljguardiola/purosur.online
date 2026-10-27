@@ -10,6 +10,7 @@ import {
   stockMovements,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerStockCountsRoutes } from "./stock-counts-route.js";
 import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
 import {
@@ -42,7 +43,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerStockCountsRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
+  registerStockCountsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOW,
+  });
 });
 
 afterEach(async () => {

@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { InstallationStreamReach } from "../../sync/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { OfflineSeriesDocumentType } from "../model/fiscal-voucher-type.js";
@@ -197,4 +197,5 @@ export interface FortnightReportPorts {
   owedPresentations: OwedPresentationList;
   tokens: WsaaTokenSource;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }

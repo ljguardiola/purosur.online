@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -90,10 +91,15 @@ async function queuedTasks() {
 
 async function setUp(now: () => Date = () => NOW, invoicing?: Invoicing) {
   expect(await queuedTasks()).toEqual([]);
-  const backgroundJobs = await setUpBackgroundJobs(serverEnvironment(invoicing), now, {
-    emailSender: UNUSED_EMAIL_SENDER,
-    schedules: false,
-  });
+  const backgroundJobs = await setUpBackgroundJobs(
+    serverEnvironment(invoicing),
+    now,
+    fixedZoneRulesSource(),
+    {
+      emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
+    },
+  );
   theScheduledMinuteArrives();
   return backgroundJobs;
 }
@@ -155,9 +161,14 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
   it("renews the token on its own schedule when the server starts with its schedules", async () => {
     await sql`delete from arca_wsaa_tokens`;
     fakeWsaa.behave(answers("login-cms-issued.xml"));
-    const backgroundJobs = await setUpBackgroundJobs(serverEnvironment(), () => NOW, {
-      emailSender: UNUSED_EMAIL_SENDER,
-    });
+    const backgroundJobs = await setUpBackgroundJobs(
+      serverEnvironment(),
+      () => NOW,
+      fixedZoneRulesSource(),
+      {
+        emailSender: UNUSED_EMAIL_SENDER,
+      },
+    );
     try {
       theScheduledMinuteArrives();
 

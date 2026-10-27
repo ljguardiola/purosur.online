@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { completeSale } from "./complete-sale.js";
 import { FakeSaleLedger, SequentialIds } from "./test-support/fake-sale-ledger.js";
@@ -38,6 +39,7 @@ describe("completeSale", () => {
         },
         new SequentialIds(),
         {
+          rules: FIXED_ARGENTINA_ZONE_RULES,
           sale: SALE,
           total: 5_900,
           payments: [],

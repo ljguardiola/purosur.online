@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
+import { FIXED_ARGENTINA_ZONE_RULES, MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import {
   FREIGHT_CARRIER_NAME_MAX_LENGTH,
   FREIGHT_DESCRIPTION_MAX_LENGTH,
@@ -89,13 +89,21 @@ describe("freightPeriodStart", () => {
   });
 
   it("starts the period that many days before the Argentine calendar day of now", () => {
-    expect(freightPeriodStart(30, new Date("2026-03-31T15:00:00Z"))).toBe("2026-03-01");
-    expect(freightPeriodStart(90, new Date("2026-03-31T15:00:00Z"))).toBe("2025-12-31");
-    expect(freightPeriodStart(365, new Date("2026-03-31T15:00:00Z"))).toBe("2025-03-31");
+    expect(
+      freightPeriodStart(30, new Date("2026-03-31T15:00:00Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe("2026-03-01");
+    expect(
+      freightPeriodStart(90, new Date("2026-03-31T15:00:00Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe("2025-12-31");
+    expect(
+      freightPeriodStart(365, new Date("2026-03-31T15:00:00Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe("2025-03-31");
   });
 
   it("counts from the Argentine day, which is still the day before shortly after UTC midnight", () => {
-    expect(freightPeriodStart(30, new Date("2026-04-01T01:00:00Z"))).toBe("2026-03-01");
+    expect(
+      freightPeriodStart(30, new Date("2026-04-01T01:00:00Z"), FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe("2026-03-01");
   });
 });
 

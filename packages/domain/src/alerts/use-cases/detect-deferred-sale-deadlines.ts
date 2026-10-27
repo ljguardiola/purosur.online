@@ -7,16 +7,17 @@ import {
 import type { DeferredSaleDeadlineDetectionPorts } from "./deferred-sale-deadline-ports.js";
 
 export async function detectDeferredSaleDeadlines(
-  { alerts, clock }: DeferredSaleDeadlineDetectionPorts,
+  { alerts, clock, zoneRules }: DeferredSaleDeadlineDetectionPorts,
   pending: readonly PendingDeferredSale[],
 ): Promise<number> {
   const now = clock.now();
+  const rules = zoneRules.zoneRules();
   const dueScopes = new Set<string>();
   for (const sale of pending) {
-    const standing = deferredSaleStanding(sale.occurredAt, now);
+    const standing = deferredSaleStanding(sale.occurredAt, now, rules);
     if (standing.kind === "due" || standing.kind === "pressing") {
       dueScopes.add(sale.id);
-      await alerts.observeAlertCondition(deferredSaleDueObservation(sale, standing));
+      await alerts.observeAlertCondition(deferredSaleDueObservation(sale, standing, rules));
     }
   }
   for (const scope of await alerts.dueAlertScopes()) {

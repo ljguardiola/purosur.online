@@ -11,6 +11,7 @@ import {
 import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerIssuedFiscalDocumentsRoute } from "./issued-fiscal-documents-route.js";
 import {
   insertOnlineCreditNote,
@@ -39,6 +40,7 @@ beforeEach(async () => {
   registerIssuedFiscalDocumentsRoute(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
   });
 });
@@ -260,7 +262,7 @@ describe("GET /fiscal/documents", () => {
     });
 
     const before = await documents(headers, "?from=2026-10-06&to=2026-10-06");
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     const after = await documents(headers, "?from=2026-10-06&to=2026-10-06");
 
     expect(before.json().total).toBe(0);

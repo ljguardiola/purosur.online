@@ -3,6 +3,7 @@ import {
   type IssuerIdentificationEditBody,
   issuerIdentificationEditBodySchema,
 } from "@purosur/contracts";
+import type { ZoneRules } from "@purosur/domain";
 import { schemaLimit } from "../platform/schema-limit";
 import { schemaText } from "../platform/schema-text";
 import type { IssuerIdentification } from "./issuer-identification-api";
@@ -21,9 +22,10 @@ export const EMPTY_ISSUER_IDENTIFICATION_FORM: IssuerIdentificationFormValues = 
   version: 0,
 };
 
-// The two texts do not depend on the date the body is checked against.
+// The two texts depend neither on the date the body is checked against nor on the zone rules.
+const NO_ZONE_RULES: ZoneRules = { version: null, transitions: [] };
 const { legal_name: legalNameSchema, gross_income_registration: grossIncomeRegistrationSchema } =
-  issuerIdentificationEditBodySchema(new Date(0)).shape;
+  issuerIdentificationEditBodySchema(new Date(0), NO_ZONE_RULES).shape;
 
 const LEGAL_NAME_TOO_LONG_ERROR = `Ingresá como mucho ${schemaLimit(legalNameSchema.meta()?.["maxLength"])} caracteres.`;
 const GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR = `Ingresá como mucho ${schemaLimit(grossIncomeRegistrationSchema.meta()?.["maxLength"])} caracteres.`;
@@ -34,10 +36,12 @@ function dateOf(value: string | null): CalendarDate | null {
   return value === null ? null : parseDate(value);
 }
 
-export function latestActivityStartDate(now: Date): CalendarDate {
+export function latestActivityStartDate(now: Date, rules: ZoneRules): CalendarDate {
   return parseDate(
     schemaText(
-      issuerIdentificationEditBodySchema(now).shape.activity_start_date.meta()?.["latestDay"],
+      issuerIdentificationEditBodySchema(now, rules).shape.activity_start_date.meta()?.[
+        "latestDay"
+      ],
     ),
   );
 }
@@ -89,9 +93,11 @@ export function grossIncomeRegistrationMessage({
     : GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR;
 }
 
-export function activityStartDateMessage(today: Date) {
-  const { activity_start_date: activityStartDateSchema } =
-    issuerIdentificationEditBodySchema(today).shape;
+export function activityStartDateMessage(today: Date, rules: ZoneRules) {
+  const { activity_start_date: activityStartDateSchema } = issuerIdentificationEditBodySchema(
+    today,
+    rules,
+  ).shape;
   return ({ activityStartDate }: IssuerIdentificationFormValues): string => {
     if (activityStartDate === null) {
       return "Elegí la fecha de inicio de actividades.";

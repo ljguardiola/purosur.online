@@ -7,6 +7,7 @@ import type { AccessEmailSender } from "../credentials/recovery-email-sender.js"
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpBackgroundJobs } from "../server.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -133,6 +134,7 @@ async function runReportTask() {
       },
     },
     () => currentTime,
+    fixedZoneRulesSource(),
     { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
   );
   try {

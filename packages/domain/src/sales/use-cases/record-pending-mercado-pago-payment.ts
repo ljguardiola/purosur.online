@@ -3,6 +3,7 @@ import {
   nonCashCharge,
   type PointCardType,
 } from "../../payments/index.js";
+import type { ZoneRulesSource } from "../../shared/index.js";
 import { isSaleRefusal, type NewPaymentRefusal, saleOpenToNewPayment } from "./chargeable-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
@@ -18,6 +19,7 @@ export type RecordPendingMercadoPagoPaymentInput = {
 export interface RecordPendingMercadoPagoPaymentPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -32,12 +34,19 @@ export type RecordPendingMercadoPagoPaymentOutcome =
   | PendingMercadoPagoPaymentRefusal;
 
 export function recordPendingMercadoPagoPayment(
-  { ledger, restoration, ids }: RecordPendingMercadoPagoPaymentPorts,
+  { ledger, restoration, zoneRules, ids }: RecordPendingMercadoPagoPaymentPorts,
   input: RecordPendingMercadoPagoPaymentInput,
 ): RecordPendingMercadoPagoPaymentOutcome {
   const { actorId, saleId, amount, occurredAt, waitEndsAt } = input;
   return ledger.transaction<RecordPendingMercadoPagoPaymentOutcome>((tx) => {
-    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, occurredAt, restoration);
+    const chargeable = saleOpenToNewPayment(
+      tx,
+      actorId,
+      saleId,
+      occurredAt,
+      restoration,
+      zoneRules.zoneRules(),
+    );
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }

@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { mayBeSaleLineQuantity, withQuantity } from "../model/sale-line.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
@@ -21,6 +21,7 @@ export interface ChangeLineQuantityPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type ChangeLineQuantityOutcome =
@@ -32,7 +33,7 @@ export type ChangeLineQuantityOutcome =
   | ChangedLineOutcome;
 
 export function changeLineQuantity(
-  { ledger, restoration, clock }: ChangeLineQuantityPorts,
+  { ledger, restoration, clock, zoneRules }: ChangeLineQuantityPorts,
   { actorId, lineId, quantity, expectedQuantity }: ChangeLineQuantityInput,
 ): ChangeLineQuantityOutcome {
   return ledger.transaction<ChangeLineQuantityOutcome>((tx) => {
@@ -58,6 +59,6 @@ export function changeLineQuantity(
     if (quantity !== line.quantity) {
       tx.recordChangedLine(updated);
     }
-    return changedLine(tx, sale, line, updated, clock.now());
+    return changedLine(tx, sale, line, updated, clock.now(), zoneRules.zoneRules());
   });
 }

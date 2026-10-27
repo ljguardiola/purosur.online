@@ -172,6 +172,12 @@ interface RegisterReplenishmentFailedDetail {
   failure: ReplenishmentFailureKind;
 }
 
+interface TzRulesMismatchDetail {
+  deviceId: string;
+  registerVersion: string | null;
+  cloudVersion: string;
+}
+
 interface OutboxChainBrokenDetail {
   deviceId: string;
 }
@@ -255,6 +261,7 @@ export interface AlertDetails {
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
   clock_drift: ClockDriftDetail;
   register_replenishment_failed: RegisterReplenishmentFailedDetail;
+  tz_rules_mismatch: TzRulesMismatchDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
   offsite_dump_unverified: OffsiteDumpUnverifiedDetail;

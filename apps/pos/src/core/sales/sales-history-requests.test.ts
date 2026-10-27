@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { uniqueShortCode } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -31,6 +32,7 @@ function deps(): SalesHistoryRequestDeps {
       hashPin: async () => "hash-of-a-pin",
       now: () => new Date("2026-10-08T12:00:00.000Z"),
     }),
+    zoneRules: fixedZoneRulesSource(),
   };
 }
 
@@ -136,6 +138,21 @@ describe("the sales history", () => {
     signedInPerson.set("cashier");
 
     expect(await salesHistoryFor(deps(), ASK)).toEqual({ kind: "lacks_permission" });
+  });
+
+  it("writes when each sale happened on the clock of the zone rules it is given", async () => {
+    addSale({ id: "only", occurredAt: "2026-10-08T15:00:00.000Z", operationNumber: 1 });
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    expect(
+      await salesHistoryFor({ ...deps(), zoneRules: { zoneRules: () => rules } }, ASK),
+    ).toMatchObject({
+      kind: "found",
+      rows: [{ occurred_at: "2026-10-08T15:00:00.000+00:00" }],
+    });
   });
 
   it("answers the page of rows, the total and the page size, most recent first", async () => {

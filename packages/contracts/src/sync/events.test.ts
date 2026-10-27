@@ -220,6 +220,25 @@ describe("push events request", () => {
     );
   });
 
+  it.each(["2026a", null])(
+    "accepts a register that reports it runs the zone rules version %s",
+    (version) => {
+      const reported = { ...telemetry, zone_rules_version: version };
+
+      expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+    },
+  );
+
+  it("accepts a register that reports nothing about its zone rules", () => {
+    expect(requestWith({ telemetry }).data?.telemetry).toEqual(telemetry);
+  });
+
+  it.each([1, true, ""])("refuses a zone_rules_version of %s", (version) => {
+    expect(requestWith({ telemetry: { ...telemetry, zone_rules_version: version } }).success).toBe(
+      false,
+    );
+  });
+
   it("refuses a clock_drift that is not a boolean", () => {
     expect(requestWith({ telemetry: { ...telemetry, clock_drift: "yes" } }).success).toBe(false);
   });

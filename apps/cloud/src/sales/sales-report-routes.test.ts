@@ -13,6 +13,7 @@ import {
 import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerSalesReportRoutes } from "./sales-report-routes.js";
 import { applyCompletedSale } from "./test-support/applied-sales.js";
 import {
@@ -41,7 +42,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerSalesReportRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
+  registerSalesReportRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOW,
+  });
 });
 
 afterEach(async () => {
@@ -174,7 +180,7 @@ describe("GET /reports/sales-by-day", () => {
     await receiveSale(4_800);
 
     const before = await salesByDay(headers, "?from=2026-10-07&to=2026-10-07");
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     const after = await salesByDay(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(before.json().totals).toEqual({ sales_count: 0, total: 0 });
@@ -189,7 +195,7 @@ describe("GET /reports/sales-by-day", () => {
   it("filters by an asked register of the branch", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
     const { registerId } = await receiveSale(4_800);
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const ofTheRegister = await salesByDay(headers, `?register_id=${registerId}`);
     const ofAnotherRegister = await salesByDay(headers, `?register_id=${randomUUID()}`);
@@ -204,7 +210,7 @@ describe("GET /reports/sales-by-day", () => {
       locationId: otherLocationId,
     });
     await receiveSale(4_800);
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const response = await salesByDay(headers);
 
@@ -486,7 +492,7 @@ describe("GET /reports/sales-by-cashier", () => {
     await receiveSale(4_800);
 
     const before = await salesByCashier(headers, "?from=2026-10-07&to=2026-10-07");
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     const after = await salesByCashier(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(before.json().rows).toEqual([]);
@@ -505,7 +511,7 @@ describe("GET /reports/sales-by-cashier", () => {
   it("filters by an asked register of the branch", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
     const { registerId } = await receiveSale(4_800);
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const ofTheRegister = await salesByCashier(headers, `?register_id=${registerId}`);
     const ofAnotherRegister = await salesByCashier(headers, `?register_id=${randomUUID()}`);
@@ -520,7 +526,7 @@ describe("GET /reports/sales-by-cashier", () => {
       locationId: otherLocationId,
     });
     await receiveSale(4_800);
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const response = await salesByCashier(headers);
 
@@ -675,7 +681,7 @@ describe("GET /reports/sales-by-promotion", () => {
     await receiveSale(4_700, [promotionLine(missing, 100)]);
 
     const before = await salesByPromotion(headers, "?from=2026-10-07&to=2026-10-07");
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     const after = await salesByPromotion(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(before.json().rows).toEqual([]);
@@ -695,7 +701,7 @@ describe("GET /reports/sales-by-promotion", () => {
   it("filters by an asked register of the branch", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
     const { registerId } = await receiveSale(4_700, [promotionLine(randomUUID(), 100)]);
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const ofTheRegister = await salesByPromotion(headers, `?register_id=${registerId}`);
     const ofAnotherRegister = await salesByPromotion(headers, `?register_id=${randomUUID()}`);
@@ -710,7 +716,7 @@ describe("GET /reports/sales-by-promotion", () => {
       locationId: otherLocationId,
     });
     await receiveSale(4_700, [promotionLine(randomUUID(), 100)]);
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const response = await salesByPromotion(headers);
 
@@ -1030,7 +1036,7 @@ describe("GET /reports/average-ticket", () => {
     await receiveSale(4_800);
 
     const before = await averageTicket(headers, "?from=2026-10-07&to=2026-10-07");
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     const after = await averageTicket(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(before.json().current).toEqual({ sales_count: 0, total: 0, average_ticket: null });
@@ -1040,7 +1046,7 @@ describe("GET /reports/average-ticket", () => {
   it("filters by an asked register of the branch", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
     const { registerId } = await receiveSale(4_800);
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const ofTheRegister = await averageTicket(headers, `?register_id=${registerId}`);
     const ofAnotherRegister = await averageTicket(headers, `?register_id=${randomUUID()}`);
@@ -1055,7 +1061,7 @@ describe("GET /reports/average-ticket", () => {
       locationId: otherLocationId,
     });
     await receiveSale(4_800);
-    await applySyncedEventsTask(db, { now: () => NOW });
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const response = await averageTicket(headers);
 

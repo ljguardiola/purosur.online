@@ -19,6 +19,7 @@ import {
   stockMovements,
   users,
 } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,
@@ -629,6 +630,7 @@ describe("applying a pushed return", () => {
   function applyPending() {
     return applyPendingEvents(
       {
+        zoneRules: fixedZoneRulesSource(),
         eventApplication: system.application,
         upcaster: syncedEventUpcaster,
         clock: { now: () => APPLICATION_NOW },

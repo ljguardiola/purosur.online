@@ -1,5 +1,5 @@
 import { amountToCharge } from "../../sales/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { type PaymentRefundability, returnablePayments } from "../model/refund-allocation.js";
 import { mustBeReturnedWhole, returnableQuantity } from "../model/return-line.js";
 import type { ReturnReason } from "../model/return-reasons.js";
@@ -12,6 +12,7 @@ export type FindSaleForReturnInput = SaleReturnSearch;
 export interface FindSaleForReturnPorts {
   reader: ReturnSaleReader;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type ReturnableLineView = Omit<ReturnStandingLine, "promotionId"> & {
@@ -43,7 +44,7 @@ function viewOfLine({ promotionId, ...line }: ReturnStandingLine): ReturnableLin
 }
 
 export function findSaleForReturn(
-  { reader, clock }: FindSaleForReturnPorts,
+  { reader, clock, zoneRules }: FindSaleForReturnPorts,
   search: FindSaleForReturnInput,
 ): FindSaleForReturnOutcome {
   const facts = reader.saleForReturn(search);
@@ -60,7 +61,12 @@ export function findSaleForReturn(
       occurredAt: facts.occurredAt,
       total: amountToCharge(facts.sale),
       invoice: facts.invoice,
-      windows: returnWindows(facts.occurredAt, reader.goodConditionReturnDays(), clock.now()),
+      windows: returnWindows(
+        facts.occurredAt,
+        reader.goodConditionReturnDays(),
+        clock.now(),
+        zoneRules.zoneRules(),
+      ),
       lines: returnSaleLines(facts).map(viewOfLine),
       payments: returnablePayments(facts.payments),
     },

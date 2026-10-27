@@ -8,6 +8,7 @@ import {
   pendingTransaction,
 } from "../payments/test-support/payment-transaction-fixtures.js";
 import { paymentRefunds, paymentTransactions, sales } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import {
   AMOUNT,
@@ -23,6 +24,7 @@ const system = eventApplicationUnderTest();
 function applyEverything() {
   return applyPendingEvents(
     {
+      zoneRules: fixedZoneRulesSource(),
       eventApplication: system.application,
       upcaster: syncedEventUpcaster,
       clock: { now: () => new Date("2026-10-06T15:00:00.000Z") },

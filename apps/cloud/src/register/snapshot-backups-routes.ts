@@ -4,6 +4,7 @@ import {
   snapshotKeyRotationSchema,
   snapshotLifecycleRulesSchema,
 } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   changeSnapshotLifecycleRules,
   listSnapshotBackupRegisters,
@@ -33,6 +34,7 @@ export interface SnapshotBackupsRouteOptions<TQueryResult extends PgQueryResultH
   backofficeOrigin: string;
   keysEncryptionKey: Uint8Array;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 const REGISTER_NOT_FOUND_RESPONSE = {
@@ -77,7 +79,7 @@ export function registerSnapshotBackupsRoutes<TQueryResult extends PgQueryResult
       }
 
       const outcome = await registerSnapshotBackups(
-        { reader, clock: { now } },
+        { reader, clock: { now }, zoneRules: options.zoneRules },
         { registerId: ids.registerId },
       );
       if (outcome.kind === "register_not_found") {

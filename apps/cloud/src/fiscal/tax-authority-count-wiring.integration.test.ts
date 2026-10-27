@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -68,10 +69,15 @@ describe("the tax authority's count the server sets up on a real Postgres", () =
       values ('wsfe', ${FINGERPRINT}, 'FICTIONAL-TOKEN-0001', 'FICTIONAL-SIGN-0001',
               ${new Date("2125-12-31T18:00:00.000Z")}, ${new Date("2126-01-01T06:00:00.000Z")})
     `;
-    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => READ_AT, {
-      emailSender: UNUSED_EMAIL_SENDER,
-      schedules: false,
-    });
+    const backgroundJobs = await setUpBackgroundJobs(
+      backgroundJobsEnv(),
+      () => READ_AT,
+      fixedZoneRulesSource(),
+      {
+        emailSender: UNUSED_EMAIL_SENDER,
+        schedules: false,
+      },
+    );
     try {
       await backgroundJobs.db.transaction((transaction) =>
         enqueueTaxAuthorityCountJob(transaction, 7, "factura_c"),
@@ -94,10 +100,15 @@ describe("the tax authority's count the server sets up on a real Postgres", () =
   }, 90_000);
 
   it("hands out dedicated connections to the same database", async () => {
-    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => READ_AT, {
-      emailSender: UNUSED_EMAIL_SENDER,
-      schedules: false,
-    });
+    const backgroundJobs = await setUpBackgroundJobs(
+      backgroundJobsEnv(),
+      () => READ_AT,
+      fixedZoneRulesSource(),
+      {
+        emailSender: UNUSED_EMAIL_SENDER,
+        schedules: false,
+      },
+    );
     try {
       const rows = await backgroundJobs.connections.withConnection((db) =>
         db.execute(sqlTag`select current_database() as name`),

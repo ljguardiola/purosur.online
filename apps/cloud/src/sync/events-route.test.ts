@@ -15,6 +15,7 @@ import {
   installationRequestAttempts,
   refusedEvents,
   registerInstallations,
+  zoneRules,
 } from "../platform/db/schema.js";
 import { issueDeviceToken } from "../register/device-token.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -338,6 +339,27 @@ describe("POST /events", () => {
       audience: "local",
       detail: { deviceId, reason: "legal_name_missing" },
     });
+  });
+
+  it("opens the zone rules alert of a register that runs another version than the one the cloud published", async () => {
+    const { deviceId, deviceToken, registerId } = await enroll();
+    await route.db
+      .insert(zoneRules)
+      .values({ version: "2026a", transitions: [], publicationNumber: 1 });
+    const body = bodyOf([]);
+
+    await push(
+      { ...body, telemetry: { ...body.telemetry, zone_rules_version: "2025c" } },
+      `Bearer ${deviceToken}`,
+    );
+
+    const rows = await route.db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows).toEqual([
+      expect.objectContaining({
+        kind: "tz_rules_mismatch",
+        detail: { deviceId, registerVersion: "2025c", cloudVersion: "2026a" },
+      }),
+    ]);
   });
 
   it("records each admitted push as a request of its installation", async () => {

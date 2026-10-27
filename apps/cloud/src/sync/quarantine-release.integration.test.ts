@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { openAlert } from "../alerts/open-alert.js";
 import { alerts, auditLog, inbox, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -84,6 +85,7 @@ function release(input: { eventId: string; locationId: string; releasedBy: strin
 function applyEvents() {
   return applyPendingEvents(
     {
+      zoneRules: fixedZoneRulesSource(),
       eventApplication: new DrizzleEventApplication(
         db,
         () => NOW,

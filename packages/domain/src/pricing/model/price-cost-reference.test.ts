@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { FreightLine, FreightToDistribute } from "../../purchasing/index.js";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { type CostSource, priceCostReference } from "./price-cost-reference.js";
 
 function purchase(
@@ -48,7 +49,7 @@ function initialCountCosting(costCents: number, countedAt: string): CostSource {
 }
 
 function lastCostOf(sources: CostSource[]): number | null {
-  return priceCostReference(sources, null)?.lastCostCents ?? null;
+  return priceCostReference(sources, null, FIXED_ARGENTINA_ZONE_RULES)?.lastCostCents ?? null;
 }
 
 describe("the last cost source", () => {
@@ -152,20 +153,31 @@ function sourceWith(c: { totalCents: number; quantity: number }): CostSource {
 }
 
 function marginOf(costCents: number, unitPrice: number): number | null | undefined {
-  return priceCostReference([sourceWith({ totalCents: costCents, quantity: 1000 })], unitPrice)
-    ?.marginTenthsOfPercent;
+  return priceCostReference(
+    [sourceWith({ totalCents: costCents, quantity: 1000 })],
+    unitPrice,
+    FIXED_ARGENTINA_ZONE_RULES,
+  )?.marginTenthsOfPercent;
 }
 
 describe("priceCostReference", () => {
   it("has no cost reference without a cost source", () => {
-    expect(priceCostReference([], 2500)).toBeNull();
-    expect(priceCostReference([initialCount("2026-03-01T10:00:00Z", { cost: null })], 2500)).toBe(
-      null,
-    );
+    expect(priceCostReference([], 2500, FIXED_ARGENTINA_ZONE_RULES)).toBeNull();
+    expect(
+      priceCostReference(
+        [initialCount("2026-03-01T10:00:00Z", { cost: null })],
+        2500,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(null);
   });
 
   it("shows the last cost, no freight, the total cost and the margin", () => {
-    const reference = priceCostReference([sourceWith({ totalCents: 1200, quantity: 1000 })], 2000);
+    const reference = priceCostReference(
+      [sourceWith({ totalCents: 1200, quantity: 1000 })],
+      2000,
+      FIXED_ARGENTINA_ZONE_RULES,
+    );
 
     expect(reference).toEqual({
       lastCostCents: 1200,
@@ -176,7 +188,13 @@ describe("priceCostReference", () => {
   });
 
   it("has no margin without a price", () => {
-    expect(priceCostReference([sourceWith({ totalCents: 1200, quantity: 1000 })], null)).toEqual({
+    expect(
+      priceCostReference(
+        [sourceWith({ totalCents: 1200, quantity: 1000 })],
+        null,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({
       lastCostCents: 1200,
       freightPerUnitCents: 0,
       totalCostCents: 1200,
@@ -185,7 +203,9 @@ describe("priceCostReference", () => {
   });
 
   it("uses the typed reference cost of an initial count", () => {
-    expect(priceCostReference([initialCount("2026-03-01T10:00:00Z")], 1000)).toMatchObject({
+    expect(
+      priceCostReference([initialCount("2026-03-01T10:00:00Z")], 1000, FIXED_ARGENTINA_ZONE_RULES),
+    ).toMatchObject({
       lastCostCents: 700,
       marginTenthsOfPercent: 300,
     });
@@ -194,7 +214,9 @@ describe("priceCostReference", () => {
   it("rounds a cost of half a cent per unit up", () => {
     const halfCentAbove500 = { totalCents: 1001, quantity: 2000 };
 
-    expect(priceCostReference([sourceWith(halfCentAbove500)], 1000)).toMatchObject({
+    expect(
+      priceCostReference([sourceWith(halfCentAbove500)], 1000, FIXED_ARGENTINA_ZONE_RULES),
+    ).toMatchObject({
       lastCostCents: 501,
       totalCostCents: 501,
     });
@@ -203,7 +225,9 @@ describe("priceCostReference", () => {
   it("rounds a cost of a third of a cent per unit down", () => {
     const thirdOfACentAbove333 = { totalCents: 1000, quantity: 3000 };
 
-    expect(priceCostReference([sourceWith(thirdOfACentAbove333)], 1000)).toMatchObject({
+    expect(
+      priceCostReference([sourceWith(thirdOfACentAbove333)], 1000, FIXED_ARGENTINA_ZONE_RULES),
+    ).toMatchObject({
       lastCostCents: 333,
       totalCostCents: 333,
     });
@@ -212,7 +236,9 @@ describe("priceCostReference", () => {
   it("computes the margin from the exact cost, not the rounded one", () => {
     const costOfHalfThePrice = { totalCents: 1001, quantity: 2000 };
 
-    expect(priceCostReference([sourceWith(costOfHalfThePrice)], 1001)).toMatchObject({
+    expect(
+      priceCostReference([sourceWith(costOfHalfThePrice)], 1001, FIXED_ARGENTINA_ZONE_RULES),
+    ).toMatchObject({
       lastCostCents: 501,
       marginTenthsOfPercent: 500,
     });
@@ -239,7 +265,13 @@ describe("priceCostReference", () => {
   });
 
   it("is a hundred percent when the cost is nothing", () => {
-    expect(priceCostReference([sourceWith({ totalCents: 0, quantity: 1000 })], 500)).toMatchObject({
+    expect(
+      priceCostReference(
+        [sourceWith({ totalCents: 0, quantity: 1000 })],
+        500,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toMatchObject({
       lastCostCents: 0,
       marginTenthsOfPercent: 1000,
     });
@@ -262,7 +294,7 @@ describe("priceCostReference", () => {
   it("rounds the last cost within half a cent of the exact cost, as its total cost, for every cost", () => {
     fc.assert(
       fc.property(cost, price, (c, p) => {
-        const reference = priceCostReference([sourceWith(c)], p);
+        const reference = priceCostReference([sourceWith(c)], p, FIXED_ARGENTINA_ZONE_RULES);
         const exact = (c.totalCents * 1000) / c.quantity;
         expect(Math.abs((reference?.lastCostCents ?? 0) - exact)).toBeLessThanOrEqual(0.5 + 1e-6);
         expect(reference?.totalCostCents).toBe(reference?.lastCostCents);
@@ -276,7 +308,11 @@ describe("priceCostReference", () => {
       fc.property(cost, price, (c, p) => {
         const exactCost = (c.totalCents * 1000) / c.quantity;
         const exactTenths = ((p - exactCost) / p) * 1000;
-        const margin = priceCostReference([sourceWith(c)], p)?.marginTenthsOfPercent;
+        const margin = priceCostReference(
+          [sourceWith(c)],
+          p,
+          FIXED_ARGENTINA_ZONE_RULES,
+        )?.marginTenthsOfPercent;
         expect(margin).not.toBeNull();
         expect(Math.abs((margin ?? 0) - exactTenths)).toBeLessThanOrEqual(0.5 + 1e-6);
       }),
@@ -286,9 +322,9 @@ describe("priceCostReference", () => {
   it("never gives a margin above a hundred percent", () => {
     fc.assert(
       fc.property(cost, price, (c, p) => {
-        expect(priceCostReference([sourceWith(c)], p)?.marginTenthsOfPercent).toBeLessThanOrEqual(
-          1000,
-        );
+        expect(
+          priceCostReference([sourceWith(c)], p, FIXED_ARGENTINA_ZONE_RULES)?.marginTenthsOfPercent,
+        ).toBeLessThanOrEqual(1000);
       }),
     );
   });
@@ -316,6 +352,7 @@ describe("the freight in the cost reference", () => {
         ]),
       ],
       2000,
+      FIXED_ARGENTINA_ZONE_RULES,
     );
 
     expect(reference).toEqual({
@@ -330,6 +367,7 @@ describe("the freight in the cost reference", () => {
     const reference = priceCostReference(
       [boughtWithFreights({ totalCents: 1000, quantity: 1000 }, [])],
       2000,
+      FIXED_ARGENTINA_ZONE_RULES,
     );
 
     expect(reference).toEqual({
@@ -351,6 +389,7 @@ describe("the freight in the cost reference", () => {
         ]),
       ],
       null,
+      FIXED_ARGENTINA_ZONE_RULES,
     );
 
     expect(reference).toMatchObject({ freightPerUnitCents: 500, totalCostCents: 1500 });
@@ -365,6 +404,7 @@ describe("the freight in the cost reference", () => {
         ]),
       ],
       null,
+      FIXED_ARGENTINA_ZONE_RULES,
     );
 
     expect(reference).toMatchObject({ freightPerUnitCents: 350, totalCostCents: 1350 });
@@ -380,6 +420,7 @@ describe("the freight in the cost reference", () => {
         ]),
       ],
       1000,
+      FIXED_ARGENTINA_ZONE_RULES,
     );
 
     expect(reference).toEqual({
@@ -396,7 +437,7 @@ describe("the freight in the cost reference", () => {
     ]);
     const counted = initialCountCosting(700, "2026-03-05T15:00:00Z");
 
-    expect(priceCostReference([bought, counted], 2000)).toEqual({
+    expect(priceCostReference([bought, counted], 2000, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
       lastCostCents: 700,
       freightPerUnitCents: 0,
       totalCostCents: 700,
@@ -412,11 +453,12 @@ describe("the freight in the cost reference", () => {
         fc.integer({ min: 1, max: 100_000_000 }),
         fc.integer({ min: 1, max: 1_000_000_000 }),
         (c, p, amountCents, quantity) => {
-          const without = priceCostReference([sourceWith(c)], p);
+          const without = priceCostReference([sourceWith(c)], p, FIXED_ARGENTINA_ZONE_RULES);
           const line = freightLine("a", 1000, quantity);
           const reference = priceCostReference(
             [boughtWithFreights(c, [{ amountCents, lines: [line] }])],
             p,
+            FIXED_ARGENTINA_ZONE_RULES,
           );
 
           const exactFreight = (amountCents * 1000) / quantity;

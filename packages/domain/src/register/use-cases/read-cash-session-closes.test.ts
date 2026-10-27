@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { CashSessionClose } from "../model/cash-session-closes.js";
 import { readCashSessionCloses } from "./read-cash-session-closes.js";
 import { FakeCashSessionClosesReader } from "./test-support/fake-cash-session-closes-reader.js";
@@ -32,7 +36,7 @@ describe("readCashSessionCloses", () => {
     ]);
 
     const report = await readCashSessionCloses(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -56,7 +60,11 @@ describe("readCashSessionCloses", () => {
     const reader = new FakeCashSessionClosesReader();
 
     const report = await readCashSessionCloses(
-      { reader, clock: { now: () => new Date("2026-10-07T01:30:00.000Z") } },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reader,
+        clock: { now: () => new Date("2026-10-07T01:30:00.000Z") },
+      },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
@@ -64,11 +72,26 @@ describe("readCashSessionCloses", () => {
     expect(reader.reads[0]?.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
   });
 
+  it("asks for the current day on the calendar of the zone rules it is given", async () => {
+    const reader = new FakeCashSessionClosesReader();
+
+    const report = await readCashSessionCloses(
+      {
+        reader,
+        clock: { now: () => new Date("2026-10-07T01:30:00.000Z") },
+        zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)),
+      },
+      { locationId: "branch-1", asked: noRange, registerId: undefined },
+    );
+
+    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+  });
+
   it("limits the read to the asked register", async () => {
     const reader = new FakeCashSessionClosesReader();
 
     await readCashSessionCloses(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: "register-2" },
     );
 
@@ -77,7 +100,7 @@ describe("readCashSessionCloses", () => {
 
   it("reports empty totals for a range without closes", async () => {
     const report = await readCashSessionCloses(
-      { reader: new FakeCashSessionClosesReader(), clock },
+      { zoneRules: new FakeZoneRulesSource(), reader: new FakeCashSessionClosesReader(), clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 

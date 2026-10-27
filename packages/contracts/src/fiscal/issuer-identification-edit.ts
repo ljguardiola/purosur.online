@@ -5,11 +5,12 @@ import {
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
+  type ZoneRules,
 } from "@purosur/domain";
 import { z } from "zod";
 import { loadedVersionSchema, requiredTextSchema } from "../shared/index.js";
 
-export function issuerIdentificationEditBodySchema(today: Date) {
+export function issuerIdentificationEditBodySchema(today: Date, rules: ZoneRules) {
   const activityStartDateMessage =
     "activity_start_date must be a valid ISO calendar date (YYYY-MM-DD), not in the future";
   return z.object({
@@ -26,10 +27,10 @@ export function issuerIdentificationEditBodySchema(today: Date) {
     activity_start_date: z
       .string({ error: activityStartDateMessage })
       .refine(
-        (value) => isIssuerIdentificationActivityStartDate(value, today),
+        (value) => isIssuerIdentificationActivityStartDate(value, today, rules),
         activityStartDateMessage,
       )
-      .meta({ latestDay: argentinaCalendarDay(today) }),
+      .meta({ latestDay: argentinaCalendarDay(today, rules) }),
     version: loadedVersionSchema,
   });
 }

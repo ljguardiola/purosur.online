@@ -4,6 +4,7 @@ import {
   reportQuerySchema,
   salesByPaymentMethodSchema,
 } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   readHandConfirmedPayments,
   readSalesByPaymentMethod,
@@ -25,6 +26,7 @@ export interface PaymentsReportRouteOptions<TQueryResult extends PgQueryResultHK
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 export function registerPaymentsReportRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -49,7 +51,7 @@ export function registerPaymentsReportRoutes<TQueryResult extends PgQueryResultH
         return;
       }
       const report = await readSalesByPaymentMethod(
-        { reader, clock: { now } },
+        { reader, clock: { now }, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           asked: { from: query.from, to: query.to },
@@ -86,7 +88,7 @@ export function registerPaymentsReportRoutes<TQueryResult extends PgQueryResultH
         return;
       }
       const report = await readHandConfirmedPayments(
-        { reader: handConfirmedReader, clock: { now } },
+        { reader: handConfirmedReader, clock: { now }, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           asked: { from: query.from, to: query.to },

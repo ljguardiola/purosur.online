@@ -1,4 +1,4 @@
-import type { OutboxEventDraft } from "../../shared/index.js";
+import type { OutboxEventDraft, ZoneRulesSource } from "../../shared/index.js";
 import type { BuyerTaxStatusOption } from "../model/buyer-tax-status-set.js";
 import type { ClockMark } from "../model/clock-correction.js";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
@@ -46,4 +46,5 @@ export interface DeferredSaleCatchUp {
 
 export interface CatchUpDeferredSalesPorts extends RealTimeAuthorizationPorts {
   catchUp: DeferredSaleCatchUp;
+  zoneRules: ZoneRulesSource;
 }

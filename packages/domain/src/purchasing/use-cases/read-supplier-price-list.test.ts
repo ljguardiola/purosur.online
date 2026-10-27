@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   SUPPLIER_PRICE_LIST_STATES,
   type SupplierPriceListReadFailure,
@@ -23,7 +24,12 @@ function setup(
   const files = new FakeSupplierPriceListFiles();
   files.stored.set("list-1", PDF);
   const extractor = new FakePriceListExtractor();
-  return { store, files, extractor, ports: { store, files, extractor } };
+  return {
+    store,
+    files,
+    extractor,
+    ports: { store, files, extractor, zoneRules: new FakeZoneRulesSource() },
+  };
 }
 
 const input = { listId: "list-1", now: () => NOW, finalAttempt: false };

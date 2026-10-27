@@ -1,5 +1,5 @@
 {
-  "id": "46700765-61ec-4316-86dd-d647c3f0ddd2",
+  "id": "51816fdf-6abe-4b92-9181-45a088e702d6",
   "prevId": "ff7c2806-4d24-4a18-ad12-54614d1c4c4b",
   "version": "7",
   "dialect": "postgresql",
@@ -2195,18 +2195,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "return_id": {
-          "name": "return_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "issue_on": {
-          "name": "issue_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2215,8 +2203,8 @@
         }
       },
       "indexes": {
-        "credit_notes_corrected_voucher_idx": {
-          "name": "credit_notes_corrected_voucher_idx",
+        "credit_notes_corrected_voucher_key": {
+          "name": "credit_notes_corrected_voucher_key",
           "columns": [
             {
               "expression": "associated_voucher_type",
@@ -2237,7 +2225,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2282,7 +2270,7 @@
       "checkConstraints": {
         "credit_notes_reason_check": {
           "name": "credit_notes_reason_check",
-          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void', 'sale_return', 'rejected_document')"
+          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void', 'rejected_document')"
         },
         "credit_notes_kept_voucher_check": {
           "name": "credit_notes_kept_voucher_check",
@@ -2294,15 +2282,11 @@
         },
         "credit_notes_answer_kind_check": {
           "name": "credit_notes_answer_kind_check",
-          "value": "\"credit_notes\".\"answer_kind\" in ('authorized', 'rejected', 'unclear', 'regularization_required')"
+          "value": "\"credit_notes\".\"answer_kind\" in ('authorized', 'rejected', 'unclear')"
         },
         "credit_notes_answer_request_check": {
           "name": "credit_notes_answer_request_check",
-          "value": "\"credit_notes\".\"answer_kind\" is null or \"credit_notes\".\"answer_kind\" = 'regularization_required' or \"credit_notes\".\"number\" is not null"
-        },
-        "credit_notes_return_check": {
-          "name": "credit_notes_return_check",
-          "value": "(\"credit_notes\".\"reason\" = 'sale_return') = (\"credit_notes\".\"return_id\" is not null)\n        and (\"credit_notes\".\"return_id\" is null) = (\"credit_notes\".\"issue_on\" is null)"
+          "value": "\"credit_notes\".\"answer_kind\" is null or \"credit_notes\".\"number\" is not null"
         },
         "credit_notes_answer_time_check": {
           "name": "credit_notes_answer_time_check",
@@ -3341,7 +3325,7 @@
         },
         "fiscal_tasks_voucher_check": {
           "name": "fiscal_tasks_voucher_check",
-          "value": "(\"fiscal_tasks\".\"kind\" = 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is null and \"fiscal_tasks\".\"document_type\" is null and \"fiscal_tasks\".\"number\" is null) or (\"fiscal_tasks\".\"kind\" <> 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is not null and \"fiscal_tasks\".\"document_type\" is not null and (\"fiscal_tasks\".\"number\" is not null or \"fiscal_tasks\".\"kind\" = 'credit_note_rejected'))"
+          "value": "(\"fiscal_tasks\".\"kind\" = 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is null and \"fiscal_tasks\".\"document_type\" is null and \"fiscal_tasks\".\"number\" is null) or (\"fiscal_tasks\".\"kind\" <> 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is not null and \"fiscal_tasks\".\"document_type\" is not null and \"fiscal_tasks\".\"number\" is not null)"
         },
         "fiscal_tasks_document_type_check": {
           "name": "fiscal_tasks_document_type_check",
@@ -11716,6 +11700,60 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.zone_rules": {
+      "name": "zone_rules",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transitions": {
+          "name": "transitions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "publication_number": {
+          "name": "publication_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "zone_rules_publication_number_key": {
+          "name": "zone_rules_publication_number_key",
+          "columns": [
+            {
+              "expression": "publication_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

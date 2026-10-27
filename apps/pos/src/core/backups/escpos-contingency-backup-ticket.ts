@@ -1,4 +1,4 @@
-import { ARGENTINA_TIME_ZONE, type CashMovementKind } from "@purosur/domain";
+import { type CashMovementKind, localClock, type ZoneRules } from "@purosur/domain";
 import {
   formatDate,
   formatInvoiceNumber,
@@ -154,25 +154,29 @@ class Output {
   }
 }
 
-export function renderContingencyBackupTicket({
-  createdAt,
-  branchAddress,
-  registerName,
-  operation,
-  backs,
-  qrCodes,
-}: ContingencyBackupTicketPrintout): Uint8Array {
-  const date = formatDate(createdAt, {
+export function renderContingencyBackupTicket(
+  {
+    createdAt,
+    branchAddress,
+    registerName,
+    operation,
+    backs,
+    qrCodes,
+  }: ContingencyBackupTicketPrintout,
+  rules: ZoneRules,
+): Uint8Array {
+  const wallClock = localClock(createdAt, rules);
+  const date = formatDate(wallClock, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    timeZone: ARGENTINA_TIME_ZONE,
+    timeZone: "UTC",
   });
-  const time = formatDate(createdAt, {
+  const time = formatDate(wallClock, {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-    timeZone: ARGENTINA_TIME_ZONE,
+    timeZone: "UTC",
   });
   const out = new Output();
   out.command(ESC, 0x40);

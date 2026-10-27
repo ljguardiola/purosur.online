@@ -1,4 +1,9 @@
-import { argentinaCalendarDay, isValidCashAmount, shiftCalendarDay } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  isValidCashAmount,
+  shiftCalendarDay,
+  type ZoneRules,
+} from "../../shared/index.js";
 import { isPurchaseNoteTooLong, PURCHASE_NOTE_MAX_LENGTH } from "./purchase.js";
 import { isSupplierNameTooLong, SUPPLIER_NAME_MAX_LENGTH } from "./supplier.js";
 
@@ -47,6 +52,6 @@ export function hasFreightPurchases(purchaseCount: number): boolean {
   return purchaseCount >= MIN_FREIGHT_PURCHASES;
 }
 
-export function freightPeriodStart(period: FreightPeriodDays, now: Date): string {
-  return shiftCalendarDay(argentinaCalendarDay(now), -period);
+export function freightPeriodStart(period: FreightPeriodDays, now: Date, rules: ZoneRules): string {
+  return shiftCalendarDay(argentinaCalendarDay(now, rules), -period);
 }

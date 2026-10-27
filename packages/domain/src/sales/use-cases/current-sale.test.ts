@@ -1,6 +1,7 @@
 import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { currentSale } from "./current-sale.js";
 import {
@@ -54,7 +55,12 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 
 function read(store: FakeSaleLedger, actorId = "cashier") {
   return currentSale(
-    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
+    {
+      zoneRules: new FakeZoneRulesSource(),
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+    },
     { actorId },
   );
 }

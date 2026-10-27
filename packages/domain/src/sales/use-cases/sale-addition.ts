@@ -1,7 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import { paidOrdersSellingRefusal } from "../../payments/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRules } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
@@ -98,13 +98,14 @@ export function addLineToSale(
   addition: SaleAddition,
   ids: IdGenerator,
   moment: Date,
+  rules: ZoneRules,
   newLine: (lineId: string) => SaleLine,
 ): AddedLineOutcome {
   const { actorId, session, target } = addition;
   const sale = isOpenSale(target) ? target : startSale(tx, ids.next(), target, session.id, actorId);
   const line = newLine(ids.next());
   tx.recordSaleLine(sale.id, line);
-  return added(tx, moment, { ...sale, lines: [...sale.lines, line] }, false);
+  return added(tx, moment, { ...sale, lines: [...sale.lines, line] }, false, rules);
 }
 
 export function added(
@@ -112,6 +113,7 @@ export function added(
   moment: Date,
   withLine: SaleWithLines,
   removedManualDiscount: boolean,
+  rules: ZoneRules,
 ): AddedLineOutcome {
   const { sale, removedSaleDiscount } = withoutSaleDiscount(tx, withLine);
   return {
@@ -119,7 +121,7 @@ export function added(
     removedManualDiscount,
     removedSaleDiscount,
     sale,
-    chargeRefusal: saleChargeRefusal(tx, sale, moment),
+    chargeRefusal: saleChargeRefusal(tx, sale, moment, rules),
     ...openSaleStanding(
       amountToCharge(sale),
       tx.salePayments(sale.id),
@@ -133,8 +135,9 @@ export function validPromotions(
   tx: SaleLedgerTransaction,
   productId: string,
   moment: Date,
+  rules: ZoneRules,
 ): LinePromotion[] {
-  const day = argentinaCalendarDay(moment);
+  const day = argentinaCalendarDay(moment, rules);
   return tx
     .promotionsTargeting(productId)
     .filter((promotion) => discountAppliesOn(promotion, day))

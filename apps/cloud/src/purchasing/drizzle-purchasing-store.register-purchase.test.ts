@@ -19,6 +19,7 @@ import {
 import { insertMovement } from "../stock/test-support/stock-route-fixtures.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
@@ -83,7 +84,7 @@ async function register(
   },
 ) {
   const outcome = await registerPurchase(
-    { store: store(), clock: { now: () => RECORDED_AT } },
+    { zoneRules: fixedZoneRulesSource(), store: store(), clock: { now: () => RECORDED_AT } },
     {
       supplierId,
       purchasedOn: "2026-10-01",

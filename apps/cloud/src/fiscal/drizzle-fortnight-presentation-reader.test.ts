@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { locations, pointOfSaleClaims, registers, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFortnightPresentationReader } from "./drizzle-fortnight-presentation-reader.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
@@ -131,7 +132,7 @@ async function seedOtherBranchOfflinePointOfSale(pointOfSaleNumber: number) {
 }
 
 async function presentations(today: string) {
-  return new DrizzleFortnightPresentationReader(db).branchPresentations(
+  return new DrizzleFortnightPresentationReader(db, fixedZoneRulesSource()).branchPresentations(
     await seededLocationId(db),
     today,
   );

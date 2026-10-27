@@ -1,4 +1,4 @@
-import type { Clock, OperationAuthority } from "../../shared/index.js";
+import type { Clock, OperationAuthority, ZoneRulesSource } from "../../shared/index.js";
 import type { ManualAdjustmentValue } from "../model/manual-adjustment.js";
 import {
   type ManualAdjustmentRefusal,
@@ -30,6 +30,7 @@ export interface AdjustSaleLinePorts<Grant extends AdjustSaleLineGrant, Refusal>
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   authority: OperationAuthority<Grant, Refusal>;
 }
 
@@ -40,7 +41,7 @@ export type AdjustSaleLineOutcome =
   | ChangedLineOutcome;
 
 export async function adjustSaleLine<Grant extends AdjustSaleLineGrant, Refusal>(
-  { ledger, restoration, clock, authority }: AdjustSaleLinePorts<Grant, Refusal>,
+  { ledger, restoration, clock, zoneRules, authority }: AdjustSaleLinePorts<Grant, Refusal>,
   { lineId, adjustment, reason }: AdjustSaleLineInput,
 ): Promise<AdjustSaleLineOutcome | Refusal> {
   const authorization = await authority.authorize();
@@ -69,6 +70,6 @@ export async function adjustSaleLine<Grant extends AdjustSaleLineGrant, Refusal>
       authorizedBy: authorizedBy ?? null,
     });
     tx.recordChangedLine(updated);
-    return changedLine(tx, sale, line, updated, clock.now());
+    return changedLine(tx, sale, line, updated, clock.now(), zoneRules.zoneRules());
   });
 }

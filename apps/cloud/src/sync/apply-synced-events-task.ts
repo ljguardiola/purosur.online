@@ -1,4 +1,5 @@
 import { syncedEventUpcaster } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import { type ApplyPendingEventsOutcome, applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -17,7 +18,7 @@ const EVENTS_PER_RUN = 200;
 
 export function applySyncedEventsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date; report?: typeof reportError },
+  deps: { now: () => Date; zoneRules: ZoneRulesSource; report?: typeof reportError },
 ): Promise<ApplyPendingEventsOutcome> {
   return applyPendingEvents(
     {
@@ -28,6 +29,7 @@ export function applySyncedEventsTask<TQueryResult extends PgQueryResultHKT>(
       ),
       upcaster: syncedEventUpcaster,
       clock: { now: deps.now },
+      zoneRules: deps.zoneRules,
       quarantineNotices: reportedQuarantines(deps.report ?? reportError),
     },
     { limit: EVENTS_PER_RUN },
@@ -41,7 +43,7 @@ export interface ApplySyncedEventsJobsDeps {
 }
 
 export function applySyncedEventsJobs(
-  options: { now: () => Date },
+  options: { now: () => Date; zoneRules: ZoneRulesSource },
   deps: ApplySyncedEventsJobsDeps = {},
 ): BackgroundJobs {
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
@@ -51,7 +53,11 @@ export function applySyncedEventsJobs(
     taskList: {
       [APPLY_SYNCED_EVENTS_TASK_IDENTIFIER]: async (_payload, helpers) => {
         const outcome = await helpers.withPgClient((client) =>
-          doApply(doCreateDatabase(client), { now: options.now, report: doReport }),
+          doApply(doCreateDatabase(client), {
+            now: options.now,
+            zoneRules: options.zoneRules,
+            report: doReport,
+          }),
         );
         if (outcome.kind === "processed" && outcome.limitReached) {
           await helpers.addJob(

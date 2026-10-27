@@ -42,7 +42,7 @@ export async function obtainOfflineAuthorizationCodes(
   }
   const fortnights: { fortnight: Fortnight; outcome: FortnightAcquisitionOutcome }[] = [];
   for (const fortnight of fortnightsWithinRequestWindowOn(
-    argentinaCalendarDay(ports.clock.now()),
+    argentinaCalendarDay(ports.clock.now(), ports.zoneRules.zoneRules()),
   )) {
     const outcome = await ports.store.holdAcquisition(fortnight, (acquisition) =>
       obtainFortnightCode(ports, fortnight, acquisition),

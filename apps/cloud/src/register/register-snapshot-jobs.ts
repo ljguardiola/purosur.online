@@ -1,4 +1,8 @@
-import { SNAPSHOT_RETENTION_INTERVAL_MS, SNAPSHOT_VERIFICATION_INTERVAL_MS } from "@purosur/domain";
+import {
+  SNAPSHOT_RETENTION_INTERVAL_MS,
+  SNAPSHOT_VERIFICATION_INTERVAL_MS,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import {
   applySnapshotRetention,
   type SnapshotObjects,
@@ -19,6 +23,7 @@ export const REGISTER_SNAPSHOT_RETENTION_TASK_IDENTIFIER = "register-snapshot-re
 
 interface RegisterSnapshotTaskDeps {
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   objects: SnapshotObjects;
 }
 
@@ -41,6 +46,7 @@ export async function applyRegisterSnapshotRetentionTask<TQueryResult extends Pg
     store: new DrizzleSnapshotStore(db),
     lanes: new DrizzleRegisterSnapshotLanes({ withConnection: (work) => work(db) }),
     clock: { now: deps.now },
+    zoneRules: deps.zoneRules,
     objects: deps.objects,
   });
 }

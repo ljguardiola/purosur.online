@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   type TaxAuthorityVoucher,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
@@ -104,6 +105,7 @@ function scenario({
     requests: store,
     lanes: store,
     clock,
+    zoneRules: new FakeZoneRulesSource(),
     tokens: new FakeCreditNoteTokens(store, token),
     vouchers: taxAuthority,
     taxAuthority,

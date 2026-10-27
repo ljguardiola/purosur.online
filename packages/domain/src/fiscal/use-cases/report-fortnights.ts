@@ -77,7 +77,7 @@ export async function reportFortnights(
   if (token === null) {
     return { kind: "no_token" };
   }
-  const today = argentinaCalendarDay(ports.clock.now());
+  const today = argentinaCalendarDay(ports.clock.now(), ports.zoneRules.zoneRules());
   await recoverLastClosedFortnightCode(ports, token, today);
   await recoverListedFortnightCodes(ports, token);
   const listed = await ports.owedPresentations.listed();
@@ -320,15 +320,15 @@ async function presentFortnight(
 }
 
 async function reachesPastClose(
-  { streams }: FortnightReportPorts,
+  { streams, zoneRules }: FortnightReportPorts,
   listed: ListedOwedPresentation[],
   owed: OwedFortnightReport,
 ): Promise<boolean> {
   const { fortnight } = owed.code;
   const installations = await streams.installationsOf(owed.registerId);
   const period = {
-    from: new Date(argentinaInstant(fortnight.start, "00:00")),
-    until: fortnightClosesAt(fortnight),
+    from: new Date(argentinaInstant(fortnight.start, "00:00", zoneRules.zoneRules())),
+    until: fortnightClosesAt(fortnight, zoneRules.zoneRules()),
   };
   if (
     listsOwedPresentation(listed, keyOf(owed)) &&

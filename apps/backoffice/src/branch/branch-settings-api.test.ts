@@ -25,6 +25,7 @@ const wireRow = {
   unreviewed_price_alert_days: 30,
   good_condition_return_days: 15,
   supplier_price_list_daily_extraction_cap: 10,
+  zone_rules_version: "2026a",
   version: 1,
   monday_hours: [
     { opens_at: "09:00", closes_at: "13:00" },
@@ -58,6 +59,7 @@ const settings: BranchSettings = {
   unreviewedPriceAlertDays: 30,
   goodConditionReturnDays: 15,
   supplierPriceListDailyExtractionCap: 10,
+  zoneRulesVersion: "2026a",
   version: 1,
 };
 
@@ -72,6 +74,7 @@ test("fetchBranchSettings returns the branch's settings on 200", async () => {
 
 test.each([
   ["a body missing a field", { ...wireRow, version: undefined }],
+  ["a body without the zone rules version", { ...wireRow, zone_rules_version: undefined }],
   [
     "a body without the supplier price list cap",
     { ...wireRow, supplier_price_list_daily_extraction_cap: undefined },
@@ -83,6 +86,15 @@ test.each([
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 
   expect(await fetchBranchSettings()).toEqual({ kind: "failed" });
+});
+
+test("fetchBranchSettings reads a cloud that has published no zone rules as none", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...wireRow, zone_rules_version: null }));
+
+  expect(await fetchBranchSettings()).toEqual({
+    kind: "ok",
+    value: { ...settings, zoneRulesVersion: null },
+  });
 });
 
 test("fetchBranchSettings returns failed on 200 with a body that is not JSON", async () => {

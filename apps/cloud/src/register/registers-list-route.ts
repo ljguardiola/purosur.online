@@ -1,4 +1,5 @@
 import { type RegisterSummaryBody, registerListSchema } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   type BranchRegisterSummary,
   listBranchRegisters,
@@ -18,6 +19,7 @@ export interface RegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 function toInstallationWire(

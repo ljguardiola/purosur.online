@@ -1,4 +1,4 @@
-import type { ContingencyBackupPrintFailureReason } from "@purosur/domain";
+import type { ContingencyBackupPrintFailureReason, ZoneRulesSource } from "@purosur/domain";
 import type {
   ContingencyBackupTicketPrinter,
   ContingencyBackupTicketPrinting,
@@ -18,6 +18,7 @@ type WaitingStatus = Extract<
 export interface ContingencyBackupTicketPrinterDeps {
   printoutOf: (ticketId: string) => ContingencyBackupTicketPrintout | undefined;
   printers: ReceiptPrinters;
+  zoneRules: ZoneRulesSource;
   reportFailure: (context: string, error: unknown) => void;
 }
 
@@ -33,6 +34,7 @@ function isWaitingStatus(status: string): status is WaitingStatus {
 export function createContingencyBackupTicketPrinter({
   printoutOf,
   printers,
+  zoneRules,
   reportFailure,
 }: ContingencyBackupTicketPrinterDeps): ContingencyBackupTicketPrinterWithStanding {
   let failure: ContingencyBackupPrintFailureReason | null = null;
@@ -64,7 +66,7 @@ export function createContingencyBackupTicketPrinter({
                 failure = isWaitingStatus(status) ? status : null;
               },
             },
-            () => renderContingencyBackupTicket(printout),
+            () => renderContingencyBackupTicket(printout, zoneRules.zoneRules()),
           );
           if (ending.kind === "abandoned") return notSent("failed");
           failure = null;

@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
   DEFERRED_RETRY_DELAYING_STATES,
@@ -48,24 +49,48 @@ describe("DEFERRED_RETRY_DELAYING_STATES", () => {
 
 describe("isDateOrderBroken", () => {
   it("is false without an authorized document", () => {
-    expect(isDateOrderBroken(new Date("2026-10-10T12:00:00-03:00"), null)).toBe(false);
+    expect(
+      isDateOrderBroken(new Date("2026-10-10T12:00:00-03:00"), null, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
   });
 
   it("is true when the sale's Argentine day is earlier than the last authorized one", () => {
-    expect(isDateOrderBroken(new Date("2026-10-10T12:00:00-03:00"), "2026-10-11")).toBe(true);
+    expect(
+      isDateOrderBroken(
+        new Date("2026-10-10T12:00:00-03:00"),
+        "2026-10-11",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(true);
   });
 
   it("is false on the same day", () => {
-    expect(isDateOrderBroken(new Date("2026-10-10T23:59:00-03:00"), "2026-10-10")).toBe(false);
+    expect(
+      isDateOrderBroken(
+        new Date("2026-10-10T23:59:00-03:00"),
+        "2026-10-10",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(false);
   });
 
   it("is false for a later day", () => {
-    expect(isDateOrderBroken(new Date("2026-10-11T00:00:00-03:00"), "2026-10-10")).toBe(false);
+    expect(
+      isDateOrderBroken(
+        new Date("2026-10-11T00:00:00-03:00"),
+        "2026-10-10",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(false);
   });
 
   it("reads the sale's day in Argentina, not in UTC", () => {
-    expect(isDateOrderBroken(new Date("2026-10-11T01:00:00Z"), "2026-10-10")).toBe(false);
-    expect(isDateOrderBroken(new Date("2026-10-11T01:00:00Z"), "2026-10-11")).toBe(true);
+    expect(
+      isDateOrderBroken(new Date("2026-10-11T01:00:00Z"), "2026-10-10", FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isDateOrderBroken(new Date("2026-10-11T01:00:00Z"), "2026-10-11", FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
   });
 });
 
@@ -102,15 +127,22 @@ describe("latestIssuedOn", () => {
 
 describe("isInDeferredBacklog", () => {
   it("holds a pending sale inside its window", () => {
-    expect(isInDeferredBacklog(entry(), now, null)).toBe(true);
+    expect(isInDeferredBacklog(entry(), now, null, FIXED_ARGENTINA_ZONE_RULES)).toBe(true);
   });
 
   it("drops an expired sale", () => {
-    expect(isInDeferredBacklog(entry(), new Date("2026-10-16T00:00:00-03:00"), null)).toBe(false);
+    expect(
+      isInDeferredBacklog(
+        entry(),
+        new Date("2026-10-16T00:00:00-03:00"),
+        null,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(false);
   });
 
   it("drops a sale whose date is behind the last authorized document", () => {
-    expect(isInDeferredBacklog(entry(), now, "2026-10-11")).toBe(false);
+    expect(isInDeferredBacklog(entry(), now, "2026-10-11", FIXED_ARGENTINA_ZONE_RULES)).toBe(false);
   });
 });
 
@@ -118,20 +150,37 @@ describe("isDeferredSaleUninvoiceable", () => {
   const occurredAt = new Date("2026-10-10T12:00:00-03:00");
 
   it("holds a sale inside its window and on or after the last authorized day as invoiceable", () => {
-    expect(isDeferredSaleUninvoiceable(occurredAt, now, null)).toBe(false);
-    expect(isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-09")).toBe(false);
-    expect(isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-10")).toBe(false);
+    expect(isDeferredSaleUninvoiceable(occurredAt, now, null, FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      false,
+    );
+    expect(
+      isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-09", FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-10", FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
   });
 
   it("is true for an expired sale whatever the last authorized day", () => {
     const afterExpiry = new Date("2026-10-16T00:00:00-03:00");
 
-    expect(isDeferredSaleUninvoiceable(occurredAt, afterExpiry, null)).toBe(true);
-    expect(isDeferredSaleUninvoiceable(occurredAt, afterExpiry, "2026-10-01")).toBe(true);
+    expect(
+      isDeferredSaleUninvoiceable(occurredAt, afterExpiry, null, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
+    expect(
+      isDeferredSaleUninvoiceable(
+        occurredAt,
+        afterExpiry,
+        "2026-10-01",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(true);
   });
 
   it("is true for a sale not yet expired whose day is before the last authorized day", () => {
-    expect(isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-11")).toBe(true);
+    expect(
+      isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-11", FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
   });
 
   it("is the negation of being in the backlog", () => {
@@ -148,8 +197,13 @@ describe("isDeferredSaleUninvoiceable", () => {
           nil: null,
         }),
         (sale, current, lastAuthorized) =>
-          isDeferredSaleUninvoiceable(sale, current, lastAuthorized) ===
-          !isInDeferredBacklog(entry({ occurredAt: sale }), current, lastAuthorized),
+          isDeferredSaleUninvoiceable(sale, current, lastAuthorized, FIXED_ARGENTINA_ZONE_RULES) ===
+          !isInDeferredBacklog(
+            entry({ occurredAt: sale }),
+            current,
+            lastAuthorized,
+            FIXED_ARGENTINA_ZONE_RULES,
+          ),
       ),
     );
   });
@@ -157,11 +211,11 @@ describe("isDeferredSaleUninvoiceable", () => {
 
 describe("hasDeferredBacklog", () => {
   it("is false without entries", () => {
-    expect(hasDeferredBacklog([], now, null)).toBe(false);
+    expect(hasDeferredBacklog([], now, null, FIXED_ARGENTINA_ZONE_RULES)).toBe(false);
   });
 
   it("is true with a pending sale", () => {
-    expect(hasDeferredBacklog([entry()], now, null)).toBe(true);
+    expect(hasDeferredBacklog([entry()], now, null, FIXED_ARGENTINA_ZONE_RULES)).toBe(true);
   });
 
   it("is false when every entry is expired or out of date order", () => {
@@ -169,7 +223,7 @@ describe("hasDeferredBacklog", () => {
       entry({ deferredSaleId: "a", occurredAt: new Date("2026-10-01T12:00:00-03:00") }),
       entry({ deferredSaleId: "b" }),
     ];
-    expect(hasDeferredBacklog(entries, now, "2026-10-11")).toBe(false);
+    expect(hasDeferredBacklog(entries, now, "2026-10-11", FIXED_ARGENTINA_ZONE_RULES)).toBe(false);
   });
 
   it("is true when one entry remains among dropped ones", () => {
@@ -177,19 +231,26 @@ describe("hasDeferredBacklog", () => {
       entry({ deferredSaleId: "a", occurredAt: new Date("2026-10-01T12:00:00-03:00") }),
       entry({ deferredSaleId: "b" }),
     ];
-    expect(hasDeferredBacklog(entries, now, null)).toBe(true);
+    expect(hasDeferredBacklog(entries, now, null, FIXED_ARGENTINA_ZONE_RULES)).toBe(true);
   });
 });
 
 describe("nextDeferredBacklogStep", () => {
   it("is empty without entries", () => {
-    expect(nextDeferredBacklogStep([], now, null)).toEqual({ kind: "empty" });
+    expect(nextDeferredBacklogStep([], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
+      kind: "empty",
+    });
   });
 
   it("is empty when every entry is expired", () => {
-    expect(nextDeferredBacklogStep([entry()], new Date("2026-10-16T00:00:00-03:00"), null)).toEqual(
-      { kind: "empty" },
-    );
+    expect(
+      nextDeferredBacklogStep(
+        [entry()],
+        new Date("2026-10-16T00:00:00-03:00"),
+        null,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({ kind: "empty" });
   });
 
   it("invoices the oldest sale first", () => {
@@ -198,7 +259,7 @@ describe("nextDeferredBacklogStep", () => {
       occurredAt: new Date("2026-10-09T12:00:00-03:00"),
     });
     const newer = entry({ deferredSaleId: "newer" });
-    expect(nextDeferredBacklogStep([newer, older], now, null)).toEqual({
+    expect(nextDeferredBacklogStep([newer, older], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
       kind: "invoice",
       entry: older,
     });
@@ -207,29 +268,35 @@ describe("nextDeferredBacklogStep", () => {
   it("breaks a tie of sale instants by when the sale was deferred", () => {
     const first = entry({ deferredSaleId: "z", routedAt: new Date("2026-10-10T12:00:01-03:00") });
     const second = entry({ deferredSaleId: "a", routedAt: new Date("2026-10-10T12:00:09-03:00") });
-    expect(nextDeferredBacklogStep([second, first], now, null)).toEqual({
-      kind: "invoice",
-      entry: first,
-    });
+    expect(nextDeferredBacklogStep([second, first], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      {
+        kind: "invoice",
+        entry: first,
+      },
+    );
   });
 
   it("breaks a full tie by deferred sale id, in either order given", () => {
     const first = entry({ deferredSaleId: "a" });
     const second = entry({ deferredSaleId: "b" });
-    expect(nextDeferredBacklogStep([second, first], now, null)).toEqual({
-      kind: "invoice",
-      entry: first,
-    });
-    expect(nextDeferredBacklogStep([first, second], now, null)).toEqual({
-      kind: "invoice",
-      entry: first,
-    });
+    expect(nextDeferredBacklogStep([second, first], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      {
+        kind: "invoice",
+        entry: first,
+      },
+    );
+    expect(nextDeferredBacklogStep([first, second], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      {
+        kind: "invoice",
+        entry: first,
+      },
+    );
   });
 
   it("orders deferred sale ids of a full tie by their code units, as storage does", () => {
     const upper = entry({ deferredSaleId: "B" });
     const lower = entry({ deferredSaleId: "a" });
-    expect(nextDeferredBacklogStep([lower, upper], now, null)).toEqual({
+    expect(nextDeferredBacklogStep([lower, upper], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
       kind: "invoice",
       entry: upper,
     });
@@ -241,10 +308,12 @@ describe("nextDeferredBacklogStep", () => {
       occurredAt: new Date("2026-10-01T12:00:00-03:00"),
     });
     const live = entry({ deferredSaleId: "live" });
-    expect(nextDeferredBacklogStep([expired, live], now, null)).toEqual({
-      kind: "invoice",
-      entry: live,
-    });
+    expect(nextDeferredBacklogStep([expired, live], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      {
+        kind: "invoice",
+        entry: live,
+      },
+    );
   });
 
   it("skips a sale behind the last authorized date and invoices the next", () => {
@@ -253,7 +322,9 @@ describe("nextDeferredBacklogStep", () => {
       occurredAt: new Date("2026-10-09T12:00:00-03:00"),
     });
     const live = entry({ deferredSaleId: "live" });
-    expect(nextDeferredBacklogStep([behind, live], now, "2026-10-10")).toEqual({
+    expect(
+      nextDeferredBacklogStep([behind, live], now, "2026-10-10", FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       kind: "invoice",
       entry: live,
     });
@@ -266,18 +337,20 @@ describe("nextDeferredBacklogStep", () => {
       deferredSaleId: "next",
       occurredAt: new Date("2026-10-11T12:00:00-03:00"),
     });
-    expect(nextDeferredBacklogStep([next, blocked], now, null)).toEqual({
-      kind: "wait",
-      until: new Date(attemptEndedAt.getTime() + DEFERRED_BACKLOG_RETRY_INTERVAL_MS),
-      entry: blocked,
-    });
+    expect(nextDeferredBacklogStep([next, blocked], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      {
+        kind: "wait",
+        until: new Date(attemptEndedAt.getTime() + DEFERRED_BACKLOG_RETRY_INTERVAL_MS),
+        entry: blocked,
+      },
+    );
   });
 
   it("retries once the interval has passed", () => {
     const blocked = entry({
       lastAttemptEndedAt: new Date(now.getTime() - DEFERRED_BACKLOG_RETRY_INTERVAL_MS),
     });
-    expect(nextDeferredBacklogStep([blocked], now, null)).toEqual({
+    expect(nextDeferredBacklogStep([blocked], now, null, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
       kind: "invoice",
       entry: blocked,
     });
@@ -287,7 +360,9 @@ describe("nextDeferredBacklogStep", () => {
     const blocked = entry({
       lastAttemptEndedAt: new Date(now.getTime() - DEFERRED_BACKLOG_RETRY_INTERVAL_MS + 1),
     });
-    expect(nextDeferredBacklogStep([blocked], now, null).kind).toBe("wait");
+    expect(nextDeferredBacklogStep([blocked], now, null, FIXED_ARGENTINA_ZONE_RULES).kind).toBe(
+      "wait",
+    );
   });
 
   it("never invoices a sale that is out of the backlog, whatever the entries", () => {
@@ -299,11 +374,20 @@ describe("nextDeferredBacklogStep", () => {
             occurredAt: new Date(Date.parse("2026-09-25T12:00:00-03:00") + offset * 86_400_000),
           }),
         );
-        const step = nextDeferredBacklogStep(entries, now, "2026-10-05");
+        const step = nextDeferredBacklogStep(
+          entries,
+          now,
+          "2026-10-05",
+          FIXED_ARGENTINA_ZONE_RULES,
+        );
         if (step.kind === "invoice") {
-          expect(isInDeferredBacklog(step.entry, now, "2026-10-05")).toBe(true);
+          expect(
+            isInDeferredBacklog(step.entry, now, "2026-10-05", FIXED_ARGENTINA_ZONE_RULES),
+          ).toBe(true);
         }
-        expect(step.kind === "empty").toBe(!hasDeferredBacklog(entries, now, "2026-10-05"));
+        expect(step.kind === "empty").toBe(
+          !hasDeferredBacklog(entries, now, "2026-10-05", FIXED_ARGENTINA_ZONE_RULES),
+        );
       }),
     );
   });

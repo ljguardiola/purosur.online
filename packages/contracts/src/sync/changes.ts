@@ -22,6 +22,7 @@ import {
   issuerIdentificationSchema,
   pointOfSaleNumberSchema,
   recordIdSchema,
+  zoneRulesTransitionsSchema,
 } from "../shared/index.js";
 
 const SINCE_MESSAGE = "since must be the cursor of the last page already pulled, 0 the first time";
@@ -282,6 +283,16 @@ const buyerTaxStatusSetChangeSchema = z.object({
   }),
 });
 
+const zoneRulesChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("zone_rules"),
+  row: z.object({
+    version: z.string().min(1),
+    transitions: zoneRulesTransitionsSchema,
+    publication_number: z.int().positive(),
+  }),
+});
+
 const priceChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("price"),
@@ -353,6 +364,7 @@ export const changesPageSchema = z.object({
         offlineAuthorizationCodeChangeSchema,
         offlineNumberBlockChangeSchema,
         buyerTaxStatusSetChangeSchema,
+        zoneRulesChangeSchema,
         stockMovementChangeSchema,
         refundCompletionChangeSchema,
         removalChangeSchema,

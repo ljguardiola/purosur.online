@@ -6,6 +6,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -60,6 +61,7 @@ function countingIds(): { next: () => string } {
 
 function settle({ canSignEvents = true } = {}) {
   return paidOrderSale({
+    zoneRules: fixedZoneRulesSource(),
     database,
     outboxChainKey: canSignEvents ? CHARGE_CHAIN_KEY : undefined,
     restoration: restorationOf(database),
@@ -136,6 +138,7 @@ describe("settling a paid order into the sale", () => {
       refunds: { openLatePaymentRefund: async () => ({ kind: "refused" }) },
       local: new SqliteLocalPaidOrders({ database }),
       sale: paidOrderSale({
+        zoneRules: fixedZoneRulesSource(),
         database,
         restoration: restorationOf(database),
         outboxChainKey: CHARGE_CHAIN_KEY,

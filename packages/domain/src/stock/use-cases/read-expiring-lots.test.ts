@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { ZoneRules } from "../../shared/index.js";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { ExpiringLotProduct, ExpiringLotRow } from "./expiring-lot-reader.js";
 import { readExpiringLots } from "./read-expiring-lots.js";
 import {
@@ -44,18 +49,34 @@ function lot(
 
 async function read(
   rows: (ExpiringLotRow & { locationId: string })[],
-  options: { windowDays?: number; now?: Date } = {},
+  options: { windowDays?: number; now?: Date; zoneRules?: ZoneRules } = {},
 ) {
   const expiringLots = new FakeExpiringLotReader(rows);
   const branchSettings = new FakeBranchSettings(options.windowDays ?? 30);
   const view = await readExpiringLots(
-    { expiringLots, branchSettings, clock: new FixedClock(options.now ?? NOON) },
+    {
+      expiringLots,
+      branchSettings,
+      clock: new FixedClock(options.now ?? NOON),
+      zoneRules: new FakeZoneRulesSource(options.zoneRules),
+    },
     { locationId: "location-1" },
   );
   return { view, expiringLots, branchSettings };
 }
 
 describe("readExpiringLots", () => {
+  it("judges expiry against the calendar day of the zone rules it is given", async () => {
+    const rows = [lot("yesterday", { expiresOn: "2026-10-12" })];
+    const now = new Date("2026-10-13T02:30:00.000Z");
+
+    const underArgentina = await read(rows, { now, zoneRules: fixedOffsetZoneRules(-180) });
+    const underUtc = await read(rows, { now, zoneRules: fixedOffsetZoneRules(0) });
+
+    expect(underArgentina.view.lots[0]?.expired).toBe(false);
+    expect(underUtc.view.lots[0]?.expired).toBe(true);
+  });
+
   it("reads the expiring lot alert days of the location's branch settings as its window and answers it", async () => {
     const { view, branchSettings } = await read([], { windowDays: 45 });
 

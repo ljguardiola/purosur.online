@@ -785,6 +785,7 @@ describe("startServer", () => {
       buildApp,
       setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -807,7 +808,9 @@ describe("startServer", () => {
         offsiteDumpCheck: { environment: "homologation" },
       },
       now,
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
+    const [, , zoneRules] = setUpBackgroundJobs.mock.calls[0] ?? [];
     expect(buildApp).toHaveBeenCalledWith({
       version: "unknown",
       now,
@@ -817,71 +820,93 @@ describe("startServer", () => {
         db: fakeBackgroundJobs.db,
         jobQueue: fakeBackgroundJobs.jobQueue,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       session: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       passkeys: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       users: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       registersPointsOfSale: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       returns: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       roles: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       branchSettings: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
+      },
+      currentZoneRules: {
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       issuerIdentification: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
       },
       buyerIdentificationThresholds: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       fiscalAddresses: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       categories: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       brands: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       tags: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       products: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       alerts: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       quarantinedEvents: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       registersBelowMinimum: {
         db: fakeBackgroundJobs.db,
@@ -897,10 +922,12 @@ describe("startServer", () => {
       prices: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       discounts: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       restoredOrphanSweep: {
         connections: fakeBackgroundJobs.connections,
@@ -909,60 +936,73 @@ describe("startServer", () => {
       registers: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       snapshotBackups: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       contingencyTicketRescue: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       registerRevocations: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       compromiseResponses: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       bitlockerRecoveryKeys: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       stock: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       purchasing: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       salesReports: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       paymentsReports: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       refunds: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       devices: {
         db: fakeBackgroundJobs.db,
         rotationKey: ROTATION_KEY_BYTES,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       firstPinCodes: {
         db: fakeBackgroundJobs.db,
         rotationKey: ROTATION_KEY_BYTES,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       health: {
@@ -1013,6 +1053,7 @@ describe("startServer checking the offsite dump", () => {
         buildApp,
         setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        publishZoneRules: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1028,6 +1069,7 @@ describe("startServer checking the offsite dump", () => {
     expect(setUpBackgroundJobs).toHaveBeenCalledWith(
       expect.objectContaining({ offsiteDumpCheck: { environment: "homologation" } }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1088,6 +1130,7 @@ describe("startServer recording the certificate's CUIT", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpBackgroundJobs,
       recordAuthorizedCuit,
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(recordAuthorizedCuit).toHaveBeenCalledWith(db, FICTIONAL_CERTIFICATE_CUIT);
@@ -1105,10 +1148,116 @@ describe("startServer recording the certificate's CUIT", () => {
         initSentry: vi.fn(),
         buildApp: vi.fn().mockReturnValue(fakeApp),
         recordAuthorizedCuit,
+        publishZoneRules: vi.fn().mockResolvedValue(undefined),
       },
     );
 
     expect(recordAuthorizedCuit).not.toHaveBeenCalled();
+  });
+});
+
+describe("startServer publishing the zone rules of its runtime", () => {
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  it("publishes them to the database before it starts listening", async () => {
+    const steps: string[] = [];
+    const fakeApp = appListeningBy(
+      vi.fn(async () => {
+        steps.push("listen");
+      }),
+    );
+    const db = { marker: "fake-db" };
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
+      db,
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    });
+    const publishZoneRules = vi.fn(async () => {
+      steps.push("publishZoneRules");
+    });
+
+    await startServer(env, {
+      arcaEndpoints: unreachableArcaEndpoints,
+      initSentry: vi.fn(),
+      buildApp: vi.fn().mockReturnValue(fakeApp),
+      setUpBackgroundJobs,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules,
+    });
+
+    expect(publishZoneRules).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({ version: expect.any(String) }),
+    );
+    expect(steps).toEqual(["publishZoneRules", "listen"]);
+  });
+
+  it("computes the runtime rules once and gives the same rules to what it publishes and to the routes", async () => {
+    const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
+    const db = { marker: "fake-db" };
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue({
+      db,
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    });
+    const publishZoneRules = vi.fn().mockResolvedValue(undefined);
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: -180 }],
+    };
+    const runtimeZoneRules = vi.fn(() => rules);
+
+    await startServer(env, {
+      arcaEndpoints: unreachableArcaEndpoints,
+      initSentry: vi.fn(),
+      buildApp,
+      setUpBackgroundJobs,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules,
+      runtimeZoneRules,
+    });
+
+    const [options] = buildApp.mock.calls[0] as [
+      { discounts: { zoneRules: { zoneRules(): unknown } } },
+    ];
+    expect(publishZoneRules).toHaveBeenCalledWith(db, rules);
+    expect(options.discounts.zoneRules.zoneRules()).toBe(rules);
+    expect(runtimeZoneRules).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes nothing when no database is configured", async () => {
+    const publishZoneRules = vi.fn();
+    const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
+
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp: vi.fn().mockReturnValue(fakeApp),
+        publishZoneRules,
+      },
+    );
+
+    expect(publishZoneRules).not.toHaveBeenCalled();
   });
 });
 
@@ -1151,6 +1300,7 @@ describe("startServer checking the certificate's expiry", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpBackgroundJobs: vi.fn().mockResolvedValue(backgroundJobs),
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1224,6 +1374,7 @@ describe("startServer with the ARCA private key", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1253,6 +1404,7 @@ describe("startServer with the ARCA private key", () => {
         },
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1271,6 +1423,7 @@ describe("startServer with the ARCA private key", () => {
         }),
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1290,6 +1443,7 @@ describe("startServer with the ARCA private key", () => {
         }),
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1415,6 +1569,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -1444,6 +1599,7 @@ describe("startServer fetching the buyer tax-status values", () => {
         },
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1520,6 +1676,7 @@ describe("startServer authorizing sales in real time", () => {
       buildApp,
       setUpBackgroundJobs,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
@@ -1559,6 +1716,7 @@ describe("startServer authorizing sales in real time", () => {
         },
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 
@@ -1593,16 +1751,18 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("has the configuration of a register's point of sale enqueue the tax authority's count", async () => {
-    const { started, buildApp, backgroundJobs } = start({
+    const { started, buildApp, backgroundJobs, setUpBackgroundJobs } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    const [, , zoneRules] = setUpBackgroundJobs.mock.calls[0] ?? [];
     expect(options.registersPointsOfSale).toEqual({
       db: backgroundJobs.db,
       backofficeOrigin: "https://staging.purosur.online",
+      zoneRules,
       enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob,
     });
   });
@@ -1748,6 +1908,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       buildApp,
       setUpBackgroundJobs: setUp,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -1887,6 +2048,7 @@ describe("startServer reading supplier price lists", () => {
       buildApp,
       setUpBackgroundJobs: setUp,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -2027,6 +2189,7 @@ describe("startServer with the real app", () => {
         buildApp: buildAppWithoutListening,
         setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        publishZoneRules: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -2288,6 +2451,7 @@ describe("startServer ARCA endpoints", () => {
         buildApp: vi.fn().mockReturnValue(fakeApp),
         setUpBackgroundJobs,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        publishZoneRules: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
@@ -2303,6 +2467,7 @@ describe("startServer ARCA endpoints", () => {
         arcaWsaa: expect.objectContaining({ endpoint: endpoints.wsaa }),
       }),
       expect.any(Function),
+      expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   FISCAL_AUTHORIZATIONS,
   FISCAL_EMISSION_MODE_KINDS,
@@ -42,6 +43,7 @@ function modeOf(changes: Partial<Parameters<typeof fiscalEmissionModeOf>[0]> = {
     offlineSeries: OFFLINE_SERIES,
     offlineAuthorizationCode: CODE,
     latestGate: undefined,
+    rules: FIXED_ARGENTINA_ZONE_RULES,
     ...changes,
   });
 }

@@ -5,7 +5,7 @@ import type {
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
 } from "@purosur/contracts";
-import type { PrintedDocumentKey, ReceiptCopy } from "@purosur/domain";
+import type { PrintedDocumentKey, ReceiptCopy, ZoneRulesSource } from "@purosur/domain";
 import {
   type Clock,
   type IdGenerator,
@@ -36,6 +36,7 @@ export interface ReceiptRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
   now: Clock["now"];
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   readOutboxChainKey: () => Promise<string | undefined>;
   signedInUserId: () => string | undefined;
@@ -117,7 +118,7 @@ export function printingPorts<Refusal>(
     ledger: new SqliteReceiptLedger(deps.database, chainKey),
     clock: { now: deps.now },
     ids: deps.ids,
-    template: escPosReceiptTemplate,
+    template: escPosReceiptTemplate(deps.zoneRules),
     printers,
     authority,
   };

@@ -4,6 +4,7 @@ import {
 } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { PointCardType } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { recordPendingMercadoPagoPayment } from "./record-pending-mercado-pago-payment.js";
 import {
@@ -64,7 +65,12 @@ function record(
 ) {
   const charge = method === "POINT" ? ({ method, cardType } as const) : ({ method } as const);
   return recordPendingMercadoPagoPayment(
-    { ledger: store, restoration: store.restoration, ids: new SequentialIds() },
+    {
+      zoneRules: new FakeZoneRulesSource(),
+      ledger: store,
+      restoration: store.restoration,
+      ids: new SequentialIds(),
+    },
     {
       actorId,
       saleId: "sale-1",

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { StoredDiscount } from "./discount-reader.js";
 import { readDiscount } from "./read-discount.js";
 import { fakeDiscountReader } from "./test-support/fake-discount-reader.js";
@@ -20,7 +21,7 @@ const clock = { now: () => new Date("2027-03-01T15:00:00Z") };
 describe("readDiscount", () => {
   it("reads a discount with its status and its weekdays in ascending order", async () => {
     const outcome = await readDiscount(
-      { discounts: fakeDiscountReader([stored]), clock },
+      { zoneRules: new FakeZoneRulesSource(), discounts: fakeDiscountReader([stored]), clock },
       "discount-1",
     );
 
@@ -34,7 +35,11 @@ describe("readDiscount", () => {
     const other = { ...stored, id: "discount-2", name: "Otoño" };
 
     const outcome = await readDiscount(
-      { discounts: fakeDiscountReader([stored, other]), clock },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        discounts: fakeDiscountReader([stored, other]),
+        clock,
+      },
       "discount-2",
     );
 
@@ -43,7 +48,7 @@ describe("readDiscount", () => {
 
   it("reports a discount that does not exist as not found", async () => {
     const outcome = await readDiscount(
-      { discounts: fakeDiscountReader([stored]), clock },
+      { zoneRules: new FakeZoneRulesSource(), discounts: fakeDiscountReader([stored]), clock },
       "missing",
     );
 

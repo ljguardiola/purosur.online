@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { readSalesByPromotion } from "./read-sales-by-promotion.js";
 import { FakePromotionSalesReportReader } from "./test-support/fake-promotion-sales-report-reader.js";
 
@@ -38,7 +39,7 @@ describe("readSalesByPromotion", () => {
     const reader = new FakePromotionSalesReportReader([...discounted]);
 
     const report = await readSalesByPromotion(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -87,7 +88,7 @@ describe("readSalesByPromotion", () => {
     const reader = new FakePromotionSalesReportReader();
 
     const report = await readSalesByPromotion(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
@@ -99,7 +100,7 @@ describe("readSalesByPromotion", () => {
     const reader = new FakePromotionSalesReportReader();
 
     await readSalesByPromotion(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: "register-2" },
     );
 
@@ -108,7 +109,7 @@ describe("readSalesByPromotion", () => {
 
   it("reports no rows and zero totals for a range without discounts", async () => {
     const report = await readSalesByPromotion(
-      { reader: new FakePromotionSalesReportReader(), clock },
+      { zoneRules: new FakeZoneRulesSource(), reader: new FakePromotionSalesReportReader(), clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 

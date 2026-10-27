@@ -5,6 +5,7 @@ import {
   cloudError,
   cloudErrorStatus,
 } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   admitInstallationRequest,
   type PullPage,
@@ -32,6 +33,7 @@ import type { PulledCloudChange } from "./pulled-changes.js";
 
 export type ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult> & {
+    zoneRules: ZoneRulesSource;
     enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
     reportError?: (error: unknown) => void;
   };
@@ -222,6 +224,20 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           })),
         },
       };
+    case "zone_rules":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          version: change.row.version,
+          transitions: change.row.transitions.map(({ from, offsetMinutes }) => ({
+            from,
+            offset_minutes: offsetMinutes,
+          })),
+          publication_number: change.row.publicationNumber,
+        },
+      };
     case "stock_movement":
       return {
         change_seq,
@@ -303,6 +319,7 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
       options.reportError,
     ),
     clock: { now: options.now },
+    zoneRules: options.zoneRules,
   };
   const admission = { admission: new DrizzleRequestAdmission(options.db), clock: ports.clock };
 

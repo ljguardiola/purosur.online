@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   type CompleteReturnGrant,
   type CompleteReturnInput,
@@ -63,6 +64,7 @@ function complete(
 ): Promise<CompleteReturnOutcome<CompleteReturnGrant> | typeof NOT_SIGNED_IN> {
   return completeReturn(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       clock: new FixedClock(now),
       ids: new SequentialIds(),
@@ -483,7 +485,7 @@ describe("completeReturn", () => {
           refunds: [{ paymentId: "pay-cash", amount: 5000 }],
         },
         OWN_GRANT,
-        new Date(argentinaInstant("2026-10-15", "10:00")),
+        new Date(argentinaInstant("2026-10-15", "10:00", FIXED_ARGENTINA_ZONE_RULES)),
       );
 
       expect(outcome).toMatchObject({ kind: "completed" });
@@ -638,7 +640,7 @@ describe("completeReturn", () => {
         store,
         {},
         OWN_GRANT,
-        new Date(argentinaInstant("2026-09-28", "09:00")),
+        new Date(argentinaInstant("2026-09-28", "09:00", FIXED_ARGENTINA_ZONE_RULES)),
       );
 
       expect(outcome).toEqual({
@@ -655,7 +657,7 @@ describe("completeReturn", () => {
         store,
         { lines: [{ ...YERBA_BACK, reason: "defective" }] },
         OWN_GRANT,
-        new Date(argentinaInstant("2027-03-13", "09:00")),
+        new Date(argentinaInstant("2027-03-13", "09:00", FIXED_ARGENTINA_ZONE_RULES)),
       );
 
       expect(outcome).toMatchObject({
@@ -757,6 +759,7 @@ describe("completeReturn", () => {
 
       const outcome = await completeReturn(
         {
+          zoneRules: new FakeZoneRulesSource(),
           ledger: store,
           clock: new FixedClock(RETURNED_AT),
           ids: new SequentialIds(),
@@ -782,7 +785,13 @@ describe("completeReturn", () => {
       );
 
       await completeReturn(
-        { ledger: store, clock: new FixedClock(RETURNED_AT), ids: new SequentialIds(), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          clock: new FixedClock(RETURNED_AT),
+          ids: new SequentialIds(),
+          authority,
+        },
         INPUT,
       );
 

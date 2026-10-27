@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { StoredDiscount } from "./discount-reader.js";
 import { listDiscounts } from "./list-discounts.js";
 import { fakeDiscountReader } from "./test-support/fake-discount-reader.js";
@@ -23,6 +27,7 @@ const clockAt = (instant: string) => ({ now: () => new Date(instant) });
 describe("listDiscounts", () => {
   it("lists nothing when there are no discounts", async () => {
     const listed = await listDiscounts({
+      zoneRules: new FakeZoneRulesSource(),
       discounts: fakeDiscountReader([]),
       clock: clockAt("2026-12-15T15:00:00Z"),
     });
@@ -32,6 +37,7 @@ describe("listDiscounts", () => {
 
   it("lists every discount as it was read, in the order it was read, with its status", async () => {
     const listed = await listDiscounts({
+      zoneRules: new FakeZoneRulesSource(),
       discounts: fakeDiscountReader([
         stored({ id: "b", name: "B" }),
         stored({ id: "a", name: "A", active: false }),
@@ -50,15 +56,39 @@ describe("listDiscounts", () => {
       stored({ validFrom: "2026-12-15", validTo: "2026-12-15" }),
     ]);
 
-    const lateEvening = await listDiscounts({ discounts, clock: clockAt("2026-12-16T01:00:00Z") });
-    const nextMorning = await listDiscounts({ discounts, clock: clockAt("2026-12-16T03:00:00Z") });
+    const lateEvening = await listDiscounts({
+      zoneRules: new FakeZoneRulesSource(),
+      discounts,
+      clock: clockAt("2026-12-16T01:00:00Z"),
+    });
+    const nextMorning = await listDiscounts({
+      zoneRules: new FakeZoneRulesSource(),
+      discounts,
+      clock: clockAt("2026-12-16T03:00:00Z"),
+    });
 
     expect(lateEvening[0]?.status).toBe("current");
     expect(nextMorning[0]?.status).toBe("ended");
   });
 
+  it("gives each discount its status on the calendar day of the zone rules it is given", async () => {
+    const discounts = fakeDiscountReader([
+      stored({ validFrom: "2026-12-15", validTo: "2026-12-15" }),
+    ]);
+    const clock = clockAt("2026-12-16T01:00:00Z");
+
+    const underUtc = await listDiscounts({
+      discounts,
+      clock,
+      zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)),
+    });
+
+    expect(underUtc[0]?.status).toBe("ended");
+  });
+
   it("marks a discount that has not started as scheduled", async () => {
     const listed = await listDiscounts({
+      zoneRules: new FakeZoneRulesSource(),
       discounts: fakeDiscountReader([stored()]),
       clock: clockAt("2026-11-30T15:00:00Z"),
     });
@@ -68,6 +98,7 @@ describe("listDiscounts", () => {
 
   it("lists the weekdays of a discount in ascending order", async () => {
     const listed = await listDiscounts({
+      zoneRules: new FakeZoneRulesSource(),
       discounts: fakeDiscountReader([stored({ weekdays: [5, 1, 3] })]),
       clock: clockAt("2026-12-15T15:00:00Z"),
     });

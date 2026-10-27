@@ -4,6 +4,7 @@ import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner"
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
+import { ARGENTINA_ZONE_RULES } from "../../platform/test-support/zone-rules";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { EndEverySessionSection } from "../../sessions/end-every-session-section";
 import { openSession } from "../../sessions/test-support/open-session";
@@ -131,6 +132,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchStockProducts: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchExpectedBalance: vi.fn().mockReturnValue(new Promise(() => {})),
       registerCount: vi.fn(),
+      fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
     },
     stockMovementsScreen: {
       fetchStockMovements: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -336,6 +338,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchBuyerIdentificationThresholds: vi.fn().mockReturnValue(new Promise(() => {})),
       recordBuyerIdentificationThreshold: vi.fn(),
       fetchClockCorrections: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

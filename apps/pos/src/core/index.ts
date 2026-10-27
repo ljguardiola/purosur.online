@@ -14,8 +14,10 @@ import {
   CRITICAL_BATTERY_PUSH_LIMIT_MS,
   CRITICAL_BATTERY_SALE_RECHECK_MS,
   type CriticalBatteryAction,
+  FIXED_ARGENTINA_ZONE_RULES,
   REGISTER_UPDATE_HOLD_LIMIT_MS,
   STORAGE_READ_INTERVAL_MS,
+  type ZoneRulesSource,
 } from "@purosur/domain";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
@@ -73,6 +75,7 @@ import {
 import { initializeErrorReporting } from "./platform/error-reporting";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainLink } from "./platform/main-link";
+import { ZoneRulesHolder } from "./platform/zone-rules-holder";
 import { refreshKeysWhenAnnounced } from "./register/announced-key-refresh";
 import { createBatteryShutdown } from "./register/battery-shutdown";
 import { createBatteryWatch } from "./register/battery-watch";
@@ -379,7 +382,15 @@ if (
 
 const register = registerServiceOf(startedLocalDatabase, () => process.exit(1));
 const localDatabase = register.database;
-const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
+const zoneRulesHolder =
+  localDatabase === undefined ? undefined : new ZoneRulesHolder(localDatabase);
+const zoneRules: ZoneRulesSource = {
+  zoneRules: () => zoneRulesHolder?.current() ?? FIXED_ARGENTINA_ZONE_RULES,
+};
+const replica =
+  localDatabase === undefined
+    ? undefined
+    : new SqliteLocalReplica(localDatabase, () => zoneRulesHolder?.refresh());
 const localOutbox =
   localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
 const restorationOf = (database: NonNullable<typeof localDatabase>) =>
@@ -543,6 +554,7 @@ async function pushOutboxToCloud() {
                 () => readLatestClockOffsetMs(localDatabase),
                 () => readPendingReplenishment(localDatabase),
                 appVersionFromCoreArguments(process.argv),
+                () => zoneRulesHolder?.current().version ?? null,
               ),
         acceptedPush:
           localDatabase === undefined
@@ -716,6 +728,7 @@ const syncSchedule = createSyncSchedule({
 
 const readDeviceToken = async () => (await mainRequests.readCredentials())?.device_token;
 const realTimeAuthorization = createRealTimeAuthorization({
+  zoneRules,
   database: localDatabase,
   cloudClient,
   readDeviceToken,
@@ -730,7 +743,7 @@ const fiscalModeWatch =
   localDatabase === undefined
     ? undefined
     : createFiscalModeWatch({
-        read: () => readFiscalEmissionModeIn(localDatabase, now()).kind,
+        read: () => readFiscalEmissionModeIn(localDatabase, now(), zoneRules).kind,
         onChanged: () => rendererConnection.tell(FISCAL_MODE_CHANGED_NOTICE),
       });
 const restorationStandingWatch =
@@ -744,13 +757,14 @@ const contingencyBackupTickets =
   localDatabase === undefined || actionGate === undefined
     ? undefined
     : createContingencyBackupTickets({
+        zoneRules,
         database: localDatabase,
         now,
         ids: uuidV7Ids,
         readContingencyTicketKey: async () =>
           (await mainRequests.readCredentials())?.keys?.contingency_ticket_key,
         appVersion: appVersionFromCoreArguments(process.argv),
-        readEmissionMode: () => readFiscalEmissionModeIn(localDatabase, now()),
+        readEmissionMode: () => readFiscalEmissionModeIn(localDatabase, now(), zoneRules),
         printers: savedReceiptPrinters(new SqliteReceiptPrinterSettings(localDatabase), undefined),
         scheduleNext: (run, delayMs) => {
           const timer = setTimeout(run, delayMs);
@@ -789,6 +803,7 @@ enrollmentWatch
   .start()
   .catch((error: unknown) => reportFailure("reading the enrollment standing", error));
 const mercadoPagoCharging = createMercadoPagoCharging({
+  zoneRules,
   database: localDatabase,
   gate: actionGate,
   cloudClient,
@@ -801,6 +816,7 @@ const mercadoPagoCharging = createMercadoPagoCharging({
 });
 
 const deferredSaleInvoicing = createDeferredSaleInvoicing({
+  zoneRules,
   database: localDatabase,
   cloudClient,
   readDeviceToken,
@@ -813,6 +829,7 @@ const deferredSaleInvoicing = createDeferredSaleInvoicing({
 });
 
 const receiptPrinting = createReceiptPrinting({
+  zoneRules,
   database: localDatabase,
   gate: actionGate,
   now,
@@ -839,6 +856,7 @@ const interruptedCharges = createInterruptedChargesWiring({
 });
 
 const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
+  zoneRules,
   database: localDatabase,
   gate: actionGate,
   printing: receiptPrinting,
@@ -879,6 +897,7 @@ const returnRequestDeps = (
   database: NonNullable<typeof localDatabase>,
   gate: NonNullable<typeof actionGate>,
 ): ReturnRequestDeps => ({
+  zoneRules,
   database,
   gate,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
@@ -897,6 +916,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : () =>
           registerStatusFor({
+            zoneRules,
             database: localDatabase,
             cloud: () => cloudReachability,
             now,
@@ -970,7 +990,9 @@ const rendererRequestDeps: RendererRequestDeps = {
           signInStore === undefined ? undefined : redeemedPerson(signInStore, userId),
         signedInPerson,
         cashSession: (signedInPersonId) =>
-          localDatabase === undefined ? null : currentCashSession(localDatabase, signedInPersonId),
+          localDatabase === undefined
+            ? null
+            : currentCashSession(localDatabase, signedInPersonId, zoneRules),
       },
       typedCode,
       newPin,
@@ -991,7 +1013,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               signedInPerson,
               openCashSession: () => readOpenSession(localDatabase),
               cashSession: (signedInPersonId) =>
-                currentCashSession(localDatabase, signedInPersonId),
+                currentCashSession(localDatabase, signedInPersonId, zoneRules),
               readPepper,
               hashPin,
               now,
@@ -1009,7 +1031,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               signedInPerson,
               openCashSession: () => readOpenSession(localDatabase),
               cashSession: (signedInPersonId) =>
-                currentCashSession(localDatabase, signedInPersonId),
+                currentCashSession(localDatabase, signedInPersonId, zoneRules),
               readPepper,
               hashPin,
               now,
@@ -1052,6 +1074,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (openingFloat) =>
           openCashSessionFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1068,6 +1091,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (sessionId, countedCash) =>
           closeCashSessionFor(
             {
+              zoneRules,
               database: localDatabase,
               gate: actionGate,
               readOutboxChainKey: async () =>
@@ -1083,6 +1107,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (sessionId, countedCash, closer) =>
           closeLockedCashSessionFor(
             {
+              zoneRules,
               database: localDatabase,
               gate: actionGate,
               readOutboxChainKey: async () =>
@@ -1098,6 +1123,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : async (request) =>
           cancelLockedSaleFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1131,13 +1157,14 @@ const rendererRequestDeps: RendererRequestDeps = {
   cashSession:
     localDatabase === undefined
       ? undefined
-      : () => currentCashSession(localDatabase, signedInPerson.userId()),
+      : () => currentCashSession(localDatabase, signedInPerson.userId(), zoneRules),
   recordCashMovement:
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (request) =>
           recordCashMovementFor(
             {
+              zoneRules,
               database: localDatabase,
               gate: actionGate,
               readOutboxChainKey: async () =>
@@ -1148,7 +1175,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             request,
           ),
   cashMovements:
-    localDatabase === undefined ? undefined : () => currentCashMovements(localDatabase),
+    localDatabase === undefined ? undefined : () => currentCashMovements(localDatabase, zoneRules),
   cashMovementKinds:
     localDatabase === undefined
       ? undefined
@@ -1159,6 +1186,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (code) =>
           scanProductFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1177,6 +1205,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (lineId, quantity, expectedQuantity) =>
           changeLineQuantityFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1192,6 +1221,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (lineId, weightThousandths, expectedWeightThousandths) =>
           changeLineWeightFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1207,6 +1237,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (request) =>
           adjustSaleLineFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1220,6 +1251,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (request) =>
           previewSaleLineAdjustmentFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1233,6 +1265,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (request) =>
           applySaleDiscountFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1246,6 +1279,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (request) =>
           previewSaleDiscountFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1259,6 +1293,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (lineId) =>
           removeSaleLineFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1271,6 +1306,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : () =>
           cancelSaleFor({
+            zoneRules,
             database: localDatabase,
             restoration: restorationOf(localDatabase),
             gate: actionGate,
@@ -1282,6 +1318,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : async (request) =>
           cancelPaidSaleFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1298,6 +1335,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : async (request) =>
           voidSaleFor(
             {
+              zoneRules,
               database: localDatabase,
               gate: actionGate,
               readOutboxChainKey: async () =>
@@ -1328,6 +1366,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (request) =>
           chargeSaleInCashFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1344,6 +1383,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (request) =>
           chargeSaleByTransferFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1360,6 +1400,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (request) =>
           chargeSaleOnStandaloneTerminalFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1381,6 +1422,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             restoration: restorationOf(localDatabase),
             gate: actionGate,
             now,
+            zoneRules,
             cloud: () => cloudReachability,
           }),
   abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
@@ -1403,6 +1445,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (productId) =>
           addSearchedProductFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1421,6 +1464,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (productId, weightThousandths) =>
           addWeighedProductFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1440,6 +1484,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (productId) =>
           weighProductFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1469,6 +1514,7 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : createClockGuardRequests({
+          zoneRules,
           database: localDatabase,
           gate: actionGate,
           signedInPerson,
@@ -1482,6 +1528,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : () =>
           currentSaleFor({
+            zoneRules,
             database: localDatabase,
             restoration: restorationOf(localDatabase),
             gate: actionGate,
@@ -1493,6 +1540,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (request) =>
           cashChargeFor(
             {
+              zoneRules,
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
@@ -1503,11 +1551,13 @@ const rendererRequestDeps: RendererRequestDeps = {
   salesHistory:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (request) => salesHistoryFor({ database: localDatabase, gate: actionGate }, request),
+      : (request) =>
+          salesHistoryFor({ zoneRules, database: localDatabase, gate: actionGate }, request),
   saleHistoryDetail:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (saleId) => saleHistoryDetailFor({ database: localDatabase, gate: actionGate }, saleId),
+      : (saleId) =>
+          saleHistoryDetailFor({ zoneRules, database: localDatabase, gate: actionGate }, saleId),
   readReceiptPrinter:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1576,6 +1626,7 @@ const answeredRendererRequestDeps: RendererRequestDeps = ticketedRendererRequest
 );
 
 startRegisterHealthChecks({
+  zoneRules,
   database: localDatabase,
   cloudClient,
   readDeviceToken,

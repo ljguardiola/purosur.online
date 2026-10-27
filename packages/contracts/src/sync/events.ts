@@ -80,11 +80,17 @@ const replenishmentFailedReportSchema = z.union([
   z.object({ replenishment_failed: absent }),
 ]);
 
+const zoneRulesVersionReportSchema = z.union([
+  z.object({ zone_rules_version: z.string().min(1).nullable() }),
+  z.object({ zone_rules_version: absent }),
+]);
+
 const registerTelemetrySchema = storageTelemetrySchema
   .and(salesDeniedReportSchema)
   .and(fiscalEmissionStoppedReportSchema)
   .and(clockDriftReportSchema)
-  .and(replenishmentFailedReportSchema);
+  .and(replenishmentFailedReportSchema)
+  .and(zoneRulesVersionReportSchema);
 
 export const PUSH_EVENTS_REQUEST_MAX_BYTES = 16_777_216;
 

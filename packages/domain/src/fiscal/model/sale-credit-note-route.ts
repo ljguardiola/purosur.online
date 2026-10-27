@@ -1,4 +1,4 @@
-import type { OutboxEventDraft } from "../../shared/index.js";
+import type { OutboxEventDraft, ZoneRules } from "../../shared/index.js";
 import { creditNoteIssueDate } from "./credit-note.js";
 import {
   type FiscalOnlineSignalEvidence,
@@ -91,10 +91,14 @@ export type SaleCreditNoteRoute =
       clockMark: OfflineCreditNoteClockMark;
     };
 
-function originOf(origin: SaleCreditNoteOriginRequest, occurredAt: Date): CreditNoteOrigin {
+function originOf(
+  origin: SaleCreditNoteOriginRequest,
+  occurredAt: Date,
+  rules: ZoneRules,
+): CreditNoteOrigin {
   return origin.kind === "sale_void"
     ? origin
-    : { ...origin, issuedOn: creditNoteIssueDate(occurredAt) };
+    : { ...origin, issuedOn: creditNoteIssueDate(occurredAt, rules) };
 }
 
 export function routeSaleCreditNote(
@@ -108,6 +112,7 @@ export function routeSaleCreditNote(
     nextCreditNoteId,
   }: SaleCreditNoteRoutingInput,
   facts: CreditNoteRoutingFacts,
+  rules: ZoneRules,
 ): SaleCreditNoteRoute {
   if (total <= 0) {
     return { kind: "none" };
@@ -122,7 +127,7 @@ export function routeSaleCreditNote(
             total,
             receiverTaxStatusCode: null,
             correctedVoucher: null,
-            origin: originOf(origin, occurredAt),
+            origin: originOf(origin, occurredAt, rules),
           },
         }
       : { kind: "none" };
@@ -133,7 +138,7 @@ export function routeSaleCreditNote(
     total,
     receiverTaxStatusCode: invoice.buyerTaxStatusCode,
     correctedVoucher: invoice.voucher,
-    origin: originOf(origin, occurredAt),
+    origin: originOf(origin, occurredAt, rules),
   };
   if (isRegisterFiscallyOnline(facts.fiscalOnlineEvidence(), occurredAt)) {
     return { kind: "pending", creditNote };
@@ -142,7 +147,10 @@ export function routeSaleCreditNote(
   const offline = offlineRoute({
     occurredAt,
     series,
-    offlineAuthorizationCode: facts.offlineAuthorizationCodeOf(invoiceOwnFortnight(occurredAt)),
+    offlineAuthorizationCode: facts.offlineAuthorizationCodeOf(
+      invoiceOwnFortnight(occurredAt, rules),
+    ),
+    rules,
   });
   if (offline.kind !== "issue_offline") {
     return { kind: "pending", creditNote };
@@ -168,23 +176,33 @@ export function issueOfflineSaleCreditNote(
     registerId,
     actorId,
     generatedAt,
-  }: { nextId: () => string; registerId: string; actorId: string; generatedAt: Date },
+    rules,
+  }: {
+    nextId: () => string;
+    registerId: string;
+    actorId: string;
+    generatedAt: Date;
+    rules: ZoneRules;
+  },
 ): void {
-  const document = offlineCreditNote({
-    id: nextId(),
-    saleId: creditNote.saleId,
-    creditNoteId: creditNote.creditNoteId,
-    pointOfSale: offline.pointOfSale,
-    number: offline.number,
-    issuedOn: offline.issuedOn,
-    generatedAt,
-    offlineAuthorizationCode: offline.offlineAuthorizationCode,
-    fortnight: offline.fortnight,
-    total: creditNote.total,
-    receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
-    corrects: creditNote.correctedVoucher,
-    cause: "no_connectivity",
-  });
+  const document = offlineCreditNote(
+    {
+      id: nextId(),
+      saleId: creditNote.saleId,
+      creditNoteId: creditNote.creditNoteId,
+      pointOfSale: offline.pointOfSale,
+      number: offline.number,
+      issuedOn: offline.issuedOn,
+      generatedAt,
+      offlineAuthorizationCode: offline.offlineAuthorizationCode,
+      fortnight: offline.fortnight,
+      total: creditNote.total,
+      receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
+      corrects: creditNote.correctedVoucher,
+      cause: "no_connectivity",
+    },
+    rules,
+  );
   tx.issueOfflineCreditNote(document);
   tx.recordClockMark(clockMark);
   tx.appendOutboxEvent(

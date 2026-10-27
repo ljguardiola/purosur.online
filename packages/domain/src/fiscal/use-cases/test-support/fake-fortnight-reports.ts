@@ -1,3 +1,4 @@
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../../shared/index.js";
 import type { InstallationStreamReach } from "../../../sync/index.js";
 import type { OfflineSeriesDocumentType } from "../../model/fiscal-voucher-type.js";
 import {
@@ -261,6 +262,7 @@ export class FakeFortnightReportStore implements FortnightReportStore {
             owesFortnightReport(
               { fortnight: code.fortnight, claimedAt, retiredAt, listed },
               today,
+              FIXED_ARGENTINA_ZONE_RULES,
             ) &&
             isFortnightPresentationOwed({
               state: this.recordedReports.get(keyOf(key))?.state ?? null,

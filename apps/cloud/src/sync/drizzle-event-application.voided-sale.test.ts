@@ -19,6 +19,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,
@@ -587,6 +588,7 @@ describe("applying a pushed voided sale", () => {
   function applyPending() {
     return applyPendingEvents(
       {
+        zoneRules: fixedZoneRulesSource(),
         eventApplication: system.application,
         upcaster: syncedEventUpcaster,
         clock: { now: () => new Date("2026-10-06T15:00:00.000Z") },

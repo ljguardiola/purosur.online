@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -32,18 +33,21 @@ const DOCUMENT = {
 const GENERATED_AT = new Date("2026-10-16T03:00:01.000Z");
 
 function issued() {
-  return offlineFiscalDocument({
-    id: "fiscal-document-1",
-    saleId: "sale-1",
-    pointOfSale: 7,
-    number: 101,
-    issuedOn: "2026-10-15",
-    generatedAt: GENERATED_AT,
-    offlineAuthorizationCode: "71234567890123",
-    fortnight: { start: "2026-10-01", end: "2026-10-15" },
-    document: DOCUMENT,
-    cause: "unclear_outcome",
-  });
+  return offlineFiscalDocument(
+    {
+      id: "fiscal-document-1",
+      saleId: "sale-1",
+      pointOfSale: 7,
+      number: 101,
+      issuedOn: "2026-10-15",
+      generatedAt: GENERATED_AT,
+      offlineAuthorizationCode: "71234567890123",
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+      document: DOCUMENT,
+      cause: "unclear_outcome",
+    },
+    FIXED_ARGENTINA_ZONE_RULES,
+  );
 }
 
 describe("offlineFiscalDocument", () => {
@@ -146,7 +150,7 @@ const CREDIT_NOTE_ISSUE = {
 
 describe("offlineCreditNote", () => {
   it("is a credit note C to a final consumer, stamped with its generation moment on Argentina's clock", () => {
-    expect(offlineCreditNote(CREDIT_NOTE_ISSUE)).toEqual({
+    expect(offlineCreditNote(CREDIT_NOTE_ISSUE, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
       ...CREDIT_NOTE_ISSUE,
       documentType: "credit_note_c",
       generationStamp: "20261016000001",
@@ -163,7 +167,7 @@ describe("offlineCreditNoteIssuedEvent", () => {
         eventId: "event-2",
         registerId: "register-1",
         actorId: "cashier",
-        document: offlineCreditNote(CREDIT_NOTE_ISSUE),
+        document: offlineCreditNote(CREDIT_NOTE_ISSUE, FIXED_ARGENTINA_ZONE_RULES),
       }),
     ).toEqual({
       event_id: "event-2",

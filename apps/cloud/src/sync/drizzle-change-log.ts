@@ -39,6 +39,7 @@ import {
   readStockMovements,
   readTags,
   readUsers,
+  readZoneRules,
 } from "./read-pulled-rows.js";
 
 type LoggedEntity = PulledEntity;
@@ -139,6 +140,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       this.tx,
       idsOf(logged, "buyer_tax_status_set"),
     );
+    const zoneRulesRows = await readZoneRules(this.tx, idsOf(logged, "zone_rules"));
     const stockMovementRows = await readStockMovements(this.tx, idsOf(logged, "stock_movement"));
     const refundCompletionRows = await readRefundCompletions(
       this.tx,
@@ -297,6 +299,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             entity,
             entityId,
             row: requiredRow(taxStatusSetRows.get(entityId), entity),
+          });
+          break;
+        case "zone_rules":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(zoneRulesRows.get(entityId), entity),
           });
           break;
         case "stock_movement":

@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { roles, userRoles, users } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -62,7 +63,10 @@ describe("loading the sample data while another writer holds the change log, on 
     const holder = await sql.reserve();
     await holder`begin`;
     await holder`select pg_advisory_xact_lock(hashtextextended('changes_log', 0))`;
-    const load = loadSampleData(db, { now: () => new Date("2026-03-15T12:00:00.000Z") });
+    const load = loadSampleData(db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => new Date("2026-03-15T12:00:00.000Z"),
+    });
     let claimLastCategory: Promise<unknown> = Promise.resolve();
     try {
       await waitForLockWaiters(sql, 1, { untilTestTimeout: true });

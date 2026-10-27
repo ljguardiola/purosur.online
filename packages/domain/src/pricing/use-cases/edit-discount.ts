@@ -27,7 +27,7 @@ export type EditDiscountOutcome =
   | { kind: "applied"; version: number };
 
 export async function editDiscount(
-  { store, clock }: EditDiscountPorts,
+  { store, clock, zoneRules }: EditDiscountPorts,
   { id, version, ...fields }: EditDiscountInput,
 ): Promise<EditDiscountOutcome> {
   return store.transaction<EditDiscountOutcome>(async (tx) => {
@@ -45,7 +45,7 @@ export async function editDiscount(
       locked.discount.target.id !== fields.target.id;
     const becomesBuyNPayM =
       fields.benefit.kind === "BUY_N_PAY_M" && locked.discount.benefit.kind !== "BUY_N_PAY_M";
-    const today = argentinaCalendarDay(clock.now());
+    const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
     const becomesLiveBuyNPayM =
       fields.benefit.kind === "BUY_N_PAY_M" &&
       isDiscountLive(fields, today) &&

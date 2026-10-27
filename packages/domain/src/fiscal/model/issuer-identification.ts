@@ -1,4 +1,9 @@
-import { argentinaCalendarDay, codePointLength, isCalendarDay } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  codePointLength,
+  isCalendarDay,
+  type ZoneRules,
+} from "../../shared/index.js";
 
 export const ISSUER_TAX_STATUS = "Responsable Monotributo";
 
@@ -16,8 +21,12 @@ export function isIssuerIdentificationGrossIncomeRegistrationTooLong(value: stri
   return codePointLength(value) > ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH;
 }
 
-export function isIssuerIdentificationActivityStartDate(value: string, today: Date): boolean {
-  return isCalendarDay(value) && value <= argentinaCalendarDay(today);
+export function isIssuerIdentificationActivityStartDate(
+  value: string,
+  today: Date,
+  rules: ZoneRules,
+): boolean {
+  return isCalendarDay(value) && value <= argentinaCalendarDay(today, rules);
 }
 
 export function latestIssuerIdentification<TVersion extends { version: number }>(

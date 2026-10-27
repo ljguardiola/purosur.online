@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { readSalesByProductAndCategory } from "./read-sales-by-product-and-category.js";
 import { FakeProductSalesReportReader } from "./test-support/fake-product-sales-report-reader.js";
 
@@ -28,7 +29,7 @@ describe("readSalesByProductAndCategory", () => {
     const reader = new FakeProductSalesReportReader({ products: ofProducts });
 
     const report = await readSalesByProductAndCategory(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -63,7 +64,7 @@ describe("readSalesByProductAndCategory", () => {
     });
 
     const report = await readSalesByProductAndCategory(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined, group: "category" },
     );
 
@@ -81,7 +82,7 @@ describe("readSalesByProductAndCategory", () => {
     const reader = new FakeProductSalesReportReader();
 
     const report = await readSalesByProductAndCategory(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined, group: "product" },
     );
 
@@ -93,7 +94,7 @@ describe("readSalesByProductAndCategory", () => {
     const reader = new FakeProductSalesReportReader();
 
     await readSalesByProductAndCategory(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: "register-2", group: "category" },
     );
 
@@ -102,7 +103,7 @@ describe("readSalesByProductAndCategory", () => {
 
   it("reports no rows and zero totals for a range without sales", async () => {
     const report = await readSalesByProductAndCategory(
-      { reader: new FakeProductSalesReportReader(), clock },
+      { zoneRules: new FakeZoneRulesSource(), reader: new FakeProductSalesReportReader(), clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined, group: "product" },
     );
 

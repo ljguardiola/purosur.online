@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -34,6 +35,7 @@ function deps(now = NOW): ClockCorrectionRequestDeps {
     signedInPerson,
     readOutboxChainKey: async () => chainKey,
     now: () => now,
+    zoneRules: fixedZoneRulesSource(),
     ids: {
       next: () => {
         idCount += 1;
@@ -122,6 +124,17 @@ describe("a restored register that holds no clock mark, with its clock before th
          ) VALUES ('register-1', 12, 'address-1', 40, '2026-10-02', 1)`,
       )
       .run();
+  });
+
+  it("writes the register's reading on the clock of the zone rules it is given", () => {
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 120 }],
+    };
+
+    expect(readClockGuardFor({ ...deps(), zoneRules: { zoneRules: () => rules } })).toMatchObject({
+      reading: "2026-10-01T17:00:00.000+02:00",
+    });
   });
 
   it("is offered the correction by the guard, blocked with no reading of the register's own to show", () => {

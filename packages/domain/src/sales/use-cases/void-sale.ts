@@ -17,6 +17,7 @@ import {
   type OperationAuthority,
   type OutboxEventDraft,
   SALE_VOIDED_EVENT_TYPE,
+  type ZoneRulesSource,
 } from "../../shared/index.js";
 import { saleVoidStockMovements } from "../../stock/index.js";
 import type { SaleWithLines } from "../model/sale.js";
@@ -50,6 +51,7 @@ export interface VoidSaleGrant {
 export interface VoidSalePorts<Grant extends VoidSaleGrant, Refusal> {
   ledger: SaleVoidLedger;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   authority: OperationAuthority<Grant, Refusal>;
 }
@@ -67,7 +69,7 @@ export type VoidSaleOutcome<Grant extends VoidSaleGrant> =
     };
 
 export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
-  { ledger, clock, ids, authority }: VoidSalePorts<Grant, Refusal>,
+  { ledger, clock, zoneRules, ids, authority }: VoidSalePorts<Grant, Refusal>,
   { saleId, pendingRefundsConfirmed }: VoidSaleInput,
 ): Promise<VoidSaleOutcome<Grant> | Refusal> {
   const authorization = await authority.authorize();
@@ -104,6 +106,7 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
     }
 
     const voidedAt = clock.now();
+    const rules = zoneRules.zoneRules();
     tx.recordVoidedSale(sale.id, voidedAt, grant.authorizedBy);
     const refunds: SaleRefund[] = [];
     for (const refund of planned) {
@@ -136,6 +139,7 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
         nextCreditNoteId: () => ids.next(),
       },
       tx,
+      rules,
     );
     const creditNote = route.kind === "none" ? null : route.creditNote;
     if (route.kind === "pending") {
@@ -160,6 +164,7 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
         registerId: sale.registerId,
         actorId: grant.actorId,
         generatedAt: voidedAt,
+        rules,
       });
     }
     return { kind: "voided", refunds, grant, creditNote };

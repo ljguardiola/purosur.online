@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
 import { insertLeafCategory } from "./test-support/purchasing-fixtures.js";
 
@@ -27,6 +28,7 @@ beforeEach(async () => {
   registerSupplierPriceListsRoutes(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
   });
 });

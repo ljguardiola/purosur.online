@@ -50,6 +50,7 @@ import { issueDeviceToken } from "../register/device-token.js";
 import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzleUserStore } from "../users/drizzle-user-store.js";
@@ -92,7 +93,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  app = buildChangesRouteApp(db, { now: () => NOW });
+  app = buildChangesRouteApp(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 });
 
 afterEach(async () => {
@@ -397,7 +398,10 @@ describe("GET /changes", () => {
   }, async () => {
     const broken = await buildTestDatabase();
     await broken.close();
-    const failing = buildChangesRouteApp(broken.db, { now: () => NOW });
+    const failing = buildChangesRouteApp(broken.db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
+    });
 
     const response = await failing.inject({
       method: "GET",
@@ -603,7 +607,11 @@ describe("GET /changes carrying the catalog and the prices", () => {
     const categoryId = await newCategory("Almacén");
     const product = await newProduct(categoryId, ["7790001000011", "7790001000028"]);
     await editProduct(
-      { store: catalogStore(), clock: { now: () => new Date() } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        store: catalogStore(),
+        clock: { now: () => new Date() },
+      },
       {
         id: product.id,
         name: "Arroz largo fino",
@@ -1123,7 +1131,11 @@ describe("GET /changes carrying the discounts", () => {
     const tagId = await newTag("Infusiones");
     const discountId = await newDiscount(tagId);
     await editDiscount(
-      { store: new DrizzleDiscountStore(db), clock: { now: () => new Date() } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        store: new DrizzleDiscountStore(db),
+        clock: { now: () => new Date() },
+      },
       {
         id: discountId,
         version: 1,
@@ -1166,7 +1178,7 @@ describe("GET /changes carrying the discounts", () => {
 
     const first = await pulledPage(app, SEEDED_CHANGES, deviceToken);
     await editDiscount(
-      { store, clock: { now: () => new Date() } },
+      { zoneRules: fixedZoneRulesSource(), store, clock: { now: () => new Date() } },
       {
         ...fields,
         id: created.id,

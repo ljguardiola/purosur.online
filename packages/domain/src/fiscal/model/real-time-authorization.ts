@@ -1,4 +1,8 @@
-import { argentinaCalendarDay, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  SALE_COMPLETED_EVENT_TYPE,
+  type ZoneRules,
+} from "../../shared/index.js";
 import {
   type DeferredBacklogEntry,
   hasDeferredBacklog,
@@ -72,8 +76,8 @@ export function nextInvoiceNumber({
   return Math.max(localLastAuthorized ?? 0, taxAuthorityLastAuthorized) + 1;
 }
 
-export function invoiceDateOf(completedAt: Date): string {
-  return argentinaCalendarDay(completedAt);
+export function invoiceDateOf(completedAt: Date, rules: ZoneRules): string {
+  return argentinaCalendarDay(completedAt, rules);
 }
 
 export const DEFERRAL_REASONS = [
@@ -161,6 +165,7 @@ export interface SaleAuthorizationPathInput {
   series: RealTimeSeries;
   offlineSeries: OfflineSeries;
   offlineAuthorizationCode: string | null;
+  rules: ZoneRules;
 }
 
 type SaleAuthorizationGate<D> =
@@ -202,14 +207,15 @@ function deferred(reason: DeferralReason): SaleAuthorizationPath {
   return { kind: "defer", reason };
 }
 
-export function invoiceOwnFortnight(occurredAt: Date): Fortnight {
-  return fortnightContaining(invoiceDateOf(occurredAt));
+export function invoiceOwnFortnight(occurredAt: Date, rules: ZoneRules): Fortnight {
+  return fortnightContaining(invoiceDateOf(occurredAt, rules));
 }
 
 export interface OfflineRouteInput {
   occurredAt: Date;
   series: OfflineSeries;
   offlineAuthorizationCode: string | null;
+  rules: ZoneRules;
 }
 
 export type OfflineRoute =
@@ -227,6 +233,7 @@ export function offlineRoute({
   occurredAt,
   series,
   offlineAuthorizationCode,
+  rules,
 }: OfflineRouteInput): OfflineRoute {
   if (isBehindClockMark(occurredAt, series.clockMark)) {
     return { kind: "unavailable", reason: "clock_behind" };
@@ -239,17 +246,22 @@ export function offlineRoute({
     kind: "issue_offline",
     pointOfSale: series.pointOfSale,
     number,
-    issuedOn: invoiceDateOf(occurredAt),
-    fortnight: invoiceOwnFortnight(occurredAt),
+    issuedOn: invoiceDateOf(occurredAt, rules),
+    fortnight: invoiceOwnFortnight(occurredAt, rules),
     offlineAuthorizationCode,
   };
 }
 
 function offlinePath(
   cause: OfflineAuthorizationCause,
-  { occurredAt, offlineSeries, offlineAuthorizationCode }: SaleAuthorizationPathInput,
+  { occurredAt, offlineSeries, offlineAuthorizationCode, rules }: SaleAuthorizationPathInput,
 ): SaleAuthorizationPath {
-  const route = offlineRoute({ occurredAt, series: offlineSeries, offlineAuthorizationCode });
+  const route = offlineRoute({
+    occurredAt,
+    series: offlineSeries,
+    offlineAuthorizationCode,
+    rules,
+  });
   if (route.kind === "unavailable") {
     return deferred(
       route.reason === "clock_behind" ? "clock_behind" : DEFERRAL_REASON_OF_CAUSE[cause],
@@ -270,15 +282,18 @@ export function saleAuthorizationPath(input: SaleAuthorizationPathInput): SaleAu
   if (
     series.pointOfSale !== null &&
     (isBehindClockMark(now, series.clockMark) ||
-      isBeforeTaxAuthorityLastIssuedDay(now, series.taxAuthorityLastIssuedOn))
+      isBeforeTaxAuthorityLastIssuedDay(now, series.taxAuthorityLastIssuedOn, input.rules))
   ) {
     if (
       !isBehindClockMark(now, series.clockMark) &&
-      isInClockCorrectionLapse({
-        reading: now,
-        taxAuthorityLastIssuedOn: series.taxAuthorityLastIssuedOn,
-        corrections: series.clockCorrections,
-      })
+      isInClockCorrectionLapse(
+        {
+          reading: now,
+          taxAuthorityLastIssuedOn: series.taxAuthorityLastIssuedOn,
+          corrections: series.clockCorrections,
+        },
+        input.rules,
+      )
     ) {
       return offlinePath("clock_correction_lapse", input);
     }
@@ -298,6 +313,7 @@ export function saleAuthorizationPath(input: SaleAuthorizationPathInput): SaleAu
       series.deferredBacklog,
       now,
       latestIssuedOn(series.taxAuthorityLastIssuedOn, series.localLastAuthorizedIssuedOn),
+      input.rules,
     )
   ) {
     return offlinePath("deferred_backlog", input);

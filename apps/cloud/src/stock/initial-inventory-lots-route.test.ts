@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { lots } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerInitialInventoryLotsRoutes } from "./initial-inventory-lots-route.js";
 import {
   insertInitialCountLot,
@@ -36,6 +37,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerInitialInventoryLotsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,

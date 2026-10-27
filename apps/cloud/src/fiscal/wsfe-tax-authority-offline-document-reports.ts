@@ -1,4 +1,8 @@
-import { generationStampOf, voucherTypeOfDocumentType } from "@purosur/domain";
+import {
+  generationStampOf,
+  voucherTypeOfDocumentType,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import type {
   OfflineDocumentBatchLimitAnswer,
   OfflineDocumentLastReportedAnswer,
@@ -19,6 +23,7 @@ const NO_ANSWER = { kind: "no_answer" } as const;
 export interface WsfeTaxAuthorityOfflineDocumentReportsOptions {
   endpoint: string;
   cuit: string;
+  zoneRules: ZoneRulesSource;
   timeoutMs?: number;
   onRawResponse?: (raw: string) => void;
 }
@@ -49,11 +54,13 @@ export class WsfeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
   private readonly cuitDigits: string;
   private readonly timeoutMs: number;
   private readonly onRawResponse: ((raw: string) => void) | undefined;
+  private readonly zoneRules: ZoneRulesSource;
   private client: Promise<Client> | undefined;
 
   constructor({
     endpoint,
     cuit,
+    zoneRules,
     timeoutMs = OFFLINE_DOCUMENT_REPORT_TIMEOUT_MS,
     onRawResponse,
   }: WsfeTaxAuthorityOfflineDocumentReportsOptions) {
@@ -61,6 +68,7 @@ export class WsfeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
     this.cuitDigits = cuit.replaceAll("-", "");
     this.timeoutMs = timeoutMs;
     this.onRawResponse = onRawResponse;
+    this.zoneRules = zoneRules;
   }
 
   async lastReported({
@@ -119,7 +127,7 @@ export class WsfeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
             ...facturaCDetail(document),
             ...(document.corrects === undefined ? {} : associatedVoucherDetail(document.corrects)),
             CAEA: code,
-            CbteFchHsGen: generationStampOf(document.generatedAt),
+            CbteFchHsGen: generationStampOf(document.generatedAt, this.zoneRules.zoneRules()),
           })),
         },
       },

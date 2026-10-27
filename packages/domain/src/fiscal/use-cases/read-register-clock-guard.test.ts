@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { ClockMark } from "../model/clock-correction.js";
 import { readRegisterClockGuard } from "./read-register-clock-guard.js";
 import {
@@ -25,6 +26,7 @@ const OFFLINE_MARK: ClockMark = {
 function readAs(userId: string | undefined, state: Partial<FakeRegisterClockGuardState> = {}) {
   return readRegisterClockGuard(
     {
+      zoneRules: new FakeZoneRulesSource(),
       reader: fakeRegisterClockGuardReader({
         accesses: { ana: CORRECTOR, bruno: CASHIER },
         ...state,
@@ -246,6 +248,7 @@ describe("readRegisterClockGuard", () => {
     } as const;
     const lateNight = readRegisterClockGuard(
       {
+        zoneRules: new FakeZoneRulesSource(),
         reader: fakeRegisterClockGuardReader({ floor }),
         clock: new FixedClock(new Date("2026-10-02T01:00:00.000Z")),
       },

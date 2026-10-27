@@ -1,4 +1,4 @@
-import type { Clock, Scale } from "../../shared/index.js";
+import type { Clock, Scale, ZoneRulesSource } from "../../shared/index.js";
 import { mayBeSaleLineQuantity } from "../model/sale-line.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { AddedLineOutcome, SaleAdditionRefusal } from "./sale-addition.js";
@@ -22,6 +22,7 @@ export interface WeighProductOnScalePorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   scale: Scale;
 }
@@ -35,7 +36,7 @@ export type WeighProductOnScaleOutcome =
   | AddedLineOutcome;
 
 export async function weighProductOnScale(
-  { ledger, restoration, clock, ids, scale }: WeighProductOnScalePorts,
+  { ledger, restoration, clock, zoneRules, ids, scale }: WeighProductOnScalePorts,
   { actorId, productId }: WeighProductOnScaleInput,
 ): Promise<WeighProductOnScaleOutcome> {
   const reading = await scale.read();
@@ -48,7 +49,7 @@ export async function weighProductOnScale(
     if (isWeighedProductRefusal(product)) {
       return product;
     }
-    const priced = pricedWeighedProduct(tx, clock, product);
+    const priced = pricedWeighedProduct(tx, clock, zoneRules, product);
     if (isNoPrice(priced)) {
       return priced;
     }

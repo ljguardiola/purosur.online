@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -70,10 +71,15 @@ function backgroundJobsEnv() {
 }
 
 async function acquireOnDemand() {
-  const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-    emailSender: UNUSED_EMAIL_SENDER,
-    schedules: false,
-  });
+  const backgroundJobs = await setUpBackgroundJobs(
+    backgroundJobsEnv(),
+    () => NOW,
+    fixedZoneRulesSource(),
+    {
+      emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
+    },
+  );
   try {
     await backgroundJobs.workerUtils.addJob(OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER, {});
     await vi.waitFor(

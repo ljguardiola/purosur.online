@@ -1,3 +1,4 @@
+import { FIXED_ARGENTINA_ZONE_RULES } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -27,6 +28,10 @@ function createServices(
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
+    fetchCurrentZoneRules: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: FIXED_ARGENTINA_ZONE_RULES,
+    }),
     ...overrides,
   };
 }
@@ -150,6 +155,51 @@ test("refuses a future activity start date, counting today as Argentina's day", 
   expect(services.saveIssuerIdentification).not.toHaveBeenCalled();
 });
 
+test("counts today on the calendar of the zone rules the cloud publishes", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCurrentZoneRules).mockResolvedValue({
+    kind: "ok",
+    value: { version: "2026a", transitions: [{ from: new Date(0), offsetMinutes: 0 }] },
+  });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal({
+    target: incomplete,
+    services,
+    now: lateEveningInArgentina,
+  });
+  await fillIncompleteForm(dialog, "26092020");
+
+  await save(dialog);
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
+  expect(services.saveIssuerIdentification).toHaveBeenCalledWith(
+    expect.objectContaining({ activity_start_date: "2020-09-26" }),
+  );
+});
+
+test("reads the zone rules only while it is open", async () => {
+  const services = createServices();
+
+  await render(modalElement({ target: null, services }));
+
+  expect(services.fetchCurrentZoneRules).not.toHaveBeenCalled();
+});
+
+test("shows a failed load of the zone rules with a retry that shows the form", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCurrentZoneRules)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: FIXED_ARGENTINA_ZONE_RULES });
+  const screen = await render(modalElement({ services }));
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByText("No pudimos abrir las reglas horarias")).toBeVisible();
+  expect(dialog.getByRole("textbox", { name: /^Razón social/ }).query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(dialog.getByRole("textbox", { name: /^Razón social/ })).toBeVisible();
+});
+
 test("accepts today as the activity start date", async () => {
   const services = createServices();
   vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
@@ -212,6 +262,8 @@ test("shows CUIT and tax status as plain text, not inputs, with the fields prefi
 test("lines up the Ingresos Brutos and Inicio de actividades labels and boxes, side by side in the same row", async () => {
   await page.viewport(1440, 1000);
   const { dialog } = await renderModal();
+
+  await expect.element(dialog.getByRole("group", { name: /^Inicio de actividades/ })).toBeVisible();
 
   const grossIncomeLabel = dialog.getByText("Ingresos Brutos").element() as HTMLElement;
   const activityStartLabel = dialog.getByText("Inicio de actividades").element() as HTMLElement;
@@ -290,6 +342,7 @@ function describedTextOf(element: HTMLElement): string {
 
 test("marks the activity start date required, and invalid and described by its own message once refused", async () => {
   const { dialog } = await renderModal({ target: incomplete });
+  await expect.element(dialog.getByRole("group", { name: /^Inicio de actividades/ })).toBeVisible();
   for (const segment of dateSegments(dialog)) {
     expect(segment.getAttribute("aria-required")).toBe("true");
   }
