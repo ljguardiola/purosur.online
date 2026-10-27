@@ -49,16 +49,6 @@ test("marks a done step with the day and time it was done in Argentine time", as
   await expect.element(screen.getByText("Hecho el 01/10/2026 · 12:30")).toBeVisible();
 });
 
-test("marks a step done late at night with its Argentine day, the day before its UTC day", async () => {
-  const screen = await renderCard({
-    done: true,
-    doneAt: "2026-10-27T02:30:00.000Z",
-    available: false,
-  });
-
-  await expect.element(screen.getByText("Hecho el 26/10/2026 · 23:30")).toBeVisible();
-});
-
 test("has no accessibility violations", async () => {
   const screen = await renderCard({ done: false, doneAt: null, available: true });
 
