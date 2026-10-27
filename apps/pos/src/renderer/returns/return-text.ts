@@ -36,6 +36,7 @@ export function quantityText(saleUnit: SaleLineForReturn["sale_unit"], quantity:
 export type FindRefusalKind =
   | "not_found"
   | "voided"
+  | "needs_connection"
   | "lacks_permission"
   | "not_a_ticket_qr"
   | "unavailable";
@@ -43,9 +44,11 @@ export type FindRefusalKind =
 export function findRefusalText(kind: FindRefusalKind): { title: string; description?: string } {
   switch (kind) {
     case "not_found":
-      return { title: "No encontramos esa venta en esta caja." };
+      return { title: "No encontramos esa venta en esta sucursal." };
     case "voided":
       return { title: "Esa venta está anulada: no se puede devolver." };
+    case "needs_connection":
+      return { title: "Se necesita conexión a internet para buscar una venta de otra caja." };
     case "lacks_permission":
       return {
         title: "Hacer devoluciones necesita permiso",
