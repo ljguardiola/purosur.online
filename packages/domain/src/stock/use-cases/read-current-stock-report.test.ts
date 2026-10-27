@@ -198,6 +198,15 @@ describe("readCurrentStockReport", () => {
     ]);
   });
 
+  it("orders categories with the same name by id", async () => {
+    const { categories } = await read([
+      level("p1", { balance: 1_000, categoryId: "c2", categoryName: "Almacén" }),
+      level("p2", { balance: 1_000, categoryId: "c1", categoryName: "Almacén" }),
+    ]);
+
+    expect(categories.map(({ id }) => id)).toEqual(["c1", "c2"]);
+  });
+
   describe("filtered by category", () => {
     const levels = [
       level("p1", { balance: 4_000, categoryId: "c1", lots: [purchasedLot("l1")] }),
