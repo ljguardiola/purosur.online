@@ -282,10 +282,9 @@ describe("printing the credit note of a voided sale from its history", () => {
     expect(printer.waiting).toEqual([]);
   });
 
-  describe("without the permission to view the sales history", () => {
-    async function askAndReadSql() {
-      const reads: string[] = [];
-      const watched = new Proxy(database, {
+  describe("reading the credit note", () => {
+    function watchedDatabase(reads: string[]): LocalDatabase {
+      return new Proxy(database, {
         get(target, property, receiver) {
           const value = Reflect.get(target, property, receiver);
           if (property !== "prepare") {
@@ -297,23 +296,31 @@ describe("printing the credit note of a voided sale from its history", () => {
           };
         },
       });
-      signedInPerson.set("cashier-without-history");
-      const outcomes = [
-        await printCreditNoteFor({ ...deps(), database: watched }, NOTE_OF_SALE),
-        await reprintCreditNoteFor(
-          { ...deps(), database: watched },
-          { ...NOTE_OF_SALE, reason: REASON },
-        ),
-      ];
-      return { reads, outcomes };
     }
 
-    it("is refused before anything of the credit note is read", async () => {
-      const { reads, outcomes } = await askAndReadSql();
+    async function readsWhenAskedBy(person: string): Promise<{ reads: string[]; kinds: string[] }> {
+      const reads: string[] = [];
+      const asked = { ...deps(), database: watchedDatabase(reads) };
+      signedInPerson.set(person);
+      const printed = await printCreditNoteFor(asked, NOTE_OF_SALE);
+      const reprinted = await reprintCreditNoteFor(asked, { ...NOTE_OF_SALE, reason: REASON });
+      return {
+        reads: reads.filter((sql) => /credit_note|sale_void/.test(sql)),
+        kinds: [printed.kind, reprinted.kind],
+      };
+    }
 
-      expect(outcomes.map(({ kind }) => kind)).toEqual(["lacks_permission", "lacks_permission"]);
-      expect(reads.length).toBeGreaterThan(0);
-      expect(reads.filter((sql) => /credit_note|sale_void/.test(sql))).toEqual([]);
+    it("is refused before anything of the credit note is read without the permission to view the sales history", async () => {
+      const { reads, kinds } = await readsWhenAskedBy("cashier-without-history");
+
+      expect(kinds).toEqual(["lacks_permission", "lacks_permission"]);
+      expect(reads).toEqual([]);
+    });
+
+    it("does read the credit note once the person may view the sales history", async () => {
+      const { reads } = await readsWhenAskedBy("clerk");
+
+      expect(reads).not.toEqual([]);
     });
   });
 });
