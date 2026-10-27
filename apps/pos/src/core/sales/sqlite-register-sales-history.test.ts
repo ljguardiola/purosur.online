@@ -653,7 +653,20 @@ describe("SqliteRegisterSalesHistory", () => {
         ],
         creditNote: null,
         deferredInvoiceIssued: false,
+        hasReturn: false,
       });
+    });
+
+    it("says whether a return was made against the sale", () => {
+      addSale({ id: "sale-1" });
+      addSale({ id: "sale-2" });
+      database.exec(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 'open-session', 'u1', 'TYPED', '2026-10-08T13:00:00.000Z')`,
+      );
+
+      expect(history.saleOfRegister("sale-1")?.hasReturn).toBe(true);
+      expect(history.saleOfRegister("sale-2")?.hasReturn).toBe(false);
     });
 
     it.each([
