@@ -729,7 +729,7 @@ describe("voidSale", () => {
       expect(store.state.outbox).toHaveLength(1);
       expect(store.state.outbox[0]).toMatchObject({
         event_id: "id-5",
-        schema_version: 3,
+        schema_version: 4,
         payload: { credit_note: CREDIT_NOTE_PAYLOAD },
       });
     });
