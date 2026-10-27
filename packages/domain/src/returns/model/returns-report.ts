@@ -31,7 +31,7 @@ export interface ReturnRow extends ReturnRecord {
   refunded: number;
 }
 
-export interface ReturnsTotals {
+interface ReturnsTotals {
   returns: number;
   refunded: number;
 }

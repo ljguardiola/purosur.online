@@ -1,5 +1,6 @@
 import { returnsReportQuerySchema, returnsReportSchema } from "@purosur/contracts";
-import { type ReturnsReport, readReturnsReport } from "@purosur/domain/returns/use-cases";
+import type { ReturnRow, ReturnsGroup } from "@purosur/domain";
+import { readReturnsReport } from "@purosur/domain/returns/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
@@ -17,9 +18,6 @@ export interface ReturnsReportRouteOptions<TQueryResult extends PgQueryResultHKT
   backofficeOrigin: string;
   now: () => Date;
 }
-
-type ReturnsGroup = ReturnsReport["typed"];
-type ReturnRow = ReturnsGroup["rows"][number];
 
 const person = ({ id, name }: { id: string; name: string | null }) => ({ id, name });
 
