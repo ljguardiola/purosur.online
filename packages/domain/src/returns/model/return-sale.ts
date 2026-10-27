@@ -1,5 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import type { SaleWithLines } from "../../sales/index.js";
+import type { SaleLine, SaleWithLines } from "../../sales/index.js";
 import { settledLines } from "../../sales/index.js";
 import type { ReturnablePayment } from "./refund-allocation.js";
 import type { ReturnSaleLine } from "./return-draft.js";
@@ -10,8 +10,17 @@ export interface ReturnedFromLine {
   refundedAmount: number;
 }
 
+export type SaleLineForReturn = Pick<
+  SaleLine,
+  "id" | "productId" | "productName" | "saleUnit" | "quantity" | "promotionId" | "lineTotal"
+>;
+
+export type SaleOfReturn = Pick<SaleWithLines, "id" | "registerId" | "deviceId" | "state" | "saleDiscount"> & {
+  lines: SaleLineForReturn[];
+};
+
 export interface SaleForReturn {
-  sale: SaleWithLines;
+  sale: SaleOfReturn;
   occurredAt: Date;
   invoice: { pointOfSale: number; number: number } | null;
   payments: ReturnablePayment[];

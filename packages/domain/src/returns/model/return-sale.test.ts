@@ -103,6 +103,8 @@ describe("returnSaleLines", () => {
       returnSaleLines({
         sale: {
           id: "sale-1",
+          registerId: "register-1",
+          deviceId: "device-1",
           state: "COMPLETED",
           saleDiscount: null,
           lines: [
