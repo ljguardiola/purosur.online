@@ -817,6 +817,7 @@ describe("asking for the credit notes of voided sales, as the register's health 
       total: 3000,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 40 + index },
+      origin: { kind: "sale_void" },
     });
   }
 

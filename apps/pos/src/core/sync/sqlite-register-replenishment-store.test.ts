@@ -684,6 +684,7 @@ describe("the register's store for replenishing a restored register", () => {
       total: 4800,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+      origin: { kind: "sale_void" },
     };
     const ANSWER = {
       creditNoteId: "note-1",
@@ -747,6 +748,7 @@ describe("the register's store for replenishing a restored register", () => {
       total: 3000,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 41 },
+      origin: { kind: "sale_void" },
     };
     const EVENT = {
       event_id: "event-1",

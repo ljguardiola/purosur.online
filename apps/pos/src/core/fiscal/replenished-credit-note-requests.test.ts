@@ -17,6 +17,7 @@ const CREDIT_NOTE: CreditNoteToIssue = {
   total: 3000,
   receiverTaxStatusCode: 5,
   correctedVoucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 41 },
+  origin: { kind: "sale_void" },
 };
 
 const SALE_VOIDED_EVENT: PushedEvent = {

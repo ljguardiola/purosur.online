@@ -236,6 +236,7 @@ describe("forgetting the acknowledged events while a voided sale's credit note i
       total: 3000,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 40 + deviceSeq },
+      origin: { kind: "sale_void" },
     });
   }
 

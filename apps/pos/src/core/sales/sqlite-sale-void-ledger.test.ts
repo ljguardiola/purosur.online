@@ -306,6 +306,7 @@ describe("the credit note of a voided sale", () => {
     total: 3000,
     receiverTaxStatusCode: 5,
     correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
+    origin: { kind: "sale_void" },
   };
 
   function recordCreditNote(saleId: string, creditNoteId = "note-1") {
