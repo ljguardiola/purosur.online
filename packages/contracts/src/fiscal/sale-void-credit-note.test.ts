@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  saleReturnedEventCreditNoteSchema,
   saleVoidCreditNoteRequestSchema,
   saleVoidCreditNoteResponseSchema,
   saleVoidedEventCreditNoteSchema,
@@ -49,6 +50,29 @@ describe("saleVoidCreditNoteRequestSchema", () => {
 
   it("accepts the highest point of sale number", () => {
     expect(requestWith({ point_of_sale: 99999 }).success).toBe(true);
+  });
+
+  describe("the invoice a credit note that waited for it now corrects", () => {
+    const invoice = {
+      corrects: { voucher_type: 11, point_of_sale: 8, number: 77 },
+      receiver_tax_status_code: 5,
+    };
+
+    it("is read with the request", () => {
+      expect(requestWith({ invoice }).data).toEqual({ ...request, invoice });
+    });
+
+    it.each([
+      [
+        "a voucher that is not an invoice C",
+        { corrects: { ...invoice.corrects, voucher_type: 6 } },
+      ],
+      ["a voucher of number zero", { corrects: { ...invoice.corrects, number: 0 } }],
+      ["a fractional tax status", { receiver_tax_status_code: 5.5 }],
+      ["no tax status", { receiver_tax_status_code: undefined }],
+    ])("is refused with %s", (_case, overrides) => {
+      expect(requestWith({ invoice: { ...invoice, ...overrides } }).success).toBe(false);
+    });
   });
 
   it("keeps nothing of the request but the fields a register sends", () => {
@@ -107,6 +131,59 @@ describe("saleVoidedEventCreditNoteSchema", () => {
   });
 });
 
+describe("saleReturnedEventCreditNoteSchema", () => {
+  const returnId = "0199b7a0-0000-7000-8000-000000000009";
+  const creditNote = {
+    id: "0199b7a0-0000-7000-8000-000000000003",
+    total: 3_000,
+    receiver_tax_status_code: 5,
+    corrects: { voucher_type: 11, point_of_sale: 8, number: 77 },
+    issued_on: "2026-10-01",
+  };
+  const returnedEvent = {
+    ...saleEvent,
+    aggregate_type: "Return",
+    aggregate_id: returnId,
+    event_type: "sale_returned",
+    schema_version: 2,
+    payload: { id: returnId, sale_id: saleEvent.aggregate_id, credit_note: creditNote },
+  };
+
+  function eventWith(overrides: Record<string, unknown>) {
+    return saleReturnedEventCreditNoteSchema.safeParse({ ...returnedEvent, ...overrides });
+  }
+
+  it("reads the return, its sale and the credit note it asks for", () => {
+    expect(saleReturnedEventCreditNoteSchema.parse(returnedEvent)).toEqual({
+      event_type: "sale_returned",
+      schema_version: 2,
+      aggregate_id: returnId,
+      payload: { id: returnId, sale_id: saleEvent.aggregate_id, credit_note: creditNote },
+    });
+  });
+
+  it("reads a credit note that waits for the invoice of its sale, which it does not correct yet", () => {
+    const waiting = { ...creditNote, receiver_tax_status_code: null, corrects: null };
+
+    expect(eventWith({ payload: { ...returnedEvent.payload, credit_note: waiting } }).success).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ["an event of another type", { event_type: "sale_voided" }],
+    ["a return of an earlier version", { schema_version: 1 }],
+    [
+      "a return that asks for no credit note",
+      { payload: { ...returnedEvent.payload, credit_note: null } },
+    ],
+    ["a return without its sale", { payload: { ...returnedEvent.payload, sale_id: "" } }],
+    ["an event without its return", { aggregate_id: "" }],
+  ])("refuses %s", (_case, overrides) => {
+    expect(eventWith(overrides).success).toBe(false);
+  });
+});
+
 describe("saleVoidCreditNoteResponseSchema", () => {
   const authorized = {
     state: "AUTHORIZED",
@@ -122,6 +199,7 @@ describe("saleVoidCreditNoteResponseSchema", () => {
     ["an authorized credit note", authorized],
     ["a rejection", { state: "REJECTED" }],
     ["a credit note in progress", { state: "IN_PROGRESS" }],
+    ["a credit note a person must regularize", { state: "REGULARIZATION_REQUIRED" }],
   ])("reads %s", (_case, response) => {
     expect(saleVoidCreditNoteResponseSchema.parse(response)).toEqual(response);
   });

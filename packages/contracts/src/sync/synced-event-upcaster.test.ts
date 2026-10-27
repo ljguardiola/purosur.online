@@ -1037,6 +1037,7 @@ describe("decoding the events the registers pushed", () => {
               total: 4800,
               receiverTaxStatusCode: 5,
               correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+              origin: { kind: "sale_void" },
             },
           },
         });

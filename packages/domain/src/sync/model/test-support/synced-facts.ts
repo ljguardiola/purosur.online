@@ -288,6 +288,7 @@ export function aReturnedSaleFact(
   const occurredAt = new Date("2026-10-08T10:00:00.000Z");
   return {
     kind: "sale_returned",
+    creditNote: null,
     saleReturn: {
       id: "return-1",
       saleId: "sale-1",

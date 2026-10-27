@@ -10,7 +10,7 @@ const PAYMENT = "0199b7a0-0000-7000-8000-000000000a07";
 const USER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 const AT = "2026-10-08T10:00:00.000Z";
 
-const returned = (change: Record<string, unknown> = {}) =>
+const returned = (change: Record<string, unknown> = {}, version = 1) =>
   unappliedEventOf(
     {
       event_id: "0199b7a0-0000-7000-8000-000000000b01",
@@ -18,7 +18,7 @@ const returned = (change: Record<string, unknown> = {}) =>
       aggregate_type: "Return",
       aggregate_id: RETURN,
       event_type: "sale_returned",
-      schema_version: 1,
+      schema_version: version,
       occurred_at: AT,
       actor_id: USER,
       chain_hmac: "hmac",
@@ -210,6 +210,60 @@ describe("decoding a sale_returned event", () => {
     expect(decoded).toMatchObject({
       kind: "unreadable",
       reason: expect.stringContaining("lines.0.disposition"),
+    });
+  });
+});
+
+describe("decoding the credit note of a sale_returned event", () => {
+  const creditNote = {
+    id: "0199b7a0-0000-7000-8000-000000000a0b",
+    total: 5000,
+    receiver_tax_status_code: 5,
+    corrects: { voucher_type: 11, point_of_sale: 7, number: 42 },
+    issued_on: "2026-10-08",
+  };
+
+  it("reads a version 1 return as asking for no credit note", () => {
+    expect(syncedEventUpcaster.decode(returned())).toMatchObject({
+      fact: { kind: "sale_returned", creditNote: null },
+    });
+  });
+
+  it("reads a version 2 return that asks for no credit note", () => {
+    expect(syncedEventUpcaster.decode(returned({ credit_note: null }, 2))).toMatchObject({
+      fact: { kind: "sale_returned", creditNote: null },
+    });
+  });
+
+  it("reads the credit note a version 2 return asks for, for the sale it returns from and dated by the return", () => {
+    expect(syncedEventUpcaster.decode(returned({ credit_note: creditNote }, 2))).toMatchObject({
+      kind: "fact",
+      fact: {
+        kind: "sale_returned",
+        creditNote: {
+          creditNoteId: "0199b7a0-0000-7000-8000-000000000a0b",
+          saleId: SALE,
+          total: 5000,
+          receiverTaxStatusCode: 5,
+          correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+          origin: { kind: "sale_return", returnId: RETURN, issuedOn: "2026-10-08" },
+        },
+      },
+    });
+  });
+
+  it("reads a credit note that waits for the invoice of its sale as correcting none yet", () => {
+    const waiting = { ...creditNote, receiver_tax_status_code: null, corrects: null };
+
+    expect(syncedEventUpcaster.decode(returned({ credit_note: waiting }, 2))).toMatchObject({
+      fact: { creditNote: { receiverTaxStatusCode: null, correctedVoucher: null } },
+    });
+  });
+
+  it("is unreadable, naming the refused member, when a version 2 return says nothing about its credit note", () => {
+    expect(syncedEventUpcaster.decode(returned({}, 2))).toMatchObject({
+      kind: "unreadable",
+      reason: expect.stringContaining("credit_note"),
     });
   });
 });

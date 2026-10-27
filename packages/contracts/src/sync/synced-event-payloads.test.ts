@@ -234,10 +234,65 @@ describe("synced event payloads", () => {
       "sale_print_state_changed@1",
       "sale_print_state_changed@2",
       "sale_returned@1",
+      "sale_returned@2",
       "sale_voided@1",
       "sale_voided@2",
       "sale_voided@3",
     ]);
+  });
+
+  describe("a returned sale in version 2", () => {
+    const withCreditNote = (creditNote: unknown) => ({
+      ...recordedPayload("sale_returned", 2),
+      credit_note: creditNote,
+    });
+    const creditNote = {
+      id: "0199b7a0-0000-7000-8000-000000000003",
+      total: 1_350,
+      receiver_tax_status_code: 5,
+      corrects: { voucher_type: 11, point_of_sale: 7, number: 42 },
+      issued_on: "2026-10-06",
+    };
+
+    it("asks for the credit note of the return", () => {
+      expect(accepts("sale_returned", 2, withCreditNote(creditNote))).toBe(true);
+    });
+
+    it("asks for no credit note", () => {
+      expect(accepts("sale_returned", 2, withCreditNote(null))).toBe(true);
+    });
+
+    it("asks for a credit note that waits for the invoice of its sale", () => {
+      expect(
+        accepts(
+          "sale_returned",
+          2,
+          withCreditNote({ ...creditNote, receiver_tax_status_code: null, corrects: null }),
+        ),
+      ).toBe(true);
+    });
+
+    it("says whether it asks for a credit note", () => {
+      const { credit_note: _creditNote, ...without } = recordedPayload("sale_returned", 2);
+
+      expect(accepts("sale_returned", 2, without)).toBe(false);
+    });
+
+    it.each([
+      ["a receiver without an invoice to correct", { corrects: null }],
+      ["an invoice to correct without a receiver", { receiver_tax_status_code: null }],
+      ["a total of zero", { total: 0 }],
+      ["a day that does not exist", { issued_on: "2026-02-30" }],
+      ["no day", { issued_on: undefined }],
+      [
+        "a voucher that is not an invoice C",
+        { corrects: { ...creditNote.corrects, voucher_type: 6 } },
+      ],
+    ])("refuses a credit note with %s", (_case, overrides) => {
+      expect(accepts("sale_returned", 2, withCreditNote({ ...creditNote, ...overrides }))).toBe(
+        false,
+      );
+    });
   });
 
   it("describes the gate failure the domain builds", () => {
