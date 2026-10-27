@@ -62,7 +62,10 @@ const saleDiscountSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-const ROUTABLE_INVOICE_STATES = ["AUTHORIZED", "REQUESTING"] as const satisfies readonly FiscalDocumentState[];
+const ROUTABLE_INVOICE_STATES = [
+  "AUTHORIZED",
+  "REQUESTING",
+] as const satisfies readonly FiscalDocumentState[];
 
 const invoiceStandingSchema = z.object({
   fiscal_documents: z.array(
