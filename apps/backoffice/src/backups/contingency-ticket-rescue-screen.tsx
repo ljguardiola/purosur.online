@@ -13,10 +13,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useContingencyTicketRecoveriesQuery, useRefreshBackups } from "./backups-queries";
-import {
-  type ContingencyTicketRecovery,
-  fetchContingencyTicketRecoveries,
-} from "./contingency-ticket-recovery-api";
+import type { ContingencyTicketRecovery } from "./contingency-ticket-recovery-api";
 import type { RescueContingencyBackupTicketOutcome } from "./contingency-ticket-rescue-api";
 import type { ContingencyTicketRescueScreenServices } from "./contingency-ticket-rescue-services";
 import {
@@ -145,8 +142,7 @@ export function ContingencyTicketRescueScreen({
 }: ContingencyTicketRescueScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const recoveries = useContingencyTicketRecoveriesQuery({
-    fetchContingencyTicketRecoveries:
-      services.fetchContingencyTicketRecoveries ?? fetchContingencyTicketRecoveries,
+    fetchContingencyTicketRecoveries: services.fetchContingencyTicketRecoveries,
     onSessionEnded,
   });
   const refreshBackups = useRefreshBackups();
@@ -288,9 +284,7 @@ export function ContingencyTicketRescueScreen({
         onClose={() => setFinishTarget(null)}
         onFinished={handleFinished}
         onSessionEnded={onSessionEnded}
-        {...(services.finishTicketRecoveryModal
-          ? { services: services.finishTicketRecoveryModal }
-          : {})}
+        services={services.finishTicketRecoveryModal}
       />
       {recoveryNotice ? (
         <FloatingNotification

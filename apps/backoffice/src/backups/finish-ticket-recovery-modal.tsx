@@ -3,16 +3,14 @@ import { CircleCheck, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import {
-  type ContingencyTicketRecovery,
+import type {
+  ContingencyTicketRecovery,
   finishContingencyTicketRecovery,
 } from "./contingency-ticket-recovery-api";
 
 export type FinishTicketRecoveryModalServices = {
   finishContingencyTicketRecovery: typeof finishContingencyTicketRecovery;
 };
-
-const defaultServices: FinishTicketRecoveryModalServices = { finishContingencyTicketRecovery };
 
 export type FinishedRecoveryOutcome = "finished" | "already_finished" | "not_found";
 
@@ -21,7 +19,7 @@ type FinishTicketRecoveryModalProps = {
   onClose: () => void;
   onFinished: (outcome: FinishedRecoveryOutcome) => void;
   onSessionEnded: () => void;
-  services?: FinishTicketRecoveryModalServices;
+  services: FinishTicketRecoveryModalServices;
 };
 
 type FinishNotice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number };
@@ -31,7 +29,7 @@ export function FinishTicketRecoveryModal({
   onClose,
   onFinished,
   onSessionEnded,
-  services = defaultServices,
+  services,
 }: FinishTicketRecoveryModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const [shown, setShown] = useState(target);
