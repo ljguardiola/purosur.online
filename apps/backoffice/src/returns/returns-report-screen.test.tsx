@@ -166,14 +166,12 @@ test("marks a return nobody authorized, and calls a cashier without a name Sin i
   const row = table.getByRole("row", { name: /Aceite 900 ml/ });
   await expect.element(row).toBeVisible();
   const cellUnder = (header: string) =>
-    row
-      .getByRole("cell")
-      .nth(
-        table
-          .getByRole("columnheader")
-          .elements()
-          .findIndex((columnHeader) => columnHeader.textContent === header),
-      );
+    row.getByRole("cell").nth(
+      table
+        .getByRole("columnheader")
+        .elements()
+        .findIndex((columnHeader) => columnHeader.textContent === header),
+    );
   await expect.element(cellUnder("Cajero")).toHaveTextContent("Sin identificar");
   await expect.element(cellUnder("Autorizó")).toHaveTextContent("—");
 });
