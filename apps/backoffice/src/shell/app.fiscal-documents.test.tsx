@@ -13,7 +13,14 @@ import { createAppServices } from "./test-support/app-services";
 import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/help", "/fiscal-documents", "/points-of-sale"]);
+opensOnlyScreens([
+  "/",
+  "/account",
+  "/help",
+  "/fiscal-documents",
+  "/fiscal-tasks",
+  "/points-of-sale",
+]);
 
 beforeEach(resetPageState);
 

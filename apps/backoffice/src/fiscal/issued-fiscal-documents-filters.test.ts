@@ -23,17 +23,17 @@ test("keeps the period, register, kind, number and page a URL names", () => {
     register: FRONT_REGISTER_ID,
     kind: "credit_note",
     number: "41",
-    page: 3,
+    page: "3",
   };
 
-  expect(issuedFiscalDocumentsFilters.parse(filters)).toEqual(filters);
+  expect(issuedFiscalDocumentsFilters.parse(filters)).toEqual({ ...filters, page: 3 });
 });
 
 test.each([
   ["a kind that is not offered", { kind: "invoice" }, { kind: "ALL" }],
   ["a number that is not a document number", { number: "abc" }, { number: "" }],
   ["a number starting with zero", { number: "0041" }, { number: "" }],
-  ["a page that is not a positive whole number", { page: 0 }, { page: 1 }],
+  ["a page that is not a positive whole number", { page: "0" }, { page: 1 }],
   ["a page written as text", { page: "two" }, { page: 1 }],
   [
     "a period the cloud would refuse",
@@ -57,7 +57,7 @@ test("asks the cloud for every filter the URL carries", () => {
     register: FRONT_REGISTER_ID,
     kind: "receipt",
     number: "1247",
-    page: 2,
+    page: "2",
   });
 
   expect(issuedFiscalDocumentsQueryOf(filters)).toEqual({
@@ -68,4 +68,8 @@ test("asks the cloud for every filter the URL carries", () => {
     number: 1247,
     page: 2,
   });
+});
+
+test("keeps a page it already parsed, as the router hands the filters back", () => {
+  expect(issuedFiscalDocumentsFilters.parse({ page: 3 })).toMatchObject({ page: 3 });
 });

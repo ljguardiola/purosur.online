@@ -173,7 +173,7 @@ test("asks the cloud for every filter the URL carries", async () => {
       register: FRONT_REGISTER_ID,
       kind: "credit_note",
       number: "41",
-      page: 2,
+      page: "2",
     }),
   });
 
@@ -194,7 +194,7 @@ test("asks the cloud for every filter the URL carries", async () => {
 test("asks the cloud again for the kind chosen, from the first page", async () => {
   const services = createServices();
   const screen = await renderScreen(services, {
-    filters: issuedFiscalDocumentsFilters.parse({ page: 3 }),
+    filters: issuedFiscalDocumentsFilters.parse({ page: "3" }),
   });
   await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
 
@@ -209,7 +209,9 @@ test("asks the cloud again for the kind chosen, from the first page", async () =
 test("offers every kind, with all of them chosen to begin with", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect.element(screen.getByRole("button", { name: /Tipo:/ })).toHaveTextContent("Tipo: Todos");
+  await expect
+    .element(screen.getByRole("button", { name: /Tipo:/ }))
+    .toHaveTextContent("Tipo: Todos");
   await userEvent.click(screen.getByRole("button", { name: /Tipo:/ }));
   for (const name of ["Todos", "Facturas", "Notas de crédito"]) {
     await expect.element(screen.getByRole("option", { name })).toBeVisible();
