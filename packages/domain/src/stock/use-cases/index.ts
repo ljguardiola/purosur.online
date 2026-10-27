@@ -97,6 +97,12 @@ export type {
 export { readCurrentStockReport } from "./read-current-stock-report.js";
 export type { ExpiringLotsView, ReadExpiringLotsInput } from "./read-expiring-lots.js";
 export { readExpiringLots } from "./read-expiring-lots.js";
+export type {
+  ExpiringLotsReport,
+  ExpiringLotsReportSummary,
+  ReadExpiringLotsReportInput,
+} from "./read-expiring-lots-report.js";
+export { readExpiringLotsReport } from "./read-expiring-lots-report.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {
