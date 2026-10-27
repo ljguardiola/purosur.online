@@ -3,7 +3,12 @@ export {
   argentinaCalendarDay,
   argentinaInstant,
 } from "./argentina-calendar.js";
-export { isCalendarDay, lastDayOfMonth, shiftCalendarDay } from "./calendar-day.js";
+export {
+  addCalendarMonths,
+  isCalendarDay,
+  lastDayOfMonth,
+  shiftCalendarDay,
+} from "./calendar-day.js";
 export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./cash-amount.js";
 export type { Clock } from "./clock.js";
 export { codePointLength } from "./code-point-length.js";
@@ -16,6 +21,7 @@ export {
   canonicalOutboxEvent,
   canonicalOutboxPayload,
   SALE_COMPLETED_EVENT_TYPE,
+  SALE_RETURNED_EVENT_TYPE,
   SALE_VOIDED_EVENT_TYPE,
 } from "./outbox-event.js";
 export type { ReplenishmentFailureKind } from "./replenishment-failure-kind.js";

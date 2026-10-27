@@ -19,5 +19,6 @@ export const ADJUSTMENT_REASON_LABELS = {
 export const REASON_LABELS: Record<StockMovement["reason"], string> = {
   ...LOSS_REASON_LABELS,
   expired: "Vencimiento",
+  return_discard: "Descarte de devolución",
   ...ADJUSTMENT_REASON_LABELS,
 };

@@ -2,19 +2,12 @@ import type { SalesHistoryOutcome } from "@purosur/contracts";
 import type { PaymentMethod } from "@purosur/domain";
 import type { TagProps } from "@purosur/ui";
 import { formatOperationNumber } from "@purosur/ui";
+import { PAYMENT_METHOD_NAMES } from "../platform/payment-method-names";
 
 type FoundHistory = Extract<SalesHistoryOutcome, { kind: "found" }>;
 type HistoryRow = FoundHistory["rows"][number];
 
 export type ShownSaleState = HistoryRow["state"];
-
-const PAYMENT_METHOD_NAMES = {
-  CASH: "Efectivo",
-  TRANSFER: "Transferencia",
-  QR: "QR de Mercado Pago",
-  POINT: "Point integrada",
-  STANDALONE_TERMINAL: "Terminal independiente",
-} as const satisfies Record<PaymentMethod, string>;
 
 const PAYMENT_METHOD_SHORT_NAMES = {
   ...PAYMENT_METHOD_NAMES,
@@ -31,10 +24,6 @@ const STATE_PRESENTATION = {
 
 export function operationText(operationNumber: number): string {
   return `Operación ${formatOperationNumber(operationNumber)}`;
-}
-
-export function paymentMethodName(method: PaymentMethod): string {
-  return PAYMENT_METHOD_NAMES[method];
 }
 
 export function paymentMethodsText(methods: readonly PaymentMethod[]): string {

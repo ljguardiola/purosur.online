@@ -130,6 +130,7 @@ export {
   isRegisterFiscallyOnline,
   REGISTER_HEALTH_CHECK_INTERVAL_MS,
 } from "./model/fiscal-online-signal.js";
+export { fiscalQrVoucher } from "./model/fiscal-qr-voucher.js";
 export type {
   FiscalDocumentType,
   RejectionStandingChange,
@@ -170,6 +171,14 @@ export {
   owesFortnightReport,
 } from "./model/fortnight-report.js";
 export { generationStampOf } from "./model/generation-stamp.js";
+export type { IssuedDocumentKind, IssuedDocumentState } from "./model/issued-fiscal-document.js";
+export {
+  CAEA_DOCUMENT_ISSUED_STATE,
+  ISSUED_DOCUMENT_KINDS,
+  ISSUED_DOCUMENT_STATES,
+  ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
+  LISTED_ONLINE_DOCUMENT_STATES,
+} from "./model/issued-fiscal-document.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,

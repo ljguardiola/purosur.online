@@ -77,9 +77,17 @@ export function formatOperationNumber(number: number): string {
   return String(number).padStart(6, "0");
 }
 
-export function parsePointOfSaleNumber(text: string): number {
+function parseDigits(text: string): number {
   const digits = text.trim();
   return /^\d+$/.test(digits) ? Number(digits) : Number.NaN;
+}
+
+export function parsePointOfSaleNumber(text: string): number {
+  return parseDigits(text);
+}
+
+export function parseInvoiceNumber(text: string): number {
+  return parseDigits(text);
 }
 
 export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {

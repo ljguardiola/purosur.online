@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  operationText,
-  paymentMethodName,
-  paymentMethodsText,
-  saleStatePresentation,
-} from "./sale-history-text";
+import { operationText, paymentMethodsText, saleStatePresentation } from "./sale-history-text";
 
 describe("operationText", () => {
   it("shows the operation number padded to six digits", () => {
@@ -34,18 +29,6 @@ describe("paymentMethodsText", () => {
 
   it("is a dash when the sale has no payment", () => {
     expect(paymentMethodsText([])).toBe("—");
-  });
-});
-
-describe("paymentMethodName", () => {
-  it.each([
-    ["CASH", "Efectivo"],
-    ["TRANSFER", "Transferencia"],
-    ["QR", "QR de Mercado Pago"],
-    ["POINT", "Point integrada"],
-    ["STANDALONE_TERMINAL", "Terminal independiente"],
-  ] as const)("names %s as %s", (method, name) => {
-    expect(paymentMethodName(method)).toBe(name);
   });
 });
 

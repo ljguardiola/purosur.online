@@ -8,6 +8,7 @@ const EVENT_TYPE_NAMES: Readonly<Record<SyncedEventType, string>> = {
   sale_completed: "venta",
   sale_cancelled: "venta cancelada",
   sale_voided: "venta anulada",
+  sale_returned: "devolución",
   sale_print_state_changed: "impresión del ticket",
   reprint_recorded: "reimpresión del ticket",
   cash_session_opened: "apertura de caja",
@@ -30,11 +31,13 @@ function isSyncedEventType(eventType: string): eventType is SyncedEventType {
 const AGGREGATE_TYPE_NAMES: ReadonlyMap<string, string> = new Map([
   ["Sale", "Venta"],
   ["CashSession", "Sesión de caja"],
+  ["Return", "Devolución"],
 ]);
 
 const OF_AGGREGATE_TYPE: ReadonlyMap<string, string> = new Map([
   ["Sale", "de la venta"],
   ["CashSession", "de la sesión de caja"],
+  ["Return", "de la devolución"],
 ]);
 
 export function syncedEventTypeName(eventType: string): string | undefined {

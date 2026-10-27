@@ -16,14 +16,17 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  CompleteReturnOutcome,
   EnrollmentStandingAnswer,
   FindDeferredSaleOutcome,
+  FindSaleForReturnOutcome,
   FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
+  PreviewReturnOutcome,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
@@ -41,6 +44,7 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RestorationStandingAnswer,
+  ReturnDraftLineBody,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -59,6 +63,11 @@ import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
 import type { StartupPendingAnswer } from "./register/startup-pending-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import type {
+  CompleteReturnRequest,
+  FindSaleForReturnRequest,
+  PreviewReturnRequest,
+} from "./returns/returns-requests";
 import type { FindDeferredSaleReading } from "./sales/deferred-sale-invoice-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
@@ -80,6 +89,14 @@ const NOTHING_PENDING = {
   selling_blocked: false,
   may_go_selling: true,
 };
+
+const RETURNED_LINES: ReturnDraftLineBody[] = [
+  { sale_line_id: "l1", quantity: 2, reason: "change_of_mind", disposition: "restock" },
+];
+const UNDECIDED_RETURN_LINES: ReturnDraftLineBody[] = [
+  { sale_line_id: "l1", quantity: 2, reason: null, disposition: "discard" },
+];
+const RETURN_REFUNDS = [{ payment_id: "pay-1", amount: 5000 }];
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
@@ -293,6 +310,37 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         reading: FindDeferredSaleReading,
       ): Promise<FindDeferredSaleOutcome> => {
         saleChanges.push(["find-deferred", reading.kind, reading.shortCode].join(" "));
+        return { kind: "not_found" };
+      },
+      findSaleForReturn: async (
+        request: FindSaleForReturnRequest,
+      ): Promise<FindSaleForReturnOutcome> => {
+        saleChanges.push(
+          [
+            "find-return",
+            JSON.stringify(request.ticket),
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "not_found" };
+      },
+      previewReturn: async (request: PreviewReturnRequest): Promise<PreviewReturnOutcome> => {
+        saleChanges.push(
+          ["preview-return", request.saleId, JSON.stringify(request.lines)].join(" "),
+        );
+        return { kind: "not_found" };
+      },
+      completeReturn: async (request: CompleteReturnRequest): Promise<CompleteReturnOutcome> => {
+        saleChanges.push(
+          [
+            "complete-return",
+            request.saleId,
+            request.ticketSource,
+            JSON.stringify(request.lines),
+            JSON.stringify(request.refunds),
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
         return { kind: "not_found" };
       },
       printDeferredSaleInvoice: async (
@@ -2953,6 +3001,35 @@ describe("answerRendererRequest", () => {
         "find-deferred-sale-result",
       ],
       [
+        "find-sale-for-return",
+        {
+          type: "find-sale-for-return",
+          reading: {
+            source: "TYPED",
+            ticket: { kind: "invoice", pointOfSale: 3, number: 1204 },
+          },
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "findSaleForReturn",
+        "finding the sale to return",
+        'find-return {"kind":"invoice","pointOfSale":3,"number":1204} u2',
+        "find-sale-for-return-result",
+      ],
+      [
+        "complete-return",
+        {
+          type: "complete-return",
+          sale_id: "s1",
+          ticket_source: "QR",
+          lines: RETURNED_LINES,
+          refunds: RETURN_REFUNDS,
+        } as const,
+        "completeReturn",
+        "completing a return",
+        'complete-return s1 QR [{"saleLineId":"l1","quantity":2,"reason":"change_of_mind","disposition":"restock"}] [{"paymentId":"pay-1","amount":5000}] alone',
+        "complete-return-result",
+      ],
+      [
         "print-deferred-sale-invoice",
         { type: "print-deferred-sale-invoice", sale_id: "s1" } as const,
         "printDeferredSaleInvoice",
@@ -3110,5 +3187,60 @@ describe("answerRendererRequest", () => {
         ).toEqual({ type: resultType, request_id: "r53", outcome: { kind: "unavailable" } });
       },
     );
+  });
+  describe("previewing a return", () => {
+    const request = {
+      type: "preview-return",
+      request_id: "r60",
+      sale_id: "s1",
+      lines: UNDECIDED_RETURN_LINES,
+    } as const;
+
+    it("asks the register to preview it with the lines in the register's words and answers its outcome", async () => {
+      const outcome: PreviewReturnOutcome = { kind: "previewed", lines: [], refundable_total: 0 };
+      const recording = deps(true);
+
+      expect(
+        await answerRendererRequest(
+          deps(true, { previewReturn: async () => outcome }).deps,
+          request,
+        ),
+      ).toEqual({ type: "preview-return-result", request_id: "r60", outcome });
+      await answerRendererRequest(recording.deps, request);
+      expect(recording.saleChanges).toEqual([
+        'preview-return s1 [{"saleLineId":"l1","quantity":2,"reason":null,"disposition":"discard"}]',
+      ]);
+    });
+
+    it.each([
+      [
+        "fails",
+        {
+          previewReturn: async () => {
+            throw new Error("database is locked");
+          },
+        },
+      ],
+      ["has no database", { previewReturn: undefined }],
+    ])("answers that the preview is unavailable when the register %s", async (_case, overrides) => {
+      expect(await answerRendererRequest(deps(true, overrides).deps, request)).toEqual({
+        type: "preview-return-result",
+        request_id: "r60",
+        outcome: { kind: "unavailable" },
+      });
+    });
+
+    it("reports why the preview failed", async () => {
+      const error = new Error("database is locked");
+      const failing = deps(true, {
+        previewReturn: async () => {
+          throw error;
+        },
+      });
+
+      await answerRendererRequest(failing.deps, request);
+
+      expect(failing.failures).toEqual([{ context: "previewing a return", error }]);
+    });
   });
 });

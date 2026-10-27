@@ -346,6 +346,15 @@ function coreAnswering(
     async findDeferredSale() {
       return { kind: "not_found" };
     },
+    async findSaleForReturn() {
+      return { kind: "not_found" };
+    },
+    async previewReturn() {
+      return { kind: "unavailable" };
+    },
+    async completeReturn() {
+      return { kind: "unavailable" };
+    },
     async printDeferredSaleInvoice() {
       return { kind: "unavailable" };
     },

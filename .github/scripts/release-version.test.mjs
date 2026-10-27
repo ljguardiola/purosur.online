@@ -327,6 +327,76 @@ test("refuses a commit older than the newest release", async () => {
   });
 });
 
+test("names the release after a version it is given, listing the changes since the newest release", async () => {
+  await withRepo(async (repo) => {
+    repo.tag("cloud-v1.0.0");
+    repo.commit("fix: round (#43)", { "apps/cloud/src/round.ts": "1" });
+
+    const release = await planRelease({
+      spec: SPEC,
+      sha: repo.git("rev-parse", "HEAD").trim(),
+      runGit: repo.runGit,
+      version: "1.0.1302",
+    });
+
+    assert.equal(release.version, "1.0.1302");
+    assert.equal(release.tag, "cloud-v1.0.1302");
+    assert.equal(release.previousTag, "cloud-v1.0.0");
+    assert.equal(release.notes, "## Fixes\n\n- fix: round (#43)\n");
+  });
+});
+
+test("refuses a given version that is not newer than the newest release", async () => {
+  await withRepo(async (repo) => {
+    repo.tag("cloud-v1.0.1302");
+    const sha = repo.commit("fix: round (#44)", { "apps/cloud/src/round.ts": "1" });
+
+    for (const version of ["1.0.1302", "1.0.1301", "0.9.2000"]) {
+      await assert.rejects(
+        planRelease({ spec: SPEC, sha, runGit: repo.runGit, version }),
+        (error) => {
+          assert.ok(error instanceof ReleaseRefusal);
+          assert.match(error.message, /not newer than cloud-v1\.0\.1302/);
+          return true;
+        },
+      );
+    }
+  });
+});
+
+test("refuses a given version whose tag already exists on another commit", async () => {
+  await withRepo(async (repo) => {
+    repo.git("checkout", "--quiet", "-b", "side");
+    repo.commit("fix: side (#45)", { "apps/cloud/src/side.ts": "1" });
+    repo.tag("cloud-v1.0.1302");
+    repo.git("checkout", "--quiet", "main");
+    const sha = repo.commit("fix: main (#46)", { "apps/cloud/src/main.ts": "1" });
+
+    await assert.rejects(
+      planRelease({ spec: SPEC, sha, runGit: repo.runGit, version: "1.0.1302" }),
+      (error) => {
+        assert.ok(error instanceof ReleaseRefusal);
+        assert.match(error.message, /cloud-v1\.0\.1302 already exists/);
+        return true;
+      },
+    );
+  });
+});
+
+test("refuses a given version that is not X.Y.Z", async () => {
+  await withRepo(async (repo) => {
+    const sha = repo.commit("fix: round (#47)", { "apps/cloud/src/round.ts": "1" });
+
+    for (const version of ["1.0", "v1.0.3", "1.0.3-beta", "01.0.3", ""]) {
+      await assert.rejects(
+        planRelease({ spec: SPEC, sha, runGit: repo.runGit, version }),
+        /X\.Y\.Z/,
+        version,
+      );
+    }
+  });
+});
+
 test("groups the notes by kind and keeps each subject's pull request reference", () => {
   const notes = releaseNotes([
     { subject: "fix: round totals (#11)", body: "" },
@@ -419,6 +489,18 @@ test("the command writes the version, the tag and the notes file", async () => {
         path: "/notes.md",
         text: "## Features\n\n- feat: sell by weight (#10)\n\n## Other changes\n\n- chore: scaffold the workspace\n",
       },
+    ]);
+  });
+});
+
+test("the command names the release after the version it is given", async () => {
+  await withRepo(async (repo) => {
+    repo.commit("feat: sell by weight (#10)", { "apps/cloud/src/weight.ts": "1" });
+    const { deps, calls } = cliDeps(repo, { RELEASE_VERSION: "1.0.1302" });
+
+    assert.equal(await runCli({ argv: ["plan"], ...deps }), 0);
+    assert.deepEqual(calls.outputs, [
+      { path: "/output", text: "version=1.0.1302\ntag=cloud-v1.0.1302\n" },
     ]);
   });
 });

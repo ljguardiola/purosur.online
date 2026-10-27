@@ -82,6 +82,7 @@ export function readSaleHistoryDetail(
     fiscal,
     voided,
     inOpenSession,
+    hasReturn: _hasReturn,
     invoices: _invoices,
     deferredInvoiceIssued,
     ...shown
@@ -112,12 +113,14 @@ export function readSaleHistoryDetail(
 function saleVoidabilityOf({
   voided,
   inOpenSession,
+  hasReturn,
   invoices,
   payments,
 }: SaleHistoryRecord): SaleVoidability {
   const refusal = saleVoidRefusal({
     state: voided ? "VOIDED" : "COMPLETED",
     inOpenSession,
+    hasReturn,
     fiscalDocumentStates: invoices.map(({ state }) => state),
   });
   if (refusal !== null) {

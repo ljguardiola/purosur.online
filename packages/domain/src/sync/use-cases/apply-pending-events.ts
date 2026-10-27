@@ -4,8 +4,10 @@ import {
   mercadoPagoPaymentIsBacked,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "../../payments/index.js";
+import { returnHistoryBreaks } from "../../returns/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import { afterFailedAttempt } from "../model/event-application-retry.js";
+import type { InvariantBreak } from "../model/event-invariant-breaks.js";
 import type { EventQuarantineReason } from "../model/event-quarantine.js";
 import { nextEventToApply } from "../model/next-event-to-apply.js";
 import {
@@ -156,9 +158,21 @@ async function recordFact(
         await tx.requestMercadoPagoRefundFollow();
       }
       return;
+    case "sale_returned":
+      await tx.record(fact, event);
+      return applyStock(tx.applyReturnStock(fact.saleReturn, event));
     default:
       return tx.record(fact, event);
   }
+}
+
+async function breaksAgainstSaleHistory(
+  tx: EventApplicationTransaction,
+  fact: SyncedFact,
+): Promise<InvariantBreak[]> {
+  return fact.kind === "sale_returned"
+    ? returnHistoryBreaks(fact.saleReturn, await tx.saleReturnHistory(fact.saleReturn.saleId))
+    : [];
 }
 
 async function applyEvent(
@@ -184,9 +198,10 @@ async function applyEvent(
   if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {
     await requireMercadoPagoPaymentsBacked(tx, fact.sale);
   }
+  const historyBreaks = await breaksAgainstSaleHistory(tx, fact);
   await recordFact(tx, fact, event, now);
   await tx.markApplied(event.eventId, now);
-  const breaks = invariantBreaksOf(fact);
+  const breaks = [...invariantBreaksOf(fact), ...historyBreaks];
   if (breaks.length > 0) {
     await tx.recordInvariantBreaks({
       eventId: event.eventId,

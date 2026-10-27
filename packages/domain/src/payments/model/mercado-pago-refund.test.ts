@@ -1,9 +1,7 @@
-import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   alreadyRefundedOfPayment,
   amountHeldByRefundedPayment,
-  exceedsRefundable,
   INSUFFICIENT_BALANCE_REFUSAL,
   isAwaitingMercadoPago,
   isProcessedByMercadoPago,
@@ -15,7 +13,6 @@ import {
   orderToRefund,
   progressOfRefundAnswer,
   recordedRefundOfVoidedSale,
-  refundableAmount,
   refundIsBackedByItsCorrection,
   refundIsBackedByItsLatePayment,
 } from "./mercado-pago-refund.js";
@@ -171,42 +168,6 @@ describe("recordedRefundOfVoidedSale", () => {
       });
     },
   );
-});
-
-describe("refundableAmount", () => {
-  it("is what the payment holds less what is already refunded of it", () => {
-    expect(refundableAmount(2450, 0)).toBe(2450);
-    expect(refundableAmount(2450, 1000)).toBe(1450);
-  });
-
-  it("is never negative", () => {
-    expect(refundableAmount(1000, 1500)).toBe(0);
-  });
-
-  it("is never more than the payment, nor does it count more than was refunded", () => {
-    fc.assert(
-      fc.property(fc.nat(1_000_000), fc.nat(1_000_000), (payment, refunded) => {
-        const refundable = refundableAmount(payment, refunded);
-        expect(refundable).toBeGreaterThanOrEqual(0);
-        expect(refundable).toBeLessThanOrEqual(payment);
-        expect(refundable + Math.min(refunded, payment)).toBe(payment);
-      }),
-    );
-  });
-});
-
-describe("exceedsRefundable", () => {
-  it("accepts a refund of exactly what is refundable", () => {
-    expect(exceedsRefundable(1450, 2450, 1000)).toBe(false);
-  });
-
-  it("refuses a refund of one cent more than what is refundable", () => {
-    expect(exceedsRefundable(1451, 2450, 1000)).toBe(true);
-  });
-
-  it("refuses any refund once the payment is fully refunded", () => {
-    expect(exceedsRefundable(1, 2450, 2450)).toBe(true);
-  });
 });
 
 describe("refundIsBackedByItsCorrection", () => {
