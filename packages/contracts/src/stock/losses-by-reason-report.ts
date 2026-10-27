@@ -1,9 +1,4 @@
-import {
-  isReportPeriodAsked,
-  LOSS_REASONS,
-  SALE_UNITS,
-  SYSTEM_LOSS_REASONS,
-} from "@purosur/domain";
+import { isReportPeriodAsked, RECORDED_LOSS_REASONS, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
 import { answeredRangeSchema } from "../shared/index.js";
 
@@ -25,7 +20,7 @@ const lostProductSchema = z.object({
 });
 
 const reasonLossesSchema = z.object({
-  reason: z.enum([...LOSS_REASONS, ...SYSTEM_LOSS_REASONS]),
+  reason: z.enum(RECORDED_LOSS_REASONS),
   loss_count: z.int().min(1),
   products: z.array(lostProductSchema),
 });

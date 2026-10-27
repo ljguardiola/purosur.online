@@ -1,10 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import { compareSpanishText } from "../../shared/index.js";
-import {
-  LOSS_REASONS,
-  type RecordedLossReason,
-  SYSTEM_LOSS_REASONS,
-} from "./stock-movement-reason.js";
+import { RECORDED_LOSS_REASONS, type RecordedLossReason } from "./stock-movement-reason.js";
 
 export interface LossRecord {
   reason: RecordedLossReason;
@@ -26,14 +22,12 @@ export interface ReasonLosses {
   products: LostProduct[];
 }
 
-const REASON_CATALOG: readonly RecordedLossReason[] = [...LOSS_REASONS, ...SYSTEM_LOSS_REASONS];
-
 function compareProducts(a: LostProduct, b: LostProduct): number {
   return compareSpanishText(a.name, b.name) || compareSpanishText(a.id, b.id);
 }
 
 export function lossesByReason(records: readonly LossRecord[]): ReasonLosses[] {
-  return REASON_CATALOG.flatMap((reason) => {
+  return RECORDED_LOSS_REASONS.flatMap((reason) => {
     const products = new Map<string, LostProduct>();
     let lossCount = 0;
     for (const record of records) {

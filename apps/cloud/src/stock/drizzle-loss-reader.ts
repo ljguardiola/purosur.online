@@ -1,9 +1,4 @@
-import {
-  ARGENTINA_TIME_ZONE,
-  LOSS_REASONS,
-  type SaleUnit,
-  SYSTEM_LOSS_REASONS,
-} from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, RECORDED_LOSS_REASONS, type SaleUnit } from "@purosur/domain";
 import type { LossQuery, LossReader, LossRecord } from "@purosur/domain/stock/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -11,13 +6,8 @@ import { products, stockMovements } from "../platform/db/schema.js";
 
 const lossDay = sql<string>`to_char(${stockMovements.occurredAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
-const LOSS_REASON_CATALOG: readonly LossRecord["reason"][] = [
-  ...LOSS_REASONS,
-  ...SYSTEM_LOSS_REASONS,
-];
-
 function knownReason(stored: string | null): LossRecord["reason"] {
-  const found = LOSS_REASON_CATALOG.find((reason) => reason === stored);
+  const found = RECORDED_LOSS_REASONS.find((reason) => reason === stored);
   if (found === undefined) {
     throw new Error(`A stored loss has an unknown reason: ${stored}`);
   }
