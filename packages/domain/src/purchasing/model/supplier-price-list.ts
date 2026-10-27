@@ -68,6 +68,10 @@ export function maySupplierPriceListRowBeLinked(state: SupplierPriceListState): 
   return state === "EXTRACTED" || state === "REVIEWED";
 }
 
+export function mayCreateProductFromRow(row: { link: object | null }): boolean {
+  return row.link === null;
+}
+
 export function isSupplierPriceListDiscardable(state: SupplierPriceListState): boolean {
   return state === "EXTRACTED" || state === "READ_FAILED";
 }

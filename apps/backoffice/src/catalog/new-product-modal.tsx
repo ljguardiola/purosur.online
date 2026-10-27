@@ -14,14 +14,18 @@ import {
 } from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   BarcodeChips,
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
   useGenerateInternalBarcode,
-} from "./barcode-chips";
+} from "../platform/barcode-chips";
+import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
+import { categorySelectOptions } from "../platform/category-path";
+import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
+import { retryAfterDetail } from "../platform/retry-after-detail";
+import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { createBrand } from "./brands-api";
 import { NewBrandModal } from "./new-brand-modal";
 import { NewTagModal } from "./new-tag-modal";
@@ -33,10 +37,7 @@ import {
   withCreatedBrand,
 } from "./product-brand-field";
 import {
-  barcodeProblemMessage,
-  barcodeTakenError,
   categoryNameOf,
-  categorySelectOptions,
   EMPTY_PRODUCT_FORM,
   NET_CONTENT_UNIT_OPTIONS,
   PRODUCT_BRAND_INACTIVE_ERROR,
@@ -44,11 +45,10 @@ import {
   PRODUCT_FIELDS,
   PRODUCT_MESSAGES,
   productRequestFrom,
-  SALE_UNIT_OPTIONS,
   tagInactiveError,
 } from "./product-form";
 import { TagsField, useStackedTagCreation, withCreatedTags } from "./product-tags-field";
-import type { createProduct, generateInternalBarcode } from "./products-api";
+import type { createProduct } from "./products-api";
 import type { createTag } from "./tags-api";
 
 export type NewProductModalServices = {

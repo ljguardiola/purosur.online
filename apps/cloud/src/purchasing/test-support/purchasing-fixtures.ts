@@ -92,3 +92,16 @@ export async function insertBarcode<TQueryResult extends PgQueryResultHKT>(
     active: input.active ?? true,
   });
 }
+
+export async function insertLeafCategory<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+): Promise<string> {
+  const [category] = await db
+    .insert(categories)
+    .values({ name: `Almacén ${crypto.randomUUID()}` })
+    .returning({ id: categories.id });
+  if (!category) {
+    throw new Error("test setup: seeding the category returned no row");
+  }
+  return category.id;
+}
