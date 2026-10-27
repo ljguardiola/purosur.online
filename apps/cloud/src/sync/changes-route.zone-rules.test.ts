@@ -31,7 +31,7 @@ afterEach(async () => {
   await app.close();
 });
 
-async function publishRules(version: string, publishedAt: Date) {
+async function publishRules(version: string, publicationNumber: number) {
   const [rules] = await db
     .insert(zoneRules)
     .values({
@@ -40,7 +40,7 @@ async function publishRules(version: string, publishedAt: Date) {
         { from: "1970-01-01T00:00:00.000Z", offsetMinutes: -180 },
         { from: "2030-03-01T03:00:00.000Z", offsetMinutes: -120 },
       ],
-      publishedAt,
+      publicationNumber,
     })
     .returning({ id: zoneRules.id });
   if (!rules) {
@@ -68,14 +68,14 @@ async function registerOfAnotherBranch(): Promise<string> {
 }
 
 describe("the change feed delivering zone rules", () => {
-  it("gives the transitions of each published version, with the moment it was published, to a register of any branch", async () => {
+  it("gives the transitions of each published version, with its publication number, to a register of any branch", async () => {
     const otherBranch = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: await registerOfAnotherBranch(),
     });
     const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
-    await publishRules("2025c", new Date("2026-01-01T00:00:00.000Z"));
-    await publishRules("2026a", new Date("2026-10-26T11:00:00.000Z"));
+    await publishRules("2025c", 1);
+    await publishRules("2026a", 2);
 
     for (const { deviceToken } of [ownBranch, otherBranch]) {
       const page = await pulledPage(app, 0, deviceToken);
@@ -88,7 +88,7 @@ describe("the change feed delivering zone rules", () => {
             { from: "1970-01-01T00:00:00.000Z", offset_minutes: -180 },
             { from: "2030-03-01T03:00:00.000Z", offset_minutes: -120 },
           ],
-          published_at: "2026-01-01T00:00:00.000Z",
+          publication_number: 1,
         },
         {
           version: "2026a",
@@ -96,7 +96,7 @@ describe("the change feed delivering zone rules", () => {
             { from: "1970-01-01T00:00:00.000Z", offset_minutes: -180 },
             { from: "2030-03-01T03:00:00.000Z", offset_minutes: -120 },
           ],
-          published_at: "2026-10-26T11:00:00.000Z",
+          publication_number: 2,
         },
       ]);
     }
@@ -104,7 +104,7 @@ describe("the change feed delivering zone rules", () => {
 
   it("gives them again, and nothing else, when the register asks for the zone rules entity from the start", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
-    await publishRules("2026a", NOW);
+    await publishRules("2026a", 1);
 
     const page = await pulledPage(app, 0, deviceToken, { entity: "zone_rules" });
 

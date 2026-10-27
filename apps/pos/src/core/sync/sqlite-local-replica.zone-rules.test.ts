@@ -20,22 +20,22 @@ function rulesChange(
   changeSeq: number,
   entityId: string,
   version: string,
-  publishedAt: string,
+  publicationNumber: number,
   transitions: typeof TRANSITIONS = TRANSITIONS,
 ): RegisterPulledChange {
   const change: SyncChange = {
     change_seq: changeSeq,
     entity: "zone_rules",
     entity_id: entityId,
-    row: { version, transitions, published_at: publishedAt },
+    row: { version, transitions, publication_number: publicationNumber },
   };
   return { changeSeq, change };
 }
 
 function savedRules(database: LocalDatabase) {
   return database
-    .prepare<[], { version: string; transitions: string; published_at: string }>(
-      "SELECT version, transitions, published_at FROM zone_rules ORDER BY published_at",
+    .prepare<[], { version: string; transitions: string; publication_number: number }>(
+      "SELECT version, transitions, publication_number FROM zone_rules ORDER BY publication_number",
     )
     .all()
     .map(({ transitions, ...rules }) => ({
@@ -56,40 +56,34 @@ afterEach(() => {
 });
 
 describe("the register's local copy of the zone rules", () => {
-  it("saves the rules of a version with their transitions and the moment they were published", async () => {
-    await savePulledChanges(replica, rulesChange(1, RULES_ID, "2026a", "2026-10-26T12:00:00.000Z"));
+  it("saves the rules of a version with their transitions and their publication number", async () => {
+    await savePulledChanges(replica, rulesChange(1, RULES_ID, "2026a", 2));
 
     expect(savedRules(database)).toEqual([
-      { version: "2026a", transitions: TRANSITIONS, published_at: "2026-10-26T12:00:00.000Z" },
+      { version: "2026a", transitions: TRANSITIONS, publication_number: 2 },
     ]);
   });
 
-  it("keeps every version it receives, an older one that arrives late included", async () => {
-    await savePulledChanges(
-      replica,
-      rulesChange(1, LATER_RULES_ID, "2026a", "2026-10-26T12:00:00.000Z"),
-    );
+  it("keeps every version it receives, one published earlier that arrives late included", async () => {
+    await savePulledChanges(replica, rulesChange(1, LATER_RULES_ID, "2026a", 2));
 
-    await savePulledChanges(replica, rulesChange(2, RULES_ID, "2025c", "2026-01-01T00:00:00.000Z"));
+    await savePulledChanges(replica, rulesChange(2, RULES_ID, "2025c", 1));
 
     expect(savedRules(database).map((rules) => rules.version)).toEqual(["2025c", "2026a"]);
   });
 
   it("changes nothing when a version is delivered again", async () => {
-    await savePulledChanges(replica, rulesChange(1, RULES_ID, "2026a", "2026-10-26T12:00:00.000Z"));
+    await savePulledChanges(replica, rulesChange(1, RULES_ID, "2026a", 2));
 
-    await savePulledChanges(
-      replica,
-      rulesChange(2, RULES_ID, "2026a", "2026-10-27T12:00:00.000Z", TRANSITIONS.slice(0, 1)),
-    );
+    await savePulledChanges(replica, rulesChange(2, RULES_ID, "2026a", 5, TRANSITIONS.slice(0, 1)));
 
     expect(savedRules(database)).toEqual([
-      { version: "2026a", transitions: TRANSITIONS, published_at: "2026-10-26T12:00:00.000Z" },
+      { version: "2026a", transitions: TRANSITIONS, publication_number: 2 },
     ]);
   });
 
   it("saves the cursor together with the rules", async () => {
-    await savePulledChanges(replica, rulesChange(6, RULES_ID, "2026a", "2026-10-26T12:00:00.000Z"));
+    await savePulledChanges(replica, rulesChange(6, RULES_ID, "2026a", 2));
 
     expect(await replica.savedCursor()).toBe(6);
   });
@@ -107,7 +101,7 @@ describe("the register hearing of the zone rules it saved", () => {
     const onZoneRulesSaved = vi.fn();
     const { heard, hearing } = replicaHearing(onZoneRulesSaved);
 
-    await savePulledChanges(hearing, rulesChange(1, RULES_ID, "2026a", "2026-10-26T12:00:00.000Z"));
+    await savePulledChanges(hearing, rulesChange(1, RULES_ID, "2026a", 2));
 
     expect(onZoneRulesSaved).toHaveBeenCalledTimes(1);
     heard.close();
@@ -128,7 +122,7 @@ describe("the register hearing of the zone rules it saved", () => {
     const { heard, hearing } = replicaHearing(onZoneRulesSaved);
 
     await hearing.saveRedeliveredPage("zone_rules", {
-      changes: [rulesChange(1, RULES_ID, "2026a", "2026-10-26T12:00:00.000Z")],
+      changes: [rulesChange(1, RULES_ID, "2026a", 2)],
       cursor: 1,
       hasMore: false,
     });

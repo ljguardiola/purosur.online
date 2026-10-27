@@ -247,12 +247,12 @@ describe("GET /locations/current/settings", () => {
       {
         version: "2025c",
         transitions: [],
-        publishedAt: new Date("2026-01-01T00:00:00.000Z"),
+        publicationNumber: 1,
       },
       {
         version: "2026a",
         transitions: [],
-        publishedAt: new Date("2026-09-01T00:00:00.000Z"),
+        publicationNumber: 2,
       },
     ]);
     const administratorId = await insertUser({

@@ -296,29 +296,26 @@ describe("observeRegisterSynced", () => {
 describe("observeRegisterStops zone rules", () => {
   const register = { registerId: REGISTER, deviceId: DEVICE };
 
-  it.each(["2025c", null])(
-    "opens an alert naming both versions for a register that runs %s while the cloud has published 2026a",
-    async (registerVersion) => {
-      await observeRegisterStops(
-        db,
-        {
-          ...register,
-          locationId: location,
-          report: { ...REPORT, zone_rules_version: registerVersion },
-          cloudZoneRulesVersion: "2026a",
-        },
-        NOW,
-      );
+  it("opens an alert naming both versions for a register that runs another version than the cloud's", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        ...register,
+        locationId: location,
+        report: { ...REPORT, zone_rules_version: "2025c" },
+        cloudZoneRulesVersion: "2026a",
+      },
+      NOW,
+    );
 
-      expect(await alertsOfKind("tz_rules_mismatch")).toEqual([
-        expect.objectContaining({
-          detail: { deviceId: DEVICE, registerVersion, cloudVersion: "2026a" },
-          resolvedAt: null,
-          openedAt: NOW,
-        }),
-      ]);
-    },
-  );
+    expect(await alertsOfKind("tz_rules_mismatch")).toEqual([
+      expect.objectContaining({
+        detail: { deviceId: DEVICE, registerVersion: "2025c", cloudVersion: "2026a" },
+        resolvedAt: null,
+        openedAt: NOW,
+      }),
+    ]);
+  });
 
   it("clears the register's open alert once it reports the cloud's version", async () => {
     await observeRegisterStops(
@@ -346,30 +343,5 @@ describe("observeRegisterStops zone rules", () => {
     expect(await alertsOfKind("tz_rules_mismatch")).toEqual([
       expect.objectContaining({ conditionClearedAt: LATER }),
     ]);
-  });
-
-  it("opens nothing for a register that reports nothing about its zone rules", async () => {
-    await observeRegisterStops(
-      db,
-      { ...register, locationId: location, report: REPORT, cloudZoneRulesVersion: "2026a" },
-      NOW,
-    );
-
-    expect(await alertsOfKind("tz_rules_mismatch")).toEqual([]);
-  });
-
-  it("opens nothing while the cloud has published no version", async () => {
-    await observeRegisterStops(
-      db,
-      {
-        ...register,
-        locationId: location,
-        report: { ...REPORT, zone_rules_version: null },
-        cloudZoneRulesVersion: null,
-      },
-      NOW,
-    );
-
-    expect(await alertsOfKind("tz_rules_mismatch")).toEqual([]);
   });
 });

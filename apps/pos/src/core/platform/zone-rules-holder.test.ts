@@ -16,16 +16,16 @@ afterEach(() => {
   database.close();
 });
 
-function store(version: string, publishedAt: string, offsetAfterMarch2030: number) {
+function store(version: string, publicationNumber: number, offsetAfterMarch2030: number) {
   database
-    .prepare("INSERT INTO zone_rules (version, transitions, published_at) VALUES (?, ?, ?)")
+    .prepare("INSERT INTO zone_rules (version, transitions, publication_number) VALUES (?, ?, ?)")
     .run(
       version,
       JSON.stringify([
         { from: "1970-01-01T00:00:00.000Z", offset_minutes: -180 },
         { from: "2030-03-01T03:00:00.000Z", offset_minutes: offsetAfterMarch2030 },
       ]),
-      publishedAt,
+      publicationNumber,
     );
 }
 
@@ -37,13 +37,13 @@ describe("the zone rules the register applies", () => {
     expect(holder.current().version).toBeNull();
   });
 
-  it("are the latest version published among the ones stored, as of its start", () => {
-    store("2026a", "2026-10-26T12:00:00.000Z", -120);
-    store("2025c", "2026-01-01T00:00:00.000Z", -60);
+  it("are the version the cloud published last among the ones stored, as of its start", () => {
+    store("2025c", 2, -120);
+    store("2026a", 1, -60);
 
     const rules = new ZoneRulesHolder(database).current();
 
-    expect(rules.version).toBe("2026a");
+    expect(rules.version).toBe("2025c");
     expect(rules.transitions).toEqual([
       { from: new Date("1970-01-01T00:00:00.000Z"), offsetMinutes: -180 },
       { from: new Date("2030-03-01T03:00:00.000Z"), offsetMinutes: -120 },
@@ -53,7 +53,7 @@ describe("the zone rules the register applies", () => {
 
   it("stay the ones read at start until the holder is told a delivery was saved", () => {
     const holder = new ZoneRulesHolder(database);
-    store("2026a", "2026-10-26T12:00:00.000Z", -120);
+    store("2026a", 1, -120);
 
     expect(holder.current().version).toBeNull();
 
@@ -62,11 +62,11 @@ describe("the zone rules the register applies", () => {
     expect(holder.current().version).toBe("2026a");
   });
 
-  it("do not go back to an older version delivered after a newer one", () => {
-    store("2026a", "2026-10-26T12:00:00.000Z", -120);
+  it("do not go back to a version published earlier that is delivered after a later one", () => {
+    store("2026a", 2, -120);
     const holder = new ZoneRulesHolder(database);
 
-    store("2025c", "2026-01-01T00:00:00.000Z", -60);
+    store("2025c", 1, -60);
     holder.refresh();
 
     expect(holder.current().version).toBe("2026a");

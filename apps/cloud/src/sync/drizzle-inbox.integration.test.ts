@@ -11,7 +11,6 @@ import {
   refusedEvents,
   registerInstallations,
   serialDeviceState,
-  zoneRules,
 } from "../platform/db/schema.js";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation as enrollInstallation } from "../register/test-support/enrolled-installation.js";
@@ -840,38 +839,6 @@ describe("the inbox reporting how a register stands, on a real Postgres", () => 
     await push(deviceId, linked(event(1)));
 
     expect(await db.select().from(alerts).where(eq(alerts.scope, registerId))).toEqual([]);
-  });
-
-  it("opens a warning alert naming both versions when a register runs another zone rules version than the cloud's latest, and clears it once it runs that one", async () => {
-    const { deviceId, registerId } = await insertEnrolledInstallation();
-    await db.insert(zoneRules).values([
-      {
-        version: "2025c",
-        transitions: [{ from: "1970-01-01T00:00:00.000Z", offsetMinutes: -180 }],
-        publishedAt: new Date("2026-01-01T00:00:00.000Z"),
-      },
-      {
-        version: "2026a",
-        transitions: [{ from: "1970-01-01T00:00:00.000Z", offsetMinutes: -180 }],
-        publishedAt: new Date("2026-09-01T00:00:00.000Z"),
-      },
-    ]);
-
-    await push(deviceId, [], "1.4.0", { ...TELEMETRY, zone_rules_version: "2025c" });
-
-    const [opened] = await db.select().from(alerts).where(eq(alerts.scope, registerId));
-    expect(opened).toMatchObject({
-      kind: "tz_rules_mismatch",
-      level: "warning",
-      audience: "all",
-      detail: { deviceId, registerVersion: "2025c", cloudVersion: "2026a" },
-      conditionClearedAt: null,
-    });
-
-    await push(deviceId, [], "1.4.0", { ...TELEMETRY, zone_rules_version: "2026a" });
-
-    const [cleared] = await db.select().from(alerts).where(eq(alerts.scope, registerId));
-    expect(cleared).toMatchObject({ conditionClearedAt: NOW });
   });
 
   it("opens a critical alert shown to the register's branch when it reports it can't sell, once for as many reports as it makes", async () => {

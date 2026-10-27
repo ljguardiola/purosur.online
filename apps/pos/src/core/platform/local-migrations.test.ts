@@ -6990,28 +6990,28 @@ describe("the zone rules migration", () => {
     });
   });
 
-  it("keeps the transitions and publication moment of each version", () => {
+  it("keeps the transitions and publication number of each version", () => {
     withDatabase((database) => {
       database
-        .prepare("INSERT INTO zone_rules (version, transitions, published_at) VALUES (?, ?, ?)")
-        .run("2026a", "[]", "2026-10-26T12:00:00.000Z");
+        .prepare(
+          "INSERT INTO zone_rules (version, transitions, publication_number) VALUES (?, ?, ?)",
+        )
+        .run("2026a", "[]", 1);
 
       expect(
-        database.prepare("SELECT version, transitions, published_at FROM zone_rules").all(),
-      ).toEqual([
-        { version: "2026a", transitions: "[]", published_at: "2026-10-26T12:00:00.000Z" },
-      ]);
+        database.prepare("SELECT version, transitions, publication_number FROM zone_rules").all(),
+      ).toEqual([{ version: "2026a", transitions: "[]", publication_number: 1 }]);
     });
   });
 
   it("refuses two rows of one version", () => {
     withDatabase((database) => {
       const insert = database.prepare(
-        "INSERT INTO zone_rules (version, transitions, published_at) VALUES ('2026a', '[]', ?)",
+        "INSERT INTO zone_rules (version, transitions, publication_number) VALUES ('2026a', '[]', ?)",
       );
-      insert.run("2026-10-26T12:00:00.000Z");
+      insert.run(1);
 
-      expect(() => insert.run("2026-10-27T12:00:00.000Z")).toThrow(/UNIQUE|PRIMARY/);
+      expect(() => insert.run(2)).toThrow(/UNIQUE|PRIMARY/);
     });
   });
 });

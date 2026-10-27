@@ -1,3 +1,4 @@
+import type { ZoneRulesPublication } from "../../model/zone-rules-version.js";
 import type {
   PublishedZoneRules,
   ZoneRulesStore,
@@ -11,7 +12,7 @@ function cloneRules(rules: PublishedZoneRules): PublishedZoneRules {
       from: new Date(transition.from),
       offsetMinutes: transition.offsetMinutes,
     })),
-    publishedAt: new Date(rules.publishedAt),
+    publicationNumber: rules.publicationNumber,
   };
 }
 
@@ -28,9 +29,9 @@ class FakeTransaction implements ZoneRulesStoreTransaction {
     this.store.operationOrder.push("lockZoneRulesPublication");
   }
 
-  async isZoneRulesVersionPublished(version: string): Promise<boolean> {
-    this.store.operationOrder.push("isZoneRulesVersionPublished");
-    return this.published.some((rules) => rules.version === version);
+  async zoneRulesPublications(): Promise<ZoneRulesPublication[]> {
+    this.store.operationOrder.push("zoneRulesPublications");
+    return this.published.map(({ version, publicationNumber }) => ({ version, publicationNumber }));
   }
 
   async publishZoneRules(rules: PublishedZoneRules): Promise<void> {

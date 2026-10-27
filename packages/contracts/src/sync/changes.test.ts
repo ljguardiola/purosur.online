@@ -153,7 +153,7 @@ const zoneRulesRow = {
     { from: "1970-01-01T00:00:00.000Z", offset_minutes: -180 },
     { from: "2030-03-01T03:00:00.000Z", offset_minutes: -120 },
   ],
-  published_at: "2026-10-26T12:00:00.000Z",
+  publication_number: 3,
 };
 
 const discountRow = {
@@ -1258,8 +1258,16 @@ describe("changesPageSchema", () => {
       ),
     ],
     [
-      "zone rules without their publication moment",
-      pageOf(change(1, "zone_rules", { ...zoneRulesRow, published_at: undefined })),
+      "zone rules without their publication number",
+      pageOf(change(1, "zone_rules", { ...zoneRulesRow, publication_number: undefined })),
+    ],
+    [
+      "zone rules of a publication number that is not whole",
+      pageOf(change(1, "zone_rules", { ...zoneRulesRow, publication_number: 1.5 })),
+    ],
+    [
+      "zone rules of a publication number below the first",
+      pageOf(change(1, "zone_rules", { ...zoneRulesRow, publication_number: 0 })),
     ],
     [
       "a discount of a benefit kind it does not know",

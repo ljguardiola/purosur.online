@@ -211,8 +211,8 @@ export class FakeInbox implements Inbox {
           locationId: this.locationIds.get(deviceId) ?? `location-of-${deviceId}`,
         };
       },
-      latestPublishedZoneRulesVersion: async () => {
-        this.calls.push("latestPublishedZoneRulesVersion");
+      currentZoneRulesVersion: async () => {
+        this.calls.push("currentZoneRulesVersion");
         return this.publishedZoneRulesVersion;
       },
       recordRegisterVersionStanding: async (standing, at) => {

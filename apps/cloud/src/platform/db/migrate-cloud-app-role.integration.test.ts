@@ -248,8 +248,8 @@ describe("the cloud_app role runMigrations creates", () => {
       insert into issuer_identification_versions (version) values (900) returning version
     `;
     const [rules] = await cloudApp<{ id: string }[]>`
-      insert into zone_rules (version, transitions)
-      values ('2026a', '[]'::jsonb) returning id
+      insert into zone_rules (version, transitions, publication_number)
+      values ('2026a', '[]'::jsonb, 1) returning id
     `;
     if (!threshold || !taxStatusSet || !issuerVersion || !rules) {
       throw new Error("test setup: appending the fiscal configuration rows returned no row");

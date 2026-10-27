@@ -690,9 +690,7 @@ describe("reporting how the register stands", () => {
 
     await receive(inbox, [], { telemetry: TELEMETRY });
 
-    expect(inbox.calls.filter((call) => call === "latestPublishedZoneRulesVersion")).toHaveLength(
-      1,
-    );
+    expect(inbox.calls.filter((call) => call === "currentZoneRulesVersion")).toHaveLength(1);
   });
 
   it("records the stops of a push that carries no event", async () => {

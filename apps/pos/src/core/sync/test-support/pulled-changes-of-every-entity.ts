@@ -185,7 +185,7 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
         row: {
           version: "2026a",
           transitions: [{ from: "1970-01-01T00:00:00.000Z", offset_minutes: -180 }],
-          published_at: "2026-10-26T12:00:00.000Z",
+          publication_number: 1,
         },
       };
     case "refund_completion":
