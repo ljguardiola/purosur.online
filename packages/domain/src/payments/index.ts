@@ -44,6 +44,7 @@ export type {
   ConfirmedByHandMethod,
   MercadoPagoPaymentMethod,
   PaymentMethod,
+  PointCardType,
 } from "./model/payment.js";
 export {
   APPROVED_PAYMENT_STATE,
@@ -54,6 +55,7 @@ export {
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
+  POINT_CARD_TYPES,
 } from "./model/payment.js";
 export type {
   PointTerminalAvailability,

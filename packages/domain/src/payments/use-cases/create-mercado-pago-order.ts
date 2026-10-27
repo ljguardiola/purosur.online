@@ -23,8 +23,8 @@ export interface CreateMercadoPagoOrderInput {
 }
 
 type MercadoPagoOrderIdentity =
-  | Pick<MercadoPagoQrPaymentTransaction, "method" | "provider">
-  | Pick<MercadoPagoPointPaymentTransaction, "method" | "provider">;
+  | Pick<MercadoPagoQrPaymentTransaction, "method" | "provider" | "cardType">
+  | Pick<MercadoPagoPointPaymentTransaction, "method" | "provider" | "cardType">;
 
 type MercadoPagoOrderAttempt<TNotCreated extends { kind: string }> =
   | MercadoPagoOrderCreation
@@ -34,8 +34,9 @@ export interface MercadoPagoOrderKind<
   TRefusal extends { kind: string },
   TNotCreated extends { kind: string },
   TPorts extends MercadoPagoOrderPorts = MercadoPagoOrderPorts,
+  TInput extends CreateMercadoPagoOrderInput = CreateMercadoPagoOrderInput,
 > {
-  identity: MercadoPagoOrderIdentity;
+  identityOf(input: TInput): MercadoPagoOrderIdentity;
   lifetimeMinutes: number;
   refuseAmount(amount: number): TRefusal | null;
   create(
@@ -47,6 +48,7 @@ export interface MercadoPagoOrderKind<
       amount: number;
       expiresAfterMinutes: number;
     },
+    input: TInput,
   ): Promise<MercadoPagoOrderAttempt<TNotCreated>>;
 }
 
@@ -66,11 +68,14 @@ export async function createMercadoPagoOrder<
   TRefusal extends { kind: string },
   TNotCreated extends { kind: string },
   TPorts extends MercadoPagoOrderPorts,
+  TInput extends CreateMercadoPagoOrderInput,
 >(
   ports: TPorts,
-  { registerId, paymentTransactionId, saleId, amount }: CreateMercadoPagoOrderInput,
-  kind: MercadoPagoOrderKind<TRefusal, TNotCreated, TPorts>,
+  input: TInput,
+  kind: MercadoPagoOrderKind<TRefusal, TNotCreated, TPorts, TInput>,
 ): Promise<CreateMercadoPagoOrderOutcome<TRefusal, TNotCreated>> {
+  const { registerId, paymentTransactionId, saleId, amount } = input;
+  const identity = kind.identityOf(input);
   const { lanes, mercadoPago, clock } = ports;
   const refusal = kind.refuseAmount(amount);
   if (refusal !== null) {
@@ -85,7 +90,8 @@ export async function createMercadoPagoOrder<
         recorded !== null &&
         (recorded.saleId !== saleId ||
           recorded.amount !== amount ||
-          recorded.method !== kind.identity.method)
+          recorded.method !== identity.method ||
+          (recorded.cardType !== null && recorded.cardType !== identity.cardType))
       ) {
         return { kind: "request_mismatch" };
       }
@@ -98,7 +104,7 @@ export async function createMercadoPagoOrder<
           registerId,
           saleId,
           kind: "SALE",
-          ...kind.identity,
+          ...identity,
           amount,
           state: "PENDING",
           needsReview: false,
@@ -145,12 +151,17 @@ export async function createMercadoPagoOrder<
           transaction = { ...transaction, expiresAt };
         }
 
-        const attempt = await kind.create(ports, registerId, {
-          idempotencyKey: paymentTransactionId,
-          externalReference: paymentTransactionId,
-          amount,
-          expiresAfterMinutes: kind.lifetimeMinutes,
-        });
+        const attempt = await kind.create(
+          ports,
+          registerId,
+          {
+            idempotencyKey: paymentTransactionId,
+            externalReference: paymentTransactionId,
+            amount,
+            expiresAfterMinutes: kind.lifetimeMinutes,
+          },
+          input,
+        );
         const earlierAttemptMayHaveCreatedOrder = recorded?.creationOutcomeUnknown === true;
         if (attempt.kind === "not_created") {
           if (!earlierAttemptMayHaveCreatedOrder) {

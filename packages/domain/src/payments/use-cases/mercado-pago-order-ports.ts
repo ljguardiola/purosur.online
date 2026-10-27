@@ -4,6 +4,7 @@ import type {
   MercadoPagoOrderRefund,
   MercadoPagoRefundAnswer,
 } from "../model/mercado-pago-refund.js";
+import type { PointCardType } from "../model/payment.js";
 import type { LatePaymentRefund } from "../model/payment-refund.js";
 import type {
   MercadoPagoOrderTransaction,
@@ -82,6 +83,7 @@ export interface MercadoPagoPointOrderRequest {
   amount: number;
   expiresAfterMinutes: number;
   terminalId: string;
+  cardType: PointCardType;
 }
 
 export type MercadoPagoOrderCreation =
