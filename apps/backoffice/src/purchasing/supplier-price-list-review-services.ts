@@ -1,4 +1,3 @@
-import { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import type { ConfirmSupplierPriceListModalServices } from "./confirm-supplier-price-list-modal";
 import type { CreateProductFromSupplierItemModalServices } from "./create-product-from-supplier-item-modal";
 import type { DiscardSupplierPriceListModalServices } from "./discard-supplier-price-list-modal";
@@ -13,6 +12,7 @@ import {
 import {
   createProductFromSupplierItem,
   fetchProductCreationCategories,
+  generateSupplierItemInternalBarcode,
 } from "./supplier-item-products-api";
 import {
   confirmSupplierPriceList,
@@ -45,7 +45,7 @@ export const defaultSupplierPriceListReviewScreenServices: SupplierPriceListRevi
   createPackaging,
   createProductFromSupplierItem,
   fetchProductCreationCategories,
-  generateInternalBarcode,
+  generateInternalBarcode: generateSupplierItemInternalBarcode,
   confirmSupplierPriceList,
   discardSupplierPriceList,
 };

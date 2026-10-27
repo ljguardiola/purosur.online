@@ -1,4 +1,5 @@
 import {
+  categoryListSchema,
   supplierItemLinkChoicesSchema,
   supplierItemLinkProposalSchema,
   supplierPriceListConfirmationBodySchema,
@@ -46,6 +47,8 @@ import {
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyError, FastifyInstance, FastifyReply } from "fastify";
 import { DrizzleCatalogListReader } from "../catalog/drizzle-catalog-list-reader.js";
+import { DrizzleInternalBarcodeStore } from "../catalog/drizzle-internal-barcode-store.js";
+import { allocateInternalBarcodeHandler } from "../catalog/internal-barcode-route.js";
 import {
   CATEGORY_NOT_FOUND_FAILURE,
   CATEGORY_NOT_LEAF_RESPONSE,
@@ -357,6 +360,17 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     const choices = await listSupplierItemLinkChoices(purchasingReader, products);
     await reply.code(200).send(supplierItemLinkChoicesSchema.parse(choices));
   });
+
+  app.get("/supplier-price-lists/product-categories", readGuard, async (_request, reply) => {
+    const rows = await catalog.categories();
+    await reply.code(200).send(categoryListSchema.parse(rows));
+  });
+
+  app.post(
+    "/supplier-price-lists/internal-barcodes",
+    writeGuard,
+    allocateInternalBarcodeHandler(new DrizzleInternalBarcodeStore(options.db)),
+  );
 
   app.get("/supplier-price-lists/:id", readGuard, async (request, reply) => {
     const ids = await readRecordIds(reply, request.params, ["id"]);

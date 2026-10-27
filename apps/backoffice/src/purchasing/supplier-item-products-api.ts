@@ -1,11 +1,16 @@
 import {
   type CategorySummary,
   categoryListSchema,
+  type InternalBarcodeGenerationBody,
   type SupplierPriceListRowProductCreated,
   type SupplierPriceListRowProductCreationBody,
   supplierPriceListRowProductCreatedSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import {
+  type GenerateInternalBarcodeOutcome,
+  requestInternalBarcode,
+} from "../platform/internal-barcodes-api";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readCloudJson } from "../platform/read-cloud-json";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -38,7 +43,13 @@ const CONFLICTS = [
 ] as const;
 
 export function fetchProductCreationCategories(): Promise<FetchProductCreationCategoriesOutcome> {
-  return readCloudJson("/api/categories", categoryListSchema);
+  return readCloudJson("/api/supplier-price-lists/product-categories", categoryListSchema);
+}
+
+export function generateSupplierItemInternalBarcode(
+  body: InternalBarcodeGenerationBody,
+): Promise<GenerateInternalBarcodeOutcome> {
+  return requestInternalBarcode("/api/supplier-price-lists/internal-barcodes", body);
 }
 
 async function answerConflict(response: Response): Promise<CreateProductFromSupplierItemOutcome> {

@@ -36,11 +36,7 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { AreaTopBar } from "../shell/area-top-bar";
-import {
-  type BackofficeAccess,
-  canManageProductsAndCategories,
-  canManagePurchasePackagings,
-} from "../shell/backoffice-access";
+import { type BackofficeAccess, canManagePurchasePackagings } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ConfirmSupplierPriceListModal } from "./confirm-supplier-price-list-modal";
 import { CreateProductFromSupplierItemModal } from "./create-product-from-supplier-item-modal";
@@ -180,7 +176,7 @@ export function SupplierPriceListReviewScreen({
   const list = review?.list ?? null;
   const status = list === null ? null : supplierPriceListStatusOf(list);
   const actions = review?.actions ?? null;
-  const mayCreateProducts = actions?.linkRows === true && canManageProductsAndCategories(access);
+  const mayCreateProducts = actions?.linkRows === true;
   const unread = list?.state === "READING" || list?.state === "READ_FAILED";
 
   const columns = [

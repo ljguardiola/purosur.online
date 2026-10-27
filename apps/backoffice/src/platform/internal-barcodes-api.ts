@@ -16,12 +16,19 @@ function postJson(path: string, body: unknown): Promise<Response> {
   });
 }
 
-export async function generateInternalBarcode(
+export function generateInternalBarcode(
+  body: InternalBarcodeGenerationBody,
+): Promise<GenerateInternalBarcodeOutcome> {
+  return requestInternalBarcode("/api/internal-barcodes", body);
+}
+
+export async function requestInternalBarcode(
+  path: string,
   body: InternalBarcodeGenerationBody,
 ): Promise<GenerateInternalBarcodeOutcome> {
   let response: Response;
   try {
-    response = await postJson("/api/internal-barcodes", body);
+    response = await postJson(path, body);
   } catch {
     return { kind: "failed" };
   }
