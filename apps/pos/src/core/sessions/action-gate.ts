@@ -24,6 +24,7 @@ type AuthorizableOperation = OperationOf<
   | "record_cash_movement"
   | "cancel_paid_sale"
   | "void_sale"
+  | "process_return"
   | "adjust_sale_line"
   | "apply_sale_discount"
   | "reprint_receipt"
