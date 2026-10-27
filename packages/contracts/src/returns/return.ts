@@ -122,6 +122,7 @@ export const previewReturnOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("sale_not_returnable") }),
+  z.object({ kind: z.literal("unavailable") }),
   notSignedInOutcome,
 ]);
 export type PreviewReturnOutcome = z.infer<typeof previewReturnOutcomeSchema>;

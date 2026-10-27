@@ -538,10 +538,10 @@ async function attemptPreviewReturn(
   preview: (() => Promise<PreviewReturnOutcome>) | undefined,
 ): Promise<PreviewReturnOutcome> {
   try {
-    return (await preview?.()) ?? { kind: "not_found" };
+    return (await preview?.()) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("previewing a return", error);
-    return { kind: "not_found" };
+    return { kind: "unavailable" };
   }
 }
 
