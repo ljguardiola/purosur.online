@@ -27,8 +27,12 @@ export function argentinaInstant(day: string, time: string, rules: ZoneRules): s
   const offsetReadingTheWallClockAt = (offsetMinutes: number) =>
     offsetAt(rules, new Date(wallClock - offsetMinutes * MINUTE_MS));
   const settled = offsetReadingTheWallClockAt(offsetAt(rules, new Date(wallClock)));
-  // A wall-clock time a forward transition skips settles on neither offset; the smaller one is the
-  // offset before the transition, which moves it forward past the gap instead of into the day before.
-  const offset = Math.min(settled, offsetReadingTheWallClockAt(settled));
+  // A wall-clock time a forward transition skips settles on neither offset, and each one moves it
+  // across the gap in a different direction.
+  const reread = offsetReadingTheWallClockAt(settled);
+  const earlier = Math.min(settled, reread);
+  const readsBackOnDay = (offsetMinutes: number) =>
+    argentinaCalendarDay(new Date(wallClock - offsetMinutes * MINUTE_MS), rules) === day;
+  const offset = readsBackOnDay(earlier) ? earlier : Math.max(settled, reread);
   return `${day}T${time}:00${utcOffsetText(offset)}`;
 }
