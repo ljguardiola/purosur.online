@@ -805,6 +805,7 @@ export {
   returnedReceiptLine,
   TICKET_SOURCES,
   ticketReferenceFromQrText,
+  withUncountedReturns,
 } from "./returns/index.js";
 export type {
   CreditNoteReceiptContent,
