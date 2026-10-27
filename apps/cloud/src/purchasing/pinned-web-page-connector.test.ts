@@ -3,9 +3,9 @@ import { createServer as createSecureServer, type Server as SecureServer } from 
 import type { AddressInfo } from "node:net";
 import { getCACertificates, setDefaultCACertificates } from "node:tls";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { selfSignedCertificateFor } from "../platform/test-support/self-signed-certificate.js";
 import { connectPinned } from "./pinned-web-page-connector.js";
 import { deferred } from "./test-support/deferred.js";
-import { selfSignedCertificateFor } from "./test-support/self-signed-certificate.js";
 
 let server: Server | undefined;
 let secureServer: SecureServer | undefined;

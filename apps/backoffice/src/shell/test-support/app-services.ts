@@ -298,6 +298,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     contingencyTicketRescueScreen: {
       rescueContingencyBackupTicket: vi.fn(),
+      fetchContingencyTicketRecoveries: vi.fn().mockReturnValue(new Promise(() => {})),
+      finishTicketRecoveryModal: { finishContingencyTicketRecovery: vi.fn() },
       scanner: createFakeQrScanner().Scanner,
     },
     compromiseResponseScreen: {

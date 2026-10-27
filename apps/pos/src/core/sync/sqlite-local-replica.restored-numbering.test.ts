@@ -102,6 +102,7 @@ describe("a restored register's numbering", () => {
       { deviceId: "device-b" },
     );
     database.exec("DELETE FROM register_predecessor");
+    database.exec("DELETE FROM awaiting_contingency_ticket_recovery");
     const evidence = new SqliteRestorationEvidence(
       database,
       restorePendingIn(undefined),

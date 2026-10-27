@@ -41,6 +41,18 @@ export {
   contingencyBackupTicketRescueResponseSchema,
 } from "./backups/contingency-backup-ticket-rescue.js";
 export type {
+  ContingencyTicketRecoveriesResponse,
+  ContingencyTicketRecoveryAnswer,
+  ContingencyTicketRecoveryFinishResponse,
+  ContingencyTicketRecoveryRequest,
+} from "./backups/contingency-ticket-recovery.js";
+export {
+  contingencyTicketRecoveriesResponseSchema,
+  contingencyTicketRecoveryAnswerSchema,
+  contingencyTicketRecoveryFinishResponseSchema,
+  contingencyTicketRecoveryRequestSchema,
+} from "./backups/contingency-ticket-recovery.js";
+export type {
   BackupsCoreToRendererMessage,
   BackupsRendererToCoreMessage,
   DiscardContingencyBackupTicketsAnswer,

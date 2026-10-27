@@ -1,12 +1,13 @@
 import { fileURLToPath } from "node:url";
 import type { TaxAuthorityRejection } from "@purosur/domain/fiscal/use-cases";
-import { type Client, createClientAsync } from "soap";
+import type { Client } from "soap";
+import { createArcaSoapClient } from "./arca-soap-client.js";
 
 // `wsdl/` sits beside both `src/` and `dist/` and ships through package.json's `files`.
 const WSFE_WSDL_PATH = fileURLToPath(new URL("../../wsdl/wsfev1.wsdl", import.meta.url));
 
 export function createWsfeClient(endpoint: string): Promise<Client> {
-  return createClientAsync(WSFE_WSDL_PATH, { endpoint });
+  return createArcaSoapClient(WSFE_WSDL_PATH, endpoint);
 }
 
 export function rejectionsOf(list: unknown, element: string): TaxAuthorityRejection[] {

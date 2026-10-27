@@ -69,6 +69,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "completed",
       reset_sync_identity: "completed",
       replenish: "completed",
+      recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
       origin: "copy",
@@ -84,6 +85,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "completed",
       reset_sync_identity: "completed",
       replenish: "completed",
+      recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
       origin: "copy",
@@ -106,6 +108,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "pending",
       reset_sync_identity: "pending",
       replenish: "completed",
+      recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
       origin: "copy",
@@ -121,6 +124,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "completed",
       reset_sync_identity: "completed",
       replenish: "pending",
+      recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
       origin: "copy",
@@ -195,6 +199,14 @@ describe("the evidence of the restoration protocol", () => {
 
     expect(evidence.evidence()).toMatchObject({
       replenish: "completed",
+      recover_contingency_tickets: "pending",
+      origin: "no_copy",
+    });
+
+    database.exec("DELETE FROM awaiting_contingency_ticket_recovery");
+
+    expect(evidence.evidence()).toMatchObject({
+      recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: "pending",
       origin: "no_copy",
     });
@@ -216,6 +228,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "completed",
       reset_sync_identity: "completed",
       replenish: "completed",
+      recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: "pending",
       regularize_orphan_authorizations: "completed",
       origin: "copy",
@@ -237,6 +250,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "completed",
       reset_sync_identity: "completed",
       replenish: "completed",
+      recover_contingency_tickets: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "pending",
       origin: "copy",
@@ -299,5 +313,24 @@ describe("the evidence of the restoration protocol", () => {
     noUsableGeneration = true;
 
     expect(evidence.evidence().restore).toBe("completed");
+  });
+});
+
+describe("the evidence of the contingency ticket recovery", () => {
+  it("holds the recovery pending while the register awaits it", () => {
+    database.exec(
+      "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES ('d0', 4)",
+    );
+
+    expect(evidence.evidence().recover_contingency_tickets).toBe("pending");
+  });
+
+  it("holds the recovery completed once the register no longer awaits it", () => {
+    database.exec(
+      "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES ('d0', 4)",
+    );
+    database.exec("DELETE FROM awaiting_contingency_ticket_recovery");
+
+    expect(evidence.evidence().recover_contingency_tickets).toBe("completed");
   });
 });
