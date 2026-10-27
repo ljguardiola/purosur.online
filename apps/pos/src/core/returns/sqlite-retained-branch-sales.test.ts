@@ -40,6 +40,18 @@ const FACTS: BranchSaleFacts = {
     ],
     returned: [],
   },
+  invoiceStanding: {
+    fiscalDocuments: [
+      {
+        origin: "offline",
+        state: "AUTHORIZED",
+        pointOfSale: 3,
+        number: 1204,
+        buyerTaxStatusCode: 5,
+      },
+    ],
+    deferralPending: true,
+  },
   goodConditionReturnDays: 15,
   countedReturnIds: ["return-1"],
 };

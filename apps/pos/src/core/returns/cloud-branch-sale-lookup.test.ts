@@ -31,6 +31,25 @@ const ANSWER = {
   },
   occurred_at: "2026-09-12T18:30:00.000Z",
   invoice: { point_of_sale: 3, number: 1204 },
+  invoice_standing: {
+    fiscal_documents: [
+      {
+        origin: "offline",
+        state: "AUTHORIZED",
+        point_of_sale: 3,
+        number: 1204,
+        buyer_tax_status_code: 5,
+      },
+      {
+        origin: "real_time",
+        state: "REQUESTING",
+        point_of_sale: 4,
+        number: 88,
+        buyer_tax_status_code: 6,
+      },
+    ],
+    deferral_pending: true,
+  },
   payments: [
     {
       id: "pay-cash",
@@ -137,6 +156,25 @@ describe("finding a sale of another register of the branch in the cloud", () => 
           },
         ],
         returned: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }],
+      },
+      invoiceStanding: {
+        fiscalDocuments: [
+          {
+            origin: "offline",
+            state: "AUTHORIZED",
+            pointOfSale: 3,
+            number: 1204,
+            buyerTaxStatusCode: 5,
+          },
+          {
+            origin: "real_time",
+            state: "REQUESTING",
+            pointOfSale: 4,
+            number: 88,
+            buyerTaxStatusCode: 6,
+          },
+        ],
+        deferralPending: true,
       },
       goodConditionReturnDays: 15,
       countedReturnIds: ["return-1"],
