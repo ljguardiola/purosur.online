@@ -20,6 +20,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  CompleteReturnOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CorrectRegisterClockOutcome,
   CredentialsCoreToRendererMessage,
@@ -30,6 +31,7 @@ import type {
   EnrollmentStandingAnswer,
   FindCountableProductOutcome,
   FindDeferredSaleOutcome,
+  FindSaleForReturnOutcome,
   FirstPinCodeRequestOutcome,
   FiscalCoreToRendererMessage,
   FiscalRendererToCoreMessage,
@@ -45,6 +47,7 @@ import type {
   PaymentsRendererToCoreMessage,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewReturnOutcome,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
@@ -68,6 +71,10 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RestorationStandingAnswer,
+  ReturnDraftLineBody,
+  ReturnsCoreToRendererMessage,
+  ReturnsRendererToCoreMessage,
+  returnsRendererToCoreMessageSchema,
   SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesCoreToRendererMessage,
@@ -99,6 +106,7 @@ import {
   fiscalCoreToRendererMessageSchema,
   paymentsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
+  returnsCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
   sessionsCoreToRendererMessageSchema,
   stockCoreToRendererMessageSchema,
@@ -112,6 +120,7 @@ const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   credentialsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
+  returnsCoreToRendererMessageSchema,
   paymentsCoreToRendererMessageSchema,
   stockCoreToRendererMessageSchema,
   fiscalCoreToRendererMessageSchema,
@@ -124,6 +133,7 @@ type CoreToRendererMessage =
   | CredentialsCoreToRendererMessage
   | RegisterCoreToRendererMessage
   | SalesCoreToRendererMessage
+  | ReturnsCoreToRendererMessage
   | PaymentsCoreToRendererMessage
   | StockCoreToRendererMessage
   | FiscalCoreToRendererMessage
@@ -135,6 +145,7 @@ type RendererToCoreMessage =
   | CredentialsRendererToCoreMessage
   | RegisterRendererToCoreMessage
   | SalesRendererToCoreMessage
+  | Exclude<ReturnsRendererToCoreMessage, { type: "find-sale-for-return" }>
   | PaymentsRendererToCoreMessage
   | StockRendererToCoreMessage
   | FiscalRendererToCoreMessage
@@ -143,6 +154,30 @@ type RendererToCoreMessage =
 export type DeferredSaleReading = NonNullable<
   (typeof findDeferredSaleMessageSchema)["~standard"]["types"]
 >["input"]["reading"];
+
+type ReturnsRequestInput = NonNullable<
+  (typeof returnsRendererToCoreMessageSchema)["~standard"]["types"]
+>["input"];
+
+export type SaleForReturnReading = Extract<
+  ReturnsRequestInput,
+  { type: "find-sale-for-return" }
+>["reading"];
+
+type FindSaleForReturnRequest = {
+  type: "find-sale-for-return";
+  request_id: string;
+  reading: SaleForReturnReading;
+  authorization?: Authorization;
+};
+
+export type CompleteReturnInput = {
+  saleId: string;
+  ticketSource: "QR" | "TYPED";
+  lines: readonly ReturnDraftLineBody[];
+  refunds: readonly { payment_id: string; amount: number }[];
+  authorization: Authorization | undefined;
+};
 
 type FindDeferredSaleRequest = {
   type: "find-deferred-sale";
@@ -263,6 +298,15 @@ export interface CoreClient {
   discardContingencyBackupTickets(): Promise<DiscardContingencyBackupTicketsAnswer>;
   printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
   findDeferredSale(reading: DeferredSaleReading): Promise<FindDeferredSaleOutcome>;
+  findSaleForReturn(
+    reading: SaleForReturnReading,
+    authorization: Authorization | undefined,
+  ): Promise<FindSaleForReturnOutcome>;
+  previewReturn(
+    saleId: string,
+    lines: readonly ReturnDraftLineBody[],
+  ): Promise<PreviewReturnOutcome>;
+  completeReturn(input: CompleteReturnInput): Promise<CompleteReturnOutcome>;
   printDeferredSaleInvoice(saleId: string): Promise<PrintDeferredSaleInvoiceOutcome>;
   printCreditNote(saleId: string): Promise<PrintCreditNoteOutcome>;
   reprintDeferredSaleInvoice(
@@ -326,7 +370,10 @@ export interface CoreClient {
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
-type CoreRequest = Exclude<RendererToCoreMessage, { type: "ping" }> | FindDeferredSaleRequest;
+type CoreRequest =
+  | Exclude<RendererToCoreMessage, { type: "ping" }>
+  | FindDeferredSaleRequest
+  | FindSaleForReturnRequest;
 
 type CoreAnswer = Exclude<CoreToRendererMessage, { type: "pulled" }>;
 
@@ -793,6 +840,42 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "find-deferred-sale", request_id: deps.newRequestId(), reading },
         (answer) => (answer.type === "find-deferred-sale-result" ? answer.outcome : undefined),
+      );
+    },
+    findSaleForReturn(reading, authorization) {
+      return ask(
+        {
+          type: "find-sale-for-return",
+          request_id: deps.newRequestId(),
+          reading,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "find-sale-for-return-result" ? answer.outcome : undefined),
+      );
+    },
+    previewReturn(saleId, lines) {
+      return ask(
+        {
+          type: "preview-return",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          lines: [...lines],
+        },
+        (answer) => (answer.type === "preview-return-result" ? answer.outcome : undefined),
+      );
+    },
+    completeReturn({ saleId, ticketSource, lines, refunds, authorization }) {
+      return ask(
+        {
+          type: "complete-return",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          ticket_source: ticketSource,
+          lines: [...lines],
+          refunds: [...refunds],
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "complete-return-result" ? answer.outcome : undefined),
       );
     },
     printDeferredSaleInvoice(saleId) {

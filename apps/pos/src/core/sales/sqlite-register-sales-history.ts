@@ -165,6 +165,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       creditNote: readCreditNoteOfSale(this.database, sale.id)?.answer ?? null,
       deferredInvoiceIssued:
         readUncancelledDeferredSaleRecord(this.database, sale.id)?.satisfied === true,
+      hasReturn: this.hasReturn(sale.id),
     };
   }
 
@@ -204,6 +205,14 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       fiscal: this.fiscalFactsOfSale(row.id),
       voided: row.voided === 1,
     };
+  }
+
+  private hasReturn(saleId: string): boolean {
+    return (
+      this.database
+        .prepare<[string], { id: string }>("SELECT id FROM returns WHERE sale_id = ? LIMIT 1")
+        .get(saleId) !== undefined
+    );
   }
 
   private totalOf(saleId: string): number {

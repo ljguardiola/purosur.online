@@ -604,6 +604,24 @@ export {
   snapshotWorkerMessageSchema,
 } from "./register/snapshot-worker.js";
 export type { StartupPending } from "./register/startup-pending.js";
+export type {
+  ReturnsCoreToRendererMessage,
+  ReturnsRendererToCoreMessage,
+} from "./returns/core-messages.js";
+export {
+  completeReturnMessageSchema,
+  findSaleForReturnMessageSchema,
+  returnsCoreToRendererMessageSchema,
+  returnsRendererToCoreMessageSchema,
+} from "./returns/core-messages.js";
+export type {
+  CompleteReturnOutcome,
+  FindSaleForReturnOutcome,
+  PreviewReturnOutcome,
+  RefundAllocationRefusalBody,
+  ReturnDraftLineBody,
+  ReturnLineRefusalBody,
+} from "./returns/return.js";
 export type { AverageTicketBody } from "./sales/average-ticket.js";
 export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {

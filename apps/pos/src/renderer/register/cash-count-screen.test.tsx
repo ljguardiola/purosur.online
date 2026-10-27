@@ -108,7 +108,15 @@ describe("CashCountScreen", () => {
         .element()
         .querySelectorAll("button, a"),
     ).map((item) => item.textContent);
-    expect(items).toEqual(["Venta", "Historial", "Caja", "Impresora", "Balanza y lector", "Salir"]);
+    expect(items).toEqual([
+      "Venta",
+      "Historial",
+      "Devolver",
+      "Caja",
+      "Impresora",
+      "Balanza y lector",
+      "Salir",
+    ]);
   });
 
   it("asks for the counted cash", async () => {

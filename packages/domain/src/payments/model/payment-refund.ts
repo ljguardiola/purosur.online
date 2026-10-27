@@ -23,10 +23,12 @@ export type RefundState = (typeof REFUND_STATES)[number];
 export const SALE_CANCELLED_REFUND_ORIGIN = "sale_cancelled";
 export const LATE_PAYMENT_REFUND_ORIGIN = "late_payment";
 export const SALE_VOIDED_REFUND_ORIGIN = "sale_voided";
+export const RETURN_REFUND_ORIGIN = "return";
 export const REFUND_ORIGINS = [
   SALE_CANCELLED_REFUND_ORIGIN,
   LATE_PAYMENT_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
+  RETURN_REFUND_ORIGIN,
 ] as const;
 export type RefundOrigin = (typeof REFUND_ORIGINS)[number];
 
@@ -144,4 +146,16 @@ export function methodsCoveringRefundedSale(
   return PAYMENT_METHODS.filter((method) =>
     hasApprovedPayment(salePayments.filter((payment) => payment.method === method)),
   );
+}
+
+export function refundableAmount(paymentAmount: number, refundedOfPayment: number): number {
+  return Math.max(0, paymentAmount - refundedOfPayment);
+}
+
+export function exceedsRefundable(
+  amount: number,
+  paymentAmount: number,
+  refundedOfPayment: number,
+): boolean {
+  return amount > refundableAmount(paymentAmount, refundedOfPayment);
 }

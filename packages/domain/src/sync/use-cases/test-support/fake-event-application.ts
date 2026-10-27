@@ -1,5 +1,6 @@
 import type { VoucherReference } from "../../../fiscal/index.js";
 import type { MercadoPagoOrderTransaction } from "../../../payments/index.js";
+import type { SaleReturnHistory } from "../../../returns/index.js";
 import type { CompletedSale } from "../../../sales/index.js";
 import type { EventInvariantBreaks } from "../../model/event-invariant-breaks.js";
 import type { EventQuarantine } from "../../model/event-quarantine.js";
@@ -27,6 +28,7 @@ export interface FakeEventApplicationState {
   stockApplied: { eventId: string; saleId: string }[];
   stockReturned: { eventId: string; saleId: string }[];
   refundFollowRequests: string[];
+  stockReturnedByCustomers: { eventId: string; returnId: string }[];
   openingCountsApplied: { eventId: string; movementId: string }[];
   openingCountsWithdrawn: { eventId: string; withdrawnMovementId: string }[];
   writeOrder: string[];
@@ -72,6 +74,7 @@ export class FakeEventApplication implements EventApplication {
     stockApplied: [],
     stockReturned: [],
     refundFollowRequests: [],
+    stockReturnedByCustomers: [],
     openingCountsApplied: [],
     openingCountsWithdrawn: [],
     writeOrder: [],
@@ -92,6 +95,7 @@ export class FakeEventApplication implements EventApplication {
     string,
     Pick<MercadoPagoOrderTransaction, "saleId" | "amount" | "state" | "method">
   >();
+  saleReturnHistories = new Map<string, SaleReturnHistory>();
   failRecordingInvariantBreaks = false;
   heldByAnotherRun = new Set<string>();
   beforeTransaction: (transactionNumber: number) => void = () => {};
@@ -220,6 +224,26 @@ export class FakeEventApplication implements EventApplication {
         this.state.stockReturned.push({ eventId: event.eventId, saleId: sale.id });
         return { kind: "applied" };
       },
+      saleReturnHistory: async (saleId) => {
+        this.state.writeOrder.push("return history");
+        const history = this.saleReturnHistories.get(saleId);
+        if (history === undefined) {
+          throw new Error(`no history of sale ${saleId}`);
+        }
+        return history;
+      },
+      applyReturnStock: async (saleReturn, event) => {
+        this.state.writeOrder.push("return stock");
+        const refusal = this.refuseStock.get(event.eventId);
+        if (refusal !== undefined) {
+          return { kind: "refused", reason: refusal };
+        }
+        this.state.stockReturnedByCustomers.push({
+          eventId: event.eventId,
+          returnId: saleReturn.id,
+        });
+        return { kind: "applied" };
+      },
       requestMercadoPagoRefundFollow: async () => {
         this.state.writeOrder.push("refund follow");
         this.state.refundFollowRequests.push("requested");
@@ -300,4 +324,14 @@ export class FakeEventUpcaster implements EventUpcaster {
       ? ({ kind: "unreadable", reason: this.unreadableReason } as const)
       : ({ kind: "fact", fact } as const);
   }
+}
+
+export function aSaleReturnHistory(overrides: Partial<SaleReturnHistory> = {}): SaleReturnHistory {
+  return {
+    saleOccurredAt: new Date("2026-10-07T10:00:00.000Z"),
+    goodConditionReturnDays: 15,
+    lines: [{ saleLineId: "line-1", soldQuantity: 3, returnedQuantity: 0 }],
+    payments: [{ paymentId: "payment-1", amount: 5000, refundedAmount: 0 }],
+    ...overrides,
+  };
 }

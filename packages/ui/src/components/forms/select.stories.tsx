@@ -88,6 +88,10 @@ export const OptionFocusVisible: Story = {
   play: playArrowKeyFocusesListboxOption(trigger, "Atención de caja"),
 };
 
+export const HiddenLabel: Story = {
+  args: { value: "shift-lead", labelVisuallyHidden: true },
+};
+
 export const Required: Story = {
   args: { value: "shift-lead", required: true },
 };

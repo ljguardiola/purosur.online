@@ -45,7 +45,7 @@ describe("SaleScreen", () => {
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
 
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
-    expect(items).toEqual(["Venta", "Caja", "Salir"]);
+    expect(items).toEqual(["Venta", "Devolver", "Caja", "Salir"]);
     await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
     expect(screen.container.textContent).not.toContain("sell_and_charge");
   });
@@ -58,7 +58,7 @@ describe("SaleScreen", () => {
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
 
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
-    expect(items).toEqual(["Venta", "Historial", "Caja", "Salir"]);
+    expect(items).toEqual(["Venta", "Historial", "Devolver", "Caja", "Salir"]);
   });
 
   it("marks Venta as the current screen", async () => {

@@ -1,3 +1,4 @@
+import type { ReturnStockMovement } from "@purosur/domain/returns/use-cases";
 import type { SaleStockMovement } from "@purosur/domain/sales/use-cases";
 import type {
   PulledStockMovement,
@@ -37,6 +38,25 @@ export function insertSaleVoidStockMovement(
       id: movement.id,
       product_id: movement.productId,
       sale_line_id: movement.saleLineId,
+      delta: movement.delta,
+      occurred_at: movement.occurredAt.toISOString(),
+    });
+}
+
+export function insertReturnStockMovement(
+  database: LocalDatabase,
+  movement: ReturnStockMovement,
+): void {
+  database
+    .prepare(
+      `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+       VALUES (@id, @product_id, @kind, @sale_line_id, @delta, @occurred_at)`,
+    )
+    .run({
+      id: movement.id,
+      product_id: movement.productId,
+      kind: movement.kind,
+      sale_line_id: movement.kind === "return" ? movement.saleLineId : null,
       delta: movement.delta,
       occurred_at: movement.occurredAt.toISOString(),
     });

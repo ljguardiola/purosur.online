@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  CompleteReturnOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CoreStatusMessage,
   CorrectRegisterClockOutcome,
@@ -27,6 +28,7 @@ import type {
   EnrollmentStandingAnswer,
   FindCountableProductOutcome,
   FindDeferredSaleOutcome,
+  FindSaleForReturnOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
@@ -36,6 +38,7 @@ import type {
   PaymentMethodAvailability,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewReturnOutcome,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
@@ -56,6 +59,7 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RestorationStandingAnswer,
+  ReturnDraftLineBody,
   SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
@@ -94,8 +98,10 @@ import { HelpScreen } from "../help/help-screen";
 import { help } from "../help/register-help";
 import type {
   CashMovementInput,
+  CompleteReturnInput,
   DeferredSaleReading,
   MercadoPagoMethod,
+  SaleForReturnReading,
   SalesHistoryQuery,
   SerialDevicesToRegister,
 } from "../platform/core-client";
@@ -124,6 +130,7 @@ import { RevokedInstallationScreen } from "../register/revoked-installation-scre
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { StartupPendingScreen } from "../register/startup-pending-screen";
+import { ReturnScreen } from "../returns/return-screen";
 import { ChargeScreen } from "../sales/charge-screen";
 import { DeferredSaleScreen } from "../sales/deferred-sale-screen";
 import { SaleScreen } from "../sales/sale-screen";
@@ -267,6 +274,15 @@ export interface RouterContext {
   discardContingencyBackupTickets: () => Promise<DiscardContingencyBackupTicketsAnswer>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   findDeferredSale: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
+  findSaleForReturn: (
+    reading: SaleForReturnReading,
+    authorization: Authorization | undefined,
+  ) => Promise<FindSaleForReturnOutcome>;
+  previewReturn: (
+    saleId: string,
+    lines: readonly ReturnDraftLineBody[],
+  ) => Promise<PreviewReturnOutcome>;
+  completeReturn: (input: CompleteReturnInput) => Promise<CompleteReturnOutcome>;
   printDeferredSaleInvoice: (saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>;
   reprintDeferredSaleInvoice: (
     saleId: string,
@@ -953,6 +969,39 @@ const deferredSaleRoute = createRoute({
   },
 });
 
+const returnRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/return",
+  beforeLoad: ({ context }) => {
+    const { person } = requireOpenSession(context);
+    return { person };
+  },
+  component: function ReturnRoute() {
+    const {
+      person,
+      signOut,
+      findSaleForReturn,
+      previewReturn,
+      completeReturn,
+      authorizers,
+      refreshCashSession,
+    } = returnRoute.useRouteContext();
+    const registerName = useRegisterName();
+    return (
+      <ReturnScreen
+        person={person}
+        registerName={registerName}
+        lock={signOut}
+        findSaleForReturn={findSaleForReturn}
+        previewReturn={previewReturn}
+        completeReturn={completeReturn}
+        loadAuthorizers={authorizers}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
 const cashRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/cash",
@@ -1264,6 +1313,7 @@ export const routeTree = rootRoute.addChildren([
       chargeRoute,
       historyRoute,
       deferredSaleRoute,
+      returnRoute,
       cashRoute,
       cashCountRoute,
       lockedRoute,
@@ -1358,6 +1408,9 @@ export function createAppRouter(
     | "discardContingencyBackupTickets"
     | "printOriginalReceipt"
     | "findDeferredSale"
+    | "findSaleForReturn"
+    | "previewReturn"
+    | "completeReturn"
     | "printDeferredSaleInvoice"
     | "reprintDeferredSaleInvoice"
     | "printCreditNote"

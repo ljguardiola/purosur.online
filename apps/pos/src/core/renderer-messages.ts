@@ -8,7 +8,9 @@ import {
   type PaymentsCoreToRendererMessage,
   paymentsRendererToCoreMessageSchema,
   type RegisterCoreToRendererMessage,
+  type ReturnsCoreToRendererMessage,
   registerRendererToCoreMessageSchema,
+  returnsRendererToCoreMessageSchema,
   type SalesCoreToRendererMessage,
   type SessionsCoreToRendererMessage,
   type StockCoreToRendererMessage,
@@ -24,6 +26,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   credentialsRendererToCoreMessageSchema,
   registerRendererToCoreMessageSchema,
   salesRendererToCoreMessageSchema,
+  returnsRendererToCoreMessageSchema,
   paymentsRendererToCoreMessageSchema,
   stockRendererToCoreMessageSchema,
   fiscalRendererToCoreMessageSchema,
@@ -36,6 +39,7 @@ export type CoreToRendererMessage =
   | CredentialsCoreToRendererMessage
   | RegisterCoreToRendererMessage
   | SalesCoreToRendererMessage
+  | ReturnsCoreToRendererMessage
   | StockCoreToRendererMessage
   | FiscalCoreToRendererMessage
   | BackupsCoreToRendererMessage

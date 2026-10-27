@@ -151,6 +151,58 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for returning sale items against a ticket", () => {
+    const operation: RegisterOperation = { kind: "process_return" };
+
+    it("permits a person who holds process_return", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("process_return") }),
+      ).toEqual({ kind: "permitted" });
+    });
+
+    it("permits an Administrator", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: ADMINISTRATOR })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("asks another person's authorization with process_return from a cashier who lacks it, even one who may void sales", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("void_sale") }),
+      ).toEqual({ kind: "needs_authorization", permission: "process_return" });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
+  describe("for previewing what a return refunds", () => {
+    const operation: RegisterOperation = { kind: "preview_return" };
+
+    it("permits any person with access, whatever permissions they hold", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: NOBODY_HOLDS })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
   describe("for adjusting a sale line", () => {
     const operation: RegisterOperation = { kind: "adjust_sale_line" };
 
@@ -594,6 +646,24 @@ describe("mayAuthorize", () => {
     });
   });
 
+  describe("returning sale items against a ticket", () => {
+    const operation: RegisterOperation = { kind: "process_return" };
+
+    it("accepts a person who holds process_return", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: holding("process_return") })).toBe(
+        true,
+      );
+    });
+
+    it("accepts an Administrator", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(true);
+    });
+
+    it("refuses a person who may only void sales", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: holding("void_sale") })).toBe(false);
+    });
+  });
+
   describe("closing a locked register", () => {
     const operation: RegisterOperation = { kind: "close_locked_register", session: SESSION };
     const CLOSER = holding("close_anothers_register_session");
@@ -631,6 +701,7 @@ describe("mayAuthorize", () => {
     { kind: "configure_receipt_printer" },
     { kind: "configure_serial_devices" },
     { kind: "correct_register_clock" },
+    { kind: "preview_return" },
     { kind: "close_cash_session", session: SESSION },
   ])("lets nobody authorize $kind for someone else", (operation) => {
     expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(false);

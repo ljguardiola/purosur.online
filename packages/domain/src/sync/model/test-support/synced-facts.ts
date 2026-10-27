@@ -279,3 +279,58 @@ export function aDeferredSaleSatisfiedFact(issuer: InvoiceIssuer): DeferredSaleS
     },
   };
 }
+
+type SaleReturned = Extract<SyncedFact, { kind: "sale_returned" }>;
+
+export function aReturnedSaleFact(
+  overrides: Partial<SaleReturned["saleReturn"]> = {},
+): SaleReturned {
+  const occurredAt = new Date("2026-10-08T10:00:00.000Z");
+  return {
+    kind: "sale_returned",
+    saleReturn: {
+      id: "return-1",
+      saleId: "sale-1",
+      sessionId: "session-2",
+      actorId: "cashier-1",
+      authorizedBy: null,
+      ticketSource: "QR",
+      occurredAt,
+      lines: [
+        {
+          saleLineId: "line-1",
+          productId: "product-1",
+          quantity: 1,
+          reason: "change_of_mind",
+          disposition: "restock",
+          refundedAmount: 1000,
+        },
+      ],
+      refunds: [
+        {
+          id: "refund-1",
+          paymentId: "payment-1",
+          method: "CASH",
+          provider: "NONE",
+          amount: 1000,
+          state: "APPROVED",
+          occurredAt,
+        },
+      ],
+      cashMovements: [
+        { id: "movement-1", type: "REFUND", amount: 1000, actorId: "cashier-1", occurredAt },
+      ],
+      stockMovements: [
+        {
+          id: "movement-2",
+          saleLineId: "line-1",
+          productId: "product-1",
+          kind: "return",
+          reason: null,
+          delta: 1000,
+        },
+      ],
+      ...overrides,
+    },
+  };
+}

@@ -36,6 +36,7 @@ type SelectCommonProps = {
   description?: string;
   disabled?: boolean;
   required?: boolean;
+  labelVisuallyHidden?: boolean;
 };
 
 export type SelectProps<V extends string> = SelectCommonProps &
@@ -87,6 +88,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
     placeholder,
     disabled = false,
     required = false,
+    labelVisuallyHidden = false,
   } = props;
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
   const chosenStatus = options.find((option) => option.value === value)?.status;
@@ -117,7 +119,15 @@ export function Select<V extends string>(props: SelectProps<V>) {
     >
       {({ isOpen }) => (
         <>
-          <AriaLabel className={required ? requiredLabelClassName : baseLabelClassName}>
+          <AriaLabel
+            className={
+              labelVisuallyHidden
+                ? "sr-only"
+                : required
+                  ? requiredLabelClassName
+                  : baseLabelClassName
+            }
+          >
             {label}
           </AriaLabel>
           {/* WAI-ARIA only defines aria-required for combobox/listbox/textbox-shaped roles, never

@@ -37,6 +37,18 @@ test("associates the label with the trigger, and names it with both the chosen o
     .toBeVisible();
 });
 
+test("keeps the label as the trigger's name without showing it when it is visually hidden", async () => {
+  const screen = await render(<Select {...baseProps({ labelVisuallyHidden: true })} />);
+  const label = screen.getByText("Rol", { exact: true }).element() as HTMLElement;
+
+  await expect
+    .element(screen.getByRole("button", { name: "Responsable de turno Rol" }))
+    .toBeVisible();
+  expect(label.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+  expect(label.getBoundingClientRect().height).toBeLessThanOrEqual(1);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("shows the selected option's own label as the trigger's value", async () => {
   const screen = await render(<Select {...baseProps({ value: "cashier" })} />);
   const trigger = screen.getByRole("button", { name: /Rol/ });

@@ -61,7 +61,30 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Caja"]);
+    expect(links).toEqual(["Historial", "Devolver", "Caja"]);
+  });
+
+  it("offers the return to everyone, since someone with permission can authorize it", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
+    );
+
+    expect(screen.getByRole("link", { name: "Devolver" }).element().getAttribute("href")).toBe(
+      "/return",
+    );
+  });
+
+  it("marks Devolver as current on the return screen", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="return" />,
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Devolver" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect
+      .element(screen.getByRole("link", { name: "Caja" }))
+      .not.toHaveAttribute("aria-current");
   });
 
   it("marks Historial as current on the sales history", async () => {
@@ -99,7 +122,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Venta", "Historial", "Venta diferida", "Caja"]);
+    expect(links).toEqual(["Venta", "Historial", "Venta diferida", "Devolver", "Caja"]);
   });
 
   it("offers no sales history to a person who may not view it", async () => {
@@ -130,7 +153,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Caja", "Impresora", "Balanza y lector"]);
+    expect(links).toEqual(["Historial", "Devolver", "Caja", "Impresora", "Balanza y lector"]);
     expect(screen.getByRole("link", { name: "Impresora" }).element().getAttribute("href")).toBe(
       "/receipt-printer",
     );
@@ -211,7 +234,14 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Caja", "Impresora", "Balanza y lector", "Ayuda"]);
+    expect(links).toEqual([
+      "Historial",
+      "Devolver",
+      "Caja",
+      "Impresora",
+      "Balanza y lector",
+      "Ayuda",
+    ]);
     expect(screen.getByRole("link", { name: "Ayuda" }).element().getAttribute("href")).toBe(
       "/help",
     );
