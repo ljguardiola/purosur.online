@@ -20,7 +20,10 @@ function localPaidOrders() {
   return new SqliteLocalPaidOrders({ database });
 }
 
-function anOrder(overrides: Partial<ApprovedOrderOfRegister> = {}): ApprovedOrderOfRegister {
+type QrOrder = Extract<ApprovedOrderOfRegister, { method: "QR" }>;
+type PointOrder = Extract<ApprovedOrderOfRegister, { method: "POINT" }>;
+
+function anOrder(overrides: Partial<QrOrder> = {}): QrOrder {
   return {
     paymentTransactionId: "qr-1",
     saleId: "sale-1",
@@ -28,6 +31,17 @@ function anOrder(overrides: Partial<ApprovedOrderOfRegister> = {}): ApprovedOrde
     provider: "MERCADOPAGO_QR",
     amount: 3000,
     createdAt: new Date("2026-10-09T11:59:00.000Z"),
+    ...overrides,
+  };
+}
+
+function aPointOrder(overrides: Partial<PointOrder> = {}): PointOrder {
+  return {
+    ...anOrder(),
+    paymentTransactionId: "point-1",
+    method: "POINT",
+    provider: "MERCADOPAGO_POINT",
+    cardType: "DEBIT",
     ...overrides,
   };
 }
@@ -125,28 +139,26 @@ describe("holding a paid order as a pending payment of its sale", () => {
     ]);
   });
 
-  it("records a pending payment on the integrated terminal", async () => {
-    const saleId = await openSale();
+  it.each(["DEBIT", "CREDIT", null] as const)(
+    "records a pending payment on the integrated terminal with the card type %s it was charged on",
+    async (cardType) => {
+      const saleId = await openSale();
 
-    localPaidOrders().holdAsPendingPayment(
-      anOrder({
-        saleId,
-        paymentTransactionId: "point-1",
-        method: "POINT",
-        provider: "MERCADOPAGO_POINT",
-      }),
-    );
+      localPaidOrders().holdAsPendingPayment(
+        aPointOrder({ saleId, paymentTransactionId: "point-1", cardType }),
+      );
 
-    expect(paymentRows()).toMatchObject([
-      {
-        id: "point-1",
-        method: "POINT",
-        provider: "MERCADOPAGO_POINT",
-        card_type: null,
-        state: "PENDING",
-      },
-    ]);
-  });
+      expect(paymentRows()).toMatchObject([
+        {
+          id: "point-1",
+          method: "POINT",
+          provider: "MERCADOPAGO_POINT",
+          card_type: cardType,
+          state: "PENDING",
+        },
+      ]);
+    },
+  );
 
   it.each(["EXPIRED", "CANCELLED", "DECLINED"])(
     "holds again as pending a payment the register had recorded as %s",
@@ -251,10 +263,7 @@ describe("the paid orders without a sale", () => {
   it("are all listed, in the order they were recorded", () => {
     const local = localPaidOrders();
     local.recordPaidOrderWithoutSale(anOrder({ paymentTransactionId: "qr-2" }), RECORDED_AT);
-    local.recordPaidOrderWithoutSale(
-      anOrder({ paymentTransactionId: "point-1", method: "POINT", provider: "MERCADOPAGO_POINT" }),
-      RESOLVED_AT,
-    );
+    local.recordPaidOrderWithoutSale(aPointOrder(), RESOLVED_AT);
 
     expect(local.paidOrdersWithoutSale().map((order) => order.paymentTransactionId)).toEqual([
       "qr-2",

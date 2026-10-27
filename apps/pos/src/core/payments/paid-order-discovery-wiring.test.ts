@@ -258,8 +258,11 @@ describe("discovering the paid orders while the register is being restored", () 
     typeof createPaidOrderDiscoveryWiring
   >[0]["ticketedSettlement"];
 
+  const QR_CHARGE = { method: "QR", provider: "MERCADOPAGO_QR" };
+
   async function discoveryOverAnApprovedOrder(
     ticketedSettlement: TicketedSettlement = (settle) => settle,
+    charge: Record<string, string> = QR_CHARGE,
   ) {
     const signedInPerson = createSignedInPerson();
     signedInPerson.set("u1");
@@ -283,8 +286,7 @@ describe("discovering the paid orders while the register is being restored", () 
                 {
                   payment_transaction_id: PAYMENT_ID,
                   sale_id: saleId,
-                  method: "QR",
-                  provider: "MERCADOPAGO_QR",
+                  ...charge,
                   amount: 3000,
                   created_at: new Date(CHARGE_NOW.getTime() - 60_000).toISOString(),
                 },
@@ -346,6 +348,27 @@ describe("discovering the paid orders while the register is being restored", () 
       { settlement: { kind: "completed", saleId }, sale: { state: "COMPLETED" } },
     ]);
   });
+
+  it.each(["DEBIT", "CREDIT"])(
+    "completes the sale with a Point order, holding the %s card type it was charged on",
+    async (cardType) => {
+      const { discovery, saleId, failures } = await discoveryOverAnApprovedOrder(
+        (settle) => settle,
+        { method: "POINT", provider: "MERCADOPAGO_POINT", card_type: cardType },
+      );
+
+      await discovery.discoverAtStartup();
+
+      expect(discovery.state()).toBe("checked");
+      expect(failures).toEqual([]);
+      expect(saleState(saleId)).toEqual({ state: "COMPLETED" });
+      expect(
+        database
+          .prepare("SELECT state, card_type FROM payment_transactions WHERE id = ?")
+          .get(PAYMENT_ID),
+      ).toEqual({ state: "APPROVED", card_type: cardType });
+    },
+  );
 
   it("settles the order on the synchronization after the restoration completes", async () => {
     const { discovery, saleId, failures } = await discoveryOverAnApprovedOrder();

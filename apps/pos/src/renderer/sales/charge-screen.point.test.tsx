@@ -14,6 +14,7 @@ import {
 } from "./test-support/charge-screen";
 
 const NEXT_ASK_TIMEOUT_MS = 5_000;
+const DEBIT_CHARGE = { method: "POINT", cardType: "DEBIT" } as const;
 
 describe("ChargeScreen · Point", () => {
   it("offers the terminal after cash and before the QR when the core answers it is available", async () => {
@@ -136,6 +137,7 @@ describe("ChargeScreen · Point", () => {
         mercado_pago_charge_in_progress: {
           payment_transaction_id: POINT_PAYMENT_ID,
           method: "POINT",
+          card_type: "CREDIT",
           amount: 300_000,
           remaining_seconds: 120,
           wait_seconds: 180,
@@ -148,13 +150,14 @@ describe("ChargeScreen · Point", () => {
       .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
       .toBeVisible();
     await expect.element(screen.getByRole("dialog").getByText("$ 3.000,00")).toBeVisible();
+    await expect.element(screen.getByRole("dialog").getByText("POINT · CRÉDITO")).toBeVisible();
     await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([POINT_PAYMENT_ID]);
   });
 
   describe("following the charge the open sale has in progress", () => {
     it("shows the customer paid until Continuar, then the completed sale, after the sale stops being open", async () => {
       const { screen, currentSale } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), null),
+        currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 120), null),
         followMercadoPagoCharge: async () => ({
           kind: "completed",
           sale_id: "sale-1",
@@ -171,15 +174,17 @@ describe("ChargeScreen · Point", () => {
       await expect
         .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }))
         .toBeVisible();
+      await expect.element(screen.getByRole("dialog").getByText("POINT · DÉBITO")).toBeVisible();
 
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+      await expect.element(screen.getByRole("dialog").getByText("Point · Débito")).toBeVisible();
     });
 
     it("keeps the declined notice after the sale stops showing the charge", async () => {
       const { screen, currentSale } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), SALE_OF_ONE_LINE),
+        currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 120), SALE_OF_ONE_LINE),
         followMercadoPagoCharge: async () => ({ kind: "declined" }),
       });
 
@@ -197,8 +202,8 @@ describe("ChargeScreen · Point", () => {
     it("shows the whole wait as the total while the sale is read again", async () => {
       const { screen, currentSale } = await renderScreen({
         currentSale: readsInTurn(
-          saleWithChargeInProgress("POINT", 120),
-          saleWithChargeInProgress("POINT", 90),
+          saleWithChargeInProgress(DEBIT_CHARGE, 120),
+          saleWithChargeInProgress(DEBIT_CHARGE, 90),
         ),
         followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 90 }),
       });
@@ -211,7 +216,7 @@ describe("ChargeScreen · Point", () => {
 
     it("shows the whole wait as the total of a charge reopened after its wait", async () => {
       const { screen } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 0)),
+        currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 0)),
         followMercadoPagoCharge: async () => ({ kind: "at_terminal_wait_over" }),
       });
 
@@ -223,7 +228,7 @@ describe("ChargeScreen · Point", () => {
 
     it("tells the order expired and goes back to the methods from Elegir otro medio", async () => {
       const { screen, currentSale } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), SALE_OF_ONE_LINE),
+        currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 120), SALE_OF_ONE_LINE),
         followMercadoPagoCharge: async () => ({ kind: "expired" }),
       });
 

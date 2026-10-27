@@ -75,6 +75,39 @@ describe("asking the cloud for the approved orders of the register", () => {
     ]);
   });
 
+  it.each(["DEBIT", "CREDIT", null] as const)(
+    "lists a Point order with the card type %s the cloud answers",
+    async (cardType) => {
+      const { orders } = cloudOrders([
+        ok({
+          orders: [
+            {
+              ...APPROVED_ORDER,
+              method: "POINT",
+              provider: "MERCADOPAGO_POINT",
+              card_type: cardType,
+            },
+          ],
+        }),
+      ]);
+
+      expect(await orders.approvedSince(SINCE)).toEqual({
+        kind: "listed",
+        orders: [
+          {
+            paymentTransactionId: PAYMENT_ID,
+            saleId: SALE_ID,
+            method: "POINT",
+            provider: "MERCADOPAGO_POINT",
+            cardType,
+            amount: 2500,
+            createdAt: new Date("2026-10-13T11:00:00.000Z"),
+          },
+        ],
+      });
+    },
+  );
+
   it("lists nothing when the cloud has no approved order", async () => {
     const { orders } = cloudOrders([ok({ orders: [] })]);
 

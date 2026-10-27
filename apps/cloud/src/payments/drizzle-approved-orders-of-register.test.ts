@@ -50,18 +50,37 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
     ]);
   });
 
-  it("answers an approved Point order with its method and provider", async () => {
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "answers an approved Point order with its method, provider and %s card type",
+    async (cardType) => {
+      const registerId = await insertRegister(db, "Caja 1");
+      await db.insert(paymentTransactions).values(
+        pendingPointTransaction(registerId, {
+          state: "APPROVED",
+          cardType,
+          createdAt: new Date("2026-10-12T09:00:00.000Z"),
+        }),
+      );
+
+      const [order] = await orders().approvedWithoutSaleSince(registerId, SINCE);
+
+      expect(order).toMatchObject({ method: "POINT", provider: "MERCADOPAGO_POINT", cardType });
+    },
+  );
+
+  it("answers an approved Point order stored without a card type as having none", async () => {
     const registerId = await insertRegister(db, "Caja 1");
     await db.insert(paymentTransactions).values(
       pendingPointTransaction(registerId, {
         state: "APPROVED",
+        cardType: null,
         createdAt: new Date("2026-10-12T09:00:00.000Z"),
       }),
     );
 
     const [order] = await orders().approvedWithoutSaleSince(registerId, SINCE);
 
-    expect([order?.method, order?.provider]).toEqual(["POINT", "MERCADOPAGO_POINT"]);
+    expect(order).toMatchObject({ method: "POINT", cardType: null });
   });
 
   it("answers the oldest first", async () => {

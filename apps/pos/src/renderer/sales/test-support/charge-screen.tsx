@@ -290,20 +290,23 @@ export async function chargeInCash(screen: Screen, tendered: string) {
 }
 
 export function saleWithChargeInProgress(
-  method: MercadoPagoChargeKind["method"],
+  charge: MercadoPagoChargeKind,
   remainingSeconds: number,
 ): OpenSale {
+  const inProgress = { amount: 476_000, remaining_seconds: remainingSeconds, wait_seconds: 180 };
   return {
     ...SALE_OF_ONE_LINE,
     lines_lock: "mercado_pago_charge_in_progress",
     cancel_refusal: "mercado_pago_charge_in_progress",
-    mercado_pago_charge_in_progress: {
-      payment_transaction_id: method === "POINT" ? POINT_PAYMENT_ID : QR_PAYMENT_ID,
-      method,
-      amount: 476_000,
-      remaining_seconds: remainingSeconds,
-      wait_seconds: 180,
-    },
+    mercado_pago_charge_in_progress:
+      charge.method === "POINT"
+        ? {
+            ...inProgress,
+            payment_transaction_id: POINT_PAYMENT_ID,
+            method: "POINT",
+            card_type: charge.cardType,
+          }
+        : { ...inProgress, payment_transaction_id: QR_PAYMENT_ID, method: "QR" },
   };
 }
 

@@ -281,6 +281,7 @@ describe("a charge on the integrated terminal whose wait ran out, after the regi
       mercado_pago_charge_in_progress: {
         payment_transaction_id: paymentId,
         method: "POINT",
+        card_type: "DEBIT",
         amount: 3000,
         remaining_seconds: 0,
         wait_seconds: 180,
