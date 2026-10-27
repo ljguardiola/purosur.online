@@ -3222,11 +3222,11 @@ describe("answerRendererRequest", () => {
         },
       ],
       ["has no database", { previewReturn: undefined }],
-    ])("answers that the sale was not found when the register %s", async (_case, overrides) => {
+    ])("answers that the preview is unavailable when the register %s", async (_case, overrides) => {
       expect(await answerRendererRequest(deps(true, overrides).deps, request)).toEqual({
         type: "preview-return-result",
         request_id: "r60",
-        outcome: { kind: "not_found" },
+        outcome: { kind: "unavailable" },
       });
     });
 
