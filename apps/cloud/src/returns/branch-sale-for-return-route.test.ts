@@ -205,6 +205,18 @@ describe("GET /devices/current/returns/sale", () => {
     expect(branchSaleForReturnAnswerSchema.parse(response.json())).toMatchObject({
       sale: { id: completed.id, register_id: selling.registerId, state: "COMPLETED" },
       invoice: { point_of_sale: 7, number: 42 },
+      invoice_standing: {
+        fiscal_documents: [
+          {
+            origin: "real_time",
+            state: "AUTHORIZED",
+            point_of_sale: 7,
+            number: 42,
+            buyer_tax_status_code: 5,
+          },
+        ],
+        deferral_pending: false,
+      },
       good_condition_return_days: 15,
       counted_return_ids: [],
     });

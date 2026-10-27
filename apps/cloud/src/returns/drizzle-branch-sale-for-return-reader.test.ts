@@ -189,6 +189,18 @@ describe("reading a sale of the branch to return it from another register", () =
         ],
         returned: [],
       },
+      invoiceStanding: {
+        fiscalDocuments: [
+          {
+            origin: "real_time",
+            state: "AUTHORIZED",
+            pointOfSale: 7,
+            number: 42,
+            buyerTaxStatusCode: 5,
+          },
+        ],
+        deferralPending: false,
+      },
       goodConditionReturnDays: 15,
       countedReturnIds: [],
     });
@@ -351,6 +363,182 @@ describe("reading a sale of the branch to return it from another register", () =
       const { asking } = await setUp();
 
       expect(await reader().saleForReturnInBranchOf(asking.registerId, INVOICE)).toBeUndefined();
+    });
+  });
+
+  describe("the invoice standing of the sale", () => {
+    async function deferTicket(
+      selling: { registerId: string; locationId: string },
+      saleId: string,
+      columns: Partial<typeof deferredSales.$inferInsert> = {},
+    ) {
+      const id = randomUUID();
+      await system.db.insert(deferredSales).values({
+        id,
+        saleId,
+        registerId: selling.registerId,
+        locationId: selling.locationId,
+        occurredAt: COMPLETED_AT,
+        total: 4800,
+        reason: "pre_emission_gate_failed",
+        shortCode: "7KQ4M2P9",
+        routedAt: COMPLETED_AT,
+        state: "pending",
+        ...columns,
+      });
+      return { kind: "deferred", id, shortCode: "7KQ4M2P9" } as const;
+    }
+
+    const OFFLINE_INVOICE = {
+      pointOfSale: 8,
+      documentType: "factura_c",
+      number: 12,
+      issuedOn: "2026-10-06",
+      generatedAt: COMPLETED_AT,
+      generationStamp: "20261006082000",
+      offlineAuthorizationCode: "21403471111111",
+      fortnightStart: "2026-10-01",
+      fortnightEnd: "2026-10-15",
+      buyerDocumentType: 99,
+      buyerDocumentNumber: 0,
+      buyerTaxStatusCode: 6,
+      total: 4800,
+      netAmount: 4800,
+      cause: "no_connectivity",
+      recordedAt: COMPLETED_AT,
+    } as const;
+
+    it("holds an invoice issued offline as authorized, with its buyer tax status", async () => {
+      const { asking, selling, completed } = await setUp();
+      await system.db
+        .insert(offlineFiscalDocuments)
+        .values({
+          id: randomUUID(),
+          saleId: completed.id,
+          registerId: selling.registerId,
+          ...OFFLINE_INVOICE,
+        });
+
+      const found = await reader().saleForReturnInBranchOf(asking.registerId, {
+        kind: "invoice",
+        pointOfSale: 8,
+        number: 12,
+      });
+
+      expect(found?.invoiceStanding).toEqual({
+        fiscalDocuments: [
+          {
+            origin: "offline",
+            state: "AUTHORIZED",
+            pointOfSale: 8,
+            number: 12,
+            buyerTaxStatusCode: 6,
+          },
+        ],
+        deferralPending: false,
+      });
+    });
+
+    it("holds an invoice the tax authority held after an unclear answer as authorized", async () => {
+      const { asking, selling, completed } = await setUp();
+      await authorizeInvoice(selling.registerId, completed.id, {
+        answerKind: "unclear",
+        authorizationCode: null,
+        authorizationCodeDueOn: null,
+        unclearCodes: [],
+        decision: "adopted",
+        decidedAt: COMPLETED_AT,
+        adoptedAuthorizationCode: "75123456789012",
+        adoptedAuthorizationCodeDueOn: "2026-10-16",
+      });
+
+      const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
+
+      expect(found?.invoiceStanding.fiscalDocuments).toEqual([
+        {
+          origin: "real_time",
+          state: "AUTHORIZED",
+          pointOfSale: 7,
+          number: 42,
+          buyerTaxStatusCode: 5,
+        },
+      ]);
+    });
+
+    it("holds an invoice nobody answered yet as being requested", async () => {
+      const { asking, selling, completed } = await setUp();
+      await authorizeInvoice(selling.registerId, completed.id, {
+        answerKind: null,
+        authorizationCode: null,
+        authorizationCodeDueOn: null,
+        answeredAt: null,
+      });
+      const ticket = await deferTicket(selling, completed.id, {
+        state: "satisfied",
+        satisfiedAt: COMPLETED_AT,
+      });
+
+      const found = await reader().saleForReturnInBranchOf(asking.registerId, ticket);
+
+      expect(found?.invoiceStanding).toEqual({
+        fiscalDocuments: [
+          {
+            origin: "real_time",
+            state: "REQUESTING",
+            pointOfSale: 7,
+            number: 42,
+            buyerTaxStatusCode: 5,
+          },
+        ],
+        deferralPending: false,
+      });
+    });
+
+    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>]>([
+      [
+        "a rejected invoice",
+        {
+          answerKind: "rejected",
+          authorizationCode: null,
+          authorizationCodeDueOn: null,
+          rejectionCodes: [10015],
+          rejectionClass: "content",
+        },
+      ],
+      [
+        "an invoice left unclear",
+        {
+          answerKind: "unclear",
+          authorizationCode: null,
+          authorizationCodeDueOn: null,
+          unclearCodes: [],
+        },
+      ],
+    ])("holds no invoice for %s", async (_name, columns) => {
+      const { asking, selling, completed } = await setUp();
+      await authorizeInvoice(selling.registerId, completed.id, columns);
+      const ticket = await deferTicket(selling, completed.id, {
+        state: "satisfied",
+        satisfiedAt: COMPLETED_AT,
+      });
+
+      const found = await reader().saleForReturnInBranchOf(asking.registerId, ticket);
+
+      expect(found?.invoiceStanding.fiscalDocuments).toEqual([]);
+    });
+
+    it.each<[string, Partial<typeof deferredSales.$inferInsert>, boolean]>([
+      ["pending", {}, true],
+      ["expired", { state: "expired", expiredAt: COMPLETED_AT }, true],
+      ["satisfied", { state: "satisfied", satisfiedAt: COMPLETED_AT }, false],
+      ["cancelled", { state: "cancelled", cancelledAt: COMPLETED_AT }, false],
+    ])("holds a %s deferral as pending or not", async (_name, columns, pending) => {
+      const { asking, selling, completed } = await setUp();
+      const ticket = await deferTicket(selling, completed.id, columns);
+
+      const found = await reader().saleForReturnInBranchOf(asking.registerId, ticket);
+
+      expect(found?.invoiceStanding).toEqual({ fiscalDocuments: [], deferralPending: pending });
     });
   });
 
