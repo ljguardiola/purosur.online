@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SaleInvoiceStanding } from "../../fiscal/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { TicketReference } from "../model/ticket-reference.js";
 import { findBranchSaleForReturn } from "./find-branch-sale-for-return.js";
@@ -23,10 +24,26 @@ function otherRegisterSale() {
   return facts;
 }
 
-function foundThroughCloud(overrides: Partial<{ countedReturnIds: string[] }> = {}) {
+const INVOICE_STANDING = {
+  fiscalDocuments: [
+    {
+      origin: "real_time",
+      state: "AUTHORIZED",
+      pointOfSale: 4,
+      number: 88,
+      buyerTaxStatusCode: 5,
+    },
+  ],
+  deferralPending: false,
+} satisfies SaleInvoiceStanding;
+
+function foundThroughCloud(
+  overrides: Partial<{ countedReturnIds: string[]; invoiceStanding: SaleInvoiceStanding }> = {},
+) {
   return {
     kind: "found",
     sale: otherRegisterSale(),
+    invoiceStanding: INVOICE_STANDING,
     goodConditionReturnDays: 15,
     countedReturnIds: [],
     ...overrides,
@@ -118,10 +135,20 @@ describe("findBranchSaleForReturn", () => {
       expect(retained.kept).toEqual([
         {
           sale: found.sale,
+          invoiceStanding: INVOICE_STANDING,
           goodConditionReturnDays: 15,
           countedReturnIds: ["return-cloud"],
         },
       ]);
+    });
+
+    it("keeps the invoice standing of a sale whose invoice is still on its way", async () => {
+      const onItsWay = { fiscalDocuments: [], deferralPending: true };
+
+      const { outcome, retained } = find(foundThroughCloud({ invoiceStanding: onItsWay }));
+      await outcome;
+
+      expect(retained.kept[0]?.invoiceStanding).toEqual(onItsWay);
     });
 
     it("subtracts the returns this register made that the cloud did not count", async () => {
