@@ -197,10 +197,10 @@ describe("GET /reports/losses-by-reason", () => {
         stockMovements: [
           {
             id: randomUUID(),
-            saleLineId: null,
+            saleLineId: yerba.id,
             productId,
-            kind: "loss",
-            reason: null,
+            kind: "loss" as const,
+            reason: "return_discard" as const,
             delta: -2_000,
           },
         ],
