@@ -235,6 +235,31 @@ describe("the sale to void", () => {
     ]);
   });
 
+  it("says the sale has no return until one is made, and then refuses to void it", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 3000);
+    expect(toVoid(saleId)?.hasReturn).toBe(false);
+    const lineId = database
+      .prepare<[string], { id: string }>("SELECT id FROM sale_lines WHERE sale_id = ?")
+      .get(saleId)?.id as string;
+    database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', ?, 'register-1', 'device-1', 'session-1', 'u1', 'QR', '2026-09-30T12:10:00.000Z')`,
+      )
+      .run(saleId);
+    database
+      .prepare(
+        `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+         VALUES ('return-1', ?, 1000, 'change_of_mind', 'restock', 1500)`,
+      )
+      .run(lineId);
+
+    expect(toVoid(saleId)?.hasReturn).toBe(true);
+    expect(await voidIt(saleId)).toEqual({ kind: "has_return" });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
+  });
+
   it("carries a sale that is not completed as it is", () => {
     const saleId = sellTwo();
 

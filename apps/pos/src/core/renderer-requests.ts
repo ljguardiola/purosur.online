@@ -18,11 +18,13 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  CompleteReturnOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   EnrollmentStandingAnswer,
   FindDeferredSaleOutcome,
+  FindSaleForReturnOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
@@ -32,6 +34,7 @@ import type {
   PaymentMethodAvailability,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewReturnOutcome,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
@@ -47,6 +50,7 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RestorationStandingAnswer,
+  ReturnDraftLineBody,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -60,7 +64,7 @@ import type {
   VoidSaleOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
+import type { AuthorizablePermissionKey, RegisterService, ReturnDraftLine } from "@purosur/domain";
 import {
   answerContingencyBackupTicketRequest,
   type ContingencyBackupTicketRequests,
@@ -71,6 +75,11 @@ import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
 import type { StartupPendingAnswer } from "./register/startup-pending-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
+import type {
+  CompleteReturnRequest,
+  FindSaleForReturnRequest,
+  PreviewReturnRequest,
+} from "./returns/returns-requests";
 import type { FindDeferredSaleReading } from "./sales/deferred-sale-invoice-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
@@ -182,6 +191,11 @@ export interface RendererRequestDeps {
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
   voidSale: ((request: VoidSaleRequest) => Promise<VoidSaleOutcome>) | undefined;
+  findSaleForReturn:
+    | ((request: FindSaleForReturnRequest) => Promise<FindSaleForReturnOutcome>)
+    | undefined;
+  previewReturn: ((request: PreviewReturnRequest) => Promise<PreviewReturnOutcome>) | undefined;
+  completeReturn: ((request: CompleteReturnRequest) => Promise<CompleteReturnOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
   printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
   findDeferredSale:
@@ -506,6 +520,27 @@ async function attemptSaleChange<TOutcome extends { kind: string }>(
     return (await change?.()) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure(context, error);
+    return { kind: "unavailable" };
+  }
+}
+
+function toDraftLine({
+  sale_line_id: saleLineId,
+  quantity,
+  reason,
+  disposition,
+}: ReturnDraftLineBody): ReturnDraftLine {
+  return { saleLineId, quantity, reason, disposition };
+}
+
+async function attemptPreviewReturn(
+  deps: RendererRequestDeps,
+  preview: (() => Promise<PreviewReturnOutcome>) | undefined,
+): Promise<PreviewReturnOutcome> {
+  try {
+    return (await preview?.()) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("previewing a return", error);
     return { kind: "unavailable" };
   }
 }
@@ -925,6 +960,62 @@ export async function answerRendererRequest(
               voidSale({
                 saleId: message.sale_id,
                 pendingRefundsConfirmed: message.pending_refunds_confirmed,
+                authorization: message.authorization,
+              })),
+        ),
+      };
+    }
+    case "find-sale-for-return": {
+      const { findSaleForReturn } = deps;
+      return {
+        type: "find-sale-for-return-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "finding the sale to return",
+          findSaleForReturn &&
+            (() =>
+              findSaleForReturn({
+                ticket: message.reading.ticket,
+                authorization: message.authorization,
+              })),
+        ),
+      };
+    }
+    case "preview-return": {
+      const { previewReturn } = deps;
+      return {
+        type: "preview-return-result",
+        request_id: message.request_id,
+        outcome: await attemptPreviewReturn(
+          deps,
+          previewReturn &&
+            (() =>
+              previewReturn({
+                saleId: message.sale_id,
+                lines: message.lines.map(toDraftLine),
+              })),
+        ),
+      };
+    }
+    case "complete-return": {
+      const { completeReturn } = deps;
+      return {
+        type: "complete-return-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "completing a return",
+          completeReturn &&
+            (() =>
+              completeReturn({
+                saleId: message.sale_id,
+                ticketSource: message.ticket_source,
+                lines: message.lines.map(toDraftLine),
+                refunds: message.refunds.map(({ payment_id: paymentId, amount }) => ({
+                  paymentId,
+                  amount,
+                })),
                 authorization: message.authorization,
               })),
         ),

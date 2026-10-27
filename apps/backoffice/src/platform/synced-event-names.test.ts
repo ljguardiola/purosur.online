@@ -15,6 +15,10 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("sale_cancelled")).toBe("venta cancelada");
   });
 
+  test("names the return of a sale's merchandise", () => {
+    expect(syncedEventTypeName("sale_returned")).toBe("devolución");
+  });
+
   test("names the replacement of a QR payment", () => {
     expect(syncedEventTypeName("qr_payment_replaced")).toBe("reemplazo de pago QR");
   });
@@ -52,6 +56,12 @@ describe("the Spanish names of synced events", () => {
     );
   });
 
+  test("names a return with its preposition and its id", () => {
+    expect(ofSyncedAggregate({ aggregateType: "Return", aggregateId: "return-1" })).toBe(
+      "de la devolución return-1",
+    );
+  });
+
   test("names an aggregate of an unknown type in general words and its id", () => {
     expect(ofSyncedAggregate({ aggregateType: "Other", aggregateId: "other-1" })).toBe(
       "del registro other-1",
@@ -63,6 +73,7 @@ describe("the Spanish names of synced aggregates", () => {
   test("names a known aggregate type", () => {
     expect(syncedAggregateTypeName("Sale")).toBe("Venta");
     expect(syncedAggregateTypeName("CashSession")).toBe("Sesión de caja");
+    expect(syncedAggregateTypeName("Return")).toBe("Devolución");
   });
 
   test("has no name for an unknown aggregate type", () => {

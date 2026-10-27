@@ -1,6 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isCalendarDay, lastDayOfMonth, shiftCalendarDay } from "./calendar-day.js";
+import {
+  addCalendarMonths,
+  isCalendarDay,
+  lastDayOfMonth,
+  shiftCalendarDay,
+} from "./calendar-day.js";
 
 const dayNumber = fc.integer({ min: 0, max: 60_000 });
 
@@ -109,6 +114,48 @@ describe("lastDayOfMonth", () => {
         expect(last >= day).toBe(true);
         expect(shiftCalendarDay(last, 1).slice(0, 7)).not.toBe(day.slice(0, 7));
       }),
+    );
+  });
+});
+
+describe("addCalendarMonths", () => {
+  it.each([
+    ["2026-03-12", 6, "2026-09-12"],
+    ["2026-09-12", 6, "2027-03-12"],
+    ["2026-08-31", 6, "2027-02-28"],
+    ["2023-08-31", 6, "2024-02-29"],
+    ["2026-01-31", 1, "2026-02-28"],
+    ["2026-01-30", 2, "2026-03-30"],
+    ["2026-05-31", 1, "2026-06-30"],
+    ["2024-02-29", 12, "2025-02-28"],
+    ["2024-02-29", 48, "2028-02-29"],
+    ["2026-12-15", 1, "2027-01-15"],
+    ["2026-10-15", 0, "2026-10-15"],
+    ["2026-03-31", -1, "2026-02-28"],
+    ["2026-01-15", -1, "2025-12-15"],
+    ["2026-01-15", -13, "2024-12-15"],
+    ["2026-07-15", 12, "2027-07-15"],
+  ])("moves %s by %i months to %s", (day, months, expected) => {
+    expect(addCalendarMonths(day, months)).toBe(expected);
+  });
+
+  it("lands on the same day of the month the months away, or on that month's last day when it has no such day", () => {
+    fc.assert(
+      fc.property(
+        dayBetween("1000-01-01", "8000-12-31"),
+        fc.integer({ min: -120, max: 120 }),
+        (day, months) => {
+          const moved = addCalendarMonths(day, months);
+          const monthIndex = (value: string) =>
+            Number(value.slice(0, 4)) * 12 + Number(value.slice(5, 7)) - 1;
+
+          expect(isCalendarDay(moved)).toBe(true);
+          expect(monthIndex(moved) - monthIndex(day)).toBe(months);
+          expect(Number(moved.slice(8))).toBe(
+            Math.min(Number(day.slice(8)), Number(lastDayOfMonth(moved).slice(8))),
+          );
+        },
+      ),
     );
   });
 });

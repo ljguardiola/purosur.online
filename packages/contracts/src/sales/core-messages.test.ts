@@ -1932,7 +1932,7 @@ describe("asking for the detail of one sale of the history", () => {
         voidability: { kind: "not_voidable", refusal: "not_completed" },
       },
     },
-    ...["not_completed", "session_closed", "invoice_in_flight"].map((refusal) => ({
+    ...["not_completed", "has_return", "session_closed", "invoice_in_flight"].map((refusal) => ({
       kind: "found",
       detail: { ...detail, voidability: { kind: "not_voidable", refusal } },
     })),

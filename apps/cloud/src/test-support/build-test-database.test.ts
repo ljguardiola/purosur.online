@@ -92,11 +92,13 @@ import {
   registerSnapshotRetentionFreezes,
   registers,
   rejectedDocumentRemedies,
+  returnLines,
   rolePermissions,
   roles,
   saleLines,
   salePayments,
   saleReprints,
+  saleReturns,
   sales,
   saleVoidCreditNoteRefusals,
   serialDeviceState,
@@ -478,6 +480,25 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       requestedBy: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
       reasonKind: "retry",
       occurredAt: new Date("2026-01-05T12:13:00.000Z"),
+    });
+    await db.insert(saleReturns).values({
+      id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e27",
+      saleId,
+      registerId: register.id,
+      deviceId: installation.id,
+      sessionId,
+      actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      ticketSource: "QR",
+      occurredAt: new Date("2026-01-06T12:00:00.000Z"),
+      originEventId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e0f",
+    });
+    await db.insert(returnLines).values({
+      returnId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e27",
+      saleLineId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e21",
+      quantity: 1,
+      reason: "change_of_mind",
+      disposition: "restock",
+      refundedAmount: 2400,
     });
     await db.insert(cashMovements).values({
       id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e25",

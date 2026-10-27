@@ -3,13 +3,14 @@ import { isMovementQuantity } from "../model/stock-quantity.js";
 import { recordStockMovement } from "./apply-stock-movement.js";
 import type { StockStoreTransaction } from "./stock-store.js";
 
-export interface RegisterStockMovement {
+export type RegisterStockMovement = {
   id: string;
-  saleLineId: string;
   productId: string;
-  kind: "sale" | "sale_void";
   delta: number;
-}
+} & (
+  | { kind: "sale" | "sale_void" | "return"; saleLineId: string }
+  | { kind: "loss"; reason: "return_discard" }
+);
 
 export interface ApplyRegisterStockMovementsInput {
   locationId: string;
@@ -38,7 +39,7 @@ export async function applyRegisterStockMovements(
         movement.productId === productId &&
         !isMovementQuantity(
           locked.saleUnit,
-          movement.kind === "sale" ? -movement.delta : movement.delta,
+          movement.kind === "sale" || movement.kind === "loss" ? -movement.delta : movement.delta,
         ),
     );
     if (refused) {
@@ -62,9 +63,9 @@ export async function applyRegisterStockMovements(
       {
         ...key,
         id: movement.id,
-        saleLineId: movement.saleLineId,
-        kind: movement.kind,
-        reason: null,
+        ...(movement.kind === "loss"
+          ? { kind: movement.kind, reason: movement.reason }
+          : { kind: movement.kind, reason: null, saleLineId: movement.saleLineId }),
         delta: movement.delta,
         occurredAt: input.occurredAt,
         actorId: input.actorId,

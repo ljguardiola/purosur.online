@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  exceedsRefundable,
   isRefundDiscarded,
   isRefundOriginDiscardable,
   isRefundPending,
@@ -17,7 +18,9 @@ import {
   REFUND_ORIGINS,
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
+  RETURN_REFUND_ORIGIN,
   refundAlertKind,
+  refundableAmount,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
@@ -211,9 +214,10 @@ describe("PlannedRefundState", () => {
 
 describe("REFUND_ORIGINS", () => {
   it("tells a refund of a cancelled sale from one of a payment that arrived late", () => {
-    expect(REFUND_ORIGINS).toEqual(["sale_cancelled", "late_payment", "sale_voided"]);
+    expect(REFUND_ORIGINS).toEqual(["sale_cancelled", "late_payment", "sale_voided", "return"]);
     expect(SALE_CANCELLED_REFUND_ORIGIN).toBe("sale_cancelled");
     expect(SALE_VOIDED_REFUND_ORIGIN).toBe("sale_voided");
+    expect(RETURN_REFUND_ORIGIN).toBe("return");
     expect(LATE_PAYMENT_REFUND_ORIGIN).toBe("late_payment");
   });
 });
@@ -256,9 +260,19 @@ describe("refundAlertKind", () => {
   });
 });
 
+describe("refundAlertKind of a return", () => {
+  it("is the refund task alert for a returned sale", () => {
+    expect(refundAlertKind(RETURN_REFUND_ORIGIN)).toBe("refund_task");
+  });
+});
+
 describe("REFUND_TASK_ORIGINS", () => {
   it("lists every origin whose refund gets the refund task alert, leaving out a payment that arrived late", () => {
-    expect(REFUND_TASK_ORIGINS).toEqual([SALE_CANCELLED_REFUND_ORIGIN, SALE_VOIDED_REFUND_ORIGIN]);
+    expect(REFUND_TASK_ORIGINS).toEqual([
+      SALE_CANCELLED_REFUND_ORIGIN,
+      SALE_VOIDED_REFUND_ORIGIN,
+      RETURN_REFUND_ORIGIN,
+    ]);
   });
 });
 
@@ -394,5 +408,41 @@ describe("latePaymentRefundOfUnrecordedOrder", () => {
       origin: "late_payment",
       providerOrderId: "order-2",
     });
+  });
+});
+
+describe("refundableAmount", () => {
+  it("is what the payment holds less what is already refunded of it", () => {
+    expect(refundableAmount(2450, 0)).toBe(2450);
+    expect(refundableAmount(2450, 1000)).toBe(1450);
+  });
+
+  it("is never negative", () => {
+    expect(refundableAmount(1000, 1500)).toBe(0);
+  });
+
+  it("is never more than the payment, nor does it count more than was refunded", () => {
+    fc.assert(
+      fc.property(fc.nat(1_000_000), fc.nat(1_000_000), (payment, refunded) => {
+        const refundable = refundableAmount(payment, refunded);
+        expect(refundable).toBeGreaterThanOrEqual(0);
+        expect(refundable).toBeLessThanOrEqual(payment);
+        expect(refundable + Math.min(refunded, payment)).toBe(payment);
+      }),
+    );
+  });
+});
+
+describe("exceedsRefundable", () => {
+  it("accepts a refund of exactly what is refundable", () => {
+    expect(exceedsRefundable(1450, 2450, 1000)).toBe(false);
+  });
+
+  it("refuses a refund of one cent more than what is refundable", () => {
+    expect(exceedsRefundable(1451, 2450, 1000)).toBe(true);
+  });
+
+  it("refuses any refund once the payment is fully refunded", () => {
+    expect(exceedsRefundable(1, 2450, 2450)).toBe(true);
   });
 });

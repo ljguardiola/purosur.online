@@ -11,6 +11,7 @@ import type {
   ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
+  ReturnDraftLineBody,
   SaleDiscountRequest,
   SignInOutcome,
   StartMercadoPagoChargeOutcome,
@@ -23,9 +24,11 @@ import { useEffect, useState } from "react";
 import { credentialsKey } from "../credentials/credentials-queries";
 import type {
   CashMovementInput,
+  CompleteReturnInput,
   CoreClient,
   DeferredSaleReading,
   MercadoPagoMethod,
+  SaleForReturnReading,
   SalesHistoryQuery,
   SerialDevicesToRegister,
 } from "../platform/core-client";
@@ -425,6 +428,11 @@ function Register({ core }: { core: CoreClient }) {
     discardContingencyBackupTickets: () => core.discardContingencyBackupTickets(),
     printOriginalReceipt: (saleId: string) => core.printOriginalReceipt(saleId),
     findDeferredSale: (reading: DeferredSaleReading) => core.findDeferredSale(reading),
+    findSaleForReturn: (reading: SaleForReturnReading, authorization: Authorization | undefined) =>
+      core.findSaleForReturn(reading, authorization),
+    previewReturn: (saleId: string, lines: readonly ReturnDraftLineBody[]) =>
+      core.previewReturn(saleId, lines),
+    completeReturn: (input: CompleteReturnInput) => core.completeReturn(input),
     printDeferredSaleInvoice: (saleId: string) => core.printDeferredSaleInvoice(saleId),
     reprintDeferredSaleInvoice: (
       saleId: string,

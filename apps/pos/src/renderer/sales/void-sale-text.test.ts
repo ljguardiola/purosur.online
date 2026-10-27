@@ -14,6 +14,12 @@ describe("voidRefusalReason", () => {
     );
   });
 
+  it("says a sale with a return is finished through another return", () => {
+    expect(voidRefusalReason("has_return")).toBe(
+      "Esta venta ya tiene una devolución: lo que queda se devuelve con otra devolución.",
+    );
+  });
+
   it("has no reason for a sale that is already voided", () => {
     expect(voidRefusalReason("not_completed")).toBeUndefined();
   });
