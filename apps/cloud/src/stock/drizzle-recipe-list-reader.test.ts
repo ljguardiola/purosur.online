@@ -1,5 +1,7 @@
 import { saveRecipe } from "@purosur/domain/stock/use-cases";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { assemblyBatches } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRecipeListReader } from "./drizzle-recipe-list-reader.js";
@@ -177,6 +179,32 @@ describe("DrizzleRecipeListReader", () => {
         costIncomplete: true,
         assembledAt: new Date("2026-05-04T13:00:00.000Z"),
       });
+    });
+
+    it("skips a voided batch, which never happened", async () => {
+      const productId = await mixWithRecipe();
+      await insertAssemblyBatch(db, {
+        productId,
+        locationId,
+        actorId,
+        assembledAt: new Date("2026-05-04T13:00:00.000Z"),
+        cost: { totalCents: 99_999, quantity: 14_000 },
+      });
+      const voided = await insertAssemblyBatch(db, {
+        productId,
+        locationId,
+        actorId,
+        assembledAt: new Date("2026-05-20T13:00:00.000Z"),
+        cost: { totalCents: 50_200, quantity: 14_000 },
+      });
+      await db
+        .update(assemblyBatches)
+        .set({ voidedAt: new Date("2026-05-21T10:00:00.000Z"), voidedBy: actorId })
+        .where(eq(assemblyBatches.id, voided.batchId));
+
+      expect((await lastBatchOf(productId))?.assembledAt).toEqual(
+        new Date("2026-05-04T13:00:00.000Z"),
+      );
     });
 
     it("ignores the batches made at another location, and is none for a recipe never made", async () => {
