@@ -253,7 +253,7 @@ describe("replenishing a credit note issued offline into a restored register", (
   function notes() {
     return database
       .prepare(
-        "SELECT id, state, offline_fiscal_document_id, total, corrected_number FROM sale_void_credit_notes",
+        "SELECT id, state, offline_fiscal_document_id, total, corrected_number FROM sale_credit_notes",
       )
       .all();
   }
@@ -357,6 +357,115 @@ describe("replenishing a credit note issued offline into a restored register", (
 
     expect(notes()).toEqual(NOTE_ISSUED);
     expect(requests()).toEqual([]);
+  });
+
+  describe("of a return", () => {
+    const RETURN_NOTE: InvoicedCreditNote = {
+      ...CREDIT_NOTE,
+      total: 4_000,
+      origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-01" },
+    };
+    const RETURN_EVENT = {
+      ...VOID_EVENT,
+      event_id: "return-event",
+      aggregate_type: "Return",
+      aggregate_id: "return-1",
+      event_type: "sale_returned",
+      schema_version: 2,
+    };
+
+    function returnSale(returnId: string): void {
+      database
+        .prepare(
+          `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+           VALUES (?, 'sale-1', 'register-1', 'device-a', 'session-1', 'u1', 'QR', '2026-10-01T12:00:00.000Z')`,
+        )
+        .run(returnId);
+    }
+
+    function returnNotes() {
+      return database
+        .prepare(
+          "SELECT id, return_id, requested_issue_on, state FROM sale_credit_notes ORDER BY id",
+        )
+        .all();
+    }
+
+    it("keeps the return and the day it asked for when the return's answer comes before the credit note", () => {
+      returnSale("return-1");
+      recordReplenishedCreditNoteAnswer(database, RETURN_NOTE, ISSUED_OFFLINE_ANSWER);
+
+      expect(applyReplenishedOfflineFiscalDocument(database, creditNote({ total: 4_000 }))).toBe(
+        "applied",
+      );
+
+      expect(returnNotes()).toEqual([
+        {
+          id: "note-1",
+          return_id: "return-1",
+          requested_issue_on: "2026-10-01",
+          state: "ISSUED_OFFLINE",
+        },
+      ]);
+    });
+
+    it("keeps the return of a credit note the backup holds in progress", () => {
+      returnSale("return-1");
+      holdReplenishedCreditNoteToRequest(database, RETURN_NOTE, RETURN_EVENT);
+
+      applyReplenishedOfflineFiscalDocument(database, creditNote({ total: 4_000 }));
+
+      expect(returnNotes()).toEqual([
+        {
+          id: "note-1",
+          return_id: "return-1",
+          requested_issue_on: "2026-10-01",
+          state: "ISSUED_OFFLINE",
+        },
+      ]);
+      expect(requests()).toEqual([]);
+    });
+
+    it("holds the credit notes issued offline of two returns of the same sale, each with its return", () => {
+      returnSale("return-1");
+      returnSale("return-2");
+      recordReplenishedCreditNoteAnswer(database, RETURN_NOTE, ISSUED_OFFLINE_ANSWER);
+      recordReplenishedCreditNoteAnswer(
+        database,
+        {
+          ...RETURN_NOTE,
+          creditNoteId: "note-2",
+          origin: { kind: "sale_return", returnId: "return-2", issuedOn: "2026-10-02" },
+        },
+        { ...ISSUED_OFFLINE_ANSWER, creditNoteId: "note-2" },
+      );
+
+      applyReplenishedOfflineFiscalDocument(database, creditNote({ total: 4_000 }));
+      applyReplenishedOfflineFiscalDocument(
+        database,
+        creditNote({
+          fiscalDocumentId: "note-doc-2",
+          number: 4,
+          creditNoteId: "note-2",
+          total: 4_000,
+        }),
+      );
+
+      expect(returnNotes()).toEqual([
+        {
+          id: "note-1",
+          return_id: "return-1",
+          requested_issue_on: "2026-10-01",
+          state: "ISSUED_OFFLINE",
+        },
+        {
+          id: "note-2",
+          return_id: "return-2",
+          requested_issue_on: "2026-10-02",
+          state: "ISSUED_OFFLINE",
+        },
+      ]);
+    });
   });
 
   it("continues the credit note series above the numbers replayed", () => {

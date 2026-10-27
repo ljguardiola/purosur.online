@@ -892,18 +892,6 @@ describe("voidSale", () => {
       ]);
     });
 
-    it("raises the mark of the credit note series to the moment of the void", async () => {
-      const store = offlineLedger({
-        offlineCreditNoteSeries: { ...SERIES, clockMark: new Date(NOW.getTime() - 5_000) },
-      });
-
-      await void_(store);
-
-      expect(store.state.clockMarks).toEqual([
-        { pointOfSale: 9, documentType: "credit_note_c", reading: NOW },
-      ]);
-    });
-
     it("appends the voiding first and the contingency credit note's report event after it", async () => {
       const store = offlineLedger();
 

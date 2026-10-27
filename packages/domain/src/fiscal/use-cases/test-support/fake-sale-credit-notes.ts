@@ -1,3 +1,4 @@
+import { creditsItsInvoice } from "../../model/credit-note.js";
 import type { VoucherReference } from "../../model/orphan-authorization.js";
 import {
   CreditNoteIdTaken,
@@ -66,8 +67,7 @@ export class FakeSaleCreditNoteStore implements SaleCreditNoteLanes {
       .filter(
         ({ creditNote }) =>
           voucherKey(creditNote.associatedVoucher) === voucherKey(voucher) &&
-          creditNote.standing.kind !== "rejected" &&
-          creditNote.standing.kind !== "regularization_required",
+          creditsItsInvoice(creditNote.standing.kind),
       )
       .reduce((sum, { creditNote }) => sum + creditNote.total, 0);
   }

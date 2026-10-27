@@ -95,12 +95,12 @@ import {
   returnLines,
   rolePermissions,
   roles,
+  saleCreditNoteRefusals,
   saleLines,
   salePayments,
   saleReprints,
   saleReturns,
   sales,
-  saleVoidCreditNoteRefusals,
   serialDeviceState,
   sessions,
   signInChallenges,
@@ -765,7 +765,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       routedAt: new Date("2026-01-01T15:00:01.000Z"),
       state: "pending",
     });
-    await db.insert(saleVoidCreditNoteRefusals).values({
+    await db.insert(saleCreditNoteRefusals).values({
       creditNoteId: "00000000-0000-4000-8000-000000000108",
       registerId: register.id,
       saleId: "00000000-0000-4000-8000-000000000109",

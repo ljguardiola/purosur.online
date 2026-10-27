@@ -136,6 +136,6 @@ describe("replenishing a voided sale into a restored register", () => {
   it("writes no credit note, since the event holds only the request and not how it was answered", () => {
     voidSale();
 
-    expect(rows("SELECT * FROM sale_void_credit_notes")).toEqual([]);
+    expect(rows("SELECT * FROM sale_credit_notes")).toEqual([]);
   });
 });

@@ -8,8 +8,8 @@ import { CHAIN_KEY, outboxEventDraft } from "../sync/test-support/sqlite-local-o
 import {
   insertPendingCreditNote,
   readCreditNoteOfSale,
-  SqliteVoidCreditNotes,
-} from "./sqlite-void-credit-notes";
+  SqliteSaleCreditNotes,
+} from "./sqlite-sale-credit-notes";
 import {
   insertCompletedSale,
   insertDeferredSale,
@@ -36,7 +36,7 @@ const AUTHORIZED: VoidCreditNoteStanding = {
 };
 
 let database: LocalDatabase;
-let creditNotes: SqliteVoidCreditNotes;
+let creditNotes: SqliteSaleCreditNotes;
 let eventCount: number;
 
 function voidSaleWithCreditNote(saleId: string, creditNoteId: string, voidedAt = VOIDED_AT): void {
@@ -68,7 +68,7 @@ function storedNote(id: string) {
     .prepare(
       `SELECT state, point_of_sale, number, issued_on, issued_at, authorization_code,
               authorization_code_due_on, answered_at
-       FROM sale_void_credit_notes WHERE id = ?`,
+       FROM sale_credit_notes WHERE id = ?`,
     )
     .get(id);
 }
@@ -76,7 +76,7 @@ function storedNote(id: string) {
 beforeEach(() => {
   eventCount = 0;
   database = openFiscalDatabase();
-  creditNotes = new SqliteVoidCreditNotes(database);
+  creditNotes = new SqliteSaleCreditNotes(database);
 });
 
 afterEach(() => {
@@ -341,7 +341,7 @@ describe("one credit note of a voided sale", () => {
 describe("a credit note issued offline", () => {
   function issuedOffline(saleId: string, creditNoteId: string): void {
     voidSaleWithCreditNote(saleId, creditNoteId);
-    database.exec("DELETE FROM sale_void_credit_notes");
+    database.exec("DELETE FROM sale_credit_notes");
     insertOfflineCreditNote(database, {
       id: `offline-${creditNoteId}`,
       saleId,
@@ -350,7 +350,7 @@ describe("a credit note issued offline", () => {
     });
     database
       .prepare(
-        `INSERT INTO sale_void_credit_notes (
+        `INSERT INTO sale_credit_notes (
            id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
            corrected_point_of_sale, corrected_number, state, recorded_at, answered_at,
            offline_fiscal_document_id

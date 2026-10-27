@@ -2,7 +2,7 @@ import type { CreditNoteToIssue, PushedEvent } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { holdReplenishedCreditNoteToRequest } from "./replenished-credit-note-requests";
-import { insertPendingCreditNote, SqliteVoidCreditNotes } from "./sqlite-void-credit-notes";
+import { insertPendingCreditNote, SqliteSaleCreditNotes } from "./sqlite-sale-credit-notes";
 import {
   insertCompletedSale,
   openFiscalDatabase,
@@ -62,7 +62,7 @@ describe("holding the credit note of a voided sale the cloud never recorded", ()
 
     expect(
       database
-        .prepare("SELECT id, sale_id, total, state, recorded_at FROM sale_void_credit_notes")
+        .prepare("SELECT id, sale_id, total, state, recorded_at FROM sale_credit_notes")
         .all(),
     ).toEqual([
       {
@@ -73,7 +73,7 @@ describe("holding the credit note of a voided sale the cloud never recorded", ()
         recorded_at: VOIDED_AT,
       },
     ]);
-    expect(await new SqliteVoidCreditNotes(database).inProgress()).toEqual([
+    expect(await new SqliteSaleCreditNotes(database).inProgress()).toEqual([
       { ...CREDIT_NOTE, saleEvent: SALE_VOIDED_EVENT },
     ]);
   });
@@ -92,7 +92,7 @@ describe("holding the credit note of a voided sale the cloud never recorded", ()
 
     holdReplenishedCreditNoteToRequest(database, CREDIT_NOTE, SALE_VOIDED_EVENT);
 
-    expect(count("sale_void_credit_notes")).toBe(1);
+    expect(count("sale_credit_notes")).toBe(1);
     expect(count("replenished_credit_note_requests")).toBe(1);
   });
 
@@ -102,8 +102,8 @@ describe("holding the credit note of a voided sale the cloud never recorded", ()
 
     holdReplenishedCreditNoteToRequest(database, CREDIT_NOTE, SALE_VOIDED_EVENT);
 
-    expect(count("sale_void_credit_notes")).toBe(1);
-    expect(await new SqliteVoidCreditNotes(database).inProgress()).toEqual([
+    expect(count("sale_credit_notes")).toBe(1);
+    expect(await new SqliteSaleCreditNotes(database).inProgress()).toEqual([
       { ...CREDIT_NOTE, saleEvent: SALE_VOIDED_EVENT },
     ]);
   });
@@ -113,14 +113,14 @@ describe("holding the credit note of a voided sale the cloud never recorded", ()
     insertPendingCreditNote(database, CREDIT_NOTE);
     database
       .prepare(
-        "UPDATE sale_void_credit_notes SET state = 'REJECTED', answered_at = '2026-10-07T10:30:00.000Z'",
+        "UPDATE sale_credit_notes SET state = 'REJECTED', answered_at = '2026-10-07T10:30:00.000Z'",
       )
       .run();
 
     holdReplenishedCreditNoteToRequest(database, CREDIT_NOTE, SALE_VOIDED_EVENT);
 
     expect(count("replenished_credit_note_requests")).toBe(0);
-    expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+    expect(database.prepare("SELECT state FROM sale_credit_notes").all()).toEqual([
       { state: "REJECTED" },
     ]);
   });
@@ -132,7 +132,7 @@ describe("holding the credit note of a voided sale the cloud never recorded", ()
       holdReplenishedCreditNoteToRequest(database, CREDIT_NOTE, SALE_VOIDED_EVENT),
     ).toThrow("the register holds no credit note note-1");
 
-    expect(count("sale_void_credit_notes") + count("replenished_credit_note_requests")).toBe(0);
+    expect(count("sale_credit_notes") + count("replenished_credit_note_requests")).toBe(0);
   });
 });
 
@@ -173,12 +173,12 @@ describe("holding the credit note of a return the cloud never recorded", () => {
 
     expect(
       database
-        .prepare("SELECT id, return_id, state, corrected_number FROM sale_void_credit_notes")
+        .prepare("SELECT id, return_id, state, corrected_number FROM sale_credit_notes")
         .all(),
     ).toEqual([
       { id: "note-1", return_id: "return-1", state: "AWAITING_INVOICE", corrected_number: null },
     ]);
-    expect(await new SqliteVoidCreditNotes(database).inProgress()).toEqual([
+    expect(await new SqliteSaleCreditNotes(database).inProgress()).toEqual([
       { ...WAITING_CREDIT_NOTE, saleEvent: RETURNED_EVENT },
     ]);
   });
@@ -187,7 +187,7 @@ describe("holding the credit note of a return the cloud never recorded", () => {
     holdReplenishedCreditNoteToRequest(database, WAITING_CREDIT_NOTE, RETURNED_EVENT);
     holdReplenishedCreditNoteToRequest(database, WAITING_CREDIT_NOTE, RETURNED_EVENT);
 
-    expect(count("sale_void_credit_notes")).toBe(1);
+    expect(count("sale_credit_notes")).toBe(1);
     expect(count("replenished_credit_note_requests")).toBe(1);
   });
 });

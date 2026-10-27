@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
+import { insertRealTimeInvoice } from "../fiscal/test-support/held-invoice-fixtures.js";
 import { insertOfflineCreditNote } from "../fiscal/test-support/offline-fiscal-document-fixtures.js";
 import { alerts, creditNotes, offlineFiscalDocuments } from "../platform/db/schema.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
@@ -125,7 +126,7 @@ describe("recording the credit note a register issued under a pre-obtained code"
   });
 });
 
-describe("the voucher a credit note corrects", () => {
+describe("the credit on the voucher a credit note corrects", () => {
   async function creditedOnline(registerId: string) {
     await system.db.insert(creditNotes).values({
       id: randomUUID(),
@@ -142,18 +143,25 @@ describe("the voucher a credit note corrects", () => {
     });
   }
 
-  it("is credited when a credit note of the cloud corrects it", async () => {
+  it("counts a credit note of the cloud that corrects it, its invoice's total unknown while the cloud holds no invoice", async () => {
     const { registerId } = await enrolledWithSale();
     await creditedOnline(registerId);
 
     expect(
-      await system.application.transaction((tx) =>
-        tx.voucherAlreadyCredited(CORRECTED, randomUUID()),
-      ),
-    ).toBe(true);
+      await system.application.transaction((tx) => tx.creditOnInvoice(CORRECTED, randomUUID())),
+    ).toEqual({ invoiceTotal: null, alreadyCredited: 4800 });
   });
 
-  it("is credited when another offline credit note corrects it, and not by the one named", async () => {
+  it("reads the total of the invoice the tax authority authorized", async () => {
+    const { registerId } = await enrolledWithSale();
+    await insertRealTimeInvoice(system.db, { registerId, pointOfSale: 7, number: 12, total: 9600 });
+
+    expect(
+      await system.application.transaction((tx) => tx.creditOnInvoice(CORRECTED, randomUUID())),
+    ).toEqual({ invoiceTotal: 9600, alreadyCredited: 0 });
+  });
+
+  it("counts another offline credit note that corrects it, and not the one named", async () => {
     const { registerId } = await enrolledWithSale();
     const { id } = await insertOfflineCreditNote(system.db, {
       registerId,
@@ -164,16 +172,14 @@ describe("the voucher a credit note corrects", () => {
     });
 
     expect(
-      await system.application.transaction((tx) =>
-        tx.voucherAlreadyCredited(CORRECTED, randomUUID()),
-      ),
-    ).toBe(true);
+      await system.application.transaction((tx) => tx.creditOnInvoice(CORRECTED, randomUUID())),
+    ).toMatchObject({ alreadyCredited: 10_000 });
     expect(
-      await system.application.transaction((tx) => tx.voucherAlreadyCredited(CORRECTED, id)),
-    ).toBe(false);
+      await system.application.transaction((tx) => tx.creditOnInvoice(CORRECTED, id)),
+    ).toMatchObject({ alreadyCredited: 0 });
   });
 
-  it("is not credited by a credit note of another voucher", async () => {
+  it("counts nothing of a credit note of another voucher", async () => {
     const { registerId } = await enrolledWithSale();
     await insertOfflineCreditNote(system.db, {
       registerId,
@@ -184,10 +190,8 @@ describe("the voucher a credit note corrects", () => {
     });
 
     expect(
-      await system.application.transaction((tx) =>
-        tx.voucherAlreadyCredited(CORRECTED, randomUUID()),
-      ),
-    ).toBe(false);
+      await system.application.transaction((tx) => tx.creditOnInvoice(CORRECTED, randomUUID())),
+    ).toMatchObject({ alreadyCredited: 0 });
   });
 
   it("raises the alert that its invoice was already credited, once for the invoice", async () => {

@@ -1,6 +1,6 @@
 import type { FiscalDocumentState } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { insertPendingCreditNote, SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
+import { insertPendingCreditNote, SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import {
   insertCompletedSale,
   insertDeferredSale,
@@ -245,7 +245,7 @@ describe("forgetting the acknowledged events while a voided sale's credit note i
     try {
       voidWithCreditNote(fiscal, "sale-1", 1);
       voidWithCreditNote(fiscal, "sale-2", 2);
-      await new SqliteVoidCreditNotes(fiscal).recordAnswer(
+      await new SqliteSaleCreditNotes(fiscal).recordAnswer(
         "note-of-sale-2",
         { kind: "rejected" },
         dayAfterZero(1),
@@ -262,7 +262,7 @@ describe("forgetting the acknowledged events while a voided sale's credit note i
       expect(fiscal.prepare("SELECT aggregate_id FROM outbox").all()).toEqual([
         { aggregate_id: "sale-1" },
       ]);
-      expect(await new SqliteVoidCreditNotes(fiscal).inProgress()).toMatchObject([
+      expect(await new SqliteSaleCreditNotes(fiscal).inProgress()).toMatchObject([
         { creditNoteId: "note-of-sale-1" },
       ]);
     } finally {
@@ -322,7 +322,7 @@ describe("forgetting the acknowledged events while the credit note of a return i
       returnWithCreditNote(fiscal, "sale-1", "return-1", 1, true);
       returnWithCreditNote(fiscal, "sale-2", "return-2", 2, false);
       returnWithCreditNote(fiscal, "sale-3", "return-3", 3, true);
-      await new SqliteVoidCreditNotes(fiscal).recordAnswer(
+      await new SqliteSaleCreditNotes(fiscal).recordAnswer(
         "note-of-return-3",
         { kind: "rejected" },
         dayAfterZero(1),
@@ -395,9 +395,7 @@ describe("forgetting the acknowledged events after a register session", () => {
           .all(),
       ).toEqual([{ event_type: "sale_returned" }, { event_type: "sale_voided" }]);
       expect(heldSeqs(session).length).toBeLessThan(outboxBefore.length);
-      expect(
-        session.prepare("SELECT state FROM sale_void_credit_notes ORDER BY state").all(),
-      ).toEqual([
+      expect(session.prepare("SELECT state FROM sale_credit_notes ORDER BY state").all()).toEqual([
         { state: "AUTHORIZED" },
         { state: "AWAITING_INVOICE" },
         { state: "IN_PROGRESS" },

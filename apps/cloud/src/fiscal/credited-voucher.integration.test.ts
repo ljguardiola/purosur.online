@@ -13,9 +13,9 @@ import {
 import {
   creditedVoucherLockKey,
   lockCreditedVoucher,
-  voucherCreditedOnline,
+  totalCreditedToInvoice,
 } from "./credited-voucher.js";
-import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
+import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-credit-notes.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
 import { insertRealTimeInvoice } from "./test-support/held-invoice-fixtures.js";
 
@@ -110,7 +110,7 @@ describe("crediting one voucher offline and online at the same time, on a real P
       const [offlineSawItCredited, onlineOutcome] = await Promise.all([
         db.transaction(async (tx) => {
           await lockCreditedVoucher(tx, voucher);
-          const credited = await voucherCreditedOnline(tx, voucher);
+          const credited = (await totalCreditedToInvoice(tx, voucher)) > 0;
           await tx.insert(offlineFiscalDocuments).values({
             id: offlineDocumentId,
             saleId: randomUUID(),

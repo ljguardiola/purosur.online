@@ -5573,7 +5573,7 @@ describe("the register's local migrations", () => {
               ('sale-5', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:09:00.000Z');`,
     );
     const insert = database.prepare(
-      `INSERT INTO sale_void_credit_notes (
+      `INSERT INTO sale_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
          issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
@@ -5967,9 +5967,7 @@ describe("the register's local migrations", () => {
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
-      expect(after.prepare("SELECT id FROM sale_void_credit_notes").all()).toEqual([
-        { id: "note-1" },
-      ]);
+      expect(after.prepare("SELECT id FROM sale_credit_notes").all()).toEqual([{ id: "note-1" }]);
       expect(after.prepare("SELECT * FROM replenished_credit_note_requests").all()).toEqual([]);
       const hold = after.prepare(
         `INSERT INTO replenished_credit_note_requests (
@@ -6580,7 +6578,7 @@ describe("the offline void credit notes migration", () => {
       expect(
         after.prepare("SELECT id, document_type, number FROM offline_fiscal_documents").all(),
       ).toEqual([{ id: "offline-kept", document_type: "factura_c", number: 1001 }]);
-      expect(after.prepare("SELECT id, state FROM sale_void_credit_notes").all()).toEqual([
+      expect(after.prepare("SELECT id, state FROM sale_credit_notes").all()).toEqual([
         { id: "note-kept", state: "IN_PROGRESS" },
       ]);
       expect(
@@ -6824,7 +6822,7 @@ describe("the offline void credit notes migration", () => {
     ) {
       database
         .prepare(
-          `INSERT INTO sale_void_credit_notes (
+          `INSERT INTO sale_credit_notes (
              id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
              corrected_point_of_sale, corrected_number, state, authorization_code,
              recorded_at, answered_at, offline_fiscal_document_id
@@ -6890,7 +6888,7 @@ describe("the offline void credit notes migration", () => {
         expect(() =>
           after
             .prepare(
-              `INSERT INTO sale_void_credit_notes (
+              `INSERT INTO sale_credit_notes (
                  id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
                  corrected_point_of_sale, corrected_number, state, recorded_at, offline_fiscal_document_id
                ) VALUES ('note-3', 'sale-3', 3000, 5, 11, 31, 1003, 'IN_PROGRESS', '2026-10-09T12:41:00.000Z', 'offline-kept')`,
@@ -7328,7 +7326,7 @@ describe("the return credit notes migration", () => {
   function insertReturnNote(database: Database, fields: Record<string, string | number | null>) {
     return database
       .prepare(
-        `INSERT INTO sale_void_credit_notes (
+        `INSERT INTO sale_credit_notes (
            id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
            corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at,
            answered_at
@@ -7368,7 +7366,7 @@ describe("the return credit notes migration", () => {
                     corrected_voucher_type, corrected_point_of_sale, corrected_number, state,
                     point_of_sale, number, issued_on, issued_at, authorization_code,
                     authorization_code_due_on, recorded_at, answered_at, offline_fiscal_document_id
-               FROM sale_void_credit_notes ORDER BY id`,
+               FROM sale_credit_notes ORDER BY id`,
           )
           .all(),
       ).toEqual([
@@ -7672,6 +7670,28 @@ describe("the return credit notes migration", () => {
     });
   });
 
+  it("keeps the replenished request of a credit note tied to that credit note", () => {
+    withMigratedRegister((database) => {
+      expect(
+        database.prepare("SELECT credit_note_id FROM replenished_credit_note_requests").all(),
+      ).toEqual([{ credit_note_id: "note-pending" }]);
+      expect(database.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+      expect(() =>
+        database
+          .prepare(
+            `INSERT INTO replenished_credit_note_requests (
+               credit_note_id, event_id, device_seq, aggregate_type, aggregate_id, event_type,
+               schema_version, payload, occurred_at, actor_id, chain_hmac
+             ) VALUES (
+               'note-missing', 'event-2', 4, 'Sale', 'sale-void-3', 'sale_voided', 1, '{}',
+               '2026-09-30T12:43:00.000Z', 'u1', 'hmac'
+             )`,
+          )
+          .run(),
+      ).toThrow(/FOREIGN KEY/);
+    });
+  });
+
   it("finds the credit notes of a sale by index and the ones still to answer by their own index", () => {
     withMigratedRegister((database) => {
       const indexed = (table: string) =>
@@ -7686,11 +7706,11 @@ describe("the return credit notes migration", () => {
               .map((column) => column.name),
           );
 
-      expect(indexed("sale_void_credit_notes")).toContain("sale_id");
+      expect(indexed("sale_credit_notes")).toContain("sale_id");
       expect(
         database
           .prepare<[], { sql: string }>(
-            "SELECT sql FROM sqlite_schema WHERE name = 'sale_void_credit_notes_in_progress'",
+            "SELECT sql FROM sqlite_schema WHERE name = 'sale_credit_notes_in_progress'",
           )
           .get()?.sql,
       ).toContain("AWAITING_INVOICE");

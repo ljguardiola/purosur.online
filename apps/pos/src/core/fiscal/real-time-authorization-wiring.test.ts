@@ -11,7 +11,7 @@ import {
   settleInterruptedAuthorizations,
   startRegisterHealthChecks,
 } from "./real-time-authorization-wiring";
-import { insertPendingCreditNote } from "./sqlite-void-credit-notes";
+import { insertPendingCreditNote } from "./sqlite-sale-credit-notes";
 import {
   FACTURA_C,
   insertBuyerTaxStatusSet,
@@ -822,7 +822,7 @@ describe("asking for the credit notes of voided sales, as the register's health 
   }
 
   function noteStates(): unknown {
-    return database.prepare("SELECT id, state FROM sale_void_credit_notes ORDER BY id").all();
+    return database.prepare("SELECT id, state FROM sale_credit_notes ORDER BY id").all();
   }
 
   it("asks the cloud nothing when no credit note is in progress", async () => {
@@ -885,7 +885,7 @@ describe("asking for the credit notes of voided sales, as the register's health 
   it("keeps checking the register's health when asking for a credit note failed, reporting it", async () => {
     insertPointOfSale(database, 0);
     leaveInProgress(1);
-    database.prepare("DROP TABLE sale_void_credit_notes").run();
+    database.prepare("DROP TABLE sale_credit_notes").run();
     const failures: unknown[] = [];
     const { tick } = ticking(async () => authorized(), failures);
 
@@ -1106,7 +1106,7 @@ describe("catching up the deferred sales, as the register's health is checked", 
       "/api/fiscal/credit-notes",
     ]);
     expect(
-      database.prepare("SELECT id, state, corrected_number FROM sale_void_credit_notes").all(),
+      database.prepare("SELECT id, state, corrected_number FROM sale_credit_notes").all(),
     ).toEqual([{ id: "note-1", state: "AUTHORIZED", corrected_number: 101 }]);
   });
 

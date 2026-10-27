@@ -5,7 +5,7 @@ import {
 } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { saleVoidCreditNoteRefusals } from "../platform/db/schema.js";
+import { saleCreditNoteRefusals } from "../platform/db/schema.js";
 import {
   insertBranch,
   insertRegister,
@@ -20,9 +20,9 @@ import {
   anAuthorizedAnswer,
   anUnclearAnswer,
   aRejectedAnswer,
-  insertSaleVoidCreditNote,
+  insertSaleCreditNote,
   REQUESTED_AT,
-} from "./test-support/sale-void-credit-notes.js";
+} from "./test-support/sale-credit-notes.js";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -49,12 +49,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
   it("holds an authorized credit note with its authorization, the point of sale and when it was answered", async () => {
     const registerId = await aRegister();
     const saleId = crypto.randomUUID();
-    const creditNoteId = await insertSaleVoidCreditNote(
-      db,
-      registerId,
-      saleId,
-      anAuthorizedAnswer(9),
-    );
+    const creditNoteId = await insertSaleCreditNote(db, registerId, saleId, anAuthorizedAnswer(9));
 
     const found = await answers.saleCreditNotesOf(registerId, [creditNoteId]);
 
@@ -78,7 +73,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
   it("holds a rejected credit note", async () => {
     const registerId = await aRegister();
     const saleId = crypto.randomUUID();
-    const creditNoteId = await insertSaleVoidCreditNote(db, registerId, saleId, aRejectedAnswer());
+    const creditNoteId = await insertSaleCreditNote(db, registerId, saleId, aRejectedAnswer());
 
     const found = await answers.saleCreditNotesOf(registerId, [creditNoteId]);
 
@@ -92,13 +87,13 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const unrequested = crypto.randomUUID();
     const requested = crypto.randomUUID();
     const unclear = crypto.randomUUID();
-    const unrequestedNote = await insertSaleVoidCreditNote(db, registerId, unrequested);
-    const requestedNote = await insertSaleVoidCreditNote(db, registerId, requested, {
+    const unrequestedNote = await insertSaleCreditNote(db, registerId, unrequested);
+    const requestedNote = await insertSaleCreditNote(db, registerId, requested, {
       number: 11,
       issuedOn: "2026-10-07",
       requestedAt: REQUESTED_AT,
     });
-    const unclearNote = await insertSaleVoidCreditNote(db, registerId, unclear, anUnclearAnswer());
+    const unclearNote = await insertSaleCreditNote(db, registerId, unclear, anUnclearAnswer());
 
     const found = await answers.saleCreditNotesOf(registerId, [
       unrequestedNote,
@@ -119,7 +114,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const registerId = await aRegister();
     const otherRegisterId = await aRegister();
     const saleId = crypto.randomUUID();
-    const creditNoteId = await insertSaleVoidCreditNote(
+    const creditNoteId = await insertSaleCreditNote(
       db,
       otherRegisterId,
       saleId,
@@ -135,8 +130,8 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const registerId = await aRegister();
     const asked = crypto.randomUUID();
     const notAsked = crypto.randomUUID();
-    const askedNote = await insertSaleVoidCreditNote(db, registerId, asked, anAuthorizedAnswer());
-    await insertSaleVoidCreditNote(db, registerId, notAsked, anAuthorizedAnswer());
+    const askedNote = await insertSaleCreditNote(db, registerId, asked, anAuthorizedAnswer());
+    await insertSaleCreditNote(db, registerId, notAsked, anAuthorizedAnswer());
 
     const found = await answers.saleCreditNotesOf(registerId, [askedNote]);
 
@@ -146,7 +141,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
   it("does not hold the credit notes that regularize an orphan authorization", async () => {
     const registerId = await aRegister();
     const saleId = crypto.randomUUID();
-    const creditNoteId = await insertSaleVoidCreditNote(db, registerId, saleId, {
+    const creditNoteId = await insertSaleCreditNote(db, registerId, saleId, {
       ...anAuthorizedAnswer(),
       reason: "orphan",
       keptVoucherType: 11,
@@ -164,7 +159,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const creditNoteId = crypto.randomUUID();
     const refusedAt = new Date("2026-10-07T10:35:00.000Z");
     await db
-      .insert(saleVoidCreditNoteRefusals)
+      .insert(saleCreditNoteRefusals)
       .values({ creditNoteId, registerId, saleId: crypto.randomUUID(), refusedAt });
 
     const found = await answers.keptRefusalsOf(registerId, [creditNoteId]);
@@ -179,7 +174,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const notAsked = crypto.randomUUID();
     const ofOtherRegister = crypto.randomUUID();
     const refusedAt = new Date("2026-10-07T10:35:00.000Z");
-    await db.insert(saleVoidCreditNoteRefusals).values([
+    await db.insert(saleCreditNoteRefusals).values([
       { creditNoteId: asked, registerId, saleId: crypto.randomUUID(), refusedAt },
       { creditNoteId: notAsked, registerId, saleId: crypto.randomUUID(), refusedAt },
       {

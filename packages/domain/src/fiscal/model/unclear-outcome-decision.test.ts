@@ -9,7 +9,6 @@ import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
 import {
   awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
-  heldByTaxAuthority,
   outcomeToldToAskingRegister,
   type TaxAuthorityEvidence,
   type TaxAuthorityVoucher,
@@ -417,25 +416,5 @@ describe("a voucher type other than factura C", () => {
       authorizationCode: "75123456789012",
       authorizationCodeDueOn: "2026-10-11",
     });
-  });
-});
-
-describe("heldByTaxAuthority", () => {
-  it.each([
-    ["authorized when asked", "authorized", null],
-    ["adopted after an unclear outcome", "unclear", "adopted"],
-    ["adopted with no answer", null, "adopted"],
-  ])("holds a request %s", (_case, answerKind, decisionKind) => {
-    expect(heldByTaxAuthority({ answerKind, decisionKind })).toBe(true);
-  });
-
-  it.each([
-    ["not yet answered", null, null],
-    ["rejected", "rejected", null],
-    ["unclear and undecided", "unclear", null],
-    ["released after an unclear outcome", "unclear", "released"],
-    ["conflicting after an unclear outcome", "unclear", "conflicting"],
-  ])("does not hold a request %s", (_case, answerKind, decisionKind) => {
-    expect(heldByTaxAuthority({ answerKind, decisionKind })).toBe(false);
   });
 });

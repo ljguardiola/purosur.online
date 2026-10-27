@@ -6,7 +6,7 @@ import type {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { recordReplenishedCreditNoteAnswer } from "./replenished-credit-note-answers";
-import { insertPendingCreditNote, SqliteVoidCreditNotes } from "./sqlite-void-credit-notes";
+import { insertPendingCreditNote, SqliteSaleCreditNotes } from "./sqlite-sale-credit-notes";
 import {
   insertCompletedSale,
   openFiscalDatabase,
@@ -61,7 +61,7 @@ function creditNoteRows(): unknown[] {
       `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
               corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
               issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
-       FROM sale_void_credit_notes`,
+       FROM sale_credit_notes`,
     )
     .all();
 }
@@ -173,7 +173,7 @@ describe("replenishing the credit note answer of a voided sale", () => {
   it("holds an answer the credit note flow reads as given, with none left to ask the tax authority", async () => {
     voidSale();
     recordReplenishedCreditNoteAnswer(database, CREDIT_NOTE, AUTHORIZED);
-    const creditNotes = new SqliteVoidCreditNotes(database);
+    const creditNotes = new SqliteSaleCreditNotes(database);
 
     expect(await creditNotes.inProgress()).toEqual([]);
     expect(await creditNotes.recordedAnswer("note-1")).toEqual(AUTHORIZED.answer);
@@ -206,7 +206,7 @@ describe("replenishing the credit note answer of a return", () => {
   function storedNotes(): unknown[] {
     return database
       .prepare(
-        "SELECT id, return_id, requested_issue_on, state, number, corrected_number, recorded_at FROM sale_void_credit_notes",
+        "SELECT id, return_id, requested_issue_on, state, number, corrected_number, recorded_at FROM sale_credit_notes",
       )
       .all();
   }

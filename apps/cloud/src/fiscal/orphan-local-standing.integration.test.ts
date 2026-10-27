@@ -17,7 +17,7 @@ import {
   creditNoteRegularization,
   OPENED_AT,
 } from "./test-support/orphan-regularization-fixtures.js";
-import { insertSaleVoidCreditNote } from "./test-support/sale-void-credit-notes.js";
+import { insertSaleCreditNote } from "./test-support/sale-credit-notes.js";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -67,7 +67,7 @@ describe("the credit notes of a sale on a real Postgres", () => {
 
   it("gives a credit note that kept no voucher with none kept, after the earlier ones", async () => {
     const saleId = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, registerId, saleId, {
+    await insertSaleCreditNote(db, registerId, saleId, {
       associatedPointOfSale: 7,
       associatedNumber: 105,
     });

@@ -11,7 +11,7 @@ import {
   creditNotes,
   pointOfSaleClaims,
   registers,
-  saleVoidCreditNoteRefusals,
+  saleCreditNoteRefusals,
   users,
 } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
@@ -20,7 +20,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
+import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-credit-notes.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
 import { insertRealTimeInvoice } from "./test-support/held-invoice-fixtures.js";
 import {
@@ -30,8 +30,8 @@ import {
 import {
   anAuthorizedAnswer,
   aRejectedAnswer,
-  insertSaleVoidCreditNote,
-} from "./test-support/sale-void-credit-notes.js";
+  insertSaleCreditNote,
+} from "./test-support/sale-credit-notes.js";
 
 const RECEIVED_AT = new Date("2026-10-08T01:00:00.000Z");
 
@@ -87,7 +87,7 @@ function inLaneOf<TOutcome>(
   ).inPointOfSaleLane(pointOfSale, work);
 }
 
-describe("the credit notes of voided sales on a real Postgres", () => {
+describe("the credit notes of voided and returned sales on a real Postgres", () => {
   it("tells that a register owns the point of sale it holds now and no other", async () => {
     expect(await inLane((lane) => lane.registerOwnsPointOfSale(registerId, 7))).toBe(true);
     expect(await inLane((lane) => lane.registerOwnsPointOfSale(registerId, 8))).toBe(false);
@@ -289,11 +289,11 @@ describe("the credit notes of voided sales on a real Postgres", () => {
     });
 
     it("adds the credit notes of the invoice, whatever asked for them, and those issued offline", async () => {
-      await insertSaleVoidCreditNote(db, registerId, crypto.randomUUID(), {
+      await insertSaleCreditNote(db, registerId, crypto.randomUUID(), {
         ...creditedTo(401),
         total: 3_000,
       });
-      await insertSaleVoidCreditNote(db, registerId, crypto.randomUUID(), {
+      await insertSaleCreditNote(db, registerId, crypto.randomUUID(), {
         ...creditedTo(401),
         reason: "sale_return",
         returnId: crypto.randomUUID(),
@@ -308,7 +308,7 @@ describe("the credit notes of voided sales on a real Postgres", () => {
         number: 2,
         corrects: voucher(401),
       });
-      await insertSaleVoidCreditNote(db, registerId, crypto.randomUUID(), {
+      await insertSaleCreditNote(db, registerId, crypto.randomUUID(), {
         ...creditedTo(402),
         total: 700,
       });
@@ -317,16 +317,16 @@ describe("the credit notes of voided sales on a real Postgres", () => {
     });
 
     it("leaves out the credit notes the tax authority rejected and those that could not be issued", async () => {
-      await insertSaleVoidCreditNote(db, registerId, crypto.randomUUID(), {
+      await insertSaleCreditNote(db, registerId, crypto.randomUUID(), {
         ...creditedTo(403),
         total: 1_000,
       });
-      await insertSaleVoidCreditNote(db, registerId, crypto.randomUUID(), {
+      await insertSaleCreditNote(db, registerId, crypto.randomUUID(), {
         ...creditedTo(403),
         total: 2_000,
         ...aRejectedAnswer(),
       });
-      await insertSaleVoidCreditNote(db, registerId, crypto.randomUUID(), {
+      await insertSaleCreditNote(db, registerId, crypto.randomUUID(), {
         ...creditedTo(403),
         reason: "sale_return",
         returnId: crypto.randomUUID(),
@@ -488,8 +488,8 @@ describe("the credit notes of voided sales on a real Postgres", () => {
     expect(
       await db
         .select()
-        .from(saleVoidCreditNoteRefusals)
-        .where(eq(saleVoidCreditNoteRefusals.creditNoteId, creditNoteId)),
+        .from(saleCreditNoteRefusals)
+        .where(eq(saleCreditNoteRefusals.creditNoteId, creditNoteId)),
     ).toEqual([{ creditNoteId, registerId, saleId, refusedAt: RECEIVED_AT }]);
   });
 
@@ -507,9 +507,9 @@ describe("the credit notes of voided sales on a real Postgres", () => {
 
     expect(
       await db
-        .select({ refusedAt: saleVoidCreditNoteRefusals.refusedAt })
-        .from(saleVoidCreditNoteRefusals)
-        .where(eq(saleVoidCreditNoteRefusals.creditNoteId, creditNoteId)),
+        .select({ refusedAt: saleCreditNoteRefusals.refusedAt })
+        .from(saleCreditNoteRefusals)
+        .where(eq(saleCreditNoteRefusals.creditNoteId, creditNoteId)),
     ).toEqual([{ refusedAt: RECEIVED_AT }]);
   });
 });

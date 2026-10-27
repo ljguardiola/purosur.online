@@ -270,7 +270,7 @@ describe("the credit note of a return in the register", () => {
         `SELECT id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
                 corrected_voucher_type, corrected_point_of_sale, corrected_number, state,
                 recorded_at
-           FROM sale_void_credit_notes`,
+           FROM sale_credit_notes`,
       )
       .all();
   }
@@ -400,7 +400,7 @@ describe("the credit note of a return in the register", () => {
 
     await expect(returnYerba()).rejects.toThrow("outbox refused");
 
-    expect(count("sale_void_credit_notes")).toBe(0);
+    expect(count("sale_credit_notes")).toBe(0);
     expect(count("returns")).toBe(0);
   });
 });

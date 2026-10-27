@@ -614,7 +614,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   });
 
   it("is authorized once the register issued it offline, whatever its print state", () => {
-    database.exec("DELETE FROM sale_void_credit_notes");
+    database.exec("DELETE FROM sale_credit_notes");
     insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 9 });
 
     expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.creditNoteAuthorized).toBe(true);
@@ -623,7 +623,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   it.each(["IN_PROGRESS", "REJECTED", "ALREADY_CREDITED"])(
     "is not authorized while it is %s",
     (state) => {
-      database.exec("DELETE FROM sale_void_credit_notes");
+      database.exec("DELETE FROM sale_credit_notes");
       insertCreditNote(database, {
         state,
         point_of_sale: null,
@@ -642,7 +642,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   );
 
   it("is not authorized for a voided sale without a credit note", () => {
-    database.exec("DELETE FROM sale_void_credit_notes");
+    database.exec("DELETE FROM sale_credit_notes");
 
     expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.creditNoteAuthorized).toBe(false);
   });
@@ -755,7 +755,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
          VALUES ('return-1', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-02T15:00:00.000Z');
          INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
          VALUES ('return-1', 'line-1', 1, 'change_of_mind', 'restock', 420000);
-         INSERT INTO sale_void_credit_notes (
+         INSERT INTO sale_credit_notes (
            id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
            corrected_voucher_type, corrected_point_of_sale, corrected_number, state, point_of_sale,
            number, issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at,
@@ -804,6 +804,8 @@ describe("a receipt ledger's credit note of a voided sale", () => {
     });
 
     it("builds the content of the credit note named from the lines and refunds of its return", () => {
+      database.exec("UPDATE sales SET state = 'COMPLETED', voided_at = NULL");
+
       const content = inTransaction((tx) => tx.creditNoteContent("note-r1"));
 
       expect(content.fiscal).toMatchObject({ number: 8 });

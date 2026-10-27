@@ -7,7 +7,7 @@ import {
 import type { CloudCreditNoteAnswer, CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
-import { SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
+import { SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import {
   insertFiscalDocument,
   insertHealthCheck,
@@ -96,7 +96,7 @@ let printedCreditNotes: { saleId: string; creditNoteId: string }[];
 
 function creditNoteIdOf(saleId: string): string {
   const row = database
-    .prepare<[string], { id: string }>("SELECT id FROM sale_void_credit_notes WHERE sale_id = ?")
+    .prepare<[string], { id: string }>("SELECT id FROM sale_credit_notes WHERE sale_id = ?")
     .get(saleId);
   return row?.id ?? "";
 }
@@ -469,7 +469,7 @@ describe("voiding a sale of the sales history", () => {
         expect(
           database
             .prepare(
-              "SELECT corrected_point_of_sale, corrected_number, state FROM sale_void_credit_notes",
+              "SELECT corrected_point_of_sale, corrected_number, state FROM sale_credit_notes",
             )
             .all(),
         ).toEqual([{ corrected_point_of_sale: 31, corrected_number: 8, state: "ISSUED_OFFLINE" }]);
@@ -552,9 +552,7 @@ describe("voiding a sale of the sales history", () => {
           saleEvent: { event_type: "sale_voided", aggregate_id: saleId, schema_version: 4 },
         });
         expect(
-          database
-            .prepare("SELECT state, number, authorization_code FROM sale_void_credit_notes")
-            .all(),
+          database.prepare("SELECT state, number, authorization_code FROM sale_credit_notes").all(),
         ).toEqual([{ state: "AUTHORIZED", number: 7, authorization_code: "75123456789012" }]);
       });
 
@@ -573,7 +571,7 @@ describe("voiding a sale of the sales history", () => {
           voidDeps({
             creditNotes: {
               request: async (call) => {
-                await new SqliteVoidCreditNotes(database).recordAnswer(
+                await new SqliteSaleCreditNotes(database).recordAnswer(
                   call.creditNoteId,
                   AUTHORIZED_CREDIT_NOTE,
                   VOIDED_AT,
@@ -598,7 +596,7 @@ describe("voiding a sale of the sales history", () => {
 
         expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "in_progress" } });
         expect(saleStates()).toEqual([{ state: "VOIDED" }]);
-        expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+        expect(database.prepare("SELECT state FROM sale_credit_notes").all()).toEqual([
           { state: "IN_PROGRESS" },
         ]);
         expect(printedCreditNotes).toEqual([]);
@@ -624,7 +622,7 @@ describe("voiding a sale of the sales history", () => {
           kind: "voided",
           credit_note: { kind: "already_credited" },
         });
-        expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+        expect(database.prepare("SELECT state FROM sale_credit_notes").all()).toEqual([
           { state: "ALREADY_CREDITED" },
         ]);
         expect(printedCreditNotes).toEqual([]);

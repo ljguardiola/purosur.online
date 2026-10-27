@@ -195,7 +195,7 @@ describe("replenishing the credit note of a sale into a restored register", () =
 
   beforeEach(() => {
     database.exec(
-      `INSERT INTO sale_void_credit_notes (
+      `INSERT INTO sale_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, recorded_at, answered_at
        ) VALUES (
@@ -293,7 +293,7 @@ describe("replenishing the credit note of a sale into a restored register", () =
       database.exec(
         `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
          VALUES ('return-1', 'sale-1', 'register-new', 'device-new', 'session-1', 'cashier-1', 'QR', '2026-10-08T10:00:00.000Z');
-         INSERT INTO sale_void_credit_notes (
+         INSERT INTO sale_credit_notes (
            id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
            corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at,
            answered_at
@@ -326,7 +326,7 @@ describe("replenishing the credit note of a sale into a restored register", () =
   });
 
   it("is refused for an event that names no credit note when the sale holds none", () => {
-    database.exec("DELETE FROM sale_void_credit_notes");
+    database.exec("DELETE FROM sale_credit_notes");
 
     expect(() =>
       applyReplenishedReceiptFact(

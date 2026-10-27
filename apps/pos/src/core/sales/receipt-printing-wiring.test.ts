@@ -54,7 +54,7 @@ describe("the register's receipt printing without a local database", () => {
 
   it("prints no credit note right after a void", async () => {
     await expect(
-      printing.printVoidedSaleCreditNote({ saleId: "sale-1", creditNoteId: "note-1" }),
+      printing.printSaleCreditNote({ saleId: "sale-1", creditNoteId: "note-1" }),
     ).resolves.toBeUndefined();
   });
 
@@ -366,7 +366,7 @@ describe("the register's receipt printing over its local database", () => {
     });
 
     it("is printed on the printer right after the void, without anyone asking", async () => {
-      await printingOverDatabase().printVoidedSaleCreditNote({
+      await printingOverDatabase().printSaleCreditNote({
         saleId: "sale-1",
         creditNoteId: "note-1",
       });

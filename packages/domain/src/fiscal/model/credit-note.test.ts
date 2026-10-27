@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
   CREDIT_NOTE_REASONS,
+  creditLeftOnInvoice,
   creditNoteBreaksDateOrder,
   creditNoteIssueDate,
   creditsItsInvoice,
@@ -103,6 +104,28 @@ describe("creditWithinInvoice", () => {
     expect(creditWithinInvoice({ invoiceTotal: null, alreadyCredited: 0, asked: 10_000 })).toBe(
       true,
     );
+  });
+});
+
+describe("creditLeftOnInvoice", () => {
+  it("leaves what the counted credit notes have not yet credited of the invoice's total", () => {
+    expect(creditLeftOnInvoice({ invoiceTotal: 10_000, alreadyCredited: 4_000 })).toBe(6_000);
+  });
+
+  it("leaves the whole total of an invoice nothing credits yet", () => {
+    expect(creditLeftOnInvoice({ invoiceTotal: 10_000, alreadyCredited: 0 })).toBe(10_000);
+  });
+
+  it("leaves nothing of an invoice its credit notes already cover", () => {
+    expect(creditLeftOnInvoice({ invoiceTotal: 10_000, alreadyCredited: 10_000 })).toBeNull();
+  });
+
+  it("leaves nothing of an invoice credited beyond its total", () => {
+    expect(creditLeftOnInvoice({ invoiceTotal: 10_000, alreadyCredited: 10_001 })).toBeNull();
+  });
+
+  it("leaves a single unit when the counted credit is one short of the total", () => {
+    expect(creditLeftOnInvoice({ invoiceTotal: 10_000, alreadyCredited: 9_999 })).toBe(1);
   });
 });
 

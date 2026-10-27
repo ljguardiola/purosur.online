@@ -37,7 +37,8 @@ export interface FakeEventApplicationState {
   invariantBreaks: EventInvariantBreaks[];
   releases: QuarantineReleaseRecord[];
   clearedDeviceQuarantines: string[];
-  creditedVouchers: VoucherReference[];
+  invoiceTotals: { voucher: VoucherReference; total: number }[];
+  credits: { voucher: VoucherReference; total: number }[];
   voucherLocks: VoucherReference[];
   alreadyCreditedAlerts: { voucher: VoucherReference; saleId: string; at: Date }[];
 }
@@ -83,7 +84,8 @@ export class FakeEventApplication implements EventApplication {
     invariantBreaks: [],
     releases: [],
     clearedDeviceQuarantines: [],
-    creditedVouchers: [],
+    invoiceTotals: [],
+    credits: [],
     voucherLocks: [],
     alreadyCreditedAlerts: [],
   };
@@ -185,22 +187,29 @@ export class FakeEventApplication implements EventApplication {
         this.state.writeOrder.push("lock voucher");
         this.state.voucherLocks.push(voucher);
       },
-      voucherAlreadyCredited: async (voucher, exceptOfflineDocumentId) => {
-        this.state.writeOrder.push("check voucher");
+      creditOnInvoice: async (voucher, exceptOfflineDocumentId) => {
+        this.state.writeOrder.push("read credit");
         const same = (other: VoucherReference) =>
           other.voucherType === voucher.voucherType &&
           other.pointOfSale === voucher.pointOfSale &&
           other.number === voucher.number;
-        return (
-          this.state.creditedVouchers.some(same) ||
-          this.state.recorded.some(
-            ({ fact }) =>
-              fact.kind === "offline_fiscal_document_issued" &&
-              fact.document.corrects !== undefined &&
-              fact.document.fiscalDocumentId !== exceptOfflineDocumentId &&
-              same(fact.document.corrects),
-          )
+        const offline = this.state.recorded.flatMap(({ fact }) =>
+          fact.kind === "offline_fiscal_document_issued" &&
+          fact.document.corrects !== undefined &&
+          fact.document.fiscalDocumentId !== exceptOfflineDocumentId &&
+          same(fact.document.corrects)
+            ? [fact.document.total]
+            : [],
         );
+        return {
+          invoiceTotal: this.state.invoiceTotals.find((held) => same(held.voucher))?.total ?? null,
+          alreadyCredited: [
+            ...this.state.credits
+              .filter((credit) => same(credit.voucher))
+              .map(({ total }) => total),
+            ...offline,
+          ].reduce((sum, total) => sum + total, 0),
+        };
       },
       raiseInvoiceAlreadyCredited: async (invoice, at) => {
         this.state.writeOrder.push("alert");

@@ -30,10 +30,7 @@ import {
 import { creditNoteRouteUnderTest, NOW } from "./test-support/credit-note-route-under-test.js";
 import { answersInTurn } from "./test-support/fake-wsfe-server.js";
 import { insertRealTimeInvoice } from "./test-support/held-invoice-fixtures.js";
-import {
-  anAuthorizedAnswer,
-  insertSaleVoidCreditNote,
-} from "./test-support/sale-void-credit-notes.js";
+import { anAuthorizedAnswer, insertSaleCreditNote } from "./test-support/sale-credit-notes.js";
 
 const route = creditNoteRouteUnderTest();
 
@@ -456,7 +453,7 @@ describe("POST /fiscal/credit-notes", () => {
     it("answers REGULARIZATION_REQUIRED and opens a task for a person when a later credit note was already authorized", async () => {
       const { deviceToken, registerId } = await enrollRegister();
       await route.issueWsaaToken();
-      await insertSaleVoidCreditNote(route.db, registerId, crypto.randomUUID(), {
+      await insertSaleCreditNote(route.db, registerId, crypto.randomUUID(), {
         associatedNumber: 7,
         ...anAuthorizedAnswer(),
         issuedOn: "2026-10-08",
@@ -477,7 +474,7 @@ describe("POST /fiscal/credit-notes", () => {
     it("answers the same REGULARIZATION_REQUIRED when the request is repeated", async () => {
       const { deviceToken, registerId } = await enrollRegister();
       await route.issueWsaaToken();
-      await insertSaleVoidCreditNote(route.db, registerId, crypto.randomUUID(), {
+      await insertSaleCreditNote(route.db, registerId, crypto.randomUUID(), {
         associatedNumber: 7,
         ...anAuthorizedAnswer(),
         issuedOn: "2026-10-08",

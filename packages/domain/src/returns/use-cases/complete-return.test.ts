@@ -1076,16 +1076,6 @@ describe("completeReturn credit note", () => {
       expect(store.transactions).toBe(1);
     });
 
-    it("raises the mark of the credit note series to the moment of the return", async () => {
-      const store = offlineLedger();
-
-      await complete(store);
-
-      expect(store.state.clockMarks).toEqual([
-        { pointOfSale: 9, documentType: "credit_note_c", reading: RETURNED_AT },
-      ]);
-    });
-
     it("appends the return first and the contingency credit note's report event after it", async () => {
       const store = offlineLedger();
 

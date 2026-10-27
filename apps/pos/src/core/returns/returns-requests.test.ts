@@ -557,7 +557,7 @@ describe("the credit note of a completed return", () => {
 
   function storedNotes() {
     return database
-      .prepare("SELECT return_id, state, corrected_number FROM sale_void_credit_notes")
+      .prepare("SELECT return_id, state, corrected_number FROM sale_credit_notes")
       .all();
   }
 
@@ -618,23 +618,6 @@ describe("the credit note of a completed return", () => {
     expect(calls[0]?.invoice?.voucher.number).toBe(41);
     expect(storedNotes()).toEqual([
       { return_id: "id-1", state: "AUTHORIZED", corrected_number: 41 },
-    ]);
-  });
-
-  it("keeps waiting for the invoice, asking the cloud nothing, when the deferred sale is not invoiced yet", async () => {
-    insertDeferredSale(database, "sale-1");
-    const { deps: extra, steps } = rig(AUTHORIZED, async () => ({
-      kind: "not_yet",
-      cause: "cannot_authorize",
-    }));
-
-    await expect(completeReturnFor(deps(extra), completion())).resolves.toMatchObject({
-      kind: "completed",
-    });
-
-    expect(steps).toEqual(["catch-up:sale-1"]);
-    expect(storedNotes()).toEqual([
-      { return_id: "id-1", state: "AWAITING_INVOICE", corrected_number: null },
     ]);
   });
 

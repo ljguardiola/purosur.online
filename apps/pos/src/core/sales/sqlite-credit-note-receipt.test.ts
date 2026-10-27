@@ -236,7 +236,7 @@ describe("the receipt of the credit note of a return", () => {
   function insertReturnCreditNote(creditNoteId = "note-r1", returnId = "return-1") {
     database
       .prepare(
-        `INSERT INTO sale_void_credit_notes (
+        `INSERT INTO sale_credit_notes (
            id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
            corrected_voucher_type, corrected_point_of_sale, corrected_number, state, point_of_sale,
            number, issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at,
@@ -287,6 +287,48 @@ describe("the receipt of the credit note of a return", () => {
     });
   });
 
+  it("reads each line given back at the price it was charged, with what the refund left out of it as its discount", () => {
+    database.exec(
+      `UPDATE return_lines SET refunded_amount = 378000;
+       UPDATE payment_refunds SET amount = 378000 WHERE id = 'refund-r1';`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.lines).toEqual([
+      {
+        productName: "Alfajor",
+        saleUnit: "UNIT",
+        quantity: 1,
+        listUnitPrice: 420000,
+        chargedUnitPrice: 420000,
+        manualAdjustment: null,
+        promotion: null,
+        discountAmount: 42000,
+        lineTotal: 378000,
+      },
+    ]);
+  });
+
+  it("reads a line given back at the price a person set by hand when it was sold", () => {
+    database.exec(
+      `UPDATE sale_lines SET manual_adjustment_kind = 'PRICE', manual_adjustment_value = 400000,
+         manual_adjustment_reason = 'Precio acordado', line_total = 800000 WHERE id = 'line-1';
+       UPDATE return_lines SET refunded_amount = 400000;`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.lines).toMatchObject([
+      {
+        quantity: 1,
+        listUnitPrice: 420000,
+        chargedUnitPrice: 400000,
+        manualAdjustment: { kind: "PRICE", unitPrice: 400000 },
+        discountAmount: 0,
+        lineTotal: 400000,
+      },
+    ]);
+  });
+
   it("leaves out what another return of the sale gave back", () => {
     database.exec(
       `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
@@ -323,7 +365,7 @@ describe("the receipt of the credit note of a return", () => {
   it("is none while the credit note of the return is not authorized", () => {
     database
       .prepare(
-        `INSERT INTO sale_void_credit_notes (
+        `INSERT INTO sale_credit_notes (
            id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
            corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at
          ) VALUES (

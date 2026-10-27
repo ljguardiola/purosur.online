@@ -303,6 +303,68 @@ describe("recording the regularization of an orphan authorization on a real Post
       expect(enqueued).toEqual([first.creditNoteId]);
     });
 
+    it("asks for a credit note of only what is left of the orphan's total when the credit note of a return already credits part of it", async () => {
+      enqueued.length = 0;
+      const orphan = { voucherType: 11, pointOfSale: 13, number: 52 };
+      await db.insert(creditNotes).values({
+        id: crypto.randomUUID(),
+        registerId: registerOf(13),
+        saleId: crypto.randomUUID(),
+        pointOfSale: 13,
+        reason: "sale_return",
+        associatedVoucherType: orphan.voucherType,
+        associatedPointOfSale: orphan.pointOfSale,
+        associatedNumber: orphan.number,
+        total: 1,
+        receiverTaxStatusCode: 5,
+        returnId: crypto.randomUUID(),
+        issueOn: "2026-10-07",
+        createdAt: OPENED_AT,
+      });
+      const regularization = creditNoteRegularization({
+        pointOfSale: 13,
+        associatedVoucher: orphan,
+      });
+
+      await inLane(13, (lane) => lane.recordOrphanRegularization(regularization));
+
+      const rows = await db.select().from(creditNotes);
+      expect(
+        rows
+          .filter((row) => row.id === regularization.creditNoteId)
+          .map(({ reason, total }) => ({ reason, total })),
+      ).toEqual([{ reason: "orphan", total: 12_499 }]);
+      expect(enqueued).toEqual([regularization.creditNoteId]);
+    });
+
+    it("asks for nothing when the credit notes that count already credit the orphan's whole total", async () => {
+      enqueued.length = 0;
+      const orphan = { voucherType: 11, pointOfSale: 13, number: 54 };
+      await db.insert(creditNotes).values({
+        id: crypto.randomUUID(),
+        registerId: registerOf(13),
+        saleId: crypto.randomUUID(),
+        pointOfSale: 13,
+        reason: "sale_void",
+        associatedVoucherType: orphan.voucherType,
+        associatedPointOfSale: orphan.pointOfSale,
+        associatedNumber: orphan.number,
+        total: 12_500,
+        receiverTaxStatusCode: 5,
+        createdAt: OPENED_AT,
+      });
+      const regularization = creditNoteRegularization({
+        pointOfSale: 13,
+        associatedVoucher: orphan,
+      });
+
+      await inLane(13, (lane) => lane.recordOrphanRegularization(regularization));
+
+      const rows = await db.select().from(creditNotes);
+      expect(rows.filter((row) => row.id === regularization.creditNoteId)).toEqual([]);
+      expect(enqueued).toEqual([]);
+    });
+
     it("keeps nothing when asking for the credit note to be issued fails", async () => {
       const regularization = creditNoteRegularization({
         pointOfSale: 17,

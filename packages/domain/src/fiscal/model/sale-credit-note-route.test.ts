@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { OutboxEventDraft } from "../../shared/index.js";
 import type { FiscalOnlineSignalEvidence } from "./fiscal-online-signal.js";
+import type { OfflineCreditNote } from "./offline-fiscal-document.js";
 import type { CorrectedInvoice } from "./sale-credit-note.js";
 import {
+  type CreditNoteRecorder,
   type CreditNoteRoutingFacts,
   isInvoiceOnItsWay,
+  issueOfflineSaleCreditNote,
+  type OfflineCreditNoteClockMark,
   routeSaleCreditNote,
 } from "./sale-credit-note-route.js";
 
@@ -249,5 +254,108 @@ describe("isInvoiceOnItsWay", () => {
     ["an authorized invoice", [document("AUTHORIZED")]],
   ])("is false for %s that is not deferred", (_case, fiscalDocuments) => {
     expect(isInvoiceOnItsWay({ fiscalDocuments, deferralPending: false })).toBe(false);
+  });
+});
+
+describe("issueOfflineSaleCreditNote", () => {
+  const GENERATED_AT = new Date("2026-10-07T15:30:02.000Z");
+  const ISSUANCE = {
+    kind: "issue_offline" as const,
+    creditNote: {
+      ...INVOICED_NOTE,
+      origin: { kind: "sale_return" as const, returnId: "return-1", issuedOn: "2026-10-07" },
+    },
+    offline: {
+      pointOfSale: 9,
+      number: 41,
+      issuedOn: "2026-10-07",
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+      offlineAuthorizationCode: CODE,
+    },
+    clockMark: { pointOfSale: 9, documentType: "credit_note_c" as const, reading: NOW },
+  };
+
+  function issue() {
+    const steps: string[] = [];
+    const recorded: {
+      documents: OfflineCreditNote[];
+      marks: OfflineCreditNoteClockMark[];
+      events: OutboxEventDraft[];
+    } = { documents: [], marks: [], events: [] };
+    const recorder: CreditNoteRecorder = {
+      recordPendingCreditNote: () => {
+        steps.push("pending");
+      },
+      issueOfflineCreditNote: (document) => {
+        steps.push("document");
+        recorded.documents.push(document);
+      },
+      recordClockMark: (mark) => {
+        steps.push("clock mark");
+        recorded.marks.push(mark);
+      },
+      appendOutboxEvent: (draft) => {
+        steps.push("event");
+        recorded.events.push(draft);
+      },
+    };
+    let taken = 0;
+    issueOfflineSaleCreditNote(ISSUANCE, recorder, {
+      nextId: () => `id-${++taken}`,
+      registerId: "register-1",
+      actorId: "user-1",
+      generatedAt: GENERATED_AT,
+    });
+    return { steps, recorded };
+  }
+
+  it("holds the credit note C in the number it was routed to, correcting the invoice, for the whole credit", () => {
+    expect(issue().recorded.documents).toEqual([
+      {
+        id: "id-1",
+        saleId: "sale-1",
+        creditNoteId: "credit-note-1",
+        pointOfSale: 9,
+        documentType: "credit_note_c",
+        number: 41,
+        issuedOn: "2026-10-07",
+        generatedAt: GENERATED_AT,
+        generationStamp: "20261007123002",
+        offlineAuthorizationCode: CODE,
+        fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        total: 6750,
+        receiverTaxStatusCode: 5,
+        corrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
+        buyerDocumentType: 99,
+        buyerDocumentNumber: 0,
+        cause: "no_connectivity",
+      },
+    ]);
+  });
+
+  it("raises the series' clock mark to the reading it was routed with", () => {
+    expect(issue().recorded.marks).toEqual([ISSUANCE.clockMark]);
+  });
+
+  it("tells the cloud about the document in an event of its own id, naming the register and who issued it", () => {
+    expect(issue().recorded.events).toEqual([
+      expect.objectContaining({
+        event_id: "id-2",
+        aggregate_type: "Sale",
+        aggregate_id: "sale-1",
+        event_type: "offline_fiscal_document_issued",
+        actor_id: "user-1",
+        payload: expect.objectContaining({
+          fiscal_document_id: "id-1",
+          register_id: "register-1",
+          credit_note_id: "credit-note-1",
+          number: 41,
+        }),
+      }),
+    ]);
+  });
+
+  it("holds the document, then raises the mark, then tells the cloud, holding nothing for the cloud to issue", () => {
+    expect(issue().steps).toEqual(["document", "clock mark", "event"]);
   });
 });

@@ -844,19 +844,68 @@ describe("DrizzleFortnightReportStore.creditCorrectedDocument", () => {
     expect(enqueuedCreditNotes).toEqual([]);
   });
 
-  it("asks for nothing when a credit note issued offline already corrects the voucher, the customer holding it already", async () => {
+  it("asks for nothing when a credit note issued offline already credits the voucher's whole total, the customer holding it already", async () => {
     await insertOfflineCreditNote(db, {
       registerId,
       pointOfSale: OFFLINE_POINT_OF_SALE,
       fortnight: OCTOBER_FIRST_HALF,
       number: 1,
       corrects: creditNote.associatedVoucher,
+      total: 12_500,
     });
 
     await credit();
 
     expect(await db.select({ id: creditNotes.id }).from(creditNotes)).toEqual([]);
     expect(enqueuedCreditNotes).toEqual([]);
+  });
+
+  it("asks for a credit note of only what is left of the total when a credit note issued offline credits part of it", async () => {
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+      corrects: creditNote.associatedVoucher,
+      total: 10_000,
+    });
+
+    await credit();
+
+    const rows = await db.select({ total: creditNotes.total }).from(creditNotes);
+    expect(rows).toEqual([{ total: 2_500 }]);
+    expect(enqueuedCreditNotes).toHaveLength(1);
+  });
+
+  it("asks for a credit note of the whole total when the only credit note of the voucher was rejected", async () => {
+    await db.insert(creditNotes).values({
+      id: "0199b7a0-0000-7000-8000-000000000009",
+      registerId,
+      saleId: creditNote.saleId,
+      reason: "sale_void",
+      pointOfSale: 7,
+      associatedVoucherType: 11,
+      associatedPointOfSale: OFFLINE_POINT_OF_SALE,
+      associatedNumber: 5,
+      total: 12_500,
+      receiverTaxStatusCode: 5,
+      number: 3,
+      issuedOn: "2026-10-05",
+      requestedAt: AT,
+      answerKind: "rejected",
+      rejections: [{ code: 10016, message: "Fictional rejection" }],
+      answeredAt: AT,
+      createdAt: AT,
+    });
+
+    await credit();
+
+    const rows = await db
+      .select({ id: creditNotes.id, total: creditNotes.total })
+      .from(creditNotes)
+      .where(eq(creditNotes.reason, "rejected_document"));
+    expect(rows).toEqual([{ id: expect.any(String), total: 12_500 }]);
+    expect(enqueuedCreditNotes).toEqual([rows[0]?.id]);
   });
 
   it("leaves no credit note behind when queuing its issuing fails", async () => {
