@@ -335,6 +335,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
       closeFiscalTask: vi.fn(),
     },
+    issuedFiscalDocumentsScreen: {
+      fetchIssuedFiscalDocuments: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFiscalRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     pointsOfSaleScreen: {
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),

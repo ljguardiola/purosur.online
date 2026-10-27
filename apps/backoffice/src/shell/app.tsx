@@ -17,6 +17,7 @@ import type { RegisterPasskeyScreenServices } from "../credentials/register-pass
 import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
 import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
 import type { FiscalTasksScreenServices } from "../fiscal/fiscal-tasks-services";
+import type { IssuedFiscalDocumentsScreenServices } from "../fiscal/issued-fiscal-documents-services";
 import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred-sales-pill";
 import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
@@ -135,6 +136,7 @@ export type AppServices = {
   initialInventoryScreen: InitialInventoryScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   fiscalTasksScreen: FiscalTasksScreenServices;
+  issuedFiscalDocumentsScreen: IssuedFiscalDocumentsScreenServices;
   pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
