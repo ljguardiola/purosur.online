@@ -2,23 +2,22 @@ import type { ProductChoice } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, supplierPriceListRows, supplierPriceLists } from "../platform/db/schema.js";
+import { auditLog, supplierPriceListRows } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
-import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
+import {
+  extractedListWithRow as sharedExtractedListWithRow,
+  storedListRow,
+  storedListVersion,
+} from "./test-support/extracted-list-fixtures.js";
 import {
   insertActor,
   insertBarcode,
   insertPackaging,
   insertProduct,
 } from "./test-support/purchasing-fixtures.js";
-import {
-  insertPriceList,
-  insertPriceListRows,
-  insertSupplier,
-} from "./test-support/supplier-price-list-fixtures.js";
 
 const NOW = new Date("2026-09-16T15:00:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
@@ -65,25 +64,10 @@ async function appChoosing(choice: ProductChoice): Promise<void> {
 
 const manager = () => signedInWith(db, ["manage_supplier_price_lists"], NOW);
 
-async function extractedListWithRow(
-  list: Partial<Parameters<typeof insertPriceList>[1]> = {},
-  row: Parameters<typeof insertPriceListRows>[2][number] = {},
-) {
-  const actorId = await insertActor(db);
-  const locationId = await seededLocationId(db);
-  const supplierId = await insertSupplier(db, { actorId });
-  const listId = await insertPriceList(db, {
-    supplierId,
-    locationId,
-    actorId,
-    state: "EXTRACTED",
-    listDate: "2026-03-01",
-    pricesIncludeVat: false,
-    ...list,
-  });
-  const [rowId] = await insertPriceListRows(db, listId, [row]);
-  return { listId, rowId: rowId as string, actorId };
-}
+const extractedListWithRow = (
+  list?: Parameters<typeof sharedExtractedListWithRow>[1],
+  row?: Parameters<typeof sharedExtractedListWithRow>[2],
+) => sharedExtractedListWithRow(db, list, row);
 
 async function productWithPackaging(actorId: string, name = "Yerba 1 kg") {
   const { id: productId } = await insertProduct(db, { name });
@@ -96,21 +80,8 @@ async function productWithPackaging(actorId: string, name = "Yerba 1 kg") {
   return { productId, packagingId };
 }
 
-async function storedRow(rowId: string) {
-  const [row] = await db
-    .select()
-    .from(supplierPriceListRows)
-    .where(eq(supplierPriceListRows.id, rowId));
-  return row;
-}
-
-async function storedVersion(listId: string) {
-  const [list] = await db
-    .select()
-    .from(supplierPriceLists)
-    .where(eq(supplierPriceLists.id, listId));
-  return list?.version;
-}
+const storedRow = (rowId: string) => storedListRow(db, rowId);
+const storedVersion = (listId: string) => storedListVersion(db, listId);
 
 describe("authorization of the linking routes", () => {
   const routes = [

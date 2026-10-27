@@ -12,7 +12,8 @@ import {
   type SupplierPriceListReviewFilters,
   supplierPriceListReviewFilters,
 } from "./supplier-price-lists-filters";
-import { LINK_CHOICES, PROPOSED_BY_BARCODE } from "./test-support/supplier-item-links";
+import { LINK_CHOICES, NO_PROPOSAL, PROPOSED_BY_BARCODE } from "./test-support/supplier-item-links";
+import { CREATION_CATEGORIES, PRODUCT_CREATED } from "./test-support/supplier-item-products";
 import {
   DISCARDED_LIST,
   EVERY_REVIEW_ACTION,
@@ -48,6 +49,9 @@ function createServices(
     fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
     fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
     createPackaging: vi.fn(),
+    createProductFromSupplierItem: vi.fn(),
+    fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+    generateInternalBarcode: vi.fn(),
     confirmSupplierPriceList: vi.fn(),
     discardSupplierPriceList: vi.fn(),
     ...overrides,
@@ -882,4 +886,141 @@ test.each([
 
   await expect.element(dialog.getByRole("radio", { name: "Caja de 10 kg" })).toBeVisible();
   expect(dialog.getByRole("button", { name: "Nueva presentación" }).query() !== null).toBe(offered);
+});
+
+test("offers to create a product for each item the cloud says can have one", async () => {
+  const screen = await loaded(createServices(), withEveryKindOfRow, {
+    filters: supplierPriceListReviewFilters.parse({ show: "all" }),
+  });
+
+  await expect
+    .element(
+      screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
+    )
+    .toBeVisible();
+  expect(
+    screen
+      .getByRole("button", { name: "Crear producto Almendra pelada Nonpareil x 25 kg" })
+      .query(),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Crear producto Castañas de cajú W320 x 11,34 kg" }).query(),
+  ).toBeNull();
+});
+
+test("offers no action to create a product when the cloud does not allow linking", async () => {
+  const screen = await loaded(
+    createServices(),
+    reviewOf(READ_LIST, EXTRACTED_ROWS, { ...EVERY_REVIEW_ACTION, linkRows: false }),
+  );
+
+  expect(screen.getByRole("button", { name: /^Crear producto / }).query()).toBeNull();
+});
+
+test("offers the action to create a product to a session that may only review supplier price lists", async () => {
+  const screen = await loaded(createServices(), extracted, {
+    access: accessWith("supplier_price_lists"),
+  });
+
+  await expect
+    .element(
+      screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
+    )
+    .toBeVisible();
+});
+
+test("opens the create product modal for the item, with the categories read for it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchProductCreationCategories).mockResolvedValue({
+    kind: "ok",
+    value: CREATION_CATEGORIES,
+  });
+  const screen = await loaded(services, extracted);
+  expect(services.fetchProductCreationCategories).not.toHaveBeenCalled();
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
+  );
+
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("Crear producto desde la lista")).toBeVisible();
+  await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
+  expect(services.fetchProductCreationCategories).toHaveBeenCalledTimes(1);
+});
+
+test("says the product was created, and reads the list again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchProductCreationCategories).mockResolvedValue({
+    kind: "ok",
+    value: CREATION_CATEGORIES,
+  });
+  vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({
+    kind: "ok",
+    created: PRODUCT_CREATED,
+  });
+  const screen = await loaded(services, extracted);
+  const readsBefore = vi.mocked(services.fetchSupplierPriceListReview).mock.calls.length;
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Contiene/ }), "10");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén › Frutos secos" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(screen.getByText("Producto creado")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  await expect
+    .poll(() => vi.mocked(services.fetchSupplierPriceListReview).mock.calls.length)
+    .toBeGreaterThan(readsBefore);
+});
+
+test("moves from the link modal to the create product modal for the same item", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
+    kind: "ok",
+    value: LINK_CHOICES,
+  });
+  vi.mocked(services.fetchSupplierItemLinkProposal).mockResolvedValue({
+    kind: "ok",
+    value: NO_PROPOSAL,
+  });
+  vi.mocked(services.fetchProductCreationCategories).mockResolvedValue({
+    kind: "ok",
+    value: CREATION_CATEGORIES,
+  });
+  const screen = await loaded(services, extracted);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
+  );
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Crear producto" }));
+
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("Crear producto desde la lista")).toBeVisible();
+  await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
+  expect(screen.getByText("Pedidos · Vincular un ítem").query()).toBeNull();
+});
+
+test("offers the way to create a product from the link modal to a session that may only review supplier price lists", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
+    kind: "ok",
+    value: LINK_CHOICES,
+  });
+  vi.mocked(services.fetchSupplierItemLinkProposal).mockResolvedValue({
+    kind: "ok",
+    value: NO_PROPOSAL,
+  });
+  const screen = await loaded(services, extracted, { access: accessWith("supplier_price_lists") });
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
+  );
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("button", { name: "Crear producto" }))
+    .toBeVisible();
 });

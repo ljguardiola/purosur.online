@@ -1,12 +1,7 @@
 import { mayBuyByPackaging } from "../model/packaging.js";
-import {
-  isSupplierItemVatRate,
-  keepingRememberedVatRate,
-  requiresVatRate,
-  supplierItemKey,
-} from "../model/supplier-item.js";
 import { maySupplierPriceListRowBeLinked } from "../model/supplier-price-list.js";
-import type { SupplierItemLink, SupplierPriceListStore } from "./supplier-price-list-store.js";
+import { decideRowVatRate, linkRowAndRememberItem } from "./supplier-price-list-row-link-steps.js";
+import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
 
 export interface LinkSupplierPriceListRowInput {
   listId: string;
@@ -59,28 +54,17 @@ export function linkSupplierPriceListRow(
       return { kind: "packaging_not_linkable" };
     }
 
-    if (input.vatRate !== null && !isSupplierItemVatRate(input.vatRate)) {
-      return { kind: "vat_rate_invalid" };
-    }
-    const rateApplies = requiresVatRate(list.pricesIncludeVat);
-    if (rateApplies && input.vatRate === null) {
-      return { kind: "vat_rate_missing" };
+    const decision = decideRowVatRate(list.pricesIncludeVat, input.vatRate);
+    if (decision.kind === "refused") {
+      return { kind: decision.refusal };
     }
 
-    const link: SupplierItemLink = {
-      productId: input.productId,
-      packagingId: input.packagingId,
-      vatRate: rateApplies ? input.vatRate : null,
-    };
-    await tx.linkRow(input.listId, input.rowId, link, input.actorId);
-
-    if (list.state === "REVIEWED") {
-      const key = supplierItemKey(lockedRow.row);
-      const [item] = await tx.lockSupplierItems(list.supplierId, [key]);
-      if (item) {
-        await tx.rememberSupplierItemLink(item.id, keepingRememberedVatRate(link, item.link));
-      }
-    }
+    await linkRowAndRememberItem(
+      tx,
+      { list, listId: input.listId, rowId: input.rowId, row: lockedRow.row },
+      { productId: input.productId, packagingId: input.packagingId, vatRate: decision.vatRate },
+      input.actorId,
+    );
     return { kind: "linked" };
   });
 }

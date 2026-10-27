@@ -1,6 +1,4 @@
 import {
-  type InternalBarcodeGenerationBody,
-  internalBarcodeSchema,
   type LabelSheetBody,
   type ProductCreationBody,
   type ProductEditBody,
@@ -65,13 +63,6 @@ export type EditProductOutcome =
   | { kind: "internal_barcode_on_product_with_barcodes" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
-export type GenerateInternalBarcodeOutcome =
-  | { kind: "ok"; code: string }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -164,34 +155,6 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
         : { kind: "failed" };
     }
     return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return rateLimitOutcome(response);
-  }
-  return { kind: "failed" };
-}
-
-export async function generateInternalBarcode(
-  body: InternalBarcodeGenerationBody,
-): Promise<GenerateInternalBarcodeOutcome> {
-  let response: Response;
-  try {
-    response = await postJson("/api/internal-barcodes", body);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    const parsed = internalBarcodeSchema.safeParse(await response.json().catch(() => undefined));
-    if (!parsed.success) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", code: parsed.data.code };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };

@@ -55,6 +55,7 @@ import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessio
 import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-services";
 import type { CurrentStockReportScreenServices } from "../stock/current-stock-report-services";
+import type { ExpiringLotsReportScreenServices } from "../stock/expiring-lots-report-services";
 import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
@@ -120,6 +121,7 @@ export type AppServices = {
   outsideRefundsScreen: OutsideRefundsScreenServices;
   expiringLotsScreen: ExpiringLotsScreenServices;
   currentStockReportScreen: CurrentStockReportScreenServices;
+  expiringLotsReportScreen: ExpiringLotsReportScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;

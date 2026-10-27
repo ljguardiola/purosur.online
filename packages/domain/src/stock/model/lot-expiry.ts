@@ -1,4 +1,4 @@
-import { shiftCalendarDay } from "../../shared/index.js";
+import { type ReportPeriod, shiftCalendarDay } from "../../shared/index.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -14,6 +14,16 @@ export function isExpired(expiresOn: string, today: string): boolean {
 
 export function expiryWindowEnd(today: string, windowDays: number): string {
   return shiftCalendarDay(today, windowDays);
+}
+
+export function expiryReportPeriodOf(
+  { from, to }: { from?: string; to?: string },
+  today: string,
+  windowDays: number,
+): ReportPeriod {
+  return from !== undefined && to !== undefined
+    ? { from, to }
+    : { from: today, to: expiryWindowEnd(today, windowDays) };
 }
 
 export function canExpireWithStock<

@@ -45,7 +45,7 @@ const NAME_TAKEN_RESPONSE = {
   code: "packaging_name_taken",
   message: "the product already has a purchase packaging with that name",
 } as const;
-const PART_OF_A_UNIT_RESPONSE = {
+export const PART_OF_A_UNIT_RESPONSE = {
   code: "validation_failed",
   message: "a product sold by the unit is packaged in whole units",
   details: [{ field: "quantityPerPackage" }],
