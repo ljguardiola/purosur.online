@@ -17,6 +17,7 @@ import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
 import { currentStockReportFilters } from "./current-stock-report-filters";
 import { expiringLotsReportFilters } from "./expiring-lots-report-filters";
+import { lossesByReasonReportFilters } from "./losses-by-reason-report-filters";
 
 const periodFilter = stockPeriodSchema.default(stockPeriodSchema.parse(undefined));
 
@@ -107,6 +108,15 @@ export const expiringLotsReportRoute = createRoute({
   validateSearch: expiringLotsReportFilters,
   search: { middlewares: [stripSearchParams(expiringLotsReportFilters.parse({}))] },
   component: lazyScreen(() => import("./expiring-lots-report-page"), "ExpiringLotsReportPage"),
+});
+
+export const lossesByReasonReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/losses-by-reason",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: lossesByReasonReportFilters,
+  search: { middlewares: [stripSearchParams(lossesByReasonReportFilters.parse({}))] },
+  component: lazyScreen(() => import("./losses-by-reason-report-page"), "LossesByReasonReportPage"),
 });
 
 export const stockCountsRoute = createRoute({

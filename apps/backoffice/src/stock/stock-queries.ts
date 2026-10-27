@@ -8,6 +8,8 @@ import type {
   ExpiringLotsReportQuery,
   InitialInventoryLotList,
   InitialInventoryLotsQuery,
+  LossesByReasonReportBody,
+  LossesByReasonReportQuery,
   RecipeList,
   StockBalanceList,
   StockCountList,
@@ -29,6 +31,7 @@ import type {
 } from "./assembly-batches-api";
 import type { fetchCurrentStockReport } from "./current-stock-report-api";
 import type { fetchExpiringLotsReport } from "./expiring-lots-report-api";
+import type { fetchLossesByReasonReport } from "./losses-by-reason-report-api";
 import type { fetchRecipes } from "./recipes-api";
 import type {
   fetchExpectedBalance,
@@ -51,6 +54,8 @@ export const stockKeys = {
   expiringLots: [...stockKey, "expiring-lots"] as const,
   expiringLotsReport: (query: ExpiringLotsReportQuery) =>
     [...stockKey, "expiring-lots-report", query.from ?? "", query.to ?? ""] as const,
+  lossesByReasonReport: (query: LossesByReasonReportQuery) =>
+    [...stockKey, "losses-by-reason-report", query.from ?? "", query.to ?? ""] as const,
   recipes: [...stockKey, "recipes"] as const,
   assemblyBatches: (days: StockPeriodDays) => [...stockKey, "assembly-batches", days] as const,
   assemblyBatchProposal: ({ productId, size }: AssemblyBatchPreviewRequest) =>
@@ -108,6 +113,22 @@ export function useExpiringLotsReportQuery(
     queryKey: stockKeys.expiringLotsReport(params.query),
     keepPreviousData: true,
     read: () => params.fetchExpiringLotsReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useLossesByReasonReportQuery(
+  params: ReadParams & {
+    query: LossesByReasonReportQuery;
+    fetchLossesByReasonReport: typeof fetchLossesByReasonReport;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<LossesByReasonReportBody>({
+    queryKey: stockKeys.lossesByReasonReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchLossesByReasonReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

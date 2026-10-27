@@ -29,6 +29,7 @@ export function ReportsIndexScreen({ returnsShown }: { returnsShown: boolean }) 
       <LinkListCard title="Stock" icon={<Warehouse />}>
         <ReportRow to="/reports/current-stock" label="Stock actual valorizado" />
         <ReportRow to="/reports/expiring-lots" label="Lotes por vencer" />
+        <ReportRow to="/reports/losses-by-reason" label="Mermas por motivo" />
       </LinkListCard>
     </ScreenLayout>
   );
