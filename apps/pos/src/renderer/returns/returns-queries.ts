@@ -5,7 +5,7 @@ import { coreQueryOptions } from "../platform/use-core-query";
 
 const returnsKey = ["returns"] as const;
 
-export const returnsKeys = {
+const returnsKeys = {
   preview: (saleId: string, lines: readonly ReturnDraftLineBody[]) =>
     [...returnsKey, "preview", saleId, lines] as const,
 };
