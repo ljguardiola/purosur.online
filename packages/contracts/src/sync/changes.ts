@@ -296,7 +296,7 @@ const zoneRulesChangeSchema = z.object({
           transitions.map(({ from }) => ({ from: new Date(from), offsetMinutes: 0 })),
         ),
       ),
-    published_at: z.iso.datetime(),
+    publication_number: z.int().positive(),
   }),
 });
 

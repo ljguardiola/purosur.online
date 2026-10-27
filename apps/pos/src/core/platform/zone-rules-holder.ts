@@ -1,9 +1,19 @@
-import { FIXED_ARGENTINA_ZONE_RULES, type ZoneRules } from "@purosur/domain";
+import {
+  currentZoneRulesPublication,
+  FIXED_ARGENTINA_ZONE_RULES,
+  type ZoneRules,
+} from "@purosur/domain";
 import type { LocalDatabase } from "./local-database";
 
 interface StoredTransition {
   from: string;
   offset_minutes: number;
+}
+
+interface StoredZoneRules {
+  version: string;
+  publicationNumber: number;
+  transitions: string;
 }
 
 export class ZoneRulesHolder {
@@ -12,7 +22,7 @@ export class ZoneRulesHolder {
 
   constructor(database: LocalDatabase) {
     this.database = database;
-    this.rules = this.latestStored();
+    this.rules = this.currentStored();
   }
 
   current(): ZoneRules {
@@ -20,21 +30,23 @@ export class ZoneRulesHolder {
   }
 
   refresh(): void {
-    this.rules = this.latestStored();
+    this.rules = this.currentStored();
   }
 
-  private latestStored(): ZoneRules {
-    const latest = this.database
-      .prepare<[], { version: string; transitions: string }>(
-        "SELECT version, transitions FROM zone_rules ORDER BY published_at DESC, version DESC LIMIT 1",
-      )
-      .get();
-    if (latest === undefined) {
+  private currentStored(): ZoneRules {
+    const current = currentZoneRulesPublication(
+      this.database
+        .prepare<[], StoredZoneRules>(
+          "SELECT version, publication_number AS publicationNumber, transitions FROM zone_rules",
+        )
+        .all(),
+    );
+    if (current === undefined) {
       return FIXED_ARGENTINA_ZONE_RULES;
     }
-    const transitions = JSON.parse(latest.transitions) as StoredTransition[];
+    const transitions = JSON.parse(current.transitions) as StoredTransition[];
     return {
-      version: latest.version,
+      version: current.version,
       transitions: transitions.map(({ from, offset_minutes }) => ({
         from: new Date(from),
         offsetMinutes: offset_minutes,

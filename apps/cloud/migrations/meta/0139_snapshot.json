@@ -11087,12 +11087,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
+        "publication_number": {
+          "name": "publication_number",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         }
       },
       "indexes": {
@@ -11101,6 +11100,21 @@
           "columns": [
             {
               "expression": "version",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "zone_rules_publication_number_key": {
+          "name": "zone_rules_publication_number_key",
+          "columns": [
+            {
+              "expression": "publication_number",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

@@ -588,17 +588,12 @@ export async function readZoneRules<TQueryResult extends PgQueryResultHKT>(
       id: zoneRules.id,
       version: zoneRules.version,
       transitions: zoneRules.transitions,
-      publishedAt: zoneRules.publishedAt,
+      publicationNumber: zoneRules.publicationNumber,
     })
     .from(zoneRules)
     .where(inArray(zoneRules.id, [...ids]))
     .orderBy(asc(zoneRules.id));
-  return new Map(
-    rows.map(({ id, publishedAt, ...row }) => [
-      id,
-      { ...row, publishedAt: publishedAt.toISOString() },
-    ]),
-  );
+  return new Map(rows.map(({ id, ...row }) => [id, row]));
 }
 
 export async function readStockMovements<TQueryResult extends PgQueryResultHKT>(

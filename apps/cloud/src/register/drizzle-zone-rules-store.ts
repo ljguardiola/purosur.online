@@ -1,24 +1,37 @@
+import { currentZoneRulesPublication, type ZoneRulesPublication } from "@purosur/domain";
 import type {
   PublishedZoneRules,
+  PublishedZoneRulesReader,
   ZoneRulesStore,
   ZoneRulesStoreTransaction,
 } from "@purosur/domain/register/use-cases";
-import { desc, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { zoneRules } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 const ZONE_RULES_LOCK_KEY = "zone_rules";
 
-export async function latestPublishedZoneRulesVersion<TQueryResult extends PgQueryResultHKT>(
+function zoneRulesPublications<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-): Promise<string | null> {
-  const [latest] = await db
-    .select({ version: zoneRules.version })
-    .from(zoneRules)
-    .orderBy(desc(zoneRules.publishedAt), desc(zoneRules.version))
-    .limit(1);
-  return latest?.version ?? null;
+): Promise<ZoneRulesPublication[]> {
+  return db
+    .select({ version: zoneRules.version, publicationNumber: zoneRules.publicationNumber })
+    .from(zoneRules);
+}
+
+export class DrizzlePublishedZoneRulesReader<TQueryResult extends PgQueryResultHKT>
+  implements PublishedZoneRulesReader
+{
+  private readonly db: PgDatabase<TQueryResult>;
+
+  constructor(db: PgDatabase<TQueryResult>) {
+    this.db = db;
+  }
+
+  async currentZoneRulesVersion(): Promise<string | null> {
+    return currentZoneRulesPublication(await zoneRulesPublications(this.db))?.version ?? null;
+  }
 }
 
 class DrizzleZoneRulesStoreTransaction<TQueryResult extends PgQueryResultHKT>
@@ -38,16 +51,15 @@ class DrizzleZoneRulesStoreTransaction<TQueryResult extends PgQueryResultHKT>
     );
   }
 
-  async isZoneRulesVersionPublished(version: string): Promise<boolean> {
-    const rows = await this.tx
-      .select({ id: zoneRules.id })
-      .from(zoneRules)
-      .where(eq(zoneRules.version, version))
-      .limit(1);
-    return rows.length > 0;
+  zoneRulesPublications(): Promise<ZoneRulesPublication[]> {
+    return zoneRulesPublications(this.tx);
   }
 
-  async publishZoneRules({ version, transitions, publishedAt }: PublishedZoneRules): Promise<void> {
+  async publishZoneRules({
+    version,
+    transitions,
+    publicationNumber,
+  }: PublishedZoneRules): Promise<void> {
     const [published] = await this.tx
       .insert(zoneRules)
       .values({
@@ -56,7 +68,7 @@ class DrizzleZoneRulesStoreTransaction<TQueryResult extends PgQueryResultHKT>
           from: from.toISOString(),
           offsetMinutes,
         })),
-        publishedAt,
+        publicationNumber,
       })
       .returning({ id: zoneRules.id });
     if (!published) {

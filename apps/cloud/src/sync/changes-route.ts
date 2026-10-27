@@ -233,7 +233,7 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
             from,
             offset_minutes: offsetMinutes,
           })),
-          published_at: change.row.publishedAt,
+          publication_number: change.row.publicationNumber,
         },
       };
     case "stock_movement":

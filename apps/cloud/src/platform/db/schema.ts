@@ -220,9 +220,12 @@ export const zoneRules = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     version: text("version").notNull(),
     transitions: jsonb("transitions").$type<{ from: string; offsetMinutes: number }[]>().notNull(),
-    publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+    publicationNumber: integer("publication_number").notNull(),
   },
-  (table) => [uniqueIndex("zone_rules_version_key").on(table.version)],
+  (table) => [
+    uniqueIndex("zone_rules_version_key").on(table.version),
+    uniqueIndex("zone_rules_publication_number_key").on(table.publicationNumber),
+  ],
 );
 
 export const roles = pgTable(

@@ -30,3 +30,7 @@ export function areZoneTransitionsOrdered(transitions: readonly ZoneTransition[]
       index === 0 || (transitions[index - 1]?.from.getTime() ?? 0) < transition.from.getTime(),
   );
 }
+
+export interface PublishedZoneRulesReader {
+  currentZoneRulesVersion(): Promise<string | null>;
+}

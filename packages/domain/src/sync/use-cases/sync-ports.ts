@@ -1,5 +1,5 @@
 import type { Fortnight } from "../../fiscal/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, PublishedZoneRulesReader } from "../../shared/index.js";
 import type { LimitedEndpoint } from "../model/installation-request-limit.js";
 import type {
   PullAudience,
@@ -128,7 +128,7 @@ export interface RegisterStops {
   cloudZoneRulesVersion: string | null;
 }
 
-export interface InboxTransaction {
+export interface InboxTransaction extends PublishedZoneRulesReader {
   lockDevice(deviceId: string): Promise<void>;
   installationRevoked(deviceId: string): Promise<boolean>;
   receivedDeviceSeqs(deviceId: string): Promise<number[]>;
@@ -144,7 +144,6 @@ export interface InboxTransaction {
   advanceOfflineNumbering(offlineDocuments: readonly PushedEvent[], at: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
   installationRegister(deviceId: string): Promise<InstallationRegister>;
-  latestPublishedZoneRulesVersion(): Promise<string | null>;
   recordRegisterVersionStanding(standing: RegisterVersionStanding, at: Date): Promise<void>;
   recordRegisterStops(stops: RegisterStops, at: Date): Promise<void>;
   recordRegisterSynced(registerId: string, at: Date): Promise<void>;

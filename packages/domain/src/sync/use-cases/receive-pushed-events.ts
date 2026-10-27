@@ -46,7 +46,7 @@ export async function receivePushedEvents(
           deviceId,
           locationId,
           report: telemetry,
-          cloudZoneRulesVersion: await tx.latestPublishedZoneRulesVersion(),
+          cloudZoneRulesVersion: await tx.currentZoneRulesVersion(),
         },
         now,
       );

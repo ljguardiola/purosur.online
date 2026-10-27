@@ -42,12 +42,12 @@ export function prepareFiscalPageWrites(database: LocalDatabase, mode: PageWrite
      }`,
   );
   const saveZoneRules = database.prepare(
-    `INSERT INTO zone_rules (version, transitions, published_at)
-     VALUES (@version, @transitions, @published_at)
+    `INSERT INTO zone_rules (version, transitions, publication_number)
+     VALUES (@version, @transitions, @publication_number)
      ON CONFLICT (version) DO ${
        mode === "pull"
          ? "NOTHING"
-         : "UPDATE SET transitions = excluded.transitions, published_at = excluded.published_at"
+         : "UPDATE SET transitions = excluded.transitions, publication_number = excluded.publication_number"
      }`,
   );
   const saveOfflineAuthorizationCode = database.prepare(
@@ -109,7 +109,7 @@ export function prepareFiscalPageWrites(database: LocalDatabase, mode: PageWrite
       saveZoneRules.run({
         version: row.version,
         transitions: JSON.stringify(row.transitions),
-        published_at: row.published_at,
+        publication_number: row.publication_number,
       });
     },
 

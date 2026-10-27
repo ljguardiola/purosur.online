@@ -1,4 +1,9 @@
-export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
+export type {
+  Clock,
+  OperationAuthority,
+  OperationAuthorization,
+  PublishedZoneRulesReader,
+} from "../../shared/index.js";
 export type {
   AdmitRestoredRegisterReplenishmentInput,
   AdmitRestoredRegisterReplenishmentOutcome,

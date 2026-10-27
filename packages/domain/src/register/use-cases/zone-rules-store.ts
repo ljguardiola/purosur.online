@@ -1,14 +1,12 @@
-import type { Clock, ZoneTransition } from "../../shared/index.js";
+import type { ZoneTransition } from "../../shared/index.js";
+import type { ZoneRulesPublication } from "../model/zone-rules-version.js";
 
-export interface PublishedZoneRules {
-  version: string;
+export interface PublishedZoneRules extends ZoneRulesPublication {
   transitions: readonly ZoneTransition[];
-  publishedAt: Date;
 }
 
 export interface ZoneRulesPorts {
   store: ZoneRulesStore;
-  clock: Clock;
 }
 
 export interface ZoneRulesStore {
@@ -19,6 +17,6 @@ export interface ZoneRulesStore {
 
 export interface ZoneRulesStoreTransaction {
   lockZoneRulesPublication(): Promise<void>;
-  isZoneRulesVersionPublished(version: string): Promise<boolean>;
+  zoneRulesPublications(): Promise<ZoneRulesPublication[]>;
   publishZoneRules(rules: PublishedZoneRules): Promise<void>;
 }

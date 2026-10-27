@@ -35,5 +35,5 @@ export { slidingWindowRetryAfterSeconds, slidingWindowStart } from "./sliding-wi
 export { compareSpanishText } from "./text-order.js";
 export type { VersionedKey } from "./versioned-key.js";
 export { inVersionOrder, latestKey } from "./versioned-key.js";
-export type { ZoneRules, ZoneTransition } from "./zone-rules.js";
+export type { PublishedZoneRulesReader, ZoneRules, ZoneTransition } from "./zone-rules.js";
 export { areZoneTransitionsOrdered, FIXED_ARGENTINA_ZONE_RULES, offsetAt } from "./zone-rules.js";

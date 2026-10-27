@@ -156,7 +156,7 @@ export interface BuyerTaxStatusSetRow {
 export interface ZoneRulesRow {
   version: string;
   transitions: { from: string; offsetMinutes: number }[];
-  publishedAt: string;
+  publicationNumber: number;
 }
 
 export type RemovedEntity =

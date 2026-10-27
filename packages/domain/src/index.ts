@@ -657,6 +657,7 @@ export type {
   StorageSalesStop,
   StorageStanding,
   WatchedRegister,
+  ZoneRulesPublication,
   ZoneRulesVersionReport,
 } from "./register/index.js";
 export {
@@ -678,6 +679,7 @@ export {
   cashMovementReason,
   clockDriftReportOf,
   clockOffsetMs,
+  currentZoneRulesPublication,
   diskStanding,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,

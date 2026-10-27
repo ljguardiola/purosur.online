@@ -36,7 +36,7 @@ import {
   registers,
   serialDeviceState,
 } from "../platform/db/schema.js";
-import { latestPublishedZoneRulesVersion } from "../register/drizzle-zone-rules-store.js";
+import { DrizzlePublishedZoneRulesReader } from "../register/drizzle-zone-rules-store.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
@@ -231,8 +231,8 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     return installation;
   }
 
-  latestPublishedZoneRulesVersion(): Promise<string | null> {
-    return latestPublishedZoneRulesVersion(this.tx);
+  currentZoneRulesVersion(): Promise<string | null> {
+    return new DrizzlePublishedZoneRulesReader(this.tx).currentZoneRulesVersion();
   }
 
   async recordRegisterVersionStanding(standing: RegisterVersionStanding, at: Date): Promise<void> {

@@ -712,12 +712,8 @@ function recordAuthorizedCuitInDatabase(
 
 function publishRuntimeZoneRulesToDatabase(
   db: BackgroundJobInfrastructure["db"],
-  now: () => Date,
 ): Promise<unknown> {
-  return publishZoneRules(
-    { store: new DrizzleZoneRulesStore(db), clock: { now } },
-    runtimeZoneRules(),
-  );
+  return publishZoneRules({ store: new DrizzleZoneRulesStore(db) }, runtimeZoneRules());
 }
 
 export async function startServer(env: ServerEnv, deps: StartServerDeps): Promise<FastifyInstance> {
@@ -742,9 +738,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     ((db: BackgroundJobInfrastructure["db"], authorizedCuit: string) =>
       recordAuthorizedCuitInDatabase(db, authorizedCuit, now));
 
-  const doPublishZoneRules =
-    deps.publishZoneRules ??
-    ((db: BackgroundJobInfrastructure["db"]) => publishRuntimeZoneRulesToDatabase(db, now));
+  const doPublishZoneRules = deps.publishZoneRules ?? publishRuntimeZoneRulesToDatabase;
 
   const version = resolveVersion(env);
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT, release: version });
