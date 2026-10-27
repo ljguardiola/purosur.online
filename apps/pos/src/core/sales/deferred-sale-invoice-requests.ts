@@ -9,6 +9,7 @@ import {
   findDeferredSale,
   printDeferredSaleInvoice,
 } from "@purosur/domain/sales/use-cases";
+import { inArgentinaTime } from "../platform/argentina-time";
 import {
   type ReceiptRequestDeps,
   type ReprintSaleReceiptRequest,
@@ -16,7 +17,6 @@ import {
   signedSellerAuthority,
   startOriginalPrint,
 } from "./receipt-requests";
-import { inArgentinaTime } from "../platform/argentina-time";
 import { SqliteDeferredSaleLookup } from "./sqlite-deferred-sale-lookup";
 
 export type FindDeferredSaleReading = FindDeferredSaleInput;
