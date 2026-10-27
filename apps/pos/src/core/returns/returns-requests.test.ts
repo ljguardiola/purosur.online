@@ -9,7 +9,12 @@ import {
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
+  insertOfflineAuthorizationCode,
+  insertOfflineCreditNoteSeriesCount,
+  insertOfflineNumberBlock,
+  insertOfflinePointOfSale,
   insertPointOfSale,
+  OFFLINE_POINT_OF_SALE,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
@@ -169,6 +174,18 @@ const BRANCH_SALE: Extract<BranchSaleLookupAnswer, { kind: "found" }> = {
     ],
     returned: [],
   },
+  invoiceStanding: {
+    fiscalDocuments: [
+      {
+        origin: "real_time",
+        state: "AUTHORIZED",
+        pointOfSale: 7,
+        number: 501,
+        buyerTaxStatusCode: 5,
+      },
+    ],
+    deferralPending: false,
+  },
   goodConditionReturnDays: 15,
   countedReturnIds: [],
 };
@@ -298,6 +315,7 @@ describe("finding the sale to return", () => {
     expect(askedTickets).toEqual([BRANCH_SALE_TICKET]);
     expect(readRetainedBranchSale(database, "sale-elsewhere")).toEqual({
       sale: BRANCH_SALE.sale,
+      invoiceStanding: BRANCH_SALE.invoiceStanding,
       goodConditionReturnDays: 15,
       countedReturnIds: [],
     });
@@ -789,5 +807,216 @@ describe("the credit note of a completed return", () => {
     expect(storedNotes()).toEqual([
       { return_id: "id-1", state: "IN_PROGRESS", corrected_number: 41 },
     ]);
+  });
+});
+
+describe("returning a sale another register rang up", () => {
+  const LINE_BACK = {
+    saleLineId: "line-elsewhere",
+    quantity: 1,
+    reason: "change_of_mind",
+    disposition: "restock",
+  } as const;
+
+  const COMPLETION = {
+    saleId: "sale-elsewhere",
+    ticketSource: "TYPED" as const,
+    lines: [LINE_BACK],
+    refunds: [{ paymentId: "pay-elsewhere", amount: 2500 }],
+  };
+
+  const AUTHORIZED: CloudCreditNoteAnswer = {
+    kind: "authorized",
+    pointOfSale: 12,
+    number: 7,
+    issuedOn: "2026-09-20",
+    issuedAt: NOW,
+    authorizationCode: "75123456789012",
+    authorizationCodeDueOn: "2026-09-30",
+  };
+
+  async function findWithConnection(answer: BranchSaleLookupAnswer = BRANCH_SALE) {
+    cloudAnswer = answer;
+    await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET });
+    cloudAnswer = { kind: "unreachable" };
+    askedTickets = [];
+  }
+
+  function storedNotes() {
+    return database
+      .prepare(
+        "SELECT sale_id, return_id, state, corrected_point_of_sale, corrected_number FROM sale_credit_notes",
+      )
+      .all();
+  }
+
+  it("previews it without asking the cloud once the sale was found", async () => {
+    await findWithConnection();
+
+    expect(
+      await previewReturnFor(deps(), { saleId: "sale-elsewhere", lines: [LINE_BACK] }),
+    ).toEqual({
+      kind: "previewed",
+      lines: [
+        {
+          sale_line_id: "line-elsewhere",
+          quantity: 1,
+          reason: "change_of_mind",
+          disposition: "restock",
+          refusal: null,
+          refund_amount: 2500,
+        },
+      ],
+      refundable_total: 2500,
+    });
+    expect(askedTickets).toEqual([]);
+  });
+
+  it("completes it without a connection, refunding in cash from the open session and queueing the return", async () => {
+    await findWithConnection();
+
+    const outcome = await completeReturnFor(deps(), COMPLETION);
+
+    expect(outcome).toEqual({
+      kind: "completed",
+      return_id: "id-1",
+      refunded_total: 2500,
+      refunds: [{ payment_id: "pay-elsewhere", method: "CASH", amount: 2500, state: "APPROVED" }],
+      authorized_by: null,
+    });
+    expect(askedTickets).toEqual([]);
+    expect(
+      database.prepare("SELECT sale_id, session_id, register_id, device_id FROM returns").all(),
+    ).toEqual([
+      {
+        sale_id: "sale-elsewhere",
+        session_id: "session-2",
+        register_id: "register-1",
+        device_id: "device-a",
+      },
+    ]);
+    expect(
+      database.prepare("SELECT payment_id, return_id, amount FROM payment_refunds").all(),
+    ).toEqual([{ payment_id: "pay-elsewhere", return_id: "id-1", amount: 2500 }]);
+    expect(
+      database
+        .prepare("SELECT session_id, type, amount FROM cash_movements WHERE type = 'REFUND'")
+        .all(),
+    ).toEqual([{ session_id: "session-2", type: "REFUND", amount: 2500 }]);
+    expect(
+      database
+        .prepare<[], { payload: string }>(
+          "SELECT payload FROM outbox WHERE event_type = 'sale_returned'",
+        )
+        .all()
+        .map(({ payload }) => JSON.parse(payload)),
+    ).toMatchObject([
+      { sale_id: "sale-elsewhere", register_id: "register-1", device_id: "device-a" },
+    ]);
+  });
+
+  it("counts the return against the copy of the sale, so the same line cannot be returned past what was sold", async () => {
+    await findWithConnection();
+    await completeReturnFor(deps(), {
+      ...COMPLETION,
+      lines: [{ ...LINE_BACK, quantity: 3 }],
+      refunds: [{ paymentId: "pay-elsewhere", amount: 7500 }],
+    });
+
+    expect(
+      await previewReturnFor(deps(), { saleId: "sale-elsewhere", lines: [LINE_BACK] }),
+    ).toMatchObject({ lines: [{ refusal: expect.anything() }] });
+  });
+
+  it("requests the credit note from the cloud for the invoice the other register issued", async () => {
+    insertPointOfSale(database, 0);
+    insertHealthCheck(database, { checkedAt: "2026-09-20T14:59:58.000Z" });
+    await findWithConnection();
+    const calls: CloudCreditNoteCall[] = [];
+
+    const outcome = await completeReturnFor(
+      deps({
+        creditNotes: {
+          request: async (call) => {
+            calls.push(call);
+            return AUTHORIZED;
+          },
+        },
+      }),
+      COMPLETION,
+    );
+
+    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 2500 });
+    expect(calls).toMatchObject([
+      { invoice: { voucher: { pointOfSale: 7, number: 501 }, buyerTaxStatusCode: 5 } },
+    ]);
+    expect(storedNotes()).toEqual([
+      {
+        sale_id: "sale-elsewhere",
+        return_id: "id-1",
+        state: "AUTHORIZED",
+        corrected_point_of_sale: 7,
+        corrected_number: 501,
+      },
+    ]);
+  });
+
+  it("issues the credit note itself, correcting the other register's invoice, when the register is not online", async () => {
+    insertPointOfSale(database, 0);
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE);
+    insertOfflineCreditNoteSeriesCount(database, OFFLINE_POINT_OF_SALE, 0);
+    insertOfflineNumberBlock(database, "block-1", 1, 50, OFFLINE_POINT_OF_SALE, "credit_note_c");
+    insertOfflineAuthorizationCode(database);
+    await findWithConnection();
+
+    const outcome = await completeReturnFor(deps(), COMPLETION);
+
+    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 2500 });
+    expect(storedNotes()).toEqual([
+      {
+        sale_id: "sale-elsewhere",
+        return_id: "id-1",
+        state: "ISSUED_OFFLINE",
+        corrected_point_of_sale: 7,
+        corrected_number: 501,
+      },
+    ]);
+    expect(
+      database
+        .prepare("SELECT sale_id, document_type, corrected_number FROM offline_fiscal_documents")
+        .all(),
+    ).toEqual([
+      { sale_id: "sale-elsewhere", document_type: "credit_note_c", corrected_number: 501 },
+    ]);
+  });
+
+  it("holds the credit note for the invoice when it is still on its way on the other register", async () => {
+    await findWithConnection({
+      ...BRANCH_SALE,
+      invoiceStanding: { fiscalDocuments: [], deferralPending: true },
+    });
+
+    await completeReturnFor(deps(), COMPLETION);
+
+    expect(storedNotes()).toEqual([
+      {
+        sale_id: "sale-elsewhere",
+        return_id: "id-1",
+        state: "AWAITING_INVOICE",
+        corrected_point_of_sale: null,
+        corrected_number: null,
+      },
+    ]);
+  });
+
+  it("asks for no credit note when the sale was never invoiced", async () => {
+    await findWithConnection({
+      ...BRANCH_SALE,
+      invoiceStanding: { fiscalDocuments: [], deferralPending: false },
+    });
+
+    await completeReturnFor(deps(), COMPLETION);
+
+    expect(storedNotes()).toEqual([]);
   });
 });

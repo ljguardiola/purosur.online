@@ -7,6 +7,7 @@ import {
   POINT_OF_SALE,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteRetainedBranchSales } from "./sqlite-retained-branch-sales";
 import { SqliteReturnSaleReader } from "./sqlite-return-sale-reader";
 import {
   insertBranchSettings,
@@ -180,5 +181,92 @@ describe("the days a good-condition return is accepted", () => {
 
   it("are the default while the register holds no branch settings", () => {
     expect(reader.goodConditionReturnDays()).toBe(15);
+  });
+});
+
+describe("the sale of another register a return starts from", () => {
+  const KEPT = {
+    sale: {
+      sale: {
+        id: "sale-elsewhere",
+        registerId: "register-2",
+        deviceId: "device-b",
+        sessionId: "session-b",
+        actorId: "cashier-b",
+        state: "COMPLETED",
+        saleDiscount: null,
+        lines: [
+          {
+            id: "line-elsewhere",
+            productId: "yerba",
+            productName: "Yerba 1 kg",
+            saleUnit: "UNIT",
+            quantity: 3,
+            promotionId: null,
+            lineTotal: 7500,
+          },
+        ],
+      },
+      occurredAt: new Date("2026-09-12T18:30:00.000Z"),
+      invoice: { pointOfSale: 7, number: 501 },
+      payments: [
+        {
+          id: "pay-elsewhere",
+          method: "CASH",
+          provider: "NONE",
+          amount: 7500,
+          state: "APPROVED",
+          refundedAmount: 500,
+        },
+      ],
+      returned: [{ saleLineId: "line-elsewhere", quantity: 1, refundedAmount: 2500 }],
+    },
+    invoiceStanding: { fiscalDocuments: [], deferralPending: false },
+    goodConditionReturnDays: 15,
+    countedReturnIds: ["return-counted"],
+  } as const;
+
+  function keep(): void {
+    new SqliteRetainedBranchSales(database).keep(KEPT);
+  }
+
+  function returnHere(returnId: string, quantity: number, refunded: number): void {
+    database.exec(
+      `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('${returnId}', 'sale-elsewhere', 'register-1', 'device-a', 'session-1', 'u1', 'TYPED', '2026-09-20T12:00:00.000Z');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('${returnId}', 'line-elsewhere', ${quantity}, 'defective', 'discard', ${refunded});
+       INSERT INTO payment_refunds (id, payment_id, return_id, method, provider, amount, state, occurred_at)
+       VALUES ('refund-${returnId}', 'pay-elsewhere', '${returnId}', 'CASH', 'NONE', ${refunded}, 'APPROVED', '2026-09-20T12:00:00.000Z');`,
+    );
+  }
+
+  it("is the copy the register kept when it found the sale", () => {
+    keep();
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-elsewhere" })).toEqual(KEPT.sale);
+  });
+
+  it("is none for a sale the register neither holds nor found", () => {
+    keep();
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-unknown" })).toBeUndefined();
+  });
+
+  it("adds what this register returned of it that the cloud did not count yet", () => {
+    keep();
+    returnHere("return-here", 1, 2500);
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-elsewhere" })).toMatchObject({
+      returned: [{ saleLineId: "line-elsewhere", quantity: 2, refundedAmount: 5000 }],
+      payments: [{ id: "pay-elsewhere", refundedAmount: 3000 }],
+    });
+  });
+
+  it("does not add a return of this register the cloud already counted", () => {
+    keep();
+    returnHere("return-counted", 1, 2500);
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-elsewhere" })).toEqual(KEPT.sale);
   });
 });
