@@ -51,6 +51,15 @@ describe("startMercadoPagoCharge", () => {
     ]);
   });
 
+  it("carries no card type to the pending payment nor to the order", async () => {
+    const world = new FakeMercadoPagoChargeWorld();
+
+    await startMercadoPagoCharge(world.ports, INPUT);
+
+    expect(world.recordedPayments[0]).not.toHaveProperty("cardType");
+    expect(world.requestedOrders[0]).not.toHaveProperty("cardType");
+  });
+
   it("shows the order with the amount and the wait left once the cloud creates it", async () => {
     const world = new FakeMercadoPagoChargeWorld();
 

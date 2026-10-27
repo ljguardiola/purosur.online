@@ -66,6 +66,15 @@ describe("createMercadoPagoQrOrder", () => {
     ]);
   });
 
+  it("records the transaction and asks for the order without any card type", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+
+    await createMercadoPagoQrOrder(ports, INPUT);
+
+    expect(lanes.transactions.get(TRANSACTION_ID)).not.toHaveProperty("cardType");
+    expect(mercadoPago.creationRequests[0]).not.toHaveProperty("cardType");
+  });
+
   it("sends each register's order to the QR point of sale assigned to that register and never to another's", async () => {
     const { mercadoPago, qrPointsOfSale, ports } = mercadoPagoOrderWorld();
     qrPointsOfSale.assign("register-2", "pos-2");

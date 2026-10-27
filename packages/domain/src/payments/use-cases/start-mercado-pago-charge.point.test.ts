@@ -13,6 +13,7 @@ const INPUT = {
   actorId: CHARGE_ACTOR_ID,
   saleId: CHARGE_SALE_ID,
   method: "POINT",
+  cardType: "DEBIT",
   amount: 5000,
 } as const;
 
@@ -31,10 +32,23 @@ describe("startMercadoPagoCharge on the integrated terminal", () => {
         paymentTransactionId: CHARGE_PAYMENT_ID,
         saleId: CHARGE_SALE_ID,
         method: "POINT",
+        cardType: "DEBIT",
         amount: 5000,
       },
     ]);
   });
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "carries the %s card type to the pending payment and to the order",
+    async (cardType) => {
+      const world = new FakeMercadoPagoChargeWorld();
+
+      await startMercadoPagoCharge(world.ports, { ...INPUT, cardType });
+
+      expect(world.recordedPayments.map((payment) => payment.cardType)).toEqual([cardType]);
+      expect(world.requestedOrders.map((order) => order.cardType)).toEqual([cardType]);
+    },
+  );
 
   it("shows the order with the wait left, counted from the start of the charge and not from the terminal's longer expiry", async () => {
     const world = new FakeMercadoPagoChargeWorld();
