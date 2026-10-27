@@ -116,9 +116,7 @@ describe("readSaleHistoryDetail", () => {
   });
 
   it("carries the short code recorded for the sale's deferred invoicing", () => {
-    const history = new FakeRegisterSalesHistory([
-      historySale({ deferredShortCode: "7KQ4M2P9" }),
-    ]);
+    const history = new FakeRegisterSalesHistory([historySale({ deferredShortCode: "7KQ4M2P9" })]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
     const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
