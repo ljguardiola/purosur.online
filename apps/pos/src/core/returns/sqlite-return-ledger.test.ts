@@ -1,5 +1,15 @@
 import { completeReturn } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  insertDeferredSale,
+  insertFiscalDocument,
+  insertHealthCheck,
+  insertOfflineAuthorizationCode,
+  insertOfflineCreditNoteSeriesCount,
+  insertOfflineNumberBlock,
+  insertOfflinePointOfSale,
+  OFFLINE_POINT_OF_SALE,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { SqliteReturnLedger } from "./sqlite-return-ledger";
@@ -189,7 +199,7 @@ describe("completing a return in the register", () => {
         )
         .all(),
     ).toEqual([
-      { aggregate_type: "Return", event_type: "sale_returned", schema_version: 1, actor_id: "u1" },
+      { aggregate_type: "Return", event_type: "sale_returned", schema_version: 2, actor_id: "u1" },
     ]);
   });
 
@@ -247,5 +257,147 @@ describe("what the register knows of a sale after a return", () => {
 
     expect(found?.returned).toEqual([{ saleLineId: "line-1", quantity: 2, refundedAmount: 5000 }]);
     expect(found?.payments.find(({ id }) => id === "pay-cash")?.refundedAmount).toBe(5000);
+  });
+});
+
+describe("the credit note of a return in the register", () => {
+  function creditNotes() {
+    return database
+      .prepare(
+        `SELECT id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+                corrected_voucher_type, corrected_point_of_sale, corrected_number, state,
+                recorded_at
+           FROM sale_void_credit_notes`,
+      )
+      .all();
+  }
+
+  function returnedEvent() {
+    const row = database
+      .prepare<[], { schema_version: number; payload: string }>(
+        "SELECT schema_version, payload FROM outbox WHERE event_type = 'sale_returned'",
+      )
+      .get();
+    return row === undefined
+      ? undefined
+      : { version: row.schema_version, creditNote: JSON.parse(row.payload).credit_note };
+  }
+
+  function invoiceTheSale() {
+    insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+  }
+
+  it("is recorded in progress, dated by the return, when the invoice is authorized and the register is online", async () => {
+    invoiceTheSale();
+    insertHealthCheck(database, { checkedAt: "2026-09-20T14:59:58.000Z" });
+
+    const outcome = await returnYerba();
+
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      creditNote: { kind: "pending", creditNoteId: expect.any(String) },
+    });
+    expect(creditNotes()).toEqual([
+      {
+        id: expect.any(String),
+        sale_id: "sale-1",
+        return_id: "id-1",
+        requested_issue_on: "2026-09-20",
+        total: 5000,
+        receiver_tax_status_code: expect.any(Number),
+        corrected_voucher_type: 11,
+        corrected_point_of_sale: 12,
+        corrected_number: 41,
+        state: "IN_PROGRESS",
+        recorded_at: RETURNED_AT.toISOString(),
+      },
+    ]);
+  });
+
+  it("travels in the return's event", async () => {
+    invoiceTheSale();
+    insertHealthCheck(database, { checkedAt: "2026-09-20T14:59:58.000Z" });
+
+    await returnYerba();
+
+    expect(returnedEvent()).toMatchObject({
+      version: 2,
+      creditNote: { total: 5000, issued_on: "2026-09-20", corrects: { number: 41 } },
+    });
+  });
+
+  it("waits for the invoice while the sale's deferred record has not been invoiced", async () => {
+    insertDeferredSale(database, "sale-1");
+
+    const outcome = await returnYerba();
+
+    expect(outcome).toMatchObject({ kind: "completed", creditNote: { kind: "awaiting_invoice" } });
+    expect(creditNotes()).toEqual([
+      expect.objectContaining({
+        return_id: "id-1",
+        receiver_tax_status_code: null,
+        corrected_number: null,
+        state: "AWAITING_INVOICE",
+        total: 5000,
+      }),
+    ]);
+    expect(returnedEvent()).toMatchObject({
+      creditNote: { receiver_tax_status_code: null, corrects: null, issued_on: "2026-09-20" },
+    });
+  });
+
+  it("asks for no credit note when the sale was never invoiced and none is on its way", async () => {
+    const outcome = await returnYerba();
+
+    expect(outcome).toMatchObject({ kind: "completed", creditNote: { kind: "none" } });
+    expect(creditNotes()).toEqual([]);
+    expect(returnedEvent()).toMatchObject({ version: 2, creditNote: null });
+  });
+
+  it("is issued offline, held by the return, when the register is not online", async () => {
+    invoiceTheSale();
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE);
+    insertOfflineCreditNoteSeriesCount(database, OFFLINE_POINT_OF_SALE, 0);
+    insertOfflineNumberBlock(database, "block-1", 1, 50, OFFLINE_POINT_OF_SALE, "credit_note_c");
+    insertOfflineAuthorizationCode(database);
+
+    const outcome = await returnYerba();
+
+    expect(outcome).toMatchObject({ kind: "completed", creditNote: { kind: "issued_offline" } });
+    expect(creditNotes()).toEqual([
+      expect.objectContaining({ return_id: "id-1", state: "ISSUED_OFFLINE", total: 5000 }),
+    ]);
+    expect(
+      database
+        .prepare(
+          "SELECT sale_id, document_type, point_of_sale, number FROM offline_fiscal_documents",
+        )
+        .all(),
+    ).toEqual([
+      {
+        sale_id: "sale-1",
+        document_type: "credit_note_c",
+        point_of_sale: OFFLINE_POINT_OF_SALE,
+        number: 1,
+      },
+    ]);
+    expect(
+      database.prepare("SELECT point_of_sale, document_type FROM register_clock_marks").all(),
+    ).toEqual([{ point_of_sale: OFFLINE_POINT_OF_SALE, document_type: "credit_note_c" }]);
+  });
+
+  it("is left out with the return when its write fails", async () => {
+    invoiceTheSale();
+    insertHealthCheck(database, { checkedAt: "2026-09-20T14:59:58.000Z" });
+    database.exec(
+      `CREATE TRIGGER refuse_returned_events BEFORE INSERT ON outbox
+       WHEN NEW.event_type = 'sale_returned'
+       BEGIN SELECT RAISE(ABORT, 'outbox refused'); END`,
+    );
+
+    await expect(returnYerba()).rejects.toThrow("outbox refused");
+
+    expect(count("sale_void_credit_notes")).toBe(0);
+    expect(count("returns")).toBe(0);
   });
 });
