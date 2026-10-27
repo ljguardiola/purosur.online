@@ -6,9 +6,11 @@ import {
   isDeferralPending,
   PENDING_DEFERRED_SALE_RECORD,
   SALE_STANDING_DEFINITIONS,
+  type SaleFiscalDocument,
   type SaleFiscalFacts,
   type SaleStanding,
   type SaleStandingDefinition,
+  saleFiscalDocumentAmong,
 } from "@purosur/domain";
 import type {
   RegisterSalesHistory,
@@ -218,7 +220,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
   }
 
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts {
-    const document = this.database
+    const attempts = this.database
       .prepare<[{ sale_id: string }], FiscalDocumentRow>(
         `SELECT state, 'real_time' AS authorization, point_of_sale, number FROM fiscal_documents
          WHERE sale_id = @sale_id
@@ -226,7 +228,16 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
          SELECT 'AUTHORIZED', 'offline_code', point_of_sale, number FROM offline_fiscal_documents
          WHERE sale_id = @sale_id AND document_type = 'factura_c'`,
       )
-      .get({ sale_id: saleId });
+      .all({ sale_id: saleId })
+      .map(
+        (row): SaleFiscalDocument => ({
+          state: row.state,
+          documentType: FACTURA_C_DOCUMENT_TYPE,
+          authorization: row.authorization,
+          pointOfSale: row.point_of_sale,
+          number: row.number,
+        }),
+      );
     const deferredRecord = this.database
       .prepare<[string], { satisfied: 0 | 1 }>(
         `SELECT ${DEFERRED_SALE_SATISFIED} AS satisfied FROM deferred_sales WHERE sale_id = ? AND cancelled_at IS NULL`,
@@ -236,16 +247,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       deferred: isDeferralPending(
         deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied === 1 },
       ),
-      fiscalDocument:
-        document === undefined
-          ? null
-          : {
-              state: document.state,
-              documentType: FACTURA_C_DOCUMENT_TYPE,
-              authorization: document.authorization,
-              pointOfSale: document.point_of_sale,
-              number: document.number,
-            },
+      fiscalDocument: saleFiscalDocumentAmong(attempts),
     };
   }
 }

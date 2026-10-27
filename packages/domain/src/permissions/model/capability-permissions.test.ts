@@ -37,6 +37,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["adjust_stock", ["stock_adjustments", "stock_movements", "stock_area"]],
   ["manage_expiration_dates", ["stock_expiries", "stock_area"]],
   ["manage_supplier_price_lists", ["orders_area", "supplier_price_lists"]],
+  ["compare_prices_and_suggest_orders", ["orders_area", "price_comparison"]],
   ["view_reports", ["reports_area"]],
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
@@ -374,4 +375,21 @@ describe("the supplier price lists capabilities", () => {
       ).toBe(true);
     },
   );
+});
+
+describe("the price comparison capability", () => {
+  it("is granted by comparing prices alone, and not by loading supplier price lists", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["compare_prices_and_suggest_orders"] },
+        "price_comparison",
+      ),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["manage_supplier_price_lists"] },
+        "price_comparison",
+      ),
+    ).toBe(false);
+  });
 });

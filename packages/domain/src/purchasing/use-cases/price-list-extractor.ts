@@ -9,6 +9,7 @@ export interface ExtractedPriceListRow {
   presentation: string | null;
   priceCents: number | null;
   page: number | null;
+  barcode: string | null;
 }
 
 export type PriceListExtraction =

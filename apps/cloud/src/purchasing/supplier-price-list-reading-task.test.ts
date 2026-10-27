@@ -96,7 +96,14 @@ describe("supplierPriceListReadingJobs", () => {
         listDate: "2026-03-01",
         pricesIncludeVat: false,
         rows: [
-          { description: "Yerba 1 kg", code: null, presentation: null, priceCents: 900, page: 1 },
+          {
+            description: "Yerba 1 kg",
+            code: null,
+            presentation: null,
+            priceCents: 900,
+            page: 1,
+            barcode: null,
+          },
         ],
       },
       received,

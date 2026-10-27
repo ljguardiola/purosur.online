@@ -2,13 +2,16 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
+  DEFERRED_RETRY_DELAYING_STATES,
   type DeferredBacklogEntry,
   hasDeferredBacklog,
   isDateOrderBroken,
+  isDeferredSaleUninvoiceable,
   isInDeferredBacklog,
   latestIssuedOn,
   nextDeferredBacklogStep,
 } from "./deferred-backlog.js";
+import type { FiscalDocumentState } from "./real-time-authorization.js";
 
 const now = new Date("2026-10-12T12:00:00-03:00");
 
@@ -27,6 +30,19 @@ function entry(overrides: Partial<DeferredBacklogEntry> = {}): DeferredBacklogEn
 describe("DEFERRED_BACKLOG_RETRY_INTERVAL_MS", () => {
   it("is ten minutes", () => {
     expect(DEFERRED_BACKLOG_RETRY_INTERVAL_MS).toBe(600_000);
+  });
+});
+
+describe("DEFERRED_RETRY_DELAYING_STATES", () => {
+  it.each<[FiscalDocumentState, boolean]>([
+    ["REJECTED", true],
+    ["CONFLICTING", true],
+    ["RELEASED", false],
+    ["AUTHORIZED", false],
+    ["REQUESTING", false],
+    ["UNKNOWN", false],
+  ])("counts an attempt ended %s as delaying the next try: %s", (state, delays) => {
+    expect(DEFERRED_RETRY_DELAYING_STATES.includes(state)).toBe(delays);
   });
 });
 
@@ -95,6 +111,47 @@ describe("isInDeferredBacklog", () => {
 
   it("drops a sale whose date is behind the last authorized document", () => {
     expect(isInDeferredBacklog(entry(), now, "2026-10-11")).toBe(false);
+  });
+});
+
+describe("isDeferredSaleUninvoiceable", () => {
+  const occurredAt = new Date("2026-10-10T12:00:00-03:00");
+
+  it("holds a sale inside its window and on or after the last authorized day as invoiceable", () => {
+    expect(isDeferredSaleUninvoiceable(occurredAt, now, null)).toBe(false);
+    expect(isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-09")).toBe(false);
+    expect(isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-10")).toBe(false);
+  });
+
+  it("is true for an expired sale whatever the last authorized day", () => {
+    const afterExpiry = new Date("2026-10-16T00:00:00-03:00");
+
+    expect(isDeferredSaleUninvoiceable(occurredAt, afterExpiry, null)).toBe(true);
+    expect(isDeferredSaleUninvoiceable(occurredAt, afterExpiry, "2026-10-01")).toBe(true);
+  });
+
+  it("is true for a sale not yet expired whose day is before the last authorized day", () => {
+    expect(isDeferredSaleUninvoiceable(occurredAt, now, "2026-10-11")).toBe(true);
+  });
+
+  it("is the negation of being in the backlog", () => {
+    const anInstant = fc.date({
+      min: new Date("2026-09-01T00:00:00Z"),
+      max: new Date("2026-11-30T00:00:00Z"),
+      noInvalidDate: true,
+    });
+    fc.assert(
+      fc.property(
+        anInstant,
+        anInstant,
+        fc.option(fc.constantFrom("2026-09-30", "2026-10-10", "2026-10-11", "2026-11-05"), {
+          nil: null,
+        }),
+        (sale, current, lastAuthorized) =>
+          isDeferredSaleUninvoiceable(sale, current, lastAuthorized) ===
+          !isInDeferredBacklog(entry({ occurredAt: sale }), current, lastAuthorized),
+      ),
+    );
   });
 });
 

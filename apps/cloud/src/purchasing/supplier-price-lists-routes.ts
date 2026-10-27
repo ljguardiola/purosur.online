@@ -1,24 +1,39 @@
 import {
+  supplierItemLinkChoicesSchema,
+  supplierItemLinkProposalSchema,
   supplierPriceListConfirmationBodySchema,
   supplierPriceListDiscardBodySchema,
   supplierPriceListListSchema,
   supplierPriceListPageRefusedSchema,
   supplierPriceListReviewSchema,
+  supplierPriceListRowLinkBodySchema,
   supplierPriceListRowPriceBodySchema,
   supplierPriceListRowRemovalBodySchema,
+  supplierPriceListRowReviewBodySchema,
   supplierPriceListUploadedSchema,
   supplierPriceListUploadQuerySchema,
   supplierPriceListWebPageBodySchema,
 } from "@purosur/contracts";
-import { SUPPLIER_PRICE_LIST_PDF_MAX_BYTES } from "@purosur/domain";
-import type { LoadSupplierPriceListWebPageOutcome } from "@purosur/domain/purchasing/use-cases";
+import {
+  PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR,
+  SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
+} from "@purosur/domain";
+import type {
+  LinkSupplierPriceListRowOutcome,
+  LoadSupplierPriceListWebPageOutcome,
+  ProductChooser,
+} from "@purosur/domain/purchasing/use-cases";
 import {
   confirmSupplierPriceList,
   discardSupplierPriceList,
   findSupplierPriceListFile,
   findSupplierPriceListReview,
+  linkSupplierPriceListRow,
+  listSupplierItemLinkChoices,
   listSupplierPriceLists,
   loadSupplierPriceListWebPage,
+  markSupplierPriceListRowReviewed,
+  proposeSupplierItemLink,
   refreshSupplierPriceListWebPage,
   removeSupplierPriceListRow,
   setSupplierPriceListRowPrice,
@@ -26,6 +41,7 @@ import {
 } from "@purosur/domain/purchasing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyError, FastifyInstance, FastifyReply } from "fastify";
+import { DrizzleCatalogListReader } from "../catalog/drizzle-catalog-list-reader.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
@@ -35,6 +51,8 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
+import { DrizzleSupplierItemLinkProposalReader } from "./drizzle-supplier-item-link-proposal-reader.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { opensAsPdf } from "./opens-as-pdf.js";
@@ -70,6 +88,23 @@ const CONFIRMATION_REFUSALS = {
   list_date_missing: "the list has no date",
   vat_missing: "the list does not say whether its prices include VAT",
 } as const;
+
+const LINK_REFUSALS = {
+  packaging_not_linkable: "the product or its packaging cannot be linked",
+  vat_rate_missing: "the list does not include VAT in its prices, so the item needs a VAT rate",
+  vat_rate_invalid: "the VAT rate is not one of those offered",
+} as const;
+
+const unavailableProductChooser: ProductChooser = {
+  choose: async () => ({ kind: "unavailable" }),
+};
+
+function exactFraction(fraction: { numerator: bigint; denominator: bigint }) {
+  return {
+    numerator: fraction.numerator.toString(),
+    denominator: fraction.denominator.toString(),
+  };
+}
 
 function contentDisposition(fileName: string): string {
   const encoded = encodeURIComponent(fileName).replace(
@@ -142,14 +177,41 @@ async function refuseChange(
   await reply.code(409).send(outcome.kind === "stale_version" ? STALE_VERSION : NOT_EDITABLE);
 }
 
+async function answerRowLink(
+  reply: FastifyReply,
+  outcome: LinkSupplierPriceListRowOutcome,
+): Promise<void> {
+  if (outcome.kind === "linked") {
+    await reply.code(200).send();
+    return;
+  }
+  if (
+    outcome.kind === "packaging_not_linkable" ||
+    outcome.kind === "vat_rate_missing" ||
+    outcome.kind === "vat_rate_invalid"
+  ) {
+    await reply.code(409).send({ code: outcome.kind, message: LINK_REFUSALS[outcome.kind] });
+    return;
+  }
+  await refuseChange(reply, outcome);
+}
+
 export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PurchasingRouteOptions<TQueryResult>,
 ): void {
-  const { now, supplierPriceListFiles: files, supplierPriceListWebPages: webPages } = options;
+  const {
+    now,
+    supplierPriceListFiles: files,
+    supplierPriceListWebPages: webPages,
+    productChooser = unavailableProductChooser,
+  } = options;
   registerRouteAccess(app);
   const store = new DrizzleSupplierPriceListStore(options.db, now);
   const reader = new DrizzleSupplierPriceListReader(options.db);
+  const proposalReader = new DrizzleSupplierItemLinkProposalReader(options.db);
+  const purchasingReader = new DrizzlePurchasingListReader(options.db);
+  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("supplier_price_lists"), sessionSource };
   const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
@@ -233,6 +295,12 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       );
   });
 
+  app.get("/supplier-price-lists/link-choices", readGuard, async (_request, reply) => {
+    const products = await catalog.products(PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR);
+    const choices = await listSupplierItemLinkChoices(purchasingReader, products);
+    await reply.code(200).send(supplierItemLinkChoicesSchema.parse(choices));
+  });
+
   app.get("/supplier-price-lists/:id", readGuard, async (request, reply) => {
     const ids = await readRecordIds(reply, request.params, ["id"]);
     if (!ids) {
@@ -246,7 +314,11 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     await reply.code(200).send(
       supplierPriceListReviewSchema.parse({
         list: { ...found.list, uploadedAt: found.list.uploadedAt.toISOString() },
-        rows: found.rows,
+        rows: found.rows.map((row) => ({
+          ...row,
+          pricePerSaleUnit: row.pricePerSaleUnit && exactFraction(row.pricePerSaleUnit),
+        })),
+        counts: found.counts,
         actions: found.actions,
       }),
     );
@@ -298,6 +370,69 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     }
     await reply.code(200).send();
   });
+
+  app.put("/supplier-price-lists/:id/rows/:rowId/link", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id", "rowId"]);
+    if (!ids) {
+      return;
+    }
+    const body = await readValidatedBody(reply, supplierPriceListRowLinkBodySchema, request.body);
+    if (!body) {
+      return;
+    }
+    const outcome = await linkSupplierPriceListRow(store, {
+      listId: ids.id,
+      rowId: ids.rowId,
+      version: body.version,
+      productId: body.productId,
+      packagingId: body.packagingId,
+      vatRate: body.vatRate,
+      actorId: openSessionOf(request).userId,
+    });
+    await answerRowLink(reply, outcome);
+  });
+
+  app.put("/supplier-price-lists/:id/rows/:rowId/review", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id", "rowId"]);
+    if (!ids) {
+      return;
+    }
+    const body = await readValidatedBody(reply, supplierPriceListRowReviewBodySchema, request.body);
+    if (!body) {
+      return;
+    }
+    const outcome = await markSupplierPriceListRowReviewed(store, {
+      listId: ids.id,
+      rowId: ids.rowId,
+      version: body.version,
+      actorId: openSessionOf(request).userId,
+    });
+    if (outcome.kind !== "reviewed") {
+      await refuseChange(reply, outcome);
+      return;
+    }
+    await reply.code(200).send();
+  });
+
+  app.get(
+    "/supplier-price-lists/:id/rows/:rowId/link-proposal",
+    readGuard,
+    async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id", "rowId"]);
+      if (!ids) {
+        return;
+      }
+      const outcome = await proposeSupplierItemLink(
+        { reader: proposalReader, chooser: productChooser },
+        { listId: ids.id, rowId: ids.rowId },
+      );
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(NOT_FOUND);
+        return;
+      }
+      await reply.code(200).send(supplierItemLinkProposalSchema.parse(outcome));
+    },
+  );
 
   app.delete("/supplier-price-lists/:id/rows/:rowId", writeGuard, async (request, reply) => {
     const ids = await readRecordIds(reply, request.params, ["id", "rowId"]);

@@ -1,8 +1,12 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { FileText } from "lucide-react";
+import { FileText, Scale } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
-import { canManageSupplierPriceLists, canSeeAlertsArea } from "./backoffice-access";
+import {
+  canComparePrices,
+  canManageSupplierPriceLists,
+  canSeeAlertsArea,
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const ordersAreaRoute = createRoute({
@@ -16,6 +20,7 @@ function OrdersArea() {
   const AlertsCount = services.areaTopBarAlertsCount;
   const matchRoute = useMatchRoute();
   const supplierPriceListsShown = Boolean(matchRoute({ to: "/supplier-price-lists", fuzzy: true }));
+  const priceComparisonShown = Boolean(matchRoute({ to: "/price-comparison" }));
   return (
     <AreaLayout
       area="orders"
@@ -33,6 +38,17 @@ function OrdersArea() {
                   icon={<FileText />}
                   search={supplierPriceListsShown ? true : {}}
                   active={supplierPriceListsShown}
+                />
+              </li>
+            )}
+            {canComparePrices(session) && (
+              <li>
+                <SectionLink
+                  to="/price-comparison"
+                  label="Comparación de precios"
+                  icon={<Scale />}
+                  search={priceComparisonShown ? true : {}}
+                  active={priceComparisonShown}
                 />
               </li>
             )}

@@ -64,6 +64,10 @@ export function isSupplierPriceListUnderReview(state: SupplierPriceListState): b
   return state === "EXTRACTED";
 }
 
+export function maySupplierPriceListRowBeLinked(state: SupplierPriceListState): boolean {
+  return state === "EXTRACTED" || state === "REVIEWED";
+}
+
 export function isSupplierPriceListDiscardable(state: SupplierPriceListState): boolean {
   return state === "EXTRACTED" || state === "READ_FAILED";
 }
@@ -86,6 +90,12 @@ export function isPriceListRowPrice(cents: number): boolean {
 
 export function isSourcePage(page: number): boolean {
   return Number.isInteger(page) && page > 0;
+}
+
+export function pricedRows<T extends { priceCents: number | null }>(
+  rows: readonly T[],
+): (T & { priceCents: number })[] {
+  return rows.filter((row): row is T & { priceCents: number } => row.priceCents !== null);
 }
 
 type ConfirmationRefusal = "no_rows" | "unpriced_rows" | "list_date_missing" | "vat_missing";

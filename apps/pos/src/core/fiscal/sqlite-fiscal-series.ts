@@ -1,4 +1,5 @@
 import {
+  DEFERRED_RETRY_DELAYING_STATES,
   type DeferredBacklogEntry,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
@@ -75,7 +76,7 @@ interface DeferredBacklogRow {
 
 function readDeferredBacklog(database: LocalDatabase): DeferredBacklogEntry[] {
   return database
-    .prepare<[], DeferredBacklogRow>(
+    .prepare<FiscalDocumentState[], DeferredBacklogRow>(
       `SELECT deferred_sales.id AS deferred_sale_id,
               deferred_sales.sale_id,
               deferred_sales.occurred_at,
@@ -83,7 +84,7 @@ function readDeferredBacklog(database: LocalDatabase): DeferredBacklogEntry[] {
               deferred_sales.total,
               (SELECT max(attempt.resolved_at) FROM fiscal_documents AS attempt
                 WHERE attempt.sale_id = deferred_sales.sale_id
-                  AND attempt.state IN ('REJECTED', 'RELEASED', 'CONFLICTING')) AS last_attempt_ended_at
+                  AND attempt.state IN (${placeholdersFor(DEFERRED_RETRY_DELAYING_STATES)})) AS last_attempt_ended_at
        FROM deferred_sales
        WHERE deferred_sales.satisfied_at IS NULL
          AND deferred_sales.cancelled_at IS NULL
@@ -95,7 +96,7 @@ function readDeferredBacklog(database: LocalDatabase): DeferredBacklogEntry[] {
            WHERE offline.sale_id = deferred_sales.sale_id)
        ORDER BY deferred_sales.occurred_at, deferred_sales.routed_at, deferred_sales.id`,
     )
-    .all()
+    .all(...DEFERRED_RETRY_DELAYING_STATES)
     .map((row) => ({
       deferredSaleId: row.deferred_sale_id,
       saleId: row.sale_id,

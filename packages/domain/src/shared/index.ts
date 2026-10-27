@@ -12,6 +12,7 @@ export {
 export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./cash-amount.js";
 export type { Clock } from "./clock.js";
 export { codePointLength } from "./code-point-length.js";
+export { foldedText } from "./folded-text.js";
 export type { IsoWeekday } from "./iso-weekday.js";
 export { isoWeekdayOf } from "./iso-weekday.js";
 export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";

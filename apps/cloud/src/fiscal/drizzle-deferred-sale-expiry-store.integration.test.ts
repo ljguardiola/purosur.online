@@ -31,7 +31,6 @@ describe("DrizzleDeferredSaleExpiryStore against a real Postgres", () => {
     });
     const sale = await insertDeferredSaleRow(db, installation);
     const store = new DrizzleDeferredSaleExpiryStore(db);
-    const instant = new Date("2026-10-09T03:00:00.000Z");
     let release!: () => void;
     const held = new Promise<void>((resolve) => {
       release = resolve;
@@ -42,15 +41,13 @@ describe("DrizzleDeferredSaleExpiryStore against a real Postgres", () => {
     });
 
     const first = store.transaction(async (transaction) => {
-      const locked = await transaction.lockPendingDeferredSalesOccurredBefore(instant);
+      const locked = await transaction.lockPendingDeferredSales();
       firstHolds();
       await held;
       return locked;
     });
     await firstHolding;
-    const second = await store.transaction((transaction) =>
-      transaction.lockPendingDeferredSalesOccurredBefore(instant),
-    );
+    const second = await store.transaction((transaction) => transaction.lockPendingDeferredSales());
     release();
 
     expect(second).toEqual([]);

@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
 import { purchasingKey, purchasingKeys } from "./purchasing-queries";
 
-test("invalidating the purchasing key marks the suppliers, the packagings, the purchases, the purchase choices, the freights, the linkable purchases, the supplier price lists and each review stale", async () => {
+test("invalidating the purchasing key marks the suppliers, the packagings, the purchases, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each proposal, the link choices and the price comparison stale", async () => {
   const client = new QueryClient();
   const keys = [
     purchasingKeys.suppliers,
@@ -13,6 +13,9 @@ test("invalidating the purchasing key marks the suppliers, the packagings, the p
     purchasingKeys.linkablePurchases,
     purchasingKeys.supplierPriceLists,
     [...purchasingKeys.supplierPriceListReview, "list-1"],
+    [...purchasingKeys.supplierItemLinkProposal, "list-1", "row-1"],
+    purchasingKeys.supplierItemLinkChoices,
+    purchasingKeys.supplierPriceComparison,
   ];
   for (const key of keys) {
     client.setQueryData(key, []);

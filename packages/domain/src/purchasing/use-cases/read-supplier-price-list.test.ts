@@ -97,6 +97,7 @@ describe("readSupplierPriceList", () => {
           presentation: "Caja x 10",
           priceCents: 150_050,
           page: 1,
+          barcode: "7790001000012",
         },
         {
           description: "Azucar 1 kg",
@@ -104,6 +105,7 @@ describe("readSupplierPriceList", () => {
           presentation: null,
           priceCents: null,
           page: null,
+          barcode: null,
         },
       ],
     };
@@ -229,9 +231,30 @@ describe("readSupplierPriceList", () => {
         listDate: "2026-02-30",
         pricesIncludeVat: null,
         rows: [
-          { description: "A", code: null, presentation: null, priceCents: -5, page: 0 },
-          { description: "B", code: null, presentation: null, priceCents: 10.5, page: 1.5 },
-          { description: "C", code: null, presentation: null, priceCents: 0, page: 2 },
+          {
+            description: "A",
+            code: null,
+            presentation: null,
+            priceCents: -5,
+            page: 0,
+            barcode: null,
+          },
+          {
+            description: "B",
+            code: null,
+            presentation: null,
+            priceCents: 10.5,
+            page: 1.5,
+            barcode: null,
+          },
+          {
+            description: "C",
+            code: null,
+            presentation: null,
+            priceCents: 0,
+            page: 2,
+            barcode: null,
+          },
         ],
       };
 
@@ -256,7 +279,14 @@ describe("readSupplierPriceList", () => {
         listDate: null,
         pricesIncludeVat: null,
         rows: [
-          { description: instruction, code: null, presentation: null, priceCents: 1, page: 1 },
+          {
+            description: instruction,
+            code: null,
+            presentation: null,
+            priceCents: 1,
+            page: 1,
+            barcode: null,
+          },
         ],
       };
       const before = store.snapshot();
@@ -371,7 +401,16 @@ describe("readSupplierPriceList", () => {
         kind: "extracted",
         listDate: null,
         pricesIncludeVat: null,
-        rows: [{ description: "Yerba", code: null, presentation: null, priceCents: 1, page: 1 }],
+        rows: [
+          {
+            description: "Yerba",
+            code: null,
+            presentation: null,
+            priceCents: 1,
+            page: 1,
+            barcode: null,
+          },
+        ],
       };
       store.failingWrites.add("recordExtraction");
 
@@ -446,5 +485,147 @@ describe("readSupplierPriceList", () => {
         readFailure: "interrupted",
       });
     });
+  });
+});
+
+describe("readSupplierPriceList rows of a supplier with remembered items", () => {
+  const LINK = { productId: "product-1", packagingId: "packaging-1", vatRate: 1050 };
+
+  function rowOf(fields: { code?: string | null; description: string; barcode?: string | null }) {
+    return {
+      code: null,
+      presentation: null,
+      priceCents: 1_000,
+      page: 1,
+      barcode: null,
+      ...fields,
+    };
+  }
+
+  async function readRows(
+    rows: ReturnType<typeof rowOf>[],
+    seed: (store: FakeSupplierPriceListStore) => void = () => undefined,
+  ) {
+    const { store, extractor, ports } = setup();
+    seed(store);
+    extractor.answer = { kind: "extracted", listDate: null, pricesIncludeVat: false, rows };
+    await readSupplierPriceList(ports, input);
+    return store.snapshot().rows;
+  }
+
+  it("stores the barcode of a row without surrounding spaces, and none for a blank one", async () => {
+    const rows = await readRows([
+      rowOf({ description: "A", barcode: " 7790001000012 " }),
+      rowOf({ description: "B", barcode: "   " }),
+      rowOf({ description: "C", barcode: "" }),
+      rowOf({ description: "D", barcode: null }),
+    ]);
+
+    expect(rows.map((row) => row.barcode)).toEqual(["7790001000012", null, null, null]);
+  });
+
+  it("gives the row the link remembered for its code", async () => {
+    const rows = await readRows([rowOf({ code: " Y-1 ", description: "Yerba nueva" })], (store) =>
+      store.seedSupplierItem({
+        description: "Yerba vieja",
+        key: { kind: "code", value: "Y-1" },
+        link: LINK,
+      }),
+    );
+
+    expect(rows[0]?.link).toEqual(LINK);
+    expect(rows[0]?.reviewed).toBe(false);
+  });
+
+  it("gives the row the link remembered for its normalized description when it has no code", async () => {
+    const rows = await readRows([rowOf({ description: "  YERBÁ   mate 1 kg" })], (store) =>
+      store.seedSupplierItem({
+        description: "Yerba mate 1 kg",
+        key: { kind: "description", value: "yerba mate 1 kg" },
+        link: LINK,
+      }),
+    );
+
+    expect(rows[0]?.link).toEqual(LINK);
+  });
+
+  it("gives every row of the same item the link", async () => {
+    const rows = await readRows(
+      [rowOf({ code: "Y-1", description: "A" }), rowOf({ code: "Y-1", description: "B" })],
+      (store) =>
+        store.seedSupplierItem({
+          description: "A",
+          key: { kind: "code", value: "Y-1" },
+          link: LINK,
+        }),
+    );
+
+    expect(rows.map((row) => row.link)).toEqual([LINK, LINK]);
+  });
+
+  it("leaves a row unlinked when the item was seen but never linked", async () => {
+    const rows = await readRows([rowOf({ code: "Y-1", description: "A" })], (store) =>
+      store.seedSupplierItem({ description: "A", key: { kind: "code", value: "Y-1" } }),
+    );
+
+    expect(rows[0]?.link).toBeNull();
+  });
+
+  it("leaves a row unlinked when no item of the supplier has its key", async () => {
+    const rows = await readRows([rowOf({ code: "Y-2", description: "A" })], (store) =>
+      store.seedSupplierItem({
+        description: "A",
+        key: { kind: "code", value: "Y-1" },
+        link: LINK,
+      }),
+    );
+
+    expect(rows[0]?.link).toBeNull();
+  });
+
+  it("does not take the link of another supplier's item with the same key", async () => {
+    const rows = await readRows([rowOf({ code: "Y-1", description: "A" })], (store) =>
+      store.seedSupplierItem({
+        supplierId: "supplier-b",
+        description: "A",
+        key: { kind: "code", value: "Y-1" },
+        link: LINK,
+      }),
+    );
+
+    expect(rows[0]?.link).toBeNull();
+  });
+
+  it("does not take a code item's link for a description equal to its code", async () => {
+    const rows = await readRows([rowOf({ description: "Y-1" })], (store) =>
+      store.seedSupplierItem({
+        description: "A",
+        key: { kind: "code", value: "y-1" },
+        link: LINK,
+      }),
+    );
+
+    expect(rows[0]?.link).toBeNull();
+  });
+
+  it("gives each row the link of its own item when the supplier has several", async () => {
+    const other = { productId: "product-2", packagingId: "packaging-2", vatRate: null };
+    const rows = await readRows(
+      [rowOf({ code: "abc", description: "A" }), rowOf({ description: "abc" })],
+      (store) => {
+        store.seedSupplierItem({
+          description: "abc",
+          key: { kind: "description", value: "abc" },
+          link: other,
+        });
+        store.seedSupplierItem({
+          description: "A",
+          key: { kind: "code", value: "abc" },
+          link: LINK,
+        });
+      },
+    );
+
+    expect(rows.map((row) => row.link)).toEqual([LINK, other]);
   });
 });

@@ -5,6 +5,9 @@ import type {
   PackagingSummary,
   PurchaseChoices,
   PurchaseSummary,
+  SupplierItemLinkChoices,
+  SupplierItemLinkProposal,
+  SupplierPriceComparison,
   SupplierPriceListSummary,
   SupplierSummary,
 } from "@purosur/contracts";
@@ -20,6 +23,11 @@ import type {
 } from "./freights-api";
 import type { fetchPackagings } from "./packagings-api";
 import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
+import type {
+  fetchSupplierItemLinkChoices,
+  fetchSupplierItemLinkProposal,
+} from "./supplier-item-links-api";
+import type { fetchSupplierPriceComparison } from "./supplier-price-comparison-api";
 import type {
   fetchSupplierPriceListReview,
   fetchSupplierPriceLists,
@@ -38,6 +46,9 @@ export const purchasingKeys = {
   linkablePurchases: [...purchasingKey, "linkable-purchases"] as const,
   supplierPriceLists: [...purchasingKey, "supplier-price-lists"] as const,
   supplierPriceListReview: [...purchasingKey, "supplier-price-list-review"] as const,
+  supplierItemLinkProposal: [...purchasingKey, "supplier-item-link-proposal"] as const,
+  supplierItemLinkChoices: [...purchasingKey, "supplier-item-link-choices"] as const,
+  supplierPriceComparison: [...purchasingKey, "supplier-price-comparison"] as const,
 };
 
 const SUPPLIER_PRICE_LIST_READING_REFRESH_MS = 5_000;
@@ -173,6 +184,56 @@ export function useSupplierPriceListReviewQuery(params: {
     },
     (read) => read.kind === "found" && read.review.list.state === "READING",
   );
+}
+
+export function useSupplierItemLinkProposalQuery(params: {
+  listId: string;
+  rowId: string;
+  enabled: boolean;
+  fetchSupplierItemLinkProposal: typeof fetchSupplierItemLinkProposal;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<SupplierItemLinkProposal>({
+    queryKey: [...purchasingKeys.supplierItemLinkProposal, params.listId, params.rowId],
+    enabled: params.enabled,
+    read: () => params.fetchSupplierItemLinkProposal(params.listId, params.rowId),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useSupplierItemLinkChoicesQuery(params: {
+  enabled: boolean;
+  fetchSupplierItemLinkChoices: typeof fetchSupplierItemLinkChoices;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<SupplierItemLinkChoices>({
+    queryKey: purchasingKeys.supplierItemLinkChoices,
+    enabled: params.enabled,
+    read: params.fetchSupplierItemLinkChoices,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useSupplierPriceComparisonQuery(params: {
+  fetchSupplierPriceComparison: typeof fetchSupplierPriceComparison;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<SupplierPriceComparison>({
+    queryKey: purchasingKeys.supplierPriceComparison,
+    read: params.fetchSupplierPriceComparison,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useRefreshSupplierItemLinkChoices(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: purchasingKeys.supplierItemLinkChoices });
 }
 
 export function useRefreshPurchasing(): () => Promise<void> {

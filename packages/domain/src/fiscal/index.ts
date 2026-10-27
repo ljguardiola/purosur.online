@@ -38,6 +38,7 @@ export { isValidCuit } from "./model/cuit.js";
 export type { DeferredBacklogEntry, DeferredBacklogStep } from "./model/deferred-backlog.js";
 export {
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
+  DEFERRED_RETRY_DELAYING_STATES,
   hasDeferredBacklog,
   isDateOrderBroken,
   isInDeferredBacklog,

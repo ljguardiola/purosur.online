@@ -162,6 +162,23 @@ function addSale({
   }
 }
 
+function invoiceDeferredSaleAfterItsAttemptWasReleased(saleId: string, number: number): void {
+  database
+    .prepare(
+      `INSERT INTO fiscal_documents (
+         id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+         authorization_code, authorization_code_due_on, reserved_at, resolved_at
+       ) VALUES (?, ?, 7, 'factura_c', ?, '2026-10-08', '{"buyerTaxStatusCode":5}', 'AUTHORIZED',
+         '75123456789012', '2026-10-18', '2026-10-08T12:10:00.000Z', '2026-10-08T12:10:01.000Z')`,
+    )
+    .run(`catch-up-${saleId}`, saleId, number);
+  database
+    .prepare(
+      "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = ?, satisfied_at = '2026-10-08T12:10:01.000Z' WHERE sale_id = ?",
+    )
+    .run(`catch-up-${saleId}`, saleId);
+}
+
 function addCreditNote(saleId: string, answer: Record<string, string | number | null> = {}): void {
   database
     .prepare(
@@ -710,6 +727,45 @@ describe("SqliteRegisterSalesHistory", () => {
           buyerTaxStatusCode: 5,
         },
       ]);
+    });
+
+    it("shows the invoice a deferred sale got after its real-time attempt of the same number was released", () => {
+      addSale({
+        id: "sale-1",
+        fiscal: { state: "RELEASED", pointOfSale: 7, number: 55 },
+        deferred: true,
+      });
+      invoiceDeferredSaleAfterItsAttemptWasReleased("sale-1", 55);
+
+      const invoiced = {
+        deferred: false,
+        fiscalDocument: {
+          state: "AUTHORIZED",
+          documentType: "factura_c",
+          authorization: "real_time",
+          pointOfSale: 7,
+          number: 55,
+        },
+      };
+      expect(history.fiscalFactsOfSale("sale-1")).toEqual(invoiced);
+      expect(history.saleOfRegister("sale-1")?.fiscal).toEqual(invoiced);
+      expect(all().entries[0]?.fiscal).toEqual(invoiced);
+    });
+
+    it("shows the contingency document of a sale whose real-time attempt was released", () => {
+      addSale({
+        id: "sale-1",
+        fiscal: { state: "RELEASED", pointOfSale: 7, number: 1204 },
+        offlineDocument: { pointOfSale: 31, number: 8 },
+      });
+
+      expect(history.fiscalFactsOfSale("sale-1").fiscalDocument).toEqual({
+        state: "AUTHORIZED",
+        documentType: "factura_c",
+        authorization: "offline_code",
+        pointOfSale: 31,
+        number: 8,
+      });
     });
 
     it("shows a Mercado Pago QR payment of the sale with its amount", () => {
