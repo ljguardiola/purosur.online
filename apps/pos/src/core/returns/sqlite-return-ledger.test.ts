@@ -17,8 +17,8 @@ const ids = {
   },
 };
 
-function ledger(chainKey: string | undefined = CHAIN_KEY): SqliteReturnLedger {
-  return new SqliteReturnLedger(database, chainKey);
+function ledger(chainKey: string | null = CHAIN_KEY): SqliteReturnLedger {
+  return new SqliteReturnLedger(database, chainKey ?? undefined);
 }
 
 function returnYerba(
@@ -30,7 +30,7 @@ function returnYerba(
 ) {
   return completeReturn(
     {
-      ledger: ledger(options.chainKey === null ? undefined : (options.chainKey ?? CHAIN_KEY)),
+      ledger: ledger(options.chainKey),
       clock: { now: () => RETURNED_AT },
       ids,
       authority: {
@@ -161,8 +161,8 @@ describe("completing a return in the register", () => {
 
     expect(
       database.prepare("SELECT product_id, kind, sale_line_id, delta FROM stock_movements").all(),
-    ).toEqual([{ product_id: "yerba", kind: "return", sale_line_id: "line-1", delta: 2 }]);
-    expect(balanceOf("yerba")).toBe(2);
+    ).toEqual([{ product_id: "yerba", kind: "return", sale_line_id: "line-1", delta: 2000 }]);
+    expect(balanceOf("yerba")).toBe(2000);
   });
 
   it("puts a discarded item back and then takes it out as a loss, leaving the count as it was", async () => {
@@ -173,8 +173,8 @@ describe("completing a return in the register", () => {
         .prepare("SELECT product_id, kind, sale_line_id, delta FROM stock_movements ORDER BY rowid")
         .all(),
     ).toEqual([
-      { product_id: "yerba", kind: "return", sale_line_id: "line-1", delta: 2 },
-      { product_id: "yerba", kind: "loss", sale_line_id: null, delta: -2 },
+      { product_id: "yerba", kind: "return", sale_line_id: "line-1", delta: 2000 },
+      { product_id: "yerba", kind: "loss", sale_line_id: null, delta: -2000 },
     ]);
     expect(balanceOf("yerba")).toBe(0);
   });
