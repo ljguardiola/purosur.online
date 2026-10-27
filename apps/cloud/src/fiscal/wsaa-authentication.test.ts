@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { getCACertificates, setDefaultCACertificates } from "node:tls";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   type ArcaTestCredentials,
   generateArcaTestCredentials,
@@ -91,6 +92,22 @@ describe("ArcaWsaaAuthentication", () => {
     const { signedContent } = readLoginRequest(server.requests[0] ?? "");
     expect(signedContent).toContain("<generationTime>2026-10-01T11:55:00-03:00</generationTime>");
     expect(signedContent).toContain("<expirationTime>2026-10-01T12:05:00-03:00</expirationTime>");
+  });
+
+  it("stamps the ticket's times on the clock of the zone rules it is given", async () => {
+    const authentication = new ArcaWsaaAuthentication({
+      endpoint: server.endpoint,
+      certificatePem: credentials.certificatePem,
+      privateKeyPem: credentials.privateKeyPem,
+      now: () => NOW,
+      zoneRules: fixedZoneRulesSource(-120),
+    });
+
+    await authentication.requestToken("wsfe");
+
+    const { signedContent } = readLoginRequest(server.requests[0] ?? "");
+    expect(signedContent).toContain("<generationTime>2026-10-01T12:55:00-02:00</generationTime>");
+    expect(signedContent).toContain("<expirationTime>2026-10-01T13:05:00-02:00</expirationTime>");
   });
 
   describe("whatever the server's own timezone", () => {
