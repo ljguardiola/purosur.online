@@ -64,6 +64,7 @@ function historySale(
         },
       ],
       creditNote: null,
+      creditNoteId: null,
       deferredInvoiceIssued: false,
       deferredShortCode: null,
       ...overrides,
@@ -446,7 +447,11 @@ describe("readSaleHistoryDetail", () => {
 
     it("shows the credit note's original as its next copy while it was never printed", () => {
       const history = new FakeRegisterSalesHistory([
-        historySale({ voided: true, creditNote: AUTHORIZED_CREDIT_NOTE }),
+        historySale({
+          voided: true,
+          creditNote: AUTHORIZED_CREDIT_NOTE,
+          creditNoteId: "credit-note-1",
+        }),
       ]);
       const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
 
@@ -462,6 +467,7 @@ describe("readSaleHistoryDetail", () => {
       const history = new FakeRegisterSalesHistory([
         historySale({
           voided: true,
+          creditNoteId: "credit-note-1",
           creditNote: {
             kind: "issued_offline",
             pointOfSale: 9,
@@ -485,7 +491,11 @@ describe("readSaleHistoryDetail", () => {
 
     it("shows the numbered duplicate the credit note would print next, apart from the receipt's copies", () => {
       const history = new FakeRegisterSalesHistory([
-        historySale({ voided: true, creditNote: AUTHORIZED_CREDIT_NOTE }),
+        historySale({
+          voided: true,
+          creditNote: AUTHORIZED_CREDIT_NOTE,
+          creditNoteId: "credit-note-1",
+        }),
       ]);
       const ledger = new FakeReceiptLedger({
         sales: [
