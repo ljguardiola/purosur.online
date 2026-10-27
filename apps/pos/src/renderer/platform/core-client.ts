@@ -305,7 +305,7 @@ export interface CoreClient {
   ): Promise<PreviewReturnOutcome>;
   completeReturn(input: CompleteReturnInput): Promise<CompleteReturnOutcome>;
   printDeferredSaleInvoice(saleId: string): Promise<PrintDeferredSaleInvoiceOutcome>;
-  printCreditNote(saleId: string): Promise<PrintCreditNoteOutcome>;
+  printCreditNote(saleId: string, creditNoteId: string): Promise<PrintCreditNoteOutcome>;
   reprintDeferredSaleInvoice(
     saleId: string,
     reason: string,
@@ -313,6 +313,7 @@ export interface CoreClient {
   ): Promise<ReprintSaleReceiptOutcome>;
   reprintCreditNote(
     saleId: string,
+    creditNoteId: string,
     reason: string,
     authorization: Authorization | undefined,
   ): Promise<ReprintSaleReceiptOutcome>;
@@ -882,9 +883,14 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "print-deferred-sale-invoice-result" ? answer.outcome : undefined,
       );
     },
-    printCreditNote(saleId) {
+    printCreditNote(saleId, creditNoteId) {
       return ask(
-        { type: "print-credit-note", request_id: deps.newRequestId(), sale_id: saleId },
+        {
+          type: "print-credit-note",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          credit_note_id: creditNoteId,
+        },
         (answer) => (answer.type === "print-credit-note-result" ? answer.outcome : undefined),
       );
     },
@@ -901,12 +907,13 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "reprint-deferred-sale-invoice-result" ? answer.outcome : undefined,
       );
     },
-    reprintCreditNote(saleId, reason, authorization) {
+    reprintCreditNote(saleId, creditNoteId, reason, authorization) {
       return ask(
         {
           type: "reprint-credit-note",
           request_id: deps.newRequestId(),
           sale_id: saleId,
+          credit_note_id: creditNoteId,
           reason,
           ...(authorization === undefined ? {} : { authorization }),
         },

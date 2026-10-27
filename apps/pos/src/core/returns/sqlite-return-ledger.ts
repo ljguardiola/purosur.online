@@ -14,6 +14,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readOpenSession } from "../register/sqlite-cash-ledger";
 import { addToStockBalance, insertReturnStockMovement } from "../stock/sqlite-stock-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
+import { returnCreditNotePorts } from "./sqlite-return-credit-notes";
 import { readGoodConditionReturnDays, readSaleForReturn } from "./sqlite-return-sale-reader";
 
 export function insertReturn(database: LocalDatabase, returned: RecordedReturn): void {
@@ -81,6 +82,7 @@ export class SqliteReturnLedger implements ReturnLedger {
       recordReturnStockMovement: (movement: ReturnStockMovement) =>
         insertReturnStockMovement(this.database, movement),
       addToStockBalance: (productId, delta) => addToStockBalance(this.database, productId, delta),
+      ...returnCreditNotePorts(this.database),
       appendOutboxEvent: (draft: OutboxEventDraft) => this.appendOutboxEvent(draft),
     };
   }

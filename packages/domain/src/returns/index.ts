@@ -16,6 +16,7 @@ export type { ReturnDisposition, ReturnReason, TicketSource } from "./model/retu
 export { RETURN_DISPOSITIONS, RETURN_REASONS, TICKET_SOURCES } from "./model/return-reasons.js";
 export type { ReturnedFromLine, ReturnStandingLine, SaleForReturn } from "./model/return-sale.js";
 export type { ReturnWindow } from "./model/return-window.js";
+export { returnedReceiptLine } from "./model/returned-receipt-line.js";
 export type {
   ReturnedCashMovement,
   ReturnedLine,

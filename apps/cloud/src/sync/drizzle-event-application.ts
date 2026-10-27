@@ -28,9 +28,9 @@ import { openEventInvariantAlert } from "../alerts/event-invariant-alert.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { openQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
 import {
+  invoiceTotalHeld,
   lockCreditedVoucher,
-  voucherCreditedOffline,
-  voucherCreditedOnline,
+  totalCreditedToInvoice,
 } from "../fiscal/credited-voucher.js";
 import { recordAppliedClockCorrection } from "../fiscal/drizzle-applied-clock-corrections.js";
 import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
@@ -103,14 +103,14 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
     return lockCreditedVoucher(this.tx, voucher);
   }
 
-  async voucherAlreadyCredited(
+  async creditOnInvoice(
     voucher: VoucherReference,
     exceptOfflineDocumentId: string,
-  ): Promise<boolean> {
-    return (
-      (await voucherCreditedOnline(this.tx, voucher)) ||
-      (await voucherCreditedOffline(this.tx, voucher, exceptOfflineDocumentId))
-    );
+  ): Promise<{ invoiceTotal: number | null; alreadyCredited: number }> {
+    return {
+      invoiceTotal: await invoiceTotalHeld(this.tx, voucher),
+      alreadyCredited: await totalCreditedToInvoice(this.tx, voucher, exceptOfflineDocumentId),
+    };
   }
 
   async raiseInvoiceAlreadyCredited(

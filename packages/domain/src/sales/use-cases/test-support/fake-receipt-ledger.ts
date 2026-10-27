@@ -18,6 +18,7 @@ interface FakeDocumentPrinting {
 }
 
 export interface FakeCreditNote extends FakeDocumentPrinting {
+  id: string;
   authorized: boolean;
   content: CreditNoteReceiptContent;
 }
@@ -28,6 +29,7 @@ export interface FakeReceiptSale extends FakeDocumentPrinting {
   voided: boolean;
   source: ReceiptSource;
   creditNote?: FakeCreditNote;
+  returnCreditNotes?: FakeCreditNote[];
   deferredInvoice?: FakeDocumentPrinting;
 }
 
@@ -62,10 +64,17 @@ export class FakeReceiptLedger implements ReceiptLedger {
       }
       return sale;
     };
-    const creditNoteOf = (saleId: string): FakeCreditNote => {
-      const { creditNote } = saleOf(saleId);
+    const findCreditNote = (
+      sale: FakeReceiptSale | undefined,
+      creditNoteId: string,
+    ): FakeCreditNote | undefined =>
+      [sale?.creditNote, ...(sale?.returnCreditNotes ?? [])].find(
+        (note) => note?.id === creditNoteId,
+      );
+    const creditNoteOf = (saleId: string, creditNoteId: string): FakeCreditNote => {
+      const creditNote = findCreditNote(saleOf(saleId), creditNoteId);
       if (creditNote === undefined) {
-        throw new Error(`no credit note of sale ${saleId}`);
+        throw new Error(`no credit note ${creditNoteId} of sale ${saleId}`);
       }
       return creditNote;
     };
@@ -74,34 +83,46 @@ export class FakeReceiptLedger implements ReceiptLedger {
       sale.deferredInvoice ??= structuredClone(NEVER_PRINTED);
       return sale.deferredInvoice;
     };
-    const printingOf = ({ document, saleId }: PrintedDocumentKey): FakeDocumentPrinting => {
-      if (document === "credit_note") {
-        return creditNoteOf(saleId);
+    const printingOf = (key: PrintedDocumentKey): FakeDocumentPrinting => {
+      if (key.document === "credit_note") {
+        return creditNoteOf(key.saleId, key.creditNoteId);
       }
-      return document === "deferred_invoice" ? deferredInvoiceOf(saleId) : saleOf(saleId);
+      return key.document === "deferred_invoice"
+        ? deferredInvoiceOf(key.saleId)
+        : saleOf(key.saleId);
     };
     const outcome = work({
-      receiptDelivery: ({ document, saleId }): ReceiptDelivery | undefined => {
-        const sale = working.sales.find(({ id }) => id === saleId);
+      receiptDelivery: (key): ReceiptDelivery | undefined => {
+        const sale = working.sales.find(({ id }) => id === key.saleId);
         if (!(sale?.completed || sale?.voided)) {
           return undefined;
         }
+        const creditNote =
+          key.document === "credit_note" ? findCreditNote(sale, key.creditNoteId) : undefined;
         const printing =
           {
-            credit_note: sale.creditNote,
+            credit_note: creditNote,
             deferred_invoice: sale.deferredInvoice,
             sale_receipt: sale,
-          }[document] ?? NEVER_PRINTED;
+          }[key.document] ?? NEVER_PRINTED;
         return {
           printAttemptedAt: printing.printAttemptedAt,
           printedAt: printing.printedAt,
           reprintCount: printing.reprints.length,
           voided: sale.voided,
-          creditNoteAuthorized: sale.creditNote?.authorized === true,
+          creditNoteAuthorized: creditNote?.authorized === true,
         };
       },
       receiptSource: (saleId) => structuredClone(saleOf(saleId).source),
-      creditNoteContent: (saleId) => structuredClone(creditNoteOf(saleId).content),
+      creditNoteContent: (creditNoteId) => {
+        const sale = working.sales.find(({ creditNote, returnCreditNotes }) =>
+          [creditNote, ...(returnCreditNotes ?? [])].some((note) => note?.id === creditNoteId),
+        );
+        if (sale === undefined) {
+          throw new Error(`no credit note ${creditNoteId}`);
+        }
+        return structuredClone(creditNoteOf(sale.id, creditNoteId).content);
+      },
       storedReceipt: (key) => printingOf(key).stored,
       recordStoredReceipt: (key, receipt) => {
         printingOf(key).stored = receipt;
@@ -112,8 +133,8 @@ export class FakeReceiptLedger implements ReceiptLedger {
       recordPrinted: (key, at) => {
         printingOf(key).printedAt = at;
       },
-      recordReprint: (reprint) => {
-        printingOf(reprint).reprints.push(reprint);
+      recordReprint: (key, reprint) => {
+        printingOf(key).reprints.push(reprint);
       },
       outboxReady: () => working.outboxReady,
       appendOutboxEvent: (draft) => {

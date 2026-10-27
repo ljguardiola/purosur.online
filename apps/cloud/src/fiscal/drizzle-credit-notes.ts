@@ -4,6 +4,7 @@ import {
   type CreditNoteLane,
   type CreditNoteLanes,
   CreditNoteNumberTaken,
+  type CreditNoteRegularizationRecord,
   type CreditNoteRejectionRecord,
   type CreditNoteRequestRecord,
   type CreditNoteRequests,
@@ -46,6 +47,9 @@ function standingOf(row: CreditNoteRow): CreditNoteStanding {
   if (row.answerKind === "rejected") {
     return { kind: "rejected" };
   }
+  if (row.answerKind === "regularization_required") {
+    return { kind: "regularization_required" };
+  }
   if (row.number === null || row.issuedOn === null || row.requestedAt === null) {
     return { kind: "not_requested" };
   }
@@ -70,6 +74,7 @@ export function creditNoteOf(row: CreditNoteRow): CreditNote {
     total: row.total,
     receiverTaxStatusCode: row.receiverTaxStatusCode,
     reason: row.reason,
+    issueOn: row.issueOn,
     standing: standingOf(row),
   };
 }
@@ -167,6 +172,24 @@ class DrizzleCreditNoteLane<TQueryResult extends PgQueryResultHKT> implements Cr
         .returning({ registerId: creditNotes.registerId });
       if (row === undefined) {
         throw new Error(`no orphan credit note ${creditNoteId}`);
+      }
+      await insertFiscalTask(tx, task, row.registerId);
+    });
+  }
+
+  async recordCreditNoteRegularizationRequired({
+    creditNoteId,
+    regularizationRequiredAt,
+    task,
+  }: CreditNoteRegularizationRecord): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(creditNotes)
+        .set({ answerKind: "regularization_required", answeredAt: regularizationRequiredAt })
+        .where(eq(creditNotes.id, creditNoteId))
+        .returning({ registerId: creditNotes.registerId });
+      if (row === undefined) {
+        throw new Error(`no credit note ${creditNoteId}`);
       }
       await insertFiscalTask(tx, task, row.registerId);
     });

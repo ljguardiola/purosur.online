@@ -2,6 +2,7 @@ import {
   type SaleVoidCreditNoteRequestBody,
   saleVoidCreditNoteResponseSchema,
 } from "@purosur/contracts";
+import { FACTURA_C_VOUCHER_TYPE } from "@purosur/domain";
 import type {
   CloudCreditNoteAnswer,
   CloudCreditNoteCall,
@@ -46,6 +47,8 @@ function answerOf(response: CloudResponse): CloudCreditNoteAnswer | null {
       return { kind: "rejected" };
     case "IN_PROGRESS":
       return { kind: "in_progress" };
+    case "REGULARIZATION_REQUIRED":
+      return { kind: "regularization_required" };
   }
 }
 
@@ -60,6 +63,7 @@ export class CloudCreditNotes implements CloudCreditNotesPort {
     creditNoteId,
     pointOfSale,
     saleEvent,
+    invoice,
   }: CloudCreditNoteCall): Promise<CloudCreditNoteAnswer | null> {
     const deviceToken = await this.deps.readDeviceToken();
     if (deviceToken === undefined) {
@@ -69,6 +73,18 @@ export class CloudCreditNotes implements CloudCreditNotesPort {
       credit_note_id: creditNoteId,
       point_of_sale: pointOfSale,
       sale_event: saleEvent,
+      ...(invoice === undefined
+        ? {}
+        : {
+            invoice: {
+              corrects: {
+                voucher_type: FACTURA_C_VOUCHER_TYPE,
+                point_of_sale: invoice.voucher.pointOfSale,
+                number: invoice.voucher.number,
+              },
+              receiver_tax_status_code: invoice.buyerTaxStatusCode,
+            },
+          }),
     };
     const response = await this.deps.post("/api/fiscal/credit-notes", deviceToken, body, {
       timeoutMs: this.deps.timeoutMs,

@@ -443,9 +443,14 @@ function Register({ core }: { core: CoreClient }) {
       reason: string,
       authorization: Authorization | undefined,
     ) => core.reprintDeferredSaleInvoice(saleId, reason, authorization),
-    printCreditNote: (saleId: string) => core.printCreditNote(saleId),
-    reprintCreditNote: (saleId: string, reason: string, authorization: Authorization | undefined) =>
-      core.reprintCreditNote(saleId, reason, authorization),
+    printCreditNote: (saleId: string, creditNoteId: string) =>
+      core.printCreditNote(saleId, creditNoteId),
+    reprintCreditNote: (
+      saleId: string,
+      creditNoteId: string,
+      reason: string,
+      authorization: Authorization | undefined,
+    ) => core.reprintCreditNote(saleId, creditNoteId, reason, authorization),
     convertPaidOrderIntoRefund: (paymentTransactionId: string) =>
       core.convertPaidOrderIntoRefund(paymentTransactionId),
     reprintSaleReceipt: (

@@ -100,6 +100,35 @@ describe("asking the cloud to issue the credit note of a voided sale", () => {
     });
   });
 
+  it("answers that the credit note is to regularize when the cloud cannot issue it", async () => {
+    const { creditNotes } = cloud(ok({ state: "REGULARIZATION_REQUIRED" }));
+
+    await expect(creditNotes.request(CALL)).resolves.toEqual({ kind: "regularization_required" });
+  });
+
+  it("posts the invoice a return's credit note corrects when the register found it for the credit note", async () => {
+    const { posts, creditNotes } = cloud(ok({ state: "IN_PROGRESS" }));
+
+    await creditNotes.request({
+      ...CALL,
+      invoice: {
+        voucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 41 },
+        buyerTaxStatusCode: 5,
+      },
+    });
+
+    expect(posts[0]?.body).toEqual({
+      credit_note_id: CREDIT_NOTE_ID,
+      point_of_sale: POINT_OF_SALE,
+      sale_event: SALE_EVENT,
+      invoice: {
+        corrects: { voucher_type: 11, point_of_sale: POINT_OF_SALE, number: 41 },
+        receiver_tax_status_code: 5,
+      },
+    });
+    expect(saleVoidCreditNoteRequestSchema.safeParse(posts[0]?.body).success).toBe(true);
+  });
+
   it("answers rejected", async () => {
     const { creditNotes } = cloud(ok({ state: "REJECTED" }));
 

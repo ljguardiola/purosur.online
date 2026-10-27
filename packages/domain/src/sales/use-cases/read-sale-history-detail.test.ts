@@ -64,6 +64,7 @@ function historySale(
         },
       ],
       creditNote: null,
+      creditNoteId: null,
       deferredInvoiceIssued: false,
       deferredShortCode: null,
       ...overrides,
@@ -106,6 +107,7 @@ describe("readSaleHistoryDetail", () => {
           creditNoteCorrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
         },
         creditNote: null,
+        creditNoteId: null,
         reprint: { kind: "available" },
         nextCopy: { kind: "original" },
         creditNoteNextCopy: null,
@@ -446,7 +448,11 @@ describe("readSaleHistoryDetail", () => {
 
     it("shows the credit note's original as its next copy while it was never printed", () => {
       const history = new FakeRegisterSalesHistory([
-        historySale({ voided: true, creditNote: AUTHORIZED_CREDIT_NOTE }),
+        historySale({
+          voided: true,
+          creditNote: AUTHORIZED_CREDIT_NOTE,
+          creditNoteId: "credit-note-1",
+        }),
       ]);
       const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
 
@@ -458,10 +464,30 @@ describe("readSaleHistoryDetail", () => {
       });
     });
 
+    it("names the credit note of the voided sale, and none for a sale without one", () => {
+      const named = new FakeRegisterSalesHistory([
+        historySale({
+          voided: true,
+          creditNote: AUTHORIZED_CREDIT_NOTE,
+          creditNoteId: "credit-note-1",
+        }),
+      ]);
+      const none = new FakeRegisterSalesHistory([historySale()]);
+      const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
+
+      expect(readSaleHistoryDetail({ history: named, ledger }, { saleId: "sale-1" })).toMatchObject(
+        { detail: { creditNoteId: "credit-note-1" } },
+      );
+      expect(readSaleHistoryDetail({ history: none, ledger }, { saleId: "sale-1" })).toMatchObject({
+        detail: { creditNoteId: null },
+      });
+    });
+
     it("shows the original of a credit note issued offline as its next copy while it was never printed", () => {
       const history = new FakeRegisterSalesHistory([
         historySale({
           voided: true,
+          creditNoteId: "credit-note-1",
           creditNote: {
             kind: "issued_offline",
             pointOfSale: 9,
@@ -485,7 +511,11 @@ describe("readSaleHistoryDetail", () => {
 
     it("shows the numbered duplicate the credit note would print next, apart from the receipt's copies", () => {
       const history = new FakeRegisterSalesHistory([
-        historySale({ voided: true, creditNote: AUTHORIZED_CREDIT_NOTE }),
+        historySale({
+          voided: true,
+          creditNote: AUTHORIZED_CREDIT_NOTE,
+          creditNoteId: "credit-note-1",
+        }),
       ]);
       const ledger = new FakeReceiptLedger({
         sales: [
@@ -527,9 +557,13 @@ describe("readSaleHistoryDetail", () => {
       [null],
     ] as const)("has no next copy of the credit note while its standing is %o", (creditNote) => {
       const history = new FakeRegisterSalesHistory([
-        historySale({ voided: true, creditNote: structuredClone(creditNote) }),
+        historySale({
+          voided: true,
+          creditNote: structuredClone(creditNote),
+          creditNoteId: creditNote === null ? null : "credit-note-1",
+        }),
       ]);
-      const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
+      const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
 
       const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 

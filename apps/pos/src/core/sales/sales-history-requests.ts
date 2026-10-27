@@ -138,6 +138,7 @@ export async function saleHistoryDetailFor(
       voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,
       credit_note: toWireCreditNote(detail.creditNote),
+      credit_note_id: detail.creditNoteId,
       reprint: detail.reprint,
       next_copy: toWireCopy(detail.nextCopy),
       credit_note_next_copy:

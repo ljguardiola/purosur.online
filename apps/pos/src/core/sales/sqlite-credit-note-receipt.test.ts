@@ -34,8 +34,8 @@ afterEach(() => {
 });
 
 describe("the receipt of the credit note of a voided sale", () => {
-  it("is none for a sale without a credit note", () => {
-    expect(readCreditNoteReceipt(database, "sale-1")).toBeNull();
+  it("is none for a credit note the register does not hold", () => {
+    expect(readCreditNoteReceipt(database, "missing")).toBeNull();
   });
 
   it.each([
@@ -81,14 +81,14 @@ describe("the receipt of the credit note of a voided sale", () => {
     insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
     insertCreditNote(database, answer);
 
-    expect(readCreditNoteReceipt(database, "sale-1")).toBeNull();
+    expect(readCreditNoteReceipt(database, "note-1")).toBeNull();
   });
 
   it("carries the voided sale as it was sold, the moment its credit note was issued and each refund", () => {
     insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
     insertCreditNote(database);
 
-    expect(readCreditNoteReceipt(database, "sale-1")).toMatchObject({
+    expect(readCreditNoteReceipt(database, "note-1")).toMatchObject({
       header: {
         address: "Av. Belgrano 1450",
         whatsappNumber: "11 5555-0100",
@@ -119,7 +119,7 @@ describe("the receipt of the credit note of a voided sale", () => {
     insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
     insertCreditNote(database);
 
-    expect(readCreditNoteReceipt(database, "sale-1")?.totals).toEqual({
+    expect(readCreditNoteReceipt(database, "note-1")?.totals).toEqual({
       subtotal: 1190000,
       saleDiscount: { kind: "PERCENT", percent: 10, amount: 119000 },
       total: 1071000,
@@ -130,7 +130,7 @@ describe("the receipt of the credit note of a voided sale", () => {
     insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
     insertCreditNote(database);
 
-    const { fiscal } = readCreditNoteReceipt(database, "sale-1") ?? {};
+    const { fiscal } = readCreditNoteReceipt(database, "note-1") ?? {};
 
     expect(fiscal).toMatchObject({
       voucherTypeCode: 13,
@@ -158,7 +158,7 @@ describe("the receipt of the credit note of a voided sale", () => {
     insertOfflineFiscalDocument(database, { saleId: "sale-1", pointOfSale: 31, number: 8 });
     insertCreditNote(database, {}, { pointOfSale: 31, number: 8 });
 
-    expect(readCreditNoteReceipt(database, "sale-1")?.fiscal).toMatchObject({
+    expect(readCreditNoteReceipt(database, "note-1")?.fiscal).toMatchObject({
       issuer: { cuit: FICTIONAL_CUIT },
       corrects: { pointOfSale: 31, number: 8 },
     });
@@ -170,7 +170,7 @@ describe("the receipt of the credit note of a voided sale", () => {
       insertOfflinePointOfSale(database, 31);
       insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 9 });
 
-      const receipt = readCreditNoteReceipt(database, "sale-1");
+      const receipt = readCreditNoteReceipt(database, "note-1");
 
       expect(receipt).toMatchObject({
         operation: { occurredAt: new Date("2026-09-30T12:30:00.000Z"), operationNumber: 482 },
@@ -200,7 +200,7 @@ describe("the receipt of the credit note of a voided sale", () => {
       insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 9 });
 
       const qr = JSON.parse(
-        atob(readCreditNoteReceipt(database, "sale-1")?.fiscal.qrText.split("?p=")[1] ?? ""),
+        atob(readCreditNoteReceipt(database, "note-1")?.fiscal.qrText.split("?p=")[1] ?? ""),
       );
 
       expect(qr).toMatchObject({
@@ -222,10 +222,178 @@ describe("the receipt of the credit note of a voided sale", () => {
         { pointOfSale: 31, number: 8 },
       );
 
-      expect(readCreditNoteReceipt(database, "sale-1")?.fiscal).toMatchObject({
+      expect(readCreditNoteReceipt(database, "note-1")?.fiscal).toMatchObject({
         issuer: { cuit: FICTIONAL_CUIT },
         corrects: { pointOfSale: 31, number: 8 },
       });
     });
+  });
+});
+
+describe("the receipt of the credit note of a return", () => {
+  const RETURNED_AT = "2026-10-02T15:00:00.000Z";
+
+  function insertReturnCreditNote(creditNoteId = "note-r1", returnId = "return-1") {
+    database
+      .prepare(
+        `INSERT INTO sale_credit_notes (
+           id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, point_of_sale,
+           number, issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at,
+           answered_at
+         ) VALUES (
+           @id, 'sale-1', @return_id, '2026-10-02', 420000, 5, 11, 12, 41, 'AUTHORIZED', 12, 8,
+           '2026-10-02', '2026-10-02T15:00:02.000Z', '71234567890888', '2026-10-12', '${RETURNED_AT}',
+           '2026-10-02T15:00:05.000Z'
+         )`,
+      )
+      .run({ id: creditNoteId, return_id: returnId });
+  }
+
+  beforeEach(() => {
+    database.exec(
+      `UPDATE sales SET state = 'COMPLETED', voided_at = NULL;
+       DELETE FROM payment_refunds;
+       INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-1', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '${RETURNED_AT}');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('return-1', 'line-1', 1, 'change_of_mind', 'restock', 420000);
+       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+       VALUES ('refund-r1', 'pay-1', 'CASH', 'NONE', 420000, 'APPROVED', '${RETURNED_AT}', 'return-1');`,
+    );
+    insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+  });
+
+  it("carries only what the return gave back, its refund and the moment the credit note was issued", () => {
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")).toMatchObject({
+      header: { address: "Av. Belgrano 1450" },
+      operation: {
+        occurredAt: new Date("2026-10-02T15:00:02.000Z"),
+        servedByFirstName: "Ada",
+        operationNumber: 482,
+      },
+      issuedOn: "2026-10-02",
+      lines: [{ productName: "Alfajor", quantity: 1, listUnitPrice: 420000, lineTotal: 420000 }],
+      totals: { subtotal: 420000, saleDiscount: null, total: 420000 },
+      refunds: [{ method: "CASH", amount: 420000 }],
+      fiscal: {
+        voucherTypeCode: 13,
+        pointOfSale: 12,
+        number: 8,
+        corrects: { voucherType: 11, pointOfSale: 12, number: 41 },
+      },
+    });
+  });
+
+  it("reads each line given back at the price it was charged, with what the refund left out of it as its discount", () => {
+    database.exec(
+      `UPDATE return_lines SET refunded_amount = 378000;
+       UPDATE payment_refunds SET amount = 378000 WHERE id = 'refund-r1';`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.lines).toEqual([
+      {
+        productName: "Alfajor",
+        saleUnit: "UNIT",
+        quantity: 1,
+        listUnitPrice: 420000,
+        chargedUnitPrice: 420000,
+        manualAdjustment: null,
+        promotion: null,
+        discountAmount: 42000,
+        lineTotal: 378000,
+      },
+    ]);
+  });
+
+  it("reads a line given back at the price a person set by hand when it was sold", () => {
+    database.exec(
+      `UPDATE sale_lines SET manual_adjustment_kind = 'PRICE', manual_adjustment_value = 400000,
+         manual_adjustment_reason = 'Precio acordado', line_total = 800000 WHERE id = 'line-1';
+       UPDATE return_lines SET refunded_amount = 400000;`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.lines).toMatchObject([
+      {
+        quantity: 1,
+        listUnitPrice: 420000,
+        chargedUnitPrice: 400000,
+        manualAdjustment: { kind: "PRICE", unitPrice: 400000 },
+        discountAmount: 0,
+        lineTotal: 400000,
+      },
+    ]);
+  });
+
+  it("reads a later return of a weighed line at its share of the price, counting only what earlier returns gave back", () => {
+    database.exec(
+      `UPDATE sale_lines SET sale_unit = 'KG', weight_source = 'SCALE', quantity = 300,
+         list_unit_price = 4003, discount_amount = 100, line_total = 1101 WHERE id = 'line-1';
+       UPDATE return_lines SET quantity = 100, refunded_amount = 367;
+       INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-0', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-01T15:00:00.000Z'),
+              ('return-2', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-03T15:00:00.000Z');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('return-0', 'line-1', 100, 'change_of_mind', 'restock', 367),
+              ('return-2', 'line-1', 100, 'change_of_mind', 'restock', 367);`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.lines).toMatchObject([
+      { saleUnit: "KG", quantity: 100, chargedUnitPrice: 4003, discountAmount: 34, lineTotal: 367 },
+    ]);
+  });
+
+  it("leaves out what another return of the sale gave back", () => {
+    database.exec(
+      `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-2', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-03T15:00:00.000Z');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('return-2', 'line-2', 1, 'defective', 'discard', 350000);
+       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+       VALUES ('refund-r2', 'pay-2', 'TRANSFER', 'NONE', 350000, 'PENDING', '2026-10-03T15:00:00.000Z', 'return-2');`,
+    );
+    insertReturnCreditNote();
+
+    const receipt = readCreditNoteReceipt(database, "note-r1");
+
+    expect(receipt?.lines.map(({ productName }) => productName)).toEqual(["Alfajor"]);
+    expect(receipt?.refunds).toEqual([{ method: "CASH", amount: 420000 }]);
+  });
+
+  it("leaves out the refund of a return made at the very same moment", () => {
+    database.exec(
+      `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-2', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '${RETURNED_AT}');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('return-2', 'line-2', 1, 'defective', 'discard', 350000);
+       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+       VALUES ('refund-r2', 'pay-2', 'TRANSFER', 'NONE', 350000, 'PENDING', '${RETURNED_AT}', 'return-2');`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.refunds).toEqual([
+      { method: "CASH", amount: 420000 },
+    ]);
+  });
+
+  it("is none while the credit note of the return is not authorized", () => {
+    database
+      .prepare(
+        `INSERT INTO sale_credit_notes (
+           id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at
+         ) VALUES (
+           'note-r1', 'sale-1', 'return-1', '2026-10-02', 420000, 5, 11, 12, 41, 'IN_PROGRESS',
+           '${RETURNED_AT}'
+         )`,
+      )
+      .run();
+
+    expect(readCreditNoteReceipt(database, "note-r1")).toBeNull();
   });
 });

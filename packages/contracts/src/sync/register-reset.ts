@@ -23,6 +23,7 @@ const registerResetCreditNoteSchema = z.discriminatedUnion("state", [
   authorizedVoidCreditNoteAnswerSchema.extend(creditNoteAnswerFields),
   rejectedVoidCreditNoteAnswerSchema.extend(creditNoteAnswerFields),
   z.object({ state: z.literal("ALREADY_CREDITED") }).extend(creditNoteAnswerFields),
+  z.object({ state: z.literal("REGULARIZATION_REQUIRED") }).extend(creditNoteAnswerFields),
   z
     .object({
       state: z.literal("ISSUED_OFFLINE"),

@@ -1,3 +1,12 @@
+import {
+  type CreditNoteToIssue,
+  creditNoteToIssuePayload,
+  invoiceToCorrect,
+  isInvoiceOnItsWay,
+  issueOfflineSaleCreditNote,
+  routeSaleCreditNote,
+  type SaleCreditNoteRoute,
+} from "../../fiscal/index.js";
 import { plannedRefundState } from "../../payments/index.js";
 import {
   type Clock,
@@ -53,6 +62,10 @@ export interface CompleteReturnPorts<Grant extends CompleteReturnGrant, Refusal>
   authority: OperationAuthority<Grant, Refusal>;
 }
 
+type ReturnCreditNote =
+  | { kind: "none" }
+  | { kind: "pending" | "awaiting_invoice" | "issued_offline"; creditNoteId: string };
+
 export type CompleteReturnOutcome<Grant extends CompleteReturnGrant> =
   | { kind: "not_found" }
   | { kind: "sale_not_returnable" }
@@ -66,6 +79,7 @@ export type CompleteReturnOutcome<Grant extends CompleteReturnGrant> =
       returnId: string;
       refundedTotal: number;
       refunds: ReturnedRefund[];
+      creditNote: ReturnCreditNote;
       grant: Grant;
     };
 
@@ -96,13 +110,14 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
       return { kind: "no_lines" };
     }
     const occurredAt = clock.now();
+    const rules = zoneRules.zoneRules();
     const standing = returnSaleLines(facts);
     const assessed = assessReturnDraft(
       {
         soldAt: facts.occurredAt,
         goodConditionReturnDays: tx.goodConditionReturnDays(),
         now: occurredAt,
-        rules: zoneRules.zoneRules(),
+        rules,
         lines: standing,
       },
       lines,
@@ -206,6 +221,24 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
         tx.addToStockBalance(movement.productId, movement.delta);
       }
     }
+    const invoiceStanding = tx.saleInvoiceStanding(sale.id);
+    const route = routeSaleCreditNote(
+      {
+        occurredAt,
+        saleId: sale.id,
+        total: refundedTotal,
+        origin: { kind: "sale_return", returnId },
+        invoice: invoiceToCorrect(invoiceStanding.fiscalDocuments),
+        invoiceOnItsWay: isInvoiceOnItsWay(invoiceStanding),
+        nextCreditNoteId: () => ids.next(),
+      },
+      tx,
+      rules,
+    );
+    const creditNote = route.kind === "none" ? null : route.creditNote;
+    if (route.kind === "pending" || route.kind === "awaiting_invoice") {
+      tx.recordPendingCreditNote(route.creditNote);
+    }
     tx.appendOutboxEvent(
       saleReturnedEvent(ids.next(), {
         record,
@@ -214,16 +247,39 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
         refunds: recordedRefunds,
         cashMovements,
         stockMovements,
+        creditNote,
       }),
     );
+    if (route.kind === "issue_offline") {
+      issueOfflineSaleCreditNote(route, tx, {
+        nextId: () => ids.next(),
+        registerId: sale.registerId,
+        actorId: grant.actorId,
+        generatedAt: occurredAt,
+        rules,
+      });
+    }
     return {
       kind: "completed",
       returnId,
       refundedTotal,
       refunds: recordedRefunds.map(({ returnId: _returnId, saleId: _saleId, ...refund }) => refund),
+      creditNote: returnCreditNote(route),
       grant,
     };
   });
+}
+
+function returnCreditNote(route: SaleCreditNoteRoute): ReturnCreditNote {
+  switch (route.kind) {
+    case "none":
+      return { kind: "none" };
+    case "issue_offline":
+      return { kind: "issued_offline", creditNoteId: route.creditNote.creditNoteId };
+    case "pending":
+    case "awaiting_invoice":
+      return { kind: route.kind, creditNoteId: route.creditNote.creditNoteId };
+  }
 }
 
 interface Returning {
@@ -233,11 +289,12 @@ interface Returning {
   refunds: readonly ReturnRefund[];
   cashMovements: readonly ReturnCashMovement[];
   stockMovements: readonly ReturnStockMovement[];
+  creditNote: CreditNoteToIssue | null;
 }
 
 function saleReturnedEvent(
   eventId: string,
-  { record, registerId, deviceId, refunds, cashMovements, stockMovements }: Returning,
+  { record, registerId, deviceId, refunds, cashMovements, stockMovements, creditNote }: Returning,
 ): OutboxEventDraft {
   const occurredAt = record.occurredAt.toISOString();
   const payload: { [member: string]: JsonValue } = {
@@ -250,6 +307,7 @@ function saleReturnedEvent(
     authorized_by: record.authorizedBy,
     ticket_source: record.ticketSource,
     occurred_at: occurredAt,
+    credit_note: creditNote === null ? null : creditNoteToIssuePayload(creditNote),
     lines: record.lines.map((line) => ({
       sale_line_id: line.saleLineId,
       product_id: line.productId,
@@ -292,7 +350,7 @@ function saleReturnedEvent(
     aggregate_type: "Return",
     aggregate_id: record.id,
     event_type: SALE_RETURNED_EVENT_TYPE,
-    schema_version: 1,
+    schema_version: 2,
     payload,
     occurred_at: occurredAt,
     actor_id: record.actorId,

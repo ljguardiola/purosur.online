@@ -349,8 +349,11 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleChanges.push(["deferred-invoice-print", saleId].join(" "));
         return { kind: "not_found" };
       },
-      printCreditNote: async (saleId: string): Promise<PrintCreditNoteOutcome> => {
-        saleChanges.push(["credit-note-print", saleId].join(" "));
+      printCreditNote: async (request: {
+        saleId: string;
+        creditNoteId: string;
+      }): Promise<PrintCreditNoteOutcome> => {
+        saleChanges.push(["credit-note-print", request.saleId, request.creditNoteId].join(" "));
         return { kind: "not_found" };
       },
       reprintDeferredSaleInvoice: async (
@@ -367,12 +370,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "busy" };
       },
       reprintCreditNote: async (
-        request: ReprintSaleReceiptRequest,
+        request: ReprintSaleReceiptRequest & { creditNoteId: string },
       ): Promise<ReprintSaleReceiptOutcome> => {
         saleChanges.push(
           [
             "credit-note-reprint",
             request.saleId,
+            request.creditNoteId,
             request.reason,
             request.authorization?.user_id ?? "alone",
           ].join(" "),
@@ -3076,10 +3080,10 @@ describe("answerRendererRequest", () => {
       ],
       [
         "print-credit-note",
-        { type: "print-credit-note", sale_id: "s1" } as const,
+        { type: "print-credit-note", sale_id: "s1", credit_note_id: "n1" } as const,
         "printCreditNote",
         "printing the credit note of a voided sale",
-        "credit-note-print s1",
+        "credit-note-print s1 n1",
         "print-credit-note-result",
       ],
       [
@@ -3087,12 +3091,13 @@ describe("answerRendererRequest", () => {
         {
           type: "reprint-credit-note",
           sale_id: "s1",
+          credit_note_id: "n1",
           reason: "se mojó",
           authorization: { user_id: "u2", pin: "1234" },
         } as const,
         "reprintCreditNote",
         "reprinting a credit note",
-        "credit-note-reprint s1 se mojó u2",
+        "credit-note-reprint s1 n1 se mojó u2",
         "reprint-credit-note-result",
       ],
       [

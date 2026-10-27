@@ -1,10 +1,10 @@
 import type {
   ClockCorrectedFact,
+  CreditNoteToIssue,
   DeferredSale,
   DeferredSaleSatisfiedFact,
   OfflineFiscalDocumentIssuedFact,
   PreEmissionGateFailureReason,
-  SaleVoidCreditNote,
   UnclearDeferralDocument,
 } from "../../fiscal/index.js";
 import { approvedPaymentsCoverTotal, refundsSettleApprovedPayments } from "../../payments/index.js";
@@ -28,8 +28,8 @@ import type { InvariantBreak } from "./event-invariant-breaks.js";
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
   | { kind: "sale_cancelled"; sale: CancelledSale }
-  | { kind: "sale_voided"; sale: VoidedSale; creditNote: SaleVoidCreditNote | null }
-  | { kind: "sale_returned"; saleReturn: ReturnedSale }
+  | { kind: "sale_voided"; sale: VoidedSale; creditNote: CreditNoteToIssue | null }
+  | { kind: "sale_returned"; saleReturn: ReturnedSale; creditNote: CreditNoteToIssue | null }
   | { kind: "sale_print_state_changed"; printState: SalePrintState }
   | { kind: "reprint_recorded"; reprint: SaleReprint }
   | { kind: "cash_session_opened"; session: CashSessionOpenedFact }

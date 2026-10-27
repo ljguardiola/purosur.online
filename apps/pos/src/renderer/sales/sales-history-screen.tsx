@@ -47,9 +47,10 @@ export type SalesHistoryScreenProps = {
     pendingRefundsConfirmed: boolean,
     authorization: Authorization | undefined,
   ) => Promise<VoidSaleOutcome>;
-  printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
+  printCreditNote: (saleId: string, creditNoteId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote: (
     saleId: string,
+    creditNoteId: string,
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
@@ -111,8 +112,14 @@ export function SalesHistoryScreen({
       return;
     }
     setPrintingOriginals((all) => new Set(all).add(printing));
-    const print = document === "sale_receipt" ? printOriginalReceipt : printCreditNote;
-    const outcome = await print(sale.sale_id).catch((): "failed" => "failed");
+    const creditNoteId = sale.credit_note_id;
+    const asked =
+      document === "sale_receipt"
+        ? printOriginalReceipt(sale.sale_id)
+        : creditNoteId === null
+          ? Promise.resolve({ kind: "not_found" } as const)
+          : printCreditNote(sale.sale_id, creditNoteId);
+    const outcome = await asked.catch((): "failed" => "failed");
     setPrintingOriginals((all) => {
       const still = new Set(all);
       still.delete(printing);
@@ -218,7 +225,14 @@ export function SalesHistoryScreen({
           sale={{ ...reprintingCreditNote, next_copy: nextCreditNoteCopy }}
           person={person}
           loadAuthorizers={loadAuthorizers}
-          reprint={reprintCreditNote}
+          reprint={(saleId, reason, authorization) =>
+            reprintCreditNote(
+              saleId,
+              reprintingCreditNote.credit_note_id ?? "",
+              reason,
+              authorization,
+            )
+          }
           onReprinted={(copy) => {
             setReprintingCreditNote(undefined);
             setSent({ copy, document: "credit_note" });

@@ -694,6 +694,7 @@ describe("voidSale", () => {
       total: 6750,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+      origin: { kind: "sale_void" },
     };
     const CREDIT_NOTE_PAYLOAD = {
       id: "id-4",
@@ -806,6 +807,7 @@ describe("voidSale", () => {
       total: 6750,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+      origin: { kind: "sale_void" },
     };
     const OFFLINE_CREDIT_NOTE = {
       id: "id-6",
@@ -889,18 +891,6 @@ describe("voidSale", () => {
 
       expect(store.state.issuedOfflineCreditNotes).toMatchObject([
         { corrects: { voucherType: 11, pointOfSale: 8, number: 77 } },
-      ]);
-    });
-
-    it("raises the mark of the credit note series to the moment of the void", async () => {
-      const store = offlineLedger({
-        offlineCreditNoteSeries: { ...SERIES, clockMark: new Date(NOW.getTime() - 5_000) },
-      });
-
-      await void_(store);
-
-      expect(store.state.clockMarks).toEqual([
-        { pointOfSale: 9, documentType: "credit_note_c", reading: NOW },
       ]);
     });
 

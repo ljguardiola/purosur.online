@@ -182,7 +182,7 @@ function invoiceDeferredSaleAfterItsAttemptWasReleased(saleId: string, number: n
 function addCreditNote(saleId: string, answer: Record<string, string | number | null> = {}): void {
   database
     .prepare(
-      `INSERT INTO sale_void_credit_notes (
+      `INSERT INTO sale_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
          issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
@@ -669,10 +669,39 @@ describe("SqliteRegisterSalesHistory", () => {
           },
         ],
         creditNote: null,
+        creditNoteId: null,
         deferredInvoiceIssued: false,
         deferredShortCode: null,
         hasReturn: false,
       });
+    });
+
+    it("names the credit note of a voided sale, and no credit note of the returns of a sale", () => {
+      addSale({ id: "sale-1", fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 } });
+      database.exec(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 'open-session', 'u1', 'TYPED', '2026-10-08T13:00:00.000Z');
+         INSERT INTO sale_credit_notes (
+           id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at
+         ) VALUES (
+           'note-of-return', 'sale-1', 'return-1', '2026-10-08', 500, 5, 11, 7, 1204, 'IN_PROGRESS',
+           '2026-10-08T13:00:00.000Z'
+         )`,
+      );
+
+      expect(history.saleOfRegister("sale-1")?.creditNoteId).toBeNull();
+
+      database.exec(
+        `INSERT INTO sale_credit_notes (
+           id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+           corrected_point_of_sale, corrected_number, state, recorded_at
+         ) VALUES (
+           'note-of-void', 'sale-1', 4500, 5, 11, 7, 1204, 'IN_PROGRESS', '2026-10-08T14:00:00.000Z'
+         )`,
+      );
+
+      expect(history.saleOfRegister("sale-1")?.creditNoteId).toBe("note-of-void");
     });
 
     it("says whether a return was made against the sale", () => {

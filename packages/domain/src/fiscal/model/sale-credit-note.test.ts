@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  type AwaitingCreditNote,
   type CreditNoteStanding,
+  type CreditNoteToIssue,
   confirmedCreditNoteAnswer,
   creditNoteAnswerOf,
+  creditNoteToIssuePayload,
   invoiceToCorrect,
   restoredCreditNoteSettlement,
   type SaleInvoice,
-  type SaleVoidCreditNote,
-  saleVoidCreditNotePayload,
-} from "./sale-void-credit-note.js";
+  tiedToInvoice,
+} from "./sale-credit-note.js";
 
 const REAL_TIME: SaleInvoice = {
   origin: "real_time",
@@ -77,12 +79,13 @@ describe("invoiceToCorrect", () => {
   });
 });
 
-const CREDIT_NOTE: SaleVoidCreditNote = {
+const CREDIT_NOTE: CreditNoteToIssue = {
   creditNoteId: "credit-note-1",
   saleId: "sale-1",
   total: 7_500,
   receiverTaxStatusCode: 5,
   correctedVoucher: { voucherType: 11, pointOfSale: 8, number: 77 },
+  origin: { kind: "sale_void" },
 };
 
 const PAYLOAD = {
@@ -92,9 +95,61 @@ const PAYLOAD = {
   corrects: { voucher_type: 11, point_of_sale: 8, number: 77 },
 };
 
-describe("saleVoidCreditNotePayload", () => {
+describe("creditNoteToIssuePayload", () => {
   it("describes the credit note the void asks for", () => {
-    expect(saleVoidCreditNotePayload(CREDIT_NOTE)).toEqual(PAYLOAD);
+    expect(creditNoteToIssuePayload(CREDIT_NOTE)).toEqual(PAYLOAD);
+  });
+
+  it("dates the credit note a return asks for", () => {
+    expect(
+      creditNoteToIssuePayload({
+        ...CREDIT_NOTE,
+        origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-07" },
+      }),
+    ).toEqual({ ...PAYLOAD, issued_on: "2026-10-07" });
+  });
+
+  it("describes a credit note that waits for its invoice, which it does not correct yet", () => {
+    expect(
+      creditNoteToIssuePayload({
+        creditNoteId: "credit-note-1",
+        saleId: "sale-1",
+        total: 7_500,
+        receiverTaxStatusCode: null,
+        correctedVoucher: null,
+        origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-07" },
+      }),
+    ).toEqual({
+      id: "credit-note-1",
+      total: 7_500,
+      receiver_tax_status_code: null,
+      corrects: null,
+      issued_on: "2026-10-07",
+    });
+  });
+});
+
+describe("tiedToInvoice", () => {
+  it("makes a credit note that waited for its invoice correct that invoice", () => {
+    const waiting: AwaitingCreditNote = {
+      creditNoteId: "credit-note-1",
+      saleId: "sale-1",
+      total: 7_500,
+      receiverTaxStatusCode: null,
+      correctedVoucher: null,
+      origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-07" },
+    };
+
+    expect(
+      tiedToInvoice(waiting, {
+        voucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+        buyerTaxStatusCode: 5,
+      }),
+    ).toEqual({
+      ...waiting,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+    });
   });
 });
 
@@ -148,6 +203,12 @@ describe("creditNoteAnswerOf", () => {
     expect(creditNoteAnswerOf({ kind: "rejected" }, 12)).toEqual({ kind: "rejected" });
   });
 
+  it("is that a person must regularize the credit note when it cannot be issued", () => {
+    expect(creditNoteAnswerOf({ kind: "regularization_required" }, 12)).toEqual({
+      kind: "regularization_required",
+    });
+  });
+
   it.each(UNCONFIRMED_STANDINGS)("is in progress when the credit note is %s", (_case, standing) => {
     expect(creditNoteAnswerOf(standing, 12)).toEqual({ kind: "in_progress" });
   });
@@ -168,6 +229,12 @@ describe("confirmedCreditNoteAnswer", () => {
 
   it("is the rejection the tax authority gave", () => {
     expect(confirmedCreditNoteAnswer({ kind: "rejected" }, 12)).toEqual({ kind: "rejected" });
+  });
+
+  it("is that a person must regularize a credit note that cannot be issued", () => {
+    expect(confirmedCreditNoteAnswer({ kind: "regularization_required" }, 12)).toEqual({
+      kind: "regularization_required",
+    });
   });
 
   it.each(UNCONFIRMED_STANDINGS)("is no answer when the credit note is %s", (_case, standing) => {
@@ -197,6 +264,15 @@ describe("restoredCreditNoteSettlement", () => {
     expect(
       restoredCreditNoteSettlement({ standing: { kind: "rejected" }, pointOfSale: 12 }, false),
     ).toEqual({ kind: "answered", answer: { kind: "rejected" } });
+  });
+
+  it("answers that a person must regularize a credit note that cannot be issued", () => {
+    expect(
+      restoredCreditNoteSettlement(
+        { standing: { kind: "regularization_required" }, pointOfSale: 12 },
+        false,
+      ),
+    ).toEqual({ kind: "answered", answer: { kind: "regularization_required" } });
   });
 
   it("answers that the invoice was already credited when the refusal was kept and no credit note was recorded", () => {

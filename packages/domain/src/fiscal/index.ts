@@ -33,7 +33,13 @@ export {
 export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
-export { CREDIT_NOTE_C_VOUCHER_TYPE, CREDIT_NOTE_REASONS } from "./model/credit-note.js";
+export {
+  CREDIT_NOTE_C_VOUCHER_TYPE,
+  CREDIT_NOTE_REASONS,
+  creditLeftOnInvoice,
+  creditsItsInvoice,
+  creditWithinInvoice,
+} from "./model/credit-note.js";
 export { isValidCuit } from "./model/cuit.js";
 export type { DeferredBacklogEntry, DeferredBacklogStep } from "./model/deferred-backlog.js";
 export {
@@ -126,10 +132,7 @@ export {
   fiscalEmissionStopReasonOf,
 } from "./model/fiscal-emission-stop.js";
 export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
-export {
-  isRegisterFiscallyOnline,
-  REGISTER_HEALTH_CHECK_INTERVAL_MS,
-} from "./model/fiscal-online-signal.js";
+export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
 export { fiscalQrVoucher } from "./model/fiscal-qr-voucher.js";
 export type {
   FiscalDocumentType,
@@ -257,11 +260,9 @@ export {
   DEFERRAL_REASONS,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceDateOf,
-  invoiceOwnFortnight,
   isFiscalOutcomeUnresolved,
   NUMBER_CONSUMING_STATES,
   OFFLINE_AUTHORIZATION_CAUSES,
-  offlineRoute,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
@@ -287,17 +288,36 @@ export type {
 } from "./model/restored-unclear-deferral.js";
 export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
 export type {
+  AwaitingCreditNote,
   CreditNoteAnswer,
   CreditNoteIssuedOffline,
+  CreditNoteOrigin,
+  CreditNoteToIssue,
+  InvoicedCreditNote,
   RequestedCreditNoteAnswer,
   RestoredCreditNoteAnswer,
   SaleInvoice,
-  SaleVoidCreditNote,
   VoidCreditNoteStanding,
-} from "./model/sale-void-credit-note.js";
-export { invoiceToCorrect, saleVoidCreditNotePayload } from "./model/sale-void-credit-note.js";
+} from "./model/sale-credit-note.js";
+export {
+  creditNoteToIssuePayload,
+  invoiceToCorrect,
+} from "./model/sale-credit-note.js";
+export type {
+  OfflineCreditNoteClockMark,
+  SaleCreditNoteRoute,
+  SaleCreditNoteTransaction,
+  SaleInvoiceStanding,
+} from "./model/sale-credit-note-route.js";
+export {
+  isInvoiceOnItsWay,
+  issueOfflineSaleCreditNote,
+  routeSaleCreditNote,
+} from "./model/sale-credit-note-route.js";
 export {
   awaitsUnclearOutcomeDecision,
+  TAX_AUTHORITY_HOLDING_ANSWER_KIND,
+  TAX_AUTHORITY_HOLDING_DECISION_KIND,
   UNCLEAR_ANSWER_KINDS,
   unclearOutcomeSince,
 } from "./model/unclear-outcome-decision.js";

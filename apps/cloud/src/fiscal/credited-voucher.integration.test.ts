@@ -13,10 +13,11 @@ import {
 import {
   creditedVoucherLockKey,
   lockCreditedVoucher,
-  voucherCreditedOnline,
+  totalCreditedToInvoice,
 } from "./credited-voucher.js";
-import { DrizzleSaleVoidCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
+import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-credit-notes.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
+import { insertRealTimeInvoice } from "./test-support/held-invoice-fixtures.js";
 
 const FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
 const RECEIVED_AT = new Date("2026-10-08T01:00:00.000Z");
@@ -91,7 +92,7 @@ describe("the lock of a credited voucher on a real Postgres", () => {
 
 describe("crediting one voucher offline and online at the same time, on a real Postgres", () => {
   function onlineLane() {
-    return new DrizzleSaleVoidCreditNoteLanes(postgresDedicatedConnections(sql), async () => {});
+    return new DrizzleSaleCreditNoteLanes(postgresDedicatedConnections(sql), async () => {});
   }
 
   it("never lets both credit it: the online request is refused exactly when the offline credit note found it free", async () => {
@@ -99,11 +100,17 @@ describe("crediting one voucher offline and online at the same time, on a real P
       const voucher = { voucherType: 11, pointOfSale: 31, number: 1000 + attempt };
       const offlineDocumentId = randomUUID();
       const creditNoteId = randomUUID();
+      await insertRealTimeInvoice(db, {
+        registerId,
+        pointOfSale: voucher.pointOfSale,
+        number: voucher.number,
+        total: 10_000,
+      });
 
       const [offlineSawItCredited, onlineOutcome] = await Promise.all([
         db.transaction(async (tx) => {
           await lockCreditedVoucher(tx, voucher);
-          const credited = await voucherCreditedOnline(tx, voucher);
+          const credited = (await totalCreditedToInvoice(tx, voucher)) > 0;
           await tx.insert(offlineFiscalDocuments).values({
             id: offlineDocumentId,
             saleId: randomUUID(),
@@ -133,7 +140,7 @@ describe("crediting one voucher offline and online at the same time, on a real P
         }),
         onlineLane()
           .inPointOfSaleLane(7, (lane) =>
-            lane.recordSaleVoidCreditNote({
+            lane.recordSaleCreditNote({
               creditNoteId,
               registerId,
               saleId: randomUUID(),
@@ -141,6 +148,7 @@ describe("crediting one voucher offline and online at the same time, on a real P
               correctedVoucher: voucher,
               total: 10_000,
               receiverTaxStatusCode: 5,
+              origin: { kind: "sale_void" },
               receivedAt: RECEIVED_AT,
             }),
           )

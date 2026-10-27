@@ -4,7 +4,7 @@ import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer
 import type { ActionGate } from "../sessions/action-gate";
 import {
   printCreditNoteFor,
-  printVoidedSaleCreditNoteFor,
+  printSaleCreditNoteFor,
   reprintCreditNoteFor,
 } from "./credit-note-receipt-requests";
 import {
@@ -92,13 +92,17 @@ export interface ReceiptPrinting {
         request: Parameters<typeof reprintDeferredSaleInvoiceFor>[1],
       ) => ReturnType<typeof reprintDeferredSaleInvoiceFor>)
     | undefined;
-  printCreditNote: ((saleId: string) => ReturnType<typeof printCreditNoteFor>) | undefined;
+  printCreditNote:
+    | ((
+        creditNote: Parameters<typeof printCreditNoteFor>[1],
+      ) => ReturnType<typeof printCreditNoteFor>)
+    | undefined;
   reprintCreditNote:
     | ((
         request: Parameters<typeof reprintCreditNoteFor>[1],
       ) => ReturnType<typeof reprintCreditNoteFor>)
     | undefined;
-  printVoidedSaleCreditNote: (saleId: string) => Promise<void>;
+  printSaleCreditNote: (creditNote: { saleId: string; creditNoteId: string }) => Promise<void>;
 }
 
 export function createReceiptPrinting({
@@ -128,7 +132,7 @@ export function createReceiptPrinting({
       reprintSaleReceipt: undefined,
       printCreditNote: undefined,
       reprintCreditNote: undefined,
-      printVoidedSaleCreditNote: async () => undefined,
+      printSaleCreditNote: async () => undefined,
     };
   }
   const jobs = createReceiptPrintJobs({ reportFailure });
@@ -162,8 +166,8 @@ export function createReceiptPrinting({
         printDeferredSaleInvoiceFor({ ...deps, invoicing: deferredSaleInvoicing }, saleId)),
     reprintDeferredSaleInvoice: (request) => reprintDeferredSaleInvoiceFor(deps, request),
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
-    printCreditNote: (saleId) => printCreditNoteFor(deps, saleId),
+    printCreditNote: (creditNote) => printCreditNoteFor(deps, creditNote),
     reprintCreditNote: (request) => reprintCreditNoteFor(deps, request),
-    printVoidedSaleCreditNote: (saleId) => printVoidedSaleCreditNoteFor(deps, saleId),
+    printSaleCreditNote: (creditNote) => printSaleCreditNoteFor(deps, creditNote),
   };
 }

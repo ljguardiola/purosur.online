@@ -1,20 +1,25 @@
 import type { Clock } from "../../shared/index.js";
 import type { PushedEvent } from "../../sync/index.js";
 import type {
+  CorrectedInvoice,
+  CreditNoteToIssue,
   RequestedCreditNoteAnswer,
-  SaleVoidCreditNote,
   VoidCreditNoteStanding,
-} from "../model/sale-void-credit-note.js";
+} from "../model/sale-credit-note.js";
+import type { SaleInvoiceStanding } from "../model/sale-credit-note-route.js";
 
-export interface PendingCreditNote extends SaleVoidCreditNote {
-  saleEvent: PushedEvent;
-}
+export type PendingCreditNote = CreditNoteToIssue & { saleEvent: PushedEvent };
 
-export interface RegisterVoidCreditNotes {
+export interface RegisterCreditNotes {
   inProgress(): Promise<PendingCreditNote[]>;
   pendingCreditNote(creditNoteId: string): Promise<PendingCreditNote | null>;
   recordedAnswer(creditNoteId: string): Promise<VoidCreditNoteStanding | null>;
   realTimePointOfSale(): Promise<number | null>;
+  saleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding>;
+  /**
+   * Makes a credit note that waited for its invoice correct that invoice.
+   */
+  tieToInvoice(creditNoteId: string, invoice: CorrectedInvoice): Promise<void>;
   /**
    * Records the answer of a credit note still in progress; one that already has an answer keeps it.
    */
@@ -29,6 +34,7 @@ export interface CloudCreditNoteCall {
   creditNoteId: string;
   pointOfSale: number;
   saleEvent: PushedEvent;
+  invoice?: CorrectedInvoice;
 }
 
 export type CloudCreditNoteAnswer = Exclude<VoidCreditNoteStanding, { kind: "issued_offline" }>;
@@ -42,16 +48,16 @@ export interface CloudCreditNotes {
   request(call: CloudCreditNoteCall): Promise<CloudCreditNoteAnswer | null>;
 }
 
-export interface RequestVoidCreditNotesPorts {
-  creditNotes: RegisterVoidCreditNotes;
+export interface RequestPendingCreditNotesPorts {
+  creditNotes: RegisterCreditNotes;
   cloud: CloudCreditNotes;
   clock: Clock;
 }
 
 export interface CreditNotePrinter {
-  startPrinting(saleId: string): void;
+  startPrinting(creditNote: { saleId: string; creditNoteId: string }): void;
 }
 
-export interface RequestVoidedSaleCreditNotePorts extends RequestVoidCreditNotesPorts {
+export interface RequestSaleCreditNotePorts extends RequestPendingCreditNotesPorts {
   printer: CreditNotePrinter;
 }

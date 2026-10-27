@@ -309,7 +309,7 @@ describe("replenishing a restored register from the cloud", () => {
     expect(outcome).toEqual({ kind: "replenished" });
     expect(count("register_predecessor")).toBe(0);
     expect(count("offline_fiscal_documents")).toBe(1);
-    expect(count("sale_void_credit_notes")).toBe(1);
+    expect(count("sale_credit_notes")).toBe(1);
     expect(count("outbox")).toBe(0);
   });
 

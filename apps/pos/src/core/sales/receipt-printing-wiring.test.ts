@@ -55,7 +55,9 @@ describe("the register's receipt printing without a local database", () => {
   });
 
   it("prints no credit note right after a void", async () => {
-    await expect(printing.printVoidedSaleCreditNote("sale-1")).resolves.toBeUndefined();
+    await expect(
+      printing.printSaleCreditNote({ saleId: "sale-1", creditNoteId: "note-1" }),
+    ).resolves.toBeUndefined();
   });
 
   it("leaves a charge as it is", () => {
@@ -367,7 +369,10 @@ describe("the register's receipt printing over its local database", () => {
     });
 
     it("is printed on the printer right after the void, without anyone asking", async () => {
-      await printingOverDatabase().printVoidedSaleCreditNote("sale-1");
+      await printingOverDatabase().printSaleCreditNote({
+        saleId: "sale-1",
+        creditNoteId: "note-1",
+      });
 
       await vi.waitFor(() => expect(connections).toHaveLength(1));
       const [connection] = connections;
@@ -382,7 +387,7 @@ describe("the register's receipt printing over its local database", () => {
     it("is printed from the history as the original the first time, answering the copy that started", async () => {
       const printing = printingOverDatabase();
 
-      const printed = printing.printCreditNote?.("sale-1");
+      const printed = printing.printCreditNote?.({ saleId: "sale-1", creditNoteId: "note-1" });
       await vi.waitFor(() => expect(connections).toHaveLength(1));
       const [connection] = connections;
       connection?.socket.connected();
@@ -399,13 +404,17 @@ describe("the register's receipt printing over its local database", () => {
         "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'reprint_receipt', 1)",
       );
       const printing = printingOverDatabase();
-      const first = printing.printCreditNote?.("sale-1");
+      const first = printing.printCreditNote?.({ saleId: "sale-1", creditNoteId: "note-1" });
       await vi.waitFor(() => expect(connections).toHaveLength(1));
       connections[0]?.socket.connected();
       connections[0]?.socket.receive(READY);
       await first;
 
-      const reprinted = printing.reprintCreditNote?.({ saleId: "sale-1", reason: "Se perdió" });
+      const reprinted = printing.reprintCreditNote?.({
+        saleId: "sale-1",
+        creditNoteId: "note-1",
+        reason: "Se perdió",
+      });
       await vi.waitFor(() => expect(connections).toHaveLength(2));
       connections[1]?.socket.connected();
       connections[1]?.socket.receive(READY);
@@ -421,7 +430,11 @@ describe("the register's receipt printing over its local database", () => {
 
     it("refuses the reprint of the credit note to a person without the reprint permission", async () => {
       expect(
-        await printingOverDatabase().reprintCreditNote?.({ saleId: "sale-1", reason: "Se perdió" }),
+        await printingOverDatabase().reprintCreditNote?.({
+          saleId: "sale-1",
+          creditNoteId: "note-1",
+          reason: "Se perdió",
+        }),
       ).toEqual({ kind: "lacks_permission" });
     });
   });

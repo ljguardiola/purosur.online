@@ -2,15 +2,17 @@ import {
   cloudError,
   cloudErrorStatus,
   type SaleVoidCreditNoteResponseBody,
+  saleReturnedEventCreditNoteSchema,
   saleVoidCreditNoteRequestSchema,
   saleVoidCreditNoteResponseSchema,
   saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
+import type { InvoicedCreditNote } from "@purosur/domain";
 import {
+  type AcceptSaleCreditNoteRequestOutcome,
+  acceptSaleCreditNoteRequest,
   creditNoteAnswerOf,
   issueCreditNote,
-  type RequestSaleVoidCreditNoteOutcome,
-  requestSaleVoidCreditNote,
 } from "@purosur/domain/fiscal/use-cases";
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -35,7 +37,7 @@ import {
 import { hmacEventChain } from "../sync/hmac-event-chain.js";
 import { InboxAttachedSaleEvents } from "../sync/inbox-attached-sale-events.js";
 import { type CreditNoteInput, creditNoteIssuancePorts } from "./credit-note-task.js";
-import { DrizzleSaleVoidCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
+import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-credit-notes.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 
 export type CreditNoteRouteOptions<TQueryResult extends PgQueryResultHKT> =
@@ -69,11 +71,62 @@ const VOUCHER_ALREADY_CREDITED = cloudError("conflict", "that invoice already ha
 
 const SALE_EVENT_MISMATCH = cloudError(
   "validation_failed",
-  "sale_event must be the voiding of the sale that asks for credit_note_id",
+  "sale_event must be the voiding or the return of the sale that asks for credit_note_id",
 );
 
+const INVOICE_MISSING = cloudError(
+  "validation_failed",
+  "invoice must name the invoice a credit note that waited for it corrects",
+);
+
+type RequestBody = ReturnType<typeof saleVoidCreditNoteRequestSchema.parse>;
+
+function creditNoteAsked(body: RequestBody): InvoicedCreditNote | null | "invoice_missing" {
+  const voided = saleVoidedEventCreditNoteSchema.safeParse(body.sale_event);
+  if (voided.success) {
+    const { aggregate_id: saleId, payload } = voided.data;
+    const { corrects } = payload.credit_note;
+    return {
+      creditNoteId: payload.credit_note.id,
+      saleId,
+      total: payload.credit_note.total,
+      receiverTaxStatusCode: payload.credit_note.receiver_tax_status_code,
+      correctedVoucher: {
+        voucherType: corrects.voucher_type,
+        pointOfSale: corrects.point_of_sale,
+        number: corrects.number,
+      },
+      origin: { kind: "sale_void" },
+    };
+  }
+  const returned = saleReturnedEventCreditNoteSchema.safeParse(body.sale_event);
+  if (!returned.success) {
+    return null;
+  }
+  const { payload } = returned.data;
+  const { credit_note: creditNote } = payload;
+  const corrects = creditNote.corrects ?? body.invoice?.corrects;
+  const receiverTaxStatusCode =
+    creditNote.receiver_tax_status_code ?? body.invoice?.receiver_tax_status_code;
+  if (corrects === undefined || receiverTaxStatusCode === undefined) {
+    return "invoice_missing";
+  }
+  return {
+    creditNoteId: creditNote.id,
+    saleId: payload.sale_id,
+    total: creditNote.total,
+    receiverTaxStatusCode,
+    correctedVoucher: {
+      voucherType: corrects.voucher_type,
+      pointOfSale: corrects.point_of_sale,
+      number: corrects.number,
+    },
+    origin: { kind: "sale_return", returnId: payload.id, issuedOn: creditNote.issued_on },
+  };
+}
+
 function refusalOf(
-  outcome: RequestSaleVoidCreditNoteOutcome,
+  outcome: AcceptSaleCreditNoteRequestOutcome,
 ): ReturnType<typeof cloudError> | null {
   switch (outcome.kind) {
     case "sale_event_mismatch":
@@ -88,11 +141,14 @@ function refusalOf(
       return VOUCHER_ALREADY_CREDITED;
     case "recorded":
     case "already_recorded":
+    case "invoice_not_yet_known":
       return null;
   }
 }
 
 type CreditNoteAnswer = NonNullable<ReturnType<typeof creditNoteAnswerOf>>;
+
+const IN_PROGRESS: CreditNoteAnswer = { kind: "in_progress" };
 
 function toWire(answer: CreditNoteAnswer): SaleVoidCreditNoteResponseBody {
   switch (answer.kind) {
@@ -108,6 +164,8 @@ function toWire(answer: CreditNoteAnswer): SaleVoidCreditNoteResponseBody {
       };
     case "rejected":
       return { state: "REJECTED" };
+    case "regularization_required":
+      return { state: "REGULARIZATION_REQUIRED" };
     case "in_progress":
       return { state: "IN_PROGRESS" };
   }
@@ -120,7 +178,7 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const requestPorts = {
-    lanes: new DrizzleSaleVoidCreditNoteLanes(options.connections, options.enqueueCreditNote),
+    lanes: new DrizzleSaleCreditNoteLanes(options.connections, options.enqueueCreditNote),
     attachedSaleEvents: new InboxAttachedSaleEvents(
       {
         inbox: new DrizzleInbox(
@@ -175,15 +233,14 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
           return;
         }
 
-        const voided = saleVoidedEventCreditNoteSchema.safeParse(body.sale_event);
-        if (!voided.success) {
-          await reply.code(cloudErrorStatus(SALE_EVENT_MISMATCH.code)).send(SALE_EVENT_MISMATCH);
+        const asked = creditNoteAsked(body);
+        if (asked === null || asked === "invoice_missing") {
+          const refused = asked === null ? SALE_EVENT_MISMATCH : INVOICE_MISSING;
+          await reply.code(cloudErrorStatus(refused.code)).send(refused);
           return;
         }
-        const { aggregate_id: saleId, payload } = voided.data;
-        const { corrects } = payload.credit_note;
 
-        const outcome = await requestSaleVoidCreditNote(requestPorts, {
+        const outcome = await acceptSaleCreditNoteRequest(requestPorts, {
           deviceId: authentication.installation.deviceId,
           registerId: authentication.installation.registerId,
           receivedAt,
@@ -191,23 +248,18 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
             creditNoteId: body.credit_note_id,
             pointOfSale: body.point_of_sale,
             saleEvent: body.sale_event,
-            voided: {
-              creditNoteId: payload.credit_note.id,
-              saleId,
-              total: payload.credit_note.total,
-              receiverTaxStatusCode: payload.credit_note.receiver_tax_status_code,
-              correctedVoucher: {
-                voucherType: corrects.voucher_type,
-                pointOfSale: corrects.point_of_sale,
-                number: corrects.number,
-              },
-            },
+            creditNote: asked,
           },
         });
 
         const refusal = refusalOf(outcome);
         if (refusal !== null) {
           await reply.code(cloudErrorStatus(refusal.code)).send(refusal);
+          return;
+        }
+
+        if (outcome.kind === "invoice_not_yet_known") {
+          await reply.code(200).send(saleVoidCreditNoteResponseSchema.parse(toWire(IN_PROGRESS)));
           return;
         }
 

@@ -46,7 +46,7 @@ export function insertCreditNote(
 ): void {
   database
     .prepare(
-      `INSERT INTO sale_void_credit_notes (
+      `INSERT INTO sale_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
          issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
@@ -86,7 +86,7 @@ export function insertCreditNoteIssuedOffline(
   });
   database
     .prepare(
-      `INSERT INTO sale_void_credit_notes (
+      `INSERT INTO sale_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, recorded_at, answered_at,
          offline_fiscal_document_id

@@ -112,8 +112,8 @@ describe("replenishing a return into a restored register", () => {
   it("holds the refund and the cash given back, in the session the return was made in", () => {
     returnSale();
 
-    expect(rows("SELECT id, payment_id, amount FROM payment_refunds")).toEqual([
-      { id: "refund-1", payment_id: "payment-1", amount: 1000 },
+    expect(rows("SELECT id, payment_id, amount, return_id FROM payment_refunds")).toEqual([
+      { id: "refund-1", payment_id: "payment-1", amount: 1000, return_id: "return-1" },
     ]);
     expect(
       rows(

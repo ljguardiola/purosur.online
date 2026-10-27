@@ -75,7 +75,7 @@ export async function applyReturn<TQueryResult extends PgQueryResultHKT>(
       eventOf("CashSession", returnSessionId, "cash_session_opened", returnedAt),
     );
     await tx.record(
-      { kind: "sale_returned", saleReturn },
+      { kind: "sale_returned", saleReturn, creditNote: null },
       eventOf("Sale", completed.id, "sale_returned", returnedAt),
     );
   });

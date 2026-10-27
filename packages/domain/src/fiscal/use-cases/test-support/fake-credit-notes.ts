@@ -6,6 +6,7 @@ import type {
   CreditNoteAuthorizationRecord,
   CreditNoteLane,
   CreditNoteLanes,
+  CreditNoteRegularizationRecord,
   CreditNoteRejectionRecord,
   CreditNoteRequestRecord,
   CreditNoteRequests,
@@ -31,6 +32,7 @@ export class FakeCreditNoteStore implements CreditNoteLanes, CreditNoteRequests 
   readonly authorizations: CreditNoteAuthorizationRecord[] = [];
   readonly rejections: { rejections: readonly TaxAuthorityRejection[]; rejectedAt: Date }[] = [];
   readonly tasks: FiscalTask[] = [];
+  readonly regularizations: CreditNoteRegularizationRecord[] = [];
   readonly releases: {
     creditNoteId: string;
     regularization: ExternalInvoicingRegularization | null;
@@ -133,6 +135,18 @@ class FakeCreditNoteLane implements CreditNoteLane {
     this.store.rejections.push({ rejections: record.rejections, rejectedAt: record.rejectedAt });
     this.store.tasks.push(record.task);
     this.update(record.creditNoteId, { kind: "rejected" });
+  }
+
+  async recordCreditNoteRegularizationRequired(
+    record: CreditNoteRegularizationRecord,
+  ): Promise<void> {
+    this.store.operations.push("recordCreditNoteRegularizationRequired");
+    if (
+      this.store.creditNotes.get(record.creditNoteId)?.standing.kind !== "regularization_required"
+    ) {
+      this.store.regularizations.push(record);
+      this.update(record.creditNoteId, { kind: "regularization_required" });
+    }
   }
 
   async recordCreditNoteUnclear(creditNoteId: string, answeredAt: Date): Promise<void> {

@@ -13,7 +13,7 @@ import type { Fortnight } from "./offline-authorization-code.js";
 import type { VoucherReference } from "./orphan-authorization.js";
 import type { FacturaC } from "./pre-emission-gate.js";
 import type { OfflineAuthorizationCause } from "./real-time-authorization.js";
-import { type SaleVoidCreditNote, saleVoidCreditNotePayload } from "./sale-void-credit-note.js";
+import { creditNoteToIssuePayload } from "./sale-credit-note.js";
 
 export const OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE = "offline_fiscal_document_issued";
 
@@ -189,9 +189,8 @@ export function offlineCreditNoteIssuedEvent({
   document,
 }: OfflineCreditNoteIssuedEventInput): OutboxEventDraft {
   const generatedAt = document.generatedAt.toISOString();
-  const creditNote: SaleVoidCreditNote = {
+  const creditNote = {
     creditNoteId: document.creditNoteId,
-    saleId: document.saleId,
     total: document.total,
     receiverTaxStatusCode: document.receiverTaxStatusCode,
     correctedVoucher: document.corrects,
@@ -227,7 +226,7 @@ export function offlineCreditNoteIssuedEvent({
         point_of_sale: document.corrects.pointOfSale,
         number: document.corrects.number,
       },
-      document: saleVoidCreditNotePayload(creditNote),
+      document: creditNoteToIssuePayload(creditNote),
     },
     occurred_at: generatedAt,
     actor_id: actorId,

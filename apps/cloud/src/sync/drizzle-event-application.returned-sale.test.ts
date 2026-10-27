@@ -121,7 +121,7 @@ describe("recording the returns of applied events", () => {
     });
     const eventId = randomUUID();
     await record(
-      { kind: "sale_returned", saleReturn },
+      { kind: "sale_returned", saleReturn, creditNote: null },
       eventOf(setup.deviceId, "sale_returned", saleReturn.id, eventId),
     );
     return { ...setup, saleReturn, eventId };
@@ -220,7 +220,11 @@ describe("recording the returns of applied events", () => {
 
     await expect(
       record(
-        { kind: "sale_returned", saleReturn: aReturnOf(unknown, { sessionId: returnSessionId }) },
+        {
+          kind: "sale_returned",
+          saleReturn: aReturnOf(unknown, { sessionId: returnSessionId }),
+          creditNote: null,
+        },
         eventOf(deviceId, "sale_returned", randomUUID()),
       ),
     ).rejects.toThrow();
@@ -243,6 +247,7 @@ describe("recording the returns of applied events", () => {
             ...saleReturn,
             refunds: [{ ...(refund as NonNullable<typeof refund>), paymentId: randomUUID() }],
           },
+          creditNote: null,
         },
         eventOf(deviceId, "sale_returned", saleReturn.id),
       ),
@@ -282,12 +287,12 @@ describe("reading the history of a sale before a return", () => {
     const setup = await setUp();
     const first = aReturnOf(setup.completed, { sessionId: setup.returnSessionId });
     await record(
-      { kind: "sale_returned", saleReturn: first },
+      { kind: "sale_returned", saleReturn: first, creditNote: null },
       eventOf(setup.deviceId, "sale_returned", first.id),
     );
     const second = aReturnOf(setup.completed, { sessionId: setup.returnSessionId });
     await record(
-      { kind: "sale_returned", saleReturn: second },
+      { kind: "sale_returned", saleReturn: second, creditNote: null },
       eventOf(setup.deviceId, "sale_returned", second.id),
     );
 

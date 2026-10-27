@@ -7,7 +7,7 @@ import {
   insertOfflineFiscalDocument,
   upsertClockMark,
 } from "./sqlite-sale-authorization";
-import { insertCreditNoteIssuedOffline } from "./sqlite-void-credit-notes";
+import { insertCreditNoteIssuedOffline, readCreditNoteById } from "./sqlite-sale-credit-notes";
 
 type OfflineDocumentFact = Extract<SyncedFact, { kind: "offline_fiscal_document_issued" }>;
 
@@ -69,11 +69,12 @@ function holdReplenishedCreditNote(
   corrects: NonNullable<OfflineDocumentFact["document"]["corrects"]>,
   creditNoteId: string,
 ): void {
+  const { origin } = readCreditNoteById(database, creditNoteId) ?? {};
   database
     .prepare("DELETE FROM replenished_credit_note_requests WHERE credit_note_id = ?")
     .run(creditNoteId);
   database
-    .prepare("DELETE FROM sale_void_credit_notes WHERE id = ? AND state = 'IN_PROGRESS'")
+    .prepare("DELETE FROM sale_credit_notes WHERE id = ? AND state = 'IN_PROGRESS'")
     .run(creditNoteId);
   const note = {
     id: document.fiscalDocumentId,
@@ -95,7 +96,7 @@ function holdReplenishedCreditNote(
     cause: document.cause,
   };
   insertOfflineCreditNote(database, note);
-  insertCreditNoteIssuedOffline(database, note);
+  insertCreditNoteIssuedOffline(database, note, origin?.kind === "sale_return" ? origin : null);
   upsertClockMark(database, {
     pointOfSale: document.pointOfSale,
     documentType: "credit_note_c",

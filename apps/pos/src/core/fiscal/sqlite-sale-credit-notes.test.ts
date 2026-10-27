@@ -1,13 +1,21 @@
 import type { VoidCreditNoteStanding } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { insertReturn } from "../returns/sqlite-return-ledger";
 import { SqliteLocalOutbox } from "../sync/sqlite-local-outbox";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { CHAIN_KEY, outboxEventDraft } from "../sync/test-support/sqlite-local-outbox";
-import { insertPendingCreditNote, SqliteVoidCreditNotes } from "./sqlite-void-credit-notes";
+import {
+  insertPendingCreditNote,
+  readCreditNoteOfSale,
+  SqliteSaleCreditNotes,
+} from "./sqlite-sale-credit-notes";
 import {
   insertCompletedSale,
+  insertDeferredSale,
+  insertFiscalDocument,
   insertOfflineCreditNote,
+  insertOfflineFiscalDocument,
   insertPointOfSale,
   openFiscalDatabase,
   POINT_OF_SALE,
@@ -28,7 +36,7 @@ const AUTHORIZED: VoidCreditNoteStanding = {
 };
 
 let database: LocalDatabase;
-let creditNotes: SqliteVoidCreditNotes;
+let creditNotes: SqliteSaleCreditNotes;
 let eventCount: number;
 
 function voidSaleWithCreditNote(saleId: string, creditNoteId: string, voidedAt = VOIDED_AT): void {
@@ -51,6 +59,7 @@ function voidSaleWithCreditNote(saleId: string, creditNoteId: string, voidedAt =
     total: 3000,
     receiverTaxStatusCode: 5,
     correctedVoucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 41 },
+    origin: { kind: "sale_void" },
   });
 }
 
@@ -59,7 +68,7 @@ function storedNote(id: string) {
     .prepare(
       `SELECT state, point_of_sale, number, issued_on, issued_at, authorization_code,
               authorization_code_due_on, answered_at
-       FROM sale_void_credit_notes WHERE id = ?`,
+       FROM sale_credit_notes WHERE id = ?`,
     )
     .get(id);
 }
@@ -67,7 +76,7 @@ function storedNote(id: string) {
 beforeEach(() => {
   eventCount = 0;
   database = openFiscalDatabase();
-  creditNotes = new SqliteVoidCreditNotes(database);
+  creditNotes = new SqliteSaleCreditNotes(database);
 });
 
 afterEach(() => {
@@ -86,6 +95,7 @@ describe("the credit notes in progress", () => {
       total: 3000,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 41 },
+      origin: { kind: "sale_void" },
     });
     const event = {
       event_id: `replenished-${saleId}`,
@@ -160,6 +170,7 @@ describe("the credit notes in progress", () => {
         total: 3000,
         receiverTaxStatusCode: 5,
         correctedVoucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 41 },
+        origin: { kind: "sale_void" },
         saleEvent,
       },
     ]);
@@ -330,7 +341,7 @@ describe("one credit note of a voided sale", () => {
 describe("a credit note issued offline", () => {
   function issuedOffline(saleId: string, creditNoteId: string): void {
     voidSaleWithCreditNote(saleId, creditNoteId);
-    database.exec("DELETE FROM sale_void_credit_notes");
+    database.exec("DELETE FROM sale_credit_notes");
     insertOfflineCreditNote(database, {
       id: `offline-${creditNoteId}`,
       saleId,
@@ -339,7 +350,7 @@ describe("a credit note issued offline", () => {
     });
     database
       .prepare(
-        `INSERT INTO sale_void_credit_notes (
+        `INSERT INTO sale_credit_notes (
            id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
            corrected_point_of_sale, corrected_number, state, recorded_at, answered_at,
            offline_fiscal_document_id
@@ -375,5 +386,232 @@ describe("a credit note issued offline", () => {
     await creditNotes.recordAnswer("note-1", AUTHORIZED, ANSWERED_AT);
 
     expect(await creditNotes.recordedAnswer("note-1")).toMatchObject({ kind: "issued_offline" });
+  });
+});
+
+describe("the credit notes of a return", () => {
+  const RETURNED_AT = "2026-10-02T15:00:00.000Z";
+  const INVOICE = { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 41 };
+
+  function returnWithCreditNote(
+    saleId: string,
+    returnId: string,
+    creditNoteId: string,
+    {
+      invoice = INVOICE,
+      returnedAt = RETURNED_AT,
+    }: { invoice?: typeof INVOICE | null; returnedAt?: string } = {},
+  ): void {
+    if (database.prepare("SELECT 1 FROM sales WHERE id = ?").get(saleId) === undefined) {
+      insertCompletedSale(database, saleId);
+    }
+    insertReturn(database, {
+      id: returnId,
+      saleId,
+      sessionId: "session-1",
+      actorId: "u1",
+      authorizedBy: null,
+      ticketSource: "QR",
+      occurredAt: new Date(returnedAt),
+      refundedTotal: 1000,
+      lines: [],
+    });
+    eventCount += 1;
+    appendOutboxEvent(database, CHAIN_KEY, {
+      ...outboxEventDraft(eventCount),
+      aggregate_type: "Return",
+      aggregate_id: returnId,
+      event_type: "sale_returned",
+      schema_version: 2,
+      payload: { id: returnId, sale_id: saleId, credit_note: { id: creditNoteId } },
+    });
+    const origin = { kind: "sale_return", returnId, issuedOn: returnedAt.slice(0, 10) } as const;
+    insertPendingCreditNote(
+      database,
+      invoice === null
+        ? {
+            creditNoteId,
+            saleId,
+            total: 1000,
+            receiverTaxStatusCode: null,
+            correctedVoucher: null,
+            origin,
+          }
+        : {
+            creditNoteId,
+            saleId,
+            total: 1000,
+            receiverTaxStatusCode: 5,
+            correctedVoucher: invoice,
+            origin,
+          },
+    );
+  }
+
+  it("carry the return's own event, its origin and what they correct, in the order of the returns", async () => {
+    returnWithCreditNote("sale-2", "return-2", "note-2", {
+      returnedAt: "2026-10-02T16:00:00.000Z",
+    });
+    returnWithCreditNote("sale-1", "return-1", "note-1");
+    const events = await new SqliteLocalOutbox(database, () => ANSWERED_AT).unacknowledged(10);
+    const first = events.find(({ aggregate_id }) => aggregate_id === "return-1");
+
+    const pending = await creditNotes.inProgress();
+
+    expect(pending.map(({ creditNoteId }) => creditNoteId)).toEqual(["note-1", "note-2"]);
+    expect(pending[1]).toMatchObject({ saleEvent: { aggregate_id: "return-2" } });
+    expect(pending[0]).toEqual({
+      creditNoteId: "note-1",
+      saleId: "sale-1",
+      total: 1000,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: INVOICE,
+      origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-02" },
+      saleEvent: first,
+    });
+    expect(first).toMatchObject({ event_type: "sale_returned", aggregate_id: "return-1" });
+  });
+
+  it("hold more than one credit note of a sale, while a voided sale keeps its single one", async () => {
+    returnWithCreditNote("sale-1", "return-1", "note-1");
+    returnWithCreditNote("sale-1", "return-2", "note-2", { invoice: { ...INVOICE, number: 42 } });
+
+    expect((await creditNotes.inProgress()).map(({ creditNoteId }) => creditNoteId)).toEqual([
+      "note-1",
+      "note-2",
+    ]);
+    expect(readCreditNoteOfSale(database, "sale-1")).toBeNull();
+  });
+
+  describe("while it waits for an invoice", () => {
+    beforeEach(() => {
+      returnWithCreditNote("sale-1", "return-1", "note-1", { invoice: null });
+    });
+
+    it("is still in progress, carrying no voucher to correct", async () => {
+      await expect(creditNotes.inProgress()).resolves.toMatchObject([
+        { creditNoteId: "note-1", receiverTaxStatusCode: null, correctedVoucher: null },
+      ]);
+      await expect(creditNotes.pendingCreditNote("note-1")).resolves.toMatchObject({
+        correctedVoucher: null,
+      });
+      await expect(creditNotes.recordedAnswer("note-1")).resolves.toEqual({ kind: "in_progress" });
+    });
+
+    it("corrects the invoice it is tied to, from then on", async () => {
+      await creditNotes.tieToInvoice("note-1", { voucher: INVOICE, buyerTaxStatusCode: 5 });
+
+      await expect(creditNotes.pendingCreditNote("note-1")).resolves.toMatchObject({
+        creditNoteId: "note-1",
+        receiverTaxStatusCode: 5,
+        correctedVoucher: INVOICE,
+      });
+      expect(storedNote("note-1")).toMatchObject({ state: "IN_PROGRESS", answered_at: null });
+    });
+
+    it("keeps the invoice it was first tied to", async () => {
+      await creditNotes.tieToInvoice("note-1", { voucher: INVOICE, buyerTaxStatusCode: 5 });
+
+      await creditNotes.tieToInvoice("note-1", {
+        voucher: { ...INVOICE, number: 99 },
+        buyerTaxStatusCode: 1,
+      });
+
+      await expect(creditNotes.pendingCreditNote("note-1")).resolves.toMatchObject({
+        receiverTaxStatusCode: 5,
+        correctedVoucher: INVOICE,
+      });
+    });
+
+    it("is answered as to regularize when no invoice will come", async () => {
+      await creditNotes.recordAnswer("note-1", { kind: "regularization_required" }, ANSWERED_AT);
+
+      await expect(creditNotes.recordedAnswer("note-1")).resolves.toEqual({
+        kind: "regularization_required",
+      });
+      await expect(creditNotes.inProgress()).resolves.toEqual([]);
+    });
+  });
+
+  it("is answered as to regularize by the cloud once requested", async () => {
+    returnWithCreditNote("sale-1", "return-1", "note-1");
+
+    await creditNotes.recordAnswer("note-1", { kind: "regularization_required" }, ANSWERED_AT);
+
+    expect(storedNote("note-1")).toMatchObject({
+      state: "REGULARIZATION_REQUIRED",
+      answered_at: ANSWERED_AT.toISOString(),
+    });
+  });
+});
+
+describe("the invoice standing of a sale", () => {
+  it("lists every invoice of the sale, real-time or offline, and no other sale's", async () => {
+    insertCompletedSale(database, "sale-1");
+    insertCompletedSale(database, "sale-2");
+    insertFiscalDocument(database, { id: "doc-1", saleId: "sale-1", state: "AUTHORIZED" });
+    insertOfflineFiscalDocument(database, { id: "offline-1", saleId: "sale-1", number: 5 });
+    insertFiscalDocument(database, {
+      id: "doc-2",
+      saleId: "sale-2",
+      number: 42,
+      state: "AUTHORIZED",
+    });
+
+    const standing = await creditNotes.saleInvoiceStanding("sale-1");
+
+    expect(standing.fiscalDocuments).toEqual([
+      {
+        origin: "real_time",
+        state: "AUTHORIZED",
+        pointOfSale: POINT_OF_SALE,
+        number: 41,
+        buyerTaxStatusCode: expect.any(Number),
+      },
+      {
+        origin: "offline",
+        state: "AUTHORIZED",
+        pointOfSale: expect.any(Number),
+        number: 5,
+        buyerTaxStatusCode: expect.any(Number),
+      },
+    ]);
+    expect(standing.deferralPending).toBe(false);
+  });
+
+  it("has its invoice pending while a deferred record of the sale waits to be invoiced", async () => {
+    insertCompletedSale(database, "sale-1");
+    insertDeferredSale(database, "sale-1");
+
+    await expect(creditNotes.saleInvoiceStanding("sale-1")).resolves.toEqual({
+      fiscalDocuments: [],
+      deferralPending: true,
+    });
+  });
+
+  it.each([
+    ["cancelled", "UPDATE deferred_sales SET cancelled_at = '2026-09-30T13:00:00.000Z'"],
+    [
+      "satisfied",
+      `UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-1', satisfied_at = '2026-09-30T13:00:00.000Z'`,
+    ],
+  ])("has no invoice pending once its deferred record is %s", async (_case, update) => {
+    insertCompletedSale(database, "sale-1");
+    insertFiscalDocument(database, { id: "doc-1", saleId: "sale-1", state: "AUTHORIZED" });
+    insertDeferredSale(database, "sale-1");
+    database.exec(update);
+
+    await expect(creditNotes.saleInvoiceStanding("sale-1")).resolves.toMatchObject({
+      deferralPending: false,
+    });
+  });
+
+  it("is empty for a sale with no invoice and no deferred record", async () => {
+    insertCompletedSale(database, "sale-1");
+
+    await expect(creditNotes.saleInvoiceStanding("sale-1")).resolves.toEqual({
+      fiscalDocuments: [],
+      deferralPending: false,
+    });
   });
 });

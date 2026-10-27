@@ -1518,8 +1518,22 @@ describe("reprinting a credit note from the history", () => {
     type: "reprint-credit-note",
     request_id: REQUEST_ID,
     sale_id: "sale-1",
+    credit_note_id: "credit-note-1",
     reason: "el cliente la perdió",
   };
+
+  it.each([undefined, "", 7])("rejects a request whose credit note is %j", (creditNoteId) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({ ...reprint, credit_note_id: creditNoteId })
+        .success,
+    ).toBe(false);
+  });
+
+  it("rejects a request naming no credit note", () => {
+    const { credit_note_id: _creditNote, ...message } = reprint;
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   it("accepts a request with the typed reason", () => {
     expect(salesRendererToCoreMessageSchema.parse(reprint)).toEqual(reprint);
@@ -1697,16 +1711,31 @@ describe("printing a sale's original receipt", () => {
 });
 
 describe("printing the credit note of a voided sale", () => {
-  const print = { type: "print-credit-note", request_id: REQUEST_ID, sale_id: "sale-1" };
+  const print = {
+    type: "print-credit-note",
+    request_id: REQUEST_ID,
+    sale_id: "sale-1",
+    credit_note_id: "credit-note-1",
+  };
 
-  it("accepts a request naming the sale", () => {
+  it("accepts a request naming the sale and its credit note", () => {
     expect(salesRendererToCoreMessageSchema.parse(print)).toEqual(print);
   });
 
-  it.each(["request_id", "sale_id"])("rejects a request missing its %s", (field) => {
-    const message = Object.fromEntries(Object.entries(print).filter(([key]) => key !== field));
+  it.each(["request_id", "sale_id", "credit_note_id"])(
+    "rejects a request missing its %s",
+    (field) => {
+      const message = Object.fromEntries(Object.entries(print).filter(([key]) => key !== field));
 
-    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+      expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it.each([undefined, "", 7])("rejects a request whose credit note is %j", (creditNoteId) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({ ...print, credit_note_id: creditNoteId })
+        .success,
+    ).toBe(false);
   });
 
   it("carries no reason and no authorization", () => {
@@ -1894,6 +1923,7 @@ describe("asking for the detail of one sale of the history", () => {
     },
     void_authorization_required: false,
     credit_note: null,
+    credit_note_id: null,
     reprint: { kind: "available" },
     next_copy: { kind: "duplicate", order_number: 2 },
     credit_note_next_copy: null,
@@ -1919,6 +1949,7 @@ describe("asking for the detail of one sale of the history", () => {
       detail: { ...detail, credit_note_next_copy: { kind: "duplicate", order_number: 1 } },
     },
     { kind: "found", detail: { ...detail, credit_note_next_copy: { kind: "original" } } },
+    { kind: "found", detail: { ...detail, credit_note_id: "credit-note-1" } },
     { kind: "found", detail: { ...detail, deferred_invoice_next_copy: { kind: "original" } } },
     {
       kind: "found",
@@ -1979,6 +2010,9 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, line_count: -1 } },
     { kind: "found", detail: { ...detail, payments: [{ method: "CARD", amount: 1 }] } },
     { kind: "found", detail: { ...detail, next_copy: { kind: "reprint" } } },
+    { kind: "found", detail: { ...detail, credit_note_id: undefined } },
+    { kind: "found", detail: { ...detail, credit_note_id: "" } },
+    { kind: "found", detail: { ...detail, credit_note_id: 7 } },
     { kind: "found", detail: { ...detail, credit_note_next_copy: undefined } },
     { kind: "found", detail: { ...detail, credit_note_next_copy: { kind: "reprint" } } },
     { kind: "found", detail: { ...detail, deferred_invoice_next_copy: undefined } },

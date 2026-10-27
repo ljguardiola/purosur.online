@@ -4,8 +4,9 @@ import {
   type FacturaC,
   offlineCreditNoteCFiscalBlock,
   receiptContent,
+  returnedReceiptLine,
 } from "@purosur/domain";
-import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
+import { readCreditNoteById, type StoredCreditNote } from "../fiscal/sqlite-sale-credit-notes";
 import type { LocalDatabase } from "../platform/local-database";
 import { readReceiptSource } from "./sqlite-receipt-source";
 
@@ -32,33 +33,132 @@ function correctedDocument(
   return JSON.parse(row.document) as FacturaC;
 }
 
-function refundsOf(database: LocalDatabase, saleId: string): Refund[] {
+function refundsOf(database: LocalDatabase, saleId: string, returnId: string | null): Refund[] {
   return database
-    .prepare<[string], Refund>(
+    .prepare<[string, string | null], Refund>(
       `SELECT payment_refunds.method AS method, payment_refunds.amount AS amount
        FROM payment_refunds
        JOIN payment_transactions ON payment_transactions.id = payment_refunds.payment_id
        WHERE payment_transactions.sale_id = ?
+         AND payment_refunds.return_id IS ?
        ORDER BY payment_refunds.rowid`,
     )
-    .all(saleId);
+    .all(saleId, returnId);
+}
+
+interface ReturnedLineRow {
+  sale_line_index: number;
+  returned_before: number;
+  quantity: number;
+  refunded_amount: number;
+}
+
+interface ReturnedHeaderRow {
+  address: string;
+  whatsapp_number: string;
+  instagram_handle: string;
+  first_name: string;
+  operation_number: number | null;
+}
+
+function returnedContent(
+  database: LocalDatabase,
+  saleId: string,
+  returnId: string,
+  creditNoteTotal: number,
+): Pick<CreditNoteReceiptContent, "header" | "operation" | "lines" | "totals"> {
+  const header = database
+    .prepare<[string, string], ReturnedHeaderRow>(
+      `SELECT branch_settings.address AS address, branch_settings.whatsapp_number AS whatsapp_number,
+              branch_settings.instagram_handle AS instagram_handle, users.first_name AS first_name,
+              sales.operation_number AS operation_number
+       FROM branch_settings, sales
+       JOIN returns ON returns.sale_id = sales.id AND returns.id = ?
+       JOIN users ON users.id = returns.actor_id
+       WHERE sales.id = ?
+       ORDER BY branch_settings.location_id LIMIT 1`,
+    )
+    .get(returnId, saleId);
+  if (header === undefined || header.operation_number === null) {
+    throw new Error("the return's credit note cannot be sourced");
+  }
+  const sold = receiptContent(readReceiptSource(database, saleId, "COMPLETED")).lines;
+  const lines = database
+    .prepare<[string], ReturnedLineRow>(
+      `SELECT (SELECT COUNT(*) FROM sale_lines AS earlier
+                WHERE earlier.sale_id = sale_lines.sale_id
+                  AND earlier.position < sale_lines.position) AS sale_line_index,
+              (SELECT COALESCE(SUM(earlier_lines.quantity), 0) FROM return_lines AS earlier_lines
+                JOIN returns AS earlier_returns ON earlier_returns.id = earlier_lines.return_id
+                WHERE earlier_lines.sale_line_id = return_lines.sale_line_id
+                  AND earlier_returns.occurred_at < returns.occurred_at) AS returned_before,
+              return_lines.quantity AS quantity, return_lines.refunded_amount AS refunded_amount
+       FROM return_lines
+       JOIN returns ON returns.id = return_lines.return_id
+       JOIN sale_lines ON sale_lines.id = return_lines.sale_line_id
+       WHERE return_lines.return_id = ?
+       ORDER BY sale_lines.position`,
+    )
+    .all(returnId)
+    .map((line) => {
+      const soldLine = sold[line.sale_line_index];
+      if (soldLine === undefined) {
+        throw new Error("the return's credit note cannot be sourced");
+      }
+      return returnedReceiptLine(soldLine, {
+        returnedBefore: line.returned_before,
+        quantity: line.quantity,
+        refundedAmount: line.refunded_amount,
+      });
+    });
+  return {
+    header: {
+      address: header.address,
+      whatsappNumber: header.whatsapp_number,
+      instagramHandle: header.instagram_handle,
+    },
+    operation: {
+      occurredAt: new Date(0),
+      servedByFirstName: header.first_name,
+      operationNumber: header.operation_number,
+    },
+    lines,
+    totals: { subtotal: creditNoteTotal, saleDiscount: null, total: creditNoteTotal },
+  };
+}
+
+function receiptBody(
+  database: LocalDatabase,
+  { saleId, total, origin }: StoredCreditNote,
+): Pick<CreditNoteReceiptContent, "header" | "operation" | "lines" | "totals"> {
+  if (origin.kind === "sale_return") {
+    return returnedContent(database, saleId, origin.returnId, total);
+  }
+  const { header, operation, lines, totals } = receiptContent(
+    readReceiptSource(database, saleId, "VOIDED"),
+  );
+  return {
+    header,
+    operation,
+    lines,
+    totals: { subtotal: totals.subtotal, saleDiscount: totals.saleDiscount, total: totals.total },
+  };
 }
 
 export function readCreditNoteReceipt(
   database: LocalDatabase,
-  saleId: string,
+  creditNoteId: string,
 ): CreditNoteReceiptContent | null {
-  const creditNote = readCreditNoteOfSale(database, saleId);
+  const creditNote = readCreditNoteById(database, creditNoteId);
   if (
     creditNote === null ||
+    creditNote.correctedVoucher === null ||
     (creditNote.answer.kind !== "authorized" && creditNote.answer.kind !== "issued_offline")
   ) {
     return null;
   }
-  const { answer, correctedVoucher } = creditNote;
-  const { header, operation, lines, totals } = receiptContent(
-    readReceiptSource(database, saleId, "VOIDED"),
-  );
+  const { answer, correctedVoucher, saleId, origin } = creditNote;
+  const { header, operation, lines, totals } = receiptBody(database, creditNote);
   const document = correctedDocument(
     database,
     saleId,
@@ -70,8 +170,8 @@ export function readCreditNoteReceipt(
     operation: { ...operation, occurredAt: answer.issuedAt },
     issuedOn: answer.issuedOn,
     lines,
-    totals: { subtotal: totals.subtotal, saleDiscount: totals.saleDiscount, total: totals.total },
-    refunds: refundsOf(database, saleId),
+    totals,
+    refunds: refundsOf(database, saleId, origin.kind === "sale_return" ? origin.returnId : null),
     fiscal:
       answer.kind === "authorized"
         ? creditNoteCFiscalBlock({

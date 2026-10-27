@@ -1,4 +1,4 @@
-import type { VoucherReference } from "../../fiscal/index.js";
+import { creditWithinInvoice, type VoucherReference } from "../../fiscal/index.js";
 import {
   isRefundSentByCloud,
   mercadoPagoPaymentIsBacked,
@@ -118,11 +118,11 @@ async function recordOfflineCreditNote(
   event: UnappliedEvent,
   now: Date,
 ): Promise<void> {
-  const { fiscalDocumentId, saleId } = fact.document;
+  const { fiscalDocumentId, saleId, total } = fact.document;
   await tx.lockCreditedVoucher(corrects);
-  const alreadyCredited = await tx.voucherAlreadyCredited(corrects, fiscalDocumentId);
+  const credit = await tx.creditOnInvoice(corrects, fiscalDocumentId);
   await tx.record(fact, event);
-  if (alreadyCredited) {
+  if (!creditWithinInvoice({ ...credit, asked: total })) {
     await tx.raiseInvoiceAlreadyCredited({ voucher: corrects, saleId }, now);
   }
 }

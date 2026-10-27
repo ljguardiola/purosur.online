@@ -1,6 +1,7 @@
 import { canonicalOutboxEvent } from "@purosur/domain";
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertRealTimeInvoice } from "../fiscal/test-support/held-invoice-fixtures.js";
 import { seedOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import {
   alerts,
@@ -129,8 +130,9 @@ describe("a credit note issued under a pre-obtained code pushed through POST /ev
     expect(await route.db.select().from(alerts)).toEqual([]);
   });
 
-  it("is applied all the same, with the alert that its invoice was already credited, when the cloud's own credit note corrects the voucher", async () => {
+  it("is applied all the same, with the alert that its invoice was already credited, when the cloud's own credit note already credits the invoice's whole total", async () => {
     const { registerId, push } = await enrolledWithSale();
+    await insertRealTimeInvoice(route.db, { registerId, pointOfSale: 7, number: 12, total: 4800 });
     await route.db.insert(creditNotes).values({
       id: crypto.randomUUID(),
       registerId,

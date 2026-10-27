@@ -18,17 +18,22 @@ type HistoryRefusal = Extract<
 
 type NotSignedIn = Extract<ReprintSaleReceiptOutcome, { kind: "not_signed_in" }>;
 
-function creditNoteOf(saleId: string) {
-  return { document: "credit_note", saleId } as const;
+interface IssuedCreditNote {
+  saleId: string;
+  creditNoteId: string;
+}
+
+function keyOf({ saleId, creditNoteId }: IssuedCreditNote) {
+  return { document: "credit_note", saleId, creditNoteId } as const;
 }
 
 export async function printCreditNoteFor(
   deps: ReceiptRequestDeps,
-  saleId: string,
+  creditNote: IssuedCreditNote,
 ): Promise<PrintCreditNoteOutcome> {
   return printOriginalFor(
     deps,
-    creditNoteOf(saleId),
+    keyOf(creditNote),
     (onGrant): OperationAuthority<ReceiptPrintGrant, HistoryRefusal> => ({
       async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, HistoryRefusal>> {
         const guarded = await deps.gate.run({ kind: "view_sales_history" }, async (actor) => actor);
@@ -47,18 +52,18 @@ export async function printCreditNoteFor(
 
 export async function reprintCreditNoteFor(
   deps: ReceiptRequestDeps,
-  { saleId, ...request }: ReprintSaleReceiptRequest,
+  { saleId, creditNoteId, ...request }: ReprintSaleReceiptRequest & { creditNoteId: string },
 ): Promise<ReprintSaleReceiptOutcome> {
-  return reprintFor(deps, creditNoteOf(saleId), request);
+  return reprintFor(deps, keyOf({ saleId, creditNoteId }), request);
 }
 
-export async function printVoidedSaleCreditNoteFor(
+export async function printSaleCreditNoteFor(
   deps: ReceiptRequestDeps,
-  saleId: string,
+  creditNote: IssuedCreditNote,
 ): Promise<void> {
   await printOriginalFor(
     deps,
-    creditNoteOf(saleId),
+    keyOf(creditNote),
     (onGrant): OperationAuthority<ReceiptPrintGrant, NotSignedIn> => ({
       async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, NotSignedIn>> {
         const actorId = deps.signedInUserId();

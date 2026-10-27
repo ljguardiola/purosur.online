@@ -1,13 +1,17 @@
+import { creditsItsInvoice } from "../../model/credit-note.js";
 import type { VoucherReference } from "../../model/orphan-authorization.js";
-import type { CreditNote } from "../credit-note-ports.js";
 import {
   CreditNoteIdTaken,
   type InvoiceAlreadyCredited,
-  type SaleVoidCreditNoteLane,
-  type SaleVoidCreditNoteLanes,
-  type SaleVoidCreditNoteRecord,
-  VoucherAlreadyCredited,
-} from "../sale-void-credit-note-ports.js";
+  type SaleCreditNoteLane,
+  type SaleCreditNoteLanes,
+  type SaleCreditNoteRecord,
+} from "../accept-sale-credit-note-request-ports.js";
+import type { CreditNote } from "../credit-note-ports.js";
+
+function voucherKey({ voucherType, pointOfSale, number }: VoucherReference): string {
+  return [voucherType, pointOfSale, number].join("-");
+}
 
 export interface FakeRegisterPointsOfSale {
   realTime: number;
@@ -32,19 +36,40 @@ export interface KeptAlreadyCreditedRefusal {
   at: Date;
 }
 
-export class FakeSaleVoidCreditNoteStore implements SaleVoidCreditNoteLanes {
+export class FakeSaleCreditNoteStore implements SaleCreditNoteLanes {
   readonly operations: string[] = [];
   readonly lanesEntered: number[] = [];
   readonly lookups: { registerId: string; creditNoteId: string }[] = [];
   readonly recorded = new Map<string, RecordedCreditNote>();
-  readonly records: SaleVoidCreditNoteRecord[] = [];
+  readonly records: SaleCreditNoteRecord[] = [];
   readonly alertsRaised: RaisedInvoiceAlreadyCredited[] = [];
   readonly refusalsKept: KeptAlreadyCreditedRefusal[] = [];
   recordFailure: Error | undefined;
   private readonly registers: Map<string, FakeRegisterPointsOfSale>;
+  private readonly invoiceTotals: Map<string, number>;
 
-  constructor(registers: Iterable<[string, FakeRegisterPointsOfSale]>) {
+  constructor(
+    registers: Iterable<[string, FakeRegisterPointsOfSale]>,
+    invoices: Iterable<[VoucherReference, number]> = [],
+  ) {
     this.registers = new Map(registers);
+    this.invoiceTotals = new Map(
+      [...invoices].map(([voucher, total]) => [voucherKey(voucher), total]),
+    );
+  }
+
+  invoiceTotalOf(voucher: VoucherReference): number | null {
+    return this.invoiceTotals.get(voucherKey(voucher)) ?? null;
+  }
+
+  creditedTo(voucher: VoucherReference): number {
+    return [...this.recorded.values()]
+      .filter(
+        ({ creditNote }) =>
+          voucherKey(creditNote.associatedVoucher) === voucherKey(voucher) &&
+          creditsItsInvoice(creditNote.standing.kind),
+      )
+      .reduce((sum, { creditNote }) => sum + creditNote.total, 0);
   }
 
   seed(registerId: string, creditNote: CreditNote) {
@@ -62,22 +87,22 @@ export class FakeSaleVoidCreditNoteStore implements SaleVoidCreditNoteLanes {
 
   async inPointOfSaleLane<TOutcome>(
     pointOfSale: number,
-    work: (lane: SaleVoidCreditNoteLane) => Promise<TOutcome>,
+    work: (lane: SaleCreditNoteLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.operations.push("enterLane");
     this.lanesEntered.push(pointOfSale);
     try {
-      return await work(new FakeSaleVoidCreditNoteLane(this));
+      return await work(new FakeSaleCreditNoteLane(this));
     } finally {
       this.operations.push("leaveLane");
     }
   }
 }
 
-class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
-  private readonly store: FakeSaleVoidCreditNoteStore;
+class FakeSaleCreditNoteLane implements SaleCreditNoteLane {
+  private readonly store: FakeSaleCreditNoteStore;
 
-  constructor(store: FakeSaleVoidCreditNoteStore) {
+  constructor(store: FakeSaleCreditNoteStore) {
     this.store = store;
   }
 
@@ -100,23 +125,13 @@ class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
       : structuredClone(recorded.creditNote);
   }
 
-  async recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void> {
-    this.store.operations.push("recordSaleVoidCreditNote");
+  async recordSaleCreditNote(record: SaleCreditNoteRecord): Promise<void> {
+    this.store.operations.push("recordSaleCreditNote");
     if (this.store.recordFailure !== undefined) {
       throw this.store.recordFailure;
     }
     if (this.store.recorded.has(record.creditNoteId)) {
       throw new CreditNoteIdTaken();
-    }
-    const { voucherType, pointOfSale, number } = record.correctedVoucher;
-    const alreadyCredited = [...this.store.recorded.values()].some(
-      ({ creditNote: { associatedVoucher } }) =>
-        associatedVoucher.voucherType === voucherType &&
-        associatedVoucher.pointOfSale === pointOfSale &&
-        associatedVoucher.number === number,
-    );
-    if (alreadyCredited) {
-      throw new VoucherAlreadyCredited();
     }
     this.store.records.push(record);
     this.store.seed(record.registerId, {
@@ -125,9 +140,20 @@ class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
       associatedVoucher: record.correctedVoucher,
       total: record.total,
       receiverTaxStatusCode: record.receiverTaxStatusCode,
-      reason: "sale_void",
+      reason: record.origin.kind,
+      issueOn: record.origin.kind === "sale_return" ? record.origin.issuedOn : null,
       standing: { kind: "not_requested" },
     });
+  }
+
+  async invoiceTotalOf(voucher: VoucherReference): Promise<number | null> {
+    this.store.operations.push("invoiceTotalOf");
+    return this.store.invoiceTotalOf(voucher);
+  }
+
+  async creditedToInvoice(voucher: VoucherReference): Promise<number> {
+    this.store.operations.push("creditedToInvoice");
+    return this.store.creditedTo(voucher);
   }
 
   async raiseInvoiceAlreadyCredited({ voucher, saleId }: InvoiceAlreadyCredited, at: Date) {

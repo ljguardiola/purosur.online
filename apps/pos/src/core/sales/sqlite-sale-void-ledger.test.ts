@@ -332,7 +332,8 @@ describe("the credit note of a voided sale", () => {
     total: 3000,
     receiverTaxStatusCode: 5,
     correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
-  };
+    origin: { kind: "sale_void" },
+  } as const;
 
   function recordCreditNote(saleId: string, creditNoteId = "note-1") {
     voidLedger().transaction((tx) => {
@@ -352,7 +353,7 @@ describe("the credit note of a voided sale", () => {
         .prepare(
           `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
                   corrected_point_of_sale, corrected_number, state, recorded_at, answered_at
-           FROM sale_void_credit_notes`,
+           FROM sale_credit_notes`,
         )
         .all(),
     ).toEqual([
@@ -396,7 +397,7 @@ describe("the credit note of a voided sale", () => {
 
     await expect(voidIt(saleId)).rejects.toThrow("outbox refused");
 
-    expect(database.prepare("SELECT count(*) AS total FROM sale_void_credit_notes").get()).toEqual({
+    expect(database.prepare("SELECT count(*) AS total FROM sale_credit_notes").get()).toEqual({
       total: 0,
     });
   });
@@ -413,7 +414,7 @@ describe("the credit note of a voided sale", () => {
     expect(
       database
         .prepare(
-          "SELECT sale_id, corrected_point_of_sale, corrected_number, state FROM sale_void_credit_notes",
+          "SELECT sale_id, corrected_point_of_sale, corrected_number, state FROM sale_credit_notes",
         )
         .all(),
     ).toEqual([
@@ -748,7 +749,7 @@ describe("the credit note of a sale voided without a connection", () => {
       database
         .prepare(
           `SELECT notes.state, notes.answered_at, notes.offline_fiscal_document_id = documents.id AS carried
-           FROM sale_void_credit_notes AS notes
+           FROM sale_credit_notes AS notes
            JOIN offline_fiscal_documents AS documents ON documents.credit_note_id = notes.id`,
         )
         .all(),
@@ -812,7 +813,7 @@ describe("the credit note of a sale voided without a connection", () => {
 
     await voidIt(saleId);
 
-    expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+    expect(database.prepare("SELECT state FROM sale_credit_notes").all()).toEqual([
       { state: "IN_PROGRESS" },
     ]);
     expect(
@@ -833,7 +834,7 @@ describe("the credit note of a sale voided without a connection", () => {
     expect(
       database.prepare("SELECT count(*) AS total FROM offline_fiscal_documents").get(),
     ).toEqual({ total: 0 });
-    expect(database.prepare("SELECT count(*) AS total FROM sale_void_credit_notes").get()).toEqual({
+    expect(database.prepare("SELECT count(*) AS total FROM sale_credit_notes").get()).toEqual({
       total: 0,
     });
     expect(database.prepare("SELECT state FROM sales WHERE id = ?").get(saleId)).toEqual({

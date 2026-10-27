@@ -1,25 +1,25 @@
-import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "@purosur/domain";
+import type { CreditNoteToIssue, RestoredCreditNoteAnswer } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   insertPendingCreditNote,
-  readCreditNoteOfSale,
+  readCreditNoteById,
   writeCreditNoteAnswer,
-} from "./sqlite-void-credit-notes";
+} from "./sqlite-sale-credit-notes";
 
 export function recordReplenishedCreditNoteAnswer(
   database: LocalDatabase,
-  creditNote: SaleVoidCreditNote,
+  creditNote: CreditNoteToIssue,
   { answer, answeredAt }: RestoredCreditNoteAnswer,
 ): void {
-  if (answer.kind === "issued_offline") {
-    return;
-  }
-  const held = readCreditNoteOfSale(database, creditNote.saleId);
+  const held = readCreditNoteById(database, creditNote.creditNoteId);
   if (held !== null && held.answer.kind !== "in_progress") {
     return;
   }
   if (held === null) {
     insertPendingCreditNote(database, creditNote);
+  }
+  if (answer.kind === "issued_offline") {
+    return;
   }
   const changes = writeCreditNoteAnswer(database, creditNote.creditNoteId, answer, answeredAt);
   if (changes === 0) {

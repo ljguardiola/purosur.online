@@ -24,6 +24,8 @@ export function toWireCreditNote(creditNote: VoidCreditNoteStanding | null): Sal
         fortnight_start: creditNote.fortnight.start,
         fortnight_end: creditNote.fortnight.end,
       };
+    case "regularization_required":
+      return { kind: "in_progress" };
     default:
       return creditNote ?? null;
   }

@@ -7,13 +7,18 @@ import {
   creditedSales,
   FIRST_PRINT_AT,
   receiptRig,
+  returnCreditNote,
   SENT_AT,
   voidedSale,
 } from "./test-support/receipt-rig.js";
 
 const creditedSale = creditedSales(FICTIONAL_ISSUER);
 
-const CREDIT_NOTE = { document: "credit_note", saleId: "sale-1" } as const;
+const CREDIT_NOTE = {
+  document: "credit_note",
+  saleId: "sale-1",
+  creditNoteId: "credit-note-1",
+} as const;
 
 describe("printOriginalReceipt of a credit note", () => {
   describe("the first print", () => {
@@ -73,10 +78,11 @@ describe("printOriginalReceipt of a credit note", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_print_state_changed",
-          schema_version: 2,
+          schema_version: 3,
           payload: {
             sale_id: "sale-1",
             document: "credit_note",
+            credit_note_id: "credit-note-1",
             print_attempted_at: FIRST_PRINT_AT.toISOString(),
             printed_at: SENT_AT.toISOString(),
           },
@@ -97,6 +103,71 @@ describe("printOriginalReceipt of a credit note", () => {
       rig.printer.becomeReady();
 
       expect(await printing).toEqual({ kind: "printed", copy: { kind: "original" } });
+    });
+  });
+
+  describe("a sale with the credit notes of its returns", () => {
+    const SECOND_CREDIT_NOTE = { ...CREDIT_NOTE, creditNoteId: "credit-note-2" } as const;
+    const twoCreditNotes = () => {
+      const sale = creditedSale();
+      return { ...sale, returnCreditNotes: [returnCreditNote(FICTIONAL_ISSUER)] };
+    };
+
+    it("prints the credit note the key names and leaves the others untouched", async () => {
+      const rig = receiptRig([twoCreditNotes()]);
+
+      const printing = printOriginalReceipt(rig.ports, SECOND_CREDIT_NOTE, rig.watch);
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
+      rig.clock.set(SENT_AT);
+
+      expect(await printing).toEqual({ kind: "printed", copy: { kind: "original" } });
+      const [sale] = rig.ledger.state.sales;
+      expect(sale?.returnCreditNotes?.[0]).toMatchObject({
+        printAttemptedAt: FIRST_PRINT_AT,
+        printedAt: SENT_AT,
+      });
+      expect(sale?.creditNote).toMatchObject({ printAttemptedAt: null, printedAt: null });
+    });
+
+    it("renders the credit note the key names", async () => {
+      const rig = receiptRig([twoCreditNotes()]);
+
+      const printing = printOriginalReceipt(rig.ports, SECOND_CREDIT_NOTE, rig.watch);
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
+      await printing;
+
+      expect(rig.ledger.state.sales[0]?.returnCreditNotes?.[0]?.stored).toMatchObject({
+        templateVersion: "v1",
+      });
+      expect(rig.ledger.state.sales[0]?.creditNote?.stored).toBeUndefined();
+    });
+
+    it("names the credit note it printed in the print state event", async () => {
+      const rig = receiptRig([twoCreditNotes()]);
+
+      const printing = printOriginalReceipt(rig.ports, SECOND_CREDIT_NOTE, rig.watch);
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
+      await printing;
+
+      expect(rig.ledger.state.outbox.map(({ payload }) => payload)).toEqual([
+        expect.objectContaining({ document: "credit_note", credit_note_id: "credit-note-2" }),
+      ]);
+    });
+
+    it("answers not_found for a credit note that is not one of the sale's", async () => {
+      const rig = receiptRig([twoCreditNotes()]);
+
+      expect(
+        await printOriginalReceipt(
+          rig.ports,
+          { ...CREDIT_NOTE, creditNoteId: "credit-note-9" },
+          rig.watch,
+        ),
+      ).toEqual({ kind: "not_found" });
+      expect(rig.ledger.state.outbox).toEqual([]);
     });
   });
 

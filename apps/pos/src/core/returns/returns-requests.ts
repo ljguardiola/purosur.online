@@ -8,6 +8,12 @@ import type {
 } from "@purosur/contracts";
 import type { RefundAllocation, ReturnDraftLine, TicketSource } from "@purosur/domain";
 import {
+  type CloudCreditNotes,
+  type ReturnCreditNoteToRequest,
+  type ReturnedSaleInvoicing,
+  requestReturnCreditNote,
+} from "@purosur/domain/fiscal/use-cases";
+import {
   type CompleteReturnGrant,
   completeReturn,
   findSaleForReturn,
@@ -15,6 +21,8 @@ import {
   previewReturn,
   type SaleReturnSearch,
 } from "@purosur/domain/returns/use-cases";
+import type { DeferredSaleInvoicing } from "@purosur/domain/sales/use-cases";
+import { SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import type { OutboxSaleRequestDeps } from "../sales/sale-requests";
 import {
   toWireLineRefusal,
@@ -28,7 +36,45 @@ import { SqliteReturnSaleReader } from "./sqlite-return-sale-reader";
 export type ReturnRequestDeps = Pick<
   OutboxSaleRequestDeps,
   "database" | "gate" | "now" | "zoneRules" | "ids" | "readOutboxChainKey"
->;
+> & {
+  creditNotes?: CloudCreditNotes | undefined;
+  invoicing?: DeferredSaleInvoicing | undefined;
+  printCreditNote?:
+    | ((creditNote: { saleId: string; creditNoteId: string }) => Promise<void>)
+    | undefined;
+  reportFailure?: ((error: unknown) => void) | undefined;
+};
+
+const NO_ANSWER_FROM_CLOUD: CloudCreditNotes = { request: async () => null };
+const NO_INVOICING: ReturnedSaleInvoicing = {
+  invoiceUpTo: async () => ({ kind: "not_yet", cause: "cannot_authorize" }),
+};
+
+async function settleCreditNote(
+  { database, now, creditNotes, invoicing, printCreditNote, reportFailure }: ReturnRequestDeps,
+  saleId: string,
+  creditNote: ReturnCreditNoteToRequest,
+): Promise<void> {
+  const report = reportFailure ?? (() => undefined);
+  const outcome = await requestReturnCreditNote(
+    {
+      creditNotes: new SqliteSaleCreditNotes(database),
+      cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
+      clock: { now },
+      printer: {
+        startPrinting: (printed) => void printCreditNote?.(printed).catch(report),
+      },
+      invoicing: invoicing ?? NO_INVOICING,
+    },
+    { saleId, creditNote },
+  );
+  if (outcome.invoicing.kind === "failed") {
+    report(outcome.invoicing.error);
+  }
+  if (outcome.creditNote.kind === "failed") {
+    report(outcome.creditNote.error);
+  }
+}
 
 export interface FindSaleForReturnRequest {
   ticket: SaleReturnSearch;
@@ -100,9 +146,10 @@ export async function previewReturnFor(
 }
 
 export async function completeReturnFor(
-  { database, gate, now, zoneRules, ids, readOutboxChainKey }: ReturnRequestDeps,
+  deps: ReturnRequestDeps,
   { saleId, ticketSource, lines, refunds, authorization }: CompleteReturnRequest,
 ): Promise<CompleteReturnOutcome> {
+  const { database, gate, now, zoneRules, ids, readOutboxChainKey } = deps;
   const outboxChainKey = await readOutboxChainKey();
   const outcome = await completeReturn<ReturnRequestGrant, ReturnRefusal>(
     {
@@ -132,6 +179,9 @@ export async function completeReturnFor(
     },
     { saleId, ticketSource, lines, refunds },
   );
+  if (outcome.kind === "completed" && outcome.creditNote.kind !== "none") {
+    await settleCreditNote(deps, saleId, outcome.creditNote);
+  }
   switch (outcome.kind) {
     case "completed":
       return {

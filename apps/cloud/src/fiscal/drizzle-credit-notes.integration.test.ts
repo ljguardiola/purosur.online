@@ -73,7 +73,7 @@ async function aCreditNote(pointOfSale = 7): Promise<string> {
 
 function rejectedTask(
   creditNoteId: string,
-  number: number,
+  number: number | null,
   rejections: readonly TaxAuthorityRejection[],
 ): FiscalTask {
   return {
@@ -133,7 +133,28 @@ describe("the credit note lanes on a real Postgres", () => {
       total: 12_500,
       receiverTaxStatusCode: 5,
       reason: "orphan",
+      issueOn: null,
       standing: { kind: "not_requested" },
+    });
+  });
+
+  it("reads the day a return's credit note must be issued on", async () => {
+    const id = await aCreditNote();
+    await db
+      .update(creditNotes)
+      .set({
+        reason: "sale_return",
+        returnId: crypto.randomUUID(),
+        issueOn: "2026-10-05",
+        keptVoucherType: null,
+        keptPointOfSale: null,
+        keptNumber: null,
+      })
+      .where(eq(creditNotes.id, id));
+
+    expect(await inLane((lane) => lane.creditNote(id))).toMatchObject({
+      reason: "sale_return",
+      issueOn: "2026-10-05",
     });
   });
 
@@ -378,6 +399,63 @@ describe("the credit note lanes on a real Postgres", () => {
 
       expect((await inLane((lane) => lane.creditNote(id)))?.standing).toMatchObject({
         kind: "requested",
+      });
+    });
+  });
+
+  describe("a credit note that cannot be issued", () => {
+    const regularization = (creditNoteId: string) => ({
+      creditNoteId,
+      regularizationRequiredAt: ANSWERED_AT,
+      task: rejectedTask(creditNoteId, null, []),
+    });
+
+    it("is held together with a task for a person that names no number", async () => {
+      const id = await aCreditNote();
+
+      await inLane((lane) => lane.recordCreditNoteRegularizationRequired(regularization(id)));
+
+      expect((await inLane((lane) => lane.creditNote(id)))?.standing).toEqual({
+        kind: "regularization_required",
+      });
+      expect(await rowOf(id)).toMatchObject({
+        answerKind: "regularization_required",
+        answeredAt: ANSWERED_AT,
+        number: null,
+      });
+      const [task] = (await db.select().from(fiscalTasks)).filter((row) => row.creditNoteId === id);
+      expect(task).toMatchObject({
+        kind: "credit_note_rejected",
+        registerId,
+        pointOfSale: 7,
+        documentType: "credit_note_c",
+        number: null,
+        reason: { rejections: [] },
+        state: "open",
+        createdAt: ANSWERED_AT,
+      });
+    });
+
+    it("opens one task when it is recorded again", async () => {
+      const id = await aCreditNote();
+
+      await inLane((lane) => lane.recordCreditNoteRegularizationRequired(regularization(id)));
+      await inLane((lane) => lane.recordCreditNoteRegularizationRequired(regularization(id)));
+
+      expect(
+        (await db.select().from(fiscalTasks)).filter((row) => row.creditNoteId === id),
+      ).toHaveLength(1);
+    });
+
+    it("is not held when the task cannot be opened", async () => {
+      const id = await aCreditNote();
+
+      await refusingTaskInserts(() =>
+        inLane((lane) => lane.recordCreditNoteRegularizationRequired(regularization(id))),
+      );
+
+      expect((await inLane((lane) => lane.creditNote(id)))?.standing).toEqual({
+        kind: "not_requested",
       });
     });
   });

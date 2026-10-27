@@ -178,6 +178,7 @@ describe("completeReturn", () => {
             occurredAt: RETURNED_AT,
           },
         ],
+        creditNote: { kind: "none" },
         grant: OWN_GRANT,
       });
       expect(store.state.returns).toEqual([RETURN_RECORD]);
@@ -229,7 +230,7 @@ describe("completeReturn", () => {
           aggregate_type: "Return",
           aggregate_id: "id-1",
           event_type: "sale_returned",
-          schema_version: 1,
+          schema_version: 2,
           occurred_at: RETURNED_AT.toISOString(),
           actor_id: "cashier",
           payload: {
@@ -242,6 +243,7 @@ describe("completeReturn", () => {
             authorized_by: null,
             ticket_source: "QR",
             occurred_at: RETURNED_AT.toISOString(),
+            credit_note: null,
             lines: [
               {
                 sale_line_id: "line-1",
@@ -817,6 +819,347 @@ describe("completeReturn", () => {
 
       expect(store.state).toEqual(before);
     });
+  });
+});
+
+const INVOICE_OF_SALE = {
+  saleId: "sale-1",
+  origin: "real_time",
+  state: "AUTHORIZED",
+  pointOfSale: 3,
+  number: 1204,
+  buyerTaxStatusCode: 5,
+} as const;
+const ONLINE = {
+  lastHealthCheckOkAt: new Date(RETURNED_AT.getTime() - 1_000),
+  tokenValid: true,
+  arcaReachable: true,
+};
+const OFFLINE = { ...ONLINE, lastHealthCheckOkAt: null };
+const OFFLINE_SERIES = {
+  pointOfSale: 9,
+  blocksInAssignmentOrder: [{ firstNumber: 41, lastNumber: 1040 }],
+  localLastUsed: null,
+  taxAuthorityLastAuthorized: 40,
+  highestSyncedNumber: null,
+  clockMark: null,
+};
+const CODE = "71234567890123";
+const RETURN_ORIGIN = { kind: "sale_return", returnId: "id-1", issuedOn: "2026-09-20" } as const;
+const RETURN_CREDIT_NOTE = {
+  creditNoteId: "id-7",
+  saleId: "sale-1",
+  total: 7000,
+  receiverTaxStatusCode: 5,
+  correctedVoucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+  origin: RETURN_ORIGIN,
+};
+const RETURN_CREDIT_NOTE_PAYLOAD = {
+  id: "id-7",
+  total: 7000,
+  receiver_tax_status_code: 5,
+  corrects: { voucher_type: 11, point_of_sale: 3, number: 1204 },
+  issued_on: "2026-09-20",
+};
+
+describe("completeReturn credit note", () => {
+  function invoiced(state: Partial<FakeReturnLedgerState> = {}): FakeReturnLedger {
+    return ledger({
+      fiscalDocuments: [INVOICE_OF_SALE],
+      fiscalOnlineEvidence: ONLINE,
+      ...state,
+    });
+  }
+
+  describe("a sale with an authorized invoice", () => {
+    it("records a pending credit note for what the return refunded, referencing the invoice, in the same transaction", async () => {
+      const store = invoiced();
+
+      const outcome = await complete(store);
+
+      expect(outcome).toMatchObject({
+        kind: "completed",
+        refundedTotal: 7000,
+        creditNote: { kind: "pending", creditNoteId: "id-7" },
+      });
+      expect(store.state.creditNotes).toEqual([RETURN_CREDIT_NOTE]);
+      expect(store.transactions).toBe(1);
+    });
+
+    it("credits only what the return refunded, not the whole sale", async () => {
+      const store = invoiced();
+
+      await complete(store, {
+        lines: [YERBA_BACK],
+        refunds: [{ paymentId: "pay-cash", amount: 5000 }],
+      });
+
+      expect(store.state.creditNotes).toMatchObject([{ total: 5000 }]);
+    });
+
+    it("dates the credit note with the Argentine day of the return", async () => {
+      const store = invoiced();
+
+      await complete(
+        store,
+        {},
+        OWN_GRANT,
+        new Date(argentinaInstant("2026-09-20", "23:30", FIXED_ARGENTINA_ZONE_RULES)),
+      );
+
+      expect(store.state.creditNotes).toMatchObject([
+        { origin: { kind: "sale_return", issuedOn: "2026-09-20" } },
+      ]);
+    });
+
+    it("asks for the credit note in the event, ahead of the lines", async () => {
+      const store = invoiced();
+
+      await complete(store);
+
+      expect(store.state.outbox).toHaveLength(1);
+      expect(store.state.outbox[0]).toMatchObject({
+        event_id: "id-8",
+        schema_version: 2,
+        payload: { credit_note: RETURN_CREDIT_NOTE_PAYLOAD },
+      });
+    });
+
+    it("corrects the contingency document, not the real-time invoice, when the sale has both", async () => {
+      const store = invoiced({
+        fiscalDocuments: [
+          INVOICE_OF_SALE,
+          { ...INVOICE_OF_SALE, origin: "offline", pointOfSale: 8, number: 77 },
+        ],
+      });
+
+      await complete(store);
+
+      expect(store.state.creditNotes).toMatchObject([
+        { correctedVoucher: { voucherType: 11, pointOfSale: 8, number: 77 } },
+      ]);
+    });
+
+    it("issues no credit note for a return that refunds nothing", async () => {
+      const free = aSaleForReturn();
+      free.sale.lines = [{ ...YERBA_LINE, lineTotal: 0 }];
+      free.payments = [CASH_PAYMENT];
+      const store = invoiced({ sales: [free] });
+
+      const outcome = await complete(store, { lines: [YERBA_BACK], refunds: [] });
+
+      expect(outcome).toMatchObject({ kind: "completed", creditNote: { kind: "none" } });
+      expect(store.state.creditNotes).toEqual([]);
+      expect(store.state.outbox[0]).toMatchObject({ payload: { credit_note: null } });
+    });
+
+    it.each([
+      ["no documents", []],
+      ["a rejected invoice", [{ ...INVOICE_OF_SALE, state: "REJECTED" as const }]],
+    ])("issues no credit note for a sale with %s", async (_case, fiscalDocuments) => {
+      const store = invoiced({ fiscalDocuments });
+
+      const outcome = await complete(store);
+
+      expect(outcome).toMatchObject({ kind: "completed", creditNote: { kind: "none" } });
+      expect(store.state.creditNotes).toEqual([]);
+    });
+
+    it("tells whether the register is online by the clock of the return", async () => {
+      const store = invoiced({
+        fiscalOnlineEvidence: {
+          ...ONLINE,
+          lastHealthCheckOkAt: new Date(RETURNED_AT.getTime() - 15_000),
+        },
+      });
+
+      const outcome = await complete(store);
+
+      expect(outcome).toMatchObject({ creditNote: { kind: "pending" } });
+    });
+  });
+
+  describe("a sale whose invoice is still to come", () => {
+    const AWAITING_NOTE = {
+      creditNoteId: "id-7",
+      saleId: "sale-1",
+      total: 7000,
+      receiverTaxStatusCode: null,
+      correctedVoucher: null,
+      origin: RETURN_ORIGIN,
+    };
+
+    it("holds the credit note for the invoice of a deferred sale that was not invoiced yet", async () => {
+      const store = ledger({ salesAwaitingDeferredInvoice: ["sale-1"] });
+
+      const outcome = await complete(store);
+
+      expect(outcome).toMatchObject({
+        kind: "completed",
+        creditNote: { kind: "awaiting_invoice", creditNoteId: "id-7" },
+      });
+      expect(store.state.creditNotes).toEqual([AWAITING_NOTE]);
+    });
+
+    it("holds the credit note for an invoice that is being requested", async () => {
+      const store = ledger({
+        fiscalDocuments: [{ ...INVOICE_OF_SALE, state: "REQUESTING" }],
+      });
+
+      const outcome = await complete(store);
+
+      expect(outcome).toMatchObject({ creditNote: { kind: "awaiting_invoice" } });
+      expect(store.state.creditNotes).toEqual([AWAITING_NOTE]);
+    });
+
+    it("tells the event the credit note waits, without the invoice it will correct", async () => {
+      const store = ledger({ salesAwaitingDeferredInvoice: ["sale-1"] });
+
+      await complete(store);
+
+      expect(store.state.outbox[0]).toMatchObject({
+        payload: {
+          credit_note: {
+            id: "id-7",
+            total: 7000,
+            receiver_tax_status_code: null,
+            corrects: null,
+            issued_on: "2026-09-20",
+          },
+        },
+      });
+    });
+
+    it("holds it even without a connection, never issuing it offline", async () => {
+      const store = ledger({
+        salesAwaitingDeferredInvoice: ["sale-1"],
+        fiscalOnlineEvidence: OFFLINE,
+        offlineCreditNoteSeries: OFFLINE_SERIES,
+        offlineAuthorizationCodes: { "2026-09-16": CODE },
+      });
+
+      await complete(store);
+
+      expect(store.state.issuedOfflineCreditNotes).toEqual([]);
+      expect(store.offlineSeriesReads).toBe(0);
+    });
+  });
+
+  describe("a sale with an authorized invoice, without a connection", () => {
+    const FORTNIGHT = { start: "2026-09-16", end: "2026-09-30" };
+    const OFFLINE_CREDIT_NOTE = {
+      id: "id-9",
+      saleId: "sale-1",
+      creditNoteId: "id-7",
+      pointOfSale: 9,
+      documentType: "credit_note_c",
+      number: 41,
+      issuedOn: "2026-09-20",
+      generatedAt: RETURNED_AT,
+      generationStamp: "20260920100000",
+      offlineAuthorizationCode: CODE,
+      fortnight: FORTNIGHT,
+      total: 7000,
+      receiverTaxStatusCode: 5,
+      corrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
+      buyerDocumentType: 99,
+      buyerDocumentNumber: 0,
+      cause: "no_connectivity",
+    };
+
+    function offlineLedger(state: Partial<FakeReturnLedgerState> = {}): FakeReturnLedger {
+      return invoiced({
+        fiscalOnlineEvidence: OFFLINE,
+        offlineCreditNoteSeries: OFFLINE_SERIES,
+        offlineAuthorizationCodes: { "2026-09-16": CODE },
+        ...state,
+      });
+    }
+
+    it("issues the credit note itself, numbered next in the credit note series of the offline point of sale", async () => {
+      const store = offlineLedger();
+
+      const outcome = await complete(store);
+
+      expect(outcome).toMatchObject({
+        kind: "completed",
+        creditNote: { kind: "issued_offline", creditNoteId: "id-7" },
+      });
+      expect(store.state.issuedOfflineCreditNotes).toEqual([OFFLINE_CREDIT_NOTE]);
+      expect(store.state.creditNotes).toEqual([]);
+      expect(store.transactions).toBe(1);
+    });
+
+    it("appends the return first and the contingency credit note's report event after it", async () => {
+      const store = offlineLedger();
+
+      await complete(store);
+
+      expect(store.state.outbox.map(({ event_type }) => event_type)).toEqual([
+        "sale_returned",
+        "offline_fiscal_document_issued",
+      ]);
+      expect(store.state.outbox[0]).toMatchObject({
+        event_id: "id-8",
+        payload: { credit_note: RETURN_CREDIT_NOTE_PAYLOAD },
+      });
+      expect(store.state.outbox[1]).toMatchObject({
+        event_id: "id-10",
+        aggregate_id: "sale-1",
+        schema_version: 3,
+      });
+    });
+
+    it("leaves the credit note in progress for the cloud when the register has no contingency code", async () => {
+      const store = offlineLedger({ offlineAuthorizationCodes: {} });
+
+      const outcome = await complete(store);
+
+      expect(outcome).toMatchObject({ creditNote: { kind: "pending" } });
+      expect(store.state.creditNotes).toEqual([RETURN_CREDIT_NOTE]);
+      expect(store.state.issuedOfflineCreditNotes).toEqual([]);
+      expect(store.state.clockMarks).toEqual([]);
+    });
+
+    it("reads the credit note series only for a return that has a credit note to issue", async () => {
+      const store = offlineLedger({ fiscalDocuments: [] });
+
+      await complete(store);
+
+      expect(store.offlineSeriesReads).toBe(0);
+    });
+  });
+
+  describe("a write that fails halfway", () => {
+    it.each(["recordPendingCreditNote"] as const)(
+      "leaves the register as it was when %s fails",
+      async (write) => {
+        const store = invoiced();
+        const before = structuredClone(store.state);
+        store.failOn = write;
+
+        await expect(complete(store)).rejects.toThrow(`${write} failed`);
+
+        expect(store.state).toEqual(before);
+      },
+    );
+
+    it.each(["issueOfflineCreditNote", "recordClockMark", "appendOutboxEvent"] as const)(
+      "leaves the register as it was when %s fails while issuing offline",
+      async (write) => {
+        const store = invoiced({
+          fiscalOnlineEvidence: OFFLINE,
+          offlineCreditNoteSeries: OFFLINE_SERIES,
+          offlineAuthorizationCodes: { "2026-09-16": CODE },
+        });
+        const before = structuredClone(store.state);
+        store.failOn = write;
+
+        await expect(complete(store)).rejects.toThrow(`${write} failed`);
+
+        expect(store.state).toEqual(before);
+      },
+    );
   });
 });
 

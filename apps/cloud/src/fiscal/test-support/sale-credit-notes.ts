@@ -40,7 +40,7 @@ export function anUnclearAnswer(number = nextAnswerNumber++) {
   };
 }
 
-export async function insertSaleVoidCreditNote<TQueryResult extends PgQueryResultHKT>(
+export async function insertSaleCreditNote<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   registerId: string,
   saleId: string,

@@ -2,7 +2,7 @@ import {
   type CreditNoteIssuedOffline,
   type RestoredCreditNoteAnswer,
   restoredCreditNoteSettlement,
-} from "../model/sale-void-credit-note.js";
+} from "../model/sale-credit-note.js";
 import type {
   IssuedOfflineCreditNoteOfRegister,
   ServeRestoredRegisterCreditNoteAnswersPorts,
@@ -32,7 +32,7 @@ export async function serveRestoredRegisterCreditNoteAnswers(
   if (creditNoteIds.length === 0) {
     return { answers: [], unrequestedCreditNoteIds: [] };
   }
-  const recorded = await creditNotes.saleVoidCreditNotesOf(registerId, creditNoteIds);
+  const recorded = await creditNotes.saleCreditNotesOf(registerId, creditNoteIds);
   const refusals = await creditNotes.keptRefusalsOf(registerId, creditNoteIds);
   const issuedOffline = await creditNotes.issuedOfflineOf(registerId, creditNoteIds);
 

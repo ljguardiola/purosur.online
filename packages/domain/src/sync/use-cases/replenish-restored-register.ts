@@ -117,7 +117,10 @@ async function applyPage<TFailure>(
         unapplied += 1;
         continue;
       }
-      if (fact.kind === "sale_voided" && fact.creditNote !== null) {
+      if (
+        (fact.kind === "sale_voided" || fact.kind === "sale_returned") &&
+        fact.creditNote !== null
+      ) {
         const { creditNoteId } = fact.creditNote;
         const answer = creditNoteAnswers.find((answered) => answered.creditNoteId === creditNoteId);
         if (answer === undefined) {

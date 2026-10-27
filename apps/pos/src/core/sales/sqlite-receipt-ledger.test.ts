@@ -1,5 +1,5 @@
 import type { ReceiptDelivery, ReceiptSource } from "@purosur/domain";
-import type { ReceiptLedgerTransaction } from "@purosur/domain/sales/use-cases";
+import type { ReceiptLedgerTransaction, ReceiptReprint } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   FACTURA_C,
@@ -22,6 +22,15 @@ const COMPLETED_AT = "2026-09-30T15:05:00.000Z";
 
 let database: LocalDatabase;
 let ledger: SqliteReceiptLedger;
+
+function recordReprintOf(tx: ReceiptLedgerTransaction, reprint: ReceiptReprint): void {
+  tx.recordReprint(
+    reprint.document === "credit_note"
+      ? { document: "credit_note", saleId: reprint.saleId, creditNoteId: "note-1" }
+      : { document: reprint.document, saleId: reprint.saleId },
+    reprint,
+  );
+}
 
 function inTransaction<TOutcome>(work: (tx: ReceiptLedgerTransaction) => TOutcome): TOutcome {
   return ledger.transaction(work);
@@ -152,7 +161,7 @@ describe("a receipt ledger's delivery of a sale", () => {
 
     inTransaction((tx) => {
       tx.recordPrinted({ document: "sale_receipt", saleId: "sale-1" }, printedAt);
-      tx.recordReprint({
+      recordReprintOf(tx, {
         document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 1,
@@ -161,7 +170,7 @@ describe("a receipt ledger's delivery of a sale", () => {
         reason: { kind: "retry" },
         occurredAt: new Date("2026-09-30T15:10:00.000Z"),
       });
-      tx.recordReprint({
+      recordReprintOf(tx, {
         document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 2,
@@ -188,7 +197,7 @@ describe("a receipt ledger's recorded reprints", () => {
     insertCompletedSale("sale-1");
 
     inTransaction((tx) => {
-      tx.recordReprint({
+      recordReprintOf(tx, {
         document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 1,
@@ -197,7 +206,7 @@ describe("a receipt ledger's recorded reprints", () => {
         reason: { kind: "requested", text: "El cliente lo perdio" },
         occurredAt: new Date("2026-09-30T15:10:00.000Z"),
       });
-      tx.recordReprint({
+      recordReprintOf(tx, {
         document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 2,
@@ -244,12 +253,12 @@ describe("a receipt ledger's recorded reprints", () => {
       occurredAt: new Date("2026-09-30T15:10:00.000Z"),
     };
     inTransaction((tx) => {
-      tx.recordReprint(reprint);
+      recordReprintOf(tx, reprint);
     });
 
     expect(() =>
       inTransaction((tx) => {
-        tx.recordReprint(reprint);
+        recordReprintOf(tx, reprint);
       }),
     ).toThrow();
   });
@@ -586,7 +595,7 @@ describe("a receipt ledger's transaction", () => {
 });
 
 describe("a receipt ledger's credit note of a voided sale", () => {
-  const creditNote = { document: "credit_note", saleId: "sale-1" } as const;
+  const creditNote = { document: "credit_note", saleId: "sale-1", creditNoteId: "note-1" } as const;
   const receipt = { document: "sale_receipt", saleId: "sale-1" } as const;
 
   beforeEach(() => {
@@ -605,7 +614,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   });
 
   it("is authorized once the register issued it offline, whatever its print state", () => {
-    database.exec("DELETE FROM sale_void_credit_notes");
+    database.exec("DELETE FROM sale_credit_notes");
     insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 9 });
 
     expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.creditNoteAuthorized).toBe(true);
@@ -614,7 +623,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   it.each(["IN_PROGRESS", "REJECTED", "ALREADY_CREDITED"])(
     "is not authorized while it is %s",
     (state) => {
-      database.exec("DELETE FROM sale_void_credit_notes");
+      database.exec("DELETE FROM sale_credit_notes");
       insertCreditNote(database, {
         state,
         point_of_sale: null,
@@ -633,7 +642,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   );
 
   it("is not authorized for a voided sale without a credit note", () => {
-    database.exec("DELETE FROM sale_void_credit_notes");
+    database.exec("DELETE FROM sale_credit_notes");
 
     expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.creditNoteAuthorized).toBe(false);
   });
@@ -645,7 +654,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
     inTransaction((tx) => {
       tx.recordPrintAttempt(creditNote, attemptedAt);
       tx.recordPrinted(creditNote, printedAt);
-      tx.recordReprint({
+      recordReprintOf(tx, {
         document: "credit_note",
         saleId: "sale-1",
         orderNumber: 1,
@@ -699,13 +708,13 @@ describe("a receipt ledger's credit note of a voided sale", () => {
     });
 
     inTransaction((tx) => {
-      tx.recordReprint(reprint("sale_receipt"));
-      tx.recordReprint(reprint("credit_note"));
+      recordReprintOf(tx, reprint("sale_receipt"));
+      recordReprintOf(tx, reprint("credit_note"));
     });
 
     expect(() =>
       inTransaction((tx) => {
-        tx.recordReprint(reprint("credit_note"));
+        recordReprintOf(tx, reprint("credit_note"));
       }),
     ).toThrow();
     expect(database.prepare("SELECT document FROM sale_reprints ORDER BY document").all()).toEqual([
@@ -732,10 +741,89 @@ describe("a receipt ledger's credit note of a voided sale", () => {
     expect(inTransaction((tx) => tx.storedReceipt(receipt))).toBeUndefined();
   });
 
+  describe("with the credit note of a return beside it", () => {
+    const returnNote = {
+      document: "credit_note",
+      saleId: "sale-1",
+      creditNoteId: "note-r1",
+    } as const;
+
+    beforeEach(() => {
+      insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+      database.exec(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-02T15:00:00.000Z');
+         INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+         VALUES ('return-1', 'line-1', 1, 'change_of_mind', 'restock', 420000);
+         INSERT INTO sale_credit_notes (
+           id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, point_of_sale,
+           number, issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at,
+           answered_at
+         ) VALUES (
+           'note-r1', 'sale-1', 'return-1', '2026-10-02', 420000, 5, 11, 12, 41, 'AUTHORIZED', 12, 8,
+           '2026-10-02', '2026-10-02T15:00:00.000Z', '71234567890888', '2026-10-12',
+           '2026-10-02T15:00:00.000Z', '2026-10-02T15:00:00.000Z'
+         )`,
+      );
+    });
+
+    it("holds the print of each credit note apart, whichever the key names", () => {
+      inTransaction((tx) => {
+        tx.recordPrintAttempt(returnNote, new Date("2026-10-02T16:00:00.000Z"));
+        tx.recordPrinted(returnNote, new Date("2026-10-02T16:00:04.000Z"));
+      });
+
+      expect(inTransaction((tx) => tx.receiptDelivery(returnNote))).toMatchObject({
+        printAttemptedAt: new Date("2026-10-02T16:00:00.000Z"),
+        printedAt: new Date("2026-10-02T16:00:04.000Z"),
+        creditNoteAuthorized: true,
+      });
+      expect(inTransaction((tx) => tx.receiptDelivery(creditNote))).toMatchObject({
+        printAttemptedAt: null,
+        printedAt: null,
+      });
+      expect(database.prepare("SELECT credit_note_id FROM credit_note_prints").all()).toEqual([
+        { credit_note_id: "note-r1" },
+      ]);
+    });
+
+    it("stores the rendered receipt of each credit note under its own id", () => {
+      inTransaction((tx) => {
+        tx.recordStoredReceipt(returnNote, {
+          templateVersion: "1",
+          head: Uint8Array.from([1]),
+          body: Uint8Array.from([2]),
+        });
+      });
+
+      expect(Array.from(inTransaction((tx) => tx.storedReceipt(returnNote))?.head ?? [])).toEqual([
+        1,
+      ]);
+      expect(inTransaction((tx) => tx.storedReceipt(creditNote))).toBeUndefined();
+    });
+
+    it("builds the content of the credit note named from the lines and refunds of its return", () => {
+      database.exec("UPDATE sales SET state = 'COMPLETED', voided_at = NULL");
+
+      const content = inTransaction((tx) => tx.creditNoteContent("note-r1"));
+
+      expect(content.fiscal).toMatchObject({ number: 8 });
+      expect(content.lines).toHaveLength(1);
+    });
+
+    it("is not authorized for a credit note that is not the sale's", () => {
+      expect(
+        inTransaction((tx) => tx.receiptDelivery({ ...creditNote, creditNoteId: "note-missing" }))
+          ?.creditNoteAuthorized,
+      ).toBe(false);
+    });
+  });
+
   it("builds its content from the credit note the tax authority authorized", () => {
     insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
 
-    const content = inTransaction((tx) => tx.creditNoteContent("sale-1"));
+    const content = inTransaction((tx) => tx.creditNoteContent("note-1"));
 
     expect(content.fiscal).toMatchObject({ number: 7, pointOfSale: 12 });
     expect(content.refunds).toEqual([
@@ -782,7 +870,7 @@ describe("a receipt ledger's invoice of a deferred sale", () => {
     inTransaction((tx) => {
       tx.recordPrintAttempt(invoice, attemptedAt);
       tx.recordPrinted(invoice, printedAt);
-      tx.recordReprint(reprint("deferred_invoice"));
+      recordReprintOf(tx, reprint("deferred_invoice"));
     });
 
     expect(inTransaction((tx) => tx.receiptDelivery(invoice))).toMatchObject({
@@ -805,7 +893,7 @@ describe("a receipt ledger's invoice of a deferred sale", () => {
     inTransaction((tx) => {
       tx.recordPrintAttempt(receipt, new Date("2026-09-30T15:06:00.000Z"));
       tx.recordPrinted(receipt, new Date("2026-09-30T15:06:03.000Z"));
-      tx.recordReprint(reprint("sale_receipt"));
+      recordReprintOf(tx, reprint("sale_receipt"));
     });
 
     expect(inTransaction((tx) => tx.receiptDelivery(invoice))).toMatchObject({
@@ -832,13 +920,13 @@ describe("a receipt ledger's invoice of a deferred sale", () => {
 
   it("numbers its reprints apart from the sale receipt's", () => {
     inTransaction((tx) => {
-      tx.recordReprint(reprint("sale_receipt"));
-      tx.recordReprint(reprint("deferred_invoice"));
+      recordReprintOf(tx, reprint("sale_receipt"));
+      recordReprintOf(tx, reprint("deferred_invoice"));
     });
 
     expect(() =>
       inTransaction((tx) => {
-        tx.recordReprint(reprint("deferred_invoice"));
+        recordReprintOf(tx, reprint("deferred_invoice"));
       }),
     ).toThrow();
   });

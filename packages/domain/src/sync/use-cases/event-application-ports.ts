@@ -43,13 +43,13 @@ export interface EventApplicationTransaction {
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;
   lockCreditedVoucher(voucher: VoucherReference): Promise<void>;
   /**
-   * Whether a credit note of the cloud, or an offline credit note other than the one named, already
-   * corrects the voucher.
+   * The total of the invoice the voucher names, null when it is not known, and what the credit notes
+   * that count against it already credit, leaving out the offline credit note named.
    */
-  voucherAlreadyCredited(
+  creditOnInvoice(
     voucher: VoucherReference,
     exceptOfflineDocumentId: string,
-  ): Promise<boolean>;
+  ): Promise<{ invoiceTotal: number | null; alreadyCredited: number }>;
   raiseInvoiceAlreadyCredited(
     invoice: { voucher: VoucherReference; saleId: string },
     at: Date,

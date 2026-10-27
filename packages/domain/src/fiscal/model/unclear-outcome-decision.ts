@@ -17,6 +17,11 @@ export const UNCLEAR_ANSWER_KINDS: readonly RealTimeAuthorizationAnswer["kind"][
   "not_attempted",
 ];
 
+export const TAX_AUTHORITY_HOLDING_ANSWER_KIND =
+  "authorized" satisfies RealTimeAuthorizationAnswer["kind"];
+export const TAX_AUTHORITY_HOLDING_DECISION_KIND =
+  "adopted" satisfies UnclearOutcomeDecision["kind"];
+
 export function awaitsUnclearOutcomeDecision(answer: RealTimeAuthorizationAnswer | null): boolean {
   return answer === null || UNCLEAR_ANSWER_KINDS.includes(answer.kind);
 }

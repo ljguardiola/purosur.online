@@ -2876,7 +2876,7 @@ export const fiscalTasks = pgTable(
     ),
     check(
       "fiscal_tasks_voucher_check",
-      sql`(${table.kind} = 'deferred_sale_expired' and ${table.pointOfSale} is null and ${table.documentType} is null and ${table.number} is null) or (${table.kind} <> 'deferred_sale_expired' and ${table.pointOfSale} is not null and ${table.documentType} is not null and ${table.number} is not null)`,
+      sql`(${table.kind} = 'deferred_sale_expired' and ${table.pointOfSale} is null and ${table.documentType} is null and ${table.number} is null) or (${table.kind} <> 'deferred_sale_expired' and ${table.pointOfSale} is not null and ${table.documentType} is not null and (${table.number} is not null or ${table.kind} = 'credit_note_rejected'))`,
     ),
     check(
       "fiscal_tasks_document_type_check",
@@ -2897,10 +2897,12 @@ export const fiscalTasks = pgTable(
   ],
 );
 
-// A credit note the cloud issues: the one that cancels an authorization no sale accounts for, or
-// the one that cancels the invoice of a voided sale. The row is the request to issue it: it exists
-// from the moment it is asked for, gets its number when the tax authority is first asked, and keeps
-// the answer. A number is held by one request at a time, and an invoice is corrected once.
+// A credit note the cloud issues: the one that cancels an authorization no sale accounts for, the
+// one that cancels the invoice of a voided sale, or the one that credits a return. The row is the
+// request to issue it: it exists from the moment it is asked for, gets its number when the tax
+// authority is first asked, and keeps the answer. A number is held by one request at a time. A
+// return's credit note names its return and the day it is issued on; one that cannot be issued
+// keeps no number.
 export const creditNotes = pgTable(
   "credit_notes",
   {
@@ -2927,10 +2929,12 @@ export const creditNotes = pgTable(
     authorizationCode: text("authorization_code"),
     authorizationCodeDueOn: date("authorization_code_due_on", { mode: "string" }),
     rejections: jsonb("rejections").$type<JsonValue>(),
+    returnId: uuid("return_id"),
+    issueOn: date("issue_on", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("credit_notes_corrected_voucher_key").on(
+    index("credit_notes_corrected_voucher_idx").on(
       table.associatedVoucherType,
       table.associatedPointOfSale,
       table.associatedNumber,
@@ -2955,11 +2959,16 @@ export const creditNotes = pgTable(
     ),
     check(
       "credit_notes_answer_kind_check",
-      sql`${table.answerKind} in ('authorized', 'rejected', 'unclear')`,
+      sql`${table.answerKind} in ('authorized', 'rejected', 'unclear', 'regularization_required')`,
     ),
     check(
       "credit_notes_answer_request_check",
-      sql`${table.answerKind} is null or ${table.number} is not null`,
+      sql`${table.answerKind} is null or ${table.answerKind} = 'regularization_required' or ${table.number} is not null`,
+    ),
+    check(
+      "credit_notes_return_check",
+      sql`(${table.reason} = 'sale_return') = (${table.returnId} is not null)
+        and (${table.returnId} is null) = (${table.issueOn} is null)`,
     ),
     check(
       "credit_notes_answer_time_check",
@@ -2977,9 +2986,9 @@ export const creditNotes = pgTable(
   ],
 );
 
-// Append-only: the cloud keeps the first refusal of a voided sale's credit note whose invoice
-// another credit note had already corrected, to hand it to a restored register.
-export const saleVoidCreditNoteRefusals = pgTable("sale_void_credit_note_refusals", {
+// Append-only: the cloud keeps the first refusal of a sale's credit note, of a void or of a return,
+// whose invoice other credit notes had already credited, to hand it to a restored register.
+export const saleCreditNoteRefusals = pgTable("sale_void_credit_note_refusals", {
   creditNoteId: uuid("credit_note_id").primaryKey(),
   registerId: uuid("register_id")
     .notNull()

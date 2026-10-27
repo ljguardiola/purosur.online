@@ -30,12 +30,12 @@ export interface ReceiptLedger {
 export interface ReceiptLedgerTransaction {
   receiptDelivery(key: PrintedDocumentKey): ReceiptDelivery | undefined;
   receiptSource(saleId: string): ReceiptSource;
-  creditNoteContent(saleId: string): CreditNoteReceiptContent;
+  creditNoteContent(creditNoteId: string): CreditNoteReceiptContent;
   storedReceipt(key: PrintedDocumentKey): StoredReceipt | undefined;
   recordStoredReceipt(key: PrintedDocumentKey, receipt: StoredReceipt): void;
   recordPrintAttempt(key: PrintedDocumentKey, at: Date): void;
   recordPrinted(key: PrintedDocumentKey, at: Date): void;
-  recordReprint(reprint: ReceiptReprint): void;
+  recordReprint(key: PrintedDocumentKey, reprint: ReceiptReprint): void;
   outboxReady(): boolean;
   appendOutboxEvent(draft: OutboxEventDraft): void;
 }

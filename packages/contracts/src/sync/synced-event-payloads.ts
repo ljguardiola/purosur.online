@@ -26,7 +26,12 @@ import {
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
-import { pointOfSaleNumberSchema, recordIdSchema, voidCreditNoteSchema } from "../shared/index.js";
+import {
+  pointOfSaleNumberSchema,
+  recordIdSchema,
+  returnCreditNoteSchema,
+  voidCreditNoteSchema,
+} from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -288,6 +293,18 @@ const salePrintStateChangedV2Schema = salePrintStateChangedV1Schema.extend({
   document: printedDocumentSchema,
 });
 
+const salePrintStateChangedV3Schema = z.discriminatedUnion("document", [
+  z.strictObject({
+    ...salePrintStateChangedV1Schema.shape,
+    document: z.enum(PRINTED_DOCUMENTS.filter((document) => document !== "credit_note")),
+  }),
+  z.strictObject({
+    ...salePrintStateChangedV1Schema.shape,
+    document: z.literal("credit_note"),
+    credit_note_id: text,
+  }),
+]);
+
 const reprintRecordedFields = {
   sale_id: text,
   order_number: z.int().positive(),
@@ -512,6 +529,10 @@ const saleReturnedV1Schema = z.object({
   ),
 });
 
+const saleReturnedV2Schema = saleReturnedV1Schema.extend({
+  credit_note: returnCreditNoteSchema.nullable(),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -673,6 +694,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@9": saleCompletedV9Schema,
   "sale_print_state_changed@1": salePrintStateChangedV1Schema,
   "sale_print_state_changed@2": salePrintStateChangedV2Schema,
+  "sale_print_state_changed@3": salePrintStateChangedV3Schema,
   "reprint_recorded@1": reprintRecordedV1Schema,
   "reprint_recorded@2": reprintRecordedV2Schema,
   "sale_cancelled@1": saleCancelledV1Schema,
@@ -688,6 +710,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_voided@3": saleVoidedV3Schema,
   "sale_voided@4": saleVoidedV4Schema,
   "sale_returned@1": saleReturnedV1Schema,
+  "sale_returned@2": saleReturnedV2Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
