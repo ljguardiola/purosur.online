@@ -7336,9 +7336,7 @@ describe("the returns of other registers' sales migration", () => {
         database.prepare("SELECT id, payment_id, return_id, amount FROM payment_refunds").all(),
       ).toEqual([{ id: "refund-1", payment_id: "pay-1", return_id: null, amount: 1500 }]);
       expect(
-        database
-          .prepare("SELECT id, kind, sale_line_id FROM stock_movements ORDER BY id")
-          .all(),
+        database.prepare("SELECT id, kind, sale_line_id FROM stock_movements ORDER BY id").all(),
       ).toEqual([
         { id: "movement-1", kind: "return", sale_line_id: "line-1" },
         { id: "movement-2", kind: "loss", sale_line_id: null },
@@ -7416,15 +7414,17 @@ describe("the returns of other registers' sales migration", () => {
 
   it("keeps a copy of a branch sale once per sale", () => {
     withHeldReturn((database) => {
-      database.exec(
-        "INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-9', '{}')",
-      );
+      database.exec("INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-9', '{}')");
 
       expect(() =>
-        database.exec("INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-9', '{}')"),
+        database.exec(
+          "INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-9', '{}')",
+        ),
       ).toThrow(/UNIQUE|PRIMARY KEY/);
       expect(() =>
-        database.exec("INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-8', 'x')"),
+        database.exec(
+          "INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-8', 'x')",
+        ),
       ).toThrow(/CHECK/);
     });
   });
