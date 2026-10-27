@@ -178,18 +178,21 @@ export function invoiceToCorrect(invoices: readonly SaleInvoice[]): CorrectedInv
   };
 }
 
-export function creditNoteToIssuePayload({
+export function creditNoteToIssuePayload<
+  Note extends {
+    creditNoteId: string;
+    total: number;
+    receiverTaxStatusCode: number | null;
+    correctedVoucher: VoucherReference | null;
+    origin?: CreditNoteOrigin;
+  },
+>({
   creditNoteId,
   total,
   receiverTaxStatusCode,
   correctedVoucher,
   origin,
-}: Pick<
-  CreditNoteToIssue,
-  "creditNoteId" | "total" | "receiverTaxStatusCode" | "correctedVoucher"
-> & {
-  origin?: CreditNoteOrigin;
-}): { [member: string]: JsonValue } {
+}: Note): { [member: string]: JsonValue } {
   return {
     id: creditNoteId,
     total,
