@@ -148,19 +148,27 @@ test("asks again once a range that was out of order is put right", async () => {
   ).toBeNull();
 });
 
-test("reports the range typed without a register when it offers no register filter", async () => {
-  const onFiltersChange = vi.fn();
-  const screen = await render(
+function ControlledPeriod({ onFiltersChange }: Pick<Handlers, "onFiltersChange">) {
+  const [filters, setFilters] = useState({ from: "", to: "" });
+  return (
     <FieldSizeProvider size="backoffice">
       <main>
         <ReportFilters
-          filters={{ from: "", to: "" }}
-          onFiltersChange={onFiltersChange}
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange?.(next);
+            setFilters(next);
+          }}
           answeredPeriod={ANSWERED}
         />
       </main>
-    </FieldSizeProvider>,
+    </FieldSizeProvider>
   );
+}
+
+test("reports the range typed without a register when it offers no register filter", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await render(<ControlledPeriod onFiltersChange={onFiltersChange} />);
   await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
 
   await typeDate(screen, "Desde", "02102026");
