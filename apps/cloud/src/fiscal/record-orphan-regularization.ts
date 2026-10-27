@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { creditNotes, fiscalTasks, registerPointsOfSale } from "../platform/db/schema.js";
+import { lockCreditedVoucher, voucherCreditedOnline } from "./credited-voucher.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 
 async function registerHoldingPointOfSale<TQueryResult extends PgQueryResultHKT>(
@@ -74,33 +75,25 @@ export async function recordOrphanRegularization<TQueryResult extends PgQueryRes
   }
   const registerId = await registerHoldingPointOfSale(tx, regularization.pointOfSale);
   const { creditNoteId, saleId, pointOfSale, associatedVoucher, keptVoucher } = regularization;
-  const inserted = await tx
-    .insert(creditNotes)
-    .values({
-      id: creditNoteId,
-      registerId,
-      saleId,
-      reason: "orphan",
-      pointOfSale,
-      associatedVoucherType: associatedVoucher.voucherType,
-      associatedPointOfSale: associatedVoucher.pointOfSale,
-      associatedNumber: associatedVoucher.number,
-      keptVoucherType: keptVoucher.voucherType,
-      keptPointOfSale: keptVoucher.pointOfSale,
-      keptNumber: keptVoucher.number,
-      total: regularization.total,
-      receiverTaxStatusCode: regularization.receiverTaxStatusCode,
-      createdAt: at,
-    })
-    .onConflictDoNothing({
-      target: [
-        creditNotes.associatedVoucherType,
-        creditNotes.associatedPointOfSale,
-        creditNotes.associatedNumber,
-      ],
-    })
-    .returning({ id: creditNotes.id });
-  if (inserted.length > 0) {
-    await enqueueCreditNote(tx, creditNoteId);
+  await lockCreditedVoucher(tx, associatedVoucher);
+  if (await voucherCreditedOnline(tx, associatedVoucher)) {
+    return;
   }
+  await tx.insert(creditNotes).values({
+    id: creditNoteId,
+    registerId,
+    saleId,
+    reason: "orphan",
+    pointOfSale,
+    associatedVoucherType: associatedVoucher.voucherType,
+    associatedPointOfSale: associatedVoucher.pointOfSale,
+    associatedNumber: associatedVoucher.number,
+    keptVoucherType: keptVoucher.voucherType,
+    keptPointOfSale: keptVoucher.pointOfSale,
+    keptNumber: keptVoucher.number,
+    total: regularization.total,
+    receiverTaxStatusCode: regularization.receiverTaxStatusCode,
+    createdAt: at,
+  });
+  await enqueueCreditNote(tx, creditNoteId);
 }

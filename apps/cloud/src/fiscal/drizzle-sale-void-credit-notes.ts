@@ -1,4 +1,4 @@
-import { invoiceAlreadyCreditedObservation } from "@purosur/domain";
+import { creditWithinInvoice, invoiceAlreadyCreditedObservation } from "@purosur/domain";
 import {
   type AlreadyCreditedRefusal,
   type CreditNote,
@@ -8,6 +8,7 @@ import {
   type SaleCreditNoteLanes,
   type SaleCreditNoteRecord,
   VoucherAlreadyCredited,
+  type VoucherReference,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -20,13 +21,16 @@ import {
   saleVoidCreditNoteRefusals,
 } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
-import { lockCreditedVoucher, voucherCreditedOffline } from "./credited-voucher.js";
+import {
+  invoiceTotalHeld,
+  lockCreditedVoucher,
+  totalCreditedToInvoice,
+} from "./credited-voucher.js";
 import { creditNoteOf } from "./drizzle-credit-notes.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 
 const UNIQUE_VIOLATION = "23505";
-const CORRECTED_VOUCHER_KEY = "credit_notes_corrected_voucher_key";
 const PRIMARY_KEY = "credit_notes_pkey";
 
 class DrizzleSaleCreditNoteLane<TQueryResult extends PgQueryResultHKT>
@@ -74,18 +78,34 @@ class DrizzleSaleCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     return row === undefined ? null : creditNoteOf(row);
   }
 
+  invoiceTotalOf(voucher: VoucherReference): Promise<number | null> {
+    return invoiceTotalHeld(this.db, voucher);
+  }
+
+  creditedToInvoice(voucher: VoucherReference): Promise<number> {
+    return totalCreditedToInvoice(this.db, voucher);
+  }
+
   async recordSaleCreditNote(record: SaleCreditNoteRecord): Promise<void> {
     try {
       await this.db.transaction(async (tx) => {
         await lockCreditedVoucher(tx, record.correctedVoucher);
-        if (await voucherCreditedOffline(tx, record.correctedVoucher)) {
+        const withinInvoice = creditWithinInvoice({
+          invoiceTotal: await invoiceTotalHeld(tx, record.correctedVoucher),
+          alreadyCredited: await totalCreditedToInvoice(tx, record.correctedVoucher),
+          asked: record.total,
+        });
+        if (!withinInvoice) {
           throw new VoucherAlreadyCredited();
         }
         await tx.insert(creditNotes).values({
           id: record.creditNoteId,
           registerId: record.registerId,
           saleId: record.saleId,
-          reason: "sale_void",
+          reason: record.origin.kind,
+          ...(record.origin.kind === "sale_return"
+            ? { returnId: record.origin.returnId, issueOn: record.origin.issuedOn }
+            : {}),
           pointOfSale: record.pointOfSale,
           associatedVoucherType: record.correctedVoucher.voucherType,
           associatedPointOfSale: record.correctedVoucher.pointOfSale,
@@ -98,9 +118,6 @@ class DrizzleSaleCreditNoteLane<TQueryResult extends PgQueryResultHKT>
       });
     } catch (error) {
       const violated = postgresErrorChain(error).find((link) => link.code === UNIQUE_VIOLATION);
-      if (violated?.constraint === CORRECTED_VOUCHER_KEY) {
-        throw new VoucherAlreadyCredited();
-      }
       if (violated?.constraint === PRIMARY_KEY) {
         throw new CreditNoteIdTaken();
       }

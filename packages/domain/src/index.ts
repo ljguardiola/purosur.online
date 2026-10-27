@@ -284,6 +284,7 @@ export {
   contingencyOf,
   creditNoteCFiscalBlock,
   creditNoteToIssuePayload,
+  creditWithinInvoice,
   DEFERRAL_REASONS,
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
   DEFERRED_RETRY_DELAYING_STATES,

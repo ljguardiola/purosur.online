@@ -946,6 +946,13 @@
       "when": 1793072773343,
       "tag": "0141_sale_returns",
       "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1793102728437,
+      "tag": "0142_return_credit_notes",
+      "breakpoints": true
     }
   ]
 }

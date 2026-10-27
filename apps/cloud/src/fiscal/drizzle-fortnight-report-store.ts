@@ -26,7 +26,11 @@ import {
   registerPointsOfSale,
   rejectedDocumentRemedies,
 } from "../platform/db/schema.js";
-import { lockCreditedVoucher, voucherCreditedOffline } from "./credited-voucher.js";
+import {
+  lockCreditedVoucher,
+  voucherCreditedOffline,
+  voucherCreditedOnline,
+} from "./credited-voucher.js";
 import { recordedDocumentTypeReports } from "./drizzle-recorded-document-type-reports.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import { fortnightReportLock } from "./fortnight-report-lock.js";
@@ -193,7 +197,10 @@ class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
     const { associatedVoucher } = creditNote;
     await this.db.transaction(async (tx) => {
       await lockCreditedVoucher(tx, associatedVoucher);
-      if (await voucherCreditedOffline(tx, associatedVoucher)) {
+      if (
+        (await voucherCreditedOffline(tx, associatedVoucher)) ||
+        (await voucherCreditedOnline(tx, associatedVoucher))
+      ) {
         return;
       }
       const [holder] = await tx
@@ -204,32 +211,20 @@ class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
         throw new Error(`no register holds point of sale ${creditNote.pointOfSale}`);
       }
       const creditNoteId = crypto.randomUUID();
-      const inserted = await tx
-        .insert(creditNotes)
-        .values({
-          id: creditNoteId,
-          registerId: holder.registerId,
-          saleId: creditNote.saleId,
-          reason: creditNote.reason,
-          pointOfSale: creditNote.pointOfSale,
-          associatedVoucherType: associatedVoucher.voucherType,
-          associatedPointOfSale: associatedVoucher.pointOfSale,
-          associatedNumber: associatedVoucher.number,
-          total: creditNote.total,
-          receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
-          createdAt: this.options.now(),
-        })
-        .onConflictDoNothing({
-          target: [
-            creditNotes.associatedVoucherType,
-            creditNotes.associatedPointOfSale,
-            creditNotes.associatedNumber,
-          ],
-        })
-        .returning({ id: creditNotes.id });
-      if (inserted.length > 0) {
-        await this.options.enqueueCreditNote(tx, creditNoteId);
-      }
+      await tx.insert(creditNotes).values({
+        id: creditNoteId,
+        registerId: holder.registerId,
+        saleId: creditNote.saleId,
+        reason: creditNote.reason,
+        pointOfSale: creditNote.pointOfSale,
+        associatedVoucherType: associatedVoucher.voucherType,
+        associatedPointOfSale: associatedVoucher.pointOfSale,
+        associatedNumber: associatedVoucher.number,
+        total: creditNote.total,
+        receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
+        createdAt: this.options.now(),
+      });
+      await this.options.enqueueCreditNote(tx, creditNoteId);
     });
   }
 

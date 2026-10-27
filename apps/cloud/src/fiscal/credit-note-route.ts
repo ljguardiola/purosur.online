@@ -2,10 +2,12 @@ import {
   cloudError,
   cloudErrorStatus,
   type SaleVoidCreditNoteResponseBody,
+  saleReturnedEventCreditNoteSchema,
   saleVoidCreditNoteRequestSchema,
   saleVoidCreditNoteResponseSchema,
   saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
+import type { InvoicedCreditNote } from "@purosur/domain";
 import {
   type AcceptSaleCreditNoteRequestOutcome,
   acceptSaleCreditNoteRequest,
@@ -69,8 +71,59 @@ const VOUCHER_ALREADY_CREDITED = cloudError("conflict", "that invoice already ha
 
 const SALE_EVENT_MISMATCH = cloudError(
   "validation_failed",
-  "sale_event must be the voiding of the sale that asks for credit_note_id",
+  "sale_event must be the voiding or the return of the sale that asks for credit_note_id",
 );
+
+const INVOICE_MISSING = cloudError(
+  "validation_failed",
+  "invoice must name the invoice a credit note that waited for it corrects",
+);
+
+type RequestBody = ReturnType<typeof saleVoidCreditNoteRequestSchema.parse>;
+
+function creditNoteAsked(body: RequestBody): InvoicedCreditNote | null | "invoice_missing" {
+  const voided = saleVoidedEventCreditNoteSchema.safeParse(body.sale_event);
+  if (voided.success) {
+    const { aggregate_id: saleId, payload } = voided.data;
+    const { corrects } = payload.credit_note;
+    return {
+      creditNoteId: payload.credit_note.id,
+      saleId,
+      total: payload.credit_note.total,
+      receiverTaxStatusCode: payload.credit_note.receiver_tax_status_code,
+      correctedVoucher: {
+        voucherType: corrects.voucher_type,
+        pointOfSale: corrects.point_of_sale,
+        number: corrects.number,
+      },
+      origin: { kind: "sale_void" },
+    };
+  }
+  const returned = saleReturnedEventCreditNoteSchema.safeParse(body.sale_event);
+  if (!returned.success) {
+    return null;
+  }
+  const { payload } = returned.data;
+  const { credit_note: creditNote } = payload;
+  const corrects = creditNote.corrects ?? body.invoice?.corrects;
+  const receiverTaxStatusCode =
+    creditNote.receiver_tax_status_code ?? body.invoice?.receiver_tax_status_code;
+  if (corrects === undefined || receiverTaxStatusCode === undefined) {
+    return "invoice_missing";
+  }
+  return {
+    creditNoteId: creditNote.id,
+    saleId: payload.sale_id,
+    total: creditNote.total,
+    receiverTaxStatusCode,
+    correctedVoucher: {
+      voucherType: corrects.voucher_type,
+      pointOfSale: corrects.point_of_sale,
+      number: corrects.number,
+    },
+    origin: { kind: "sale_return", returnId: payload.id, issuedOn: creditNote.issued_on },
+  };
+}
 
 function refusalOf(
   outcome: AcceptSaleCreditNoteRequestOutcome,
@@ -108,6 +161,8 @@ function toWire(answer: CreditNoteAnswer): SaleVoidCreditNoteResponseBody {
       };
     case "rejected":
       return { state: "REJECTED" };
+    case "regularization_required":
+      return { state: "REGULARIZATION_REQUIRED" };
     case "in_progress":
       return { state: "IN_PROGRESS" };
   }
@@ -175,13 +230,12 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
           return;
         }
 
-        const voided = saleVoidedEventCreditNoteSchema.safeParse(body.sale_event);
-        if (!voided.success) {
-          await reply.code(cloudErrorStatus(SALE_EVENT_MISMATCH.code)).send(SALE_EVENT_MISMATCH);
+        const asked = creditNoteAsked(body);
+        if (asked === null || asked === "invoice_missing") {
+          const refused = asked === null ? SALE_EVENT_MISMATCH : INVOICE_MISSING;
+          await reply.code(cloudErrorStatus(refused.code)).send(refused);
           return;
         }
-        const { aggregate_id: saleId, payload } = voided.data;
-        const { corrects } = payload.credit_note;
 
         const outcome = await acceptSaleCreditNoteRequest(requestPorts, {
           deviceId: authentication.installation.deviceId,
@@ -191,17 +245,7 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
             creditNoteId: body.credit_note_id,
             pointOfSale: body.point_of_sale,
             saleEvent: body.sale_event,
-            voided: {
-              creditNoteId: payload.credit_note.id,
-              saleId,
-              total: payload.credit_note.total,
-              receiverTaxStatusCode: payload.credit_note.receiver_tax_status_code,
-              correctedVoucher: {
-                voucherType: corrects.voucher_type,
-                pointOfSale: corrects.point_of_sale,
-                number: corrects.number,
-              },
-            },
+            creditNote: asked,
           },
         });
 

@@ -33,7 +33,11 @@ export {
 export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
-export { CREDIT_NOTE_C_VOUCHER_TYPE, CREDIT_NOTE_REASONS } from "./model/credit-note.js";
+export {
+  CREDIT_NOTE_C_VOUCHER_TYPE,
+  CREDIT_NOTE_REASONS,
+  creditWithinInvoice,
+} from "./model/credit-note.js";
 export { isValidCuit } from "./model/cuit.js";
 export type { DeferredBacklogEntry, DeferredBacklogStep } from "./model/deferred-backlog.js";
 export {

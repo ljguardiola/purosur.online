@@ -67,6 +67,8 @@ function creditNoteBody({
       };
     case "rejected":
       return { ...common, state: "REJECTED" };
+    case "regularization_required":
+      throw new Error(`credit note ${creditNoteId} of a voided sale cannot await regularization`);
     case "already_credited":
       return { ...common, state: "ALREADY_CREDITED" };
     case "issued_offline":
