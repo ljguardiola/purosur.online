@@ -539,14 +539,24 @@ describe("createCoreClient", () => {
     ]);
   });
 
-  it.each(["QR", "POINT"] as const)(
-    "asks the core to start a Mercado Pago %s charge of an amount of a sale and resolves with the outcome",
-    async (method) => {
+  it.each([
+    [{ method: "QR" }, { method: "QR" }],
+    [
+      { method: "POINT", cardType: "DEBIT" },
+      { method: "POINT", card_type: "DEBIT" },
+    ],
+    [
+      { method: "POINT", cardType: "CREDIT" },
+      { method: "POINT", card_type: "CREDIT" },
+    ],
+  ] as const)(
+    "asks the core to start a Mercado Pago charge of %o of an amount of a sale and resolves with the outcome",
+    async (charge, wire) => {
       const client = clientWithSequentialIds();
       const port = new FakePort();
       client.connect(port);
 
-      const outcome = client.startMercadoPagoCharge("sale-1", method, 300_000);
+      const outcome = client.startMercadoPagoCharge("sale-1", charge, 300_000);
       const shown = {
         kind: "order_shown",
         payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
@@ -566,7 +576,7 @@ describe("createCoreClient", () => {
           type: "start-mercado-pago-charge",
           request_id: "request-1",
           sale_id: "sale-1",
-          method,
+          ...wire,
           amount: 300_000,
         },
       ]);

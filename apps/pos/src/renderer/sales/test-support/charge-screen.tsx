@@ -15,7 +15,7 @@ import type {
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { MercadoPagoMethod } from "../../platform/core-client";
+import type { MercadoPagoChargeKind } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ChargeScreenProps } from "../charge-screen";
 import { ChargeScreen } from "../charge-screen";
@@ -146,7 +146,7 @@ export type Overrides = {
   paymentMethodAvailability?: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge?: (
     saleId: string,
-    method: MercadoPagoMethod,
+    charge: MercadoPagoChargeKind,
     amount: number,
   ) => Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge?: (
@@ -274,8 +274,10 @@ export async function chooseQr(screen: Screen) {
   await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
 }
 
-export async function choosePoint(screen: Screen) {
-  await userEvent.click(screen.getByText("Point integrada", { exact: true }));
+export async function choosePoint(screen: Screen, cardType: "DEBIT" | "CREDIT" = "DEBIT") {
+  await userEvent.click(
+    screen.getByText(cardType === "DEBIT" ? "Point · Débito" : "Point · Crédito", { exact: true }),
+  );
 }
 
 export async function chargeInCash(screen: Screen, tendered: string) {
@@ -288,7 +290,7 @@ export async function chargeInCash(screen: Screen, tendered: string) {
 }
 
 export function saleWithChargeInProgress(
-  method: MercadoPagoMethod,
+  method: MercadoPagoChargeKind["method"],
   remainingSeconds: number,
 ): OpenSale {
   return {

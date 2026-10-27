@@ -25,7 +25,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       .toBeVisible();
     const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
     expect(methods.textContent).toMatch(
-      /Efectivo.*Point integrada.*QR de Mercado Pago.*Transferencia/s,
+      /Efectivo.*Point · Débito.*Point · Crédito.*QR de Mercado Pago.*Transferencia/s,
     );
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -37,7 +37,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
     await expect.element(screen.getByText("No configurado en esta caja")).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeEnabled();
     await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }), {
       force: true,
     });
@@ -191,7 +191,11 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Esperando el pago del cliente" }))
       .toBeVisible();
-    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith("sale-1", "QR", 476_000);
+    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(
+      "sale-1",
+      { method: "QR" },
+      476_000,
+    );
   });
 
   it("returns to the methods from Cambiar de medio of the amount step", async () => {

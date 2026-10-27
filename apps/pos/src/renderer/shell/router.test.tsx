@@ -3193,7 +3193,7 @@ describe("the charge route's Mercado Pago QR", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeEnabled();
   });
 
   it("shows the QR and the terminal as unavailable when the core answers that they are offline", async () => {
@@ -3206,7 +3206,7 @@ describe("the charge route's Mercado Pago QR", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeDisabled();
   });
 
   it("creates the QR order through the core for the sale in progress", async () => {
