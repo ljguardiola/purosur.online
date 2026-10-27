@@ -136,6 +136,7 @@ describe("findBranchSaleForReturn", () => {
         {
           sale: found.sale,
           invoiceStanding: INVOICE_STANDING,
+          ticket: OTHER_REGISTER_INVOICE,
           goodConditionReturnDays: 15,
           countedReturnIds: ["return-cloud"],
         },

@@ -19,18 +19,32 @@ export class FakeRegisterCreditNotes implements RegisterCreditNotes {
   readonly answered = new Map<string, { answer: VoidCreditNoteStanding; answeredAt: Date }>();
   readonly tied = new Map<string, CorrectedInvoice>();
   readonly standingLookups: string[] = [];
+  readonly refreshLookups: string[] = [];
   private readonly pending: PendingCreditNote[];
   private readonly pointOfSale: number | null;
   private readonly standings: Record<string, SaleInvoiceStanding>;
+  private readonly refreshed: Record<string, SaleInvoiceStanding>;
 
   constructor(
     pending: PendingCreditNote[],
     pointOfSale: number | null = 12,
     standings: Record<string, SaleInvoiceStanding> = {},
+    refreshed: Record<string, SaleInvoiceStanding> = {},
   ) {
     this.pending = pending;
     this.pointOfSale = pointOfSale;
     this.standings = standings;
+    this.refreshed = refreshed;
+  }
+
+  async refreshBranchSaleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding | undefined> {
+    this.refreshLookups.push(saleId);
+    const answer = this.refreshed[saleId];
+    if (answer === undefined) {
+      return undefined;
+    }
+    this.standings[saleId] = structuredClone(answer);
+    return structuredClone(answer);
   }
 
   async saleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding> {
