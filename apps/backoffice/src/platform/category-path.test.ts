@@ -1,9 +1,11 @@
+import type { CategorySummary } from "@purosur/contracts";
 import { expect, test } from "vitest";
 import {
   type CategoryNode,
   categoriesInTreeOrder,
   categoryPathLabels,
   categoryPathText,
+  categorySelectOptions,
   leafCategories,
   selfAndDescendantIds,
 } from "./category-path";
@@ -80,4 +82,23 @@ test("categoryPathText joins the names of a path from the root with the design s
 
 test("categoryPathText is the name alone for a top-level category", () => {
   expect(categoryPathText(["Almacén"])).toBe("Almacén");
+});
+
+test("categorySelectOptions only offers leaf categories, labeled by their full path", () => {
+  const groceries: CategorySummary = {
+    id: "category-1",
+    name: "Almacén",
+    version: 1,
+    parentId: null,
+  };
+  const spreads: CategorySummary = {
+    id: "category-3",
+    name: "Untables",
+    version: 1,
+    parentId: "category-1",
+  };
+
+  expect(categorySelectOptions([groceries, spreads])).toEqual([
+    { value: "category-3", label: "Almacén › Untables" },
+  ]);
 });

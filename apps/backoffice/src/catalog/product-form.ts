@@ -1,7 +1,5 @@
 import {
   type CategorySummary,
-  type InternalBarcodeGenerationBody,
-  internalBarcodeGenerationBodySchema,
   netContentQuantitySchema,
   type ProductCreationBody,
   type ProductSummary,
@@ -9,17 +7,15 @@ import {
   productEditBarcodesSchema,
   type TagSummary,
 } from "@purosur/contracts";
-import type { NetContentUnit, NewProductBarcodeListProblem } from "@purosur/domain";
+import type { NetContentUnit } from "@purosur/domain";
 import { type Option, type Options, plural } from "@purosur/ui";
-import { Package, Scale } from "lucide-react";
-import { createElement } from "react";
-import type { ZodType } from "zod";
 import {
-  categoriesInTreeOrder,
-  categoryPathLabels,
-  leafCategories,
-} from "../platform/category-path";
-import { failedRules } from "../platform/failed-rules";
+  type BarcodeListValue,
+  barcodeProblemMessage,
+  barcodeProblemMessageOf,
+  barcodesWithScan,
+  barcodeTakenError,
+} from "../platform/barcode-list";
 import { NET_CONTENT_UNIT_LABELS } from "../platform/net-content";
 import { schemaLimit } from "../platform/schema-limit";
 import {
@@ -28,8 +24,6 @@ import {
   parseNetContentQuantity,
 } from "./net-content-quantity";
 import type { ProductSaleUnit } from "./products-api";
-
-export type BarcodeListValue = { codes: string[]; scan: string };
 
 type NetContentValue = { quantity: string; unit: NetContentUnit };
 
@@ -74,11 +68,6 @@ export function productFormValues(product: ProductSummary): ProductEditFormValue
     tagIds: product.tagIds,
     version: product.version,
   };
-}
-
-function barcodesWithScan({ codes, scan }: BarcodeListValue): string[] {
-  const pending = scan.trim();
-  return pending === "" ? codes : [...codes, pending];
 }
 
 function netContentFrom({ quantity, unit }: NetContentValue) {
@@ -126,36 +115,9 @@ export const PRODUCT_EDIT_FIELDS = { ...PRODUCT_FIELDS, version: null } as const
 const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
 
 const nameSchema = productCreationBodySchema.shape.name;
-const barcodesSchema = productCreationBodySchema.shape.barcodes;
-
-const BARCODE_PROBLEM_MESSAGES = new Map<string, string>(
-  Object.entries({
-    too_many: `El producto puede tener hasta ${schemaLimit(barcodesSchema.meta()?.["maxCount"])} códigos de barras.`,
-    too_long: `El código de barras puede tener hasta ${schemaLimit(barcodesSchema.meta()?.["maxLength"])} caracteres.`,
-    whitespace: "El código de barras no puede tener espacios.",
-    repeated: "Ese código ya está en la lista.",
-    several_internal: "El producto puede tener un solo código interno.",
-    internal_beside_others: "El código interno tiene que ser el único del producto.",
-  } satisfies Record<NewProductBarcodeListProblem, string>),
-);
-
-function barcodeProblemMessageOf(schema: ZodType, codes: string[]): string | undefined {
-  const [problem] = failedRules(schema, codes);
-  return problem === undefined ? undefined : BARCODE_PROBLEM_MESSAGES.get(problem);
-}
-
-export function barcodeProblemMessage(codes: string[]): string | undefined {
-  return barcodeProblemMessageOf(barcodesSchema, codes);
-}
 
 export function editedProductBarcodeProblemMessage(codes: string[]): string | undefined {
   return barcodeProblemMessageOf(productEditBarcodesSchema, codes);
-}
-
-export function internalBarcodeGenerationRequestFrom(
-  codes: string[],
-): InternalBarcodeGenerationBody | undefined {
-  return internalBarcodeGenerationBodySchema.safeParse({ barcodes: codes }).data;
 }
 
 export function productMessage({ name }: ProductFormValues): string {
@@ -227,23 +189,6 @@ export const PRODUCT_EDIT_MESSAGES = {
     barcodeListMessageFrom(values, editedProductBarcodeProblemMessage),
 };
 
-// Typed by hand: inferred from lucide, an icon's optional className fails the design system's Icon
-// type under exactOptionalPropertyTypes.
-export const SALE_UNIT_OPTIONS = [
-  {
-    value: "UNIT",
-    icon: createElement<{ className?: string }>(Package),
-    label: "Por unidad",
-    description: "Se vende de a uno",
-  },
-  {
-    value: "KG",
-    icon: createElement<{ className?: string }>(Scale),
-    label: "Por peso",
-    description: "Se pesa en la balanza",
-  },
-] as const;
-
 export const NET_CONTENT_UNIT_OPTIONS: Options<Option<NetContentUnit>> = [
   { value: "G", label: NET_CONTENT_UNIT_LABELS.G },
   { value: "KG", label: NET_CONTENT_UNIT_LABELS.KG },
@@ -251,26 +196,6 @@ export const NET_CONTENT_UNIT_OPTIONS: Options<Option<NetContentUnit>> = [
   { value: "L", label: NET_CONTENT_UNIT_LABELS.L },
   { value: "UNIT", label: NET_CONTENT_UNIT_LABELS.UNIT },
 ];
-
-// Full paths disambiguate leaves that share a name under different parents.
-export function categorySelectOptions(
-  categories: CategorySummary[],
-): Options<Option<string>> | undefined {
-  const leafIds = new Set(leafCategories(categories).map((category) => category.id));
-  if (leafIds.size === 0) {
-    return undefined;
-  }
-  const labels = categoryPathLabels(categories);
-  const leaves = categoriesInTreeOrder(categories).filter((category) => leafIds.has(category.id));
-  const [first, ...rest] = leaves.map((category) => ({
-    value: category.id,
-    label: labels.get(category.id) ?? category.name,
-  }));
-  if (!first) {
-    throw new Error("no category to offer: leaves.length > 0 was already checked");
-  }
-  return [first, ...rest];
-}
 
 // Only reachable by a race: the category gains a subcategory of its own between loading this
 // form and submitting it.
@@ -300,20 +225,6 @@ export function tagInactiveError(tags: TagSummary[], tagId: string): string {
   return tag
     ? `"${tag.name}" se dio de baja. Quitalo para guardar.`
     : "Un distintivo elegido se dio de baja. Quitalo para guardar.";
-}
-
-const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
-
-function barcodeTakenText(params: { codes: string[] }): string {
-  const list = params.codes.join(", ");
-  return plural(params.codes.length, {
-    one: `El código ${list} ya es de otro producto.`,
-    other: `Los códigos ${list} ya son de otro producto.`,
-  });
-}
-
-export function barcodeTakenError(codes: string[]): string {
-  return codes.length > 0 ? barcodeTakenText({ codes }) : PRODUCT_BARCODE_TAKEN_UNNAMED;
 }
 
 function reactivationBarcodeTakenAdvice(codes: string[]): string {

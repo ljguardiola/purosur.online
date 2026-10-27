@@ -1,4 +1,5 @@
-import { sortedItems, textOrder } from "@purosur/ui";
+import type { CategorySummary } from "@purosur/contracts";
+import { type Option, type Options, sortedItems, textOrder } from "@purosur/ui";
 
 export type CategoryNode = { id: string; name: string; parentId: string | null };
 
@@ -84,4 +85,24 @@ export function selfAndDescendantIds<T extends CategoryNode>(
     queue.push(...(childrenByParent.get(id) ?? []));
   }
   return ids;
+}
+
+// Full paths disambiguate leaves that share a name under different parents.
+export function categorySelectOptions(
+  categories: CategorySummary[],
+): Options<Option<string>> | undefined {
+  const leafIds = new Set(leafCategories(categories).map((category) => category.id));
+  if (leafIds.size === 0) {
+    return undefined;
+  }
+  const labels = categoryPathLabels(categories);
+  const leaves = categoriesInTreeOrder(categories).filter((category) => leafIds.has(category.id));
+  const [first, ...rest] = leaves.map((category) => ({
+    value: category.id,
+    label: labels.get(category.id) ?? category.name,
+  }));
+  if (!first) {
+    throw new Error("no category to offer: leaves.length > 0 was already checked");
+  }
+  return [first, ...rest];
 }

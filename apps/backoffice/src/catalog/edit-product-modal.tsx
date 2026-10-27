@@ -15,9 +15,12 @@ import {
 } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BarcodeChips, useBarcodeChips } from "../platform/barcode-chips";
+import { barcodeTakenError } from "../platform/barcode-list";
+import { categorySelectOptions } from "../platform/category-path";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { BarcodeChips, useBarcodeChips } from "./barcode-chips";
 import type { createBrand } from "./brands-api";
 import type { ProductReload } from "./catalog-queries";
 import { NewBrandModal } from "./new-brand-modal";
@@ -30,9 +33,7 @@ import {
   withCreatedBrand,
 } from "./product-brand-field";
 import {
-  barcodeTakenError,
   categoryNameOf,
-  categorySelectOptions,
   EMPTY_PRODUCT_FORM,
   editedProductBarcodeProblemMessage,
   NET_CONTENT_UNIT_OPTIONS,
@@ -43,7 +44,6 @@ import {
   PRODUCT_INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_ERROR,
   productEditRequestFrom,
   productFormValues,
-  SALE_UNIT_OPTIONS,
   saleUnitHeldByDiscountError,
   saleUnitHeldByPackagingError,
   tagInactiveError,

@@ -1,14 +1,11 @@
-import type { CategorySummary } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import { NET_CONTENT_QUANTITY_INVALID } from "./net-content-quantity";
 import {
   barcodeListMessage,
   brandMessage,
   categoryMessage,
-  categorySelectOptions,
   EMPTY_PRODUCT_FORM,
   editedProductBarcodeProblemMessage,
-  internalBarcodeGenerationRequestFrom,
   netContentMessage,
   PRODUCT_EDIT_MESSAGES,
   productFormValues,
@@ -289,33 +286,5 @@ describe("reactivationBarcodeTakenError", () => {
     expect(reactivationBarcodeTakenError([])).toBe(
       "Alguno de los códigos ya es de otro producto. Revisá los códigos de este producto y volvé a intentarlo.",
     );
-  });
-});
-
-describe("categorySelectOptions", () => {
-  it("only offers leaf categories, labeled by their full path", () => {
-    const groceries: CategorySummary = {
-      id: "category-1",
-      name: "Almacén",
-      version: 1,
-      parentId: null,
-    };
-    const spreads: CategorySummary = {
-      id: "category-3",
-      name: "Untables",
-      version: 1,
-      parentId: "category-1",
-    };
-
-    expect(categorySelectOptions([groceries, spreads])).toEqual([
-      { value: "category-3", label: "Almacén › Untables" },
-    ]);
-  });
-});
-
-describe("internalBarcodeGenerationRequestFrom", () => {
-  it("builds the request to generate an internal code only for a list with no barcode", () => {
-    expect(internalBarcodeGenerationRequestFrom([])).toEqual({ barcodes: [] });
-    expect(internalBarcodeGenerationRequestFrom(["7790987000015"])).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@ import { productCreationBodySchema } from "@purosur/contracts";
 import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
+import { z } from "zod";
 import { render } from "../shell/test-support/render-with-router";
 import {
   BarcodeChips,
@@ -9,14 +10,15 @@ import {
   useBarcodeChips,
   useGenerateInternalBarcode,
 } from "./barcode-chips";
-import {
-  barcodeProblemMessage,
-  EMPTY_PRODUCT_FORM,
-  PRODUCT_MESSAGES,
-  productRequestFrom,
-} from "./product-form";
-import type { GenerateInternalBarcodeOutcome, generateInternalBarcode } from "./products-api";
-import { scanInputOf } from "./test-support/product-form";
+import { barcodeProblemMessage, barcodesWithScan } from "./barcode-list";
+import type {
+  GenerateInternalBarcodeOutcome,
+  generateInternalBarcode,
+} from "./internal-barcodes-api";
+
+function scanInputOf(dialog: Locator) {
+  return dialog.getByRole("textbox", { name: "Escanear otro código" });
+}
 
 type HarnessProps = {
   initialCodes: string[];
@@ -27,18 +29,18 @@ type HarnessProps = {
 // Stands in for a product modal: the product form with only its barcodes field shown, and a submit.
 function Harness({ initialCodes, generateInternalBarcode, onSessionEnded }: HarnessProps) {
   const { form, submit, values } = useRequestForm({
-    defaultValues: { ...EMPTY_PRODUCT_FORM, barcodes: { codes: initialCodes, scan: "" } },
-    request: { schema: productCreationBodySchema, from: productRequestFrom },
-    fields: {
-      name: null,
-      categoryId: null,
-      brandId: null,
-      saleUnit: null,
-      netContent: null,
-      tagIds: null,
-      barcodes: "barcodes",
+    defaultValues: { barcodes: { codes: initialCodes, scan: "" } },
+    request: {
+      schema: z.object({ barcodes: productCreationBodySchema.shape.barcodes }),
+      from: (current) => ({ barcodes: barcodesWithScan(current.barcodes) }),
     },
-    messages: { barcodes: PRODUCT_MESSAGES.barcodes },
+    fields: { barcodes: "barcodes" },
+    messages: {
+      barcodes: ({ barcodes }) =>
+        barcodesWithScan(barcodes).length === 0
+          ? "Escaneá al menos un código de barras."
+          : "Alguno de los códigos de barras no es válido.",
+    },
     onSubmit: async () => {},
   });
   const chips = useBarcodeChips({
