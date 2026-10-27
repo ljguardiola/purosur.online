@@ -863,6 +863,14 @@ export {
   initialInventoryLotsQuerySchema,
   lotReferenceCostBodySchema,
 } from "./stock/initial-inventory-lots.js";
+export type {
+  LossesByReasonReportBody,
+  LossesByReasonReportQuery,
+} from "./stock/losses-by-reason-report.js";
+export {
+  lossesByReasonReportQuerySchema,
+  lossesByReasonReportSchema,
+} from "./stock/losses-by-reason-report.js";
 export type { RecipeSaveBody } from "./stock/recipe-save-body.js";
 export { recipeSaveBodySchema } from "./stock/recipe-save-body.js";
 export type { RecipeSaveRefusal } from "./stock/recipe-save-refusal.js";

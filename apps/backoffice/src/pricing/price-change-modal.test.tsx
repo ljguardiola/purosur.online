@@ -38,6 +38,7 @@ const rice: PriceProduct = {
     freightPerUnitCents: 18000,
     totalCostCents: 446000,
     marginTenthsOfPercent: 405,
+    costIncomplete: false,
   },
 };
 
@@ -508,6 +509,7 @@ test("asks for the margin of the typed price and shows it", async () => {
           freightPerUnitCents: 18000,
           totalCostCents: 446000,
           marginTenthsOfPercent: 456,
+          costIncomplete: false,
         },
       },
     });

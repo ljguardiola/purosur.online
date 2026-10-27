@@ -22,6 +22,13 @@ export type CostSource =
       freights: FreightToDistribute[];
     }
   | {
+      kind: "assembly_batch";
+      batchId: string;
+      assembledAt: Date;
+      cost: LotCost;
+      costIncomplete: boolean;
+    }
+  | {
       kind: "initial_count";
       countedAt: Date;
       withdrawn: boolean;
@@ -34,6 +41,7 @@ export interface PriceCostReference {
   freightPerUnitCents: number;
   totalCostCents: number;
   marginTenthsOfPercent: number | null;
+  costIncomplete: boolean;
 }
 
 interface DatedCost {
@@ -50,6 +58,14 @@ function datedCost(source: CostSource, rules: ZoneRules): DatedCost | null {
       cost: source.cost,
       day: source.purchasedOn,
       instant: source.recordedAt.getTime(),
+    };
+  }
+  if (source.kind === "assembly_batch") {
+    return {
+      source,
+      cost: source.cost,
+      day: argentinaCalendarDay(source.assembledAt, rules),
+      instant: source.assembledAt.getTime(),
     };
   }
   const cost = source.withdrawn ? null : knownLotCost(source);
@@ -71,22 +87,31 @@ function compare<T extends string | number>(a: T, b: T): number {
   return a > b ? 1 : 0;
 }
 
-function isPurchaseLine(dated: DatedCost): boolean {
-  return dated.source.kind === "purchase_line";
+const KIND_PRECEDENCE: Record<CostSource["kind"], number> = {
+  purchase_line: 2,
+  assembly_batch: 1,
+  initial_count: 0,
+};
+
+function sourceId({ source }: DatedCost): string | null {
+  if (source.kind === "purchase_line") {
+    return source.lineId;
+  }
+  return source.kind === "assembly_batch" ? source.batchId : null;
 }
 
-function compareLowerLineId(a: DatedCost, b: DatedCost): number {
-  return a.source.kind === "purchase_line" && b.source.kind === "purchase_line"
-    ? compare(b.source.lineId, a.source.lineId)
-    : 0;
+function compareLowerId(a: DatedCost, b: DatedCost): number {
+  const aId = sourceId(a);
+  const bId = sourceId(b);
+  return aId !== null && bId !== null ? compare(bId, aId) : 0;
 }
 
 function compareRecency(a: DatedCost, b: DatedCost): number {
   return (
     compare(a.day, b.day) ||
     compare(a.instant, b.instant) ||
-    compare(isPurchaseLine(a) ? 1 : 0, isPurchaseLine(b) ? 1 : 0) ||
-    compareLowerLineId(a, b)
+    compare(KIND_PRECEDENCE[a.source.kind], KIND_PRECEDENCE[b.source.kind]) ||
+    compareLowerId(a, b)
   );
 }
 
@@ -150,5 +175,6 @@ export function priceCostReference(
     freightPerUnitCents: roundHalfUp(freight),
     totalCostCents: roundHalfUp(totalCost),
     marginTenthsOfPercent: unitPrice === null ? null : marginTenthsOfPercent(totalCost, unitPrice),
+    costIncomplete: last.source.kind === "assembly_batch" && last.source.costIncomplete,
   };
 }

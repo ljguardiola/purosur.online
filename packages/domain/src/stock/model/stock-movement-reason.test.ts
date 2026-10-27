@@ -4,6 +4,7 @@ import {
   adjustmentDirections,
   LOSS_REASONS,
   lossDelta,
+  RECORDED_LOSS_REASONS,
   STOCK_DIRECTIONS,
   SYSTEM_LOSS_REASONS,
   signedDelta,
@@ -28,6 +29,12 @@ describe("SYSTEM_LOSS_REASONS", () => {
     for (const reason of SYSTEM_LOSS_REASONS) {
       expect(LOSS_REASONS).not.toContain(reason);
     }
+  });
+});
+
+describe("RECORDED_LOSS_REASONS", () => {
+  it("lists every reason a loss is recorded with, the ones a person picks first", () => {
+    expect(RECORDED_LOSS_REASONS).toEqual([...LOSS_REASONS, ...SYSTEM_LOSS_REASONS]);
   });
 });
 

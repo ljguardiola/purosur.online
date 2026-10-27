@@ -38,6 +38,7 @@ export {
   adjustmentDirections,
   LOSS_REASONS,
   lossDelta,
+  RECORDED_LOSS_REASONS,
   STOCK_DIRECTIONS,
   SYSTEM_LOSS_REASONS,
 } from "./model/stock-movement-reason.js";

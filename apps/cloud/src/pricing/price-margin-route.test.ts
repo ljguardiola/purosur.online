@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { insertPurchaseLine } from "../purchasing/test-support/purchase-line-fixtures.js";
+import { insertAssemblyBatch } from "../stock/test-support/assembly-batch-fixtures.js";
 import { insertInitialCountLot } from "../stock/test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -108,6 +109,7 @@ describe("GET /prices/:productId/margin", () => {
         freightPerUnitCents: 0,
         totalCostCents: 1200,
         marginTenthsOfPercent: 400,
+        costIncomplete: false,
       },
     });
   });
@@ -129,6 +131,37 @@ describe("GET /prices/:productId/margin", () => {
         freightPerUnitCents: 0,
         totalCostCents: 700,
         marginTenthsOfPercent: 300,
+        costIncomplete: false,
+      },
+    });
+  });
+
+  it("answers the recorded cost of the last batch's lot, flagged when incomplete", async () => {
+    const { headers, userId, locationId } = await signedInWith(
+      db,
+      ["manage_prices_and_review"],
+      NOON,
+    );
+    const { productId } = await insertProduct(db);
+    await insertAssemblyBatch(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      assembledAt: new Date("2026-01-04T12:00:00.000Z"),
+      output: 1_000,
+      cost: { totalCents: 1500, quantity: 1_000 },
+      costIncomplete: true,
+    });
+
+    const response = await marginRequest(productId, "unitPrice=2000", headers);
+
+    expect(response.json()).toEqual({
+      costReference: {
+        lastCostCents: 1500,
+        freightPerUnitCents: 0,
+        totalCostCents: 1500,
+        marginTenthsOfPercent: 250,
+        costIncomplete: true,
       },
     });
   });

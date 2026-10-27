@@ -18,6 +18,7 @@ const unpricedWithCost = {
     freightPerUnitCents: 21000,
     totalCostCents: 121000,
     marginTenthsOfPercent: null,
+    costIncomplete: false,
   },
 };
 
@@ -60,6 +61,24 @@ test("shows the cost of a product with no price without a margin", async () => {
   await expect.poll(() => row.getByText("—").elements()).toHaveLength(2);
 });
 
+test("warns in the cost cell that a product's cost is incomplete, beside its amount", async () => {
+  const screen = await renderProducts({
+    ...unpricedWithCost,
+    costReference: { ...unpricedWithCost.costReference, costIncomplete: true },
+  });
+
+  const row = screen.getByRole("row", { name: /Fideos/ });
+  await expect.element(row.getByText("Costo incompleto")).toBeVisible();
+  await expect.element(row.getByText("$ 1.210,00")).toBeVisible();
+});
+
+test("shows no incomplete cost warning for a complete cost or a product with no cost", async () => {
+  const screen = await renderProducts(rice, withoutCost);
+
+  await expect.element(screen.getByRole("row", { name: /Arroz/ })).toBeVisible();
+  expect(screen.getByText("Costo incompleto").query()).toBeNull();
+});
+
 test("shows a dash for the cost and the margin of a product with no cost", async () => {
   const screen = await renderProducts(withoutCost);
 
@@ -81,6 +100,7 @@ test("the change-price modal asks the cloud for the margin of the typed price", 
           freightPerUnitCents: 18000,
           totalCostCents: 446000,
           marginTenthsOfPercent: 456,
+          costIncomplete: false,
         },
       },
     });

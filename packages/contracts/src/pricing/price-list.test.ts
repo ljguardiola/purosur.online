@@ -17,6 +17,7 @@ const priced = {
     freightPerUnitCents: 0,
     totalCostCents: 500000,
     marginTenthsOfPercent: 333,
+    costIncomplete: false,
   },
 };
 const unpriced = {
@@ -109,15 +110,36 @@ describe("priceProductSchema", () => {
     ).toBe(false);
   });
 
-  it.each(["lastCostCents", "freightPerUnitCents", "totalCostCents", "marginTenthsOfPercent"])(
-    "requires %s in the cost reference",
-    (field) => {
-      const { [field as keyof typeof priced.costReference]: _omitted, ...rest } =
-        priced.costReference;
+  it("accepts an incomplete cost flag", () => {
+    expect(
+      priceProductSchema.safeParse({
+        ...priced,
+        costReference: { ...priced.costReference, costIncomplete: true },
+      }).data?.costReference?.costIncomplete,
+    ).toBe(true);
+  });
 
-      expect(priceProductSchema.safeParse({ ...priced, costReference: rest }).success).toBe(false);
-    },
-  );
+  it.each([0, "true", null])("refuses the incomplete cost flag %j", (costIncomplete) => {
+    expect(
+      priceProductSchema.safeParse({
+        ...priced,
+        costReference: { ...priced.costReference, costIncomplete },
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    "lastCostCents",
+    "freightPerUnitCents",
+    "totalCostCents",
+    "marginTenthsOfPercent",
+    "costIncomplete",
+  ])("requires %s in the cost reference", (field) => {
+    const { [field as keyof typeof priced.costReference]: _omitted, ...rest } =
+      priced.costReference;
+
+    expect(priceProductSchema.safeParse({ ...priced, costReference: rest }).success).toBe(false);
+  });
 
   it("accepts a product with a price and one without", () => {
     expect(priceProductSchema.safeParse(priced).data).toEqual(priced);

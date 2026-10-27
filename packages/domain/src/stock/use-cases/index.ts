@@ -1,4 +1,5 @@
 export type { Clock, Scale, ScaleReading } from "../../shared/index.js";
+export type { LossRecord, LostProduct, ReasonLosses } from "../model/losses-by-reason.js";
 export type { NewBatchLot, NewInitialCountLot, NewLot } from "../model/lot.js";
 export type { StockLot } from "../model/lot-allocation.js";
 export type { PurchaseReceipt } from "../model/stock-receipt.js";
@@ -78,6 +79,7 @@ export type {
 export { listAssemblyBatches } from "./list-assembly-batches.js";
 export type { ExpiringLotView } from "./list-expiring-lots.js";
 export { findRecipeListing, listRecipes } from "./list-recipes.js";
+export type { LossQuery, LossReader } from "./loss-reader.js";
 export type {
   LockedLot,
   LotCostStore,
@@ -114,6 +116,11 @@ export type {
   ReadInitialCountLotsInput,
 } from "./read-initial-count-lots.js";
 export { readInitialCountLots } from "./read-initial-count-lots.js";
+export type {
+  LossesByReasonReport,
+  ReadLossesByReasonReportInput,
+} from "./read-losses-by-reason-report.js";
+export { readLossesByReasonReport } from "./read-losses-by-reason-report.js";
 export type {
   LotOrigin,
   ReadStockBalancesInput,
