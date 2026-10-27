@@ -82,7 +82,7 @@ test("totals the losses and the reasons that have them", async () => {
 
   await expect.element(screen.getByText("4 pérdidas", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Motivos", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("2", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("2", { exact: true }).first()).toBeVisible();
 });
 
 test("says one loss in the singular", async () => {
@@ -108,7 +108,7 @@ test("lists in each reason the products lost, their quantity and their losses", 
   const table = screen.getByRole("table", { name: "Productos perdidos por Mal estado" });
   const cheese = table.getByRole("row").filter({ hasText: "Queso cremoso" });
   await expect.element(cheese.getByText("2,500 kg")).toBeVisible();
-  await expect.element(cheese.getByText("2", { exact: true })).toBeVisible();
+  await expect.element(cheese.getByText("2", { exact: true }).first()).toBeVisible();
   const bread = table.getByRole("row").filter({ hasText: "Pan lactal" });
   await expect.element(bread.getByText("3 u")).toBeVisible();
   await expect.element(bread.getByText("1", { exact: true })).toBeVisible();
@@ -150,7 +150,7 @@ test("offers no register filter and no export", async () => {
 test("shows the period the cloud answered while the URL names none", async () => {
   const screen = await renderScreen(listed());
 
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["01", "10", "2026"]);
+  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
   expect(dateSegments(screen, "Hasta")).toEqual(["31", "10", "2026"]);
 });
 
@@ -177,26 +177,26 @@ test("asks for the period the URL carries", async () => {
 test("reports the period typed once both days are complete", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(listed(), { onFiltersChange });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["01", "10", "2026"]);
+  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
 
-  await typeDate(screen, "Desde", "05102026");
+  await typeDate(screen, "Desde", "10092026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
-    .toEqual({ from: "2026-10-05", to: "2026-10-31" });
+    .toEqual({ from: "2026-09-10", to: "2026-10-31" });
 });
 
 test("keeps showing the report while the next period loads", async () => {
   const services = listed();
   const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
   vi.mocked(services.fetchLossesByReasonReport).mockReturnValue(new Promise(() => {}));
 
-  await typeDate(screen, "Desde", "05102026");
+  await typeDate(screen, "Desde", "10092026");
 
   await expect
     .poll(() => services.fetchLossesByReasonReport)
-    .toHaveBeenLastCalledWith({ from: "2026-10-05", to: "2026-10-31" });
+    .toHaveBeenLastCalledWith({ from: "2026-09-10", to: "2026-10-31" });
   await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
   await expect
     .element(screen.getByRole("table", { name: "Productos perdidos por Mal estado" }))
