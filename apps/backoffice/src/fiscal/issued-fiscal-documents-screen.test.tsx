@@ -177,16 +177,18 @@ test("asks the cloud for every filter the URL carries", async () => {
     }),
   });
 
-  await expect.poll(() => vi.mocked(services.fetchIssuedFiscalDocuments).mock.lastCall).toEqual([
-    {
-      from: "2026-09-02",
-      to: "2026-09-05",
-      register_id: FRONT_REGISTER_ID,
-      kind: "credit_note",
-      number: 41,
-      page: 2,
-    },
-  ]);
+  await expect
+    .poll(() => vi.mocked(services.fetchIssuedFiscalDocuments).mock.lastCall)
+    .toEqual([
+      {
+        from: "2026-09-02",
+        to: "2026-09-05",
+        register_id: FRONT_REGISTER_ID,
+        kind: "credit_note",
+        number: 41,
+        page: 2,
+      },
+    ]);
 });
 
 test("asks the cloud again for the kind chosen, from the first page", async () => {
@@ -207,7 +209,7 @@ test("asks the cloud again for the kind chosen, from the first page", async () =
 test("offers every kind, with all of them chosen to begin with", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect.element(screen.getByRole("button", { name: /Tipo:/ })).toHaveTextContent("Todos");
+  await expect.element(screen.getByRole("button", { name: /Tipo:/ })).toHaveTextContent("Tipo: Todos");
   await userEvent.click(screen.getByRole("button", { name: /Tipo:/ }));
   for (const name of ["Todos", "Facturas", "Notas de crédito"]) {
     await expect.element(screen.getByRole("option", { name })).toBeVisible();
@@ -249,7 +251,9 @@ test("keeps what is typed without asking the cloud while it is not a document nu
 
   await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar por número" }), "12a");
 
-  await expect.element(screen.getByRole("searchbox", { name: "Buscar por número" })).toHaveValue("12a");
+  await expect
+    .element(screen.getByRole("searchbox", { name: "Buscar por número" }))
+    .toHaveValue("12a");
   expect(vi.mocked(services.fetchIssuedFiscalDocuments).mock.calls).toHaveLength(calls);
 });
 

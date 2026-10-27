@@ -21,7 +21,10 @@ afterEach(() => {
 test("reads the issued documents of the period the cloud answers for when none is asked", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, issuedFiscalDocuments));
 
-  expect(await fetchIssuedFiscalDocuments({})).toEqual({ kind: "ok", value: issuedFiscalDocuments });
+  expect(await fetchIssuedFiscalDocuments({})).toEqual({
+    kind: "ok",
+    value: issuedFiscalDocuments,
+  });
   expect(fetch).toHaveBeenCalledWith("/api/fiscal/documents");
 });
 

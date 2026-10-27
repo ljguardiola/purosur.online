@@ -122,8 +122,9 @@ test("keeps the filters in the URL and asks the cloud again when one changes", a
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .poll(() =>
-      vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mock.lastCall,
+    .poll(
+      () =>
+        vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mock.lastCall,
     )
     .toEqual([{ kind: "receipt", page: 2 }]);
   vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mockResolvedValue({

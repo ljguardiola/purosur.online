@@ -44,9 +44,7 @@ test("adds the contingency to the register of a document issued in contingency",
 });
 
 test("adds the voucher a credit note cancels to its register", () => {
-  expect(voucherDetailText(creditNote)).toBe(
-    "Caja principal · Anula la Factura C 00003-00001246",
-  );
+  expect(voucherDetailText(creditNote)).toBe("Caja principal · Anula la Factura C 00003-00001246");
 });
 
 test.each([

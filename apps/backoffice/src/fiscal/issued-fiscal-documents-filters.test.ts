@@ -35,7 +35,11 @@ test.each([
   ["a number starting with zero", { number: "0041" }, { number: "" }],
   ["a page that is not a positive whole number", { page: 0 }, { page: 1 }],
   ["a page written as text", { page: "two" }, { page: 1 }],
-  ["a period the cloud would refuse", { from: "2026-09-30", to: "2026-09-01" }, { from: "", to: "" }],
+  [
+    "a period the cloud would refuse",
+    { from: "2026-09-30", to: "2026-09-01" },
+    { from: "", to: "" },
+  ],
 ])("falls back to the default for %s", (_name, search, expected) => {
   expect(issuedFiscalDocumentsFilters.parse(search)).toMatchObject(expected);
 });
