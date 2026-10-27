@@ -1,7 +1,8 @@
 import type { PriceProduct } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { Card, EmptyState, FigureStat, Tag } from "@purosur/ui";
-import { Receipt, TriangleAlert } from "lucide-react";
+import { Card, EmptyState, FigureStat } from "@purosur/ui";
+import { Receipt } from "lucide-react";
+import { IncompleteCostTag } from "./incomplete-cost-tag";
 import { formatCentsWithUnit } from "./money";
 
 const FREIGHT_LABEL = {

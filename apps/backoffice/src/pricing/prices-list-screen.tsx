@@ -32,6 +32,7 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { IncompleteCostTag } from "./incomplete-cost-tag";
 import { formatCentsWithUnit } from "./money";
 import { PriceChangeModal, type PriceModalOutcome, type ScreenNotice } from "./price-change-modal";
 import { emptyPendingDetail, reviewedCellText } from "./price-review-age";
