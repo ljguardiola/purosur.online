@@ -1700,7 +1700,11 @@ describe("wiring the returns report route", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      returns: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      returns: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        zoneRules: fixedZoneRulesSource(),
+      },
     });
 
     const response = await app.inject({
