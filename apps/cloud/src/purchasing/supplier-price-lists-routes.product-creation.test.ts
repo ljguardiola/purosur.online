@@ -66,7 +66,7 @@ async function validBody(overrides: object = {}) {
     name: "Yerba 1 kg",
     saleUnit: "UNIT",
     categoryId: await insertLeafCategory(db),
-    barcodes: [],
+    barcodes: ["7790000000001"],
     packagingName: "Caja x 10",
     quantityPerPackage: 10_000,
     vatRate: 2_100,

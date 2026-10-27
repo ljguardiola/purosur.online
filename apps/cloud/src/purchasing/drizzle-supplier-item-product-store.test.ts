@@ -54,7 +54,7 @@ async function catalogRowCounts() {
   };
 }
 
-function newProduct(categoryId: string, barcodes: string[] = []) {
+function newProduct(categoryId: string, barcodes: string[] = ["7790000000001"]) {
   return { name: "Yerba 1 kg", categoryId, saleUnit: "UNIT" as const, barcodes };
 }
 
@@ -186,6 +186,7 @@ describe("a product creation that fails after the product was inserted", () => {
   it("leaves no product, barcode, packaging or change behind", async () => {
     const categoryId = await leafCategory();
     const { actorId } = await extractedListWithRow(db);
+    const before = await catalogRowCounts();
 
     await expect(
       store().transaction(async (tx) => {
@@ -204,12 +205,7 @@ describe("a product creation that fails after the product was inserted", () => {
       }),
     ).rejects.toThrow("the operation failed after the packaging");
 
-    expect(await catalogRowCounts()).toEqual({
-      products: 0,
-      barcodes: 0,
-      packagings: 0,
-      changes: 0,
-    });
+    expect(await catalogRowCounts()).toEqual(before);
   });
 
   it("leaves the row unlinked and the list's version unchanged when linking the row fails", async () => {
@@ -249,7 +245,7 @@ describe("creating a product from a supplier item through the use case", () => {
       name: "Yerba 1 kg",
       saleUnit: "UNIT",
       categoryId,
-      barcodes: [],
+      barcodes: ["7790000000001"],
       packagingName: "Caja x 10",
       quantityPerPackage: 10_000,
       vatRate: 2_100,
