@@ -2929,11 +2929,6 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
-        url: "/api/reports/returns",
-        access: capabilityAccess("returns_report"),
-      },
-      {
-        method: "GET",
         url: "/api/inventory-items",
         access: capabilityAccess("stock_area"),
       },
@@ -3016,6 +3011,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/expiring-lots/:lotId/discard",
         access: capabilityAccess("stock_expiries"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/returns",
+        access: capabilityAccess("returns_report"),
       },
       {
         method: "GET",
