@@ -1,6 +1,7 @@
 import { X509Certificate } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
+import { getCACertificates, setDefaultCACertificates } from "node:tls";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type ArcaTestCredentials,
@@ -14,6 +15,10 @@ import {
   SHA256_OID,
   startFakeWsaaServer,
 } from "./test-support/fake-wsaa-server.js";
+import {
+  type SmallDhGroupServer,
+  startSmallDhGroupServer,
+} from "./test-support/small-dh-group-server.js";
 import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./wsaa-authentication.js";
 
 const NOW = new Date("2026-10-01T15:00:00.000Z");
@@ -262,5 +267,29 @@ describe("wsaaEndpointOf", () => {
     expect(() => wsaaEndpointOf("staging")).toThrow(
       'No WSAA endpoint for the ARCA environment "staging"',
     );
+  });
+});
+
+describe("over a host offering a 1024-bit Diffie-Hellman group", () => {
+  let smallDhGroupServer: SmallDhGroupServer;
+  let defaultCertificates: string[];
+
+  beforeAll(async () => {
+    smallDhGroupServer = await startSmallDhGroupServer(
+      new URL("./test-support/wsaa-responses/login-cms-issued.xml", import.meta.url),
+    );
+    defaultCertificates = getCACertificates("default");
+    setDefaultCACertificates([...defaultCertificates, smallDhGroupServer.certificate.cert]);
+  });
+
+  afterAll(async () => {
+    setDefaultCACertificates(defaultCertificates);
+    await smallDhGroupServer.close();
+  });
+
+  it("reaches ARCA", async () => {
+    expect(await authenticationOf(smallDhGroupServer.endpoint).requestToken("wsfe")).toMatchObject({
+      kind: "issued",
+    });
   });
 });
