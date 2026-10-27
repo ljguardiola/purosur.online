@@ -16,6 +16,7 @@ import {
   signedSellerAuthority,
   startOriginalPrint,
 } from "./receipt-requests";
+import { inArgentinaTime } from "../platform/argentina-time";
 import { SqliteDeferredSaleLookup } from "./sqlite-deferred-sale-lookup";
 
 export type FindDeferredSaleReading = FindDeferredSaleInput;
@@ -46,7 +47,7 @@ export async function findDeferredSaleFor(
     ? {
         kind: "found",
         sale_id: result.saleId,
-        occurred_at: result.occurredAt.toISOString(),
+        occurred_at: inArgentinaTime(result.occurredAt, deps.zoneRules.zoneRules()),
         total: result.total,
         short_code: result.shortCode,
         invoice:
