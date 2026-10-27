@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { seedChargeRegister } from "../payments/test-support/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -31,6 +32,7 @@ async function pendingOf() {
     database,
     gate: gate(),
     paidOrderDiscovery: () => discoveryState,
+    zoneRules: fixedZoneRulesSource(),
   });
   if (answer === "not_permitted") {
     throw new Error("test setup: the person may not sell");
@@ -84,7 +86,7 @@ describe("what a stopped register left pending", () => {
     });
   });
 
-  it("lists the sales never printed and those with an unknown print outcome, not the printed ones", async () => {
+  it("lists the sales never printed and those with an unknown print outcome, not the printed ones, at Argentina time", async () => {
     addCompletedSale("never", "2026-10-13T11:00:00.000Z", 1500, null, null);
     addCompletedSale("unknown", "2026-10-13T11:05:00.000Z", 2500, "2026-10-13T11:06:00.000Z", null);
     addCompletedSale(
@@ -98,20 +100,20 @@ describe("what a stopped register left pending", () => {
     expect((await pendingOf()).sales_to_print).toEqual([
       {
         sale_id: "never",
-        completed_at: "2026-10-13T11:00:00.000Z",
+        completed_at: "2026-10-13T08:00:00.000-03:00",
         total: 1500,
         standing: "never_printed",
       },
       {
         sale_id: "unknown",
-        completed_at: "2026-10-13T11:05:00.000Z",
+        completed_at: "2026-10-13T08:05:00.000-03:00",
         total: 2500,
         standing: "outcome_unknown",
       },
     ]);
   });
 
-  it("lists the fiscal documents still unknown, with their sale's time and total", async () => {
+  it("lists the fiscal documents still unknown, with their sale's Argentina time and total", async () => {
     addCompletedSale("sale-1", "2026-10-13T11:00:00.000Z", 4200, null, "2026-10-13T11:00:05.000Z");
     database.exec(
       `INSERT INTO fiscal_documents (
@@ -126,13 +128,13 @@ describe("what a stopped register left pending", () => {
       {
         id: "doc-1",
         sale_id: "sale-1",
-        completed_at: "2026-10-13T11:00:00.000Z",
+        completed_at: "2026-10-13T08:00:00.000-03:00",
         total: 4200,
       },
     ]);
   });
 
-  it("lists the QR and Point payments still pending", async () => {
+  it("lists the QR and Point payments still pending, at Argentina time", async () => {
     database.exec(
       `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
        VALUES ('open-sale', 'register-1', 'device-1', 'session-1', 'u1', 'OPEN', NULL);
@@ -147,12 +149,12 @@ describe("what a stopped register left pending", () => {
         sale_id: "open-sale",
         method: "QR",
         amount: 3000,
-        occurred_at: "2026-10-13T11:50:00.000Z",
+        occurred_at: "2026-10-13T08:50:00.000-03:00",
       },
     ]);
   });
 
-  it("lists the paid orders without a sale not yet converted into a refund, and blocks selling", async () => {
+  it("lists the paid orders without a sale not yet converted into a refund, at Argentina time, and blocks selling", async () => {
     database.exec(
       `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
        VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
@@ -169,7 +171,7 @@ describe("what a stopped register left pending", () => {
         sale_id: "sale-gone",
         method: "QR",
         amount: 5000,
-        created_at: "2026-10-13T10:00:00.000Z",
+        created_at: "2026-10-13T07:00:00.000-03:00",
       },
     ]);
     expect(pending.selling_blocked).toBe(true);
@@ -241,7 +243,12 @@ describe("what a stopped register left pending", () => {
     signedInPerson.clear();
 
     expect(
-      await startupPendingFor({ database, gate: gate(), paidOrderDiscovery: () => discoveryState }),
+      await startupPendingFor({
+        database,
+        gate: gate(),
+        paidOrderDiscovery: () => discoveryState,
+        zoneRules: fixedZoneRulesSource(),
+      }),
     ).toBe("not_permitted");
   });
 
@@ -251,7 +258,12 @@ describe("what a stopped register left pending", () => {
     );
 
     expect(
-      await startupPendingFor({ database, gate: gate(), paidOrderDiscovery: () => discoveryState }),
+      await startupPendingFor({
+        database,
+        gate: gate(),
+        paidOrderDiscovery: () => discoveryState,
+        zoneRules: fixedZoneRulesSource(),
+      }),
     ).toBe("not_permitted");
   });
 });
