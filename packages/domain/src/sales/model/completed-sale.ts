@@ -1,4 +1,4 @@
-import type { PaymentMethod } from "../../payments/index.js";
+import type { PaymentMethod, PointCardType } from "../../payments/index.js";
 import type { DiscountBenefit } from "../../pricing/index.js";
 import type { CashMovementType } from "../../register/index.js";
 import type { ManualAdjustment } from "./manual-adjustment.js";
@@ -34,6 +34,7 @@ export interface CompletedSalePayment {
   amount: number;
   tendered: number | null;
   state: string;
+  cardType: PointCardType | null;
   occurredAt: Date;
   authorizedBy: string | null;
   confirmedAt: Date | null;
