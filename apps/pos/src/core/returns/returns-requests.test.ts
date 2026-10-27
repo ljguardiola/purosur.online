@@ -535,8 +535,8 @@ describe("the credit note of a completed return", () => {
           return catchUp();
         },
       },
-      printCreditNote: async (creditNoteId) => {
-        state.printed.push(creditNoteId);
+      printCreditNote: async (saleId) => {
+        state.printed.push(saleId);
       },
       reportFailure: (error) => {
         state.failures.push(error);
@@ -574,7 +574,7 @@ describe("the credit note of a completed return", () => {
     expect(storedNotes()).toEqual([
       { return_id: "id-1", state: "AUTHORIZED", corrected_number: 41 },
     ]);
-    expect(printed).toEqual([expect.any(String)]);
+    expect(printed).toEqual(["sale-1"]);
   });
 
   it("stays in progress, nothing printed, while the cloud gives no answer", async () => {

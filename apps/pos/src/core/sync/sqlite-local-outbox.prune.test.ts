@@ -271,6 +271,81 @@ describe("forgetting the acknowledged events while a voided sale's credit note i
   });
 });
 
+describe("forgetting the acknowledged events while the credit note of a return is not answered", () => {
+  function returnWithCreditNote(
+    fiscal: LocalDatabase,
+    saleId: string,
+    returnId: string,
+    deviceSeq: number,
+    invoice: boolean,
+  ) {
+    insertCompletedSale(fiscal, saleId);
+    fiscal
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES (?, ?, 'register-1', 'device-a', 'session-1', 'u1', 'QR', ?)`,
+      )
+      .run(returnId, saleId, dayAfterZero(0).toISOString());
+    appendOutboxEvent(fiscal, CHAIN_KEY, {
+      ...outboxEventDraft(deviceSeq),
+      aggregate_type: "Return",
+      aggregate_id: returnId,
+      event_type: "sale_returned",
+      schema_version: 2,
+      payload: { id: returnId, sale_id: saleId },
+    });
+    const note = {
+      creditNoteId: `note-of-${returnId}`,
+      saleId,
+      total: 3000,
+      origin: { kind: "sale_return", returnId, issuedOn: "2026-09-30" },
+    } as const;
+    insertPendingCreditNote(
+      fiscal,
+      invoice
+        ? {
+            ...note,
+            receiverTaxStatusCode: 5,
+            correctedVoucher: {
+              voucherType: 11,
+              pointOfSale: POINT_OF_SALE,
+              number: 40 + deviceSeq,
+            },
+          }
+        : { ...note, receiverTaxStatusCode: null, correctedVoucher: null },
+    );
+  }
+
+  it("keeps the event of a return whose credit note is requested or waits for its invoice, and forgets the answered one", async () => {
+    const fiscal = openFiscalDatabase();
+    try {
+      returnWithCreditNote(fiscal, "sale-1", "return-1", 1, true);
+      returnWithCreditNote(fiscal, "sale-2", "return-2", 2, false);
+      returnWithCreditNote(fiscal, "sale-3", "return-3", 3, true);
+      await new SqliteVoidCreditNotes(fiscal).recordAnswer(
+        "note-of-return-3",
+        { kind: "rejected" },
+        dayAfterZero(1),
+      );
+      await new SqliteLocalOutbox(fiscal, () => dayAfterZero(1)).acknowledgeThrough(
+        Number.MAX_SAFE_INTEGER,
+      );
+
+      expect(
+        await new SqliteLocalOutbox(fiscal, () => dayAfterZero(100)).forgetAcknowledgedBefore(
+          dayAfterZero(2),
+        ),
+      ).toBe(1);
+      expect(fiscal.prepare("SELECT aggregate_id FROM outbox ORDER BY device_seq").all()).toEqual([
+        { aggregate_id: "return-1" },
+        { aggregate_id: "return-2" },
+      ]);
+    } finally {
+      fiscal.close();
+    }
+  });
+});
+
 function contentsOfEveryTableButTheOutbox(target: LocalDatabase): Record<string, string[]> {
   const tables = target
     .prepare<[], { name: string }>(
