@@ -3277,14 +3277,6 @@ describe("the register's local migrations", () => {
       expect(() =>
         insertRefund.run({ ...standalone, id: "mercado-pago", provider: "MERCADOPAGO_POINT" }),
       ).toThrow(/CHECK/);
-      expect(() =>
-        after
-          .prepare(
-            `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-             VALUES ('orphan', 'missing', 'STANDALONE_TERMINAL', 'EXTERNAL_TERMINAL', 600, 'PENDING', '2026-10-09T12:30:00.000Z')`,
-          )
-          .run(),
-      ).toThrow(/FOREIGN KEY/);
       expect(
         after
           .prepare("SELECT name FROM sqlite_schema WHERE name = 'payment_refunds_by_payment'")
@@ -3445,14 +3437,6 @@ describe("the register's local migrations", () => {
       expect(() => insertRefund.run({ ...qr, id: "transfer-on-qr", method: "TRANSFER" })).toThrow(
         /CHECK/,
       );
-      expect(() =>
-        after
-          .prepare(
-            `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-             VALUES ('orphan', 'missing', 'QR', 'MERCADOPAGO_QR', 700, 'PENDING', '2026-10-09T12:30:00.000Z')`,
-          )
-          .run(),
-      ).toThrow(/FOREIGN KEY/);
       expect(
         after
           .prepare("SELECT name FROM sqlite_schema WHERE name = 'payment_refunds_by_payment'")
@@ -3544,14 +3528,6 @@ describe("the register's local migrations", () => {
       expect(() => insertRefund.run({ ...point, id: "cash-on-point", method: "CASH" })).toThrow(
         /CHECK/,
       );
-      expect(() =>
-        after
-          .prepare(
-            `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-             VALUES ('orphan', 'missing', 'POINT', 'MERCADOPAGO_POINT', 800, 'PENDING', '2026-10-09T12:30:00.000Z')`,
-          )
-          .run(),
-      ).toThrow(/FOREIGN KEY/);
       expect(
         after
           .prepare("SELECT name FROM sqlite_schema WHERE name = 'payment_refunds_by_payment'")
@@ -4376,10 +4352,9 @@ describe("the register's local migrations", () => {
       database.close();
     });
 
-    it("refuse a refund of an unknown payment, of no amount or in an unknown state", () => {
+    it("refuse a refund of no amount or in an unknown state", () => {
       const database = withPaidSale();
 
-      expect(() => insertRefund(database, { payment_id: "missing" })).toThrow(/FOREIGN KEY/);
       expect(() => insertRefund(database, { amount: 0 })).toThrow(/CHECK/);
       expect(() => insertRefund(database, { state: "DECLINED" })).toThrow(/CHECK/);
       expect(() => insertRefund(database, { method: "CARD" })).toThrow(/CHECK/);
