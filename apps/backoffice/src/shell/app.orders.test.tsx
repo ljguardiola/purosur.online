@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
+import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import {
   EXTRACTED_ROWS,
   READ_LIST,
@@ -19,6 +20,7 @@ opensOnlyScreens([
   "/account",
   "/alerts",
   "/help",
+  "/price-comparison",
   "/supplier-price-lists",
   "/supplier-price-lists/$listId",
 ]);
@@ -44,6 +46,10 @@ function ordersServices(capabilities: Capability[]) {
   vi.mocked(services.supplierPriceListReviewScreen.fetchSupplierPriceListReview).mockResolvedValue({
     kind: "ok",
     value: { kind: "found", review: reviewOf(READ_LIST, EXTRACTED_ROWS) },
+  });
+  vi.mocked(services.supplierPriceComparisonScreen.fetchSupplierPriceComparison).mockResolvedValue({
+    kind: "ok",
+    value: PRICE_COMPARISON,
   });
   return services;
 }
@@ -142,4 +148,56 @@ test("counts the open alerts in the list's top bar and opens the alerts list fro
   await userEvent.click(screen.getByRole("link", { name: "3 alertas abiertas" }));
 
   expect(window.location.pathname).toBe("/alerts");
+});
+
+test("lists the price comparison beside the supplier price lists for whoever compares prices", async () => {
+  const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
+  window.history.pushState(null, "", "/supplier-price-lists");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .toBeVisible();
+  const links = screen
+    .getByRole("navigation", { name: "Pedidos" })
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(links).toEqual(["Listas de proveedores", "Comparación de precios"]);
+});
+
+test("hides the price comparison from whoever may only manage the lists", async () => {
+  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  window.history.pushState(null, "", "/supplier-price-lists");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .toBeVisible();
+  expect(screen.getByRole("link", { name: "Comparación de precios" }).query()).toBeNull();
+});
+
+test("opens the price comparison from its section, marking it as the section shown", async () => {
+  const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
+  window.history.pushState(null, "", "/supplier-price-lists");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Comparación de precios" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Comparación de precios", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/price-comparison");
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+});
+
+test("sends a user who may not compare prices to Mi cuenta", async () => {
+  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  window.history.pushState(null, "", "/price-comparison");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
 });

@@ -36,6 +36,19 @@ export function formatCents(cents: number): string {
   return `$ ${formatAmountInput(cents)}`;
 }
 
+export type CentsFraction = { numerator: string | bigint; denominator: string | bigint };
+
+export function formatCentsFraction({ numerator, denominator }: CentsFraction): string {
+  const divisor = BigInt(denominator);
+  const cents = (2n * BigInt(numerator) + divisor) / (2n * divisor);
+  return `$ ${formatNumber(Number(cents / 100n), { maximumFractionDigits: 0 })},${String(cents % 100n).padStart(2, "0")}`;
+}
+
+export function formatPricePerSaleUnit(fraction: CentsFraction, saleUnit: "UNIT" | "KG"): string {
+  const price = formatCentsFraction(fraction);
+  return saleUnit === "KG" ? `${price} / kg` : price;
+}
+
 export function formatSignedCents(cents: number): string {
   return cents < 0 ? `− ${formatCents(-cents)}` : formatCents(cents);
 }

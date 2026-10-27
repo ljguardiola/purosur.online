@@ -6,6 +6,7 @@ export const COMPLETED_RESTORATION: RestorationEvidence = {
   restore: "completed",
   reset_sync_identity: "completed",
   replenish: "completed",
+  recover_contingency_tickets: "completed",
   reconcile_fiscal_counters: "completed",
   regularize_orphan_authorizations: "completed",
   origin: "copy",

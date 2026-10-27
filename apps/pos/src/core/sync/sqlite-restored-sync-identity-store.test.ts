@@ -136,6 +136,22 @@ describe("the restored sync identity store", () => {
     expect(count("users")).toBe(1);
   });
 
+  it("holds the predecessor's contingency ticket recovery as awaited from the sequence it had acknowledged", async () => {
+    carryOldInstallation(5);
+    insertOutboxEvent(4, true);
+    insertOutboxEvent(5, false);
+
+    await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
+
+    expect(
+      database
+        .prepare(
+          "SELECT device_id, last_acknowledged_seq FROM awaiting_contingency_ticket_recovery",
+        )
+        .all(),
+    ).toEqual([{ device_id: OLD_DEVICE, last_acknowledged_seq: 4 }]);
+  });
+
   it("marks the register's point of sale as awaiting its numbering from the cloud when it adopts the new identity", async () => {
     carryOldInstallation(5);
     database.exec(`
@@ -226,6 +242,7 @@ describe("the restored sync identity store", () => {
     expect(syncState()).toEqual(before);
     expect(count("outbox")).toBe(1);
     expect(count("register_predecessor")).toBe(0);
+    expect(count("awaiting_contingency_ticket_recovery")).toBe(0);
   });
 
   it("lets the next event of the new installation take sequence 1", async () => {

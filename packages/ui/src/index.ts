@@ -185,7 +185,7 @@ export { Tooltip } from "./components/overlays/tooltip";
 export type { Icon } from "./components/shared/icon";
 export type { LoadStatus } from "./components/shared/load-status";
 export type { NoticeTone, Tone } from "./components/shared/tone";
-export type { Locale, PluralForms } from "./messages/formatters";
+export type { CentsFraction, Locale, PluralForms } from "./messages/formatters";
 export {
   formatAmountInput,
   formatBytes,
@@ -193,6 +193,7 @@ export {
   formatCalendarDayNumeric,
   formatCalendarDayRange,
   formatCents,
+  formatCentsFraction,
   formatClockTime,
   formatCountdown,
   formatDate,
@@ -202,6 +203,7 @@ export {
   formatOperationNumber,
   formatPercent,
   formatPointOfSaleNumber,
+  formatPricePerSaleUnit,
   formatSignedCents,
   formatTimeAgo,
   formatTimeAgoInHours,

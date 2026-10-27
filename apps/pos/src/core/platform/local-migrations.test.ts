@@ -926,7 +926,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1030,7 +1031,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1129,7 +1131,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1227,7 +1230,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1354,7 +1358,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1471,7 +1476,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1592,7 +1598,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1721,7 +1728,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1817,7 +1825,8 @@ describe("the register's local migrations", () => {
         "0078_offline_void_credit_notes",
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
-        "0081_zone_rules",
+        "0081_awaiting_contingency_ticket_recovery",
+        "0082_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -7012,6 +7021,62 @@ describe("the zone rules migration", () => {
       insert.run(1);
 
       expect(() => insert.run(2)).toThrow(/UNIQUE|PRIMARY/);
+    });
+  });
+});
+
+describe("the awaiting contingency ticket recovery migration", () => {
+  const MIGRATION = "0081_awaiting_contingency_ticket_recovery";
+
+  function withDatabase(test: (database: ReturnType<typeof openLocalDatabase>) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const path = join(folder, "register.sqlite");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('device-old', 52)",
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("keeps the predecessor held before it and awaits no recovery", () => {
+    withDatabase((database) => {
+      expect(
+        database.prepare("SELECT device_id, last_acknowledged_seq FROM register_predecessor").all(),
+      ).toEqual([{ device_id: "device-old", last_acknowledged_seq: 52 }]);
+      expect(database.prepare("SELECT * FROM awaiting_contingency_ticket_recovery").all()).toEqual(
+        [],
+      );
+    });
+  });
+
+  it("holds a predecessor once and refuses a negative acknowledged sequence", () => {
+    withDatabase((database) => {
+      database.exec(
+        "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES ('device-old', 0)",
+      );
+
+      expect(() =>
+        database.exec(
+          "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES ('device-old', 3)",
+        ),
+      ).toThrow(/UNIQUE/);
+      expect(() =>
+        database.exec(
+          "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES ('device-other', -1)",
+        ),
+      ).toThrow(/CHECK/);
     });
   });
 });

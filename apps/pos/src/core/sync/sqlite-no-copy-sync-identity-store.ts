@@ -41,6 +41,12 @@ export class SqliteNoCopySyncIdentityStore implements NoCopySyncIdentityStore {
             "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)",
           )
           .run(predecessor.deviceId, predecessor.lastAcknowledgedSeq);
+        database.exec("DELETE FROM awaiting_contingency_ticket_recovery");
+        database
+          .prepare(
+            "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES (?, ?)",
+          )
+          .run(predecessor.deviceId, predecessor.lastAcknowledgedSeq);
       },
       async adoptInstallationIdentity(deviceId) {
         database

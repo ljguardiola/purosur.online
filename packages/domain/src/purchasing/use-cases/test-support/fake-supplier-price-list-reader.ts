@@ -10,7 +10,11 @@ export interface FakeSupplierPriceListData {
     version?: number;
     pricesIncludeVat?: boolean | null;
   })[];
-  rows?: (SupplierPriceListReviewRow & { listId: string })[];
+  rows?: (Omit<
+    SupplierPriceListReviewRow,
+    "barcode" | "link" | "reviewed" | "remembered" | "earlier"
+  > &
+    Partial<SupplierPriceListReviewRow> & { listId: string })[];
 }
 
 export class FakeSupplierPriceListReader implements SupplierPriceListReader {
@@ -36,7 +40,14 @@ export class FakeSupplierPriceListReader implements SupplierPriceListReader {
       list: { ...list, version: version ?? 1, pricesIncludeVat: pricesIncludeVat ?? null },
       rows: this.data.rows
         .filter((row) => row.listId === listId)
-        .map(({ listId: _listId, ...row }) => row),
+        .map(({ listId: _listId, ...row }) => ({
+          barcode: null,
+          link: null,
+          reviewed: false,
+          remembered: false,
+          earlier: null,
+          ...row,
+        })),
     };
   }
 

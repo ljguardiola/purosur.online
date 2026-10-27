@@ -7,6 +7,7 @@ import {
   formatCalendarDayNumeric,
   formatCalendarDayRange,
   formatCents,
+  formatCentsFraction,
   formatClockTime,
   formatCountdown,
   formatDate,
@@ -18,6 +19,7 @@ import {
   formatOperationNumber,
   formatPercent,
   formatPointOfSaleNumber,
+  formatPricePerSaleUnit,
   formatSignedCents,
   formatTimeAgo,
   formatTimeAgoInHours,
@@ -359,5 +361,42 @@ describe("formatWeightInput", () => {
         expect(parseWeightThousandths(formatWeightInput(thousandths))).toBe(thousandths);
       }),
     );
+  });
+});
+
+describe("formatCentsFraction", () => {
+  it("writes a whole number of cents like formatCents", () => {
+    expect(formatCentsFraction({ numerator: "25450000", denominator: "25" })).toBe(
+      formatCents(1_018_000),
+    );
+  });
+
+  it("rounds half up to the cent only for display", () => {
+    expect(formatCentsFraction({ numerator: "5", denominator: "2" })).toBe("$ 0,03");
+    expect(formatCentsFraction({ numerator: "149", denominator: "100" })).toBe("$ 0,01");
+    expect(formatCentsFraction({ numerator: "3", denominator: "2" })).toBe("$ 0,02");
+    expect(formatCentsFraction({ numerator: "1", denominator: "3" })).toBe("$ 0,00");
+  });
+
+  it("accepts bigints as well as decimal strings", () => {
+    expect(formatCentsFraction({ numerator: 25_000n, denominator: 3n })).toBe("$ 83,33");
+  });
+
+  it("reads a numerator beyond the safe integers without losing digits", () => {
+    expect(formatCentsFraction({ numerator: "900719925474099300", denominator: "100" })).toBe(
+      "$ 90.071.992.547.409,93",
+    );
+  });
+});
+
+describe("formatPricePerSaleUnit", () => {
+  const fraction = { numerator: "25450000", denominator: "25" };
+
+  it("adds the kilogram to a price per kilogram", () => {
+    expect(formatPricePerSaleUnit(fraction, "KG")).toBe("$ 10.180,00 / kg");
+  });
+
+  it("writes a price per unit with no unit", () => {
+    expect(formatPricePerSaleUnit(fraction, "UNIT")).toBe("$ 10.180,00");
   });
 });

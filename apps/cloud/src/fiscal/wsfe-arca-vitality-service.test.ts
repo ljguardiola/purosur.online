@@ -1,11 +1,16 @@
 import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
+import { getCACertificates, setDefaultCACertificates } from "node:tls";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   answers,
   type FakeWsfeServer,
   startFakeWsfeServer,
 } from "./test-support/fake-wsfe-server.js";
+import {
+  type SmallDhGroupServer,
+  startSmallDhGroupServer,
+} from "./test-support/small-dh-group-server.js";
 import {
   unreachableCauseOf,
   WsfeArcaVitalityService,
@@ -172,5 +177,32 @@ describe("wsfeEndpointOf", () => {
     expect(() => wsfeEndpointOf("staging")).toThrow(
       'No WSFE endpoint for the ARCA environment "staging"',
     );
+  });
+});
+
+describe("over a host offering a 1024-bit Diffie-Hellman group", () => {
+  let smallDhGroupServer: SmallDhGroupServer;
+  let defaultCertificates: string[];
+
+  beforeAll(async () => {
+    smallDhGroupServer = await startSmallDhGroupServer(
+      new URL("./test-support/wsfe-responses/fe-dummy-all-ok.xml", import.meta.url),
+    );
+    defaultCertificates = getCACertificates("default");
+    setDefaultCACertificates([...defaultCertificates, smallDhGroupServer.certificate.cert]);
+  });
+
+  afterAll(async () => {
+    setDefaultCACertificates(defaultCertificates);
+    await smallDhGroupServer.close();
+  });
+
+  it("reaches ARCA", async () => {
+    expect(await serviceOf(smallDhGroupServer.endpoint).check()).toMatchObject({
+      kind: "answered",
+      appServer: "OK",
+      dbServer: "OK",
+      authServer: "OK",
+    });
   });
 });
