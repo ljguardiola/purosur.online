@@ -1,5 +1,7 @@
 import {
   ARGENTINA_TIME_ZONE,
+  FACTURA_C_DOCUMENT_TYPE,
+  LISTED_ONLINE_DOCUMENT_STATES,
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
   type ReturnRecord,
@@ -10,7 +12,7 @@ import {
   type WeightSource,
 } from "@purosur/domain";
 import type { ReturnsReportQuery, ReturnsReportReader } from "@purosur/domain/returns/use-cases";
-import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alias } from "drizzle-orm/pg-core";
 import {
@@ -23,6 +25,19 @@ import {
   sales,
   users,
 } from "../platform/db/schema.js";
+
+const authorizedOnline = or(
+  ...LISTED_ONLINE_DOCUMENT_STATES.filter((facts) => facts.state === "authorized").map((facts) =>
+    and(
+      facts.answer === null
+        ? isNull(fiscalRequests.answerKind)
+        : eq(fiscalRequests.answerKind, facts.answer),
+      facts.decision === null
+        ? isNull(fiscalRequests.decision)
+        : eq(fiscalRequests.decision, facts.decision),
+    ),
+  ),
+) as SQL;
 
 const returnDay = sql<string>`to_char(${saleReturns.occurredAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
@@ -162,12 +177,7 @@ async function invoicesOf<TQueryResult extends PgQueryResultHKT>(
       number: fiscalRequests.number,
     })
     .from(fiscalRequests)
-    .where(
-      and(
-        inArray(fiscalRequests.saleId, saleIds),
-        or(eq(fiscalRequests.answerKind, "authorized"), eq(fiscalRequests.decision, "adopted")),
-      ),
-    );
+    .where(and(inArray(fiscalRequests.saleId, saleIds), authorizedOnline));
   const offline = await db
     .select({
       saleId: offlineFiscalDocuments.saleId,
@@ -178,7 +188,7 @@ async function invoicesOf<TQueryResult extends PgQueryResultHKT>(
     .where(
       and(
         inArray(offlineFiscalDocuments.saleId, saleIds),
-        eq(offlineFiscalDocuments.documentType, "factura_c"),
+        eq(offlineFiscalDocuments.documentType, FACTURA_C_DOCUMENT_TYPE),
       ),
     );
   const bySale = new Map<string, Invoice>();
