@@ -4,11 +4,11 @@ import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { ReportsIndexScreen } from "./reports-index-screen";
 
-async function renderScreen() {
+async function renderScreen({ returnsShown = false }: { returnsShown?: boolean } = {}) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <ReportsIndexScreen />
+        <ReportsIndexScreen returnsShown={returnsShown} />
       </main>
     </FieldSizeProvider>,
   );
@@ -86,6 +86,22 @@ test("groups the cash reports in a card titled Caja", async () => {
   const cash = screen.getByRole("region", { name: "Caja" });
   await expect.element(cash).toBeVisible();
   expect(cash.getByRole("link").elements()).toHaveLength(2);
+});
+
+test("lists the returns report as a link to it in the Caja card when it is shown", async () => {
+  const screen = await renderScreen({ returnsShown: true });
+
+  const cash = screen.getByRole("region", { name: "Caja" });
+  expect(cash.getByRole("link").elements()).toHaveLength(3);
+  await expect
+    .element(cash.getByRole("link", { name: "Devoluciones" }))
+    .toHaveAttribute("href", "/reports/returns");
+});
+
+test("leaves the returns report out when it is not shown", async () => {
+  const screen = await renderScreen();
+
+  expect(screen.getByRole("link", { name: "Devoluciones" }).query()).toBeNull();
 });
 
 test("lists the payments confirmed by hand report as a link to it", async () => {

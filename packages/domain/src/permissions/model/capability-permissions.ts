@@ -55,6 +55,8 @@ export const CAPABILITY_PERMISSIONS = {
   supplier_price_lists: ["manage_supplier_price_lists"],
   price_comparison: ["compare_prices_and_suggest_orders"],
   reports_area: ["view_reports"],
+  returns_report: ["view_returns_report"],
+  report_registers: ["view_reports", "view_returns_report"],
   refunds_area: ["confirm_refunds"],
   backups_area: ["view_backups_and_rotate_key"],
   contingency_ticket_rescue: ["recover_contingency_receipts"],

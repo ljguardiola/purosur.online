@@ -23,5 +23,11 @@ export type {
   ReturnedSale,
   ReturnedStockMovement,
 } from "./model/returned-sale.js";
+export type {
+  ReturnRecord,
+  ReturnRecordLine,
+  ReturnRow,
+  ReturnsGroup,
+} from "./model/returns-report.js";
 export type { TicketReference } from "./model/ticket-reference.js";
 export { ticketReferenceFromQrText } from "./model/ticket-reference.js";

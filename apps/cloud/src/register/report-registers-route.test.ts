@@ -63,6 +63,16 @@ describe("GET /reports/registers", () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it("lists the registers to a user who may only view the returns report", async () => {
+    const { headers } = await signedInWith(db, ["view_returns_report"], NOW);
+    const register = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
+
+    const response = await reportRegisters(headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ registers: [{ id: register.registerId, name: "Caja 1" }] });
+  });
+
   it("lists the registers of the session's branch by name", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
     const second = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });

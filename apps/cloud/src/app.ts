@@ -200,6 +200,10 @@ import {
 import { registerSnapshotKeyVersionRoute } from "./register/snapshot-key-version-route.js";
 import { registerSnapshotOnDiskRoute } from "./register/snapshot-on-disk-route.js";
 import {
+  type ReturnsReportRouteOptions,
+  registerReturnsReportRoutes,
+} from "./returns/returns-report-routes.js";
+import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
@@ -291,6 +295,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   bitlockerRecoveryKeys?: WithoutClock<BitlockerRecoveryKeyRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
+  returns?: WithoutClock<ReturnsReportRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
   paymentsReports?: WithoutClock<PaymentsReportRouteOptions<TQueryResult>>;
   refunds?: WithoutClock<RefundRouteOptions<TQueryResult>>;
@@ -431,6 +436,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
       ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
       : backoffice,
     stock: backoffice,
+    returns: backoffice,
     salesReports: backoffice,
     paymentsReports: backoffice,
     refunds: wiring.refundSending ? { ...backoffice, sending: wiring.refundSending } : backoffice,
@@ -704,6 +710,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerInitialInventoryLotsRoutes(api, { ...options.stock, now });
         registerStockMovementsRoutes(api, { ...options.stock, now });
         registerExpiringLotsRoutes(api, { ...options.stock, now });
+      }
+
+      if (options.returns) {
+        registerReturnsReportRoutes(api, { ...options.returns, now });
       }
 
       if (options.salesReports) {
