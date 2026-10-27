@@ -2,7 +2,7 @@ import type { LocalDatabase } from "../../platform/local-database";
 import { openOutboxDatabase } from "../../sync/test-support/sqlite-local-outbox";
 
 export const SOLD_AT = "2026-09-12T18:30:00.000Z";
-export const SECOND_SESSION_OPENED_AT = "2026-09-20T12:00:00.000Z";
+const SECOND_SESSION_OPENED_AT = "2026-09-20T12:00:00.000Z";
 
 export function openSoldSaleDatabase(): LocalDatabase {
   const database = openOutboxDatabase();
