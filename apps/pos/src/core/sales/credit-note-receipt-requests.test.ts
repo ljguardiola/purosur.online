@@ -258,11 +258,11 @@ describe("printing the credit note of a voided sale from its history", () => {
     expect(printer.waiting).toEqual([]);
   });
 
-  it("answers unavailable, reporting the failure, when the credit note cannot be read", async () => {
+  it("fails, for the request that asked, when the credit note of the sale cannot be read", async () => {
     database.exec("DROP TABLE sale_void_credit_notes");
 
-    await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({ kind: "unavailable" });
-    expect(failures).toHaveLength(1);
+    await expect(printCreditNoteFor(deps(), "sale-1")).rejects.toThrow("sale_void_credit_notes");
+    expect(printer.waiting).toEqual([]);
   });
 });
 
