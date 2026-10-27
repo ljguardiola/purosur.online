@@ -208,6 +208,7 @@ const WEB_PAGE_REFUSAL_REASONS = [
   "too_large",
   "too_slow",
   "unsupported_content",
+  "store_catalog_unavailable",
   "unreachable",
 ] as const;
 

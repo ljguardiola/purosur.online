@@ -5,6 +5,7 @@ import {
   isSourcePage,
   type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
+  storeCatalogListTerms,
 } from "../model/supplier-price-list.js";
 import type {
   ExtractedPriceListRow,
@@ -12,6 +13,7 @@ import type {
   PriceListExtractor,
   PriceListSource,
 } from "./price-list-extractor.js";
+import type { StoreCatalogs } from "./store-catalogs.js";
 import type { SupplierPriceListFiles } from "./supplier-price-list-files.js";
 import type {
   ProposedPriceListRow,
@@ -23,6 +25,7 @@ export interface ReadSupplierPriceListPorts {
   store: SupplierPriceListStore;
   files: SupplierPriceListFiles;
   extractor: PriceListExtractor;
+  storeCatalogs: StoreCatalogs;
   zoneRules: ZoneRulesSource;
 }
 
@@ -76,11 +79,31 @@ async function extractedOrUnavailable(
   }
 }
 
-function priceListSource(
+type ReadingSource = PriceListSource | { kind: "store_catalog"; catalog: Uint8Array };
+
+function readingSource(
   contentKind: SupplierPriceListContentKind,
   bytes: Uint8Array,
-): PriceListSource {
-  return contentKind === "HTML" ? { kind: "web_page", html: bytes } : { kind: "pdf", bytes };
+): ReadingSource {
+  switch (contentKind) {
+    case "HTML":
+      return { kind: "web_page", html: bytes };
+    case "STORE_CATALOG":
+      return { kind: "store_catalog", catalog: bytes };
+    case "PDF":
+      return { kind: "pdf", bytes };
+  }
+}
+
+async function storeCatalogExtraction(
+  storeCatalogs: StoreCatalogs,
+  catalog: Uint8Array,
+  readOn: string,
+): Promise<PriceListExtraction> {
+  const reading = await storeCatalogs.rows(catalog);
+  return reading.kind === "read"
+    ? { kind: "extracted", ...storeCatalogListTerms(readOn), rows: reading.rows }
+    : reading;
 }
 
 type Stop = { kind: "stop"; outcome: ReadSupplierPriceListOutcome };
@@ -113,7 +136,7 @@ function settleUnfinishedReading(store: SupplierPriceListStore, listId: string):
 }
 
 async function readOnce(
-  { store, files, extractor, zoneRules }: ReadSupplierPriceListPorts,
+  { store, files, extractor, storeCatalogs, zoneRules }: ReadSupplierPriceListPorts,
   { listId, now }: ReadSupplierPriceListInput,
 ): Promise<ReadSupplierPriceListOutcome> {
   const claim = await store.transaction<
@@ -138,25 +161,29 @@ async function readOnce(
 
   const file = await files.read(listId, claim.contentKind);
 
-  const sent = await store.transaction<Stop | { kind: "sent"; source: PriceListSource }>(
-    async (tx) => {
-      if (!(await isUnsentReading(tx, listId))) {
-        return { kind: "stop", outcome: { kind: "already_read" } };
-      }
-      if (file === null) {
-        await tx.recordReadFailure(listId, "reading_unavailable");
-        return { kind: "stop", outcome: { kind: "failed", reason: "reading_unavailable" } };
-      }
-      const sentAt = now();
-      await tx.markSent(listId, sentAt, argentinaCalendarDay(sentAt, zoneRules.zoneRules()));
-      return { kind: "sent", source: priceListSource(claim.contentKind, file) };
-    },
-  );
+  const sent = await store.transaction<
+    Stop | { kind: "sent"; source: ReadingSource; sentOn: string }
+  >(async (tx) => {
+    if (!(await isUnsentReading(tx, listId))) {
+      return { kind: "stop", outcome: { kind: "already_read" } };
+    }
+    if (file === null) {
+      await tx.recordReadFailure(listId, "reading_unavailable");
+      return { kind: "stop", outcome: { kind: "failed", reason: "reading_unavailable" } };
+    }
+    const sentAt = now();
+    const sentOn = argentinaCalendarDay(sentAt, zoneRules.zoneRules());
+    await tx.markSent(listId, sentAt, sentOn);
+    return { kind: "sent", source: readingSource(claim.contentKind, file), sentOn };
+  });
   if (sent.kind === "stop") {
     return sent.outcome;
   }
 
-  const extraction = await extractedOrUnavailable(extractor, sent.source);
+  const extraction =
+    sent.source.kind === "store_catalog"
+      ? await storeCatalogExtraction(storeCatalogs, sent.source.catalog, sent.sentOn)
+      : await extractedOrUnavailable(extractor, sent.source);
 
   return store.transaction<ReadSupplierPriceListOutcome>(async (tx) => {
     const locked = await tx.lockList(listId);

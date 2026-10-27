@@ -178,6 +178,7 @@ export type {
 } from "./set-supplier-price-list-row-price.js";
 export { setSupplierPriceListRowPrice } from "./set-supplier-price-list-row-price.js";
 export { settleAbandonedSupplierPriceListReadings } from "./settle-abandoned-supplier-price-list-readings.js";
+export type { StoreCatalogReading, StoreCatalogs } from "./store-catalogs.js";
 export type {
   ProposalProduct,
   ProposalRow,

@@ -967,6 +967,13 @@
       "when": 1793127730198,
       "tag": "0144_return_credit_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1793133705606,
+      "tag": "0145_supplier_price_list_store_catalog",
+      "breakpoints": true
     }
   ]
 }

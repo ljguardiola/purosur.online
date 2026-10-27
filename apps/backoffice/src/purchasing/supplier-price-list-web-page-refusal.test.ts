@@ -14,6 +14,10 @@ test.each([
   ["too_large", "La página es demasiado pesada."],
   ["too_slow", "La página tardó demasiado en responder."],
   ["unsupported_content", "La dirección no es un PDF ni una página web."],
+  [
+    "store_catalog_unavailable",
+    "La tienda no entregó su lista de productos. Probá de nuevo más tarde.",
+  ],
   ["unreachable", "La página no respondió. Revisá la dirección."],
 ] as const)("explains a page refused for %s", (reason, message) => {
   expect(webPageRefusalMessage(reason)).toBe(message);
@@ -35,4 +39,8 @@ describe("what else is not read", () => {
       expect(webPageRefusalHint(reason)).toBeUndefined();
     },
   );
+
+  test("is not told after a store that did not hand over its products", () => {
+    expect(webPageRefusalHint("store_catalog_unavailable")).toBeUndefined();
+  });
 });

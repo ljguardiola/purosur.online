@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { supplierPriceLists } from "../platform/db/schema.js";
+import { supplierPriceListRows, supplierPriceLists } from "../platform/db/schema.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
@@ -14,6 +14,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { supplierPriceListReadingJobs } from "./supplier-price-list-reading-task.js";
 import { SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER } from "./supplier-price-list-reading-task-identifier.js";
+import { fictionalTiendistaProductDataBytes } from "./test-support/fictional-tiendista-store.js";
 import { insertActor } from "./test-support/purchasing-fixtures.js";
 import { insertPriceList, insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
 
@@ -53,12 +54,12 @@ beforeEach(async () => {
   received = [];
 });
 
-function jobs() {
+function jobs(kept: Uint8Array = PDF) {
   return supplierPriceListReadingJobs({
     zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
     db,
-    files: { store: async () => {}, read: async () => PDF },
+    files: { store: async () => {}, read: async () => kept },
     extractor: {
       extract: async (source) => {
         received.push(source);
@@ -122,5 +123,81 @@ describe("supplierPriceListReadingJobs against a real job queue", () => {
       state: "READ_FAILED",
       readFailure: "interrupted",
     });
+  });
+
+  it("reads a kept store catalog into one row per product and presentation, without the AI service", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      sourceUrl: "https://tiendista.com/almacen-del-sur",
+      contentKind: "STORE_CATALOG",
+    });
+    await queueReading(listId);
+    const task = jobs(fictionalTiendistaProductDataBytes()).taskList[
+      SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER
+    ];
+    if (!task) {
+      throw new Error("test setup: expected the reading task");
+    }
+
+    await task({ listId }, buildJobHelpers({ attempts: 1, max_attempts: 3 }).helpers);
+
+    expect(received).toEqual([]);
+    expect(await readList(listId)).toMatchObject({
+      state: "EXTRACTED",
+      listDate: "2026-03-10",
+      pricesIncludeVat: true,
+    });
+    const rows = await db
+      .select()
+      .from(supplierPriceListRows)
+      .where(eq(supplierPriceListRows.listId, listId))
+      .orderBy(supplierPriceListRows.position);
+    expect(
+      rows.map(({ description, supplierCode, presentation, priceCents }) => ({
+        description,
+        supplierCode,
+        presentation,
+        priceCents,
+      })),
+    ).toEqual([
+      {
+        description: "Yerba mate suave Don Ernesto",
+        supplierCode: "101",
+        presentation: "Unidad",
+        priceCents: 320000,
+      },
+      {
+        description: "Yerba mate suave Don Ernesto",
+        supplierCode: "102",
+        presentation: "Pack x 6",
+        priceCents: 1800000,
+      },
+      {
+        description: "Yerba mate suave Don Ernesto",
+        supplierCode: "103",
+        presentation: "Pack x 12",
+        priceCents: 3450000,
+      },
+      {
+        description: "Fideos tirabuzon La Pampita",
+        supplierCode: "104",
+        presentation: "Unidad",
+        priceCents: 125050,
+      },
+      {
+        description: "Aceite de girasol Campo Verde",
+        supplierCode: "105",
+        presentation: "Botella 900 ml",
+        priceCents: 289050,
+      },
+      {
+        description: "Sal fina",
+        supplierCode: "106",
+        presentation: "Paquete 500 g",
+        priceCents: 70000,
+      },
+    ]);
   });
 });
