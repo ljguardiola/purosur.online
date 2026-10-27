@@ -46,7 +46,7 @@ test("keeps the label as the trigger's name without showing it when it is visual
     .toBeVisible();
   expect(label.getBoundingClientRect().width).toBeLessThanOrEqual(1);
   expect(label.getBoundingClientRect().height).toBeLessThanOrEqual(1);
-  await expectNoAccessibilityViolations(document.body);
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the selected option's own label as the trigger's value", async () => {
