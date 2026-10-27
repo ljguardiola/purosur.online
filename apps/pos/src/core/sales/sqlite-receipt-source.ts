@@ -110,6 +110,7 @@ export function readReceiptSource(
       method: payment.method,
       amount: payment.amount,
       tendered: payment.method === "CASH" ? (payment.tendered ?? null) : null,
+      cardType: payment.method === "POINT" ? payment.cardType : null,
     })),
     fiscal: readSaleFiscalDocument(database, saleId),
   };
