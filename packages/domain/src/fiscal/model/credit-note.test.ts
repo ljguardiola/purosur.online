@@ -4,6 +4,7 @@ import {
   CREDIT_NOTE_REASONS,
   creditNoteBreaksDateOrder,
   creditNoteIssueDate,
+  creditsItsInvoice,
   creditWithinInvoice,
   mayTakeCreditNoteNumber,
   nextCreditNoteNumber,
@@ -206,4 +207,20 @@ describe("CREDIT_NOTE_REASONS", () => {
       "rejected_document",
     ]);
   });
+});
+
+describe("creditsItsInvoice", () => {
+  it.each([null, "authorized", "unclear"])(
+    "counts a credit note answered %s against its invoice",
+    (answerKind) => {
+      expect(creditsItsInvoice(answerKind)).toBe(true);
+    },
+  );
+
+  it.each(["rejected", "regularization_required"])(
+    "counts nothing of a credit note answered %s",
+    (answerKind) => {
+      expect(creditsItsInvoice(answerKind)).toBe(false);
+    },
+  );
 });
