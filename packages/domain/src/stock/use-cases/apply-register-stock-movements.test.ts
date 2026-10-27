@@ -665,18 +665,17 @@ describe("applyRegisterStockMovements", () => {
       ]);
     });
 
-    it("takes the discarded loss from the lots that expire soonest first", async () => {
+    it("leaves every lot as it was when the returned merchandise is discarded", async () => {
       const store = storeWithProducts();
       store.seedLot({ ...BREAD, id: "late", expiresOn: "2027-06-01", remaining: 4000 });
       store.seedLot({ ...BREAD, id: "soon", expiresOn: "2027-01-01", remaining: 2000 });
 
-      await apply(store, sale(discarded(3000)));
+      const outcome = await apply(store, sale(discarded(3000)));
 
-      expect(store.snapshot().allocations).toContainEqual({
-        movementId: "return-movement-2",
-        lotId: "soon",
-        quantity: -2000,
-      });
+      expect(outcome).toEqual({ kind: "applied" });
+      expect(
+        Object.fromEntries(store.snapshot().lots.map((lot) => [lot.id, lot.remaining])),
+      ).toEqual({ late: 4000, soon: 2000 });
     });
 
     it("answers invalid_quantity for a quantity the product's unit can't be returned in, writing nothing", async () => {
