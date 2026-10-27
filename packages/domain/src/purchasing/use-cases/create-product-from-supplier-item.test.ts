@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SaleUnit } from "../../catalog/index.js";
 import {
   maySupplierPriceListRowBeLinked,
   SUPPLIER_PRICE_LIST_STATES,
@@ -24,7 +25,7 @@ const input = {
   rowId: "row-1",
   version: 3,
   name: "Yerba 1 kg",
-  saleUnit: "UNIT" as const,
+  saleUnit: "UNIT" as SaleUnit,
   categoryId: "category-1",
   barcodes: ["7790001000012"],
   packagingName: "Caja x 10",
@@ -282,21 +283,26 @@ describe("createProductFromSupplierItem", () => {
       );
     });
 
-    it.each([
+    const catalogRefusals: NonNullable<FakeSupplierItemProductStore["catalogRefusal"]>[] = [
       { kind: "category_not_found" },
       { kind: "category_not_leaf" },
       { kind: "barcode_taken", codes: ["7790001000012"] },
-    ] as const)("passes on the catalog's refusal $kind and writes nothing", async (refusal) => {
-      const store = setup({ state: "REVIEWED" });
-      store.lists.seedSupplierItem({
-        description: "Yerba 1 kg",
-        key: { kind: "code", value: "Y-1" },
-      });
-      store.catalogRefusal = refusal;
+    ];
 
-      expect(await refusedWithNothingWritten(store)).toEqual(refusal);
-      expect(store.callOrder).toEqual(["lockList", "lockRow", "createCatalogProduct"]);
-    });
+    it.each(catalogRefusals)(
+      "passes on the catalog's refusal $kind and writes nothing",
+      async (refusal) => {
+        const store = setup({ state: "REVIEWED" });
+        store.lists.seedSupplierItem({
+          description: "Yerba 1 kg",
+          key: { kind: "code", value: "Y-1" },
+        });
+        store.catalogRefusal = refusal;
+
+        expect(await refusedWithNothingWritten(store)).toEqual(refusal);
+        expect(store.callOrder).toEqual(["lockList", "lockRow", "createCatalogProduct"]);
+      },
+    );
   });
 
   it("leaves nothing behind when the link cannot be written", async () => {
