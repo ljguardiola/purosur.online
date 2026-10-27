@@ -778,7 +778,9 @@ describe("a receipt ledger's credit note of a voided sale", () => {
         });
       });
 
-      expect(inTransaction((tx) => tx.storedReceipt(returnNote))?.head).toEqual(Buffer.from([1]));
+      expect(Array.from(inTransaction((tx) => tx.storedReceipt(returnNote))?.head ?? [])).toEqual([
+        1,
+      ]);
       expect(inTransaction((tx) => tx.storedReceipt(creditNote))).toBeUndefined();
     });
 
