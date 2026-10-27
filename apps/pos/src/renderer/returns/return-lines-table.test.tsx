@@ -3,8 +3,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { ReturnDraft } from "./return-draft";
-import { checkLine, EMPTY_RETURN_DRAFT } from "./return-draft";
+import type { ReturnDraft } from "./return-form";
+import { checkLine, EMPTY_RETURN_DRAFT } from "./return-form";
 import { ReturnLinesTable } from "./return-lines-table";
 import type { SaleForReturn } from "./return-sale";
 import { HONEY, NIBS, PASTA, SALE, TEA } from "./test-support/sale-for-return";
@@ -161,12 +161,13 @@ describe("ReturnLinesTable", () => {
     await expect.element(screen.getByText("Las promociones se devuelven completas")).toBeVisible();
   });
 
-  it("does not let a line already returned in full be checked", async () => {
+  it("offers no checkbox for a line already returned in full, and says it was", async () => {
     const { screen } = await renderTable();
 
     await expect
       .element(screen.getByRole("checkbox", { name: /Té verde en hebras 100 g/ }))
-      .toBeDisabled();
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText("Té verde en hebras 100 g")).toBeVisible();
     await expect.element(screen.getByText("Ya se devolvió completa")).toBeVisible();
     expect(TEA.returnable_quantity).toBe(0);
   });

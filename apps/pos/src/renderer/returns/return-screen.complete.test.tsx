@@ -73,6 +73,47 @@ describe("ReturnScreen completing the return", () => {
     );
   });
 
+  it("refuses an amount typed badly in the payment, saying so on it", async () => {
+    const { screen, completeReturn } = await renderScreen();
+    await decideOnePasta(screen);
+    const cash = screen.getByRole("textbox", { name: "Reintegro por Efectivo" });
+
+    await userEvent.fill(cash, "diez");
+    await complete(screen);
+
+    await expect
+      .element(cash)
+      .toHaveAccessibleDescription(/^Ingresá un importe válido, por ejemplo 1\.500,00\./);
+    expect(completeReturn).not.toHaveBeenCalled();
+  });
+
+  it("completes a return that refunds nothing, asking for no refund", async () => {
+    const { screen, completeReturn } = await renderScreen({
+      previewReturn: async (_saleId, lines) => ({
+        kind: "previewed",
+        lines: lines.map((line) => ({ ...line, refusal: null, refund_amount: 0 })),
+        refundable_total: 0,
+      }),
+    });
+    await decideOnePasta(screen);
+
+    await complete(screen);
+
+    expect(completeReturn).toHaveBeenCalledWith(expect.objectContaining({ refunds: [] }));
+  });
+
+  it("does not let the cashier leave while the return is being completed", async () => {
+    const answer = deferred<CompleteReturnOutcome>();
+    const { screen } = await renderScreen({ completeReturn: vi.fn(() => answer.promise) });
+    await decideOnePasta(screen);
+
+    await complete(screen);
+
+    await expect
+      .element(screen.getByRole("button", { name: "Salir sin completar" }))
+      .toBeDisabled();
+  });
+
   it("tells the cashier to hand over the money, and starts a new return when done", async () => {
     const { screen } = await renderScreen();
     await decideOnePasta(screen);

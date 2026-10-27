@@ -21,7 +21,9 @@ describe("ReturnScreen asking for the customer's ticket", () => {
       .toBeVisible();
     await expect.element(screen.getByText("SI EL LECTOR NO LEE EL QR")).toBeVisible();
     await expect.element(screen.getByText("Tipeá los datos impresos en el ticket")).toBeVisible();
-    await expect.element(screen.getByText("Sin ticket no se puede devolver.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Sin ticket no se puede devolver."))
+      .not.toBeInTheDocument();
   });
 
   it("offers no search by date, amount or product", async () => {

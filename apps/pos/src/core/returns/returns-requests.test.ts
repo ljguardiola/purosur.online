@@ -114,7 +114,7 @@ describe("finding the sale to return", () => {
       kind: "found",
       sale: {
         sale_id: "sale-1",
-        occurred_at: "2026-09-12T18:30:00.000Z",
+        occurred_at: "2026-09-12T15:30:00.000-03:00",
         total: 11_500,
         invoice: null,
         windows: {
@@ -309,6 +309,24 @@ describe("previewing a return", () => {
 
     expect(await previewReturnFor(deps(), { saleId: "sale-1", lines: [] })).toEqual({
       kind: "sale_not_returnable",
+    });
+  });
+
+  it("previews it for a person who may process returns but not sell", async () => {
+    signedInPerson.set("u2");
+
+    expect(await previewReturnFor(deps(), { saleId: "sale-1", lines: [YERBA] })).toMatchObject({
+      kind: "previewed",
+      refundable_total: 5000,
+    });
+  });
+
+  it("previews it for a person who holds no permission, as finding the sale already asked for one", async () => {
+    addPerson("u5", "Ada", []);
+    signedInPerson.set("u5");
+
+    expect(await previewReturnFor(deps(), { saleId: "sale-1", lines: [YERBA] })).toMatchObject({
+      kind: "previewed",
     });
   });
 

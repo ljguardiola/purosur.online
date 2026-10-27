@@ -405,6 +405,7 @@ describe("the answer to previewing a return", () => {
     { kind: "sale_not_returnable" },
     { kind: "unavailable" },
     { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
   ])("accepts the outcome $kind", (outcome) => {
     const message = result("preview-return-result", outcome);
 

@@ -66,11 +66,58 @@ describe("ReturnScreen choosing what the customer returns", () => {
     await expect.element(screen.getByText("Efectivo")).toBeVisible();
     await expect.element(screen.getByText("Pagó $ 15.000,00")).toBeVisible();
     await expect.element(screen.getByText("Transferencia")).toBeVisible();
+    const transfer = screen.getByRole("textbox", { name: "Reintegro por Transferencia" });
+    await expect.element(transfer).toHaveAttribute("readonly");
     await expect
-      .element(screen.getByText("Este medio todavía no se reintegra desde la caja"))
+      .element(transfer)
+      .toHaveAccessibleDescription("Este medio todavía no se reintegra desde la caja");
+    await userEvent.hover(transfer);
+    await expect
+      .element(screen.getByRole("tooltip"))
+      .toHaveTextContent("Este medio todavía no se reintegra desde la caja");
+  });
+
+  it("shows the refund loading while the core works it out", async () => {
+    const { screen } = await renderScreen({ previewReturn: () => new Promise(() => {}) });
+    await openReturn(screen);
+
+    await chooseReturnLine(screen, "Pasta de maní 380 g");
+
+    await vi.waitFor(() =>
+      expect(
+        screen.getByText("A REINTEGRAR").element().closest('[aria-busy="true"]'),
+      ).not.toBeNull(),
+    );
+    await expect.element(screen.getByText("$ 0,00")).not.toBeInTheDocument();
+  });
+
+  it("shows no refund when the core could not work it out", async () => {
+    const { screen } = await renderScreen({
+      previewReturn: async () => ({ kind: "unavailable" }),
+    });
+    await openReturn(screen);
+
+    await chooseReturnLine(screen, "Pasta de maní 380 g");
+
+    await expect
+      .element(screen.getByText("No se pudo calcular el reintegro").first())
+      .toBeVisible();
+    await expect.element(screen.getByText("$ 0,00")).not.toBeInTheDocument();
+  });
+
+  it("says the cashier may not return when the core says so", async () => {
+    const { screen } = await renderScreen({
+      previewReturn: async () => ({ kind: "lacks_permission" }),
+    });
+    await openReturn(screen);
+
+    await chooseReturnLine(screen, "Pasta de maní 380 g");
+
+    await expect
+      .element(screen.getByText("No tenés permiso para hacer devoluciones.").first())
       .toBeVisible();
     await expect
-      .element(screen.getByRole("textbox", { name: "Reintegro por Transferencia" }))
+      .element(screen.getByRole("button", { name: "Completar devolución" }))
       .toBeDisabled();
   });
 

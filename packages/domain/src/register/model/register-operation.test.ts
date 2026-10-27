@@ -183,6 +183,26 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for previewing what a return refunds", () => {
+    const operation: RegisterOperation = { kind: "preview_return" };
+
+    it("permits any person with access, whatever permissions they hold", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: NOBODY_HOLDS })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
   describe("for adjusting a sale line", () => {
     const operation: RegisterOperation = { kind: "adjust_sale_line" };
 
@@ -681,6 +701,7 @@ describe("mayAuthorize", () => {
     { kind: "configure_receipt_printer" },
     { kind: "configure_serial_devices" },
     { kind: "correct_register_clock" },
+    { kind: "preview_return" },
     { kind: "close_cash_session", session: SESSION },
   ])("lets nobody authorize $kind for someone else", (operation) => {
     expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(false);
