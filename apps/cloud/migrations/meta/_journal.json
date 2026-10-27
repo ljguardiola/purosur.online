@@ -974,6 +974,13 @@
       "when": 1793133705606,
       "tag": "0145_supplier_price_list_store_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1793144354189,
+      "tag": "0146_void_assembly_batches",
+      "breakpoints": true
     }
   ]
 }
