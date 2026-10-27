@@ -1,5 +1,6 @@
 import type { VoucherReference } from "../../fiscal/index.js";
 import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
+import type { ReturnedSale, SaleReturnHistory } from "../../returns/index.js";
 import type { CompletedSale, VoidedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
 import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
@@ -53,6 +54,11 @@ export interface EventApplicationTransaction {
     invoice: { voucher: VoucherReference; saleId: string },
     at: Date,
   ): Promise<void>;
+  /**
+   * What the sale's history holds, read before the return that asks is recorded.
+   */
+  saleReturnHistory(saleId: string): Promise<SaleReturnHistory>;
+  applyReturnStock(saleReturn: ReturnedSale, event: UnappliedEvent): Promise<StockApplication>;
   requestMercadoPagoRefundFollow(): Promise<void>;
   applySaleStock(
     sale: CompletedSale,

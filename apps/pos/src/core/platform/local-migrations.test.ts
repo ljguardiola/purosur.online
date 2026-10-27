@@ -927,7 +927,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1032,7 +1033,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1132,7 +1134,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1231,7 +1234,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1359,7 +1363,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1477,7 +1482,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1599,7 +1605,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1729,7 +1736,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1826,7 +1834,8 @@ describe("the register's local migrations", () => {
         "0079_replenishment_failure",
         "0080_deferred_sale_invoice_prints",
         "0081_awaiting_contingency_ticket_recovery",
-        "0082_zone_rules",
+        "0082_sale_returns",
+        "0083_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -7021,6 +7030,197 @@ describe("the zone rules migration", () => {
       insert.run(1);
 
       expect(() => insert.run(2)).toThrow(/UNIQUE|PRIMARY/);
+    });
+  });
+});
+
+describe("the sale returns migration", () => {
+  const MIGRATION = "0082_sale_returns";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withHeldSale(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);
+         INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES ('movement-1', 'p1', 'sale', 'line-1', -2, '2026-10-09T12:05:00.000Z'),
+                ('movement-2', 'p1', 'loss', NULL, -1, '2026-10-09T12:07:00.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  function insertReturn(
+    database: Database,
+    fields: {
+      id: string;
+      saleId?: string;
+      sessionId?: string;
+      authorizedBy?: string;
+      source?: string;
+    },
+  ) {
+    return database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, authorized_by, ticket_source, occurred_at)
+         VALUES (@id, @sale_id, 'r1', 'device-a', @session_id, 'u1', @authorized_by, @ticket_source, '2026-10-12T12:00:00.000Z')`,
+      )
+      .run({
+        id: fields.id,
+        sale_id: fields.saleId ?? "sale-1",
+        session_id: fields.sessionId ?? "s1",
+        authorized_by: fields.authorizedBy ?? null,
+        ticket_source: fields.source ?? "QR",
+      });
+  }
+
+  function insertLine(database: Database, values: Record<string, string | number>) {
+    return database
+      .prepare(
+        `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+         VALUES (@return_id, @sale_line_id, @quantity, @reason, @disposition, @refunded_amount)`,
+      )
+      .run({
+        return_id: "return-1",
+        sale_line_id: "line-1",
+        quantity: 1,
+        reason: "change_of_mind",
+        disposition: "restock",
+        refunded_amount: 1500,
+        ...values,
+      });
+  }
+
+  it("keeps the stock movements a register already holds", () => {
+    withHeldSale((database) => {
+      expect(
+        database
+          .prepare("SELECT id, kind, sale_line_id, delta FROM stock_movements ORDER BY id")
+          .all(),
+      ).toEqual([
+        { id: "movement-1", kind: "sale", sale_line_id: "line-1", delta: -2 },
+        { id: "movement-2", kind: "loss", sale_line_id: null, delta: -1 },
+      ]);
+      expect(database.pragma("foreign_key_check")).toEqual([]);
+      expect(
+        database
+          .prepare("SELECT name FROM sqlite_schema WHERE name = 'stock_movements_by_product'")
+          .all(),
+      ).toHaveLength(1);
+    });
+  });
+
+  it("lets a stock movement give back what a sale line took as a return, and refuses a line on a loss", () => {
+    withHeldSale((database) => {
+      const record = (id: string, kind: string, saleLineId: string | null) =>
+        database
+          .prepare(
+            `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+             VALUES (@id, 'p1', @kind, @sale_line_id, 1, '2026-10-12T12:00:00.000Z')`,
+          )
+          .run({ id, kind, sale_line_id: saleLineId });
+
+      expect(() => record("movement-3", "return", "line-1")).not.toThrow();
+      expect(() => record("movement-4", "return", null)).not.toThrow();
+      expect(() => record("movement-5", "loss", null)).not.toThrow();
+      expect(() => record("movement-6", "loss", "line-1")).toThrow(/CHECK/);
+      expect(() => record("movement-7", "sale_returned", null)).toThrow(/CHECK/);
+    });
+  });
+
+  it("holds a return of a sale, who authorized it, and how its ticket was read", () => {
+    withHeldSale((database) => {
+      expect(() =>
+        insertReturn(database, { id: "return-1", authorizedBy: "u2", source: "TYPED" }),
+      ).not.toThrow();
+      expect(() => insertReturn(database, { id: "return-2" })).not.toThrow();
+      expect(() => insertReturn(database, { id: "return-1" })).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => insertReturn(database, { id: "return-3", source: "SCAN" })).toThrow(/CHECK/);
+      expect(
+        database.prepare("SELECT id, authorized_by, ticket_source FROM returns ORDER BY id").all(),
+      ).toEqual([
+        { id: "return-1", authorized_by: "u2", ticket_source: "TYPED" },
+        { id: "return-2", authorized_by: null, ticket_source: "QR" },
+      ]);
+    });
+  });
+
+  it("refuses a return of a sale or in a session the register does not hold", () => {
+    withHeldSale((database) => {
+      expect(() => insertReturn(database, { id: "return-x", saleId: "missing" })).toThrow(
+        /FOREIGN KEY/,
+      );
+      expect(() => insertReturn(database, { id: "return-x", sessionId: "missing" })).toThrow(
+        /FOREIGN KEY/,
+      );
+    });
+  });
+
+  it("holds a line returned once per return, with its reason, disposition and refund", () => {
+    withHeldSale((database) => {
+      insertReturn(database, { id: "return-1" });
+      insertReturn(database, { id: "return-2" });
+
+      expect(() => insertLine(database, {})).not.toThrow();
+      expect(() => insertLine(database, {})).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => insertLine(database, { return_id: "missing" })).toThrow(/FOREIGN KEY/);
+      expect(() =>
+        insertLine(database, { return_id: "return-2", sale_line_id: "missing" }),
+      ).toThrow(/FOREIGN KEY/);
+      expect(() =>
+        insertLine(database, { return_id: "return-2", disposition: "discard", refunded_amount: 0 }),
+      ).not.toThrow();
+    });
+  });
+
+  it.each([
+    ["a quantity of nothing", { quantity: 0 }],
+    ["a reason nobody gives", { reason: "wrong_size" }],
+    ["a disposition nobody chooses", { disposition: "donate" }],
+    ["a negative refund", { refunded_amount: -1 }],
+  ])("refuses a returned line with %s", (_name, values) => {
+    withHeldSale((database) => {
+      insertReturn(database, { id: "return-1" });
+
+      expect(() => insertLine(database, values)).toThrow(/CHECK/);
+    });
+  });
+
+  it("finds the returns of a sale and the returns of a sale line by index", () => {
+    withHeldSale((database) => {
+      const indexedColumns = (table: string) =>
+        database
+          .prepare<[string], { name: string }>("SELECT name FROM pragma_index_list(?)")
+          .all(table)
+          .flatMap(({ name }) =>
+            database
+              .prepare<[string], { name: string }>("SELECT name FROM pragma_index_info(?)")
+              .all(name)
+              .slice(0, 1)
+              .map((column) => column.name),
+          );
+
+      expect(indexedColumns("returns")).toContain("sale_id");
+      expect(indexedColumns("return_lines")).toContain("sale_line_id");
     });
   });
 });

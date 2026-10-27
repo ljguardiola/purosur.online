@@ -13,6 +13,7 @@ type OperationOf<Kind extends RegisterOperation["kind"]> = Extract<
 type SignedInOperation = OperationOf<
   | "open_cash_session"
   | "sell"
+  | "preview_return"
   | "close_cash_session"
   | "view_sales_history"
   | "configure_receipt_printer"
@@ -24,6 +25,7 @@ type AuthorizableOperation = OperationOf<
   | "record_cash_movement"
   | "cancel_paid_sale"
   | "void_sale"
+  | "process_return"
   | "adjust_sale_line"
   | "apply_sale_discount"
   | "reprint_receipt"

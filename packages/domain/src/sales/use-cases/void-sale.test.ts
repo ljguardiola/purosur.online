@@ -1019,6 +1019,7 @@ describe("voidSale", () => {
       ["not_completed", { sales: [{ ...COMPLETED_SALE, state: "VOIDED" }] }],
       ["not_completed", { sales: [{ ...COMPLETED_SALE, state: "CANCELLED" }] }],
       ["not_completed", { sales: [{ ...COMPLETED_SALE, state: "OPEN" }] }],
+      ["has_return", { salesWithReturn: ["sale-1"] }],
       ["session_closed", { openSessionId: undefined }],
       ["session_closed", { openSessionId: "session-2" }],
       ["invoice_in_flight", { fiscalDocuments: [invoice("REQUESTING")] }],

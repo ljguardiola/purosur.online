@@ -22,6 +22,7 @@ export type OutboxEventDraft = Omit<OutboxEvent, "device_seq">;
 
 export const SALE_COMPLETED_EVENT_TYPE = "sale_completed";
 export const SALE_VOIDED_EVENT_TYPE = "sale_voided";
+export const SALE_RETURNED_EVENT_TYPE = "sale_returned";
 
 function canonicalJson(value: JsonValue): string {
   if (value === null || typeof value === "boolean" || typeof value === "string") {

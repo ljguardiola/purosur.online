@@ -17,6 +17,7 @@ import type { SaleCashMovement, SaleRefund, SaleStockMovement } from "./sale-led
 export interface SaleToVoid {
   sale: SaleWithLines;
   inOpenSession: boolean;
+  hasReturn: boolean;
   payments: (PaymentTransaction & { occurredAt: Date })[];
   fiscalDocuments: SaleInvoice[];
   deferredRecord: DeferredSaleRecord | null;

@@ -26,6 +26,7 @@ import { recordCashMovementFor } from "../../register/cash-movement-requests";
 import { closeCashSessionFor, openCashSessionFor } from "../../register/cash-session-requests";
 import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";
 import { uuidV7Ids } from "../../register/uuid-v7-ids";
+import { completeReturnFor } from "../../returns/returns-requests";
 import {
   printVoidedSaleCreditNoteFor,
   reprintCreditNoteFor,
@@ -119,6 +120,7 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
         "record_cash_expense",
         "withdraw_cash",
         "void_sale",
+        "process_return",
         "correct_register_clock",
         "reprint_receipt",
         "override_line_price_or_discount",
@@ -870,6 +872,45 @@ export async function withRegisterSession<TResult>(
       authorization: { user_id: GRACE, pin: PIN },
     });
     expectOutcome("void the sale paid by QR authorized by PIN", voidedOnQr.kind, "voided");
+    nextStep();
+    const toReturn = await scanProductFor(deps(), "7790001000028");
+    if (toReturn.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to return" ended as "${toReturn.kind}"`,
+      );
+    }
+    nextStep();
+    const returnCharge = await chargeSaleInCashFor(deps(), {
+      saleId: toReturn.sale.id,
+      tendered: toReturn.sale.total,
+    });
+    expectOutcome("charge the sale to return", returnCharge.kind, "completed");
+    nextStep();
+    const returned = await completeReturnFor(deps(), {
+      saleId: toReturn.sale.id,
+      ticketSource: "TYPED",
+      lines: [
+        {
+          saleLineId: toReturn.sale.lines[0]?.id ?? "",
+          quantity: 1,
+          reason: "defective",
+          disposition: "discard",
+        },
+      ],
+      refunds: [
+        {
+          paymentId:
+            database
+              .prepare<[string], { id: string }>(
+                "SELECT id FROM payment_transactions WHERE sale_id = ?",
+              )
+              .get(toReturn.sale.id)?.id ?? "",
+          amount: toReturn.sale.total,
+        },
+      ],
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome("return the sale authorized by PIN", returned.kind, "completed");
     nextStep();
     const onPoint = await scanProductFor(deps(), "7790001000028");
     if (onPoint.kind !== "added") {

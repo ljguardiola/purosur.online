@@ -354,3 +354,69 @@ export function aClockCorrectedFact(
     },
   };
 }
+
+export type ReturnedSale = FactOf<"sale_returned">["saleReturn"];
+
+const RETURNED_AT = new Date("2026-10-08T10:00:00.000Z");
+
+export function aReturnOf(
+  completed: CompletedSale,
+  overrides: Partial<ReturnedSale> = {},
+): ReturnedSale {
+  const [line] = completed.lines;
+  const [payment] = completed.payments;
+  if (!line || !payment) {
+    throw new Error("test setup: the sale has no line or payment");
+  }
+  const occurredAt = overrides.occurredAt ?? RETURNED_AT;
+  return {
+    id: randomUUID(),
+    saleId: completed.id,
+    sessionId: randomUUID(),
+    actorId: completed.actorId,
+    authorizedBy: null,
+    ticketSource: "QR",
+    occurredAt,
+    lines: [
+      {
+        saleLineId: line.id,
+        productId: line.productId,
+        quantity: 1,
+        reason: "change_of_mind",
+        disposition: "restock",
+        refundedAmount: 2400,
+      },
+    ],
+    refunds: [
+      {
+        id: randomUUID(),
+        paymentId: payment.id,
+        method: "CASH",
+        provider: "NONE",
+        amount: 2400,
+        state: "APPROVED",
+        occurredAt,
+      },
+    ],
+    cashMovements: [
+      {
+        id: randomUUID(),
+        type: "REFUND",
+        amount: 2400,
+        actorId: completed.actorId,
+        occurredAt,
+      },
+    ],
+    stockMovements: [
+      {
+        id: randomUUID(),
+        saleLineId: line.id,
+        productId: line.productId,
+        kind: "return",
+        reason: null,
+        delta: 1000,
+      },
+    ],
+    ...overrides,
+  };
+}

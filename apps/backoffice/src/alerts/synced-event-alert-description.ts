@@ -10,6 +10,12 @@ const BREAK_DESCRIPTIONS: ReadonlyMap<string, string> = new Map([
     "stock_movements_do_not_match_lines",
     "los movimientos de stock no coinciden con los productos vendidos",
   ],
+  [
+    "return_refund_exceeds_payment",
+    "la devolución reintegró más de lo que quedaba por devolver de un pago",
+  ],
+  ["return_line_outside_window", "la devolución incluye una línea fuera de su plazo"],
+  ["return_quantity_exceeds_sale", "la devolución supera la cantidad vendida de una línea"],
 ]);
 
 const UNKNOWN_BREAK = "otra inconsistencia";

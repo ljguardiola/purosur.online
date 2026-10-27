@@ -39,6 +39,7 @@ type RoutePath =
   | "/charge"
   | "/history"
   | "/deferred-sale"
+  | "/return"
   | "/help"
   | "/receipt-printer"
   | "/serial-devices"
@@ -171,6 +172,7 @@ const screenFor: Record<
   "/history": (screen) => screen.getByRole("heading", { name: "Historial de ventas" }),
   "/deferred-sale": (screen) =>
     screen.getByRole("heading", { name: "Escaneá el documento del cliente" }),
+  "/return": (screen) => screen.getByRole("heading", { name: "Escaneá el ticket del cliente" }),
   "/help": (screen) => screen.getByRole("heading", { level: 1, name: "Ayuda" }),
   "/receipt-printer": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
@@ -280,6 +282,9 @@ function contextWith(
     discardContingencyBackupTickets: async () => ({ kind: "unavailable" }),
     printOriginalReceipt: async () => ({ kind: "unavailable" }),
     findDeferredSale: async () => ({ kind: "not_found" }),
+    findSaleForReturn: async () => ({ kind: "not_found" }),
+    previewReturn: async () => ({ kind: "unavailable" }),
+    completeReturn: async () => ({ kind: "unavailable" }),
     printDeferredSaleInvoice: async () => ({ kind: "unavailable" }),
     reprintDeferredSaleInvoice: async () => ({ kind: "unavailable" }),
     printCreditNote: async () => ({ kind: "unavailable" }),
@@ -847,6 +852,7 @@ describe("the register's router", () => {
     },
     { path: "/session", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    { path: "/return", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash-count", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/charge", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/help", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
@@ -954,6 +960,13 @@ describe("the register's router", () => {
     },
     {
       path: "/cash",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
+    {
+      path: "/return",
       coreStatus: "up",
       enrollment: "enrolled",
       person: null,
@@ -3042,6 +3055,7 @@ describe("the register's status bar", () => {
     { path: "/session", cashSession: OPEN_SESSION, person: undefined },
     { path: "/charge", cashSession: OPEN_SESSION, person: undefined, context: SALE_TO_CHARGE },
     { path: "/cash", cashSession: OPEN_SESSION, person: undefined },
+    { path: "/return", cashSession: OPEN_SESSION, person: undefined },
     { path: "/cash-count", cashSession: OPEN_SESSION, person: undefined },
     { path: "/history", cashSession: NO_SESSION, person: undefined },
     { path: "/history", cashSession: OPEN_SESSION, person: undefined },

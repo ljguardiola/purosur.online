@@ -16,13 +16,14 @@ describe("MANUAL_STOCK_MOVEMENT_KINDS", () => {
 });
 
 describe("STOCK_MOVEMENT_KINDS", () => {
-  it("lists every movement a balance moves by: the ones recorded by hand, counts, sales, the return of a voided sale's merchandise, receipts, the initial count's lines and their withdrawals, and the two sides of an assembled batch", () => {
+  it("lists every movement a balance moves by: the ones recorded by hand, counts, sales, the return of a voided sale's merchandise, the return of a customer's merchandise, receipts, the initial count's lines and their withdrawals, and the two sides of an assembled batch", () => {
     expect(STOCK_MOVEMENT_KINDS).toEqual([
       "loss",
       "adjustment",
       "count",
       "sale",
       "sale_void",
+      "return",
       "receipt",
       "opening_count",
       "opening_count_withdrawal",
