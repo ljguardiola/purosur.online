@@ -1,8 +1,8 @@
 import type {
+  CreditNoteToIssue,
   RebuiltUnclearDeferral,
   RestoredCreditNoteAnswer,
   RestoredUnclearDeferral,
-  SaleVoidCreditNote,
 } from "../../fiscal/index.js";
 import type { RegisterVersion } from "../../register/index.js";
 import type { ReplenishedUser } from "../../users/index.js";
@@ -54,11 +54,11 @@ export interface RegisterReplenishmentTransaction {
   applyFact(fact: SyncedFact, source: ReplenishedEventSource): Promise<ReplenishedEventApplication>;
   // Recording an answer the register already holds changes nothing.
   recordCreditNoteAnswer(
-    creditNote: SaleVoidCreditNote,
+    creditNote: CreditNoteToIssue,
     answer: RestoredCreditNoteAnswer,
   ): Promise<void>;
   // Holding a credit note the register already holds an answer or a request for changes nothing.
-  holdCreditNoteToRequest(creditNote: SaleVoidCreditNote, event: PushedEvent): Promise<void>;
+  holdCreditNoteToRequest(creditNote: CreditNoteToIssue, event: PushedEvent): Promise<void>;
   // Rebuilding a record the register already holds changes nothing and answers "applied".
   rebuildUnclearDeferredSale(rebuilt: RebuiltUnclearDeferral): Promise<ReplenishedEventApplication>;
   holdsDeferredSaleRecord(saleId: string): Promise<boolean>;

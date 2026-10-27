@@ -17,7 +17,7 @@ export interface AlreadyCreditedRefusal {
   saleId: string;
 }
 
-export interface SaleVoidCreditNoteRecord {
+export interface SaleCreditNoteRecord {
   creditNoteId: string;
   registerId: string;
   saleId: string;
@@ -28,7 +28,7 @@ export interface SaleVoidCreditNoteRecord {
   receivedAt: Date;
 }
 
-export interface SaleVoidCreditNoteLane {
+export interface SaleCreditNoteLane {
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   registerIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   recordedCreditNote(registerId: string, creditNoteId: string): Promise<CreditNote | null>;
@@ -36,19 +36,19 @@ export interface SaleVoidCreditNoteLane {
    * Raises VoucherAlreadyCredited when a credit note, of any reason, already corrects the voucher,
    * and CreditNoteIdTaken when another register's credit note holds the id.
    */
-  recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void>;
+  recordSaleCreditNote(record: SaleCreditNoteRecord): Promise<void>;
   raiseInvoiceAlreadyCredited(invoice: InvoiceAlreadyCredited, at: Date): Promise<void>;
   keepAlreadyCreditedRefusal(refusal: AlreadyCreditedRefusal, at: Date): Promise<void>;
 }
 
-export interface SaleVoidCreditNoteLanes {
+export interface SaleCreditNoteLanes {
   inPointOfSaleLane<TOutcome>(
     pointOfSale: number,
-    work: (lane: SaleVoidCreditNoteLane) => Promise<TOutcome>,
+    work: (lane: SaleCreditNoteLane) => Promise<TOutcome>,
   ): Promise<TOutcome>;
 }
 
-export interface RequestSaleVoidCreditNotePorts {
-  lanes: SaleVoidCreditNoteLanes;
+export interface AcceptSaleCreditNoteRequestPorts {
+  lanes: SaleCreditNoteLanes;
   attachedSaleEvents: AttachedSaleEvents;
 }

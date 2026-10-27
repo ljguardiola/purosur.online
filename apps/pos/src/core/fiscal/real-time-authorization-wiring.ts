@@ -7,7 +7,7 @@ import {
   type IdGenerator,
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
-  requestVoidCreditNotes,
+  requestPendingCreditNotes,
   type ShortCodeRandomness,
   settleInterruptedRealTimeAuthorizations,
 } from "@purosur/domain/fiscal/use-cases";
@@ -235,7 +235,7 @@ export function startRegisterHealthChecks({
         ).catch(reportFailure);
       }
       if (creditNotesCloud !== undefined) {
-        await requestVoidCreditNotes({
+        await requestPendingCreditNotes({
           creditNotes,
           cloud: creditNotesCloud,
           clock: { now },

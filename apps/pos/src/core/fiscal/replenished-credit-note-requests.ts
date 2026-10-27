@@ -1,10 +1,10 @@
-import type { PushedEvent, SaleVoidCreditNote } from "@purosur/domain";
+import type { CreditNoteToIssue, PushedEvent } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertPendingCreditNote, readCreditNoteOfSale } from "./sqlite-void-credit-notes";
 
 export function holdReplenishedCreditNoteToRequest(
   database: LocalDatabase,
-  creditNote: SaleVoidCreditNote,
+  creditNote: CreditNoteToIssue,
   event: PushedEvent,
 ): void {
   const held = readCreditNoteOfSale(database, creditNote.saleId);

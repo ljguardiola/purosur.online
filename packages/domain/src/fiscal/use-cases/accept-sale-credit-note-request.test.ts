@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
-import type { SaleVoidCreditNote } from "../model/sale-void-credit-note.js";
-import type { CreditNote, CreditNoteStanding } from "./credit-note-ports.js";
+import type { CreditNoteToIssue } from "../model/sale-credit-note.js";
 import {
-  type RequestSaleVoidCreditNoteInput,
-  requestSaleVoidCreditNote,
-} from "./request-sale-void-credit-note.js";
+  type AcceptSaleCreditNoteRequestInput,
+  acceptSaleCreditNoteRequest,
+} from "./accept-sale-credit-note-request.js";
+import type { CreditNote, CreditNoteStanding } from "./credit-note-ports.js";
 import { FakeAttachedSaleEvents } from "./test-support/fake-attached-sale-events.js";
 import {
   type FakeRegisterPointsOfSale,
-  FakeSaleVoidCreditNoteStore,
-} from "./test-support/fake-sale-void-credit-notes.js";
+  FakeSaleCreditNoteStore,
+} from "./test-support/fake-sale-credit-notes.js";
 
 const RECEIVED_AT = new Date("2026-10-07T15:31:00.000Z");
 const REGISTER_ID = "register-1";
 const DEVICE_ID = "device-1";
 const CREDIT_NOTE_ID = "credit-note-1";
 
-const VOIDED: SaleVoidCreditNote = {
+const VOIDED: CreditNoteToIssue = {
   creditNoteId: CREDIT_NOTE_ID,
   saleId: "sale-1",
   total: 7_500,
@@ -58,7 +58,7 @@ const STORED: CreditNote = {
 interface Scenario {
   registers?: [string, FakeRegisterPointsOfSale][];
   seeded?: [string, CreditNote][];
-  request?: Partial<RequestSaleVoidCreditNoteInput["request"]>;
+  request?: Partial<AcceptSaleCreditNoteRequestInput["request"]>;
   registerId?: string;
   attachedFailure?: Error;
 }
@@ -70,7 +70,7 @@ function request({
   registerId = REGISTER_ID,
   attachedFailure,
 }: Scenario = {}) {
-  const store = new FakeSaleVoidCreditNoteStore(registers);
+  const store = new FakeSaleCreditNoteStore(registers);
   const attachedSaleEvents = new FakeAttachedSaleEvents(store);
   attachedSaleEvents.failure = attachedFailure;
   for (const [owner, creditNote] of seeded) {
@@ -80,7 +80,7 @@ function request({
     store,
     attachedSaleEvents,
     run: () =>
-      requestSaleVoidCreditNote(
+      acceptSaleCreditNoteRequest(
         { lanes: store, attachedSaleEvents },
         {
           deviceId: DEVICE_ID,
@@ -92,7 +92,7 @@ function request({
   };
 }
 
-describe("requestSaleVoidCreditNote", () => {
+describe("acceptSaleCreditNoteRequest", () => {
   describe("the first request of a credit note", () => {
     it("records the credit note the void's event asks for, in the register's real-time point of sale", async () => {
       const { store, run } = request();
@@ -128,7 +128,7 @@ describe("requestSaleVoidCreditNote", () => {
         "registerOwnsPointOfSale",
         "recordedCreditNote",
         "registerIssuesFromPointOfSale",
-        "recordSaleVoidCreditNote",
+        "recordSaleCreditNote",
         "leaveLane",
       ]);
     });
@@ -333,7 +333,7 @@ describe("requestSaleVoidCreditNote", () => {
         },
       ]);
       expect(store.operations.slice(-4)).toEqual([
-        "recordSaleVoidCreditNote",
+        "recordSaleCreditNote",
         "raiseInvoiceAlreadyCredited",
         "keepAlreadyCreditedRefusal",
         "leaveLane",

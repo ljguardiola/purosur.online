@@ -7,10 +7,10 @@ import {
   saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
 import {
+  type AcceptSaleCreditNoteRequestOutcome,
+  acceptSaleCreditNoteRequest,
   creditNoteAnswerOf,
   issueCreditNote,
-  type RequestSaleVoidCreditNoteOutcome,
-  requestSaleVoidCreditNote,
 } from "@purosur/domain/fiscal/use-cases";
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -35,7 +35,7 @@ import {
 import { hmacEventChain } from "../sync/hmac-event-chain.js";
 import { InboxAttachedSaleEvents } from "../sync/inbox-attached-sale-events.js";
 import { type CreditNoteInput, creditNoteIssuancePorts } from "./credit-note-task.js";
-import { DrizzleSaleVoidCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
+import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 
 export type CreditNoteRouteOptions<TQueryResult extends PgQueryResultHKT> =
@@ -73,7 +73,7 @@ const SALE_EVENT_MISMATCH = cloudError(
 );
 
 function refusalOf(
-  outcome: RequestSaleVoidCreditNoteOutcome,
+  outcome: AcceptSaleCreditNoteRequestOutcome,
 ): ReturnType<typeof cloudError> | null {
   switch (outcome.kind) {
     case "sale_event_mismatch":
@@ -120,7 +120,7 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const requestPorts = {
-    lanes: new DrizzleSaleVoidCreditNoteLanes(options.connections, options.enqueueCreditNote),
+    lanes: new DrizzleSaleCreditNoteLanes(options.connections, options.enqueueCreditNote),
     attachedSaleEvents: new InboxAttachedSaleEvents(
       {
         inbox: new DrizzleInbox(
@@ -183,7 +183,7 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
         const { aggregate_id: saleId, payload } = voided.data;
         const { corrects } = payload.credit_note;
 
-        const outcome = await requestSaleVoidCreditNote(requestPorts, {
+        const outcome = await acceptSaleCreditNoteRequest(requestPorts, {
           deviceId: authentication.installation.deviceId,
           registerId: authentication.installation.registerId,
           receivedAt,

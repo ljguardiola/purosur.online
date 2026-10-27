@@ -1,21 +1,21 @@
-import type { VoidCreditNoteStanding } from "../model/sale-void-credit-note.js";
-import type { RequestVoidedSaleCreditNotePorts } from "./request-void-credit-notes-ports.js";
+import type { VoidCreditNoteStanding } from "../model/sale-credit-note.js";
+import type { RequestSaleCreditNotePorts } from "./request-credit-notes-ports.js";
 
-export interface RequestVoidedSaleCreditNoteInput {
+export interface RequestSaleCreditNoteInput {
   creditNoteId: string;
   saleId: string;
 }
 
 const IN_PROGRESS = { kind: "in_progress" } as const;
 
-export type RequestVoidedSaleCreditNoteOutcome =
+export type RequestSaleCreditNoteOutcome =
   | { kind: "answered"; answer: VoidCreditNoteStanding }
   | { kind: "failed"; answer: typeof IN_PROGRESS; error: unknown };
 
-export async function requestVoidedSaleCreditNote(
-  { creditNotes, cloud, clock, printer }: RequestVoidedSaleCreditNotePorts,
-  { creditNoteId, saleId }: RequestVoidedSaleCreditNoteInput,
-): Promise<RequestVoidedSaleCreditNoteOutcome> {
+export async function requestSaleCreditNote(
+  { creditNotes, cloud, clock, printer }: RequestSaleCreditNotePorts,
+  { creditNoteId, saleId }: RequestSaleCreditNoteInput,
+): Promise<RequestSaleCreditNoteOutcome> {
   let answer: VoidCreditNoteStanding;
   try {
     const pending = await creditNotes.pendingCreditNote(creditNoteId);

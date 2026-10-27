@@ -17,7 +17,7 @@ export interface CorrectedInvoice {
   buyerTaxStatusCode: number;
 }
 
-export interface SaleVoidCreditNote {
+export interface CreditNoteToIssue {
   creditNoteId: string;
   saleId: string;
   total: number;
@@ -152,12 +152,12 @@ export function invoiceToCorrect(invoices: readonly SaleInvoice[]): CorrectedInv
   };
 }
 
-export function saleVoidCreditNotePayload({
+export function creditNoteToIssuePayload({
   creditNoteId,
   total,
   receiverTaxStatusCode,
   correctedVoucher,
-}: SaleVoidCreditNote): { [member: string]: JsonValue } {
+}: CreditNoteToIssue): { [member: string]: JsonValue } {
   return {
     id: creditNoteId,
     total,

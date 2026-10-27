@@ -53,6 +53,23 @@ export type {
   UnclearOutcomeDecision,
 } from "../model/unclear-outcome-decision.js";
 export type {
+  AcceptSaleCreditNoteRequestInput,
+  AcceptSaleCreditNoteRequestOutcome,
+} from "./accept-sale-credit-note-request.js";
+export { acceptSaleCreditNoteRequest } from "./accept-sale-credit-note-request.js";
+export type {
+  AcceptSaleCreditNoteRequestPorts,
+  AlreadyCreditedRefusal,
+  InvoiceAlreadyCredited,
+  SaleCreditNoteLane,
+  SaleCreditNoteLanes,
+  SaleCreditNoteRecord,
+} from "./accept-sale-credit-note-request-ports.js";
+export {
+  CreditNoteIdTaken,
+  VoucherAlreadyCredited,
+} from "./accept-sale-credit-note-request-ports.js";
+export type {
   ApplyUnclearOutcomeDecisionsPorts,
   UnclearDocumentSettled,
   UnclearFiscalDocument,
@@ -485,35 +502,30 @@ export type {
   ReportableAcquisitionFailureKind,
 } from "./report-offline-authorization-code-acquisition-failures-ports.js";
 export type {
-  RequestRealTimeAuthorizationInput,
-  RequestRealTimeAuthorizationOutcome,
-} from "./request-real-time-authorization.js";
-export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
-export type {
-  RequestSaleVoidCreditNoteInput,
-  RequestSaleVoidCreditNoteOutcome,
-} from "./request-sale-void-credit-note.js";
-export { requestSaleVoidCreditNote } from "./request-sale-void-credit-note.js";
-export type {
-  RequestedCreditNote,
-  RequestVoidCreditNotesOutcome,
-} from "./request-void-credit-notes.js";
-export { requestVoidCreditNotes } from "./request-void-credit-notes.js";
-export type {
   CloudCreditNoteAnswer,
   CloudCreditNoteCall,
   CloudCreditNotes,
   CreditNotePrinter,
   PendingCreditNote,
-  RegisterVoidCreditNotes,
-  RequestVoidCreditNotesPorts,
-  RequestVoidedSaleCreditNotePorts,
-} from "./request-void-credit-notes-ports.js";
+  RegisterCreditNotes,
+  RequestPendingCreditNotesPorts,
+  RequestSaleCreditNotePorts,
+} from "./request-credit-notes-ports.js";
 export type {
-  RequestVoidedSaleCreditNoteInput,
-  RequestVoidedSaleCreditNoteOutcome,
-} from "./request-voided-sale-credit-note.js";
-export { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
+  RequestedCreditNote,
+  RequestPendingCreditNotesOutcome,
+} from "./request-pending-credit-notes.js";
+export { requestPendingCreditNotes } from "./request-pending-credit-notes.js";
+export type {
+  RequestRealTimeAuthorizationInput,
+  RequestRealTimeAuthorizationOutcome,
+} from "./request-real-time-authorization.js";
+export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
+export type {
+  RequestSaleCreditNoteInput,
+  RequestSaleCreditNoteOutcome,
+} from "./request-sale-credit-note.js";
+export { requestSaleCreditNote } from "./request-sale-credit-note.js";
 export type {
   IssuedOfflineCreditNoteOfRegister,
   KeptAlreadyCreditedRefusalOfRegister,
@@ -546,15 +558,6 @@ export type {
   SaleOrigin,
 } from "./sale-authorization-ports.js";
 export type { SaleCompletions } from "./sale-completion-ports.js";
-export type {
-  AlreadyCreditedRefusal,
-  InvoiceAlreadyCredited,
-  RequestSaleVoidCreditNotePorts,
-  SaleVoidCreditNoteLane,
-  SaleVoidCreditNoteLanes,
-  SaleVoidCreditNoteRecord,
-} from "./sale-void-credit-note-ports.js";
-export { CreditNoteIdTaken, VoucherAlreadyCredited } from "./sale-void-credit-note-ports.js";
 export type {
   RestoredRegisterCreditNoteAnswersServed,
   ServeRestoredRegisterCreditNoteAnswersInput,

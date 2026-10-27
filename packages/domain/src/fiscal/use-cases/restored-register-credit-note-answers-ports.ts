@@ -1,7 +1,4 @@
-import type {
-  CreditNoteIssuedOffline,
-  CreditNoteStanding,
-} from "../model/sale-void-credit-note.js";
+import type { CreditNoteIssuedOffline, CreditNoteStanding } from "../model/sale-credit-note.js";
 
 export interface SaleVoidCreditNoteOfRegister {
   creditNoteId: string;

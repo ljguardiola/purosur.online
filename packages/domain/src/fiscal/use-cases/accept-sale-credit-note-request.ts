@@ -1,28 +1,28 @@
 import type { PushedEvent } from "../../sync/index.js";
 import {
   type CreditNoteAnswer,
+  type CreditNoteToIssue,
   creditNoteAnswerOf,
-  type SaleVoidCreditNote,
-} from "../model/sale-void-credit-note.js";
+} from "../model/sale-credit-note.js";
 import {
+  type AcceptSaleCreditNoteRequestPorts,
   CreditNoteIdTaken,
-  type RequestSaleVoidCreditNotePorts,
   VoucherAlreadyCredited,
-} from "./sale-void-credit-note-ports.js";
+} from "./accept-sale-credit-note-request-ports.js";
 
-export interface RequestSaleVoidCreditNoteInput {
+export interface AcceptSaleCreditNoteRequestInput {
   deviceId: string;
   registerId: string;
   request: {
     creditNoteId: string;
     pointOfSale: number;
-    voided: SaleVoidCreditNote;
+    voided: CreditNoteToIssue;
     saleEvent: PushedEvent;
   };
   receivedAt: Date;
 }
 
-export type RequestSaleVoidCreditNoteOutcome =
+export type AcceptSaleCreditNoteRequestOutcome =
   | { kind: "recorded" }
   | { kind: "already_recorded"; answer: CreditNoteAnswer }
   | { kind: "sale_event_mismatch" }
@@ -31,10 +31,10 @@ export type RequestSaleVoidCreditNoteOutcome =
   | { kind: "voucher_not_owned" }
   | { kind: "voucher_already_credited" };
 
-export async function requestSaleVoidCreditNote(
-  { lanes, attachedSaleEvents }: RequestSaleVoidCreditNotePorts,
-  { deviceId, registerId, request, receivedAt }: RequestSaleVoidCreditNoteInput,
-): Promise<RequestSaleVoidCreditNoteOutcome> {
+export async function acceptSaleCreditNoteRequest(
+  { lanes, attachedSaleEvents }: AcceptSaleCreditNoteRequestPorts,
+  { deviceId, registerId, request, receivedAt }: AcceptSaleCreditNoteRequestInput,
+): Promise<AcceptSaleCreditNoteRequestOutcome> {
   const asked = request.voided;
   if (asked.creditNoteId !== request.creditNoteId) {
     return { kind: "sale_event_mismatch" };
@@ -42,7 +42,7 @@ export async function requestSaleVoidCreditNote(
 
   await attachedSaleEvents.record(deviceId, request.saleEvent);
 
-  return lanes.inPointOfSaleLane<RequestSaleVoidCreditNoteOutcome>(
+  return lanes.inPointOfSaleLane<AcceptSaleCreditNoteRequestOutcome>(
     request.pointOfSale,
     async (lane) => {
       if (!(await lane.registerOwnsPointOfSale(registerId, request.pointOfSale))) {
@@ -63,7 +63,7 @@ export async function requestSaleVoidCreditNote(
         return { kind: "voucher_not_owned" };
       }
       try {
-        await lane.recordSaleVoidCreditNote({
+        await lane.recordSaleCreditNote({
           creditNoteId: asked.creditNoteId,
           registerId,
           saleId: asked.saleId,

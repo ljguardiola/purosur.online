@@ -6,7 +6,7 @@ import type {
   ExternalInvoicingRegularization,
   VoucherReference,
 } from "../model/orphan-authorization.js";
-import type { CreditNoteStanding } from "../model/sale-void-credit-note.js";
+import type { CreditNoteStanding } from "../model/sale-credit-note.js";
 import type { SolicitationAnswer, WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup } from "./unclear-outcome-ports.js";

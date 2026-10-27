@@ -1,11 +1,11 @@
 import type {
+  CreditNoteToIssue,
   FiscalOnlineSignalEvidence,
   FiscalTaskDocumentType,
   Fortnight,
   OfflineCreditNote,
   OfflineSeries,
   SaleInvoice,
-  SaleVoidCreditNote,
 } from "../../fiscal/index.js";
 import type { PaymentTransaction } from "../../payments/index.js";
 import type { CashMovement } from "../../register/index.js";
@@ -45,7 +45,7 @@ export interface SaleVoidTransaction {
   recordSaleVoidStockMovement(movement: SaleStockMovement): void;
   addToStockBalance(productId: string, delta: number): void;
   cancelDeferredSale(saleId: string, cancelledAt: Date): void;
-  recordPendingCreditNote(creditNote: SaleVoidCreditNote): void;
+  recordPendingCreditNote(creditNote: CreditNoteToIssue): void;
   offlineCreditNoteSeries(): OfflineSeries;
   offlineAuthorizationCodeOf(fortnight: Fortnight): string | null;
   issueOfflineCreditNote(document: OfflineCreditNote): void;

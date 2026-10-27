@@ -1,8 +1,8 @@
 import type {
+  CreditNoteToIssue,
   RebuiltUnclearDeferral,
   RestoredCreditNoteAnswer,
   RestoredUnclearDeferral,
-  SaleVoidCreditNote,
 } from "../../../fiscal/index.js";
 import type { ReplenishedUser } from "../../../users/index.js";
 import type { ReplenishmentFailure } from "../../model/replenishment-failure.js";
@@ -95,12 +95,12 @@ export class FakeRegisterReplenishmentDecoder implements RegisterReplenishmentDe
 }
 
 interface RecordedCreditNoteAnswer {
-  creditNote: SaleVoidCreditNote;
+  creditNote: CreditNoteToIssue;
   answer: RestoredCreditNoteAnswer;
 }
 
 interface HeldCreditNote {
-  creditNote: SaleVoidCreditNote;
+  creditNote: CreditNoteToIssue;
   event: ReplenishedEvent["event"];
 }
 

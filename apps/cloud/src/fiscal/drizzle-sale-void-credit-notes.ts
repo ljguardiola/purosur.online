@@ -4,9 +4,9 @@ import {
   type CreditNote,
   CreditNoteIdTaken,
   type InvoiceAlreadyCredited,
-  type SaleVoidCreditNoteLane,
-  type SaleVoidCreditNoteLanes,
-  type SaleVoidCreditNoteRecord,
+  type SaleCreditNoteLane,
+  type SaleCreditNoteLanes,
+  type SaleCreditNoteRecord,
   VoucherAlreadyCredited,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
@@ -29,8 +29,8 @@ const UNIQUE_VIOLATION = "23505";
 const CORRECTED_VOUCHER_KEY = "credit_notes_corrected_voucher_key";
 const PRIMARY_KEY = "credit_notes_pkey";
 
-class DrizzleSaleVoidCreditNoteLane<TQueryResult extends PgQueryResultHKT>
-  implements SaleVoidCreditNoteLane
+class DrizzleSaleCreditNoteLane<TQueryResult extends PgQueryResultHKT>
+  implements SaleCreditNoteLane
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly enqueueCreditNote: EnqueueCreditNote;
@@ -74,7 +74,7 @@ class DrizzleSaleVoidCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     return row === undefined ? null : creditNoteOf(row);
   }
 
-  async recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void> {
+  async recordSaleCreditNote(record: SaleCreditNoteRecord): Promise<void> {
     try {
       await this.db.transaction(async (tx) => {
         await lockCreditedVoucher(tx, record.correctedVoucher);
@@ -130,8 +130,8 @@ class DrizzleSaleVoidCreditNoteLane<TQueryResult extends PgQueryResultHKT>
   }
 }
 
-export class DrizzleSaleVoidCreditNoteLanes<TQueryResult extends PgQueryResultHKT>
-  implements SaleVoidCreditNoteLanes
+export class DrizzleSaleCreditNoteLanes<TQueryResult extends PgQueryResultHKT>
+  implements SaleCreditNoteLanes
 {
   private readonly connections: DedicatedConnections<TQueryResult>;
   private readonly enqueueCreditNote: EnqueueCreditNote;
@@ -146,10 +146,10 @@ export class DrizzleSaleVoidCreditNoteLanes<TQueryResult extends PgQueryResultHK
 
   inPointOfSaleLane<TOutcome>(
     pointOfSale: number,
-    work: (lane: SaleVoidCreditNoteLane) => Promise<TOutcome>,
+    work: (lane: SaleCreditNoteLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
-      work(new DrizzleSaleVoidCreditNoteLane(db, this.enqueueCreditNote)),
+      work(new DrizzleSaleCreditNoteLane(db, this.enqueueCreditNote)),
     );
   }
 }

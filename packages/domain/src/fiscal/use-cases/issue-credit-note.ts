@@ -8,7 +8,7 @@ import {
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import { creditNoteRejectedTask, externalInvoicingTask } from "../model/fiscal-task.js";
 import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "../model/fiscal-voucher-type.js";
-import type { CreditNoteAnswer } from "../model/sale-void-credit-note.js";
+import type { CreditNoteAnswer } from "../model/sale-credit-note.js";
 import {
   hasUnclearOutcomeSettled,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,

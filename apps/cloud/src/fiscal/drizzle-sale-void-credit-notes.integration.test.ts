@@ -1,6 +1,6 @@
 import {
   CreditNoteIdTaken,
-  type SaleVoidCreditNoteLane,
+  type SaleCreditNoteLane,
   VoucherAlreadyCredited,
 } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
@@ -20,7 +20,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleSaleVoidCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
+import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
 import { insertOfflineCreditNote } from "./test-support/offline-fiscal-document-fixtures.js";
 
@@ -44,9 +44,9 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-function inLane<TOutcome>(work: (lane: SaleVoidCreditNoteLane) => Promise<TOutcome>) {
+function inLane<TOutcome>(work: (lane: SaleCreditNoteLane) => Promise<TOutcome>) {
   enqueued = [];
-  return new DrizzleSaleVoidCreditNoteLanes(
+  return new DrizzleSaleCreditNoteLanes(
     postgresDedicatedConnections(sql),
     async (_transaction, creditNoteId) => {
       enqueued.push(creditNoteId);
@@ -105,7 +105,7 @@ describe("the credit notes of voided sales on a real Postgres", () => {
 
   it("reads nothing of a credit note another register recorded, and refuses to record another under its id", async () => {
     const record = aRecord(undefined, 80);
-    await inLane((lane) => lane.recordSaleVoidCreditNote(record));
+    await inLane((lane) => lane.recordSaleCreditNote(record));
     const otherRegisterId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 9,
       name: "caja-3",
@@ -116,7 +116,7 @@ describe("the credit notes of voided sales on a real Postgres", () => {
     ).toBeNull();
     await expect(
       inLane((lane) =>
-        lane.recordSaleVoidCreditNote({
+        lane.recordSaleCreditNote({
           ...aRecord(record.creditNoteId, 81),
           registerId: otherRegisterId,
         }),
@@ -133,7 +133,7 @@ describe("the credit notes of voided sales on a real Postgres", () => {
   it("records a credit note of a voided sale, not yet requested, and asks for it to be issued in the same transaction", async () => {
     const record = aRecord();
 
-    await inLane((lane) => lane.recordSaleVoidCreditNote(record));
+    await inLane((lane) => lane.recordSaleCreditNote(record));
 
     expect(enqueued).toEqual([record.creditNoteId]);
     const [row] = await db
@@ -170,10 +170,10 @@ describe("the credit notes of voided sales on a real Postgres", () => {
   });
 
   it("refuses a second credit note for a voucher that already has one, keeping nothing of it", async () => {
-    await inLane((lane) => lane.recordSaleVoidCreditNote(aRecord(undefined, 50)));
+    await inLane((lane) => lane.recordSaleCreditNote(aRecord(undefined, 50)));
     const again = aRecord(undefined, 50);
 
-    await expect(inLane((lane) => lane.recordSaleVoidCreditNote(again))).rejects.toBeInstanceOf(
+    await expect(inLane((lane) => lane.recordSaleCreditNote(again))).rejects.toBeInstanceOf(
       VoucherAlreadyCredited,
     );
 
@@ -193,7 +193,7 @@ describe("the credit notes of voided sales on a real Postgres", () => {
     });
     const asked = aRecord(undefined, 90);
 
-    await expect(inLane((lane) => lane.recordSaleVoidCreditNote(asked))).rejects.toBeInstanceOf(
+    await expect(inLane((lane) => lane.recordSaleCreditNote(asked))).rejects.toBeInstanceOf(
       VoucherAlreadyCredited,
     );
 
@@ -222,21 +222,18 @@ describe("the credit notes of voided sales on a real Postgres", () => {
     });
 
     await expect(
-      inLane((lane) => lane.recordSaleVoidCreditNote(aRecord(undefined, 60))),
+      inLane((lane) => lane.recordSaleCreditNote(aRecord(undefined, 60))),
     ).rejects.toBeInstanceOf(VoucherAlreadyCredited);
   });
 
   it("does not keep the credit note when asking for it to be issued fails", async () => {
     const record = aRecord(undefined, 70);
-    const lanes = new DrizzleSaleVoidCreditNoteLanes(
-      postgresDedicatedConnections(sql),
-      async () => {
-        throw new Error("the queue broke");
-      },
-    );
+    const lanes = new DrizzleSaleCreditNoteLanes(postgresDedicatedConnections(sql), async () => {
+      throw new Error("the queue broke");
+    });
 
     await expect(
-      lanes.inPointOfSaleLane(7, (lane) => lane.recordSaleVoidCreditNote(record)),
+      lanes.inPointOfSaleLane(7, (lane) => lane.recordSaleCreditNote(record)),
     ).rejects.toThrow("the queue broke");
 
     expect(

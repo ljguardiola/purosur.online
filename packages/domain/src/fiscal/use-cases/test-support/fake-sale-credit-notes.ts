@@ -1,13 +1,13 @@
 import type { VoucherReference } from "../../model/orphan-authorization.js";
-import type { CreditNote } from "../credit-note-ports.js";
 import {
   CreditNoteIdTaken,
   type InvoiceAlreadyCredited,
-  type SaleVoidCreditNoteLane,
-  type SaleVoidCreditNoteLanes,
-  type SaleVoidCreditNoteRecord,
+  type SaleCreditNoteLane,
+  type SaleCreditNoteLanes,
+  type SaleCreditNoteRecord,
   VoucherAlreadyCredited,
-} from "../sale-void-credit-note-ports.js";
+} from "../accept-sale-credit-note-request-ports.js";
+import type { CreditNote } from "../credit-note-ports.js";
 
 export interface FakeRegisterPointsOfSale {
   realTime: number;
@@ -32,12 +32,12 @@ export interface KeptAlreadyCreditedRefusal {
   at: Date;
 }
 
-export class FakeSaleVoidCreditNoteStore implements SaleVoidCreditNoteLanes {
+export class FakeSaleCreditNoteStore implements SaleCreditNoteLanes {
   readonly operations: string[] = [];
   readonly lanesEntered: number[] = [];
   readonly lookups: { registerId: string; creditNoteId: string }[] = [];
   readonly recorded = new Map<string, RecordedCreditNote>();
-  readonly records: SaleVoidCreditNoteRecord[] = [];
+  readonly records: SaleCreditNoteRecord[] = [];
   readonly alertsRaised: RaisedInvoiceAlreadyCredited[] = [];
   readonly refusalsKept: KeptAlreadyCreditedRefusal[] = [];
   recordFailure: Error | undefined;
@@ -62,22 +62,22 @@ export class FakeSaleVoidCreditNoteStore implements SaleVoidCreditNoteLanes {
 
   async inPointOfSaleLane<TOutcome>(
     pointOfSale: number,
-    work: (lane: SaleVoidCreditNoteLane) => Promise<TOutcome>,
+    work: (lane: SaleCreditNoteLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.operations.push("enterLane");
     this.lanesEntered.push(pointOfSale);
     try {
-      return await work(new FakeSaleVoidCreditNoteLane(this));
+      return await work(new FakeSaleCreditNoteLane(this));
     } finally {
       this.operations.push("leaveLane");
     }
   }
 }
 
-class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
-  private readonly store: FakeSaleVoidCreditNoteStore;
+class FakeSaleCreditNoteLane implements SaleCreditNoteLane {
+  private readonly store: FakeSaleCreditNoteStore;
 
-  constructor(store: FakeSaleVoidCreditNoteStore) {
+  constructor(store: FakeSaleCreditNoteStore) {
     this.store = store;
   }
 
@@ -100,8 +100,8 @@ class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
       : structuredClone(recorded.creditNote);
   }
 
-  async recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void> {
-    this.store.operations.push("recordSaleVoidCreditNote");
+  async recordSaleCreditNote(record: SaleCreditNoteRecord): Promise<void> {
+    this.store.operations.push("recordSaleCreditNote");
     if (this.store.recordFailure !== undefined) {
       throw this.store.recordFailure;
     }

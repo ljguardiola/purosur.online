@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type {
+  CreditNoteToIssue,
   FacturaC,
   RestoredCreditNoteAnswer,
   RestoredUnclearDeferral,
-  SaleVoidCreditNote,
 } from "../../fiscal/index.js";
 import {
   FICTIONAL_CUIT,
@@ -63,7 +63,7 @@ function aRestoredRegister(
   return { feed, store, decoder, run };
 }
 
-function aCreditNote(saleId: string, creditNoteId = `credit-note-${saleId}`): SaleVoidCreditNote {
+function aCreditNote(saleId: string, creditNoteId = `credit-note-${saleId}`): CreditNoteToIssue {
   return {
     creditNoteId,
     saleId,
@@ -73,7 +73,7 @@ function aCreditNote(saleId: string, creditNoteId = `credit-note-${saleId}`): Sa
   };
 }
 
-function anAuthorizedAnswer(creditNote: SaleVoidCreditNote): RestoredCreditNoteAnswer {
+function anAuthorizedAnswer(creditNote: CreditNoteToIssue): RestoredCreditNoteAnswer {
   return {
     creditNoteId: creditNote.creditNoteId,
     answeredAt: new Date("2026-10-07T10:30:00.000Z"),
@@ -89,7 +89,7 @@ function anAuthorizedAnswer(creditNote: SaleVoidCreditNote): RestoredCreditNoteA
   };
 }
 
-function aVoidedSaleOf(creditNote: SaleVoidCreditNote | null, saleId: string): SyncedFact {
+function aVoidedSaleOf(creditNote: CreditNoteToIssue | null, saleId: string): SyncedFact {
   return { ...aVoidedSaleFact({ id: saleId }), creditNote };
 }
 

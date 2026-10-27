@@ -2,7 +2,7 @@ import {
   type CreditNoteIssuedOffline,
   type RestoredCreditNoteAnswer,
   restoredCreditNoteSettlement,
-} from "../model/sale-void-credit-note.js";
+} from "../model/sale-credit-note.js";
 import type {
   IssuedOfflineCreditNoteOfRegister,
   ServeRestoredRegisterCreditNoteAnswersPorts,

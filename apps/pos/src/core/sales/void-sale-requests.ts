@@ -2,8 +2,8 @@ import type { Authorization, AuthorizedBy, VoidSaleOutcome } from "@purosur/cont
 import type { VoidCreditNoteStanding } from "@purosur/domain";
 import {
   type CloudCreditNotes,
-  type RequestVoidedSaleCreditNoteInput,
-  requestVoidedSaleCreditNote,
+  type RequestSaleCreditNoteInput,
+  requestSaleCreditNote,
 } from "@purosur/domain/fiscal/use-cases";
 import {
   type OperationAuthorization,
@@ -49,9 +49,9 @@ const NO_ANSWER_FROM_CLOUD: CloudCreditNotes = { request: async () => null };
 
 async function answerOfCreditNote(
   { database, now, creditNotes, printCreditNote, reportFailure }: VoidSaleRequestDeps,
-  input: RequestVoidedSaleCreditNoteInput,
+  input: RequestSaleCreditNoteInput,
 ): Promise<VoidCreditNoteStanding> {
-  const outcome = await requestVoidedSaleCreditNote(
+  const outcome = await requestSaleCreditNote(
     {
       creditNotes: new SqliteVoidCreditNotes(database),
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,

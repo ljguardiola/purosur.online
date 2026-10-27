@@ -1,16 +1,16 @@
-import type { VoidCreditNoteStanding } from "../../model/sale-void-credit-note.js";
+import type { VoidCreditNoteStanding } from "../../model/sale-credit-note.js";
 import type {
   CloudCreditNoteAnswer,
   CloudCreditNoteCall,
   CloudCreditNotes,
   CreditNotePrinter,
   PendingCreditNote,
-  RegisterVoidCreditNotes,
-} from "../request-void-credit-notes-ports.js";
+  RegisterCreditNotes,
+} from "../request-credit-notes-ports.js";
 
 export type CloudReply = CloudCreditNoteAnswer | null;
 
-export class FakeRegisterVoidCreditNotes implements RegisterVoidCreditNotes {
+export class FakeRegisterCreditNotes implements RegisterCreditNotes {
   readonly answered = new Map<string, { answer: VoidCreditNoteStanding; answeredAt: Date }>();
   private readonly pending: PendingCreditNote[];
   private readonly pointOfSale: number | null;

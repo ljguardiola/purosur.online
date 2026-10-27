@@ -1,12 +1,12 @@
 import {
+  type CreditNoteToIssue,
   type OfflineCreditNote,
   type PushedEvent,
   type RequestedCreditNoteAnswer,
   SALE_VOIDED_EVENT_TYPE,
-  type SaleVoidCreditNote,
   type VoidCreditNoteStanding,
 } from "@purosur/domain";
-import type { PendingCreditNote, RegisterVoidCreditNotes } from "@purosur/domain/fiscal/use-cases";
+import type { PendingCreditNote, RegisterCreditNotes } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
 interface AuthorizedRow {
@@ -46,7 +46,7 @@ type CreditNoteRow = (AuthorizedRow | UnauthorizedRow | IssuedOfflineRow) & {
   answered_at: string | null;
 };
 
-export interface StoredCreditNote extends SaleVoidCreditNote {
+export interface StoredCreditNote extends CreditNoteToIssue {
   recordedAt: Date;
   answeredAt: Date | null;
   answer: VoidCreditNoteStanding;
@@ -171,7 +171,7 @@ export function insertCreditNoteIssuedOffline(
 
 export function insertPendingCreditNote(
   database: LocalDatabase,
-  { creditNoteId, saleId, total, receiverTaxStatusCode, correctedVoucher }: SaleVoidCreditNote,
+  { creditNoteId, saleId, total, receiverTaxStatusCode, correctedVoucher }: CreditNoteToIssue,
 ): void {
   database
     .prepare(
@@ -243,7 +243,7 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
   payload: string;
 }
 
-export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
+export class SqliteVoidCreditNotes implements RegisterCreditNotes {
   private readonly database: LocalDatabase;
 
   constructor(database: LocalDatabase) {

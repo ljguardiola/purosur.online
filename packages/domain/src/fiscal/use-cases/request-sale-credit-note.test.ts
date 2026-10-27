@@ -4,16 +4,16 @@ import type {
   CreditNoteAnswer,
   RequestedCreditNoteAnswer,
   VoidCreditNoteStanding,
-} from "../model/sale-void-credit-note.js";
-import type { PendingCreditNote } from "./request-void-credit-notes-ports.js";
-import { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
+} from "../model/sale-credit-note.js";
+import type { PendingCreditNote } from "./request-credit-notes-ports.js";
+import { requestSaleCreditNote } from "./request-sale-credit-note.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
   type CloudReply,
   FakeCloudCreditNotes,
   FakeCreditNotePrinter,
-  FakeRegisterVoidCreditNotes,
-} from "./test-support/fake-void-credit-notes.js";
+  FakeRegisterCreditNotes,
+} from "./test-support/fake-register-credit-notes.js";
 
 const NOW = new Date("2026-10-07T15:31:00.000Z");
 
@@ -67,18 +67,18 @@ function register(
   replies: CloudReply[] = [AUTHORIZED],
   { pointOfSale = 12 as number | null, pending = [pendingNote(1), pendingNote(2)] } = {},
 ) {
-  const creditNotes = new FakeRegisterVoidCreditNotes(pending, pointOfSale);
+  const creditNotes = new FakeRegisterCreditNotes(pending, pointOfSale);
   const cloud = new FakeCloudCreditNotes(replies);
   const printer = new FakeCreditNotePrinter();
   const run = () =>
-    requestVoidedSaleCreditNote(
+    requestSaleCreditNote(
       { creditNotes, cloud, clock: new ManualClock(NOW), printer },
       { creditNoteId: "credit-note-1", saleId: "sale-1" },
     );
   return { creditNotes, cloud, printer, run };
 }
 
-describe("requestVoidedSaleCreditNote", () => {
+describe("requestSaleCreditNote", () => {
   it("asks the cloud for the voided sale's credit note only, with the real-time point of sale and the event of the void", async () => {
     const { cloud, run } = register();
 

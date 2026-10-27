@@ -1,9 +1,9 @@
 import {
   type CashMovement,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
+  type CreditNoteToIssue,
   type OfflineCreditNote,
   type OutboxEventDraft,
-  type SaleVoidCreditNote,
 } from "@purosur/domain";
 import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import type {
@@ -83,7 +83,7 @@ export class SqliteSaleVoidLedger implements SaleVoidLedger {
       addToStockBalance: (productId, delta) => addToStockBalance(this.database, productId, delta),
       cancelDeferredSale: (saleId, cancelledAt) =>
         cancelDeferredSale(this.database, saleId, cancelledAt),
-      recordPendingCreditNote: (creditNote: SaleVoidCreditNote) =>
+      recordPendingCreditNote: (creditNote: CreditNoteToIssue) =>
         insertPendingCreditNote(this.database, creditNote),
       offlineCreditNoteSeries: () => readOfflineSeries(this.database, CREDIT_NOTE_C_DOCUMENT_TYPE),
       offlineAuthorizationCodeOf: (fortnight: Fortnight) =>

@@ -1,12 +1,12 @@
 import type {
   ClockPreviousReadingSource,
+  CreditNoteToIssue,
   DiscountBenefit,
   FacturaC,
   ManualAdjustment,
   OfflineFiscalDocumentIssuedFact,
   PrintedDocument,
   SaleDiscount,
-  SaleVoidCreditNote,
   UnclearDeferralDocument,
 } from "@purosur/domain";
 import type {
@@ -175,7 +175,7 @@ function clockCorrection(
   };
 }
 
-function voidedSaleCreditNote(payload: VoidedSalePayload): SaleVoidCreditNote | null {
+function voidedSaleCreditNote(payload: VoidedSalePayload): CreditNoteToIssue | null {
   const creditNote = "credit_note" in payload ? payload.credit_note : null;
   return creditNote === null
     ? null

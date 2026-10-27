@@ -15,7 +15,7 @@ import {
   lockCreditedVoucher,
   voucherCreditedOnline,
 } from "./credited-voucher.js";
-import { DrizzleSaleVoidCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
+import { DrizzleSaleCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
 
 const FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
@@ -91,7 +91,7 @@ describe("the lock of a credited voucher on a real Postgres", () => {
 
 describe("crediting one voucher offline and online at the same time, on a real Postgres", () => {
   function onlineLane() {
-    return new DrizzleSaleVoidCreditNoteLanes(postgresDedicatedConnections(sql), async () => {});
+    return new DrizzleSaleCreditNoteLanes(postgresDedicatedConnections(sql), async () => {});
   }
 
   it("never lets both credit it: the online request is refused exactly when the offline credit note found it free", async () => {
@@ -133,7 +133,7 @@ describe("crediting one voucher offline and online at the same time, on a real P
         }),
         onlineLane()
           .inPointOfSaleLane(7, (lane) =>
-            lane.recordSaleVoidCreditNote({
+            lane.recordSaleCreditNote({
               creditNoteId,
               registerId,
               saleId: randomUUID(),

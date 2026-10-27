@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   type CreditNoteStanding,
+  type CreditNoteToIssue,
   confirmedCreditNoteAnswer,
   creditNoteAnswerOf,
+  creditNoteToIssuePayload,
   invoiceToCorrect,
   restoredCreditNoteSettlement,
   type SaleInvoice,
-  type SaleVoidCreditNote,
-  saleVoidCreditNotePayload,
-} from "./sale-void-credit-note.js";
+} from "./sale-credit-note.js";
 
 const REAL_TIME: SaleInvoice = {
   origin: "real_time",
@@ -77,7 +77,7 @@ describe("invoiceToCorrect", () => {
   });
 });
 
-const CREDIT_NOTE: SaleVoidCreditNote = {
+const CREDIT_NOTE: CreditNoteToIssue = {
   creditNoteId: "credit-note-1",
   saleId: "sale-1",
   total: 7_500,
@@ -92,9 +92,9 @@ const PAYLOAD = {
   corrects: { voucher_type: 11, point_of_sale: 8, number: 77 },
 };
 
-describe("saleVoidCreditNotePayload", () => {
+describe("creditNoteToIssuePayload", () => {
   it("describes the credit note the void asks for", () => {
-    expect(saleVoidCreditNotePayload(CREDIT_NOTE)).toEqual(PAYLOAD);
+    expect(creditNoteToIssuePayload(CREDIT_NOTE)).toEqual(PAYLOAD);
   });
 });
 

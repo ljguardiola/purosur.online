@@ -281,13 +281,13 @@ export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
 export type {
   CreditNoteAnswer,
   CreditNoteIssuedOffline,
+  CreditNoteToIssue,
   RequestedCreditNoteAnswer,
   RestoredCreditNoteAnswer,
   SaleInvoice,
-  SaleVoidCreditNote,
   VoidCreditNoteStanding,
-} from "./model/sale-void-credit-note.js";
-export { invoiceToCorrect, saleVoidCreditNotePayload } from "./model/sale-void-credit-note.js";
+} from "./model/sale-credit-note.js";
+export { creditNoteToIssuePayload, invoiceToCorrect } from "./model/sale-credit-note.js";
 export {
   awaitsUnclearOutcomeDecision,
   UNCLEAR_ANSWER_KINDS,

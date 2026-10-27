@@ -1,5 +1,7 @@
 import {
   CREDIT_NOTE_C_DOCUMENT_TYPE,
+  type CreditNoteToIssue,
+  creditNoteToIssuePayload,
   invoiceOwnFortnight,
   invoiceToCorrect,
   isRegisterFiscallyOnline,
@@ -7,8 +9,6 @@ import {
   offlineCreditNoteIssuedEvent,
   offlineRoute,
   raisedClockMark,
-  type SaleVoidCreditNote,
-  saleVoidCreditNotePayload,
 } from "../../fiscal/index.js";
 import {
   APPROVED_PAYMENT_STATE,
@@ -68,7 +68,7 @@ export type VoidSaleOutcome<Grant extends VoidSaleGrant> =
       kind: "voided";
       refunds: SaleRefund[];
       grant: Grant;
-      creditNote: SaleVoidCreditNote | null;
+      creditNote: CreditNoteToIssue | null;
     };
 
 export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
@@ -131,7 +131,7 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
       tx.cancelDeferredSale(sale.id, voidedAt);
     }
     const invoice = invoiceToCorrect(fiscalDocuments);
-    const creditNote: SaleVoidCreditNote | null =
+    const creditNote: CreditNoteToIssue | null =
       invoice === null
         ? null
         : {
@@ -229,7 +229,7 @@ interface Voiding {
   movements: readonly SaleCashMovement[];
   stockMovements: readonly SaleStockMovement[];
   deferredRecordCancelled: boolean;
-  creditNote: SaleVoidCreditNote | null;
+  creditNote: CreditNoteToIssue | null;
   grant: VoidSaleGrant;
   voidedAt: Date;
 }
@@ -280,7 +280,7 @@ function saleVoidedEvent(
       cash_movements: movements.map(saleCashMovementRecord),
       stock_movements: stockMovements.map(saleStockMovementRecord),
       deferred_record_cancelled: deferredRecordCancelled,
-      credit_note: creditNote === null ? null : saleVoidCreditNotePayload(creditNote),
+      credit_note: creditNote === null ? null : creditNoteToIssuePayload(creditNote),
     },
     occurred_at: voidedAtIso,
     actor_id: grant.actorId,

@@ -1,16 +1,16 @@
 import type { Clock } from "../../shared/index.js";
 import type { PushedEvent } from "../../sync/index.js";
 import type {
+  CreditNoteToIssue,
   RequestedCreditNoteAnswer,
-  SaleVoidCreditNote,
   VoidCreditNoteStanding,
-} from "../model/sale-void-credit-note.js";
+} from "../model/sale-credit-note.js";
 
-export interface PendingCreditNote extends SaleVoidCreditNote {
+export interface PendingCreditNote extends CreditNoteToIssue {
   saleEvent: PushedEvent;
 }
 
-export interface RegisterVoidCreditNotes {
+export interface RegisterCreditNotes {
   inProgress(): Promise<PendingCreditNote[]>;
   pendingCreditNote(creditNoteId: string): Promise<PendingCreditNote | null>;
   recordedAnswer(creditNoteId: string): Promise<VoidCreditNoteStanding | null>;
@@ -42,8 +42,8 @@ export interface CloudCreditNotes {
   request(call: CloudCreditNoteCall): Promise<CloudCreditNoteAnswer | null>;
 }
 
-export interface RequestVoidCreditNotesPorts {
-  creditNotes: RegisterVoidCreditNotes;
+export interface RequestPendingCreditNotesPorts {
+  creditNotes: RegisterCreditNotes;
   cloud: CloudCreditNotes;
   clock: Clock;
 }
@@ -52,6 +52,6 @@ export interface CreditNotePrinter {
   startPrinting(saleId: string): void;
 }
 
-export interface RequestVoidedSaleCreditNotePorts extends RequestVoidCreditNotesPorts {
+export interface RequestSaleCreditNotePorts extends RequestPendingCreditNotesPorts {
   printer: CreditNotePrinter;
 }

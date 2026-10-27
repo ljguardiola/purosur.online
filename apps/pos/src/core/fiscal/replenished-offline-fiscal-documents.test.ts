@@ -1,4 +1,4 @@
-import type { SaleVoidCreditNote } from "@purosur/domain";
+import type { CreditNoteToIssue } from "@purosur/domain";
 import { nextOfflineNumber } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -194,7 +194,7 @@ describe("replenishing an offline fiscal document into a restored register", () 
 });
 
 describe("replenishing a credit note issued offline into a restored register", () => {
-  const CREDIT_NOTE: SaleVoidCreditNote = {
+  const CREDIT_NOTE: CreditNoteToIssue = {
     creditNoteId: "note-1",
     saleId: "sale-1",
     total: 12_500,

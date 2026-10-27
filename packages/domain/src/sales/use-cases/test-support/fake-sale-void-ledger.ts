@@ -1,10 +1,10 @@
 import type {
+  CreditNoteToIssue,
   FiscalOnlineSignalEvidence,
   Fortnight,
   OfflineCreditNote,
   OfflineSeries,
   SaleInvoice,
-  SaleVoidCreditNote,
 } from "../../../fiscal/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../shared/index.js";
@@ -34,7 +34,7 @@ export interface FakeSaleVoidLedgerState {
   payments: SaleToVoid["payments"];
   fiscalDocuments: (SaleInvoice & { saleId: string })[];
   fiscalOnlineEvidence: FiscalOnlineSignalEvidence;
-  creditNotes: SaleVoidCreditNote[];
+  creditNotes: CreditNoteToIssue[];
   offlineCreditNoteSeries: OfflineSeries;
   offlineAuthorizationCodes: Record<string, string>;
   issuedOfflineCreditNotes: OfflineCreditNote[];

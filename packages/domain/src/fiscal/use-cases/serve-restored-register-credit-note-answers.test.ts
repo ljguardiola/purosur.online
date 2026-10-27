@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CreditNoteStanding } from "../model/sale-void-credit-note.js";
+import type { CreditNoteStanding } from "../model/sale-credit-note.js";
 import { serveRestoredRegisterCreditNoteAnswers } from "./serve-restored-register-credit-note-answers.js";
 import {
   FakeRestoredRegisterCreditNoteAnswers,

@@ -1,4 +1,4 @@
-import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "@purosur/domain";
+import type { CreditNoteToIssue, RestoredCreditNoteAnswer } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { recordReplenishedCreditNoteAnswer } from "./replenished-credit-note-answers";
@@ -13,7 +13,7 @@ const VOIDED_AT = "2026-10-07T10:28:00.000Z";
 const ISSUED_AT = new Date("2026-10-07T10:29:00.000Z");
 const ANSWERED_AT = new Date("2026-10-07T10:30:00.000Z");
 
-const CREDIT_NOTE: SaleVoidCreditNote = {
+const CREDIT_NOTE: CreditNoteToIssue = {
   creditNoteId: "note-1",
   saleId: "sale-1",
   total: 3000,

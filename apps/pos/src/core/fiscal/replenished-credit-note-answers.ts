@@ -1,4 +1,4 @@
-import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "@purosur/domain";
+import type { CreditNoteToIssue, RestoredCreditNoteAnswer } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   insertPendingCreditNote,
@@ -8,7 +8,7 @@ import {
 
 export function recordReplenishedCreditNoteAnswer(
   database: LocalDatabase,
-  creditNote: SaleVoidCreditNote,
+  creditNote: CreditNoteToIssue,
   { answer, answeredAt }: RestoredCreditNoteAnswer,
 ): void {
   if (answer.kind === "issued_offline") {
