@@ -88,6 +88,16 @@ describe("issuedFiscalDocumentsSchema", () => {
     expect(issuedFiscalDocumentsSchema.parse(listing)).toEqual(listing);
   });
 
+  it("accepts an issue time written with a zone offset", () => {
+    const withOffset = {
+      ...listing,
+      documents: [{ ...receipt, issued_at: "2026-10-05T10:00:00-03:00" }],
+      total: 1,
+    };
+
+    expect(issuedFiscalDocumentsSchema.parse(withOffset)).toEqual(withOffset);
+  });
+
   it("accepts a range without documents", () => {
     const empty = { ...listing, documents: [], total: 0 };
 
