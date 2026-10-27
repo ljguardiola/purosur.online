@@ -24,6 +24,7 @@ export const STOCK_MOVEMENT_KINDS = [
   "opening_count_withdrawal",
   "assembly_out",
   "assembly_in",
+  "assembly_void",
 ] as const;
 
 export type StockMovementKind = (typeof STOCK_MOVEMENT_KINDS)[number];
