@@ -138,7 +138,7 @@ export class SqliteLocalPaidOrders implements LocalPaidOrders {
         occurredAt: order.createdAt,
         waitEndsAt: order.createdAt,
         ...(order.method === "POINT"
-          ? ({ method: "POINT", provider: "MERCADOPAGO_POINT" } as const)
+          ? ({ method: "POINT", provider: "MERCADOPAGO_POINT", cardType: order.cardType } as const)
           : ({ method: "QR", provider: "MERCADOPAGO_QR" } as const)),
       });
       return;

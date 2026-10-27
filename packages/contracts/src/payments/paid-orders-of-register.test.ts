@@ -16,13 +16,58 @@ const order: Record<string, unknown> = {
   amount: 2500,
   created_at: "2026-10-13T11:00:00.000Z",
 };
+const pointOrder: Record<string, unknown> = {
+  ...order,
+  method: "POINT",
+  provider: "MERCADOPAGO_POINT",
+  card_type: "DEBIT",
+};
 
 describe("approvedOrdersOfRegisterSchema", () => {
   it("accepts a list of orders and an empty list", () => {
-    const body = { orders: [order, { ...order, method: "POINT", provider: "MERCADOPAGO_POINT" }] };
+    const body = { orders: [order, pointOrder] };
 
     expect(approvedOrdersOfRegisterSchema.parse(body)).toEqual(body);
     expect(approvedOrdersOfRegisterSchema.parse({ orders: [] })).toEqual({ orders: [] });
+  });
+
+  it.each(["DEBIT", "CREDIT"])("accepts a Point order charged on a %s card", (card_type) => {
+    const charged = { ...pointOrder, card_type };
+
+    expect(approvedOrdersOfRegisterSchema.parse({ orders: [charged] })).toEqual({
+      orders: [charged],
+    });
+  });
+
+  it("accepts a Point order the cloud holds no card type for", () => {
+    const unknownCard = { ...pointOrder, card_type: null };
+
+    expect(approvedOrdersOfRegisterSchema.parse({ orders: [unknownCard] })).toEqual({
+      orders: [unknownCard],
+    });
+  });
+
+  it.each([undefined, "QR", "CARD", "debit"])(
+    "refuses a Point order with the card type %s",
+    (card_type) => {
+      expect(
+        approvedOrdersOfRegisterSchema.safeParse({ orders: [{ ...pointOrder, card_type }] })
+          .success,
+      ).toBe(false);
+    },
+  );
+
+  it("takes no card type for a QR order", () => {
+    expect(
+      approvedOrdersOfRegisterSchema.parse({ orders: [{ ...order, card_type: "DEBIT" }] }),
+    ).toEqual({ orders: [order] });
+  });
+
+  it.each([
+    ["a QR order paid through the Point", { ...order, provider: "MERCADOPAGO_POINT" }],
+    ["a Point order paid through the QR", { ...pointOrder, provider: "MERCADOPAGO_QR" }],
+  ])("refuses %s", (_name, mismatched) => {
+    expect(approvedOrdersOfRegisterSchema.safeParse({ orders: [mismatched] }).success).toBe(false);
   });
 
   it.each([

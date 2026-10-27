@@ -628,6 +628,7 @@ describe("an event that cannot be applied yet", () => {
       tendered: null,
       state: "APPROVED",
       occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+      cardType: null,
       authorizedBy: null,
       confirmedAt: null,
     } as const;
@@ -730,6 +731,7 @@ describe("an event that cannot be applied yet", () => {
       tendered: null,
       state: "APPROVED",
       occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+      cardType: null,
       authorizedBy: null,
       confirmedAt: null,
     } as const;
@@ -808,6 +810,7 @@ describe("an event that cannot be applied yet", () => {
       tendered: null,
       state: "APPROVED",
       occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+      cardType: "DEBIT",
       authorizedBy: null,
       confirmedAt: null,
     } as const;
@@ -1182,6 +1185,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
           tendered: 1,
           state: "APPROVED",
           occurredAt: NOW,
+          cardType: null,
           authorizedBy: null,
           confirmedAt: null,
         },

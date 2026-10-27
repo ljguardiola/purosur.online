@@ -216,7 +216,7 @@ function saleVoidedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_VOIDED_EVENT_TYPE,
-    schema_version: 3,
+    schema_version: 4,
     payload: {
       id: sale.id,
       register_id: sale.registerId,

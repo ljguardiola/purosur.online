@@ -1,5 +1,5 @@
 {
-  "id": "3c6bb96b-fa77-4bb5-9950-ec13c7aa31ec",
+  "id": "ff7c2806-4d24-4a18-ad12-54614d1c4c4b",
   "prevId": "b8e2a186-d76e-49cf-b538-17ffa8691aef",
   "version": "7",
   "dialect": "postgresql",
@@ -2195,18 +2195,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "return_id": {
-          "name": "return_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "issue_on": {
-          "name": "issue_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2215,8 +2203,8 @@
         }
       },
       "indexes": {
-        "credit_notes_corrected_voucher_idx": {
-          "name": "credit_notes_corrected_voucher_idx",
+        "credit_notes_corrected_voucher_key": {
+          "name": "credit_notes_corrected_voucher_key",
           "columns": [
             {
               "expression": "associated_voucher_type",
@@ -2237,7 +2225,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2282,7 +2270,7 @@
       "checkConstraints": {
         "credit_notes_reason_check": {
           "name": "credit_notes_reason_check",
-          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void', 'sale_return', 'rejected_document')"
+          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void', 'rejected_document')"
         },
         "credit_notes_kept_voucher_check": {
           "name": "credit_notes_kept_voucher_check",
@@ -2294,15 +2282,11 @@
         },
         "credit_notes_answer_kind_check": {
           "name": "credit_notes_answer_kind_check",
-          "value": "\"credit_notes\".\"answer_kind\" in ('authorized', 'rejected', 'unclear', 'regularization_required')"
+          "value": "\"credit_notes\".\"answer_kind\" in ('authorized', 'rejected', 'unclear')"
         },
         "credit_notes_answer_request_check": {
           "name": "credit_notes_answer_request_check",
-          "value": "\"credit_notes\".\"answer_kind\" is null or \"credit_notes\".\"answer_kind\" = 'regularization_required' or \"credit_notes\".\"number\" is not null"
-        },
-        "credit_notes_return_check": {
-          "name": "credit_notes_return_check",
-          "value": "(\"credit_notes\".\"reason\" = 'sale_return') = (\"credit_notes\".\"return_id\" is not null)\n        and (\"credit_notes\".\"return_id\" is null) = (\"credit_notes\".\"issue_on\" is null)"
+          "value": "\"credit_notes\".\"answer_kind\" is null or \"credit_notes\".\"number\" is not null"
         },
         "credit_notes_answer_time_check": {
           "name": "credit_notes_answer_time_check",
@@ -3341,7 +3325,7 @@
         },
         "fiscal_tasks_voucher_check": {
           "name": "fiscal_tasks_voucher_check",
-          "value": "(\"fiscal_tasks\".\"kind\" = 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is null and \"fiscal_tasks\".\"document_type\" is null and \"fiscal_tasks\".\"number\" is null) or (\"fiscal_tasks\".\"kind\" <> 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is not null and \"fiscal_tasks\".\"document_type\" is not null and (\"fiscal_tasks\".\"number\" is not null or \"fiscal_tasks\".\"kind\" = 'credit_note_rejected'))"
+          "value": "(\"fiscal_tasks\".\"kind\" = 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is null and \"fiscal_tasks\".\"document_type\" is null and \"fiscal_tasks\".\"number\" is null) or (\"fiscal_tasks\".\"kind\" <> 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is not null and \"fiscal_tasks\".\"document_type\" is not null and \"fiscal_tasks\".\"number\" is not null)"
         },
         "fiscal_tasks_document_type_check": {
           "name": "fiscal_tasks_document_type_check",
@@ -5573,6 +5557,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "card_type": {
+          "name": "card_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "amount": {
           "name": "amount",
           "type": "bigint",
@@ -5691,6 +5681,10 @@
         "payment_transactions_method_provider_check": {
           "name": "payment_transactions_method_provider_check",
           "value": "(\"payment_transactions\".\"method\" = 'QR' and \"payment_transactions\".\"provider\" = 'MERCADOPAGO_QR') or (\"payment_transactions\".\"method\" = 'POINT' and \"payment_transactions\".\"provider\" = 'MERCADOPAGO_POINT')"
+        },
+        "payment_transactions_card_type_check": {
+          "name": "payment_transactions_card_type_check",
+          "value": "\"payment_transactions\".\"card_type\" is null or (\"payment_transactions\".\"method\" = 'POINT' and \"payment_transactions\".\"card_type\" in ('DEBIT', 'CREDIT'))"
         },
         "payment_transactions_amount_check": {
           "name": "payment_transactions_amount_check",
@@ -9065,6 +9059,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "card_type": {
+          "name": "card_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "amount": {
           "name": "amount",
           "type": "bigint",
@@ -9123,7 +9123,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "sale_payments_card_type_check": {
+          "name": "sale_payments_card_type_check",
+          "value": "\"sale_payments\".\"card_type\" is null or (\"sale_payments\".\"method\" = 'POINT' and \"sale_payments\".\"card_type\" in ('DEBIT', 'CREDIT'))"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.sale_reprints": {

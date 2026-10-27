@@ -22,7 +22,7 @@ const QR_ORDER: MercadoPagoOrderKind<
   QrOrderNotCreated,
   MercadoPagoQrOrderPorts
 > = {
-  identity: { method: "QR", provider: "MERCADOPAGO_QR" },
+  identityOf: () => ({ method: "QR", provider: "MERCADOPAGO_QR" }),
   lifetimeMinutes: MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
   refuseAmount: (amount) => (isValidOrderAmount(amount) ? null : { kind: "invalid_amount" }),
   create: async ({ mercadoPago, qrPointsOfSale }, registerId, request) => {

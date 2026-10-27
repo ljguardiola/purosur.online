@@ -17,6 +17,7 @@ import { NOW } from "./test-support/fake-mercado-pago-orders.js";
 import { paidOrdersOfRegisterRoutesUnderTest } from "./test-support/paid-orders-of-register-routes-under-test.js";
 import {
   insertSyncedSaleHolding,
+  pendingPointTransaction,
   pendingTransaction,
 } from "./test-support/payment-transaction-fixtures.js";
 
@@ -135,6 +136,27 @@ describe("the paid orders of a register routes", () => {
           },
         ],
       });
+    });
+
+    it("answers an approved Point order with the card type it was charged on", async () => {
+      const { registerId, deviceToken } = await enroll();
+      const paid = pendingPointTransaction(registerId, {
+        state: "APPROVED",
+        cardType: "CREDIT",
+        createdAt: hoursBeforeNow(5),
+      });
+      await route.db.insert(paymentTransactions).values(paid);
+
+      const response = await listApproved(`Bearer ${deviceToken}`);
+
+      expect(approvedOrdersOfRegisterSchema.parse(response.json()).orders).toEqual([
+        expect.objectContaining({
+          payment_transaction_id: paid.id,
+          method: "POINT",
+          provider: "MERCADOPAGO_POINT",
+          card_type: "CREDIT",
+        }),
+      ]);
     });
   });
 

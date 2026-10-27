@@ -75,6 +75,34 @@ describe("DrizzlePaymentTransactionLanes", () => {
       expect(recorded).toMatchObject({ method: "POINT", provider: "MERCADOPAGO_POINT" });
     });
 
+    it.each(["DEBIT", "CREDIT"] as const)(
+      "keeps the %s card type of a transaction on the integrated terminal",
+      async (cardType) => {
+        const registerId = await insertRegister(db, "caja-1");
+        const transaction = pendingPointTransaction(registerId, { cardType });
+
+        const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+          await lane.recordPendingTransaction(transaction);
+          return lane.recordedTransaction(registerId, transaction.id);
+        });
+
+        expect(recorded).toMatchObject({ cardType });
+        expect(await storedRow(transaction.id)).toMatchObject({ cardType });
+      },
+    );
+
+    it("keeps a transaction on the integrated terminal recorded without a card type", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingPointTransaction(registerId, { cardType: null });
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toEqual(transaction);
+    });
+
     it("keeps a transaction marked as replaced", async () => {
       const registerId = await insertRegister(db, "caja-1");
       const transaction = pendingTransaction(registerId, { replaced: true });

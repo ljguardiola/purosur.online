@@ -5,6 +5,7 @@ import type {
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
   MercadoPagoChargeOrderReading,
+  MercadoPagoChargeOrderRequest,
   MercadoPagoChargeOrders,
   MercadoPagoChargeSale,
   MercadoPagoCharges,
@@ -38,7 +39,7 @@ export class FakeMercadoPagoChargeWorld
   >();
   readonly recordedPayments: PendingMercadoPagoPayment[] = [];
   readonly settledPayments: { actorId: string; paymentTransactionId: string }[] = [];
-  readonly requestedOrders: MercadoPagoChargeOrder[] = [];
+  readonly requestedOrders: MercadoPagoChargeOrderRequest[] = [];
   readonly readOrders: string[] = [];
   readonly cancelledOrders: MercadoPagoChargeOrder[] = [];
   readonly replacedPayments: { actorId: string; paymentTransactionId: string; replacedAt: Date }[] =
@@ -125,7 +126,7 @@ export class FakeMercadoPagoChargeWorld
     return { kind: "replaced" };
   }
 
-  async requestOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderAnswer> {
+  async requestOrder(order: MercadoPagoChargeOrderRequest): Promise<MercadoPagoChargeOrderAnswer> {
     this.operations.push("requestOrder");
     this.requestedOrders.push(order);
     return this.orderAnswer;

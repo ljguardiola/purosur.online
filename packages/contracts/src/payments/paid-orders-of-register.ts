@@ -1,21 +1,29 @@
-import {
-  isValidOrderAmount,
-  MERCADO_PAGO_PAYMENT_METHODS,
-  MERCADO_PAGO_PROVIDERS,
-} from "@purosur/domain";
+import { isValidOrderAmount, POINT_CARD_TYPES } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
 
+const approvedOrderFields = {
+  payment_transaction_id: recordIdSchema(),
+  sale_id: recordIdSchema(),
+  amount: z.number().refine(isValidOrderAmount),
+  created_at: z.iso.datetime(),
+};
+
 export const approvedOrdersOfRegisterSchema = z.object({
   orders: z.array(
-    z.object({
-      payment_transaction_id: recordIdSchema(),
-      sale_id: recordIdSchema(),
-      method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
-      provider: z.enum(MERCADO_PAGO_PROVIDERS),
-      amount: z.number().refine(isValidOrderAmount),
-      created_at: z.iso.datetime(),
-    }),
+    z.discriminatedUnion("method", [
+      z.object({
+        ...approvedOrderFields,
+        method: z.literal("QR"),
+        provider: z.literal("MERCADOPAGO_QR"),
+      }),
+      z.object({
+        ...approvedOrderFields,
+        method: z.literal("POINT"),
+        provider: z.literal("MERCADOPAGO_POINT"),
+        card_type: z.enum(POINT_CARD_TYPES).nullable(),
+      }),
+    ]),
   ),
 });
 export type ApprovedOrdersOfRegisterBody = z.output<typeof approvedOrdersOfRegisterSchema>;

@@ -28,10 +28,29 @@ describe("starting a Mercado Pago QR charge", () => {
     expect(paymentsRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
-  it("accepts a charge on the integrated terminal", () => {
-    const onTheTerminal = { ...message, method: "POINT" };
+  it.each(["DEBIT", "CREDIT"])(
+    "accepts a %s card charge on the integrated terminal",
+    (card_type) => {
+      const onTheTerminal = { ...message, method: "POINT", card_type };
 
-    expect(paymentsRendererToCoreMessageSchema.parse(onTheTerminal)).toEqual(onTheTerminal);
+      expect(paymentsRendererToCoreMessageSchema.parse(onTheTerminal)).toEqual(onTheTerminal);
+    },
+  );
+
+  it.each([undefined, "QR", "CARD", "debit", null])(
+    "rejects a charge on the integrated terminal with the card type %s",
+    (card_type) => {
+      expect(
+        paymentsRendererToCoreMessageSchema.safeParse({ ...message, method: "POINT", card_type })
+          .success,
+      ).toBe(false);
+    },
+  );
+
+  it("takes no card type for a QR charge", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse({ ...message, card_type: "DEBIT" })).toEqual(
+      message,
+    );
   });
 
   it.each([undefined, "CASH", "TRANSFER", "MERCADOPAGO_POINT", "point"])(

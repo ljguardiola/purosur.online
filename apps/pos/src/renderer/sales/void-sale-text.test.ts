@@ -58,7 +58,7 @@ describe("voidRefundPresentation", () => {
 
   it.each([
     ["QR", "QR de Mercado Pago"],
-    ["POINT", "Point integrada"],
+    ["POINT", "Point"],
   ] as const)(
     "leaves a %s refund for the cloud to send to Mercado Pago once confirmed",
     (method, name) => {

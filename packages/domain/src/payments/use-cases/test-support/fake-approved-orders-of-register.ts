@@ -25,10 +25,15 @@ export class FakeApprovedOrdersOfRegister implements ApprovedOrdersOfRegister {
       .map((transaction) => ({
         paymentTransactionId: transaction.id,
         saleId: transaction.saleId,
-        method: transaction.method,
-        provider: transaction.provider,
         amount: transaction.amount,
         createdAt: new Date(transaction.createdAt),
+        ...(transaction.method === "POINT"
+          ? {
+              method: transaction.method,
+              provider: transaction.provider,
+              cardType: transaction.cardType,
+            }
+          : { method: transaction.method, provider: transaction.provider }),
       }));
   }
 }

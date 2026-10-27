@@ -160,7 +160,7 @@ function saleCancelledEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: "sale_cancelled",
-    schema_version: 7,
+    schema_version: 8,
     payload: {
       id: sale.id,
       register_id: sale.registerId,

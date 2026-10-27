@@ -9,6 +9,7 @@ import {
   markQrPaymentReplaced,
   readPendingMercadoPagoPayment,
   readPendingMercadoPagoPaymentsOf,
+  readRecordedPayments,
   readSalePayments,
 } from "./sqlite-sale-payments";
 
@@ -65,12 +66,26 @@ function addQrPayment(id: string, saleId: string, amount: number, state: string)
     .run(id, saleId, amount, state, OCCURRED_AT.toISOString(), CONFIRMED_AT.toISOString());
 }
 
-function addPointPayment(id: string, saleId: string, amount: number, state: string): void {
+function addPointPayment(
+  id: string,
+  saleId: string,
+  amount: number,
+  state: string,
+  cardType: "DEBIT" | "CREDIT" | null = null,
+): void {
   database
     .prepare(
-      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES (?, ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', ?, ?, ?, ?)",
+      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at) VALUES (?, ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', ?, ?, ?, ?, ?)",
     )
-    .run(id, saleId, amount, state, OCCURRED_AT.toISOString(), CONFIRMED_AT.toISOString());
+    .run(
+      id,
+      saleId,
+      cardType,
+      amount,
+      state,
+      OCCURRED_AT.toISOString(),
+      CONFIRMED_AT.toISOString(),
+    );
 }
 
 const POINT_PENDING = {
@@ -79,6 +94,7 @@ const POINT_PENDING = {
   kind: "SALE",
   method: "POINT",
   provider: "MERCADOPAGO_POINT",
+  cardType: "DEBIT",
   state: "PENDING",
   amount: 2500,
   occurredAt: OCCURRED_AT,
@@ -86,10 +102,15 @@ const POINT_PENDING = {
 } as const;
 
 const QR_PENDING = {
-  ...POINT_PENDING,
   id: "qr-1",
+  saleId: "sale-1",
+  kind: "SALE",
   method: "QR",
   provider: "MERCADOPAGO_QR",
+  state: "PENDING",
+  amount: 2500,
+  occurredAt: OCCURRED_AT,
+  waitEndsAt: CONFIRMED_AT,
 } as const;
 
 beforeEach(() => {
@@ -235,10 +256,42 @@ describe("the payments made on the integrated terminal", () => {
       kind: "SALE",
       method: "POINT",
       provider: "MERCADOPAGO_POINT",
+      cardType: null,
       amount: 1500,
       state: "APPROVED",
       occurredAt: OCCURRED_AT,
     });
+  });
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "read back the %s card type of an approved payment",
+    (cardType) => {
+      addPointPayment("payment-1", "sale-1", 1500, "APPROVED", cardType);
+
+      expect(readSalePayments(database, "sale-1")).toMatchObject([{ cardType }]);
+      expect(readRecordedPayments(database, "sale-1")).toMatchObject([{ cardType }]);
+    },
+  );
+
+  it("store the credit card type of a pending payment and read it back", () => {
+    insertPendingMercadoPagoPayment(database, { ...POINT_PENDING, cardType: "CREDIT" });
+
+    expect(readPendingMercadoPagoPayment(database, "point-1")).toEqual({
+      ...POINT_PENDING,
+      cardType: "CREDIT",
+    });
+  });
+
+  it("read back a pending payment recorded without a card type as having none", () => {
+    addPointPayment("point-1", "sale-1", 2500, "PENDING");
+
+    expect(readPendingMercadoPagoPayment(database, "point-1")).toMatchObject({ cardType: null });
+  });
+
+  it("read back a QR payment with no card type", () => {
+    addQrPayment("qr-1", "sale-1", 1500, "APPROVED");
+
+    expect(readSalePayments(database, "sale-1")[0]).not.toHaveProperty("cardType");
   });
 
   it.each(["PENDING", "DECLINED", "CANCELLED", "EXPIRED"])(

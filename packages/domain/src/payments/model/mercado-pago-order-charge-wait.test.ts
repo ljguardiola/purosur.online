@@ -9,7 +9,9 @@ import {
   mercadoPagoOrderChargeWait,
   mercadoPagoOrderChargeWaitEndsAt,
   mercadoPagoOrderChargeWaitSeconds,
+  type PendingMercadoPagoCharge,
 } from "./mercado-pago-order-charge-wait.js";
+import type { PointCardType } from "./payment.js";
 import { mercadoPagoOrderExpiresAt } from "./payment-transaction.js";
 
 const STARTED_AT = new Date("2026-10-09T12:00:00.000Z");
@@ -175,13 +177,11 @@ describe("mercadoPagoChargeInProgress", () => {
     method: "QR" | "POINT",
     waitEndsAt: Date,
     occurredAt = new Date(waitEndsAt.getTime() - 180_000),
-  ) => ({
-    id,
-    method,
-    amount: 3000,
-    occurredAt,
-    waitEndsAt,
-  });
+    cardType: PointCardType | null = "DEBIT",
+  ): PendingMercadoPagoCharge => {
+    const payment = { id, amount: 3000, occurredAt, waitEndsAt };
+    return method === "POINT" ? { ...payment, method, cardType } : { ...payment, method };
+  };
 
   it("is none for a sale with no pending Mercado Pago payment", () => {
     expect(mercadoPagoChargeInProgress([], STARTED_AT)).toBeNull();
@@ -209,13 +209,26 @@ describe("mercadoPagoChargeInProgress", () => {
     });
   });
 
-  it("names a pending terminal payment after its wait, with no time left", () => {
+  it("names a pending terminal payment after its wait, with its card type and no time left", () => {
     expect(mercadoPagoChargeInProgress([pending("point-1", "POINT", OVER)], WAIT_ENDS_AT)).toEqual({
       paymentTransactionId: "point-1",
       method: "POINT",
+      cardType: "DEBIT",
       amount: 3000,
       remainingSeconds: 0,
       waitSeconds: 180,
     });
   });
+
+  it.each(["CREDIT", null] as const)(
+    "names the card type %s of a pending terminal payment",
+    (cardType) => {
+      expect(
+        mercadoPagoChargeInProgress(
+          [pending("point-1", "POINT", OVER, undefined, cardType)],
+          WAIT_ENDS_AT,
+        ),
+      ).toMatchObject({ method: "POINT", cardType });
+    },
+  );
 });

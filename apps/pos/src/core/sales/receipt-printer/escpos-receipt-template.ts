@@ -3,6 +3,7 @@ import {
   type CreditNoteCFiscalBlock,
   type CreditNoteReceiptContent,
   type DeferredSaleDocumentBlock,
+  type PointCardType,
   type ReceiptContent,
   type ReceiptCopy,
   STOCK_QUANTITY_DECIMALS,
@@ -64,9 +65,14 @@ const PAYMENT_NAMES = {
   CASH: "Efectivo",
   TRANSFER: "Transferencia",
   QR: "QR Mercado Pago",
-  POINT: "Point Mercado Pago",
+  POINT: "Point",
   STANDALONE_TERMINAL: "Terminal independiente",
 } as const;
+
+const POINT_CARD_NAMES = {
+  DEBIT: "Point · Débito",
+  CREDIT: "Point · Crédito",
+} as const satisfies Record<PointCardType, string>;
 
 class Output {
   private readonly chunks: Uint8Array[] = [];
@@ -358,8 +364,11 @@ function saleLines(
 function salePayments(out: Output, { totals }: Pick<ReceiptContent, "totals">): void {
   out.lines([
     RULE,
-    ...totals.payments.flatMap(({ method, amount }) =>
-      row(PAYMENT_NAMES[method], formatCents(amount)),
+    ...totals.payments.flatMap(({ method, amount, cardType }) =>
+      row(
+        cardType === null ? PAYMENT_NAMES[method] : POINT_CARD_NAMES[cardType],
+        formatCents(amount),
+      ),
     ),
     ...(totals.change > 0 ? row("Vuelto", formatCents(totals.change)) : []),
   ]);

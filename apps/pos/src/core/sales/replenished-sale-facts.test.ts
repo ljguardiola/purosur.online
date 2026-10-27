@@ -387,6 +387,7 @@ describe("replenishing a completed sale into a restored register", () => {
             provider: "NONE",
             amount: 1500,
             tendered: null,
+            cardType: null,
             state: "APPROVED",
             occurredAt: SOLD_AT,
             authorizedBy: "boss-1",
@@ -419,6 +420,7 @@ describe("replenishing a completed sale into a restored register", () => {
               provider: "EXTERNAL_TERMINAL",
               amount: 1500,
               tendered: null,
+              cardType: null,
               state: "APPROVED",
               occurredAt: SOLD_AT,
               authorizedBy: null,
@@ -440,6 +442,7 @@ describe("replenishing a completed sale into a restored register", () => {
             provider: "MERCADOPAGO_QR",
             amount: 1500,
             tendered: null,
+            cardType: null,
             state: "APPROVED",
             occurredAt: SOLD_AT,
             authorizedBy: null,
@@ -454,6 +457,35 @@ describe("replenishing a completed sale into a restored register", () => {
       database.prepare("SELECT method, provider, state FROM payment_transactions").get(),
     ).toEqual({ method: "QR", provider: "MERCADOPAGO_QR", state: "APPROVED" });
   });
+
+  it.each(["DEBIT", "CREDIT", null] as const)(
+    "holds an approved Point payment with its %s card type",
+    (cardType) => {
+      apply(
+        completedSale({
+          payments: [
+            {
+              id: "payment-1",
+              method: "POINT",
+              provider: "MERCADOPAGO_POINT",
+              amount: 1500,
+              tendered: null,
+              cardType,
+              state: "APPROVED",
+              occurredAt: SOLD_AT,
+              authorizedBy: null,
+              confirmedAt: null,
+            },
+          ],
+          cashMovements: [],
+        }),
+      );
+
+      expect(
+        database.prepare("SELECT method, card_type, state FROM payment_transactions").get(),
+      ).toEqual({ method: "POINT", card_type: cardType, state: "APPROVED" });
+    },
+  );
 
   it("takes the sale's stock out of the balance and keeps the movement that did", () => {
     addToStockBalance(database, "product-1", 10);
@@ -596,6 +628,7 @@ describe("replenishing a completed sale into a restored register", () => {
               provider: "MERCADOPAGO_QR",
               amount: 1500,
               tendered: null,
+              cardType: null,
               state: "APPROVED",
               occurredAt: SOLD_AT,
               authorizedBy: null,

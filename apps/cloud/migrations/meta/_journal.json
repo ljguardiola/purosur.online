@@ -950,8 +950,15 @@
     {
       "idx": 135,
       "version": "7",
-      "when": 1793102728437,
-      "tag": "0142_return_credit_notes",
+      "when": 1793100519133,
+      "tag": "0142_point_card_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1793119180753,
+      "tag": "0143_return_credit_notes",
       "breakpoints": true
     }
   ]

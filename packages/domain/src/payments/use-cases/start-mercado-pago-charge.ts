@@ -4,17 +4,16 @@ import {
   mercadoPagoOrderChargeWaitSeconds,
 } from "../model/mercado-pago-order-charge-wait.js";
 import type {
+  MercadoPagoChargeMethod,
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargePorts,
-  PendingMercadoPagoPayment,
 } from "./mercado-pago-charge-ports.js";
 
-export interface StartMercadoPagoChargeInput {
+export type StartMercadoPagoChargeInput = {
   actorId: string;
   saleId: string;
-  method: PendingMercadoPagoPayment["method"];
   amount: number;
-}
+} & MercadoPagoChargeMethod;
 
 export type StartMercadoPagoChargeOutcome<Refusal> =
   | {
@@ -59,25 +58,25 @@ export async function startMercadoPagoCharge<Refusal, Settlement>(
     charges,
     clock,
   }: Pick<MercadoPagoChargePorts<Refusal, Settlement>, "sale" | "orders" | "charges" | "clock">,
-  { actorId, saleId, method, amount }: StartMercadoPagoChargeInput,
+  { actorId, saleId, amount, ...charge }: StartMercadoPagoChargeInput,
 ): Promise<StartMercadoPagoChargeOutcome<Refusal>> {
   const startedAt = clock.now();
   const waitEndsAt = mercadoPagoOrderChargeWaitEndsAt(startedAt);
   const recorded = sale.recordPendingPayment({
     actorId,
     saleId,
-    method,
     amount,
     occurredAt: startedAt,
     waitEndsAt,
+    ...charge,
   });
   if (recorded.kind === "refused") {
     return recorded.refusal;
   }
 
   const { paymentTransactionId } = recorded;
-  const answer = await orders.requestOrder({ paymentTransactionId, saleId, method, amount });
-  if (method === "POINT") {
+  const answer = await orders.requestOrder({ paymentTransactionId, saleId, amount, ...charge });
+  if (charge.method === "POINT") {
     return startedOnTheTerminal(
       { charges, clock },
       { paymentTransactionId, amount, startedAt, waitEndsAt },

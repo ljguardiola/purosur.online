@@ -112,7 +112,7 @@ import {
   stockCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { AuthorizablePermissionKey, PointCardType } from "@purosur/domain";
 import { z } from "zod";
 
 const coreToRendererMessageSchema = z.discriminatedUnion("type", [
@@ -204,10 +204,7 @@ export type SerialDevicesToRegister = Extract<
   { type: "register-serial-devices" }
 >["devices"];
 
-export type MercadoPagoMethod = Extract<
-  PaymentsRendererToCoreMessage,
-  { type: "start-mercado-pago-charge" }
->["method"];
+export type MercadoPagoChargeKind = { method: "QR" } | { method: "POINT"; cardType: PointCardType };
 
 export interface CoreClient {
   connect(port: CorePort): void;
@@ -341,7 +338,7 @@ export interface CoreClient {
   paymentMethodAvailability(): Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge(
     saleId: string,
-    method: MercadoPagoMethod,
+    charge: MercadoPagoChargeKind,
     amount: number,
   ): Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge(paymentTransactionId: string): Promise<FollowMercadoPagoChargeOutcome>;
@@ -1116,13 +1113,15 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "payment-method-availability-result" ? answer.availability : undefined,
       );
     },
-    startMercadoPagoCharge(saleId, method, amount) {
+    startMercadoPagoCharge(saleId, charge, amount) {
       return ask(
         {
           type: "start-mercado-pago-charge",
           request_id: deps.newRequestId(),
           sale_id: saleId,
-          method,
+          ...(charge.method === "QR"
+            ? { method: charge.method }
+            : { method: charge.method, card_type: charge.cardType }),
           amount,
         },
         (answer) =>

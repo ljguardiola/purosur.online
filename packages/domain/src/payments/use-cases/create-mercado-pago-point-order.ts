@@ -2,6 +2,7 @@ import {
   isValidPointOrderAmount,
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
 } from "../model/mercado-pago-point-order.js";
+import type { PointCardType } from "../model/payment.js";
 import { isValidOrderAmount } from "../model/payment-transaction.js";
 import {
   type CreateMercadoPagoOrderInput,
@@ -11,7 +12,9 @@ import {
 } from "./create-mercado-pago-order.js";
 import type { MercadoPagoPointOrderPorts } from "./mercado-pago-order-ports.js";
 
-export type CreateMercadoPagoPointOrderInput = CreateMercadoPagoOrderInput;
+export type CreateMercadoPagoPointOrderInput = CreateMercadoPagoOrderInput & {
+  cardType: PointCardType;
+};
 
 type PointAmountRefusal = { kind: "invalid_amount" } | { kind: "below_minimum" };
 
@@ -25,9 +28,10 @@ export type CreateMercadoPagoPointOrderOutcome = CreateMercadoPagoOrderOutcome<
 const POINT_ORDER: MercadoPagoOrderKind<
   PointAmountRefusal,
   PointOrderNotCreated,
-  MercadoPagoPointOrderPorts
+  MercadoPagoPointOrderPorts,
+  CreateMercadoPagoPointOrderInput
 > = {
-  identity: { method: "POINT", provider: "MERCADOPAGO_POINT" },
+  identityOf: ({ cardType }) => ({ method: "POINT", provider: "MERCADOPAGO_POINT", cardType }),
   lifetimeMinutes: MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
   refuseAmount: (amount) => {
     if (isValidPointOrderAmount(amount)) {
@@ -35,11 +39,11 @@ const POINT_ORDER: MercadoPagoOrderKind<
     }
     return isValidOrderAmount(amount) ? { kind: "below_minimum" } : { kind: "invalid_amount" };
   },
-  create: async ({ mercadoPago, pointTerminals }, registerId, request) => {
+  create: async ({ mercadoPago, pointTerminals }, registerId, request, { cardType }) => {
     const terminalId = await pointTerminals.terminalOfRegister(registerId);
     return terminalId === null
       ? { kind: "not_created", outcome: { kind: "not_configured" } }
-      : mercadoPago.createPointOrder({ ...request, terminalId });
+      : mercadoPago.createPointOrder({ ...request, terminalId, cardType });
   },
 };
 
