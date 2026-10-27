@@ -141,7 +141,7 @@ describe("acceptSaleCreditNoteRequest", () => {
         "enterLane",
         "registerOwnsPointOfSale",
         "recordedCreditNote",
-        "registerIssuesFromPointOfSale",
+        "branchIssuesFromPointOfSale",
         "invoiceTotalOf",
         "creditedToInvoice",
         "recordSaleCreditNote",

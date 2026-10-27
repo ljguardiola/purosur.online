@@ -111,8 +111,8 @@ class FakeSaleCreditNoteLane implements SaleCreditNoteLane {
     return this.store.isRealTimeOf(registerId, pointOfSale);
   }
 
-  async registerIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
-    this.store.operations.push("registerIssuesFromPointOfSale");
+  async branchIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
+    this.store.operations.push("branchIssuesFromPointOfSale");
     return this.store.issuesFrom(registerId, pointOfSale);
   }
 

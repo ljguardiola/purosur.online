@@ -109,10 +109,10 @@ describe("the credit notes of voided and returned sales on a real Postgres", () 
       .values({ locationId: await seededLocationId(db), name: "caja-2" })
       .returning({ id: registers.id });
 
-    expect(await inLane((lane) => lane.registerIssuesFromPointOfSale(registerId, 31))).toBe(true);
-    expect(await inLane((lane) => lane.registerIssuesFromPointOfSale(registerId, 7))).toBe(true);
-    expect(await inLane((lane) => lane.registerIssuesFromPointOfSale(registerId, 99))).toBe(false);
-    expect(await inLane((lane) => lane.registerIssuesFromPointOfSale(other?.id ?? "", 31))).toBe(
+    expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(registerId, 31))).toBe(true);
+    expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(registerId, 7))).toBe(true);
+    expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(registerId, 99))).toBe(false);
+    expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(other?.id ?? "", 31))).toBe(
       false,
     );
   });

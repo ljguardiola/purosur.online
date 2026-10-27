@@ -57,7 +57,7 @@ class DrizzleSaleCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     return current !== undefined;
   }
 
-  async registerIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
+  async branchIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
     const [claim] = await this.db
       .select({ registerId: pointOfSaleClaims.registerId })
       .from(pointOfSaleClaims)
