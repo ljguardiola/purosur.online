@@ -1,15 +1,6 @@
-import {
-  type IssuedFiscalDocumentsQuery,
-  issuedFiscalDocumentsQuerySchema,
-} from "@purosur/contracts";
+import type { IssuedFiscalDocumentsQuery } from "@purosur/contracts";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { IssuedFiscalDocumentsFilters } from "./issued-fiscal-documents-filters";
-
-const numberSchema = issuedFiscalDocumentsQuerySchema.shape.number;
-
-export function isDocumentNumberText(text: string): boolean {
-  return text === "" || numberSchema.safeParse(text).success;
-}
 
 export function issuedFiscalDocumentsQueryOf(
   filters: IssuedFiscalDocumentsFilters,
@@ -20,9 +11,7 @@ export function issuedFiscalDocumentsQueryOf(
     ...(to === undefined ? {} : { to }),
     ...(register_id === undefined ? {} : { register_id }),
     ...(filters.kind === "ALL" ? {} : { kind: filters.kind }),
-    ...(filters.number === "" || !isDocumentNumberText(filters.number)
-      ? {}
-      : { number: Number(filters.number) }),
+    ...(filters.number === "" ? {} : { number: Number(filters.number) }),
     page: filters.page,
   };
 }

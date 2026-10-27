@@ -170,16 +170,12 @@ export {
   owesFortnightReport,
 } from "./model/fortnight-report.js";
 export { generationStampOf } from "./model/generation-stamp.js";
-export type {
-  IssuedDocumentKind,
-  IssuedDocumentState,
-  OnlineDocumentAuthorizationFacts,
-} from "./model/issued-fiscal-document.js";
+export type { IssuedDocumentKind, IssuedDocumentState } from "./model/issued-fiscal-document.js";
 export {
+  CAEA_DOCUMENT_ISSUED_STATE,
   ISSUED_DOCUMENT_KINDS,
   ISSUED_DOCUMENT_STATES,
   ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
-  issuedStateOfOnlineDocument,
   LISTED_ONLINE_DOCUMENT_STATES,
 } from "./model/issued-fiscal-document.js";
 export {

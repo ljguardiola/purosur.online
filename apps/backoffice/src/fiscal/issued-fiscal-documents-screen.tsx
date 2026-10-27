@@ -4,6 +4,7 @@ import {
   formatCents,
   ListFilter,
   Pagination,
+  parseInvoiceNumber,
   SearchField,
   StatusIndicator,
   Table,
@@ -12,8 +13,9 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { FileText, Search } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { CloudData } from "../platform/use-cloud-query";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -28,11 +30,11 @@ import {
   voucherDetailText,
   voucherText,
 } from "./issued-fiscal-document-text";
-import type { IssuedFiscalDocumentsFilters } from "./issued-fiscal-documents-filters";
 import {
+  type IssuedFiscalDocumentsFilters,
   isDocumentNumberText,
-  issuedFiscalDocumentsQueryOf,
-} from "./issued-fiscal-documents-query";
+} from "./issued-fiscal-documents-filters";
+import { issuedFiscalDocumentsQueryOf } from "./issued-fiscal-documents-query";
 import type { IssuedFiscalDocumentsScreenServices } from "./issued-fiscal-documents-services";
 
 export type IssuedFiscalDocumentsScreenProps = {
@@ -125,11 +127,24 @@ export function IssuedFiscalDocumentsScreen({
   services,
 }: IssuedFiscalDocumentsScreenProps) {
   const [numberText, setNumberText] = useState(filters.number);
-  const data = useIssuedFiscalDocumentsQuery({
+  const read = useIssuedFiscalDocumentsQuery({
     query: issuedFiscalDocumentsQueryOf(filters),
     fetchIssuedFiscalDocuments: services.fetchIssuedFiscalDocuments,
     onSessionEnded,
   });
+  const lastPage =
+    read.status === "loaded"
+      ? Math.max(1, Math.ceil(read.value.total / read.value.page_size))
+      : undefined;
+  const settledLastPage = read.status === "loaded" && !read.refreshing ? lastPage : undefined;
+  const reportFilters = useEffectEvent(onFiltersChange);
+  useEffect(() => {
+    if (settledLastPage !== undefined && filters.page > settledLastPage) {
+      reportFilters({ ...filters, page: settledLastPage });
+    }
+  }, [settledLastPage, filters]);
+  const data: CloudData<IssuedFiscalDocumentsBody> =
+    lastPage !== undefined && filters.page > lastPage ? { status: "loading" } : read;
   const shown = data.status === "loaded" ? data.value : data.lastValue;
   const table = useTableModel({
     items: shown?.documents ?? NO_DOCUMENTS,
@@ -147,8 +162,9 @@ export function IssuedFiscalDocumentsScreen({
 
   function changeNumber(text: string) {
     setNumberText(text);
-    if (isDocumentNumberText(text)) {
-      changeFilters({ ...filters, number: text });
+    const number = text.trim() === "" ? "" : String(parseInvoiceNumber(text));
+    if (isDocumentNumberText(number)) {
+      changeFilters({ ...filters, number });
     }
   }
 

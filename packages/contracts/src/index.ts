@@ -203,6 +203,7 @@ export {
   issuedFiscalDocumentsQuerySchema,
   issuedFiscalDocumentsSchema,
 } from "./fiscal/issued-fiscal-documents.js";
+export { issuedFiscalDocumentsQueryNumberSchema } from "./fiscal/issued-fiscal-documents-query-number.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { OfflinePointOfSaleConfigurationBody } from "./fiscal/offline-point-of-sale-configuration.js";

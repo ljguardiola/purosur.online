@@ -1,4 +1,5 @@
 import {
+  CAEA_DOCUMENT_ISSUED_STATE,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   CREDIT_NOTE_C_VOUCHER_TYPE,
   FACTURA_C_VOUCHER_TYPE,
@@ -29,10 +30,10 @@ function matches(column: SQL | null, value: string | null): SQL {
   return value === null ? sql`${column} is null` : sql`${column} = ${value}`;
 }
 
-function listedState(answer: SQL, decision: SQL): SQL<IssuedDocumentState> {
+function listedState(requested: SQL, answer: SQL, decision: SQL): SQL<IssuedDocumentState> {
   const listed = LISTED_ONLINE_DOCUMENT_STATES.map(
     (facts) =>
-      sql`when ${matches(answer, facts.answer)} and ${matches(decision, facts.decision)} then ${literal(facts.state)}`,
+      sql`when (${requested}) = ${sql.raw(String(facts.requested))} and ${matches(answer, facts.answer)} and ${matches(decision, facts.decision)} then ${literal(facts.state)}`,
   );
   return sql`case ${sql.join(listed, sql` `)} end`;
 }
@@ -58,9 +59,11 @@ function onlineReceipts() {
     registerId: sql<string>`${registers.id}::text`.as("registerId"),
     registerName: sql<string>`${registers.name}`.as("registerName"),
     locationId: sql<string>`${registers.locationId}::text`.as("locationId"),
-    state: listedState(sql`${fiscalRequests.answerKind}`, sql`${fiscalRequests.decision}`).as(
-      "state",
-    ),
+    state: listedState(
+      sql`true`,
+      sql`${fiscalRequests.answerKind}`,
+      sql`${fiscalRequests.decision}`,
+    ).as("state"),
     authorizationKind: sql<string | null>`case when ${code} is not null then 'cae' end`.as(
       "authorizationKind",
     ),
@@ -87,7 +90,11 @@ function onlineCreditNotes() {
     registerId: sql<string>`${registers.id}::text`.as("registerId"),
     registerName: sql<string>`${registers.name}`.as("registerName"),
     locationId: sql<string>`${registers.locationId}::text`.as("locationId"),
-    state: listedState(sql`${creditNotes.answerKind}`, sql`null::text`).as("state"),
+    state: listedState(
+      sql`${creditNotes.number} is not null`,
+      sql`${creditNotes.answerKind}`,
+      sql`null::text`,
+    ).as("state"),
     authorizationKind: sql<
       string | null
     >`case when ${creditNotes.authorizationCode} is not null then 'cae' end`,
@@ -126,7 +133,7 @@ function offlineDocuments() {
     registerId: sql<string>`${registers.id}::text`.as("registerId"),
     registerName: sql<string>`${registers.name}`.as("registerName"),
     locationId: sql<string>`${registers.locationId}::text`.as("locationId"),
-    state: sql<IssuedDocumentState>`${literal("authorized")}::text`.as("state"),
+    state: sql<IssuedDocumentState>`${literal(CAEA_DOCUMENT_ISSUED_STATE)}::text`.as("state"),
     authorizationKind: sql<string | null>`${literal("caea")}::text`.as("authorizationKind"),
     authorizationCode: sql<string | null>`${offlineFiscalDocuments.offlineAuthorizationCode}`.as(
       "authorizationCode",
@@ -173,8 +180,7 @@ export class DrizzleIssuedFiscalDocumentsReader<TQueryResult extends PgQueryResu
       this.db
         .select(onlineCreditNotes())
         .from(creditNotes)
-        .innerJoin(registers, eq(registers.id, creditNotes.registerId))
-        .where(sql`${creditNotes.number} is not null`),
+        .innerJoin(registers, eq(registers.id, creditNotes.registerId)),
       this.db
         .select(offlineDocuments())
         .from(offlineFiscalDocuments)

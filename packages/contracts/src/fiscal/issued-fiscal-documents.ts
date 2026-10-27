@@ -7,12 +7,9 @@ import {
 } from "@purosur/domain";
 import { z } from "zod";
 import { answeredRangeSchema, pointOfSaleNumberSchema, recordIdSchema } from "../shared/index.js";
+import { issuedFiscalDocumentsQueryNumberSchema } from "./issued-fiscal-documents-query-number.js";
 
 const calendarDay = z.string().refine(isCalendarDay);
-const positiveWholeNumber = z
-  .string()
-  .regex(/^[1-9]\d{0,8}$/)
-  .transform(Number);
 
 export const issuedFiscalDocumentsQuerySchema = z
   .object({
@@ -20,8 +17,8 @@ export const issuedFiscalDocumentsQuerySchema = z
     to: z.string().optional(),
     register_id: recordIdSchema().optional(),
     kind: z.enum(ISSUED_DOCUMENT_KINDS).optional(),
-    number: positiveWholeNumber.optional(),
-    page: positiveWholeNumber.optional(),
+    number: issuedFiscalDocumentsQueryNumberSchema.optional(),
+    page: issuedFiscalDocumentsQueryNumberSchema.optional(),
   })
   .refine(({ from, to }) => isReportPeriodAsked({ from, to }));
 

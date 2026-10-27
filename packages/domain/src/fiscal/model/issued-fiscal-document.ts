@@ -9,37 +9,32 @@ export type IssuedDocumentKind = (typeof ISSUED_DOCUMENT_KINDS)[number];
 export const ISSUED_DOCUMENT_STATES = ["authorized", "awaiting_authorization"] as const;
 export type IssuedDocumentState = (typeof ISSUED_DOCUMENT_STATES)[number];
 
-export interface OnlineDocumentAuthorizationFacts {
+export const CAEA_DOCUMENT_ISSUED_STATE: IssuedDocumentState = "authorized";
+
+interface ListedOnlineDocumentState {
+  requested: true;
   answer: RealTimeAuthorizationAnswer["kind"] | null;
   decision: UnclearOutcomeDecision["kind"] | null;
+  state: IssuedDocumentState;
 }
 
-type ListedOnlineDocumentState = OnlineDocumentAuthorizationFacts & {
-  state: IssuedDocumentState;
-};
-
 export const LISTED_ONLINE_DOCUMENT_STATES: readonly ListedOnlineDocumentState[] = [
-  { answer: "authorized", decision: null, state: "authorized" },
-  ...UNCLEAR_ANSWER_KINDS.map(
-    (answer): ListedOnlineDocumentState => ({ answer, decision: "adopted", state: "authorized" }),
-  ),
-  { answer: null, decision: null, state: "awaiting_authorization" },
+  { requested: true, answer: "authorized", decision: null, state: "authorized" },
   ...UNCLEAR_ANSWER_KINDS.map(
     (answer): ListedOnlineDocumentState => ({
+      requested: true,
+      answer,
+      decision: "adopted",
+      state: "authorized",
+    }),
+  ),
+  { requested: true, answer: null, decision: null, state: "awaiting_authorization" },
+  ...UNCLEAR_ANSWER_KINDS.map(
+    (answer): ListedOnlineDocumentState => ({
+      requested: true,
       answer,
       decision: null,
       state: "awaiting_authorization",
     }),
   ),
 ];
-
-export function issuedStateOfOnlineDocument({
-  answer,
-  decision,
-}: OnlineDocumentAuthorizationFacts): IssuedDocumentState | null {
-  return (
-    LISTED_ONLINE_DOCUMENT_STATES.find(
-      (listed) => listed.answer === answer && listed.decision === decision,
-    )?.state ?? null
-  );
-}
