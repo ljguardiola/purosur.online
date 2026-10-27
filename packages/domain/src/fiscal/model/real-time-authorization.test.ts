@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { fixedOffsetZoneRules } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -14,6 +15,7 @@ import {
   decideSaleAuthorizationRoute,
   type FiscalDocumentState,
   invoiceDateOf,
+  invoiceOwnFortnight,
   isCompletionEventOfSale,
   isFiscalOutcomeUnresolved,
   mayStartAuthorizationCall,
@@ -223,6 +225,31 @@ describe("invoiceDateOf", () => {
     expect(invoiceDateOf(new Date("2026-10-02T03:00:00.000Z"), FIXED_ARGENTINA_ZONE_RULES)).toBe(
       "2026-10-02",
     );
+  });
+
+  it("is the day on the clock of the rules it is given", () => {
+    expect(invoiceDateOf(new Date("2026-10-02T02:30:00.000Z"), fixedOffsetZoneRules(-120))).toBe(
+      "2026-10-02",
+    );
+  });
+});
+
+describe("invoiceOwnFortnight", () => {
+  it("is the fortnight of the day on the clock of the rules it is given", () => {
+    const firstMomentOfTheSecondFortnightAtTwoHoursBehindUtc = new Date("2026-10-16T02:30:00.000Z");
+
+    expect(
+      invoiceOwnFortnight(
+        firstMomentOfTheSecondFortnightAtTwoHoursBehindUtc,
+        fixedOffsetZoneRules(-120),
+      ),
+    ).toEqual({ start: "2026-10-16", end: "2026-10-31" });
+    expect(
+      invoiceOwnFortnight(
+        firstMomentOfTheSecondFortnightAtTwoHoursBehindUtc,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toEqual({ start: "2026-10-01", end: "2026-10-15" });
   });
 });
 
@@ -1241,6 +1268,18 @@ describe("offlineRoute", () => {
       issuedOn: "2026-10-01",
       fortnight: OCTOBER_FIRST_FORTNIGHT,
       offlineAuthorizationCode: CODE,
+    });
+  });
+
+  it("issues on the day and in the fortnight of the clock of the rules it is given", () => {
+    expect(
+      route({
+        occurredAt: new Date("2026-10-16T02:30:00.000Z"),
+        rules: fixedOffsetZoneRules(-120),
+      }),
+    ).toMatchObject({
+      issuedOn: "2026-10-16",
+      fortnight: { start: "2026-10-16", end: "2026-10-31" },
     });
   });
 

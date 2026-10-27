@@ -35,7 +35,27 @@ describe("publishZoneRules", () => {
     ]);
   });
 
-  it("publishes nothing again for a version already published", async () => {
+  it("publishes again, as the next publication, a version published before a later one, so the version the cloud runs is the one published last", async () => {
+    const store = new FakeZoneRulesStore();
+    store.seed({ version: "2026a", transitions: TRANSITIONS, publicationNumber: 1 });
+    store.seed({ version: "2026b", transitions: TRANSITIONS, publicationNumber: 2 });
+
+    const outcome = await publishZoneRules(
+      { store },
+      { version: "2026a", transitions: TRANSITIONS },
+    );
+
+    expect(outcome).toEqual({ kind: "published", version: "2026a" });
+    expect(
+      store.snapshot().map(({ version, publicationNumber }) => ({ version, publicationNumber })),
+    ).toEqual([
+      { version: "2026a", publicationNumber: 1 },
+      { version: "2026b", publicationNumber: 2 },
+      { version: "2026a", publicationNumber: 3 },
+    ]);
+  });
+
+  it("publishes nothing again for the version published last", async () => {
     const store = new FakeZoneRulesStore();
     store.seed({ version: "2026a", transitions: TRANSITIONS, publicationNumber: 1 });
 

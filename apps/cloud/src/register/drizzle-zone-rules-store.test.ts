@@ -69,6 +69,26 @@ describe("DrizzleZoneRulesStore", () => {
     ]);
   });
 
+  it("appends a version published before a later one again, as the next publication, keeping both earlier rows", async () => {
+    await publish("2026a");
+    await publish("2026b");
+
+    const outcome = await publish("2026a");
+
+    expect(outcome).toEqual({ kind: "published", version: "2026a" });
+    expect(
+      await db
+        .select({ version: zoneRules.version, publicationNumber: zoneRules.publicationNumber })
+        .from(zoneRules)
+        .orderBy(asc(zoneRules.publicationNumber)),
+    ).toEqual([
+      { version: "2026a", publicationNumber: 1 },
+      { version: "2026b", publicationNumber: 2 },
+      { version: "2026a", publicationNumber: 3 },
+    ]);
+    expect(await new DrizzlePublishedZoneRulesReader(db).currentZoneRulesVersion()).toBe("2026a");
+  });
+
   it("publishes a version once, however many times it starts", async () => {
     await publish("2026a");
 

@@ -111,6 +111,13 @@ describe("argentinaInstant under given rules", () => {
     expect(argentinaInstant("2030-10-01", "00:00", SUMMER_TIME)).toBe("2030-10-01T00:00:00-03:00");
   });
 
+  it("writes a wall-clock time a forward transition skips on the offset before it, so the instant stays on its own day", () => {
+    const skipped = argentinaInstant("2030-03-01", "00:30", SUMMER_TIME);
+
+    expect(skipped).toBe("2030-03-01T00:30:00-03:00");
+    expect(argentinaCalendarDay(new Date(skipped), SUMMER_TIME)).toBe("2030-03-01");
+  });
+
   it("names the same instant as the wall-clock time read back under the same rules", () => {
     const instant = new Date(argentinaInstant("2030-06-01", "23:30", SUMMER_TIME));
 

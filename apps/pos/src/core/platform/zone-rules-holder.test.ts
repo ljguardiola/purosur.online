@@ -62,6 +62,17 @@ describe("the zone rules the register applies", () => {
     expect(holder.current().version).toBe("2026a");
   });
 
+  it("are a version the cloud published again after a later one, once that publication is saved", () => {
+    store("2026a", 1, -60);
+    store("2026b", 2, -120);
+    const holder = new ZoneRulesHolder(database);
+
+    store("2026a", 3, -60);
+    holder.refresh();
+
+    expect(holder.current().version).toBe("2026a");
+  });
+
   it("do not go back to a version published earlier that is delivered after a later one", () => {
     store("2026a", 2, -120);
     const holder = new ZoneRulesHolder(database);
