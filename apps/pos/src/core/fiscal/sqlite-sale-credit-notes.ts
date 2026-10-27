@@ -10,6 +10,7 @@ import {
 import type { PendingCreditNote, RegisterCreditNotes } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
+import { readRetainedBranchSale } from "../returns/sqlite-retained-branch-sales";
 import { readUncancelledDeferredSaleRecord } from "./sqlite-deferred-sales";
 import { readSaleInvoices } from "./sqlite-sale-invoices";
 
@@ -192,6 +193,11 @@ export function readSaleInvoiceStanding(
   database: LocalDatabase,
   saleId: string,
 ): SaleInvoiceStanding {
+  const held = database.prepare<[string], object>("SELECT 1 FROM sales WHERE id = ?").get(saleId);
+  const retained = held === undefined ? readRetainedBranchSale(database, saleId) : undefined;
+  if (retained !== undefined) {
+    return retained.invoiceStanding;
+  }
   const deferred = readUncancelledDeferredSaleRecord(database, saleId);
   return {
     fiscalDocuments: readSaleInvoices(database, saleId),
