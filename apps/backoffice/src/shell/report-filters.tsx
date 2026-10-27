@@ -3,15 +3,16 @@ import { reportQuerySchema } from "@purosur/contracts";
 import { DateField } from "@purosur/ui";
 import { Suspense, useState } from "react";
 import { calendarDateOf, dayOf, hasFourDigitYear } from "./report-day";
-import type { ReportFilters as ReportFiltersValue } from "./report-filters-search";
 import type { ReportRegisterField } from "./report-register-field";
 
-export type ReportFiltersProps<Filters extends ReportFiltersValue> = {
+export type ReportFiltersProps<Filters extends PeriodFilters> = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   answeredPeriod: { from: string; to: string } | undefined;
-  registerFilter: ReportRegisterField;
+  registerFilter?: ReportRegisterField;
 };
+
+export type PeriodFilters = { from: string; to: string; register?: string };
 
 type RangeDraft = { from: CalendarDate | null; to: CalendarDate | null };
 
@@ -22,7 +23,7 @@ function typedRange({ from, to }: RangeDraft): { from: string; to: string } | nu
   return { from: dayOf(from), to: dayOf(to) };
 }
 
-export function ReportFilters<Filters extends ReportFiltersValue>({
+export function ReportFilters<Filters extends PeriodFilters>({
   filters,
   onFiltersChange,
   answeredPeriod,
@@ -70,8 +71,8 @@ export function ReportFilters<Filters extends ReportFiltersValue>({
         }
       />
       <Suspense fallback={null}>
-        {registerFilter({
-          value: filters.register,
+        {registerFilter?.({
+          value: filters.register ?? "ALL",
           onChange: (register) => onFiltersChange({ ...filters, register }),
         })}
       </Suspense>
