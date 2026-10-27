@@ -2,7 +2,7 @@ import { Agent } from "node:https";
 import { type Client, createClientAsync, HttpClient, type IExOptions, type IHeaders } from "soap";
 
 // ARCA's production hosts offer a Diffie-Hellman group smaller than OpenSSL's default security
-// level accepts; the lower level applies only to connections made through ARCA's clients.
+// level accepts.
 const ARCA_HTTPS_AGENT = new Agent({ ciphers: "DEFAULT@SECLEVEL=1" });
 
 class ArcaHttpClient extends HttpClient {
