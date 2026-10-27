@@ -25,7 +25,12 @@ import {
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
-import { pointOfSaleNumberSchema, recordIdSchema, voidCreditNoteSchema } from "../shared/index.js";
+import {
+  pointOfSaleNumberSchema,
+  recordIdSchema,
+  returnCreditNoteSchema,
+  voidCreditNoteSchema,
+} from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -487,6 +492,10 @@ const saleReturnedV1Schema = z.object({
   ),
 });
 
+const saleReturnedV2Schema = saleReturnedV1Schema.extend({
+  credit_note: returnCreditNoteSchema.nullable(),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -660,6 +669,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_voided@2": saleVoidedV2Schema,
   "sale_voided@3": saleVoidedV3Schema,
   "sale_returned@1": saleReturnedV1Schema,
+  "sale_returned@2": saleReturnedV2Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

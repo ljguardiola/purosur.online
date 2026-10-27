@@ -234,6 +234,7 @@ export type {
   SaleVoidCreditNoteResponseBody,
 } from "./fiscal/sale-void-credit-note.js";
 export {
+  saleReturnedEventCreditNoteSchema,
   saleVoidCreditNoteRequestSchema,
   saleVoidCreditNoteResponseSchema,
   saleVoidedEventCreditNoteSchema,

@@ -189,6 +189,7 @@ function voidedSaleCreditNote(payload: VoidedSalePayload): CreditNoteToIssue | n
           pointOfSale: creditNote.corrects.point_of_sale,
           number: creditNote.corrects.number,
         },
+        origin: { kind: "sale_void" },
       };
 }
 
@@ -217,9 +218,41 @@ function voidedSale(payload: VoidedSalePayload): SyncedFact {
   };
 }
 
-function returnedSale(payload: SyncedEventPayloads["sale_returned@1"]): SyncedFact {
+type ReturnedSalePayload = SyncedEventPayloads["sale_returned@1" | "sale_returned@2"];
+
+function returnedSaleCreditNote(payload: ReturnedSalePayload): CreditNoteToIssue | null {
+  const creditNote = "credit_note" in payload ? payload.credit_note : null;
+  if (creditNote === null) {
+    return null;
+  }
+  const origin = {
+    kind: "sale_return",
+    returnId: payload.id,
+    issuedOn: creditNote.issued_on,
+  } as const;
+  const asked = {
+    creditNoteId: creditNote.id,
+    saleId: payload.sale_id,
+    total: creditNote.total,
+    origin,
+  };
+  return creditNote.corrects === null
+    ? { ...asked, receiverTaxStatusCode: null, correctedVoucher: null }
+    : {
+        ...asked,
+        receiverTaxStatusCode: creditNote.receiver_tax_status_code,
+        correctedVoucher: {
+          voucherType: creditNote.corrects.voucher_type,
+          pointOfSale: creditNote.corrects.point_of_sale,
+          number: creditNote.corrects.number,
+        },
+      };
+}
+
+function returnedSale(payload: ReturnedSalePayload): SyncedFact {
   return {
     kind: "sale_returned",
+    creditNote: returnedSaleCreditNote(payload),
     saleReturn: {
       id: payload.id,
       saleId: payload.sale_id,
@@ -468,6 +501,7 @@ const FACT_OF: {
   "sale_voided@2": voidedSale,
   "sale_voided@3": voidedSale,
   "sale_returned@1": returnedSale,
+  "sale_returned@2": returnedSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

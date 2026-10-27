@@ -29,7 +29,7 @@ export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
   | { kind: "sale_cancelled"; sale: CancelledSale }
   | { kind: "sale_voided"; sale: VoidedSale; creditNote: CreditNoteToIssue | null }
-  | { kind: "sale_returned"; saleReturn: ReturnedSale }
+  | { kind: "sale_returned"; saleReturn: ReturnedSale; creditNote: CreditNoteToIssue | null }
   | { kind: "sale_print_state_changed"; printState: SalePrintState }
   | { kind: "reprint_recorded"; reprint: SaleReprint }
   | { kind: "cash_session_opened"; session: CashSessionOpenedFact }
