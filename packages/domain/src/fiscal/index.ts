@@ -170,6 +170,18 @@ export {
   owesFortnightReport,
 } from "./model/fortnight-report.js";
 export { generationStampOf } from "./model/generation-stamp.js";
+export type {
+  IssuedDocumentKind,
+  IssuedDocumentState,
+  OnlineDocumentAuthorizationFacts,
+} from "./model/issued-fiscal-document.js";
+export {
+  ISSUED_DOCUMENT_KINDS,
+  ISSUED_DOCUMENT_STATES,
+  ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
+  issuedStateOfOnlineDocument,
+  LISTED_ONLINE_DOCUMENT_STATES,
+} from "./model/issued-fiscal-document.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,

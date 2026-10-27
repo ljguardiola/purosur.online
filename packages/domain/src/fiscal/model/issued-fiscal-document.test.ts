@@ -8,8 +8,18 @@ import {
 describe("issuedStateOfOnlineDocument", () => {
   it.each([
     ["authorized by the tax authority", "authorized", null, "authorized"],
-    ["unclear and then adopted from the tax authority's voucher", "unclear", "adopted", "authorized"],
-    ["never attempted and then adopted from the tax authority's voucher", "not_attempted", "adopted", "authorized"],
+    [
+      "unclear and then adopted from the tax authority's voucher",
+      "unclear",
+      "adopted",
+      "authorized",
+    ],
+    [
+      "never attempted and then adopted from the tax authority's voucher",
+      "not_attempted",
+      "adopted",
+      "authorized",
+    ],
     ["requested and not answered yet", null, null, "awaiting_authorization"],
     ["unclear and not decided yet", "unclear", null, "awaiting_authorization"],
   ] as const)("lists a document %s as %s", (_name, answer, decision, state) => {
