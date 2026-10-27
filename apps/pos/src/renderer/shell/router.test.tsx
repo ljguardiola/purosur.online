@@ -38,6 +38,7 @@ type RoutePath =
   | "/cash-count"
   | "/charge"
   | "/history"
+  | "/deferred-sale"
   | "/help"
   | "/receipt-printer"
   | "/serial-devices"
@@ -168,6 +169,8 @@ const screenFor: Record<
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
   "/charge": (screen) => screen.getByRole("heading", { name: "Elegí el medio de pago" }),
   "/history": (screen) => screen.getByRole("heading", { name: "Historial de ventas" }),
+  "/deferred-sale": (screen) =>
+    screen.getByRole("heading", { name: "Escaneá el documento del cliente" }),
   "/help": (screen) => screen.getByRole("heading", { level: 1, name: "Ayuda" }),
   "/receipt-printer": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
@@ -276,6 +279,9 @@ function contextWith(
     contingencyBackupTicketOfSale: async () => ({ kind: "unavailable" }),
     discardContingencyBackupTickets: async () => ({ kind: "unavailable" }),
     printOriginalReceipt: async () => ({ kind: "unavailable" }),
+    findDeferredSale: async () => ({ kind: "not_found" }),
+    printDeferredSaleInvoice: async () => ({ kind: "unavailable" }),
+    reprintDeferredSaleInvoice: async () => ({ kind: "unavailable" }),
     printCreditNote: async () => ({ kind: "unavailable" }),
     reprintCreditNote: async () => ({ kind: "unavailable" }),
     convertPaidOrderIntoRefund: async () => ({ kind: "unavailable" }),
@@ -925,6 +931,21 @@ describe("the register's router", () => {
       redirectedTo: "/core-down",
     },
     {
+      path: "/deferred-sale",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
+    {
+      path: "/deferred-sale",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/locked",
+    },
+    {
       path: "/charge",
       coreStatus: "up",
       enrollment: "enrolled",
@@ -1242,6 +1263,21 @@ describe("the register's router", () => {
 
     await expect
       .element(screen.getByRole("heading", { name: "No se pudo restaurar la caja" }))
+      .toBeVisible();
+  });
+
+  it("tells the restoring screen when the replenishment can never complete", async () => {
+    const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "failed",
+      step: "replenish",
+      failure: "unreadable_event",
+      origin: "copy",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "La caja no pudo ponerse al día" }))
       .toBeVisible();
   });
 
@@ -3009,6 +3045,8 @@ describe("the register's status bar", () => {
     { path: "/cash-count", cashSession: OPEN_SESSION, person: undefined },
     { path: "/history", cashSession: NO_SESSION, person: undefined },
     { path: "/history", cashSession: OPEN_SESSION, person: undefined },
+    { path: "/deferred-sale", cashSession: NO_SESSION, person: undefined },
+    { path: "/deferred-sale", cashSession: OPEN_SESSION, person: undefined },
     { path: "/locked", cashSession: LOCKED_SESSION, person: null },
     { path: "/locked-close", cashSession: LOCKED_SESSION, person: null },
   ])("is shown on $path", async ({ path, cashSession, person, context }) => {

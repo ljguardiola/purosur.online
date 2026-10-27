@@ -20,6 +20,7 @@ export {
   contingencyBackupTicketQrCodes,
   joinContingencyBackupTicketParts,
   readContingencyBackupTicketQrCode,
+  sameContingencyBackupTicket,
 } from "./backups/contingency-backup-ticket.js";
 export type {
   ContingencyBackupTicketOfSaleAnswer,
@@ -31,6 +32,14 @@ export {
   contingencyBackupTicketsAnswerSchema,
   discardContingencyBackupTicketsOutcomeSchema,
 } from "./backups/contingency-backup-ticket-answers.js";
+export type {
+  ContingencyBackupTicketRescueRequest,
+  ContingencyBackupTicketRescueResponse,
+} from "./backups/contingency-backup-ticket-rescue.js";
+export {
+  contingencyBackupTicketRescueRequestSchema,
+  contingencyBackupTicketRescueResponseSchema,
+} from "./backups/contingency-backup-ticket-rescue.js";
 export type {
   BackupsCoreToRendererMessage,
   BackupsRendererToCoreMessage,
@@ -487,6 +496,8 @@ export type { InstallationKeysBody } from "./register/installation-keys.js";
 export type {
   CoreReadyMessage,
   CoreRefusedMessage,
+  CoreStartupStep,
+  CoreStartupStepMessage,
   CoreStatusMessage,
   CoreStatusRequest,
   CredentialsReplacement,
@@ -605,6 +616,11 @@ export {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
+export type {
+  FindDeferredSaleOutcome,
+  PrintDeferredSaleInvoiceOutcome,
+} from "./sales/deferred-sale-lookup.js";
+export { findDeferredSaleMessageSchema } from "./sales/deferred-sale-lookup.js";
 export type { ManualDiscountsBody, ManualDiscountsQuery } from "./sales/manual-discounts.js";
 export { manualDiscountsQuerySchema, manualDiscountsSchema } from "./sales/manual-discounts.js";
 export type {

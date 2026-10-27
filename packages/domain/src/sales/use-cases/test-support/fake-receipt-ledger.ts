@@ -28,6 +28,7 @@ export interface FakeReceiptSale extends FakeDocumentPrinting {
   voided: boolean;
   source: ReceiptSource;
   creditNote?: FakeCreditNote;
+  deferredInvoice?: FakeDocumentPrinting;
 }
 
 export interface FakeReceiptLedgerState {
@@ -68,15 +69,29 @@ export class FakeReceiptLedger implements ReceiptLedger {
       }
       return creditNote;
     };
-    const printingOf = ({ document, saleId }: PrintedDocumentKey): FakeDocumentPrinting =>
-      document === "credit_note" ? creditNoteOf(saleId) : saleOf(saleId);
+    const deferredInvoiceOf = (saleId: string): FakeDocumentPrinting => {
+      const sale = saleOf(saleId);
+      sale.deferredInvoice ??= structuredClone(NEVER_PRINTED);
+      return sale.deferredInvoice;
+    };
+    const printingOf = ({ document, saleId }: PrintedDocumentKey): FakeDocumentPrinting => {
+      if (document === "credit_note") {
+        return creditNoteOf(saleId);
+      }
+      return document === "deferred_invoice" ? deferredInvoiceOf(saleId) : saleOf(saleId);
+    };
     const outcome = work({
       receiptDelivery: ({ document, saleId }): ReceiptDelivery | undefined => {
         const sale = working.sales.find(({ id }) => id === saleId);
         if (!(sale?.completed || sale?.voided)) {
           return undefined;
         }
-        const printing = document === "credit_note" ? (sale.creditNote ?? NEVER_PRINTED) : sale;
+        const printing =
+          {
+            credit_note: sale.creditNote,
+            deferred_invoice: sale.deferredInvoice,
+            sale_receipt: sale,
+          }[document] ?? NEVER_PRINTED;
         return {
           printAttemptedAt: printing.printAttemptedAt,
           printedAt: printing.printedAt,

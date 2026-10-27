@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
+import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
@@ -294,6 +295,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
+    },
+    contingencyTicketRescueScreen: {
+      rescueContingencyBackupTicket: vi.fn(),
+      scanner: createFakeQrScanner().Scanner,
     },
     compromiseResponseScreen: {
       fetchCompromiseResponse: vi.fn().mockReturnValue(new Promise(() => {})),

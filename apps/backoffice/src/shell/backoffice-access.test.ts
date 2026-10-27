@@ -25,6 +25,7 @@ import {
   canSeeBranchArea,
   canSeeCashArea,
   canSeeCatalogArea,
+  canSeeContingencyTicketRescue,
   canSeeExpiringLots,
   canSeeFiscalInformation,
   canSeeOrdersArea,
@@ -85,6 +86,7 @@ test.each([
   ["canManageUsers", "manage_users", canManageUsers],
   ["canSeeRolesArea", "manage_roles", canSeeRolesArea],
   ["canSeeQuarantinedEvents", "quarantined_events", canSeeQuarantinedEvents],
+  ["canSeeContingencyTicketRescue", "contingency_ticket_rescue", canSeeContingencyTicketRescue],
   ["canSeeFiscalInformation", "fiscal_information", canSeeFiscalInformation],
 ] as const)("%s holds exactly when the %s capability is granted", (_name, capability, can) => {
   expect(can(ADMINISTRATOR_ACCESS)).toBe(true);

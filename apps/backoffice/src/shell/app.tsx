@@ -5,6 +5,7 @@ import { type ComponentType, useEffect, useState } from "react";
 import type { AlertsListScreenServices } from "../alerts/alerts-list-services";
 import type { AlertsOpenCountLinkProps } from "../alerts/alerts-open-count-link";
 import type { AlertsOpenCountLinkServices } from "../alerts/alerts-open-count-link-services";
+import type { ContingencyTicketRescueScreenServices } from "../backups/contingency-ticket-rescue-services";
 import type { BranchSettingsScreenServices } from "../branch/branch-settings-services";
 import type { BrandsListScreenServices } from "../catalog/brands-list-services";
 import type { CategoriesListScreenServices } from "../catalog/categories-list-services";
@@ -94,6 +95,7 @@ export type AppServices = {
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
   snapshotBackupsScreen: SnapshotBackupsScreenServices;
+  contingencyTicketRescueScreen: ContingencyTicketRescueScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   brandsListScreen: BrandsListScreenServices;

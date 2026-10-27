@@ -8,6 +8,7 @@ import {
   contingencyBackupTicketQrCodes,
   joinContingencyBackupTicketParts,
   readContingencyBackupTicketQrCode,
+  sameContingencyBackupTicket,
 } from "./contingency-backup-ticket.js";
 
 const REGISTER_ID = "0b1f3c52-8d4e-4a6b-9c27-5e8f1a2d3b4c";
@@ -335,5 +336,33 @@ describe("joinContingencyBackupTicketParts", () => {
     if (!first || !second || !third) throw new Error("expected three parts");
 
     expect(joinContingencyBackupTicketParts([first, { ...second, ...override }, third])).toBeNull();
+  });
+});
+
+describe("sameContingencyBackupTicket", () => {
+  const parts = () => partsOf(codesOf(sealedOf(MAX_CHUNK_BYTES * 2 + 5)));
+
+  it("tells two parts of one ticket are of the same ticket", () => {
+    const [first, , third] = parts();
+    if (!first || !third) throw new Error("expected three parts");
+
+    expect(sameContingencyBackupTicket(first, third)).toBe(true);
+  });
+
+  it.each([
+    ["register", { registerId: "7d9c2b64-1f3a-4e85-b6d0-3a9e5c1f8b27" }],
+    ["key version", { keyVersion: 4 }],
+    ["nonce", { nonce: new Uint8Array(12) }],
+    ["part count", { partCount: 4 }],
+    [
+      "nonce of one byte",
+      { nonce: Uint8Array.from(NONCE, (byte, i) => (i === 11 ? byte + 1 : byte)) },
+    ],
+    ["nonce that is a prefix", { nonce: NONCE.slice(0, 11) }],
+  ])("tells a part of another %s is of another ticket", (_name, override) => {
+    const [first, second] = parts();
+    if (!first || !second) throw new Error("expected three parts");
+
+    expect(sameContingencyBackupTicket(first, { ...second, ...override })).toBe(false);
   });
 });

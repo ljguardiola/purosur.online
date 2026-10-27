@@ -3,6 +3,7 @@ import {
   HardDriveDownload,
   Laptop,
   PackageX,
+  QrCode,
   Shield,
   ShieldAlert,
   Store,
@@ -13,6 +14,7 @@ import {
   canManageUsers,
   canSeeBackupsArea,
   canSeeBranchArea,
+  canSeeContingencyTicketRescue,
   canSeeQuarantinedEvents,
   canSeeRegistersArea,
   canSeeRolesArea,
@@ -87,6 +89,16 @@ function SettingsArea() {
                   label="Backups"
                   icon={<HardDriveDownload />}
                   active={Boolean(matchRoute({ to: "/backups" }))}
+                />
+              </li>
+            )}
+            {canSeeContingencyTicketRescue(session) && (
+              <li>
+                <SectionLink
+                  to="/contingency-ticket-rescue"
+                  label="Rescate de tickets"
+                  icon={<QrCode />}
+                  active={Boolean(matchRoute({ to: "/contingency-ticket-rescue" }))}
                 />
               </li>
             )}

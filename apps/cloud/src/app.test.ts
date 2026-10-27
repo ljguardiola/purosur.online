@@ -3101,6 +3101,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
+        url: "/api/contingency-backup-tickets/rescue",
+        access: capabilityAccess("contingency_ticket_rescue"),
+      },
+      {
+        method: "POST",
         url: "/api/registers/:id/revocations",
         access: capabilityAccess("revoke_installations"),
       },

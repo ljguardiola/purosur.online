@@ -1,3 +1,4 @@
+import { saleVoidAllocations } from "../model/lot-allocation.js";
 import { isMovementQuantity } from "../model/stock-quantity.js";
 import { recordStockMovement } from "./apply-stock-movement.js";
 import type { StockStoreTransaction } from "./stock-store.js";
@@ -48,17 +49,29 @@ export async function applyRegisterStockMovements(
   for (const movement of input.movements) {
     const key = { productId: movement.productId, locationId: input.locationId };
     const coveringCount = await tx.earliestCountAtOrAfter(key, input.occurredAt);
-    await recordStockMovement(tx, {
-      ...key,
-      id: movement.id,
-      saleLineId: movement.saleLineId,
-      kind: movement.kind,
-      reason: null,
-      delta: movement.delta,
-      occurredAt: input.occurredAt,
-      actorId: input.actorId,
-      supersededByCountId: coveringCount?.movementId ?? null,
-    });
+    const returnedToLots =
+      movement.kind === "sale_void"
+        ? saleVoidAllocations(
+            await tx.productLots(key),
+            await tx.saleLineLotAllocations(key, movement.saleLineId),
+            movement.delta,
+          )
+        : undefined;
+    await recordStockMovement(
+      tx,
+      {
+        ...key,
+        id: movement.id,
+        saleLineId: movement.saleLineId,
+        kind: movement.kind,
+        reason: null,
+        delta: movement.delta,
+        occurredAt: input.occurredAt,
+        actorId: input.actorId,
+        supersededByCountId: coveringCount?.movementId ?? null,
+      },
+      returnedToLots,
+    );
   }
   return { kind: "applied" };
 }

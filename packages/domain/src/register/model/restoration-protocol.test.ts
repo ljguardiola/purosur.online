@@ -248,3 +248,55 @@ describe("restorationStanding when the restore failed", () => {
     });
   });
 });
+
+describe("restorationStanding when the replenishment failed", () => {
+  it.each(["refused", "unreadable_event"] as const)(
+    "is failed at the replenish step with the %s failure",
+    (failure) => {
+      expect(restorationStanding(evidence({ replenish: failure }))).toEqual({
+        kind: "failed",
+        step: "replenish",
+        failure,
+        origin: "copy",
+      });
+    },
+  );
+
+  it("carries the origin of a register reinstalled without a copy", () => {
+    expect(restorationStanding(evidence({ replenish: "refused", origin: "no_copy" }))).toEqual({
+      kind: "failed",
+      step: "replenish",
+      failure: "refused",
+      origin: "no_copy",
+    });
+  });
+
+  it("is failed rather than without connection whatever the cloud answers", () => {
+    for (const cloud of ["reachable", "unreachable", "unknown"] as const) {
+      expect(restorationStanding(evidence({ replenish: "refused", cloud }))).toEqual({
+        kind: "failed",
+        step: "replenish",
+        failure: "refused",
+        origin: "copy",
+      });
+    }
+  });
+
+  it("stays in progress at a step before the replenishment that is still pending", () => {
+    expect(
+      restorationStanding(evidence({ reset_sync_identity: "pending", replenish: "refused" })),
+    ).toEqual({
+      kind: "in_progress",
+      step: "reset_sync_identity",
+      origin: "copy",
+    });
+  });
+
+  it("is failed at the replenishment ahead of a later pending step", () => {
+    expect(
+      restorationStanding(
+        evidence({ replenish: "unreadable_event", reconcile_fiscal_counters: "pending" }),
+      ),
+    ).toEqual({ kind: "failed", step: "replenish", failure: "unreadable_event", origin: "copy" });
+  });
+});

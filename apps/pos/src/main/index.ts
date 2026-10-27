@@ -18,6 +18,7 @@ import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { forwardCoreOutput } from "./core-output";
+import { reportCoreReadinessMiss } from "./core-readiness-miss";
 import { reportCoreRefusal } from "./core-refusal";
 import { broadcastCoreStatus, type CoreStatus } from "./core-status-broadcast";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
@@ -278,6 +279,15 @@ function startRegister(settings: ChannelSettings): void {
           log: console.error,
           captureMessage: (message, level) => Sentry.captureMessage(message, level),
         }),
+      onReadinessMissed: (miss) =>
+        reportCoreReadinessMiss(
+          {
+            log: console.error,
+            captureMessage: (message, level) => Sentry.captureMessage(message, level),
+          },
+          miss,
+          CORE_READINESS_TIMEOUT_MS,
+        ),
       onStatusChange: setCoreStatus,
     });
     supervisor.start();

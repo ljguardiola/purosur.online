@@ -911,6 +911,11 @@ describe("startServer", () => {
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
+      contingencyTicketRescue: {
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
+      },
       registerRevocations: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,

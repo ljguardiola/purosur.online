@@ -9,6 +9,7 @@ import {
 } from "../../fiscal/index.js";
 import type { ClockDriftReport } from "../../register/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
+import type { ReplenishmentFailedReport } from "../../sync/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
 import type { AlertDetails, OpenAlertInput } from "./alert-details.js";
 import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
@@ -150,6 +151,36 @@ export function registerClockDriftObservation({
   return {
     holds: true,
     alert: { kind: "clock_drift", scope: registerId, locationId, detail: { deviceId } },
+  };
+}
+
+interface RegisterReplenishmentStanding {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  report: ReplenishmentFailedReport;
+}
+
+export function registerReplenishmentObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report,
+}: RegisterReplenishmentStanding): AlertConditionObservation | undefined {
+  if (report.replenishment_failed === undefined) {
+    return undefined;
+  }
+  if (report.replenishment_failed === false) {
+    return { holds: false, kind: "register_replenishment_failed", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: {
+      kind: "register_replenishment_failed",
+      scope: registerId,
+      locationId,
+      detail: { deviceId, failure: report.replenishment_failed },
+    },
   };
 }
 

@@ -24,6 +24,7 @@ import { credentialsKey } from "../credentials/credentials-queries";
 import type {
   CashMovementInput,
   CoreClient,
+  DeferredSaleReading,
   MercadoPagoMethod,
   SalesHistoryQuery,
   SerialDevicesToRegister,
@@ -423,6 +424,13 @@ function Register({ core }: { core: CoreClient }) {
     contingencyBackupTicketOfSale: (saleId: string) => core.contingencyBackupTicketOfSale(saleId),
     discardContingencyBackupTickets: () => core.discardContingencyBackupTickets(),
     printOriginalReceipt: (saleId: string) => core.printOriginalReceipt(saleId),
+    findDeferredSale: (reading: DeferredSaleReading) => core.findDeferredSale(reading),
+    printDeferredSaleInvoice: (saleId: string) => core.printDeferredSaleInvoice(saleId),
+    reprintDeferredSaleInvoice: (
+      saleId: string,
+      reason: string,
+      authorization: Authorization | undefined,
+    ) => core.reprintDeferredSaleInvoice(saleId, reason, authorization),
     printCreditNote: (saleId: string) => core.printCreditNote(saleId),
     reprintCreditNote: (saleId: string, reason: string, authorization: Authorization | undefined) =>
       core.reprintCreditNote(saleId, reason, authorization),
@@ -479,6 +487,7 @@ function Register({ core }: { core: CoreClient }) {
         void queryClient.invalidateQueries({ queryKey: credentialsKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.cashSession });
         void queryClient.invalidateQueries({ queryKey: salesKeys.paymentMethodAvailabilityRoot });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
         void queryClient.invalidateQueries({ queryKey: stockKeys.initialCount });
@@ -515,6 +524,7 @@ function Register({ core }: { core: CoreClient }) {
     () =>
       core.onRestorationStandingChanged(() => {
         void queryClient.invalidateQueries({ queryKey: registerKeys.restorationStanding });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.cashSession });
       }),
     [core, queryClient],
   );

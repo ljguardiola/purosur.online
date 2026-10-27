@@ -19,6 +19,7 @@ const ALERT_KIND_LIST = [
   "fiscal_unknown",
   "fiscal_emission_stopped",
   "clock_drift",
+  "register_replenishment_failed",
   "outbox_chain_broken",
   "lots_expiring",
   "offsite_dump_unverified",

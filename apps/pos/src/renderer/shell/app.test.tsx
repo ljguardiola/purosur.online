@@ -343,6 +343,15 @@ function coreAnswering(
     async printOriginalReceipt() {
       return { kind: "unavailable" };
     },
+    async findDeferredSale() {
+      return { kind: "not_found" };
+    },
+    async printDeferredSaleInvoice() {
+      return { kind: "unavailable" };
+    },
+    async reprintDeferredSaleInvoice() {
+      return { kind: "unavailable" };
+    },
     async reprintSaleReceipt(saleId, reason, authorization) {
       return sales.reprintSaleReceipt === undefined
         ? { kind: "unavailable" }
@@ -1332,6 +1341,43 @@ describe("App", () => {
     await resumeLockedRegister(screen);
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+  });
+
+  it("stops showing a locked cash session that a finished pull closed", async () => {
+    let session: OpenCashSession | null = GRACE_SESSION_LOCKED;
+    const { core, finishPull } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+      cashSession: async () => session,
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+
+    session = null;
+    finishPull(null);
+
+    await expect
+      .element(screen.getByRole("heading", { name: LOCKED_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("stops showing a locked cash session that the restoration closed once its standing changes", async () => {
+    let session: OpenCashSession | null = GRACE_SESSION_LOCKED;
+    const { core, changeRestorationStanding } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => session },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+
+    session = null;
+    changeRestorationStanding();
+
+    await expect
+      .element(screen.getByRole("heading", { name: LOCKED_TITLE }))
+      .not.toBeInTheDocument();
   });
 
   it("lets the signed-in person in when the core answers the register is not locked, whoever opened it", async () => {

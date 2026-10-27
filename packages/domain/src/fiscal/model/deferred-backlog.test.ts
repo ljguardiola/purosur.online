@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
+  DEFERRED_RETRY_DELAYING_STATES,
   type DeferredBacklogEntry,
   hasDeferredBacklog,
   isDateOrderBroken,
@@ -9,6 +10,7 @@ import {
   latestIssuedOn,
   nextDeferredBacklogStep,
 } from "./deferred-backlog.js";
+import type { FiscalDocumentState } from "./real-time-authorization.js";
 
 const now = new Date("2026-10-12T12:00:00-03:00");
 
@@ -27,6 +29,19 @@ function entry(overrides: Partial<DeferredBacklogEntry> = {}): DeferredBacklogEn
 describe("DEFERRED_BACKLOG_RETRY_INTERVAL_MS", () => {
   it("is ten minutes", () => {
     expect(DEFERRED_BACKLOG_RETRY_INTERVAL_MS).toBe(600_000);
+  });
+});
+
+describe("DEFERRED_RETRY_DELAYING_STATES", () => {
+  it.each<[FiscalDocumentState, boolean]>([
+    ["REJECTED", true],
+    ["CONFLICTING", true],
+    ["RELEASED", false],
+    ["AUTHORIZED", false],
+    ["REQUESTING", false],
+    ["UNKNOWN", false],
+  ])("counts an attempt ended %s as delaying the next try: %s", (state, delays) => {
+    expect(DEFERRED_RETRY_DELAYING_STATES.includes(state)).toBe(delays);
   });
 });
 
@@ -212,6 +227,7 @@ describe("nextDeferredBacklogStep", () => {
     expect(nextDeferredBacklogStep([next, blocked], now, null)).toEqual({
       kind: "wait",
       until: new Date(attemptEndedAt.getTime() + DEFERRED_BACKLOG_RETRY_INTERVAL_MS),
+      entry: blocked,
     });
   });
 

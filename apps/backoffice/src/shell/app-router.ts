@@ -1,5 +1,6 @@
 import { createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { alertsListRoute, alertsOverviewRoute } from "../alerts/routes";
+import { contingencyTicketRescueRoute } from "../backups/routes";
 import { branchSettingsRoute } from "../branch/routes";
 import {
   brandsListRoute,
@@ -137,6 +138,7 @@ const routeTree = rootRoute.addChildren([
       rolesListRoute,
       registersListRoute,
       snapshotBackupsRoute,
+      contingencyTicketRescueRoute,
       branchSettingsRoute,
       compromiseResponseRoute,
       quarantinedEventsRoute,

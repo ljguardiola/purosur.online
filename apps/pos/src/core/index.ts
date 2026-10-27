@@ -42,6 +42,7 @@ import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
 import { createClockGuardRequests } from "./fiscal/clock-guard-answers";
 import { cryptoShortCodes } from "./fiscal/crypto-short-codes";
+import { createDeferredBacklogSerializer } from "./fiscal/deferred-backlog-serializer";
 import { createFiscalModeWatch } from "./fiscal/fiscal-mode-watch";
 import {
   cloudCreditNotes,
@@ -87,6 +88,11 @@ import {
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
 import { coreFailureReporters } from "./register/core-failure-reporters";
+import {
+  prepareLocalDataFolder,
+  startupStepReporter,
+  takingStartupStep,
+} from "./register/core-startup-steps";
 import { createDeviceTokenRotation } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import {
@@ -135,6 +141,7 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
+import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
 import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
@@ -198,6 +205,7 @@ import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
+import { readPendingReplenishment } from "./sync/sqlite-register-replenishment-store";
 import {
   nodeStorageFileSystem,
   storageReadingReader,
@@ -296,6 +304,8 @@ const restoreAttempts = createRestoreAttempts({
     ),
 });
 
+const reportStartupStep = startupStepReporter((message) => process.parentPort.postMessage(message));
+
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
     console.error("core: no local data folder was handed over, so it can't pull or sign anyone in");
@@ -306,6 +316,7 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
       path: localDatabasePath,
       migrations: LOCAL_MIGRATIONS,
       now,
+      onStep: reportStartupStep,
     });
     console.info(
       {
@@ -327,19 +338,22 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
 }
 
 if (localDataFolder !== undefined) {
-  await setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now })
-    .then(() =>
+  await prepareLocalDataFolder({
+    setAsideStaleDatabase: () =>
+      setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now }),
+    adoptStagedSnapshot: () =>
       adoptStagedSnapshot({
         folder: localDataFolder,
         pending: restorePending,
         migrations: LOCAL_MIGRATIONS,
         now,
       }),
-    )
-    .catch((error: unknown) => {
+    reportStep: reportStartupStep,
+    onFailure: (error) => {
       console.error("core: the restored snapshot could not be adopted", error);
       Sentry.captureException(error);
-    });
+    },
+  });
 }
 
 const startedLocalDatabase = await startLocalDatabaseFile();
@@ -363,6 +377,7 @@ const restorationOf = (database: NonNullable<typeof localDatabase>) =>
     restorePending,
     () => cloudReachability,
     restoreAttempts.noUsableGeneration,
+    appVersionFromCoreArguments(process.argv),
   );
 const localInstallation =
   localDatabase === undefined ? undefined : new SqliteLocalInstallation(localDatabase, now);
@@ -441,7 +456,9 @@ const storageWatch =
         onStartupFailure: (error) =>
           reportFailure("checking the free disk space at startup", error),
       });
-await storageWatch?.checkAtStartup();
+await takingStartupStep(reportStartupStep, "check_free_disk_space", () =>
+  storageWatch?.checkAtStartup(),
+)();
 
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
@@ -513,6 +530,8 @@ async function pushOutboxToCloud() {
                 localDatabaseDamaged,
                 batteryShutdown.newSalesStoppedByBattery,
                 () => readLatestClockOffsetMs(localDatabase),
+                () => readPendingReplenishment(localDatabase),
+                appVersionFromCoreArguments(process.argv),
               ),
         acceptedPush:
           localDatabase === undefined
@@ -565,6 +584,7 @@ const syncSchedule = createSyncSchedule({
               : (path, bearerToken, body) =>
                   postToCloudWithBearer(cloudClient, path, bearerToken, body),
           ids: uuidV7Ids,
+          appVersion: appVersionFromCoreArguments(process.argv),
         }),
       report: (attempt) => {
         const report = replenishmentReportOf(attempt);
@@ -674,6 +694,7 @@ const realTimeAuthorization = createRealTimeAuthorization({
   shortCodes: cryptoShortCodes,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
 });
+const deferredBacklogSerializer = createDeferredBacklogSerializer();
 const fiscalModeWatch =
   localDatabase === undefined
     ? undefined
@@ -755,6 +776,17 @@ const receiptPrinting = createReceiptPrinting({
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   signedInUserId: () => signedInPerson.userId(),
+  deferredSaleInvoicing: createDeferredSaleInvoicing({
+    database: localDatabase,
+    cloudClient,
+    readDeviceToken,
+    now,
+    reportFailure: (error) => reportFailure("invoicing a deferred sale", error),
+    ids: uuidV7Ids,
+    shortCodes: cryptoShortCodes,
+    readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+    serialize: deferredBacklogSerializer,
+  }),
   beforePrinting: async (saleId) => {
     await realTimeAuthorization.authorizeSale(saleId);
     fiscalModeWatch?.check();
@@ -787,7 +819,11 @@ const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
   ticketedSettlement,
 });
 
-const startupRecovery = recoverAtStartup({
+const startupRecovery = takingStartupStep(
+  reportStartupStep,
+  "settle_interrupted_authorizations",
+  recoverAtStartup,
+)({
   settleInterruptedAuthorizations: () =>
     settleInterruptedAuthorizations({
       database: localDatabase,
@@ -1444,9 +1480,12 @@ const rendererRequestDeps: RendererRequestDeps = {
   contingencyBackupTickets: contingencyBackupTickets?.requests,
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   printOriginalReceipt: receiptPrinting.printOriginalReceipt,
+  findDeferredSale: receiptPrinting.findDeferredSale,
+  printDeferredSaleInvoice: receiptPrinting.printDeferredSaleInvoice,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   printCreditNote: receiptPrinting.printCreditNote,
   reprintCreditNote: receiptPrinting.reprintCreditNote,
+  reprintDeferredSaleInvoice: receiptPrinting.reprintDeferredSaleInvoice,
   reportFailure,
 };
 
@@ -1490,6 +1529,7 @@ startRegisterHealthChecks({
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  serialize: deferredBacklogSerializer,
 });
 
 const deviceTokenRotation =
@@ -1515,6 +1555,8 @@ if (deviceTokenRotation !== undefined) {
 
 const updateHold = createUpdateHold({
   hasOpenSale: anySaleOpen,
+  hasOpenCashSession: () =>
+    localDatabase !== undefined && readOpenSession(localDatabase) !== undefined,
   schedule: (run, delayMs) => {
     const timer = setTimeout(run, delayMs);
     return () => clearTimeout(timer);

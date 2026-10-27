@@ -1,5 +1,6 @@
 export type { Clock } from "../../shared/index.js";
 export type { LimitedEndpoint } from "../model/installation-request-limit.js";
+export type { ReplenishmentFailure } from "../model/replenishment-failure.js";
 export type { SyncedFact } from "../model/synced-fact.js";
 export type {
   AdmitInstallationRequestInput,
@@ -58,6 +59,11 @@ export type {
   ReceivePushedEventsOutcome,
 } from "./receive-pushed-events.js";
 export { receivePushedEvents } from "./receive-pushed-events.js";
+export type {
+  ReceiveRescuedEventsInput,
+  ReceiveRescuedEventsOutcome,
+} from "./receive-rescued-events.js";
+export { receiveRescuedEvents } from "./receive-rescued-events.js";
 export type { AcceptedPushLog, RecordAcceptedPushPorts } from "./record-accepted-push.js";
 export { recordAcceptedPush } from "./record-accepted-push.js";
 export type { RedeliveryOutcome } from "./redeliver-pulled-entities.js";

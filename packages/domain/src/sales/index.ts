@@ -3,6 +3,7 @@ export type { CancelledSale } from "./model/cancelled-sale.js";
 export type { CompletedSale } from "./model/completed-sale.js";
 export { stockMovementsMatchLines } from "./model/completed-sale.js";
 export type { CreditNoteReceiptContent } from "./model/credit-note-receipt-content.js";
+export type { DeferredSaleFacts, DeferredSaleInvoice } from "./model/deferred-sale-lookup.js";
 export type { ManualAdjustment, ManualAdjustmentValue } from "./model/manual-adjustment.js";
 export {
   manualAdjustmentReason,
@@ -63,6 +64,7 @@ export {
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   saleComprobanteOf,
+  saleFiscalDocumentAmong,
   saleStandingOf,
 } from "./model/sale-history.js";
 export type { ListPrice, SoldProduct } from "./model/sale-line.js";

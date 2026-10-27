@@ -924,6 +924,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1025,6 +1027,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1121,6 +1125,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1216,6 +1222,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1340,6 +1348,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1454,6 +1464,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1572,6 +1584,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1698,6 +1712,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1791,6 +1807,8 @@ describe("the register's local migrations", () => {
         "0076_awaiting_orphan_sweep_origin",
         "0077_contingency_backup_tickets",
         "0078_offline_void_credit_notes",
+        "0079_replenishment_failure",
+        "0080_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -6220,6 +6238,96 @@ describe("the orphan sweep migration", () => {
   });
 });
 
+describe("the deferred sale invoice prints migration", () => {
+  const MIGRATION = "0080_deferred_sale_invoice_prints";
+
+  it("keeps the reprints a register holds and lets a deferred sale's invoice number its own", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+         INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1);
+         INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'cashier', 's', 1, 1);
+         INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-1', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
+         VALUES ('sale-1', 'r1', 'device-1', 's1', 'u1', 'COMPLETED', '2026-09-30T15:05:00.000Z', 1);
+         INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at)
+         VALUES ('sale-1', 'sale_receipt', 1, 'u1', 'u2', 'requested', 'Se mojo', '2026-09-30T15:10:00.000Z'),
+                ('sale-1', 'credit_note', 1, 'u1', NULL, 'retry', NULL, '2026-09-30T15:11:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at FROM sale_reprints ORDER BY document",
+          )
+          .all(),
+      ).toEqual([
+        {
+          sale_id: "sale-1",
+          document: "credit_note",
+          order_number: 1,
+          requested_by: "u1",
+          authorized_by: null,
+          reason_kind: "retry",
+          reason_text: null,
+          occurred_at: "2026-09-30T15:11:00.000Z",
+        },
+        {
+          sale_id: "sale-1",
+          document: "sale_receipt",
+          order_number: 1,
+          requested_by: "u1",
+          authorized_by: "u2",
+          reason_kind: "requested",
+          reason_text: "Se mojo",
+          occurred_at: "2026-09-30T15:10:00.000Z",
+        },
+      ]);
+      const reprint = (document: string, orderNumber: number) =>
+        after
+          .prepare(
+            `INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
+             VALUES ('sale-1', ?, ?, 'u1', 'retry', '2026-09-30T15:12:00.000Z')`,
+          )
+          .run(document, orderNumber);
+      expect(() => reprint("deferred_invoice", 1)).not.toThrow();
+      expect(() => reprint("deferred_invoice", 1)).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => reprint("invoice", 1)).toThrow(/CHECK/);
+      expect(() => reprint("deferred_invoice", 0)).toThrow(/CHECK/);
+
+      const attempt = (saleId: string) =>
+        after
+          .prepare(
+            "INSERT INTO deferred_invoice_prints (sale_id, print_attempted_at, printed_at) VALUES (?, '2026-09-30T16:00:00.000Z', NULL)",
+          )
+          .run(saleId);
+      expect(() => attempt("sale-1")).not.toThrow();
+      expect(() => attempt("sale-1")).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => attempt("missing")).toThrow(/FOREIGN KEY/);
+      const receipt = () =>
+        after
+          .prepare(
+            "INSERT INTO deferred_invoice_receipts (sale_id, template_version, head, body) VALUES ('sale-1', '1', x'00', x'01')",
+          )
+          .run();
+      expect(receipt).not.toThrow();
+      expect(receipt).toThrow(/UNIQUE|PRIMARY KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("the contingency backup tickets migration", () => {
   const ticket = {
     id: "ticket-1",
@@ -6773,6 +6881,86 @@ describe("the offline void credit notes migration", () => {
             .run(),
         ).toThrow(/CHECK/);
       });
+    });
+  });
+});
+
+describe("the replenishment failure migration", () => {
+  const MIGRATION = "0079_replenishment_failure";
+
+  function withDatabase(test: (database: ReturnType<typeof openLocalDatabase>) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const path = join(folder, "register.sqlite");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('device-old', 52)",
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("keeps a predecessor held before it, with no failure", () => {
+    withDatabase((database) => {
+      expect(database.prepare("SELECT * FROM register_predecessor").all()).toEqual([
+        {
+          device_id: "device-old",
+          last_acknowledged_seq: 52,
+          failure_kind: null,
+          failure_refusal: null,
+          failure_event_id: null,
+          failure_reason: null,
+          failure_app_version: null,
+        },
+      ]);
+    });
+  });
+
+  it.each([
+    [
+      "a kind of failure the register does not know",
+      "UPDATE register_predecessor SET failure_kind = 'lost'",
+    ],
+    ["a refusal with no refusal named", "UPDATE register_predecessor SET failure_kind = 'refused'"],
+    [
+      "an unreadable event with no event named",
+      "UPDATE register_predecessor SET failure_kind = 'unreadable_event', failure_reason = 'garbled'",
+    ],
+    [
+      "a refusal the cloud does not give",
+      "UPDATE register_predecessor SET failure_kind = 'refused', failure_refusal = 'because'",
+    ],
+    [
+      "a refusal that also names an event",
+      "UPDATE register_predecessor SET failure_kind = 'refused', failure_refusal = 'predecessor_not_revoked', failure_event_id = 'event-1', failure_reason = 'garbled'",
+    ],
+    [
+      "details of a failure with no kind",
+      "UPDATE register_predecessor SET failure_reason = 'garbled'",
+    ],
+  ])("refuses %s", (_name, statement) => {
+    withDatabase((database) => {
+      expect(() => database.exec(statement)).toThrow(/CHECK/);
+    });
+  });
+
+  it.each([
+    "UPDATE register_predecessor SET failure_kind = 'refused', failure_refusal = 'predecessor_not_of_register'",
+    "UPDATE register_predecessor SET failure_kind = 'unreadable_event', failure_event_id = 'event-1', failure_reason = 'garbled', failure_app_version = '1.4.0'",
+    "UPDATE register_predecessor SET failure_kind = 'unreadable_event', failure_event_id = 'event-1', failure_reason = 'garbled'",
+  ])("accepts a failure written as %s", (statement) => {
+    withDatabase((database) => {
+      expect(() => database.exec(statement)).not.toThrow();
     });
   });
 });

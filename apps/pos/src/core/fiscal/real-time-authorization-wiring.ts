@@ -1,6 +1,7 @@
 import { REAL_TIME_AUTHORIZATION_TIMEOUT_MS } from "@purosur/domain";
 import {
   applyUnclearOutcomeDecisions,
+  type CatchUpDeferredSalesPorts,
   type CloudCreditNotes as CloudCreditNotesPort,
   catchUpDeferredSales,
   type IdGenerator,
@@ -20,6 +21,10 @@ import { checkRegisterHealth } from "./check-register-health";
 import { CloudCreditNotes } from "./cloud-credit-notes";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
 import { CloudUnclearOutcomeDecisions } from "./cloud-unclear-outcome-decisions";
+import {
+  createDeferredBacklogSerializer,
+  type DeferredBacklogSerializer,
+} from "./deferred-backlog-serializer";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import { startRegisterHealthMonitor } from "./register-health-monitor";
 import { SqliteDeferredSaleCatchUp } from "./sqlite-deferred-sale-catch-up";
@@ -36,7 +41,7 @@ export interface RealTimeAuthorizationWiringDeps {
   reportFailure: (error: unknown) => void;
 }
 
-interface DeferralIdentities {
+export interface DeferralIdentities {
   ids: IdGenerator;
   shortCodes: ShortCodeRandomness;
   readOutboxChainKey: () => Promise<string | undefined>;
@@ -61,6 +66,29 @@ function realTimeTaxAuthority({
         post: (path, bearerToken, body, options) =>
           postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
       });
+}
+
+export function deferredSaleCatchUpPorts(
+  database: LocalDatabase,
+  outboxChainKey: string | undefined,
+  {
+    cloudClient,
+    readDeviceToken,
+    now,
+    ids,
+    shortCodes,
+  }: Pick<RealTimeAuthorizationWiringDeps, "cloudClient" | "readDeviceToken" | "now"> &
+    Pick<DeferralIdentities, "ids" | "shortCodes">,
+): CatchUpDeferredSalesPorts {
+  return {
+    catchUp: new SqliteDeferredSaleCatchUp(database, outboxChainKey),
+    documents: new SqliteRealTimeFiscalDocuments(database, outboxChainKey),
+    roundTrips: new SqliteRoundTripSamples(database),
+    taxAuthority: realTimeTaxAuthority({ cloudClient, readDeviceToken }),
+    clock: { now },
+    ids,
+    shortCodes,
+  };
 }
 
 export function createRealTimeAuthorization({
@@ -150,10 +178,12 @@ export function startRegisterHealthChecks({
   ids,
   shortCodes,
   readOutboxChainKey,
+  serialize = createDeferredBacklogSerializer(),
 }: RealTimeAuthorizationWiringDeps &
   DeferralIdentities & {
     scheduleNext: (run: () => void, delayMs: number) => () => void;
     afterCheck?: () => void;
+    serialize?: DeferredBacklogSerializer;
   }): (() => void) | undefined {
   if (database === undefined || cloudClient === undefined) {
     return undefined;
@@ -164,7 +194,6 @@ export function startRegisterHealthChecks({
     post: (path, bearerToken, body, options) =>
       postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
   });
-  const taxAuthority = realTimeTaxAuthority({ cloudClient, readDeviceToken });
   const creditNotes = new SqliteVoidCreditNotes(database);
   const creditNotesCloud = cloudCreditNotes({ cloudClient, readDeviceToken });
   return startRegisterHealthMonitor({
@@ -193,15 +222,17 @@ export function startRegisterHealthChecks({
         reportFailure(error);
       }
       if (outboxChainKey !== undefined) {
-        await catchUpDeferredSales({
-          catchUp: new SqliteDeferredSaleCatchUp(database, outboxChainKey.key),
-          documents,
-          roundTrips: new SqliteRoundTripSamples(database),
-          taxAuthority,
-          clock: { now },
-          ids,
-          shortCodes,
-        }).catch(reportFailure);
+        await serialize(() =>
+          catchUpDeferredSales(
+            deferredSaleCatchUpPorts(database, outboxChainKey.key, {
+              cloudClient,
+              readDeviceToken,
+              now,
+              ids,
+              shortCodes,
+            }),
+          ),
+        ).catch(reportFailure);
       }
       if (creditNotesCloud !== undefined) {
         await requestVoidCreditNotes({

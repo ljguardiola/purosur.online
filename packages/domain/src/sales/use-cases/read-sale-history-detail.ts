@@ -62,6 +62,7 @@ export interface SaleHistoryDetail {
   reprint: SaleReceiptAvailability;
   nextCopy: ReceiptCopy;
   creditNoteNextCopy: ReceiptCopy | null;
+  deferredInvoiceNextCopy: ReceiptCopy | null;
 }
 
 export type ReadSaleHistoryDetailOutcome =
@@ -77,11 +78,21 @@ export function readSaleHistoryDetail(
   if (record === undefined || delivery.kind === "not_found") {
     return { kind: "not_found" };
   }
-  const { fiscal, voided, inOpenSession, invoices: _invoices, ...shown } = record;
+  const {
+    fiscal,
+    voided,
+    inOpenSession,
+    invoices: _invoices,
+    deferredInvoiceIssued,
+    ...shown
+  } = record;
   const creditNoteDelivery =
     record.creditNote?.kind === "authorized" || record.creditNote?.kind === "issued_offline"
       ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId })
       : undefined;
+  const deferredInvoiceDelivery = deferredInvoiceIssued
+    ? receiptDeliveryOf({ ledger }, { document: "deferred_invoice", saleId })
+    : undefined;
   return {
     kind: "found",
     detail: {
@@ -92,6 +103,8 @@ export function readSaleHistoryDetail(
       reprint: receiptPrintAvailability("sale_receipt", { voided }),
       nextCopy: delivery.nextCopy,
       creditNoteNextCopy: creditNoteDelivery?.kind === "found" ? creditNoteDelivery.nextCopy : null,
+      deferredInvoiceNextCopy:
+        deferredInvoiceDelivery?.kind === "found" ? deferredInvoiceDelivery.nextCopy : null,
     },
   };
 }

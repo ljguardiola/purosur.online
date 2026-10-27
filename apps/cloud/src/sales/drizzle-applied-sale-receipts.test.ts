@@ -357,3 +357,106 @@ describe("recording the reprints of an applied sale's credit note", () => {
     expect(await system.db.select().from(saleReprints)).toEqual([]);
   });
 });
+
+async function deferredInvoicePrintStateOf(saleId: string) {
+  const [row] = await system.db
+    .select({
+      attempted: sales.deferredInvoicePrintAttemptedAt,
+      printed: sales.deferredInvoicePrintedAt,
+      receiptAttempted: sales.printAttemptedAt,
+      receiptPrinted: sales.printedAt,
+      creditNoteAttempted: sales.creditNotePrintAttemptedAt,
+      creditNotePrinted: sales.creditNotePrintedAt,
+    })
+    .from(sales)
+    .where(eq(sales.id, saleId));
+  return row;
+}
+
+function recordDeferredInvoicePrintState(
+  overrides: Parameters<typeof aSalePrintStateFact>[0],
+  pushedFrom: AppliedOrigin = origin,
+) {
+  return system.db.transaction((tx) =>
+    recordAppliedPrintState(
+      tx,
+      pushedFrom,
+      aSalePrintStateFact({ document: "deferred_invoice", ...overrides }),
+    ),
+  );
+}
+
+describe("recording the print state of an applied sale's deferred invoice", () => {
+  it("keeps the attempt and then the printing of the invoice, leaving the other documents' print state alone", async () => {
+    const saleId = await appliedSale();
+    await recordPrintState({ saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED });
+
+    await recordDeferredInvoicePrintState({ saleId, printAttemptedAt: LATER, printedAt: null });
+    await recordDeferredInvoicePrintState({ saleId, printAttemptedAt: LATER, printedAt: LATER });
+
+    expect(await deferredInvoicePrintStateOf(saleId)).toEqual({
+      attempted: LATER,
+      printed: LATER,
+      receiptAttempted: ATTEMPTED,
+      receiptPrinted: PRINTED,
+      creditNoteAttempted: null,
+      creditNotePrinted: null,
+    });
+  });
+
+  it("keeps the latest attempt and the latest printing when older ones arrive afterwards", async () => {
+    const saleId = await appliedSale();
+    await recordDeferredInvoicePrintState({ saleId, printAttemptedAt: LATER, printedAt: LATER });
+
+    await recordDeferredInvoicePrintState({
+      saleId,
+      printAttemptedAt: ATTEMPTED,
+      printedAt: PRINTED,
+    });
+
+    expect(await deferredInvoicePrintStateOf(saleId)).toMatchObject({
+      attempted: LATER,
+      printed: LATER,
+    });
+  });
+
+  it("refuses the print state of a sale of another register and leaves it untouched", async () => {
+    const saleId = await appliedSale();
+
+    await expect(
+      recordDeferredInvoicePrintState(
+        { saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED },
+        await anotherRegister(),
+      ),
+    ).rejects.toThrow(/sale .* is not applied/);
+
+    expect(await deferredInvoicePrintStateOf(saleId)).toMatchObject({
+      attempted: null,
+      printed: null,
+    });
+  });
+});
+
+describe("recording the reprints of an applied sale's deferred invoice", () => {
+  it("keeps the reprint of the invoice numbered apart from the other documents'", async () => {
+    const saleId = await appliedSale();
+
+    await recordReprint({ saleId, document: "sale_receipt", orderNumber: 1 });
+    await recordReprint({ saleId, document: "deferred_invoice", orderNumber: 1 });
+
+    const rows = await system.db.select().from(saleReprints);
+    expect(rows.map((row) => [row.document, row.orderNumber]).sort()).toEqual([
+      ["deferred_invoice", 1],
+      ["sale_receipt", 1],
+    ]);
+  });
+
+  it("refuses a second reprint of the invoice under an order number it already has", async () => {
+    const saleId = await appliedSale();
+    await recordReprint({ saleId, document: "deferred_invoice", orderNumber: 1 });
+
+    await expect(
+      recordReprint({ saleId, document: "deferred_invoice", orderNumber: 1 }),
+    ).rejects.toThrow();
+  });
+});

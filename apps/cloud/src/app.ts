@@ -17,6 +17,10 @@ import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
 import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
 import { registerAlertsOverviewRoute } from "./alerts/alerts-overview-route.js";
 import {
+  type ContingencyBackupTicketRescueRouteOptions,
+  registerContingencyBackupTicketRescueRoute,
+} from "./backups/contingency-backup-ticket-rescue-route.js";
+import {
   type RecordOffsiteDumpCheckRouteOptions,
   registerRecordOffsiteDumpCheckRoute,
 } from "./backups/record-offsite-dump-check-route.js";
@@ -275,6 +279,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
   snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
+  contingencyTicketRescue?: WithoutClock<ContingencyBackupTicketRescueRouteOptions<TQueryResult>>;
   registerRevocations?: WithoutClock<RegisterRevocationRouteOptions<TQueryResult>>;
   compromiseResponses?: WithoutClock<CompromiseResponseRouteOptions<TQueryResult>>;
   bitlockerRecoveryKeys?: WithoutClock<BitlockerRecoveryKeyRouteOptions<TQueryResult>>;
@@ -400,6 +405,10 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     discounts: backoffice,
     registers: backoffice,
     snapshotBackups: { ...backoffice, keysEncryptionKey: wiring.installationKeysEncryptionKey },
+    contingencyTicketRescue: {
+      ...backoffice,
+      keysEncryptionKey: wiring.installationKeysEncryptionKey,
+    },
     registerRevocations: {
       ...backoffice,
       keysEncryptionKey: wiring.installationKeysEncryptionKey,
@@ -715,6 +724,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.snapshotBackups) {
         registerSnapshotBackupsRoutes(api, { ...options.snapshotBackups, now });
+      }
+
+      if (options.contingencyTicketRescue) {
+        registerContingencyBackupTicketRescueRoute(api, {
+          ...options.contingencyTicketRescue,
+          now,
+        });
       }
 
       if (options.registerRevocations) {

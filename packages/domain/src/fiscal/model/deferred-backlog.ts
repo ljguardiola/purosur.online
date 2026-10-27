@@ -1,7 +1,13 @@
 import { argentinaCalendarDay } from "../../shared/index.js";
 import { isDeferredSaleExpired } from "./deferred-sale-expiry.js";
+import type { FiscalDocumentState } from "./real-time-authorization.js";
 
 export const DEFERRED_BACKLOG_RETRY_INTERVAL_MS = 10 * 60_000;
+
+export const DEFERRED_RETRY_DELAYING_STATES: readonly FiscalDocumentState[] = [
+  "REJECTED",
+  "CONFLICTING",
+];
 
 export interface DeferredBacklogEntry {
   deferredSaleId: string;
@@ -14,7 +20,7 @@ export interface DeferredBacklogEntry {
 
 export type DeferredBacklogStep =
   | { kind: "empty" }
-  | { kind: "wait"; until: Date }
+  | { kind: "wait"; until: Date; entry: DeferredBacklogEntry }
   | { kind: "invoice"; entry: DeferredBacklogEntry };
 
 export function isDateOrderBroken(
@@ -75,7 +81,7 @@ export function nextDeferredBacklogStep(
   if (first.lastAttemptEndedAt !== null) {
     const until = new Date(first.lastAttemptEndedAt.getTime() + DEFERRED_BACKLOG_RETRY_INTERVAL_MS);
     if (now.getTime() < until.getTime()) {
-      return { kind: "wait", until };
+      return { kind: "wait", until, entry: first };
     }
   }
   return { kind: "invoice", entry: first };

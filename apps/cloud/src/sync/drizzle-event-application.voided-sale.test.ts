@@ -145,6 +145,8 @@ describe("recording the voided sales of applied events", () => {
       printedAt: null,
       creditNotePrintAttemptedAt: null,
       creditNotePrintedAt: null,
+      deferredInvoicePrintAttemptedAt: null,
+      deferredInvoicePrintedAt: null,
     });
   });
 
