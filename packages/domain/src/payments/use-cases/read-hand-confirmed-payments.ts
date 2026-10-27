@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import {
   type HandConfirmedPaymentsReconciliation,
   reconcileHandConfirmedPayments,
@@ -18,10 +23,14 @@ export interface HandConfirmedPaymentsReport extends HandConfirmedPaymentsReconc
 }
 
 export async function readHandConfirmedPayments(
-  { reader, clock }: { reader: HandConfirmedPaymentsReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: HandConfirmedPaymentsReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId, method }: ReadHandConfirmedPaymentsInput,
 ): Promise<HandConfirmedPaymentsReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const payments = await reader.handConfirmedPayments({
     locationId,
     period: range,

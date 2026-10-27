@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FiscalOnlineSignalEvidence, SaleInvoice } from "../../fiscal/index.js";
 import type { SalePayment } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { SALE_VOID_REFUSALS, type SaleVoidRefusal } from "../model/sale-void.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
@@ -111,6 +112,7 @@ const POINT_PAYMENT: SalePayment = {
   id: "payment-5",
   method: "POINT",
   provider: "MERCADOPAGO_POINT",
+  cardType: "CREDIT",
 };
 const SALE_MOVEMENT = {
   id: "movement-1",
@@ -191,6 +193,7 @@ function void_(
 ): Promise<VoidSaleOutcome<VoidSaleGrant> | typeof NOT_SIGNED_IN> {
   return voidSale(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       clock: new FixedClock(NOW),
       ids: new SequentialIds(),
@@ -308,7 +311,7 @@ describe("voidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_voided",
-          schema_version: 3,
+          schema_version: 4,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -668,14 +671,14 @@ describe("voidSale", () => {
       ]);
     });
 
-    it("emits the voiding as version 3 of the event, with the pending refund", async () => {
+    it("emits the voiding as version 4 of the event, with the pending refund", async () => {
       const store = ledger({ payments: [QR_PAYMENT] });
 
       await void_(store, { pendingRefundsConfirmed: true });
 
       expect(store.state.outbox[0]).toMatchObject({
         event_type: "sale_voided",
-        schema_version: 3,
+        schema_version: 4,
         payload: {
           payments: [{ method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [{ method: "QR", provider: "MERCADOPAGO_QR", state: "PENDING" }],
@@ -691,6 +694,7 @@ describe("voidSale", () => {
       total: 6750,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+      origin: { kind: "sale_void" },
     };
     const CREDIT_NOTE_PAYLOAD = {
       id: "id-4",
@@ -728,7 +732,7 @@ describe("voidSale", () => {
       expect(store.state.outbox).toHaveLength(1);
       expect(store.state.outbox[0]).toMatchObject({
         event_id: "id-5",
-        schema_version: 3,
+        schema_version: 4,
         payload: { credit_note: CREDIT_NOTE_PAYLOAD },
       });
     });
@@ -803,6 +807,7 @@ describe("voidSale", () => {
       total: 6750,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+      origin: { kind: "sale_void" },
     };
     const OFFLINE_CREDIT_NOTE = {
       id: "id-6",
@@ -886,18 +891,6 @@ describe("voidSale", () => {
 
       expect(store.state.issuedOfflineCreditNotes).toMatchObject([
         { corrects: { voucherType: 11, pointOfSale: 8, number: 77 } },
-      ]);
-    });
-
-    it("raises the mark of the credit note series to the moment of the void", async () => {
-      const store = offlineLedger({
-        offlineCreditNoteSeries: { ...SERIES, clockMark: new Date(NOW.getTime() - 5_000) },
-      });
-
-      await void_(store);
-
-      expect(store.state.clockMarks).toEqual([
-        { pointOfSale: 9, documentType: "credit_note_c", reading: NOW },
       ]);
     });
 
@@ -1108,7 +1101,13 @@ describe("voidSale", () => {
       });
 
       const outcome = await voidSale(
-        { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          clock: new FixedClock(NOW),
+          ids: new SequentialIds(),
+          authority,
+        },
         { saleId: "sale-1", pendingRefundsConfirmed: true },
       );
 
@@ -1129,7 +1128,13 @@ describe("voidSale", () => {
       );
 
       await voidSale(
-        { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          clock: new FixedClock(NOW),
+          ids: new SequentialIds(),
+          authority,
+        },
         { saleId: "sale-1", pendingRefundsConfirmed: false },
       );
 

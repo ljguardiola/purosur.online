@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
 import {
@@ -63,6 +64,7 @@ const noteEvent = (eventId: string, deviceSeq = 1) =>
 function apply(application: FakeEventApplication, facts: Record<string, SyncedFact>) {
   return applyPendingEvents(
     {
+      zoneRules: new FakeZoneRulesSource(),
       eventApplication: application,
       upcaster: new FakeEventUpcaster(facts),
       clock: { now: () => NOW },
@@ -75,24 +77,26 @@ function apply(application: FakeEventApplication, facts: Record<string, SyncedFa
 describe("applying a credit note issued under a pre-obtained code", () => {
   it("records it holding the lock of the voucher it corrects, and raises no alert while nothing else credits that voucher", async () => {
     const application = new FakeEventApplication([noteEvent("note-event")]);
+    application.state.invoiceTotals.push({ voucher: CORRECTED, total: 4800 });
 
     await apply(application, { "note-event": creditNote("doc-1") });
 
     expect(application.state.voucherLocks).toEqual([CORRECTED]);
-    expect(application.state.writeOrder).toEqual(["lock voucher", "check voucher", "record"]);
+    expect(application.state.writeOrder).toEqual(["lock voucher", "read credit", "record"]);
     expect(application.state.alreadyCreditedAlerts).toEqual([]);
     expect(application.appliedEventIds).toEqual(["note-event"]);
   });
 
-  it("records it all the same and raises the already credited alert when a credit note of the cloud already corrects the voucher", async () => {
+  it("records it all the same and raises the already credited alert when what already credits the voucher leaves no room for it", async () => {
     const application = new FakeEventApplication([noteEvent("note-event")]);
-    application.state.creditedVouchers.push(CORRECTED);
+    application.state.invoiceTotals.push({ voucher: CORRECTED, total: 4800 });
+    application.state.credits.push({ voucher: CORRECTED, total: 4800 });
 
     await apply(application, { "note-event": creditNote("doc-1") });
 
     expect(application.state.writeOrder).toEqual([
       "lock voucher",
-      "check voucher",
+      "read credit",
       "record",
       "alert",
     ]);
@@ -103,7 +107,37 @@ describe("applying a credit note issued under a pre-obtained code", () => {
     expect(application.appliedEventIds).toEqual(["note-event"]);
   });
 
-  it("raises the alert for the second of two credit notes that correct the same voucher, and not for the first", async () => {
+  it("raises no alert when it and what already credits the voucher add up to exactly the invoice's total", async () => {
+    const application = new FakeEventApplication([noteEvent("note-event")]);
+    application.state.invoiceTotals.push({ voucher: CORRECTED, total: 8800 });
+    application.state.credits.push({ voucher: CORRECTED, total: 4000 });
+
+    await apply(application, { "note-event": creditNote("doc-1") });
+
+    expect(application.state.alreadyCreditedAlerts).toEqual([]);
+  });
+
+  it("raises the alert when it and what already credits the voucher go one beyond the invoice's total", async () => {
+    const application = new FakeEventApplication([noteEvent("note-event")]);
+    application.state.invoiceTotals.push({ voucher: CORRECTED, total: 8799 });
+    application.state.credits.push({ voucher: CORRECTED, total: 4000 });
+
+    await apply(application, { "note-event": creditNote("doc-1") });
+
+    expect(application.state.alreadyCreditedAlerts).toHaveLength(1);
+  });
+
+  it("raises no alert when the invoice's total is not known, however much already credits the voucher", async () => {
+    const application = new FakeEventApplication([noteEvent("note-event")]);
+    application.state.credits.push({ voucher: CORRECTED, total: 4800 });
+
+    await apply(application, { "note-event": creditNote("doc-1") });
+
+    expect(application.state.alreadyCreditedAlerts).toEqual([]);
+    expect(application.appliedEventIds).toEqual(["note-event"]);
+  });
+
+  it("raises the alert for the second of two credit notes that each credit the whole invoice, and not for the first", async () => {
     const application = new FakeEventApplication([
       noteEvent("first-event", 1),
       aStoredEvent({
@@ -114,6 +148,7 @@ describe("applying a credit note issued under a pre-obtained code", () => {
         schemaVersion: 3,
       }),
     ]);
+    application.state.invoiceTotals.push({ voucher: CORRECTED, total: 4800 });
 
     await apply(application, {
       "first-event": creditNote("doc-1"),
@@ -129,6 +164,7 @@ describe("applying a credit note issued under a pre-obtained code", () => {
 
   it("does not count a credit note as already credited by itself when it is applied again", async () => {
     const application = new FakeEventApplication([noteEvent("note-event")]);
+    application.state.invoiceTotals.push({ voucher: CORRECTED, total: 4800 });
     application.state.recorded.push({ fact: creditNote("doc-1"), eventId: "note-event" });
 
     await apply(application, { "note-event": creditNote("doc-1") });

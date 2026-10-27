@@ -171,12 +171,14 @@ const printCreditNoteMessageSchema = z.object({
   type: z.literal("print-credit-note"),
   request_id: requestId,
   sale_id: z.string(),
+  credit_note_id: z.string().min(1),
 });
 
 export const reprintCreditNoteMessageSchema = z.object({
   type: z.literal("reprint-credit-note"),
   request_id: requestId,
   sale_id: z.string(),
+  credit_note_id: z.string().min(1),
   reason: z.string(),
   authorization: authorizationSchema.optional(),
 });

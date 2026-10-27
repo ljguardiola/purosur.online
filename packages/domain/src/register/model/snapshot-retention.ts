@@ -1,4 +1,9 @@
-import { argentinaCalendarDay, shiftCalendarDay } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  localClock,
+  shiftCalendarDay,
+  type ZoneRules,
+} from "../../shared/index.js";
 import type { SnapshotGenerationStatus } from "./snapshot-generation.js";
 import {
   SNAPSHOT_RECENT_GENERATIONS,
@@ -13,9 +18,8 @@ export interface RetainableSnapshotGeneration {
 
 const HOUR_MS = 60 * 60 * 1000;
 
-// Argentina's offset from UTC is a whole number of hours, so its calendar hours are UTC's.
-function hourOf(instant: Date): number {
-  return Math.floor(instant.getTime() / HOUR_MS);
+function hourOf(instant: Date, zoneRules: ZoneRules): number {
+  return Math.floor(localClock(instant, zoneRules).getTime() / HOUR_MS);
 }
 
 function monthOf(day: string): number {
@@ -52,13 +56,14 @@ export function snapshotRetentionTiers(
   generations: readonly RetainableSnapshotGeneration[],
   rules: SnapshotLifecycleRules,
   now: Date,
+  zoneRules: ZoneRules,
 ): SnapshotRetentionTiers {
   const byNewest = generations
     .filter((generation) => generation.status === "verified")
     .sort(newestFirst);
 
-  const currentHour = hourOf(now);
-  const today = argentinaCalendarDay(now);
+  const currentHour = hourOf(now, zoneRules);
+  const today = argentinaCalendarDay(now, zoneRules);
   const keptDays = new Set(
     Array.from({ length: rules.daily }, (_, back) => shiftCalendarDay(today, -back)),
   );
@@ -68,17 +73,17 @@ export function snapshotRetentionTiers(
     recent: byNewest.slice(0, SNAPSHOT_RECENT_GENERATIONS).map((generation) => generation.id),
     hourly: newestOfEachBucket(
       byNewest,
-      (generation) => hourOf(generation.createdAt),
+      (generation) => hourOf(generation.createdAt, zoneRules),
       (hour) => typeof hour === "number" && hour > currentHour - rules.hourly,
     ),
     daily: newestOfEachBucket(
       byNewest,
-      (generation) => argentinaCalendarDay(generation.createdAt),
+      (generation) => argentinaCalendarDay(generation.createdAt, zoneRules),
       (day) => keptDays.has(String(day)),
     ),
     monthly: newestOfEachBucket(
       byNewest,
-      (generation) => monthOf(argentinaCalendarDay(generation.createdAt)),
+      (generation) => monthOf(argentinaCalendarDay(generation.createdAt, zoneRules)),
       (month) => typeof month === "number" && month > currentMonth - rules.monthly,
     ),
   };
@@ -89,11 +94,12 @@ export function snapshotGenerationsToPrune(
   rules: SnapshotLifecycleRules,
   now: Date,
   retentionFrozen: boolean,
+  zoneRules: ZoneRules,
 ): string[] {
   if (retentionFrozen) {
     return [];
   }
-  const tiers = snapshotRetentionTiers(generations, rules, now);
+  const tiers = snapshotRetentionTiers(generations, rules, now, zoneRules);
   const kept = new Set<string>(SNAPSHOT_RETENTION_TIERS.flatMap((tier) => tiers[tier]));
 
   return generations

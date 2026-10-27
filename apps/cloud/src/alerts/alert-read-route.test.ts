@@ -15,6 +15,7 @@ import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerAlertReadRoute } from "./alert-read-route.js";
 
@@ -44,7 +45,12 @@ beforeEach(async () => {
   otherLocationId = otherLocation.id;
 
   app = Fastify();
-  registerAlertReadRoute(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOON });
+  registerAlertReadRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOON,
+  });
 });
 
 afterEach(async () => {

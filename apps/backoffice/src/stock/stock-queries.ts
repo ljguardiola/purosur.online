@@ -1,7 +1,11 @@
 import type {
   AssemblyBatchList,
   AssemblyBatchPreview,
+  CurrentStockReportBody,
+  CurrentStockReportQuery,
   ExpiringLotList,
+  ExpiringLotsReportBody,
+  ExpiringLotsReportQuery,
   InitialInventoryLotList,
   InitialInventoryLotsQuery,
   RecipeList,
@@ -13,14 +17,18 @@ import type {
   StockProductBalance,
   StockProductList,
 } from "@purosur/contracts";
+import type { ZoneRules } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
 import type {
   AssemblyBatchPreviewRequest,
   fetchAssemblyBatches,
   fetchAssemblyBatchPreview,
 } from "./assembly-batches-api";
+import type { fetchCurrentStockReport } from "./current-stock-report-api";
+import type { fetchExpiringLotsReport } from "./expiring-lots-report-api";
 import type { fetchRecipes } from "./recipes-api";
 import type {
   fetchExpectedBalance,
@@ -37,8 +45,12 @@ export const stockKey = ["stock"] as const;
 
 export const stockKeys = {
   balances: [...stockKey, "balances"] as const,
+  currentReport: (query: CurrentStockReportQuery) =>
+    [...stockKey, "current-report", query.category_id ?? ""] as const,
   products: [...stockKey, "products"] as const,
   expiringLots: [...stockKey, "expiring-lots"] as const,
+  expiringLotsReport: (query: ExpiringLotsReportQuery) =>
+    [...stockKey, "expiring-lots-report", query.from ?? "", query.to ?? ""] as const,
   recipes: [...stockKey, "recipes"] as const,
   assemblyBatches: (days: StockPeriodDays) => [...stockKey, "assembly-batches", days] as const,
   assemblyBatchProposal: ({ productId, size }: AssemblyBatchPreviewRequest) =>
@@ -50,6 +62,7 @@ export const stockKeys = {
   movementReasons: [...stockKey, "movement-reasons"] as const,
   expectedBalance: (productId: string, at: string) =>
     [...stockKey, "expected-balance", productId, at] as const,
+  zoneRules: [...stockKey, "zone-rules"] as const,
   initialLots: ({ cost, product }: InitialInventoryLotsQuery) =>
     [...stockKey, "initial-lots", cost ?? "all", product ?? ""] as const,
 };
@@ -63,6 +76,38 @@ export function useStockBalancesQuery(
   return useCloudQuery<StockBalanceList>({
     queryKey: stockKeys.balances,
     read: params.fetchStockBalances,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useCurrentStockReportQuery(
+  params: ReadParams & {
+    query: CurrentStockReportQuery;
+    fetchCurrentStockReport: typeof fetchCurrentStockReport;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<CurrentStockReportBody>({
+    queryKey: stockKeys.currentReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchCurrentStockReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useExpiringLotsReportQuery(
+  params: ReadParams & {
+    query: ExpiringLotsReportQuery;
+    fetchExpiringLotsReport: typeof fetchExpiringLotsReport;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ExpiringLotsReportBody>({
+    queryKey: stockKeys.expiringLotsReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchExpiringLotsReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -237,4 +282,16 @@ export function useAssemblyBatchLotQuery(
 export function useRefreshStock(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: stockKey });
+}
+
+export function useCountZoneRulesQuery(
+  params: ReadParams & { fetchCurrentZoneRules: typeof fetchCurrentZoneRules },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ZoneRules>({
+    queryKey: stockKeys.zoneRules,
+    read: params.fetchCurrentZoneRules,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
 }

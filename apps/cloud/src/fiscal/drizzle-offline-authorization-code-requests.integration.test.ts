@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { DrizzleChangeLog } from "../sync/drizzle-change-log.js";
 import type { PulledCloudChange } from "../sync/pulled-changes.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -73,6 +74,7 @@ function pull(
 ) {
   return pullChanges(
     {
+      zoneRules: fixedZoneRulesSource(),
       changeLog,
       offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db, enqueue, vi.fn()),
       clock: { now: () => NOW },

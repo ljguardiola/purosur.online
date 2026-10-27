@@ -77,9 +77,23 @@ export function formatOperationNumber(number: number): string {
   return String(number).padStart(6, "0");
 }
 
-export function parsePointOfSaleNumber(text: string): number {
+const SHORT_CODE_BLOCK_LENGTH = 4;
+
+export function formatShortCode(code: string): string {
+  return `${code.slice(0, SHORT_CODE_BLOCK_LENGTH)}-${code.slice(SHORT_CODE_BLOCK_LENGTH)}`;
+}
+
+function parseDigits(text: string): number {
   const digits = text.trim();
   return /^\d+$/.test(digits) ? Number(digits) : Number.NaN;
+}
+
+export function parsePointOfSaleNumber(text: string): number {
+  return parseDigits(text);
+}
+
+export function parseInvoiceNumber(text: string): number {
+  return parseDigits(text);
 }
 
 export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {

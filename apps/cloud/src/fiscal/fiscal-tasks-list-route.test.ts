@@ -80,7 +80,11 @@ async function insertExternalInvoicingTask(
   return id;
 }
 
-async function insertRejectedCreditNoteTask(registerId: string, createdAt: Date) {
+async function insertRejectedCreditNoteTask(
+  registerId: string,
+  createdAt: Date,
+  { number = 4 }: { number?: number | null } = {},
+) {
   const creditNoteId = crypto.randomUUID();
   await db.insert(creditNotes).values({
     id: creditNoteId,
@@ -105,7 +109,7 @@ async function insertRejectedCreditNoteTask(registerId: string, createdAt: Date)
     registerId,
     pointOfSale: 7,
     documentType: "credit_note_c",
-    number: 4,
+    number,
     creditNoteId,
     reason: { rejections: [{ code: 10_016, message: "Comprobante asociado inexistente" }] },
     state: "open",
@@ -264,6 +268,22 @@ describe("GET /fiscal/tasks", () => {
           rejections: [{ code: 10_016, message: "Comprobante asociado inexistente" }],
         },
       ],
+    });
+  });
+
+  it("lists a credit note that needs regularization before it took a number", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: SESSION_NOON });
+    const session = await aFiscalInformationSession();
+    const { creditNoteId } = await insertRejectedCreditNoteTask(
+      installation.registerId,
+      ONE_HOUR_AGO,
+      { number: null },
+    );
+
+    const response = await listTasks(session.headers);
+
+    expect(response.json()).toMatchObject({
+      tasks: [{ kind: "credit_note_rejected", number: null, credit_note_id: creditNoteId }],
     });
   });
 

@@ -19,7 +19,8 @@ const INPUT = {
   paymentTransactionId: TRANSACTION_ID,
   saleId: SALE_ID,
   amount: AMOUNT,
-};
+  cardType: "DEBIT",
+} as const;
 
 describe("createMercadoPagoPointOrder", () => {
   it("records the pending Point payment before calling Mercado Pago, holding the transaction's lane the whole time", async () => {
@@ -57,9 +58,31 @@ describe("createMercadoPagoPointOrder", () => {
         amount: AMOUNT,
         expiresAfterMinutes: 5,
         terminalId: TERMINAL_ID,
+        cardType: "DEBIT",
       },
     ]);
     expect(mercadoPago.creationRequests).toEqual([]);
+  });
+
+  it("asks the terminal for the card type the cashier chose, and records the transaction with it", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+
+    await createMercadoPagoPointOrder(ports, { ...INPUT, cardType: "CREDIT" });
+
+    expect(mercadoPago.pointCreationRequests.map((request) => request.cardType)).toEqual([
+      "CREDIT",
+    ]);
+    expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({ cardType: "CREDIT" });
+  });
+
+  it("answers a mismatch, without calling Mercado Pago, when the recorded transaction was for the other card type", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+    lanes.seed(storedPointTransaction({ amount: AMOUNT, cardType: "DEBIT" }));
+
+    const outcome = await createMercadoPagoPointOrder(ports, { ...INPUT, cardType: "CREDIT" });
+
+    expect(outcome).toEqual({ kind: "request_mismatch" });
+    expect(mercadoPago.pointCreationRequests).toEqual([]);
   });
 
   it("reports a new order as a pending Point payment that expires 5 minutes after it was asked for, plus the longest the creation call can take", async () => {

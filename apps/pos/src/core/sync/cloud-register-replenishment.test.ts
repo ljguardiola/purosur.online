@@ -288,6 +288,27 @@ describe("the cloud's replenishment of a restored register, as the register read
       });
     });
 
+    it("reads that a credit note is to regularize when no invoice can be corrected", async () => {
+      const answer = await pageWith({
+        credit_note_id: CREDIT_NOTE,
+        answered_at: "2026-10-07T10:30:00.000Z",
+        state: "REGULARIZATION_REQUIRED",
+      });
+
+      expect(answer).toMatchObject({
+        kind: "page",
+        page: {
+          creditNoteAnswers: [
+            {
+              creditNoteId: CREDIT_NOTE,
+              answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+              answer: { kind: "regularization_required" },
+            },
+          ],
+        },
+      });
+    });
+
     it("reads the rejection the tax authority gave, in the order the cloud sent the answers", async () => {
       const answer = await pageWith(
         {

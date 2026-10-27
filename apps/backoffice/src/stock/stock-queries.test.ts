@@ -6,6 +6,10 @@ test("invalidating the stock key marks every stock read stale", async () => {
   const client = new QueryClient();
   const keys = [
     stockKeys.balances,
+    stockKeys.currentReport({}),
+    stockKeys.currentReport({ category_id: "category-1" }),
+    stockKeys.expiringLotsReport({}),
+    stockKeys.expiringLotsReport({ from: "2026-12-01", to: "2026-12-31" }),
     stockKeys.expiringLots,
     stockKeys.counts(30),
     stockKeys.counts(7),
@@ -28,8 +32,14 @@ test("invalidating the stock key marks every stock read stale", async () => {
   expect(client.getQueryState(["pricing"])?.isInvalidated).toBe(false);
 });
 
-test("each period, product and moment has its own key", () => {
+test("each category, period, product and moment has its own key", () => {
   const keys = [
+    stockKeys.currentReport({}),
+    stockKeys.currentReport({ category_id: "category-1" }),
+    stockKeys.currentReport({ category_id: "category-2" }),
+    stockKeys.expiringLotsReport({}),
+    stockKeys.expiringLotsReport({ from: "2026-12-01", to: "2026-12-31" }),
+    stockKeys.expiringLotsReport({ from: "2026-12-01", to: "2026-12-30" }),
     stockKeys.counts(7),
     stockKeys.counts(30),
     stockKeys.movements(7),

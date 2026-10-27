@@ -20,8 +20,8 @@ import type {
   SalesHistoryPage,
 } from "@purosur/domain/sales/use-cases";
 import { readUncancelledDeferredSaleRecord } from "../fiscal/sqlite-deferred-sales";
+import { readCreditNoteOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
-import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { saleTotalOf } from "./sqlite-sale-total";
@@ -37,6 +37,7 @@ interface DetailRow extends SaleRow {
   first_name: string;
   line_count: number;
   in_open_session: 0 | 1;
+  deferred_short_code: string | null;
 }
 
 interface FiscalDocumentRow {
@@ -139,7 +140,9 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
         `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
                 sales.operation_number AS operation_number, users.first_name AS first_name,
                 ${VOIDED} AS voided, (${IN_THE_OPEN_SESSION}) AS in_open_session,
-                (SELECT count(*) FROM sale_lines WHERE sale_lines.sale_id = sales.id) AS line_count
+                (SELECT count(*) FROM sale_lines WHERE sale_lines.sale_id = sales.id) AS line_count,
+                (SELECT short_code FROM deferred_sales WHERE deferred_sales.sale_id = sales.id)
+                  AS deferred_short_code
          FROM sales JOIN users ON users.id = sales.actor_id
          WHERE sales.id = ? AND ${OF_THIS_REGISTER}`,
       )
@@ -147,6 +150,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     if (sale === undefined) {
       return undefined;
     }
+    const creditNote = readCreditNoteOfSale(this.database, sale.id);
     return {
       saleId: sale.id,
       occurredAt: new Date(sale.occurred_at),
@@ -162,9 +166,11 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       voided: sale.voided === 1,
       inOpenSession: sale.in_open_session === 1,
       invoices: readSaleInvoices(this.database, sale.id),
-      creditNote: readCreditNoteOfSale(this.database, sale.id)?.answer ?? null,
+      creditNote: creditNote?.answer ?? null,
+      creditNoteId: creditNote?.creditNoteId ?? null,
       deferredInvoiceIssued:
         readUncancelledDeferredSaleRecord(this.database, sale.id)?.satisfied === true,
+      deferredShortCode: sale.deferred_short_code,
       hasReturn: this.hasReturn(sale.id),
     };
   }

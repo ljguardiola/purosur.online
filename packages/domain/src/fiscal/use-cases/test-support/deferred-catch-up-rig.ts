@@ -1,3 +1,4 @@
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../../shared/index.js";
 import type { DeferredBacklogEntry } from "../../model/deferred-backlog.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import {
@@ -95,6 +96,7 @@ export function deferredCatchUpRig(
     roundTrips: new FakeRoundTripSamples([100]),
     taxAuthority,
     clock: new ManualClock(NOW),
+    zoneRules: { zoneRules: () => FIXED_ARGENTINA_ZONE_RULES },
     ids: new SequentialIds(),
     shortCodes: new ScriptedShortCodes(["7KQ4M2P9"]),
   };

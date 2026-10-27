@@ -10,6 +10,7 @@ import {
   signedInWith,
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerFreightsRoutes } from "./freights-routes.js";
 import { insertFreightRow, insertPurchaseWithLines } from "./test-support/freight-fixtures.js";
@@ -37,7 +38,12 @@ beforeEach(async () => {
   await testDatabase.clear();
   now = NOW;
   app = Fastify();
-  registerFreightsRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => now });
+  registerFreightsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => now,
+  });
   productId = (await insertProduct(db)).productId;
 });
 

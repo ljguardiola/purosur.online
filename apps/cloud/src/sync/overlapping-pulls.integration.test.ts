@@ -14,6 +14,7 @@ import {
   products,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -47,6 +48,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
       changeLog: new DrizzleChangeLog(db),
       offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
       clock: { now: () => NOW },
+      zoneRules: fixedZoneRulesSource(),
     };
     await pullChanges(ports, { deviceId, since: 0 });
 
@@ -88,6 +90,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
       changeLog: new DrizzleChangeLog(db),
       offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
       clock: { now: () => NOW },
+      zoneRules: fixedZoneRulesSource(),
     };
 
     let markSaveUnderWay = () => {};
@@ -140,6 +143,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
       changeLog: new DrizzleChangeLog(db),
       offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
       clock: { now: () => NOW },
+      zoneRules: fixedZoneRulesSource(),
     };
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
@@ -211,6 +215,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
       changeLog: new DrizzleChangeLog(db),
       offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
       clock: { now: () => NOW },
+      zoneRules: fixedZoneRulesSource(),
     };
     const created = await createCategory(new DrizzleCatalogStore(db), {
       name: "Bebidas",

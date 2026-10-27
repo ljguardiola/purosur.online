@@ -1,4 +1,5 @@
 import { exceedsRefundable } from "../../payments/index.js";
+import type { ZoneRules } from "../../shared/index.js";
 import type { ReturnReason } from "./return-reasons.js";
 import { isReturnWindowOpen, returnWindowLastDay } from "./return-window.js";
 
@@ -39,12 +40,14 @@ function refundsExceedPayments(
 function linesOutsideWindow(
   { lines, occurredAt }: ReturnAgainstHistory,
   { saleOccurredAt, goodConditionReturnDays }: SaleReturnHistory,
+  rules: ZoneRules,
 ): boolean {
   return lines.some(
     ({ reason }) =>
       !isReturnWindowOpen(
-        returnWindowLastDay(reason, saleOccurredAt, goodConditionReturnDays),
+        returnWindowLastDay(reason, saleOccurredAt, goodConditionReturnDays, rules),
         occurredAt,
+        rules,
       ),
   );
 }
@@ -66,12 +69,13 @@ function quantitiesExceedSale(
 export function returnHistoryBreaks(
   returned: ReturnAgainstHistory,
   history: SaleReturnHistory,
+  rules: ZoneRules,
 ): ReturnHistoryBreak[] {
   const breaks: ReturnHistoryBreak[] = [];
   if (refundsExceedPayments(returned, history)) {
     breaks.push("return_refund_exceeds_payment");
   }
-  if (linesOutsideWindow(returned, history)) {
+  if (linesOutsideWindow(returned, history, rules)) {
     breaks.push("return_line_outside_window");
   }
   if (quantitiesExceedSale(returned, history)) {

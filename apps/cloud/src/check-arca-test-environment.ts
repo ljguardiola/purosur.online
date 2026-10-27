@@ -4,6 +4,7 @@ import {
 } from "./fiscal/arca-test-environment-check.js";
 import { wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
+import { runtimeZoneRules } from "./register/runtime-zone-rules.js";
 
 if (import.meta.main) {
   const result = arcaTestEnvironmentCheckSettingsOf(process.argv.slice(2), process.env);
@@ -11,6 +12,7 @@ if (import.meta.main) {
     console.error(`check-arca-test-environment: ${result.reason}`);
     process.exit(1);
   } else {
+    const rules = runtimeZoneRules();
     Promise.resolve()
       .then(() =>
         runArcaTestEnvironmentCheck(
@@ -19,6 +21,7 @@ if (import.meta.main) {
             wsaaEndpoint: wsaaEndpointOf("homologation"),
             wsfeEndpoint: wsfeEndpointOf("homologation"),
             now: () => new Date(),
+            zoneRules: { zoneRules: () => rules },
           },
           (line) => console.log(line),
         ),

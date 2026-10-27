@@ -39,6 +39,7 @@ import {
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -325,7 +326,10 @@ describe("clearSampleData", () => {
     if (realAlertOutcome.kind !== "opened") throw new Error("test setup: real alert failed");
     const beforeLoad = await sampleDataSnapshot(db);
 
-    const loadOutcome = await loadSampleData(db, { now: () => NOW });
+    const loadOutcome = await loadSampleData(db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
+    });
     expect(loadOutcome.kind).toBe("loaded");
 
     const clearOutcome = await clearSampleData(db);
@@ -357,7 +361,9 @@ describe("clearSampleData", () => {
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
 
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     expect((await clearSampleData(db)).kind).toBe("cleared");
 
     const survivingCategories = await db
@@ -372,7 +378,9 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when a real product sits in a sample category", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const sampleLeafId = await sampleCategoryIdByPath(
       db,
       "Almacén",
@@ -399,7 +407,9 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when a real category sits inside a sample category", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const sampleMidRows = await db.execute<{ id: string }>(
       sql`select mid.id from categories mid
           join categories top on top.id = mid.parent_id
@@ -426,7 +436,9 @@ describe("clearSampleData", () => {
   it("clears a sample user who left a recovery token, a session with a pending passkey challenge and deliveries of a real alert", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const sampleCashierId = await userIdByEmail(db, sampleEmail("cajera.muestra"));
     await db.insert(recoveryTokens).values({
       userId: sampleCashierId,
@@ -468,7 +480,9 @@ describe("clearSampleData", () => {
   it("clears a sample register that an installation enrolled, with that installation", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const [sampleRegister] = await db.select({ id: registers.id }).from(registers).limit(1);
     if (!sampleRegister) throw new Error("test setup: no sample register was loaded");
     const [installation] = await db
@@ -498,7 +512,9 @@ describe("clearSampleData", () => {
   it("logs every category, product and price it removes as a delete of the version after its last one", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const removedCategories = await db
       .select({ id: categories.id, version: categories.version })
       .from(categories);
@@ -556,7 +572,9 @@ describe("clearSampleData", () => {
   it("logs every user and role it removes as a delete of the version after its last one, each user with its branch", async () => {
     const db = await freshOwnerDatabase();
     const bootstrap = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const removedUsers = (
       await db
         .select({ id: users.id, version: users.version, locationId: users.locationId })
@@ -607,7 +625,9 @@ describe("clearSampleData", () => {
       actorId: bootstrap.id,
     });
     if (realRegister.kind !== "created") throw new Error("test setup: real register collided");
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const removedRegisters = (
       await db.select({ id: registers.id, version: registers.version }).from(registers)
     ).filter((register) => register.id !== realRegister.register.id);
@@ -637,7 +657,9 @@ describe("clearSampleData", () => {
   it("logs every discount it removes as a delete of the version after its last one, for every branch", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const removedDiscounts = await db
       .select({ id: discounts.id, version: discounts.version })
       .from(discounts);
@@ -672,7 +694,9 @@ describe("clearSampleData", () => {
       parentId: null,
     });
     if (realCategory.kind !== "created") throw new Error("test setup: real category collided");
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     expect((await clearSampleData(db)).kind).toBe("cleared");
 
@@ -686,7 +710,9 @@ describe("clearSampleData", () => {
   it("logs the branch settings it set back as a change, so registers pull them", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     expect((await clearSampleData(db)).kind).toBe("cleared");
 
@@ -710,7 +736,9 @@ describe("clearSampleData", () => {
   it("clears a sample register that was handed its keys, with those keys", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const [sampleRegister] = await db.select({ id: registers.id }).from(registers).limit(1);
     if (!sampleRegister) throw new Error("test setup: no sample register was loaded");
     await db
@@ -753,7 +781,9 @@ describe("clearSampleData", () => {
       actorId: bootstrapAdmin.id,
     });
     if (realPrice.kind !== "applied") throw new Error("test setup: real price failed");
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const review = await confirmPrice(pricingPorts(db), {
       productId: realProduct.product.id,
       locationId: bootstrapAdmin.locationId,
@@ -772,7 +802,9 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when no active Administrator would be left", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     await db.update(users).set({ active: false }).where(eq(users.id, bootstrapAdmin.id));
     const beforeClear = await sampleDataSnapshot(db);
 
@@ -786,7 +818,9 @@ describe("clearSampleData", () => {
     await seedActiveAdministrator(db);
     let reads = 0;
     const movingClock = () => new Date(NOW.getTime() + reads++ * 1000);
-    expect((await loadSampleData(db, { now: movingClock })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: movingClock })).kind,
+    ).toBe("loaded");
 
     expect((await clearSampleData(db)).kind).toBe("cleared");
 
@@ -796,7 +830,9 @@ describe("clearSampleData", () => {
   it("clears after a real administrator changed the branch settings, keeping those settings and their audit row", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const [loadedSettings] = await db
       .select({ version: branchSettings.version })
       .from(branchSettings)
@@ -854,7 +890,9 @@ describe("clearSampleData", () => {
     if (edit.kind !== "edited") throw new Error("test setup: editing the branch settings failed");
     const [realSettings] = await db.select().from(branchSettings);
     const realHoursCount = await tableCount(db, "branch_hours");
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     expect((await clearSampleData(db)).kind).toBe("cleared");
 
@@ -866,7 +904,9 @@ describe("clearSampleData", () => {
   it("keeps branch settings a real administrator set back to the sample values after loading, with their audit rows", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const editAsRealAdministrator = async (address: string) => {
       const [current] = await db
         .select({ version: branchSettings.version })
@@ -908,7 +948,9 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when the sample administrator set the branch settings back to the sample values after a real edit", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const sampleAdministratorId = await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email);
     await editBranchSettingsAs(
       db,
@@ -942,7 +984,9 @@ describe("clearSampleData", () => {
       "Calle Real 1",
       EARLIER,
     );
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     await editBranchSettingsAs(
       db,
       bootstrapAdmin.locationId,
@@ -961,7 +1005,9 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when a sample user changed the branch settings after loading", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const [loadedSettings] = await db
       .select({ version: branchSettings.version })
       .from(branchSettings)
@@ -988,7 +1034,9 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when a real product carries a sample tag", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const [sampleTag] = await db
       .select({ id: tags.id })
       .from(tags)
@@ -1021,7 +1069,9 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when a real discount is aimed at a sample category", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const sampleCategoryId = await sampleCategoryIdByPath(
       db,
       "Almacén",
@@ -1051,7 +1101,9 @@ describe("clearSampleData", () => {
   it("reports the number of sample categories it actually deleted", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const removedLeafId = await sampleCategoryIdByPath(
       db,
       "Almacén",

@@ -206,6 +206,7 @@ const STALE_COLUMNS: [Entity, string, string, string][] = [
   ["issuer_identification", "issuer_identification_versions", "legal_name", "'stale'"],
   ["buyer_identification_threshold", "buyer_identification_thresholds", "amount", "1"],
   ["buyer_tax_status_set", "buyer_tax_status_sets", "options", "'[]'"],
+  ["zone_rules", "zone_rules", "transitions", "'[]'"],
   ["offline_authorization_code", "offline_authorization_codes", "code", "'stale'"],
   ["offline_number_block", "offline_number_blocks", "last_number", "7"],
 ];

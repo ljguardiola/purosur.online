@@ -20,6 +20,7 @@ import {
 } from "../../payments/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
+import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../../platform/test-support/open-local-database";
 import { recordCashMovementFor } from "../../register/cash-movement-requests";
@@ -28,7 +29,7 @@ import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evi
 import { uuidV7Ids } from "../../register/uuid-v7-ids";
 import { completeReturnFor } from "../../returns/returns-requests";
 import {
-  printVoidedSaleCreditNoteFor,
+  printSaleCreditNoteFor,
   reprintCreditNoteFor,
 } from "../../sales/credit-note-receipt-requests";
 import { createReceiptPrintJobs, type ReceiptPrintJobs } from "../../sales/receipt-print-jobs";
@@ -312,7 +313,7 @@ async function printAndReprintReceipt({
 function authorizeCreditNoteOfVoidedSale(database: LocalDatabase, saleId: string, at: Date): void {
   const answered = database
     .prepare(
-      `UPDATE sale_void_credit_notes
+      `UPDATE sale_credit_notes
        SET state = 'AUTHORIZED', point_of_sale = corrected_point_of_sale, number = 1,
            issued_on = @issued_on, issued_at = @issued_at, authorization_code = '71234567890999',
            authorization_code_due_on = '2026-10-16', answered_at = @issued_at
@@ -339,7 +340,13 @@ async function printAndReprintCreditNote({
 }): Promise<void> {
   const printer = new ControllableReceiptPrinter();
   const printers = { configured: () => printer };
-  const standing = () => deps.jobs.standingOf(`credit-note:${saleId}`);
+  const creditNoteId = deps.database
+    .prepare<[string], { id: string }>("SELECT id FROM sale_credit_notes WHERE sale_id = ?")
+    .get(saleId)?.id;
+  if (creditNoteId === undefined) {
+    throw new Error("The register session's voided sale has no credit note to print");
+  }
+  const standing = () => deps.jobs.standingOf(`credit-note:${creditNoteId}`);
   const untilCreditNotePrinted = async () => {
     for (let attempt = 0; attempt < 1000 && standing() !== "printed"; attempt += 1) {
       await new Promise((resolve) => setImmediate(resolve));
@@ -350,7 +357,7 @@ async function printAndReprintCreditNote({
     await new Promise((resolve) => setImmediate(resolve));
   };
   nextStep();
-  await printVoidedSaleCreditNoteFor({ ...deps, printers }, saleId);
+  await printSaleCreditNoteFor({ ...deps, printers }, { saleId, creditNoteId });
   nextStep();
   printer.becomeReady();
   await untilCreditNotePrinted();
@@ -359,6 +366,7 @@ async function printAndReprintCreditNote({
     { ...deps, printers },
     {
       saleId,
+      creditNoteId,
       reason: "El cliente la perdio",
       authorization: { user_id: GRACE, pin: PIN },
     },
@@ -403,6 +411,7 @@ async function catchUpFirstDeferredSale(database: LocalDatabase, now: () => Date
     )
     .run(now().toISOString());
   const caughtUp = await catchUpDeferredSales({
+    zoneRules: fixedZoneRulesSource(),
     catchUp: new SqliteDeferredSaleCatchUp(database, OUTBOX_CHAIN_KEY),
     documents: new SqliteRealTimeFiscalDocuments(database, OUTBOX_CHAIN_KEY),
     roundTrips: new SqliteRoundTripSamples(database),
@@ -451,6 +460,7 @@ export async function withRegisterSession<TResult>(
       }),
       readOutboxChainKey: async () => OUTBOX_CHAIN_KEY,
       now,
+      zoneRules: fixedZoneRulesSource(),
       ids: uuidV7Ids,
       signedInPerson,
       paidOrderDiscovery: () => "checked" as const,
@@ -921,7 +931,7 @@ export async function withRegisterSession<TResult>(
     nextStep();
     const pointDeposit = await startMercadoPagoChargeFor(
       { ...deps(), orders: APPROVED_QR_ORDERS },
-      { saleId: onPoint.sale.id, method: "POINT", amount: 1500 },
+      { saleId: onPoint.sale.id, method: "POINT", cardType: "DEBIT", amount: 1500 },
     );
     if (pointDeposit.kind !== "order_shown") {
       throw new Error(

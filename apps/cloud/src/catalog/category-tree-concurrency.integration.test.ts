@@ -10,6 +10,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { categories, products } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -188,7 +189,11 @@ describe("giving a category a product and a subcategory concurrently on a real P
         almacen.id,
         () =>
           editProduct(
-            { store: new DrizzleCatalogStore(db), clock: { now: () => new Date() } },
+            {
+              zoneRules: fixedZoneRulesSource(),
+              store: new DrizzleCatalogStore(db),
+              clock: { now: () => new Date() },
+            },
             {
               id: product.id,
               name: product.name,

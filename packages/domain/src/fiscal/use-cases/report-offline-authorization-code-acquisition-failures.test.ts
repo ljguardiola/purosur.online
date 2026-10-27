@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type {
   FortnightAcquisitionOutcome,
@@ -23,7 +24,7 @@ const CRITICAL_DAY = "2026-10-15";
 const AFTER_FORTNIGHT = "2026-11-01";
 
 function at(day: string): Date {
-  return new Date(argentinaInstant(day, "12:00"));
+  return new Date(argentinaInstant(day, "12:00", FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function attempted(
@@ -40,7 +41,12 @@ function setUp(day: string) {
   const notifier = new FakeAcquisitionFailureNotifier(store.events);
   const clock = new ManualClock(at(day));
   const report = (outcome: ObtainOfflineAuthorizationCodesOutcome) =>
-    reportOfflineAuthorizationCodeAcquisitionFailures(outcome, { store, notifier, clock });
+    reportOfflineAuthorizationCodeAcquisitionFailures(outcome, {
+      zoneRules: new FakeZoneRulesSource(),
+      store,
+      notifier,
+      clock,
+    });
   return { store, notifier, report };
 }
 

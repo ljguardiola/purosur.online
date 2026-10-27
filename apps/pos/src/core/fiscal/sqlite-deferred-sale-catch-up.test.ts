@@ -7,6 +7,7 @@ import {
 } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { SqliteDeferredSaleCatchUp } from "./sqlite-deferred-sale-catch-up";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
@@ -331,6 +332,7 @@ describe("catching up against the local database", () => {
 
   function run() {
     return catchUpDeferredSales({
+      zoneRules: fixedZoneRulesSource(),
       catchUp,
       documents: new SqliteRealTimeFiscalDocuments(database, CHAIN_KEY),
       roundTrips: new SqliteRoundTripSamples(database),

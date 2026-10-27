@@ -8,6 +8,7 @@ import {
   SESSION_NOON,
 } from "../test-support/backoffice-session.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
@@ -39,6 +40,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerFortnightPresentationsListRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => SESSION_NOON,

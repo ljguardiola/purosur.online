@@ -1,6 +1,7 @@
 import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import type {
   ProductChooser,
   SupplierPriceListFiles,
@@ -95,11 +96,13 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import { registerFiscalRegistersRoute } from "./fiscal/fiscal-registers-route.js";
 import { registerFiscalTaskClosingRoute } from "./fiscal/fiscal-task-closing-route.js";
 import { registerFiscalTasksListRoute } from "./fiscal/fiscal-tasks-list-route.js";
 import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
+import { registerIssuedFiscalDocumentsRoute } from "./fiscal/issued-fiscal-documents-route.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
@@ -165,6 +168,10 @@ import {
   registerBitlockerRecoveryKeyRoute,
 } from "./register/bitlocker-recovery-key-route.js";
 import { registerCashSessionClosesReportRoute } from "./register/cash-session-closes-report-route.js";
+import {
+  type CurrentZoneRulesRouteOptions,
+  registerCurrentZoneRulesRoute,
+} from "./register/current-zone-rules-route.js";
 import { authenticateDevice } from "./register/device-authentication.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
@@ -199,6 +206,10 @@ import { registerSnapshotKeyVersionRoute } from "./register/snapshot-key-version
 import { registerSnapshotOnDiskRoute } from "./register/snapshot-on-disk-route.js";
 import { registerBranchSaleForReturnRoute } from "./returns/branch-sale-for-return-route.js";
 import {
+  type ReturnsReportRouteOptions,
+  registerReturnsReportRoutes,
+} from "./returns/returns-report-routes.js";
+import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
@@ -217,6 +228,8 @@ import { registerSessionSignOutRoute } from "./sessions/session-sign-out-route.j
 import { registerSessionStatusRoute } from "./sessions/session-status-route.js";
 import { registerSignInLookupRoute } from "./sessions/sign-in-lookup-route.js";
 import { registerAssemblyBatchesRoutes } from "./stock/assembly-batches-routes.js";
+import { registerCurrentStockReportRoute } from "./stock/current-stock-report-route.js";
+import { registerExpiringLotsReportRoute } from "./stock/expiring-lots-report-route.js";
 import { registerExpiringLotsRoutes } from "./stock/expiring-lots-route.js";
 import { registerInitialInventoryLotsRoutes } from "./stock/initial-inventory-lots-route.js";
 import { registerRecipesRoutes } from "./stock/recipes-routes.js";
@@ -263,6 +276,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   users?: WithoutClock<UsersRouteOptions<TQueryResult>>;
   roles?: WithoutClock<RolesRouteOptions<TQueryResult>>;
   branchSettings?: WithoutClock<BranchSettingsRouteOptions<TQueryResult>>;
+  currentZoneRules?: WithoutClock<CurrentZoneRulesRouteOptions<TQueryResult>>;
   issuerIdentification?: WithoutClock<IssuerIdentificationRouteOptions<TQueryResult>>;
   buyerIdentificationThresholds?: WithoutClock<
     BuyerIdentificationThresholdsRouteOptions<TQueryResult>
@@ -288,10 +302,11 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   bitlockerRecoveryKeys?: WithoutClock<BitlockerRecoveryKeyRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
+  returns?: WithoutClock<ReturnsReportRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
   paymentsReports?: WithoutClock<PaymentsReportRouteOptions<TQueryResult>>;
   refunds?: WithoutClock<RefundRouteOptions<TQueryResult>>;
-  devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
+  devices?: WithoutClock<DeviceTokensOptions<TQueryResult> & { zoneRules: ZoneRulesSource }>;
   enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
   enqueueTaxAuthorityCountOnEnrollment?: EnqueueTaxAuthorityCount;
   enqueueNumberingReconciliationOnEnrollment?: EnqueueNumberingReconciliation;
@@ -351,6 +366,7 @@ interface HealthArcaOptions<TQueryResult extends PgQueryResultHKT> {
 interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
+  zoneRules: ZoneRulesSource;
   recoveryJobQueue: RecoveryJobQueue;
   authorizedCuit: string;
   certificateFingerprint: string;
@@ -369,9 +385,11 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
   wiring: DatabaseWiring<TQueryResult>,
 ): DatabaseRouteOptions<TQueryResult> {
   const { db, backofficeOrigin } = wiring;
-  const backoffice = { db, backofficeOrigin };
+  const { zoneRules } = wiring;
+  const backoffice = { db, backofficeOrigin, zoneRules };
   const devices = {
     db,
+    zoneRules,
     rotationKey: wiring.deviceTokenRotationKey,
     keysEncryptionKey: wiring.installationKeysEncryptionKey,
   };
@@ -382,6 +400,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     users: backoffice,
     roles: backoffice,
     branchSettings: backoffice,
+    currentZoneRules: backoffice,
     issuerIdentification: { ...backoffice, authorizedCuit: wiring.authorizedCuit },
     buyerIdentificationThresholds: backoffice,
     fiscalAddresses: backoffice,
@@ -428,6 +447,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
       ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
       : backoffice,
     stock: backoffice,
+    returns: backoffice,
     salesReports: backoffice,
     paymentsReports: backoffice,
     refunds: wiring.refundSending ? { ...backoffice, sending: wiring.refundSending } : backoffice,
@@ -589,6 +609,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerBranchSettingsEditRoute(api, { ...options.branchSettings, now });
       }
 
+      if (options.currentZoneRules) {
+        registerCurrentZoneRulesRoute(api, { ...options.currentZoneRules, now });
+      }
+
       if (options.issuerIdentification) {
         registerIssuerIdentificationReadRoute(api, { ...options.issuerIdentification, now });
         registerIssuerIdentificationEditRoute(api, { ...options.issuerIdentification, now });
@@ -692,6 +716,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.stock) {
         registerStockBalancesRoute(api, { ...options.stock, now });
+        registerCurrentStockReportRoute(api, { ...options.stock, now });
+        registerExpiringLotsReportRoute(api, { ...options.stock, now });
         registerStockProductsRoute(api, { ...options.stock, now });
         registerRecipesRoutes(api, { ...options.stock, now });
         registerAssemblyBatchesRoutes(api, { ...options.stock, now });
@@ -699,6 +725,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerInitialInventoryLotsRoutes(api, { ...options.stock, now });
         registerStockMovementsRoutes(api, { ...options.stock, now });
         registerExpiringLotsRoutes(api, { ...options.stock, now });
+      }
+
+      if (options.returns) {
+        registerReturnsReportRoutes(api, { ...options.returns, now });
       }
 
       if (options.salesReports) {
@@ -758,6 +788,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerFiscalTasksListRoute(api, { ...options.registersPointsOfSale, now });
         registerFiscalTaskClosingRoute(api, { ...options.registersPointsOfSale, now });
         registerUnbilledDeferredSalesRoute(api, { ...options.registersPointsOfSale, now });
+        registerIssuedFiscalDocumentsRoute(api, { ...options.registersPointsOfSale, now });
+        registerFiscalRegistersRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
         registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });

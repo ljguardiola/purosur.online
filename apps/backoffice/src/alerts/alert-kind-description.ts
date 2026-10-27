@@ -43,6 +43,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   register_backup_overdue:
     "Una caja registró cambios y lleva más de una hora sin un backup verificado",
   clock_drift: "La hora de una caja difiere en más de un minuto de la hora real",
+  tz_rules_mismatch:
+    "La caja aplica reglas de zona horaria de una versión distinta de la de la nube. Se resuelve sola cuando la caja recibe y aplica la versión de la nube.",
   register_replenishment_failed:
     "Una caja restaurada no puede ponerse al día con la nube y no puede vender",
   deferred_sale_due:

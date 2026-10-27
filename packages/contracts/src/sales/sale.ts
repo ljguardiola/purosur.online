@@ -1,12 +1,12 @@
 import {
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
-  MERCADO_PAGO_PAYMENT_METHODS,
   manualAdjustmentReason,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   mayBeOverriddenUnitPrice,
   mayBeSaleLineQuantity,
+  POINT_CARD_TYPES,
   SALE_UNITS,
   SALE_VOID_REFUSALS,
   SEARCH_RESULT_LIMIT,
@@ -87,6 +87,13 @@ const saleLineSchema = z.object({
   line_total: cents,
 });
 
+const mercadoPagoChargeInProgressFields = {
+  payment_transaction_id: recordIdSchema(),
+  amount: z.int().positive(),
+  remaining_seconds: z.int().min(0),
+  wait_seconds: z.int().positive(),
+};
+
 export const saleSchema = z.object({
   id: z.string(),
   lines: z.array(saleLineSchema),
@@ -106,13 +113,14 @@ export const saleSchema = z.object({
     .discriminatedUnion("kind", [reachesThresholdRefusalSchema, noThresholdRefusalSchema])
     .nullable(),
   mercado_pago_charge_in_progress: z
-    .object({
-      payment_transaction_id: recordIdSchema(),
-      method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
-      amount: z.int().positive(),
-      remaining_seconds: z.int().min(0),
-      wait_seconds: z.int().positive(),
-    })
+    .discriminatedUnion("method", [
+      z.object({ ...mercadoPagoChargeInProgressFields, method: z.literal("QR") }),
+      z.object({
+        ...mercadoPagoChargeInProgressFields,
+        method: z.literal("POINT"),
+        card_type: z.enum(POINT_CARD_TYPES).nullable(),
+      }),
+    ])
     .nullable(),
 });
 export type OpenSale = z.infer<typeof saleSchema>;

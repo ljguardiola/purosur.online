@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { applySnapshotRetention } from "./apply-snapshot-retention.js";
 import { reportSnapshotCorruption } from "./report-snapshot-corruption.js";
 import { FixedClock } from "./test-support/fake-register-store.js";
@@ -11,7 +12,13 @@ function minutesBefore(minutes: number): Date {
 }
 
 function apply(store: FakeSnapshotStore, objects: FakeSnapshotObjects) {
-  return applySnapshotRetention({ store, lanes: store, clock: new FixedClock(NOW), objects });
+  return applySnapshotRetention({
+    zoneRules: new FakeZoneRulesSource(),
+    store,
+    lanes: store,
+    clock: new FixedClock(NOW),
+    objects,
+  });
 }
 
 function seedRecent(store: FakeSnapshotStore, registerId = "register-1"): void {

@@ -24,6 +24,7 @@ import {
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -53,11 +54,23 @@ function voidLedger(chainKey: string | null = CHAIN_KEY): SqliteSaleVoidLedger {
 
 function sellTwo(): string {
   addScannedProduct(
-    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger: sales,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", code: "111" },
   );
   const outcome = addScannedProduct(
-    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger: sales,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", code: "111" },
   );
   if (outcome.kind !== "added") {
@@ -68,14 +81,26 @@ function sellTwo(): string {
 
 function payCash(saleId: string, tendered: number): void {
   chargeSaleInCash(
-    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger: sales,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", saleId, tendered },
   );
 }
 
 function payByTransfer(saleId: string, amount: number): void {
   chargeSaleByTransfer(
-    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger: sales,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", saleId, amount },
   );
 }
@@ -83,6 +108,7 @@ function payByTransfer(saleId: string, amount: number): void {
 function voidIt(saleId: string, options: { authorizedBy?: string; confirmed?: boolean } = {}) {
   return voidSale(
     {
+      zoneRules: fixedZoneRulesSource(),
       ledger: voidLedger(),
       clock: { now: () => VOIDED_AT },
       ids,
@@ -306,7 +332,8 @@ describe("the credit note of a voided sale", () => {
     total: 3000,
     receiverTaxStatusCode: 5,
     correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
-  };
+    origin: { kind: "sale_void" },
+  } as const;
 
   function recordCreditNote(saleId: string, creditNoteId = "note-1") {
     voidLedger().transaction((tx) => {
@@ -326,7 +353,7 @@ describe("the credit note of a voided sale", () => {
         .prepare(
           `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
                   corrected_point_of_sale, corrected_number, state, recorded_at, answered_at
-           FROM sale_void_credit_notes`,
+           FROM sale_credit_notes`,
         )
         .all(),
     ).toEqual([
@@ -370,7 +397,7 @@ describe("the credit note of a voided sale", () => {
 
     await expect(voidIt(saleId)).rejects.toThrow("outbox refused");
 
-    expect(database.prepare("SELECT count(*) AS total FROM sale_void_credit_notes").get()).toEqual({
+    expect(database.prepare("SELECT count(*) AS total FROM sale_credit_notes").get()).toEqual({
       total: 0,
     });
   });
@@ -387,7 +414,7 @@ describe("the credit note of a voided sale", () => {
     expect(
       database
         .prepare(
-          "SELECT sale_id, corrected_point_of_sale, corrected_number, state FROM sale_void_credit_notes",
+          "SELECT sale_id, corrected_point_of_sale, corrected_number, state FROM sale_credit_notes",
         )
         .all(),
     ).toEqual([
@@ -487,10 +514,17 @@ describe("voiding a sale", () => {
       payCash(saleId, 3000);
       database
         .prepare(
-          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
-         VALUES ('mp-1', ?, 'SALE', ?, ?, 500, 'APPROVED', ?, ?)`,
+          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+         VALUES ('mp-1', ?, 'SALE', ?, ?, ?, 500, 'APPROVED', ?, ?)`,
         )
-        .run(saleId, method, provider, NOW.toISOString(), NOW.toISOString());
+        .run(
+          saleId,
+          method,
+          provider,
+          method === "POINT" ? "DEBIT" : null,
+          NOW.toISOString(),
+          NOW.toISOString(),
+        );
 
       await voidIt(saleId, { confirmed: true });
 
@@ -504,7 +538,7 @@ describe("voiding a sale", () => {
       const event = database
         .prepare("SELECT schema_version, payload FROM outbox WHERE event_type = 'sale_voided'")
         .get() as { schema_version: number; payload: string };
-      expect(event.schema_version).toBe(3);
+      expect(event.schema_version).toBe(4);
       expect(JSON.parse(event.payload).refunds).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ parent_id: "mp-1", method, provider, state: "PENDING" }),
@@ -615,6 +649,7 @@ describe("voiding a sale", () => {
 
     const outcome = await voidSale(
       {
+        zoneRules: fixedZoneRulesSource(),
         ledger: voidLedger(null),
         clock: { now: () => VOIDED_AT },
         ids,
@@ -714,14 +749,14 @@ describe("the credit note of a sale voided without a connection", () => {
       database
         .prepare(
           `SELECT notes.state, notes.answered_at, notes.offline_fiscal_document_id = documents.id AS carried
-           FROM sale_void_credit_notes AS notes
+           FROM sale_credit_notes AS notes
            JOIN offline_fiscal_documents AS documents ON documents.credit_note_id = notes.id`,
         )
         .all(),
     ).toEqual([{ state: "ISSUED_OFFLINE", answered_at: VOIDED_AT.toISOString(), carried: 1 }]);
   });
 
-  it("appends the voiding and then the report event of the credit note, in version 3", async () => {
+  it("appends the voiding and then the report event of the credit note, in version 4", async () => {
     const saleId = invoicedSaleWithOfflineCreditNoteSeries();
 
     await voidIt(saleId);
@@ -735,7 +770,7 @@ describe("the credit note of a sale voided without a connection", () => {
         )
         .all(),
     ).toEqual([
-      { event_type: "sale_voided", schema_version: 3 },
+      { event_type: "sale_voided", schema_version: 4 },
       { event_type: "offline_fiscal_document_issued", schema_version: 3 },
     ]);
   });
@@ -778,7 +813,7 @@ describe("the credit note of a sale voided without a connection", () => {
 
     await voidIt(saleId);
 
-    expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+    expect(database.prepare("SELECT state FROM sale_credit_notes").all()).toEqual([
       { state: "IN_PROGRESS" },
     ]);
     expect(
@@ -799,7 +834,7 @@ describe("the credit note of a sale voided without a connection", () => {
     expect(
       database.prepare("SELECT count(*) AS total FROM offline_fiscal_documents").get(),
     ).toEqual({ total: 0 });
-    expect(database.prepare("SELECT count(*) AS total FROM sale_void_credit_notes").get()).toEqual({
+    expect(database.prepare("SELECT count(*) AS total FROM sale_credit_notes").get()).toEqual({
       total: 0,
     });
     expect(database.prepare("SELECT state FROM sales WHERE id = ?").get(saleId)).toEqual({

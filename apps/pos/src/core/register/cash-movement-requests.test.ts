@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -49,6 +50,7 @@ function deps(
         return `id-${idCount}`;
       },
     },
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }
@@ -298,7 +300,7 @@ describe("the open session's cash movements", () => {
       request({ kind: "WITHDRAWAL", authorization: { user_id: "u2", pin: "1234" } }),
     );
 
-    expect(currentCashMovements(database)).toEqual([
+    expect(currentCashMovements(database, fixedZoneRulesSource())).toEqual([
       expect.objectContaining({ type: "OPENING", amount: 5000, authorized_by: null }),
       {
         id: expect.any(String),
@@ -313,12 +315,27 @@ describe("the open session's cash movements", () => {
     ]);
   });
 
+  it("writes when each happened on the clock of the zone rules it is given", async () => {
+    await recordCashMovementFor(
+      deps(),
+      request({ kind: "WITHDRAWAL", authorization: { user_id: "u2", pin: "1234" } }),
+    );
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    const movements = currentCashMovements(database, { zoneRules: () => rules });
+
+    expect(movements?.at(-1)?.occurred_at).toBe("2026-09-30T12:00:00.000+00:00");
+  });
+
   it("is none while no session is open", () => {
     database
       .prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = ?")
       .run(NOW.toISOString());
 
-    expect(currentCashMovements(database)).toBeNull();
+    expect(currentCashMovements(database, fixedZoneRulesSource())).toBeNull();
   });
 });
 

@@ -1,4 +1,4 @@
-import { argentinaCalendarDay, isCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, isCalendarDay, type ZoneRulesSource } from "../../shared/index.js";
 import { sameSupplierItemKey, supplierItemKey } from "../model/supplier-item.js";
 import {
   isPriceListRowPrice,
@@ -23,6 +23,7 @@ export interface ReadSupplierPriceListPorts {
   store: SupplierPriceListStore;
   files: SupplierPriceListFiles;
   extractor: PriceListExtractor;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface ReadSupplierPriceListInput {
@@ -112,7 +113,7 @@ function settleUnfinishedReading(store: SupplierPriceListStore, listId: string):
 }
 
 async function readOnce(
-  { store, files, extractor }: ReadSupplierPriceListPorts,
+  { store, files, extractor, zoneRules }: ReadSupplierPriceListPorts,
   { listId, now }: ReadSupplierPriceListInput,
 ): Promise<ReadSupplierPriceListOutcome> {
   const claim = await store.transaction<
@@ -147,7 +148,7 @@ async function readOnce(
         return { kind: "stop", outcome: { kind: "failed", reason: "reading_unavailable" } };
       }
       const sentAt = now();
-      await tx.markSent(listId, sentAt, argentinaCalendarDay(sentAt));
+      await tx.markSent(listId, sentAt, argentinaCalendarDay(sentAt, zoneRules.zoneRules()));
       return { kind: "sent", source: priceListSource(claim.contentKind, file) };
     },
   );

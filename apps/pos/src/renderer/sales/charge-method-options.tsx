@@ -3,7 +3,13 @@ import type { Icon, Options } from "@purosur/ui";
 import { Banknote, Calculator, CreditCard, Landmark, QrCode, WifiOff } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 
-export type ChargeMethod = "CASH" | "POINT" | "QR" | "TRANSFER" | "STANDALONE_TERMINAL";
+export type ChargeMethod =
+  | "CASH"
+  | "POINT_DEBIT"
+  | "POINT_CREDIT"
+  | "QR"
+  | "TRANSFER"
+  | "STANDALONE_TERMINAL";
 
 type MethodOption = {
   value: ChargeMethod;
@@ -20,25 +26,38 @@ const CASH_OPTION: MethodOption = {
   icon: <Banknote />,
 };
 
-const POINT_OPTION: MethodOption = {
-  value: "POINT",
-  label: "Point integrada",
-  description: "Tarjeta o QR en la terminal · requiere internet",
-  icon: <CreditCard />,
-};
+const POINT_OPTIONS = [
+  { value: "POINT_DEBIT", label: "Point · Débito" },
+  { value: "POINT_CREDIT", label: "Point · Crédito" },
+] as const;
 
-const POINT_OPTION_OFFLINE: MethodOption = {
-  ...POINT_OPTION,
-  description: "No disponible sin conexión",
-  icon: <WifiOff />,
-  disabled: true,
-};
-
-const POINT_OPTION_NOT_CONFIGURED: MethodOption = {
-  ...POINT_OPTION,
-  description: "No configurada en esta caja",
-  disabled: true,
-};
+function pointOptions(point: PaymentMethodAvailability["point"]): MethodOption[] {
+  const base = {
+    description: "Tarjeta en la terminal · requiere internet",
+    icon: <CreditCard />,
+  };
+  switch (point) {
+    case "available":
+      return POINT_OPTIONS.map((option) => ({ ...base, ...option }));
+    case "offline":
+      return POINT_OPTIONS.map((option) => ({
+        ...base,
+        ...option,
+        description: "No disponible sin conexión",
+        icon: <WifiOff />,
+        disabled: true,
+      }));
+    case "not_configured":
+      return POINT_OPTIONS.map((option) => ({
+        ...base,
+        ...option,
+        description: "No configurada en esta caja",
+        disabled: true,
+      }));
+    case "below_minimum":
+      return [];
+  }
+}
 
 const QR_OPTION: MethodOption = {
   value: "QR",
@@ -74,19 +93,6 @@ const STANDALONE_TERMINAL_OPTION: MethodOption = {
   icon: <Calculator />,
 };
 
-function pointOption(point: PaymentMethodAvailability["point"]): MethodOption | undefined {
-  switch (point) {
-    case "available":
-      return POINT_OPTION;
-    case "offline":
-      return POINT_OPTION_OFFLINE;
-    case "not_configured":
-      return POINT_OPTION_NOT_CONFIGURED;
-    case "below_minimum":
-      return undefined;
-  }
-}
-
 function qrOption(qr: PaymentMethodAvailability["qr"]): MethodOption {
   switch (qr) {
     case "available":
@@ -113,11 +119,10 @@ export function chargeMethodOptions(
     };
   }
   const { qr, point, point_minimum: minimum } = availability.value;
-  const terminal = pointOption(point);
   return {
     options: [
       CASH_OPTION,
-      ...(terminal === undefined ? [] : [terminal]),
+      ...pointOptions(point),
       qrOption(qr),
       TRANSFER_OPTION,
       STANDALONE_TERMINAL_OPTION,

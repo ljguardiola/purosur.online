@@ -539,14 +539,24 @@ describe("createCoreClient", () => {
     ]);
   });
 
-  it.each(["QR", "POINT"] as const)(
-    "asks the core to start a Mercado Pago %s charge of an amount of a sale and resolves with the outcome",
-    async (method) => {
+  it.each([
+    [{ method: "QR" }, { method: "QR" }],
+    [
+      { method: "POINT", cardType: "DEBIT" },
+      { method: "POINT", card_type: "DEBIT" },
+    ],
+    [
+      { method: "POINT", cardType: "CREDIT" },
+      { method: "POINT", card_type: "CREDIT" },
+    ],
+  ] as const)(
+    "asks the core to start a Mercado Pago charge of %o of an amount of a sale and resolves with the outcome",
+    async (charge, wire) => {
       const client = clientWithSequentialIds();
       const port = new FakePort();
       client.connect(port);
 
-      const outcome = client.startMercadoPagoCharge("sale-1", method, 300_000);
+      const outcome = client.startMercadoPagoCharge("sale-1", charge, 300_000);
       const shown = {
         kind: "order_shown",
         payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
@@ -566,7 +576,7 @@ describe("createCoreClient", () => {
           type: "start-mercado-pago-charge",
           request_id: "request-1",
           sale_id: "sale-1",
-          method,
+          ...wire,
           amount: 300_000,
         },
       ]);
@@ -2011,7 +2021,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const printed = client.printCreditNote("sale-1");
+    const printed = client.printCreditNote("sale-1", "credit-note-1");
     port.answer({
       type: "print-credit-note-result",
       request_id: "request-1",
@@ -2020,7 +2030,12 @@ describe("createCoreClient", () => {
 
     expect(await printed).toEqual({ kind: "started", copy: { kind: "original" } });
     expect(port.posted).toEqual([
-      { type: "print-credit-note", request_id: "request-1", sale_id: "sale-1" },
+      {
+        type: "print-credit-note",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        credit_note_id: "credit-note-1",
+      },
     ]);
   });
 
@@ -2030,7 +2045,12 @@ describe("createCoreClient", () => {
     client.connect(port);
     const authorization = { user_id: "u2", pin: "1234" };
 
-    const reprinted = client.reprintCreditNote("sale-1", "El cliente la perdió", authorization);
+    const reprinted = client.reprintCreditNote(
+      "sale-1",
+      "credit-note-1",
+      "El cliente la perdió",
+      authorization,
+    );
     port.answer({
       type: "reprint-credit-note-result",
       request_id: "request-1",
@@ -2046,6 +2066,7 @@ describe("createCoreClient", () => {
         type: "reprint-credit-note",
         request_id: "request-1",
         sale_id: "sale-1",
+        credit_note_id: "credit-note-1",
         reason: "El cliente la perdió",
         authorization,
       },
@@ -2057,7 +2078,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const reprinted = client.reprintCreditNote("sale-1", "Otra copia", undefined);
+    const reprinted = client.reprintCreditNote("sale-1", "credit-note-1", "Otra copia", undefined);
     port.answer({
       type: "reprint-credit-note-result",
       request_id: "request-1",
@@ -2070,6 +2091,7 @@ describe("createCoreClient", () => {
         type: "reprint-credit-note",
         request_id: "request-1",
         sale_id: "sale-1",
+        credit_note_id: "credit-note-1",
         reason: "Otra copia",
       },
     ]);

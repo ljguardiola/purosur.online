@@ -1,4 +1,5 @@
 import {
+  categoryListSchema,
   supplierItemLinkChoicesSchema,
   supplierItemLinkProposalSchema,
   supplierPriceListConfirmationBodySchema,
@@ -8,6 +9,8 @@ import {
   supplierPriceListReviewSchema,
   supplierPriceListRowLinkBodySchema,
   supplierPriceListRowPriceBodySchema,
+  supplierPriceListRowProductCreatedSchema,
+  supplierPriceListRowProductCreationBodySchema,
   supplierPriceListRowRemovalBodySchema,
   supplierPriceListRowReviewBodySchema,
   supplierPriceListUploadedSchema,
@@ -19,12 +22,14 @@ import {
   SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
 } from "@purosur/domain";
 import type {
+  CreateProductFromSupplierItemOutcome,
   LinkSupplierPriceListRowOutcome,
   LoadSupplierPriceListWebPageOutcome,
   ProductChooser,
 } from "@purosur/domain/purchasing/use-cases";
 import {
   confirmSupplierPriceList,
+  createProductFromSupplierItem,
   discardSupplierPriceList,
   findSupplierPriceListFile,
   findSupplierPriceListReview,
@@ -42,6 +47,12 @@ import {
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyError, FastifyInstance, FastifyReply } from "fastify";
 import { DrizzleCatalogListReader } from "../catalog/drizzle-catalog-list-reader.js";
+import { DrizzleInternalBarcodeStore } from "../catalog/drizzle-internal-barcode-store.js";
+import { allocateInternalBarcodeHandler } from "../catalog/internal-barcode-route.js";
+import {
+  CATEGORY_NOT_FOUND_FAILURE,
+  CATEGORY_NOT_LEAF_RESPONSE,
+} from "../catalog/product-creation-route.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
@@ -53,9 +64,11 @@ import {
 } from "../sessions/route-access.js";
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzleSupplierItemLinkProposalReader } from "./drizzle-supplier-item-link-proposal-reader.js";
+import { DrizzleSupplierItemProductStore } from "./drizzle-supplier-item-product-store.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { opensAsPdf } from "./opens-as-pdf.js";
+import { PART_OF_A_UNIT_RESPONSE } from "./packagings-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing-route-options.js";
 
 const NOT_FOUND = { code: "not_found", message: "no supplier price list with that id" } as const;
@@ -196,6 +209,70 @@ async function answerRowLink(
   await refuseChange(reply, outcome);
 }
 
+const ALREADY_LINKED = {
+  code: "already_linked",
+  message: "this item already has a product, so none can be created from it",
+} as const;
+
+const PRESENTATION_MISSING_RESPONSE = {
+  code: "validation_failed",
+  message: "packagingName must be given for an item whose list states no presentation",
+  details: [{ field: "packagingName" }],
+} as const;
+
+const LIST_TEXT_TOO_LONG = {
+  name_too_long: "the item's description is longer than a product's name may be",
+  presentation_too_long: "the item's presentation is longer than a presentation's name may be",
+} as const;
+
+async function answerProductCreation(
+  reply: FastifyReply,
+  outcome: CreateProductFromSupplierItemOutcome,
+): Promise<void> {
+  switch (outcome.kind) {
+    case "created":
+      await reply.code(201).send(
+        supplierPriceListRowProductCreatedSchema.parse({
+          productId: outcome.productId,
+          packagingId: outcome.packagingId,
+        }),
+      );
+      return;
+    case "already_linked":
+      await reply.code(409).send(ALREADY_LINKED);
+      return;
+    case "invalid_quantity":
+      await reply.code(400).send(PART_OF_A_UNIT_RESPONSE);
+      return;
+    case "presentation_missing":
+      await reply.code(400).send(PRESENTATION_MISSING_RESPONSE);
+      return;
+    case "name_too_long":
+    case "presentation_too_long":
+      await reply.code(409).send({ code: outcome.kind, message: LIST_TEXT_TOO_LONG[outcome.kind] });
+      return;
+    case "vat_rate_missing":
+    case "vat_rate_invalid":
+      await reply.code(409).send({ code: outcome.kind, message: LINK_REFUSALS[outcome.kind] });
+      return;
+    case "category_not_found":
+      await reply.code(400).send({
+        code: "validation_failed",
+        message: CATEGORY_NOT_FOUND_FAILURE.message,
+        details: [{ field: CATEGORY_NOT_FOUND_FAILURE.field }],
+      });
+      return;
+    case "category_not_leaf":
+      await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
+      return;
+    case "barcode_taken":
+      await reply.code(409).send({ code: "barcode_taken", codes: outcome.codes });
+      return;
+    default:
+      await refuseChange(reply, outcome);
+  }
+}
+
 export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PurchasingRouteOptions<TQueryResult>,
@@ -208,6 +285,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   } = options;
   registerRouteAccess(app);
   const store = new DrizzleSupplierPriceListStore(options.db, now);
+  const productStore = new DrizzleSupplierItemProductStore(options.db, now);
   const reader = new DrizzleSupplierPriceListReader(options.db);
   const proposalReader = new DrizzleSupplierItemLinkProposalReader(options.db);
   const purchasingReader = new DrizzlePurchasingListReader(options.db);
@@ -254,7 +332,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
 
         const openSession = openSessionOf(request);
         const outcome = await uploadSupplierPriceList(
-          { store, files },
+          { zoneRules: options.zoneRules, store, files },
           {
             supplierId: query.supplierId,
             locationId: openSession.locationId,
@@ -300,6 +378,17 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     const choices = await listSupplierItemLinkChoices(purchasingReader, products);
     await reply.code(200).send(supplierItemLinkChoicesSchema.parse(choices));
   });
+
+  app.get("/supplier-price-lists/product-categories", readGuard, async (_request, reply) => {
+    const rows = await catalog.categories();
+    await reply.code(200).send(categoryListSchema.parse(rows));
+  });
+
+  app.post(
+    "/supplier-price-lists/internal-barcodes",
+    writeGuard,
+    allocateInternalBarcodeHandler(new DrizzleInternalBarcodeStore(options.db)),
+  );
 
   app.get("/supplier-price-lists/:id", readGuard, async (request, reply) => {
     const ids = await readRecordIds(reply, request.params, ["id"]);
@@ -390,6 +479,28 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       actorId: openSessionOf(request).userId,
     });
     await answerRowLink(reply, outcome);
+  });
+
+  app.post("/supplier-price-lists/:id/rows/:rowId/product", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id", "rowId"]);
+    if (!ids) {
+      return;
+    }
+    const body = await readValidatedBody(
+      reply,
+      supplierPriceListRowProductCreationBodySchema,
+      request.body,
+    );
+    if (!body) {
+      return;
+    }
+    const outcome = await createProductFromSupplierItem(productStore, {
+      ...body,
+      listId: ids.id,
+      rowId: ids.rowId,
+      actorId: openSessionOf(request).userId,
+    });
+    await answerProductCreation(reply, outcome);
   });
 
   app.put("/supplier-price-lists/:id/rows/:rowId/review", writeGuard, async (request, reply) => {
@@ -533,7 +644,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
 
     const openSession = openSessionOf(request);
     const outcome = await loadSupplierPriceListWebPage(
-      { store, files, webPages },
+      { zoneRules: options.zoneRules, store, files, webPages },
       {
         supplierId: body.supplierId,
         locationId: openSession.locationId,
@@ -557,7 +668,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
 
     const openSession = openSessionOf(request);
     const outcome = await refreshSupplierPriceListWebPage(
-      { store, files, webPages },
+      { zoneRules: options.zoneRules, store, files, webPages },
       {
         listId: ids.id,
         locationId: openSession.locationId,

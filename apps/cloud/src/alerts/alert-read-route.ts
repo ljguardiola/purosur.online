@@ -9,6 +9,7 @@ import {
   isAlertKind,
   isAlertOfViewerBranch,
   isOpenAlert,
+  type ZoneRules,
 } from "@purosur/domain";
 import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -116,6 +117,7 @@ export function toAlertDetailBody(
   namesById: ReadonlyMap<string, string>,
   now: Date,
   viewer: { locationId: string },
+  rules: ZoneRules,
 ): AlertDetail {
   return alertDetailSchema.parse({
     id: alert.id,
@@ -134,7 +136,7 @@ export function toAlertDetailBody(
           detailWithActorName(detailWithoutSourceAddressHash(alert), namesById),
           namesById,
         ),
-        argentinaCalendarDay(now),
+        argentinaCalendarDay(now, rules),
       ),
       viewer,
     ),
@@ -184,7 +186,16 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
       const namesById = await reader.displayNames(alertNamedRecordIds(alert));
       await reply
         .code(200)
-        .send(toAlertDetailBody(alert, deliveries, namesById, now(), openSession));
+        .send(
+          toAlertDetailBody(
+            alert,
+            deliveries,
+            namesById,
+            now(),
+            openSession,
+            options.zoneRules.zoneRules(),
+          ),
+        );
     },
   );
 }

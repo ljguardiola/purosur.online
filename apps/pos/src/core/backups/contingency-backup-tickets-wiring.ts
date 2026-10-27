@@ -1,4 +1,4 @@
-import type { FiscalEmissionMode } from "@purosur/domain";
+import type { FiscalEmissionMode, ZoneRulesSource } from "@purosur/domain";
 import {
   printNextContingencyBackupTicket,
   recordContingencyBackupTicket,
@@ -24,6 +24,7 @@ import { createTicketedOperations, type TicketedOperations } from "./ticketed-op
 export interface ContingencyBackupTicketsDeps {
   database: LocalDatabase;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   ids: { next: () => string };
   readContingencyTicketKey: () => Promise<{ version: number; key: string } | undefined>;
   appVersion: string | undefined;
@@ -47,6 +48,7 @@ export interface ContingencyBackupTickets {
 export function createContingencyBackupTickets({
   database,
   now,
+  zoneRules,
   ids,
   readContingencyTicketKey,
   appVersion,
@@ -69,6 +71,7 @@ export function createContingencyBackupTickets({
   const printing = createContingencyBackupTicketPrinter({
     printoutOf: (ticketId) => readContingencyBackupTicketPrintout(database, ticketId),
     printers,
+    zoneRules,
     reportFailure,
   });
   const worker = createContingencyBackupTicketWorker({

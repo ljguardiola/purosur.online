@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   acceptedLines,
   assessReturnDraft,
@@ -11,10 +11,12 @@ import {
   refundableTotal,
 } from "./return-draft.js";
 
-const SOLD_AT = new Date(argentinaInstant("2026-09-12", "15:30"));
-const WITHIN_WINDOW = new Date(argentinaInstant("2026-09-20", "10:00"));
-const PAST_CHANGE_OF_MIND = new Date(argentinaInstant("2026-09-28", "10:00"));
-const PAST_DEFECT = new Date(argentinaInstant("2027-03-13", "10:00"));
+const SOLD_AT = new Date(argentinaInstant("2026-09-12", "15:30", FIXED_ARGENTINA_ZONE_RULES));
+const WITHIN_WINDOW = new Date(argentinaInstant("2026-09-20", "10:00", FIXED_ARGENTINA_ZONE_RULES));
+const PAST_CHANGE_OF_MIND = new Date(
+  argentinaInstant("2026-09-28", "10:00", FIXED_ARGENTINA_ZONE_RULES),
+);
+const PAST_DEFECT = new Date(argentinaInstant("2027-03-13", "10:00", FIXED_ARGENTINA_ZONE_RULES));
 
 const YERBA: ReturnSaleLine = {
   id: "line-1",
@@ -42,7 +44,13 @@ const CHEESE: ReturnSaleLine = {
 };
 
 function sale(now: Date, lines: ReturnSaleLine[] = [YERBA, PROMOTED, CHEESE]): ReturnSaleContext {
-  return { soldAt: SOLD_AT, goodConditionReturnDays: 15, now, lines };
+  return {
+    soldAt: SOLD_AT,
+    goodConditionReturnDays: 15,
+    now,
+    rules: FIXED_ARGENTINA_ZONE_RULES,
+    lines,
+  };
 }
 
 function draftLine(overrides: Partial<ReturnDraftLine> = {}): ReturnDraftLine {

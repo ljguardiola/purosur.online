@@ -1,13 +1,13 @@
-import type { PushedEvent, SaleVoidCreditNote } from "@purosur/domain";
+import type { CreditNoteToIssue, PushedEvent } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
-import { insertPendingCreditNote, readCreditNoteOfSale } from "./sqlite-void-credit-notes";
+import { insertPendingCreditNote, readCreditNoteById } from "./sqlite-sale-credit-notes";
 
 export function holdReplenishedCreditNoteToRequest(
   database: LocalDatabase,
-  creditNote: SaleVoidCreditNote,
+  creditNote: CreditNoteToIssue,
   event: PushedEvent,
 ): void {
-  const held = readCreditNoteOfSale(database, creditNote.saleId);
+  const held = readCreditNoteById(database, creditNote.creditNoteId);
   if (held !== null && held.answer.kind !== "in_progress") {
     return;
   }
@@ -22,7 +22,7 @@ export function holdReplenishedCreditNoteToRequest(
        )
        SELECT @credit_note_id, @event_id, @device_seq, @aggregate_type, @aggregate_id,
               @event_type, @schema_version, @payload, @occurred_at, @actor_id, @chain_hmac
-       WHERE EXISTS (SELECT 1 FROM sale_void_credit_notes WHERE id = @credit_note_id)`,
+       WHERE EXISTS (SELECT 1 FROM sale_credit_notes WHERE id = @credit_note_id)`,
     )
     .run({
       ...event,

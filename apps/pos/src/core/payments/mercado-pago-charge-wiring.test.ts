@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -70,18 +71,26 @@ describe("the register's Mercado Pago QR charging", () => {
 
     for (const charging of [
       createMercadoPagoCharging({
+        zoneRules: fixedZoneRulesSource(),
         ...common,
         database: undefined,
         gate: gate(),
         cloudClient: cloudClient([]),
       }),
       createMercadoPagoCharging({
+        zoneRules: fixedZoneRulesSource(),
         ...common,
         database,
         gate: undefined,
         cloudClient: cloudClient([]),
       }),
-      createMercadoPagoCharging({ ...common, database, gate: gate(), cloudClient: undefined }),
+      createMercadoPagoCharging({
+        zoneRules: fixedZoneRulesSource(),
+        ...common,
+        database,
+        gate: gate(),
+        cloudClient: undefined,
+      }),
     ]) {
       expect(charging.start).toBeUndefined();
       expect(charging.follow).toBeUndefined();
@@ -98,6 +107,7 @@ describe("the register's Mercado Pago QR charging", () => {
     signedInPerson.set("u1");
     const saleId = await openSaleOfTwoYerbas({ database, signedInPerson });
     const charging = createMercadoPagoCharging({
+      zoneRules: fixedZoneRulesSource(),
       database,
       restoration: restorationOf(database),
       gate: createActionGate({
@@ -115,7 +125,9 @@ describe("the register's Mercado Pago QR charging", () => {
       ticketedSettlement: UNTICKETED,
     });
 
-    expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toEqual({
+    expect(
+      await charging.start?.({ saleId, method: "POINT", cardType: "DEBIT", amount: 3000 }),
+    ).toEqual({
       kind: "order_refused",
     });
     expect(
@@ -134,6 +146,7 @@ describe("the register's Mercado Pago QR charging", () => {
           payment_transaction_id: "point-1",
           sale_id: saleId,
           provider: "MERCADOPAGO_POINT",
+          card_type: "DEBIT",
           amount: 3000,
         },
       ],
@@ -154,6 +167,7 @@ describe("the register's Mercado Pago QR charging", () => {
     });
     const notFound = cloudClient([]);
     const charging = createMercadoPagoCharging({
+      zoneRules: fixedZoneRulesSource(),
       database,
       restoration: restorationOf(database),
       gate: pointGate,
@@ -184,7 +198,9 @@ describe("the register's Mercado Pago QR charging", () => {
       ticketedSettlement: UNTICKETED,
     });
 
-    expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toMatchObject({
+    expect(
+      await charging.start?.({ saleId, method: "POINT", cardType: "DEBIT", amount: 3000 }),
+    ).toMatchObject({
       kind: "order_unconfirmed",
       payment_transaction_id: POINT_PAYMENT_ID,
     });
@@ -193,6 +209,7 @@ describe("the register's Mercado Pago QR charging", () => {
     });
     expect(
       await currentSaleFor({
+        zoneRules: fixedZoneRulesSource(),
         database,
         gate: pointGate,
         now: () => NOW,
@@ -220,6 +237,7 @@ describe("the register's Mercado Pago QR charging", () => {
     );
     signedIn.set("u1");
     const charging = createMercadoPagoCharging({
+      zoneRules: fixedZoneRulesSource(),
       database,
       restoration: restorationOf(database),
       gate: createActionGate({
@@ -264,6 +282,7 @@ describe("the register's Mercado Pago QR charging", () => {
          VALUES ('qr-1', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 3000, 'PENDING', '2026-10-09T11:59:00.000Z', '2026-10-09T12:02:00.000Z');`,
     );
     const charging = createMercadoPagoCharging({
+      zoneRules: fixedZoneRulesSource(),
       database,
       restoration: restorationOf(database),
       gate: gate(),
@@ -307,6 +326,7 @@ describe("the register's Mercado Pago QR charging", () => {
     );
     signedIn.set("u1");
     const charging = createMercadoPagoCharging({
+      zoneRules: fixedZoneRulesSource(),
       database,
       restoration: restorationOf(database),
       gate: createActionGate({

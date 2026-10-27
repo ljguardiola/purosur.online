@@ -1,4 +1,5 @@
 import { productListSchema } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import type { ProductActivityScope } from "@purosur/domain/catalog/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -34,6 +35,7 @@ export interface ProductsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>(

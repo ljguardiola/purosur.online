@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import {
   type ApplySaleDiscountGrant,
@@ -102,6 +103,7 @@ function apply(
 ): Promise<ApplySaleDiscountOutcome | typeof NOT_SIGNED_IN> {
   return applySaleDiscount(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       restoration: store.restoration,
       clock: new FixedClock(NOW),
@@ -247,7 +249,13 @@ describe("applySaleDiscount", () => {
       });
 
       const outcome = await applySaleDiscount(
-        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(NOW),
+          authority,
+        },
         { discount: { kind: "PERCENT", percent: 10 }, reason: REASON },
       );
 
@@ -268,7 +276,13 @@ describe("applySaleDiscount", () => {
       );
 
       await applySaleDiscount(
-        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(NOW),
+          authority,
+        },
         { discount: { kind: "PERCENT", percent: 10 }, reason: REASON },
       );
 

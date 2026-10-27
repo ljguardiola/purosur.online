@@ -5,6 +5,8 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
 import { type CashMovement, expectedCash } from "../../register/index.js";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { chargeSaleByTransfer } from "./charge-sale-by-transfer.js";
 import { chargeSaleInCash } from "./charge-sale-in-cash.js";
@@ -115,7 +117,13 @@ function charge(
   ids = new SequentialIds(),
 ) {
   return chargeSaleByTransfer(
-    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), ids },
+    {
+      zoneRules: new FakeZoneRulesSource(),
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+      ids,
+    },
     { actorId, saleId, amount },
   );
 }
@@ -151,6 +159,7 @@ describe("chargeSaleByTransfer", () => {
         id: "point-1",
         method: "POINT",
         provider: "MERCADOPAGO_POINT",
+        cardType: "DEBIT",
       },
     ],
     ["a QR charge in its wait", { ...REPLACED_QR, waitEndsAt: new Date(NOW.getTime() + 60_000) }],
@@ -230,7 +239,7 @@ describe("chargeSaleByTransfer", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 8,
+        schema_version: 9,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -365,6 +374,7 @@ describe("chargeSaleByTransfer", () => {
         decidedAt: NOW,
         occurredAt: NOW,
         total: TOTAL,
+        rules: FIXED_ARGENTINA_ZONE_RULES,
       },
     ]);
   });
@@ -583,7 +593,13 @@ describe("chargeSaleByTransfer", () => {
       const store = ledger({ movements: [OPENING] });
       const ids = new SequentialIds();
       chargeSaleInCash(
-        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), ids },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(NOW),
+          ids,
+        },
         { actorId: "cashier", saleId: "sale-1", tendered: 2000 },
       );
 

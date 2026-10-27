@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRules, type ZoneRulesSource } from "../../shared/index.js";
 import { dailyExtractionCapReached } from "../model/supplier-price-list.js";
 import type { SupplierPriceListWebPageRefusal } from "../model/supplier-price-list-web-page.js";
 import type { SupplierPriceListFiles } from "./supplier-price-list-files.js";
@@ -12,6 +12,7 @@ export interface LoadWebPagePorts {
   store: SupplierPriceListStore;
   files: SupplierPriceListFiles;
   webPages: SupplierPriceListWebPages;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface LoadWebPageRequest {
@@ -36,6 +37,7 @@ async function admissionRefusal(
   supplierId: string,
   cap: number,
   { locationId, now }: LoadWebPageRequest,
+  rules: ZoneRules,
 ): Promise<LoadWebPageOutcome | null> {
   const supplier = await tx.findSupplier(supplierId);
   if (supplier.kind === "not_found") {
@@ -45,7 +47,7 @@ async function admissionRefusal(
     return { kind: "supplier_inactive" };
   }
 
-  const counted = await tx.extractionsCountedOn(locationId, argentinaCalendarDay(now));
+  const counted = await tx.extractionsCountedOn(locationId, argentinaCalendarDay(now, rules));
   return dailyExtractionCapReached(counted, cap) ? { kind: "daily_cap_reached", cap } : null;
 }
 
@@ -54,7 +56,7 @@ type Admitted<TStop> =
   | { kind: "admitted"; supplierId: string; url: string };
 
 export async function loadWebPage<TStop>(
-  { store, files, webPages }: LoadWebPagePorts,
+  { store, files, webPages, zoneRules }: LoadWebPagePorts,
   request: LoadWebPageRequest,
   resolveTarget: (tx: SupplierPriceListStoreTransaction) => Promise<WebPageTarget<TStop>>,
 ): Promise<LoadWebPageOutcome | TStop> {
@@ -64,7 +66,13 @@ export async function loadWebPage<TStop>(
     if (target.kind === "stop") {
       return target;
     }
-    const refusal = await admissionRefusal(tx, target.supplierId, cap, request);
+    const refusal = await admissionRefusal(
+      tx,
+      target.supplierId,
+      cap,
+      request,
+      zoneRules.zoneRules(),
+    );
     return refusal === null
       ? { kind: "admitted", supplierId: target.supplierId, url: target.url }
       : { kind: "stop", outcome: refusal };
@@ -80,7 +88,13 @@ export async function loadWebPage<TStop>(
 
   return store.transaction<LoadWebPageOutcome>(async (tx) => {
     const { cap } = await tx.lockBranchExtractionQuota(request.locationId);
-    const refusal = await admissionRefusal(tx, admitted.supplierId, cap, request);
+    const refusal = await admissionRefusal(
+      tx,
+      admitted.supplierId,
+      cap,
+      request,
+      zoneRules.zoneRules(),
+    );
     if (refusal !== null) {
       return refusal;
     }

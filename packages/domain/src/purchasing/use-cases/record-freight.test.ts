@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { PURCHASE_NOTE_MAX_LENGTH } from "../model/purchase.js";
 import { type RecordFreightInput, recordFreight } from "./record-freight.js";
 import { FakeFreightStore } from "./test-support/fake-freight-store.js";
@@ -46,7 +47,10 @@ describe("recordFreight", () => {
   it("records the freight against the branch, with who recorded it and when", async () => {
     const store = storeWithPurchases();
 
-    const outcome = await recordFreight({ store, clock: CLOCK }, input());
+    const outcome = await recordFreight(
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+      input(),
+    );
 
     expect(outcome).toEqual({
       kind: "recorded",
@@ -69,7 +73,7 @@ describe("recordFreight", () => {
 
   it("records the store's own trip as a means without a name", async () => {
     const outcome = await recordFreight(
-      { store: storeWithPurchases(), clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store: storeWithPurchases(), clock: CLOCK },
       input({ means: { kind: "own_trip" } }),
     );
 
@@ -80,7 +84,7 @@ describe("recordFreight", () => {
     const store = storeWithPurchases();
 
     const outcome = await recordFreight(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       input({ purchaseIds: ["purchase-2", "purchase-1", "purchase-2"] }),
     );
 
@@ -92,7 +96,7 @@ describe("recordFreight", () => {
 
   it("accepts a freight dated today and one of the largest cash amount", async () => {
     const outcome = await recordFreight(
-      { store: storeWithPurchases(), clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store: storeWithPurchases(), clock: CLOCK },
       input({ date: "2026-03-10", amountCents: MAX_CASH_AMOUNT_CENTS }),
     );
 
@@ -101,7 +105,7 @@ describe("recordFreight", () => {
 
   it("accepts a freight spread over purchases when only some of their lines are worth something", async () => {
     const outcome = await recordFreight(
-      { store: storeWithPurchases(), clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store: storeWithPurchases(), clock: CLOCK },
       input({ purchaseIds: ["purchase-free", "purchase-2"] }),
     );
 
@@ -112,7 +116,7 @@ describe("recordFreight", () => {
     const store = storeWithPurchases();
 
     await recordFreight(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       input({ purchaseIds: ["purchase-2", "purchase-1"] }),
     );
 
@@ -124,7 +128,7 @@ describe("recordFreight", () => {
     const store = storeWithPurchases();
     const purchasesBefore = structuredClone(store.purchases);
 
-    await recordFreight({ store, clock: CLOCK }, input());
+    await recordFreight({ zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK }, input());
 
     expect(store.purchases).toEqual(purchasesBefore);
     expect(store.snapshot().edits).toEqual([]);
@@ -134,7 +138,9 @@ describe("recordFreight", () => {
     const store = storeWithPurchases();
     store.failWrite("insertFreight");
 
-    await expect(recordFreight({ store, clock: CLOCK }, input())).rejects.toThrow();
+    await expect(
+      recordFreight({ zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK }, input()),
+    ).rejects.toThrow();
 
     expect(store.snapshot().freights).toEqual([]);
   });
@@ -152,7 +158,10 @@ describe("recordFreight", () => {
     it("refuses without opening a transaction", async () => {
       const store = storeWithPurchases();
 
-      const outcome = await recordFreight({ store, clock: CLOCK }, input(overrides));
+      const outcome = await recordFreight(
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+        input(overrides),
+      );
 
       expect(outcome).toEqual({ kind });
       expect(store.transactionCount).toBe(0);
@@ -179,7 +188,10 @@ describe("recordFreight", () => {
       { purchaseIds: ["purchase-1"], amountCents: 100, date: "2026-03-10", description: "x" },
     ]) {
       refusals.push(
-        await recordFreight({ store, clock: CLOCK }, { ...everythingWrong, ...overrides }),
+        await recordFreight(
+          { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+          { ...everythingWrong, ...overrides },
+        ),
       );
     }
 
@@ -196,7 +208,10 @@ describe("recordFreight", () => {
     const store = storeWithPurchases();
 
     for (const purchaseIds of [["purchase-1", "missing"], ["purchase-elsewhere"]]) {
-      const outcome = await recordFreight({ store, clock: CLOCK }, input({ purchaseIds }));
+      const outcome = await recordFreight(
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+        input({ purchaseIds }),
+      );
       expect(outcome).toEqual({ kind: "purchase_not_found" });
     }
     expect(store.snapshot().freights).toEqual([]);
@@ -206,7 +221,7 @@ describe("recordFreight", () => {
     const store = storeWithPurchases();
 
     const outcome = await recordFreight(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       input({ purchaseIds: ["purchase-free"] }),
     );
 
@@ -216,7 +231,7 @@ describe("recordFreight", () => {
 
   it("reports a missing purchase before purchases without value", async () => {
     const outcome = await recordFreight(
-      { store: storeWithPurchases(), clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store: storeWithPurchases(), clock: CLOCK },
       input({ purchaseIds: ["purchase-free", "missing"] }),
     );
 

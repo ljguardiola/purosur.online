@@ -3,6 +3,7 @@ import {
   type BatteryReport,
   type CriticalBatteryAction,
   type DetectedSerialDevice,
+  FIXED_ARGENTINA_ZONE_RULES,
   type RegisteredSerialDevices,
   type SerialDeviceRole,
   type SerialDeviceStanding,
@@ -25,6 +26,7 @@ import {
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
@@ -34,7 +36,7 @@ import { stopOpeningNewSales } from "../sync/sqlite-local-installation";
 import { registerStatusFor } from "./register-status-requests";
 import { createSerialDeviceWatch, type SerialDeviceWatch } from "./serial-device-watch";
 
-const NOW = new Date(argentinaInstant("2026-10-05", "12:00"));
+const NOW = new Date(argentinaInstant("2026-10-05", "12:00", FIXED_ARGENTINA_ZONE_RULES));
 const MINUTE_MS = 60 * 1000;
 const SCALE = { vendorId: "1a86", productId: "7523" };
 
@@ -118,6 +120,7 @@ function status(
   newSalesStoppedByBattery = false,
 ) {
   return registerStatusFor({
+    zoneRules: fixedZoneRulesSource(),
     database,
     cloud: () => cloud,
     now: () => NOW,
@@ -156,6 +159,7 @@ function watchListingWith(
 
 function statusWatchedBy(watch: SerialDeviceWatch) {
   return registerStatusFor({
+    zoneRules: fixedZoneRulesSource(),
     database,
     cloud: () => "unknown",
     now: () => NOW,

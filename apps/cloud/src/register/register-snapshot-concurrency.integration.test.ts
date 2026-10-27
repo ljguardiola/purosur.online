@@ -17,6 +17,7 @@ import {
   registers,
 } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -169,6 +170,7 @@ describe("a corruption report while retention deletes objects on a real Postgres
     const clock = { now: () => NOW };
 
     const retention = applySnapshotRetention({
+      zoneRules: fixedZoneRulesSource(),
       store,
       lanes: new DrizzleRegisterSnapshotLanes(postgresDedicatedConnections(sql)),
       clock,

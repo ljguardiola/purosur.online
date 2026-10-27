@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { paymentTransactions } from "../platform/db/schema.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -78,6 +79,7 @@ function setUp(mercadoPago: FakeMercadoPagoOrders) {
       mercadoPago,
     },
     () => CHECKED_AT,
+    fixedZoneRulesSource(),
     { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
   );
 }

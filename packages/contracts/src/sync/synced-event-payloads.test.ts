@@ -3,6 +3,7 @@ import {
   DEFERRAL_REASONS,
   deferredSaleRecordedEvent,
   deferredSaleSatisfiedEvent,
+  FIXED_ARGENTINA_ZONE_RULES,
   MAX_STOCK_QUANTITY,
   MAX_UNIT_PRICE_CENTS,
   offlineCreditNote,
@@ -223,6 +224,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@5",
       "sale_cancelled@6",
       "sale_cancelled@7",
+      "sale_cancelled@8",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
@@ -231,13 +233,71 @@ describe("synced event payloads", () => {
       "sale_completed@6",
       "sale_completed@7",
       "sale_completed@8",
+      "sale_completed@9",
       "sale_print_state_changed@1",
       "sale_print_state_changed@2",
+      "sale_print_state_changed@3",
       "sale_returned@1",
+      "sale_returned@2",
       "sale_voided@1",
       "sale_voided@2",
       "sale_voided@3",
+      "sale_voided@4",
     ]);
+  });
+
+  describe("a returned sale in version 2", () => {
+    const withCreditNote = (creditNote: unknown) => ({
+      ...recordedPayload("sale_returned", 2),
+      credit_note: creditNote,
+    });
+    const creditNote = {
+      id: "0199b7a0-0000-7000-8000-000000000003",
+      total: 1_350,
+      receiver_tax_status_code: 5,
+      corrects: { voucher_type: 11, point_of_sale: 7, number: 42 },
+      issued_on: "2026-10-06",
+    };
+
+    it("asks for the credit note of the return", () => {
+      expect(accepts("sale_returned", 2, withCreditNote(creditNote))).toBe(true);
+    });
+
+    it("asks for no credit note", () => {
+      expect(accepts("sale_returned", 2, withCreditNote(null))).toBe(true);
+    });
+
+    it("asks for a credit note that waits for the invoice of its sale", () => {
+      expect(
+        accepts(
+          "sale_returned",
+          2,
+          withCreditNote({ ...creditNote, receiver_tax_status_code: null, corrects: null }),
+        ),
+      ).toBe(true);
+    });
+
+    it("says whether it asks for a credit note", () => {
+      const { credit_note: _creditNote, ...without } = recordedPayload("sale_returned", 2);
+
+      expect(accepts("sale_returned", 2, without)).toBe(false);
+    });
+
+    it.each([
+      ["a receiver without an invoice to correct", { corrects: null }],
+      ["an invoice to correct without a receiver", { receiver_tax_status_code: null }],
+      ["a total of zero", { total: 0 }],
+      ["a day that does not exist", { issued_on: "2026-02-30" }],
+      ["no day", { issued_on: undefined }],
+      [
+        "a voucher that is not an invoice C",
+        { corrects: { ...creditNote.corrects, voucher_type: 6 } },
+      ],
+    ])("refuses a credit note with %s", (_case, overrides) => {
+      expect(accepts("sale_returned", 2, withCreditNote({ ...creditNote, ...overrides }))).toBe(
+        false,
+      );
+    });
   });
 
   it("describes the gate failure the domain builds", () => {
@@ -268,9 +328,9 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 9],
-    ["a sale_cancelled version nobody emitted", "sale_cancelled", 8],
-    ["a sale_voided version nobody emitted", "sale_voided", 4],
+    ["a sale_completed version nobody emitted", "sale_completed", 10],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 9],
+    ["a sale_voided version nobody emitted", "sale_voided", 5],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -691,21 +751,24 @@ describe("synced event payloads", () => {
       eventId: "event-1",
       registerId: "register-1",
       actorId: "cashier",
-      document: offlineCreditNote({
-        id: "fiscal-document-2",
-        saleId: "sale-1",
-        creditNoteId: "credit-note-1",
-        pointOfSale: 7,
-        number: 12,
-        issuedOn: "2026-10-15",
-        generatedAt: new Date("2026-10-16T03:00:01.000Z"),
-        offlineAuthorizationCode: "71234567890123",
-        fortnight: { start: "2026-10-01", end: "2026-10-15" },
-        total: 6750,
-        receiverTaxStatusCode: 5,
-        corrects: { voucherType: 11, pointOfSale: 7, number: 101 },
-        cause: "no_connectivity",
-      }),
+      document: offlineCreditNote(
+        {
+          id: "fiscal-document-2",
+          saleId: "sale-1",
+          creditNoteId: "credit-note-1",
+          pointOfSale: 7,
+          number: 12,
+          issuedOn: "2026-10-15",
+          generatedAt: new Date("2026-10-16T03:00:01.000Z"),
+          offlineAuthorizationCode: "71234567890123",
+          fortnight: { start: "2026-10-01", end: "2026-10-15" },
+          total: 6750,
+          receiverTaxStatusCode: 5,
+          corrects: { voucherType: 11, pointOfSale: 7, number: 101 },
+          cause: "no_connectivity",
+        },
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
     });
     const note = (change: Payload = {}) => ({ ...(creditNote as Payload), ...change });
 
@@ -745,33 +808,36 @@ describe("synced event payloads", () => {
       eventId: "event-1",
       registerId: "register-1",
       actorId: "cashier",
-      document: offlineFiscalDocument({
-        id: "fiscal-document-1",
-        saleId: "sale-1",
-        pointOfSale: 7,
-        number: 101,
-        issuedOn: "2026-10-15",
-        generatedAt: new Date("2026-10-16T03:00:01.000Z"),
-        offlineAuthorizationCode: "71234567890123",
-        fortnight: { start: "2026-10-01", end: "2026-10-15" },
-        document: {
-          invoiceClass: "C",
-          total: 12_500,
-          netAmount: 12_500,
-          vatAmount: 0,
-          issuer: {
-            legalName: FICTIONAL_LEGAL_NAME,
-            cuit: FICTIONAL_CUIT,
-            taxStatus: "MONOTRIBUTO",
-            grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
-            activityStartDate: "2020-01-01",
-            version: 3,
+      document: offlineFiscalDocument(
+        {
+          id: "fiscal-document-1",
+          saleId: "sale-1",
+          pointOfSale: 7,
+          number: 101,
+          issuedOn: "2026-10-15",
+          generatedAt: new Date("2026-10-16T03:00:01.000Z"),
+          offlineAuthorizationCode: "71234567890123",
+          fortnight: { start: "2026-10-01", end: "2026-10-15" },
+          document: {
+            invoiceClass: "C",
+            total: 12_500,
+            netAmount: 12_500,
+            vatAmount: 0,
+            issuer: {
+              legalName: FICTIONAL_LEGAL_NAME,
+              cuit: FICTIONAL_CUIT,
+              taxStatus: "MONOTRIBUTO",
+              grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+              activityStartDate: "2020-01-01",
+              version: 3,
+            },
+            buyerTaxStatusCode: 5,
+            buyerTaxStatusDescription: "Consumidor Final",
           },
-          buyerTaxStatusCode: 5,
-          buyerTaxStatusDescription: "Consumidor Final",
+          cause: "no_connectivity",
         },
-        cause: "no_connectivity",
-      }),
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
     });
     const { document: _invoice, ...version1 } = issued as Payload;
     const offline = (change: Payload = {}) => ({ ...version1, ...change });
@@ -1160,6 +1226,58 @@ describe("synced event payloads", () => {
           payments: [POINT_PAYMENT],
         }),
       ).toBe(false);
+    });
+  });
+
+  describe.each([
+    ["sale_completed", 9, 8],
+    ["sale_cancelled", 8, 7],
+    ["sale_voided", 4, 3],
+  ] as const)("the card type of a Point payment in %s", (eventType, version, previousVersion) => {
+    const POINT_PAYMENT = {
+      ...CASH_PAYMENT_V2,
+      id: "pay-4",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
+      tendered: null,
+    };
+    const QR_PAYMENT = { ...POINT_PAYMENT, method: "QR", provider: "MERCADOPAGO_QR" };
+    const withPayments = (schemaVersion: number, payments: unknown[]) => ({
+      ...recordedPayload(eventType, schemaVersion),
+      payments,
+    });
+
+    it.each(["DEBIT", "CREDIT"])("accepts a Point payment charged on a %s card", (card_type) => {
+      expect(
+        accepts(eventType, version, withPayments(version, [{ ...POINT_PAYMENT, card_type }])),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["none", undefined],
+      ["null", null],
+      ["an unknown one", "PREPAID"],
+      ["a lowercase one", "debit"],
+    ])("refuses a Point payment with %s as its card type", (_case, card_type) => {
+      expect(
+        accepts(eventType, version, withPayments(version, [{ ...POINT_PAYMENT, card_type }])),
+      ).toBe(false);
+    });
+
+    it("keeps reading the Point payments of the previous version, which name no card type", () => {
+      expect(
+        accepts(eventType, previousVersion, withPayments(previousVersion, [POINT_PAYMENT])),
+      ).toBe(true);
+    });
+
+    it("asks for no card type from the payments that are not Point ones", () => {
+      expect(
+        accepts(
+          eventType,
+          version,
+          withPayments(version, [CASH_PAYMENT_V2, TRANSFER_PAYMENT_V2, QR_PAYMENT]),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -1972,6 +2090,71 @@ describe("synced event payloads", () => {
       expect(accepts("sale_print_state_changed", 2, { ...state(), printed_at: null })).toBe(true);
       expect(accepts("sale_print_state_changed", 2, { ...state(), printed_at: "now" })).toBe(false);
       expect(accepts("sale_print_state_changed", 2, { ...state(), sale_id: "" })).toBe(false);
+    });
+  });
+
+  describe("sale_print_state_changed v3", () => {
+    const state = (document: string, extra: Payload = {}): Payload => ({
+      sale_id: "sale-1",
+      document,
+      print_attempted_at: "2026-10-06T11:21:00.000Z",
+      printed_at: "2026-10-06T11:21:05.000Z",
+      ...extra,
+    });
+    const creditNoteState = (): Payload => state("credit_note", { credit_note_id: "note-1" });
+
+    it("accepts the state of a credit note, naming the credit note", () => {
+      expect(accepts("sale_print_state_changed", 3, creditNoteState())).toBe(true);
+      expect(
+        accepts("sale_print_state_changed", 3, { ...creditNoteState(), printed_at: null }),
+      ).toBe(true);
+    });
+
+    it.each(["sale_receipt", "deferred_invoice"])(
+      "accepts the state of a %s, which names no credit note",
+      (document) => {
+        expect(accepts("sale_print_state_changed", 3, state(document))).toBe(true);
+      },
+    );
+
+    it("refuses the state of a credit note that names none or an empty one", () => {
+      expect(accepts("sale_print_state_changed", 3, state("credit_note"))).toBe(false);
+      expect(
+        accepts("sale_print_state_changed", 3, state("credit_note", { credit_note_id: "" })),
+      ).toBe(false);
+      expect(
+        accepts("sale_print_state_changed", 3, state("credit_note", { credit_note_id: null })),
+      ).toBe(false);
+    });
+
+    it.each(["sale_receipt", "deferred_invoice"])(
+      "refuses the state of a %s that names a credit note",
+      (document) => {
+        expect(
+          accepts("sale_print_state_changed", 3, state(document, { credit_note_id: "note-1" })),
+        ).toBe(false);
+      },
+    );
+
+    it("refuses a document the register does not print", () => {
+      expect(accepts("sale_print_state_changed", 3, state("invoice"))).toBe(false);
+    });
+
+    it("refuses the state without any one of its fields", () => {
+      for (const field of Object.keys(creditNoteState())) {
+        const { [field]: _removed, ...rest } = creditNoteState();
+
+        expect(accepts("sale_print_state_changed", 3, rest), field).toBe(false);
+      }
+    });
+
+    it("keeps the printing of version 2 as fields it needs", () => {
+      expect(
+        accepts("sale_print_state_changed", 3, { ...state("sale_receipt"), printed_at: "now" }),
+      ).toBe(false);
+      expect(
+        accepts("sale_print_state_changed", 3, { ...state("sale_receipt"), sale_id: "" }),
+      ).toBe(false);
     });
   });
 
@@ -2880,7 +3063,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 8)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 9)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {

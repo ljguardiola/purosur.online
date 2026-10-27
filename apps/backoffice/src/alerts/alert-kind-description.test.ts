@@ -142,6 +142,12 @@ test("describes a register whose replenishment can never complete", () => {
   );
 });
 
+test("describes a register applying zone rules of another version than the cloud's", () => {
+  expect(alertKindDescription("tz_rules_mismatch")).toBe(
+    "La caja aplica reglas de zona horaria de una versión distinta de la de la nube. Se resuelve sola cuando la caja recibe y aplica la versión de la nube.",
+  );
+});
+
 test("describes a presentation whose document ARCA rejected and that waits for its remedy", () => {
   expect(alertKindDescription("fortnight_report_document_rejected")).toBe(
     "ARCA rechazó un comprobante de una quincena y los que le siguen quedan sin procesar hasta que se corrija",

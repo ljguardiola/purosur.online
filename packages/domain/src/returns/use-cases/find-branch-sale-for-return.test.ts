@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { TicketReference } from "../model/ticket-reference.js";
 import { findBranchSaleForReturn } from "./find-branch-sale-for-return.js";
 import type { BranchSaleLookupAnswer } from "./return-ports.js";
@@ -49,6 +50,7 @@ function find(
       ownReturns: options.own ?? new FakeOwnReturns(),
       retained,
       clock: new FixedClock(RETURNED_AT),
+      zoneRules: new FakeZoneRulesSource(),
     },
     options.search ?? OTHER_REGISTER_INVOICE,
   );

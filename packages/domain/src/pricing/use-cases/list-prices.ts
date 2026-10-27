@@ -1,3 +1,4 @@
+import type { ZoneRulesSource } from "../../shared/index.js";
 import { type PriceCostReference, priceCostReference } from "../model/price-cost-reference.js";
 import type {
   PriceReviewReader,
@@ -9,6 +10,7 @@ import { costSourcesByProductId, type ProductCostPorts } from "./product-cost-so
 
 export interface ListPricesPorts extends ProductCostPorts {
   reviews: PriceReviewReader;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface PricedProduct extends PriceUnderReview {
@@ -36,6 +38,7 @@ export async function listPrices(
       costReference: priceCostReference(
         sources.get(product.id) ?? [],
         product.currentPrice?.unitPrice ?? null,
+        ports.zoneRules.zoneRules(),
       ),
     })),
   };

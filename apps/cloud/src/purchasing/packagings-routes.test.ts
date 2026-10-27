@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { productPackagings } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerPackagingsRoutes } from "./packagings-routes.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 
@@ -26,7 +27,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerPackagingsRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
+  registerPackagingsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOW,
+  });
 });
 
 afterEach(async () => {

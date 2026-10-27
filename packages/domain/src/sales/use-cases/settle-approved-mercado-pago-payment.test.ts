@@ -9,6 +9,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
 import type { PendingMercadoPagoSalePayment, SalePayment } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { settleApprovedMercadoPagoPayment } from "./settle-approved-mercado-pago-payment.js";
 import {
@@ -99,6 +100,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 function settle(store: FakeSaleLedger, paymentTransactionId = "qr-1", actorId = "cashier") {
   return settleApprovedMercadoPagoPayment(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       restoration: store.restoration,
       clock: new FixedClock(APPROVED_AT),
@@ -129,6 +131,7 @@ describe("settleApprovedMercadoPagoPayment on the integrated terminal", () => {
         kind: "SALE",
         method: "POINT",
         provider: "MERCADOPAGO_POINT",
+        cardType: "DEBIT",
         amount: TOTAL,
         state: "APPROVED",
         occurredAt: STARTED_AT,
@@ -142,6 +145,7 @@ describe("settleApprovedMercadoPagoPayment on the integrated terminal", () => {
             id: "point-1",
             method: "POINT",
             provider: "MERCADOPAGO_POINT",
+            card_type: "DEBIT",
             tendered: null,
             authorized_by: null,
             confirmed_at: null,

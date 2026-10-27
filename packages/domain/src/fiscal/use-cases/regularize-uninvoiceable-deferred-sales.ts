@@ -7,6 +7,7 @@ export type RegularizeUninvoiceableDeferredSalesOutcome = { kind: "regularized";
 export async function regularizeUninvoiceableDeferredSales({
   store,
   clock,
+  zoneRules,
 }: RegularizeUninvoiceableDeferredSalesPorts): Promise<RegularizeUninvoiceableDeferredSalesOutcome> {
   const now = clock.now();
   return store.transaction(async (transaction) => {
@@ -14,7 +15,12 @@ export async function regularizeUninvoiceableDeferredSales({
     const uninvoiceable = candidates.filter(
       (sale) =>
         !sale.mayAlreadyBeInvoiced &&
-        isDeferredSaleUninvoiceable(sale.occurredAt, now, sale.lastAuthorizedIssuedOn),
+        isDeferredSaleUninvoiceable(
+          sale.occurredAt,
+          now,
+          sale.lastAuthorizedIssuedOn,
+          zoneRules.zoneRules(),
+        ),
     );
     for (const sale of uninvoiceable) {
       await transaction.recordExpiry(sale.id, deferredSaleRegularizationTask(sale, now));

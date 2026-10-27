@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRulesSource } from "../../shared/index.js";
 import {
   dailyExtractionCapReached,
   isSupplierPriceListPdfTooLarge,
@@ -9,6 +9,7 @@ import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
 export interface UploadSupplierPriceListPorts {
   store: SupplierPriceListStore;
   files: SupplierPriceListFiles;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface UploadSupplierPriceListInput {
@@ -28,7 +29,7 @@ export type UploadSupplierPriceListOutcome =
   | { kind: "uploaded"; listId: string };
 
 export async function uploadSupplierPriceList(
-  { store, files }: UploadSupplierPriceListPorts,
+  { store, files, zoneRules }: UploadSupplierPriceListPorts,
   input: UploadSupplierPriceListInput,
 ): Promise<UploadSupplierPriceListOutcome> {
   if (isSupplierPriceListPdfTooLarge(input.pdf.byteLength)) {
@@ -48,7 +49,7 @@ export async function uploadSupplierPriceList(
 
     const counted = await tx.extractionsCountedOn(
       input.locationId,
-      argentinaCalendarDay(input.now),
+      argentinaCalendarDay(input.now, zoneRules.zoneRules()),
     );
     if (dailyExtractionCapReached(counted, cap)) {
       return { kind: "daily_cap_reached", cap };

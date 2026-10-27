@@ -4,6 +4,7 @@ import {
   type AlertLevel,
   alertKindPolicy,
   argentinaCalendarDay,
+  FIXED_ARGENTINA_ZONE_RULES,
   isAlertKind,
   isInternalBarcode,
   offlineAuthorizationCodeAcquisitionLevel,
@@ -39,6 +40,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -124,7 +126,7 @@ describe("loadSampleData", () => {
   it("refuses when there is no active administrator, and writes nothing", async () => {
     const db = await freshDatabase();
 
-    const outcome = await loadSampleData(db, { now: () => NOW });
+    const outcome = await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(outcome).toEqual({ kind: "no_administrator" });
     expect(await tableCount(db, "users")).toBe(0);
@@ -141,7 +143,7 @@ describe("loadSampleData", () => {
     }
     await db.insert(roles).values({ name: collidingRoleName, isAdministrator: false });
 
-    const outcome = await loadSampleData(db, { now: () => NOW });
+    const outcome = await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(outcome.kind).toBe("collision");
     expect(await tableCount(db, "users")).toBe(1);
@@ -156,7 +158,9 @@ describe("loadSampleData", () => {
     let reads = 0;
     const movingClock = () => new Date(NOW.getTime() + reads++ * 1000);
 
-    expect((await loadSampleData(db, { now: movingClock })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: movingClock })).kind,
+    ).toBe("loaded");
 
     const audited = await db
       .select({ at: auditLog.at })
@@ -170,7 +174,10 @@ describe("loadSampleData", () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
 
-    const firstOutcome = await loadSampleData(db, { now: () => NOW });
+    const firstOutcome = await loadSampleData(db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
+    });
     expect(firstOutcome.kind).toBe("loaded");
     if (firstOutcome.kind !== "loaded") {
       throw new Error("unreachable");
@@ -306,6 +313,7 @@ describe("loadSampleData", () => {
     };
 
     const secondOutcome = await loadSampleData(db, {
+      zoneRules: fixedZoneRulesSource(),
       now: () => new Date(NOW.getTime() + 3_600_000),
     });
     expect(secondOutcome).toEqual({ kind: "already_loaded" });
@@ -330,7 +338,9 @@ describe("loadSampleData", () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
 
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     const logged = await db
       .select({
@@ -387,7 +397,9 @@ describe("loadSampleData", () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
 
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     const logged = await db
       .select({
@@ -435,7 +447,9 @@ describe("loadSampleData", () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
 
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     const loadedRegisters = await db
       .select({ id: registers.id, version: registers.version })
@@ -466,7 +480,9 @@ describe("loadSampleData", () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
 
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     const loadedDiscounts = await db
       .select({ id: discounts.id, version: discounts.version })
@@ -499,7 +515,9 @@ describe("loadSampleData", () => {
     await seedActiveAdministrator(db);
     await db.update(branchSettings).set({ address: "Calle Real 1" });
 
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     const [settingsRow] = await db.select().from(branchSettings);
     expect(settingsRow).toMatchObject({
@@ -516,7 +534,9 @@ describe("loadSampleData", () => {
     const locationId = await seededLocationId(db);
     await db.insert(supplierPriceListExtractionCaps).values({ locationId, dailyCap: 3 });
 
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     const [settingsRow] = await db.select().from(branchSettings);
     expect(settingsRow).toMatchObject({ address: "", whatsappNumber: "", instagramHandle: "" });
@@ -534,7 +554,9 @@ describe("loadSampleData", () => {
       .insert(branchHours)
       .values({ locationId, dayOfWeek: 3, position: 0, opensAt: "10:00", closesAt: "18:00" });
 
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
 
     const [settingsRow] = await db.select().from(branchSettings);
     expect(settingsRow).toMatchObject({ address: "", whatsappNumber: "", instagramHandle: "" });
@@ -546,7 +568,9 @@ describe("loadSampleData", () => {
   it("writes every sample alert with a catalog kind, the level its real producer gives it on every day it stays open, and the detail shape its real producer writes", async () => {
     const db = await freshDatabase();
     const bootstrapAdministratorId = await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const [sampleAdministrator] = await db
       .select({ id: users.id })
       .from(users)
@@ -595,14 +619,16 @@ describe("loadSampleData", () => {
         fortnightEnd: string;
       };
       const fortnight = { start: fortnightStart, end: fortnightEnd };
-      const openingDay = argentinaCalendarDay(alert.openedAt);
+      const openingDay = argentinaCalendarDay(alert.openedAt, FIXED_ARGENTINA_ZONE_RULES);
       const openingLevel =
         alert.escalatedAt === null
           ? alert.level
           : offlineAuthorizationCodeAcquisitionLevel(fortnight, openingDay);
       const escalationDay =
-        alert.escalatedAt === null ? null : argentinaCalendarDay(alert.escalatedAt);
-      const lastDay = argentinaCalendarDay(alert.resolvedAt ?? NOW);
+        alert.escalatedAt === null
+          ? null
+          : argentinaCalendarDay(alert.escalatedAt, FIXED_ARGENTINA_ZONE_RULES);
+      const lastDay = argentinaCalendarDay(alert.resolvedAt ?? NOW, FIXED_ARGENTINA_ZONE_RULES);
       const heldLevels: { day: string; held: AlertLevel | null; producer: AlertLevel | null }[] =
         [];
       for (let day = openingDay; day <= lastDay; day = shiftCalendarDay(day, 1)) {
@@ -630,7 +656,9 @@ describe("loadSampleData", () => {
   it("loads no alert of a register missing its fortnight's offline authorization code that the per-minute alert condition job reopens, opens or changes", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
-    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
     const missingCodeAlerts = () =>
       db
         .select()
@@ -643,6 +671,7 @@ describe("loadSampleData", () => {
 
     let minute = 0;
     const jobs = alertConditionResolutionJobs({
+      zoneRules: fixedZoneRulesSource(),
       now: () => new Date(NOW.getTime() + minute * MINUTE_MS),
     });
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];

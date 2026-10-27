@@ -8,6 +8,12 @@ import type {
 } from "@purosur/contracts";
 import type { RefundAllocation, ReturnDraftLine, TicketSource } from "@purosur/domain";
 import {
+  type CloudCreditNotes,
+  type ReturnCreditNoteToRequest,
+  type ReturnedSaleInvoicing,
+  requestReturnCreditNote,
+} from "@purosur/domain/fiscal/use-cases";
+import {
   type BranchSaleLookup,
   type CompleteReturnGrant,
   completeReturn,
@@ -16,6 +22,8 @@ import {
   previewReturn,
   type SaleReturnSearch,
 } from "@purosur/domain/returns/use-cases";
+import type { DeferredSaleInvoicing } from "@purosur/domain/sales/use-cases";
+import { SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import type { OutboxSaleRequestDeps } from "../sales/sale-requests";
 import {
   toWireLineRefusal,
@@ -30,8 +38,46 @@ import { SqliteReturnSaleReader } from "./sqlite-return-sale-reader";
 
 export type ReturnRequestDeps = Pick<
   OutboxSaleRequestDeps,
-  "database" | "gate" | "now" | "ids" | "readOutboxChainKey"
->;
+  "database" | "gate" | "now" | "zoneRules" | "ids" | "readOutboxChainKey"
+> & {
+  creditNotes?: CloudCreditNotes | undefined;
+  invoicing?: DeferredSaleInvoicing | undefined;
+  printCreditNote?:
+    | ((creditNote: { saleId: string; creditNoteId: string }) => Promise<void>)
+    | undefined;
+  reportFailure?: ((error: unknown) => void) | undefined;
+};
+
+const NO_ANSWER_FROM_CLOUD: CloudCreditNotes = { request: async () => null };
+const NO_INVOICING: ReturnedSaleInvoicing = {
+  invoiceUpTo: async () => ({ kind: "not_yet", cause: "cannot_authorize" }),
+};
+
+async function settleCreditNote(
+  { database, now, creditNotes, invoicing, printCreditNote, reportFailure }: ReturnRequestDeps,
+  saleId: string,
+  creditNote: ReturnCreditNoteToRequest,
+): Promise<void> {
+  const report = reportFailure ?? (() => undefined);
+  const outcome = await requestReturnCreditNote(
+    {
+      creditNotes: new SqliteSaleCreditNotes(database),
+      cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
+      clock: { now },
+      printer: {
+        startPrinting: (printed) => void printCreditNote?.(printed).catch(report),
+      },
+      invoicing: invoicing ?? NO_INVOICING,
+    },
+    { saleId, creditNote },
+  );
+  if (outcome.invoicing.kind === "failed") {
+    report(outcome.invoicing.error);
+  }
+  if (outcome.creditNote.kind === "failed") {
+    report(outcome.creditNote.error);
+  }
+}
 
 export type FindSaleForReturnDeps = ReturnRequestDeps & { branchSales: BranchSaleLookup };
 
@@ -63,7 +109,7 @@ interface ReturnRequestGrant extends CompleteReturnGrant {
 }
 
 export async function findSaleForReturnFor(
-  { database, gate, now, branchSales }: FindSaleForReturnDeps,
+  { database, gate, now, zoneRules, branchSales }: FindSaleForReturnDeps,
   { ticket, authorization }: FindSaleForReturnRequest,
 ): Promise<FindSaleForReturnOutcome> {
   const guarded = await gate.runAuthorized({ kind: "process_return" }, authorization, async () =>
@@ -74,6 +120,7 @@ export async function findSaleForReturnFor(
         ownReturns: new SqliteOwnReturnsOfSale(database),
         retained: new SqliteRetainedBranchSales(database),
         clock: { now },
+        zoneRules,
       },
       ticket,
     ),
@@ -83,16 +130,19 @@ export async function findSaleForReturnFor(
   }
   const { result } = guarded;
   return result.kind === "found"
-    ? { kind: "found", sale: toWireSaleForReturn(result.sale) }
+    ? { kind: "found", sale: toWireSaleForReturn(result.sale, zoneRules.zoneRules()) }
     : result;
 }
 
 export async function previewReturnFor(
-  { database, gate, now }: ReturnRequestDeps,
+  { database, gate, now, zoneRules }: ReturnRequestDeps,
   request: PreviewReturnRequest,
 ): Promise<PreviewReturnOutcome> {
   const guarded = await gate.run({ kind: "preview_return" }, async () =>
-    previewReturn({ reader: new SqliteReturnSaleReader(database), clock: { now } }, request),
+    previewReturn(
+      { zoneRules, reader: new SqliteReturnSaleReader(database), clock: { now } },
+      request,
+    ),
   );
   if (guarded.kind !== "performed") {
     return guarded;
@@ -108,12 +158,14 @@ export async function previewReturnFor(
 }
 
 export async function completeReturnFor(
-  { database, gate, now, ids, readOutboxChainKey }: ReturnRequestDeps,
+  deps: ReturnRequestDeps,
   { saleId, ticketSource, lines, refunds, authorization }: CompleteReturnRequest,
 ): Promise<CompleteReturnOutcome> {
+  const { database, gate, now, zoneRules, ids, readOutboxChainKey } = deps;
   const outboxChainKey = await readOutboxChainKey();
   const outcome = await completeReturn<ReturnRequestGrant, ReturnRefusal>(
     {
+      zoneRules,
       ledger: new SqliteReturnLedger(database, outboxChainKey),
       clock: { now },
       ids,
@@ -139,6 +191,9 @@ export async function completeReturnFor(
     },
     { saleId, ticketSource, lines, refunds },
   );
+  if (outcome.kind === "completed" && outcome.creditNote.kind !== "none") {
+    await settleCreditNote(deps, saleId, outcome.creditNote);
+  }
   switch (outcome.kind) {
     case "completed":
       return {

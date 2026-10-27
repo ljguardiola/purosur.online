@@ -25,14 +25,19 @@ function shown(options: ReturnType<typeof chargeMethodOptions>["options"]) {
 }
 
 describe("chargeMethodOptions", () => {
-  it("offers cash, the terminal, the QR, transfer and the standalone terminal, in that order, when every method is available", () => {
+  it("offers cash, the terminal by debit and by credit, the QR, transfer and the standalone terminal, in that order, when every method is available", () => {
     const { options, belowMinimum } = loaded();
 
     expect(shown(options)).toEqual([
       { value: "CASH", description: "Cargás lo entregado y ves el vuelto", disabled: false },
       {
-        value: "POINT",
-        description: "Tarjeta o QR en la terminal · requiere internet",
+        value: "POINT_DEBIT",
+        description: "Tarjeta en la terminal · requiere internet",
+        disabled: false,
+      },
+      {
+        value: "POINT_CREDIT",
+        description: "Tarjeta en la terminal · requiere internet",
         disabled: false,
       },
       { value: "QR", description: "El cliente escanea el QR · requiere internet", disabled: false },
@@ -54,7 +59,8 @@ describe("chargeMethodOptions", () => {
     const { options } = loaded({ qr: "offline", point: "offline" });
 
     expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
-      { value: "POINT", description: "No disponible sin conexión", disabled: true },
+      { value: "POINT_DEBIT", description: "No disponible sin conexión", disabled: true },
+      { value: "POINT_CREDIT", description: "No disponible sin conexión", disabled: true },
       { value: "QR", description: "No disponible sin conexión", disabled: true },
     ]);
   });
@@ -63,7 +69,8 @@ describe("chargeMethodOptions", () => {
     const { options } = loaded({ point: "not_configured" });
 
     expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
-      { value: "POINT", description: "No configurada en esta caja", disabled: true },
+      { value: "POINT_DEBIT", description: "No configurada en esta caja", disabled: true },
+      { value: "POINT_CREDIT", description: "No configurada en esta caja", disabled: true },
     ]);
   });
 

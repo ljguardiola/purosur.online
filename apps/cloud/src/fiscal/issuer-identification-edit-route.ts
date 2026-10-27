@@ -43,7 +43,7 @@ export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQue
 
       const parsedBody = await readValidatedBody(
         reply,
-        issuerIdentificationEditBodySchema(attemptedAt),
+        issuerIdentificationEditBodySchema(attemptedAt, options.zoneRules.zoneRules()),
         request.body,
       );
       if (!parsedBody) {

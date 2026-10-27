@@ -91,7 +91,7 @@ export class DrizzleOpenFiscalTaskReader<TQueryResult extends PgQueryResultHKT>
         }
         case "credit_note_rejected": {
           const { pointOfSale, number, creditNoteId } = task;
-          if (pointOfSale === null || number === null || creditNoteId === null) {
+          if (pointOfSale === null || creditNoteId === null) {
             return [];
           }
           return [

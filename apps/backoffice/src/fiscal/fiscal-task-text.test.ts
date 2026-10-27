@@ -32,6 +32,15 @@ test("names a credit note ARCA rejected", () => {
   );
 });
 
+test("names a credit note that has no number and needs regularization", () => {
+  const task = { ...creditNoteRejectedTask, number: null, rejections: [] };
+
+  expect(fiscalTaskTitle(task)).toBe("Nota de crédito a regularizar");
+  expect(fiscalTaskDescription(task)).toBe(
+    "La nota de crédito no pudo emitirse con su fecha y debe regularizarse ante ARCA",
+  );
+});
+
 test("names an expired deferred sale with the day of the sale and its total", () => {
   expect(fiscalTaskTitle(deferredSaleExpiredTask)).toBe("Venta diferida vencida");
   expect(fiscalTaskDescription(deferredSaleExpiredTask)).toBe(

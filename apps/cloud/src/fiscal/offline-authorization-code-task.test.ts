@@ -13,6 +13,7 @@ import {
 } from "../platform/db/schema.js";
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import {
@@ -74,7 +75,12 @@ async function issueWsaaToken(at: Date = NOW) {
 
 function taskUnderTest(taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
   const jobs = offlineAuthorizationCodeJobs(
-    { now: () => NOW, taxAuthority, certificateFingerprint: FINGERPRINT },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
+      taxAuthority,
+      certificateFingerprint: FINGERPRINT,
+    },
     { createDatabase: () => testDatabase.db, report: vi.fn() },
   );
   const task = jobs.taskList[OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER];
@@ -136,7 +142,12 @@ describe("offlineAuthorizationCodeJobs", () => {
 describe("the on-demand request for the current fortnight's offline authorization code", () => {
   function requestUnderTest(taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
     const jobs = offlineAuthorizationCodeJobs(
-      { now: () => NOW, taxAuthority, certificateFingerprint: FINGERPRINT },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        now: () => NOW,
+        taxAuthority,
+        certificateFingerprint: FINGERPRINT,
+      },
       { createDatabase: () => testDatabase.db, report: vi.fn() },
     );
     const task = jobs.taskList[OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER];
@@ -302,7 +313,12 @@ describe("the report of an offline authorization code acquisition failure", () =
   function taskAt(now: Date, taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
     const report = vi.fn();
     const jobs = offlineAuthorizationCodeJobs(
-      { now: () => now, taxAuthority, certificateFingerprint: FINGERPRINT },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        now: () => now,
+        taxAuthority,
+        certificateFingerprint: FINGERPRINT,
+      },
       { createDatabase: () => testDatabase.db, report },
     );
     const task = jobs.taskList[OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER];

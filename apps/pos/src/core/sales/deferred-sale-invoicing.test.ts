@@ -14,6 +14,7 @@ import {
 import { scriptedDeferrals } from "../fiscal/test-support/scripted-deferrals";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { createDeferredSaleInvoicing } from "./deferred-sale-invoicing";
 
@@ -84,6 +85,7 @@ function invoicingWith(
   serialize = createDeferredBacklogSerializer(),
 ) {
   return createDeferredSaleInvoicing({
+    zoneRules: fixedZoneRulesSource(),
     database,
     cloudClient: cloud,
     readDeviceToken: async () => "prefix.secret",
@@ -132,6 +134,7 @@ describe("invoicing the deferred backlog up to a sale a customer asks for", () =
     addPendingSale(1);
     const { cloud } = cloudAnswering(authorized);
     const invoicing = createDeferredSaleInvoicing({
+      zoneRules: fixedZoneRulesSource(),
       database,
       cloudClient: cloud,
       readDeviceToken: async () => "prefix.secret",
@@ -164,6 +167,7 @@ describe("invoicing the deferred backlog up to a sale a customer asks for", () =
     const serialize = createDeferredBacklogSerializer();
     const scheduled: (() => void)[] = [];
     startRegisterHealthChecks({
+      zoneRules: fixedZoneRulesSource(),
       database,
       cloudClient: cloud,
       readDeviceToken: async () => "prefix.secret",

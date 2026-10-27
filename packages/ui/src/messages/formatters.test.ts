@@ -20,11 +20,13 @@ import {
   formatPercent,
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
+  formatShortCode,
   formatSignedCents,
   formatTimeAgo,
   formatTimeAgoInHours,
   formatWeight,
   formatWeightInput,
+  parseInvoiceNumber,
   parsePointOfSaleNumber,
   plural,
 } from "./formatters";
@@ -237,6 +239,23 @@ describe("parsePointOfSaleNumber", () => {
   );
 });
 
+describe("parseInvoiceNumber", () => {
+  it.each([
+    ["1247", 1247],
+    [" 41 ", 41],
+    ["00001247", 1247],
+  ])("reads the number %j as %d", (typed, expected) => {
+    expect(parseInvoiceNumber(typed)).toBe(expected);
+  });
+
+  it.each(["1.247", "1e3", "+7", "-3", "12a", ""])(
+    "refuses %j, which is not made of digits only",
+    (typed) => {
+      expect(parseInvoiceNumber(typed)).toBeNaN();
+    },
+  );
+});
+
 describe("formatTimeAgo", () => {
   const MINUTE = 60;
   const HOUR = 60 * MINUTE;
@@ -398,5 +417,11 @@ describe("formatPricePerSaleUnit", () => {
 
   it("writes a price per unit with no unit", () => {
     expect(formatPricePerSaleUnit(fraction, "UNIT")).toBe("$ 10.180,00");
+  });
+});
+
+describe("formatShortCode", () => {
+  it("groups the consultation code in two blocks of four characters", () => {
+    expect(formatShortCode("7KQ4M2P9")).toBe("7KQ4-M2P9");
   });
 });

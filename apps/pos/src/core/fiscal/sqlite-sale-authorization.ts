@@ -1,10 +1,10 @@
 import {
+  creditNoteToIssuePayload,
   type DeferredSale,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalTaskDocumentType,
   type OfflineCreditNote,
   type OutboxEventDraft,
-  saleVoidCreditNotePayload,
 } from "@purosur/domain";
 import {
   type ClockMark,
@@ -97,7 +97,7 @@ export function insertOfflineCreditNote(
       fortnight_start: document.fortnight.start,
       fortnight_end: document.fortnight.end,
       document: JSON.stringify(
-        saleVoidCreditNotePayload({
+        creditNoteToIssuePayload({
           creditNoteId: document.creditNoteId,
           saleId: document.saleId,
           total: document.total,
@@ -205,7 +205,7 @@ function sqliteSaleAuthorizationTransaction(
 
 export function decideSaleAuthorizationIn(
   database: LocalDatabase,
-  { ids, saleId, gate, decidedAt, occurredAt, total }: SaleAuthorizationDecision,
+  { ids, saleId, gate, decidedAt, occurredAt, total, rules }: SaleAuthorizationDecision,
   appendOutboxEvent: (event: OutboxEventDraft) => void,
   shortCodes: ShortCodeRandomness = cryptoShortCodes,
 ): void {
@@ -219,6 +219,7 @@ export function decideSaleAuthorizationIn(
       decidedAt,
       occurredAt,
       total,
+      rules,
     },
   );
 }

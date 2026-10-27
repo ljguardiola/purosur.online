@@ -2,6 +2,7 @@ import type {
   AbandonMercadoPagoChargeOutcome,
   FollowMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
+import type { PointCardType } from "@purosur/domain";
 import type { Icon } from "@purosur/ui";
 import {
   Button,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { pointCardName } from "../platform/payment-method-names";
 import { MercadoPagoPaidModal } from "./mercado-pago-paid-modal";
 import type { ShownPointOrder } from "./point-charge-modal";
 import type { FollowedQrCharge } from "./sales-queries";
@@ -45,6 +47,7 @@ export type PointPaymentWaitModalProps = {
   total: number;
   paid: number;
   order: ShownPointOrder;
+  cardType: PointCardType | null;
   follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
   abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>;
   onChooseAnotherMethod: () => void;
@@ -64,6 +67,7 @@ export function PointPaymentWaitModal({
   total,
   paid,
   order,
+  cardType,
   follow,
   abandon,
   onChooseAnotherMethod,
@@ -72,6 +76,7 @@ export function PointPaymentWaitModal({
   onSaleUnavailable,
   onSessionInvalid,
 }: PointPaymentWaitModalProps) {
+  const context = pointCardName(cardType).toUpperCase();
   const abandonment = useAbandonQrChargeMutation(abandon);
   const answer = abandonment.data;
   const unanswered =
@@ -209,7 +214,7 @@ export function PointPaymentWaitModal({
   if (paidCharge !== undefined) {
     return (
       <MercadoPagoPaidModal
-        context="POINT INTEGRADA"
+        context={context}
         title="El cliente pagó en la terminal"
         paidLabel="Pagado con la Point"
         amount={order.amount}
@@ -226,6 +231,7 @@ export function PointPaymentWaitModal({
   if (outcome?.kind === "declined") {
     return (
       <TerminalOrderEndedModal
+        context={context}
         title="La terminal rechazó el pago"
         reason="El pago no se aprobó en la terminal, así que no se cobró nada."
         onChooseAnotherMethod={onChooseAnotherMethod}
@@ -236,6 +242,7 @@ export function PointPaymentWaitModal({
   if (outcome?.kind === "expired") {
     return (
       <TerminalOrderEndedModal
+        context={context}
         title="El cobro venció en la terminal"
         reason="No se cobró nada."
         onChooseAnotherMethod={onChooseAnotherMethod}
@@ -249,6 +256,7 @@ export function PointPaymentWaitModal({
   if (awaitingCancellation) {
     return (
       <AwaitingCancellationModal
+        context={context}
         total={total}
         paid={paid}
         amount={order.amount}
@@ -269,7 +277,7 @@ export function PointPaymentWaitModal({
       width="standard"
       tone="info"
       icon={<CreditCard />}
-      context="POINT INTEGRADA"
+      context={context}
       contextTone="info"
       title="El cliente paga en la terminal"
       closable={false}
@@ -301,7 +309,7 @@ export function PointPaymentWaitModal({
                 {
                   id: "customer-paying",
                   label: "Esperando el pago",
-                  detail: "Tarjeta o QR, en la terminal",
+                  detail: "Tarjeta, en la terminal",
                   state: "current",
                 },
                 { id: "payment-approved", label: "Pago aprobado", state: "upcoming" },
@@ -355,6 +363,7 @@ function PointSaleSummary({
 }
 
 function AwaitingCancellationModal({
+  context,
   total,
   paid,
   amount,
@@ -365,6 +374,7 @@ function AwaitingCancellationModal({
   followFailure,
   onChooseAnotherMethod,
 }: {
+  context: string;
   total: number;
   paid: number;
   amount: number;
@@ -383,7 +393,7 @@ function AwaitingCancellationModal({
       width="standard"
       tone={waitedOut ? "error" : "warning"}
       icon={icon}
-      context="POINT INTEGRADA"
+      context={context}
       contextTone={waitedOut ? "error" : "warning"}
       title={
         waitedOut ? "Se terminó el tiempo de espera" : "Esperando la cancelación en la terminal"
@@ -437,10 +447,12 @@ function AwaitingCancellationModal({
 }
 
 function TerminalOrderEndedModal({
+  context,
   title,
   reason,
   onChooseAnotherMethod,
 }: {
+  context: string;
   title: string;
   reason: string;
   onChooseAnotherMethod: () => void;
@@ -452,7 +464,7 @@ function TerminalOrderEndedModal({
       width="standard"
       tone="error"
       icon={<CircleX />}
-      context="POINT INTEGRADA"
+      context={context}
       contextTone="error"
       title={title}
       closable={false}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import {
   type RegisterPurchaseInput,
@@ -89,7 +90,10 @@ describe("registerPurchase", () => {
   it("registers a line loaded by packaging with its quantity, its exact cost pair and its stock receipt", async () => {
     const store = storeWithCatalog();
 
-    const outcome = await registerPurchase({ store, clock: CLOCK }, purchase());
+    const outcome = await registerPurchase(
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+      purchase(),
+    );
 
     expect(outcome).toEqual({
       kind: "registered",
@@ -153,7 +157,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
 
     await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({
         lines: [
           quantityLine(),
@@ -179,7 +183,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
 
     await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({
         lines: [
           packagedLine(),
@@ -202,7 +206,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
 
     const outcome = await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({ lines: [quantityLine()] }),
     );
 
@@ -239,7 +243,7 @@ describe("registerPurchase", () => {
     });
 
     await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({ lines: [packagedLine({ packagingId: "packaging-c", costPaidCents: 10_001 })] }),
     );
 
@@ -256,7 +260,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
 
     await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({
         purchasedOn: "2026-01-02",
         lines: [
@@ -300,7 +304,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
 
     const outcome = await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({ purchasedOn: "2026-03-10", lines: [packagedLine({ expiresOn: "2020-01-01" })] }),
     );
 
@@ -312,7 +316,7 @@ describe("registerPurchase", () => {
     const lateEvening = { now: () => new Date("2026-03-11T01:30:00Z") };
 
     const outcome = await registerPurchase(
-      { store, clock: lateEvening },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: lateEvening },
       purchase({ purchasedOn: "2026-03-10" }),
     );
 
@@ -323,7 +327,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
 
     await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({
         lines: [
           quantityLine(),
@@ -347,7 +351,10 @@ describe("registerPurchase", () => {
   it("refuses a purchase with no lines before reaching the store", async () => {
     const store = storeWithCatalog();
 
-    const outcome = await registerPurchase({ store, clock: CLOCK }, purchase({ lines: [] }));
+    const outcome = await registerPurchase(
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+      purchase({ lines: [] }),
+    );
 
     expect(outcome).toEqual({ kind: "no_lines" });
     expect(store.transactionCount).toBe(0);
@@ -357,7 +364,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
 
     const outcome = await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({ purchasedOn: "2026-03-11" }),
     );
 
@@ -369,7 +376,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
 
     const outcome = await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({ supplierId: "missing" }),
     );
 
@@ -390,7 +397,7 @@ describe("registerPurchase", () => {
     });
 
     const outcome = await registerPurchase(
-      { store, clock: CLOCK },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({ supplierId: "supplier-old" }),
     );
 
@@ -409,7 +416,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [packagedLine(), quantityLine({ productId: "missing" })] }),
       );
 
@@ -420,7 +427,7 @@ describe("registerPurchase", () => {
       const store = inactiveProductStore();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({
           lines: [packagedLine(), packagedLine(), quantityLine({ productId: "product-old" })],
         }),
@@ -433,7 +440,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({
           lines: [
             packagedLine(),
@@ -450,7 +457,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [quantityLine(), packagedLine({ packagingId: "missing" })] }),
       );
 
@@ -461,7 +468,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [packagedLine({ packagingId: "packaging-b" })] }),
       );
 
@@ -481,7 +488,7 @@ describe("registerPurchase", () => {
       });
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [packagedLine({ packagingId: "packaging-old" })] }),
       );
 
@@ -501,7 +508,7 @@ describe("registerPurchase", () => {
       });
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [packagedLine({ packagingId: "packaging-stale" })] }),
       );
 
@@ -518,7 +525,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [packagedLine(), quantityLine({ productId, quantity })] }),
       );
 
@@ -529,7 +536,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({
           lines: [
             quantityLine({ quantity: 1 }),
@@ -545,7 +552,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [packagedLine({ packages: 200_000 })] }),
       );
 
@@ -556,7 +563,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [quantityLine({ quantity: MAX_STOCK_QUANTITY })] }),
       );
 
@@ -567,7 +574,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({ lines: [packagedLine(), quantityLine({ quantity: 0 })] }),
       );
 
@@ -582,7 +589,7 @@ describe("registerPurchase", () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
-        { store, clock: CLOCK },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({
           lines: [
             quantityLine({ quantity: 0 }),
@@ -607,7 +614,9 @@ describe("registerPurchase", () => {
     store.failWriteAtCall(operation, call);
     const twoLines = purchase({ lines: [packagedLine(), quantityLine()] });
 
-    await expect(registerPurchase({ store, clock: CLOCK }, twoLines)).rejects.toThrow(operation);
+    await expect(
+      registerPurchase({ zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK }, twoLines),
+    ).rejects.toThrow(operation);
 
     expect(store.snapshot()).toEqual(before);
   });

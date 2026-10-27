@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { recipeComponents, recipes } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerRecipesRoutes } from "./recipes-routes.js";
 import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
 import {
@@ -30,7 +31,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerRecipesRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
+  registerRecipesRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOW,
+  });
 });
 
 afterEach(async () => {

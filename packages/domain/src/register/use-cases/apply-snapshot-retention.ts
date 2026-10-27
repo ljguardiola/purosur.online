@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { snapshotLifecycleRulesOrDefault } from "../model/snapshot-lifecycle-rules.js";
 import { snapshotGenerationsToPrune } from "../model/snapshot-retention.js";
 import type {
@@ -11,6 +11,7 @@ export interface ApplySnapshotRetentionPorts {
   store: SnapshotStore;
   lanes: RegisterSnapshotLanes;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   objects: SnapshotObjects;
 }
 
@@ -28,7 +29,7 @@ const NOTHING_RETAINED: SnapshotRetentionSummary = {
 
 async function retainRegisterSnapshots(
   store: SnapshotStore,
-  { clock, objects }: ApplySnapshotRetentionPorts,
+  { clock, zoneRules, objects }: ApplySnapshotRetentionPorts,
   registerId: string,
 ): Promise<SnapshotRetentionSummary> {
   const pruned = await store.transaction<number | undefined>(async (tx) => {
@@ -40,7 +41,13 @@ async function retainRegisterSnapshots(
     const generations = (await tx.generationsOf(registerId)).filter(
       (generation) => !generation.pruned,
     );
-    const toPrune = snapshotGenerationsToPrune(generations, rules, clock.now(), false);
+    const toPrune = snapshotGenerationsToPrune(
+      generations,
+      rules,
+      clock.now(),
+      false,
+      zoneRules.zoneRules(),
+    );
     if (toPrune.length > 0) {
       await tx.markPruned(toPrune);
     }

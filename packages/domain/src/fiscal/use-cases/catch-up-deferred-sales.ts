@@ -47,10 +47,11 @@ type Round =
 
 function reserveNext(
   tx: DeferredSaleCatchUpTransaction,
-  { clock, ids }: CatchUpDeferredSalesPorts,
+  { clock, ids, zoneRules }: CatchUpDeferredSalesPorts,
   upToSaleId: string | undefined,
 ): Round {
   const now = clock.now();
+  const rules = zoneRules.zoneRules();
   for (const held of tx.deferredSalesHoldingAuthorizedDocument()) {
     const { origin, deferredSaleId, ...document } = held;
     tx.satisfyDeferredSale({
@@ -75,7 +76,8 @@ function reserveNext(
   if (
     upToSaleId !== undefined &&
     !series.deferredBacklog.some(
-      (entry) => entry.saleId === upToSaleId && isInDeferredBacklog(entry, now, lastIssuedOn),
+      (entry) =>
+        entry.saleId === upToSaleId && isInDeferredBacklog(entry, now, lastIssuedOn, rules),
     )
   ) {
     return { kind: "completed" };
@@ -108,7 +110,7 @@ function reserveNext(
     return stopped({ kind: "tax_authority_count_unknown" });
   }
 
-  const step = nextDeferredBacklogStep(series.deferredBacklog, now, lastIssuedOn);
+  const step = nextDeferredBacklogStep(series.deferredBacklog, now, lastIssuedOn, rules);
   if (step.kind === "empty") {
     return { kind: "completed" };
   }
@@ -129,7 +131,7 @@ function reserveNext(
     saleId: entry.saleId,
     pointOfSale: series.pointOfSale,
     number,
-    issuedOn: invoiceDateOf(entry.occurredAt),
+    issuedOn: invoiceDateOf(entry.occurredAt, rules),
     document: gate.document,
     reservedAt: now,
   });

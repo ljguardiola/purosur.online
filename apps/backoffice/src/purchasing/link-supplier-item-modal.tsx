@@ -16,13 +16,14 @@ import {
   ExternalLink,
   Link2,
   Package,
+  PackagePlus,
   Plus,
   RotateCcw,
   ScanBarcode,
   Sparkles,
   X,
 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { NewPackagingModal, type NewPackagingModalServices } from "./new-packaging-modal";
@@ -31,6 +32,7 @@ import {
   useSupplierItemLinkChoicesQuery,
   useSupplierItemLinkProposalQuery,
 } from "./purchasing-queries";
+import { SupplierItemFact } from "./supplier-item-fact";
 import {
   EMPTY_SUPPLIER_ITEM_LINK_FORM,
   linkPackagingOptions,
@@ -70,6 +72,7 @@ type LinkSupplierItemModalProps = {
   target: SupplierPriceListRow | null;
   mayCreatePackaging: boolean;
   remembersOnConfirm: boolean;
+  onCreateProduct: ((row: SupplierPriceListRow) => void) | null;
   services: LinkSupplierItemModalServices;
   onLinked: () => void;
   onOutdated: () => void;
@@ -78,15 +81,6 @@ type LinkSupplierItemModalProps = {
 };
 
 const CONTEXT = "Pedidos · Vincular un ítem";
-
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col">
-      <span className="text-detail text-text-subtle">{label}</span>
-      <span className="text-body font-bold">{children}</span>
-    </div>
-  );
-}
 
 function FieldHeading({ children }: { children: string }) {
   return <p className="text-detail font-bold">{children}</p>;
@@ -97,6 +91,7 @@ export function LinkSupplierItemModal({
   target,
   mayCreatePackaging,
   remembersOnConfirm,
+  onCreateProduct,
   services,
   onLinked,
   onOutdated,
@@ -217,7 +212,16 @@ export function LinkSupplierItemModal({
       );
     }
     if (proposal.value.kind === "none") {
-      return <p className="text-detail text-text-subtle">Sin propuesta para este ítem.</p>;
+      return (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-detail text-text-subtle">Sin propuesta para este ítem.</p>
+          {onCreateProduct !== null && row?.mayCreateProduct ? (
+            <Button variant="text" icon={<PackagePlus />} onPress={() => onCreateProduct(row)}>
+              Crear producto
+            </Button>
+          ) : null}
+        </div>
+      );
     }
     const { by, product } = proposal.value;
     return by === "barcode" ? (
@@ -365,12 +369,14 @@ export function LinkSupplierItemModal({
           <div className="flex flex-col gap-4">
             <SupplierPriceListChangeNotices notice={notice} failedTitle="No se vinculó el ítem" />
             <div className="flex flex-wrap items-end gap-6">
-              {row.code === null ? null : <Fact label="Código">{row.code}</Fact>}
+              {row.code === null ? null : (
+                <SupplierItemFact label="Código">{row.code}</SupplierItemFact>
+              )}
               {row.presentation === null ? null : (
-                <Fact label="Presentación">{row.presentation}</Fact>
+                <SupplierItemFact label="Presentación">{row.presentation}</SupplierItemFact>
               )}
               {row.priceCents === null ? null : (
-                <Fact label="Precio">{formatCents(row.priceCents)}</Fact>
+                <SupplierItemFact label="Precio">{formatCents(row.priceCents)}</SupplierItemFact>
               )}
               {pageLink === null ? null : (
                 <ButtonLink

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import type { SaleForReturn } from "./return-sale.js";
 import { saleForReturnOutcome } from "./sale-for-return-view.js";
 
-const SOLD_AT = new Date(argentinaInstant("2026-09-12", "15:30"));
-const NOW = new Date(argentinaInstant("2026-09-20", "10:00"));
+const SOLD_AT = new Date(argentinaInstant("2026-09-12", "15:30", FIXED_ARGENTINA_ZONE_RULES));
+const NOW = new Date(argentinaInstant("2026-09-20", "10:00", FIXED_ARGENTINA_ZONE_RULES));
 
 function facts(overrides: Partial<SaleForReturn> = {}): SaleForReturn {
   return {
@@ -56,21 +56,21 @@ function facts(overrides: Partial<SaleForReturn> = {}): SaleForReturn {
 
 describe("saleForReturnOutcome", () => {
   it("answers not found when there are no facts", () => {
-    expect(saleForReturnOutcome(undefined, 15, NOW)).toEqual({ kind: "not_found" });
+    expect(saleForReturnOutcome(undefined, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({ kind: "not_found" });
   });
 
   it("answers not found for a sale that was never completed", () => {
     const open = facts();
     open.sale.state = "OPEN";
 
-    expect(saleForReturnOutcome(open, 15, NOW)).toEqual({ kind: "not_found" });
+    expect(saleForReturnOutcome(open, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({ kind: "not_found" });
   });
 
   it.each(["VOIDED", "CANCELLED"] as const)("answers voided for a %s sale", (state) => {
     const gone = facts();
     gone.sale.state = state;
 
-    expect(saleForReturnOutcome(gone, 15, NOW)).toEqual({ kind: "voided" });
+    expect(saleForReturnOutcome(gone, 15, NOW, FIXED_ARGENTINA_ZONE_RULES)).toEqual({ kind: "voided" });
   });
 
   it("shows the sale's identity, total, invoice, lines, payments and windows", () => {
@@ -78,6 +78,7 @@ describe("saleForReturnOutcome", () => {
       facts({ returned: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }] }),
       15,
       NOW,
+      FIXED_ARGENTINA_ZONE_RULES,
     );
 
     expect(outcome).toMatchObject({
@@ -101,7 +102,7 @@ describe("saleForReturnOutcome", () => {
   });
 
   it("follows the good condition days it is given", () => {
-    const outcome = saleForReturnOutcome(facts(), 30, NOW);
+    const outcome = saleForReturnOutcome(facts(), 30, NOW, FIXED_ARGENTINA_ZONE_RULES);
 
     expect(outcome.kind === "found" && outcome.sale.windows.change_of_mind).toEqual({
       lastAllowedDay: "2026-10-12",

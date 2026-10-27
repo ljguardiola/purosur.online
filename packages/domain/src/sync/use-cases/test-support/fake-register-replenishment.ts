@@ -1,8 +1,8 @@
 import type {
+  CreditNoteToIssue,
   RebuiltUnclearDeferral,
   RestoredCreditNoteAnswer,
   RestoredUnclearDeferral,
-  SaleVoidCreditNote,
 } from "../../../fiscal/index.js";
 import type { ReplenishedUser } from "../../../users/index.js";
 import type { ReplenishmentFailure } from "../../model/replenishment-failure.js";
@@ -95,12 +95,12 @@ export class FakeRegisterReplenishmentDecoder implements RegisterReplenishmentDe
 }
 
 interface RecordedCreditNoteAnswer {
-  creditNote: SaleVoidCreditNote;
+  creditNote: CreditNoteToIssue;
   answer: RestoredCreditNoteAnswer;
 }
 
 interface HeldCreditNote {
-  creditNote: SaleVoidCreditNote;
+  creditNote: CreditNoteToIssue;
   event: ReplenishedEvent["event"];
 }
 
@@ -200,11 +200,13 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
       },
       recordCreditNoteAnswer: async (creditNote, answer) => {
         failIf("recordCreditNoteAnswer");
-        const saleIsVoided = working.facts.some(
-          ({ fact }) => fact.kind === "sale_voided" && fact.sale.id === creditNote.saleId,
+        const saleIsCredited = working.facts.some(
+          ({ fact }) =>
+            (fact.kind === "sale_voided" && fact.sale.id === creditNote.saleId) ||
+            (fact.kind === "sale_returned" && fact.saleReturn.saleId === creditNote.saleId),
         );
-        if (!saleIsVoided) {
-          throw new Error(`the register holds no voided sale ${creditNote.saleId}`);
+        if (!saleIsCredited) {
+          throw new Error(`the register holds no voided or returned sale ${creditNote.saleId}`);
         }
         working.creditNoteAnswers.push({ creditNote, answer });
       },

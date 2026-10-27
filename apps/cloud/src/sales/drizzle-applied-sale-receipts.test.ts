@@ -8,7 +8,11 @@ import {
   APPLICATION_NOW,
   eventApplicationUnderTest,
 } from "../sync/test-support/drizzle-event-application.js";
-import { aReprintFact, aSalePrintStateFact } from "../sync/test-support/synced-facts.js";
+import {
+  aReprintFact,
+  aSalePrintStateFact,
+  type CreditNotePrintStateOverrides,
+} from "../sync/test-support/synced-facts.js";
 import { recordAppliedPrintState, recordAppliedReprint } from "./drizzle-applied-sale-receipts.js";
 import { applyCompletedSale } from "./test-support/applied-sales.js";
 
@@ -236,7 +240,7 @@ async function creditNotePrintStateOf(saleId: string) {
 }
 
 function recordCreditNotePrintState(
-  overrides: Parameters<typeof aSalePrintStateFact>[0],
+  overrides: CreditNotePrintStateOverrides,
   pushedFrom: AppliedOrigin = origin,
 ) {
   return system.db.transaction((tx) =>
@@ -284,6 +288,34 @@ describe("recording the print state of an applied sale's credit note", () => {
 
     expect(await creditNotePrintStateOf(saleId)).toMatchObject({
       attempted: ATTEMPTED,
+      printed: PRINTED,
+    });
+  });
+
+  it("keeps the latest print of the sale's credit notes, whichever credit note an event names", async () => {
+    const saleId = await appliedSale();
+    await recordCreditNotePrintState({
+      saleId,
+      creditNoteId: "0199b7a0-0000-7000-8000-0000000000a1",
+      printAttemptedAt: ATTEMPTED,
+      printedAt: PRINTED,
+    });
+
+    await recordCreditNotePrintState({
+      saleId,
+      creditNoteId: "0199b7a0-0000-7000-8000-0000000000a2",
+      printAttemptedAt: LATER,
+      printedAt: null,
+    });
+    await recordCreditNotePrintState({
+      saleId,
+      creditNoteId: null,
+      printAttemptedAt: ATTEMPTED,
+      printedAt: PRINTED,
+    });
+
+    expect(await creditNotePrintStateOf(saleId)).toMatchObject({
+      attempted: LATER,
       printed: PRINTED,
     });
   });

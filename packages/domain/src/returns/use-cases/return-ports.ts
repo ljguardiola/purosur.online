@@ -1,5 +1,5 @@
+import type { SaleCreditNoteTransaction, SaleInvoiceStanding } from "../../fiscal/index.js";
 import type { CashMovement } from "../../register/index.js";
-import type { OutboxEventDraft } from "../../shared/index.js";
 import type { TicketSource } from "../model/return-reasons.js";
 import type { SaleForReturn } from "../model/return-sale.js";
 import type {
@@ -89,13 +89,13 @@ export interface ReturnLedger {
   transaction<TOutcome>(work: (tx: ReturnTransaction) => TOutcome): TOutcome;
 }
 
-export interface ReturnTransaction extends ReturnSaleReader {
+export interface ReturnTransaction extends ReturnSaleReader, SaleCreditNoteTransaction {
   openSession(): ReturningSession | undefined;
   outboxReady(): boolean;
+  saleInvoiceStanding(saleId: string): SaleInvoiceStanding;
   recordReturn(returned: RecordedReturn): void;
   recordRefund(refund: ReturnRefund): void;
   recordCashMovement(movement: ReturnCashMovement): void;
   recordReturnStockMovement(movement: ReturnStockMovement): void;
   addToStockBalance(productId: string, delta: number): void;
-  appendOutboxEvent(draft: OutboxEventDraft): void;
 }

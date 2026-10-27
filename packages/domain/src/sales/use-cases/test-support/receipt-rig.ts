@@ -48,7 +48,7 @@ const SOURCE: ReceiptSource = {
       lineTotal: 7500,
     },
   ],
-  payments: [{ method: "CASH", amount: 7500, tendered: 8000 }],
+  payments: [{ method: "CASH", amount: 7500, tendered: 8000, cardType: null }],
   fiscal: { kind: "none" },
 };
 
@@ -103,6 +103,7 @@ function creditNote(
   overrides: Partial<FakeCreditNote> & Pick<FakeCreditNote, "content">,
 ): FakeCreditNote {
   return {
+    id: "credit-note-1",
     authorized: true,
     printAttemptedAt: null,
     printedAt: null,
@@ -110,6 +111,13 @@ function creditNote(
     reprints: [],
     ...overrides,
   };
+}
+
+export function returnCreditNote(
+  issuer: Issuer,
+  overrides: Partial<FakeCreditNote> = {},
+): FakeCreditNote {
+  return creditNote({ id: "credit-note-2", content: creditNoteContent(issuer), ...overrides });
 }
 
 export function creditedSales(issuer: Issuer) {

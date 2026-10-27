@@ -1,10 +1,12 @@
 import type { RoleAccess } from "@purosur/domain";
+import { FIXED_ARGENTINA_ZONE_RULES } from "@purosur/domain";
 import {
   type CorrectRegisterClockGrant,
   correctRegisterClock,
 } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { applyReplenishedOfflineFiscalDocument } from "./replenished-offline-fiscal-documents";
@@ -49,6 +51,7 @@ function decide(
       decidedAt: DECIDED_AT,
       occurredAt: SALE_COMPLETED_AT,
       total: 12_500,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
       ids: {
         next: () => {
           issued += 1;
@@ -628,6 +631,7 @@ describe("deciding a sale's authorization when the register holds a code for its
           decidedAt: new Date("2026-10-01T03:00:30.000Z"),
           occurredAt: new Date("2026-10-01T02:59:59.000Z"),
           total: 12_500,
+          rules: FIXED_ARGENTINA_ZONE_RULES,
           ids: { next: () => "doc-new" },
         },
         (event) => appendOutboxEvent(database, CHAIN_KEY, event),
@@ -934,6 +938,7 @@ describe("deciding a sale's authorization against the register's clock marks", (
     function correctClock() {
       let issued = 0;
       return correctRegisterClock<CorrectRegisterClockGrant, never>({
+        zoneRules: fixedZoneRulesSource(),
         ledger: new SqliteClockCorrectionLedger(database, people, CHAIN_KEY),
         clock: { now: () => new Date("2026-09-30T12:00:00.000Z") },
         ids: {

@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { saleForReturnOutcome } from "../model/sale-for-return-view.js";
 import { withUncountedReturns } from "../model/uncounted-returns.js";
 import type { FindSaleForReturnInput, FindSaleForReturnOutcome } from "./find-sale-for-return.js";
@@ -22,13 +22,14 @@ export interface FindBranchSaleForReturnPorts {
   ownReturns: OwnReturnsOfSale;
   retained: RetainedBranchSales;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export async function findBranchSaleForReturn(
-  { reader, lookup, ownReturns, retained, clock }: FindBranchSaleForReturnPorts,
+  { reader, lookup, ownReturns, retained, clock, zoneRules }: FindBranchSaleForReturnPorts,
   search: FindBranchSaleForReturnInput,
 ): Promise<FindBranchSaleForReturnOutcome> {
-  const local = findSaleForReturn({ reader, clock }, search);
+  const local = findSaleForReturn({ reader, clock, zoneRules }, search);
   if (local.kind !== "not_found" || search.kind === "sale") {
     return local;
   }
@@ -44,6 +45,7 @@ export async function findBranchSaleForReturn(
     withUncountedReturns(sale, countedReturnIds, ownReturns.returnsOfSale(sale.sale.id)),
     goodConditionReturnDays,
     clock.now(),
+    zoneRules.zoneRules(),
   );
   if (outcome.kind === "found") {
     retained.keep({ sale, goodConditionReturnDays, countedReturnIds });

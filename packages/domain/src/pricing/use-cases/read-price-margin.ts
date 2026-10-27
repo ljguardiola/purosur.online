@@ -1,9 +1,11 @@
+import type { ZoneRulesSource } from "../../shared/index.js";
 import { type PriceCostReference, priceCostReference } from "../model/price-cost-reference.js";
 import type { ActiveProductReader } from "./active-product-reader.js";
 import { costSourcesByProductId, type ProductCostPorts } from "./product-cost-sources.js";
 
 export interface ReadPriceMarginPorts extends ProductCostPorts {
   products: ActiveProductReader;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface ReadPriceMarginInput {
@@ -26,6 +28,10 @@ export async function readPriceMargin(
   const sources = await costSourcesByProductId(ports, locationId, [productId]);
   return {
     kind: "read",
-    costReference: priceCostReference(sources.get(productId) ?? [], unitPrice),
+    costReference: priceCostReference(
+      sources.get(productId) ?? [],
+      unitPrice,
+      ports.zoneRules.zoneRules(),
+    ),
   };
 }

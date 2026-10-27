@@ -1,8 +1,14 @@
 import type { VoucherReference } from "@purosur/domain";
-import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "@purosur/domain";
+import {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  creditsItsInvoice,
+  FACTURA_C_DOCUMENT_TYPE,
+  FACTURA_C_VOUCHER_TYPE,
+} from "@purosur/domain";
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { creditNotes, offlineFiscalDocuments } from "../platform/db/schema.js";
+import { creditNotes, fiscalRequests, offlineFiscalDocuments } from "../platform/db/schema.js";
+import { heldByTaxAuthority } from "./held-by-tax-authority.js";
 
 export function creditedVoucherLockKey({ voucherType, pointOfSale, number }: VoucherReference) {
   return `credited_voucher:${voucherType}:${pointOfSale}:${number}`;
@@ -17,12 +23,48 @@ export async function lockCreditedVoucher<TQueryResult extends PgQueryResultHKT>
   );
 }
 
-export async function voucherCreditedOnline<TQueryResult extends PgQueryResultHKT>(
+export async function invoiceTotalHeld<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   { voucherType, pointOfSale, number }: VoucherReference,
-): Promise<boolean> {
-  const [credit] = await db
-    .select({ id: creditNotes.id })
+): Promise<number | null> {
+  if (voucherType !== FACTURA_C_VOUCHER_TYPE) {
+    return null;
+  }
+  const [realTime] = await db
+    .select({ total: fiscalRequests.total })
+    .from(fiscalRequests)
+    .where(
+      and(
+        eq(fiscalRequests.pointOfSale, pointOfSale),
+        eq(fiscalRequests.number, number),
+        heldByTaxAuthority,
+      ),
+    )
+    .limit(1);
+  if (realTime !== undefined) {
+    return realTime.total;
+  }
+  const [offline] = await db
+    .select({ total: offlineFiscalDocuments.total })
+    .from(offlineFiscalDocuments)
+    .where(
+      and(
+        eq(offlineFiscalDocuments.documentType, FACTURA_C_DOCUMENT_TYPE),
+        eq(offlineFiscalDocuments.pointOfSale, pointOfSale),
+        eq(offlineFiscalDocuments.number, number),
+      ),
+    )
+    .limit(1);
+  return offline?.total ?? null;
+}
+
+export async function totalCreditedToInvoice<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  { voucherType, pointOfSale, number }: VoucherReference,
+  exceptOfflineDocumentId?: string,
+): Promise<number> {
+  const online = await db
+    .select({ total: creditNotes.total, answerKind: creditNotes.answerKind })
     .from(creditNotes)
     .where(
       and(
@@ -30,18 +72,9 @@ export async function voucherCreditedOnline<TQueryResult extends PgQueryResultHK
         eq(creditNotes.associatedPointOfSale, pointOfSale),
         eq(creditNotes.associatedNumber, number),
       ),
-    )
-    .limit(1);
-  return credit !== undefined;
-}
-
-export async function voucherCreditedOffline<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  { voucherType, pointOfSale, number }: VoucherReference,
-  exceptOfflineDocumentId?: string,
-): Promise<boolean> {
-  const [credit] = await db
-    .select({ id: offlineFiscalDocuments.id })
+    );
+  const [offline] = await db
+    .select({ total: sql<string>`coalesce(sum(${offlineFiscalDocuments.total}), 0)` })
     .from(offlineFiscalDocuments)
     .where(
       and(
@@ -53,7 +86,10 @@ export async function voucherCreditedOffline<TQueryResult extends PgQueryResultH
           ? []
           : [ne(offlineFiscalDocuments.id, exceptOfflineDocumentId)]),
       ),
-    )
-    .limit(1);
-  return credit !== undefined;
+    );
+  return (
+    online
+      .filter(({ answerKind }) => creditsItsInvoice(answerKind))
+      .reduce((sum, { total }) => sum + total, 0) + Number(offline?.total ?? 0)
+  );
 }

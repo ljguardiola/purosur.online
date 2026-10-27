@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { getCACertificates, setDefaultCACertificates } from "node:tls";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   type ArcaTestCredentials,
   generateArcaTestCredentials,
@@ -42,6 +43,7 @@ beforeEach(() => {
 
 function authenticationOf(endpoint: string, timeoutMs = 5_000) {
   return new ArcaWsaaAuthentication({
+    zoneRules: fixedZoneRulesSource(),
     endpoint,
     certificatePem: credentials.certificatePem,
     privateKeyPem: credentials.privateKeyPem,
@@ -93,6 +95,22 @@ describe("ArcaWsaaAuthentication", () => {
     expect(signedContent).toContain("<expirationTime>2026-10-01T12:05:00-03:00</expirationTime>");
   });
 
+  it("stamps the ticket's times on the clock of the zone rules it is given", async () => {
+    const authentication = new ArcaWsaaAuthentication({
+      endpoint: server.endpoint,
+      certificatePem: credentials.certificatePem,
+      privateKeyPem: credentials.privateKeyPem,
+      now: () => NOW,
+      zoneRules: fixedZoneRulesSource(-120),
+    });
+
+    await authentication.requestToken("wsfe");
+
+    const { signedContent } = readLoginRequest(server.requests[0] ?? "");
+    expect(signedContent).toContain("<generationTime>2026-10-01T12:55:00-02:00</generationTime>");
+    expect(signedContent).toContain("<expirationTime>2026-10-01T13:05:00-02:00</expirationTime>");
+  });
+
   describe("whatever the server's own timezone", () => {
     const originalTimeZone = process.env["TZ"];
 
@@ -125,6 +143,7 @@ describe("ArcaWsaaAuthentication", () => {
   it("sends a different unique id on a request made later", async () => {
     let now = NOW;
     const authentication = new ArcaWsaaAuthentication({
+      zoneRules: fixedZoneRulesSource(),
       endpoint: server.endpoint,
       certificatePem: credentials.certificatePem,
       privateKeyPem: credentials.privateKeyPem,
@@ -152,6 +171,7 @@ describe("ArcaWsaaAuthentication", () => {
   it("hands over the raw answer ARCA gave, a SOAP fault included", async () => {
     const received: string[] = [];
     const authentication = new ArcaWsaaAuthentication({
+      zoneRules: fixedZoneRulesSource(),
       endpoint: server.endpoint,
       certificatePem: credentials.certificatePem,
       privateKeyPem: credentials.privateKeyPem,
@@ -233,6 +253,7 @@ describe("ArcaWsaaAuthentication given no timeout", () => {
 
   async function answeredAfter(delayMs: number) {
     const authentication = new ArcaWsaaAuthentication({
+      zoneRules: fixedZoneRulesSource(),
       endpoint: server.endpoint,
       certificatePem: credentials.certificatePem,
       privateKeyPem: credentials.privateKeyPem,

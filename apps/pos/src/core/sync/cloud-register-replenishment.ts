@@ -47,6 +47,8 @@ function answerOf(creditNote: WireCreditNote): RestoredCreditNoteAnswer["answer"
       return { kind: "rejected" };
     case "ALREADY_CREDITED":
       return { kind: "already_credited" };
+    case "REGULARIZATION_REQUIRED":
+      return { kind: "regularization_required" };
     case "ISSUED_OFFLINE":
       return {
         kind: "issued_offline",

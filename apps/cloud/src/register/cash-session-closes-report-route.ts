@@ -1,4 +1,5 @@
 import { cashSessionClosesSchema, reportQuerySchema } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import { readCashSessionCloses } from "@purosur/domain/register/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -16,6 +17,7 @@ export interface CashSessionClosesReportRouteOptions<TQueryResult extends PgQuer
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 export function registerCashSessionClosesReportRoute<TQueryResult extends PgQueryResultHKT>(
@@ -39,7 +41,7 @@ export function registerCashSessionClosesReportRoute<TQueryResult extends PgQuer
         return;
       }
       const report = await readCashSessionCloses(
-        { reader, clock: { now } },
+        { reader, clock: { now }, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           asked: { from: query.from, to: query.to },

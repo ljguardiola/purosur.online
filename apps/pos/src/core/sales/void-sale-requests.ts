@@ -2,15 +2,15 @@ import type { Authorization, AuthorizedBy, VoidSaleOutcome } from "@purosur/cont
 import type { VoidCreditNoteStanding } from "@purosur/domain";
 import {
   type CloudCreditNotes,
-  type RequestVoidedSaleCreditNoteInput,
-  requestVoidedSaleCreditNote,
+  type RequestSaleCreditNoteInput,
+  requestSaleCreditNote,
 } from "@purosur/domain/fiscal/use-cases";
 import {
   type OperationAuthorization,
   type VoidSaleGrant,
   voidSale,
 } from "@purosur/domain/sales/use-cases";
-import { SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
+import { SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import { toWireCreditNote } from "../fiscal/wire-credit-note";
 import { toWireRefund } from "../payments/wire-refund";
 import type { OutboxSaleRequestDeps } from "./sale-requests";
@@ -18,7 +18,7 @@ import { SqliteSaleVoidLedger } from "./sqlite-sale-void-ledger";
 
 export interface VoidSaleRequestDeps extends Omit<OutboxSaleRequestDeps, "restoration"> {
   creditNotes: CloudCreditNotes | undefined;
-  printCreditNote: (saleId: string) => Promise<void>;
+  printCreditNote: (creditNote: { saleId: string; creditNoteId: string }) => Promise<void>;
   reportFailure: (error: unknown) => void;
 }
 
@@ -49,16 +49,16 @@ const NO_ANSWER_FROM_CLOUD: CloudCreditNotes = { request: async () => null };
 
 async function answerOfCreditNote(
   { database, now, creditNotes, printCreditNote, reportFailure }: VoidSaleRequestDeps,
-  input: RequestVoidedSaleCreditNoteInput,
+  input: RequestSaleCreditNoteInput,
 ): Promise<VoidCreditNoteStanding> {
-  const outcome = await requestVoidedSaleCreditNote(
+  const outcome = await requestSaleCreditNote(
     {
-      creditNotes: new SqliteVoidCreditNotes(database),
+      creditNotes: new SqliteSaleCreditNotes(database),
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
       clock: { now },
       printer: {
-        startPrinting: (saleId) => {
-          printCreditNote(saleId).catch(reportFailure);
+        startPrinting: (creditNote) => {
+          printCreditNote(creditNote).catch(reportFailure);
         },
       },
     },
@@ -74,10 +74,11 @@ export async function voidSaleFor(
   deps: VoidSaleRequestDeps,
   { saleId, pendingRefundsConfirmed, authorization }: VoidSaleRequest,
 ): Promise<VoidSaleOutcome> {
-  const { database, gate, now, ids, readOutboxChainKey } = deps;
+  const { database, gate, now, zoneRules, ids, readOutboxChainKey } = deps;
   const outboxChainKey = await readOutboxChainKey();
   const outcome = await voidSale<VoidSaleRequestGrant, VoidSaleRefusal>(
     {
+      zoneRules,
       ledger: new SqliteSaleVoidLedger(database, outboxChainKey),
       clock: { now },
       ids,

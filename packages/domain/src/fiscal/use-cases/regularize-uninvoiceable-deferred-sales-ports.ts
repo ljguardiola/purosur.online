@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type {
   DeferredSaleRegularizationTask,
   PendingDeferredSale,
@@ -23,4 +23,5 @@ export interface DeferredSaleExpiryStore {
 export interface RegularizeUninvoiceableDeferredSalesPorts {
   store: DeferredSaleExpiryStore;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }

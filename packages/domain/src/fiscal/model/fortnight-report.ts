@@ -1,4 +1,4 @@
-import { argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
+import { argentinaInstant, shiftCalendarDay, type ZoneRules } from "../../shared/index.js";
 import type { TaxAuthorityRejection } from "./fiscal-rejection-standing.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 import {
@@ -50,8 +50,8 @@ const DAYS_TO_REPORT_AFTER_CLOSE = 8;
 const PRESSING_DAYS_LEFT = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export function fortnightClosesAt({ end }: Fortnight): Date {
-  return new Date(argentinaInstant(shiftCalendarDay(end, 1), "00:00"));
+export function fortnightClosesAt({ end }: Fortnight, rules: ZoneRules): Date {
+  return new Date(argentinaInstant(shiftCalendarDay(end, 1), "00:00", rules));
 }
 
 export function fortnightReportDeadline(
@@ -74,11 +74,12 @@ export function owesFortnightReport(
     listed = false,
   }: { fortnight: Fortnight; claimedAt: Date; retiredAt?: Date | undefined; listed?: boolean },
   today: string,
+  rules: ZoneRules,
 ): boolean {
   if (!hasFortnightClosed(fortnight, today)) {
     return false;
   }
-  const closesAt = fortnightClosesAt(fortnight);
+  const closesAt = fortnightClosesAt(fortnight, rules);
   return listed || (claimedAt < closesAt && (retiredAt === undefined || closesAt <= retiredAt));
 }
 

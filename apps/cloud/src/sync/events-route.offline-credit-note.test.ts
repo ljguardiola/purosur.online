@@ -1,6 +1,7 @@
 import { canonicalOutboxEvent } from "@purosur/domain";
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertRealTimeInvoice } from "../fiscal/test-support/held-invoice-fixtures.js";
 import { seedOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import {
   alerts,
@@ -11,6 +12,7 @@ import {
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
@@ -105,9 +107,9 @@ describe("a credit note issued under a pre-obtained code pushed through POST /ev
     const body = pushOf(registerId, "credit_note_c", 3);
 
     expect((await push(body)).json()).toMatchObject({ status: "ok", ack_seq: 1 });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     expect((await push(body)).json()).toMatchObject({ status: "ok", ack_seq: 1 });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(offlineFiscalDocuments)).toEqual([
       expect.objectContaining({
@@ -128,8 +130,9 @@ describe("a credit note issued under a pre-obtained code pushed through POST /ev
     expect(await route.db.select().from(alerts)).toEqual([]);
   });
 
-  it("is applied all the same, with the alert that its invoice was already credited, when the cloud's own credit note corrects the voucher", async () => {
+  it("is applied all the same, with the alert that its invoice was already credited, when the cloud's own credit note already credits the invoice's whole total", async () => {
     const { registerId, push } = await enrolledWithSale();
+    await insertRealTimeInvoice(route.db, { registerId, pointOfSale: 7, number: 12, total: 4800 });
     await route.db.insert(creditNotes).values({
       id: crypto.randomUUID(),
       registerId,
@@ -145,7 +148,7 @@ describe("a credit note issued under a pre-obtained code pushed through POST /ev
     });
 
     await push(pushOf(registerId, "credit_note_c", 3));
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(offlineFiscalDocuments)).toHaveLength(1);
     expect(await route.db.select({ kind: alerts.kind }).from(alerts)).toEqual([

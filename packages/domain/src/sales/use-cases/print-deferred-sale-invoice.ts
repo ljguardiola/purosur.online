@@ -1,4 +1,4 @@
-import type { OperationAuthorization } from "../../shared/index.js";
+import type { OperationAuthorization, ZoneRules, ZoneRulesSource } from "../../shared/index.js";
 import type { DeferredSaleFacts } from "../model/deferred-sale-lookup.js";
 import { deferredSaleAvailability } from "../model/deferred-sale-lookup.js";
 import type {
@@ -24,6 +24,7 @@ export type PrintDeferredSaleInvoicePorts<
 > = ReceiptPrintingPorts<Grant, Refusal> & {
   lookup: DeferredSaleLookup;
   invoicing: DeferredSaleInvoicing;
+  zoneRules: ZoneRulesSource;
 };
 
 export type PrintDeferredSaleInvoiceOutcome =
@@ -51,7 +52,7 @@ export async function printDeferredSaleInvoice<Grant extends ReceiptPrintGrant, 
   };
 
   const facts = ports.lookup.find({ kind: "sale", saleId });
-  const unavailable = unavailableOutcome(facts, ports.clock.now());
+  const unavailable = unavailableOutcome(facts, ports.clock.now(), ports.zoneRules.zoneRules());
   if (unavailable !== undefined) {
     return unavailable;
   }
@@ -61,7 +62,7 @@ export async function printDeferredSaleInvoice<Grant extends ReceiptPrintGrant, 
       return invoicing;
     }
     const reread = ports.lookup.find({ kind: "sale", saleId });
-    const gone = unavailableOutcome(reread, ports.clock.now());
+    const gone = unavailableOutcome(reread, ports.clock.now(), ports.zoneRules.zoneRules());
     if (gone !== undefined) {
       return gone;
     }
@@ -85,10 +86,11 @@ type UnavailableOutcome = Extract<
 function unavailableOutcome(
   facts: DeferredSaleFacts | null,
   now: Date,
+  rules: ZoneRules,
 ): UnavailableOutcome | undefined {
   if (facts === null) {
     return { kind: "not_found" };
   }
-  const availability = deferredSaleAvailability(facts, now);
+  const availability = deferredSaleAvailability(facts, now, rules);
   return availability === "available" ? undefined : { kind: availability };
 }

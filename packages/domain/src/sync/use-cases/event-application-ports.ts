@@ -2,7 +2,7 @@ import type { VoucherReference } from "../../fiscal/index.js";
 import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
 import type { ReturnedSale, SaleReturnHistory } from "../../returns/index.js";
 import type { CompletedSale, VoidedSale } from "../../sales/index.js";
-import type { Clock, JsonValue } from "../../shared/index.js";
+import type { Clock, JsonValue, ZoneRulesSource } from "../../shared/index.js";
 import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
 import type { EventInvariantBreaks } from "../model/event-invariant-breaks.js";
 import type { EventQuarantine } from "../model/event-quarantine.js";
@@ -43,13 +43,13 @@ export interface EventApplicationTransaction {
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;
   lockCreditedVoucher(voucher: VoucherReference): Promise<void>;
   /**
-   * Whether a credit note of the cloud, or an offline credit note other than the one named, already
-   * corrects the voucher.
+   * The total of the invoice the voucher names, null when it is not known, and what the credit notes
+   * that count against it already credit, leaving out the offline credit note named.
    */
-  voucherAlreadyCredited(
+  creditOnInvoice(
     voucher: VoucherReference,
     exceptOfflineDocumentId: string,
-  ): Promise<boolean>;
+  ): Promise<{ invoiceTotal: number | null; alreadyCredited: number }>;
   raiseInvoiceAlreadyCredited(
     invoice: { voucher: VoucherReference; saleId: string },
     at: Date,
@@ -116,5 +116,6 @@ export interface ApplyPendingEventsPorts {
   eventApplication: EventApplication;
   upcaster: EventUpcaster;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   quarantineNotices: QuarantineNotices;
 }

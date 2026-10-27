@@ -23,7 +23,9 @@ import {
   OFFLINE_NUMBER_BLOCK_STATUSES,
   type OfflineAuthorizationCause,
   type OfflineDocumentCorrection,
+  POINT_CARD_TYPES,
   POINT_OF_SALE_NUMBER_MAX,
+  type PointCardType,
   RECEIPT_TYPES,
   type RejectedDocumentRemedy,
   SNAPSHOT_CORRUPTION_STAGES,
@@ -211,6 +213,20 @@ export const buyerTaxStatusSets = pgTable(
     uniqueIndex("buyer_tax_status_sets_params_version_key").on(table.paramsVersion),
     check("buyer_tax_status_sets_params_version_positive", sql`${table.paramsVersion} > 0`),
   ],
+);
+
+// Append-only: the rules of each publication are kept as they were published; a version published
+// again after a later one, as when the cloud runs an earlier time zone database, is a new row, never
+// an edit of one registers already pulled.
+export const zoneRules = pgTable(
+  "zone_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    version: text("version").notNull(),
+    transitions: jsonb("transitions").$type<{ from: string; offsetMinutes: number }[]>().notNull(),
+    publicationNumber: integer("publication_number").notNull(),
+  },
+  (table) => [uniqueIndex("zone_rules_publication_number_key").on(table.publicationNumber)],
 );
 
 export const roles = pgTable(
@@ -1643,6 +1659,7 @@ export const salePayments = pgTable(
       .references(() => sales.id),
     method: text("method").notNull(),
     provider: text("provider").notNull(),
+    cardType: text("card_type").$type<PointCardType>(),
     amount: bigint("amount", { mode: "number" }).notNull(),
     tendered: bigint("tendered", { mode: "number" }),
     state: text("state").notNull(),
@@ -1654,6 +1671,10 @@ export const salePayments = pgTable(
     // Lets payment_refunds reference it with a composite foreign key, so a refund can point only
     // at a payment of its own sale.
     unique("sale_payments_id_sale_id_key").on(table.id, table.saleId),
+    check(
+      "sale_payments_card_type_check",
+      sql`${table.cardType} is null or (${table.method} = 'POINT' and ${table.cardType} in (${sql.raw(POINT_CARD_TYPES.map((type) => `'${type}'`).join(", "))}))`,
+    ),
   ],
 );
 
@@ -2658,6 +2679,7 @@ export const paymentTransactions = pgTable(
     kind: text("kind").notNull(),
     method: text("method").notNull(),
     provider: text("provider").notNull(),
+    cardType: text("card_type").$type<PointCardType>(),
     amount: bigint("amount", { mode: "number" }).notNull(),
     state: text("state").notNull(),
     needsReview: boolean("needs_review").notNull().default(false),
@@ -2677,6 +2699,10 @@ export const paymentTransactions = pgTable(
     check(
       "payment_transactions_method_provider_check",
       sql`(${table.method} = 'QR' and ${table.provider} = 'MERCADOPAGO_QR') or (${table.method} = 'POINT' and ${table.provider} = 'MERCADOPAGO_POINT')`,
+    ),
+    check(
+      "payment_transactions_card_type_check",
+      sql`${table.cardType} is null or (${table.method} = 'POINT' and ${table.cardType} in (${sql.raw(POINT_CARD_TYPES.map((type) => `'${type}'`).join(", "))}))`,
     ),
     check("payment_transactions_amount_check", sql`${table.amount} > 0`),
     check(
@@ -2850,7 +2876,7 @@ export const fiscalTasks = pgTable(
     ),
     check(
       "fiscal_tasks_voucher_check",
-      sql`(${table.kind} = 'deferred_sale_expired' and ${table.pointOfSale} is null and ${table.documentType} is null and ${table.number} is null) or (${table.kind} <> 'deferred_sale_expired' and ${table.pointOfSale} is not null and ${table.documentType} is not null and ${table.number} is not null)`,
+      sql`(${table.kind} = 'deferred_sale_expired' and ${table.pointOfSale} is null and ${table.documentType} is null and ${table.number} is null) or (${table.kind} <> 'deferred_sale_expired' and ${table.pointOfSale} is not null and ${table.documentType} is not null and (${table.number} is not null or ${table.kind} = 'credit_note_rejected'))`,
     ),
     check(
       "fiscal_tasks_document_type_check",
@@ -2871,10 +2897,12 @@ export const fiscalTasks = pgTable(
   ],
 );
 
-// A credit note the cloud issues: the one that cancels an authorization no sale accounts for, or
-// the one that cancels the invoice of a voided sale. The row is the request to issue it: it exists
-// from the moment it is asked for, gets its number when the tax authority is first asked, and keeps
-// the answer. A number is held by one request at a time, and an invoice is corrected once.
+// A credit note the cloud issues: the one that cancels an authorization no sale accounts for, the
+// one that cancels the invoice of a voided sale, or the one that credits a return. The row is the
+// request to issue it: it exists from the moment it is asked for, gets its number when the tax
+// authority is first asked, and keeps the answer. A number is held by one request at a time. A
+// return's credit note names its return and the day it is issued on; one that cannot be issued
+// keeps no number.
 export const creditNotes = pgTable(
   "credit_notes",
   {
@@ -2901,10 +2929,12 @@ export const creditNotes = pgTable(
     authorizationCode: text("authorization_code"),
     authorizationCodeDueOn: date("authorization_code_due_on", { mode: "string" }),
     rejections: jsonb("rejections").$type<JsonValue>(),
+    returnId: uuid("return_id"),
+    issueOn: date("issue_on", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("credit_notes_corrected_voucher_key").on(
+    index("credit_notes_corrected_voucher_idx").on(
       table.associatedVoucherType,
       table.associatedPointOfSale,
       table.associatedNumber,
@@ -2929,11 +2959,16 @@ export const creditNotes = pgTable(
     ),
     check(
       "credit_notes_answer_kind_check",
-      sql`${table.answerKind} in ('authorized', 'rejected', 'unclear')`,
+      sql`${table.answerKind} in ('authorized', 'rejected', 'unclear', 'regularization_required')`,
     ),
     check(
       "credit_notes_answer_request_check",
-      sql`${table.answerKind} is null or ${table.number} is not null`,
+      sql`${table.answerKind} is null or ${table.answerKind} = 'regularization_required' or ${table.number} is not null`,
+    ),
+    check(
+      "credit_notes_return_check",
+      sql`(${table.reason} = 'sale_return') = (${table.returnId} is not null)
+        and (${table.returnId} is null) = (${table.issueOn} is null)`,
     ),
     check(
       "credit_notes_answer_time_check",
@@ -2951,9 +2986,9 @@ export const creditNotes = pgTable(
   ],
 );
 
-// Append-only: the cloud keeps the first refusal of a voided sale's credit note whose invoice
-// another credit note had already corrected, to hand it to a restored register.
-export const saleVoidCreditNoteRefusals = pgTable("sale_void_credit_note_refusals", {
+// Append-only: the cloud keeps the first refusal of a sale's credit note, of a void or of a return,
+// whose invoice other credit notes had already credited, to hand it to a restored register.
+export const saleCreditNoteRefusals = pgTable("sale_void_credit_note_refusals", {
   creditNoteId: uuid("credit_note_id").primaryKey(),
   registerId: uuid("register_id")
     .notNull()

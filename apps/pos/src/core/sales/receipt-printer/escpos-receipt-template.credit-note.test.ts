@@ -9,6 +9,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
+import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
 import { printoutOf } from "../test-support/escpos-printout";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
 
@@ -87,10 +88,13 @@ function creditNote(overrides: Partial<CreditNoteReceiptContent> = {}): CreditNo
 
 function printed(
   content: CreditNoteReceiptContent,
-  copy: Parameters<typeof escPosReceiptTemplate.printable>[1] = { kind: "original" },
+  copy: Parameters<ReturnType<typeof escPosReceiptTemplate>["printable"]>[1] = { kind: "original" },
 ) {
   return printoutOf(
-    escPosReceiptTemplate.printable(escPosReceiptTemplate.renderCreditNote(content), copy),
+    escPosReceiptTemplate(fixedZoneRulesSource()).printable(
+      escPosReceiptTemplate(fixedZoneRulesSource()).renderCreditNote(content),
+      copy,
+    ),
   );
 }
 
@@ -235,12 +239,13 @@ describe("the ESC/POS credit note of a voided sale", () => {
   });
 
   it("keeps the rendered credit note as a head and a body that join into the original", () => {
-    const stored = escPosReceiptTemplate.renderCreditNote(creditNote());
+    const stored = escPosReceiptTemplate(fixedZoneRulesSource()).renderCreditNote(creditNote());
 
-    expect(Array.from(escPosReceiptTemplate.printable(stored, { kind: "original" }))).toEqual([
-      ...stored.head,
-      ...stored.body,
-    ]);
+    expect(
+      Array.from(
+        escPosReceiptTemplate(fixedZoneRulesSource()).printable(stored, { kind: "original" }),
+      ),
+    ).toEqual([...stored.head, ...stored.body]);
   });
 
   describe("issued under the fortnight's contingency code", () => {

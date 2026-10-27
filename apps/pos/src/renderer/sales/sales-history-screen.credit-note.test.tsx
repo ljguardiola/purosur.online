@@ -18,6 +18,7 @@ const VOIDED_DETAIL = {
   voidability: { kind: "not_voidable", refusal: "not_completed" },
   reprint: { kind: "sale_voided" },
   credit_note: AUTHORIZED_CREDIT_NOTE,
+  credit_note_id: "credit-note-1",
   credit_note_next_copy: { kind: "original" },
 } as const;
 
@@ -38,7 +39,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
 
     await userEvent.click(screen.getByRole("button", { name: PRINT }));
 
-    expect(printCreditNote).toHaveBeenCalledExactlyOnceWith("sale-1");
+    expect(printCreditNote).toHaveBeenCalledExactlyOnceWith("sale-1", "credit-note-1");
     await expect
       .element(screen.getByText("La nota de crédito sale en cuanto la impresora esté lista"))
       .toBeVisible();
@@ -105,6 +106,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
 
       expect(reprintCreditNote).toHaveBeenCalledExactlyOnceWith(
         "sale-1",
+        "credit-note-1",
         "El cliente la perdió",
         undefined,
       );

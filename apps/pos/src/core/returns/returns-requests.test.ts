@@ -1,9 +1,18 @@
 import { encodePinHash } from "@purosur/contracts";
 import type { TicketReference } from "@purosur/domain";
 import type { BranchSaleLookupAnswer } from "@purosur/domain/returns/use-cases";
+import type { CloudCreditNoteAnswer, CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
+import type { DeferredSaleInvoicingOutcome } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
+import {
+  insertDeferredSale,
+  insertFiscalDocument,
+  insertHealthCheck,
+  insertPointOfSale,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -13,6 +22,7 @@ import {
   type FindSaleForReturnDeps,
   findSaleForReturnFor,
   previewReturnFor,
+  type ReturnRequestDeps,
 } from "./returns-requests";
 import { readRetainedBranchSale } from "./sqlite-retained-branch-sales";
 import { openSecondSession, openSoldSaleDatabase } from "./test-support/sold-sale-database";
@@ -52,6 +62,7 @@ function deps(overrides: Partial<FindSaleForReturnDeps> = {}): FindSaleForReturn
         return `id-${idCount}`;
       },
     },
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }
@@ -163,6 +174,22 @@ const BRANCH_SALE: Extract<BranchSaleLookupAnswer, { kind: "found" }> = {
 };
 
 describe("finding the sale to return", () => {
+  it("writes when the sale happened on the clock of the zone rules it is given", async () => {
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    const outcome = await findSaleForReturnFor(deps({ zoneRules: { zoneRules: () => rules } }), {
+      ticket: BY_SALE,
+    });
+
+    expect(outcome).toMatchObject({
+      kind: "found",
+      sale: { occurred_at: "2026-09-12T18:30:00.000+00:00" },
+    });
+  });
+
   it("answers the sale, its returnable lines and its payments to a person who may process returns", async () => {
     const outcome = await findSaleForReturnFor(deps(), { ticket: BY_SALE });
 
@@ -603,5 +630,164 @@ describe("completing a return", () => {
       await completeReturnFor(deps({ readOutboxChainKey: async () => undefined }), completion()),
     ).toEqual({ kind: "unavailable" });
     expect(count("returns")).toBe(0);
+  });
+});
+
+describe("the credit note of a completed return", () => {
+  const AUTHORIZED: CloudCreditNoteAnswer = {
+    kind: "authorized",
+    pointOfSale: 12,
+    number: 7,
+    issuedOn: "2026-09-20",
+    issuedAt: NOW,
+    authorizationCode: "75123456789012",
+    authorizationCodeDueOn: "2026-09-30",
+  };
+
+  interface Rig {
+    steps: string[];
+    calls: CloudCreditNoteCall[];
+    printed: { saleId: string; creditNoteId: string }[];
+    failures: unknown[];
+    deps: Partial<ReturnRequestDeps>;
+  }
+
+  function rig(
+    reply: CloudCreditNoteAnswer | null,
+    catchUp: () => Promise<DeferredSaleInvoicingOutcome> = async () => ({ kind: "not_pending" }),
+  ): Rig {
+    const state: Rig = { steps: [], calls: [], printed: [], failures: [], deps: {} };
+    state.deps = {
+      creditNotes: {
+        request: async (call) => {
+          state.steps.push("cloud");
+          state.calls.push(call);
+          return reply;
+        },
+      },
+      invoicing: {
+        invoiceUpTo: async (saleId) => {
+          state.steps.push(`catch-up:${saleId}`);
+          return catchUp();
+        },
+      },
+      printCreditNote: async (creditNote) => {
+        state.printed.push(creditNote);
+      },
+      reportFailure: (error) => {
+        state.failures.push(error);
+      },
+    };
+    return state;
+  }
+
+  beforeEach(() => {
+    insertPointOfSale(database, 0);
+  });
+
+  function invoiceTheSale() {
+    insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+    insertHealthCheck(database, { checkedAt: "2026-09-20T14:59:58.000Z" });
+  }
+
+  function storedNotes() {
+    return database
+      .prepare("SELECT return_id, state, corrected_number FROM sale_credit_notes")
+      .all();
+  }
+
+  it("is requested from the cloud once the return completes, and printed when authorized", async () => {
+    invoiceTheSale();
+    const { deps: extra, calls, printed, steps } = rig(AUTHORIZED);
+
+    const outcome = await completeReturnFor(deps(extra), completion());
+
+    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 5000 });
+    expect(steps).toEqual(["cloud"]);
+    expect(calls).toMatchObject([
+      {
+        pointOfSale: 12,
+        saleEvent: { event_type: "sale_returned", schema_version: 2 },
+        invoice: { voucher: { number: 41 }, buyerTaxStatusCode: expect.any(Number) },
+      },
+    ]);
+    expect(storedNotes()).toEqual([
+      { return_id: "id-1", state: "AUTHORIZED", corrected_number: 41 },
+    ]);
+    expect(printed).toEqual([{ saleId: "sale-1", creditNoteId: calls[0]?.creditNoteId }]);
+  });
+
+  it("stays in progress, nothing printed, while the cloud gives no answer", async () => {
+    invoiceTheSale();
+    const { deps: extra, printed } = rig(null);
+
+    await expect(completeReturnFor(deps(extra), completion())).resolves.toMatchObject({
+      kind: "completed",
+    });
+
+    expect(storedNotes()).toEqual([
+      { return_id: "id-1", state: "IN_PROGRESS", corrected_number: 41 },
+    ]);
+    expect(printed).toEqual([]);
+  });
+
+  it("invoices the deferred sale first, then requests the credit note of the invoice it issued", async () => {
+    insertDeferredSale(database, "sale-1");
+    const {
+      deps: extra,
+      steps,
+      calls,
+    } = rig(AUTHORIZED, async () => {
+      steps.push("invoiced");
+      insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+      database.exec(
+        `UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-1',
+           satisfied_at = '2026-09-20T15:00:01.000Z'`,
+      );
+      return { kind: "invoiced" };
+    });
+
+    await completeReturnFor(deps(extra), completion());
+
+    expect(steps).toEqual(["catch-up:sale-1", "invoiced", "cloud"]);
+    expect(calls[0]?.invoice?.voucher.number).toBe(41);
+    expect(storedNotes()).toEqual([
+      { return_id: "id-1", state: "AUTHORIZED", corrected_number: 41 },
+    ]);
+  });
+
+  it("completes the return and reports the failure when invoicing the deferred sale breaks", async () => {
+    insertDeferredSale(database, "sale-1");
+    const { deps: extra, failures } = rig(AUTHORIZED, async () => {
+      throw new Error("catch-up broke");
+    });
+
+    await expect(completeReturnFor(deps(extra), completion())).resolves.toMatchObject({
+      kind: "completed",
+    });
+
+    expect(failures).toEqual([new Error("catch-up broke")]);
+    expect(count("returns")).toBe(1);
+  });
+
+  it("asks for nothing, neither invoicing nor the cloud, when no credit note was asked for", async () => {
+    const { deps: extra, steps, printed } = rig(AUTHORIZED);
+
+    await completeReturnFor(deps(extra), completion());
+
+    expect(steps).toEqual([]);
+    expect(printed).toEqual([]);
+  });
+
+  it("completes the return without asking anyone when the register is wired to no cloud", async () => {
+    invoiceTheSale();
+
+    await expect(completeReturnFor(deps(), completion())).resolves.toMatchObject({
+      kind: "completed",
+    });
+
+    expect(storedNotes()).toEqual([
+      { return_id: "id-1", state: "IN_PROGRESS", corrected_number: 41 },
+    ]);
   });
 });

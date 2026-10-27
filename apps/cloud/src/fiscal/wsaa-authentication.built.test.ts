@@ -29,6 +29,12 @@ describe("the built WSAA authentication", () => {
         certificatePem: process.env.TEST_CERTIFICATE_PEM,
         privateKeyPem: process.env.TEST_PRIVATE_KEY_PEM,
         now: () => new Date("2026-10-01T15:00:00.000Z"),
+        zoneRules: {
+          zoneRules: () => ({
+            version: null,
+            transitions: [{ from: new Date(-8.64e15), offsetMinutes: -180 }],
+          }),
+        },
         timeoutMs: 5000,
       });
       console.log(JSON.stringify(await authentication.requestToken("wsfe")));

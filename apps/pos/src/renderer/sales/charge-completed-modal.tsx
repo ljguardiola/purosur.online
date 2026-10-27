@@ -3,6 +3,7 @@ import type {
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
 } from "@purosur/contracts";
+import type { PointCardType } from "@purosur/domain";
 import type { CompletedCharge } from "./cash-charge-modal";
 import type { CompletedPointPayment } from "./point-payment-wait-modal";
 import type { CompletedQrPayment } from "./qr-payment-wait-modal";
@@ -15,7 +16,7 @@ export type CompletedPayment =
   | { method: "TRANSFER"; charge: CompletedTransfer }
   | { method: "STANDALONE_TERMINAL"; charge: CompletedStandaloneTerminal }
   | { method: "QR"; charge: CompletedQrPayment }
-  | { method: "POINT"; charge: CompletedPointPayment };
+  | { method: "POINT"; cardType: PointCardType | null; charge: CompletedPointPayment };
 
 export function ChargeCompletedModal({
   saleId,
@@ -85,6 +86,7 @@ export function ChargeCompletedModal({
           {...shared}
           total={payment.charge.total}
           method="POINT"
+          cardType={payment.cardType}
           amount={payment.charge.amount}
         />
       );

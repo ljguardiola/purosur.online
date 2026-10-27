@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { ZoneRules } from "../../shared/index.js";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import { type DiscardExpiredLotInput, discardExpiredLot } from "./discard-expired-lot.js";
 import { FakeStockStore, FixedClock } from "./test-support/fake-stock-store.js";
 
@@ -16,16 +21,30 @@ function storeWithLots(): FakeStockStore {
 
 function discard(
   store: FakeStockStore,
-  overrides: Partial<DiscardExpiredLotInput> & { now?: Date } = {},
+  overrides: Partial<DiscardExpiredLotInput> & { now?: Date; zoneRules?: ZoneRules } = {},
 ) {
-  const { now, ...input } = overrides;
+  const { now, zoneRules, ...input } = overrides;
   return discardExpiredLot(
-    { store, clock: new FixedClock(now ?? NOON) },
+    { store, clock: new FixedClock(now ?? NOON), zoneRules: new FakeZoneRulesSource(zoneRules) },
     { lotId: "expired", locationId: "branch-1", actorId: "actor-1", ...input },
   );
 }
 
 describe("discardExpiredLot", () => {
+  it("judges a lot expired against the calendar day of the zone rules it is given", async () => {
+    const store = new FakeStockStore();
+    store.seedProduct({ id: "product-1", saleUnit: "UNIT" });
+    store.seedBalance({ ...KEY, quantity: 10_000 });
+    store.seedLot({ ...KEY, id: "expired", expiresOn: "2026-10-12", remaining: 3000 });
+    const now = new Date("2026-10-13T02:30:00.000Z");
+
+    const underArgentina = await discard(store, { now, zoneRules: fixedOffsetZoneRules(-180) });
+    const underUtc = await discard(store, { now, zoneRules: fixedOffsetZoneRules(0) });
+
+    expect(underArgentina).toEqual({ kind: "not_expired" });
+    expect(underUtc).toMatchObject({ kind: "discarded", quantity: 3000 });
+  });
+
   it("discards the whole remaining quantity of an expired lot", async () => {
     const store = storeWithLots();
 

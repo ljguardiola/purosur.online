@@ -7,6 +7,7 @@ import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "../fiscal/arca-vitality-tas
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { alerts } from "../platform/db/schema.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -67,6 +68,7 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
       arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
     },
     () => NOW,
+    fixedZoneRulesSource(),
     { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
   );
   try {

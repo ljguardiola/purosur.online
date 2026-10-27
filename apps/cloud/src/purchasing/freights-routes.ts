@@ -86,7 +86,11 @@ export function registerFreightsRoutes<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const { now } = options;
   registerRouteAccess(app);
-  const ports = { store: new DrizzleFreightStore(options.db, now), clock: { now } };
+  const ports = {
+    store: new DrizzleFreightStore(options.db, now),
+    clock: { now },
+    zoneRules: options.zoneRules,
+  };
   const reader = new DrizzleFreightListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("freights"), sessionSource };
@@ -100,7 +104,7 @@ export function registerFreightsRoutes<TQueryResult extends PgQueryResultHKT>(
     }
     const listed = await listFreights(reader, {
       locationId: openSessionOf(request).locationId,
-      from: freightPeriodStart(query.period, now()),
+      from: freightPeriodStart(query.period, now(), options.zoneRules.zoneRules()),
       ...(query.search === undefined ? {} : { search: query.search }),
     });
     await reply.code(200).send(freightListSchema.parse(listed));
@@ -113,12 +117,15 @@ export function registerFreightsRoutes<TQueryResult extends PgQueryResultHKT>(
     }
     const purchases = await listLinkablePurchases(reader, {
       locationId: openSessionOf(request).locationId,
-      since: freightPeriodStart(query.period, now()),
+      since: freightPeriodStart(query.period, now(), options.zoneRules.zoneRules()),
       ...(query.freightId === undefined ? {} : { freightId: query.freightId }),
     });
-    await reply
-      .code(200)
-      .send(linkablePurchaseListSchema.parse({ purchases, today: argentinaCalendarDay(now()) }));
+    await reply.code(200).send(
+      linkablePurchaseListSchema.parse({
+        purchases,
+        today: argentinaCalendarDay(now(), options.zoneRules.zoneRules()),
+      }),
+    );
   });
 
   app.post("/freights", writeGuard, async (request, reply) => {

@@ -25,6 +25,7 @@ import {
   pushingDevice,
   saleCompleted,
 } from "../sync/test-support/pushing-device.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   insertRegisterWithPointOfSale,
   insertSaleOfRegister,
@@ -657,7 +658,11 @@ describe("POST /fiscal/authorize", () => {
     }
 
     function applyAt(at: Date) {
-      return applySyncedEventsTask(route.db, { now: () => at, report: vi.fn() });
+      return applySyncedEventsTask(route.db, {
+        zoneRules: fixedZoneRulesSource(),
+        now: () => at,
+        report: vi.fn(),
+      });
     }
 
     it("is held in the inbox of the requesting installation once the request is authorized", async () => {

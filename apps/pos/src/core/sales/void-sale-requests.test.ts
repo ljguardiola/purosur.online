@@ -7,7 +7,7 @@ import {
 import type { CloudCreditNoteAnswer, CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
-import { SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
+import { SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import {
   insertFiscalDocument,
   insertHealthCheck,
@@ -21,6 +21,7 @@ import {
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -66,6 +67,7 @@ function deps(
     gate: gate(),
     readOutboxChainKey: async () => CHAIN_KEY,
     now: () => NOW,
+    zoneRules: fixedZoneRulesSource(),
     ids: {
       next: () => {
         idCount += 1;
@@ -92,7 +94,14 @@ const AUTHORIZED_CREDIT_NOTE: CloudCreditNoteAnswer = {
 
 let creditNoteCalls: CloudCreditNoteCall[];
 let creditNoteAnswer: CloudCreditNoteAnswer | null;
-let printedCreditNotes: string[];
+let printedCreditNotes: { saleId: string; creditNoteId: string }[];
+
+function creditNoteIdOf(saleId: string): string {
+  const row = database
+    .prepare<[string], { id: string }>("SELECT id FROM sale_credit_notes WHERE sale_id = ?")
+    .get(saleId);
+  return row?.id ?? "";
+}
 let reportedFailures: unknown[];
 
 function voidDeps(overrides: Partial<VoidSaleRequestDeps> = {}): VoidSaleRequestDeps {
@@ -104,8 +113,8 @@ function voidDeps(overrides: Partial<VoidSaleRequestDeps> = {}): VoidSaleRequest
         return creditNoteAnswer;
       },
     },
-    printCreditNote: async (saleId) => {
-      printedCreditNotes.push(saleId);
+    printCreditNote: async (creditNote) => {
+      printedCreditNotes.push(creditNote);
     },
     reportFailure: (error) => reportedFailures.push(error),
     ...overrides,
@@ -446,7 +455,7 @@ describe("voiding a sale of the sales history", () => {
 
         await voidSaleFor(voidDeps(), request(saleId, { authorization }));
 
-        expect(printedCreditNotes).toEqual([saleId]);
+        expect(printedCreditNotes).toEqual([{ saleId, creditNoteId: creditNoteIdOf(saleId) }]);
       });
 
       it("credits the contingency document the customer received when the sale was invoiced under a contingency code", async () => {
@@ -462,7 +471,7 @@ describe("voiding a sale of the sales history", () => {
         expect(
           database
             .prepare(
-              "SELECT corrected_point_of_sale, corrected_number, state FROM sale_void_credit_notes",
+              "SELECT corrected_point_of_sale, corrected_number, state FROM sale_credit_notes",
             )
             .all(),
         ).toEqual([{ corrected_point_of_sale: 31, corrected_number: 8, state: "ISSUED_OFFLINE" }]);
@@ -542,12 +551,10 @@ describe("voiding a sale of the sales history", () => {
         expect(creditNoteCalls).toHaveLength(1);
         expect(creditNoteCalls[0]).toMatchObject({
           pointOfSale: 12,
-          saleEvent: { event_type: "sale_voided", aggregate_id: saleId, schema_version: 3 },
+          saleEvent: { event_type: "sale_voided", aggregate_id: saleId, schema_version: 4 },
         });
         expect(
-          database
-            .prepare("SELECT state, number, authorization_code FROM sale_void_credit_notes")
-            .all(),
+          database.prepare("SELECT state, number, authorization_code FROM sale_credit_notes").all(),
         ).toEqual([{ state: "AUTHORIZED", number: 7, authorization_code: "75123456789012" }]);
       });
 
@@ -556,7 +563,7 @@ describe("voiding a sale of the sales history", () => {
 
         await voidSaleFor(voidDeps(), request(saleId, { authorization }));
 
-        expect(printedCreditNotes).toEqual([saleId]);
+        expect(printedCreditNotes).toEqual([{ saleId, creditNoteId: creditNoteIdOf(saleId) }]);
       });
 
       it("answers and prints the credit note the register's health check recorded while the void's own request got no answer", async () => {
@@ -566,7 +573,7 @@ describe("voiding a sale of the sales history", () => {
           voidDeps({
             creditNotes: {
               request: async (call) => {
-                await new SqliteVoidCreditNotes(database).recordAnswer(
+                await new SqliteSaleCreditNotes(database).recordAnswer(
                   call.creditNoteId,
                   AUTHORIZED_CREDIT_NOTE,
                   VOIDED_AT,
@@ -579,7 +586,7 @@ describe("voiding a sale of the sales history", () => {
         );
 
         expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "authorized" } });
-        expect(printedCreditNotes).toEqual([saleId]);
+        expect(printedCreditNotes).toEqual([{ saleId, creditNoteId: creditNoteIdOf(saleId) }]);
         expect(reportedFailures).toEqual([]);
       });
 
@@ -591,7 +598,7 @@ describe("voiding a sale of the sales history", () => {
 
         expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "in_progress" } });
         expect(saleStates()).toEqual([{ state: "VOIDED" }]);
-        expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+        expect(database.prepare("SELECT state FROM sale_credit_notes").all()).toEqual([
           { state: "IN_PROGRESS" },
         ]);
         expect(printedCreditNotes).toEqual([]);
@@ -617,7 +624,7 @@ describe("voiding a sale of the sales history", () => {
           kind: "voided",
           credit_note: { kind: "already_credited" },
         });
-        expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+        expect(database.prepare("SELECT state FROM sale_credit_notes").all()).toEqual([
           { state: "ALREADY_CREDITED" },
         ]);
         expect(printedCreditNotes).toEqual([]);
@@ -694,10 +701,17 @@ describe("voiding a sale of the sales history", () => {
         const saleId = await soldInCash();
         database
           .prepare(
-            `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
-             VALUES ('mp-1', ?, 'SALE', ?, ?, 500, 'APPROVED', ?, ?)`,
+            `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+             VALUES ('mp-1', ?, 'SALE', ?, ?, ?, 500, 'APPROVED', ?, ?)`,
           )
-          .run(saleId, method, provider, NOW.toISOString(), NOW.toISOString());
+          .run(
+            saleId,
+            method,
+            provider,
+            method === "POINT" ? "DEBIT" : null,
+            NOW.toISOString(),
+            NOW.toISOString(),
+          );
         return saleId;
       }
 

@@ -23,6 +23,7 @@ import {
 } from "../platform/db/schema.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 let testDatabase: TestDatabase;
@@ -122,7 +123,7 @@ describe("the catalog changes a pull hands to the registers", () => {
     const product = await newProduct(category.id);
 
     await editProduct(
-      { store: store(), clock },
+      { zoneRules: fixedZoneRulesSource(), store: store(), clock },
       {
         id: product.id,
         name: product.name,
@@ -232,7 +233,7 @@ describe("the catalog changes a pull hands to the registers", () => {
     const logged = (await loggedChanges()).length;
 
     await editProduct(
-      { store: store(), clock },
+      { zoneRules: fixedZoneRulesSource(), store: store(), clock },
       {
         id: product.id,
         name: product.name,
@@ -257,7 +258,7 @@ describe("the catalog changes a pull hands to the registers", () => {
     const logged = await loggedChanges();
 
     const refusedEdit = await editProduct(
-      { store: store(), clock },
+      { zoneRules: fixedZoneRulesSource(), store: store(), clock },
       {
         id: product.id,
         name: "Otro",
@@ -347,7 +348,7 @@ describe("changing a product to sold by weight", () => {
     categoryId: string,
   ) {
     return editProduct(
-      { store: store(), clock },
+      { zoneRules: fixedZoneRulesSource(), store: store(), clock },
       {
         id: product.id,
         name: product.name,
@@ -438,7 +439,7 @@ describe("changing the sale unit of a product with purchase packagings", () => {
     saleUnit: "UNIT" | "KG",
   ) {
     return editProduct(
-      { store: store(), clock },
+      { zoneRules: fixedZoneRulesSource(), store: store(), clock },
       {
         id: product.id,
         name: product.name,

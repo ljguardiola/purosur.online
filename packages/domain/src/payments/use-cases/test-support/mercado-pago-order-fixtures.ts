@@ -59,6 +59,7 @@ export function storedPointTransaction(
     ...storedTransaction(),
     method: "POINT",
     provider: "MERCADOPAGO_POINT",
+    cardType: "DEBIT",
     expiresAt: new Date("2026-10-09T12:06:00.000Z"),
     ...overrides,
   };

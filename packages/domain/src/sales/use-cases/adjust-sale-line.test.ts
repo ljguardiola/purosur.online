@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import {
   type AdjustSaleLineGrant,
@@ -100,6 +101,7 @@ function adjust(
 ): Promise<AdjustSaleLineOutcome | typeof NOT_SIGNED_IN> {
   return adjustSaleLine(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       restoration: store.restoration,
       clock: new FixedClock(NOW),
@@ -305,7 +307,13 @@ describe("adjustSaleLine", () => {
       });
 
       const outcome = await adjustSaleLine(
-        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(NOW),
+          authority,
+        },
         { lineId: "line-1", adjustment: { kind: "PERCENT", percent: 20 }, reason: REASON },
       );
 
@@ -326,7 +334,13 @@ describe("adjustSaleLine", () => {
       );
 
       await adjustSaleLine(
-        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), authority },
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(NOW),
+          authority,
+        },
         { lineId: "line-1", adjustment: { kind: "PERCENT", percent: 20 }, reason: REASON },
       );
 

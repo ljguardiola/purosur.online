@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   deferredSaleDueObservation,
   deferredSaleNoLongerDueObservation,
@@ -26,7 +27,7 @@ const detail = {
 
 describe("deferredSaleDueObservation", () => {
   it("holds a warning scoped to the deferred sale while it is due", () => {
-    expect(deferredSaleDueObservation(sale, { kind: "due" })).toEqual({
+    expect(deferredSaleDueObservation(sale, { kind: "due" }, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
       holds: true,
       level: "warning",
       alert: {
@@ -39,7 +40,9 @@ describe("deferredSaleDueObservation", () => {
   });
 
   it("holds the same alert at the critical level once it is pressing", () => {
-    expect(deferredSaleDueObservation(sale, { kind: "pressing" })).toEqual({
+    expect(
+      deferredSaleDueObservation(sale, { kind: "pressing" }, FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       holds: true,
       level: "critical",
       alert: {
@@ -54,7 +57,9 @@ describe("deferredSaleDueObservation", () => {
   it("names the month-end expiry and the escalation of a sale made near the end of its month", () => {
     const lateSale = { ...sale, occurredAt: new Date("2026-10-28T15:00:00.000Z") };
 
-    expect(deferredSaleDueObservation(lateSale, { kind: "due" })).toMatchObject({
+    expect(
+      deferredSaleDueObservation(lateSale, { kind: "due" }, FIXED_ARGENTINA_ZONE_RULES),
+    ).toMatchObject({
       alert: {
         detail: {
           saleOccurredAt: "2026-10-28T15:00:00.000Z",

@@ -18,9 +18,9 @@ import { FixedClock } from "./fake-refund-store.js";
 
 export const NOW = new Date("2026-10-13T12:00:00.000Z");
 
-export function anApprovedOrder(
-  overrides: Partial<ApprovedOrderOfRegister> = {},
-): ApprovedOrderOfRegister {
+type ApprovedQrOrder = Extract<ApprovedOrderOfRegister, { method: "QR" }>;
+
+export function anApprovedOrder(overrides: Partial<ApprovedQrOrder> = {}): ApprovedQrOrder {
   return {
     paymentTransactionId: "payment-1",
     saleId: "sale-1",

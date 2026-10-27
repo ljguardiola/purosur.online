@@ -1,6 +1,6 @@
 import type { FiscalDocumentState } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { insertPendingCreditNote, SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
+import { insertPendingCreditNote, SqliteSaleCreditNotes } from "../fiscal/sqlite-sale-credit-notes";
 import {
   insertCompletedSale,
   insertDeferredSale,
@@ -236,6 +236,7 @@ describe("forgetting the acknowledged events while a voided sale's credit note i
       total: 3000,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 40 + deviceSeq },
+      origin: { kind: "sale_void" },
     });
   }
 
@@ -244,7 +245,7 @@ describe("forgetting the acknowledged events while a voided sale's credit note i
     try {
       voidWithCreditNote(fiscal, "sale-1", 1);
       voidWithCreditNote(fiscal, "sale-2", 2);
-      await new SqliteVoidCreditNotes(fiscal).recordAnswer(
+      await new SqliteSaleCreditNotes(fiscal).recordAnswer(
         "note-of-sale-2",
         { kind: "rejected" },
         dayAfterZero(1),
@@ -261,8 +262,83 @@ describe("forgetting the acknowledged events while a voided sale's credit note i
       expect(fiscal.prepare("SELECT aggregate_id FROM outbox").all()).toEqual([
         { aggregate_id: "sale-1" },
       ]);
-      expect(await new SqliteVoidCreditNotes(fiscal).inProgress()).toMatchObject([
+      expect(await new SqliteSaleCreditNotes(fiscal).inProgress()).toMatchObject([
         { creditNoteId: "note-of-sale-1" },
+      ]);
+    } finally {
+      fiscal.close();
+    }
+  });
+});
+
+describe("forgetting the acknowledged events while the credit note of a return is not answered", () => {
+  function returnWithCreditNote(
+    fiscal: LocalDatabase,
+    saleId: string,
+    returnId: string,
+    deviceSeq: number,
+    invoice: boolean,
+  ) {
+    insertCompletedSale(fiscal, saleId);
+    fiscal
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES (?, ?, 'register-1', 'device-a', 'session-1', 'u1', 'QR', ?)`,
+      )
+      .run(returnId, saleId, dayAfterZero(0).toISOString());
+    appendOutboxEvent(fiscal, CHAIN_KEY, {
+      ...outboxEventDraft(deviceSeq),
+      aggregate_type: "Return",
+      aggregate_id: returnId,
+      event_type: "sale_returned",
+      schema_version: 2,
+      payload: { id: returnId, sale_id: saleId },
+    });
+    const note = {
+      creditNoteId: `note-of-${returnId}`,
+      saleId,
+      total: 3000,
+      origin: { kind: "sale_return", returnId, issuedOn: "2026-09-30" },
+    } as const;
+    insertPendingCreditNote(
+      fiscal,
+      invoice
+        ? {
+            ...note,
+            receiverTaxStatusCode: 5,
+            correctedVoucher: {
+              voucherType: 11,
+              pointOfSale: POINT_OF_SALE,
+              number: 40 + deviceSeq,
+            },
+          }
+        : { ...note, receiverTaxStatusCode: null, correctedVoucher: null },
+    );
+  }
+
+  it("keeps the event of a return whose credit note is requested or waits for its invoice, and forgets the answered one", async () => {
+    const fiscal = openFiscalDatabase();
+    try {
+      returnWithCreditNote(fiscal, "sale-1", "return-1", 1, true);
+      returnWithCreditNote(fiscal, "sale-2", "return-2", 2, false);
+      returnWithCreditNote(fiscal, "sale-3", "return-3", 3, true);
+      await new SqliteSaleCreditNotes(fiscal).recordAnswer(
+        "note-of-return-3",
+        { kind: "rejected" },
+        dayAfterZero(1),
+      );
+      await new SqliteLocalOutbox(fiscal, () => dayAfterZero(1)).acknowledgeThrough(
+        Number.MAX_SAFE_INTEGER,
+      );
+
+      expect(
+        await new SqliteLocalOutbox(fiscal, () => dayAfterZero(100)).forgetAcknowledgedBefore(
+          dayAfterZero(2),
+        ),
+      ).toBe(1);
+      expect(fiscal.prepare("SELECT aggregate_id FROM outbox ORDER BY device_seq").all()).toEqual([
+        { aggregate_id: "return-1" },
+        { aggregate_id: "return-2" },
       ]);
     } finally {
       fiscal.close();
@@ -289,7 +365,7 @@ function contentsOfEveryTableButTheOutbox(target: LocalDatabase): Record<string,
 }
 
 describe("forgetting the acknowledged events after a register session", () => {
-  it("touches nothing but the outbox: sales, payments and cash sessions stay as they were, and the void whose credit note is in progress stays held", async () => {
+  it("touches nothing but the outbox: sales, payments and cash sessions stay as they were, and the void and the return whose credit note is in progress stay held", async () => {
     await withRegisterSession(async ({ database: session, now }) => {
       await new SqliteLocalOutbox(session, now).acknowledgeThrough(Number.MAX_SAFE_INTEGER);
       const before = contentsOfEveryTableButTheOutbox(session);
@@ -317,11 +393,14 @@ describe("forgetting the acknowledged events after a register session", () => {
              ORDER BY event_type`,
           )
           .all(),
-      ).toEqual([{ event_type: "sale_voided" }]);
+      ).toEqual([{ event_type: "sale_returned" }, { event_type: "sale_voided" }]);
       expect(heldSeqs(session).length).toBeLessThan(outboxBefore.length);
-      expect(
-        session.prepare("SELECT state FROM sale_void_credit_notes ORDER BY state").all(),
-      ).toEqual([{ state: "AUTHORIZED" }, { state: "IN_PROGRESS" }, { state: "ISSUED_OFFLINE" }]);
+      expect(session.prepare("SELECT state FROM sale_credit_notes ORDER BY state").all()).toEqual([
+        { state: "AUTHORIZED" },
+        { state: "AWAITING_INVOICE" },
+        { state: "IN_PROGRESS" },
+        { state: "ISSUED_OFFLINE" },
+      ]);
       expect(contentsOfEveryTableButTheOutbox(session)).toEqual(before);
       for (const table of ["sales", "payment_transactions", "cash_sessions", "cash_movements"]) {
         expect(before[table]?.length, table).toBeGreaterThan(0);

@@ -6,6 +6,7 @@ import { DrizzleOfflineAuthorizationCodeRequests } from "../../fiscal/drizzle-of
 import { configureOfflinePointOfSale } from "../../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { DrizzleChangeLog } from "../../sync/drizzle-change-log.js";
+import { fixedZoneRulesSource } from "../../test-support/fixed-zone-rules-source.js";
 import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 const NOW = new Date("2026-10-12T12:00:00.000Z");
@@ -82,6 +83,7 @@ describe("the offline authorization code changes migration applied over a databa
       changeLog: new DrizzleChangeLog(db),
       offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
       clock: { now: () => NOW },
+      zoneRules: fixedZoneRulesSource(),
     };
     const holdings = () =>
       new DrizzleOfflineAuthorizationCodeHoldingReader(db).registerHoldings([

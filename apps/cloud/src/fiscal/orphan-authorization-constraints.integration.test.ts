@@ -314,30 +314,6 @@ describe("the credit notes table's constraints on a real Postgres", () => {
     );
   });
 
-  it("rejects a second credit note for the same orphan", async () => {
-    await insertCreditNote({ associatedNumber: 7_000 });
-
-    await expect(insertCreditNote({ associatedNumber: 7_000 })).rejects.toSatisfy((error) =>
-      constraintViolatedBy(error, "credit_notes_corrected_voucher_key"),
-    );
-  });
-
-  it("rejects a credit note of a voided sale for a voucher an orphan credit note already corrects", async () => {
-    await insertCreditNote({ associatedNumber: 7_001 });
-
-    await expect(insertCreditNote({ ...voidedSale(), associatedNumber: 7_001 })).rejects.toSatisfy(
-      (error) => constraintViolatedBy(error, "credit_notes_corrected_voucher_key"),
-    );
-  });
-
-  it("rejects a second credit note of a voided sale for the same voucher", async () => {
-    await insertCreditNote({ ...voidedSale(), associatedNumber: 7_002 });
-
-    await expect(insertCreditNote({ ...voidedSale(), associatedNumber: 7_002 })).rejects.toSatisfy(
-      (error) => constraintViolatedBy(error, "credit_notes_corrected_voucher_key"),
-    );
-  });
-
   it("keeps a credit note for the voucher of each point of sale with the same number", async () => {
     await insertCreditNote({ ...voidedSale(), associatedNumber: 7_003, associatedPointOfSale: 7 });
 

@@ -1501,6 +1501,37 @@ test.each([
   },
 );
 
+test.each([
+  ["2025c", "Versión de la caja: 2025c. Versión de la nube: 2026a."],
+  [null, "Versión de la caja: Sin recibir. Versión de la nube: 2026a."],
+] as const)(
+  "tells which zone rules version a register runs (%s) against the cloud's, and that the alert closes by itself",
+  async (registerVersion, description) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "tz_rules_mismatch",
+          level: "warning",
+          audience: "all",
+          closing: "by_itself",
+          scope: "register-1",
+          scopeDisplay: "Caja 1",
+          detail: { deviceId: "device-1", registerVersion, cloudVersion: "2026a" },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Reglas de zona horaria distintas de la nube", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText(description)).toBeVisible();
+    expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+  },
+);
+
 test("names a register whose fiscal emission is stopped by what happened when the alert is not for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

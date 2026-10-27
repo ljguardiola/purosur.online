@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 import type { OwedFortnightPresentation } from "./fortnight-report-deadline-ports.js";
 import { FixedClock } from "./test-support/fake-alert-store.js";
@@ -13,7 +14,7 @@ const SCOPE = "4:2026-09-01";
 const REGISTER_ID = "register-1";
 
 function at(day: string, time = "12:00"): Date {
-  return new Date(argentinaInstant(day, time));
+  return new Date(argentinaInstant(day, time, FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function owed(overrides: Partial<OwedFortnightPresentation> = {}): OwedFortnightPresentation {
@@ -35,6 +36,7 @@ function detect(
 ) {
   const reader = new FakeOwedFortnightPresentationReader(presentations);
   const outcome = detectFortnightReportDeadlines({
+    zoneRules: new FakeZoneRulesSource(),
     presentations: reader,
     alerts,
     clock: new FixedClock(moment),

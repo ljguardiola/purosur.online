@@ -6,7 +6,8 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
 import { type CashMovement, expectedCash } from "../../register/index.js";
-import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
+import { FIXED_ARGENTINA_ZONE_RULES, MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { ManualAdjustment } from "../model/manual-adjustment.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import { chargeSaleInCash } from "./charge-sale-in-cash.js";
@@ -151,7 +152,13 @@ function charge(
   ids = new SequentialIds(),
 ) {
   return chargeSaleInCash(
-    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), ids },
+    {
+      zoneRules: new FakeZoneRulesSource(),
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+      ids,
+    },
     { actorId, saleId, tendered },
   );
 }
@@ -194,6 +201,7 @@ describe("chargeSaleInCash", () => {
         id: "point-1",
         method: "POINT",
         provider: "MERCADOPAGO_POINT",
+        cardType: "DEBIT",
       },
     ],
     ["a QR charge in its wait", { ...REPLACED_QR, waitEndsAt: new Date(NOW.getTime() + 60_000) }],
@@ -400,7 +408,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 8,
+        schema_version: 9,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -755,6 +763,7 @@ describe("chargeSaleInCash", () => {
         decidedAt: NOW,
         occurredAt: NOW,
         total: 5900,
+        rules: FIXED_ARGENTINA_ZONE_RULES,
       },
     ]);
   });
@@ -771,6 +780,7 @@ describe("chargeSaleInCash", () => {
         decidedAt: NOW,
         occurredAt: NOW,
         total: 5900,
+        rules: FIXED_ARGENTINA_ZONE_RULES,
       },
     ]);
   });

@@ -15,7 +15,7 @@ import type {
 import type { RoleAccess } from "../../permissions/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
-import type { OutboxEventDraft } from "../../shared/index.js";
+import type { OutboxEventDraft, ZoneRules } from "../../shared/index.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
 import type { SaleDiscount } from "../model/sale-discount.js";
 import type { ListPrice } from "../model/sale-line.js";
@@ -54,6 +54,7 @@ export interface SaleAuthorizationDecision {
   decidedAt: Date;
   occurredAt: Date;
   total: number;
+  rules: ZoneRules;
   ids: IdGenerator;
 }
 

@@ -1,12 +1,12 @@
 import { LinkListCard, LinkListRow } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { ShoppingBag, Wallet } from "lucide-react";
+import { ShoppingBag, Wallet, Warehouse } from "lucide-react";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 
 const ReportRow = createLink(LinkListRow);
 
-export function ReportsIndexScreen() {
+export function ReportsIndexScreen({ returnsShown }: { returnsShown: boolean }) {
   return (
     <ScreenLayout topBar={<ScreenTopBar eyebrow="Puro Sur" title="Reportes" />} bodyClassName="p-6">
       <LinkListCard title="Ventas" icon={<ShoppingBag />}>
@@ -24,6 +24,11 @@ export function ReportsIndexScreen() {
       <LinkListCard title="Caja" icon={<Wallet />}>
         <ReportRow to="/reports/hand-confirmed-payments" label="Pagos confirmados a mano" />
         <ReportRow to="/reports/cash-session-closes" label="Cierres de sesión" />
+        {returnsShown ? <ReportRow to="/reports/returns" label="Devoluciones" /> : null}
+      </LinkListCard>
+      <LinkListCard title="Stock" icon={<Warehouse />}>
+        <ReportRow to="/reports/current-stock" label="Stock actual valorizado" />
+        <ReportRow to="/reports/expiring-lots" label="Lotes por vencer" />
       </LinkListCard>
     </ScreenLayout>
   );

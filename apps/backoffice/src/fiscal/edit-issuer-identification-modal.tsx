@@ -1,16 +1,27 @@
 import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
+import type { ZoneRules } from "@purosur/domain";
+import {
+  Button,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  Modal,
+  useRequestForm,
+} from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, Landmark, RotateCcw, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
 import { FixedPair } from "./fiscal-data-pair";
+import { useIssuerZoneRulesQuery } from "./fiscal-queries";
 import type {
   IssuerIdentification,
   SaveIssuerIdentificationOutcome,
@@ -32,6 +43,7 @@ export type EditIssuerIdentificationModalServices = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
+  fetchCurrentZoneRules: typeof fetchCurrentZoneRules;
 };
 
 type ModalNotice = { kind: "attemptFailed" } | { kind: "staleVersion" };
@@ -46,9 +58,14 @@ type EditIssuerIdentificationModalProps = {
   now: () => Date;
 };
 
+type LoadedEditIssuerIdentificationModalProps = EditIssuerIdentificationModalProps & {
+  rules: ZoneRules;
+};
+
 // CUIT and tax status are always plain text, never editable: both come from the tax authority.
 // The other three fields are required, since the incomplete state only exists before the first save.
-export function EditIssuerIdentificationModal({
+function LoadedEditIssuerIdentificationModal({
+  rules,
   target,
   onClose,
   onSaved,
@@ -56,7 +73,7 @@ export function EditIssuerIdentificationModal({
   onSessionEnded,
   services,
   now,
-}: EditIssuerIdentificationModalProps) {
+}: LoadedEditIssuerIdentificationModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const {
     saveIssuerIdentification,
@@ -77,7 +94,7 @@ export function EditIssuerIdentificationModal({
   const { form, submit, submitting, dirty, reset } = useRequestForm({
     defaultValues: EMPTY_ISSUER_IDENTIFICATION_FORM,
     request: {
-      schema: issuerIdentificationEditBodySchema(openedAt),
+      schema: issuerIdentificationEditBodySchema(openedAt, rules),
       from: issuerIdentificationRequestFrom,
     },
     fields: {
@@ -89,7 +106,7 @@ export function EditIssuerIdentificationModal({
     messages: {
       legalName: legalNameMessage,
       grossIncomeRegistration: grossIncomeRegistrationMessage,
-      activityStartDate: activityStartDateMessage(openedAt),
+      activityStartDate: activityStartDateMessage(openedAt, rules),
     },
     onSubmit: async (request, { showWireFieldError }) => {
       setNotice(null);
@@ -241,7 +258,7 @@ export function EditIssuerIdentificationModal({
                     <field.DateField
                       label="Inicio de actividades"
                       required
-                      maxValue={latestActivityStartDate(openedAt)}
+                      maxValue={latestActivityStartDate(openedAt, rules)}
                       rangeMessage={ACTIVITY_START_DATE_FUTURE_ERROR}
                     />
                   )}
@@ -258,5 +275,44 @@ export function EditIssuerIdentificationModal({
       </Modal>
       {modal}
     </>
+  );
+}
+
+export function EditIssuerIdentificationModal(props: EditIssuerIdentificationModalProps) {
+  const open = props.target !== null;
+  const rules = useIssuerZoneRulesQuery({
+    fetchCurrentZoneRules: props.services.fetchCurrentZoneRules,
+    enabled: open,
+    onSessionEnded: props.onSessionEnded,
+  });
+  if (rules.status === "loaded") {
+    return <LoadedEditIssuerIdentificationModal {...props} rules={rules.value} />;
+  }
+  return (
+    <Modal
+      open={open}
+      onOpenChange={(opened) => {
+        if (!opened) {
+          props.onClose();
+        }
+      }}
+      width="standard"
+      tone="info"
+      icon={<Landmark />}
+      context="Configuración fiscal"
+      title="Identificación del emisor"
+      closable
+      footer={
+        <Button variant="secondary" size="large" icon={<X />} onPress={props.onClose}>
+          Cancelar
+        </Button>
+      }
+    >
+      {rules.status === "failed" ? (
+        <LoadFailure {...cloudLoadFailure(rules, "las reglas horarias")} />
+      ) : (
+        <LoadingPlaceholder variant="form" fields={3} />
+      )}
+    </Modal>
   );
 }

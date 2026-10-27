@@ -1,4 +1,5 @@
 import { amountToCharge } from "../../sales/index.js";
+import type { ZoneRules } from "../../shared/index.js";
 import { type PaymentRefundability, returnablePayments } from "./refund-allocation.js";
 import { mustBeReturnedWhole, returnableQuantity } from "./return-line.js";
 import type { ReturnReason } from "./return-reasons.js";
@@ -37,6 +38,7 @@ export function saleForReturnOutcome(
   facts: SaleForReturn | undefined,
   goodConditionReturnDays: number,
   now: Date,
+  zoneRules: ZoneRules,
 ): SaleForReturnOutcome {
   if (facts === undefined || facts.sale.state === "OPEN") {
     return { kind: "not_found" };
@@ -51,7 +53,7 @@ export function saleForReturnOutcome(
       occurredAt: facts.occurredAt,
       total: amountToCharge(facts.sale),
       invoice: facts.invoice,
-      windows: returnWindows(facts.occurredAt, goodConditionReturnDays, now),
+      windows: returnWindows(facts.occurredAt, goodConditionReturnDays, now, zoneRules),
       lines: returnSaleLines(facts).map(viewOfLine),
       payments: returnablePayments(facts.payments),
     },

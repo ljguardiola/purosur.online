@@ -1,19 +1,69 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 import type { ExternalInvoicingVoucher } from "./fiscal-task.js";
 import { decideUnclearOutcome, type TaxAuthorityEvidence } from "./unclear-outcome-decision.js";
 
 export const CREDIT_NOTE_C_VOUCHER_TYPE = 13;
 
-export const CREDIT_NOTE_REASONS = ["orphan", "sale_void", "rejected_document"] as const;
+export const CREDIT_NOTE_REASONS = [
+  "orphan",
+  "sale_void",
+  "sale_return",
+  "rejected_document",
+] as const;
 
 export type CreditNoteReason = (typeof CREDIT_NOTE_REASONS)[number];
 
-export function creditNoteIssueDate(issuedAt: Date): string {
-  return argentinaCalendarDay(issuedAt);
+export function creditNoteIssueDate(issuedAt: Date, rules: ZoneRules): string {
+  return argentinaCalendarDay(issuedAt, rules);
 }
 
 export function nextCreditNoteNumber(lastAuthorized: number): number {
   return lastAuthorized + 1;
+}
+
+export function creditNoteBreaksDateOrder(
+  issuedOn: string,
+  otherCreditNotes: readonly { kind: string; issuedOn?: string }[],
+): boolean {
+  return otherCreditNotes.some(
+    (other) =>
+      other.kind === "authorized" && other.issuedOn !== undefined && other.issuedOn > issuedOn,
+  );
+}
+
+const CREDIT_NOTE_ANSWERS_CREDITING_NOTHING: readonly string[] = [
+  "rejected",
+  "regularization_required",
+];
+
+export function creditsItsInvoice(answerKind: string | null): boolean {
+  return answerKind === null || !CREDIT_NOTE_ANSWERS_CREDITING_NOTHING.includes(answerKind);
+}
+
+export function creditWithinInvoice({
+  invoiceTotal,
+  alreadyCredited,
+  asked,
+}: {
+  invoiceTotal: number | null;
+  alreadyCredited: number;
+  asked: number;
+}): boolean {
+  if (invoiceTotal === null) {
+    return true;
+  }
+  return asked <= (creditLeftOnInvoice({ invoiceTotal, alreadyCredited }) ?? 0);
+}
+
+export function creditLeftOnInvoice({
+  invoiceTotal,
+  alreadyCredited,
+}: {
+  invoiceTotal: number;
+  alreadyCredited: number;
+}): number | null {
+  const left = invoiceTotal - alreadyCredited;
+  return left > 0 ? left : null;
 }
 
 export function mayTakeCreditNoteNumber(otherCreditNotes: readonly { kind: string }[]): boolean {

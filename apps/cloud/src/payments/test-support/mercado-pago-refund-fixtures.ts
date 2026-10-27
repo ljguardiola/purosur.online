@@ -65,6 +65,7 @@ async function aPendingMercadoPagoRefundOfCancelledSale<TQueryResult extends PgQ
     id: transaction.id,
     method,
     provider: transaction.provider,
+    cardType: method === "POINT" ? ("DEBIT" as const) : null,
     amount,
     tendered: null,
     state: "APPROVED" as const,

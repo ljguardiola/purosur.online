@@ -1,3 +1,12 @@
+import type {
+  CreditNoteToIssue,
+  FiscalOnlineSignalEvidence,
+  Fortnight,
+  OfflineCreditNote,
+  OfflineCreditNoteClockMark,
+  OfflineSeries,
+  SaleInvoice,
+} from "../../../fiscal/index.js";
 import type { OutboxEventDraft } from "../../../shared/index.js";
 import type { SaleForReturn } from "../../model/return-sale.js";
 import type {
@@ -25,6 +34,14 @@ export interface FakeReturnLedgerState {
   stockMovements: ReturnStockMovement[];
   stockBalances: Record<string, number>;
   outbox: OutboxEventDraft[];
+  fiscalDocuments: (SaleInvoice & { saleId: string })[];
+  salesAwaitingDeferredInvoice: string[];
+  fiscalOnlineEvidence: FiscalOnlineSignalEvidence;
+  creditNotes: CreditNoteToIssue[];
+  offlineCreditNoteSeries: OfflineSeries;
+  offlineAuthorizationCodes: Record<string, string>;
+  issuedOfflineCreditNotes: OfflineCreditNote[];
+  clockMarks: OfflineCreditNoteClockMark[];
 }
 
 export type FakeReturnLedgerWrite =
@@ -33,6 +50,9 @@ export type FakeReturnLedgerWrite =
   | "recordCashMovement"
   | "recordReturnStockMovement"
   | "addToStockBalance"
+  | "recordPendingCreditNote"
+  | "issueOfflineCreditNote"
+  | "recordClockMark"
   | "appendOutboxEvent";
 
 function matches(sale: FakeStoredSale, search: SaleReturnSearch): boolean {
@@ -63,6 +83,7 @@ function found(
 export class FakeReturnLedger implements ReturnLedger, ReturnSaleReader {
   state: FakeReturnLedgerState;
   transactions = 0;
+  offlineSeriesReads = 0;
   failOn: FakeReturnLedgerWrite | undefined;
 
   constructor(state: Partial<FakeReturnLedgerState> = {}) {
@@ -77,6 +98,21 @@ export class FakeReturnLedger implements ReturnLedger, ReturnSaleReader {
       stockMovements: [],
       stockBalances: {},
       outbox: [],
+      fiscalDocuments: [],
+      salesAwaitingDeferredInvoice: [],
+      fiscalOnlineEvidence: { lastHealthCheckOkAt: null, tokenValid: false, arcaReachable: false },
+      creditNotes: [],
+      offlineCreditNoteSeries: {
+        pointOfSale: null,
+        blocksInAssignmentOrder: [],
+        localLastUsed: null,
+        taxAuthorityLastAuthorized: null,
+        highestSyncedNumber: null,
+        clockMark: null,
+      },
+      offlineAuthorizationCodes: {},
+      issuedOfflineCreditNotes: [],
+      clockMarks: [],
       ...state,
     };
   }
@@ -136,6 +172,33 @@ export class FakeReturnLedger implements ReturnLedger, ReturnSaleReader {
       addToStockBalance: (productId, delta) => {
         this.failIfAsked("addToStockBalance");
         working.stockBalances[productId] = (working.stockBalances[productId] ?? 0) + delta;
+      },
+      saleInvoiceStanding: (saleId) => ({
+        fiscalDocuments: working.fiscalDocuments
+          .filter((document) => document.saleId === saleId)
+          .map(({ saleId: _saleId, ...document }) => structuredClone(document)),
+        deferralPending: working.salesAwaitingDeferredInvoice.includes(saleId),
+      }),
+      fiscalOnlineEvidence: () => structuredClone(working.fiscalOnlineEvidence),
+      offlineCreditNoteSeries: () => {
+        this.offlineSeriesReads += 1;
+        const series = structuredClone(working.offlineCreditNoteSeries);
+        const issued = working.issuedOfflineCreditNotes.map(({ number }) => number);
+        return { ...series, localLastUsed: Math.max(series.localLastUsed ?? 0, ...issued) || null };
+      },
+      offlineAuthorizationCodeOf: ({ start }: Fortnight) =>
+        working.offlineAuthorizationCodes[start] ?? null,
+      recordPendingCreditNote: (creditNote) => {
+        this.failIfAsked("recordPendingCreditNote");
+        working.creditNotes.push(creditNote);
+      },
+      issueOfflineCreditNote: (document) => {
+        this.failIfAsked("issueOfflineCreditNote");
+        working.issuedOfflineCreditNotes.push(document);
+      },
+      recordClockMark: (mark) => {
+        this.failIfAsked("recordClockMark");
+        working.clockMarks.push(mark);
       },
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");

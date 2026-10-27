@@ -20,6 +20,7 @@ import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { FORTNIGHT_REPORT_TASK_IDENTIFIER, fortnightReportJobs } from "./fortnight-report-task.js";
@@ -156,6 +157,7 @@ function taskUnderTest(
 ) {
   const jobs = fortnightReportJobs(
     {
+      zoneRules: fixedZoneRulesSource(),
       now: () => NOW,
       declarations,
       documentReports,

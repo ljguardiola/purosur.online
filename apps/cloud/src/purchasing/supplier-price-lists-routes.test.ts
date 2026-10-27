@@ -10,12 +10,13 @@ import {
 } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
 import { FakeSupplierPriceListWebPages } from "./test-support/fake-supplier-price-list-web-pages.js";
 import { fictionalPdf } from "./test-support/fictional-pdf.js";
 import { InMemorySupplierPriceListFiles } from "./test-support/in-memory-supplier-price-list-files.js";
-import { insertActor } from "./test-support/purchasing-fixtures.js";
+import { insertActor, insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertPriceListRows,
@@ -47,6 +48,7 @@ beforeEach(async () => {
   webPages = new FakeSupplierPriceListWebPages();
   app = Fastify();
   registerSupplierPriceListsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,
@@ -197,6 +199,33 @@ describe("GET /supplier-price-lists/:id", () => {
         },
       ],
     });
+  });
+
+  it("says a row with nothing linked may have a product created from it, and a linked row may not", async () => {
+    const { headers } = await manager();
+    const { listId, actorId } = await storedList({
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+      pricesIncludeVat: false,
+    });
+    const linked = await insertProduct(db, { name: "Yerba" });
+    const packagingId = await insertPackaging(db, { productId: linked.id, actorId });
+    await insertPriceListRows(db, listId, [
+      { description: "Sin vincular" },
+      { description: "Vinculado", productId: linked.id, packagingId },
+    ]);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/supplier-price-lists/${listId}`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().rows).toMatchObject([
+      { description: "Sin vincular", mayCreateProduct: true },
+      { description: "Vinculado", mayCreateProduct: false },
+    ]);
   });
 
   it("answers 404 for a list that does not exist", async () => {
@@ -497,6 +526,7 @@ describe("POST /supplier-price-lists", () => {
   it("answers 503 supplier_price_list_reading_unavailable when reading is not configured, storing nothing", async () => {
     const unconfigured = Fastify();
     registerSupplierPriceListsRoutes(unconfigured, {
+      zoneRules: fixedZoneRulesSource(),
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => NOW,
@@ -624,6 +654,7 @@ describe("POST /supplier-price-lists/web-page", () => {
   it("answers 503 supplier_price_list_reading_unavailable when reading is not configured, reading nothing", async () => {
     const unconfigured = Fastify();
     registerSupplierPriceListsRoutes(unconfigured, {
+      zoneRules: fixedZoneRulesSource(),
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => NOW,
@@ -737,6 +768,7 @@ describe("POST /supplier-price-lists/:id/refresh", () => {
   it("answers 503 supplier_price_list_reading_unavailable when reading is not configured", async () => {
     const unconfigured = Fastify();
     registerSupplierPriceListsRoutes(unconfigured, {
+      zoneRules: fixedZoneRulesSource(),
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => NOW,

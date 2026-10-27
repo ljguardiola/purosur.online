@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import type { PointCardType } from "./payment.js";
 import {
   awaitsUnrecordedOrder,
   expiryWithoutOrder,
@@ -77,8 +78,11 @@ describe("MercadoPagoPointPaymentTransaction", () => {
     >().not.toExtend<MercadoPagoOrderTransaction>();
   });
 
-  it("carries nothing about the card that paid", () => {
-    for (const field of ["cardLastDigits", "cardType", "cardBrand", "cardholderName"] as const) {
+  it("carries the card type it charges, and nothing else about the card", () => {
+    expectTypeOf<
+      MercadoPagoPointPaymentTransaction["cardType"]
+    >().toEqualTypeOf<PointCardType | null>();
+    for (const field of ["cardLastDigits", "cardBrand", "cardholderName"] as const) {
       expectTypeOf<MercadoPagoPointPaymentTransaction>().not.toHaveProperty(field);
     }
   });

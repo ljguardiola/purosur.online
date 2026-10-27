@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import {
   type SalesOfDay,
   type SalesReportTotals,
@@ -19,10 +24,14 @@ export interface SalesByDayReport {
 }
 
 export async function readSalesByDay(
-  { reader, clock }: { reader: SalesReportReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: SalesReportReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId }: ReadSalesByDayInput,
 ): Promise<SalesByDayReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const days = await reader.completedSalesByDay({ locationId, range, registerId });
   return { range, days, totals: salesReportTotals(days) };
 }

@@ -27,7 +27,11 @@ export function applyReplenishedReturnFact(
   });
   for (const refund of saleReturn.refunds) {
     if (!held(database, "SELECT 1 FROM payment_refunds WHERE id = ?", refund.id)) {
-      insertPaymentRefund(database, { ...refund, saleId: saleReturn.saleId });
+      insertPaymentRefund(database, {
+        ...refund,
+        saleId: saleReturn.saleId,
+        returnId: saleReturn.id,
+      });
     }
   }
   for (const movement of saleReturn.cashMovements) {

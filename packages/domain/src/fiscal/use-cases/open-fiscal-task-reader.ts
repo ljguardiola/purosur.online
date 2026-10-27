@@ -26,7 +26,7 @@ export type OpenFiscalTask =
   | (OpenFiscalTaskBase & {
       kind: "credit_note_rejected";
       pointOfSale: number;
-      number: number;
+      number: number | null;
       creditNoteId: string;
       rejections: TaxAuthorityRejection[];
     })

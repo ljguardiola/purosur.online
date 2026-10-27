@@ -381,7 +381,7 @@ describe("reading a sale of the branch to return it from another register", () =
       await authorizeInvoice(selling.registerId, completed.id);
       const saleReturn = aReturnOf(completed, { sessionId });
       await record(
-        { kind: "sale_returned", saleReturn },
+        { kind: "sale_returned", saleReturn, creditNote: null },
         eventOf(selling.deviceId, "sale_returned", saleReturn.id),
       );
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import type { SaleForReturn } from "./return-sale.js";
 import { type LocalReturnOfSale, withUncountedReturns } from "./uncounted-returns.js";
 
@@ -15,7 +15,7 @@ function facts(): SaleForReturn {
       saleDiscount: null,
       lines: [],
     },
-    occurredAt: new Date(argentinaInstant("2026-09-12", "15:30")),
+    occurredAt: new Date(argentinaInstant("2026-09-12", "15:30", FIXED_ARGENTINA_ZONE_RULES)),
     invoice: null,
     payments: [
       {

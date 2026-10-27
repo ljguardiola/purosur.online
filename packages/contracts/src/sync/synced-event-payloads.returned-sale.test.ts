@@ -99,7 +99,7 @@ describe("sale_returned v1", () => {
 
   it.each([
     ["version zero", 0],
-    ["a version nobody emitted", 2],
+    ["a version nobody emitted", 3],
   ])("has no schema for %s", (_case, schemaVersion) => {
     expect(syncedEventPayloadKey("sale_returned", schemaVersion)).toBeUndefined();
   });

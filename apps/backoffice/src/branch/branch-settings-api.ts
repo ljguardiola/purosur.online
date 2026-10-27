@@ -1,7 +1,8 @@
 import {
   type BranchSettingsEditBody,
+  type BranchSettingsReadBody,
+  branchSettingsReadSchema,
   type EditableBranchSettingsBody,
-  editableBranchSettingsSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
@@ -37,6 +38,7 @@ export type BranchSettings = {
   unreviewedPriceAlertDays: number;
   goodConditionReturnDays: number;
   supplierPriceListDailyExtractionCap: number;
+  zoneRulesVersion: string | null;
   version: number;
 };
 
@@ -75,7 +77,7 @@ function rangesFromWire(ranges: BranchHoursRangeWire[]): BranchHoursRange[] {
   return ranges.map((range) => ({ opensAt: range.opens_at, closesAt: range.closes_at }));
 }
 
-function branchSettingsFromWire(row: EditableBranchSettingsBody): BranchSettings {
+function branchSettingsFromWire(row: BranchSettingsReadBody): BranchSettings {
   const hours = {} as Record<BranchDay, BranchHoursRange[]>;
   for (const day of BRANCH_DAYS) {
     hours[day] = rangesFromWire(row[DAY_FIELD_OF[day]]);
@@ -89,6 +91,7 @@ function branchSettingsFromWire(row: EditableBranchSettingsBody): BranchSettings
     unreviewedPriceAlertDays: row.unreviewed_price_alert_days,
     goodConditionReturnDays: row.good_condition_return_days,
     supplierPriceListDailyExtractionCap: row.supplier_price_list_daily_extraction_cap,
+    zoneRulesVersion: row.zone_rules_version,
     version: row.version,
   };
 }
@@ -112,9 +115,7 @@ export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome>
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const parsed = editableBranchSettingsSchema.safeParse(
-    await response.json().catch(() => undefined),
-  );
+  const parsed = branchSettingsReadSchema.safeParse(await response.json().catch(() => undefined));
   if (!parsed.success) {
     return { kind: "failed" };
   }

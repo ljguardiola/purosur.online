@@ -11,6 +11,7 @@ const ORDER = {
   method: "QR",
   amount: 5000,
 } as const;
+const POINT_ORDER = { ...ORDER, method: "POINT", cardType: "DEBIT" } as const;
 const START = new Date("2026-10-09T12:00:00.000Z");
 
 interface Call {
@@ -98,14 +99,31 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
   it("names the integrated terminal as the provider of a terminal order", async () => {
     const { calls, orders } = cloudOrders([ok(payment("PENDING"))]);
 
-    await orders.requestOrder({ ...ORDER, method: "POINT" });
+    await orders.requestOrder(POINT_ORDER);
 
     expect(calls[0]?.body).toEqual({
       payment_transaction_id: PAYMENT_ID,
       sale_id: SALE_ID,
       provider: "MERCADOPAGO_POINT",
+      card_type: "DEBIT",
       amount: 5000,
     });
+  });
+
+  it("posts the credit card type the cashier chose for a terminal order", async () => {
+    const { calls, orders } = cloudOrders([ok(payment("PENDING"))]);
+
+    await orders.requestOrder({ ...POINT_ORDER, cardType: "CREDIT" });
+
+    expect(calls[0]?.body).toMatchObject({ provider: "MERCADOPAGO_POINT", card_type: "CREDIT" });
+  });
+
+  it("posts no card type with a QR order", async () => {
+    const { calls, orders } = cloudOrders([ok(payment("PENDING"))]);
+
+    await orders.requestOrder(ORDER);
+
+    expect(calls[0]?.body).not.toHaveProperty("card_type");
   });
 
   it("answers created, with the expiry the cloud recorded, when the cloud answers with the payment", async () => {
@@ -140,13 +158,13 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
   ] as const)("answers refused when the cloud refuses a terminal order with %s", async (code) => {
     const { orders } = cloudOrders([refused(code)]);
 
-    expect(await orders.requestOrder({ ...ORDER, method: "POINT" })).toEqual({ kind: "refused" });
+    expect(await orders.requestOrder(POINT_ORDER)).toEqual({ kind: "refused" });
   });
 
   it("answers not_configured when the cloud has no terminal configured for the terminal order", async () => {
     const { orders } = cloudOrders([refused("payment_provider_not_configured")]);
 
-    expect(await orders.requestOrder({ ...ORDER, method: "POINT" })).toEqual({
+    expect(await orders.requestOrder(POINT_ORDER)).toEqual({
       kind: "not_configured",
     });
   });
@@ -154,7 +172,7 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
   it("answers below_minimum when the cloud finds the terminal order's amount invalid", async () => {
     const { orders } = cloudOrders([refused("validation_failed")]);
 
-    expect(await orders.requestOrder({ ...ORDER, method: "POINT" })).toEqual({
+    expect(await orders.requestOrder(POINT_ORDER)).toEqual({
       kind: "below_minimum",
     });
   });

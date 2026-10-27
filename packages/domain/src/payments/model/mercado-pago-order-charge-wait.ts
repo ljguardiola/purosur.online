@@ -1,4 +1,4 @@
-import type { MercadoPagoPaymentMethod } from "./payment.js";
+import type { MercadoPagoPaymentMethod, PointCardType } from "./payment.js";
 
 export const MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES = 3;
 
@@ -34,13 +34,23 @@ export function mercadoPagoOrderChargeRemainingSeconds(waitEndsAt: Date, now: Da
   return wait.kind === "waiting" ? wait.remainingSeconds : 0;
 }
 
-export interface MercadoPagoChargeInProgress {
+type MercadoPagoChargeOf =
+  | { method: Extract<MercadoPagoPaymentMethod, "QR"> }
+  | { method: Extract<MercadoPagoPaymentMethod, "POINT">; cardType: PointCardType | null };
+
+export type MercadoPagoChargeInProgress = MercadoPagoChargeOf & {
   paymentTransactionId: string;
-  method: MercadoPagoPaymentMethod;
   amount: number;
   remainingSeconds: number;
   waitSeconds: number;
-}
+};
+
+export type PendingMercadoPagoCharge = MercadoPagoChargeOf & {
+  id: string;
+  amount: number;
+  occurredAt: Date;
+  waitEndsAt: Date;
+};
 
 function inProgress({ method, waitEndsAt }: { method: string; waitEndsAt: Date }, now: Date) {
   return method === "POINT" || mercadoPagoOrderChargeWait(waitEndsAt, now).kind === "waiting";
@@ -54,23 +64,20 @@ export function aMercadoPagoChargeInProgress(
 }
 
 export function mercadoPagoChargeInProgress(
-  pendingPayments: readonly {
-    id: string;
-    method: MercadoPagoPaymentMethod;
-    amount: number;
-    occurredAt: Date;
-    waitEndsAt: Date;
-  }[],
+  pendingPayments: readonly PendingMercadoPagoCharge[],
   now: Date,
 ): MercadoPagoChargeInProgress | null {
   const charge = pendingPayments.find((payment) => inProgress(payment, now));
-  return charge === undefined
-    ? null
-    : {
-        paymentTransactionId: charge.id,
-        method: charge.method,
-        amount: charge.amount,
-        remainingSeconds: mercadoPagoOrderChargeRemainingSeconds(charge.waitEndsAt, now),
-        waitSeconds: mercadoPagoOrderChargeWaitSeconds(charge.occurredAt, charge.waitEndsAt),
-      };
+  if (charge === undefined) {
+    return null;
+  }
+  const followed = {
+    paymentTransactionId: charge.id,
+    amount: charge.amount,
+    remainingSeconds: mercadoPagoOrderChargeRemainingSeconds(charge.waitEndsAt, now),
+    waitSeconds: mercadoPagoOrderChargeWaitSeconds(charge.occurredAt, charge.waitEndsAt),
+  };
+  return charge.method === "POINT"
+    ? { ...followed, method: charge.method, cardType: charge.cardType }
+    : { ...followed, method: charge.method };
 }

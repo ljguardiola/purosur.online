@@ -1,5 +1,12 @@
 import { branchSettingsEditBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, LoadFailure, LoadingPlaceholder, useRequestForm } from "@purosur/ui";
+import {
+  Button,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  TextField,
+  useRequestForm,
+} from "@purosur/ui";
 import { Check, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
@@ -188,6 +195,14 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                 {() => <BranchDayRow day={day} />}
               </form.AppField>
             ))}
+            <TextField
+              kind="plain-text"
+              label="Reglas de zona"
+              value={seededFrom.zoneRulesVersion ?? "Sin publicar"}
+              onChange={() => {}}
+              readOnly
+              readOnlyReason="La nube define las reglas de zona horaria y no se editan acá."
+            />
           </div>
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
             <h2 className="text-text-accent text-subheading">Plazos</h2>

@@ -20,6 +20,7 @@ export type {
   SaleForReturn,
 } from "./model/return-sale.js";
 export type { ReturnWindow } from "./model/return-window.js";
+export { returnedReceiptLine } from "./model/returned-receipt-line.js";
 export type {
   ReturnedCashMovement,
   ReturnedLine,
@@ -27,6 +28,12 @@ export type {
   ReturnedSale,
   ReturnedStockMovement,
 } from "./model/returned-sale.js";
+export type {
+  ReturnRecord,
+  ReturnRecordLine,
+  ReturnRow,
+  ReturnsGroup,
+} from "./model/returns-report.js";
 export type { TicketReference } from "./model/ticket-reference.js";
 export { ticketReferenceFromQrText } from "./model/ticket-reference.js";
 export type { LocalReturnOfSale } from "./model/uncounted-returns.js";

@@ -10,6 +10,7 @@ import {
 import { discounts } from "../platform/db/schema.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerDiscountEditRoute } from "./discount-edit-route.js";
 import {
   insertCategory,
@@ -36,7 +37,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerDiscountEditRoute(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOON });
+  registerDiscountEditRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOON,
+  });
 });
 
 afterEach(async () => {

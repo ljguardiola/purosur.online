@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -81,6 +82,7 @@ describe("the buyer tax-status fetch the server sets up on a real Postgres", () 
         },
       },
       () => FETCHED_AT,
+      fixedZoneRulesSource(),
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {

@@ -70,6 +70,7 @@ import {
   type ContingencyBackupTicketRequests,
 } from "./backups/contingency-backup-ticket-requests";
 import { answerClockGuardRequest, type ClockGuardRequests } from "./fiscal/clock-guard-answers";
+import type { StartMercadoPagoChargeRequest } from "./payments/mercado-pago-charge-requests";
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
@@ -136,11 +137,7 @@ export interface RendererRequestDeps {
       ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>)
     | undefined;
   startMercadoPagoCharge:
-    | ((request: {
-        saleId: string;
-        method: "QR" | "POINT";
-        amount: number;
-      }) => Promise<StartMercadoPagoChargeOutcome>)
+    | ((request: StartMercadoPagoChargeRequest) => Promise<StartMercadoPagoChargeOutcome>)
     | undefined;
   followMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
@@ -204,12 +201,16 @@ export interface RendererRequestDeps {
   printDeferredSaleInvoice:
     | ((saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>)
     | undefined;
-  printCreditNote: ((saleId: string) => Promise<PrintCreditNoteOutcome>) | undefined;
+  printCreditNote:
+    | ((creditNote: { saleId: string; creditNoteId: string }) => Promise<PrintCreditNoteOutcome>)
+    | undefined;
   reprintDeferredSaleInvoice:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
   reprintCreditNote:
-    | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
+    | ((
+        request: ReprintSaleReceiptRequest & { creditNoteId: string },
+      ) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
   reprintSaleReceipt:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
@@ -559,7 +560,7 @@ async function attemptChargeSaleInCash(
 
 async function attemptStartMercadoPagoCharge(
   deps: RendererRequestDeps,
-  request: { saleId: string; method: "QR" | "POINT"; amount: number },
+  request: StartMercadoPagoChargeRequest,
 ): Promise<StartMercadoPagoChargeOutcome> {
   try {
     return (await deps.startMercadoPagoCharge?.(request)) ?? { kind: "unavailable" };
@@ -1095,7 +1096,12 @@ export async function answerRendererRequest(
         outcome: await attemptSaleChange(
           deps,
           "printing the credit note of a voided sale",
-          printCreditNote && (() => printCreditNote(message.sale_id)),
+          printCreditNote &&
+            (() =>
+              printCreditNote({
+                saleId: message.sale_id,
+                creditNoteId: message.credit_note_id,
+              })),
         ),
       };
     }
@@ -1111,6 +1117,7 @@ export async function answerRendererRequest(
             (() =>
               reprintCreditNote({
                 saleId: message.sale_id,
+                creditNoteId: message.credit_note_id,
                 reason: message.reason,
                 authorization: message.authorization,
               })),
@@ -1238,8 +1245,10 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptStartMercadoPagoCharge(deps, {
           saleId: message.sale_id,
-          method: message.method,
           amount: message.amount,
+          ...(message.method === "POINT"
+            ? { method: "POINT", cardType: message.card_type }
+            : { method: "QR" }),
         }),
       };
     case "follow-mercado-pago-charge":

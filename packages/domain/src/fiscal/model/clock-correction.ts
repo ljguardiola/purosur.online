@@ -1,4 +1,4 @@
-import { argentinaInstant, type OutboxEventDraft } from "../../shared/index.js";
+import { argentinaInstant, type OutboxEventDraft, type ZoneRules } from "../../shared/index.js";
 import type { FiscalDocumentType } from "./fiscal-rejection-standing.js";
 import {
   type ClockCorrectionReadings,
@@ -48,6 +48,7 @@ export function clockLoweringsFor(
   marks: readonly ClockMark[],
   reading: Date,
   floor: TaxAuthorityClockFloor | null,
+  rules: ZoneRules,
 ): ClockLowering[] {
   const markLowerings = marks
     .filter((mark) => isBehindClockMark(reading, mark.reading))
@@ -62,16 +63,19 @@ export function clockLoweringsFor(
     );
   if (
     floor === null ||
-    !isBeforeTaxAuthorityLastIssuedDay(reading, floor.lastIssuedOn) ||
-    isInClockCorrectionLapse({
-      reading,
-      taxAuthorityLastIssuedOn: floor.lastIssuedOn,
-      corrections: floor.corrections,
-    })
+    !isBeforeTaxAuthorityLastIssuedDay(reading, floor.lastIssuedOn, rules) ||
+    isInClockCorrectionLapse(
+      {
+        reading,
+        taxAuthorityLastIssuedOn: floor.lastIssuedOn,
+        corrections: floor.corrections,
+      },
+      rules,
+    )
   ) {
     return markLowerings;
   }
-  const startOfTaxAuthorityDay = new Date(argentinaInstant(floor.lastIssuedOn, "00:00"));
+  const startOfTaxAuthorityDay = new Date(argentinaInstant(floor.lastIssuedOn, "00:00", rules));
   const mark = marks.find((candidate) => seriesKey(candidate) === seriesKey(floor));
   const fromMark = mark !== undefined && mark.reading.getTime() >= startOfTaxAuthorityDay.getTime();
   const floorLowering: ClockLowering = {

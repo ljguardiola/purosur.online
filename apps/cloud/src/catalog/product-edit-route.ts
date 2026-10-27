@@ -77,7 +77,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const outcome = await editProduct(
-        { store: catalogStore, clock: { now } },
+        { store: catalogStore, clock: { now }, zoneRules: options.zoneRules },
         { id: ids.id, ...parsedBody },
       );
 

@@ -29,6 +29,7 @@ export type {
   NewAssemblyBatch,
 } from "./assembly-batch-store.js";
 export type { BatchLotReader, PreviewLot } from "./batch-lot-reader.js";
+export type { CurrentStockReader } from "./current-stock-reader.js";
 export type {
   DiscardExpiredLotInput,
   DiscardExpiredLotOutcome,
@@ -71,6 +72,7 @@ export type {
   InitialCountLotsQuery,
 } from "./initial-count-lot-reader.js";
 export { listAssemblyBatches } from "./list-assembly-batches.js";
+export type { ExpiringLotView } from "./list-expiring-lots.js";
 export { findRecipeListing, listRecipes } from "./list-recipes.js";
 export type {
   LockedLot,
@@ -86,11 +88,21 @@ export type {
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
 export type {
-  ExpiringLotsView,
-  ExpiringLotView,
-  ReadExpiringLotsInput,
-} from "./read-expiring-lots.js";
+  CurrentStockCategory,
+  CurrentStockLot,
+  CurrentStockProduct,
+  CurrentStockReport,
+  ReadCurrentStockReportInput,
+} from "./read-current-stock-report.js";
+export { readCurrentStockReport } from "./read-current-stock-report.js";
+export type { ExpiringLotsView, ReadExpiringLotsInput } from "./read-expiring-lots.js";
 export { readExpiringLots } from "./read-expiring-lots.js";
+export type {
+  ExpiringLotsReport,
+  ExpiringLotsReportSummary,
+  ReadExpiringLotsReportInput,
+} from "./read-expiring-lots-report.js";
+export { readExpiringLotsReport } from "./read-expiring-lots-report.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {

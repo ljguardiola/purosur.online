@@ -42,7 +42,7 @@ export function registerExpiringLotsRoutes<TQueryResult extends PgQueryResultHKT
 
   app.get("/expiring-lots", routeConfig, async (request, reply) => {
     const view = await readExpiringLots(
-      { expiringLots, branchSettings, clock },
+      { zoneRules: options.zoneRules, expiringLots, branchSettings, clock },
       { locationId: openSessionOf(request).locationId },
     );
     await reply.code(200).send(expiringLotListSchema.parse(view));
@@ -55,7 +55,7 @@ export function registerExpiringLotsRoutes<TQueryResult extends PgQueryResultHKT
     }
     const openSession = openSessionOf(request);
     const outcome = await discardExpiredLot(
-      { store, clock },
+      { zoneRules: options.zoneRules, store, clock },
       { lotId: ids.lotId, locationId: openSession.locationId, actorId: openSession.userId },
     );
 

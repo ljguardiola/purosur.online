@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type {
+  CreditNoteToIssue,
   FacturaC,
   RestoredCreditNoteAnswer,
   RestoredUnclearDeferral,
-  SaleVoidCreditNote,
 } from "../../fiscal/index.js";
 import {
   FICTIONAL_CUIT,
@@ -17,6 +17,7 @@ import {
   A_CLOCK_CORRECTED_FACT,
   A_DEFERRED_SALE_RECORDED_FACT,
   A_GATE_FAILED_FACT,
+  aReturnedSaleFact,
   aVoidedSaleFact,
 } from "../model/test-support/synced-facts.js";
 import { replenishRestoredRegister } from "./replenish-restored-register.js";
@@ -63,17 +64,18 @@ function aRestoredRegister(
   return { feed, store, decoder, run };
 }
 
-function aCreditNote(saleId: string, creditNoteId = `credit-note-${saleId}`): SaleVoidCreditNote {
+function aCreditNote(saleId: string, creditNoteId = `credit-note-${saleId}`): CreditNoteToIssue {
   return {
     creditNoteId,
     saleId,
     total: 4800,
     receiverTaxStatusCode: 5,
     correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+    origin: { kind: "sale_void" },
   };
 }
 
-function anAuthorizedAnswer(creditNote: SaleVoidCreditNote): RestoredCreditNoteAnswer {
+function anAuthorizedAnswer(creditNote: CreditNoteToIssue): RestoredCreditNoteAnswer {
   return {
     creditNoteId: creditNote.creditNoteId,
     answeredAt: new Date("2026-10-07T10:30:00.000Z"),
@@ -89,7 +91,7 @@ function anAuthorizedAnswer(creditNote: SaleVoidCreditNote): RestoredCreditNoteA
   };
 }
 
-function aVoidedSaleOf(creditNote: SaleVoidCreditNote | null, saleId: string): SyncedFact {
+function aVoidedSaleOf(creditNote: CreditNoteToIssue | null, saleId: string): SyncedFact {
   return { ...aVoidedSaleFact({ id: saleId }), creditNote };
 }
 
@@ -656,6 +658,43 @@ describe("replenishRestoredRegister", () => {
       await expect(run()).rejects.toThrow("storage unavailable");
 
       expect(store.state).toMatchObject({ facts: [], heldCreditNotes: [], appliedEventIds: [] });
+    });
+  });
+
+  describe("the credit note of a return", () => {
+    function aReturnWithItsCreditNote() {
+      const run = aRestoredRegister();
+      const creditNote: CreditNoteToIssue = {
+        ...aCreditNote("sale-1", "credit-note-of-return"),
+        total: 1000,
+        origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-08" },
+      };
+      const event = anEvent("device-old", 53);
+      run.decoder.facts.set(event.event.event_id, { ...aReturnedSaleFact(), creditNote });
+      return { ...run, creditNote, event };
+    }
+
+    it("records the cloud's answer for the credit note the return asked for, then the event", async () => {
+      const { feed, store, run, creditNote, event } = aReturnWithItsCreditNote();
+      const answer = anAuthorizedAnswer(creditNote);
+      feed.answers = [aPage([event], null, [], [answer])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.creditNoteAnswers).toEqual([{ creditNote, answer }]);
+      expect(store.state.appliedEventIds).toEqual([event.event.event_id]);
+    });
+
+    it("holds to request the credit note of a return the cloud never recorded, leaving its event unapplied", async () => {
+      const { feed, store, run, creditNote, event } = aReturnWithItsCreditNote();
+      feed.answers = [aPage([event], null, [], [], [creditNote.creditNoteId])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.heldCreditNotes).toHaveLength(1);
+      expect(store.state.appliedEventIds).toEqual([]);
     });
   });
 

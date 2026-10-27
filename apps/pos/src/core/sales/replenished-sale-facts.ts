@@ -89,7 +89,12 @@ function paymentOf(saleId: string, payment: PaymentFact): SalePayment {
     case "QR":
       return { ...common, method: "QR", provider: "MERCADOPAGO_QR" };
     case "POINT":
-      return { ...common, method: "POINT", provider: "MERCADOPAGO_POINT" };
+      return {
+        ...common,
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        cardType: payment.cardType,
+      };
     case "TRANSFER":
     case "STANDALONE_TERMINAL": {
       const { authorizedBy, confirmedAt } = payment;
@@ -125,7 +130,7 @@ function pendingMercadoPagoPaymentOf(
   } as const;
   return method === "QR"
     ? { ...common, method: "QR", provider: "MERCADOPAGO_QR" }
-    : { ...common, method: "POINT", provider: "MERCADOPAGO_POINT" };
+    : { ...common, method: "POINT", provider: "MERCADOPAGO_POINT", cardType: payment.cardType };
 }
 
 function held(database: LocalDatabase, query: string, id: string): boolean {

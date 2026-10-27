@@ -279,7 +279,8 @@ describe("the register reset response", () => {
       ["rejected", rejected],
       ["already credited", alreadyCredited],
       ["issued offline", issuedOffline],
-    ])("holds the voided sales' %s credit notes", (_state, creditNote) => {
+      ["to be regularized", { ...rejected, state: "REGULARIZATION_REQUIRED" }],
+    ])("holds the %s credit notes", (_state, creditNote) => {
       const body = respondingWith(creditNote);
 
       expect(registerResetResponseSchema.parse(body)).toEqual(body);

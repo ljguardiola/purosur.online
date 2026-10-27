@@ -100,7 +100,7 @@ import type {
   CashMovementInput,
   CompleteReturnInput,
   DeferredSaleReading,
-  MercadoPagoMethod,
+  MercadoPagoChargeKind,
   SaleForReturnReading,
   SalesHistoryQuery,
   SerialDevicesToRegister,
@@ -213,7 +213,7 @@ export interface RouterContext {
   paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge: (
     saleId: string,
-    method: MercadoPagoMethod,
+    charge: MercadoPagoChargeKind,
     amount: number,
   ) => Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge: (
@@ -289,9 +289,10 @@ export interface RouterContext {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
-  printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
+  printCreditNote: (saleId: string, creditNoteId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote: (
     saleId: string,
+    creditNoteId: string,
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;

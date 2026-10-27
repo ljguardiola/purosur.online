@@ -34,10 +34,32 @@ describe("mercadoPagoOrderRequestSchema", () => {
     expect(mercadoPagoOrderRequestSchema.safeParse({ ...request, amount }).success).toBe(false);
   });
 
-  it("accepts an order for the integrated terminal", () => {
-    const onTheTerminal = { ...request, provider: "MERCADOPAGO_POINT" };
+  it.each(["DEBIT", "CREDIT"])(
+    "accepts an order for the integrated terminal charging a %s card",
+    (card_type) => {
+      const onTheTerminal = { ...request, provider: "MERCADOPAGO_POINT", card_type };
 
-    expect(mercadoPagoOrderRequestSchema.parse(onTheTerminal)).toEqual(onTheTerminal);
+      expect(mercadoPagoOrderRequestSchema.parse(onTheTerminal)).toEqual(onTheTerminal);
+    },
+  );
+
+  it.each([undefined, null, "QR", "debit", "CARD"])(
+    "refuses an order for the integrated terminal with the card type %s",
+    (card_type) => {
+      expect(
+        mercadoPagoOrderRequestSchema.safeParse({
+          ...request,
+          provider: "MERCADOPAGO_POINT",
+          card_type,
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it("takes no card type for a QR order", () => {
+    expect(mercadoPagoOrderRequestSchema.parse({ ...request, card_type: "DEBIT" })).toEqual(
+      request,
+    );
   });
 
   it.each(["NONE", "MERCADOPAGO", "point", 1])("refuses the provider %s", (provider) => {
@@ -58,6 +80,19 @@ describe("mercadoPagoOrderRequestSchema", () => {
       mercadoPagoOrderRequestSchema.safeParse({ ...request, payment_transaction_id: "x" }).success,
     ).toBe(false);
   });
+});
+
+describe("mercadoPagoCancellationRequestSchema", () => {
+  it.each(["MERCADOPAGO_QR", "MERCADOPAGO_POINT"])(
+    "accepts the cancellation of a %s payment without any card type",
+    (provider) => {
+      const cancellation = { sale_id: SALE_ID, provider, amount: 2500 };
+
+      expect(
+        mercadoPagoCancellationRequestSchema.parse({ ...cancellation, card_type: "DEBIT" }),
+      ).toEqual(cancellation);
+    },
+  );
 });
 
 describe("mercadoPagoPaymentSchema", () => {

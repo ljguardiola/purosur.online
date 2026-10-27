@@ -7,12 +7,16 @@ import {
   canPerformStockCounts,
   canRecordInitialInventory,
   canSeeExpiringLots,
+  canSeeReports,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
+import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
+import { currentStockReportFilters } from "./current-stock-report-filters";
+import { expiringLotsReportFilters } from "./expiring-lots-report-filters";
 
 const periodFilter = stockPeriodSchema.default(stockPeriodSchema.parse(undefined));
 
@@ -85,6 +89,24 @@ export const stockBalancesRoute = createRoute({
   validateSearch: stockBalancesFilters,
   search: { middlewares: [stripSearchParams(stockBalancesFilters.parse({}))] },
   component: lazyScreen(() => import("./stock-balances-page"), "StockBalancesPage"),
+});
+
+export const currentStockReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/current-stock",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: currentStockReportFilters,
+  search: { middlewares: [stripSearchParams(currentStockReportFilters.parse({}))] },
+  component: lazyScreen(() => import("./current-stock-report-page"), "CurrentStockReportPage"),
+});
+
+export const expiringLotsReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/expiring-lots",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: expiringLotsReportFilters,
+  search: { middlewares: [stripSearchParams(expiringLotsReportFilters.parse({}))] },
+  component: lazyScreen(() => import("./expiring-lots-report-page"), "ExpiringLotsReportPage"),
 });
 
 export const stockCountsRoute = createRoute({

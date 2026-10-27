@@ -3,6 +3,7 @@ import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { fetchCurrentZoneRules } from "../platform/zone-rules-api";
 import {
   fetchBuyerIdentificationThresholds,
   recordBuyerIdentificationThreshold,
@@ -25,6 +26,7 @@ export const defaultFiscalConfigurationScreenServices: FiscalConfigurationScreen
   fetchBuyerIdentificationThresholds,
   recordBuyerIdentificationThreshold,
   fetchClockCorrections,
+  fetchCurrentZoneRules,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,

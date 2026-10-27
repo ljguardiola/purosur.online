@@ -1,4 +1,4 @@
-import type { FiscalEmissionMode } from "@purosur/domain";
+import type { FiscalEmissionMode, ZoneRulesSource } from "@purosur/domain";
 import {
   type FiscalEmissionModeReads,
   readFiscalEmissionMode,
@@ -22,6 +22,14 @@ function sqliteFiscalEmissionModeReads(database: LocalDatabase): FiscalEmissionM
   };
 }
 
-export function readFiscalEmissionModeIn(database: LocalDatabase, now: Date): FiscalEmissionMode {
-  return readFiscalEmissionMode(sqliteFiscalEmissionModeReads(database), { now: () => now });
+export function readFiscalEmissionModeIn(
+  database: LocalDatabase,
+  now: Date,
+  zoneRules: ZoneRulesSource,
+): FiscalEmissionMode {
+  return readFiscalEmissionMode(
+    sqliteFiscalEmissionModeReads(database),
+    { now: () => now },
+    zoneRules,
+  );
 }

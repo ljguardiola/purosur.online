@@ -14,17 +14,21 @@ import {
 } from "./test-support/charge-screen";
 
 const NEXT_ASK_TIMEOUT_MS = 5_000;
+const DEBIT_CHARGE = { method: "POINT", cardType: "DEBIT" } as const;
 
-describe("ChargeScreen · Point integrada", () => {
+describe("ChargeScreen · Point", () => {
   it("offers the terminal after cash and before the QR when the core answers it is available", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeEnabled();
-    await expect
-      .element(screen.getByText("Tarjeta o QR en la terminal · requiere internet"))
-      .toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Crédito" })).toBeEnabled();
+    expect(screen.getByText("Tarjeta en la terminal · requiere internet").elements()).toHaveLength(
+      2,
+    );
     const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
-    expect(methods.textContent).toMatch(/Efectivo.*Point integrada.*QR de Mercado Pago/s);
+    expect(methods.textContent).toMatch(
+      /Efectivo.*Point · Débito.*Point · Crédito.*QR de Mercado Pago/s,
+    );
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -33,10 +37,11 @@ describe("ChargeScreen · Point integrada", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "offline", point: "offline" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Crédito" })).toBeDisabled();
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
-    expect(screen.getByText("No disponible sin conexión").elements()).toHaveLength(2);
-    await userEvent.click(screen.getByText("Point integrada", { exact: true }), { force: true });
+    expect(screen.getByText("No disponible sin conexión").elements()).toHaveLength(3);
+    await userEvent.click(screen.getByText("Point · Crédito", { exact: true }), { force: true });
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
       .not.toBeInTheDocument();
@@ -49,10 +54,11 @@ describe("ChargeScreen · Point integrada", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "not_configured" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeDisabled();
-    await expect.element(screen.getByText("No configurada en esta caja")).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Crédito" })).toBeDisabled();
+    expect(screen.getByText("No configurada en esta caja").elements()).toHaveLength(2);
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
-    await userEvent.click(screen.getByText("Point integrada", { exact: true }), { force: true });
+    await userEvent.click(screen.getByText("Point · Débito", { exact: true }), { force: true });
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
       .not.toBeInTheDocument();
@@ -67,13 +73,14 @@ describe("ChargeScreen · Point integrada", () => {
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
     await expect
-      .element(screen.getByRole("radio", { name: "Point integrada" }))
+      .element(screen.getByRole("radio", { name: "Point · Débito" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("radio", { name: "Point · Crédito" }))
       .not.toBeInTheDocument();
     await expect
       .element(
-        screen
-          .getByRole("status")
-          .getByText("Point integrada: no se ofrece para cobrar menos de $ 15,00"),
+        screen.getByRole("status").getByText("Point: no se ofrece para cobrar menos de $ 15,00"),
       )
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
@@ -130,6 +137,7 @@ describe("ChargeScreen · Point integrada", () => {
         mercado_pago_charge_in_progress: {
           payment_transaction_id: POINT_PAYMENT_ID,
           method: "POINT",
+          card_type: "CREDIT",
           amount: 300_000,
           remaining_seconds: 120,
           wait_seconds: 180,
@@ -142,13 +150,14 @@ describe("ChargeScreen · Point integrada", () => {
       .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
       .toBeVisible();
     await expect.element(screen.getByRole("dialog").getByText("$ 3.000,00")).toBeVisible();
+    await expect.element(screen.getByRole("dialog").getByText("POINT · CRÉDITO")).toBeVisible();
     await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([POINT_PAYMENT_ID]);
   });
 
   describe("following the charge the open sale has in progress", () => {
     it("shows the customer paid until Continuar, then the completed sale, after the sale stops being open", async () => {
       const { screen, currentSale } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), null),
+        currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 120), null),
         followMercadoPagoCharge: async () => ({
           kind: "completed",
           sale_id: "sale-1",
@@ -165,15 +174,17 @@ describe("ChargeScreen · Point integrada", () => {
       await expect
         .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }))
         .toBeVisible();
+      await expect.element(screen.getByRole("dialog").getByText("POINT · DÉBITO")).toBeVisible();
 
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+      await expect.element(screen.getByRole("dialog").getByText("Point · Débito")).toBeVisible();
     });
 
     it("keeps the declined notice after the sale stops showing the charge", async () => {
       const { screen, currentSale } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), SALE_OF_ONE_LINE),
+        currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 120), SALE_OF_ONE_LINE),
         followMercadoPagoCharge: async () => ({ kind: "declined" }),
       });
 
@@ -191,8 +202,8 @@ describe("ChargeScreen · Point integrada", () => {
     it("shows the whole wait as the total while the sale is read again", async () => {
       const { screen, currentSale } = await renderScreen({
         currentSale: readsInTurn(
-          saleWithChargeInProgress("POINT", 120),
-          saleWithChargeInProgress("POINT", 90),
+          saleWithChargeInProgress(DEBIT_CHARGE, 120),
+          saleWithChargeInProgress(DEBIT_CHARGE, 90),
         ),
         followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 90 }),
       });
@@ -205,7 +216,7 @@ describe("ChargeScreen · Point integrada", () => {
 
     it("shows the whole wait as the total of a charge reopened after its wait", async () => {
       const { screen } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 0)),
+        currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 0)),
         followMercadoPagoCharge: async () => ({ kind: "at_terminal_wait_over" }),
       });
 
@@ -217,7 +228,7 @@ describe("ChargeScreen · Point integrada", () => {
 
     it("tells the order expired and goes back to the methods from Elegir otro medio", async () => {
       const { screen, currentSale } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), SALE_OF_ONE_LINE),
+        currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 120), SALE_OF_ONE_LINE),
         followMercadoPagoCharge: async () => ({ kind: "expired" }),
       });
 
@@ -271,8 +282,42 @@ describe("ChargeScreen · Point integrada", () => {
     await expect
       .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
       .toBeVisible();
-    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith("sale-1", "POINT", 476_000);
+    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(
+      "sale-1",
+      { method: "POINT", cardType: "DEBIT" },
+      476_000,
+    );
   });
+
+  it.each([
+    ["DEBIT", "Point · Débito"],
+    ["CREDIT", "Point · Crédito"],
+  ] as const)(
+    "sends a %s card charge and names it on the completed sale",
+    async (cardType, name) => {
+      const { screen, startMercadoPagoCharge } = await renderScreen({
+        startMercadoPagoCharge: async () => POINT_ORDER_SHOWN,
+        followMercadoPagoCharge: async () => ({
+          kind: "completed",
+          sale_id: "sale-1",
+          total: 476_000,
+        }),
+      });
+
+      await choosePoint(screen, cardType);
+      await userEvent.click(screen.getByRole("button", { name: "Enviar a la terminal" }));
+      await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(
+        "sale-1",
+        { method: "POINT", cardType },
+        476_000,
+      );
+      await expect
+        .element(screen.getByRole("dialog").getByText(name, { exact: true }))
+        .toBeVisible();
+    },
+  );
 
   describe("waiting on the terminal", () => {
     async function waitOnTerminal(overrides: Parameters<typeof renderScreen>[0] = {}) {
@@ -376,7 +421,7 @@ describe("ChargeScreen · Point integrada", () => {
 
       await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
       await expect
-        .element(screen.getByRole("dialog").getByText("Point integrada", { exact: true }))
+        .element(screen.getByRole("dialog").getByText("Point · Débito", { exact: true }))
         .toBeVisible();
       await expect.poll(() => receiptPrintStatus.mock.calls).toEqual([["sale-1"]]);
     });

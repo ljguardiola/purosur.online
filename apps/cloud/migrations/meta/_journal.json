@@ -946,6 +946,27 @@
       "when": 1793072773343,
       "tag": "0141_sale_returns",
       "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1793100519133,
+      "tag": "0142_point_card_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1793119491292,
+      "tag": "0143_zone_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1793127730198,
+      "tag": "0144_return_credit_notes",
+      "breakpoints": true
     }
   ]
 }

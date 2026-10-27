@@ -165,8 +165,9 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
       if (copy.kind === "original") {
         tx.recordPrintAttempt(key, at);
       } else {
-        tx.recordReprint({
-          ...key,
+        tx.recordReprint(key, {
+          saleId: key.saleId,
+          document: key.document,
           orderNumber: copy.orderNumber,
           requestedBy: grant.actorId,
           authorizedBy: grant.authorizedBy ?? null,
@@ -225,7 +226,7 @@ function storedReceiptOf(
   }
   const rendered =
     key.document === "credit_note"
-      ? template.renderCreditNote(tx.creditNoteContent(key.saleId))
+      ? template.renderCreditNote(tx.creditNoteContent(key.creditNoteId))
       : template.render(receiptContent(tx.receiptSource(key.saleId)));
   tx.recordStoredReceipt(key, rendered);
   return rendered;
@@ -233,20 +234,22 @@ function storedReceiptOf(
 
 function printStateEvent(
   eventId: string,
-  { document, saleId }: PrintedDocumentKey,
+  key: PrintedDocumentKey,
   { actorId }: ReceiptPrintGrant,
   printAttemptedAt: Date,
   printedAt: Date,
 ): OutboxEventDraft {
+  const { document, saleId } = key;
   return {
     event_id: eventId,
     aggregate_type: "Sale",
     aggregate_id: saleId,
     event_type: "sale_print_state_changed",
-    schema_version: 2,
+    schema_version: 3,
     payload: {
       sale_id: saleId,
       document,
+      ...(key.document === "credit_note" ? { credit_note_id: key.creditNoteId } : {}),
       print_attempted_at: printAttemptedAt.toISOString(),
       printed_at: printedAt.toISOString(),
     },

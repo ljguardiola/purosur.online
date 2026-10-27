@@ -27,7 +27,7 @@ import type {
   CompleteReturnInput,
   CoreClient,
   DeferredSaleReading,
-  MercadoPagoMethod,
+  MercadoPagoChargeKind,
   SaleForReturnReading,
   SalesHistoryQuery,
   SerialDevicesToRegister,
@@ -302,8 +302,12 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  async function startMercadoPagoCharge(saleId: string, method: MercadoPagoMethod, amount: number) {
-    const outcome = await core.startMercadoPagoCharge(saleId, method, amount);
+  async function startMercadoPagoCharge(
+    saleId: string,
+    charge: MercadoPagoChargeKind,
+    amount: number,
+  ) {
+    const outcome = await core.startMercadoPagoCharge(saleId, charge, amount);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
@@ -439,9 +443,14 @@ function Register({ core }: { core: CoreClient }) {
       reason: string,
       authorization: Authorization | undefined,
     ) => core.reprintDeferredSaleInvoice(saleId, reason, authorization),
-    printCreditNote: (saleId: string) => core.printCreditNote(saleId),
-    reprintCreditNote: (saleId: string, reason: string, authorization: Authorization | undefined) =>
-      core.reprintCreditNote(saleId, reason, authorization),
+    printCreditNote: (saleId: string, creditNoteId: string) =>
+      core.printCreditNote(saleId, creditNoteId),
+    reprintCreditNote: (
+      saleId: string,
+      creditNoteId: string,
+      reason: string,
+      authorization: Authorization | undefined,
+    ) => core.reprintCreditNote(saleId, creditNoteId, reason, authorization),
     convertPaidOrderIntoRefund: (paymentTransactionId: string) =>
       core.convertPaidOrderIntoRefund(paymentTransactionId),
     reprintSaleReceipt: (

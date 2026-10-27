@@ -16,6 +16,7 @@ import {
   mayBeMovementQuantity,
   mayBeOverriddenUnitPrice,
   OFFLINE_AUTHORIZATION_CAUSES,
+  POINT_CARD_TYPES,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   PRINTED_DOCUMENTS,
   RETURN_DISPOSITIONS,
@@ -25,7 +26,12 @@ import {
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
-import { pointOfSaleNumberSchema, recordIdSchema, voidCreditNoteSchema } from "../shared/index.js";
+import {
+  pointOfSaleNumberSchema,
+  recordIdSchema,
+  returnCreditNoteSchema,
+  voidCreditNoteSchema,
+} from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -259,6 +265,22 @@ const saleCompletedV8Schema = saleCompletedV7Schema.extend({
   lines: z.array(discountedSaleLineSchema),
 });
 
+const mercadoPagoPointPaymentWithCardTypeSchema = mercadoPagoPointPaymentSchema.extend({
+  card_type: z.enum(POINT_CARD_TYPES),
+});
+
+const paymentWithPointCardTypeSchema = z.discriminatedUnion("method", [
+  cashPaymentSchema,
+  transferPaymentSchema,
+  mercadoPagoQrPaymentSchema,
+  mercadoPagoPointPaymentWithCardTypeSchema,
+  standaloneTerminalPaymentSchema,
+]);
+
+const saleCompletedV9Schema = saleCompletedV8Schema.extend({
+  payments: z.array(paymentWithPointCardTypeSchema).min(1),
+});
+
 const printedDocumentSchema = z.enum(PRINTED_DOCUMENTS);
 
 const salePrintStateChangedV1Schema = z.object({
@@ -270,6 +292,18 @@ const salePrintStateChangedV1Schema = z.object({
 const salePrintStateChangedV2Schema = salePrintStateChangedV1Schema.extend({
   document: printedDocumentSchema,
 });
+
+const salePrintStateChangedV3Schema = z.discriminatedUnion("document", [
+  z.strictObject({
+    ...salePrintStateChangedV1Schema.shape,
+    document: z.enum(PRINTED_DOCUMENTS.filter((document) => document !== "credit_note")),
+  }),
+  z.strictObject({
+    ...salePrintStateChangedV1Schema.shape,
+    document: z.literal("credit_note"),
+    credit_note_id: text,
+  }),
+]);
 
 const reprintRecordedFields = {
   sale_id: text,
@@ -406,6 +440,10 @@ const saleCancelledV7Schema = saleCancelledV6Schema.extend({
   refunds: z.array(saleRefundWithMercadoPagoSchema).min(1),
 });
 
+const saleCancelledV8Schema = saleCancelledV7Schema.extend({
+  payments: z.array(paymentWithPointCardTypeSchema).min(1),
+});
+
 const returnedStockMovementSchema = z.object({
   id: text,
   sale_line_id: text,
@@ -431,6 +469,10 @@ const saleVoidedV2Schema = saleVoidedV1Schema.extend({
 
 const saleVoidedV3Schema = saleVoidedV2Schema.extend({
   credit_note: voidCreditNoteSchema.nullable(),
+});
+
+const saleVoidedV4Schema = saleVoidedV3Schema.extend({
+  payments: z.array(paymentWithPointCardTypeSchema).min(1),
 });
 
 const saleReturnedV1Schema = z.object({
@@ -485,6 +527,10 @@ const saleReturnedV1Schema = z.object({
       occurred_at: instant,
     }),
   ),
+});
+
+const saleReturnedV2Schema = saleReturnedV1Schema.extend({
+  credit_note: returnCreditNoteSchema.nullable(),
 });
 
 const cashSessionOpenedSchema = z.object({
@@ -645,8 +691,10 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@6": saleCompletedV6Schema,
   "sale_completed@7": saleCompletedV7Schema,
   "sale_completed@8": saleCompletedV8Schema,
+  "sale_completed@9": saleCompletedV9Schema,
   "sale_print_state_changed@1": salePrintStateChangedV1Schema,
   "sale_print_state_changed@2": salePrintStateChangedV2Schema,
+  "sale_print_state_changed@3": salePrintStateChangedV3Schema,
   "reprint_recorded@1": reprintRecordedV1Schema,
   "reprint_recorded@2": reprintRecordedV2Schema,
   "sale_cancelled@1": saleCancelledV1Schema,
@@ -656,10 +704,13 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@5": saleCancelledV5Schema,
   "sale_cancelled@6": saleCancelledV6Schema,
   "sale_cancelled@7": saleCancelledV7Schema,
+  "sale_cancelled@8": saleCancelledV8Schema,
   "sale_voided@1": saleVoidedV1Schema,
   "sale_voided@2": saleVoidedV2Schema,
   "sale_voided@3": saleVoidedV3Schema,
+  "sale_voided@4": saleVoidedV4Schema,
   "sale_returned@1": saleReturnedV1Schema,
+  "sale_returned@2": saleReturnedV2Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

@@ -1,4 +1,5 @@
 import type { StartMercadoPagoChargeOutcome } from "@purosur/contracts";
+import type { PointCardType } from "@purosur/domain";
 import {
   Button,
   fieldErrorMessage,
@@ -12,6 +13,7 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, CreditCard, Info, Send, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { pointCardName } from "../platform/payment-method-names";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
 import {
   mercadoPagoChargeRequestFrom,
@@ -35,6 +37,7 @@ export type PointChargeModalProps = {
   total: number;
   paid: number;
   pending: number;
+  cardType: PointCardType;
   minimum: number;
   start: (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
   onChooseAnotherMethod: () => void;
@@ -47,6 +50,7 @@ export function PointChargeModal({
   total,
   paid,
   pending,
+  cardType,
   minimum,
   start,
   onChooseAnotherMethod,
@@ -123,7 +127,7 @@ export function PointChargeModal({
       width="standard"
       tone="info"
       icon={<CreditCard />}
-      context="POINT INTEGRADA"
+      context={pointCardName(cardType).toUpperCase()}
       contextTone="info"
       title="¿Cuánto se cobra con la Point?"
       closable={!submitting}

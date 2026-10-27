@@ -37,6 +37,7 @@ export { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "./pin-hash-scheme
 export { plannedRefundSchema } from "./planned-refund.js";
 export { pointOfSaleNumberSchema } from "./point-of-sale-number.js";
 export { pointTerminalIdSchema } from "./point-terminal-id.js";
+export { barcodeListSchema } from "./product-fields.js";
 export { pushedEventSchema } from "./pushed-event.js";
 export { qrExternalPosIdSchema } from "./qr-external-pos-id.js";
 export { recordIdSchema } from "./record-id.js";
@@ -45,6 +46,7 @@ export { reportQuerySchema } from "./report-query.js";
 export { requestIdSchema } from "./request-id.js";
 export { requiredTextSchema } from "./required-text.js";
 export { restorationInProgressOutcomeSchema } from "./restoration-in-progress.js";
+export { returnCreditNoteSchema } from "./return-credit-note.js";
 export { saleCancelRefusalSchema } from "./sale-cancel-refusal.js";
 export {
   noThresholdRefusalSchema,
@@ -59,3 +61,4 @@ export {
   authorizedVoidCreditNoteAnswerSchema,
   rejectedVoidCreditNoteAnswerSchema,
 } from "./void-credit-note-answer.js";
+export { zoneRulesTransitionsSchema } from "./zone-rules-transitions.js";

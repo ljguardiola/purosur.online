@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 import type { OfflineAuthorizationCodeHoldingReader } from "./offline-authorization-code-holding-reader.js";
 
@@ -11,4 +11,5 @@ export interface MissingOfflineAuthorizationCodeDetectionPorts {
   holdings: OfflineAuthorizationCodeHoldingReader;
   alerts: MissingOfflineAuthorizationCodeAlerts;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }

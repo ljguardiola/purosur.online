@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { ARGENTINA_ZONE_RULES } from "../platform/test-support/zone-rules";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -38,6 +39,7 @@ function createServices(counts = [almondsCount, honeyCount]): StockCountsScreenS
       .fn()
       .mockResolvedValue({ kind: "ok", value: { ...tea, balance: 17_000 } }),
     registerCount: vi.fn(),
+    fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
   };
 }
 

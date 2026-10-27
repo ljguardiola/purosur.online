@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { regularizeUninvoiceableDeferredSales } from "./regularize-uninvoiceable-deferred-sales.js";
 import type { DeferredSaleCandidate } from "./regularize-uninvoiceable-deferred-sales-ports.js";
 import { FakeDeferredSaleExpiryStore } from "./test-support/fake-deferred-sale-expiry.js";
 import { FixedClock } from "./test-support/fixed-clock.js";
 
 function at(day: string, time = "12:00"): Date {
-  return new Date(argentinaInstant(day, time));
+  return new Date(argentinaInstant(day, time, FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function pendingSale(
@@ -29,7 +30,11 @@ function pendingSale(
 }
 
 function regularize(store: FakeDeferredSaleExpiryStore, now: Date) {
-  return regularizeUninvoiceableDeferredSales({ store, clock: new FixedClock(now) });
+  return regularizeUninvoiceableDeferredSales({
+    zoneRules: new FakeZoneRulesSource(),
+    store,
+    clock: new FixedClock(now),
+  });
 }
 
 describe("regularizeUninvoiceableDeferredSales", () => {

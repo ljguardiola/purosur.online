@@ -1,6 +1,6 @@
 import { CASH_MOVEMENT_KINDS, type CashMovementKind } from "@purosur/domain";
+import { readCreditNoteOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleFiscalDocument } from "../fiscal/sqlite-sale-fiscal-document";
-import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import type { LocalDatabase } from "../platform/local-database";
 import type {
   BackedDocument,

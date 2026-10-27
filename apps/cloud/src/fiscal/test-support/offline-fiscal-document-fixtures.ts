@@ -55,6 +55,7 @@ export async function insertOfflineCreditNote<TQueryResult extends PgQueryResult
     number,
     corrects,
     saleId = randomUUID(),
+    total = 10_000,
   }: {
     registerId: string;
     pointOfSale: number;
@@ -62,6 +63,7 @@ export async function insertOfflineCreditNote<TQueryResult extends PgQueryResult
     number: number;
     corrects: { voucherType: number; pointOfSale: number; number: number };
     saleId?: string;
+    total?: number;
   },
 ): Promise<{ id: string; saleId: string }> {
   const id = randomUUID();
@@ -81,8 +83,8 @@ export async function insertOfflineCreditNote<TQueryResult extends PgQueryResult
     buyerDocumentType: 99,
     buyerDocumentNumber: 0,
     buyerTaxStatusCode: 5,
-    total: 10_000,
-    netAmount: 10_000,
+    total,
+    netAmount: total,
     cause: "no_connectivity",
     recordedAt: new Date(`${fortnight.start}T13:00:00.000Z`),
     creditNoteId: randomUUID(),

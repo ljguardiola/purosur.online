@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -170,6 +171,7 @@ describe("the fortnight report store on a real Postgres", () => {
       const connection = postgres(integrationDb.databaseUrl, { max: 1 });
       try {
         await new DrizzleFortnightReportStore(drizzle(connection), {
+          zoneRules: fixedZoneRulesSource(),
           enqueueCreditNote: enqueueCreditNoteJob,
           now: () => AT,
         }).holdReport(FIRST_KEY, (report) => report.creditCorrectedDocument(creditNote));

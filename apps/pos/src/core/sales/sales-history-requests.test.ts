@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { uniqueShortCode } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -31,6 +32,7 @@ function deps(): SalesHistoryRequestDeps {
       hashPin: async () => "hash-of-a-pin",
       now: () => new Date("2026-10-08T12:00:00.000Z"),
     }),
+    zoneRules: fixedZoneRulesSource(),
   };
 }
 
@@ -136,6 +138,21 @@ describe("the sales history", () => {
     signedInPerson.set("cashier");
 
     expect(await salesHistoryFor(deps(), ASK)).toEqual({ kind: "lacks_permission" });
+  });
+
+  it("writes when each sale happened on the clock of the zone rules it is given", async () => {
+    addSale({ id: "only", occurredAt: "2026-10-08T15:00:00.000Z", operationNumber: 1 });
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    expect(
+      await salesHistoryFor({ ...deps(), zoneRules: { zoneRules: () => rules } }, ASK),
+    ).toMatchObject({
+      kind: "found",
+      rows: [{ occurred_at: "2026-10-08T15:00:00.000+00:00" }],
+    });
   });
 
   it("answers the page of rows, the total and the page size, most recent first", async () => {
@@ -315,10 +332,12 @@ describe("the detail of a sale of the history", () => {
         },
         void_authorization_required: true,
         credit_note: null,
+        credit_note_id: null,
         reprint: { kind: "available" },
         next_copy: { kind: "original" },
         credit_note_next_copy: null,
         deferred_invoice_next_copy: null,
+        short_code: null,
       },
     });
   });
@@ -426,7 +445,7 @@ describe("the detail of a sale of the history", () => {
       });
       database
         .prepare(
-          `INSERT INTO sale_void_credit_notes (
+          `INSERT INTO sale_credit_notes (
              id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
              corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
              issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
@@ -512,6 +531,14 @@ describe("the detail of a sale of the history", () => {
       answered_at: "2026-10-08T10:00:05.000Z",
     };
 
+    it("names the credit note the sale holds", async () => {
+      addCreditNote({});
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_note_id).toBe("note-1");
+    });
+
     it("answers its original as the next printing of an authorized credit note never printed", async () => {
       addCreditNote(AUTHORIZED);
 
@@ -525,7 +552,7 @@ describe("the detail of a sale of the history", () => {
     it("answers the numbered duplicate as its next printing once it was attempted, apart from the receipt's", async () => {
       addCreditNote(AUTHORIZED);
       database.exec(
-        `INSERT INTO credit_note_prints (sale_id, print_attempted_at) VALUES ('gone', '2026-10-08T10:01:00.000Z');
+        `INSERT INTO credit_note_prints (credit_note_id, print_attempted_at) VALUES ('note-1', '2026-10-08T10:01:00.000Z');
          INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
          VALUES ('gone', 'credit_note', 1, 'clerk', 'retry', '2026-10-08T10:02:00.000Z')`,
       );
@@ -562,6 +589,15 @@ describe("the detail of a sale of the history", () => {
         );
       }
     }
+
+    it("answers the short code recorded for the deferred sale", async () => {
+      addDeferredSale({ satisfied: false });
+      database.exec("UPDATE deferred_sales SET short_code = '7KQ4M2P9' WHERE sale_id = 'late'");
+
+      const answer = await saleHistoryDetailFor(deps(), "late");
+
+      expect(answer.kind === "found" && answer.detail.short_code).toBe("7KQ4M2P9");
+    });
 
     it("answers no next printing while the sale is still waiting for its invoice", async () => {
       addDeferredSale({ satisfied: false });

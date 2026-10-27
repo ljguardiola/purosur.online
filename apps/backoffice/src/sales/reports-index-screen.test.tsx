@@ -4,11 +4,11 @@ import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { ReportsIndexScreen } from "./reports-index-screen";
 
-async function renderScreen() {
+async function renderScreen({ returnsShown = false }: { returnsShown?: boolean } = {}) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <ReportsIndexScreen />
+        <ReportsIndexScreen returnsShown={returnsShown} />
       </main>
     </FieldSizeProvider>,
   );
@@ -88,6 +88,22 @@ test("groups the cash reports in a card titled Caja", async () => {
   expect(cash.getByRole("link").elements()).toHaveLength(2);
 });
 
+test("lists the returns report as a link to it in the Caja card when it is shown", async () => {
+  const screen = await renderScreen({ returnsShown: true });
+
+  const cash = screen.getByRole("region", { name: "Caja" });
+  expect(cash.getByRole("link").elements()).toHaveLength(3);
+  await expect
+    .element(cash.getByRole("link", { name: "Devoluciones" }))
+    .toHaveAttribute("href", "/reports/returns");
+});
+
+test("leaves the returns report out when it is not shown", async () => {
+  const screen = await renderScreen();
+
+  expect(screen.getByRole("link", { name: "Devoluciones" }).query()).toBeNull();
+});
+
 test("lists the payments confirmed by hand report as a link to it", async () => {
   const screen = await renderScreen();
 
@@ -102,4 +118,28 @@ test("lists the cash session closes report as a link to it", async () => {
   await expect
     .element(screen.getByRole("link", { name: "Cierres de sesión" }))
     .toHaveAttribute("href", "/reports/cash-session-closes");
+});
+
+test("groups the stock reports in a card titled Stock", async () => {
+  const screen = await renderScreen();
+
+  const stock = screen.getByRole("region", { name: "Stock" });
+  await expect.element(stock).toBeVisible();
+  expect(stock.getByRole("link").elements()).toHaveLength(2);
+});
+
+test("lists the valued current stock report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Stock actual valorizado" }))
+    .toHaveAttribute("href", "/reports/current-stock");
+});
+
+test("lists the lots approaching their expiry report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Lotes por vencer" }))
+    .toHaveAttribute("href", "/reports/expiring-lots");
 });

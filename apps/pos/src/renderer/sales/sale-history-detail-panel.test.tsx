@@ -37,8 +37,10 @@ const FISCAL_SALE: SaleDetail = {
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_note: null,
+  credit_note_id: null,
   credit_note_next_copy: null,
   deferred_invoice_next_copy: null,
+  short_code: null,
 };
 
 async function renderPanel(
@@ -112,6 +114,22 @@ describe("SaleHistoryDetailPanel", () => {
     await expect.element(screen.getByText("$ 20.000,00")).toBeVisible();
     expect(read).toHaveBeenCalledWith("sale-1");
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows the short code of a deferred sale grouped in two blocks", async () => {
+    const { screen } = await renderPanel({
+      read: async () => ({ kind: "found", detail: { ...FISCAL_SALE, short_code: "7KQ4M2P9" } }),
+    });
+
+    await expect.element(screen.getByText("Código de consulta", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("7KQ4-M2P9", { exact: true })).toBeVisible();
+  });
+
+  it("shows no short code row for a sale without a deferred record", async () => {
+    const { screen } = await renderPanel();
+
+    await expect.element(screen.getByText("Comprobante", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Código de consulta")).not.toBeInTheDocument();
   });
 
   it("names a payment by Mercado Pago QR with its amount", async () => {

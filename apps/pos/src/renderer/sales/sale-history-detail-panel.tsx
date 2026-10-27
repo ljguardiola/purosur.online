@@ -7,6 +7,7 @@ import {
   formatCents,
   formatClockTime,
   formatOperationNumber,
+  formatShortCode,
   LoadFailure,
   LoadingPlaceholder,
   plural,
@@ -40,6 +41,9 @@ function detailRows(sale: SaleDetail): SummaryRowProps[] {
             value: comprobante.detail,
           },
         ]),
+    ...(sale.short_code === null
+      ? []
+      : [{ label: "Código de consulta", value: formatShortCode(sale.short_code) }]),
     ...(sale.state === "voided" ? [{ label: "Estado", value: "Anulada" }] : []),
     ...(sale.credit_note === null ? [] : [creditNoteRow(sale.credit_note)]),
     ...(sale.operation_number === null

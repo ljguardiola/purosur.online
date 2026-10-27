@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
   SNAPSHOT_RECENT_GENERATIONS,
@@ -15,7 +16,7 @@ const NOW = new Date("2026-10-14T15:30:00.000Z");
 function setup() {
   const reader = new FakeSnapshotBackupsReader();
   reader.seedRegister({ id: "register-1", name: "Caja 1" });
-  return { reader, clock: new FixedClock(NOW) };
+  return { reader, clock: new FixedClock(NOW), zoneRules: new FakeZoneRulesSource() };
 }
 
 function minutesBefore(minutes: number): Date {

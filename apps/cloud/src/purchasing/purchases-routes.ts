@@ -118,7 +118,11 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const { now } = options;
   registerRouteAccess(app);
-  const ports = { store: new DrizzlePurchasingStore(options.db, now), clock: { now } };
+  const ports = {
+    store: new DrizzlePurchasingStore(options.db, now),
+    clock: { now },
+    zoneRules: options.zoneRules,
+  };
   const reader = new DrizzlePurchasingListReader(options.db);
   const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
@@ -157,7 +161,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
 
   app.get("/purchase-choices", readGuard, async (_request, reply) => {
     const [choices, products] = await Promise.all([
-      listPurchaseChoices(reader, ports.clock),
+      listPurchaseChoices(reader, ports.clock, ports.zoneRules),
       catalog.products(PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR),
     ]);
     await reply.code(200).send(

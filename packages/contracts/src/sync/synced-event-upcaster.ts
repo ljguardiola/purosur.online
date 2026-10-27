@@ -1,12 +1,12 @@
 import type {
   ClockPreviousReadingSource,
+  CreditNoteToIssue,
   DiscountBenefit,
   FacturaC,
   ManualAdjustment,
   OfflineFiscalDocumentIssuedFact,
   PrintedDocument,
   SaleDiscount,
-  SaleVoidCreditNote,
   UnclearDeferralDocument,
 } from "@purosur/domain";
 import type {
@@ -30,8 +30,12 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@5"
   | "sale_completed@6"
   | "sale_completed@7"
-  | "sale_completed@8"];
-type SalePayment = SyncedEventPayloads["sale_completed@1" | "sale_completed@8"]["payments"][number];
+  | "sale_completed@8"
+  | "sale_completed@9"];
+type SalePayment = SyncedEventPayloads[
+  | "sale_completed@1"
+  | "sale_completed@8"
+  | "sale_completed@9"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@1"
   | "sale_cancelled@2"
@@ -39,9 +43,14 @@ type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@4"
   | "sale_cancelled@5"
   | "sale_cancelled@6"
-  | "sale_cancelled@7"];
+  | "sale_cancelled@7"
+  | "sale_cancelled@8"];
 
-type VoidedSalePayload = SyncedEventPayloads["sale_voided@1" | "sale_voided@2" | "sale_voided@3"];
+type VoidedSalePayload = SyncedEventPayloads[
+  | "sale_voided@1"
+  | "sale_voided@2"
+  | "sale_voided@3"
+  | "sale_voided@4"];
 
 type ManualAdjustmentPayload = NonNullable<
   SyncedEventPayloads["sale_completed@7"]["lines"][number]["manual_adjustment"]
@@ -121,6 +130,7 @@ function salePayments(payments: readonly SalePayment[]) {
     amount: payment.amount,
     tendered: payment.tendered,
     state: payment.state,
+    cardType: "card_type" in payment ? payment.card_type : null,
     occurredAt: new Date(payment.occurred_at),
     authorizedBy: payment.authorized_by ?? null,
     confirmedAt: payment.confirmed_at ? new Date(payment.confirmed_at) : null,
@@ -175,7 +185,7 @@ function clockCorrection(
   };
 }
 
-function voidedSaleCreditNote(payload: VoidedSalePayload): SaleVoidCreditNote | null {
+function voidedSaleCreditNote(payload: VoidedSalePayload): CreditNoteToIssue | null {
   const creditNote = "credit_note" in payload ? payload.credit_note : null;
   return creditNote === null
     ? null
@@ -189,6 +199,7 @@ function voidedSaleCreditNote(payload: VoidedSalePayload): SaleVoidCreditNote | 
           pointOfSale: creditNote.corrects.point_of_sale,
           number: creditNote.corrects.number,
         },
+        origin: { kind: "sale_void" },
       };
 }
 
@@ -217,9 +228,41 @@ function voidedSale(payload: VoidedSalePayload): SyncedFact {
   };
 }
 
-function returnedSale(payload: SyncedEventPayloads["sale_returned@1"]): SyncedFact {
+type ReturnedSalePayload = SyncedEventPayloads["sale_returned@1" | "sale_returned@2"];
+
+function returnedSaleCreditNote(payload: ReturnedSalePayload): CreditNoteToIssue | null {
+  const creditNote = "credit_note" in payload ? payload.credit_note : null;
+  if (creditNote === null) {
+    return null;
+  }
+  const origin = {
+    kind: "sale_return",
+    returnId: payload.id,
+    issuedOn: creditNote.issued_on,
+  } as const;
+  const asked = {
+    creditNoteId: creditNote.id,
+    saleId: payload.sale_id,
+    total: creditNote.total,
+    origin,
+  };
+  return creditNote.corrects === null
+    ? { ...asked, receiverTaxStatusCode: null, correctedVoucher: null }
+    : {
+        ...asked,
+        receiverTaxStatusCode: creditNote.receiver_tax_status_code,
+        correctedVoucher: {
+          voucherType: creditNote.corrects.voucher_type,
+          pointOfSale: creditNote.corrects.point_of_sale,
+          number: creditNote.corrects.number,
+        },
+      };
+}
+
+function returnedSale(payload: ReturnedSalePayload): SyncedFact {
   return {
     kind: "sale_returned",
+    creditNote: returnedSaleCreditNote(payload),
     saleReturn: {
       id: payload.id,
       saleId: payload.sale_id,
@@ -364,18 +407,26 @@ function deferredSaleRecorded(
   };
 }
 
+type PrintStatePayload = SyncedEventPayloads[
+  | "sale_print_state_changed@1"
+  | "sale_print_state_changed@2"
+  | "sale_print_state_changed@3"];
+
 function printStateChanged(
-  payload: SyncedEventPayloads["sale_print_state_changed@1"],
+  payload: PrintStatePayload,
   document: PrintedDocument,
+  creditNoteId: string | null,
 ): SyncedFact {
+  const printTimes = {
+    printAttemptedAt: new Date(payload.print_attempted_at),
+    printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
+  };
   return {
     kind: "sale_print_state_changed",
-    printState: {
-      saleId: payload.sale_id,
-      document,
-      printAttemptedAt: new Date(payload.print_attempted_at),
-      printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
-    },
+    printState:
+      document === "credit_note"
+        ? { saleId: payload.sale_id, document, creditNoteId, ...printTimes }
+        : { saleId: payload.sale_id, document, ...printTimes },
   };
 }
 
@@ -453,8 +504,22 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
-  "sale_print_state_changed@1": (payload) => printStateChanged(payload, "sale_receipt"),
-  "sale_print_state_changed@2": (payload) => printStateChanged(payload, payload.document),
+  "sale_completed@9": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
+  "sale_print_state_changed@1": (payload) => printStateChanged(payload, "sale_receipt", null),
+  "sale_print_state_changed@2": (payload) => printStateChanged(payload, payload.document, null),
+  "sale_print_state_changed@3": (payload) =>
+    printStateChanged(
+      payload,
+      payload.document,
+      payload.document === "credit_note" ? payload.credit_note_id : null,
+    ),
   "reprint_recorded@1": (payload, event) => reprintRecorded(payload, "sale_receipt", event),
   "reprint_recorded@2": (payload, event) => reprintRecorded(payload, payload.document, event),
   "sale_cancelled@1": cancelledSale,
@@ -464,10 +529,13 @@ const FACT_OF: {
   "sale_cancelled@5": cancelledSale,
   "sale_cancelled@6": cancelledSale,
   "sale_cancelled@7": cancelledSale,
+  "sale_cancelled@8": cancelledSale,
   "sale_voided@1": voidedSale,
   "sale_voided@2": voidedSale,
   "sale_voided@3": voidedSale,
+  "sale_voided@4": voidedSale,
   "sale_returned@1": returnedSale,
+  "sale_returned@2": returnedSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

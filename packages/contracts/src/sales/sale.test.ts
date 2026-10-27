@@ -112,21 +112,44 @@ describe("saleSchema", () => {
     );
   });
 
-  it.each(["QR", "POINT"] as const)(
-    "accepts a sale with a %s charge in progress, named to be followed",
-    (method) => {
-      const mercado_pago_charge_in_progress = {
-        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
-        method,
-        amount: 2000,
-        remaining_seconds: 0,
-        wait_seconds: 180,
-      };
+  const qrChargeInProgress = {
+    payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+    method: "QR",
+    amount: 2000,
+    remaining_seconds: 0,
+    wait_seconds: 180,
+  };
 
+  it.each([
+    ["QR", qrChargeInProgress],
+    ["Point debit", { ...qrChargeInProgress, method: "POINT", card_type: "DEBIT" }],
+    ["Point credit", { ...qrChargeInProgress, method: "POINT", card_type: "CREDIT" }],
+    ["Point unknown card", { ...qrChargeInProgress, method: "POINT", card_type: null }],
+  ])("accepts a sale with a %s charge in progress, named to be followed", (_case, charge) => {
+    expect(
+      saleSchema.parse({ ...sale, mercado_pago_charge_in_progress: charge })
+        .mercado_pago_charge_in_progress,
+    ).toEqual(charge);
+  });
+
+  it("takes no card type for a QR charge in progress", () => {
+    expect(
+      saleSchema.parse({
+        ...sale,
+        mercado_pago_charge_in_progress: { ...qrChargeInProgress, card_type: "DEBIT" },
+      }).mercado_pago_charge_in_progress,
+    ).toEqual(qrChargeInProgress);
+  });
+
+  it.each([undefined, "QR", "debit"])(
+    "rejects a sale with a Point charge in progress with the card type %s",
+    (card_type) => {
       expect(
-        saleSchema.parse({ ...sale, mercado_pago_charge_in_progress })
-          .mercado_pago_charge_in_progress,
-      ).toEqual(mercado_pago_charge_in_progress);
+        saleSchema.safeParse({
+          ...sale,
+          mercado_pago_charge_in_progress: { ...qrChargeInProgress, method: "POINT", card_type },
+        }).success,
+      ).toBe(false);
     },
   );
 
@@ -157,6 +180,7 @@ describe("saleSchema", () => {
       {
         payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
         method: "POINT",
+        card_type: "DEBIT",
         amount: 2000,
         remaining_seconds: 0,
       },
@@ -166,6 +190,7 @@ describe("saleSchema", () => {
       {
         payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
         method: "POINT",
+        card_type: "DEBIT",
         amount: 2000,
         remaining_seconds: 0,
         wait_seconds: 0,
@@ -176,6 +201,7 @@ describe("saleSchema", () => {
       {
         payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
         method: "POINT",
+        card_type: "DEBIT",
         amount: 2000,
         remaining_seconds: 0,
         wait_seconds: -1,

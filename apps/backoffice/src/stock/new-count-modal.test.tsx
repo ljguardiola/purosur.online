@@ -1,3 +1,4 @@
+import { FIXED_ARGENTINA_ZONE_RULES } from "@purosur/domain";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -36,6 +37,10 @@ function createServices(): StockCountsScreenServices {
       value: expectedBalance(tea, 17_000),
     }),
     registerCount: vi.fn(),
+    fetchCurrentZoneRules: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: FIXED_ARGENTINA_ZONE_RULES,
+    }),
   };
 }
 
@@ -232,6 +237,41 @@ test("registers the count at the moment chosen", async () => {
     occurredAt: "2026-09-15T18:32:00-03:00",
   });
   expect(onRegistered).toHaveBeenCalledWith(withoutBalance(tea), result);
+});
+
+test("registers the moment chosen on the offset of the cloud's zone rules", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCurrentZoneRules).mockResolvedValue({
+    kind: "ok",
+    value: { version: "2026a", transitions: [{ from: new Date(0), offsetMinutes: -120 }] },
+  });
+  vi.mocked(services.registerCount).mockResolvedValue({
+    kind: "ok",
+    value: { expected: 17_000, delta: -1000, balance: 16_000, superseded: false },
+  });
+  const rendered = await renderModal(services);
+  await chooseProduct(rendered, "Té verde en hebras 100 g");
+  await userEvent.fill(rendered.dialog.getByRole("textbox", { name: "Hora" }), "18:32");
+  await userEvent.fill(rendered.dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "16");
+
+  await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
+
+  await expect
+    .poll(() => vi.mocked(services.registerCount).mock.calls[0]?.[0])
+    .toEqual({ productId: tea.id, counted: 16_000, occurredAt: "2026-09-15T18:32:00-02:00" });
+});
+
+test("shows a failed load of the zone rules with a retry that loads the form again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCurrentZoneRules)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: FIXED_ARGENTINA_ZONE_RULES });
+  const { dialog } = await renderModalWithoutWaiting(services);
+
+  await expect.element(dialog.getByText("No pudimos abrir las reglas horarias")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(dialog.getByRole("button", { name: /Producto/ })).toBeVisible();
 });
 
 test("registers a count left at its default moment at the exact instant the modal opened", async () => {

@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 
 export interface DeferredSaleDeadlineAlerts {
@@ -9,4 +9,5 @@ export interface DeferredSaleDeadlineAlerts {
 export interface DeferredSaleDeadlineDetectionPorts {
   alerts: DeferredSaleDeadlineAlerts;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }

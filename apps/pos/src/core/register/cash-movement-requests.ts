@@ -6,6 +6,7 @@ import type {
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
 } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   type CashMovementKind,
   cashMovementPermission,
@@ -114,11 +115,14 @@ function authorizationNeeded(
   };
 }
 
-export function currentCashMovements(database: LocalDatabase): ListedCashMovement[] | null {
+export function currentCashMovements(
+  database: LocalDatabase,
+  zoneRules: ZoneRulesSource,
+): ListedCashMovement[] | null {
   return (
     readOpenSessionMovements(database)?.map((movement) => ({
       ...movement,
-      occurred_at: inArgentinaTime(new Date(movement.occurred_at)),
+      occurred_at: inArgentinaTime(new Date(movement.occurred_at), zoneRules.zoneRules()),
     })) ?? null
   );
 }

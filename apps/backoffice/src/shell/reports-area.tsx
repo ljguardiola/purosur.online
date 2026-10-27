@@ -2,15 +2,19 @@ import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   BadgePercent,
   Calculator,
+  CalendarClock,
   ChartColumn,
   HandCoins,
   List,
   Package,
   Receipt,
+  Undo2,
   Users,
   Wallet,
+  Warehouse,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
+import { canSeeReports, canSeeReturnsReport } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const reportsAreaRoute = createRoute({
@@ -20,6 +24,7 @@ export const reportsAreaRoute = createRoute({
 });
 
 function ReportsArea() {
+  const { session } = signedInRoute.useRouteContext();
   const matchRoute = useMatchRoute();
   const salesByDayShown = Boolean(matchRoute({ to: "/reports/sales-by-day" }));
   const salesByPaymentMethodShown = Boolean(matchRoute({ to: "/reports/sales-by-payment-method" }));
@@ -33,7 +38,10 @@ function ReportsArea() {
   const salesByCashierShown = Boolean(matchRoute({ to: "/reports/sales-by-cashier" }));
   const salesByPromotionShown = Boolean(matchRoute({ to: "/reports/sales-by-promotion" }));
   const manualDiscountsShown = Boolean(matchRoute({ to: "/reports/manual-discounts" }));
+  const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
+  const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
+  const returnsShown = Boolean(matchRoute({ to: "/reports/returns" }));
   return (
     <AreaLayout
       area="reports"
@@ -43,95 +51,128 @@ function ReportsArea() {
           <h2 className="text-text-accent text-heading">Reportes</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
-            <li>
-              <SectionLink
-                to="/reports"
-                label="Todos los reportes"
-                icon={<List />}
-                active={Boolean(matchRoute({ to: "/reports" }))}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/sales-by-day"
-                label="Ventas por día o por rango"
-                icon={<ChartColumn />}
-                search={salesByDayShown ? true : {}}
-                active={salesByDayShown}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/sales-by-payment-method"
-                label="Ventas por medio de pago"
-                icon={<Wallet />}
-                search={salesByPaymentMethodShown ? true : {}}
-                active={salesByPaymentMethodShown}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/hand-confirmed-payments"
-                label="Pagos confirmados a mano"
-                icon={<Wallet />}
-                search={handConfirmedPaymentsShown ? true : {}}
-                active={handConfirmedPaymentsShown}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/cash-session-closes"
-                label="Cierres de sesión"
-                icon={<Calculator />}
-                search={cashSessionClosesShown ? true : {}}
-                active={cashSessionClosesShown}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/sales-by-product-and-category"
-                label="Ventas por producto y por categoría"
-                icon={<Package />}
-                search={salesByProductAndCategoryShown ? true : {}}
-                active={salesByProductAndCategoryShown}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/sales-by-cashier"
-                label="Ventas por cajero"
-                icon={<Users />}
-                search={salesByCashierShown ? true : {}}
-                active={salesByCashierShown}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/average-ticket"
-                label="Ticket promedio"
-                icon={<Receipt />}
-                search={averageTicketShown ? true : {}}
-                active={averageTicketShown}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/sales-by-promotion"
-                label="Descuentos por promoción"
-                icon={<BadgePercent />}
-                search={salesByPromotionShown ? true : {}}
-                active={salesByPromotionShown}
-              />
-            </li>
-            <li>
-              <SectionLink
-                to="/reports/manual-discounts"
-                label="Descuentos manuales y sobre el total"
-                icon={<HandCoins />}
-                search={manualDiscountsShown ? true : {}}
-                active={manualDiscountsShown}
-              />
-            </li>
+            {canSeeReports(session) && (
+              <>
+                <li>
+                  <SectionLink
+                    to="/reports"
+                    label="Todos los reportes"
+                    icon={<List />}
+                    active={Boolean(matchRoute({ to: "/reports" }))}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/sales-by-day"
+                    label="Ventas por día o por rango"
+                    icon={<ChartColumn />}
+                    search={salesByDayShown ? true : {}}
+                    active={salesByDayShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/sales-by-payment-method"
+                    label="Ventas por medio de pago"
+                    icon={<Wallet />}
+                    search={salesByPaymentMethodShown ? true : {}}
+                    active={salesByPaymentMethodShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/hand-confirmed-payments"
+                    label="Pagos confirmados a mano"
+                    icon={<Wallet />}
+                    search={handConfirmedPaymentsShown ? true : {}}
+                    active={handConfirmedPaymentsShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/cash-session-closes"
+                    label="Cierres de sesión"
+                    icon={<Calculator />}
+                    search={cashSessionClosesShown ? true : {}}
+                    active={cashSessionClosesShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/sales-by-product-and-category"
+                    label="Ventas por producto y por categoría"
+                    icon={<Package />}
+                    search={salesByProductAndCategoryShown ? true : {}}
+                    active={salesByProductAndCategoryShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/sales-by-cashier"
+                    label="Ventas por cajero"
+                    icon={<Users />}
+                    search={salesByCashierShown ? true : {}}
+                    active={salesByCashierShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/average-ticket"
+                    label="Ticket promedio"
+                    icon={<Receipt />}
+                    search={averageTicketShown ? true : {}}
+                    active={averageTicketShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/current-stock"
+                    label="Stock actual valorizado"
+                    icon={<Warehouse />}
+                    search={currentStockShown ? true : {}}
+                    active={currentStockShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/expiring-lots"
+                    label="Lotes por vencer"
+                    icon={<CalendarClock />}
+                    search={expiringLotsShown ? true : {}}
+                    active={expiringLotsShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/sales-by-promotion"
+                    label="Descuentos por promoción"
+                    icon={<BadgePercent />}
+                    search={salesByPromotionShown ? true : {}}
+                    active={salesByPromotionShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/manual-discounts"
+                    label="Descuentos manuales y sobre el total"
+                    icon={<HandCoins />}
+                    search={manualDiscountsShown ? true : {}}
+                    active={manualDiscountsShown}
+                  />
+                </li>
+              </>
+            )}
+            {canSeeReturnsReport(session) && (
+              <li>
+                <SectionLink
+                  to="/reports/returns"
+                  label="Devoluciones"
+                  icon={<Undo2 />}
+                  search={returnsShown ? true : {}}
+                  active={returnsShown}
+                />
+              </li>
+            )}
           </ul>
         </>
       }

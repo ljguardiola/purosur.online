@@ -127,7 +127,7 @@ function pointCreatedOrderWithoutPaymentDetail(): Record<string, unknown> {
 }
 
 describe("creating an order on the integrated terminal", () => {
-  const POINT_REQUEST = { ...REQUEST, terminalId: POINT_TERMINAL_ID };
+  const POINT_REQUEST = { ...REQUEST, terminalId: POINT_TERMINAL_ID, cardType: "DEBIT" as const };
 
   it("posts the order of the terminal the request names with the idempotency key and the amount in pesos", async () => {
     const { client, fetch } = clientAnswering(answer(201, pointCreatedOrder()));
@@ -147,9 +147,27 @@ describe("creating an order on the integrated terminal", () => {
       external_reference: REQUEST.externalReference,
       expiration_time: "PT5M",
       transactions: { payments: [{ amount: "50.00" }] },
-      config: { point: { terminal_id: POINT_TERMINAL_ID, print_on_terminal: "no_ticket" } },
+      config: {
+        point: { terminal_id: POINT_TERMINAL_ID, print_on_terminal: "no_ticket" },
+        payment_method: { default_type: "debit_card" },
+      },
     });
   });
+
+  it.each([
+    ["DEBIT", "debit_card"],
+    ["CREDIT", "credit_card"],
+  ] as const)(
+    "asks the terminal for a %s card only, with %s as the default type and no preset installments",
+    async (cardType, defaultType) => {
+      const { client, fetch } = clientAnswering(answer(201, pointCreatedOrder()));
+
+      await client.createPointOrder({ ...POINT_REQUEST, cardType });
+
+      const { config } = JSON.parse(sentRequest(fetch).init.body as string);
+      expect(config.payment_method).toEqual({ default_type: defaultType });
+    },
+  );
 
   it.each([
     [1500, "15.00"],

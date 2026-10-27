@@ -1,5 +1,6 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import { aMercadoPagoChargeInProgress, saleBalance } from "../../payments/index.js";
+import type { ZoneRules } from "../../shared/index.js";
 import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
@@ -38,6 +39,7 @@ export function chargeableSale(
   saleId: string,
   completedAt: Date,
   restoration: RegisterRestoration,
+  rules: ZoneRules,
 ): ChargeableSale | SaleRefusal {
   const session = sellingSession(tx, actorId, restoration);
   if (isRefusal(session)) {
@@ -60,6 +62,7 @@ export function chargeableSale(
     payments,
     tx.buyerIdentificationThresholds(),
     completedAt,
+    rules,
   );
   if (refusal) {
     return refusal;
@@ -76,8 +79,9 @@ export function saleOpenToNewPayment(
   saleId: string,
   at: Date,
   restoration: RegisterRestoration,
+  rules: ZoneRules,
 ): ChargeableSale | NewPaymentRefusal {
-  const chargeable = chargeableSale(tx, actorId, saleId, at, restoration);
+  const chargeable = chargeableSale(tx, actorId, saleId, at, restoration, rules);
   if (isSaleRefusal(chargeable)) {
     return chargeable;
   }

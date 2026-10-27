@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { supplierPriceListRows, supplierPriceLists } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { supplierPriceListReadingJobs } from "./supplier-price-list-reading-task.js";
@@ -43,6 +44,7 @@ function jobsAnswering(
   read: () => Promise<Uint8Array | null> = async () => PDF,
 ) {
   return supplierPriceListReadingJobs({
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
     db,
     files: { store: async () => {}, read },

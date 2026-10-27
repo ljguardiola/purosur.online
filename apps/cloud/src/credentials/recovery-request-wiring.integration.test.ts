@@ -17,6 +17,7 @@ import { type BackgroundJobInfrastructure, setUpBackgroundJobs, startServer } fr
 import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -172,11 +173,16 @@ async function startRealServer(
         now: () => new Date(currentTime),
         arcaEndpoints: unreachableArcaEndpoints,
         setUpBackgroundJobs: async (backgroundJobsEnv, now) => {
-          backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv, now, {
-            emailSender,
-            createJobQueuePool,
-            schedules: false,
-          });
+          backgroundJobs = await setUpBackgroundJobs(
+            backgroundJobsEnv,
+            now,
+            fixedZoneRulesSource(),
+            {
+              emailSender,
+              createJobQueuePool,
+              schedules: false,
+            },
+          );
           return backgroundJobs;
         },
       },

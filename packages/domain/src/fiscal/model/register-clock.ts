@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 
 export const REGISTER_CLOCK_TOLERANCE_MS = 60_000;
 
@@ -9,8 +9,9 @@ export function isBehindClockMark(reading: Date, mark: Date | null): boolean {
 export function isBeforeTaxAuthorityLastIssuedDay(
   reading: Date,
   lastIssuedOn: string | null,
+  rules: ZoneRules,
 ): boolean {
-  return lastIssuedOn !== null && argentinaCalendarDay(reading) < lastIssuedOn;
+  return lastIssuedOn !== null && argentinaCalendarDay(reading, rules) < lastIssuedOn;
 }
 
 export interface ClockCorrectionReadings {
@@ -24,18 +25,17 @@ export interface ClockCorrectionLapseInput {
   corrections: readonly ClockCorrectionReadings[];
 }
 
-export function isInClockCorrectionLapse({
-  reading,
-  taxAuthorityLastIssuedOn,
-  corrections,
-}: ClockCorrectionLapseInput): boolean {
+export function isInClockCorrectionLapse(
+  { reading, taxAuthorityLastIssuedOn, corrections }: ClockCorrectionLapseInput,
+  rules: ZoneRules,
+): boolean {
   return (
     taxAuthorityLastIssuedOn !== null &&
-    argentinaCalendarDay(reading) < taxAuthorityLastIssuedOn &&
+    argentinaCalendarDay(reading, rules) < taxAuthorityLastIssuedOn &&
     corrections.some(
       ({ previousReading, correctedReading }) =>
-        argentinaCalendarDay(previousReading) >= taxAuthorityLastIssuedOn &&
-        argentinaCalendarDay(correctedReading) < taxAuthorityLastIssuedOn,
+        argentinaCalendarDay(previousReading, rules) >= taxAuthorityLastIssuedOn &&
+        argentinaCalendarDay(correctedReading, rules) < taxAuthorityLastIssuedOn,
     )
   );
 }

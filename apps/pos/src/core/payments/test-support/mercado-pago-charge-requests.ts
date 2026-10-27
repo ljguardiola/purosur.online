@@ -7,11 +7,13 @@ import type {
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
   MercadoPagoChargeOrderReading,
+  MercadoPagoChargeOrderRequest,
   MercadoPagoChargeOrders,
 } from "@purosur/domain/payments/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import { restorePendingIn } from "../../backups/restore-pending";
 import type { LocalDatabase } from "../../platform/local-database";
+import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
 import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";
 import { scanProductFor } from "../../sales/sale-requests";
 import { createActionGate } from "../../sessions/action-gate";
@@ -28,12 +30,7 @@ export interface ChargeRegister {
 }
 
 export class FakeMercadoPagoOrders implements MercadoPagoChargeOrders {
-  readonly requested: {
-    paymentTransactionId: string;
-    saleId: string;
-    method: "QR" | "POINT";
-    amount: number;
-  }[] = [];
+  readonly requested: MercadoPagoChargeOrderRequest[] = [];
   answer: MercadoPagoChargeOrderAnswer = {
     kind: "created",
     expiresAt: new Date("2026-10-09T12:03:00.000Z"),
@@ -48,12 +45,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoChargeOrders {
     this.database = database;
   }
 
-  async requestOrder(order: {
-    paymentTransactionId: string;
-    saleId: string;
-    method: "QR" | "POINT";
-    amount: number;
-  }) {
+  async requestOrder(order: MercadoPagoChargeOrderRequest) {
     this.pendingRowsWhenAsked = this.database()
       .prepare("SELECT id, state FROM payment_transactions WHERE method IN ('QR', 'POINT')")
       .all();
@@ -101,6 +93,7 @@ export function chargeRequestDeps(
         return `qr-${count}`;
       },
     },
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }
@@ -163,6 +156,7 @@ export async function openSaleOfTwoYerbas(
     database: register.database,
     gate: chargeRequestDeps(register, new FakeMercadoPagoOrders(() => register.database)).gate,
     now: () => CHARGE_NOW,
+    zoneRules: fixedZoneRulesSource(),
     ids: saleIds,
     paidOrderDiscovery: () => "checked" as const,
     newSalesStoppedByDisk: () => false,

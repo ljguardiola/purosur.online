@@ -17,6 +17,7 @@ import type { RegisterPasskeyScreenServices } from "../credentials/register-pass
 import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
 import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
 import type { FiscalTasksScreenServices } from "../fiscal/fiscal-tasks-services";
+import type { IssuedFiscalDocumentsScreenServices } from "../fiscal/issued-fiscal-documents-services";
 import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred-sales-pill";
 import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
@@ -42,6 +43,7 @@ import type { RegistersListScreenServices } from "../register/registers-list-ser
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
+import type { ReturnsReportScreenServices } from "../returns/returns-report-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { ManualDiscountsScreenServices } from "../sales/manual-discounts-services";
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
@@ -53,6 +55,8 @@ import type { EndEverySessionSectionServices } from "../sessions/end-every-sessi
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-services";
+import type { CurrentStockReportScreenServices } from "../stock/current-stock-report-services";
+import type { ExpiringLotsReportScreenServices } from "../stock/expiring-lots-report-services";
 import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
@@ -108,6 +112,7 @@ export type AppServices = {
   salesByCashierScreen: SalesByCashierScreenServices;
   salesByPromotionScreen: SalesByPromotionScreenServices;
   manualDiscountsScreen: ManualDiscountsScreenServices;
+  returnsReportScreen: ReturnsReportScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   handConfirmedPaymentsScreen: HandConfirmedPaymentsScreenServices;
@@ -117,6 +122,8 @@ export type AppServices = {
   mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
   outsideRefundsScreen: OutsideRefundsScreenServices;
   expiringLotsScreen: ExpiringLotsScreenServices;
+  currentStockReportScreen: CurrentStockReportScreenServices;
+  expiringLotsReportScreen: ExpiringLotsReportScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;
@@ -133,6 +140,7 @@ export type AppServices = {
   initialInventoryScreen: InitialInventoryScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   fiscalTasksScreen: FiscalTasksScreenServices;
+  issuedFiscalDocumentsScreen: IssuedFiscalDocumentsScreenServices;
   pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;

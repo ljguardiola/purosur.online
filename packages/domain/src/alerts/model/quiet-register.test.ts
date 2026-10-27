@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { isRegisterQuiet, QUIET_REGISTER_LAPSE_MS } from "./quiet-register.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -8,7 +8,7 @@ const MONDAY = "2026-10-05";
 const HOURS = [{ dayOfWeek: 1, opensAt: "09:00", closesAt: "18:00" }];
 
 function mondayAt(time: string): Date {
-  return new Date(argentinaInstant(MONDAY, time));
+  return new Date(argentinaInstant(MONDAY, time, FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function minutesBefore(instant: Date, minutes: number): Date {
@@ -20,6 +20,7 @@ function quiet(now: Date, overrides: Partial<Parameters<typeof isRegisterQuiet>[
     lastSuccessfulSyncAt: minutesBefore(now, 60),
     hours: HOURS,
     now,
+    rules: FIXED_ARGENTINA_ZONE_RULES,
     ...overrides,
   });
 }
@@ -64,7 +65,9 @@ describe("isRegisterQuiet", () => {
   });
 
   it("is false on a day the branch is closed", () => {
-    expect(quiet(new Date(argentinaInstant("2026-10-06", "12:00")))).toBe(false);
+    expect(
+      quiet(new Date(argentinaInstant("2026-10-06", "12:00", FIXED_ARGENTINA_ZONE_RULES))),
+    ).toBe(false);
   });
 
   it("is false for a branch with no hours", () => {
@@ -81,6 +84,7 @@ describe("isRegisterQuiet", () => {
             argentinaInstant(
               MONDAY,
               `${String(Math.floor(minuteOfDay / 60)).padStart(2, "0")}:${String(minuteOfDay % 60).padStart(2, "0")}`,
+              FIXED_ARGENTINA_ZONE_RULES,
             ),
           );
 

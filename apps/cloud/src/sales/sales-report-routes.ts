@@ -9,7 +9,7 @@ import {
   salesByPromotionSchema,
   salesReportSchema,
 } from "@purosur/contracts";
-import type { ManualAdjustmentValue } from "@purosur/domain";
+import type { ManualAdjustmentValue, ZoneRulesSource } from "@purosur/domain";
 import {
   readAverageTicket,
   readManualDiscounts,
@@ -49,6 +49,7 @@ export interface SalesReportRouteOptions<TQueryResult extends PgQueryResultHKT> 
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -72,7 +73,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
       return;
     }
     const report = await readSalesByDay(
-      { reader, clock: { now } },
+      { reader, clock: { now }, zoneRules: options.zoneRules },
       {
         locationId: openSessionOf(request).locationId,
         asked: { from: query.from, to: query.to },
@@ -105,7 +106,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
         return;
       }
       const report = await readSalesByProductAndCategory(
-        { reader: productReader, clock: { now } },
+        { reader: productReader, clock: { now }, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           asked: { from: query.from, to: query.to },
@@ -123,7 +124,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
       return;
     }
     const report = await readSalesByCashier(
-      { reader: cashierReader, clock: { now } },
+      { reader: cashierReader, clock: { now }, zoneRules: options.zoneRules },
       {
         locationId: openSessionOf(request).locationId,
         asked: { from: query.from, to: query.to },
@@ -157,7 +158,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
       return;
     }
     const report = await readSalesByPromotion(
-      { reader: promotionReader, clock: { now } },
+      { reader: promotionReader, clock: { now }, zoneRules: options.zoneRules },
       {
         locationId: openSessionOf(request).locationId,
         asked: { from: query.from, to: query.to },
@@ -198,7 +199,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
       return;
     }
     const report = await readManualDiscounts(
-      { reader: manualDiscountsReader, clock: { now } },
+      { reader: manualDiscountsReader, clock: { now }, zoneRules: options.zoneRules },
       {
         locationId: openSessionOf(request).locationId,
         asked: { from: query.from, to: query.to },
@@ -246,7 +247,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
       return;
     }
     const report = await readAverageTicket(
-      { reader, clock: { now } },
+      { reader, clock: { now }, zoneRules: options.zoneRules },
       {
         locationId: openSessionOf(request).locationId,
         asked: { from: query.from, to: query.to },

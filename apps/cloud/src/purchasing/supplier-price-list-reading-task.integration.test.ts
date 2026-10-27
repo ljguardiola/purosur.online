@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { supplierPriceLists } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -54,6 +55,7 @@ beforeEach(async () => {
 
 function jobs() {
   return supplierPriceListReadingJobs({
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
     db,
     files: { store: async () => {}, read: async () => PDF },

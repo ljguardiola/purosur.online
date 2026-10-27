@@ -1,4 +1,5 @@
 import type {
+  CategorySummary,
   FreightList,
   LinkablePurchaseList,
   PackagingList,
@@ -27,6 +28,7 @@ import type {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
 } from "./supplier-item-links-api";
+import type { fetchProductCreationCategories } from "./supplier-item-products-api";
 import type { fetchSupplierPriceComparison } from "./supplier-price-comparison-api";
 import type {
   fetchSupplierPriceListReview,
@@ -48,6 +50,7 @@ export const purchasingKeys = {
   supplierPriceListReview: [...purchasingKey, "supplier-price-list-review"] as const,
   supplierItemLinkProposal: [...purchasingKey, "supplier-item-link-proposal"] as const,
   supplierItemLinkChoices: [...purchasingKey, "supplier-item-link-choices"] as const,
+  productCreationCategories: [...purchasingKey, "product-creation-categories"] as const,
   supplierPriceComparison: [...purchasingKey, "supplier-price-comparison"] as const,
 };
 
@@ -213,6 +216,21 @@ export function useSupplierItemLinkChoicesQuery(params: {
     queryKey: purchasingKeys.supplierItemLinkChoices,
     enabled: params.enabled,
     read: params.fetchSupplierItemLinkChoices,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useProductCreationCategoriesQuery(params: {
+  enabled: boolean;
+  fetchProductCreationCategories: typeof fetchProductCreationCategories;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<CategorySummary[]>({
+    queryKey: purchasingKeys.productCreationCategories,
+    enabled: params.enabled,
+    read: params.fetchProductCreationCategories,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

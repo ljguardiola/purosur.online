@@ -2,7 +2,11 @@ import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/con
 
 type SaleHistoryDetail = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
 
-import { registerOperationAccess, type SaleComprobante } from "@purosur/domain";
+import {
+  registerOperationAccess,
+  type SaleComprobante,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import {
   readSaleHistoryDetail,
   readSalesHistory,
@@ -20,6 +24,7 @@ import { toWireCopy } from "./wire-receipt-copy";
 export interface SalesHistoryRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface SalesHistoryRequest {
@@ -60,7 +65,7 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
 }
 
 export async function salesHistoryFor(
-  { database, gate }: SalesHistoryRequestDeps,
+  { database, gate, zoneRules }: SalesHistoryRequestDeps,
   { session, state, page }: SalesHistoryRequest,
 ): Promise<SalesHistoryOutcome> {
   const guarded = await gate.run({ kind: "view_sales_history" }, async () =>
@@ -77,7 +82,7 @@ export async function salesHistoryFor(
     kind: "found",
     rows: rows.map((row) => ({
       sale_id: row.saleId,
-      occurred_at: inArgentinaTime(row.occurredAt),
+      occurred_at: inArgentinaTime(row.occurredAt, zoneRules.zoneRules()),
       comprobante: toWireComprobante(row.comprobante),
       operation_number: row.operationNumber,
       payment_methods: row.paymentMethods,
@@ -90,7 +95,7 @@ export async function salesHistoryFor(
 }
 
 export async function saleHistoryDetailFor(
-  { database, gate }: SalesHistoryRequestDeps,
+  { database, gate, zoneRules }: SalesHistoryRequestDeps,
   saleId: string,
 ): Promise<SaleHistoryDetailOutcome> {
   const guarded = await gate.run({ kind: "view_sales_history" }, async ({ signedInUserId }) => ({
@@ -122,7 +127,7 @@ export async function saleHistoryDetailFor(
     kind: "found",
     detail: {
       sale_id: detail.saleId,
-      occurred_at: inArgentinaTime(detail.occurredAt),
+      occurred_at: inArgentinaTime(detail.occurredAt, zoneRules.zoneRules()),
       total: detail.total,
       comprobante: toWireComprobante(detail.comprobante),
       operation_number: detail.operationNumber,
@@ -133,12 +138,14 @@ export async function saleHistoryDetailFor(
       voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,
       credit_note: toWireCreditNote(detail.creditNote),
+      credit_note_id: detail.creditNoteId,
       reprint: detail.reprint,
       next_copy: toWireCopy(detail.nextCopy),
       credit_note_next_copy:
         detail.creditNoteNextCopy === null ? null : toWireCopy(detail.creditNoteNextCopy),
       deferred_invoice_next_copy:
         detail.deferredInvoiceNextCopy === null ? null : toWireCopy(detail.deferredInvoiceNextCopy),
+      short_code: detail.shortCode,
     },
   };
 }

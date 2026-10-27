@@ -1,4 +1,5 @@
 import type { ConfirmSupplierPriceListModalServices } from "./confirm-supplier-price-list-modal";
+import type { CreateProductFromSupplierItemModalServices } from "./create-product-from-supplier-item-modal";
 import type { DiscardSupplierPriceListModalServices } from "./discard-supplier-price-list-modal";
 import type { EditSupplierPriceListRowPriceModalServices } from "./edit-supplier-price-list-row-price-modal";
 import type { LinkSupplierItemModalServices } from "./link-supplier-item-modal";
@@ -8,6 +9,11 @@ import {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
 } from "./supplier-item-links-api";
+import {
+  createProductFromSupplierItem,
+  fetchProductCreationCategories,
+  generateSupplierItemInternalBarcode,
+} from "./supplier-item-products-api";
 import {
   confirmSupplierPriceList,
   discardSupplierPriceList,
@@ -23,6 +29,7 @@ export type SupplierPriceListReviewScreenServices = {
   markSupplierPriceListRowReviewed: typeof markSupplierPriceListRowReviewed;
 } & EditSupplierPriceListRowPriceModalServices &
   LinkSupplierItemModalServices &
+  CreateProductFromSupplierItemModalServices &
   RemoveSupplierPriceListRowModalServices &
   ConfirmSupplierPriceListModalServices &
   DiscardSupplierPriceListModalServices;
@@ -36,6 +43,9 @@ export const defaultSupplierPriceListReviewScreenServices: SupplierPriceListRevi
   fetchSupplierItemLinkProposal,
   fetchSupplierItemLinkChoices,
   createPackaging,
+  createProductFromSupplierItem,
+  fetchProductCreationCategories,
+  generateInternalBarcode: generateSupplierItemInternalBarcode,
   confirmSupplierPriceList,
   discardSupplierPriceList,
 };

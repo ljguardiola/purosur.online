@@ -4,6 +4,7 @@ import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner"
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
+import { ARGENTINA_ZONE_RULES } from "../../platform/test-support/zone-rules";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { EndEverySessionSection } from "../../sessions/end-every-session-section";
 import { openSession } from "../../sessions/test-support/open-session";
@@ -131,6 +132,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchStockProducts: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchExpectedBalance: vi.fn().mockReturnValue(new Promise(() => {})),
       registerCount: vi.fn(),
+      fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
     },
     stockMovementsScreen: {
       fetchStockMovements: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -197,6 +199,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       createPackaging: vi.fn(),
+      createProductFromSupplierItem: vi.fn(),
+      fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      generateInternalBarcode: vi.fn(),
       confirmSupplierPriceList: vi.fn(),
       discardSupplierPriceList: vi.fn(),
     },
@@ -213,6 +218,12 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     salesByProductAndCategoryScreen: {
       fetchSalesByProductAndCategory: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    currentStockReportScreen: {
+      fetchCurrentStockReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    expiringLotsReportScreen: {
+      fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     salesByCashierScreen: {
       fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
     },
@@ -221,6 +232,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     manualDiscountsScreen: {
       fetchManualDiscounts: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    returnsReportScreen: {
+      fetchReturnsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     averageTicketScreen: {
       fetchAverageTicket: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -324,6 +338,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchBuyerIdentificationThresholds: vi.fn().mockReturnValue(new Promise(() => {})),
       recordBuyerIdentificationThreshold: vi.fn(),
       fetchClockCorrections: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
@@ -331,6 +346,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     fiscalTasksScreen: {
       fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
       closeFiscalTask: vi.fn(),
+    },
+    issuedFiscalDocumentsScreen: {
+      fetchIssuedFiscalDocuments: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFiscalRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     pointsOfSaleScreen: {
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),

@@ -1,11 +1,15 @@
 import type { PrintedDocument } from "./printed-document.js";
 
-export interface SalePrintState {
-  saleId: string;
-  document: PrintedDocument;
+interface PrintTimes {
   printAttemptedAt: Date;
   printedAt: Date | null;
 }
+
+export type SalePrintState = PrintTimes &
+  (
+    | { saleId: string; document: Exclude<PrintedDocument, "credit_note"> }
+    | { saleId: string; document: "credit_note"; creditNoteId: string | null }
+  );
 
 type SaleReprintReason = { kind: "retry" } | { kind: "requested"; text: string };
 

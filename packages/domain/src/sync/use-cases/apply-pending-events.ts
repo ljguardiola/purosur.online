@@ -1,4 +1,4 @@
-import type { VoucherReference } from "../../fiscal/index.js";
+import { creditWithinInvoice, type VoucherReference } from "../../fiscal/index.js";
 import {
   isRefundSentByCloud,
   mercadoPagoPaymentIsBacked,
@@ -6,6 +6,7 @@ import {
 } from "../../payments/index.js";
 import { returnHistoryBreaks } from "../../returns/index.js";
 import type { CompletedSale } from "../../sales/index.js";
+import type { ZoneRules } from "../../shared/index.js";
 import { afterFailedAttempt } from "../model/event-application-retry.js";
 import type { InvariantBreak } from "../model/event-invariant-breaks.js";
 import type { EventQuarantineReason } from "../model/event-quarantine.js";
@@ -117,11 +118,11 @@ async function recordOfflineCreditNote(
   event: UnappliedEvent,
   now: Date,
 ): Promise<void> {
-  const { fiscalDocumentId, saleId } = fact.document;
+  const { fiscalDocumentId, saleId, total } = fact.document;
   await tx.lockCreditedVoucher(corrects);
-  const alreadyCredited = await tx.voucherAlreadyCredited(corrects, fiscalDocumentId);
+  const credit = await tx.creditOnInvoice(corrects, fiscalDocumentId);
   await tx.record(fact, event);
-  if (alreadyCredited) {
+  if (!creditWithinInvoice({ ...credit, asked: total })) {
     await tx.raiseInvoiceAlreadyCredited({ voucher: corrects, saleId }, now);
   }
 }
@@ -169,9 +170,14 @@ async function recordFact(
 async function breaksAgainstSaleHistory(
   tx: EventApplicationTransaction,
   fact: SyncedFact,
+  rules: ZoneRules,
 ): Promise<InvariantBreak[]> {
   return fact.kind === "sale_returned"
-    ? returnHistoryBreaks(fact.saleReturn, await tx.saleReturnHistory(fact.saleReturn.saleId))
+    ? returnHistoryBreaks(
+        fact.saleReturn,
+        await tx.saleReturnHistory(fact.saleReturn.saleId),
+        rules,
+      )
     : [];
 }
 
@@ -198,7 +204,7 @@ async function applyEvent(
   if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {
     await requireMercadoPagoPaymentsBacked(tx, fact.sale);
   }
-  const historyBreaks = await breaksAgainstSaleHistory(tx, fact);
+  const historyBreaks = await breaksAgainstSaleHistory(tx, fact, ports.zoneRules.zoneRules());
   await recordFact(tx, fact, event, now);
   await tx.markApplied(event.eventId, now);
   const breaks = [...invariantBreaksOf(fact), ...historyBreaks];

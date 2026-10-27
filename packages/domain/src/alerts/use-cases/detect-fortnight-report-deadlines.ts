@@ -12,8 +12,9 @@ export async function detectFortnightReportDeadlines({
   presentations,
   alerts,
   clock,
+  zoneRules,
 }: FortnightReportDeadlineDetectionPorts): Promise<number> {
-  const today = argentinaCalendarDay(clock.now());
+  const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
   const pendingScopes = new Set<string>();
   for (const owed of await presentations.owedPresentations(today)) {
     const { pointOfSaleNumber, registerId, fortnight, state } = owed;

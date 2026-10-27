@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { InitialCountCost } from "./initial-count-cost-reader.js";
 import { listPrices } from "./list-prices.js";
 import type { PricesUnderReview, PriceUnderReview } from "./price-review-reader.js";
@@ -69,6 +70,7 @@ describe("listPrices", () => {
   it("gives each product the cost reference its cost sources and its price leave", async () => {
     const result = await listPrices(
       {
+        zoneRules: new FakeZoneRulesSource(),
         reviews: fakePriceReviewReader(listing([product("a", 2000), product("b", 500)])),
         purchaseCosts: fakePurchaseCostReader([
           purchase("a", "line-a", 1200),
@@ -106,6 +108,7 @@ describe("listPrices", () => {
 
     const result = await listPrices(
       {
+        zoneRules: new FakeZoneRulesSource(),
         reviews: fakePriceReviewReader(answered),
         purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200)]),
         initialCountCosts: fakeInitialCountCostReader([]),
@@ -137,6 +140,7 @@ describe("listPrices", () => {
 
     const result = await listPrices(
       {
+        zoneRules: new FakeZoneRulesSource(),
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
         purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200, freights)]),
         initialCountCosts: fakeInitialCountCostReader([]),
@@ -155,6 +159,7 @@ describe("listPrices", () => {
   it("shows no cost reference for a product with no cost source", async () => {
     const result = await listPrices(
       {
+        zoneRules: new FakeZoneRulesSource(),
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
         purchaseCosts: fakePurchaseCostReader([]),
         initialCountCosts: fakeInitialCountCostReader([]),
@@ -168,6 +173,7 @@ describe("listPrices", () => {
   it("shows the cost but no margin for a product with no price", async () => {
     const result = await listPrices(
       {
+        zoneRules: new FakeZoneRulesSource(),
         reviews: fakePriceReviewReader(listing([product("a", null)])),
         purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200)]),
         initialCountCosts: fakeInitialCountCostReader([]),
@@ -186,6 +192,7 @@ describe("listPrices", () => {
   it("picks the last cost among a product's sources", async () => {
     const result = await listPrices(
       {
+        zoneRules: new FakeZoneRulesSource(),
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
         purchaseCosts: fakePurchaseCostReader([purchase("a", "line-1", 1200)]),
         initialCountCosts: fakeInitialCountCostReader([counted("a", 900)]),
@@ -199,6 +206,7 @@ describe("listPrices", () => {
   it("takes an initial count's cost for a product with no purchase", async () => {
     const result = await listPrices(
       {
+        zoneRules: new FakeZoneRulesSource(),
         reviews: fakePriceReviewReader(listing([product("a", 2000), product("b", 500)])),
         purchaseCosts: fakePurchaseCostReader([purchase("b", "line-b", 250)]),
         initialCountCosts: fakeInitialCountCostReader([counted("a", 900)]),
@@ -216,7 +224,10 @@ describe("listPrices", () => {
     const initialCountCosts = fakeInitialCountCostReader([]);
     const reviews = fakePriceReviewReader(listing([product("a", 2000), product("b", 500)]));
 
-    await listPrices({ reviews, purchaseCosts, initialCountCosts }, query);
+    await listPrices(
+      { zoneRules: new FakeZoneRulesSource(), reviews, purchaseCosts, initialCountCosts },
+      query,
+    );
 
     expect(reviews.queries).toEqual([query]);
     expect(purchaseCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);

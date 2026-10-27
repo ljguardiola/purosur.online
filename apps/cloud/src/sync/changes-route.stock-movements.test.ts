@@ -16,6 +16,7 @@ import { DrizzlePurchasingStore } from "../purchasing/drizzle-purchasing-store.j
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
 import { lastLoggedChangeSeq } from "./test-support/logged-changes.js";
@@ -39,7 +40,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  app = buildChangesRouteApp(db, { now: () => NOW });
+  app = buildChangesRouteApp(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 });
 
 afterEach(async () => {
@@ -155,7 +156,11 @@ describe("GET /changes carrying stock movements", () => {
     const since = await lastLoggedChangeSeq(db);
 
     const outcome = await registerPurchase(
-      { store: new DrizzlePurchasingStore(db, () => NOW), clock: { now: () => NOW } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        store: new DrizzlePurchasingStore(db, () => NOW),
+        clock: { now: () => NOW },
+      },
       {
         supplierId: supplier?.id as string,
         purchasedOn: "2026-10-09",

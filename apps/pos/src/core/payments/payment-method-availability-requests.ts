@@ -14,13 +14,14 @@ export async function paymentMethodAvailabilityFor({
   database,
   gate,
   now,
+  zoneRules,
   restoration,
   cloud,
-}: Pick<SaleRequestDeps, "gate" | "now" | "restoration"> & {
+}: Pick<SaleRequestDeps, "gate" | "now" | "zoneRules" | "restoration"> & {
   database: LocalDatabase;
   cloud: () => CloudReachability;
 }): Promise<PaymentMethodAvailability | null> {
-  const sale = await currentSaleFor({ database, gate, now, restoration });
+  const sale = await currentSaleFor({ zoneRules, database, gate, now, restoration });
   if (sale === null || sale === "not_permitted") {
     return null;
   }

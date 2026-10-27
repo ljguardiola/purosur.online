@@ -41,7 +41,7 @@ const creditNoteRejectedTaskSchema = z.object({
   ...taskBase,
   kind: z.literal("credit_note_rejected" satisfies (typeof FISCAL_TASK_KINDS)[number]),
   point_of_sale: pointOfSaleNumberSchema,
-  number: z.int().positive(),
+  number: z.int().positive().nullable(),
   credit_note_id: z.string(),
   rejections: z.array(z.object({ code: z.int(), message: z.string() })),
 });

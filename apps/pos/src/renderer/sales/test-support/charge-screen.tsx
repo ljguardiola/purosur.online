@@ -15,7 +15,7 @@ import type {
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { MercadoPagoMethod } from "../../platform/core-client";
+import type { MercadoPagoChargeKind } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ChargeScreenProps } from "../charge-screen";
 import { ChargeScreen } from "../charge-screen";
@@ -146,7 +146,7 @@ export type Overrides = {
   paymentMethodAvailability?: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge?: (
     saleId: string,
-    method: MercadoPagoMethod,
+    charge: MercadoPagoChargeKind,
     amount: number,
   ) => Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge?: (
@@ -274,8 +274,10 @@ export async function chooseQr(screen: Screen) {
   await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
 }
 
-export async function choosePoint(screen: Screen) {
-  await userEvent.click(screen.getByText("Point integrada", { exact: true }));
+export async function choosePoint(screen: Screen, cardType: "DEBIT" | "CREDIT" = "DEBIT") {
+  await userEvent.click(
+    screen.getByText(cardType === "DEBIT" ? "Point · Débito" : "Point · Crédito", { exact: true }),
+  );
 }
 
 export async function chargeInCash(screen: Screen, tendered: string) {
@@ -288,20 +290,23 @@ export async function chargeInCash(screen: Screen, tendered: string) {
 }
 
 export function saleWithChargeInProgress(
-  method: MercadoPagoMethod,
+  charge: MercadoPagoChargeKind,
   remainingSeconds: number,
 ): OpenSale {
+  const inProgress = { amount: 476_000, remaining_seconds: remainingSeconds, wait_seconds: 180 };
   return {
     ...SALE_OF_ONE_LINE,
     lines_lock: "mercado_pago_charge_in_progress",
     cancel_refusal: "mercado_pago_charge_in_progress",
-    mercado_pago_charge_in_progress: {
-      payment_transaction_id: method === "POINT" ? POINT_PAYMENT_ID : QR_PAYMENT_ID,
-      method,
-      amount: 476_000,
-      remaining_seconds: remainingSeconds,
-      wait_seconds: 180,
-    },
+    mercado_pago_charge_in_progress:
+      charge.method === "POINT"
+        ? {
+            ...inProgress,
+            payment_transaction_id: POINT_PAYMENT_ID,
+            method: "POINT",
+            card_type: charge.cardType,
+          }
+        : { ...inProgress, payment_transaction_id: QR_PAYMENT_ID, method: "QR" },
   };
 }
 

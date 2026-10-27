@@ -5,6 +5,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buyerIdentificationThresholds, users } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -59,6 +60,7 @@ describe("two thresholds recorded at once for the same day, on a real Postgres",
     const record = (amount: number) => () =>
       recordBuyerIdentificationThreshold(
         {
+          zoneRules: fixedZoneRulesSource(),
           store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOON),
           clock: { now: () => NOON },
         },

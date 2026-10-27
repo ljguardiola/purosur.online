@@ -121,8 +121,8 @@ describe("whether the customer's own document was printed", () => {
     expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
 
     database.exec(
-      `INSERT INTO credit_note_prints (sale_id, print_attempted_at, printed_at)
-       VALUES ('sale-1', '2026-10-09T12:00:30.000Z', '2026-10-09T12:00:31.000Z')`,
+      `INSERT INTO credit_note_prints (credit_note_id, print_attempted_at, printed_at)
+       VALUES ('note-1', '2026-10-09T12:00:30.000Z', '2026-10-09T12:00:31.000Z')`,
     );
     expect((await consider())[0]?.customerDocumentPrinted).toBe(true);
   });
@@ -135,8 +135,8 @@ describe("whether the customer's own document was printed", () => {
     expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
 
     database.exec(
-      `INSERT INTO credit_note_prints (sale_id, print_attempted_at, printed_at)
-       VALUES ('sale-1', '2026-10-09T12:00:30.000Z', '2026-10-09T12:00:31.000Z')`,
+      `INSERT INTO credit_note_prints (credit_note_id, print_attempted_at, printed_at)
+       VALUES ('note-1', '2026-10-09T12:00:30.000Z', '2026-10-09T12:00:31.000Z')`,
     );
     expect((await consider())[0]?.customerDocumentPrinted).toBe(true);
   });

@@ -59,10 +59,12 @@ export interface SaleHistoryDetail {
   standing: SaleStanding;
   voidability: SaleVoidability;
   creditNote: VoidCreditNoteStanding | null;
+  creditNoteId: string | null;
   reprint: SaleReceiptAvailability;
   nextCopy: ReceiptCopy;
   creditNoteNextCopy: ReceiptCopy | null;
   deferredInvoiceNextCopy: ReceiptCopy | null;
+  shortCode: string | null;
 }
 
 export type ReadSaleHistoryDetailOutcome =
@@ -85,11 +87,14 @@ export function readSaleHistoryDetail(
     hasReturn: _hasReturn,
     invoices: _invoices,
     deferredInvoiceIssued,
+    deferredShortCode,
     ...shown
   } = record;
+  const { creditNoteId } = record;
   const creditNoteDelivery =
-    record.creditNote?.kind === "authorized" || record.creditNote?.kind === "issued_offline"
-      ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId })
+    creditNoteId !== null &&
+    (record.creditNote?.kind === "authorized" || record.creditNote?.kind === "issued_offline")
+      ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId, creditNoteId })
       : undefined;
   const deferredInvoiceDelivery = deferredInvoiceIssued
     ? receiptDeliveryOf({ ledger }, { document: "deferred_invoice", saleId })
@@ -106,6 +111,7 @@ export function readSaleHistoryDetail(
       creditNoteNextCopy: creditNoteDelivery?.kind === "found" ? creditNoteDelivery.nextCopy : null,
       deferredInvoiceNextCopy:
         deferredInvoiceDelivery?.kind === "found" ? deferredInvoiceDelivery.nextCopy : null,
+      shortCode: deferredShortCode,
     },
   };
 }

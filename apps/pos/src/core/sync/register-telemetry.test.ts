@@ -355,3 +355,44 @@ describe("the telemetry of a register whose local database is damaged", () => {
     expect(await read()).toMatchObject({ sales_denied: true, battery: BATTERY });
   });
 });
+
+describe("the register's zone rules telemetry", () => {
+  function readerOfZoneRules(readZoneRulesVersion: (() => string | null) | undefined) {
+    return registerTelemetryReader(
+      async () => STORAGE,
+      () => ({ stopped: false }),
+      () => SERIAL_DEVICES,
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => false,
+      () => false,
+      () => null,
+      () => undefined,
+      "1.4.0",
+      readZoneRulesVersion,
+    );
+  }
+
+  it("reports the version of the zone rules it applies", async () => {
+    expect(await readerOfZoneRules(() => "2026a")()).toMatchObject({ zone_rules_version: "2026a" });
+  });
+
+  it("reports no version before its first delivery", async () => {
+    expect(await readerOfZoneRules(() => null)()).toMatchObject({ zone_rules_version: null });
+  });
+
+  it("reads the version each time it reports", async () => {
+    let version: string | null = null;
+    const read = readerOfZoneRules(() => version);
+
+    await read();
+    version = "2026a";
+
+    expect(await read()).toMatchObject({ zone_rules_version: "2026a" });
+  });
+
+  it("reports nothing about its zone rules when it is not given a way to read them", async () => {
+    expect(await readerOfZoneRules(undefined)()).not.toHaveProperty("zone_rules_version");
+  });
+});

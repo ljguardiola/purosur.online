@@ -1,4 +1,8 @@
-import { fortnightPresentationRows, fortnightReportDeadline } from "@purosur/domain";
+import {
+  fortnightPresentationRows,
+  fortnightReportDeadline,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import type {
   BranchFortnightPresentation,
   FortnightPresentationReader,
@@ -13,16 +17,23 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
   implements FortnightPresentationReader
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly zoneRules: ZoneRulesSource;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, zoneRules: ZoneRulesSource) {
     this.db = db;
+    this.zoneRules = zoneRules;
   }
 
   async branchPresentations(
     locationId: string,
     today: string,
   ): Promise<BranchFortnightPresentation[]> {
-    const presentations = await closedFortnightPresentations(this.db, today, locationId);
+    const presentations = await closedFortnightPresentations(
+      this.db,
+      today,
+      this.zoneRules.zoneRules(),
+      locationId,
+    );
     const pointsOfSale = [...new Set(presentations.map(({ owed }) => owed.pointOfSaleNumber))];
     const documents =
       pointsOfSale.length === 0

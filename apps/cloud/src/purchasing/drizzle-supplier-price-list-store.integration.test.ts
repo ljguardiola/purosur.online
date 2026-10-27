@@ -13,6 +13,7 @@ import {
   supplierPriceListRows,
   supplierPriceLists,
 } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -73,7 +74,7 @@ const failingFiles = {
 
 function upload(files: typeof keptFiles) {
   return uploadSupplierPriceList(
-    { store: store(), files },
+    { zoneRules: fixedZoneRulesSource(), store: store(), files },
     { supplierId, locationId, fileName: "lista.pdf", pdf: PDF, actorId, now: NOW },
   );
 }

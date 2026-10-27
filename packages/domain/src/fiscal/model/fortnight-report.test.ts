@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { shiftCalendarDay } from "../../shared/index.js";
+import { FIXED_ARGENTINA_ZONE_RULES, shiftCalendarDay } from "../../shared/index.js";
 import { FICTIONAL_CUIT } from "../test-support/fictional-tax-identities.js";
 import {
   type DocumentTypeReportState,
@@ -37,13 +37,15 @@ const FIRST_HALF = { start: "2026-09-01", end: "2026-09-15" };
 
 describe("fortnightClosesAt", () => {
   it("is midnight, Argentina time, at the start of the day after the fortnight's last day", () => {
-    expect(fortnightClosesAt(FIRST_HALF)).toEqual(new Date("2026-09-16T03:00:00.000Z"));
+    expect(fortnightClosesAt(FIRST_HALF, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+      new Date("2026-09-16T03:00:00.000Z"),
+    );
   });
 
   it("rolls over a month and a year end", () => {
-    expect(fortnightClosesAt({ start: "2026-12-16", end: "2026-12-31" })).toEqual(
-      new Date("2027-01-01T03:00:00.000Z"),
-    );
+    expect(
+      fortnightClosesAt({ start: "2026-12-16", end: "2026-12-31" }, FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual(new Date("2027-01-01T03:00:00.000Z"));
   });
 });
 
@@ -156,22 +158,38 @@ describe("owesFortnightReport", () => {
 
   it("is owed from the day after the fortnight closes by a point of sale claimed before its close", () => {
     expect(
-      owesFortnightReport({ fortnight: FIRST_HALF, claimedAt: claimedBeforeClose }, "2026-09-16"),
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedBeforeClose },
+        "2026-09-16",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
     ).toBe(true);
     expect(
-      owesFortnightReport({ fortnight: FIRST_HALF, claimedAt: claimedBeforeClose }, "2026-10-30"),
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedBeforeClose },
+        "2026-10-30",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
     ).toBe(true);
   });
 
   it("is not owed while the fortnight is still running, its last day included", () => {
     expect(
-      owesFortnightReport({ fortnight: FIRST_HALF, claimedAt: claimedBeforeClose }, "2026-09-15"),
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedBeforeClose },
+        "2026-09-15",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
     ).toBe(false);
   });
 
   it("is owed by a point of sale claimed just before the fortnight closes, and not by one claimed at its close or after", () => {
     const owedWhenClaimedAt = (claimedAt: string) =>
-      owesFortnightReport({ fortnight: FIRST_HALF, claimedAt: new Date(claimedAt) }, "2026-09-20");
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: new Date(claimedAt) },
+        "2026-09-20",
+        FIXED_ARGENTINA_ZONE_RULES,
+      );
 
     expect(owedWhenClaimedAt("2026-09-16T02:59:59.999Z")).toBe(true);
     expect(owedWhenClaimedAt("2026-09-16T03:00:00.000Z")).toBe(false);
@@ -185,12 +203,14 @@ describe("owesFortnightReport", () => {
       owesFortnightReport(
         { fortnight: FIRST_HALF, claimedAt: claimedAfterClose, listed: true },
         "2026-09-20",
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(true);
     expect(
       owesFortnightReport(
         { fortnight: FIRST_HALF, claimedAt: claimedAfterClose, listed: false },
         "2026-09-20",
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -200,6 +220,7 @@ describe("owesFortnightReport", () => {
       owesFortnightReport(
         { fortnight: FIRST_HALF, claimedAt: claimedBeforeClose, listed: true },
         "2026-09-15",
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -212,6 +233,7 @@ describe("owesFortnightReport of a retired point of sale", () => {
     owesFortnightReport(
       { fortnight: FIRST_HALF, claimedAt, retiredAt: new Date(retiredAt), listed },
       "2026-10-30",
+      FIXED_ARGENTINA_ZONE_RULES,
     );
 
   it("still owes a fortnight that closed before the retirement", () => {
@@ -236,6 +258,7 @@ describe("owesFortnightReport of a retired point of sale", () => {
       owesFortnightReport(
         { fortnight: FIRST_HALF, claimedAt, retiredAt: new Date("2026-09-05T12:00:00.000Z") },
         "2026-09-15",
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
     expect(
@@ -247,6 +270,7 @@ describe("owesFortnightReport of a retired point of sale", () => {
           listed: true,
         },
         "2026-09-15",
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });
@@ -260,6 +284,7 @@ describe("owesFortnightReport of a retired point of sale", () => {
           retiredAt: new Date("2026-09-30T12:00:00.000Z"),
         },
         "2026-10-30",
+        FIXED_ARGENTINA_ZONE_RULES,
       ),
     ).toBe(false);
   });

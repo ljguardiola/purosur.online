@@ -20,11 +20,7 @@ import {
   registerPointsOfSale,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
-
-const heldByTaxAuthority = or(
-  eq(fiscalRequests.answerKind, "authorized"),
-  eq(fiscalRequests.decision, "adopted"),
-);
+import { heldByTaxAuthority } from "./held-by-tax-authority.js";
 
 const possiblyHeldByTaxAuthority = or(
   heldByTaxAuthority,

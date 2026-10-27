@@ -33,7 +33,7 @@ function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date) {
     aggregate_type: "Sale",
     aggregate_id: "sale-1",
     event_type: "sale_print_state_changed",
-    schema_version: 2,
+    schema_version: 3,
     payload: {
       sale_id: "sale-1",
       document: "sale_receipt",

@@ -684,7 +684,8 @@ describe("the register's store for replenishing a restored register", () => {
       total: 4800,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
-    };
+      origin: { kind: "sale_void" },
+    } as const;
     const ANSWER = {
       creditNoteId: "note-1",
       answeredAt: new Date("2026-10-07T10:30:00.000Z"),
@@ -712,9 +713,7 @@ describe("the register's store for replenishing a restored register", () => {
 
       expect(
         database
-          .prepare(
-            "SELECT id, sale_id, state, number, authorization_code FROM sale_void_credit_notes",
-          )
+          .prepare("SELECT id, sale_id, state, number, authorization_code FROM sale_credit_notes")
           .all(),
       ).toEqual([
         {
@@ -736,7 +735,7 @@ describe("the register's store for replenishing a restored register", () => {
         }),
       ).rejects.toThrow("storage unavailable");
 
-      expect(count("sale_void_credit_notes")).toBe(0);
+      expect(count("sale_credit_notes")).toBe(0);
     });
   });
 
@@ -747,7 +746,8 @@ describe("the register's store for replenishing a restored register", () => {
       total: 3000,
       receiverTaxStatusCode: 5,
       correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 41 },
-    };
+      origin: { kind: "sale_void" },
+    } as const;
     const EVENT = {
       event_id: "event-1",
       device_seq: 53,
@@ -772,9 +772,9 @@ describe("the register's store for replenishing a restored register", () => {
         await tx.holdCreditNoteToRequest(CREDIT_NOTE, EVENT);
       });
 
-      expect(
-        database.prepare("SELECT id, sale_id, state FROM sale_void_credit_notes").all(),
-      ).toEqual([{ id: "note-1", sale_id: "sale-1", state: "IN_PROGRESS" }]);
+      expect(database.prepare("SELECT id, sale_id, state FROM sale_credit_notes").all()).toEqual([
+        { id: "note-1", sale_id: "sale-1", state: "IN_PROGRESS" },
+      ]);
       expect(
         database
           .prepare("SELECT credit_note_id, event_id FROM replenished_credit_note_requests")
@@ -791,7 +791,7 @@ describe("the register's store for replenishing a restored register", () => {
         }),
       ).rejects.toThrow("storage unavailable");
 
-      expect(count("sale_void_credit_notes") + count("replenished_credit_note_requests")).toBe(0);
+      expect(count("sale_credit_notes") + count("replenished_credit_note_requests")).toBe(0);
     });
   });
 
