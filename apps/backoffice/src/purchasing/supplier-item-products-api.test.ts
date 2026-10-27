@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   createProductFromSupplierItem,
   fetchProductCreationCategories,
+  generateSupplierItemInternalBarcode,
 } from "./supplier-item-products-api";
 import {
   CREATION_BODY,
@@ -157,7 +158,7 @@ describe("fetchProductCreationCategories", () => {
       kind: "ok",
       value: CREATION_CATEGORIES,
     });
-    expect(fetch).toHaveBeenCalledWith("/api/categories");
+    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/product-categories");
   });
 
   test("returns failed when the categories do not have the expected shape", async () => {
@@ -174,5 +175,40 @@ describe("fetchProductCreationCategories", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
     expect(await fetchProductCreationCategories()).toEqual(outcome);
+  });
+});
+
+describe("generateSupplierItemInternalBarcode", () => {
+  test("posts the barcodes the product already has and returns the generated code", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: "2000000000015" }));
+
+    expect(await generateSupplierItemInternalBarcode({ barcodes: [] })).toEqual({
+      kind: "ok",
+      code: "2000000000015",
+    });
+    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/internal-barcodes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barcodes: [] }),
+    });
+  });
+
+  test("returns failed when the code is not an internal barcode", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: "7790987000015" }));
+
+    expect(await generateSupplierItemInternalBarcode({ barcodes: [] })).toEqual({
+      kind: "failed",
+    });
+  });
+
+  test.each([
+    [401, { kind: "unauthenticated" }],
+    [403, { kind: "forbidden" }],
+    [429, { kind: "rate_limited", retryAfterSeconds: 30 }],
+    [500, { kind: "failed" }],
+  ] as const)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, undefined, { "Retry-After": "30" }));
+
+    expect(await generateSupplierItemInternalBarcode({ barcodes: [] })).toEqual(outcome);
   });
 });

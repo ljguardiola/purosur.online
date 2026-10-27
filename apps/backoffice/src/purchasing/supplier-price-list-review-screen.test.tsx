@@ -917,15 +917,16 @@ test("offers no action to create a product when the cloud does not allow linking
   expect(screen.getByRole("button", { name: /^Crear producto / }).query()).toBeNull();
 });
 
-test("offers no action to create a product to a session that cannot read the categories", async () => {
+test("offers the action to create a product to a session that may only review supplier price lists", async () => {
   const screen = await loaded(createServices(), extracted, {
     access: accessWith("supplier_price_lists"),
   });
 
   await expect
-    .element(screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }))
+    .element(
+      screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
+    )
     .toBeVisible();
-  expect(screen.getByRole("button", { name: /^Crear producto / }).query()).toBeNull();
 });
 
 test("opens the create product modal for the item, with the categories read for it", async () => {
@@ -1007,7 +1008,7 @@ test("moves from the link modal to the create product modal for the same item", 
   expect(screen.getByText("Pedidos · Vincular un ítem").query()).toBeNull();
 });
 
-test("offers no way to create a product from the link modal to a session that cannot read the categories", async () => {
+test("offers the way to create a product from the link modal to a session that may only review supplier price lists", async () => {
   const services = createServices();
   vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
     kind: "ok",
@@ -1024,7 +1025,6 @@ test("offers no way to create a product from the link modal to a session that ca
   );
 
   await expect
-    .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem."))
+    .element(screen.getByRole("dialog").getByRole("button", { name: "Crear producto" }))
     .toBeVisible();
-  expect(screen.getByRole("button", { name: "Crear producto" }).query()).toBeNull();
 });
