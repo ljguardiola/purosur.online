@@ -460,21 +460,28 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain("QR Mercado Pago                      $ 10.000,00");
   });
 
-  it("names a payment on the Mercado Pago terminal, aligned with the other payment lines", () => {
-    const { textLines } = printed(
-      receipt({
-        totals: {
-          subtotal: 1_000_000,
-          saleDiscount: null,
-          total: 1_000_000,
-          payments: [{ method: "POINT", amount: 1_000_000, cardType: null }],
-          change: 0,
-        },
-      }),
-    );
+  it.each([
+    ["DEBIT", "Point · Débito                       $ 10.000,00"],
+    ["CREDIT", "Point · Crédito                      $ 10.000,00"],
+    [null, "Point                                $ 10.000,00"],
+  ] as const)(
+    "names a payment on the Mercado Pago terminal charged by %s card, aligned with the other payment lines",
+    (cardType, line) => {
+      const { textLines } = printed(
+        receipt({
+          totals: {
+            subtotal: 1_000_000,
+            saleDiscount: null,
+            total: 1_000_000,
+            payments: [{ method: "POINT", amount: 1_000_000, cardType }],
+            change: 0,
+          },
+        }),
+      );
 
-    expect(textLines).toContain("Point Mercado Pago                   $ 10.000,00");
-  });
+      expect(textLines).toContain(line);
+    },
+  );
 
   it("names a payment on the standalone terminal, aligned with the other payment lines", () => {
     const { textLines } = printed(
