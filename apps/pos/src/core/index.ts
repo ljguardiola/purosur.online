@@ -1153,6 +1153,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             database: localDatabase,
             gate: actionGate,
             paidOrderDiscovery: paidOrderDiscovery.state,
+            zoneRules,
           }),
   cashSession:
     localDatabase === undefined
