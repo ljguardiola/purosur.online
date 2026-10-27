@@ -6,6 +6,7 @@ import {
 import type {
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
+  MercadoPagoChargeOrderRequest,
   MercadoPagoChargeOrderReading,
   MercadoPagoChargeOrders,
 } from "@purosur/domain/payments/use-cases";
@@ -28,12 +29,7 @@ export interface ChargeRegister {
 }
 
 export class FakeMercadoPagoOrders implements MercadoPagoChargeOrders {
-  readonly requested: {
-    paymentTransactionId: string;
-    saleId: string;
-    method: "QR" | "POINT";
-    amount: number;
-  }[] = [];
+  readonly requested: MercadoPagoChargeOrderRequest[] = [];
   answer: MercadoPagoChargeOrderAnswer = {
     kind: "created",
     expiresAt: new Date("2026-10-09T12:03:00.000Z"),
@@ -48,12 +44,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoChargeOrders {
     this.database = database;
   }
 
-  async requestOrder(order: {
-    paymentTransactionId: string;
-    saleId: string;
-    method: "QR" | "POINT";
-    amount: number;
-  }) {
+  async requestOrder(order: MercadoPagoChargeOrderRequest) {
     this.pendingRowsWhenAsked = this.database()
       .prepare("SELECT id, state FROM payment_transactions WHERE method IN ('QR', 'POINT')")
       .all();

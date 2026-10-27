@@ -7229,3 +7229,115 @@ describe("the awaiting contingency ticket recovery migration", () => {
     });
   });
 });
+
+describe("the Point card type migration", () => {
+  const MIGRATION = "0083_point_card_type";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withHeldPayments(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES ('cash-1', 'sale-1', 'SALE', 'CASH', 'NONE', 1000, 1000, 'APPROVED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+         VALUES ('point-1', 'sale-1', 'SALE', 'POINT', 'MERCADOPAGO_POINT', 2500, 'APPROVED', '2026-10-09T12:06:00.000Z', '2026-10-09T12:09:00.000Z');
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'point-1', 'POINT', 'MERCADOPAGO_POINT', 500, 'PENDING', '2026-10-09T12:10:00.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  function insertPayment(
+    database: Database,
+    fields: { id: string; method: string; provider: string; cardType: string | null },
+  ) {
+    const waiting = fields.method === "POINT" || fields.method === "QR";
+    return database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+         VALUES (@id, 'sale-1', 'SALE', @method, @provider, @card_type, 700, @state, '2026-10-09T12:20:00.000Z', @wait_ends_at)`,
+      )
+      .run({
+        id: fields.id,
+        method: fields.method,
+        provider: fields.provider,
+        card_type: fields.cardType,
+        state: waiting ? "PENDING" : "APPROVED",
+        wait_ends_at: waiting ? "2026-10-09T12:23:00.000Z" : null,
+      });
+  }
+
+  it("keeps the payments and refunds held before it, none with a card type", () => {
+    withHeldPayments((database) => {
+      expect(
+        database
+          .prepare(
+            "SELECT id, method, amount, tendered, card_type FROM payment_transactions ORDER BY id",
+          )
+          .all(),
+      ).toEqual([
+        { id: "cash-1", method: "CASH", amount: 1000, tendered: 1000, card_type: null },
+        { id: "point-1", method: "POINT", amount: 2500, tendered: null, card_type: null },
+      ]);
+      expect(database.prepare("SELECT id, payment_id FROM payment_refunds").all()).toEqual([
+        { id: "refund-1", payment_id: "point-1" },
+      ]);
+    });
+  });
+
+  it("keeps the index of the payments of a sale", () => {
+    withHeldPayments((database) => {
+      expect(
+        database
+          .prepare(
+            "SELECT name FROM sqlite_schema WHERE type = 'index' AND name = 'payment_transactions_by_sale'",
+          )
+          .all(),
+      ).toEqual([{ name: "payment_transactions_by_sale" }]);
+    });
+  });
+
+  it.each(["DEBIT", "CREDIT", null])("accepts a Point payment with card type %s", (cardType) => {
+    withHeldPayments((database) => {
+      expect(() =>
+        insertPayment(database, {
+          id: "point-2",
+          method: "POINT",
+          provider: "MERCADOPAGO_POINT",
+          cardType,
+        }),
+      ).not.toThrow();
+    });
+  });
+
+  it.each([
+    ["a Point payment of another card type", "POINT", "MERCADOPAGO_POINT", "PREPAID"],
+    ["a QR payment with a card type", "QR", "MERCADOPAGO_QR", "DEBIT"],
+    ["a cash payment with a card type", "CASH", "NONE", "CREDIT"],
+  ])("refuses %s", (_name, method, provider, cardType) => {
+    withHeldPayments((database) => {
+      expect(() =>
+        insertPayment(database, { id: "payment-2", method, provider, cardType }),
+      ).toThrow(/CHECK/);
+    });
+  });
+});

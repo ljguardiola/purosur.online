@@ -49,7 +49,7 @@ function saleOfTwoYerbas(): Promise<string> {
 function pointRows(): unknown[] {
   return database
     .prepare(
-      `SELECT id, sale_id, method, provider, amount, state, wait_ends_at, replaced
+      `SELECT id, sale_id, method, provider, card_type, amount, state, wait_ends_at, replaced
        FROM payment_transactions WHERE method = 'POINT'`,
     )
     .all();
@@ -74,6 +74,7 @@ async function pointChargeStarted(amount = 3000): Promise<{ saleId: string; paym
   const outcome = await startMercadoPagoChargeFor(deps(new FakeOrders()), {
     saleId,
     method: "POINT",
+    cardType: "DEBIT",
     amount,
   });
   if (outcome.kind !== "order_shown") {
@@ -109,6 +110,7 @@ describe("starting a charge on the integrated terminal at the register", () => {
     const outcome = await startMercadoPagoChargeFor(deps(orders), {
       saleId,
       method: "POINT",
+      cardType: "DEBIT",
       amount: 2000,
     });
 
@@ -121,7 +123,7 @@ describe("starting a charge on the integrated terminal at the register", () => {
     });
     expect(orders.pendingRowsWhenAsked).toEqual([{ id: "qr-1", state: "PENDING" }]);
     expect(orders.requested).toEqual([
-      { paymentTransactionId: "qr-1", saleId, method: "POINT", amount: 2000 },
+      { paymentTransactionId: "qr-1", saleId, method: "POINT", cardType: "DEBIT", amount: 2000 },
     ]);
     expect(pointRows()).toEqual([
       {
@@ -129,6 +131,7 @@ describe("starting a charge on the integrated terminal at the register", () => {
         sale_id: saleId,
         method: "POINT",
         provider: "MERCADOPAGO_POINT",
+        card_type: "DEBIT",
         amount: 2000,
         state: "PENDING",
         wait_ends_at: "2026-10-09T12:03:00.000Z",
@@ -137,12 +140,32 @@ describe("starting a charge on the integrated terminal at the register", () => {
     ]);
   });
 
+  it("keeps the credit card type the cashier chose and asks the cloud for a credit order", async () => {
+    const saleId = await saleOfTwoYerbas();
+    const orders = new FakeOrders();
+
+    await startMercadoPagoChargeFor(deps(orders), {
+      saleId,
+      method: "POINT",
+      cardType: "CREDIT",
+      amount: 2000,
+    });
+
+    expect(orders.requested).toMatchObject([{ method: "POINT", cardType: "CREDIT" }]);
+    expect(pointRows()).toMatchObject([{ card_type: "CREDIT" }]);
+  });
+
   it("answers that the amount is below what the terminal charges, keeping nothing and asking the cloud nothing", async () => {
     const saleId = await saleOfTwoYerbas();
     const orders = new FakeOrders();
 
     expect(
-      await startMercadoPagoChargeFor(deps(orders), { saleId, method: "POINT", amount: 1000 }),
+      await startMercadoPagoChargeFor(deps(orders), {
+        saleId,
+        method: "POINT",
+        cardType: "DEBIT",
+        amount: 1000,
+      }),
     ).toEqual({ kind: "below_minimum" });
     expect(orders.requested).toEqual([]);
     expect(pointRows()).toEqual([]);
@@ -160,7 +183,12 @@ describe("starting a charge on the integrated terminal at the register", () => {
       orders.answer = answer;
 
       expect(
-        await startMercadoPagoChargeFor(deps(orders), { saleId, method: "POINT", amount: 3000 }),
+        await startMercadoPagoChargeFor(deps(orders), {
+          saleId,
+          method: "POINT",
+          cardType: "DEBIT",
+          amount: 3000,
+        }),
       ).toEqual({ kind });
       expect(pointRows()).toMatchObject([{ state: "CANCELLED" }]);
       expect((await openSale()).lines_lock).toBeNull();
@@ -173,7 +201,12 @@ describe("starting a charge on the integrated terminal at the register", () => {
     orders.answer = { kind: "unreachable" };
 
     expect(
-      await startMercadoPagoChargeFor(deps(orders), { saleId, method: "POINT", amount: 3000 }),
+      await startMercadoPagoChargeFor(deps(orders), {
+        saleId,
+        method: "POINT",
+        cardType: "DEBIT",
+        amount: 3000,
+      }),
     ).toEqual({
       kind: "order_unconfirmed",
       payment_transaction_id: "qr-1",
@@ -437,6 +470,7 @@ describe("a charge on the integrated terminal whose order request never reached 
     const outcome = await startMercadoPagoChargeFor(deps(orders), {
       saleId,
       method: "POINT",
+      cardType: "DEBIT",
       amount: 3000,
     });
     if (outcome.kind !== "order_unconfirmed") {

@@ -43,7 +43,9 @@ function addQrPayment(state: string, saleId: string): void {
 
 function paymentRows(): unknown[] {
   return database
-    .prepare("SELECT id, sale_id, method, provider, amount, state FROM payment_transactions")
+    .prepare(
+      "SELECT id, sale_id, method, provider, card_type, amount, state FROM payment_transactions",
+    )
     .all();
 }
 
@@ -135,7 +137,13 @@ describe("holding a paid order as a pending payment of its sale", () => {
     );
 
     expect(paymentRows()).toMatchObject([
-      { id: "point-1", method: "POINT", provider: "MERCADOPAGO_POINT", state: "PENDING" },
+      {
+        id: "point-1",
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        card_type: null,
+        state: "PENDING",
+      },
     ]);
   });
 
