@@ -537,9 +537,13 @@ describe("readSaleHistoryDetail", () => {
       [null],
     ] as const)("has no next copy of the credit note while its standing is %o", (creditNote) => {
       const history = new FakeRegisterSalesHistory([
-        historySale({ voided: true, creditNote: structuredClone(creditNote) }),
+        historySale({
+          voided: true,
+          creditNote: structuredClone(creditNote),
+          creditNoteId: creditNote === null ? null : "credit-note-1",
+        }),
       ]);
-      const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
+      const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
 
       const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
