@@ -10,9 +10,9 @@ import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import {
   completeReturnFor,
+  type FindSaleForReturnDeps,
   findSaleForReturnFor,
   previewReturnFor,
-  type ReturnRequestDeps,
 } from "./returns-requests";
 import { readRetainedBranchSale } from "./sqlite-retained-branch-sales";
 import { openSecondSession, openSoldSaleDatabase } from "./test-support/sold-sale-database";
@@ -28,7 +28,7 @@ let idCount: number;
 let askedTickets: TicketReference[];
 let cloudAnswer: BranchSaleLookupAnswer;
 
-function deps(overrides: Partial<ReturnRequestDeps> = {}): ReturnRequestDeps {
+function deps(overrides: Partial<FindSaleForReturnDeps> = {}): FindSaleForReturnDeps {
   return {
     database,
     gate: createActionGate({

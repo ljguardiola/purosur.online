@@ -8,9 +8,10 @@ import type {
 } from "@purosur/contracts";
 import type { RefundAllocation, ReturnDraftLine, TicketSource } from "@purosur/domain";
 import {
+  type BranchSaleLookup,
   type CompleteReturnGrant,
   completeReturn,
-  findSaleForReturn,
+  findBranchSaleForReturn,
   type OperationAuthorization,
   previewReturn,
   type SaleReturnSearch,
@@ -22,6 +23,8 @@ import {
   toWireRefundRefusal,
   toWireSaleForReturn,
 } from "./returns-wire";
+import { SqliteOwnReturnsOfSale } from "./sqlite-own-returns-of-sale";
+import { SqliteRetainedBranchSales } from "./sqlite-retained-branch-sales";
 import { SqliteReturnLedger } from "./sqlite-return-ledger";
 import { SqliteReturnSaleReader } from "./sqlite-return-sale-reader";
 
@@ -29,6 +32,8 @@ export type ReturnRequestDeps = Pick<
   OutboxSaleRequestDeps,
   "database" | "gate" | "now" | "ids" | "readOutboxChainKey"
 >;
+
+export type FindSaleForReturnDeps = ReturnRequestDeps & { branchSales: BranchSaleLookup };
 
 export interface FindSaleForReturnRequest {
   ticket: SaleReturnSearch;
@@ -58,11 +63,20 @@ interface ReturnRequestGrant extends CompleteReturnGrant {
 }
 
 export async function findSaleForReturnFor(
-  { database, gate, now }: ReturnRequestDeps,
+  { database, gate, now, branchSales }: FindSaleForReturnDeps,
   { ticket, authorization }: FindSaleForReturnRequest,
 ): Promise<FindSaleForReturnOutcome> {
   const guarded = await gate.runAuthorized({ kind: "process_return" }, authorization, async () =>
-    findSaleForReturn({ reader: new SqliteReturnSaleReader(database), clock: { now } }, ticket),
+    findBranchSaleForReturn(
+      {
+        reader: new SqliteReturnSaleReader(database),
+        lookup: branchSales,
+        ownReturns: new SqliteOwnReturnsOfSale(database),
+        retained: new SqliteRetainedBranchSales(database),
+        clock: { now },
+      },
+      ticket,
+    ),
   );
   if (guarded.kind !== "performed") {
     return guarded;

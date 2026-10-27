@@ -11,6 +11,8 @@ import type {
 } from "@purosur/domain/returns/use-cases";
 import type { CloudCallOptions, CloudResponse } from "../platform/cloud-client";
 
+export const BRANCH_SALE_LOOKUP_TIMEOUT_MS = 8_000;
+
 const SALE_PATH = "/api/devices/current/returns/sale";
 
 export interface CloudBranchSaleLookupDeps {
