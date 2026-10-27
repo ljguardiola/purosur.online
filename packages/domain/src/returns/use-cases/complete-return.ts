@@ -60,7 +60,7 @@ export interface CompleteReturnPorts<Grant extends CompleteReturnGrant, Refusal>
   authority: OperationAuthority<Grant, Refusal>;
 }
 
-export type ReturnCreditNote =
+type ReturnCreditNote =
   | { kind: "none" }
   | { kind: "pending" | "awaiting_invoice" | "issued_offline"; creditNoteId: string };
 

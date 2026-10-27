@@ -60,7 +60,7 @@ export interface CreditNoteRecorder {
 
 export type SaleCreditNoteTransaction = CreditNoteRoutingFacts & CreditNoteRecorder;
 
-export type SaleCreditNoteOriginRequest =
+type SaleCreditNoteOriginRequest =
   | { kind: "sale_void" }
   | { kind: "sale_return"; returnId: string };
 

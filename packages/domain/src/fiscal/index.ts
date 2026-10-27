@@ -131,10 +131,7 @@ export {
   fiscalEmissionStopReasonOf,
 } from "./model/fiscal-emission-stop.js";
 export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
-export {
-  isRegisterFiscallyOnline,
-  REGISTER_HEALTH_CHECK_INTERVAL_MS,
-} from "./model/fiscal-online-signal.js";
+export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
 export { fiscalQrVoucher } from "./model/fiscal-qr-voucher.js";
 export type {
   FiscalDocumentType,
@@ -262,11 +259,9 @@ export {
   DEFERRAL_REASONS,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceDateOf,
-  invoiceOwnFortnight,
   isFiscalOutcomeUnresolved,
   NUMBER_CONSUMING_STATES,
   OFFLINE_AUTHORIZATION_CAUSES,
-  offlineRoute,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
@@ -293,7 +288,6 @@ export type {
 export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
 export type {
   AwaitingCreditNote,
-  CorrectedInvoice,
   CreditNoteAnswer,
   CreditNoteIssuedOffline,
   CreditNoteOrigin,
@@ -307,13 +301,9 @@ export type {
 export {
   creditNoteToIssuePayload,
   invoiceToCorrect,
-  tiedToInvoice,
 } from "./model/sale-credit-note.js";
 export type {
-  CreditNoteRecorder,
-  CreditNoteRoutingFacts,
   OfflineCreditNoteClockMark,
-  SaleCreditNoteOriginRequest,
   SaleCreditNoteRoute,
   SaleCreditNoteTransaction,
   SaleInvoiceStanding,
