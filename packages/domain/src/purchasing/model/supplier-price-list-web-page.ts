@@ -17,6 +17,7 @@ export const SUPPLIER_PRICE_LIST_WEB_PAGE_REFUSALS = [
   "too_large",
   "too_slow",
   "unsupported_content",
+  "store_catalog_unavailable",
   "unreachable",
 ] as const;
 

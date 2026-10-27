@@ -9,6 +9,8 @@ const WEB_PAGE_REFUSAL_MESSAGES = {
   too_large: "La página es demasiado pesada.",
   too_slow: "La página tardó demasiado en responder.",
   unsupported_content: "La dirección no es un PDF ni una página web.",
+  store_catalog_unavailable:
+    "La tienda no entregó su lista de productos. Probá de nuevo más tarde.",
   unreachable: "La página no respondió. Revisá la dirección.",
 } satisfies Record<WebPageRefusalReason, string>;
 
@@ -22,6 +24,7 @@ const WEB_PAGE_REFUSAL_HINTS = {
   too_large: undefined,
   too_slow: undefined,
   unsupported_content: undefined,
+  store_catalog_unavailable: undefined,
   unreachable: WHAT_ELSE_IS_NOT_READ,
 } satisfies Record<WebPageRefusalReason, string | undefined>;
 
