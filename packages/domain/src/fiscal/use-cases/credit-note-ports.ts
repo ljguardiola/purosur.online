@@ -23,6 +23,7 @@ export interface CreditNote {
   total: number;
   receiverTaxStatusCode: number;
   reason: CreditNoteReason;
+  issueOn: string | null;
   standing: CreditNoteStanding;
 }
 
@@ -47,6 +48,12 @@ export interface CreditNoteRejectionRecord {
   task: FiscalTask;
 }
 
+export interface CreditNoteRegularizationRecord {
+  creditNoteId: string;
+  regularizationRequiredAt: Date;
+  task: FiscalTask;
+}
+
 export interface CreditNoteLane {
   creditNote(creditNoteId: string): Promise<CreditNote | null>;
   otherCreditNoteStandings(creditNoteId: string): Promise<CreditNoteStanding[]>;
@@ -60,6 +67,12 @@ export interface CreditNoteLane {
    * Records the rejection and opens its task for a person, all or nothing.
    */
   recordCreditNoteRejected(rejection: CreditNoteRejectionRecord): Promise<void>;
+  /**
+   * Records that the credit note cannot be issued and opens its task for a person, all or nothing.
+   */
+  recordCreditNoteRegularizationRequired(
+    regularization: CreditNoteRegularizationRecord,
+  ): Promise<void>;
   recordCreditNoteUnclear(creditNoteId: string, answeredAt: Date): Promise<void>;
   /**
    * Frees the credit note's request and, given invoicing outside the register, records it, all

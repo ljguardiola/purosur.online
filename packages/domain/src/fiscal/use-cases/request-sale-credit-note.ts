@@ -1,4 +1,5 @@
 import type { VoidCreditNoteStanding } from "../model/sale-credit-note.js";
+import { askCloudForCreditNote } from "./ask-cloud-for-credit-note.js";
 import type { RequestSaleCreditNotePorts } from "./request-credit-notes-ports.js";
 
 export interface RequestSaleCreditNoteInput {
@@ -20,14 +21,11 @@ export async function requestSaleCreditNote(
   try {
     const pending = await creditNotes.pendingCreditNote(creditNoteId);
     if (pending !== null) {
-      const pointOfSale = await creditNotes.realTimePointOfSale();
-      const reply =
-        pointOfSale === null
-          ? null
-          : await cloud.request({ creditNoteId, pointOfSale, saleEvent: pending.saleEvent });
-      if (reply !== null && reply.kind !== "in_progress") {
-        await creditNotes.recordAnswer(creditNoteId, reply, clock.now());
-      }
+      await askCloudForCreditNote(
+        { creditNotes, cloud, clock },
+        pending,
+        await creditNotes.realTimePointOfSale(),
+      );
     }
     answer = (await creditNotes.recordedAnswer(creditNoteId)) ?? IN_PROGRESS;
   } catch (error) {

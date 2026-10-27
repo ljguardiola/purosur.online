@@ -1,4 +1,5 @@
-import type { CreditNoteAnswer, VoidCreditNoteStanding } from "../model/sale-credit-note.js";
+import type { VoidCreditNoteStanding } from "../model/sale-credit-note.js";
+import { askCloudForCreditNote } from "./ask-cloud-for-credit-note.js";
 import type { RequestPendingCreditNotesPorts } from "./request-credit-notes-ports.js";
 
 export interface RequestedCreditNote {
@@ -11,8 +12,6 @@ export interface RequestPendingCreditNotesOutcome {
   answers: RequestedCreditNote[];
 }
 
-const IN_PROGRESS: CreditNoteAnswer = { kind: "in_progress" };
-
 export async function requestPendingCreditNotes({
   creditNotes,
   cloud,
@@ -21,15 +20,11 @@ export async function requestPendingCreditNotes({
   const pending = await creditNotes.inProgress();
   const pointOfSale = await creditNotes.realTimePointOfSale();
   const answers: RequestedCreditNote[] = [];
-  for (const { creditNoteId, saleEvent } of pending) {
-    const answer =
-      pointOfSale === null ? null : await cloud.request({ creditNoteId, pointOfSale, saleEvent });
-    if (answer === null || answer.kind === "in_progress") {
-      answers.push({ creditNoteId, answer: IN_PROGRESS });
-      continue;
-    }
-    await creditNotes.recordAnswer(creditNoteId, answer, clock.now());
-    answers.push({ creditNoteId, answer });
+  for (const note of pending) {
+    answers.push({
+      creditNoteId: note.creditNoteId,
+      answer: await askCloudForCreditNote({ creditNotes, cloud, clock }, note, pointOfSale),
+    });
   }
   return { kind: "requested", answers };
 }

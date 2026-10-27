@@ -1,5 +1,6 @@
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
+  creditNoteBreaksDateOrder,
   creditNoteIssueDate,
   mayTakeCreditNoteNumber,
   nextCreditNoteNumber,
@@ -42,6 +43,7 @@ export type IssueCreditNoteOutcome =
   | { kind: "rejected"; rejections: readonly TaxAuthorityRejection[] }
   | ({ kind: "already_authorized" } & AuthorizedCreditNote)
   | { kind: "already_rejected" }
+  | { kind: "regularization_required" }
   | { kind: "retry"; askAgainAt: Date }
   | { kind: "not_found" };
 
@@ -67,6 +69,9 @@ export async function issueCreditNote(
     }
     if (standing.kind === "rejected") {
       return { kind: "already_rejected" };
+    }
+    if (standing.kind === "regularization_required") {
+      return { kind: "regularization_required" };
     }
 
     const retryLater = (): IssueCreditNoteOutcome => ({
@@ -143,8 +148,24 @@ export async function issueCreditNote(
       );
     }
 
-    if (!mayTakeCreditNoteNumber(await lane.otherCreditNoteStandings(creditNoteId))) {
+    const otherStandings = await lane.otherCreditNoteStandings(creditNoteId);
+    if (!mayTakeCreditNoteNumber(otherStandings)) {
       return retryLater();
+    }
+    if (
+      creditNote.issueOn !== null &&
+      creditNoteBreaksDateOrder(creditNote.issueOn, otherStandings)
+    ) {
+      const regularizationRequiredAt = clock.now();
+      await lane.recordCreditNoteRegularizationRequired({
+        creditNoteId,
+        regularizationRequiredAt,
+        task: creditNoteRejectedTask(
+          { creditNoteId, pointOfSale, number: null, rejections: [] },
+          regularizationRequiredAt,
+        ),
+      });
+      return { kind: "regularization_required" };
     }
     const lastAuthorized = await taxAuthority.lastAuthorized({
       token,
@@ -157,7 +178,7 @@ export async function issueCreditNote(
 
     const requestedAt = clock.now();
     const number = nextCreditNoteNumber(lastAuthorized.number);
-    const issuedOn = creditNoteIssueDate(requestedAt);
+    const issuedOn = creditNote.issueOn ?? creditNoteIssueDate(requestedAt);
     try {
       await lane.recordCreditNoteRequest({ creditNoteId, number, issuedOn, requestedAt });
     } catch (error) {
@@ -252,6 +273,8 @@ export function creditNoteAnswerOf(outcome: IssueCreditNoteOutcome): CreditNoteA
     case "rejected":
     case "already_rejected":
       return { kind: "rejected" };
+    case "regularization_required":
+      return { kind: "regularization_required" };
     case "retry":
       return { kind: "in_progress" };
     case "not_found":

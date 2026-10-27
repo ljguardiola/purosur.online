@@ -1,8 +1,9 @@
 import type { PushedEvent } from "../../sync/index.js";
+import { creditWithinInvoice } from "../model/credit-note.js";
 import {
   type CreditNoteAnswer,
-  type CreditNoteToIssue,
   creditNoteAnswerOf,
+  type InvoicedCreditNote,
 } from "../model/sale-credit-note.js";
 import {
   type AcceptSaleCreditNoteRequestPorts,
@@ -16,7 +17,7 @@ export interface AcceptSaleCreditNoteRequestInput {
   request: {
     creditNoteId: string;
     pointOfSale: number;
-    voided: CreditNoteToIssue;
+    creditNote: InvoicedCreditNote;
     saleEvent: PushedEvent;
   };
   receivedAt: Date;
@@ -35,7 +36,7 @@ export async function acceptSaleCreditNoteRequest(
   { lanes, attachedSaleEvents }: AcceptSaleCreditNoteRequestPorts,
   { deviceId, registerId, request, receivedAt }: AcceptSaleCreditNoteRequestInput,
 ): Promise<AcceptSaleCreditNoteRequestOutcome> {
-  const asked = request.voided;
+  const asked = request.creditNote;
   if (asked.creditNoteId !== request.creditNoteId) {
     return { kind: "sale_event_mismatch" };
   }
@@ -62,6 +63,25 @@ export async function acceptSaleCreditNoteRequest(
       ) {
         return { kind: "voucher_not_owned" };
       }
+      const refuseAsAlreadyCredited = async (): Promise<AcceptSaleCreditNoteRequestOutcome> => {
+        await lane.raiseInvoiceAlreadyCredited(
+          { voucher: asked.correctedVoucher, saleId: asked.saleId },
+          receivedAt,
+        );
+        await lane.keepAlreadyCreditedRefusal(
+          { creditNoteId: asked.creditNoteId, registerId, saleId: asked.saleId },
+          receivedAt,
+        );
+        return { kind: "voucher_already_credited" };
+      };
+      const withinInvoice = creditWithinInvoice({
+        invoiceTotal: await lane.invoiceTotalOf(asked.correctedVoucher),
+        alreadyCredited: await lane.creditedToInvoice(asked.correctedVoucher),
+        asked: asked.total,
+      });
+      if (!withinInvoice) {
+        return refuseAsAlreadyCredited();
+      }
       try {
         await lane.recordSaleCreditNote({
           creditNoteId: asked.creditNoteId,
@@ -71,6 +91,7 @@ export async function acceptSaleCreditNoteRequest(
           correctedVoucher: asked.correctedVoucher,
           total: asked.total,
           receiverTaxStatusCode: asked.receiverTaxStatusCode,
+          origin: asked.origin,
           receivedAt,
         });
       } catch (error) {
@@ -78,15 +99,7 @@ export async function acceptSaleCreditNoteRequest(
           return { kind: "credit_note_not_owned" };
         }
         if (error instanceof VoucherAlreadyCredited) {
-          await lane.raiseInvoiceAlreadyCredited(
-            { voucher: asked.correctedVoucher, saleId: asked.saleId },
-            receivedAt,
-          );
-          await lane.keepAlreadyCreditedRefusal(
-            { creditNoteId: asked.creditNoteId, registerId, saleId: asked.saleId },
-            receivedAt,
-          );
-          return { kind: "voucher_already_credited" };
+          return refuseAsAlreadyCredited();
         }
         throw error;
       }

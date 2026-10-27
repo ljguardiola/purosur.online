@@ -198,6 +198,7 @@ export type {
   CreditNoteAuthorizationRecord,
   CreditNoteLane,
   CreditNoteLanes,
+  CreditNoteRegularizationRecord,
   CreditNoteRejectionRecord,
   CreditNoteRequestRecord,
   CreditNoteRequests,
