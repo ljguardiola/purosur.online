@@ -1647,6 +1647,36 @@ describe("wiring the sales report routes", () => {
   });
 });
 
+describe("wiring the returns report route", () => {
+  const request = { method: "GET", url: "/api/reports/returns" } as const;
+
+  it("does not register the returns report route when no returns option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    const response = await app.inject({
+      ...request,
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers the returns report route when a returns option is given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      returns: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const response = await app.inject({
+      ...request,
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+});
+
 describe("wiring the payments report routes", () => {
   const request = { method: "GET", url: "/api/reports/sales-by-payment-method" } as const;
 
@@ -2896,6 +2926,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/reports/current-stock",
         access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/returns",
+        access: capabilityAccess("returns_report"),
       },
       {
         method: "GET",
