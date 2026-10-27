@@ -235,11 +235,7 @@ export class FakeEventApplication implements EventApplication {
       },
       saleReturnHistory: async (saleId) => {
         this.state.writeOrder.push("return history");
-        const history = this.saleReturnHistories.get(saleId);
-        if (history === undefined) {
-          throw new Error(`no history of sale ${saleId}`);
-        }
-        return history;
+        return this.saleReturnHistories.get(saleId);
       },
       applyReturnStock: async (saleReturn, event) => {
         this.state.writeOrder.push("return stock");
