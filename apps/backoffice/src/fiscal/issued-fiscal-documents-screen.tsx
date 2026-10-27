@@ -28,11 +28,11 @@ import {
   voucherDetailText,
   voucherText,
 } from "./issued-fiscal-document-text";
+import type { IssuedFiscalDocumentsFilters } from "./issued-fiscal-documents-filters";
 import {
-  type IssuedFiscalDocumentsFilters,
   isDocumentNumberText,
   issuedFiscalDocumentsQueryOf,
-} from "./issued-fiscal-documents-filters";
+} from "./issued-fiscal-documents-query";
 import type { IssuedFiscalDocumentsScreenServices } from "./issued-fiscal-documents-services";
 
 export type IssuedFiscalDocumentsScreenProps = {
