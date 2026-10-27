@@ -7113,11 +7113,8 @@ describe("the sale returns migration", () => {
     });
   });
 
-  it("refuses a return of a sale or in a session the register does not hold", () => {
+  it("refuses a return in a session the register does not hold", () => {
     withHeldSale((database) => {
-      expect(() => insertReturn(database, { id: "return-x", saleId: "missing" })).toThrow(
-        /FOREIGN KEY/,
-      );
       expect(() => insertReturn(database, { id: "return-x", sessionId: "missing" })).toThrow(
         /FOREIGN KEY/,
       );
@@ -7132,9 +7129,6 @@ describe("the sale returns migration", () => {
       expect(() => insertLine(database, {})).not.toThrow();
       expect(() => insertLine(database, {})).toThrow(/UNIQUE|PRIMARY KEY/);
       expect(() => insertLine(database, { return_id: "missing" })).toThrow(/FOREIGN KEY/);
-      expect(() =>
-        insertLine(database, { return_id: "return-2", sale_line_id: "missing" }),
-      ).toThrow(/FOREIGN KEY/);
       expect(() =>
         insertLine(database, { return_id: "return-2", disposition: "discard", refunded_amount: 0 }),
       ).not.toThrow();
@@ -7225,6 +7219,212 @@ describe("the awaiting contingency ticket recovery migration", () => {
         database.exec(
           "INSERT INTO awaiting_contingency_ticket_recovery (device_id, last_acknowledged_seq) VALUES ('device-other', -1)",
         ),
+      ).toThrow(/CHECK/);
+    });
+  });
+});
+
+describe("the returns of other registers' sales migration", () => {
+  const MIGRATION = "0083_returns_of_branch_sales";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withHeldReturn(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
+         VALUES ('pay-1', 'sale-1', 'SALE', 'CASH', 'NONE', 3000, 3000, NULL, NULL, 'APPROVED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, authorized_by, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'r1', 'device-a', 's1', 'u1', 'u2', 'TYPED', '2026-10-12T12:00:00.000Z');
+         INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+         VALUES ('return-1', 'line-1', 1, 'defective', 'discard', 1500);
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'pay-1', 'CASH', 'NONE', 1500, 'APPROVED', '2026-10-12T12:00:00.000Z');
+         INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES ('movement-1', 'p1', 'return', 'line-1', 1, '2026-10-12T12:00:00.000Z'),
+                ('movement-2', 'p1', 'loss', NULL, -1, '2026-10-12T12:07:00.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  const insertReturn = (database: Database, values: Record<string, string> = {}) =>
+    database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, authorized_by, ticket_source, occurred_at)
+         VALUES (@id, @sale_id, 'r2', 'device-b', @session_id, 'u1', NULL, @ticket_source, '2026-10-13T12:00:00.000Z')`,
+      )
+      .run({
+        id: "return-2",
+        sale_id: "sale-of-another-register",
+        session_id: "s1",
+        ticket_source: "QR",
+        ...values,
+      });
+
+  const insertLine = (database: Database, values: Record<string, string | number> = {}) =>
+    database
+      .prepare(
+        `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+         VALUES (@return_id, @sale_line_id, @quantity, 'change_of_mind', 'restock', 500)`,
+      )
+      .run({
+        return_id: "return-2",
+        sale_line_id: "line-of-another-register",
+        quantity: 1,
+        ...values,
+      });
+
+  const insertRefund = (database: Database, values: Record<string, string | number | null> = {}) =>
+    database
+      .prepare(
+        `INSERT INTO payment_refunds (id, payment_id, return_id, method, provider, amount, state, occurred_at)
+         VALUES (@id, @payment_id, @return_id, @method, @provider, @amount, @state, '2026-10-13T12:00:00.000Z')`,
+      )
+      .run({
+        id: "refund-2",
+        payment_id: "payment-of-another-register",
+        return_id: "return-2",
+        method: "CASH",
+        provider: "NONE",
+        amount: 500,
+        state: "APPROVED",
+        ...values,
+      });
+
+  const insertMovement = (database: Database, values: Record<string, string | null> = {}) =>
+    database
+      .prepare(
+        `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES (@id, 'p1', @kind, @sale_line_id, 1, '2026-10-13T12:00:00.000Z')`,
+      )
+      .run({
+        id: "movement-3",
+        kind: "return",
+        sale_line_id: "line-of-another-register",
+        ...values,
+      });
+
+  it("keeps the returns, their lines, their refunds and their stock movements a register holds", () => {
+    withHeldReturn((database) => {
+      expect(database.prepare("SELECT id, sale_id, authorized_by FROM returns").all()).toEqual([
+        { id: "return-1", sale_id: "sale-1", authorized_by: "u2" },
+      ]);
+      expect(
+        database.prepare("SELECT return_id, sale_line_id, refunded_amount FROM return_lines").all(),
+      ).toEqual([{ return_id: "return-1", sale_line_id: "line-1", refunded_amount: 1500 }]);
+      expect(
+        database.prepare("SELECT id, payment_id, return_id, amount FROM payment_refunds").all(),
+      ).toEqual([{ id: "refund-1", payment_id: "pay-1", return_id: null, amount: 1500 }]);
+      expect(
+        database
+          .prepare("SELECT id, kind, sale_line_id FROM stock_movements ORDER BY id")
+          .all(),
+      ).toEqual([
+        { id: "movement-1", kind: "return", sale_line_id: "line-1" },
+        { id: "movement-2", kind: "loss", sale_line_id: null },
+      ]);
+      expect(database.pragma("foreign_key_check")).toEqual([]);
+    });
+  });
+
+  it("keeps the indexes of the four tables", () => {
+    withHeldReturn((database) => {
+      expect(
+        database
+          .prepare<[], { name: string }>(
+            `SELECT name FROM sqlite_schema WHERE type = 'index' AND name IN (
+               'returns_by_sale', 'return_lines_by_sale_line', 'payment_refunds_by_payment', 'stock_movements_by_product'
+             ) ORDER BY name`,
+          )
+          .all()
+          .map(({ name }) => name),
+      ).toEqual([
+        "payment_refunds_by_payment",
+        "return_lines_by_sale_line",
+        "returns_by_sale",
+        "stock_movements_by_product",
+      ]);
+    });
+  });
+
+  it("records a return, its line, its refund and its stock movement for a sale the register does not hold", () => {
+    withHeldReturn((database) => {
+      expect(() => insertReturn(database)).not.toThrow();
+      expect(() => insertLine(database)).not.toThrow();
+      expect(() => insertRefund(database)).not.toThrow();
+      expect(() => insertMovement(database)).not.toThrow();
+    });
+  });
+
+  it("refuses a return in a session the register does not hold", () => {
+    withHeldReturn((database) => {
+      expect(() => insertReturn(database, { session_id: "missing" })).toThrow(/FOREIGN KEY/);
+    });
+  });
+
+  it("refuses a line, or a refund, of a return the register does not hold", () => {
+    withHeldReturn((database) => {
+      expect(() => insertLine(database, { return_id: "missing" })).toThrow(/FOREIGN KEY/);
+      expect(() => insertRefund(database, { return_id: "missing" })).toThrow(/FOREIGN KEY/);
+    });
+  });
+
+  it("refuses a return of one sale line twice in the same return", () => {
+    withHeldReturn((database) => {
+      insertReturn(database);
+      insertLine(database);
+
+      expect(() => insertLine(database)).toThrow(/UNIQUE|PRIMARY KEY/);
+    });
+  });
+
+  it("still refuses what a return, its line, its refund and its stock movement refused", () => {
+    withHeldReturn((database) => {
+      insertReturn(database);
+
+      expect(() => insertReturn(database, { id: "return-3", ticket_source: "SCAN" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertLine(database, { quantity: 0 })).toThrow(/CHECK/);
+      expect(() => insertRefund(database, { amount: 0 })).toThrow(/CHECK/);
+      expect(() => insertRefund(database, { state: "REJECTED" })).toThrow(/CHECK/);
+      expect(() => insertRefund(database, { provider: "MERCADOPAGO_QR" })).toThrow(/CHECK/);
+      expect(() => insertMovement(database, { kind: "sale_returned" })).toThrow(/CHECK/);
+      expect(() => insertMovement(database, { kind: "loss" })).toThrow(/CHECK/);
+    });
+  });
+
+  it("keeps a copy of a branch sale once per sale", () => {
+    withHeldReturn((database) => {
+      database.exec(
+        "INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-9', '{}')",
+      );
+
+      expect(() =>
+        database.exec("INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-9', '{}')"),
+      ).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() =>
+        database.exec("INSERT INTO branch_sales_for_return (sale_id, facts) VALUES ('sale-8', 'x')"),
       ).toThrow(/CHECK/);
     });
   });
