@@ -1,12 +1,12 @@
 import { expect, test } from "vitest";
 import {
-  authorizationText,
   authorizationDetailText,
+  authorizationText,
   documentsCountText,
   issuedDay,
   issuedTime,
-  voucherText,
   voucherDetailText,
+  voucherText,
 } from "./issued-fiscal-document-text";
 import {
   authorizedReceipt,
