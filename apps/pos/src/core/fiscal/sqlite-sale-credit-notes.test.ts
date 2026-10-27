@@ -1,6 +1,7 @@
 import type { VoidCreditNoteStanding } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteRetainedBranchSales } from "../returns/sqlite-retained-branch-sales";
 import { insertReturn } from "../returns/sqlite-return-ledger";
 import { SqliteLocalOutbox } from "../sync/sqlite-local-outbox";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -608,6 +609,84 @@ describe("the invoice standing of a sale", () => {
 
   it("is empty for a sale with no invoice and no deferred record", async () => {
     insertCompletedSale(database, "sale-1");
+
+    await expect(creditNotes.saleInvoiceStanding("sale-1")).resolves.toEqual({
+      fiscalDocuments: [],
+      deferralPending: false,
+    });
+  });
+});
+
+describe("the invoice standing of a sale another register rang up", () => {
+  const OTHER_REGISTER_STANDING = {
+    fiscalDocuments: [
+      {
+        origin: "real_time",
+        state: "AUTHORIZED",
+        pointOfSale: 4,
+        number: 88,
+        buyerTaxStatusCode: 5,
+      },
+    ],
+    deferralPending: false,
+  } as const;
+
+  function retainBranchSale(
+    saleId: string,
+    invoiceStanding: Parameters<SqliteRetainedBranchSales["keep"]>[0]["invoiceStanding"],
+  ): void {
+    new SqliteRetainedBranchSales(database).keep({
+      sale: {
+        sale: {
+          id: saleId,
+          registerId: "register-2",
+          deviceId: "device-2",
+          sessionId: "session-2",
+          actorId: "cashier",
+          state: "COMPLETED",
+          saleDiscount: null,
+          lines: [],
+        },
+        occurredAt: new Date("2026-09-12T18:30:00.000Z"),
+        invoice: { pointOfSale: 4, number: 88 },
+        payments: [],
+        returned: [],
+      },
+      invoiceStanding,
+      goodConditionReturnDays: 15,
+      countedReturnIds: [],
+    });
+  }
+
+  it("is the standing the cloud answered when the register found the sale", async () => {
+    retainBranchSale("sale-elsewhere", OTHER_REGISTER_STANDING);
+
+    await expect(creditNotes.saleInvoiceStanding("sale-elsewhere")).resolves.toEqual(
+      OTHER_REGISTER_STANDING,
+    );
+  });
+
+  it("is the standing of an invoice still on its way when that is what the cloud answered", async () => {
+    retainBranchSale("sale-elsewhere", { fiscalDocuments: [], deferralPending: true });
+
+    await expect(creditNotes.saleInvoiceStanding("sale-elsewhere")).resolves.toEqual({
+      fiscalDocuments: [],
+      deferralPending: true,
+    });
+  });
+
+  it("is empty for a sale it neither holds nor found", async () => {
+    retainBranchSale("sale-elsewhere", OTHER_REGISTER_STANDING);
+
+    await expect(creditNotes.saleInvoiceStanding("sale-unknown")).resolves.toEqual({
+      fiscalDocuments: [],
+      deferralPending: false,
+    });
+  });
+
+  it("is the register's own records for a sale it holds, whatever a copy says", async () => {
+    insertCompletedSale(database, "sale-1");
+    retainBranchSale("sale-1", OTHER_REGISTER_STANDING);
 
     await expect(creditNotes.saleInvoiceStanding("sale-1")).resolves.toEqual({
       fiscalDocuments: [],
