@@ -542,7 +542,7 @@ describe("voiding a sale of the sales history", () => {
         expect(creditNoteCalls).toHaveLength(1);
         expect(creditNoteCalls[0]).toMatchObject({
           pointOfSale: 12,
-          saleEvent: { event_type: "sale_voided", aggregate_id: saleId, schema_version: 3 },
+          saleEvent: { event_type: "sale_voided", aggregate_id: saleId, schema_version: 4 },
         });
         expect(
           database
@@ -694,10 +694,17 @@ describe("voiding a sale of the sales history", () => {
         const saleId = await soldInCash();
         database
           .prepare(
-            `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
-             VALUES ('mp-1', ?, 'SALE', ?, ?, 500, 'APPROVED', ?, ?)`,
+            `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+             VALUES ('mp-1', ?, 'SALE', ?, ?, ?, 500, 'APPROVED', ?, ?)`,
           )
-          .run(saleId, method, provider, NOW.toISOString(), NOW.toISOString());
+          .run(
+            saleId,
+            method,
+            provider,
+            method === "POINT" ? "DEBIT" : null,
+            NOW.toISOString(),
+            NOW.toISOString(),
+          );
         return saleId;
       }
 
