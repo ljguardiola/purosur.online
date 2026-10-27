@@ -279,6 +279,8 @@ describe("recording the regularization of an orphan authorization on a real Post
           authorizationCode: null,
           authorizationCodeDueOn: null,
           rejections: null,
+          returnId: null,
+          issueOn: null,
           createdAt: OPENED_AT,
         },
       ]);

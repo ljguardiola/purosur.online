@@ -94,6 +94,12 @@ describe("fiscalTaskItemSchema", () => {
     );
   });
 
+  it("reads a credit note task that has no number yet", () => {
+    expect(fiscalTaskItemSchema.parse({ ...creditNoteRejected, number: null })).toMatchObject({
+      number: null,
+    });
+  });
+
   it("reads the alert a task carries, escalated or not", () => {
     const alerts = [
       { level: "warning", escalated_at: null },

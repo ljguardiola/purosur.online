@@ -296,6 +296,8 @@ describe("the credit notes of voided sales on a real Postgres", () => {
       await insertSaleVoidCreditNote(db, registerId, crypto.randomUUID(), {
         ...creditedTo(401),
         reason: "sale_return",
+        returnId: crypto.randomUUID(),
+        issueOn: "2026-10-07",
         total: 2_000,
         ...anAuthorizedAnswer(),
       });
@@ -327,6 +329,8 @@ describe("the credit notes of voided sales on a real Postgres", () => {
       await insertSaleVoidCreditNote(db, registerId, crypto.randomUUID(), {
         ...creditedTo(403),
         reason: "sale_return",
+        returnId: crypto.randomUUID(),
+        issueOn: "2026-10-07",
         total: 4_000,
         answerKind: "regularization_required",
         answeredAt: RECEIVED_AT,

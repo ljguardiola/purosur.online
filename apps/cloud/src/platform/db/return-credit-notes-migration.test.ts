@@ -117,8 +117,9 @@ describe("the return credit notes migration applied over a database that already
     it("are no longer limited to one", async () => {
       const { migrated, insertNote } = await migratedDatabase();
 
-      await insertNote({ associated_number: 42, total: 5000 });
-      await insertNote({ associated_number: 42, total: 5000 });
+      for (const returnId of [crypto.randomUUID(), crypto.randomUUID()]) {
+        await insertNote({ return_id: returnId, issue_on: "2026-10-05" });
+      }
 
       expect(
         (
@@ -140,7 +141,7 @@ describe("the return credit notes migration applied over a database that already
       expect(
         (
           await migrated.query(
-            "select reason, return_id, issue_on from credit_notes where reason = 'sale_return'",
+            "select reason, return_id, issue_on::text from credit_notes where reason = 'sale_return'",
           )
         ).rows,
       ).toEqual([{ reason: "sale_return", return_id: returnId, issue_on: "2026-10-05" }]);

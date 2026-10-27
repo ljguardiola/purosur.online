@@ -325,6 +325,69 @@ describe("POST /devices/current/reset", () => {
       );
     });
 
+    async function aReturnedSale(deviceId: string) {
+      const saleId = crypto.randomUUID();
+      const returnId = crypto.randomUUID();
+      const creditNoteId = crypto.randomUUID();
+      await insertInboxEvent(db, deviceId, {
+        eventType: "sale_returned",
+        schemaVersion: 2,
+        aggregateId: saleId,
+        payload: {
+          id: returnId,
+          sale_id: saleId,
+          credit_note: {
+            id: creditNoteId,
+            total: 1200,
+            receiver_tax_status_code: 5,
+            corrects: { voucher_type: 11, point_of_sale: 7, number: 1 },
+            issued_on: "2026-10-07",
+          },
+        },
+      });
+      return { saleId, returnId, creditNoteId };
+    }
+
+    it("answers the credit notes of the register's returns, one to be regularized included", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const authorized = await aReturnedSale(predecessor.deviceId);
+      const toRegularize = await aReturnedSale(predecessor.deviceId);
+      const unrequested = await aReturnedSale(predecessor.deviceId);
+      for (const [returned, answer] of [
+        [authorized, anAuthorizedAnswer(9)],
+        [
+          toRegularize,
+          { answerKind: "regularization_required", answeredAt: ANSWERED_AT, number: null },
+        ],
+      ] as const) {
+        await insertSaleVoidCreditNote(db, current.registerId, returned.saleId, {
+          ...answer,
+          id: returned.creditNoteId,
+          reason: "sale_return",
+          returnId: returned.returnId,
+          issueOn: "2026-10-07",
+          total: 1200,
+        });
+      }
+
+      const response = await resetOf(predecessor, current);
+
+      expect(response.statusCode).toBe(200);
+      const body = registerResetResponseSchema.parse(response.json());
+      expect(body.credit_notes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ credit_note_id: authorized.creditNoteId, state: "AUTHORIZED" }),
+          {
+            credit_note_id: toRegularize.creditNoteId,
+            answered_at: ANSWERED_AT.toISOString(),
+            state: "REGULARIZATION_REQUIRED",
+          },
+        ]),
+      );
+      expect(body.credit_notes).toHaveLength(2);
+      expect(body.unrequested_credit_note_ids).toEqual([unrequested.creditNoteId]);
+    });
+
     it("answers already credited, when it was refused, for a credit note the cloud refused", async () => {
       const { predecessor, current } = await aRestoredRegister();
       const refused = await aVoidedSale(predecessor.deviceId);
