@@ -668,7 +668,7 @@ describe("the credit note of a completed return", () => {
     calls: CloudCreditNoteCall[];
     printed: { saleId: string; creditNoteId: string }[];
     failures: unknown[];
-    deps: Partial<ReturnRequestDeps>;
+    deps: Partial<FindSaleForReturnDeps>;
   }
 
   function rig(
