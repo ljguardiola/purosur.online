@@ -85,7 +85,7 @@ export function FinishTicketRecoveryModal({
       tone="info"
       icon={<CircleCheck />}
       title={shown ? `¿Terminar el rescate de ${shown.register_name}?` : ""}
-      closable
+      closable={!submitting}
       footer={
         <>
           <Button

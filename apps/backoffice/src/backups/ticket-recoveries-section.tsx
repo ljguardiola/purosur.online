@@ -1,15 +1,7 @@
 import type { ContingencyTicketRecoveriesResponse } from "@purosur/contracts";
-import {
-  actionsColumn,
-  dataColumn,
-  InlineNotice,
-  LoadFailure,
-  LoadingPlaceholder,
-  Table,
-  useTableModel,
-} from "@purosur/ui";
+import { actionsColumn, dataColumn, InlineNotice, Table, useTableModel } from "@purosur/ui";
 import { CircleCheck, Printer } from "lucide-react";
-import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { ContingencyTicketRecovery } from "./contingency-ticket-recovery-api";
 import { recoveryAwaitingSinceText } from "./ticket-recovery-text";
@@ -55,23 +47,24 @@ export function TicketRecoveriesSection({ data, onFinish }: TicketRecoveriesSect
     columns: columnsFor(onFinish),
   });
 
-  if (data.status === "loading") {
-    return <LoadingPlaceholder variant="rows" rows={2} />;
-  }
-  if (data.status === "failed") {
-    return <LoadFailure {...cloudLoadFailure(data, "las cajas esperando el rescate")} />;
-  }
-  if (recoveries.length === 0) {
+  const loaded = data.status === "loaded";
+  if (loaded && recoveries.length === 0) {
     return null;
   }
   return (
     <section className="flex flex-col gap-4">
-      <InlineNotice
-        tone="info"
-        icon={<Printer />}
-        title="Antes de escanear, revisá la impresora y el mostrador: el último ticket de respaldo suele seguir ahí."
+      {loaded ? (
+        <InlineNotice
+          tone="info"
+          icon={<Printer />}
+          title="Antes de escanear, revisá la impresora y el mostrador: el último ticket de respaldo suele seguir ahí."
+        />
+      ) : null}
+      <Table
+        aria-label="Cajas esperando el rescate de tickets"
+        table={table}
+        {...cloudTableState(data, "las cajas esperando el rescate")}
       />
-      <Table aria-label="Cajas esperando el rescate de tickets" table={table} />
     </section>
   );
 }

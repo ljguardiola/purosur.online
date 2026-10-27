@@ -8,9 +8,14 @@ import type {
   LockedContingencyTicketRecovery,
   OpenContingencyTicketRecovery,
 } from "@purosur/domain/backups/use-cases";
-import { asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { auditLog, contingencyTicketRecoveries, registers } from "../platform/db/schema.js";
+import {
+  auditLog,
+  contingencyTicketRecoveries,
+  registerInstallations,
+  registers,
+} from "../platform/db/schema.js";
 
 class DrizzleContingencyTicketRecoveryTransaction<TQueryResult extends PgQueryResultHKT>
   implements ContingencyTicketRecoveryTransaction
@@ -98,7 +103,16 @@ export class DrizzleContingencyTicketRecoveries<TQueryResult extends PgQueryResu
       })
       .from(contingencyTicketRecoveries)
       .innerJoin(registers, eq(registers.id, contingencyTicketRecoveries.registerId))
-      .where(isNull(contingencyTicketRecoveries.finishedAt))
+      .innerJoin(
+        registerInstallations,
+        eq(registerInstallations.id, contingencyTicketRecoveries.restoredDeviceId),
+      )
+      .where(
+        and(
+          isNull(contingencyTicketRecoveries.finishedAt),
+          isNull(registerInstallations.revokedAt),
+        ),
+      )
       .orderBy(asc(contingencyTicketRecoveries.openedAt), asc(contingencyTicketRecoveries.id));
   }
 }
