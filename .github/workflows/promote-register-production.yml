@@ -325,5 +325,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-          INSTALLER: ${{ steps.installer.outputs.path }}
-        run: gh release upload "$RELEASE_TAG" "$INSTALLER"
+          INSTALLER_ASSET: ${{ steps.installer.outputs.asset }}
+        run: gh release upload "$RELEASE_TAG" "$INSTALLER_ASSET"

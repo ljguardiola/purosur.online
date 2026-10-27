@@ -174,7 +174,7 @@ const COMMANDS = new Map(
         if (basename(path) !== expected) {
           throw new Error(`${LOG_PREFIX}: the installer is ${basename(path)}, not ${expected}`);
         }
-        return `path=${path}\n`;
+        return `asset=${path}#${expected}\n`;
       },
     },
     "run-of-version": {
