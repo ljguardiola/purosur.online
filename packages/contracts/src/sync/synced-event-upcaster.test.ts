@@ -922,11 +922,11 @@ describe("decoding the events the registers pushed", () => {
         state: "PENDING",
       };
       const events = {
-        sale_completed: (payment: Record<string, unknown>, version: number) =>
+        sale_completed: (payment: Record<string, string | number | null>, version: number) =>
           completed({ payments: [payment] }, version),
-        sale_cancelled: (payment: Record<string, unknown>, version: number) =>
+        sale_cancelled: (payment: Record<string, string | number | null>, version: number) =>
           cancelled({ payments: [payment], refunds: [pointRefund] }, version),
-        sale_voided: (payment: Record<string, unknown>, version: number) =>
+        sale_voided: (payment: Record<string, string | number | null>, version: number) =>
           pushed({
             event_type: "sale_voided",
             schema_version: version,
