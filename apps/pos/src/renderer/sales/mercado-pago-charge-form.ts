@@ -1,7 +1,7 @@
 import { startMercadoPagoChargeMessageSchema } from "@purosur/contracts";
 import { parseAmountCents } from "@purosur/ui";
 
-export const mercadoPagoChargeRequestSchema = startMercadoPagoChargeMessageSchema.pick({
+export const mercadoPagoChargeRequestSchema = startMercadoPagoChargeMessageSchema.options[0].pick({
   amount: true,
 });
 

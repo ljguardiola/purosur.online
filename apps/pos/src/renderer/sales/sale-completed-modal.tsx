@@ -3,6 +3,7 @@ import type {
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
 } from "@purosur/contracts";
+import type { PointCardType } from "@purosur/domain";
 import {
   Button,
   DocumentList,
@@ -15,6 +16,7 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
+import { pointCardName } from "../platform/payment-method-names";
 import { backupPrinterState } from "../shell/contingency-backup-printer-failure-text";
 import type { ReceiptPrintStatus } from "./sales-queries";
 import {
@@ -124,7 +126,7 @@ export type SaleCompletedModalProps = {
   | { tendered: number; change: number; method?: "CASH" }
   | { method: "TRANSFER"; amount: number }
   | { method: "QR"; amount: number }
-  | { method: "POINT"; amount: number }
+  | { method: "POINT"; cardType: PointCardType | null; amount: number }
   | { method: "STANDALONE_TERMINAL"; amount: number }
 );
 
@@ -153,7 +155,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
       : props.method === "QR"
         ? { label: "QR de Mercado Pago", value: formatCents(props.amount) }
         : props.method === "POINT"
-          ? { label: "Point integrada", value: formatCents(props.amount) }
+          ? { label: pointCardName(props.cardType), value: formatCents(props.amount) }
           : props.method === "STANDALONE_TERMINAL"
             ? { label: "Terminal independiente", value: formatCents(props.amount) }
             : { label: "Efectivo entregado", value: formatCents(props.tendered) };

@@ -13,6 +13,7 @@ import type {
   ReceiptPrintStatusOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
+import type { PointCardType } from "@purosur/domain";
 import {
   formatCents,
   InlineNotice,
@@ -25,7 +26,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { Info, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { MercadoPagoMethod } from "../platform/core-client";
+import type { MercadoPagoChargeKind } from "../platform/core-client";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashChargeModal } from "./cash-charge-modal";
@@ -56,16 +57,18 @@ type Step =
   | { name: "standalone-terminal" }
   | { name: "qr" }
   | { name: "qr-wait"; order: ShownQrOrder; sale: OpenSale }
-  | { name: "point" }
-  | { name: "point-wait"; order: ShownPointOrder; sale: OpenSale }
+  | { name: "point"; cardType: PointCardType }
+  | { name: "point-wait"; cardType: PointCardType | null; order: ShownPointOrder; sale: OpenSale }
   | { name: "completed"; payment: CompletedPayment; sale: OpenSale };
 
 function stepOf(method: ChargeMethod): Step {
   switch (method) {
     case "CASH":
       return { name: "cash" };
-    case "POINT":
-      return { name: "point" };
+    case "POINT_DEBIT":
+      return { name: "point", cardType: "DEBIT" };
+    case "POINT_CREDIT":
+      return { name: "point", cardType: "CREDIT" };
     case "QR":
       return { name: "qr" };
     case "TRANSFER":
@@ -87,7 +90,7 @@ function followedChargeStep(
     wait_seconds: charge.wait_seconds,
   } as const;
   return charge.method === "POINT"
-    ? { name: "point-wait", order, sale }
+    ? { name: "point-wait", cardType: null, order, sale }
     : { name: "qr-wait", order, sale };
 }
 
@@ -107,7 +110,7 @@ export type ChargeScreenProps = {
   paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge: (
     saleId: string,
-    method: MercadoPagoMethod,
+    charge: MercadoPagoChargeKind,
     amount: number,
   ) => Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge: (
@@ -227,7 +230,7 @@ export function ChargeScreen({
               <InlineNotice
                 tone="info"
                 icon={<Info />}
-                title={`Point integrada: no se ofrece para cobrar menos de ${formatCents(belowMinimum)}`}
+                title={`Point: no se ofrece para cobrar menos de ${formatCents(belowMinimum)}`}
               />
             )}
             <OptionCardGroup
@@ -306,7 +309,7 @@ export function ChargeScreen({
           total={sale.total}
           paid={sale.paid}
           pending={sale.pending}
-          start={(amount) => startMercadoPagoCharge(sale.id, "QR", amount)}
+          start={(amount) => startMercadoPagoCharge(sale.id, { method: "QR" }, amount)}
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
           onOrderShown={(order) => setStep({ name: "qr-wait", order, sale })}
           onSaleUnavailable={backToSale}
@@ -338,10 +341,15 @@ export function ChargeScreen({
           total={sale.total}
           paid={sale.paid}
           pending={sale.pending}
+          cardType={step.cardType}
           minimum={pointMinimum}
-          start={(amount) => startMercadoPagoCharge(sale.id, "POINT", amount)}
+          start={(amount) =>
+            startMercadoPagoCharge(sale.id, { method: "POINT", cardType: step.cardType }, amount)
+          }
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
-          onOrderShown={(order) => setStep({ name: "point-wait", order, sale })}
+          onOrderShown={(order) =>
+            setStep({ name: "point-wait", cardType: step.cardType, order, sale })
+          }
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
         />
@@ -351,11 +359,16 @@ export function ChargeScreen({
           total={step.sale.total}
           paid={step.sale.paid}
           order={step.order}
+          cardType={step.cardType}
           follow={followMercadoPagoCharge}
           abandon={abandonMercadoPagoCharge}
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
           onCompleted={(charge) =>
-            setStep({ name: "completed", payment: { method: "POINT", charge }, sale: step.sale })
+            setStep({
+              name: "completed",
+              payment: { method: "POINT", cardType: step.cardType, charge },
+              sale: step.sale,
+            })
           }
           onPartiallyPaid={backToMethodsWithBalance}
           onSaleUnavailable={backToSale}
