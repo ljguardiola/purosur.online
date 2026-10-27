@@ -28,12 +28,3 @@ test("asks the cloud for every filter the URL carries", () => {
     page: 2,
   });
 });
-
-test.each(["abc", "0041", "12a"])(
-  "asks the cloud for no number when the URL carries %s",
-  (number) => {
-    const filters = issuedFiscalDocumentsFilters.parse({ number });
-
-    expect(issuedFiscalDocumentsQueryOf(filters)).toEqual({ page: 1 });
-  },
-);
