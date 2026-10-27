@@ -16,6 +16,7 @@ export const mixBatch: AssemblyBatch = {
   unitCostCents: 991_200,
   costIncomplete: false,
   expiresOn: "2026-11-02",
+  status: "voidable",
 };
 
 export const infusionsBatch: AssemblyBatch = {
@@ -28,6 +29,20 @@ export const infusionsBatch: AssemblyBatch = {
   unitCostCents: null,
   costIncomplete: true,
   expiresOn: null,
+  status: "consumed",
+};
+
+export const voidedBatch: AssemblyBatch = {
+  id: "b0000000-0000-4000-8000-000000000003",
+  productId: mixDeFrutosSecos.productId,
+  productName: mixDeFrutosSecos.productName,
+  saleUnit: "KG",
+  assembledAt: "2026-09-12T14:00:00.000Z",
+  output: 2_000,
+  unitCostCents: 991_200,
+  costIncomplete: false,
+  expiresOn: "2026-10-30",
+  status: "voided",
 };
 
 export function assemblyBatchList(
