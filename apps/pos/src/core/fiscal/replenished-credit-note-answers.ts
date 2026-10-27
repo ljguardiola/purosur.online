@@ -2,7 +2,7 @@ import type { CreditNoteToIssue, RestoredCreditNoteAnswer } from "@purosur/domai
 import type { LocalDatabase } from "../platform/local-database";
 import {
   insertPendingCreditNote,
-  readCreditNoteOfSale,
+  readCreditNoteById,
   writeCreditNoteAnswer,
 } from "./sqlite-void-credit-notes";
 
@@ -14,7 +14,7 @@ export function recordReplenishedCreditNoteAnswer(
   if (answer.kind === "issued_offline") {
     return;
   }
-  const held = readCreditNoteOfSale(database, creditNote.saleId);
+  const held = readCreditNoteById(database, creditNote.creditNoteId);
   if (held !== null && held.answer.kind !== "in_progress") {
     return;
   }

@@ -41,12 +41,15 @@ const TICKET_COLUMNS = `
            AS sale_receipt_printed,
          (SELECT COALESCE(
              (SELECT credit_note_prints.printed_at IS NOT NULL FROM credit_note_prints
-               WHERE credit_note_prints.sale_id = tickets.subject_id),
+               JOIN sale_void_credit_notes AS voided_notes
+                 ON voided_notes.id = credit_note_prints.credit_note_id
+               WHERE voided_notes.sale_id = tickets.subject_id AND voided_notes.return_id IS NULL),
              0
            )
            WHERE EXISTS (
              SELECT 1 FROM sale_void_credit_notes
               WHERE sale_void_credit_notes.sale_id = tickets.subject_id
+                AND sale_void_credit_notes.return_id IS NULL
                 AND sale_void_credit_notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')
            )
          ) AS void_credit_note_printed,

@@ -1,13 +1,13 @@
 import type { CreditNoteToIssue, PushedEvent } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
-import { insertPendingCreditNote, readCreditNoteOfSale } from "./sqlite-void-credit-notes";
+import { insertPendingCreditNote, readCreditNoteById } from "./sqlite-void-credit-notes";
 
 export function holdReplenishedCreditNoteToRequest(
   database: LocalDatabase,
   creditNote: CreditNoteToIssue,
   event: PushedEvent,
 ): void {
-  const held = readCreditNoteOfSale(database, creditNote.saleId);
+  const held = readCreditNoteById(database, creditNote.creditNoteId);
   if (held !== null && held.answer.kind !== "in_progress") {
     return;
   }
