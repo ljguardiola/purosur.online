@@ -25,7 +25,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       .toBeVisible();
     const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
     expect(methods.textContent).toMatch(
-      /Efectivo.*Point integrada.*QR de Mercado Pago.*Transferencia/s,
+      /Efectivo.*Point · Débito.*Point · Crédito.*QR de Mercado Pago.*Transferencia/s,
     );
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -37,7 +37,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
     await expect.element(screen.getByText("No configurado en esta caja")).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeEnabled();
     await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }), {
       force: true,
     });
@@ -73,7 +73,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
   describe("following the QR charge the open sale has in progress", () => {
     it("shows the customer paid until Continuar, then the completed sale, after the sale stops being open", async () => {
       const { screen, currentSale } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("QR", 120), null),
+        currentSale: readsInTurn(saleWithChargeInProgress({ method: "QR" }, 120), null),
         followMercadoPagoCharge: async () => ({
           kind: "completed",
           sale_id: "sale-1",
@@ -99,7 +99,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     it("shows the whole wait as the total of a charge reopened part way through it", async () => {
       const { screen } = await renderScreen({
         currentSale: readsInTurn({
-          ...saleWithChargeInProgress("QR", 40),
+          ...saleWithChargeInProgress({ method: "QR" }, 40),
           mercado_pago_charge_in_progress: {
             payment_transaction_id: QR_PAYMENT_ID,
             method: "QR",
@@ -119,7 +119,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
     it("keeps the declined notice after the sale stops showing the charge", async () => {
       const { screen, currentSale } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("QR", 120), SALE_OF_ONE_LINE),
+        currentSale: readsInTurn(saleWithChargeInProgress({ method: "QR" }, 120), SALE_OF_ONE_LINE),
         followMercadoPagoCharge: async () => ({ kind: "declined" }),
       });
 
@@ -191,7 +191,11 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Esperando el pago del cliente" }))
       .toBeVisible();
-    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith("sale-1", "QR", 476_000);
+    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(
+      "sale-1",
+      { method: "QR" },
+      476_000,
+    );
   });
 
   it("returns to the methods from Cambiar de medio of the amount step", async () => {

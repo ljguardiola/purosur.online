@@ -24,6 +24,7 @@ type Start = (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
 async function renderModal(
   start: Start = async () => ORDER_SHOWN,
   sale: { total: number; paid: number; pending: number } = WHOLE_SALE,
+  cardType: "DEBIT" | "CREDIT" = "DEBIT",
 ) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
@@ -35,7 +36,13 @@ async function renderModal(
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
-    <PointChargeModal {...sale} minimum={MINIMUM} start={startCharge} {...callbacks} />,
+    <PointChargeModal
+      {...sale}
+      cardType={cardType}
+      minimum={MINIMUM}
+      start={startCharge}
+      {...callbacks}
+    />,
   );
   return {
     screen,
@@ -47,6 +54,12 @@ async function renderModal(
 }
 
 describe("PointChargeModal", () => {
+  it("names the credit card the charge is made with", async () => {
+    const { screen } = await renderModal(undefined, WHOLE_SALE, "CREDIT");
+
+    await expect.element(screen.getByText("POINT · CRÉDITO")).toBeVisible();
+  });
+
   it("asks how much is charged on the terminal and shows what is owed", async () => {
     const { screen, field } = await renderModal(undefined, {
       total: TOTAL,
@@ -54,7 +67,7 @@ describe("PointChargeModal", () => {
       pending: 4_070_000,
     });
 
-    await expect.element(screen.getByText("POINT INTEGRADA")).toBeVisible();
+    await expect.element(screen.getByText("POINT · DÉBITO")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
       .toBeVisible();

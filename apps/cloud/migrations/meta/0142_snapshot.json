@@ -1,5 +1,5 @@
 {
-  "id": "f83df188-6a4b-4cbe-b213-831d603d01fd",
+  "id": "ff7c2806-4d24-4a18-ad12-54614d1c4c4b",
   "prevId": "b8e2a186-d76e-49cf-b538-17ffa8691aef",
   "version": "7",
   "dialect": "postgresql",
@@ -5557,6 +5557,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "card_type": {
+          "name": "card_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "amount": {
           "name": "amount",
           "type": "bigint",
@@ -5675,6 +5681,10 @@
         "payment_transactions_method_provider_check": {
           "name": "payment_transactions_method_provider_check",
           "value": "(\"payment_transactions\".\"method\" = 'QR' and \"payment_transactions\".\"provider\" = 'MERCADOPAGO_QR') or (\"payment_transactions\".\"method\" = 'POINT' and \"payment_transactions\".\"provider\" = 'MERCADOPAGO_POINT')"
+        },
+        "payment_transactions_card_type_check": {
+          "name": "payment_transactions_card_type_check",
+          "value": "\"payment_transactions\".\"card_type\" is null or (\"payment_transactions\".\"method\" = 'POINT' and \"payment_transactions\".\"card_type\" in ('DEBIT', 'CREDIT'))"
         },
         "payment_transactions_amount_check": {
           "name": "payment_transactions_amount_check",
@@ -9049,6 +9059,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "card_type": {
+          "name": "card_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "amount": {
           "name": "amount",
           "type": "bigint",
@@ -9107,7 +9123,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "sale_payments_card_type_check": {
+          "name": "sale_payments_card_type_check",
+          "value": "\"sale_payments\".\"card_type\" is null or (\"sale_payments\".\"method\" = 'POINT' and \"sale_payments\".\"card_type\" in ('DEBIT', 'CREDIT'))"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.sale_reprints": {
@@ -11679,60 +11700,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.zone_rules": {
-      "name": "zone_rules",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "version": {
-          "name": "version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transitions": {
-          "name": "transitions",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "publication_number": {
-          "name": "publication_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "zone_rules_publication_number_key": {
-          "name": "zone_rules_publication_number_key",
-          "columns": [
-            {
-              "expression": "publication_number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

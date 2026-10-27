@@ -124,7 +124,7 @@ async function recordCancelledWithoutOrder(
     saleId,
     kind: "SALE",
     ...(provider === "MERCADOPAGO_POINT"
-      ? ({ method: "POINT", provider } as const)
+      ? ({ method: "POINT", provider, cardType: null } as const)
       : ({ method: "QR", provider } as const)),
     amount,
     state: "CANCELLED",

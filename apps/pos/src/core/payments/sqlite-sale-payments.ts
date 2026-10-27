@@ -2,6 +2,7 @@ import {
   isConfirmedByHand,
   type PaymentTransaction,
   type PendingMercadoPagoSalePayment,
+  type PointCardType,
   type SalePayment,
 } from "@purosur/domain";
 import type { SaleRefund } from "@purosur/domain/sales/use-cases";
@@ -19,13 +20,14 @@ interface PaymentRow {
   confirmed_at: string | null;
   state: PaymentTransaction["state"];
   occurred_at: string;
+  card_type: PointCardType | null;
 }
 
 export function readSalePayments(database: LocalDatabase, saleId: string): SalePayment[] {
   return database
     .prepare<[string], PaymentRow>(
       `SELECT id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
-              occurred_at
+              occurred_at, card_type
        FROM payment_transactions WHERE sale_id = ? AND state = 'APPROVED' ORDER BY rowid`,
     )
     .all(saleId)
@@ -39,7 +41,7 @@ export function readRecordedPayments(
   return database
     .prepare<[string], PaymentRow>(
       `SELECT id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
-              occurred_at
+              occurred_at, card_type
        FROM payment_transactions WHERE sale_id = ? ORDER BY rowid`,
     )
     .all(saleId)
@@ -64,7 +66,7 @@ function toMercadoPagoPayment(
   };
   return method === "QR"
     ? { ...common, method, provider: "MERCADOPAGO_QR" }
-    : { ...common, method, provider: "MERCADOPAGO_POINT" };
+    : { ...common, method, provider: "MERCADOPAGO_POINT", cardType: row.card_type };
 }
 
 export function insertPaymentRefund(database: LocalDatabase, refund: SaleRefund): void {
@@ -97,7 +99,7 @@ function toPayment(row: PaymentRow): SalePayment {
     return { ...common, method: "QR", provider: "MERCADOPAGO_QR" };
   }
   if (row.method === "POINT") {
-    return { ...common, method: "POINT", provider: "MERCADOPAGO_POINT" };
+    return { ...common, method: "POINT", provider: "MERCADOPAGO_POINT", cardType: row.card_type };
   }
   if (isConfirmedByHand(row)) {
     const confirmation = {
@@ -128,9 +130,10 @@ interface PendingMercadoPagoPaymentRow {
   amount: number;
   occurred_at: string;
   wait_ends_at: string;
+  card_type: PointCardType | null;
 }
 
-const PENDING_MERCADO_PAGO_PAYMENTS = `SELECT id, sale_id, method, amount, occurred_at, wait_ends_at
+const PENDING_MERCADO_PAGO_PAYMENTS = `SELECT id, sale_id, method, amount, occurred_at, wait_ends_at, card_type
   FROM payment_transactions WHERE method IN ('QR', 'POINT') AND state = 'PENDING'`;
 const FOLLOWED_MERCADO_PAGO_PAYMENTS = `${PENDING_MERCADO_PAGO_PAYMENTS} AND replaced = 0`;
 
@@ -147,7 +150,7 @@ function toPendingMercadoPagoPayment(
     waitEndsAt: new Date(row.wait_ends_at),
   } as const;
   return row.method === "POINT"
-    ? { ...common, method: "POINT", provider: "MERCADOPAGO_POINT" }
+    ? { ...common, method: "POINT", provider: "MERCADOPAGO_POINT", cardType: row.card_type }
     : { ...common, method: "QR", provider: "MERCADOPAGO_QR" };
 }
 
@@ -158,9 +161,10 @@ export function insertPendingMercadoPagoPayment(
   database
     .prepare(
       `INSERT INTO payment_transactions (
-         id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at
+         id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at
        ) VALUES (
-         @id, @sale_id, 'SALE', @method, @provider, @amount, 'PENDING', @occurred_at, @wait_ends_at
+         @id, @sale_id, 'SALE', @method, @provider, @card_type, @amount, 'PENDING', @occurred_at,
+         @wait_ends_at
        )`,
     )
     .run({
@@ -168,6 +172,7 @@ export function insertPendingMercadoPagoPayment(
       sale_id: payment.saleId,
       method: payment.method,
       provider: payment.provider,
+      card_type: payment.method === "POINT" ? payment.cardType : null,
       amount: payment.amount,
       occurred_at: payment.occurredAt.toISOString(),
       wait_ends_at: payment.waitEndsAt.toISOString(),

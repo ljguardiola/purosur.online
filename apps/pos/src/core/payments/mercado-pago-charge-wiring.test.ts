@@ -125,7 +125,9 @@ describe("the register's Mercado Pago QR charging", () => {
       ticketedSettlement: UNTICKETED,
     });
 
-    expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toEqual({
+    expect(
+      await charging.start?.({ saleId, method: "POINT", cardType: "DEBIT", amount: 3000 }),
+    ).toEqual({
       kind: "order_refused",
     });
     expect(
@@ -144,6 +146,7 @@ describe("the register's Mercado Pago QR charging", () => {
           payment_transaction_id: "point-1",
           sale_id: saleId,
           provider: "MERCADOPAGO_POINT",
+          card_type: "DEBIT",
           amount: 3000,
         },
       ],
@@ -195,7 +198,9 @@ describe("the register's Mercado Pago QR charging", () => {
       ticketedSettlement: UNTICKETED,
     });
 
-    expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toMatchObject({
+    expect(
+      await charging.start?.({ saleId, method: "POINT", cardType: "DEBIT", amount: 3000 }),
+    ).toMatchObject({
       kind: "order_unconfirmed",
       payment_transaction_id: POINT_PAYMENT_ID,
     });

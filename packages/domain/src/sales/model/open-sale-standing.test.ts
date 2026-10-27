@@ -49,6 +49,7 @@ const QR_CHARGE_PAST_ITS_WAIT = {
 const POINT_CHARGE_PAST_ITS_WAIT = {
   id: "point-1",
   method: "POINT",
+  cardType: "CREDIT",
   amount: 4000,
   occurredAt: new Date("2026-10-09T11:57:30.000Z"),
   waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
@@ -135,6 +136,7 @@ describe("openSaleStanding", () => {
     ).toEqual({
       paymentTransactionId: "point-1",
       method: "POINT",
+      cardType: "CREDIT",
       amount: 4000,
       remainingSeconds: 0,
       waitSeconds: 180,

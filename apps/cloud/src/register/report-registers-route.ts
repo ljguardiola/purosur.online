@@ -29,7 +29,7 @@ export function registerReportRegistersRoute<TQueryResult extends PgQueryResultH
     "/reports/registers",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("reports_area"), sessionSource },
+      config: { access: capabilityAccess("report_registers"), sessionSource },
     },
     async (request, reply) => {
       const registers = await branchRegisters.branchRegisters(openSessionOf(request).locationId);

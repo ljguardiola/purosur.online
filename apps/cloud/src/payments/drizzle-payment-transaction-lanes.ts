@@ -67,7 +67,12 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
       expiresAt: row.expiresAt,
     } as const;
     return row.method === "POINT"
-      ? { ...transaction, method: "POINT", provider: "MERCADOPAGO_POINT" }
+      ? {
+          ...transaction,
+          method: "POINT",
+          provider: "MERCADOPAGO_POINT",
+          cardType: row.cardType,
+        }
       : { ...transaction, method: "QR", provider: "MERCADOPAGO_QR" };
   }
 

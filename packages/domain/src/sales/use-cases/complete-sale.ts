@@ -112,7 +112,7 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_COMPLETED_EVENT_TYPE,
-    schema_version: 8,
+    schema_version: 9,
     payload: {
       id: sale.id,
       operation_number: operationNumber,

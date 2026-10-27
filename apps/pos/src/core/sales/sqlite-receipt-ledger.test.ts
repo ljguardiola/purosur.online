@@ -374,8 +374,8 @@ describe("a receipt ledger's source of a sale", () => {
         },
       ],
       payments: [
-        { method: "CASH", amount: 500000, tendered: 600000 },
-        { method: "TRANSFER", amount: 237100, tendered: null },
+        { method: "CASH", amount: 500000, tendered: 600000, cardType: null },
+        { method: "TRANSFER", amount: 237100, tendered: null, cardType: null },
       ],
       fiscal: { kind: "none" },
     });
@@ -455,10 +455,29 @@ describe("a receipt ledger's payments", () => {
     const source = inTransaction((tx) => tx.receiptSource("sale-1"));
 
     expect(source?.payments).toEqual([
-      { method: "CASH", amount: 500000, tendered: 600000 },
-      { method: "TRANSFER", amount: 237100, tendered: null },
-      { method: "QR", amount: 100000, tendered: null },
+      { method: "CASH", amount: 500000, tendered: 600000, cardType: null },
+      { method: "TRANSFER", amount: 237100, tendered: null, cardType: null },
+      { method: "QR", amount: 100000, tendered: null, cardType: null },
     ]);
+  });
+});
+
+describe("a receipt ledger's Point payments", () => {
+  it.each(["DEBIT", "CREDIT"] as const)("hold the %s card they were charged on", (cardType) => {
+    insertSaleWithEverything();
+    database.exec(
+      `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+       VALUES ('pay-3', 'sale-1', 'SALE', 'POINT', 'MERCADOPAGO_POINT', '${cardType}', 100000, 'APPROVED', '${COMPLETED_AT}', '${COMPLETED_AT}');`,
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source?.payments.at(-1)).toEqual({
+      method: "POINT",
+      amount: 100000,
+      tendered: null,
+      cardType,
+    });
   });
 });
 

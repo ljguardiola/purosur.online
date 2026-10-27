@@ -75,15 +75,15 @@ export const help = defineHelp("es-AR", {
       body: [
         {
           kind: "paragraph",
-          text: "La Point integrada cobra con tarjeta o QR en la terminal, y necesita internet.",
+          text: "La Point integrada cobra con tarjeta en la terminal, y necesita internet.",
         },
         {
           kind: "steps",
           items: [
-            "En Venta en curso, tocá Cobrar y elegí Point integrada.",
+            "En Venta en curso, tocá Cobrar y elegí Point · Débito o Point · Crédito.",
             "Revisá el importe a cobrar con este medio. Si cobrás menos que el saldo pendiente, el resto queda para otro medio.",
             "Tocá Enviar a la terminal. Desde ese momento el importe ya no se puede cambiar.",
-            "El cliente paga con tarjeta o QR en la terminal mientras la caja muestra la cuenta regresiva.",
+            "El cliente paga con tarjeta en la terminal mientras la caja muestra la cuenta regresiva.",
             "Cuando la caja muestra que el cliente pagó en la terminal, tocá Continuar.",
           ],
         },

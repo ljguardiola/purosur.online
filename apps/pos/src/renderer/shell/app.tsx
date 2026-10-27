@@ -27,7 +27,7 @@ import type {
   CompleteReturnInput,
   CoreClient,
   DeferredSaleReading,
-  MercadoPagoMethod,
+  MercadoPagoChargeKind,
   SaleForReturnReading,
   SalesHistoryQuery,
   SerialDevicesToRegister,
@@ -302,8 +302,12 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  async function startMercadoPagoCharge(saleId: string, method: MercadoPagoMethod, amount: number) {
-    const outcome = await core.startMercadoPagoCharge(saleId, method, amount);
+  async function startMercadoPagoCharge(
+    saleId: string,
+    charge: MercadoPagoChargeKind,
+    amount: number,
+  ) {
+    const outcome = await core.startMercadoPagoCharge(saleId, charge, amount);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }

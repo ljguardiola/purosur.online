@@ -1,21 +1,20 @@
 import {
   isValidPointOrderAmount,
   nonCashCharge,
-  type PendingMercadoPagoSalePayment,
+  type PointCardType,
 } from "../../payments/index.js";
 import type { ZoneRulesSource } from "../../shared/index.js";
 import { isSaleRefusal, type NewPaymentRefusal, saleOpenToNewPayment } from "./chargeable-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
-export interface RecordPendingMercadoPagoPaymentInput {
+export type RecordPendingMercadoPagoPaymentInput = {
   actorId: string;
   saleId: string;
-  method: PendingMercadoPagoSalePayment["method"];
   amount: number;
   occurredAt: Date;
   waitEndsAt: Date;
-}
+} & ({ method: "QR"; cardType?: never } | { method: "POINT"; cardType: PointCardType });
 
 export interface RecordPendingMercadoPagoPaymentPorts {
   ledger: SaleLedger;
@@ -36,8 +35,9 @@ export type RecordPendingMercadoPagoPaymentOutcome =
 
 export function recordPendingMercadoPagoPayment(
   { ledger, restoration, zoneRules, ids }: RecordPendingMercadoPagoPaymentPorts,
-  { actorId, saleId, method, amount, occurredAt, waitEndsAt }: RecordPendingMercadoPagoPaymentInput,
+  input: RecordPendingMercadoPagoPaymentInput,
 ): RecordPendingMercadoPagoPaymentOutcome {
+  const { actorId, saleId, amount, occurredAt, waitEndsAt } = input;
   return ledger.transaction<RecordPendingMercadoPagoPaymentOutcome>((tx) => {
     const chargeable = saleOpenToNewPayment(
       tx,
@@ -55,7 +55,7 @@ export function recordPendingMercadoPagoPayment(
     if (charge.kind === "invalid_amount" || charge.kind === "exceeds_pending") {
       return charge;
     }
-    if (method === "POINT" && !isValidPointOrderAmount(charge.applied)) {
+    if (input.method === "POINT" && !isValidPointOrderAmount(charge.applied)) {
       return { kind: "below_minimum" };
     }
 
@@ -64,9 +64,13 @@ export function recordPendingMercadoPagoPayment(
       id: paymentTransactionId,
       saleId: sale.id,
       kind: "SALE",
-      ...(method === "POINT"
-        ? ({ method, provider: "MERCADOPAGO_POINT" } as const)
-        : ({ method, provider: "MERCADOPAGO_QR" } as const)),
+      ...(input.method === "POINT"
+        ? ({
+            method: input.method,
+            provider: "MERCADOPAGO_POINT",
+            cardType: input.cardType,
+          } as const)
+        : ({ method: input.method, provider: "MERCADOPAGO_QR" } as const)),
       state: "PENDING",
       amount: charge.applied,
       occurredAt,

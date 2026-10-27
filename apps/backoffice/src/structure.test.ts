@@ -13,6 +13,7 @@ const CONCEPTS = [
   "pricing",
   "purchasing",
   "register",
+  "returns",
   "sales",
   "stock",
   "sync",

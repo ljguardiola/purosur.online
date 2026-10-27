@@ -48,7 +48,7 @@ const SOURCE: ReceiptSource = {
       lineTotal: 7500,
     },
   ],
-  payments: [{ method: "CASH", amount: 7500, tendered: 8000 }],
+  payments: [{ method: "CASH", amount: 7500, tendered: 8000, cardType: null }],
   fiscal: { kind: "none" },
 };
 

@@ -45,7 +45,6 @@ describe("ChargeCompletedModal", () => {
   it.each([
     ["TRANSFER", "Transferencia"],
     ["QR", "QR de Mercado Pago"],
-    ["POINT", "Point integrada"],
     ["STANDALONE_TERMINAL", "Terminal independiente"],
   ] as const)(
     "shows what the last %s charge paid, beside the sale's total",
@@ -63,4 +62,19 @@ describe("ChargeCompletedModal", () => {
       await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
     },
   );
+
+  it.each([
+    ["DEBIT", "Point · Débito"],
+    ["CREDIT", "Point · Crédito"],
+    [null, "Point"],
+  ] as const)("shows what the last %s Point charge paid under %s", async (cardType, label) => {
+    const screen = await renderModal({
+      method: "POINT",
+      cardType,
+      charge: { kind: "completed", ...SALE, amount: 300_000 },
+    });
+
+    await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("$ 3.000,00")).toBeVisible();
+  });
 });

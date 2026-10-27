@@ -4,7 +4,10 @@ export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   PAYMENT_NOTIFICATION_LIMIT,
 } from "./model/mercado-pago-notifications.js";
-export type { MercadoPagoChargeInProgress } from "./model/mercado-pago-order-charge-wait.js";
+export type {
+  MercadoPagoChargeInProgress,
+  PendingMercadoPagoCharge,
+} from "./model/mercado-pago-order-charge-wait.js";
 export {
   aMercadoPagoChargeInProgress,
   MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
@@ -44,6 +47,7 @@ export type {
   ConfirmedByHandMethod,
   MercadoPagoPaymentMethod,
   PaymentMethod,
+  PointCardType,
 } from "./model/payment.js";
 export {
   APPROVED_PAYMENT_STATE,
@@ -54,6 +58,7 @@ export {
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
+  POINT_CARD_TYPES,
 } from "./model/payment.js";
 export type {
   PointTerminalAvailability,

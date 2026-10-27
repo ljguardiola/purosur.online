@@ -23,7 +23,9 @@ import {
   OFFLINE_NUMBER_BLOCK_STATUSES,
   type OfflineAuthorizationCause,
   type OfflineDocumentCorrection,
+  POINT_CARD_TYPES,
   POINT_OF_SALE_NUMBER_MAX,
+  type PointCardType,
   RECEIPT_TYPES,
   type RejectedDocumentRemedy,
   SNAPSHOT_CORRUPTION_STAGES,
@@ -1657,6 +1659,7 @@ export const salePayments = pgTable(
       .references(() => sales.id),
     method: text("method").notNull(),
     provider: text("provider").notNull(),
+    cardType: text("card_type").$type<PointCardType>(),
     amount: bigint("amount", { mode: "number" }).notNull(),
     tendered: bigint("tendered", { mode: "number" }),
     state: text("state").notNull(),
@@ -1668,6 +1671,10 @@ export const salePayments = pgTable(
     // Lets payment_refunds reference it with a composite foreign key, so a refund can point only
     // at a payment of its own sale.
     unique("sale_payments_id_sale_id_key").on(table.id, table.saleId),
+    check(
+      "sale_payments_card_type_check",
+      sql`${table.cardType} is null or (${table.method} = 'POINT' and ${table.cardType} in (${sql.raw(POINT_CARD_TYPES.map((type) => `'${type}'`).join(", "))}))`,
+    ),
   ],
 );
 
@@ -2672,6 +2679,7 @@ export const paymentTransactions = pgTable(
     kind: text("kind").notNull(),
     method: text("method").notNull(),
     provider: text("provider").notNull(),
+    cardType: text("card_type").$type<PointCardType>(),
     amount: bigint("amount", { mode: "number" }).notNull(),
     state: text("state").notNull(),
     needsReview: boolean("needs_review").notNull().default(false),
@@ -2691,6 +2699,10 @@ export const paymentTransactions = pgTable(
     check(
       "payment_transactions_method_provider_check",
       sql`(${table.method} = 'QR' and ${table.provider} = 'MERCADOPAGO_QR') or (${table.method} = 'POINT' and ${table.provider} = 'MERCADOPAGO_POINT')`,
+    ),
+    check(
+      "payment_transactions_card_type_check",
+      sql`${table.cardType} is null or (${table.method} = 'POINT' and ${table.cardType} in (${sql.raw(POINT_CARD_TYPES.map((type) => `'${type}'`).join(", "))}))`,
     ),
     check("payment_transactions_amount_check", sql`${table.amount} > 0`),
     check(

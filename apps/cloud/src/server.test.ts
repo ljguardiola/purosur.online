@@ -842,6 +842,10 @@ describe("startServer", () => {
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         zoneRules,
       },
+      returns: {
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+      },
       roles: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,

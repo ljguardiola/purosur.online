@@ -535,6 +535,7 @@ describe("recording the sales of applied events", () => {
       saleId: completed.id,
       method: "TRANSFER",
       provider: "NONE",
+      cardType: null,
       amount: 2000,
       tendered: null,
       state: "APPROVED",
@@ -550,6 +551,34 @@ describe("recording the sales of applied events", () => {
       confirmedAt: null,
     });
   });
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "keeps the %s card type of a payment on the Point terminal",
+    async (cardType) => {
+      const { deviceId } = await system.enrollInstallation();
+      const sessionId = randomUUID();
+      await openSession(deviceId, sessionId);
+      const base = aCompletedSale({ sessionId });
+      const [cash] = base.payments;
+      if (!cash) {
+        throw new Error("test setup: the sale has no payment");
+      }
+      const point = {
+        ...cash,
+        method: "POINT" as const,
+        provider: "MERCADOPAGO_POINT" as const,
+        cardType,
+        tendered: null,
+      };
+      const completed = { ...base, payments: [point], cashMovements: [] };
+
+      await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+      expect(await system.db.select().from(salePayments)).toMatchObject([
+        { id: point.id, method: "POINT", cardType },
+      ]);
+    },
+  );
 
   it("keeps a payment on the standalone terminal with who confirmed it and when", async () => {
     const { deviceId } = await system.enrollInstallation();
@@ -578,6 +607,7 @@ describe("recording the sales of applied events", () => {
         saleId: completed.id,
         method: "STANDALONE_TERMINAL",
         provider: "EXTERNAL_TERMINAL",
+        cardType: null,
         amount: standalone.amount,
         tendered: null,
         state: "APPROVED",
@@ -707,6 +737,7 @@ describe("recording the cancelled sales of applied events", () => {
         saleId: cancelled.id,
         method: payment.method,
         provider: payment.provider,
+        cardType: payment.cardType,
         amount: payment.amount,
         tendered: payment.tendered,
         state: payment.state,

@@ -159,6 +159,7 @@ describe("chargeSaleByTransfer", () => {
         id: "point-1",
         method: "POINT",
         provider: "MERCADOPAGO_POINT",
+        cardType: "DEBIT",
       },
     ],
     ["a QR charge in its wait", { ...REPLACED_QR, waitEndsAt: new Date(NOW.getTime() + 60_000) }],
@@ -238,7 +239,7 @@ describe("chargeSaleByTransfer", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 8,
+        schema_version: 9,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {

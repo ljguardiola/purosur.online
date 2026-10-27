@@ -70,6 +70,7 @@ import {
   type ContingencyBackupTicketRequests,
 } from "./backups/contingency-backup-ticket-requests";
 import { answerClockGuardRequest, type ClockGuardRequests } from "./fiscal/clock-guard-answers";
+import type { StartMercadoPagoChargeRequest } from "./payments/mercado-pago-charge-requests";
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
@@ -136,11 +137,7 @@ export interface RendererRequestDeps {
       ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>)
     | undefined;
   startMercadoPagoCharge:
-    | ((request: {
-        saleId: string;
-        method: "QR" | "POINT";
-        amount: number;
-      }) => Promise<StartMercadoPagoChargeOutcome>)
+    | ((request: StartMercadoPagoChargeRequest) => Promise<StartMercadoPagoChargeOutcome>)
     | undefined;
   followMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
@@ -559,7 +556,7 @@ async function attemptChargeSaleInCash(
 
 async function attemptStartMercadoPagoCharge(
   deps: RendererRequestDeps,
-  request: { saleId: string; method: "QR" | "POINT"; amount: number },
+  request: StartMercadoPagoChargeRequest,
 ): Promise<StartMercadoPagoChargeOutcome> {
   try {
     return (await deps.startMercadoPagoCharge?.(request)) ?? { kind: "unavailable" };
@@ -1238,8 +1235,10 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptStartMercadoPagoCharge(deps, {
           saleId: message.sale_id,
-          method: message.method,
           amount: message.amount,
+          ...(message.method === "POINT"
+            ? { method: "POINT", cardType: message.card_type }
+            : { method: "QR" }),
         }),
       };
     case "follow-mercado-pago-charge":

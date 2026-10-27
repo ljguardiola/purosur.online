@@ -9,6 +9,8 @@ import {
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
+  POINT_CARD_TYPES,
+  type PointCardType,
 } from "./payment.js";
 import type { SalePayment } from "./payment-transaction.js";
 
@@ -80,6 +82,12 @@ describe("a Mercado Pago QR payment of a sale", () => {
   });
 });
 
+describe("POINT_CARD_TYPES", () => {
+  it("are the debit and the credit card the integrated terminal charges", () => {
+    expect(POINT_CARD_TYPES).toEqual(["DEBIT", "CREDIT"]);
+  });
+});
+
 describe("PAYMENT_METHODS", () => {
   it("lists the standalone terminal beside cash, transfer, QR and the integrated terminal", () => {
     expect(PAYMENT_METHODS).toEqual(["CASH", "TRANSFER", "QR", "POINT", "STANDALONE_TERMINAL"]);
@@ -101,8 +109,9 @@ describe("a Mercado Pago Point payment of a sale", () => {
     expectTypeOf<PointPayment & { authorizedBy: string }>().not.toExtend<SalePayment>();
   });
 
-  it("carries nothing about the card that paid", () => {
-    for (const field of ["cardLastDigits", "cardType", "cardBrand", "cardholderName"] as const) {
+  it("carries the card type that was charged, and nothing else about the card", () => {
+    expectTypeOf<PointPayment["cardType"]>().toEqualTypeOf<PointCardType | null>();
+    for (const field of ["cardLastDigits", "cardBrand", "cardholderName"] as const) {
       expectTypeOf<PointPayment>().not.toHaveProperty(field);
     }
   });

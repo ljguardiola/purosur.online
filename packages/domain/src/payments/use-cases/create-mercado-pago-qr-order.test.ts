@@ -10,6 +10,7 @@ import {
   paidOrderResult,
   REGISTER_ID,
   SALE_ID,
+  storedPointTransaction,
   storedTransaction,
   TRANSACTION_ID,
 } from "./test-support/mercado-pago-order-fixtures.js";
@@ -64,6 +65,15 @@ describe("createMercadoPagoQrOrder", () => {
         externalPosId: EXTERNAL_POS_ID,
       },
     ]);
+  });
+
+  it("records the transaction and asks for the order without any card type", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+
+    await createMercadoPagoQrOrder(ports, INPUT);
+
+    expect(lanes.transactions.get(TRANSACTION_ID)).not.toHaveProperty("cardType");
+    expect(mercadoPago.creationRequests[0]).not.toHaveProperty("cardType");
   });
 
   it("sends each register's order to the QR point of sale assigned to that register and never to another's", async () => {
@@ -191,6 +201,16 @@ describe("createMercadoPagoQrOrder", () => {
     expect(outcome).toEqual({ kind: "not_owned" });
     expect(mercadoPago.creationRequests).toEqual([]);
     expect(lanes.transactions.get(TRANSACTION_ID)?.registerId).toBe("register-2");
+  });
+
+  it("answers a mismatch when the payment transaction recorded under that id is a Point one of unknown card type", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+    lanes.seed(storedPointTransaction({ amount: AMOUNT, cardType: null }));
+
+    const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+    expect(outcome).toEqual({ kind: "request_mismatch" });
+    expect(mercadoPago.creationRequests).toEqual([]);
   });
 
   it("answers a request that differs from the recorded one as a mismatch without calling Mercado Pago", async () => {

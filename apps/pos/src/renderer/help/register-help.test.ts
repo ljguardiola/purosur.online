@@ -150,6 +150,16 @@ describe("the register's help", () => {
     expect(titlesFound(word)).toEqual([title]);
   });
 
+  it("tells to choose Point · Débito or Point · Crédito and that the integrated Point charges by card only", () => {
+    expect(titlesFound("elegí Point · Débito o Point · Crédito")).toEqual([
+      "Cobrar con la Point integrada",
+    ]);
+    expect(titlesFound("cobra con tarjeta en la terminal")).toEqual([
+      "Cobrar con la Point integrada",
+    ]);
+    expect(titlesFound("tarjeta o QR")).toEqual([]);
+  });
+
   it("explains that the pending refund of a standalone terminal payment is given back from that terminal or the Mercado Pago app, and marked as done in the backoffice", () => {
     expect(titlesFound("desde esa terminal o la app de Mercado Pago")).toEqual([
       "Cancelar una venta",

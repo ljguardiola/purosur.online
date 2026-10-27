@@ -647,6 +647,8 @@ export type {
   ReturnDraftLineBody,
   ReturnLineRefusalBody,
 } from "./returns/return.js";
+export type { ReturnsReportBody, ReturnsReportQuery } from "./returns/returns-report.js";
+export { returnsReportQuerySchema, returnsReportSchema } from "./returns/returns-report.js";
 export type { AverageTicketBody } from "./sales/average-ticket.js";
 export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {

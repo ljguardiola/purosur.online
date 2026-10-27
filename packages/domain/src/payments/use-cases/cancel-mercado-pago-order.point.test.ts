@@ -26,7 +26,8 @@ const ORDER_INPUT = {
   paymentTransactionId: TRANSACTION_ID,
   saleId: SALE_ID,
   amount: AMOUNT,
-};
+  cardType: "DEBIT",
+} as const;
 const WITH_ORDER = { providerOrderId: "order-1" };
 const AT_TERMINAL = orderResult({ status: "at_terminal", statusDetail: "at_terminal" });
 
@@ -123,6 +124,7 @@ describe("cancelMercadoPagoOrder on a Point order", () => {
       const lateCreation = await createMercadoPagoPointOrder(ports, ORDER_INPUT);
 
       const cancelled = storedPointTransaction({
+        cardType: null,
         state: "CANCELLED",
         createdAt: NOW,
         expiresAt: NOW,
@@ -132,6 +134,19 @@ describe("cancelMercadoPagoOrder on a Point order", () => {
       expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(cancelled);
       expect(mercadoPago.pointCreationRequests).toEqual([]);
     });
+
+    it.each(["DEBIT", "CREDIT"] as const)(
+      "finds a late %s order already cancelled, since the cancelled payment never knew its card type",
+      async (cardType) => {
+        const { mercadoPago, ports } = mercadoPagoOrderWorld();
+        await cancelMercadoPagoOrder(ports, INPUT);
+
+        expect(
+          await createMercadoPagoPointOrder(ports, { ...ORDER_INPUT, cardType }),
+        ).toMatchObject({ kind: "recorded", transaction: { state: "CANCELLED" } });
+        expect(mercadoPago.pointCreationRequests).toEqual([]);
+      },
+    );
 
     it("refuses a late order that names another amount than the cancelled payment, without calling Mercado Pago", async () => {
       const { mercadoPago, ports } = mercadoPagoOrderWorld();

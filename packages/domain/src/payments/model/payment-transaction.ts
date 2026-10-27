@@ -1,3 +1,5 @@
+import type { PointCardType } from "./payment.js";
+
 export const PAYMENT_TRANSACTION_STATES = [
   "PENDING",
   "APPROVED",
@@ -45,6 +47,7 @@ interface StandaloneTerminalPaymentTransaction extends SalePaymentTransaction {
 export interface MercadoPagoQrPaymentTransaction extends SalePaymentTransaction {
   method: "QR";
   provider: "MERCADOPAGO_QR";
+  cardType?: never;
   state: PaymentTransactionState;
   tendered?: never;
   authorizedBy?: never;
@@ -54,6 +57,7 @@ export interface MercadoPagoQrPaymentTransaction extends SalePaymentTransaction 
 export interface MercadoPagoPointPaymentTransaction extends SalePaymentTransaction {
   method: "POINT";
   provider: "MERCADOPAGO_POINT";
+  cardType: PointCardType | null;
   state: PaymentTransactionState;
   tendered?: never;
   authorizedBy?: never;

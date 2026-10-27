@@ -3,7 +3,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
-import type { ZoneRulesSource } from "@purosur/domain";
+import type { PointCardType, ZoneRulesSource } from "@purosur/domain";
 import {
   abandonMercadoPagoCharge,
   type FollowMercadoPagoChargeOutcome as FollowedMercadoPagoCharge,
@@ -80,9 +80,14 @@ function notPerformed(kind: string): { kind: "not_signed_in" | "not_permitted" }
   return { kind: kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
 }
 
+export type StartMercadoPagoChargeRequest = {
+  saleId: string;
+  amount: number;
+} & ({ method: "QR" } | { method: "POINT"; cardType: PointCardType });
+
 export async function startMercadoPagoChargeFor(
   deps: MercadoPagoChargeRequestDeps,
-  { saleId, method, amount }: { saleId: string; method: "QR" | "POINT"; amount: number },
+  { saleId, amount, ...charge }: StartMercadoPagoChargeRequest,
 ): Promise<StartMercadoPagoChargeOutcome> {
   const guarded = await deps.gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     startMercadoPagoCharge(
@@ -92,7 +97,7 @@ export async function startMercadoPagoChargeFor(
         charges: new SqliteMercadoPagoCharges(deps.database),
         clock: { now: deps.now },
       },
-      { actorId: signedInUserId, saleId, method, amount },
+      { actorId: signedInUserId, saleId, amount, ...charge },
     ),
   );
   if (guarded.kind !== "performed") {

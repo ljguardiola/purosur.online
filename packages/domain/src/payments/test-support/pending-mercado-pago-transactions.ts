@@ -9,5 +9,6 @@ export const PENDING_POINT_TRANSACTION = {
   kind: "SALE",
   method: "POINT",
   provider: "MERCADOPAGO_POINT",
+  cardType: "DEBIT",
   state: "PENDING",
 } as const;

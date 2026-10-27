@@ -1,0 +1,4 @@
+ALTER TABLE "payment_transactions" ADD COLUMN "card_type" text;--> statement-breakpoint
+ALTER TABLE "sale_payments" ADD COLUMN "card_type" text;--> statement-breakpoint
+ALTER TABLE "payment_transactions" ADD CONSTRAINT "payment_transactions_card_type_check" CHECK ("payment_transactions"."card_type" is null or ("payment_transactions"."method" = 'POINT' and "payment_transactions"."card_type" in ('DEBIT', 'CREDIT')));--> statement-breakpoint
+ALTER TABLE "sale_payments" ADD CONSTRAINT "sale_payments_card_type_check" CHECK ("sale_payments"."card_type" is null or ("sale_payments"."method" = 'POINT' and "sale_payments"."card_type" in ('DEBIT', 'CREDIT')));

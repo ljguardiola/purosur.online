@@ -3,6 +3,7 @@ import {
   PENDING_QR_TRANSACTION,
 } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
+import type { PointCardType } from "../../payments/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { recordPendingMercadoPagoPayment } from "./record-pending-mercado-pago-payment.js";
@@ -60,7 +61,9 @@ function record(
   amount = 5000,
   actorId = "cashier",
   method: "QR" | "POINT" = "QR",
+  cardType: PointCardType = "DEBIT",
 ) {
+  const charge = method === "POINT" ? ({ method, cardType } as const) : ({ method } as const);
   return recordPendingMercadoPagoPayment(
     {
       zoneRules: new FakeZoneRulesSource(),
@@ -68,7 +71,14 @@ function record(
       restoration: store.restoration,
       ids: new SequentialIds(),
     },
-    { actorId, saleId: "sale-1", method, amount, occurredAt: STARTED_AT, waitEndsAt: WAIT_ENDS_AT },
+    {
+      actorId,
+      saleId: "sale-1",
+      amount,
+      occurredAt: STARTED_AT,
+      waitEndsAt: WAIT_ENDS_AT,
+      ...charge,
+    },
   );
 }
 
@@ -199,6 +209,28 @@ describe("recordPendingMercadoPagoPayment", () => {
           waitEndsAt: WAIT_ENDS_AT,
         },
       ]);
+    });
+
+    it.each(["DEBIT", "CREDIT"] as const)(
+      "keeps the %s card type the terminal was asked to charge",
+      (cardType) => {
+        const store = ledger();
+
+        record(store, 3000, "cashier", "POINT", cardType);
+
+        expect(store.state.pendingMercadoPagoPayments[0]).toMatchObject({
+          method: "POINT",
+          cardType,
+        });
+      },
+    );
+
+    it("keeps no card type on a QR payment", () => {
+      const store = ledger();
+
+      record(store, 3000);
+
+      expect(store.state.pendingMercadoPagoPayments[0]).not.toHaveProperty("cardType");
     });
 
     it("accepts exactly the terminal's minimum", () => {

@@ -224,6 +224,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@5",
       "sale_cancelled@6",
       "sale_cancelled@7",
+      "sale_cancelled@8",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
@@ -232,12 +233,14 @@ describe("synced event payloads", () => {
       "sale_completed@6",
       "sale_completed@7",
       "sale_completed@8",
+      "sale_completed@9",
       "sale_print_state_changed@1",
       "sale_print_state_changed@2",
       "sale_returned@1",
       "sale_voided@1",
       "sale_voided@2",
       "sale_voided@3",
+      "sale_voided@4",
     ]);
   });
 
@@ -269,9 +272,9 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 9],
-    ["a sale_cancelled version nobody emitted", "sale_cancelled", 8],
-    ["a sale_voided version nobody emitted", "sale_voided", 4],
+    ["a sale_completed version nobody emitted", "sale_completed", 10],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 9],
+    ["a sale_voided version nobody emitted", "sale_voided", 5],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -1167,6 +1170,58 @@ describe("synced event payloads", () => {
           payments: [POINT_PAYMENT],
         }),
       ).toBe(false);
+    });
+  });
+
+  describe.each([
+    ["sale_completed", 9, 8],
+    ["sale_cancelled", 8, 7],
+    ["sale_voided", 4, 3],
+  ] as const)("the card type of a Point payment in %s", (eventType, version, previousVersion) => {
+    const POINT_PAYMENT = {
+      ...CASH_PAYMENT_V2,
+      id: "pay-4",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
+      tendered: null,
+    };
+    const QR_PAYMENT = { ...POINT_PAYMENT, method: "QR", provider: "MERCADOPAGO_QR" };
+    const withPayments = (schemaVersion: number, payments: unknown[]) => ({
+      ...recordedPayload(eventType, schemaVersion),
+      payments,
+    });
+
+    it.each(["DEBIT", "CREDIT"])("accepts a Point payment charged on a %s card", (card_type) => {
+      expect(
+        accepts(eventType, version, withPayments(version, [{ ...POINT_PAYMENT, card_type }])),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["none", undefined],
+      ["null", null],
+      ["an unknown one", "PREPAID"],
+      ["a lowercase one", "debit"],
+    ])("refuses a Point payment with %s as its card type", (_case, card_type) => {
+      expect(
+        accepts(eventType, version, withPayments(version, [{ ...POINT_PAYMENT, card_type }])),
+      ).toBe(false);
+    });
+
+    it("keeps reading the Point payments of the previous version, which name no card type", () => {
+      expect(
+        accepts(eventType, previousVersion, withPayments(previousVersion, [POINT_PAYMENT])),
+      ).toBe(true);
+    });
+
+    it("asks for no card type from the payments that are not Point ones", () => {
+      expect(
+        accepts(
+          eventType,
+          version,
+          withPayments(version, [CASH_PAYMENT_V2, TRANSFER_PAYMENT_V2, QR_PAYMENT]),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -2887,7 +2942,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 8)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 9)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {

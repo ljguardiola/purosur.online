@@ -62,7 +62,7 @@ function source(overrides: Partial<ReceiptSource> = {}): ReceiptSource {
     total: 11250,
     saleDiscount: null,
     lines: [YERBA, QUESO],
-    payments: [{ method: "CASH", amount: 11250, tendered: 12000 }],
+    payments: [{ method: "CASH", amount: 11250, tendered: 12000, cardType: null }],
     fiscal: { kind: "none" },
     ...overrides,
   };
@@ -187,34 +187,45 @@ describe("receiptContent", () => {
     const { totals } = receiptContent(
       source({
         payments: [
-          { method: "CASH", amount: 5000, tendered: 5000 },
-          { method: "TRANSFER", amount: 6250, tendered: null },
+          { method: "CASH", amount: 5000, tendered: 5000, cardType: null },
+          { method: "TRANSFER", amount: 6250, tendered: null, cardType: null },
         ],
       }),
     );
 
     expect(totals.payments).toEqual([
-      { method: "CASH", amount: 5000 },
-      { method: "TRANSFER", amount: 6250 },
+      { method: "CASH", amount: 5000, cardType: null },
+      { method: "TRANSFER", amount: 6250, cardType: null },
     ]);
   });
 
   it("lists a Mercado Pago QR payment by its method and gives no change for it", () => {
     const { totals } = receiptContent(
-      source({ payments: [{ method: "QR", amount: 11250, tendered: null }] }),
+      source({ payments: [{ method: "QR", amount: 11250, tendered: null, cardType: null }] }),
     );
 
-    expect(totals.payments).toEqual([{ method: "QR", amount: 11250 }]);
+    expect(totals.payments).toEqual([{ method: "QR", amount: 11250, cardType: null }]);
     expect(totals.change).toBe(0);
   });
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "lists a Point payment with the %s card it was charged on",
+    (cardType) => {
+      const { totals } = receiptContent(
+        source({ payments: [{ method: "POINT", amount: 11250, tendered: null, cardType }] }),
+      );
+
+      expect(totals.payments).toEqual([{ method: "POINT", amount: 11250, cardType }]);
+    },
+  );
 
   it("gives as change what was tendered in cash beyond the cash payments", () => {
     const { totals } = receiptContent(
       source({
         payments: [
-          { method: "CASH", amount: 4000, tendered: 5000 },
-          { method: "CASH", amount: 1250, tendered: 2000 },
-          { method: "TRANSFER", amount: 6000, tendered: null },
+          { method: "CASH", amount: 4000, tendered: 5000, cardType: null },
+          { method: "CASH", amount: 1250, tendered: 2000, cardType: null },
+          { method: "TRANSFER", amount: 6000, tendered: null, cardType: null },
         ],
       }),
     );
@@ -224,22 +235,27 @@ describe("receiptContent", () => {
 
   it("ignores what a non-cash payment records as tendered", () => {
     expect(
-      receiptContent(source({ payments: [{ method: "TRANSFER", amount: 100, tendered: 900 }] }))
-        .totals.change,
+      receiptContent(
+        source({ payments: [{ method: "TRANSFER", amount: 100, tendered: 900, cardType: null }] }),
+      ).totals.change,
     ).toBe(0);
   });
 
   it("gives no change when nothing was paid in cash", () => {
     expect(
-      receiptContent(source({ payments: [{ method: "TRANSFER", amount: 11250, tendered: null }] }))
-        .totals.change,
+      receiptContent(
+        source({
+          payments: [{ method: "TRANSFER", amount: 11250, tendered: null, cardType: null }],
+        }),
+      ).totals.change,
     ).toBe(0);
   });
 
   it("gives no change for a cash payment with no tendered amount recorded", () => {
     expect(
-      receiptContent(source({ payments: [{ method: "CASH", amount: 11250, tendered: null }] }))
-        .totals.change,
+      receiptContent(
+        source({ payments: [{ method: "CASH", amount: 11250, tendered: null, cardType: null }] }),
+      ).totals.change,
     ).toBe(0);
   });
 
@@ -247,26 +263,28 @@ describe("receiptContent", () => {
     const { totals } = receiptContent(
       source({
         total: 2_140_000,
-        payments: [{ method: "CASH", amount: 2_140_000, tendered: 2_500_000 }],
+        payments: [{ method: "CASH", amount: 2_140_000, tendered: 2_500_000, cardType: null }],
       }),
     );
 
-    expect(totals.payments).toEqual([{ method: "CASH", amount: 2_500_000 }]);
+    expect(totals.payments).toEqual([{ method: "CASH", amount: 2_500_000, cardType: null }]);
     expect(totals.change).toBe(360_000);
   });
 
   it("lists a cash payment with no tendered amount recorded by the amount it paid", () => {
     expect(
-      receiptContent(source({ payments: [{ method: "CASH", amount: 11250, tendered: null }] }))
-        .totals.payments,
-    ).toEqual([{ method: "CASH", amount: 11250 }]);
+      receiptContent(
+        source({ payments: [{ method: "CASH", amount: 11250, tendered: null, cardType: null }] }),
+      ).totals.payments,
+    ).toEqual([{ method: "CASH", amount: 11250, cardType: null }]);
   });
 
   it("lists a non-cash payment by the amount it paid, whatever it records as tendered", () => {
     expect(
-      receiptContent(source({ payments: [{ method: "TRANSFER", amount: 100, tendered: 900 }] }))
-        .totals.payments,
-    ).toEqual([{ method: "TRANSFER", amount: 100 }]);
+      receiptContent(
+        source({ payments: [{ method: "TRANSFER", amount: 100, tendered: 900, cardType: null }] }),
+      ).totals.payments,
+    ).toEqual([{ method: "TRANSFER", amount: 100, cardType: null }]);
   });
 
   describe("the fiscal block", () => {

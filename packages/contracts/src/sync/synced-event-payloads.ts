@@ -16,6 +16,7 @@ import {
   mayBeMovementQuantity,
   mayBeOverriddenUnitPrice,
   OFFLINE_AUTHORIZATION_CAUSES,
+  POINT_CARD_TYPES,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   PRINTED_DOCUMENTS,
   RETURN_DISPOSITIONS,
@@ -259,6 +260,22 @@ const saleCompletedV8Schema = saleCompletedV7Schema.extend({
   lines: z.array(discountedSaleLineSchema),
 });
 
+const mercadoPagoPointPaymentWithCardTypeSchema = mercadoPagoPointPaymentSchema.extend({
+  card_type: z.enum(POINT_CARD_TYPES),
+});
+
+const paymentWithPointCardTypeSchema = z.discriminatedUnion("method", [
+  cashPaymentSchema,
+  transferPaymentSchema,
+  mercadoPagoQrPaymentSchema,
+  mercadoPagoPointPaymentWithCardTypeSchema,
+  standaloneTerminalPaymentSchema,
+]);
+
+const saleCompletedV9Schema = saleCompletedV8Schema.extend({
+  payments: z.array(paymentWithPointCardTypeSchema).min(1),
+});
+
 const printedDocumentSchema = z.enum(PRINTED_DOCUMENTS);
 
 const salePrintStateChangedV1Schema = z.object({
@@ -406,6 +423,10 @@ const saleCancelledV7Schema = saleCancelledV6Schema.extend({
   refunds: z.array(saleRefundWithMercadoPagoSchema).min(1),
 });
 
+const saleCancelledV8Schema = saleCancelledV7Schema.extend({
+  payments: z.array(paymentWithPointCardTypeSchema).min(1),
+});
+
 const returnedStockMovementSchema = z.object({
   id: text,
   sale_line_id: text,
@@ -431,6 +452,10 @@ const saleVoidedV2Schema = saleVoidedV1Schema.extend({
 
 const saleVoidedV3Schema = saleVoidedV2Schema.extend({
   credit_note: voidCreditNoteSchema.nullable(),
+});
+
+const saleVoidedV4Schema = saleVoidedV3Schema.extend({
+  payments: z.array(paymentWithPointCardTypeSchema).min(1),
 });
 
 const saleReturnedV1Schema = z.object({
@@ -645,6 +670,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@6": saleCompletedV6Schema,
   "sale_completed@7": saleCompletedV7Schema,
   "sale_completed@8": saleCompletedV8Schema,
+  "sale_completed@9": saleCompletedV9Schema,
   "sale_print_state_changed@1": salePrintStateChangedV1Schema,
   "sale_print_state_changed@2": salePrintStateChangedV2Schema,
   "reprint_recorded@1": reprintRecordedV1Schema,
@@ -656,9 +682,11 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@5": saleCancelledV5Schema,
   "sale_cancelled@6": saleCancelledV6Schema,
   "sale_cancelled@7": saleCancelledV7Schema,
+  "sale_cancelled@8": saleCancelledV8Schema,
   "sale_voided@1": saleVoidedV1Schema,
   "sale_voided@2": saleVoidedV2Schema,
   "sale_voided@3": saleVoidedV3Schema,
+  "sale_voided@4": saleVoidedV4Schema,
   "sale_returned@1": saleReturnedV1Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,

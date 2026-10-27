@@ -15,7 +15,7 @@ describe("the event versions a checkout's register emits", { timeout: 0 }, () =>
   }, 0);
 
   it("are written event_type@schema_version, sorted, each once", () => {
-    expect(emitted).toContain("sale_completed@8");
+    expect(emitted).toContain("sale_completed@9");
     expect(emitted.every((version) => /^[a-z_]+@[1-9]\d*$/.test(version))).toBe(true);
     expect(emitted).toEqual([...new Set(emitted)].sort());
   });

@@ -204,6 +204,7 @@ describe("decoding the events the registers pushed", () => {
               tendered: 5000,
               state: "APPROVED",
               occurredAt: new Date("2026-10-06T11:20:00.000Z"),
+              cardType: null,
               authorizedBy: null,
               confirmedAt: null,
             },
@@ -724,9 +725,9 @@ describe("decoding the events the registers pushed", () => {
       occurred_at: "2026-10-06T11:20:00.000Z",
     };
     const payment = { ...salePayment, authorized_by: null, confirmed_at: null };
-    const completed = (change: Record<string, unknown> = {}) =>
+    const completed = (change: Record<string, unknown> = {}, schemaVersion = 8) =>
       pushed({
-        schema_version: 8,
+        schema_version: schemaVersion,
         payload: {
           ...saleFields,
           lines: sharedLines,
@@ -902,6 +903,85 @@ describe("decoding the events the registers pushed", () => {
             ],
           },
         },
+      });
+    });
+
+    describe("the card type of a Point payment", () => {
+      const point = {
+        ...salePayment,
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        tendered: null,
+        authorized_by: null,
+        confirmed_at: null,
+      };
+      const pointRefund = {
+        ...refund,
+        parent_id: point.id,
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        state: "PENDING",
+      };
+      const events = {
+        sale_completed: (payment: Record<string, string | number | null>, version: number) =>
+          completed({ payments: [payment] }, version),
+        sale_cancelled: (payment: Record<string, string | number | null>, version: number) =>
+          cancelled({ payments: [payment], refunds: [pointRefund] }, version),
+        sale_voided: (payment: Record<string, string | number | null>, version: number) =>
+          pushed({
+            event_type: "sale_voided",
+            schema_version: version,
+            payload: {
+              ...saleFields,
+              lines: sharedLines,
+              sale_discount: saleDiscount,
+              authorized_by: USER,
+              payments: [payment],
+              refunds: [pointRefund],
+              stock_movements: [],
+              deferred_record_cancelled: false,
+              credit_note: null,
+            },
+          }),
+      };
+
+      it.each([
+        ["sale_completed", 9],
+        ["sale_cancelled", 8],
+        ["sale_voided", 4],
+      ] as const)("reads the card type a %s version %s names", (eventType, version) => {
+        const decoded = upcaster.decode(
+          unappliedEventOf(events[eventType]({ ...point, card_type: "CREDIT" }, version)),
+        );
+
+        expect(decoded).toMatchObject({
+          kind: "fact",
+          fact: { sale: { payments: [{ method: "POINT", cardType: "CREDIT" }] } },
+        });
+      });
+
+      it.each([
+        ["sale_completed", 8],
+        ["sale_cancelled", 7],
+        ["sale_voided", 3],
+      ] as const)(
+        "reads a Point payment of a %s version %s, which names none, as charged on a card of unknown type",
+        (eventType, version) => {
+          const decoded = upcaster.decode(unappliedEventOf(events[eventType](point, version)));
+
+          expect(decoded).toMatchObject({
+            kind: "fact",
+            fact: { sale: { payments: [{ method: "POINT", cardType: null }] } },
+          });
+        },
+      );
+
+      it("reads the payments that are not Point ones as charged on no card type", () => {
+        const decoded = upcaster.decode(unappliedEventOf(completed({}, 9)));
+
+        expect(decoded).toMatchObject({
+          fact: { sale: { payments: [{ method: "CASH", cardType: null }] } },
+        });
       });
     });
 
@@ -1559,6 +1639,7 @@ describe("decoding the events the registers pushed", () => {
               tendered: 5000,
               state: "APPROVED",
               occurredAt: new Date("2026-10-06T11:20:00.000Z"),
+              cardType: null,
               authorizedBy: null,
               confirmedAt: null,
             },
@@ -2340,11 +2421,11 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 9 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 10 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 9",
+      reason: "no schema reads sale_completed version 10",
     });
   });
 

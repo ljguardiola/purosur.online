@@ -51,14 +51,17 @@ function toWire(
   orders: Awaited<ReturnType<typeof readApprovedOrdersOfRegister>>["orders"],
 ): ApprovedOrdersOfRegisterBody {
   return {
-    orders: orders.map((order) => ({
-      payment_transaction_id: order.paymentTransactionId,
-      sale_id: order.saleId,
-      method: order.method,
-      provider: order.provider,
-      amount: order.amount,
-      created_at: order.createdAt.toISOString(),
-    })),
+    orders: orders.map((order) => {
+      const wire = {
+        payment_transaction_id: order.paymentTransactionId,
+        sale_id: order.saleId,
+        amount: order.amount,
+        created_at: order.createdAt.toISOString(),
+      };
+      return order.method === "POINT"
+        ? { ...wire, method: order.method, provider: order.provider, card_type: order.cardType }
+        : { ...wire, method: order.method, provider: order.provider };
+    }),
   };
 }
 

@@ -71,8 +71,8 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
       saleDiscount: null,
       total: 1_767_500,
       payments: [
-        { method: "CASH", amount: 1_000_000 },
-        { method: "TRANSFER", amount: 767_500 },
+        { method: "CASH", amount: 1_000_000, cardType: null },
+        { method: "TRANSFER", amount: 767_500, cardType: null },
       ],
       change: 500_000,
     },
@@ -100,7 +100,7 @@ function singleUnitReceipt(productName: string, price: number): ReceiptContent {
       subtotal: price,
       saleDiscount: null,
       total: price,
-      payments: [{ method: "TRANSFER", amount: price }],
+      payments: [{ method: "TRANSFER", amount: price, cardType: null }],
       change: 0,
     },
     fiscal: null,
@@ -300,7 +300,7 @@ function discountedReceipt(saleDiscount: NonNullable<ReceiptContent["totals"]["s
       subtotal: 1_947_500,
       saleDiscount,
       total: 1_947_500 - saleDiscount.amount,
-      payments: [{ method: "CASH", amount: 2_000_000 }],
+      payments: [{ method: "CASH", amount: 2_000_000, cardType: null }],
       change: 2_000_000 - (1_947_500 - saleDiscount.amount),
     },
   });
@@ -449,8 +449,8 @@ describe("the ESC/POS receipt template", () => {
           saleDiscount: null,
           total: 1_767_500,
           payments: [
-            { method: "CASH", amount: 767_500 },
-            { method: "QR", amount: 1_000_000 },
+            { method: "CASH", amount: 767_500, cardType: null },
+            { method: "QR", amount: 1_000_000, cardType: null },
           ],
           change: 0,
         },
@@ -461,21 +461,28 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain("QR Mercado Pago                      $ 10.000,00");
   });
 
-  it("names a payment on the Mercado Pago terminal, aligned with the other payment lines", () => {
-    const { textLines } = printed(
-      receipt({
-        totals: {
-          subtotal: 1_000_000,
-          saleDiscount: null,
-          total: 1_000_000,
-          payments: [{ method: "POINT", amount: 1_000_000 }],
-          change: 0,
-        },
-      }),
-    );
+  it.each([
+    ["DEBIT", "Point · Débito                       $ 10.000,00"],
+    ["CREDIT", "Point · Crédito                      $ 10.000,00"],
+    [null, "Point                                $ 10.000,00"],
+  ] as const)(
+    "names a payment on the Mercado Pago terminal charged by %s card, aligned with the other payment lines",
+    (cardType, line) => {
+      const { textLines } = printed(
+        receipt({
+          totals: {
+            subtotal: 1_000_000,
+            saleDiscount: null,
+            total: 1_000_000,
+            payments: [{ method: "POINT", amount: 1_000_000, cardType }],
+            change: 0,
+          },
+        }),
+      );
 
-    expect(textLines).toContain("Point Mercado Pago                   $ 10.000,00");
-  });
+      expect(textLines).toContain(line);
+    },
+  );
 
   it("names a payment on the standalone terminal, aligned with the other payment lines", () => {
     const { textLines } = printed(
@@ -484,7 +491,7 @@ describe("the ESC/POS receipt template", () => {
           subtotal: 1_000_000,
           saleDiscount: null,
           total: 1_000_000,
-          payments: [{ method: "STANDALONE_TERMINAL", amount: 1_000_000 }],
+          payments: [{ method: "STANDALONE_TERMINAL", amount: 1_000_000, cardType: null }],
           change: 0,
         },
       }),

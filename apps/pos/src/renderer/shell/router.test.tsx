@@ -3193,7 +3193,7 @@ describe("the charge route's Mercado Pago QR", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeEnabled();
   });
 
   it("shows the QR and the terminal as unavailable when the core answers that they are offline", async () => {
@@ -3206,19 +3206,19 @@ describe("the charge route's Mercado Pago QR", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeDisabled();
   });
 
   it("creates the QR order through the core for the sale in progress", async () => {
-    const started: [string, string, number][] = [];
+    const started: [string, unknown, number][] = [];
     const router = createRegisterRouter(
       routeTree,
       {
         ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         ...SALE_TO_CHARGE,
         paymentMethodAvailability: async () => AVAILABLE,
-        startMercadoPagoCharge: async (saleId, method, amount) => {
-          started.push([saleId, method, amount]);
+        startMercadoPagoCharge: async (saleId, charge, amount) => {
+          started.push([saleId, charge, amount]);
           return { kind: "unavailable" };
         },
       },
@@ -3229,6 +3229,6 @@ describe("the charge route's Mercado Pago QR", () => {
     await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
 
-    await expect.poll(() => started).toEqual([["sale-1", "QR", 238_000]]);
+    await expect.poll(() => started).toEqual([["sale-1", { method: "QR" }, 238_000]]);
   });
 });

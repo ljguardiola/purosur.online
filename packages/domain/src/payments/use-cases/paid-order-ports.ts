@@ -1,15 +1,23 @@
 import type { Clock } from "../../shared/index.js";
 import type { LocalStateOfPaidOrder } from "../model/paid-order-discovery.js";
-import type { MercadoPagoPaymentTransaction } from "../model/payment-transaction.js";
+import type {
+  MercadoPagoPaymentTransaction,
+  MercadoPagoPointPaymentTransaction,
+  MercadoPagoQrPaymentTransaction,
+} from "../model/payment-transaction.js";
 
-export interface ApprovedOrderOfRegister {
+interface ApprovedOrder {
   paymentTransactionId: string;
   saleId: string;
-  method: MercadoPagoPaymentTransaction["method"];
-  provider: MercadoPagoPaymentTransaction["provider"];
   amount: number;
   createdAt: Date;
 }
+
+export type ApprovedOrderOfRegister = ApprovedOrder &
+  (
+    | Pick<MercadoPagoQrPaymentTransaction, "method" | "provider">
+    | Pick<MercadoPagoPointPaymentTransaction, "method" | "provider" | "cardType">
+  );
 
 export interface ApprovedOrdersOfRegister {
   approvedWithoutSaleSince(registerId: string, since: Date): Promise<ApprovedOrderOfRegister[]>;
@@ -33,7 +41,9 @@ export interface LatePaymentRefundRequests {
   openLatePaymentRefund(paymentTransactionId: string): Promise<LatePaymentRefundRequestAnswer>;
 }
 
-export interface PaidOrderWithoutSale extends ApprovedOrderOfRegister {
+export interface PaidOrderWithoutSale extends ApprovedOrder {
+  method: MercadoPagoPaymentTransaction["method"];
+  provider: MercadoPagoPaymentTransaction["provider"];
   recordedAt: Date;
   resolved: boolean;
   resolvedAt?: Date;
