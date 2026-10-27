@@ -1,5 +1,6 @@
 import { approvedOrdersOfRegisterSchema, latePaymentRefundOpeningSchema } from "@purosur/contracts";
 import type {
+  ApprovedOrderOfRegister,
   ApprovedOrdersAnswer,
   LatePaymentRefundRequestAnswer,
   LatePaymentRefundRequests,
@@ -34,14 +35,22 @@ function approvedOrdersOf(response: CloudResponse, since: Date): ApprovedOrdersA
   return {
     kind: "listed",
     orders: parsed.data.orders
-      .map((order) => ({
-        paymentTransactionId: order.payment_transaction_id,
-        saleId: order.sale_id,
-        method: order.method,
-        provider: order.provider,
-        amount: order.amount,
-        createdAt: new Date(order.created_at),
-      }))
+      .map((order): ApprovedOrderOfRegister => {
+        const approved = {
+          paymentTransactionId: order.payment_transaction_id,
+          saleId: order.sale_id,
+          amount: order.amount,
+          createdAt: new Date(order.created_at),
+        };
+        return order.method === "POINT"
+          ? {
+              ...approved,
+              method: order.method,
+              provider: order.provider,
+              cardType: order.card_type,
+            }
+          : { ...approved, method: order.method, provider: order.provider };
+      })
       .filter((order) => order.createdAt >= since),
   };
 }

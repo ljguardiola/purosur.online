@@ -221,6 +221,20 @@ function asSeller<Outcome>(
   );
 }
 
+function chargeInProgressOf(
+  charge: MercadoPagoChargeInProgress,
+): NonNullable<OpenSale["mercado_pago_charge_in_progress"]> {
+  const followed = {
+    payment_transaction_id: charge.paymentTransactionId,
+    amount: charge.amount,
+    remaining_seconds: charge.remainingSeconds,
+    wait_seconds: charge.waitSeconds,
+  };
+  return charge.method === "POINT"
+    ? { ...followed, method: charge.method, card_type: charge.cardType }
+    : { ...followed, method: charge.method };
+}
+
 function toOpenSale(
   {
     sale,
@@ -262,15 +276,7 @@ function toOpenSale(
     sale_discount_refusal: saleDiscountUnavailability(sale.lines)?.kind ?? null,
     charge_refusal: chargeRefusal ?? null,
     mercado_pago_charge_in_progress:
-      mercadoPagoChargeInProgress === null
-        ? null
-        : {
-            payment_transaction_id: mercadoPagoChargeInProgress.paymentTransactionId,
-            method: mercadoPagoChargeInProgress.method,
-            amount: mercadoPagoChargeInProgress.amount,
-            remaining_seconds: mercadoPagoChargeInProgress.remainingSeconds,
-            wait_seconds: mercadoPagoChargeInProgress.waitSeconds,
-          },
+      mercadoPagoChargeInProgress === null ? null : chargeInProgressOf(mercadoPagoChargeInProgress),
   };
 }
 

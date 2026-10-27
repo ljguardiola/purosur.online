@@ -3,8 +3,8 @@ import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   type MercadoPagoChargeInProgress,
-  type MercadoPagoPaymentMethod,
   mercadoPagoChargeInProgress,
+  type PendingMercadoPagoCharge,
   type PlannedRefund,
   plannedRefunds,
   type RefundablePayment,
@@ -50,13 +50,7 @@ export function saleCancelRefusal(
 export function openSaleStanding(
   total: number,
   payments: readonly RefundablePayment[],
-  pendingMercadoPagoPayments: readonly {
-    id: string;
-    method: MercadoPagoPaymentMethod;
-    amount: number;
-    occurredAt: Date;
-    waitEndsAt: Date;
-  }[],
+  pendingMercadoPagoPayments: readonly PendingMercadoPagoCharge[],
   now: Date,
 ): OpenSaleStanding {
   const cancelRefusal = saleCancelRefusal(pendingMercadoPagoPayments, now);

@@ -90,7 +90,7 @@ function followedChargeStep(
     wait_seconds: charge.wait_seconds,
   } as const;
   return charge.method === "POINT"
-    ? { name: "point-wait", cardType: null, order, sale }
+    ? { name: "point-wait", cardType: charge.card_type, order, sale }
     : { name: "qr-wait", order, sale };
 }
 

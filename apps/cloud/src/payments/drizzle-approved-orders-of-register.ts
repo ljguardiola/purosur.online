@@ -1,6 +1,5 @@
 import {
   MERCADO_PAGO_PAYMENT_METHODS,
-  MERCADO_PAGO_PROVIDERS,
   PAID_ORDER_PAYMENT_STATE,
   PAID_ORDER_REPLACED,
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
@@ -61,13 +60,17 @@ export class DrizzleApprovedOrdersOfRegister<TQueryResult extends PgQueryResultH
         ),
       )
       .orderBy(asc(paymentTransactions.createdAt));
-    return rows.map((row) => ({
-      paymentTransactionId: row.id,
-      saleId: row.saleId,
-      method: known(MERCADO_PAGO_PAYMENT_METHODS, row.method, "method"),
-      provider: known(MERCADO_PAGO_PROVIDERS, row.provider, "provider"),
-      amount: row.amount,
-      createdAt: row.createdAt,
-    }));
+    return rows.map((row) => {
+      const order = {
+        paymentTransactionId: row.id,
+        saleId: row.saleId,
+        amount: row.amount,
+        createdAt: row.createdAt,
+      };
+      const method = known(MERCADO_PAGO_PAYMENT_METHODS, row.method, "method");
+      return method === "POINT"
+        ? { ...order, method, provider: "MERCADOPAGO_POINT", cardType: row.cardType }
+        : { ...order, method, provider: "MERCADOPAGO_QR" };
+    });
   }
 }
