@@ -336,6 +336,7 @@ describe("the detail of a sale of the history", () => {
         next_copy: { kind: "original" },
         credit_note_next_copy: null,
         deferred_invoice_next_copy: null,
+        short_code: null,
       },
     });
   });
@@ -579,6 +580,15 @@ describe("the detail of a sale of the history", () => {
         );
       }
     }
+
+    it("answers the short code recorded for the deferred sale", async () => {
+      addDeferredSale({ satisfied: false });
+      database.exec("UPDATE deferred_sales SET short_code = '7KQ4M2P9' WHERE sale_id = 'late'");
+
+      const answer = await saleHistoryDetailFor(deps(), "late");
+
+      expect(answer.kind === "found" && answer.detail.short_code).toBe("7KQ4M2P9");
+    });
 
     it("answers no next printing while the sale is still waiting for its invoice", async () => {
       addDeferredSale({ satisfied: false });

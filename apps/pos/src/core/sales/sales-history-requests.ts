@@ -144,6 +144,7 @@ export async function saleHistoryDetailFor(
         detail.creditNoteNextCopy === null ? null : toWireCopy(detail.creditNoteNextCopy),
       deferred_invoice_next_copy:
         detail.deferredInvoiceNextCopy === null ? null : toWireCopy(detail.deferredInvoiceNextCopy),
+      short_code: detail.shortCode,
     },
   };
 }
