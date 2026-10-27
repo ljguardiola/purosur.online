@@ -107,6 +107,7 @@ describe("readSaleHistoryDetail", () => {
           creditNoteCorrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
         },
         creditNote: null,
+        creditNoteId: null,
         reprint: { kind: "available" },
         nextCopy: { kind: "original" },
         creditNoteNextCopy: null,

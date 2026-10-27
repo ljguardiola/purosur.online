@@ -1356,14 +1356,11 @@ describe("asking how a sale's receipt print stands", () => {
     expect(salesRendererToCoreMessageSchema.parse(ask)).toEqual(ask);
   });
 
-  it.each(["request_id", "sale_id", "credit_note_id"])(
-    "rejects a request missing its %s",
-    (field) => {
-      const message = Object.fromEntries(Object.entries(ask).filter(([key]) => key !== field));
+  it.each(["request_id", "sale_id"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(ask).filter(([key]) => key !== field));
 
-      expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   const COMPROBANTE = {
     kind: "fiscal",
@@ -1674,13 +1671,6 @@ describe("printing a sale's original receipt", () => {
     expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
-  it.each([undefined, "", 7])("rejects a request whose credit note is %j", (creditNoteId) => {
-    expect(
-      salesRendererToCoreMessageSchema.safeParse({ ...print, credit_note_id: creditNoteId })
-        .success,
-    ).toBe(false);
-  });
-
   it("carries no reason and no authorization", () => {
     const message = {
       ...print,
@@ -1732,10 +1722,20 @@ describe("printing the credit note of a voided sale", () => {
     expect(salesRendererToCoreMessageSchema.parse(print)).toEqual(print);
   });
 
-  it.each(["request_id", "sale_id"])("rejects a request missing its %s", (field) => {
-    const message = Object.fromEntries(Object.entries(print).filter(([key]) => key !== field));
+  it.each(["request_id", "sale_id", "credit_note_id"])(
+    "rejects a request missing its %s",
+    (field) => {
+      const message = Object.fromEntries(Object.entries(print).filter(([key]) => key !== field));
 
-    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+      expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it.each([undefined, "", 7])("rejects a request whose credit note is %j", (creditNoteId) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({ ...print, credit_note_id: creditNoteId })
+        .success,
+    ).toBe(false);
   });
 
   it("carries no reason and no authorization", () => {

@@ -298,10 +298,13 @@ describe("printing the credit note of a voided sale from its history", () => {
         },
       });
       signedInPerson.set("cashier-without-history");
-      const outcomes = await Promise.all([
-        printCreditNoteFor({ ...deps(), database: watched }, NOTE_OF_SALE),
-        reprintCreditNoteFor({ ...deps(), database: watched }, { ...NOTE_OF_SALE, reason: REASON }),
-      ]);
+      const outcomes = [
+        await printCreditNoteFor({ ...deps(), database: watched }, NOTE_OF_SALE),
+        await reprintCreditNoteFor(
+          { ...deps(), database: watched },
+          { ...NOTE_OF_SALE, reason: REASON },
+        ),
+      ];
       return { reads, outcomes };
     }
 
