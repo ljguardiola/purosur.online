@@ -77,6 +77,12 @@ export function formatOperationNumber(number: number): string {
   return String(number).padStart(6, "0");
 }
 
+const SHORT_CODE_BLOCK_LENGTH = 4;
+
+export function formatShortCode(code: string): string {
+  return `${code.slice(0, SHORT_CODE_BLOCK_LENGTH)}-${code.slice(SHORT_CODE_BLOCK_LENGTH)}`;
+}
+
 export function parsePointOfSaleNumber(text: string): number {
   const digits = text.trim();
   return /^\d+$/.test(digits) ? Number(digits) : Number.NaN;
