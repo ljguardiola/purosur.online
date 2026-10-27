@@ -39,14 +39,24 @@ test("marks a step that is neither done nor available as blocked until the previ
   await expect.element(screen.getByText("Bloqueado hasta completar el anterior")).toBeVisible();
 });
 
-test("marks a done step with the day and time it was done", async () => {
+test("marks a done step with the day and time it was done in Argentine time", async () => {
   const screen = await renderCard({
     done: true,
     doneAt: "2026-10-01T15:30:00.000Z",
     available: false,
   });
 
-  await expect.element(screen.getByText("Hecho el 01/10/2026 · 15:30")).toBeVisible();
+  await expect.element(screen.getByText("Hecho el 01/10/2026 · 12:30")).toBeVisible();
+});
+
+test("marks a step done late at night with its Argentine day, the day before its UTC day", async () => {
+  const screen = await renderCard({
+    done: true,
+    doneAt: "2026-10-27T02:30:00.000Z",
+    available: false,
+  });
+
+  await expect.element(screen.getByText("Hecho el 26/10/2026 · 23:30")).toBeVisible();
 });
 
 test("has no accessibility violations", async () => {
