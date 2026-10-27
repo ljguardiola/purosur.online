@@ -89,6 +89,11 @@ import {
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
 import { coreFailureReporters } from "./register/core-failure-reporters";
+import {
+  prepareLocalDataFolder,
+  startupStepReporter,
+  takingStartupStep,
+} from "./register/core-startup-steps";
 import { createDeviceTokenRotation } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import {
@@ -300,6 +305,8 @@ const restoreAttempts = createRestoreAttempts({
     ),
 });
 
+const reportStartupStep = startupStepReporter((message) => process.parentPort.postMessage(message));
+
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
     console.error("core: no local data folder was handed over, so it can't pull or sign anyone in");
@@ -310,6 +317,7 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
       path: localDatabasePath,
       migrations: LOCAL_MIGRATIONS,
       now,
+      onStep: reportStartupStep,
     });
     console.info(
       {
@@ -331,19 +339,22 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
 }
 
 if (localDataFolder !== undefined) {
-  await setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now })
-    .then(() =>
+  await prepareLocalDataFolder({
+    setAsideStaleDatabase: () =>
+      setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now }),
+    adoptStagedSnapshot: () =>
       adoptStagedSnapshot({
         folder: localDataFolder,
         pending: restorePending,
         migrations: LOCAL_MIGRATIONS,
         now,
       }),
-    )
-    .catch((error: unknown) => {
+    reportStep: reportStartupStep,
+    onFailure: (error) => {
       console.error("core: the restored snapshot could not be adopted", error);
       Sentry.captureException(error);
-    });
+    },
+  });
 }
 
 const startedLocalDatabase = await startLocalDatabaseFile();
@@ -450,7 +461,9 @@ const storageWatch =
         onStartupFailure: (error) =>
           reportFailure("checking the free disk space at startup", error),
       });
-await storageWatch?.checkAtStartup();
+await takingStartupStep(reportStartupStep, "check_free_disk_space", () =>
+  storageWatch?.checkAtStartup(),
+)();
 
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
@@ -812,7 +825,11 @@ const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
   ticketedSettlement,
 });
 
-const startupRecovery = recoverAtStartup({
+const startupRecovery = takingStartupStep(
+  reportStartupStep,
+  "settle_interrupted_authorizations",
+  recoverAtStartup,
+)({
   settleInterruptedAuthorizations: () =>
     settleInterruptedAuthorizations({
       database: localDatabase,
@@ -1544,6 +1561,8 @@ if (deviceTokenRotation !== undefined) {
 
 const updateHold = createUpdateHold({
   hasOpenSale: anySaleOpen,
+  hasOpenCashSession: () =>
+    localDatabase !== undefined && readOpenSession(localDatabase) !== undefined,
   schedule: (run, delayMs) => {
     const timer = setTimeout(run, delayMs);
     return () => clearTimeout(timer);

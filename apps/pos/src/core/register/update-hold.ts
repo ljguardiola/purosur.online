@@ -9,6 +9,7 @@ export interface UpdateHold {
 
 export function createUpdateHold(deps: {
   hasOpenSale: () => boolean;
+  hasOpenCashSession: () => boolean;
   schedule: (run: () => void, delayMs: number) => () => void;
   limitMs: number;
 }): UpdateHold {
@@ -25,7 +26,12 @@ export function createUpdateHold(deps: {
   return {
     async answerSafeMomentRequest(requestId) {
       release();
-      const safe = running.size === 0 && isSafeMomentToUpdate({ hasOpenSale: deps.hasOpenSale() });
+      const safe =
+        running.size === 0 &&
+        isSafeMomentToUpdate({
+          hasOpenSale: deps.hasOpenSale(),
+          hasOpenCashSession: deps.hasOpenCashSession(),
+        });
       if (safe) {
         held = true;
         cancelRelease = deps.schedule(release, deps.limitMs);

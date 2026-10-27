@@ -282,6 +282,36 @@ describe("GET /compromise-responses/current", () => {
       { step: "force_pin_resets", done: false, done_at: null, available: false },
     ]);
   });
+
+  it("shows the runbook to a same-origin read that carries no Origin", async () => {
+    const administrator = await openAdministratorSession();
+    await seedRunbook();
+    const { origin: _origin, ...sameOriginHeaders } = administrator.headers;
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/compromise-responses/current",
+      headers: { ...sameOriginHeaders, "sec-fetch-site": "same-origin" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    compromiseResponseSchema.parse(response.json());
+  });
+
+  it("rejects a cross-site read that carries no Origin", async () => {
+    const administrator = await openAdministratorSession();
+    await seedRunbook();
+    const { origin: _origin, ...crossSiteHeaders } = administrator.headers;
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/compromise-responses/current",
+      headers: { ...crossSiteHeaders, "sec-fetch-site": "cross-site" },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
 });
 
 describe("POST .../steps/revoke-every-installation", () => {

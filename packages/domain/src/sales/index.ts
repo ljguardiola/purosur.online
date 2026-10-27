@@ -64,6 +64,7 @@ export {
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   saleComprobanteOf,
+  saleFiscalDocumentAmong,
   saleStandingOf,
 } from "./model/sale-history.js";
 export type { ListPrice, SoldProduct } from "./model/sale-line.js";

@@ -490,6 +490,8 @@ export type { InstallationKeysBody } from "./register/installation-keys.js";
 export type {
   CoreReadyMessage,
   CoreRefusedMessage,
+  CoreStartupStep,
+  CoreStartupStepMessage,
   CoreStatusMessage,
   CoreStatusRequest,
   CredentialsReplacement,

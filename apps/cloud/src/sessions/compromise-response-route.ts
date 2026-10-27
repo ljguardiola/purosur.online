@@ -18,7 +18,7 @@ import {
   requirePasskeyAuthorization,
 } from "../credentials/passkey-authorization-guard.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { backofficeOriginGuard } from "./backoffice-origin.js";
+import { backofficeOriginGuard, sameOriginGuard } from "./backoffice-origin.js";
 import { compromiseResponseWire } from "./compromise-response-wire.js";
 import { DrizzleCompromiseResponseStore } from "./drizzle-compromise-response-store.js";
 import {
@@ -97,10 +97,9 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const store = new DrizzleCompromiseResponseStore(options.db, options);
-  const routeOptions = {
-    preHandler: backofficeOriginGuard(options.backofficeOrigin),
-    config: { access: capabilityAccess("manage_users"), sessionSource },
-  };
+  const config = { access: capabilityAccess("manage_users"), sessionSource };
+  const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
+  const writeGuard = { preHandler: backofficeOriginGuard(options.backofficeOrigin), config };
 
   async function sendCurrentResponse(reply: FastifyReply): Promise<void> {
     const current = await readCurrentCompromiseResponse({ responses: store });
@@ -155,7 +154,7 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
     );
   }
 
-  app.post("/compromise-responses", routeOptions, async (request, reply) => {
+  app.post("/compromise-responses", writeGuard, async (request, reply) => {
     const outcome = await startCompromiseResponse(
       { store },
       { actorId: openSessionOf(request).userId, at: now() },
@@ -165,7 +164,7 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
       .send(compromiseResponseWire(outcome.response));
   });
 
-  app.get("/compromise-responses/current", routeOptions, async (_request, reply) => {
+  app.get("/compromise-responses/current", readGuard, async (_request, reply) => {
     const current = await readCurrentCompromiseResponse({ responses: store });
     if (current.kind === "none") {
       await reply.code(404).send(NO_RESPONSE_RESPONSE);
@@ -176,7 +175,7 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
 
   app.post(
     "/compromise-responses/current/steps/revoke-every-installation",
-    routeOptions,
+    writeGuard,
     async (request, reply) => {
       const outcome = await runStep(reply, request, { step: "revoke_every_installation" });
       if (outcome) {
@@ -187,7 +186,7 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
 
   app.post(
     "/compromise-responses/current/steps/end-sessions-and-remove-passkeys",
-    routeOptions,
+    writeGuard,
     async (request, reply) => {
       const body = await readValidatedBody(
         reply,
@@ -213,7 +212,7 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
 
   app.post(
     "/compromise-responses/current/steps/force-pin-resets",
-    routeOptions,
+    writeGuard,
     async (request, reply) => {
       const outcome = await runStep(reply, request, { step: "force_pin_resets" });
       if (outcome) {
@@ -222,7 +221,7 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
     },
   );
 
-  app.post("/compromise-responses/current/items/:item", routeOptions, async (request, reply) => {
+  app.post("/compromise-responses/current/items/:item", writeGuard, async (request, reply) => {
     const item = compromiseResponseItemSchema.safeParse(
       (request.params as { item?: unknown }).item,
     );

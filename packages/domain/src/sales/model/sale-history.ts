@@ -71,6 +71,16 @@ function isDefinedBy(definition: SaleStandingDefinition, facts: SaleStandingFact
   );
 }
 
+export function saleFiscalDocumentAmong(
+  attempts: readonly SaleFiscalDocument[],
+): SaleFiscalDocument | null {
+  return (
+    attempts.find(({ state }) => state === "AUTHORIZED") ??
+    attempts.find(({ state }) => IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(state)) ??
+    null
+  );
+}
+
 export function saleStandingOf({
   voided,
   deferred,

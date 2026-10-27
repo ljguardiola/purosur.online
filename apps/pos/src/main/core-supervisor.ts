@@ -1,5 +1,7 @@
+import type { CoreStartupStep } from "@purosur/contracts";
 import { isCoreReadyMessage } from "./core-readiness";
 import { isCoreRefusedMessage } from "./core-refusal";
+import { readCoreStartupStep } from "./core-startup-step";
 import type { CoreStatus } from "./core-status-broadcast";
 
 export interface RestartPolicy {
@@ -32,6 +34,11 @@ export interface SupervisedProcess {
   kill(): void;
 }
 
+export interface ReadinessMiss {
+  step: CoreStartupStep | undefined;
+  stepElapsedMs: number | undefined;
+}
+
 export interface CoreSupervisorDeps {
   fork(): SupervisedProcess;
   // Returns a canceler so stop() can clear a pending timer instead of leaving it on the event
@@ -52,6 +59,9 @@ export interface CoreSupervisorDeps {
   onRestartsExhausted?(): void;
   // A core that refuses the local database it found is killed and never started again.
   onRefused?(): void;
+  // Called once, right before a core that missed its readiness deadline is killed, with the latest
+  // startup step it reported and how long ago.
+  onReadinessMissed?(miss: ReadinessMiss): void;
   // "up" only once the process has said it is ready; "down" from bounded restarts running out
   // until a retry's process is ready; "refused" once the core refuses its database; "starting"
   // otherwise.
@@ -94,6 +104,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
 
     const process = deps.fork();
     let readyAt: number | undefined;
+    let latestStep: { step: CoreStartupStep; at: number } | undefined;
     // Set when the deadline kills this process, so a late "ready" message from it never
     // resurrects the status after teardown has started.
     let missedReadinessDeadline = false;
@@ -105,6 +116,10 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
         return;
       }
       missedReadinessDeadline = true;
+      deps.onReadinessMissed?.({
+        step: latestStep?.step,
+        stepElapsedMs: latestStep === undefined ? undefined : deps.now() - latestStep.at,
+      });
       // Kill only, don't fork a replacement: two cores could fight over the database or hardware.
       // Windows (the only shipped target) makes kill() terminate outright, so this won't hang.
       process.kill();
@@ -133,6 +148,11 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
         cancelDeadline();
         readyAt = deps.now();
         setStatus("up");
+        return;
+      }
+      const step = readCoreStartupStep(message);
+      if (step !== undefined) {
+        latestStep = { step, at: deps.now() };
       }
     });
 

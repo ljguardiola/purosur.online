@@ -46,6 +46,10 @@ class FakeProcess implements SupervisedProcess {
     this.messageListener?.(message);
   }
 
+  reportStep(step: string): void {
+    this.send({ type: "core-startup-step", step });
+  }
+
   becomeReady(): void {
     this.send({ type: "core-ready" });
   }
@@ -690,6 +694,140 @@ describe("createCoreSupervisor", () => {
       expect(processes).toHaveLength(retried + 1);
       expect(onRestartsExhausted).toHaveBeenCalledOnce();
       expect(onStatusChange).toHaveBeenLastCalledWith("down");
+    });
+
+    describe("reporting what the core was waiting on", () => {
+      it("reports the latest startup step and how long ago it arrived when the deadline kills the core", () => {
+        let clock = 0;
+        const onReadinessMissed = vi.fn();
+        const { supervisor, processes } = withTimers({ onReadinessMissed, now: () => clock });
+
+        supervisor.start();
+        clock = 1_000;
+        processes[0]?.reportStep("check_local_database");
+        clock = 2_000;
+        processes[0]?.reportStep("apply_migrations");
+        clock = readinessTimeoutMs;
+        vi.advanceTimersByTime(readinessTimeoutMs);
+
+        expect(onReadinessMissed).toHaveBeenCalledExactlyOnceWith({
+          step: "apply_migrations",
+          stepElapsedMs: readinessTimeoutMs - 2_000,
+        });
+      });
+
+      it("reports no step when the core said nothing before the deadline", () => {
+        const onReadinessMissed = vi.fn();
+        const { supervisor } = withTimers({ onReadinessMissed });
+
+        supervisor.start();
+        vi.advanceTimersByTime(readinessTimeoutMs);
+
+        expect(onReadinessMissed).toHaveBeenCalledExactlyOnceWith({
+          step: undefined,
+          stepElapsedMs: undefined,
+        });
+      });
+
+      it("reports the miss before killing the core", () => {
+        const order: string[] = [];
+        const { supervisor, processes } = withTimers({
+          onReadinessMissed: () => order.push(processes[0]?.killed ? "killed" : "alive"),
+        });
+
+        supervisor.start();
+        vi.advanceTimersByTime(readinessTimeoutMs);
+
+        expect(order).toEqual(["alive"]);
+        expect(processes[0]?.killed).toBe(true);
+      });
+
+      it("ignores a step message that is not a known step", () => {
+        const onReadinessMissed = vi.fn();
+        const { supervisor, processes } = withTimers({ onReadinessMissed });
+
+        supervisor.start();
+        processes[0]?.reportStep("open_window");
+        vi.advanceTimersByTime(readinessTimeoutMs);
+
+        expect(onReadinessMissed).toHaveBeenCalledExactlyOnceWith({
+          step: undefined,
+          stepElapsedMs: undefined,
+        });
+      });
+
+      it("does not report a miss for a core that is ready in time", () => {
+        const onReadinessMissed = vi.fn();
+        const { supervisor, processes } = withTimers({ onReadinessMissed });
+
+        supervisor.start();
+        processes[0]?.reportStep("apply_migrations");
+        processes[0]?.becomeReady();
+        vi.advanceTimersByTime(readinessTimeoutMs);
+
+        expect(onReadinessMissed).not.toHaveBeenCalled();
+      });
+
+      it("does not report a miss when stopped before the deadline", () => {
+        const onReadinessMissed = vi.fn();
+        const { supervisor } = withTimers({ onReadinessMissed });
+
+        supervisor.start();
+        supervisor.stop();
+        vi.advanceTimersByTime(readinessTimeoutMs);
+
+        expect(onReadinessMissed).not.toHaveBeenCalled();
+      });
+
+      it("keeps the deadline where it was when steps keep arriving", () => {
+        const onStatusChange = vi.fn();
+        const { supervisor, processes } = withTimers({ onStatusChange });
+
+        supervisor.start();
+        vi.advanceTimersByTime(readinessTimeoutMs - 1);
+        processes[0]?.reportStep("apply_migrations");
+        vi.advanceTimersByTime(1);
+
+        expect(processes[0]?.killed).toBe(true);
+        expect(onStatusChange).not.toHaveBeenCalled();
+      });
+
+      it("does not change the status when a step arrives", () => {
+        const onStatusChange = vi.fn();
+        const { supervisor, processes } = withTimers({ onStatusChange });
+
+        supervisor.start();
+        processes[0]?.reportStep("check_local_database");
+
+        expect(onStatusChange).not.toHaveBeenCalled();
+      });
+
+      it("still becomes ready after steps, as without them", () => {
+        const onStatusChange = vi.fn();
+        const { supervisor, processes } = withTimers({ onStatusChange });
+
+        supervisor.start();
+        processes[0]?.reportStep("check_local_database");
+        processes[0]?.becomeReady();
+
+        expect(onStatusChange).toHaveBeenCalledExactlyOnceWith("up");
+      });
+
+      it("reports only the steps of the process that missed the deadline", () => {
+        const onReadinessMissed = vi.fn();
+        const { supervisor, processes } = withTimers({ onReadinessMissed });
+
+        supervisor.start();
+        processes[0]?.reportStep("apply_migrations");
+        processes[0]?.exit(1);
+        vi.advanceTimersByTime(policy.maxDelayMs);
+        vi.advanceTimersByTime(readinessTimeoutMs);
+
+        expect(onReadinessMissed).toHaveBeenCalledExactlyOnceWith({
+          step: undefined,
+          stepElapsedMs: undefined,
+        });
+      });
     });
 
     it("never kills a core that said it was ready in time", () => {
