@@ -23,6 +23,7 @@ test.each([
   [{ kind: "packaging_not_linkable" }, { kind: "packagingNotLinkable" }],
   [{ kind: "vat_rate_missing" }, { kind: "vatRateMissing" }],
   [{ kind: "vat_rate_invalid" }, { kind: "attemptFailed" }],
+  [{ kind: "already_linked" }, { kind: "alreadyLinked" }],
 ] as const)("turns the outcome %j into the notice %j", (outcome, notice) => {
   expect(supplierPriceListChangeNoticeOf(outcome)).toEqual(notice);
 });
@@ -31,6 +32,7 @@ test("a notice says the list changed only when what the person saw is out of dat
   expect(supplierPriceListChangeOutdates({ kind: "stale" })).toBe(true);
   expect(supplierPriceListChangeOutdates({ kind: "notEditable" })).toBe(true);
   expect(supplierPriceListChangeOutdates({ kind: "notFound" })).toBe(true);
+  expect(supplierPriceListChangeOutdates({ kind: "alreadyLinked" })).toBe(true);
   expect(supplierPriceListChangeOutdates({ kind: "attemptFailed" })).toBe(false);
   expect(supplierPriceListChangeOutdates({ kind: "unpricedRows" })).toBe(false);
   expect(supplierPriceListChangeOutdates(null)).toBe(false);
@@ -46,6 +48,7 @@ test.each([
   [{ kind: "stale" }, "La lista cambió", "Actualizala para ver los cambios y volvé a intentarlo."],
   [{ kind: "notEditable" }, "La lista ya no se puede modificar", undefined],
   [{ kind: "notFound" }, "Esta lista ya no existe", undefined],
+  [{ kind: "alreadyLinked" }, "Este ítem ya tiene un producto", "Actualizá la lista para verlo."],
   [{ kind: "noRows" }, "La lista no tiene ítems", "Cargá otra lista o descartá esta."],
   [
     { kind: "packagingNotLinkable" },
