@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
-import type { CreditNoteToIssue } from "../model/sale-credit-note.js";
+import type { InvoicedCreditNote } from "../model/sale-credit-note.js";
 import {
   type AcceptSaleCreditNoteRequestInput,
   acceptSaleCreditNoteRequest,
@@ -17,12 +17,19 @@ const REGISTER_ID = "register-1";
 const DEVICE_ID = "device-1";
 const CREDIT_NOTE_ID = "credit-note-1";
 
-const VOIDED: CreditNoteToIssue = {
+const VOIDED: InvoicedCreditNote = {
   creditNoteId: CREDIT_NOTE_ID,
   saleId: "sale-1",
   total: 7_500,
   receiverTaxStatusCode: 5,
   correctedVoucher: { voucherType: 11, pointOfSale: 8, number: 77 },
+  origin: { kind: "sale_void" },
+};
+
+const RETURNED: InvoicedCreditNote = {
+  ...VOIDED,
+  total: 3_000,
+  origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-06" },
 };
 
 const SALE_EVENT: PushedEvent = {
@@ -41,7 +48,7 @@ const SALE_EVENT: PushedEvent = {
 const REQUEST = {
   creditNoteId: CREDIT_NOTE_ID,
   pointOfSale: 12,
-  voided: VOIDED,
+  creditNote: VOIDED,
   saleEvent: SALE_EVENT,
 };
 
@@ -52,10 +59,14 @@ const STORED: CreditNote = {
   total: 7_500,
   receiverTaxStatusCode: 5,
   reason: "sale_void",
+  issueOn: null,
   standing: { kind: "not_requested" },
 };
 
+const VOUCHER = { voucherType: 11, pointOfSale: 8, number: 77 };
+
 interface Scenario {
+  invoices?: [typeof VOUCHER, number][];
   registers?: [string, FakeRegisterPointsOfSale][];
   seeded?: [string, CreditNote][];
   request?: Partial<AcceptSaleCreditNoteRequestInput["request"]>;
@@ -64,13 +75,14 @@ interface Scenario {
 }
 
 function request({
+  invoices = [[VOUCHER, 7_500]],
   registers = [[REGISTER_ID, { realTime: 12, offline: 8 }]],
   seeded = [],
   request: overrides = {},
   registerId = REGISTER_ID,
   attachedFailure,
 }: Scenario = {}) {
-  const store = new FakeSaleCreditNoteStore(registers);
+  const store = new FakeSaleCreditNoteStore(registers, invoices);
   const attachedSaleEvents = new FakeAttachedSaleEvents(store);
   attachedSaleEvents.failure = attachedFailure;
   for (const [owner, creditNote] of seeded) {
@@ -107,6 +119,7 @@ describe("acceptSaleCreditNoteRequest", () => {
           correctedVoucher: { voucherType: 11, pointOfSale: 8, number: 77 },
           total: 7_500,
           receiverTaxStatusCode: 5,
+          origin: { kind: "sale_void" },
           receivedAt: RECEIVED_AT,
         },
       ]);
@@ -128,6 +141,8 @@ describe("acceptSaleCreditNoteRequest", () => {
         "registerOwnsPointOfSale",
         "recordedCreditNote",
         "registerIssuesFromPointOfSale",
+        "invoiceTotalOf",
+        "creditedToInvoice",
         "recordSaleCreditNote",
         "leaveLane",
       ]);
@@ -144,7 +159,7 @@ describe("acceptSaleCreditNoteRequest", () => {
     it("credits an invoice of the real-time point of sale as well as one of the contingency point of sale", async () => {
       const { store, run } = request({
         request: {
-          voided: {
+          creditNote: {
             ...VOIDED,
             correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 1204 },
           },
@@ -175,6 +190,11 @@ describe("acceptSaleCreditNoteRequest", () => {
         { kind: "in_progress" },
       ],
       ["rejected", { kind: "rejected" }, { kind: "rejected" }],
+      [
+        "impossible to issue",
+        { kind: "regularization_required" },
+        { kind: "regularization_required" },
+      ],
       [
         "authorized",
         {
@@ -251,7 +271,7 @@ describe("acceptSaleCreditNoteRequest", () => {
   describe("what keeps a credit note from being recorded", () => {
     it("refuses a void that asks for another credit note, without taking a lane", async () => {
       const { store, run } = request({
-        request: { voided: { ...VOIDED, creditNoteId: "credit-note-2" } },
+        request: { creditNote: { ...VOIDED, creditNoteId: "credit-note-2" } },
       });
 
       expect(await run()).toEqual({ kind: "sale_event_mismatch" });
@@ -260,7 +280,7 @@ describe("acceptSaleCreditNoteRequest", () => {
 
     it("records no attached event for a void that asks for another credit note", async () => {
       const { attachedSaleEvents, run } = request({
-        request: { voided: { ...VOIDED, creditNoteId: "credit-note-2" } },
+        request: { creditNote: { ...VOIDED, creditNoteId: "credit-note-2" } },
       });
 
       await run();
@@ -333,7 +353,7 @@ describe("acceptSaleCreditNoteRequest", () => {
         },
       ]);
       expect(store.operations.slice(-4)).toEqual([
-        "recordSaleCreditNote",
+        "creditedToInvoice",
         "raiseInvoiceAlreadyCredited",
         "keepAlreadyCreditedRefusal",
         "leaveLane",
@@ -372,6 +392,79 @@ describe("acceptSaleCreditNoteRequest", () => {
 
       expect(store.alertsRaised).toEqual([]);
       expect(store.refusalsKept).toEqual([]);
+    });
+  });
+
+  describe("the credit note of a return", () => {
+    const returned = { creditNote: RETURNED };
+
+    it("records it with the return that asks for it and the day it must be dated", async () => {
+      const { store, run } = request({ request: returned });
+
+      expect(await run()).toEqual({ kind: "recorded" });
+      expect(store.records).toMatchObject([
+        {
+          total: 3_000,
+          origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-06" },
+        },
+      ]);
+      expect(store.recorded.get(CREDIT_NOTE_ID)?.creditNote).toMatchObject({
+        reason: "sale_return",
+        issueOn: "2026-10-06",
+      });
+    });
+
+    it("lets an invoice take several credit notes up to its total", async () => {
+      const { store, run } = request({
+        request: returned,
+        invoices: [[VOUCHER, 10_000]],
+        seeded: [[REGISTER_ID, { ...STORED, creditNoteId: "credit-note-2", total: 7_000 }]],
+      });
+
+      expect(await run()).toEqual({ kind: "recorded" });
+      expect(store.records).toHaveLength(1);
+    });
+
+    it("refuses a credit note that takes the credit of the invoice beyond its total", async () => {
+      const { store, run } = request({
+        request: returned,
+        invoices: [[VOUCHER, 10_000]],
+        seeded: [[REGISTER_ID, { ...STORED, creditNoteId: "credit-note-2", total: 7_001 }]],
+      });
+
+      expect(await run()).toEqual({ kind: "voucher_already_credited" });
+      expect(store.records).toEqual([]);
+      expect(store.alertsRaised).toHaveLength(1);
+    });
+
+    it("does not count a credit note the tax authority rejected", async () => {
+      const { run } = request({
+        request: returned,
+        invoices: [[VOUCHER, 10_000]],
+        seeded: [
+          [
+            REGISTER_ID,
+            {
+              ...STORED,
+              creditNoteId: "credit-note-2",
+              total: 9_000,
+              standing: { kind: "rejected" },
+            },
+          ],
+        ],
+      });
+
+      expect(await run()).toEqual({ kind: "recorded" });
+    });
+
+    it("records it when the cloud does not know the invoice's total", async () => {
+      const { run } = request({
+        request: returned,
+        invoices: [],
+        seeded: [[REGISTER_ID, { ...STORED, creditNoteId: "credit-note-2" }]],
+      });
+
+      expect(await run()).toEqual({ kind: "recorded" });
     });
   });
 

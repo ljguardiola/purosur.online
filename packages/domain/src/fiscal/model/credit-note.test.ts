@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
   CREDIT_NOTE_REASONS,
+  creditNoteBreaksDateOrder,
   creditNoteIssueDate,
+  creditWithinInvoice,
   mayTakeCreditNoteNumber,
   nextCreditNoteNumber,
   settleUnclearCreditNote,
@@ -41,6 +43,65 @@ describe("credit note C", () => {
   it("is dated with the Argentine calendar day it is issued", () => {
     expect(creditNoteIssueDate(new Date("2026-10-03T01:30:00.000Z"))).toBe("2026-10-02");
     expect(creditNoteIssueDate(new Date("2026-10-03T03:00:00.000Z"))).toBe("2026-10-03");
+  });
+});
+
+describe("creditNoteBreaksDateOrder", () => {
+  const authorizedOn = (issuedOn: string) => ({ kind: "authorized", issuedOn });
+
+  it("does not break the order of a point of sale without authorized credit notes", () => {
+    expect(creditNoteBreaksDateOrder("2026-10-07", [])).toBe(false);
+  });
+
+  it.each(["2026-10-07", "2026-10-06"])(
+    "does not break the order when the latest authorized credit note is dated %s",
+    (issuedOn) => {
+      expect(creditNoteBreaksDateOrder("2026-10-07", [authorizedOn(issuedOn)])).toBe(false);
+    },
+  );
+
+  it("breaks the order when a credit note dated later was authorized", () => {
+    expect(
+      creditNoteBreaksDateOrder("2026-10-07", [
+        authorizedOn("2026-10-06"),
+        authorizedOn("2026-10-08"),
+      ]),
+    ).toBe(true);
+  });
+
+  it.each([
+    { kind: "not_requested" },
+    { kind: "rejected" },
+    { kind: "requested", issuedOn: "2026-10-09" },
+    { kind: "regularization_required" },
+  ])("ignores a credit note that is $kind", (standing) => {
+    expect(creditNoteBreaksDateOrder("2026-10-07", [standing])).toBe(false);
+  });
+});
+
+describe("creditWithinInvoice", () => {
+  it("lets an invoice take credit up to its total, across credit notes", () => {
+    expect(
+      creditWithinInvoice({ invoiceTotal: 10_000, alreadyCredited: 4_000, asked: 6_000 }),
+    ).toBe(true);
+  });
+
+  it("refuses credit beyond the invoice's total", () => {
+    expect(
+      creditWithinInvoice({ invoiceTotal: 10_000, alreadyCredited: 4_000, asked: 6_001 }),
+    ).toBe(false);
+  });
+
+  it("refuses more credit for an invoice that is fully credited", () => {
+    expect(creditWithinInvoice({ invoiceTotal: 10_000, alreadyCredited: 10_000, asked: 1 })).toBe(
+      false,
+    );
+  });
+
+  it("lets credit through when the invoice's total is not known", () => {
+    expect(creditWithinInvoice({ invoiceTotal: null, alreadyCredited: 0, asked: 10_000 })).toBe(
+      true,
+    );
   });
 });
 
@@ -138,6 +199,11 @@ describe("settleUnclearCreditNote", () => {
 
 describe("CREDIT_NOTE_REASONS", () => {
   it("lists why a credit note is issued: an authorization no sale accounts for, or a voided sale", () => {
-    expect(CREDIT_NOTE_REASONS).toEqual(["orphan", "sale_void", "rejected_document"]);
+    expect(CREDIT_NOTE_REASONS).toEqual([
+      "orphan",
+      "sale_void",
+      "sale_return",
+      "rejected_document",
+    ]);
   });
 });

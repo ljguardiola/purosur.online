@@ -1,4 +1,9 @@
-import type { VoidCreditNoteStanding } from "../../model/sale-credit-note.js";
+import {
+  type CorrectedInvoice,
+  tiedToInvoice,
+  type VoidCreditNoteStanding,
+} from "../../model/sale-credit-note.js";
+import type { SaleInvoiceStanding } from "../../model/sale-credit-note-route.js";
 import type {
   CloudCreditNoteAnswer,
   CloudCreditNoteCall,
@@ -12,12 +17,36 @@ export type CloudReply = CloudCreditNoteAnswer | null;
 
 export class FakeRegisterCreditNotes implements RegisterCreditNotes {
   readonly answered = new Map<string, { answer: VoidCreditNoteStanding; answeredAt: Date }>();
+  readonly tied = new Map<string, CorrectedInvoice>();
+  readonly standingLookups: string[] = [];
   private readonly pending: PendingCreditNote[];
   private readonly pointOfSale: number | null;
+  private readonly standings: Record<string, SaleInvoiceStanding>;
 
-  constructor(pending: PendingCreditNote[], pointOfSale: number | null = 12) {
+  constructor(
+    pending: PendingCreditNote[],
+    pointOfSale: number | null = 12,
+    standings: Record<string, SaleInvoiceStanding> = {},
+  ) {
     this.pending = pending;
     this.pointOfSale = pointOfSale;
+    this.standings = standings;
+  }
+
+  async saleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding> {
+    this.standingLookups.push(saleId);
+    return structuredClone(
+      this.standings[saleId] ?? { fiscalDocuments: [], deferralPending: false },
+    );
+  }
+
+  async tieToInvoice(creditNoteId: string, invoice: CorrectedInvoice): Promise<void> {
+    this.tied.set(creditNoteId, structuredClone(invoice));
+    const index = this.pending.findIndex((note) => note.creditNoteId === creditNoteId);
+    const note = this.pending[index];
+    if (note !== undefined && note.correctedVoucher === null) {
+      this.pending[index] = { ...tiedToInvoice(note, invoice), saleEvent: note.saleEvent };
+    }
   }
 
   async inProgress(): Promise<PendingCreditNote[]> {

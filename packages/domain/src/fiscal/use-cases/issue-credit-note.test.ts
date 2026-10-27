@@ -62,6 +62,7 @@ interface Scenario {
   voucher?: VoucherAnswer;
   answer?: SolicitationAnswer;
   now?: Date;
+  issueOn?: string | null;
   others?: { pointOfSale: number; standing: CreditNoteStanding }[];
 }
 
@@ -72,6 +73,7 @@ function scenario({
   voucher = { kind: "none" },
   answer = AUTHORIZED_ANSWER,
   now = NOW,
+  issueOn = null,
   others = [],
 }: Scenario = {}) {
   const store = new FakeCreditNoteStore();
@@ -82,6 +84,7 @@ function scenario({
     total: 12_500,
     receiverTaxStatusCode: 5,
     reason: "orphan",
+    issueOn,
     standing,
   };
   store.seed(creditNote);
@@ -150,6 +153,11 @@ describe("issueCreditNote", () => {
       },
     ],
     ["rejected", { kind: "rejected" }, { kind: "already_rejected" }],
+    [
+      "impossible to issue",
+      { kind: "regularization_required" },
+      { kind: "regularization_required" },
+    ],
   ])("does nothing with a credit note already %s", async (_case, standing, outcome) => {
     const { store, taxAuthority, creditNotes, ports } = scenario({ standing });
 
@@ -306,6 +314,113 @@ describe("issueCreditNote", () => {
       store.requestFailure = new Error("storage down");
 
       await expect(issue(ports)).rejects.toThrow("storage down");
+    });
+  });
+
+  describe("a credit note that carries the day it must be dated", () => {
+    const AUTHORIZED_ON = (issuedOn: string): CreditNoteStanding => ({
+      kind: "authorized",
+      number: 40,
+      issuedOn,
+      requestedAt: REQUESTED_AT,
+      authorizationCode: "75123456789011",
+      authorizationCodeDueOn: "2026-10-11",
+    });
+
+    it("requests the number and solicits the credit note with that day, not the day it is requested", async () => {
+      const { store, creditNotes, ports } = scenario({ issueOn: "2026-09-30" });
+
+      const outcome = await issue(ports);
+
+      expect(store.requests).toMatchObject([{ issuedOn: "2026-09-30" }]);
+      expect(creditNotes.solicitations).toMatchObject([{ issuedOn: "2026-09-30" }]);
+      expect(outcome).toMatchObject({ kind: "authorized", issuedOn: "2026-09-30" });
+    });
+
+    it("issues it beside credit notes authorized on the same day or before", async () => {
+      const { creditNotes, ports } = scenario({
+        issueOn: "2026-09-30",
+        others: [
+          { pointOfSale: 12, standing: AUTHORIZED_ON("2026-09-30") },
+          { pointOfSale: 12, standing: AUTHORIZED_ON("2026-09-29") },
+        ],
+      });
+
+      expect(await issue(ports)).toMatchObject({ kind: "authorized" });
+      expect(creditNotes.solicitations).toHaveLength(1);
+    });
+
+    it("ignores credit notes of another point of sale when it keeps the order", async () => {
+      const { ports } = scenario({
+        issueOn: "2026-09-30",
+        others: [{ pointOfSale: 13, standing: AUTHORIZED_ON("2026-10-01") }],
+      });
+
+      expect(await issue(ports)).toMatchObject({ kind: "authorized" });
+    });
+
+    describe("when a credit note dated later was already authorized in the point of sale", () => {
+      const later = {
+        issueOn: "2026-09-30",
+        others: [{ pointOfSale: 12, standing: AUTHORIZED_ON("2026-10-01") }],
+      };
+
+      it("never re-dates it: it asks for no number, solicits nothing and opens a task for a person", async () => {
+        const { store, taxAuthority, creditNotes, ports } = scenario(later);
+
+        expect(await issue(ports)).toEqual({ kind: "regularization_required" });
+        expect(store.requests).toEqual([]);
+        expect(taxAuthority.lastAuthorizedLookups).toEqual([]);
+        expect(creditNotes.solicitations).toEqual([]);
+        expect(store.regularizations).toEqual([
+          {
+            creditNoteId: CREDIT_NOTE_ID,
+            regularizationRequiredAt: NOW,
+            task: {
+              kind: "credit_note_rejected",
+              state: "open",
+              pointOfSale: 12,
+              documentType: "credit_note_c",
+              number: null,
+              creditNoteId: CREDIT_NOTE_ID,
+              rejections: [],
+              createdAt: NOW,
+            },
+          },
+        ]);
+        expect(store.standingOf(CREDIT_NOTE_ID)).toEqual({ kind: "regularization_required" });
+      });
+
+      it("does not open the task twice", async () => {
+        const { store, ports } = scenario(later);
+
+        await issue(ports);
+        await issue(ports);
+
+        expect(store.regularizations).toHaveLength(1);
+      });
+
+      it("waits first for a credit note of the point of sale that awaits its answer", async () => {
+        const { store, ports } = scenario({
+          ...later,
+          others: [
+            ...later.others,
+            {
+              pointOfSale: 12,
+              standing: {
+                kind: "requested",
+                number: 41,
+                issuedOn: "2026-10-02",
+                requestedAt: REQUESTED_AT,
+                unclearAnsweredAt: null,
+              },
+            },
+          ],
+        });
+
+        expect(await issue(ports)).toMatchObject({ kind: "retry" });
+        expect(store.regularizations).toEqual([]);
+      });
     });
   });
 
@@ -579,6 +694,12 @@ describe("creditNoteAnswerOf", () => {
     { kind: "already_rejected" },
   ])("is a rejection when the issuance ended %j", (outcome) => {
     expect(creditNoteAnswerOf(outcome)).toEqual({ kind: "rejected" });
+  });
+
+  it("is that a person must regularize the credit note when it cannot be issued", () => {
+    expect(creditNoteAnswerOf({ kind: "regularization_required" })).toEqual({
+      kind: "regularization_required",
+    });
   });
 
   it("is in progress while the issuance has to be tried again", () => {

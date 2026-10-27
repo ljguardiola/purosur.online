@@ -5,9 +5,12 @@ import {
   type SaleCreditNoteLane,
   type SaleCreditNoteLanes,
   type SaleCreditNoteRecord,
-  VoucherAlreadyCredited,
 } from "../accept-sale-credit-note-request-ports.js";
 import type { CreditNote } from "../credit-note-ports.js";
+
+function voucherKey({ voucherType, pointOfSale, number }: VoucherReference): string {
+  return [voucherType, pointOfSale, number].join("-");
+}
 
 export interface FakeRegisterPointsOfSale {
   realTime: number;
@@ -42,9 +45,31 @@ export class FakeSaleCreditNoteStore implements SaleCreditNoteLanes {
   readonly refusalsKept: KeptAlreadyCreditedRefusal[] = [];
   recordFailure: Error | undefined;
   private readonly registers: Map<string, FakeRegisterPointsOfSale>;
+  private readonly invoiceTotals: Map<string, number>;
 
-  constructor(registers: Iterable<[string, FakeRegisterPointsOfSale]>) {
+  constructor(
+    registers: Iterable<[string, FakeRegisterPointsOfSale]>,
+    invoices: Iterable<[VoucherReference, number]> = [],
+  ) {
     this.registers = new Map(registers);
+    this.invoiceTotals = new Map(
+      [...invoices].map(([voucher, total]) => [voucherKey(voucher), total]),
+    );
+  }
+
+  invoiceTotalOf(voucher: VoucherReference): number | null {
+    return this.invoiceTotals.get(voucherKey(voucher)) ?? null;
+  }
+
+  creditedTo(voucher: VoucherReference): number {
+    return [...this.recorded.values()]
+      .filter(
+        ({ creditNote }) =>
+          voucherKey(creditNote.associatedVoucher) === voucherKey(voucher) &&
+          creditNote.standing.kind !== "rejected" &&
+          creditNote.standing.kind !== "regularization_required",
+      )
+      .reduce((sum, { creditNote }) => sum + creditNote.total, 0);
   }
 
   seed(registerId: string, creditNote: CreditNote) {
@@ -108,16 +133,6 @@ class FakeSaleCreditNoteLane implements SaleCreditNoteLane {
     if (this.store.recorded.has(record.creditNoteId)) {
       throw new CreditNoteIdTaken();
     }
-    const { voucherType, pointOfSale, number } = record.correctedVoucher;
-    const alreadyCredited = [...this.store.recorded.values()].some(
-      ({ creditNote: { associatedVoucher } }) =>
-        associatedVoucher.voucherType === voucherType &&
-        associatedVoucher.pointOfSale === pointOfSale &&
-        associatedVoucher.number === number,
-    );
-    if (alreadyCredited) {
-      throw new VoucherAlreadyCredited();
-    }
     this.store.records.push(record);
     this.store.seed(record.registerId, {
       creditNoteId: record.creditNoteId,
@@ -125,9 +140,20 @@ class FakeSaleCreditNoteLane implements SaleCreditNoteLane {
       associatedVoucher: record.correctedVoucher,
       total: record.total,
       receiverTaxStatusCode: record.receiverTaxStatusCode,
-      reason: "sale_void",
+      reason: record.origin.kind,
+      issueOn: record.origin.kind === "sale_return" ? record.origin.issuedOn : null,
       standing: { kind: "not_requested" },
     });
+  }
+
+  async invoiceTotalOf(voucher: VoucherReference): Promise<number | null> {
+    this.store.operations.push("invoiceTotalOf");
+    return this.store.invoiceTotalOf(voucher);
+  }
+
+  async creditedToInvoice(voucher: VoucherReference): Promise<number> {
+    this.store.operations.push("creditedToInvoice");
+    return this.store.creditedTo(voucher);
   }
 
   async raiseInvoiceAlreadyCredited({ voucher, saleId }: InvoiceAlreadyCredited, at: Date) {

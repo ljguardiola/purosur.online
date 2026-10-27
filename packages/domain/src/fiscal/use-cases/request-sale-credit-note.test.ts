@@ -3,8 +3,10 @@ import type { PushedEvent } from "../../sync/index.js";
 import type {
   CreditNoteAnswer,
   RequestedCreditNoteAnswer,
+  SaleInvoice,
   VoidCreditNoteStanding,
 } from "../model/sale-credit-note.js";
+import type { SaleInvoiceStanding } from "../model/sale-credit-note-route.js";
 import type { PendingCreditNote } from "./request-credit-notes-ports.js";
 import { requestSaleCreditNote } from "./request-sale-credit-note.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
@@ -39,6 +41,7 @@ function pendingNote(index: number): PendingCreditNote {
     total: 7_500,
     receiverTaxStatusCode: 5,
     correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 1_200 + index },
+    origin: { kind: "sale_void" },
     saleEvent: voidEvent(`sale-${index}`, `credit-note-${index}`),
   };
 }
@@ -63,11 +66,41 @@ const ISSUED_OFFLINE: VoidCreditNoteStanding = {
   fortnight: { start: "2026-10-01", end: "2026-10-15" },
 };
 
+const RETURN_ORIGIN = {
+  kind: "sale_return",
+  returnId: "return-1",
+  issuedOn: "2026-10-07",
+} as const;
+
+function awaitingNote(): PendingCreditNote {
+  return {
+    creditNoteId: "credit-note-1",
+    saleId: "sale-1",
+    total: 3_000,
+    receiverTaxStatusCode: null,
+    correctedVoucher: null,
+    origin: RETURN_ORIGIN,
+    saleEvent: { ...voidEvent("sale-1", "credit-note-1"), event_type: "sale_returned" },
+  };
+}
+
+const AUTHORIZED_INVOICE: SaleInvoice = {
+  origin: "real_time",
+  state: "AUTHORIZED",
+  pointOfSale: 12,
+  number: 1_300,
+  buyerTaxStatusCode: 5,
+};
+
 function register(
   replies: CloudReply[] = [AUTHORIZED],
-  { pointOfSale = 12 as number | null, pending = [pendingNote(1), pendingNote(2)] } = {},
+  {
+    pointOfSale = 12 as number | null,
+    pending = [pendingNote(1), pendingNote(2)],
+    standings = {} as Record<string, SaleInvoiceStanding>,
+  } = {},
 ) {
-  const creditNotes = new FakeRegisterCreditNotes(pending, pointOfSale);
+  const creditNotes = new FakeRegisterCreditNotes(pending, pointOfSale, standings);
   const cloud = new FakeCloudCreditNotes(replies);
   const printer = new FakeCreditNotePrinter();
   const run = () =>
@@ -173,6 +206,82 @@ describe("requestSaleCreditNote", () => {
     expect(await run()).toEqual({ kind: "answered", answer: ISSUED_OFFLINE });
     expect(cloud.calls).toEqual([]);
     expect(printer.started).toEqual(["sale-1"]);
+  });
+
+  describe("a credit note that waits for the invoice of its sale", () => {
+    const waiting = (standing: SaleInvoiceStanding, replies: CloudReply[] = [AUTHORIZED]) =>
+      register(replies, { pending: [awaitingNote()], standings: { "sale-1": standing } });
+    const INVOICED = { fiscalDocuments: [AUTHORIZED_INVOICE], deferralPending: false };
+
+    it("ties the credit note to the invoice the sale got and asks the cloud for it, with that invoice", async () => {
+      const { creditNotes, cloud, run } = waiting(INVOICED);
+
+      expect(await run()).toEqual({ kind: "answered", answer: AUTHORIZED });
+      expect(creditNotes.tied.get("credit-note-1")).toEqual({
+        voucher: { voucherType: 11, pointOfSale: 12, number: 1_300 },
+        buyerTaxStatusCode: 5,
+      });
+      expect(cloud.calls).toEqual([
+        {
+          creditNoteId: "credit-note-1",
+          pointOfSale: 12,
+          saleEvent: awaitingNote().saleEvent,
+          invoice: {
+            voucher: { voucherType: 11, pointOfSale: 12, number: 1_300 },
+            buyerTaxStatusCode: 5,
+          },
+        },
+      ]);
+    });
+
+    it("asks nothing, leaving it in progress, while the invoice is on its way", async () => {
+      const { creditNotes, cloud, run } = waiting({ fiscalDocuments: [], deferralPending: true });
+
+      expect(await run()).toEqual({ kind: "answered", answer: { kind: "in_progress" } });
+      expect(creditNotes.tied.size).toBe(0);
+      expect(cloud.calls).toEqual([]);
+    });
+
+    it("answers that a person must regularize it when no invoice is on its way", async () => {
+      const { creditNotes, cloud, printer, run } = waiting({
+        fiscalDocuments: [],
+        deferralPending: false,
+      });
+
+      expect(await run()).toEqual({
+        kind: "answered",
+        answer: { kind: "regularization_required" },
+      });
+      expect(creditNotes.answered.get("credit-note-1")).toEqual({
+        answer: { kind: "regularization_required" },
+        answeredAt: NOW,
+      });
+      expect(cloud.calls).toEqual([]);
+      expect(printer.started).toEqual([]);
+    });
+
+    it("records and answers that a person must regularize it when the cloud says so", async () => {
+      const { creditNotes, printer, run } = waiting(INVOICED, [
+        { kind: "regularization_required" },
+      ]);
+
+      expect(await run()).toEqual({
+        kind: "answered",
+        answer: { kind: "regularization_required" },
+      });
+      expect(creditNotes.answered.get("credit-note-1")?.answer).toEqual({
+        kind: "regularization_required",
+      });
+      expect(printer.started).toEqual([]);
+    });
+
+    it("does not look for an invoice for a credit note that already corrects one", async () => {
+      const { creditNotes, run } = register([AUTHORIZED]);
+
+      await run();
+
+      expect(creditNotes.standingLookups).toEqual([]);
+    });
   });
 
   it("leaves the credit note in progress, printing nothing, and gives the failure when asking for it fails", async () => {
