@@ -110,7 +110,11 @@ describe("ReturnScreen asking for the customer's ticket", () => {
   });
 
   it.each([
-    [{ kind: "not_found" }, "No encontramos esa venta en esta caja."],
+    [{ kind: "not_found" }, "No encontramos esa venta en esta sucursal."],
+    [
+      { kind: "needs_connection" },
+      "Se necesita conexión a internet para buscar una venta de otra caja.",
+    ],
     [{ kind: "voided" }, "Esa venta está anulada: no se puede devolver."],
     [{ kind: "unavailable" }, "No se pudo buscar la venta"],
   ] as const)(

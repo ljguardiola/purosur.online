@@ -44,9 +44,15 @@ describe("the quantity of a line", () => {
 });
 
 describe("the refusal of finding the sale", () => {
-  it("says the sale is not on this register", () => {
+  it("says the sale is not in this branch", () => {
     expect(findRefusalText("not_found")).toEqual({
-      title: "No encontramos esa venta en esta caja.",
+      title: "No encontramos esa venta en esta sucursal.",
+    });
+  });
+
+  it("says a connection is needed to look for a sale of another register", () => {
+    expect(findRefusalText("needs_connection")).toEqual({
+      title: "Se necesita conexión a internet para buscar una venta de otra caja.",
     });
   });
 
