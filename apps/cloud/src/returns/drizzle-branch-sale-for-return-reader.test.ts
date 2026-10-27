@@ -410,14 +410,12 @@ describe("reading a sale of the branch to return it from another register", () =
 
     it("holds an invoice issued offline as authorized, with its buyer tax status", async () => {
       const { asking, selling, completed } = await setUp();
-      await system.db
-        .insert(offlineFiscalDocuments)
-        .values({
-          id: randomUUID(),
-          saleId: completed.id,
-          registerId: selling.registerId,
-          ...OFFLINE_INVOICE,
-        });
+      await system.db.insert(offlineFiscalDocuments).values({
+        id: randomUUID(),
+        saleId: completed.id,
+        registerId: selling.registerId,
+        ...OFFLINE_INVOICE,
+      });
 
       const found = await reader().saleForReturnInBranchOf(asking.registerId, {
         kind: "invoice",

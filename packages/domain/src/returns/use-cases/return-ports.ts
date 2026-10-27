@@ -19,6 +19,7 @@ export interface ReturnSaleReader {
 
 export interface BranchSaleFacts {
   sale: SaleForReturn;
+  invoiceStanding: SaleInvoiceStanding;
   goodConditionReturnDays: number;
   countedReturnIds: string[];
 }

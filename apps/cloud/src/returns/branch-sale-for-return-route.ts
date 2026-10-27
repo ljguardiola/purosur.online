@@ -5,7 +5,7 @@ import {
   cloudError,
   cloudErrorStatus,
 } from "@purosur/contracts";
-import { SALE_STATES_AFTER_COMPLETION } from "@purosur/domain";
+import { SALE_STATES_AFTER_COMPLETION, type SaleInvoice } from "@purosur/domain";
 import type { BranchSaleFacts } from "@purosur/domain/returns/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -32,8 +32,16 @@ function completedSaleState(sale: BranchSaleFacts["sale"]["sale"]) {
   return state;
 }
 
+function routableInvoiceState({ state, number }: SaleInvoice) {
+  if (state === "AUTHORIZED" || state === "REQUESTING") {
+    return state;
+  }
+  throw new Error(`invoice ${number} was read as ${state}, which the answer does not carry`);
+}
+
 function toAnswerWire({
   sale: facts,
+  invoiceStanding,
   goodConditionReturnDays,
   countedReturnIds,
 }: BranchSaleFacts): BranchSaleForReturnAnswer {
@@ -71,6 +79,16 @@ function toAnswerWire({
       facts.invoice === null
         ? null
         : { point_of_sale: facts.invoice.pointOfSale, number: facts.invoice.number },
+    invoice_standing: {
+      fiscal_documents: invoiceStanding.fiscalDocuments.map((document) => ({
+        origin: document.origin,
+        state: routableInvoiceState(document),
+        point_of_sale: document.pointOfSale,
+        number: document.number,
+        buyer_tax_status_code: document.buyerTaxStatusCode,
+      })),
+      deferral_pending: invoiceStanding.deferralPending,
+    },
     payments: facts.payments.map((payment) => ({
       id: payment.id,
       method: payment.method,

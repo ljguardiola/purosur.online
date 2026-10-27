@@ -40,7 +40,7 @@ export async function findBranchSaleForReturn(
   if (answer.kind === "not_found") {
     return { kind: "not_found" };
   }
-  const { sale, goodConditionReturnDays, countedReturnIds } = answer;
+  const { sale, invoiceStanding, goodConditionReturnDays, countedReturnIds } = answer;
   const outcome = saleForReturnOutcome(
     withUncountedReturns(sale, countedReturnIds, ownReturns.returnsOfSale(sale.sale.id)),
     goodConditionReturnDays,
@@ -48,7 +48,7 @@ export async function findBranchSaleForReturn(
     zoneRules.zoneRules(),
   );
   if (outcome.kind === "found") {
-    retained.keep({ sale, goodConditionReturnDays, countedReturnIds });
+    retained.keep({ sale, invoiceStanding, goodConditionReturnDays, countedReturnIds });
   }
   return outcome;
 }

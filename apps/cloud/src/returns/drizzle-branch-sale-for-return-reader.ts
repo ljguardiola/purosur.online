@@ -1,10 +1,12 @@
 import {
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  type DeferredSaleState,
   FACTURA_C_DOCUMENT_TYPE,
   PAYMENT_METHODS,
   REFUND_DISCARDED_STATE,
   SALE_STATES_AFTER_COMPLETION,
   SALE_UNITS,
+  type SaleInvoice,
   type SaleState,
   type TicketReference,
 } from "@purosur/domain";
@@ -45,6 +47,11 @@ const issuedInvoice = or(
   eq(fiscalRequests.answerKind, "authorized"),
   eq(fiscalRequests.decision, "adopted"),
 );
+
+const UNSATISFIED_DEFERRAL_STATES = [
+  "pending",
+  "expired",
+] as const satisfies readonly DeferredSaleState[];
 
 function saleStateOf(state: string): SaleState {
   if (state === "COMPLETED" || state === "VOIDED") {
@@ -122,6 +129,7 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         payments: await this.paymentsOf(sale.id),
         returned: await this.returnedFromLinesOf(sale.id),
       },
+      invoiceStanding: await this.invoiceStandingOf(sale.id),
       goodConditionReturnDays: sale.goodConditionReturnDays ?? DEFAULT_GOOD_CONDITION_RETURN_DAYS,
       countedReturnIds: await this.countedReturnIdsOf(sale.id),
     };
@@ -169,6 +177,58 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         ),
       );
     return offline?.saleId;
+  }
+
+  private async invoiceStandingOf(saleId: string): Promise<BranchSaleFacts["invoiceStanding"]> {
+    const requests = await this.db
+      .select({
+        pointOfSale: fiscalRequests.pointOfSale,
+        number: fiscalRequests.number,
+        buyerTaxStatusCode: fiscalRequests.buyerTaxStatusCode,
+        answerKind: fiscalRequests.answerKind,
+        decision: fiscalRequests.decision,
+      })
+      .from(fiscalRequests)
+      .where(eq(fiscalRequests.saleId, saleId));
+    const offline = await this.db
+      .select({
+        pointOfSale: offlineFiscalDocuments.pointOfSale,
+        number: offlineFiscalDocuments.number,
+        buyerTaxStatusCode: offlineFiscalDocuments.buyerTaxStatusCode,
+      })
+      .from(offlineFiscalDocuments)
+      .where(
+        and(
+          eq(offlineFiscalDocuments.saleId, saleId),
+          eq(offlineFiscalDocuments.documentType, FACTURA_C_DOCUMENT_TYPE),
+        ),
+      );
+    const [pendingDeferral] = await this.db
+      .select({ id: deferredSales.id })
+      .from(deferredSales)
+      .where(
+        and(
+          eq(deferredSales.saleId, saleId),
+          inArray(deferredSales.state, [...UNSATISFIED_DEFERRAL_STATES]),
+        ),
+      );
+    const realTime = requests.flatMap(({ answerKind, decision, ...invoice }): SaleInvoice[] => {
+      if (answerKind === "authorized" || decision === "adopted") {
+        return [{ origin: "real_time", state: "AUTHORIZED", ...invoice }];
+      }
+      return answerKind === null && decision === null
+        ? [{ origin: "real_time", state: "REQUESTING", ...invoice }]
+        : [];
+    });
+    return {
+      fiscalDocuments: [
+        ...realTime,
+        ...offline.map(
+          (invoice): SaleInvoice => ({ origin: "offline", state: "AUTHORIZED", ...invoice }),
+        ),
+      ],
+      deferralPending: pendingDeferral !== undefined,
+    };
   }
 
   private async invoiceOf(saleId: string): Promise<{ pointOfSale: number; number: number } | null> {
