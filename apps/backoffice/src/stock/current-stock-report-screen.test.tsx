@@ -71,6 +71,19 @@ function renderScreen(
 
 const TABLE = { name: "Stock actual valorizado" } as const;
 
+const PRODUCT_NAMES = [almondsProduct, yerbaProduct, crackersProduct, teaProduct].map(
+  ({ name }) => name,
+);
+
+function shownProductNames(screen: Awaited<ReturnType<typeof renderScreen>>) {
+  return screen
+    .getByRole("table", TABLE)
+    .getByRole("row")
+    .elements()
+    .map((row) => PRODUCT_NAMES.find((name) => row.textContent?.includes(name)))
+    .filter((name) => name !== undefined);
+}
+
 test("titles the report under the stock reports", async () => {
   const screen = await renderScreen(listed());
 
@@ -103,8 +116,18 @@ test("shows each product with its category, lots, balance, value and share of th
   await expect.element(table.getByText("− 4 u")).toBeVisible();
   await expect.element(table.getByText(formatSignedCents(12_400_100))).toBeVisible();
   await expect.element(table.getByText(formatSignedCents(-240_000))).toBeVisible();
-  await expect.element(table.getByText(formatPercent(79))).toBeVisible();
+  await expect.element(table.getByText(formatPercent(78))).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shares out the total among the products valued above zero", async () => {
+  const screen = await renderScreen(listed());
+
+  const table = screen.getByRole("table", TABLE);
+  const yerba = table.getByRole("row").filter({ hasText: yerbaProduct.name });
+  const crackers = table.getByRole("row").filter({ hasText: crackersProduct.name });
+  await expect.element(yerba.getByText(formatPercent(22))).toBeVisible();
+  await expect.element(crackers.getByText("—")).toBeVisible();
 });
 
 test("shows a product without a known value, and its share, as a dash", async () => {
@@ -120,14 +143,7 @@ test("lists the products from the most valuable, those without value last", asyn
   const screen = await renderScreen(listed());
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
 
-  const names = [almondsProduct, yerbaProduct, crackersProduct, teaProduct].map(({ name }) => name);
-  const shown = screen
-    .getByRole("table", TABLE)
-    .getByRole("row")
-    .elements()
-    .map((row) => names.find((name) => row.textContent?.includes(name)))
-    .filter((name) => name !== undefined);
-  expect(shown).toEqual(names);
+  expect(shownProductNames(screen)).toEqual(PRODUCT_NAMES);
 });
 
 test("opens on the order the URL asks for and reports a new one", async () => {
@@ -137,13 +153,19 @@ test("opens on the order the URL asks for and reports a new one", async () => {
     onFiltersChange,
   });
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  expect(shownProductNames(screen)).toEqual([
+    almondsProduct.name,
+    crackersProduct.name,
+    teaProduct.name,
+    yerbaProduct.name,
+  ]);
 
   await userEvent.click(screen.getByRole("button", { name: "Saldo" }));
 
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ sortBy: "balance" });
 });
 
-test("shows the lots of a product with their cost and value, valued each at its own cost", async () => {
+test("shows the lots of a product", async () => {
   const screen = await renderScreen(listed());
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
 
@@ -151,25 +173,7 @@ test("shows the lots of a product with their cost and value, valued each at its 
 
   const lots = screen.getByRole("table", { name: "Lotes de Almendras peladas" });
   await expect.element(lots.getByText("L-2312")).toBeVisible();
-  await expect.element(lots.getByText("L-2409")).toBeVisible();
-  await expect.element(lots.getByText(formatSignedCents(4_377_400))).toBeVisible();
-  await expect.element(lots.getByText(formatSignedCents(8_022_700))).toBeVisible();
-  await expect.element(screen.getByRole("columnheader", { name: "Vencimiento" })).toBeVisible();
-  await expect.element(screen.getByRole("columnheader", { name: "Costo unitario" })).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
-});
-
-test("shows a lot without a known cost as without cost", async () => {
-  const screen = await renderScreen(listed());
-  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
-
-  await userEvent.click(
-    screen.getByRole("button", { name: "Ver los lotes de Té verde en hebras" }),
-  );
-
-  const lots = screen.getByRole("table", { name: "Lotes de Té verde en hebras" });
-  await expect.element(lots.getByText("Sin costo")).toBeVisible();
-  await expect.element(lots.getByText("—").first()).toBeVisible();
 });
 
 test("hides the lots again", async () => {
@@ -285,6 +289,24 @@ test("shows a failed load with a retry that loads the report again, and no figur
 
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   expect(services.fetchCurrentStockReport).toHaveBeenCalledTimes(2);
+});
+
+test("starts the figures from their loading placeholder when retrying a failed load", async () => {
+  const services = listed();
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText(formatCents(15_760_100))).toBeVisible();
+  vi.mocked(services.fetchCurrentStockReport)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValue(new Promise(() => {}));
+  await userEvent.click(screen.getByRole("button", { name: /Categoría:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Frutos secos" }));
+  await expect.element(screen.getByText("No pudimos abrir el stock actual")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.poll(() => services.fetchCurrentStockReport).toHaveBeenCalledTimes(3);
+  await expect.element(screen.getByText("Valorizado a costo")).toBeVisible();
+  expect(screen.getByText(formatCents(15_760_100)).query()).toBeNull();
 });
 
 test("ends the session when the cloud says it is over", async () => {

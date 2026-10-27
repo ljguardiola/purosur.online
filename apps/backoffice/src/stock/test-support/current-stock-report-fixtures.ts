@@ -105,8 +105,8 @@ export function currentStockReport(
   return {
     products,
     categories: [
-      { id: PANTRY_CATEGORY_ID, name: "Almacén" },
       { id: NUTS_CATEGORY_ID, name: "Frutos secos" },
+      { id: PANTRY_CATEGORY_ID, name: "Almacén" },
     ],
     summary: {
       value_cents: valued.reduce<number>((sum, value) => sum + (value ?? 0), 0),

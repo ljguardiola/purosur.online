@@ -228,6 +228,30 @@ describe("GET /reports/current-stock", () => {
     expect(body.summary).toMatchObject({ product_count: 1, value_cents: 20_000 });
   });
 
+  it("reports an inactive product with a zero balance that still has lots in stock", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOON);
+    const oats = await insertProduct(db, { name: "Avena", active: false });
+    for (const remaining of [2_000, -2_000]) {
+      await insertPurchasedLot(db, {
+        productId: oats.productId,
+        locationId,
+        actorId: userId,
+        remaining,
+      });
+    }
+    await insertBalance(db, { productId: oats.productId, locationId, quantity: 0 });
+
+    const body = (await currentStock(headers)).json();
+
+    expect(body.products).toEqual([
+      expect.objectContaining({
+        id: oats.productId,
+        balance: 0,
+        lots: [expect.anything(), expect.anything()],
+      }),
+    ]);
+  });
+
   it("reports only the products of the category asked for", async () => {
     const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOON);
     const flour = await insertProduct(db, { name: "Harina", categoryName: "Almacén" });
