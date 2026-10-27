@@ -43,6 +43,8 @@ function toAnswerWire({
       id: sale.id,
       register_id: sale.registerId,
       device_id: sale.deviceId,
+      session_id: sale.sessionId,
+      actor_id: sale.actorId,
       state: completedSaleState(sale),
       sale_discount:
         sale.saleDiscount === null

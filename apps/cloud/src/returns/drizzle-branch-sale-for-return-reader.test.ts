@@ -257,7 +257,7 @@ describe("reading a sale of the branch to return it from another register", () =
       });
     });
 
-    it.each([
+    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>]>([
       [
         "a rejected invoice",
         {
@@ -277,7 +277,7 @@ describe("reading a sale of the branch to return it from another register", () =
           answeredAt: null,
         },
       ],
-    ] as const)("does not find the sale of %s", async (_name, columns) => {
+    ])("does not find the sale of %s", async (_name, columns) => {
       const { asking, selling, completed } = await setUp();
       await authorizeInvoice(selling.registerId, completed.id, columns);
 

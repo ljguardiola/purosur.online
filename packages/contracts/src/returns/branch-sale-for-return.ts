@@ -66,6 +66,8 @@ export const branchSaleForReturnAnswerSchema = z.object({
     id: z.string(),
     register_id: z.string(),
     device_id: z.string(),
+    session_id: z.string(),
+    actor_id: z.string(),
     state: z.enum(SALE_STATES_AFTER_COMPLETION),
     sale_discount: saleDiscountSchema.nullable(),
     lines: z.array(

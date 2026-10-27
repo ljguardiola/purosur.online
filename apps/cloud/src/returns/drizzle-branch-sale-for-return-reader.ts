@@ -30,6 +30,8 @@ type SaleRow = {
   id: string;
   registerId: string;
   deviceId: string;
+  sessionId: string;
+  actorId: string;
   state: string;
   completedAt: Date | null;
   saleDiscountKind: string | null;
@@ -86,6 +88,8 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         id: sales.id,
         registerId: sales.registerId,
         deviceId: sales.deviceId,
+        sessionId: sales.sessionId,
+        actorId: sales.actorId,
         state: sales.state,
         completedAt: sales.completedAt,
         saleDiscountKind: sales.saleDiscountKind,
@@ -107,6 +111,8 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
           id: sale.id,
           registerId: sale.registerId,
           deviceId: sale.deviceId,
+          sessionId: sale.sessionId,
+          actorId: sale.actorId,
           state: saleStateOf(sale.state),
           saleDiscount: saleDiscountOf(sale),
           lines: await this.linesOf(sale.id),
