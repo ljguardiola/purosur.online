@@ -1,7 +1,7 @@
 import type { TagProps } from "@purosur/ui";
 import { formatCents } from "@purosur/ui";
+import { paymentMethodName } from "../platform/payment-method-names";
 import type { SaleDetail } from "../shell/sale-receipt-text";
-import { paymentMethodName } from "./sale-history-text";
 
 type Voidability = SaleDetail["voidability"];
 

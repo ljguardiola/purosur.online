@@ -3,7 +3,6 @@ import type {
   ReturnDraftLineBody,
   ReturnLineRefusalBody,
 } from "@purosur/contracts";
-import type { PaymentMethod } from "@purosur/domain";
 import type { NoticeTone } from "@purosur/ui";
 import { formatCalendarDayNumeric, formatCents, formatWeight } from "@purosur/ui";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
@@ -122,16 +121,4 @@ export function windowTags(
       ? { label: `${name} hasta ${formatCalendarDayNumeric(day)}`, tone: "success" as const }
       : { label: `${name} vencido`, tone: "warning" as const };
   return [tag("Arrepentimiento", windows.change_of_mind), tag("Defecto", windows.defective)];
-}
-
-const PAYMENT_METHOD_NAMES = {
-  CASH: "Efectivo",
-  TRANSFER: "Transferencia",
-  QR: "QR de Mercado Pago",
-  POINT: "Point integrada",
-  STANDALONE_TERMINAL: "Terminal independiente",
-} as const satisfies Record<PaymentMethod, string>;
-
-export function paymentMethodName(method: PaymentMethod): string {
-  return PAYMENT_METHOD_NAMES[method];
 }

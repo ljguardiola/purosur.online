@@ -5,7 +5,6 @@ import {
   findRefusalText,
   lineRefusalNotice,
   paymentIneligibleText,
-  paymentMethodName,
   quantityText,
   REASON_OPTIONS,
   refundRefusalText,
@@ -192,17 +191,5 @@ describe("the windows of a sale", () => {
       { label: "Arrepentimiento vencido", tone: "warning" },
       { label: "Defecto vencido", tone: "warning" },
     ]);
-  });
-});
-
-describe("the name of a payment method", () => {
-  it.each([
-    ["CASH", "Efectivo"],
-    ["TRANSFER", "Transferencia"],
-    ["QR", "QR de Mercado Pago"],
-    ["POINT", "Point integrada"],
-    ["STANDALONE_TERMINAL", "Terminal independiente"],
-  ] as const)("is %s for the cashier: %s", (method, name) => {
-    expect(paymentMethodName(method)).toBe(name);
   });
 });

@@ -22,6 +22,7 @@ import {
 import { Check, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CompleteReturnInput } from "../platform/core-client";
+import { paymentMethodName } from "../platform/payment-method-names";
 import { AuthorizationSection } from "../shell/authorization-section";
 import type { AuthorizationState } from "../shell/use-authorization";
 import type { CompletedReturnLine } from "./return-completed-modal";
@@ -40,7 +41,6 @@ import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
 import {
   lineRefusalNotice,
   paymentIneligibleText,
-  paymentMethodName,
   quantityText,
   refundRefusalText,
   windowTags,
