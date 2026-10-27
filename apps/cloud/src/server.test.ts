@@ -810,6 +810,7 @@ describe("startServer", () => {
       now,
       expect.objectContaining({ zoneRules: expect.any(Function) }),
     );
+    const [, , zoneRules] = setUpBackgroundJobs.mock.calls[0] ?? [];
     expect(buildApp).toHaveBeenCalledWith({
       version: "unknown",
       now,
@@ -819,67 +820,88 @@ describe("startServer", () => {
         db: fakeBackgroundJobs.db,
         jobQueue: fakeBackgroundJobs.jobQueue,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       session: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       passkeys: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       users: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       registersPointsOfSale: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       roles: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       branchSettings: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
+      },
+      currentZoneRules: {
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       issuerIdentification: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
       },
       buyerIdentificationThresholds: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       fiscalAddresses: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       categories: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       brands: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       tags: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       products: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       alerts: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       quarantinedEvents: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       registersBelowMinimum: {
         db: fakeBackgroundJobs.db,
@@ -895,10 +917,12 @@ describe("startServer", () => {
       prices: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       discounts: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       restoredOrphanSweep: {
         connections: fakeBackgroundJobs.connections,
@@ -907,60 +931,73 @@ describe("startServer", () => {
       registers: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       snapshotBackups: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       contingencyTicketRescue: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       registerRevocations: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       compromiseResponses: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       bitlockerRecoveryKeys: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       stock: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       purchasing: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       salesReports: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       paymentsReports: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       refunds: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
       },
       devices: {
         db: fakeBackgroundJobs.db,
         rotationKey: ROTATION_KEY_BYTES,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       firstPinCodes: {
         db: fakeBackgroundJobs.db,
         rotationKey: ROTATION_KEY_BYTES,
+        zoneRules,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       health: {
@@ -1709,16 +1746,18 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("has the configuration of a register's point of sale enqueue the tax authority's count", async () => {
-    const { started, buildApp, backgroundJobs } = start({
+    const { started, buildApp, backgroundJobs, setUpBackgroundJobs } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    const [, , zoneRules] = setUpBackgroundJobs.mock.calls[0] ?? [];
     expect(options.registersPointsOfSale).toEqual({
       db: backgroundJobs.db,
       backofficeOrigin: "https://staging.purosur.online",
+      zoneRules,
       enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob,
     });
   });
