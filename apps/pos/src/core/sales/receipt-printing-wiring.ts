@@ -97,7 +97,10 @@ export interface ReceiptPrinting {
         request: Parameters<typeof reprintCreditNoteFor>[1],
       ) => ReturnType<typeof reprintCreditNoteFor>)
     | undefined;
-  printVoidedSaleCreditNote: (saleId: string) => Promise<void>;
+  printVoidedSaleCreditNote: (creditNote: {
+    saleId: string;
+    creditNoteId: string;
+  }) => Promise<void>;
 }
 
 export function createReceiptPrinting({
@@ -161,6 +164,6 @@ export function createReceiptPrinting({
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
     printCreditNote: (saleId) => printCreditNoteFor(deps, saleId),
     reprintCreditNote: (request) => reprintCreditNoteFor(deps, request),
-    printVoidedSaleCreditNote: (saleId) => printVoidedSaleCreditNoteFor(deps, saleId),
+    printVoidedSaleCreditNote: (creditNote) => printVoidedSaleCreditNoteFor(deps, creditNote),
   };
 }

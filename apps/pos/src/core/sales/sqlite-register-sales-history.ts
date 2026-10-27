@@ -150,6 +150,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     if (sale === undefined) {
       return undefined;
     }
+    const creditNote = readCreditNoteOfSale(this.database, sale.id);
     return {
       saleId: sale.id,
       occurredAt: new Date(sale.occurred_at),
@@ -165,7 +166,8 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       voided: sale.voided === 1,
       inOpenSession: sale.in_open_session === 1,
       invoices: readSaleInvoices(this.database, sale.id),
-      creditNote: readCreditNoteOfSale(this.database, sale.id)?.answer ?? null,
+      creditNote: creditNote?.answer ?? null,
+      creditNoteId: creditNote?.creditNoteId ?? null,
       deferredInvoiceIssued:
         readUncancelledDeferredSaleRecord(this.database, sale.id)?.satisfied === true,
       deferredShortCode: sale.deferred_short_code,

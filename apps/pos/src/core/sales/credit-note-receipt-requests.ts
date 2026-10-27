@@ -4,6 +4,7 @@ import type {
   OperationAuthorization,
   ReceiptPrintGrant,
 } from "@purosur/domain/sales/use-cases";
+import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import {
   printOriginalFor,
   type ReceiptRequestDeps,
@@ -18,17 +19,34 @@ type HistoryRefusal = Extract<
 
 type NotSignedIn = Extract<ReprintSaleReceiptOutcome, { kind: "not_signed_in" }>;
 
-function creditNoteOf(saleId: string) {
-  return { document: "credit_note", saleId } as const;
+interface IssuedCreditNote {
+  saleId: string;
+  creditNoteId: string;
+}
+
+function keyOf({ saleId, creditNoteId }: IssuedCreditNote) {
+  return { document: "credit_note", saleId, creditNoteId } as const;
+}
+
+function creditNoteOfVoidedSale(
+  { database }: ReceiptRequestDeps,
+  saleId: string,
+): IssuedCreditNote | undefined {
+  const creditNote = readCreditNoteOfSale(database, saleId);
+  return creditNote === null ? undefined : { saleId, creditNoteId: creditNote.creditNoteId };
 }
 
 export async function printCreditNoteFor(
   deps: ReceiptRequestDeps,
   saleId: string,
 ): Promise<PrintCreditNoteOutcome> {
+  const creditNote = creditNoteOfVoidedSale(deps, saleId);
+  if (creditNote === undefined) {
+    return { kind: "not_found" };
+  }
   return printOriginalFor(
     deps,
-    creditNoteOf(saleId),
+    keyOf(creditNote),
     (onGrant): OperationAuthority<ReceiptPrintGrant, HistoryRefusal> => ({
       async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, HistoryRefusal>> {
         const guarded = await deps.gate.run({ kind: "view_sales_history" }, async (actor) => actor);
@@ -49,16 +67,20 @@ export async function reprintCreditNoteFor(
   deps: ReceiptRequestDeps,
   { saleId, ...request }: ReprintSaleReceiptRequest,
 ): Promise<ReprintSaleReceiptOutcome> {
-  return reprintFor(deps, creditNoteOf(saleId), request);
+  const creditNote = creditNoteOfVoidedSale(deps, saleId);
+  if (creditNote === undefined) {
+    return { kind: "not_found" };
+  }
+  return reprintFor(deps, keyOf(creditNote), request);
 }
 
 export async function printVoidedSaleCreditNoteFor(
   deps: ReceiptRequestDeps,
-  saleId: string,
+  creditNote: IssuedCreditNote,
 ): Promise<void> {
   await printOriginalFor(
     deps,
-    creditNoteOf(saleId),
+    keyOf(creditNote),
     (onGrant): OperationAuthority<ReceiptPrintGrant, NotSignedIn> => ({
       async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, NotSignedIn>> {
         const actorId = deps.signedInUserId();

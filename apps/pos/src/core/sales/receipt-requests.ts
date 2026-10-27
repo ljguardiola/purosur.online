@@ -68,14 +68,14 @@ type SellerRefusal = Extract<
   { kind: "not_signed_in" | "lacks_permission" }
 >;
 
-function jobKeyOf({ document, saleId }: PrintedDocumentKey): string {
-  switch (document) {
+function jobKeyOf(key: PrintedDocumentKey): string {
+  switch (key.document) {
     case "credit_note":
-      return `credit-note:${saleId}`;
+      return `credit-note:${key.creditNoteId}`;
     case "deferred_invoice":
-      return `deferred-invoice:${saleId}`;
+      return `deferred-invoice:${key.saleId}`;
     case "sale_receipt":
-      return saleId;
+      return key.saleId;
   }
 }
 

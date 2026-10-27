@@ -18,7 +18,7 @@ import { SqliteSaleVoidLedger } from "./sqlite-sale-void-ledger";
 
 export interface VoidSaleRequestDeps extends Omit<OutboxSaleRequestDeps, "restoration"> {
   creditNotes: CloudCreditNotes | undefined;
-  printCreditNote: (saleId: string) => Promise<void>;
+  printCreditNote: (creditNote: { saleId: string; creditNoteId: string }) => Promise<void>;
   reportFailure: (error: unknown) => void;
 }
 
@@ -57,8 +57,8 @@ async function answerOfCreditNote(
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
       clock: { now },
       printer: {
-        startPrinting: (saleId) => {
-          printCreditNote(saleId).catch(reportFailure);
+        startPrinting: (creditNote) => {
+          printCreditNote(creditNote).catch(reportFailure);
         },
       },
     },

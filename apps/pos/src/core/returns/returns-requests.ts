@@ -34,7 +34,9 @@ export type ReturnRequestDeps = Pick<
 > & {
   creditNotes?: CloudCreditNotes | undefined;
   invoicing?: DeferredSaleInvoicing | undefined;
-  printCreditNote?: ((saleId: string) => Promise<void>) | undefined;
+  printCreditNote?:
+    | ((creditNote: { saleId: string; creditNoteId: string }) => Promise<void>)
+    | undefined;
   reportFailure?: ((error: unknown) => void) | undefined;
 };
 
@@ -58,7 +60,7 @@ async function settleCreditNote(
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
       clock: { now },
       printer: {
-        startPrinting: (printedSaleId) => void printCreditNote?.(printedSaleId).catch(report),
+        startPrinting: (creditNote) => void printCreditNote?.(creditNote).catch(report),
       },
     },
     { creditNoteId, saleId },
