@@ -20,6 +20,7 @@ export type {
   AssemblyBatchesQuery,
   AssemblyBatchListing,
   AssemblyBatchListReader,
+  ReadAssemblyBatch,
 } from "./assembly-batch-list-reader.js";
 export type {
   AssemblyBatchPorts,

@@ -1,6 +1,7 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { AssemblyBatchStatus } from "../model/assembly-batch.js";
 
-export interface AssemblyBatchListing {
+export interface ReadAssemblyBatch {
   id: string;
   productId: string;
   productName: string;
@@ -10,6 +11,12 @@ export interface AssemblyBatchListing {
   unitCostCents: number | null;
   costIncomplete: boolean;
   expiresOn: string | null;
+  voided: boolean;
+  lotConsumed: boolean;
+}
+
+export interface AssemblyBatchListing extends Omit<ReadAssemblyBatch, "voided" | "lotConsumed"> {
+  status: AssemblyBatchStatus;
 }
 
 export interface AssemblyBatchesQuery {
@@ -20,5 +27,5 @@ export interface AssemblyBatchesQuery {
 
 export interface AssemblyBatchListReader {
   // The batches assembled at the location from `from` up to, not including, `to`.
-  batches(query: AssemblyBatchesQuery): Promise<AssemblyBatchListing[]>;
+  batches(query: AssemblyBatchesQuery): Promise<ReadAssemblyBatch[]>;
 }
