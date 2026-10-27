@@ -66,8 +66,9 @@ export interface StoredPriceListRow {
   code: string | null;
   priceCents: number | null;
   link: SupplierItemLink | null;
-  // Whether a person linked the row or marked it reviewed in this list.
-  reviewed: boolean;
+  // Whether a person linked the row in this list, rather than its link being copied when the list
+  // was read.
+  linkedByPerson: boolean;
 }
 
 export type LockProductPackagingResult =

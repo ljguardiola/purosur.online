@@ -36,7 +36,7 @@ export interface FoundSupplierPriceListReviewRowLink {
 }
 
 export interface FoundSupplierPriceListReviewRow
-  extends Omit<SupplierPriceListReviewRow, "reviewed" | "earlier" | "link"> {
+  extends Omit<SupplierPriceListReviewRow, "reviewed" | "remembered" | "earlier" | "link"> {
   link: FoundSupplierPriceListReviewRowLink | null;
   status: SupplierPriceListRowStatus;
   needsReview: boolean;
@@ -73,7 +73,7 @@ function foundLink(link: SupplierPriceListReviewRowLink): FoundSupplierPriceList
 }
 
 function reviewedRow(
-  { reviewed, earlier, link: readLink, ...row }: SupplierPriceListReviewRow,
+  { reviewed, remembered, earlier, link: readLink, ...row }: SupplierPriceListReviewRow,
   pricesIncludeVat: boolean | null,
 ): FoundSupplierPriceListReviewRow {
   const link = readLink === null ? null : foundLink(readLink);
@@ -82,6 +82,7 @@ function reviewedRow(
     description: row.description,
     priceCents: row.priceCents,
     link,
+    remembered,
     earlier,
     requiresVatRate: requiresVatRate(pricesIncludeVat),
   });

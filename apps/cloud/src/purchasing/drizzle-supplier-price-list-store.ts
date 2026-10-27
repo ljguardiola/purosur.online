@@ -282,7 +282,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
         productId: supplierPriceListRows.productId,
         packagingId: supplierPriceListRows.packagingId,
         vatRate: supplierPriceListRows.vatRate,
-        reviewed: supplierPriceListRows.reviewed,
+        linkedByPerson: supplierPriceListRows.linkedByPerson,
       })
       .from(supplierPriceListRows)
       .where(eq(supplierPriceListRows.listId, listId))
@@ -434,12 +434,13 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
         packagingId: supplierPriceListRows.packagingId,
         vatRate: supplierPriceListRows.vatRate,
         reviewed: supplierPriceListRows.reviewed,
+        linkedByPerson: supplierPriceListRows.linkedByPerson,
       })
       .from(supplierPriceListRows)
       .where(eq(supplierPriceListRows.id, rowId));
     await this.tx
       .update(supplierPriceListRows)
-      .set({ ...linkColumns(link), reviewed: true })
+      .set({ ...linkColumns(link), reviewed: true, linkedByPerson: true })
       .where(eq(supplierPriceListRows.id, rowId));
     await this.advanceVersion(listId);
     await this.tx.insert(auditLog).values({
@@ -448,7 +449,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
       actorId,
       at: this.now(),
       previousValue: previous ?? null,
-      newValue: { ...linkColumns(link), reviewed: true },
+      newValue: { ...linkColumns(link), reviewed: true, linkedByPerson: true },
     });
   }
 

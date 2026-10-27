@@ -46,6 +46,8 @@ export interface SupplierPriceListReviewRow {
   link: SupplierPriceListReviewRowLink | null;
   // Whether a person linked the row or marked it reviewed in this list.
   reviewed: boolean;
+  // Whether another of the supplier's confirmed lists recorded the row's item.
+  remembered: boolean;
   // The item's description and the price of its latest confirmed list before this one, null when
   // none came before it.
   earlier: { description: string; priceCents: number } | null;

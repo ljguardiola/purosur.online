@@ -10414,6 +10414,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "linked_by_person": {
+          "name": "linked_by_person",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {},

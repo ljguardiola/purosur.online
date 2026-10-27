@@ -3057,6 +3057,7 @@ export const supplierPriceListRows = pgTable(
     packagingId: uuid("packaging_id").references(() => productPackagings.id),
     vatRate: integer("vat_rate"),
     reviewed: boolean("reviewed").notNull().default(false),
+    linkedByPerson: boolean("linked_by_person").notNull().default(false),
   },
   (table) => [
     unique("supplier_price_list_rows_list_position_key").on(table.listId, table.position),

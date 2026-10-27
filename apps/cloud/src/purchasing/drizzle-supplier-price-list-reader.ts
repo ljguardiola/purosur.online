@@ -1,6 +1,7 @@
 import {
   latestEarlierPrice,
   type SaleUnit,
+  type SupplierItemKey,
   type SupplierPriceListReadFailure,
   type SupplierPriceListState,
   sameSupplierItemKey,
@@ -128,7 +129,7 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
       .leftJoin(productPackagings, eq(productPackagings.id, supplierPriceListRows.packagingId))
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
-    const earlier = await this.earlierEntries(list, rows);
+    const remembered = await this.rememberedItems(list, rows);
     return {
       list: {
         ...toListing(list),
@@ -137,6 +138,7 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
       },
       rows: rows.map((row) => {
         const key = supplierItemKey(row);
+        const item = remembered.find((entry) => sameSupplierItemKey(entry.key, key));
         return {
           id: row.id,
           description: row.description,
@@ -164,15 +166,16 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
                 }
               : null,
           reviewed: row.reviewed,
-          earlier: earlier.find((entry) => sameSupplierItemKey(entry.key, key))?.latest ?? null,
+          remembered: item !== undefined,
+          earlier: item?.earlier ?? null,
         };
       }),
     };
   }
 
-  // The item's description with the price of its latest list before this one, among the prices
-  // recorded by the supplier's other lists.
-  private async earlierEntries(
+  // The items the supplier's other lists recorded a price for, each with its description and the
+  // price of its latest list before this one, null when every one of them is dated after it.
+  private async rememberedItems(
     list: { id: string; supplierId: string; listDate: string | null; confirmedAt: Date | null },
     rows: { code: string | null; description: string }[],
   ) {
@@ -199,20 +202,24 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
           ne(supplierItemPrices.listId, list.id),
         ),
       );
-    const byItem = new Map<string, typeof entries>();
+    const byItem = new Map<string, { key: SupplierItemKey; prices: typeof entries }>();
     for (const entry of entries) {
-      byItem.set(entry.itemId, [...(byItem.get(entry.itemId) ?? []), entry]);
+      const item = byItem.get(entry.itemId) ?? {
+        key: { kind: entry.keyKind as SupplierItemKey["kind"], value: entry.keyValue },
+        prices: [],
+      };
+      item.prices.push(entry);
+      byItem.set(entry.itemId, item);
     }
-    return [...byItem.values()].flatMap((prices) => {
+    return [...byItem.values()].map(({ key, prices }) => {
       const latest = latestEarlierPrice(prices, list);
-      return latest === undefined
-        ? []
-        : [
-            {
-              key: { kind: latest.keyKind as "code" | "description", value: latest.keyValue },
-              latest: { description: latest.description, priceCents: latest.priceCents },
-            },
-          ];
+      return {
+        key,
+        earlier:
+          latest === undefined
+            ? null
+            : { description: latest.description, priceCents: latest.priceCents },
+      };
     });
   }
 

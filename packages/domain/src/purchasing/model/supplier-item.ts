@@ -156,28 +156,30 @@ export const SUPPLIER_PRICE_LIST_ROW_STATUSES = [
 
 export type SupplierPriceListRowStatus = (typeof SUPPLIER_PRICE_LIST_ROW_STATUSES)[number];
 
-// `earlier` is what the supplier's earlier lists recorded for the row's item, null when none did.
+// `remembered` tells whether another of the supplier's lists recorded the row's item; `earlier` is
+// what the latest of them dated before this list recorded, null when none is.
 export function supplierPriceListRowStatus(row: {
   reviewed: boolean;
   description: string;
   priceCents: number | null;
   link: { vatRate: number | null } | null;
+  remembered: boolean;
   earlier: { description: string; priceCents: number } | null;
   requiresVatRate: boolean;
 }): SupplierPriceListRowStatus {
   if (row.reviewed) {
     return "reviewed";
   }
-  if (row.earlier === null) {
+  if (!row.remembered) {
     return "new";
   }
   if (row.link === null) {
     return "unlinked";
   }
-  if (row.priceCents !== row.earlier.priceCents) {
+  if (row.earlier !== null && row.priceCents !== row.earlier.priceCents) {
     return "price_changed";
   }
-  if (row.description !== row.earlier.description) {
+  if (row.earlier !== null && row.description !== row.earlier.description) {
     return "description_changed";
   }
   return row.requiresVatRate && row.link.vatRate === null ? "vat_rate_missing" : "linked";

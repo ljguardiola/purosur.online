@@ -29,6 +29,7 @@ ALTER TABLE "supplier_price_list_rows" ADD COLUMN "product_id" uuid;--> statemen
 ALTER TABLE "supplier_price_list_rows" ADD COLUMN "packaging_id" uuid;--> statement-breakpoint
 ALTER TABLE "supplier_price_list_rows" ADD COLUMN "vat_rate" integer;--> statement-breakpoint
 ALTER TABLE "supplier_price_list_rows" ADD COLUMN "reviewed" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "supplier_price_list_rows" ADD COLUMN "linked_by_person" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "supplier_item_prices" ADD CONSTRAINT "supplier_item_prices_item_id_supplier_items_id_fk" FOREIGN KEY ("item_id") REFERENCES "public"."supplier_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "supplier_item_prices" ADD CONSTRAINT "supplier_item_prices_list_id_supplier_price_lists_id_fk" FOREIGN KEY ("list_id") REFERENCES "public"."supplier_price_lists"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "supplier_items" ADD CONSTRAINT "supplier_items_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
