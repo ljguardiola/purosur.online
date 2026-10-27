@@ -73,7 +73,12 @@ test("lists the fiscal tasks after the refunds in the TAREAS group", async () =>
     .getByRole("link")
     .all()
     .map((link) => link.element().textContent?.trim());
-  expect(labels).toEqual(["Reembolsos de MP", "Reembolsos sin API", "Tareas fiscales"]);
+  expect(labels).toEqual([
+    "Reembolsos de MP",
+    "Reembolsos sin API",
+    "Tareas fiscales",
+    "Comprobantes",
+  ]);
 });
 
 test("offers the refunds, and not the fiscal tasks, to a user who cannot see fiscal information", async () => {

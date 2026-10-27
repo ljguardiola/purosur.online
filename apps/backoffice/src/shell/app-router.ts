@@ -9,7 +9,12 @@ import {
   tagsListRoute,
 } from "../catalog/routes";
 import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
-import { fiscalConfigurationRoute, fiscalTasksRoute, pointsOfSaleRoute } from "../fiscal/routes";
+import {
+  fiscalConfigurationRoute,
+  fiscalTasksRoute,
+  issuedFiscalDocumentsRoute,
+  pointsOfSaleRoute,
+} from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import {
   handConfirmedPaymentsRoute,
@@ -118,6 +123,7 @@ const routeTree = rootRoute.addChildren([
       mercadoPagoRefundsRoute,
       outsideRefundsRoute,
       fiscalTasksRoute,
+      issuedFiscalDocumentsRoute,
     ]),
     reportsAreaRoute.addChildren([
       reportsIndexRoute,
