@@ -9,6 +9,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   creditNotes,
+  locations,
   pointOfSaleClaims,
   registers,
   saleCreditNoteRefusals,
@@ -96,7 +97,7 @@ describe("the credit notes of voided and returned sales on a real Postgres", () 
     );
   });
 
-  it("tells that a register issues from a point of sale it claimed, whichever the mechanism, and from no other", async () => {
+  it("tells that a branch issues from a point of sale a register of it claimed, whichever the mechanism, and from no other", async () => {
     const [actor] = await db.select({ id: users.id }).from(users).limit(1);
     await db.insert(pointOfSaleClaims).values({
       pointOfSaleNumber: 31,
@@ -113,6 +114,20 @@ describe("the credit notes of voided and returned sales on a real Postgres", () 
     expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(registerId, 7))).toBe(true);
     expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(registerId, 99))).toBe(false);
     expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(other?.id ?? "", 31))).toBe(
+      true,
+    );
+    expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(other?.id ?? "", 99))).toBe(
+      false,
+    );
+    const [elsewhere] = await db.insert(locations).values({}).returning({ id: locations.id });
+    const [distant] = await db
+      .insert(registers)
+      .values({ locationId: elsewhere?.id ?? "", name: "caja-lejana" })
+      .returning({ id: registers.id });
+    expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(distant?.id ?? "", 31))).toBe(
+      false,
+    );
+    expect(await inLane((lane) => lane.branchIssuesFromPointOfSale(crypto.randomUUID(), 31))).toBe(
       false,
     );
   });

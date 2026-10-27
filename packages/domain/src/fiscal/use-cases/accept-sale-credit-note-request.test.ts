@@ -149,6 +149,42 @@ describe("acceptSaleCreditNoteRequest", () => {
       ]);
     });
 
+    it("credits an invoice issued from a point of sale of another register of the same branch", async () => {
+      const { store, run } = request({
+        registers: [
+          [REGISTER_ID, { realTime: 12, branch: "branch-1" }],
+          ["register-2", { realTime: 8, offline: 20, branch: "branch-1" }],
+        ],
+      });
+
+      expect(await run()).toEqual({ kind: "recorded" });
+      expect(store.records[0]?.registerId).toBe(REGISTER_ID);
+    });
+
+    it("refuses an invoice issued from a point of sale only a register of another branch holds", async () => {
+      const { store, run } = request({
+        registers: [
+          [REGISTER_ID, { realTime: 12, branch: "branch-1" }],
+          ["register-2", { realTime: 8, offline: 20, branch: "branch-2" }],
+        ],
+      });
+
+      expect(await run()).toEqual({ kind: "voucher_not_owned" });
+      expect(store.records).toEqual([]);
+    });
+
+    it("refuses an invoice issued from a point of sale no register holds", async () => {
+      const { store, run } = request({
+        registers: [
+          [REGISTER_ID, { realTime: 12, branch: "branch-1" }],
+          ["register-2", { realTime: 9, branch: "branch-1" }],
+        ],
+      });
+
+      expect(await run()).toEqual({ kind: "voucher_not_owned" });
+      expect(store.records).toEqual([]);
+    });
+
     it("looks the credit note up among the register's own", async () => {
       const { store, run } = request();
 

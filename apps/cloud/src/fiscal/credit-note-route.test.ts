@@ -11,7 +11,9 @@ import {
   fiscalTasks,
   inbox,
   installationRequestAttempts,
+  locations,
   pointOfSaleClaims,
+  registers,
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -167,7 +169,7 @@ describe("POST /fiscal/credit-notes", () => {
       expect(await rows()).toEqual([]);
     });
 
-    it("refuses a credit note of an invoice from a point of sale the register never held", async () => {
+    it("refuses a credit note of an invoice from a point of sale no register of its branch holds", async () => {
       const { deviceToken } = await enrollRegister();
       const body = requestBody();
 
@@ -178,6 +180,42 @@ describe("POST /fiscal/credit-notes", () => {
             id: body.credit_note_id,
             total: 12_550,
             corrects: { voucherType: 11, pointOfSale: 99, number: 42 },
+          }),
+        },
+        `Bearer ${deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(404);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("not_found");
+      expect(await rows()).toEqual([]);
+    });
+
+    it("refuses a credit note of an invoice from a point of sale only a register of another branch holds", async () => {
+      const { deviceToken } = await enrollRegister(7);
+      const [elsewhere] = await route.db
+        .insert(locations)
+        .values({})
+        .returning({ id: locations.id });
+      const [distant] = await route.db
+        .insert(registers)
+        .values({ locationId: elsewhere?.id ?? "", name: "caja-lejana" })
+        .returning({ id: registers.id });
+      const [actor] = await route.db.select({ id: users.id }).from(users).limit(1);
+      await route.db.insert(pointOfSaleClaims).values({
+        pointOfSaleNumber: 55,
+        registerId: distant?.id ?? "",
+        mechanism: "offline",
+        claimedBy: actor?.id ?? "",
+      });
+      const body = requestBody();
+
+      const response = await requestCreditNote(
+        {
+          ...body,
+          sale_event: saleVoidedEvent(crypto.randomUUID(), {
+            id: body.credit_note_id,
+            total: 12_550,
+            corrects: { voucherType: 11, pointOfSale: 55, number: 42 },
           }),
         },
         `Bearer ${deviceToken}`,
@@ -580,6 +618,37 @@ describe("POST /fiscal/credit-notes", () => {
       expect(response.statusCode).toBe(200);
       expect(await rows()).toMatchObject([
         { id: creditNoteId, associatedNumber: 66, receiverTaxStatusCode: 5, reason: "sale_return" },
+      ]);
+    });
+  });
+
+  describe("the credit note of a sale rung up on another register of the branch", () => {
+    it("issues a return's credit note for an invoice the other register issued from its own point of sale", async () => {
+      const returning = await enrollRegister(7);
+      await enrollRegister(8);
+      await route.issueWsaaToken();
+      route.wsfe.behave(AUTHORIZED_IN_TURN);
+      const creditNoteId = crypto.randomUUID();
+      const returnId = crypto.randomUUID();
+
+      const response = await requestCreditNote(
+        requestBody({
+          credit_note_id: creditNoteId,
+          point_of_sale: 7,
+          sale_event: saleReturnedEvent(crypto.randomUUID(), returnId, {
+            id: creditNoteId,
+            total: 3_000,
+            issuedOn: "2026-10-08",
+            corrects: { voucherType: 11, pointOfSale: 32, number: 42 },
+          }),
+        }),
+        `Bearer ${returning.deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(saleVoidCreditNoteResponseSchema.parse(response.json()).state).toBe("AUTHORIZED");
+      expect(await rows()).toMatchObject([
+        { id: creditNoteId, registerId: returning.registerId, returnId, associatedNumber: 42 },
       ]);
     });
   });
