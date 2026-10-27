@@ -1,5 +1,6 @@
 import {
   ARGENTINA_TIME_ZONE,
+  FIXED_ARGENTINA_ZONE_RULES,
   MAX_STOCK_QUANTITY,
   STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
@@ -285,19 +286,42 @@ describe("stockCountBodySchema's moment", () => {
 
 describe("stockCountMomentSchema", () => {
   it("builds the instant of a day and time on Argentina's clock", () => {
-    expect(stockCountMomentSchema.parse({ day: "2026-09-25", time: "14:30" })).toBe(
-      "2026-09-25T14:30:00-03:00",
-    );
+    expect(
+      stockCountMomentSchema(FIXED_ARGENTINA_ZONE_RULES).parse({
+        day: "2026-09-25",
+        time: "14:30",
+      }),
+    ).toBe("2026-09-25T14:30:00-03:00");
   });
 
   it("builds the instant of a day before Argentina's clocks followed a standard offset", () => {
-    expect(stockCountMomentSchema.parse({ day: "1900-01-01", time: "10:00" })).toBe(
-      "1900-01-01T10:00:00-03:00",
-    );
+    expect(
+      stockCountMomentSchema(FIXED_ARGENTINA_ZONE_RULES).parse({
+        day: "1900-01-01",
+        time: "10:00",
+      }),
+    ).toBe("1900-01-01T10:00:00-03:00");
+  });
+
+  it("builds the instant on the offset the zone rules it is given give for that day and time", () => {
+    const summerTime = {
+      version: "2026a",
+      transitions: [
+        { from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: -180 },
+        { from: new Date("2030-03-01T03:00:00Z"), offsetMinutes: -120 },
+      ],
+    };
+    const moment = stockCountMomentSchema(summerTime);
+
+    expect(moment.parse({ day: "2030-02-28", time: "14:30" })).toBe("2030-02-28T14:30:00-03:00");
+    expect(moment.parse({ day: "2030-03-02", time: "14:30" })).toBe("2030-03-02T14:30:00-02:00");
   });
 
   it("builds an instant the count's body accepts as its moment", () => {
-    const occurredAt = stockCountMomentSchema.parse({ day: "2026-09-25", time: "23:59" });
+    const occurredAt = stockCountMomentSchema(FIXED_ARGENTINA_ZONE_RULES).parse({
+      day: "2026-09-25",
+      time: "23:59",
+    });
 
     expect(stockCountBodySchema.shape.occurredAt.safeParse(occurredAt).success).toBe(true);
   });
@@ -312,6 +336,8 @@ describe("stockCountMomentSchema", () => {
     ["a time with seconds", { day: "2026-09-25", time: "10:00:00" }],
     ["no time", { day: "2026-09-25", time: "" }],
   ])("refuses %s", (_case, moment) => {
-    expect(stockCountMomentSchema.safeParse(moment).success).toBe(false);
+    expect(stockCountMomentSchema(FIXED_ARGENTINA_ZONE_RULES).safeParse(moment).success).toBe(
+      false,
+    );
   });
 });
