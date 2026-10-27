@@ -509,3 +509,68 @@ describe("printing the credit note right after the void", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe("printing the credit notes of the returns of a sale", () => {
+  function insertReturnWithNote(
+    returnId: string,
+    creditNoteId: string,
+    saleLineId: string,
+    amount: number,
+    returnedAt: string,
+    number: number,
+  ) {
+    database.exec(
+      `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('${returnId}', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '${returnedAt}');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('${returnId}', '${saleLineId}', 1, 'change_of_mind', 'restock', ${amount});
+       INSERT INTO sale_void_credit_notes (
+         id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+         corrected_voucher_type, corrected_point_of_sale, corrected_number, state, point_of_sale,
+         number, issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at,
+         answered_at
+       ) VALUES (
+         '${creditNoteId}', 'sale-1', '${returnId}', '2026-10-02', ${amount}, 5, 11, 12, 41,
+         'AUTHORIZED', 12, ${number}, '2026-10-02', '${returnedAt}', '71234567890888', '2026-10-12',
+         '${returnedAt}', '${returnedAt}'
+       )`,
+    );
+  }
+
+  function printedNotes(): unknown[] {
+    return database
+      .prepare("SELECT credit_note_id FROM credit_note_prints ORDER BY print_attempted_at, rowid")
+      .all();
+  }
+
+  beforeEach(() => {
+    database.exec(
+      `DELETE FROM sale_void_credit_notes;
+       DELETE FROM payment_refunds;
+       UPDATE sales SET state = 'COMPLETED', voided_at = NULL;`,
+    );
+    insertReturnWithNote("return-1", "note-r1", "line-1", 420000, "2026-10-02T15:00:00.000Z", 8);
+    insertReturnWithNote("return-2", "note-r2", "line-2", 350000, "2026-10-03T15:00:00.000Z", 9);
+  });
+
+  it("prints the oldest one not printed yet, then the next, each stored under its own credit note", async () => {
+    await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+    printer.becomeReady();
+    await vi.waitFor(() => expect(printedNotes()).toEqual([{ credit_note_id: "note-r1" }]));
+    expect(printoutOf(printer.handed[0] ?? new Uint8Array()).text).toContain("NOTA DE CRÉDITO C");
+
+    await printVoidedSaleCreditNoteFor(deps(), "sale-1");
+    await vi.waitFor(() =>
+      expect(printedNotes()).toEqual([
+        { credit_note_id: "note-r1" },
+        { credit_note_id: "note-r2" },
+      ]),
+    );
+
+    expect(
+      database
+        .prepare("SELECT credit_note_id FROM credit_note_receipts ORDER BY credit_note_id")
+        .all(),
+    ).toEqual([{ credit_note_id: "note-r1" }, { credit_note_id: "note-r2" }]);
+  });
+});

@@ -185,10 +185,22 @@ describe("replenishing the credit note of a sale into a restored register", () =
   function creditNotePrinting() {
     return database
       .prepare(
-        "SELECT print_attempted_at, printed_at FROM credit_note_prints WHERE sale_id = 'sale-1'",
+        "SELECT print_attempted_at, printed_at FROM credit_note_prints WHERE credit_note_id = 'note-1'",
       )
       .get();
   }
+
+  beforeEach(() => {
+    database.exec(
+      `INSERT INTO sale_void_credit_notes (
+         id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+         corrected_point_of_sale, corrected_number, state, recorded_at, answered_at
+       ) VALUES (
+         'note-1', 'sale-1', 3000, 5, 11, 3, 41, 'REJECTED', '2026-10-07T11:00:00.000Z',
+         '2026-10-07T11:00:01.000Z'
+       )`,
+    );
+  });
 
   it("holds when the credit note was sent to the printer and printed, apart from the receipt's", () => {
     applyReplenishedReceiptFact(

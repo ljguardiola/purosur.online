@@ -525,7 +525,7 @@ describe("the detail of a sale of the history", () => {
     it("answers the numbered duplicate as its next printing once it was attempted, apart from the receipt's", async () => {
       addCreditNote(AUTHORIZED);
       database.exec(
-        `INSERT INTO credit_note_prints (sale_id, print_attempted_at) VALUES ('gone', '2026-10-08T10:01:00.000Z');
+        `INSERT INTO credit_note_prints (credit_note_id, print_attempted_at) VALUES ('note-1', '2026-10-08T10:01:00.000Z');
          INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
          VALUES ('gone', 'credit_note', 1, 'clerk', 'retry', '2026-10-08T10:02:00.000Z')`,
       );
