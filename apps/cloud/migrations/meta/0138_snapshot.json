@@ -1,5 +1,5 @@
 {
-  "id": "ca3995f6-1c68-446d-bd81-d70a3add6fde",
+  "id": "f8445081-2f98-4ee5-849c-5f89ea3683f0",
   "prevId": "924051e8-58d3-4636-87a9-6febbdbe17d3",
   "version": "7",
   "dialect": "postgresql",
@@ -1960,100 +1960,6 @@
           "tableFrom": "compromise_responses",
           "tableTo": "users",
           "columnsFrom": ["started_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.contingency_ticket_recoveries": {
-      "name": "contingency_ticket_recoveries",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "restored_device_id": {
-          "name": "restored_device_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opened_at": {
-          "name": "opened_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "finished_by": {
-          "name": "finished_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "contingency_ticket_recoveries_restored_device_id_key": {
-          "name": "contingency_ticket_recoveries_restored_device_id_key",
-          "columns": [
-            {
-              "expression": "restored_device_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "contingency_ticket_recoveries_register_id_registers_id_fk": {
-          "name": "contingency_ticket_recoveries_register_id_registers_id_fk",
-          "tableFrom": "contingency_ticket_recoveries",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "contingency_ticket_recoveries_restored_device_id_register_installations_id_fk": {
-          "name": "contingency_ticket_recoveries_restored_device_id_register_installations_id_fk",
-          "tableFrom": "contingency_ticket_recoveries",
-          "tableTo": "register_installations",
-          "columnsFrom": ["restored_device_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "contingency_ticket_recoveries_finished_by_users_id_fk": {
-          "name": "contingency_ticket_recoveries_finished_by_users_id_fk",
-          "tableFrom": "contingency_ticket_recoveries",
-          "tableTo": "users",
-          "columnsFrom": ["finished_by"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -9064,7 +8970,7 @@
       "checkConstraints": {
         "sale_reprints_document_check": {
           "name": "sale_reprints_document_check",
-          "value": "\"sale_reprints\".\"document\" in ('sale_receipt', 'credit_note')"
+          "value": "\"sale_reprints\".\"document\" in ('sale_receipt', 'credit_note', 'deferred_invoice')"
         },
         "sale_reprints_order_number_positive_check": {
           "name": "sale_reprints_order_number_positive_check",
@@ -9270,6 +9176,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "deferred_invoice_print_attempted_at": {
+          "name": "deferred_invoice_print_attempted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deferred_invoice_printed_at": {
+          "name": "deferred_invoice_printed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "applied_at": {
           "name": "applied_at",
           "type": "timestamp with time zone",
@@ -9331,6 +9249,10 @@
         "sales_credit_note_printed_only_after_attempted_check": {
           "name": "sales_credit_note_printed_only_after_attempted_check",
           "value": "\"sales\".\"credit_note_printed_at\" is null or \"sales\".\"credit_note_print_attempted_at\" is not null"
+        },
+        "sales_deferred_invoice_printed_only_after_attempted_check": {
+          "name": "sales_deferred_invoice_printed_only_after_attempted_check",
+          "value": "\"sales\".\"deferred_invoice_printed_at\" is null or \"sales\".\"deferred_invoice_print_attempted_at\" is not null"
         },
         "sales_state_check": {
           "name": "sales_state_check",

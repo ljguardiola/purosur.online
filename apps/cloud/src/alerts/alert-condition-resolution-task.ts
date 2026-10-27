@@ -12,7 +12,7 @@ import {
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
 import { detectOverdueRegisterBackups } from "@purosur/domain/backups/use-cases";
-import { regularizeExpiredDeferredSales } from "@purosur/domain/fiscal/use-cases";
+import { regularizeUninvoiceableDeferredSales } from "@purosur/domain/fiscal/use-cases";
 import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -172,11 +172,11 @@ function detectOverdueRegisterBackupsTask<TQueryResult extends PgQueryResultHKT>
   });
 }
 
-function regularizeExpiredDeferredSalesTask<TQueryResult extends PgQueryResultHKT>(
+function regularizeUninvoiceableDeferredSalesTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   deps: { now: () => Date },
 ) {
-  return regularizeExpiredDeferredSales({
+  return regularizeUninvoiceableDeferredSales({
     store: new DrizzleDeferredSaleExpiryStore(db),
     clock: { now: deps.now },
   });
@@ -205,7 +205,7 @@ export interface AlertConditionResolutionJobsDeps {
   detectOwedElsewherePresentations?: typeof detectOwedElsewherePresentationsTask;
   detectRejectedFortnightDocuments?: typeof detectRejectedFortnightDocumentsTask;
   detectOverdueRegisterBackups?: typeof detectOverdueRegisterBackupsTask;
-  regularizeExpiredDeferredSales?: typeof regularizeExpiredDeferredSalesTask;
+  regularizeUninvoiceableDeferredSales?: typeof regularizeUninvoiceableDeferredSalesTask;
   detectDeferredSaleDeadlines?: typeof detectDeferredSaleDeadlinesTask;
 }
 
@@ -231,8 +231,8 @@ export function alertConditionResolutionJobs(
     deps.detectRejectedFortnightDocuments ?? detectRejectedFortnightDocumentsTask;
   const doDetectOverdueRegisterBackups =
     deps.detectOverdueRegisterBackups ?? detectOverdueRegisterBackupsTask;
-  const doRegularizeExpiredDeferredSales =
-    deps.regularizeExpiredDeferredSales ?? regularizeExpiredDeferredSalesTask;
+  const doRegularizeUninvoiceableDeferredSales =
+    deps.regularizeUninvoiceableDeferredSales ?? regularizeUninvoiceableDeferredSalesTask;
   const doDetectDeferredSaleDeadlines =
     deps.detectDeferredSaleDeadlines ?? detectDeferredSaleDeadlinesTask;
   return {
@@ -251,7 +251,7 @@ export function alertConditionResolutionJobs(
           await doDetectFortnightReportRegularizations(db, { now: options.now });
           await doDetectRejectedFortnightDocuments(db, { now: options.now });
           await doDetectOverdueRegisterBackups(db, { now: options.now });
-          await doRegularizeExpiredDeferredSales(db, { now: options.now });
+          await doRegularizeUninvoiceableDeferredSales(db, { now: options.now });
           await doDetectDeferredSaleDeadlines(db, { now: options.now });
         });
       },

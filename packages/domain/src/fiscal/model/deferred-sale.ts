@@ -48,6 +48,18 @@ export function deferredSaleQrText({ id, shortCode }: DeferredSaleReference): st
   return `${DEFERRED_SALE_QR_PREFIX}${id}:${shortCode}`;
 }
 
+export function deferredSaleReferenceFromQrText(text: string): DeferredSaleReference | null {
+  if (!text.startsWith(DEFERRED_SALE_QR_PREFIX)) {
+    return null;
+  }
+  const reference = text.slice(DEFERRED_SALE_QR_PREFIX.length);
+  const separator = reference.lastIndexOf(":");
+  const shortCode = reference.slice(separator + 1);
+  return separator < 1 || !isShortCode(shortCode)
+    ? null
+    : { id: reference.slice(0, separator), shortCode };
+}
+
 export function deferredSaleDocumentBlock(
   reference: DeferredSaleReference,
 ): DeferredSaleDocumentBlock {

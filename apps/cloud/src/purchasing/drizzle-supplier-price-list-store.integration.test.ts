@@ -1,9 +1,14 @@
-import { uploadSupplierPriceList } from "@purosur/domain/purchasing/use-cases";
+import {
+  confirmSupplierPriceList,
+  uploadSupplierPriceList,
+} from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  supplierItemPrices,
+  supplierItems,
   supplierPriceListExtractionCaps,
   supplierPriceListRows,
   supplierPriceLists,
@@ -17,7 +22,11 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER } from "./supplier-price-list-reading-task-identifier.js";
 import { insertActor } from "./test-support/purchasing-fixtures.js";
-import { insertPriceList, insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
+import {
+  insertPriceList,
+  insertPriceListRows,
+  insertSupplier,
+} from "./test-support/supplier-price-list-fixtures.js";
 
 const NOW = new Date("2026-03-10T15:00:00.000Z");
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
@@ -41,6 +50,8 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await sql`delete from supplier_item_prices`;
+  await sql`delete from supplier_items`;
   await sql`delete from supplier_price_list_rows`;
   await sql`delete from supplier_price_lists`;
   await sql`delete from supplier_price_list_extraction_caps`;
@@ -133,8 +144,24 @@ describe("recording an extraction, on a real Postgres", () => {
     await expect(
       store().transaction((tx) =>
         tx.recordExtraction(listId, null, null, [
-          { description: "Yerba 1 kg", code: null, presentation: null, priceCents: 100, page: 1 },
-          { description: "Azúcar 1 kg", code: null, presentation: null, priceCents: -5, page: 1 },
+          {
+            description: "Yerba 1 kg",
+            code: null,
+            presentation: null,
+            priceCents: 100,
+            page: 1,
+            barcode: null,
+            link: null,
+          },
+          {
+            description: "Azúcar 1 kg",
+            code: null,
+            presentation: null,
+            priceCents: -5,
+            page: 1,
+            barcode: null,
+            link: null,
+          },
         ]),
       ),
     ).rejects.toThrow();
@@ -145,5 +172,47 @@ describe("recording an extraction, on a real Postgres", () => {
       .where(eq(supplierPriceLists.id, listId));
     expect(list).toEqual({ state: "READING", version: 1 });
     expect(await db.select().from(supplierPriceListRows)).toEqual([]);
+  });
+});
+
+describe("two confirmations of one supplier's lists at once, on a real Postgres", () => {
+  async function extractedListOfANewItem() {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+      listDate: "2026-03-05",
+      pricesIncludeVat: true,
+    });
+    await insertPriceListRows(db, listId, [{ description: "Yerba 1 kg", code: "Y-01" }]);
+    return listId;
+  }
+
+  const confirm = (listId: string) =>
+    confirmSupplierPriceList(store(), {
+      listId,
+      version: 1,
+      listDate: null,
+      pricesIncludeVat: null,
+      actorId,
+      now: NOW,
+    });
+
+  it("remembers an item both lists carry once, with the price of each list", async () => {
+    const firstListId = await extractedListOfANewItem();
+    const secondListId = await extractedListOfANewItem();
+
+    const outcomes = await runQueuedBehindHeldLock(
+      sql,
+      (connection) =>
+        connection`select id from suppliers where id = ${supplierId} for no key update`,
+      () => confirm(firstListId),
+      () => confirm(secondListId),
+    );
+
+    expect(outcomes.map(({ kind }) => kind)).toEqual(["confirmed", "confirmed"]);
+    expect(await db.select().from(supplierItems)).toHaveLength(1);
+    expect(await db.select().from(supplierItemPrices)).toHaveLength(2);
   });
 });

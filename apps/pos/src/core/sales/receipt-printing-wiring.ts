@@ -8,6 +8,12 @@ import {
   reprintCreditNoteFor,
 } from "./credit-note-receipt-requests";
 import {
+  type DeferredSaleInvoiceRequestDeps,
+  findDeferredSaleFor,
+  printDeferredSaleInvoiceFor,
+  reprintDeferredSaleInvoiceFor,
+} from "./deferred-sale-invoice-requests";
+import {
   type PrintingCompletedSalesDeps,
   printingCompletedSales,
   printingEachCompletedSale,
@@ -49,6 +55,7 @@ export interface ReceiptPrintingWiringDeps {
   readOutboxChainKey: ReceiptRequestDeps["readOutboxChainKey"];
   signedInUserId: ReceiptRequestDeps["signedInUserId"];
   connectPrinter?: TcpReceiptPrinterOptions["connect"];
+  deferredSaleInvoicing?: DeferredSaleInvoiceRequestDeps["invoicing"] | undefined;
   beforePrinting: (saleId: string) => Promise<void>;
   reportFailure: (context: string, error: unknown) => void;
   syncNow: () => void;
@@ -71,6 +78,19 @@ export interface ReceiptPrinting {
         request: Parameters<typeof reprintSaleReceiptFor>[1],
       ) => ReturnType<typeof reprintSaleReceiptFor>)
     | undefined;
+  findDeferredSale:
+    | ((
+        reading: Parameters<typeof findDeferredSaleFor>[1],
+      ) => ReturnType<typeof findDeferredSaleFor>)
+    | undefined;
+  printDeferredSaleInvoice:
+    | ((saleId: string) => ReturnType<typeof printDeferredSaleInvoiceFor>)
+    | undefined;
+  reprintDeferredSaleInvoice:
+    | ((
+        request: Parameters<typeof reprintDeferredSaleInvoiceFor>[1],
+      ) => ReturnType<typeof reprintDeferredSaleInvoiceFor>)
+    | undefined;
   printCreditNote: ((saleId: string) => ReturnType<typeof printCreditNoteFor>) | undefined;
   reprintCreditNote:
     | ((
@@ -88,6 +108,7 @@ export function createReceiptPrinting({
   readOutboxChainKey,
   signedInUserId,
   connectPrinter,
+  deferredSaleInvoicing,
   beforePrinting,
   reportFailure,
   syncNow,
@@ -99,6 +120,9 @@ export function createReceiptPrinting({
       afterEachCompletedSale: (follow) => follow,
       receiptPrintStatus: undefined,
       printOriginalReceipt: undefined,
+      findDeferredSale: undefined,
+      printDeferredSaleInvoice: undefined,
+      reprintDeferredSaleInvoice: undefined,
       reprintSaleReceipt: undefined,
       printCreditNote: undefined,
       reprintCreditNote: undefined,
@@ -128,6 +152,12 @@ export function createReceiptPrinting({
     afterEachCompletedSale: (follow) => follow && printingEachCompletedSale(printing, follow),
     receiptPrintStatus: (saleId) => receiptPrintStatusFor(deps, saleId),
     printOriginalReceipt: (saleId) => printOriginalReceiptFor(deps, saleId),
+    findDeferredSale: (reading) => findDeferredSaleFor(deps, reading),
+    printDeferredSaleInvoice:
+      deferredSaleInvoicing &&
+      ((saleId) =>
+        printDeferredSaleInvoiceFor({ ...deps, invoicing: deferredSaleInvoicing }, saleId)),
+    reprintDeferredSaleInvoice: (request) => reprintDeferredSaleInvoiceFor(deps, request),
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
     printCreditNote: (saleId) => printCreditNoteFor(deps, saleId),
     reprintCreditNote: (request) => reprintCreditNoteFor(deps, request),

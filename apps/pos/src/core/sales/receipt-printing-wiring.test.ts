@@ -49,6 +49,7 @@ describe("the register's receipt printing without a local database", () => {
     expect(printing.reprintSaleReceipt).toBeUndefined();
     expect(printing.printCreditNote).toBeUndefined();
     expect(printing.reprintCreditNote).toBeUndefined();
+    expect(printing.reprintDeferredSaleInvoice).toBeUndefined();
   });
 
   it("prints no credit note right after a void", async () => {
@@ -420,6 +421,15 @@ describe("the register's receipt printing over its local database", () => {
         await printingOverDatabase().reprintCreditNote?.({ saleId: "sale-1", reason: "Se perdió" }),
       ).toEqual({ kind: "lacks_permission" });
     });
+  });
+
+  it("refuses the reprint of a deferred sale's invoice to a person without the reprint permission", async () => {
+    expect(
+      await printingOverDatabase().reprintDeferredSaleInvoice?.({
+        saleId: "sale-1",
+        reason: "Se perdió",
+      }),
+    ).toEqual({ kind: "lacks_permission" });
   });
 
   describe("a charge whose sale has a fiscal document", () => {

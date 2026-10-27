@@ -363,6 +363,8 @@ export type { PriceMargin } from "./pricing/price-margin.js";
 export { priceMarginQuerySchema, priceMarginSchema } from "./pricing/price-margin.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type { ExactFraction } from "./purchasing/exact-fraction.js";
+export { exactFractionSchema } from "./purchasing/exact-fraction.js";
 export type { FreightBody } from "./purchasing/freight-body.js";
 export { freightBodySchema } from "./purchasing/freight-body.js";
 export type { FreightPeriod } from "./purchasing/freight-period.js";
@@ -402,6 +404,12 @@ export type { SupplierCreationBody } from "./purchasing/supplier-creation.js";
 export { supplierCreationBodySchema } from "./purchasing/supplier-creation.js";
 export type { SupplierEditBody } from "./purchasing/supplier-edit.js";
 export { supplierEditBodySchema } from "./purchasing/supplier-edit.js";
+export type { SupplierItemLinkChoices } from "./purchasing/supplier-item-link-choices.js";
+export { supplierItemLinkChoicesSchema } from "./purchasing/supplier-item-link-choices.js";
+export type { SupplierItemLinkProposal } from "./purchasing/supplier-item-link-proposal.js";
+export { supplierItemLinkProposalSchema } from "./purchasing/supplier-item-link-proposal.js";
+export type { SupplierPriceComparison } from "./purchasing/supplier-price-comparison.js";
+export { supplierPriceComparisonSchema } from "./purchasing/supplier-price-comparison.js";
 export type { SupplierPriceListConfirmationBody } from "./purchasing/supplier-price-list-confirmation.js";
 export { supplierPriceListConfirmationBodySchema } from "./purchasing/supplier-price-list-confirmation.js";
 export type { SupplierPriceListDiscardBody } from "./purchasing/supplier-price-list-discard.js";
@@ -410,10 +418,14 @@ export type { SupplierPriceListPageRefused } from "./purchasing/supplier-price-l
 export { supplierPriceListPageRefusedSchema } from "./purchasing/supplier-price-list-page-refused.js";
 export type { SupplierPriceListReview } from "./purchasing/supplier-price-list-review.js";
 export { supplierPriceListReviewSchema } from "./purchasing/supplier-price-list-review.js";
+export type { SupplierPriceListRowLinkBody } from "./purchasing/supplier-price-list-row-link.js";
+export { supplierPriceListRowLinkBodySchema } from "./purchasing/supplier-price-list-row-link.js";
 export type { SupplierPriceListRowPriceBody } from "./purchasing/supplier-price-list-row-price.js";
 export { supplierPriceListRowPriceBodySchema } from "./purchasing/supplier-price-list-row-price.js";
 export type { SupplierPriceListRowRemovalBody } from "./purchasing/supplier-price-list-row-removal.js";
 export { supplierPriceListRowRemovalBodySchema } from "./purchasing/supplier-price-list-row-removal.js";
+export type { SupplierPriceListRowReviewBody } from "./purchasing/supplier-price-list-row-review.js";
+export { supplierPriceListRowReviewBodySchema } from "./purchasing/supplier-price-list-row-review.js";
 export type { SupplierPriceListSummary } from "./purchasing/supplier-price-list-summary.js";
 export {
   supplierPriceListListSchema,
@@ -496,6 +508,8 @@ export type { InstallationKeysBody } from "./register/installation-keys.js";
 export type {
   CoreReadyMessage,
   CoreRefusedMessage,
+  CoreStartupStep,
+  CoreStartupStepMessage,
   CoreStatusMessage,
   CoreStatusRequest,
   CredentialsReplacement,
@@ -614,6 +628,11 @@ export {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
+export type {
+  FindDeferredSaleOutcome,
+  PrintDeferredSaleInvoiceOutcome,
+} from "./sales/deferred-sale-lookup.js";
+export { findDeferredSaleMessageSchema } from "./sales/deferred-sale-lookup.js";
 export type { ManualDiscountsBody, ManualDiscountsQuery } from "./sales/manual-discounts.js";
 export { manualDiscountsQuerySchema, manualDiscountsSchema } from "./sales/manual-discounts.js";
 export type {

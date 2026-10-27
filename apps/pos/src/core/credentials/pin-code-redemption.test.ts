@@ -23,7 +23,7 @@ function envelope(code: string, details: unknown[] = []): CloudResponse {
 const OPENER_PERSON: OpenCashSession["opened_by"] = {
   user_id: USER_ID,
   first_name: "Ada",
-  abilities: ["open_cash_session"],
+  abilities: ["open_cash_session", "invoice_deferred_sale"],
 };
 const OPEN_CASH_SESSION = {
   id: "s1",

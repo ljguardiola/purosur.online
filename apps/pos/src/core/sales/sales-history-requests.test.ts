@@ -318,6 +318,7 @@ describe("the detail of a sale of the history", () => {
         reprint: { kind: "available" },
         next_copy: { kind: "original" },
         credit_note_next_copy: null,
+        deferred_invoice_next_copy: null,
       },
     });
   });
@@ -543,6 +544,63 @@ describe("the detail of a sale of the history", () => {
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
       expect(answer.kind === "found" && answer.detail.credit_note_next_copy).toBeNull();
+    });
+  });
+
+  describe("the invoice of a deferred sale", () => {
+    function addDeferredSale({ satisfied }: { satisfied: boolean }): void {
+      addSale({
+        id: "late",
+        occurredAt: "2026-10-08T09:30:00.000Z",
+        operationNumber: 483,
+        deferred: true,
+        ...(satisfied ? { authorizedDocumentNumber: 1205 } : {}),
+      });
+      if (satisfied) {
+        database.exec(
+          "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-late', satisfied_at = '2026-10-08T10:00:00.000Z' WHERE sale_id = 'late'",
+        );
+      }
+    }
+
+    it("answers no next printing while the sale is still waiting for its invoice", async () => {
+      addDeferredSale({ satisfied: false });
+
+      const answer = await saleHistoryDetailFor(deps(), "late");
+
+      expect(answer.kind === "found" && answer.detail).toMatchObject({
+        comprobante: { kind: "deferred_non_fiscal" },
+        deferred_invoice_next_copy: null,
+      });
+    });
+
+    it("answers its factura and its original as the next printing once invoiced and never printed", async () => {
+      addDeferredSale({ satisfied: true });
+
+      const answer = await saleHistoryDetailFor(deps(), "late");
+
+      expect(answer.kind === "found" && answer.detail).toMatchObject({
+        comprobante: { kind: "fiscal", point_of_sale: 3, number: 1205 },
+        state: "completed",
+        deferred_invoice_next_copy: { kind: "original" },
+      });
+    });
+
+    it("answers the numbered duplicate as its next printing once its original was attempted, apart from the receipt's", async () => {
+      addDeferredSale({ satisfied: true });
+      database.exec(
+        `INSERT INTO deferred_invoice_prints (sale_id, print_attempted_at, printed_at)
+         VALUES ('late', '2026-10-08T10:01:00.000Z', '2026-10-08T10:01:03.000Z');
+         INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
+         VALUES ('late', 'deferred_invoice', 1, 'clerk', 'retry', '2026-10-08T10:02:00.000Z')`,
+      );
+
+      const answer = await saleHistoryDetailFor(deps(), "late");
+
+      expect(answer.kind === "found" && answer.detail).toMatchObject({
+        deferred_invoice_next_copy: { kind: "duplicate", order_number: 2 },
+        next_copy: { kind: "original" },
+      });
     });
   });
 });

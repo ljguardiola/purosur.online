@@ -163,6 +163,7 @@ export function mayAuthorize(
 
 export const REGISTER_ABILITIES = [
   "open_cash_session",
+  "invoice_deferred_sale",
   "view_sales_history",
   "reprint_receipt",
   "read_register_help",
@@ -176,6 +177,7 @@ export type RegisterAbility = (typeof REGISTER_ABILITIES)[number];
 
 const PERMISSION_OF_ABILITY = {
   open_cash_session: SELLING_PERMISSION,
+  invoice_deferred_sale: SELLING_PERMISSION,
   view_sales_history: VIEW_SALES_HISTORY_PERMISSION,
   reprint_receipt: "reprint_receipt",
   read_register_help: "read_register_help",

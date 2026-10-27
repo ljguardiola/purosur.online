@@ -1,7 +1,13 @@
 import { argentinaCalendarDay } from "../../shared/index.js";
 import { isDeferredSaleExpired } from "./deferred-sale-expiry.js";
+import type { FiscalDocumentState } from "./real-time-authorization.js";
 
 export const DEFERRED_BACKLOG_RETRY_INTERVAL_MS = 10 * 60_000;
+
+export const DEFERRED_RETRY_DELAYING_STATES: readonly FiscalDocumentState[] = [
+  "REJECTED",
+  "CONFLICTING",
+];
 
 export interface DeferredBacklogEntry {
   deferredSaleId: string;
@@ -14,7 +20,7 @@ export interface DeferredBacklogEntry {
 
 export type DeferredBacklogStep =
   | { kind: "empty" }
-  | { kind: "wait"; until: Date }
+  | { kind: "wait"; until: Date; entry: DeferredBacklogEntry }
   | { kind: "invoice"; entry: DeferredBacklogEntry };
 
 export function isDateOrderBroken(
@@ -31,15 +37,22 @@ export function latestIssuedOn(a: string | null, b: string | null): string | nul
   return knownDays.at(-1) ?? null;
 }
 
+export function isDeferredSaleUninvoiceable(
+  occurredAt: Date,
+  now: Date,
+  lastAuthorizedIssuedOn: string | null,
+): boolean {
+  return (
+    isDeferredSaleExpired(occurredAt, now) || isDateOrderBroken(occurredAt, lastAuthorizedIssuedOn)
+  );
+}
+
 export function isInDeferredBacklog(
   entry: DeferredBacklogEntry,
   now: Date,
   lastAuthorizedIssuedOn: string | null,
 ): boolean {
-  return (
-    !isDeferredSaleExpired(entry.occurredAt, now) &&
-    !isDateOrderBroken(entry.occurredAt, lastAuthorizedIssuedOn)
-  );
+  return !isDeferredSaleUninvoiceable(entry.occurredAt, now, lastAuthorizedIssuedOn);
 }
 
 export function hasDeferredBacklog(
@@ -75,7 +88,7 @@ export function nextDeferredBacklogStep(
   if (first.lastAttemptEndedAt !== null) {
     const until = new Date(first.lastAttemptEndedAt.getTime() + DEFERRED_BACKLOG_RETRY_INTERVAL_MS);
     if (now.getTime() < until.getTime()) {
-      return { kind: "wait", until };
+      return { kind: "wait", until, entry: first };
     }
   }
   return { kind: "invoice", entry: first };

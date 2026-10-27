@@ -2,6 +2,7 @@ import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
 import type {
+  ProductChooser,
   SupplierPriceListFiles,
   SupplierPriceListWebPages,
 } from "@purosur/domain/purchasing/use-cases";
@@ -156,6 +157,7 @@ import { registerFreightsRoutes } from "./purchasing/freights-routes.js";
 import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
 import { registerPurchasesRoutes } from "./purchasing/purchases-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
+import { registerSupplierPriceComparisonRoutes } from "./purchasing/supplier-price-comparison-routes.js";
 import { registerSupplierPriceListsRoutes } from "./purchasing/supplier-price-lists-routes.js";
 import { registerSuppliersRoutes } from "./purchasing/suppliers-routes.js";
 import {
@@ -359,6 +361,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   offsiteDumpCheckToken?: string | undefined;
   supplierPriceListFiles?: SupplierPriceListFiles;
   supplierPriceListWebPages?: SupplierPriceListWebPages;
+  productChooser?: ProductChooser;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -391,6 +394,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
       ...(wiring.supplierPriceListWebPages
         ? { supplierPriceListWebPages: wiring.supplierPriceListWebPages }
         : {}),
+      ...(wiring.productChooser ? { productChooser: wiring.productChooser } : {}),
     },
     tags: backoffice,
     products: backoffice,
@@ -626,6 +630,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerPurchasesRoutes(api, { ...options.purchasing, now });
         registerFreightsRoutes(api, { ...options.purchasing, now });
         registerSupplierPriceListsRoutes(api, { ...options.purchasing, now });
+        registerSupplierPriceComparisonRoutes(api, { ...options.purchasing, now });
       }
 
       if (options.tags) {

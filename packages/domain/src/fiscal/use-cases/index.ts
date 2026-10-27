@@ -288,6 +288,11 @@ export type {
   InterruptedRealTimeAuthorizationsTransaction,
 } from "./interrupted-real-time-authorization-ports.js";
 export type {
+  InvoiceDeferredSalesUpToInput,
+  InvoiceDeferredSalesUpToOutcome,
+} from "./invoice-deferred-sales-up-to.js";
+export { invoiceDeferredSalesUpTo } from "./invoice-deferred-sales-up-to.js";
+export type {
   IssueCreditNoteInput,
   IssueCreditNoteOutcome,
 } from "./issue-credit-note.js";
@@ -430,18 +435,19 @@ export type {
   RegisterPointOfSaleStoreTransaction,
 } from "./register-point-of-sale-store.js";
 export { PointOfSaleClaimConflict } from "./register-point-of-sale-store.js";
-export type { RegularizeExpiredDeferredSalesOutcome } from "./regularize-expired-deferred-sales.js";
-export { regularizeExpiredDeferredSales } from "./regularize-expired-deferred-sales.js";
-export type {
-  DeferredSaleExpiryStore,
-  DeferredSaleExpiryTransaction,
-  RegularizeExpiredDeferredSalesPorts,
-} from "./regularize-expired-deferred-sales-ports.js";
 export type {
   RegularizeOrphanAuthorizationInput,
   RegularizeOrphanAuthorizationOutcome,
 } from "./regularize-orphan-authorization.js";
 export { regularizeOrphanAuthorization } from "./regularize-orphan-authorization.js";
+export type { RegularizeUninvoiceableDeferredSalesOutcome } from "./regularize-uninvoiceable-deferred-sales.js";
+export { regularizeUninvoiceableDeferredSales } from "./regularize-uninvoiceable-deferred-sales.js";
+export type {
+  DeferredSaleCandidate,
+  DeferredSaleExpiryStore,
+  DeferredSaleExpiryTransaction,
+  RegularizeUninvoiceableDeferredSalesPorts,
+} from "./regularize-uninvoiceable-deferred-sales-ports.js";
 export type {
   FortnightPresentationAwaitingRemedy,
   RejectedFortnightDocumentReader,

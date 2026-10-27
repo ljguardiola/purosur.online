@@ -109,6 +109,8 @@ import {
   stockCountLots,
   stockCounts,
   stockMovements,
+  supplierItemPrices,
+  supplierItems,
   supplierPriceListExtractionCaps,
   supplierPriceListRows,
   supplierPriceLists,
@@ -995,6 +997,23 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       listId: priceList?.id as string,
       position: 0,
       description: "Yerba 1 kg",
+    });
+    const [supplierItem] = await db
+      .insert(supplierItems)
+      .values({
+        supplierId: supplier?.id as string,
+        keyKind: "code",
+        keyValue: "Y-01",
+        description: "Yerba 1 kg",
+      })
+      .returning({ id: supplierItems.id });
+    await db.insert(supplierItemPrices).values({
+      itemId: supplierItem?.id as string,
+      listId: priceList?.id as string,
+      priceCents: 1_500,
+      listDate: "2026-10-14",
+      pricesIncludeVat: false,
+      confirmedAt: new Date("2026-10-14T09:00:00.000Z"),
     });
     await db
       .insert(supplierPriceListExtractionCaps)

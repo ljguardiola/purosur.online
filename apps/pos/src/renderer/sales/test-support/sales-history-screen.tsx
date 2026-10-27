@@ -89,6 +89,7 @@ export const DETAIL: SaleDetail = {
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_note: null,
   credit_note_next_copy: null,
+  deferred_invoice_next_copy: null,
 };
 
 const AUTHORIZERS: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
@@ -104,6 +105,11 @@ export type Overrides = Partial<Pick<SalesHistoryScreenProps, "person" | "sessio
   printOriginalReceipt?: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   printCreditNote?: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote?: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
+  reprintDeferredSaleInvoice?: (
     saleId: string,
     reason: string,
     authorization: Authorization | undefined,
@@ -166,6 +172,13 @@ export async function renderScreen({
         copy: { kind: "duplicate", order_number: 1 },
       })),
   );
+  const reprintDeferredSaleInvoice = vi.fn(
+    overrides.reprintDeferredSaleInvoice ??
+      (async (): Promise<ReprintSaleReceiptOutcome> => ({
+        kind: "started",
+        copy: { kind: "duplicate", order_number: 1 },
+      })),
+  );
   const lock = vi.fn();
   const onSessionInvalid = vi.fn();
   const screen = await render(
@@ -181,6 +194,7 @@ export async function renderScreen({
       voidSale={voidSale}
       printCreditNote={printCreditNote}
       reprintCreditNote={reprintCreditNote}
+      reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
       loadAuthorizers={async () => AUTHORIZERS}
       onSessionInvalid={onSessionInvalid}
     />,
@@ -194,6 +208,7 @@ export async function renderScreen({
     voidSale,
     printCreditNote,
     reprintCreditNote,
+    reprintDeferredSaleInvoice,
     lock,
     onSessionInvalid,
   };

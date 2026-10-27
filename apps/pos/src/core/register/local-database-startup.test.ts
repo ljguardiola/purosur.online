@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { CoreStartupStep } from "@purosur/contracts";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import type { LocalMigration } from "../platform/local-database";
@@ -36,11 +37,16 @@ afterEach(() => {
   }
 });
 
-function startWith(dataFolder: string, migrations = [NOTES]) {
+function startWith(
+  dataFolder: string,
+  migrations = [NOTES],
+  onStep: (step: CoreStartupStep) => void = () => {},
+) {
   return startLocalDatabase({
     path: join(dataFolder, "register.sqlite"),
     migrations,
     now: () => NOW,
+    onStep,
   });
 }
 
@@ -183,6 +189,67 @@ describe("starting the register's local database", () => {
       { name: "0000_notes" },
     ]);
     database.close();
+  });
+
+  describe("reporting what it is doing", () => {
+    it("reports the check and then the migrations of a healthy database", async () => {
+      const dataFolder = folder();
+      healthyDatabaseIn(dataFolder);
+      const steps: CoreStartupStep[] = [];
+
+      await startWith(dataFolder, [NOTES], (step) => steps.push(step));
+
+      expect(steps).toEqual(["check_local_database", "apply_migrations"]);
+    });
+
+    it("reports the check before opening the database file", async () => {
+      const dataFolder = folder();
+      let fileExistedAtCheck: boolean | undefined;
+
+      await startWith(dataFolder, [NOTES], (step) => {
+        if (step === "check_local_database") {
+          fileExistedAtCheck = existsSync(join(dataFolder, "register.sqlite"));
+        }
+      });
+
+      expect(fileExistedAtCheck).toBe(false);
+    });
+
+    it("goes on without waiting for a step's report to settle", async () => {
+      const dataFolder = folder();
+      healthyDatabaseIn(dataFolder);
+
+      const started = await startWith(dataFolder, [NOTES], () => new Promise<never>(() => {}));
+
+      expect(started.kind).toBe("ready");
+    });
+
+    it("reports no migrations step for a database that is out of service", async () => {
+      const dataFolder = folder();
+      healthyDatabaseIn(dataFolder);
+      writeFileSync(join(dataFolder, "local-database-damaged"), "2026-10-05T00:00:00.000Z");
+      const steps: CoreStartupStep[] = [];
+
+      await startWith(dataFolder, [NOTES], (step) => steps.push(step));
+
+      expect(steps).toEqual(["check_local_database"]);
+    });
+
+    it("reports no migrations step for a database migrated by a newer version", async () => {
+      const dataFolder = folder();
+      healthyDatabaseIn(dataFolder);
+      const database = new Database(join(dataFolder, "register.sqlite"));
+      database.exec(MORE.sql);
+      database.exec(
+        "INSERT INTO applied_migrations VALUES ('0001_more', '2026-02-01T00:00:00.000Z')",
+      );
+      database.close();
+      const steps: CoreStartupStep[] = [];
+
+      await startWith(dataFolder, [NOTES], (step) => steps.push(step));
+
+      expect(steps).toEqual(["check_local_database"]);
+    });
   });
 
   it("raises a migration failure that is not damage, leaving no damage recorded", async () => {

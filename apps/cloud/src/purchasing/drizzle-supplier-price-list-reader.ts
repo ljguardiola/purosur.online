@@ -1,12 +1,28 @@
-import type { SupplierPriceListReadFailure, SupplierPriceListState } from "@purosur/domain";
+import {
+  latestEarlierPrice,
+  type SaleUnit,
+  type SupplierItemKey,
+  type SupplierPriceListReadFailure,
+  type SupplierPriceListState,
+  sameSupplierItemKey,
+  supplierItemKey,
+} from "@purosur/domain";
 import type {
   SupplierPriceListListing,
   SupplierPriceListReader,
   SupplierPriceListReview,
 } from "@purosur/domain/purchasing/use-cases";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { supplierPriceListRows, supplierPriceLists, suppliers } from "../platform/db/schema.js";
+import {
+  productPackagings,
+  products,
+  supplierItemPrices,
+  supplierItems,
+  supplierPriceListRows,
+  supplierPriceLists,
+  suppliers,
+} from "../platform/db/schema.js";
 
 const rowCount = sql<number>`(select count(*)::int from ${supplierPriceListRows} where ${supplierPriceListRows.listId} = ${supplierPriceLists.id})`;
 const unpricedRowCount = sql<number>`(select count(*)::int from ${supplierPriceListRows} where ${supplierPriceListRows.listId} = ${supplierPriceLists.id} and ${supplierPriceListRows.priceCents} is null)`;
@@ -96,18 +112,115 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
         presentation: supplierPriceListRows.presentation,
         priceCents: supplierPriceListRows.priceCents,
         page: supplierPriceListRows.page,
+        barcode: supplierPriceListRows.barcode,
+        reviewed: supplierPriceListRows.reviewed,
+        productId: products.id,
+        productName: products.name,
+        productSaleUnit: products.saleUnit,
+        packagingId: productPackagings.id,
+        packagingName: productPackagings.name,
+        quantityPerPackage: productPackagings.quantityPerPackage,
+        packagingActive: productPackagings.active,
+        packagingSaleUnit: productPackagings.saleUnit,
+        vatRate: supplierPriceListRows.vatRate,
       })
       .from(supplierPriceListRows)
+      .leftJoin(products, eq(products.id, supplierPriceListRows.productId))
+      .leftJoin(productPackagings, eq(productPackagings.id, supplierPriceListRows.packagingId))
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
+    const remembered = await this.rememberedItems(list, rows);
     return {
       list: {
         ...toListing(list),
         version: list.version,
         pricesIncludeVat: list.pricesIncludeVat,
       },
-      rows,
+      rows: rows.map((row) => {
+        const key = supplierItemKey(row);
+        const item = remembered.find((entry) => sameSupplierItemKey(entry.key, key));
+        return {
+          id: row.id,
+          description: row.description,
+          code: row.code,
+          presentation: row.presentation,
+          priceCents: row.priceCents,
+          page: row.page,
+          barcode: row.barcode,
+          link:
+            row.productId !== null && row.packagingId !== null
+              ? {
+                  product: {
+                    id: row.productId,
+                    name: row.productName as string,
+                    saleUnit: row.productSaleUnit as SaleUnit,
+                  },
+                  packaging: {
+                    id: row.packagingId,
+                    name: row.packagingName as string,
+                    quantityPerPackage: row.quantityPerPackage as number,
+                    active: row.packagingActive as boolean,
+                    saleUnit: row.packagingSaleUnit as SaleUnit,
+                  },
+                  vatRate: row.vatRate,
+                }
+              : null,
+          reviewed: row.reviewed,
+          remembered: item !== undefined,
+          earlier: item?.earlier ?? null,
+        };
+      }),
     };
+  }
+
+  // The items the supplier's other lists recorded a price for, each with its description and the
+  // price of its latest list before this one, null when every one of them is dated after it.
+  private async rememberedItems(
+    list: { id: string; supplierId: string; listDate: string | null; confirmedAt: Date | null },
+    rows: { code: string | null; description: string }[],
+  ) {
+    const keys = rows.map(supplierItemKey);
+    if (keys.length === 0) {
+      return [];
+    }
+    const entries = await this.db
+      .select({
+        itemId: supplierItemPrices.itemId,
+        keyKind: supplierItems.keyKind,
+        keyValue: supplierItems.keyValue,
+        description: supplierItems.description,
+        priceCents: supplierItemPrices.priceCents,
+        listDate: supplierItemPrices.listDate,
+        confirmedAt: supplierItemPrices.confirmedAt,
+      })
+      .from(supplierItemPrices)
+      .innerJoin(supplierItems, eq(supplierItems.id, supplierItemPrices.itemId))
+      .where(
+        and(
+          eq(supplierItems.supplierId, list.supplierId),
+          inArray(supplierItems.keyValue, [...new Set(keys.map((key) => key.value))]),
+          ne(supplierItemPrices.listId, list.id),
+        ),
+      );
+    const byItem = new Map<string, { key: SupplierItemKey; prices: typeof entries }>();
+    for (const entry of entries) {
+      const item = byItem.get(entry.itemId) ?? {
+        key: { kind: entry.keyKind as SupplierItemKey["kind"], value: entry.keyValue },
+        prices: [],
+      };
+      item.prices.push(entry);
+      byItem.set(entry.itemId, item);
+    }
+    return [...byItem.values()].map(({ key, prices }) => {
+      const latest = latestEarlierPrice(prices, list);
+      return {
+        key,
+        earlier:
+          latest === undefined
+            ? null
+            : { description: latest.description, priceCents: latest.priceCents },
+      };
+    });
   }
 
   async fileName(listId: string): Promise<string | undefined> {

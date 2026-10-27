@@ -646,8 +646,11 @@ describe("registerAbilities", () => {
     expect(registerAbilities(NOBODY_HOLDS)).toEqual([]);
   });
 
-  it("lets a person who may sell and charge open a cash session", () => {
-    expect(registerAbilities(holding("sell_and_charge"))).toEqual(["open_cash_session"]);
+  it("lets a person who may sell and charge open a cash session and invoice a deferred sale", () => {
+    expect(registerAbilities(holding("sell_and_charge"))).toEqual([
+      "open_cash_session",
+      "invoice_deferred_sale",
+    ]);
   });
 
   it.each([

@@ -159,6 +159,10 @@ export function canManageSupplierPriceLists(access: BackofficeAccess): boolean {
   return grants(access, "supplier_price_lists");
 }
 
+export function canComparePrices(access: BackofficeAccess): boolean {
+  return grants(access, "price_comparison");
+}
+
 export function canSeeOrdersArea(access: BackofficeAccess): boolean {
   return grants(access, "orders_area");
 }

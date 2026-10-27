@@ -8,6 +8,7 @@ import {
   type SaleFiscalDocument,
   type SaleFiscalFacts,
   saleComprobanteOf,
+  saleFiscalDocumentAmong,
   saleStandingOf,
 } from "./sale-history.js";
 
@@ -132,6 +133,43 @@ describe("saleComprobanteOf", () => {
 
   it("is none when the sale has no fiscal document and was not deferred", () => {
     expect(saleComprobanteOf(NO_DOCUMENT)).toEqual({ kind: "none" });
+  });
+});
+
+describe("saleFiscalDocumentAmong", () => {
+  const RELEASED_ATTEMPT = document("RELEASED");
+  const AUTHORIZED_CATCH_UP = document("AUTHORIZED");
+
+  it("is the authorized document whichever attempt of the same number came first", () => {
+    expect(saleFiscalDocumentAmong([RELEASED_ATTEMPT, AUTHORIZED_CATCH_UP])).toBe(
+      AUTHORIZED_CATCH_UP,
+    );
+    expect(saleFiscalDocumentAmong([AUTHORIZED_CATCH_UP, RELEASED_ATTEMPT])).toBe(
+      AUTHORIZED_CATCH_UP,
+    );
+  });
+
+  it("is the document being requested when none was authorized", () => {
+    const requesting = document("REQUESTING");
+
+    expect(saleFiscalDocumentAmong([RELEASED_ATTEMPT, requesting])).toBe(requesting);
+  });
+
+  it("prefers the authorized document to one being requested", () => {
+    expect(saleFiscalDocumentAmong([document("REQUESTING"), AUTHORIZED_CATCH_UP])).toBe(
+      AUTHORIZED_CATCH_UP,
+    );
+  });
+
+  it.each<FiscalDocumentState>(["REJECTED", "UNKNOWN", "RELEASED", "CONFLICTING"])(
+    "is none when the only attempt ended %s",
+    (state) => {
+      expect(saleFiscalDocumentAmong([document(state)])).toBeNull();
+    },
+  );
+
+  it("is none when the sale has no fiscal document", () => {
+    expect(saleFiscalDocumentAmong([])).toBeNull();
   });
 });
 

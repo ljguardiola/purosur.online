@@ -26,6 +26,7 @@ import type {
   EnrollmentOutcome,
   EnrollmentStandingAnswer,
   FindCountableProductOutcome,
+  FindDeferredSaleOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
@@ -38,6 +39,7 @@ import type {
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintCreditNoteOutcome,
+  PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
@@ -92,6 +94,7 @@ import { HelpScreen } from "../help/help-screen";
 import { help } from "../help/register-help";
 import type {
   CashMovementInput,
+  DeferredSaleReading,
   MercadoPagoMethod,
   SalesHistoryQuery,
   SerialDevicesToRegister,
@@ -122,6 +125,7 @@ import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { StartupPendingScreen } from "../register/startup-pending-screen";
 import { ChargeScreen } from "../sales/charge-screen";
+import { DeferredSaleScreen } from "../sales/deferred-sale-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
 import { FirstSignInScreen } from "../sessions/first-sign-in-screen";
@@ -262,6 +266,13 @@ export interface RouterContext {
   ) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
   discardContingencyBackupTickets: () => Promise<DiscardContingencyBackupTicketsAnswer>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
+  findDeferredSale: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
+  printDeferredSaleInvoice: (saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>;
+  reprintDeferredSaleInvoice: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
   printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote: (
     saleId: string,
@@ -884,6 +895,7 @@ const historyRoute = createRoute({
       voidSale,
       printCreditNote,
       reprintCreditNote,
+      reprintDeferredSaleInvoice,
       authorizers,
       refreshCashSession,
     } = historyRoute.useRouteContext();
@@ -901,6 +913,39 @@ const historyRoute = createRoute({
         voidSale={voidSale}
         printCreditNote={printCreditNote}
         reprintCreditNote={reprintCreditNote}
+        reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
+        loadAuthorizers={authorizers}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
+const deferredSaleRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/deferred-sale",
+  beforeLoad: ({ context }) => requireSignedInPersonAnywhere(context),
+  component: function DeferredSaleRoute() {
+    const {
+      person,
+      sessionOpen,
+      signOut,
+      findDeferredSale,
+      printDeferredSaleInvoice,
+      reprintDeferredSaleInvoice,
+      authorizers,
+      refreshCashSession,
+    } = deferredSaleRoute.useRouteContext();
+    const registerName = useRegisterName();
+    return (
+      <DeferredSaleScreen
+        person={person}
+        registerName={registerName}
+        sessionOpen={sessionOpen}
+        lock={signOut}
+        findDeferredSale={findDeferredSale}
+        printDeferredSaleInvoice={printDeferredSaleInvoice}
+        reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -1218,6 +1263,7 @@ export const routeTree = rootRoute.addChildren([
       startupPendingRoute,
       chargeRoute,
       historyRoute,
+      deferredSaleRoute,
       cashRoute,
       cashCountRoute,
       lockedRoute,
@@ -1311,6 +1357,9 @@ export function createAppRouter(
     | "contingencyBackupTicketOfSale"
     | "discardContingencyBackupTickets"
     | "printOriginalReceipt"
+    | "findDeferredSale"
+    | "printDeferredSaleInvoice"
+    | "reprintDeferredSaleInvoice"
     | "printCreditNote"
     | "reprintCreditNote"
     | "convertPaidOrderIntoRefund"
