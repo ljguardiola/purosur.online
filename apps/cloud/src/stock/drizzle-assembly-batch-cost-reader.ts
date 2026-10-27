@@ -1,5 +1,5 @@
 import type { AssemblyBatchCost, AssemblyBatchCostReader } from "@purosur/domain/pricing/use-cases";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { assemblyBatches, lots } from "../platform/db/schema.js";
 
@@ -30,7 +30,13 @@ export class DrizzleAssemblyBatchCostReader<TQueryResult extends PgQueryResultHK
       })
       .from(lots)
       .innerJoin(assemblyBatches, eq(assemblyBatches.id, lots.assemblyBatchId))
-      .where(and(eq(lots.locationId, locationId), inArray(lots.productId, [...productIds])));
+      .where(
+        and(
+          eq(lots.locationId, locationId),
+          inArray(lots.productId, [...productIds]),
+          isNull(assemblyBatches.voidedAt),
+        ),
+      );
     return batches.flatMap(({ costTotalCents, costQuantity, ...batch }) =>
       costTotalCents === null || costQuantity === null
         ? []

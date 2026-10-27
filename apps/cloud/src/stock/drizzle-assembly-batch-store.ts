@@ -2,7 +2,10 @@ import { isLotCostIncomplete } from "@purosur/domain";
 import type {
   AssemblyBatchStore,
   AssemblyBatchTransaction,
+  AssemblyBatchVoid,
   BatchLotCost,
+  BatchMovementAllocation,
+  LockedAssemblyBatch,
   NewAssemblyBatch,
   NewBatchLot,
   Recipe,
@@ -12,12 +15,15 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   assemblyBatches,
   assemblyBatchLines,
+  lotAllocations,
   lots,
   products,
   recipeComponents,
   recipes,
+  stockMovements,
 } from "../platform/db/schema.js";
 import { withPendingChanges } from "../sync/change-log.js";
+import { batchLotConsumed } from "./assembly-batch-lot-consumption.js";
 import { DrizzleStockStoreTransaction } from "./drizzle-stock-store.js";
 
 class DrizzleAssemblyBatchTransaction<TQueryResult extends PgQueryResultHKT>
@@ -98,6 +104,83 @@ class DrizzleAssemblyBatchTransaction<TQueryResult extends PgQueryResultHKT>
       throw new Error("inserting the batch lot returned no row");
     }
     return recorded.id;
+  }
+
+  async lockAssemblyBatch(
+    batchId: string,
+    locationId: string,
+  ): Promise<LockedAssemblyBatch | undefined> {
+    const [batch] = await this.tx
+      .select({
+        id: assemblyBatches.id,
+        productId: assemblyBatches.productId,
+        voidedAt: assemblyBatches.voidedAt,
+      })
+      .from(assemblyBatches)
+      .where(and(eq(assemblyBatches.id, batchId), eq(assemblyBatches.locationId, locationId)))
+      .for("update");
+    if (!batch) {
+      return undefined;
+    }
+    const [lot] = await this.tx
+      .select({ id: lots.id })
+      .from(lots)
+      .where(eq(lots.assemblyBatchId, batch.id));
+    if (!lot) {
+      throw new Error("the assembly batch has no lot");
+    }
+    const lines = await this.tx
+      .select({ componentProductId: assemblyBatchLines.componentProductId })
+      .from(assemblyBatchLines)
+      .where(eq(assemblyBatchLines.batchId, batch.id));
+    return {
+      id: batch.id,
+      productId: batch.productId,
+      lotId: lot.id,
+      voided: batch.voidedAt !== null,
+      componentProductIds: lines.map((line) => line.componentProductId),
+    };
+  }
+
+  async assemblyBatchAllocations(batchId: string): Promise<BatchMovementAllocation[]> {
+    const found = await this.tx
+      .select({
+        productId: stockMovements.productId,
+        kind: stockMovements.kind,
+        lotId: lotAllocations.lotId,
+        quantity: lotAllocations.quantity,
+      })
+      .from(lotAllocations)
+      .innerJoin(stockMovements, eq(stockMovements.id, lotAllocations.movementId))
+      .where(
+        and(
+          eq(stockMovements.assemblyBatchId, batchId),
+          inArray(stockMovements.kind, ["assembly_out", "assembly_in"]),
+        ),
+      );
+    return found.map((allocation) => ({
+      ...allocation,
+      kind: allocation.kind as BatchMovementAllocation["kind"],
+    }));
+  }
+
+  async isBatchLotConsumed(batchId: string): Promise<boolean> {
+    const [found] = await this.tx
+      .select({ consumed: batchLotConsumed(assemblyBatches.id) })
+      .from(assemblyBatches)
+      .where(eq(assemblyBatches.id, batchId));
+    return found?.consumed === true;
+  }
+
+  async recordAssemblyBatchVoid(batchVoid: AssemblyBatchVoid): Promise<void> {
+    const [updated] = await this.tx
+      .update(assemblyBatches)
+      .set({ voidedAt: batchVoid.voidedAt, voidedBy: batchVoid.actorId })
+      .where(eq(assemblyBatches.id, batchVoid.batchId))
+      .returning({ id: assemblyBatches.id });
+    if (!updated) {
+      throw new Error("voiding the assembly batch updated no row");
+    }
   }
 }
 

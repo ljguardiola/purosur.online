@@ -1,15 +1,16 @@
 import { isLotCostIncomplete, lotUnitCostCents, type SaleUnit } from "@purosur/domain";
 import type {
   AssemblyBatchesQuery,
-  AssemblyBatchListing,
   AssemblyBatchListReader,
   BatchLotReader,
   PreviewLot,
   ProductStockKey,
+  ReadAssemblyBatch,
 } from "@purosur/domain/stock/use-cases";
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { assemblyBatches, lots, products } from "../platform/db/schema.js";
+import { batchLotConsumed } from "./assembly-batch-lot-consumption.js";
 
 export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
   implements AssemblyBatchListReader, BatchLotReader
@@ -20,7 +21,7 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async batches(query: AssemblyBatchesQuery): Promise<AssemblyBatchListing[]> {
+  async batches(query: AssemblyBatchesQuery): Promise<ReadAssemblyBatch[]> {
     const rows = await this.db
       .select({
         id: assemblyBatches.id,
@@ -33,6 +34,8 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
         costQuantity: lots.costQuantity,
         costIncomplete: lots.costIncomplete,
         expiresOn: lots.expiresOn,
+        voided: sql<boolean>`${assemblyBatches.voidedAt} is not null`,
+        lotConsumed: batchLotConsumed(assemblyBatches.id),
       })
       .from(assemblyBatches)
       .innerJoin(products, eq(products.id, assemblyBatches.productId))
