@@ -204,12 +204,16 @@ export interface RendererRequestDeps {
   printDeferredSaleInvoice:
     | ((saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>)
     | undefined;
-  printCreditNote: ((saleId: string) => Promise<PrintCreditNoteOutcome>) | undefined;
+  printCreditNote:
+    | ((creditNote: { saleId: string; creditNoteId: string }) => Promise<PrintCreditNoteOutcome>)
+    | undefined;
   reprintDeferredSaleInvoice:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
   reprintCreditNote:
-    | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
+    | ((
+        request: ReprintSaleReceiptRequest & { creditNoteId: string },
+      ) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
   reprintSaleReceipt:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
@@ -1095,7 +1099,12 @@ export async function answerRendererRequest(
         outcome: await attemptSaleChange(
           deps,
           "printing the credit note of a voided sale",
-          printCreditNote && (() => printCreditNote(message.sale_id)),
+          printCreditNote &&
+            (() =>
+              printCreditNote({
+                saleId: message.sale_id,
+                creditNoteId: message.credit_note_id,
+              })),
         ),
       };
     }
@@ -1111,6 +1120,7 @@ export async function answerRendererRequest(
             (() =>
               reprintCreditNote({
                 saleId: message.sale_id,
+                creditNoteId: message.credit_note_id,
                 reason: message.reason,
                 authorization: message.authorization,
               })),

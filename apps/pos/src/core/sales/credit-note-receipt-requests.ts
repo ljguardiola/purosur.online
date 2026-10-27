@@ -4,7 +4,6 @@ import type {
   OperationAuthorization,
   ReceiptPrintGrant,
 } from "@purosur/domain/sales/use-cases";
-import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import {
   printOriginalFor,
   type ReceiptRequestDeps,
@@ -28,22 +27,10 @@ function keyOf({ saleId, creditNoteId }: IssuedCreditNote) {
   return { document: "credit_note", saleId, creditNoteId } as const;
 }
 
-function creditNoteOfVoidedSale(
-  { database }: ReceiptRequestDeps,
-  saleId: string,
-): IssuedCreditNote | undefined {
-  const creditNote = readCreditNoteOfSale(database, saleId);
-  return creditNote === null ? undefined : { saleId, creditNoteId: creditNote.creditNoteId };
-}
-
 export async function printCreditNoteFor(
   deps: ReceiptRequestDeps,
-  saleId: string,
+  creditNote: IssuedCreditNote,
 ): Promise<PrintCreditNoteOutcome> {
-  const creditNote = creditNoteOfVoidedSale(deps, saleId);
-  if (creditNote === undefined) {
-    return { kind: "not_found" };
-  }
   return printOriginalFor(
     deps,
     keyOf(creditNote),
@@ -65,13 +52,9 @@ export async function printCreditNoteFor(
 
 export async function reprintCreditNoteFor(
   deps: ReceiptRequestDeps,
-  { saleId, ...request }: ReprintSaleReceiptRequest,
+  { saleId, creditNoteId, ...request }: ReprintSaleReceiptRequest & { creditNoteId: string },
 ): Promise<ReprintSaleReceiptOutcome> {
-  const creditNote = creditNoteOfVoidedSale(deps, saleId);
-  if (creditNote === undefined) {
-    return { kind: "not_found" };
-  }
-  return reprintFor(deps, keyOf(creditNote), request);
+  return reprintFor(deps, keyOf({ saleId, creditNoteId }), request);
 }
 
 export async function printVoidedSaleCreditNoteFor(

@@ -59,6 +59,7 @@ export interface SaleHistoryDetail {
   standing: SaleStanding;
   voidability: SaleVoidability;
   creditNote: VoidCreditNoteStanding | null;
+  creditNoteId: string | null;
   reprint: SaleReceiptAvailability;
   nextCopy: ReceiptCopy;
   creditNoteNextCopy: ReceiptCopy | null;
@@ -87,9 +88,9 @@ export function readSaleHistoryDetail(
     invoices: _invoices,
     deferredInvoiceIssued,
     deferredShortCode,
-    creditNoteId,
     ...shown
   } = record;
+  const { creditNoteId } = record;
   const creditNoteDelivery =
     creditNoteId !== null &&
     (record.creditNote?.kind === "authorized" || record.creditNote?.kind === "issued_offline")

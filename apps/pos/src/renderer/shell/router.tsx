@@ -289,9 +289,10 @@ export interface RouterContext {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
-  printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
+  printCreditNote: (saleId: string, creditNoteId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote: (
     saleId: string,
+    creditNoteId: string,
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
