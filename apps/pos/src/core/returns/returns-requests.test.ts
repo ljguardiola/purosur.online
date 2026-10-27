@@ -1,4 +1,6 @@
 import { encodePinHash } from "@purosur/contracts";
+import type { TicketReference } from "@purosur/domain";
+import type { BranchSaleLookupAnswer } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
@@ -12,6 +14,7 @@ import {
   previewReturnFor,
   type ReturnRequestDeps,
 } from "./returns-requests";
+import { readRetainedBranchSale } from "./sqlite-retained-branch-sales";
 import { openSecondSession, openSoldSaleDatabase } from "./test-support/sold-sale-database";
 
 const NOW = new Date("2026-09-20T15:00:00.000Z");
@@ -22,6 +25,8 @@ const SUPERVISOR_PIN = "1234";
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
 let idCount: number;
+let askedTickets: TicketReference[];
+let cloudAnswer: BranchSaleLookupAnswer;
 
 function deps(overrides: Partial<ReturnRequestDeps> = {}): ReturnRequestDeps {
   return {
@@ -34,6 +39,12 @@ function deps(overrides: Partial<ReturnRequestDeps> = {}): ReturnRequestDeps {
       now: () => NOW,
     }),
     readOutboxChainKey: async () => CHAIN_KEY,
+    branchSales: {
+      async saleForReturn(ticket) {
+        askedTickets.push(ticket);
+        return cloudAnswer;
+      },
+    },
     now: () => NOW,
     ids: {
       next: () => {
@@ -94,6 +105,8 @@ function count(table: string): number {
 
 beforeEach(() => {
   idCount = 0;
+  askedTickets = [];
+  cloudAnswer = { kind: "not_found" };
   database = openSoldSaleDatabase();
   openSecondSession(database);
   addPerson("u3", "Linus", ["sell_and_charge", "process_return"]);
@@ -105,6 +118,49 @@ beforeEach(() => {
 afterEach(() => {
   database.close();
 });
+
+const BRANCH_SALE_TICKET = { kind: "invoice", pointOfSale: 7, number: 501 } as const;
+
+const BRANCH_SALE: Extract<BranchSaleLookupAnswer, { kind: "found" }> = {
+  kind: "found",
+  sale: {
+    sale: {
+      id: "sale-elsewhere",
+      registerId: "register-2",
+      deviceId: "device-b",
+      sessionId: "session-b",
+      actorId: "cashier-b",
+      state: "COMPLETED",
+      saleDiscount: null,
+      lines: [
+        {
+          id: "line-elsewhere",
+          productId: "yerba",
+          productName: "Yerba 1 kg",
+          saleUnit: "UNIT",
+          quantity: 3,
+          promotionId: null,
+          lineTotal: 7500,
+        },
+      ],
+    },
+    occurredAt: new Date("2026-09-12T18:30:00.000Z"),
+    invoice: { pointOfSale: 7, number: 501 },
+    payments: [
+      {
+        id: "pay-elsewhere",
+        method: "CASH",
+        provider: "NONE",
+        amount: 7500,
+        state: "APPROVED",
+        refundedAmount: 0,
+      },
+    ],
+    returned: [],
+  },
+  goodConditionReturnDays: 15,
+  countedReturnIds: [],
+};
 
 describe("finding the sale to return", () => {
   it("answers the sale, its returnable lines and its payments to a person who may process returns", async () => {
@@ -199,6 +255,66 @@ describe("finding the sale to return", () => {
         ticket: { kind: "invoice", pointOfSale: 12, number: 99 },
       }),
     ).toEqual({ kind: "not_found" });
+  });
+
+  it("finds a sale of another register through the cloud and keeps a copy of it", async () => {
+    cloudAnswer = BRANCH_SALE;
+
+    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toMatchObject({
+      kind: "found",
+      sale: {
+        sale_id: "sale-elsewhere",
+        invoice: { point_of_sale: 7, number: 501 },
+        lines: [{ id: "line-elsewhere", returnable_quantity: 3 }],
+      },
+    });
+    expect(askedTickets).toEqual([BRANCH_SALE_TICKET]);
+    expect(readRetainedBranchSale(database, "sale-elsewhere")).toEqual({
+      sale: BRANCH_SALE.sale,
+      goodConditionReturnDays: 15,
+      countedReturnIds: [],
+    });
+  });
+
+  it("counts what this register already returned of a sale of another register", async () => {
+    cloudAnswer = BRANCH_SALE;
+    database.exec(
+      `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-here', 'sale-elsewhere', 'register-1', 'device-a', 'session-1', 'u1', 'TYPED', '2026-09-20T12:00:00.000Z');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('return-here', 'line-elsewhere', 1, 'defective', 'discard', 2500);`,
+    );
+
+    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toMatchObject({
+      kind: "found",
+      sale: { lines: [{ id: "line-elsewhere", returned_quantity: 1, returnable_quantity: 2 }] },
+    });
+  });
+
+  it("answers that a connection is needed when the cloud cannot be reached", async () => {
+    cloudAnswer = { kind: "unreachable" };
+
+    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toEqual({
+      kind: "needs_connection",
+    });
+    expect(readRetainedBranchSale(database, "sale-elsewhere")).toBeUndefined();
+  });
+
+  it("never asks the cloud on behalf of a cashier without the permission", async () => {
+    addPerson("u4", "Ada", ["sell_and_charge"]);
+    signedInPerson.set("u4");
+    cloudAnswer = BRANCH_SALE;
+
+    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toEqual({
+      kind: "lacks_permission",
+    });
+    expect(askedTickets).toEqual([]);
+  });
+
+  it("does not ask the cloud for a sale this register holds", async () => {
+    await findSaleForReturnFor(deps(), { ticket: BY_SALE });
+
+    expect(askedTickets).toEqual([]);
   });
 
   it("answers voided for a sale that was voided", async () => {
