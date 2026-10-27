@@ -191,7 +191,10 @@ describe("finding a sale of another register of the branch in the cloud", () => 
       "the cloud refuses for another reason",
       { kind: "error", error: cloudError("server_unavailable", "down") } satisfies CloudResponse,
     ],
-    ["the cloud answers a body that is not a sale", { kind: "ok", body: { sale: 1 } }],
+    [
+      "the cloud answers a body that is not a sale",
+      { kind: "ok", body: { sale: 1 } } satisfies CloudResponse,
+    ],
   ])("answers unreachable when %s", async (_name, response) => {
     const { lookup } = lookupWith(response);
 
