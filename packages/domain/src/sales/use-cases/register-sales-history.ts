@@ -40,6 +40,7 @@ export interface SaleHistoryRecord {
   invoices: SaleInvoice[];
   creditNote: VoidCreditNoteStanding | null;
   deferredInvoiceIssued: boolean;
+  deferredShortCode: string | null;
 }
 
 export interface RegisterSalesHistory {
