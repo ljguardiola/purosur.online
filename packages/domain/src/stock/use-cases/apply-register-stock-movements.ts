@@ -1,4 +1,4 @@
-import { saleVoidAllocations } from "../model/lot-allocation.js";
+import { voidedMovementAllocations } from "../model/lot-allocation.js";
 import { isMovementQuantity } from "../model/stock-quantity.js";
 import { recordStockMovement } from "./apply-stock-movement.js";
 import type { StockStoreTransaction } from "./stock-store.js";
@@ -52,7 +52,7 @@ export async function applyRegisterStockMovements(
     const coveringCount = await tx.earliestCountAtOrAfter(key, input.occurredAt);
     const returnedToLots =
       movement.kind === "sale_void"
-        ? saleVoidAllocations(
+        ? voidedMovementAllocations(
             await tx.productLots(key),
             await tx.saleLineLotAllocations(key, movement.saleLineId),
             movement.delta,
