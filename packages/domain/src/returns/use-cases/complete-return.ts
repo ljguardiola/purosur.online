@@ -242,8 +242,8 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
     tx.appendOutboxEvent(
       saleReturnedEvent(ids.next(), {
         record,
-        registerId: sale.registerId,
-        deviceId: sale.deviceId,
+        registerId: session.registerId,
+        deviceId: session.deviceId,
         refunds: recordedRefunds,
         cashMovements,
         stockMovements,
@@ -253,7 +253,7 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
     if (route.kind === "issue_offline") {
       issueOfflineSaleCreditNote(route, tx, {
         nextId: () => ids.next(),
-        registerId: sale.registerId,
+        registerId: session.registerId,
         actorId: grant.actorId,
         generatedAt: occurredAt,
         rules,

@@ -57,6 +57,8 @@ export interface IdGenerator {
 export interface ReturningSession {
   id: string;
   openedBy: string;
+  registerId: string;
+  deviceId: string;
 }
 
 export interface RecordedReturn {

@@ -72,7 +72,14 @@ export class SqliteReturnLedger implements ReturnLedger {
       goodConditionReturnDays: () => readGoodConditionReturnDays(this.database),
       openSession: (): ReturningSession | undefined => {
         const session = readOpenSession(this.database);
-        return session && { id: session.id, openedBy: session.openedBy };
+        return (
+          session && {
+            id: session.id,
+            openedBy: session.openedBy,
+            registerId: session.registerId,
+            deviceId: session.deviceId,
+          }
+        );
       },
       outboxReady: () => this.outboxChainKey !== undefined,
       recordReturn: (returned: RecordedReturn) => insertReturn(this.database, returned),
