@@ -97,4 +97,28 @@ describe("returnSaleLines", () => {
       [1, 2500],
     ]);
   });
+
+  it("stands the lines of a sale known only by the facts returns read", () => {
+    expect(
+      returnSaleLines({
+        sale: {
+          id: "sale-1",
+          state: "COMPLETED",
+          saleDiscount: null,
+          lines: [
+            {
+              id: "line-1",
+              productId: "yerba",
+              productName: "Yerba 1 kg",
+              saleUnit: "UNIT",
+              quantity: 3,
+              promotionId: null,
+              lineTotal: 7500,
+            },
+          ],
+        },
+        returned: [],
+      }),
+    ).toMatchObject([{ id: "line-1", soldQuantity: 3, chargedAmount: 7500 }]);
+  });
 });
