@@ -26,8 +26,8 @@ import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-off
 import type { LocalDatabase } from "../platform/local-database";
 import { registerVersionOf } from "../register/register-version";
 import { applyReplenishedCashFact } from "../register/replenished-cash-facts";
+import { applyReplenishedReturnFact } from "../returns/replenished-return-facts";
 import { applyReplenishedReceiptFact } from "../sales/replenished-receipt-facts";
-import { applyReplenishedReturnFact } from "../sales/replenished-return-facts";
 import { applyReplenishedSaleFact } from "../sales/replenished-sale-facts";
 import { applyReplenishedSaleVoidFact } from "../sales/replenished-sale-void-facts";
 import { applyReplenishedOpeningCountFact } from "../stock/replenished-opening-count-facts";

@@ -10,6 +10,7 @@ import type {
   ReturnLineRefusal,
 } from "@purosur/domain";
 import type { SaleForReturnView } from "@purosur/domain/returns/use-cases";
+import { inArgentinaTime } from "../platform/argentina-time";
 
 type WireSale = Extract<WireFindSaleForReturnOutcome, { kind: "found" }>["sale"];
 
@@ -47,7 +48,7 @@ function toWireWindow({ lastAllowedDay, open }: { lastAllowedDay: string; open: 
 export function toWireSaleForReturn(sale: SaleForReturnView): WireSale {
   return {
     sale_id: sale.saleId,
-    occurred_at: sale.occurredAt.toISOString(),
+    occurred_at: inArgentinaTime(sale.occurredAt),
     total: sale.total,
     invoice:
       sale.invoice === null

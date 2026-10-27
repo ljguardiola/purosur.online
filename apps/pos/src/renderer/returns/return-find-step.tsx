@@ -9,7 +9,7 @@ import {
   SidePanel,
   useRequestForm,
 } from "@purosur/ui";
-import { Info, ScanBarcode, Search, TriangleAlert } from "lucide-react";
+import { ScanBarcode, Search, TriangleAlert } from "lucide-react";
 import type { FormEvent } from "react";
 import { useRef, useState } from "react";
 import type { SaleForReturnReading } from "../platform/core-client";
@@ -148,14 +148,7 @@ export function ReturnFindStep({
           </Card>
         </div>
       </main>
-      <SidePanel
-        footer={
-          <p className="flex items-center gap-2 text-detail text-text-subtle">
-            <Info aria-hidden className="size-icon-sm shrink-0" />
-            Sin ticket no se puede devolver.
-          </p>
-        }
-      >
+      <SidePanel>
         <Eyebrow text="SI EL LECTOR NO LEE EL QR" />
         <p className="text-title text-text-accent">Tipeá los datos impresos en el ticket</p>
         <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>

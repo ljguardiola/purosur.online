@@ -147,3 +147,15 @@ export function methodsCoveringRefundedSale(
     hasApprovedPayment(salePayments.filter((payment) => payment.method === method)),
   );
 }
+
+export function refundableAmount(paymentAmount: number, refundedOfPayment: number): number {
+  return Math.max(0, paymentAmount - refundedOfPayment);
+}
+
+export function exceedsRefundable(
+  amount: number,
+  paymentAmount: number,
+  refundedOfPayment: number,
+): boolean {
+  return amount > refundableAmount(paymentAmount, refundedOfPayment);
+}

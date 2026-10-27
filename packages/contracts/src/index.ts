@@ -609,6 +609,7 @@ export type {
   ReturnsRendererToCoreMessage,
 } from "./returns/core-messages.js";
 export {
+  completeReturnMessageSchema,
   findSaleForReturnMessageSchema,
   returnsCoreToRendererMessageSchema,
   returnsRendererToCoreMessageSchema,

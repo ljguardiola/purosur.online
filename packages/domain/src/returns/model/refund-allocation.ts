@@ -1,4 +1,9 @@
-import { APPROVED_PAYMENT_STATE, type PaymentMethod } from "../../payments/index.js";
+import {
+  APPROVED_PAYMENT_STATE,
+  exceedsRefundable,
+  type PaymentMethod,
+  refundableAmount,
+} from "../../payments/index.js";
 
 export interface ReturnablePayment {
   id: string;
@@ -37,15 +42,11 @@ function approved(payments: readonly ReturnablePayment[]): ReturnablePayment[] {
   return payments.filter(({ state }) => state === APPROVED_PAYMENT_STATE);
 }
 
-function remainingOf({ amount, refundedAmount }: ReturnablePayment): number {
-  return Math.max(0, amount - refundedAmount);
-}
-
 function ineligibleReasonOf(payment: ReturnablePayment): PaymentIneligibleReason | null {
   if (payment.method !== "CASH") {
     return "not_cash";
   }
-  return remainingOf(payment) === 0 ? "nothing_left" : null;
+  return refundableAmount(payment.amount, payment.refundedAmount) === 0 ? "nothing_left" : null;
 }
 
 export function returnablePayments(payments: readonly ReturnablePayment[]): PaymentRefundability[] {
@@ -56,7 +57,7 @@ export function returnablePayments(payments: readonly ReturnablePayment[]): Paym
       method: payment.method,
       amount: payment.amount,
       refundedAmount: payment.refundedAmount,
-      remaining: remainingOf(payment),
+      remaining: refundableAmount(payment.amount, payment.refundedAmount),
       eligible: ineligibleReason === null,
       ineligibleReason,
     };
@@ -86,9 +87,12 @@ export function refundAllocationRefusal(
     imputedTo.set(paymentId, (imputedTo.get(paymentId) ?? 0) + amount);
   }
   for (const payment of candidates.values()) {
-    const remaining = remainingOf(payment);
-    if ((imputedTo.get(payment.id) ?? 0) > remaining) {
-      return { kind: "exceeds_payment", paymentId: payment.id, remaining };
+    if (exceedsRefundable(imputedTo.get(payment.id) ?? 0, payment.amount, payment.refundedAmount)) {
+      return {
+        kind: "exceeds_payment",
+        paymentId: payment.id,
+        remaining: refundableAmount(payment.amount, payment.refundedAmount),
+      };
     }
   }
   const imputed = allocations.reduce((sum, { amount }) => sum + amount, 0);

@@ -17,37 +17,36 @@ import {
   SidePanel,
   SummaryRowGroup,
   Tag,
-  TextField,
+  useRequestForm,
 } from "@purosur/ui";
 import { Check, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CompleteReturnInput } from "../platform/core-client";
-import { paymentMethodName } from "../platform/payment-method-names";
 import { AuthorizationSection } from "../shell/authorization-section";
 import type { AuthorizationState } from "../shell/use-authorization";
-import type { CompletedReturnLine } from "./return-completed-modal";
-import { ReturnCompletedModal } from "./return-completed-modal";
-import type { ReturnDraft, ReturnDraftLine } from "./return-draft";
+import type { CompletedReturn } from "./hand-over-refund-modal";
+import type { ReturnDraft, ReturnFormValues } from "./return-form";
 import {
   changeLine,
   checkLine,
   draftLinesFor,
-  EMPTY_RETURN_DRAFT,
+  EMPTY_RETURN_FORM,
+  INVALID_REFUND_MESSAGE,
+  RETURN_FIELDS,
+  refundTextsFor,
+  returnRequestFrom,
+  returnRequestSchema,
   uncheckLine,
-} from "./return-draft";
+} from "./return-form";
 import { ReturnLinesTable } from "./return-lines-table";
-import { refundDraftFor, refundsOf } from "./return-refunds";
+import { ReturnRefundsField } from "./return-refunds-field";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
-import {
-  lineRefusalNotice,
-  paymentIneligibleText,
-  quantityText,
-  refundRefusalText,
-  windowTags,
-} from "./return-text";
+import { lineRefusalNotice, quantityText, refundRefusalText, windowTags } from "./return-text";
 import { usePreviewReturnQuery } from "./returns-queries";
 
 const COMPLETE_FAILED = "No se pudo completar la devolución. Probá de nuevo.";
+const SALE_GONE = "Esa venta ya no se puede devolver.";
+const NOT_PERMITTED = "No tenés permiso para hacer devoluciones.";
 
 export type ReturnBuildStepProps = {
   sale: SaleForReturn;
@@ -59,9 +58,12 @@ export type ReturnBuildStepProps = {
   ) => Promise<PreviewReturnOutcome>;
   completeReturn: (input: CompleteReturnInput) => Promise<CompleteReturnOutcome>;
   onAuthorizationRequired: () => void;
+  onCompleted: (completed: CompletedReturn) => void;
   onLeave: () => void;
   onSessionInvalid: () => void;
 };
+
+type ReturnRequest = ReturnType<typeof returnRequestFrom>;
 
 function lineOf(sale: SaleForReturn, lineId: string): SaleLineForReturn | undefined {
   return sale.lines.find(({ id }) => id === lineId);
@@ -74,36 +76,30 @@ export function ReturnBuildStep({
   previewReturn,
   completeReturn,
   onAuthorizationRequired,
+  onCompleted,
   onLeave,
   onSessionInvalid,
 }: ReturnBuildStepProps) {
-  const [draft, setDraft] = useState<ReturnDraft>(EMPTY_RETURN_DRAFT);
-  const [refundEdits, setRefundEdits] = useState<Readonly<Record<string, string>>>({});
-  const [completing, setCompleting] = useState(false);
   const [notice, setNotice] = useState<string>();
-  const [completed, setCompleted] = useState<{
-    refundedTotal: number;
-    lines: CompletedReturnLine[];
-  }>();
+  const { form, submit, submitting, values } = useRequestForm({
+    defaultValues: EMPTY_RETURN_FORM,
+    request: { schema: returnRequestSchema, from: requestFrom },
+    fields: RETURN_FIELDS,
+    messages: { refunds: INVALID_REFUND_MESSAGE },
+    onSubmit: (request) => complete(request),
+  });
 
-  const lines = draftLinesFor(sale, draft);
+  const lines = draftLinesFor(sale, values.lines);
   const preview = usePreviewReturnQuery({
     saleId: sale.sale_id,
     lines,
     preview: previewReturn,
     enabled: lines.length > 0,
   });
-  const previewed =
-    lines.length > 0 && preview.status === "loaded" && preview.value.kind === "previewed"
-      ? preview.value
-      : undefined;
+  const answered = lines.length > 0 && preview.status === "loaded" ? preview.value : undefined;
+  const previewed = answered?.kind === "previewed" ? answered : undefined;
   const previewRefreshing = preview.status === "loaded" && preview.refreshing;
-  const previewSignedOut =
-    lines.length > 0 && preview.status === "loaded" && preview.value.kind === "not_signed_in";
-  const saleGone =
-    lines.length > 0 &&
-    preview.status === "loaded" &&
-    (preview.value.kind === "not_found" || preview.value.kind === "sale_not_returnable");
+  const previewSignedOut = answered?.kind === "not_signed_in";
 
   useEffect(() => {
     if (previewSignedOut) {
@@ -118,36 +114,36 @@ export function ReturnBuildStep({
   const refusedLine =
     firstRefusal === undefined ? undefined : lineOf(sale, firstRefusal.sale_line_id);
   const refundableTotal = previewed?.refundable_total ?? 0;
-  const refundDraft = refundDraftFor(sale.payments, refundableTotal, refundEdits);
-  const refunds = refundsOf(refundDraft);
+  const refundTexts = refundTextsFor(sale.payments, refundableTotal, values.refunds);
   const canComplete =
-    !completing &&
+    !submitting &&
     previewed !== undefined &&
     !previewRefreshing &&
     firstRefusal === undefined &&
-    refunds.length > 0 &&
     authorization.ready;
 
+  function requestFrom(formValues: ReturnFormValues): ReturnRequest {
+    return returnRequestFrom(sale, refundableTotal, formValues);
+  }
+
   function change(next: ReturnDraft) {
-    setDraft(next);
-    setRefundEdits({});
+    form.setFieldValue("lines", next);
+    form.setFieldValue("refunds", {});
     setNotice(undefined);
   }
 
-  async function complete() {
-    if (!canComplete || previewed === undefined) {
+  async function complete(request: ReturnRequest) {
+    if (previewed === undefined) {
       return;
     }
-    setCompleting(true);
     setNotice(undefined);
     const outcome = await completeReturn({
       saleId: sale.sale_id,
       ticketSource: source,
-      lines,
-      refunds,
+      lines: request.lines,
+      refunds: request.refunds,
       authorization: authorization.value,
     }).catch((): "failed" => "failed");
-    setCompleting(false);
     if (outcome === "failed") {
       setNotice(COMPLETE_FAILED);
       return;
@@ -155,7 +151,7 @@ export function ReturnBuildStep({
     switch (outcome.kind) {
       case "completed":
         authorization.performed();
-        setCompleted({
+        onCompleted({
           refundedTotal: outcome.refunded_total,
           lines: previewed.lines.flatMap((line) => {
             const sold = lineOf(sale, line.sale_line_id);
@@ -175,7 +171,7 @@ export function ReturnBuildStep({
         break;
       case "not_found":
       case "sale_not_returnable":
-        setNotice("Esa venta ya no se puede devolver.");
+        setNotice(SALE_GONE);
         break;
       case "no_open_session":
         setNotice("No hay una caja abierta para entregar el dinero.");
@@ -230,9 +226,11 @@ export function ReturnBuildStep({
   const panelNotice =
     firstRefusal?.refusal != null && refusedLine !== undefined
       ? lineRefusalNotice(firstRefusal.refusal, refusedLine)
-      : saleGone
-        ? "Esa venta ya no se puede devolver."
-        : notice;
+      : answered?.kind === "not_found" || answered?.kind === "sale_not_returnable"
+        ? SALE_GONE
+        : answered?.kind === "lacks_permission"
+          ? NOT_PERMITTED
+          : notice;
 
   return (
     <>
@@ -250,14 +248,12 @@ export function ReturnBuildStep({
         </div>
         <ReturnLinesTable
           sale={sale}
-          draft={draft}
+          draft={values.lines}
           refusals={refusals}
           onCheck={(line, checked) =>
-            change(checked ? checkLine(draft, line) : uncheckLine(draft, line.id))
+            change(checked ? checkLine(values.lines, line) : uncheckLine(values.lines, line.id))
           }
-          onChange={(lineId: string, edit: Partial<ReturnDraftLine>) =>
-            change(changeLine(draft, lineId, edit))
-          }
+          onChange={(lineId, edit) => change(changeLine(values.lines, lineId, edit))}
         />
       </main>
       <SidePanel
@@ -267,7 +263,7 @@ export function ReturnBuildStep({
               <AuthorizationSection
                 authorization={authorization}
                 action="hacer devoluciones"
-                disabled={completing}
+                disabled={submitting}
               />
             ) : (
               <InlineNotice
@@ -276,14 +272,6 @@ export function ReturnBuildStep({
                 title={`Autorizó ${authorizedBy.first_name}`}
               />
             )}
-            {preview.status === "failed" && lines.length > 0 ? (
-              <LoadFailure
-                icon={<TriangleAlert />}
-                title="No se pudo calcular el reintegro"
-                description="Probá de nuevo."
-                onRetry={preview.retry}
-              />
-            ) : null}
             {panelNotice === undefined ? null : (
               <InlineNotice tone="warning" icon={<TriangleAlert />} title={panelNotice} />
             )}
@@ -292,67 +280,38 @@ export function ReturnBuildStep({
               fullWidth
               icon={<Check />}
               disabled={!canComplete}
-              dataStatus={completing ? "loading" : "loaded"}
-              onPress={() => void complete()}
+              dataStatus={submitting ? "loading" : "loaded"}
+              onPress={() => void submit()}
             >
               Completar devolución
             </Button>
-            <Button variant="text" destructive onPress={onLeave}>
+            <Button variant="text" destructive disabled={submitting} onPress={onLeave}>
               Salir sin completar
             </Button>
           </>
         }
       >
-        <FigureStat label="A REINTEGRAR" value={formatCents(refundableTotal)} />
+        {lines.length > 0 && preview.status === "failed" ? (
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo calcular el reintegro"
+            description="Probá de nuevo."
+            onRetry={preview.retry}
+          />
+        ) : lines.length > 0 && preview.status === "loading" ? (
+          <FigureStat label="A REINTEGRAR" loading />
+        ) : (
+          <FigureStat label="A REINTEGRAR" value={formatCents(refundableTotal)} />
+        )}
         <SummaryRowGroup
           variant="divided"
           rows={[{ label: "Líneas a devolver", value: String(lines.length) }]}
         />
         <Eyebrow text="SE DEVUELVE POR EL MEDIO DEL PAGO" />
-        <ul className="flex flex-col gap-4">
-          {refundDraft.map(({ payment, text }) => {
-            const name = paymentMethodName(payment.method);
-            return (
-              <li key={payment.payment_id} className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-body font-bold text-text">{name}</span>
-                    <span className="text-detail text-text-subtle">
-                      {`Pagó ${formatCents(payment.amount)}`}
-                    </span>
-                  </div>
-                  <div className="w-44 shrink-0">
-                    <TextField
-                      kind="amount"
-                      prefix="$"
-                      label={`Reintegro por ${name}`}
-                      labelVisuallyHidden
-                      inputMode="decimal"
-                      value={text}
-                      disabled={!payment.eligible}
-                      onChange={(value) =>
-                        setRefundEdits({ ...refundEdits, [payment.payment_id]: value })
-                      }
-                    />
-                  </div>
-                </div>
-                {payment.ineligible_reason === null ? null : (
-                  <p className="text-detail text-text-subtle">
-                    {paymentIneligibleText(payment.ineligible_reason)}
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <form.AppField name="refunds">
+          {() => <ReturnRefundsField texts={refundTexts} disabled={submitting} />}
+        </form.AppField>
       </SidePanel>
-      {completed === undefined ? null : (
-        <ReturnCompletedModal
-          refundedTotal={completed.refundedTotal}
-          lines={completed.lines}
-          onDone={onLeave}
-        />
-      )}
     </>
   );
 }

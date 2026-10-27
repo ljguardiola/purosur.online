@@ -2,8 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { CompletedReturnLine } from "./return-completed-modal";
-import { ReturnCompletedModal } from "./return-completed-modal";
+import type { CompletedReturnLine } from "./hand-over-refund-modal";
+import { HandOverRefundModal } from "./hand-over-refund-modal";
 
 const LINES: CompletedReturnLine[] = [
   {
@@ -27,12 +27,12 @@ async function renderModal() {
   onTestFinished(() => page.viewport(414, 896));
   const onDone = vi.fn();
   const screen = await render(
-    <ReturnCompletedModal refundedTotal={1_393_500} lines={LINES} onDone={onDone} />,
+    <HandOverRefundModal refundedTotal={1_393_500} lines={LINES} onDone={onDone} />,
   );
   return { screen, onDone };
 }
 
-describe("ReturnCompletedModal", () => {
+describe("HandOverRefundModal", () => {
   it("tells the cashier to hand the money to the customer", async () => {
     const { screen } = await renderModal();
 

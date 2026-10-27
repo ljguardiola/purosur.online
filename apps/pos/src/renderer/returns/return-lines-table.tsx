@@ -11,7 +11,7 @@ import {
   TextField,
   useTableModel,
 } from "@purosur/ui";
-import type { ReturnDraft, ReturnDraftLine } from "./return-draft";
+import type { ReturnDraft, ReturnDraftLine } from "./return-form";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
 import type { ReturnReasonValue } from "./return-text";
 import { DISPOSITION_OPTIONS, quantityText, REASON_OPTIONS } from "./return-text";
@@ -27,9 +27,6 @@ export type ReturnLinesTableProps = {
 const PROMOTION_REASON = "Las promociones se devuelven completas";
 
 function descriptionOf(line: SaleLineForReturn): string {
-  if (line.returnable_quantity === 0) {
-    return "Ya se devolvió completa";
-  }
   const sold = `${quantityText(line.sale_unit, line.sold_quantity)} · ${formatCents(line.charged_amount)}`;
   return line.returned_quantity === 0
     ? sold
@@ -64,17 +61,19 @@ export function ReturnLinesTable({
     dataColumn({
       id: "product",
       header: "Producto",
-      render: (line: SaleLineForReturn) => (
-        <Checkbox
-          name={`return-${line.id}`}
-          checked={draft[line.id] !== undefined}
-          disabled={line.returnable_quantity === 0}
-          description={descriptionOf(line)}
-          onCheckedChange={(checked) => onCheck(line, checked)}
-        >
-          {line.product_name}
-        </Checkbox>
-      ),
+      render: (line: SaleLineForReturn) =>
+        line.returnable_quantity === 0 ? (
+          <TableCellText description="Ya se devolvió completa">{line.product_name}</TableCellText>
+        ) : (
+          <Checkbox
+            name={`return-${line.id}`}
+            checked={draft[line.id] !== undefined}
+            description={descriptionOf(line)}
+            onCheckedChange={(checked) => onCheck(line, checked)}
+          >
+            {line.product_name}
+          </Checkbox>
+        ),
     }),
     dataColumn({
       id: "quantity",

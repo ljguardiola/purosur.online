@@ -2,8 +2,8 @@ import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { insertPaymentRefund } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement } from "../register/sqlite-cash-ledger";
-import { insertReturn } from "../returns/sqlite-return-ledger";
 import { addToStockBalance, insertReturnStockMovement } from "../stock/sqlite-stock-ledger";
+import { insertReturn } from "./sqlite-return-ledger";
 
 type ReturnedSaleFact = Extract<SyncedFact, { kind: "sale_returned" }>;
 

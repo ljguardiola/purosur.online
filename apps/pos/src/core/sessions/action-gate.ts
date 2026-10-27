@@ -13,6 +13,7 @@ type OperationOf<Kind extends RegisterOperation["kind"]> = Extract<
 type SignedInOperation = OperationOf<
   | "open_cash_session"
   | "sell"
+  | "preview_return"
   | "close_cash_session"
   | "view_sales_history"
   | "configure_receipt_printer"

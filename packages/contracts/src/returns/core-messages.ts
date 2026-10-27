@@ -51,7 +51,7 @@ const previewReturnMessageSchema = z.object({
   lines: z.array(returnDraftLineSchema),
 });
 
-const completeReturnMessageSchema = z.object({
+export const completeReturnMessageSchema = z.object({
   type: z.literal("complete-return"),
   request_id: requestIdSchema,
   sale_id: z.string(),

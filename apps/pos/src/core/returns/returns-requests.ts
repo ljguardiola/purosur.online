@@ -77,11 +77,11 @@ export async function previewReturnFor(
   { database, gate, now }: ReturnRequestDeps,
   request: PreviewReturnRequest,
 ): Promise<PreviewReturnOutcome> {
-  const guarded = await gate.run({ kind: "sell" }, async () =>
+  const guarded = await gate.run({ kind: "preview_return" }, async () =>
     previewReturn({ reader: new SqliteReturnSaleReader(database), clock: { now } }, request),
   );
   if (guarded.kind !== "performed") {
-    return { kind: "not_signed_in" };
+    return guarded;
   }
   const { result } = guarded;
   return result.kind === "previewed"

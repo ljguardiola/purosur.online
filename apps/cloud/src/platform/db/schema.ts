@@ -1785,8 +1785,7 @@ export const saleReturns = pgTable(
   ],
 );
 
-// Append-only like the return it belongs to; refunded_amount is what the line gave back, for the
-// credit note that follows.
+// Append-only like the return it belongs to.
 export const returnLines = pgTable(
   "return_lines",
   {

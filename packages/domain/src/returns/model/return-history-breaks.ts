@@ -1,3 +1,4 @@
+import { exceedsRefundable } from "../../payments/index.js";
 import type { ReturnReason } from "./return-reasons.js";
 import { isReturnWindowOpen, returnWindowLastDay } from "./return-window.js";
 
@@ -29,7 +30,9 @@ function refundsExceedPayments(
   }
   return [...refundedNow].some(([paymentId, amount]) => {
     const payment = payments.find((candidate) => candidate.paymentId === paymentId);
-    return payment === undefined || payment.refundedAmount + amount > payment.amount;
+    return (
+      payment === undefined || exceedsRefundable(amount, payment.amount, payment.refundedAmount)
+    );
   });
 }
 

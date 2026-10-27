@@ -12,6 +12,8 @@ import type { CompleteReturnInput, SaleForReturnReading } from "../platform/core
 import { OpenSessionRail } from "../shell/open-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
+import type { CompletedReturn } from "./hand-over-refund-modal";
+import { HandOverRefundModal } from "./hand-over-refund-modal";
 import { ReturnBuildStep } from "./return-build-step";
 import { ReturnFindStep } from "./return-find-step";
 import type { SaleForReturn } from "./return-sale";
@@ -37,7 +39,13 @@ export type ReturnScreenProps = {
 type Standing =
   | { step: "find" }
   | { step: "confirm"; sale: SaleForReturn; source: "QR" | "TYPED" }
-  | { step: "build"; sale: SaleForReturn; source: "QR" | "TYPED" };
+  | { step: "build"; sale: SaleForReturn; source: "QR" | "TYPED" }
+  | {
+      step: "completed";
+      sale: SaleForReturn;
+      source: "QR" | "TYPED";
+      completed: CompletedReturn;
+    };
 
 function ReturnFlow({
   person,
@@ -67,7 +75,7 @@ function ReturnFlow({
         current="return"
         abilities={person.abilities}
       />
-      {standing.step === "build" ? (
+      {standing.step === "build" || standing.step === "completed" ? (
         <ReturnBuildStep
           sale={standing.sale}
           source={standing.source}
@@ -75,6 +83,14 @@ function ReturnFlow({
           previewReturn={previewReturn}
           completeReturn={completeReturn}
           onAuthorizationRequired={() => setAuthorizationRequired(true)}
+          onCompleted={(completed) =>
+            setStanding({
+              step: "completed",
+              sale: standing.sale,
+              source: standing.source,
+              completed,
+            })
+          }
           onLeave={restart}
           onSessionInvalid={onSessionInvalid}
         />
@@ -95,6 +111,13 @@ function ReturnFlow({
             setStanding({ step: "build", sale: standing.sale, source: standing.source })
           }
           onReject={() => setStanding({ step: "find" })}
+        />
+      ) : null}
+      {standing.step === "completed" ? (
+        <HandOverRefundModal
+          refundedTotal={standing.completed.refundedTotal}
+          lines={standing.completed.lines}
+          onDone={restart}
         />
       ) : null}
     </div>

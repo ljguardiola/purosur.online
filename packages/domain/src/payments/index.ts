@@ -75,6 +75,7 @@ export type {
   RefundState,
 } from "./model/payment-refund.js";
 export {
+  exceedsRefundable,
   isRefundPending,
   latePaymentRefund,
   latePaymentRefundOfUnrecordedOrder,
@@ -89,6 +90,7 @@ export {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   RETURN_REFUND_ORIGIN,
+  refundableAmount,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,

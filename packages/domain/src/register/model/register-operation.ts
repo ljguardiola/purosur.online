@@ -15,6 +15,7 @@ export type RegisterOperation =
   | { kind: "cancel_paid_sale" }
   | { kind: "void_sale" }
   | { kind: "process_return" }
+  | { kind: "preview_return" }
   | { kind: "adjust_sale_line" }
   | { kind: "apply_sale_discount" }
   | { kind: "reprint_receipt" }
@@ -88,6 +89,8 @@ export function registerOperationAccess(
         : holdsPermission(actor.access, PROCESS_RETURN_PERMISSION)
           ? PERMITTED
           : { kind: "needs_authorization", permission: PROCESS_RETURN_PERMISSION };
+    case "preview_return":
+      return actor.access === undefined ? NO_ACCESS : PERMITTED;
     case "adjust_sale_line":
       return actor.access === undefined
         ? NO_ACCESS

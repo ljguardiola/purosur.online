@@ -11,13 +11,14 @@ export type CompletedReturnLine = {
   amount: number;
 };
 
-export type ReturnCompletedModalProps = {
+export type CompletedReturn = {
   refundedTotal: number;
   lines: readonly CompletedReturnLine[];
-  onDone: () => void;
 };
 
-export function ReturnCompletedModal({ refundedTotal, lines, onDone }: ReturnCompletedModalProps) {
+export type HandOverRefundModalProps = CompletedReturn & { onDone: () => void };
+
+export function HandOverRefundModal({ refundedTotal, lines, onDone }: HandOverRefundModalProps) {
   return (
     <Modal
       open

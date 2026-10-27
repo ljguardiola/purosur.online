@@ -6,9 +6,9 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
 import { insertCashMovement, insertOpenedSession } from "../register/sqlite-cash-ledger";
+import { applyReplenishedSaleFact } from "../sales/replenished-sale-facts";
 import { addToStockBalance } from "../stock/sqlite-stock-ledger";
 import { applyReplenishedReturnFact } from "./replenished-return-facts";
-import { applyReplenishedSaleFact } from "./replenished-sale-facts";
 
 const SOURCE = { eventId: "event-1", deviceId: "device-old" };
 

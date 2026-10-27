@@ -1,4 +1,9 @@
-import { DEFAULT_GOOD_CONDITION_RETURN_DAYS, type SaleReturnHistory } from "@purosur/domain";
+import {
+  APPROVED_PAYMENT_STATE,
+  DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  REFUND_DISCARDED_STATE,
+  type SaleReturnHistory,
+} from "@purosur/domain";
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
@@ -46,9 +51,12 @@ export async function saleReturnHistory<TQueryResult extends PgQueryResultHKT>(
     .from(salePayments)
     .leftJoin(
       paymentRefunds,
-      and(eq(paymentRefunds.paymentId, salePayments.id), ne(paymentRefunds.state, "DISCARDED")),
+      and(
+        eq(paymentRefunds.paymentId, salePayments.id),
+        ne(paymentRefunds.state, REFUND_DISCARDED_STATE),
+      ),
     )
-    .where(and(eq(salePayments.saleId, saleId), eq(salePayments.state, "APPROVED")))
+    .where(and(eq(salePayments.saleId, saleId), eq(salePayments.state, APPROVED_PAYMENT_STATE)))
     .groupBy(salePayments.id, salePayments.amount);
   return {
     saleOccurredAt: sale.completedAt,
