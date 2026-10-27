@@ -8,7 +8,6 @@ import {
   hardwareTestNotes,
   installerVersion,
   parseCandidateManifest,
-  registerReleaseNotes,
   runCli,
   runNumberOfVersion,
   runOfCommit,
@@ -306,23 +305,6 @@ test("the CLI names what is missing and refuses an unknown command", async () =>
   const noOutput = cliHarness({ INSTALLER_VERSION: "0.0.1", GITHUB_OUTPUT: "" });
   assert.equal(await runCli({ ...noOutput.options, argv: ["run-of-version"] }), 1);
   assert.match(noOutput.errors.join("\n"), /GITHUB_OUTPUT/);
-});
-
-test("adds the installer version to the release notes", () => {
-  assert.equal(
-    registerReleaseNotes({ notes: "## Features\n\n- a\n", version: "0.0.57" }),
-    "## Features\n\n- a\n\nInstaller version 0.0.57\n",
-  );
-});
-
-test("the CLI appends the installer version to the notes file, whatever devices it is given", async () => {
-  const harness = cliHarness(
-    { RELEASE_NOTES_FILE: "notes.md", INSTALLER_VERSION: "0.0.57", DEVICES: "printer,scale" },
-    { "notes.md": "- a\n" },
-  );
-
-  assert.equal(await runCli({ ...harness.options, argv: ["release-notes"] }), 0);
-  assert.equal(harness.written["notes.md"], "- a\n\nInstaller version 0.0.57\n");
 });
 
 test("flags the devices to test by hand in the release notes", () => {

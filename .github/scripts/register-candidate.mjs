@@ -131,10 +131,6 @@ function joinSections(sections) {
   return `${sections.filter((section) => section !== "").join("\n\n")}\n`;
 }
 
-export function registerReleaseNotes({ notes, version }) {
-  return joinSections([notes.trimEnd(), `Installer version ${version}`]);
-}
-
 export function hardwareTestNotes({ body, devices, hardwareTest }) {
   const sections = [body.trimEnd()];
   const required = `## Hardware test required: ${devices.join(", ")}`;
@@ -216,18 +212,6 @@ const COMMANDS = new Map(
             version: POS_VERSION,
             stagingInstallerSha512: await installerSha512(STAGING_INSTALLER_DIR),
           }),
-        );
-        return "";
-      },
-    },
-    "release-notes": {
-      needs: ["RELEASE_NOTES_FILE", "INSTALLER_VERSION"],
-      async run({ RELEASE_NOTES_FILE, INSTALLER_VERSION }, { readFile, writeFile }) {
-        assertInstallerVersion(INSTALLER_VERSION);
-        const notes = await readFile(RELEASE_NOTES_FILE);
-        await writeFile(
-          RELEASE_NOTES_FILE,
-          registerReleaseNotes({ notes, version: INSTALLER_VERSION }),
         );
         return "";
       },
