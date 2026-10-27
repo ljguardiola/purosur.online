@@ -17,6 +17,7 @@ import {
   A_CLOCK_CORRECTED_FACT,
   A_DEFERRED_SALE_RECORDED_FACT,
   A_GATE_FAILED_FACT,
+  aReturnedSaleFact,
   aVoidedSaleFact,
 } from "../model/test-support/synced-facts.js";
 import { replenishRestoredRegister } from "./replenish-restored-register.js";
@@ -657,6 +658,43 @@ describe("replenishRestoredRegister", () => {
       await expect(run()).rejects.toThrow("storage unavailable");
 
       expect(store.state).toMatchObject({ facts: [], heldCreditNotes: [], appliedEventIds: [] });
+    });
+  });
+
+  describe("the credit note of a return", () => {
+    function aReturnWithItsCreditNote() {
+      const run = aRestoredRegister();
+      const creditNote: CreditNoteToIssue = {
+        ...aCreditNote("sale-1", "credit-note-of-return"),
+        total: 1000,
+        origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-10-08" },
+      };
+      const event = anEvent("device-old", 53);
+      run.decoder.facts.set(event.event.event_id, { ...aReturnedSaleFact(), creditNote });
+      return { ...run, creditNote, event };
+    }
+
+    it("records the cloud's answer for the credit note the return asked for, then the event", async () => {
+      const { feed, store, run, creditNote, event } = aReturnWithItsCreditNote();
+      const answer = anAuthorizedAnswer(creditNote);
+      feed.answers = [aPage([event], null, [], [answer])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.creditNoteAnswers).toEqual([{ creditNote, answer }]);
+      expect(store.state.appliedEventIds).toEqual([event.event.event_id]);
+    });
+
+    it("holds to request the credit note of a return the cloud never recorded, leaving its event unapplied", async () => {
+      const { feed, store, run, creditNote, event } = aReturnWithItsCreditNote();
+      feed.answers = [aPage([event], null, [], [], [creditNote.creditNoteId])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.heldCreditNotes).toHaveLength(1);
+      expect(store.state.appliedEventIds).toEqual([]);
     });
   });
 
