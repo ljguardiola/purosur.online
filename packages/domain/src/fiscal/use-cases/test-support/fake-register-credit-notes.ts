@@ -110,9 +110,9 @@ export class FakeCloudCreditNotes implements CloudCreditNotes {
 }
 
 export class FakeCreditNotePrinter implements CreditNotePrinter {
-  readonly started: string[] = [];
+  readonly started: { saleId: string; creditNoteId: string }[] = [];
 
-  startPrinting(saleId: string): void {
-    this.started.push(saleId);
+  startPrinting(creditNote: { saleId: string; creditNoteId: string }): void {
+    this.started.push(creditNote);
   }
 }

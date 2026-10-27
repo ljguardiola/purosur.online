@@ -63,7 +63,13 @@ describe("receiptDeliveryOf", () => {
       creditedSale({ printAttemptedAt: FIRST_PRINT_AT }, { printAttemptedAt: null }),
     ]);
 
-    expect(receiptDeliveryOf(rig.ports, { document: "credit_note", saleId: "sale-1" })).toEqual({
+    expect(
+      receiptDeliveryOf(rig.ports, {
+        document: "credit_note",
+        saleId: "sale-1",
+        creditNoteId: "credit-note-1",
+      }),
+    ).toEqual({
       kind: "found",
       nextCopy: { kind: "duplicate", orderNumber: 1 },
       printAttemptedAt: FIRST_PRINT_AT,

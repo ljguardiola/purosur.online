@@ -130,7 +130,7 @@ describe("requestSaleCreditNote", () => {
       answer: AUTHORIZED,
       answeredAt: NOW,
     });
-    expect(printer.started).toEqual(["sale-1"]);
+    expect(printer.started).toEqual([{ saleId: "sale-1", creditNoteId: "credit-note-1" }]);
   });
 
   it.each<[string, RequestedCreditNoteAnswer]>([
@@ -178,7 +178,7 @@ describe("requestSaleCreditNote", () => {
         answer: AUTHORIZED,
         answeredAt: recordedFirstAt,
       });
-      expect(printer.started).toEqual(["sale-1"]);
+      expect(printer.started).toEqual([{ saleId: "sale-1", creditNoteId: "credit-note-1" }]);
     });
 
     it("answers and prints the authorization recorded while it asked, even when its own answer was unclear", async () => {
@@ -186,7 +186,7 @@ describe("requestSaleCreditNote", () => {
       cloud.beforeReplying = () => creditNotes.recordAnswer("credit-note-1", AUTHORIZED, NOW);
 
       expect(await run()).toEqual({ kind: "answered", answer: AUTHORIZED });
-      expect(printer.started).toEqual(["sale-1"]);
+      expect(printer.started).toEqual([{ saleId: "sale-1", creditNoteId: "credit-note-1" }]);
     });
 
     it("asks nothing for a credit note already answered, answering and printing what was recorded", async () => {
@@ -195,7 +195,7 @@ describe("requestSaleCreditNote", () => {
 
       expect(await run()).toEqual({ kind: "answered", answer: AUTHORIZED });
       expect(cloud.calls).toEqual([]);
-      expect(printer.started).toEqual(["sale-1"]);
+      expect(printer.started).toEqual([{ saleId: "sale-1", creditNoteId: "credit-note-1" }]);
     });
   });
 
@@ -205,7 +205,7 @@ describe("requestSaleCreditNote", () => {
 
     expect(await run()).toEqual({ kind: "answered", answer: ISSUED_OFFLINE });
     expect(cloud.calls).toEqual([]);
-    expect(printer.started).toEqual(["sale-1"]);
+    expect(printer.started).toEqual([{ saleId: "sale-1", creditNoteId: "credit-note-1" }]);
   });
 
   describe("a credit note that waits for the invoice of its sale", () => {

@@ -233,6 +233,7 @@ describe("synced event payloads", () => {
       "sale_completed@8",
       "sale_print_state_changed@1",
       "sale_print_state_changed@2",
+      "sale_print_state_changed@3",
       "sale_returned@1",
       "sale_returned@2",
       "sale_voided@1",
@@ -2027,6 +2028,71 @@ describe("synced event payloads", () => {
       expect(accepts("sale_print_state_changed", 2, { ...state(), printed_at: null })).toBe(true);
       expect(accepts("sale_print_state_changed", 2, { ...state(), printed_at: "now" })).toBe(false);
       expect(accepts("sale_print_state_changed", 2, { ...state(), sale_id: "" })).toBe(false);
+    });
+  });
+
+  describe("sale_print_state_changed v3", () => {
+    const state = (document: string, extra: Payload = {}): Payload => ({
+      sale_id: "sale-1",
+      document,
+      print_attempted_at: "2026-10-06T11:21:00.000Z",
+      printed_at: "2026-10-06T11:21:05.000Z",
+      ...extra,
+    });
+    const creditNoteState = (): Payload => state("credit_note", { credit_note_id: "note-1" });
+
+    it("accepts the state of a credit note, naming the credit note", () => {
+      expect(accepts("sale_print_state_changed", 3, creditNoteState())).toBe(true);
+      expect(
+        accepts("sale_print_state_changed", 3, { ...creditNoteState(), printed_at: null }),
+      ).toBe(true);
+    });
+
+    it.each(["sale_receipt", "deferred_invoice"])(
+      "accepts the state of a %s, which names no credit note",
+      (document) => {
+        expect(accepts("sale_print_state_changed", 3, state(document))).toBe(true);
+      },
+    );
+
+    it("refuses the state of a credit note that names none or an empty one", () => {
+      expect(accepts("sale_print_state_changed", 3, state("credit_note"))).toBe(false);
+      expect(
+        accepts("sale_print_state_changed", 3, state("credit_note", { credit_note_id: "" })),
+      ).toBe(false);
+      expect(
+        accepts("sale_print_state_changed", 3, state("credit_note", { credit_note_id: null })),
+      ).toBe(false);
+    });
+
+    it.each(["sale_receipt", "deferred_invoice"])(
+      "refuses the state of a %s that names a credit note",
+      (document) => {
+        expect(
+          accepts("sale_print_state_changed", 3, state(document, { credit_note_id: "note-1" })),
+        ).toBe(false);
+      },
+    );
+
+    it("refuses a document the register does not print", () => {
+      expect(accepts("sale_print_state_changed", 3, state("invoice"))).toBe(false);
+    });
+
+    it("refuses the state without any one of its fields", () => {
+      for (const field of Object.keys(creditNoteState())) {
+        const { [field]: _removed, ...rest } = creditNoteState();
+
+        expect(accepts("sale_print_state_changed", 3, rest), field).toBe(false);
+      }
+    });
+
+    it("keeps the printing of version 2 as fields it needs", () => {
+      expect(
+        accepts("sale_print_state_changed", 3, { ...state("sale_receipt"), printed_at: "now" }),
+      ).toBe(false);
+      expect(
+        accepts("sale_print_state_changed", 3, { ...state("sale_receipt"), sale_id: "" }),
+      ).toBe(false);
     });
   });
 

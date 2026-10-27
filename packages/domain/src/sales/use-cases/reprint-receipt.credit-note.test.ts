@@ -12,13 +12,18 @@ import {
   FIRST_PRINT_AT,
   NOT_PERMITTED,
   receiptRig,
+  returnCreditNote,
   SENT_AT,
   voidedSale,
 } from "./test-support/receipt-rig.js";
 
 const creditedSale = creditedSales(FICTIONAL_ISSUER);
 
-const CREDIT_NOTE = { document: "credit_note", saleId: "sale-1" } as const;
+const CREDIT_NOTE = {
+  document: "credit_note",
+  saleId: "sale-1",
+  creditNoteId: "credit-note-1",
+} as const;
 const DUPLICATE_INPUT = { ...CREDIT_NOTE, reason: "el cliente la perdió" };
 
 const encoder = new TextEncoder();
@@ -155,6 +160,39 @@ describe("reprintReceipt of a credit note", () => {
         printedAt: null,
         reprints: [],
       });
+    });
+  });
+
+  describe("a sale with the credit notes of its returns", () => {
+    it("reprints the credit note the key names and records the reprint on it alone", async () => {
+      const first = creditedSale({ printAttemptedAt: FIRST_PRINT_AT, stored: STORED });
+      const rig = receiptRig([
+        {
+          ...first,
+          returnCreditNotes: [
+            returnCreditNote(FICTIONAL_ISSUER, {
+              printAttemptedAt: FIRST_PRINT_AT,
+              stored: STORED,
+            }),
+          ],
+        },
+      ]);
+
+      const printing = reprintReceipt(
+        rig.ports,
+        { ...DUPLICATE_INPUT, creditNoteId: "credit-note-2" },
+        rig.watch,
+      );
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
+
+      expect(await printing).toEqual({
+        kind: "printed",
+        copy: { kind: "duplicate", orderNumber: 1 },
+      });
+      const [sale] = rig.ledger.state.sales;
+      expect(sale?.returnCreditNotes?.[0]?.reprints).toHaveLength(1);
+      expect(sale?.creditNote?.reprints).toEqual([]);
     });
   });
 

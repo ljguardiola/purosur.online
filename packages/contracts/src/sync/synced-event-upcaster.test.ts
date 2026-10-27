@@ -1270,7 +1270,7 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
-  it.each(["sale_receipt", "credit_note"] as const)(
+  it.each(["sale_receipt", "deferred_invoice"] as const)(
     "reads the print state of a sale's %s as the document the event names",
     (document) => {
       const decoded = upcaster.decode(
@@ -1278,6 +1278,102 @@ describe("decoding the events the registers pushed", () => {
           pushed({
             event_type: "sale_print_state_changed",
             schema_version: 2,
+            payload: {
+              sale_id: SALE,
+              document,
+              print_attempted_at: "2026-10-06T11:21:00.000Z",
+              printed_at: null,
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toEqual({
+        kind: "fact",
+        fact: {
+          kind: "sale_print_state_changed",
+          printState: {
+            saleId: SALE,
+            document,
+            printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
+            printedAt: null,
+          },
+        },
+      });
+    },
+  );
+
+  it("reads the print state of a credit note version 2 names no credit note for as the state of an unnamed one", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_print_state_changed",
+          schema_version: 2,
+          payload: {
+            sale_id: SALE,
+            document: "credit_note",
+            print_attempted_at: "2026-10-06T11:21:00.000Z",
+            printed_at: null,
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "sale_print_state_changed",
+        printState: {
+          saleId: SALE,
+          document: "credit_note",
+          creditNoteId: null,
+          printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
+          printedAt: null,
+        },
+      },
+    });
+  });
+
+  it("reads the print state of a credit note as the state of the credit note the event names", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_print_state_changed",
+          schema_version: 3,
+          payload: {
+            sale_id: SALE,
+            document: "credit_note",
+            credit_note_id: "credit-note-7",
+            print_attempted_at: "2026-10-06T11:21:00.000Z",
+            printed_at: "2026-10-06T11:21:05.000Z",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "sale_print_state_changed",
+        printState: {
+          saleId: SALE,
+          document: "credit_note",
+          creditNoteId: "credit-note-7",
+          printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
+          printedAt: new Date("2026-10-06T11:21:05.000Z"),
+        },
+      },
+    });
+  });
+
+  it.each(["sale_receipt", "deferred_invoice"] as const)(
+    "reads the print state of a %s in version 3 with no credit note",
+    (document) => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            event_type: "sale_print_state_changed",
+            schema_version: 3,
             payload: {
               sale_id: SALE,
               document,
