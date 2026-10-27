@@ -605,6 +605,14 @@ export {
 } from "./register/snapshot-worker.js";
 export type { StartupPending } from "./register/startup-pending.js";
 export type {
+  BranchSaleForReturnAnswer,
+  BranchSaleForReturnQuery,
+} from "./returns/branch-sale-for-return.js";
+export {
+  branchSaleForReturnAnswerSchema,
+  branchSaleForReturnQuerySchema,
+} from "./returns/branch-sale-for-return.js";
+export type {
   ReturnsCoreToRendererMessage,
   ReturnsRendererToCoreMessage,
 } from "./returns/core-messages.js";
