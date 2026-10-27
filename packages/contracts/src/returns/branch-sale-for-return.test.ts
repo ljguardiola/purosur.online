@@ -47,6 +47,8 @@ const answer = {
     id: "sale-1",
     register_id: "register-2",
     device_id: "device-2",
+    session_id: "session-2",
+    actor_id: "cashier",
     state: "COMPLETED",
     sale_discount: {
       kind: "AMOUNT",

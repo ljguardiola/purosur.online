@@ -26,7 +26,7 @@ function facts(): SaleForReturn {
       },
       {
         id: "pay-card",
-        method: "CARD",
+        method: "TRANSFER",
         provider: "NONE",
         amount: 5000,
         state: "APPROVED",

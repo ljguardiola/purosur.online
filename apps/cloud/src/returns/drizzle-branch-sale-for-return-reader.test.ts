@@ -148,7 +148,7 @@ const INVOICE = { kind: "invoice", pointOfSale: 7, number: 42 } as const;
 
 describe("reading a sale of the branch to return it from another register", () => {
   it("holds the facts of a sale rung up on another register of the asking register's branch", async () => {
-    const { asking, selling, completed } = await setUp();
+    const { asking, selling, completed, sessionId } = await setUp();
     await authorizeInvoice(selling.registerId, completed.id);
 
     const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
@@ -159,6 +159,8 @@ describe("reading a sale of the branch to return it from another register", () =
           id: completed.id,
           registerId: selling.registerId,
           deviceId: selling.deviceId,
+          sessionId,
+          actorId: CASHIER,
           state: "COMPLETED",
           saleDiscount: null,
           lines: [
