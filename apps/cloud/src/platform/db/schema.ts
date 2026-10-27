@@ -570,15 +570,15 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
-      sql`(${table.kind} in ('sale', 'sale_void')) = (${table.saleLineId} is not null)`,
+      sql`(${table.kind} in ('sale', 'sale_void', 'return')) = (${table.saleLineId} is not null)`,
     ),
     check(
       "stock_movements_purchase_line_iff_receipt_check",
@@ -1684,11 +1684,11 @@ export const paymentRefunds = pgTable(
     ),
     check(
       "payment_refunds_origin_check",
-      sql`${table.origin} in ('sale_cancelled', 'late_payment', 'sale_voided')`,
+      sql`${table.origin} in ('sale_cancelled', 'late_payment', 'sale_voided', 'return')`,
     ),
     check(
       "payment_refunds_source_check",
-      sql`(${table.origin} = 'late_payment' and ${table.paymentId} is null and ${table.paymentTransactionId} is not null and ${table.originEventId} is null) or (${table.origin} in ('sale_cancelled', 'sale_voided') and ${table.paymentId} is not null)`,
+      sql`(${table.origin} = 'late_payment' and ${table.paymentId} is null and ${table.paymentTransactionId} is not null and ${table.originEventId} is null) or (${table.origin} in ('sale_cancelled', 'sale_voided', 'return') and ${table.paymentId} is not null)`,
     ),
     check(
       "payment_refunds_done_check",
@@ -1733,6 +1733,64 @@ export const cashMovements = pgTable("cash_movements", {
   authorizedBy: text("authorized_by"),
   occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
 });
+
+// Append-only: a return a register made against a ticket is a fact of its sale; the cloud never
+// rewrites or removes it.
+export const saleReturns = pgTable(
+  "returns",
+  {
+    id: uuid("id").primaryKey(),
+    saleId: uuid("sale_id")
+      .notNull()
+      .references(() => sales.id),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => cashSessions.id),
+    actorId: text("actor_id").notNull(),
+    authorizedBy: text("authorized_by"),
+    ticketSource: text("ticket_source").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    originEventId: uuid("origin_event_id").notNull(),
+  },
+  (table) => [
+    unique("returns_origin_event_id_key").on(table.originEventId),
+    check("returns_ticket_source_check", sql`${table.ticketSource} in ('QR', 'TYPED')`),
+    index("returns_sale_id_idx").on(table.saleId),
+  ],
+);
+
+// Append-only like the return it belongs to; refunded_amount is what the line gave back, for the
+// credit note that follows.
+export const returnLines = pgTable(
+  "return_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    returnId: uuid("return_id")
+      .notNull()
+      .references(() => saleReturns.id),
+    saleLineId: uuid("sale_line_id")
+      .notNull()
+      .references(() => saleLines.id),
+    quantity: integer("quantity").notNull(),
+    reason: text("reason").notNull(),
+    disposition: text("disposition").notNull(),
+    refundedAmount: bigint("refunded_amount", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    check("return_lines_quantity_check", sql`${table.quantity} > 0`),
+    check("return_lines_reason_check", sql`${table.reason} in ('change_of_mind', 'defective')`),
+    check("return_lines_disposition_check", sql`${table.disposition} in ('restock', 'discard')`),
+    check("return_lines_refunded_amount_check", sql`${table.refundedAmount} >= 0`),
+    index("return_lines_sale_line_id_idx").on(table.saleLineId),
+    index("return_lines_return_id_idx").on(table.returnId),
+  ],
+);
 
 // A push refused for a broken chain, kept for a person to review and never applied.
 export const refusedEvents = pgTable("refused_events", {
