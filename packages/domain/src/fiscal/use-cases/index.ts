@@ -298,6 +298,14 @@ export type {
 } from "./issue-credit-note.js";
 export { creditNoteAnswerOf, issueCreditNote } from "./issue-credit-note.js";
 export type {
+  IssuedFiscalDocument,
+  IssuedFiscalDocumentAuthorization,
+  IssuedFiscalDocumentsPage,
+  IssuedFiscalDocumentsQuery,
+  IssuedFiscalDocumentsReader,
+  IssuedFiscalDocumentVoucher,
+} from "./issued-fiscal-documents-reader.js";
+export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,
   IssuerIdentification,
@@ -358,6 +366,11 @@ export type {
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
 export { readFiscalEmissionMode } from "./read-fiscal-emission-mode.js";
+export type {
+  IssuedFiscalDocumentsListing,
+  ReadIssuedFiscalDocumentsInput,
+} from "./read-issued-fiscal-documents.js";
+export { readIssuedFiscalDocuments } from "./read-issued-fiscal-documents.js";
 export type {
   ClockGuardBlock,
   ReadRegisterClockGuardPorts,

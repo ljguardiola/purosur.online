@@ -105,20 +105,15 @@ jobs:
           EXPECTED_STAGING_INSTALLER_SHA512: ${{ steps.staging.outputs.sha512 }}
         run: node .github/scripts/register-candidate.mjs read-manifest
 
-      - name: Calculate the version and the release notes
+      - name: Name the release after the installer version and write its notes
         id: version
         env:
           RELEASE_TAG_PREFIX: pos-v
           RELEASE_ROOT_PACKAGES: "@purosur/pos"
+          RELEASE_VERSION: ${{ steps.staging.outputs.version }}
           TARGET_SHA: ${{ steps.commit.outputs.sha }}
           RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
         run: node .github/scripts/release-version.mjs plan
-
-      - name: Add the installer version to the release notes
-        env:
-          RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
-          INSTALLER_VERSION: ${{ steps.staging.outputs.version }}
-        run: node .github/scripts/register-candidate.mjs release-notes
 
       - name: Create the tag and the release
         env:

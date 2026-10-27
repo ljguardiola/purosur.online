@@ -6,8 +6,8 @@ import {
   candidateManifest,
   commitOfRun,
   hardwareTestNotes,
+  installerVersion,
   parseCandidateManifest,
-  registerReleaseNotes,
   runCli,
   runNumberOfVersion,
   runOfCommit,
@@ -41,24 +41,44 @@ test("refuses a run number that is not a positive integer", () => {
   }
 });
 
-test("reads the run number out of an installer version 0.0.N", () => {
+test("reads the run number out of an installer version <major>.<minor>.<run number>", () => {
   assert.equal(runNumberOfVersion("0.0.57"), 57);
+  assert.equal(runNumberOfVersion("1.0.1302"), 1302);
+  assert.equal(runNumberOfVersion("2.13.57"), 57);
 });
 
-test("refuses an installer version that is not 0.0.N", () => {
+test("refuses an installer version that is not <major>.<minor>.<run number>", () => {
   for (const version of [
-    "1.0.57",
-    "0.1.57",
     "0.0.0",
+    "1.0.0",
     "0.0.057",
+    "01.0.57",
+    "1.00.57",
+    "-1.0.57",
     "0.0",
     "0.0.5.7",
     "x",
     "",
     undefined,
   ]) {
-    assert.throws(() => runNumberOfVersion(version), /0\.0\.N/);
+    assert.throws(() => runNumberOfVersion(version), /installer version/);
   }
+});
+
+test("names the installer version after the register's major and minor and the run number", () => {
+  assert.equal(installerVersion({ packageVersion: "1.0.0", runNumber: 1302 }), "1.0.1302");
+  assert.equal(installerVersion({ packageVersion: "2.13.4", runNumber: "57" }), "2.13.57");
+});
+
+test("refuses a register package version that is not X.Y.Z, or a run number that is not one", () => {
+  for (const packageVersion of ["1.0", "1.0.0-beta", "01.0.0", "x", "", undefined]) {
+    assert.throws(
+      () => installerVersion({ packageVersion, runNumber: 57 }),
+      /package version/,
+      String(packageVersion),
+    );
+  }
+  assert.throws(() => installerVersion({ packageVersion: "1.0.0", runNumber: 0 }), /run number/);
 });
 
 test("records the commit, the installer version and the staging installer's digest, and reads them back", () => {
@@ -69,7 +89,7 @@ test("records the commit, the installer version and the staging installer's dige
 
 test("refuses to record a commit that is not 40 hexadecimal characters, a bad version or no digest", () => {
   assert.throws(() => candidateManifest({ ...MANIFEST, sha: "abc" }), /40/);
-  assert.throws(() => candidateManifest({ ...MANIFEST, version: "1.2.3" }), /0\.0\.N/);
+  assert.throws(() => candidateManifest({ ...MANIFEST, version: "1.2" }), /installer version/);
   assert.throws(() => candidateManifest({ ...MANIFEST, stagingInstallerSha512: "" }), /digest/);
 });
 
@@ -125,7 +145,7 @@ test("refuses a commit that no successful run packaged", () => {
   assert.throws(() => runOfCommit([], SHA), /no successful/);
 });
 
-function cliHarness(env, files = {}, installers = {}) {
+function cliHarness(env, files = {}, installers = {}, installerFiles = {}) {
   const outputs = [];
   const errors = [];
   const written = {};
@@ -146,6 +166,10 @@ function cliHarness(env, files = {}, installers = {}) {
         if (!(directory in installers)) throw new Error(`no installer in ${directory}`);
         return installers[directory];
       },
+      findInstaller: async (directory) => {
+        if (!(directory in installerFiles)) throw new Error(`no installer in ${directory}`);
+        return `${directory}/${installerFiles[directory]}`;
+      },
       appendOutput: async (_path, text) => {
         outputs.push(text);
       },
@@ -164,12 +188,44 @@ test("the CLI turns an installer version into its run number and image", async (
   ]);
 });
 
-test("the CLI refuses a version that is not 0.0.N", async () => {
+test("the CLI turns a 1.0 installer version into its run number and image", async () => {
+  const harness = cliHarness({ INSTALLER_VERSION: "1.0.1302" });
+
+  assert.equal(await runCli({ ...harness.options, argv: ["run-of-version"] }), 0);
+  assert.deepEqual(harness.outputs, [
+    "run_number=1302\nimage=ghcr.io/ljguardiola/purosur-pos-candidate:1302\n",
+  ]);
+});
+
+test("the CLI refuses a version that is not <major>.<minor>.<run number>", async () => {
   const harness = cliHarness({ INSTALLER_VERSION: "1.0.0" });
 
   assert.equal(await runCli({ ...harness.options, argv: ["run-of-version"] }), 1);
-  assert.match(harness.errors.join("\n"), /0\.0\.N/);
+  assert.match(harness.errors.join("\n"), /installer version/);
   assert.deepEqual(harness.outputs, []);
+});
+
+test("the CLI names the installer version from the register's package file and the run number", async () => {
+  const harness = cliHarness(
+    { RUN_NUMBER: "1302", PACKAGE_JSON_FILE: "apps/pos/package.json" },
+    { "apps/pos/package.json": JSON.stringify({ name: "@purosur/pos", version: "1.0.0" }) },
+  );
+
+  assert.equal(await runCli({ ...harness.options, argv: ["installer-version"] }), 0);
+  assert.deepEqual(harness.outputs, ["version=1.0.1302\n"]);
+});
+
+test("the CLI refuses a register package file without an X.Y.Z version", async () => {
+  for (const text of [JSON.stringify({ name: "@purosur/pos" }), "not json"]) {
+    const harness = cliHarness(
+      { RUN_NUMBER: "1302", PACKAGE_JSON_FILE: "apps/pos/package.json" },
+      { "apps/pos/package.json": text },
+    );
+
+    assert.equal(await runCli({ ...harness.options, argv: ["installer-version"] }), 1, text);
+    assert.match(harness.errors.join("\n"), /package/);
+    assert.deepEqual(harness.outputs, []);
+  }
 });
 
 test("the CLI names the commit of a run from the listed runs", async () => {
@@ -249,23 +305,6 @@ test("the CLI names what is missing and refuses an unknown command", async () =>
   const noOutput = cliHarness({ INSTALLER_VERSION: "0.0.1", GITHUB_OUTPUT: "" });
   assert.equal(await runCli({ ...noOutput.options, argv: ["run-of-version"] }), 1);
   assert.match(noOutput.errors.join("\n"), /GITHUB_OUTPUT/);
-});
-
-test("adds the installer version to the release notes", () => {
-  assert.equal(
-    registerReleaseNotes({ notes: "## Features\n\n- a\n", version: "0.0.57" }),
-    "## Features\n\n- a\n\nInstaller version 0.0.57\n",
-  );
-});
-
-test("the CLI appends the installer version to the notes file, whatever devices it is given", async () => {
-  const harness = cliHarness(
-    { RELEASE_NOTES_FILE: "notes.md", INSTALLER_VERSION: "0.0.57", DEVICES: "printer,scale" },
-    { "notes.md": "- a\n" },
-  );
-
-  assert.equal(await runCli({ ...harness.options, argv: ["release-notes"] }), 0);
-  assert.equal(harness.written["notes.md"], "- a\n\nInstaller version 0.0.57\n");
 });
 
 test("flags the devices to test by hand in the release notes", () => {
@@ -349,4 +388,54 @@ test("the CLI refuses a manifest whose commit is not the one expected", async ()
   assert.equal(await runCli({ ...other.options, argv: ["read-manifest"] }), 1);
   assert.match(other.errors.join("\n"), /not the expected commit/);
   assert.deepEqual(other.outputs, []);
+});
+
+test("the CLI refuses a manifest whose installer version is not the release tag's", async () => {
+  const manifest = candidateManifest({ ...MANIFEST, version: "1.0.57" });
+  const matching = cliHarness(
+    { MANIFEST_FILE: "m.json", RELEASE_TAG: "pos-v1.0.57" },
+    { "m.json": manifest },
+  );
+  const other = cliHarness(
+    { MANIFEST_FILE: "m.json", RELEASE_TAG: "pos-v1.0.0" },
+    { "m.json": manifest },
+  );
+
+  assert.equal(await runCli({ ...matching.options, argv: ["read-manifest"] }), 0);
+  assert.equal(await runCli({ ...other.options, argv: ["read-manifest"] }), 1);
+  assert.match(other.errors.join("\n"), /pos-v1\.0\.0/);
+  assert.deepEqual(other.outputs, []);
+});
+
+test("the CLI names the production installer of a version and the name its release shows", async () => {
+  const harness = cliHarness(
+    { INSTALLER_DIR: "installer", POS_VERSION: "1.0.1302" },
+    {},
+    {},
+    { installer: "Puro Sur Setup 1.0.1302.exe" },
+  );
+
+  assert.equal(await runCli({ ...harness.options, argv: ["installer-of-version"] }), 0);
+  assert.deepEqual(harness.outputs, [
+    "asset=installer/Puro Sur Setup 1.0.1302.exe#Puro Sur Setup 1.0.1302.exe\n",
+  ]);
+});
+
+test("the CLI refuses an installer not named after the production register and the version", async () => {
+  for (const file of [
+    "Puro Sur Setup 0.0.1302.exe",
+    "Puro Sur Homologación Setup 1.0.1302.exe",
+    "Puro Sur Setup 1.0.13020.exe",
+  ]) {
+    const harness = cliHarness(
+      { INSTALLER_DIR: "installer", POS_VERSION: "1.0.1302" },
+      {},
+      {},
+      { installer: file },
+    );
+
+    assert.equal(await runCli({ ...harness.options, argv: ["installer-of-version"] }), 1, file);
+    assert.match(harness.errors.join("\n"), /Puro Sur Setup 1\.0\.1302\.exe/);
+    assert.deepEqual(harness.outputs, []);
+  }
 });

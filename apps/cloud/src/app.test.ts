@@ -1713,6 +1713,7 @@ describe("wiring the refund routes", () => {
 describe("wiring the stock routes", () => {
   const stockRequests = [
     { method: "GET", url: "/api/inventory-levels" },
+    { method: "GET", url: "/api/reports/current-stock" },
     { method: "GET", url: "/api/inventory-items" },
     { method: "GET", url: "/api/inventory-counts" },
     { method: "POST", url: "/api/inventory-counts" },
@@ -1860,6 +1861,8 @@ describe("wiring the register point of sale routes", () => {
     ["GET", "/api/registers/fortnight-presentations"],
     ["GET", "/api/fiscal/tasks"],
     ["GET", "/api/fiscal/unbilled-deferred-sales"],
+    ["GET", "/api/fiscal/documents"],
+    ["GET", "/api/fiscal/registers"],
     ["PUT", "/api/fiscal/tasks/00000000-0000-0000-0000-000000000000/closure"],
     ["POST", "/api/registers/fortnight-presentations/rejected-document-remedies"],
     ["GET", "/api/registers/buyer-tax-statuses"],
@@ -2891,6 +2894,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/current-stock",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/inventory-items",
         access: capabilityAccess("stock_area"),
       },
@@ -3187,6 +3195,16 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/fiscal/unbilled-deferred-sales",
+        access: capabilityAccess("fiscal_information"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/documents",
+        access: capabilityAccess("fiscal_information"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/registers",
         access: capabilityAccess("fiscal_information"),
       },
       {

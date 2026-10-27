@@ -26,6 +26,7 @@ import {
   formatTimeAgoInHours,
   formatWeight,
   formatWeightInput,
+  parseInvoiceNumber,
   parsePointOfSaleNumber,
   plural,
 } from "./formatters";
@@ -234,6 +235,23 @@ describe("parsePointOfSaleNumber", () => {
     "refuses %j, which is not made of digits only",
     (typed) => {
       expect(parsePointOfSaleNumber(typed)).toBeNaN();
+    },
+  );
+});
+
+describe("parseInvoiceNumber", () => {
+  it.each([
+    ["1247", 1247],
+    [" 41 ", 41],
+    ["00001247", 1247],
+  ])("reads the number %j as %d", (typed, expected) => {
+    expect(parseInvoiceNumber(typed)).toBe(expected);
+  });
+
+  it.each(["1.247", "1e3", "+7", "-3", "12a", ""])(
+    "refuses %j, which is not made of digits only",
+    (typed) => {
+      expect(parseInvoiceNumber(typed)).toBeNaN();
     },
   );
 });
