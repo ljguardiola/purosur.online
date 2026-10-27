@@ -29,7 +29,7 @@ export interface ReasonLosses {
 const REASON_CATALOG: readonly RecordedLossReason[] = [...LOSS_REASONS, ...SYSTEM_LOSS_REASONS];
 
 function compareProducts(a: LostProduct, b: LostProduct): number {
-  return compareSpanishText(a.name, b.name) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  return compareSpanishText(a.name, b.name) || compareSpanishText(a.id, b.id);
 }
 
 export function lossesByReason(records: readonly LossRecord[]): ReasonLosses[] {
