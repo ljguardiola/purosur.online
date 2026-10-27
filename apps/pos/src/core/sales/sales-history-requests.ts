@@ -49,8 +49,9 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
   return voidability.kind === "voidable"
     ? {
         kind: "voidable",
-        refunds: voidability.refunds.map(({ sentByCloud, ...refund }) => ({
+        refunds: voidability.refunds.map(({ sentByCloud, cardType, ...refund }) => ({
           ...refund,
+          card_type: cardType,
           sent_by_cloud: sentByCloud,
         })),
         credit_note_corrects:
@@ -133,7 +134,10 @@ export async function saleHistoryDetailFor(
       operation_number: detail.operationNumber,
       served_by_first_name: detail.servedByFirstName,
       line_count: detail.lineCount,
-      payments: detail.payments,
+      payments: detail.payments.map(({ cardType, ...payment }) => ({
+        ...payment,
+        card_type: cardType,
+      })),
       state: detail.standing,
       voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,

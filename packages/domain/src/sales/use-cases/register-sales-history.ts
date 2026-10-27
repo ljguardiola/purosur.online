@@ -1,4 +1,5 @@
 import type { SaleInvoice, VoidCreditNoteStanding } from "../../fiscal/index.js";
+import type { PointCardType } from "../../payments/index.js";
 import type { CompletedSalePayment } from "../model/completed-sale.js";
 import type { SaleFiscalFacts, SaleStanding } from "../model/sale-history.js";
 
@@ -32,7 +33,7 @@ export interface SaleHistoryRecord {
   servedByFirstName: string;
   lineCount: number;
   total: number;
-  payments: { method: PaymentMethod; amount: number }[];
+  payments: { method: PaymentMethod; amount: number; cardType: PointCardType | null }[];
   fiscal: SaleFiscalFacts;
   voided: boolean;
   inOpenSession: boolean;
