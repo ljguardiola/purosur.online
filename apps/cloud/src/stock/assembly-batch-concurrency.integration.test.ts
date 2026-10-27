@@ -188,8 +188,8 @@ describe("voiding a batch on a real Postgres", () => {
     const voids = await db
       .select()
       .from(stockMovements)
-      .where(eq(stockMovements.kind, "assembly_void"));
-    expect(voids).toHaveLength(2);
+      .where(eq(stockMovements.assemblyBatchId, setUp.batchId));
+    expect(voids.filter((movement) => movement.kind === "assembly_void")).toHaveLength(2);
     const balances = Object.fromEntries(
       (await db.select().from(stockBalances)).map((row) => [row.productId, row.quantity]),
     );
@@ -215,11 +215,20 @@ describe("voiding a batch on a real Postgres", () => {
     ]);
 
     expect(["voided", "consumed"]).toContain(voided.kind);
-    const [batch] = await db.select().from(assemblyBatches);
+    const [batch] = await db
+      .select()
+      .from(assemblyBatches)
+      .where(eq(assemblyBatches.id, setUp.batchId));
     expect(batch?.voidedAt !== null).toBe(voided.kind === "voided");
     expect(await lotDrift()).toEqual(driftBefore);
-    const movements = await db.select().from(stockMovements);
-    const balances = await db.select().from(stockBalances);
+    const movements = await db
+      .select()
+      .from(stockMovements)
+      .where(inArray(stockMovements.productId, [setUp.nuts, setUp.mix]));
+    const balances = await db
+      .select()
+      .from(stockBalances)
+      .where(inArray(stockBalances.productId, [setUp.nuts, setUp.mix]));
     for (const { productId, quantity } of balances) {
       const initial = productId === setUp.nuts ? 10_000 : 0;
       const moved = movements
@@ -227,7 +236,9 @@ describe("voiding a batch on a real Postgres", () => {
         .reduce((sum, movement) => sum + movement.delta, 0);
       expect(quantity).toBe(initial + moved);
     }
-    const voidMovements = movements.filter((movement) => movement.kind === "assembly_void");
+    const voidMovements = movements.filter(
+      (movement) => movement.kind === "assembly_void" && movement.assemblyBatchId === setUp.batchId,
+    );
     expect(voidMovements).toHaveLength(voided.kind === "voided" ? 2 : 0);
   });
 });

@@ -497,15 +497,16 @@ describe("POST /assembly-batches/:id/void", () => {
   });
 
   it("returns 403 to a user without the batches permission, voiding nothing", async () => {
-    const { batchId, locationId } = await registeredBatch();
-    const other = await signedInWith(
-      db,
-      ["manage_recipes", "view_stock_balances", "adjust_stock"],
-      NOW,
-      { locationId },
-    );
+    const { headers, userId, locationId } = await withoutBatchesPermission();
+    const { productId } = await insertProduct(db, { name: "Mix", saleUnit: "KG" });
+    const { batchId } = await insertAssemblyBatch(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      assembledAt: NOW,
+    });
 
-    const response = await voidBatch(other.headers, batchId);
+    const response = await voidBatch(headers, batchId);
 
     expect(response.statusCode).toBe(403);
     const [batch] = await db.select().from(assemblyBatches);
@@ -546,22 +547,30 @@ describe("POST /assembly-batches/:id/void", () => {
     expect(voids).toHaveLength(3);
   });
 
-  it("answers 404 for a batch that does not exist or belongs to another branch", async () => {
+  it("answers 404 for a batch that does not exist", async () => {
     const { headers } = await registeredBatch();
-    const otherBranch = await signedInWith(db, ["manage_batches"], NOW, {
+
+    const response = await voidBatch(headers, MISSING_ID);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
+  it("answers 404 for a batch of another branch, leaving it as it was", async () => {
+    const { headers, userId, ids } = await registeredBatch();
+    const { batchId } = await insertAssemblyBatch(db, {
+      productId: ids.mix,
       locationId: await insertLocation(db),
+      actorId: userId,
+      assembledAt: NOW,
     });
 
-    const missing = await voidBatch(headers, MISSING_ID);
-    const foreign = await voidBatch(
-      otherBranch.headers,
-      (await db.select().from(assemblyBatches))[0]?.id as string,
-    );
+    const response = await voidBatch(headers, batchId);
 
-    expect(missing.statusCode).toBe(404);
-    expect(missing.json()).toMatchObject({ code: "not_found" });
-    expect(foreign.statusCode).toBe(404);
-    expect(foreign.json()).toMatchObject({ code: "not_found" });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+    const [batch] = await db.select().from(assemblyBatches).where(eq(assemblyBatches.id, batchId));
+    expect(batch?.voidedAt).toBeNull();
   });
 
   it("answers 409 for a batch that was already voided", async () => {
