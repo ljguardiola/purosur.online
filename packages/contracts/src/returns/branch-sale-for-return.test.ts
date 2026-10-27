@@ -112,18 +112,18 @@ describe("branchSaleForReturnAnswerSchema", () => {
     expect(branchSaleForReturnAnswerSchema.parse(percent)).toEqual(percent);
   });
 
-  it.each(["VOIDED", "CANCELLED"])(
-    "reads a %s sale so the register can say it was voided",
-    (state) => {
-      expect(
-        branchSaleForReturnAnswerSchema.safeParse({ ...answer, sale: { ...answer.sale, state } })
-          .success,
-      ).toBe(true);
-    },
-  );
+  it("reads a voided sale so the register can say it was voided", () => {
+    expect(
+      branchSaleForReturnAnswerSchema.safeParse({
+        ...answer,
+        sale: { ...answer.sale, state: "VOIDED" },
+      }).success,
+    ).toBe(true);
+  });
 
   it.each([
     ["an open sale", { ...answer, sale: { ...answer.sale, state: "OPEN" } }],
+    ["a cancelled sale", { ...answer, sale: { ...answer.sale, state: "CANCELLED" } }],
     ["a date that is not a date", { ...answer, occurred_at: "yesterday" }],
     ["a negative good condition days", { ...answer, good_condition_return_days: -1 }],
     [
