@@ -431,6 +431,36 @@ test("tells the product was not created, and creating stays available", async ()
   await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeEnabled();
 });
 
+test.each([
+  ["name_too_long", "El nombre de la lista es demasiado largo", "el máximo de un producto"],
+  [
+    "presentation_too_long",
+    "La presentación de la lista es demasiado larga",
+    "el máximo de una presentación de compra",
+  ],
+] as const)(
+  "tells %s, with the limit, and creating stays available",
+  async (kind, title, limit) => {
+    const services = createServices();
+    vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({ kind });
+    const screen = await renderModal({ services });
+
+    const dialog = await create(screen);
+
+    await expect.element(dialog.getByText(title)).toBeVisible();
+    await expect
+      .element(
+        dialog.getByText(
+          new RegExp(
+            `^Tiene más de \\d+ caracteres, ${limit}\\. No se puede crear el producto desde esta lista\\.$`,
+          ),
+        ),
+      )
+      .toBeVisible();
+    await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeEnabled();
+  },
+);
+
 test("tells there are too many requests, and when to try again", async () => {
   const services = createServices();
   vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({
