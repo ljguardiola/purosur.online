@@ -204,6 +204,7 @@ export {
   formatPercent,
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
+  formatShortCode,
   formatSignedCents,
   formatTimeAgo,
   formatTimeAgoInHours,

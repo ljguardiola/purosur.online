@@ -90,6 +90,7 @@ export const DETAIL: SaleDetail = {
   credit_note: null,
   credit_note_next_copy: null,
   deferred_invoice_next_copy: null,
+  short_code: null,
 };
 
 const AUTHORIZERS: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
