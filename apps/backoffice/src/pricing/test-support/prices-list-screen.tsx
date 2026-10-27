@@ -54,6 +54,7 @@ export const rice: PriceProduct = {
     freightPerUnitCents: 18000,
     totalCostCents: 446000,
     marginTenthsOfPercent: 405,
+    costIncomplete: false,
   },
 };
 
