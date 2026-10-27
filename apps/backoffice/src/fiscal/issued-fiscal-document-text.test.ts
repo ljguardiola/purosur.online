@@ -6,7 +6,6 @@ import {
   issuedDay,
   issuedTime,
   voucherText,
-  voucherTitle,
   voucherDetailText,
 } from "./issued-fiscal-document-text";
 import {
@@ -21,11 +20,11 @@ test.each([
   [creditNote, "Nota de crédito C 00003-00000041"],
   [contingencyReceipt, "Factura C 00007-00000088"],
 ])("titles %j as %s", (document, title) => {
-  expect(voucherTitle(document)).toBe(title);
+  expect(voucherText(document)).toBe(title);
 });
 
 test("names a voucher type the listing does not know by its code", () => {
-  expect(voucherTitle({ ...authorizedReceipt, voucher_type: 99 })).toBe(
+  expect(voucherText({ ...authorizedReceipt, voucher_type: 99 })).toBe(
     "Comprobante tipo 99 00003-00001247",
   );
 });
