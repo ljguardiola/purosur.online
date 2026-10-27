@@ -1,3 +1,4 @@
+import type { InvoiceDeferredSalesUpToOutcome } from "./invoice-deferred-sales-up-to.js";
 import type { RequestSaleCreditNotePorts } from "./request-credit-notes-ports.js";
 import {
   type RequestSaleCreditNoteOutcome,
@@ -5,7 +6,7 @@ import {
 } from "./request-sale-credit-note.js";
 
 export interface ReturnedSaleInvoicing {
-  invoiceUpTo(saleId: string): Promise<unknown>;
+  invoiceUpTo(saleId: string): Promise<InvoiceDeferredSalesUpToOutcome>;
 }
 
 export interface RequestReturnCreditNotePorts extends RequestSaleCreditNotePorts {
@@ -23,7 +24,10 @@ export interface RequestReturnCreditNoteInput {
 }
 
 export interface RequestReturnCreditNoteOutcome {
-  invoicing: { kind: "not_awaited" } | { kind: "caught_up" } | { kind: "failed"; error: unknown };
+  invoicing:
+    | { kind: "not_awaited" }
+    | InvoiceDeferredSalesUpToOutcome
+    | { kind: "failed"; error: unknown };
   creditNote: RequestSaleCreditNoteOutcome;
 }
 
@@ -36,8 +40,7 @@ async function catchUpInvoice(
     return { kind: "not_awaited" };
   }
   try {
-    await invoicing.invoiceUpTo(saleId);
-    return { kind: "caught_up" };
+    return await invoicing.invoiceUpTo(saleId);
   } catch (error) {
     return { kind: "failed", error };
   }

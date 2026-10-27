@@ -798,6 +798,7 @@ export type {
 export {
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
+  returnedReceiptLine,
   TICKET_SOURCES,
   ticketReferenceFromQrText,
 } from "./returns/index.js";
@@ -869,7 +870,6 @@ export {
   receiptContent,
   receiptPrintStanding,
   receiptReprintReason,
-  returnedReceiptLine,
   SALE_STANDING_DEFINITIONS,
   SALE_STANDINGS,
   SALE_STATES_AFTER_COMPLETION,

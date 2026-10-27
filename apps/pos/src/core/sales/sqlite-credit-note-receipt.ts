@@ -48,6 +48,7 @@ function refundsOf(database: LocalDatabase, saleId: string, returnId: string | n
 
 interface ReturnedLineRow {
   sale_line_index: number;
+  returned_before: number;
   quantity: number;
   refunded_amount: number;
 }
@@ -87,8 +88,13 @@ function returnedContent(
       `SELECT (SELECT COUNT(*) FROM sale_lines AS earlier
                 WHERE earlier.sale_id = sale_lines.sale_id
                   AND earlier.position < sale_lines.position) AS sale_line_index,
+              (SELECT COALESCE(SUM(earlier_lines.quantity), 0) FROM return_lines AS earlier_lines
+                JOIN returns AS earlier_returns ON earlier_returns.id = earlier_lines.return_id
+                WHERE earlier_lines.sale_line_id = return_lines.sale_line_id
+                  AND earlier_returns.occurred_at < returns.occurred_at) AS returned_before,
               return_lines.quantity AS quantity, return_lines.refunded_amount AS refunded_amount
        FROM return_lines
+       JOIN returns ON returns.id = return_lines.return_id
        JOIN sale_lines ON sale_lines.id = return_lines.sale_line_id
        WHERE return_lines.return_id = ?
        ORDER BY sale_lines.position`,
@@ -100,6 +106,7 @@ function returnedContent(
         throw new Error("the return's credit note cannot be sourced");
       }
       return returnedReceiptLine(soldLine, {
+        returnedBefore: line.returned_before,
         quantity: line.quantity,
         refundedAmount: line.refunded_amount,
       });

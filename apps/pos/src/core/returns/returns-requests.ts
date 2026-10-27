@@ -46,7 +46,9 @@ export type ReturnRequestDeps = Pick<
 };
 
 const NO_ANSWER_FROM_CLOUD: CloudCreditNotes = { request: async () => null };
-const NO_INVOICING: ReturnedSaleInvoicing = { invoiceUpTo: async () => undefined };
+const NO_INVOICING: ReturnedSaleInvoicing = {
+  invoiceUpTo: async () => ({ kind: "not_yet", cause: "cannot_authorize" }),
+};
 
 async function settleCreditNote(
   { database, now, creditNotes, invoicing, printCreditNote, reportFailure }: ReturnRequestDeps,
