@@ -88,6 +88,7 @@ const POINT_PAYMENT: SalePayment = {
   id: "payment-4",
   method: "POINT",
   provider: "MERCADOPAGO_POINT",
+  cardType: "CREDIT",
 };
 const STANDALONE_TERMINAL_PAYMENT: SalePayment = {
   id: "payment-5",
@@ -290,7 +291,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 7,
+          schema_version: 8,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -559,7 +560,7 @@ describe("cancelPaidSale", () => {
       expect(store.state.movements.filter(({ type }) => type === "REFUND")).toEqual([]);
     });
 
-    it("tells the cloud with a version 7 event carrying the payment and its pending refund", async () => {
+    it("tells the cloud with a version 8 event carrying the payment and its pending refund", async () => {
       const store = ledger({ payments: [STANDALONE_TERMINAL_PAYMENT] });
 
       await cancel(store);
@@ -567,7 +568,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 7,
+        schema_version: 8,
         payload: {
           payments: [{ id: "payment-5", method: "STANDALONE_TERMINAL", state: "APPROVED" }],
           refunds: [
@@ -621,7 +622,7 @@ describe("cancelPaidSale", () => {
       },
     );
 
-    it("tells the cloud with a version 7 event carrying the QR payment and its pending refund", async () => {
+    it("tells the cloud with a version 8 event carrying the QR payment and its pending refund", async () => {
       const store = ledger({ payments: [QR_PAYMENT] });
 
       await cancel(store);
@@ -629,7 +630,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 7,
+        schema_version: 8,
         payload: {
           payments: [{ id: "payment-3", method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [
@@ -683,7 +684,7 @@ describe("cancelPaidSale", () => {
       },
     );
 
-    it("tells the cloud with a version 7 event carrying the terminal payment and its pending refund", async () => {
+    it("tells the cloud with a version 8 event carrying the terminal payment and its pending refund", async () => {
       const store = ledger({ payments: [POINT_PAYMENT] });
 
       await cancel(store);
@@ -691,9 +692,16 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 7,
+        schema_version: 8,
         payload: {
-          payments: [{ id: "payment-4", method: "POINT", provider: "MERCADOPAGO_POINT" }],
+          payments: [
+            {
+              id: "payment-4",
+              method: "POINT",
+              provider: "MERCADOPAGO_POINT",
+              card_type: "CREDIT",
+            },
+          ],
           refunds: [
             {
               parent_id: "payment-4",

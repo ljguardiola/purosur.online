@@ -301,6 +301,7 @@ export class FakeSaleLedger implements SaleLedger {
           kind: "SALE",
           method: pending.method,
           provider: pending.provider,
+          ...(pending.method === "POINT" ? { cardType: pending.cardType } : {}),
           amount: pending.amount,
           state: "APPROVED",
           occurredAt: pending.occurredAt,

@@ -111,6 +111,7 @@ const POINT_PAYMENT: SalePayment = {
   id: "payment-5",
   method: "POINT",
   provider: "MERCADOPAGO_POINT",
+  cardType: "CREDIT",
 };
 const SALE_MOVEMENT = {
   id: "movement-1",
@@ -308,7 +309,7 @@ describe("voidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_voided",
-          schema_version: 3,
+          schema_version: 4,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -668,14 +669,14 @@ describe("voidSale", () => {
       ]);
     });
 
-    it("emits the voiding as version 3 of the event, with the pending refund", async () => {
+    it("emits the voiding as version 4 of the event, with the pending refund", async () => {
       const store = ledger({ payments: [QR_PAYMENT] });
 
       await void_(store, { pendingRefundsConfirmed: true });
 
       expect(store.state.outbox[0]).toMatchObject({
         event_type: "sale_voided",
-        schema_version: 3,
+        schema_version: 4,
         payload: {
           payments: [{ method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [{ method: "QR", provider: "MERCADOPAGO_QR", state: "PENDING" }],

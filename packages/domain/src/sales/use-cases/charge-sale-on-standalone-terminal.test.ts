@@ -161,7 +161,7 @@ describe("chargeSaleOnStandaloneTerminal", () => {
     expect(store.state.outbox).toHaveLength(1);
     expect(store.state.outbox[0]).toMatchObject({
       event_type: "sale_completed",
-      schema_version: 8,
+      schema_version: 9,
       payload: {
         total: TOTAL,
         payments: [
