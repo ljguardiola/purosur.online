@@ -3,12 +3,18 @@ import {
   readFile as readFileFromDisk,
   writeFile as writeFileToDisk,
 } from "node:fs/promises";
-import { installerSha512 as installerSha512InDirectory } from "./publish-pos-update.mjs";
+import { basename } from "node:path";
+import {
+  findInstaller as findInstallerInDirectory,
+  installerSha512 as installerSha512InDirectory,
+} from "./publish-pos-update.mjs";
 
 const LOG_PREFIX = "register-candidate";
 const SHA_RE = /^[0-9a-f]{40}$/;
 const RUN_NUMBER_RE = /^[1-9]\d*$/;
-const INSTALLER_VERSION_RE = /^0\.0\.([1-9]\d*)$/;
+const INSTALLER_VERSION_RE = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.([1-9]\d*)$/;
+const PACKAGE_VERSION_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const PRODUCTION_INSTALLER_NAME = "Puro Sur Setup";
 
 export const CANDIDATE_REPOSITORY = "ghcr.io/ljguardiola/purosur-pos-candidate";
 
@@ -26,7 +32,28 @@ function assertSha(sha) {
 
 export function assertInstallerVersion(version) {
   if (typeof version !== "string" || !INSTALLER_VERSION_RE.test(version)) {
-    throw new Error(`${LOG_PREFIX}: ${JSON.stringify(version)} is not an installer version 0.0.N`);
+    throw new Error(
+      `${LOG_PREFIX}: ${JSON.stringify(version)} is not an installer version <major>.<minor>.<run number>`,
+    );
+  }
+}
+
+export function installerVersion({ packageVersion, runNumber }) {
+  const match = typeof packageVersion === "string" ? PACKAGE_VERSION_RE.exec(packageVersion) : null;
+  if (match === null) {
+    throw new Error(
+      `${LOG_PREFIX}: the register's package version ${JSON.stringify(packageVersion)} is not X.Y.Z`,
+    );
+  }
+  assertRunNumber(runNumber);
+  return `${match[1]}.${match[2]}.${runNumber}`;
+}
+
+function packageVersionOf(text) {
+  try {
+    return JSON.parse(text)?.version;
+  } catch {
+    throw new Error(`${LOG_PREFIX}: the register's package file is not JSON`);
   }
 }
 
@@ -135,6 +162,25 @@ function parseRuns(text) {
 
 const COMMANDS = new Map(
   Object.entries({
+    "installer-version": {
+      needs: ["RUN_NUMBER", "PACKAGE_JSON_FILE"],
+      async run({ RUN_NUMBER, PACKAGE_JSON_FILE }, { readFile }) {
+        const packageVersion = packageVersionOf(await readFile(PACKAGE_JSON_FILE));
+        return `version=${installerVersion({ packageVersion, runNumber: RUN_NUMBER })}\n`;
+      },
+    },
+    "installer-of-version": {
+      needs: ["INSTALLER_DIR", "POS_VERSION"],
+      async run({ INSTALLER_DIR, POS_VERSION }, { findInstaller }) {
+        assertInstallerVersion(POS_VERSION);
+        const expected = `${PRODUCTION_INSTALLER_NAME} ${POS_VERSION}.exe`;
+        const path = await findInstaller(INSTALLER_DIR);
+        if (basename(path) !== expected) {
+          throw new Error(`${LOG_PREFIX}: the installer is ${basename(path)}, not ${expected}`);
+        }
+        return `path=${path}\n`;
+      },
+    },
     "run-of-version": {
       needs: ["INSTALLER_VERSION"],
       async run({ INSTALLER_VERSION }) {
@@ -200,7 +246,10 @@ const COMMANDS = new Map(
     },
     "read-manifest": {
       needs: ["MANIFEST_FILE"],
-      async run({ MANIFEST_FILE, EXPECTED_SHA, EXPECTED_STAGING_INSTALLER_SHA512 }, { readFile }) {
+      async run(
+        { MANIFEST_FILE, EXPECTED_SHA, EXPECTED_STAGING_INSTALLER_SHA512, RELEASE_TAG },
+        { readFile },
+      ) {
         const { sha, version, stagingInstallerSha512 } = parseCandidateManifest(
           await readFile(MANIFEST_FILE),
         );
@@ -217,6 +266,11 @@ const COMMANDS = new Map(
             `${LOG_PREFIX}: the candidate's staging installer is not the one the staging feed serves`,
           );
         }
+        if (RELEASE_TAG && RELEASE_TAG !== `pos-v${version}`) {
+          throw new Error(
+            `${LOG_PREFIX}: the candidate's installer version ${version} is not the one ${RELEASE_TAG} names`,
+          );
+        }
         return `sha=${sha}\nversion=${version}\n`;
       },
     },
@@ -229,6 +283,7 @@ export async function runCli({
   readFile = (path) => readFileFromDisk(path, "utf8"),
   writeFile = writeFileToDisk,
   installerSha512 = installerSha512InDirectory,
+  findInstaller = findInstallerInDirectory,
   appendOutput = appendFile,
   log = console.log,
   logError = console.error,
@@ -244,7 +299,7 @@ export async function runCli({
     return 1;
   }
   try {
-    const output = await command.run(env, { readFile, writeFile, installerSha512 });
+    const output = await command.run(env, { readFile, writeFile, installerSha512, findInstaller });
     log(`${LOG_PREFIX}: ${argv[0]} done`);
     if (output !== "") {
       await appendOutput(env.GITHUB_OUTPUT, output);
