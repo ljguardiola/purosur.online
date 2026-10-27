@@ -1,19 +1,23 @@
 import {
   type AssemblyBatchRefusal,
+  type AssemblyBatchVoidRefusal,
   assemblyBatchBodySchema,
   assemblyBatchListSchema,
   assemblyBatchPreviewQuerySchema,
   assemblyBatchPreviewSchema,
   assemblyBatchResultSchema,
+  assemblyBatchVoidResultSchema,
 } from "@purosur/contracts";
 import {
   listAssemblyBatches,
   listRecipes,
   previewAssemblyBatch,
   registerAssemblyBatch,
+  voidAssemblyBatch,
 } from "@purosur/domain/stock/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
@@ -39,6 +43,15 @@ const REFUSALS = {
   invalid_output: { status: 400, message: "the output is not a quantity the product can hold" },
   invalid_quantity: { status: 400, message: "a quantity is not valid for its component" },
 } as const satisfies Record<AssemblyBatchRefusal["code"], { status: number; message: string }>;
+
+const VOID_REFUSALS = {
+  not_found: { status: 404, message: "No hay una tanda con ese id." },
+  already_voided: { status: 409, message: "La tanda ya fue anulada." },
+  consumed: {
+    status: 409,
+    message: "La tanda ya tuvo consumo: corregila con un ajuste y un recuento.",
+  },
+} as const satisfies Record<AssemblyBatchVoidRefusal["code"], { status: number; message: string }>;
 
 async function refuse(
   reply: FastifyReply,
@@ -137,6 +150,28 @@ export function registerAssemblyBatchesRoutes<TQueryResult extends PgQueryResult
           costIncomplete,
           expiresOn,
         },
+      }),
+    );
+  });
+
+  app.post("/assembly-batches/:id/void", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id"]);
+    if (!ids) {
+      return;
+    }
+    const session = openSessionOf(request);
+    const outcome = await voidAssemblyBatch(
+      { store, clock: { now } },
+      { batchId: ids.id, locationId: session.locationId, actorId: session.userId },
+    );
+    if (outcome.kind !== "voided") {
+      const { status, message } = VOID_REFUSALS[outcome.kind];
+      await reply.code(status).send({ code: outcome.kind, message });
+      return;
+    }
+    await reply.code(200).send(
+      assemblyBatchVoidResultSchema.parse({
+        batch: { id: outcome.batch.id, voidedAt: outcome.batch.voidedAt.toISOString() },
       }),
     );
   });
