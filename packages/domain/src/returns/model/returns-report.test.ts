@@ -77,6 +77,17 @@ describe("returnRows", () => {
     },
   );
 
+  it("breaks a tie between return ids differing in case by the Spanish text order", () => {
+    const moment = new Date("2026-10-06T10:00:00.000Z");
+
+    const rows = returnRows([
+      record({ returnId: "B", occurredAt: moment }),
+      record({ returnId: "a", occurredAt: moment }),
+    ]);
+
+    expect(rows.map((row) => row.returnId)).toEqual(["a", "B"]);
+  });
+
   it("does not reorder the records it is given", () => {
     const records = [
       record({ returnId: "a", occurredAt: new Date("2026-10-06T10:00:00.000Z") }),

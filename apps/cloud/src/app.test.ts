@@ -3085,7 +3085,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/registers",
-        access: capabilityAccess("reports_area"),
+        access: capabilityAccess("report_registers"),
       },
       {
         method: "GET",

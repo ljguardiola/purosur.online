@@ -38,8 +38,8 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["manage_expiration_dates", ["stock_expiries", "stock_area"]],
   ["manage_supplier_price_lists", ["orders_area", "supplier_price_lists"]],
   ["compare_prices_and_suggest_orders", ["orders_area", "price_comparison"]],
-  ["view_reports", ["reports_area"]],
-  ["view_returns_report", ["returns_report"]],
+  ["view_reports", ["reports_area", "report_registers"]],
+  ["view_returns_report", ["returns_report", "report_registers"]],
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
   ["recover_contingency_receipts", ["contingency_ticket_rescue"]],
@@ -94,7 +94,6 @@ describe("the backups, ticket rescue and branch screens", () => {
     ["backups_area", "view_backups_and_rotate_key"],
     ["contingency_ticket_rescue", "recover_contingency_receipts"],
     ["branch_area", "configure_branch"],
-    ["returns_report", "view_returns_report"],
   ] as const;
 
   it.each(screens)("%s is granted only by %s", (capability, permission) => {
@@ -120,6 +119,39 @@ describe("the backups, ticket rescue and branch screens", () => {
       expect(granted).toEqual([own]);
     },
   );
+});
+
+describe("the returns report's capabilities", () => {
+  it("returns_report is granted only by view_returns_report", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["view_returns_report"] },
+        "returns_report",
+      ),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => key !== "view_returns_report"),
+        },
+        "returns_report",
+      ),
+    ).toBe(false);
+  });
+
+  it("whoever holds only view_returns_report is granted the report and the registers to filter it by", () => {
+    expect(
+      grantedCapabilities({ isAdministrator: false, permissionKeys: ["view_returns_report"] }),
+    ).toEqual(inCapabilityOrder(["returns_report", "report_registers"]));
+  });
+
+  it("the registers to filter reports by are granted by exactly the permissions of the reports and the returns report", () => {
+    expect(CAPABILITY_PERMISSIONS.report_registers).toEqual([
+      ...CAPABILITY_PERMISSIONS.reports_area,
+      ...CAPABILITY_PERMISSIONS.returns_report,
+    ]);
+  });
 });
 
 describe("the reports_area capability", () => {

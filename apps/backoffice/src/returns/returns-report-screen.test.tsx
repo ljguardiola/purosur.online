@@ -162,11 +162,20 @@ test("writes each returned line with its quantity, reason and what happens to th
 test("marks a return nobody authorized, and calls a cashier without a name Sin identificar", async () => {
   const screen = await renderScreen(createServices());
 
-  const row = screen.getByRole("table", { name: TYPED_TABLE }).getByRole("row", {
-    name: /Aceite 900 ml/,
-  });
-  await expect.element(row.getByText("Sin identificar")).toBeVisible();
-  await expect.element(row.getByText("—", { exact: true }).first()).toBeVisible();
+  const table = screen.getByRole("table", { name: TYPED_TABLE });
+  const row = table.getByRole("row", { name: /Aceite 900 ml/ });
+  await expect.element(row).toBeVisible();
+  const cellUnder = (header: string) =>
+    row
+      .getByRole("cell")
+      .nth(
+        table
+          .getByRole("columnheader")
+          .elements()
+          .findIndex((columnHeader) => columnHeader.textContent === header),
+      );
+  await expect.element(cellUnder("Cajero")).toHaveTextContent("Sin identificar");
+  await expect.element(cellUnder("Autorizó")).toHaveTextContent("—");
 });
 
 test("shows no operation or invoice for a sale without them", async () => {
@@ -277,44 +286,42 @@ test("gives each table its own empty text when its group has no returns", async 
     .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
     .toBeVisible();
   await expect
-    .element(screen.getByText("No hay devoluciones iniciadas escaneando el QR en este período"))
+    .element(
+      screen
+        .getByRole("table", { name: SCANNED_TABLE })
+        .getByText("No hay devoluciones en este período"),
+    )
     .toBeVisible();
-  expect(
-    screen.getByText("No hay devoluciones iniciadas con el número tipeado en este período").query(),
-  ).toBeNull();
+  expect(screen.getByText("No hay devoluciones en este período").elements()).toHaveLength(1);
 });
 
 test("says there are no returns in either group when there are none", async () => {
   const screen = await renderScreen(servicesAnswering(noReturnsReport));
 
-  await expect
-    .element(
-      screen.getByText("No hay devoluciones iniciadas con el número tipeado en este período"),
-    )
-    .toBeVisible();
-  await expect
-    .element(screen.getByText("No hay devoluciones iniciadas escaneando el QR en este período"))
-    .toBeVisible();
+  for (const table of [TYPED_TABLE, SCANNED_TABLE]) {
+    await expect
+      .element(
+        screen.getByRole("table", { name: table }).getByText("No hay devoluciones en este período"),
+      )
+      .toBeVisible();
+  }
   await expect.element(screen.getByText("$ 0,00")).toBeVisible();
 });
 
-test("says no return matches the filters when a register is chosen and none were made", async () => {
+test("says the chosen register made no returns when a register is chosen and none were made", async () => {
   const screen = await renderScreen(servicesAnswering(noReturnsReport), {
     filters: reportFiltersSearch.parse({ register: FRONT_REGISTER_ID }),
   });
 
-  await expect
-    .element(
-      screen.getByText(
-        "Ninguna devolución iniciada con el número tipeado coincide con estos filtros",
-      ),
-    )
-    .toBeVisible();
-  await expect
-    .element(
-      screen.getByText("Ninguna devolución iniciada escaneando el QR coincide con estos filtros"),
-    )
-    .toBeVisible();
+  for (const table of [TYPED_TABLE, SCANNED_TABLE]) {
+    await expect
+      .element(
+        screen
+          .getByRole("table", { name: table })
+          .getByText("No hay devoluciones de esta caja en este período"),
+      )
+      .toBeVisible();
+  }
 });
 
 test("shows a failed load with a retry that loads the report again", async () => {
