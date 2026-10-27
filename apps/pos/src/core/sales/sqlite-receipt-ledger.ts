@@ -29,19 +29,74 @@ interface StoredReceiptRow {
   body: Buffer;
 }
 
+interface PrintSlot {
+  table: string;
+  column: "sale_id" | "credit_note_id";
+  value: string;
+}
+
+export function creditNoteIdToPrint(database: LocalDatabase, saleId: string): string | undefined {
+  return (
+    database
+      .prepare<[string], { id: string }>(
+        `SELECT notes.id AS id
+         FROM sale_void_credit_notes AS notes
+         LEFT JOIN credit_note_prints AS prints ON prints.credit_note_id = notes.id
+         WHERE notes.sale_id = ?
+         ORDER BY (notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')) DESC,
+                  CASE
+                    WHEN prints.print_attempted_at IS NOT NULL AND prints.printed_at IS NULL THEN 0
+                    WHEN prints.print_attempted_at IS NULL THEN 1
+                    ELSE 2
+                  END,
+                  CASE WHEN prints.print_attempted_at IS NULL THEN notes.recorded_at END,
+                  notes.recorded_at DESC,
+                  notes.id
+         LIMIT 1`,
+      )
+      .get(saleId)?.id ?? undefined
+  );
+}
+
+function printSlotOf(database: LocalDatabase, { document, saleId }: PrintedDocumentKey) {
+  switch (document) {
+    case "credit_note": {
+      const creditNoteId = creditNoteIdToPrint(database, saleId);
+      return creditNoteId === undefined
+        ? undefined
+        : ({ table: "credit_note_prints", column: "credit_note_id", value: creditNoteId } as const);
+    }
+    case "deferred_invoice":
+      return { table: "deferred_invoice_prints", column: "sale_id", value: saleId } as const;
+    case "sale_receipt":
+      return undefined;
+  }
+}
+
+function requiredPrintSlot(
+  database: LocalDatabase,
+  key: PrintedDocumentKey,
+): PrintSlot | undefined {
+  const slot = printSlotOf(database, key);
+  if (slot === undefined && key.document === "credit_note") {
+    throw new Error(`sale ${key.saleId} has no credit note`);
+  }
+  return slot;
+}
+
 export function markPrintAttempted(
   database: LocalDatabase,
   key: PrintedDocumentKey,
   at: Date,
 ): void {
-  const table = printsTableOf(key.document);
-  if (table !== undefined) {
+  const slot = requiredPrintSlot(database, key);
+  if (slot !== undefined) {
     database
       .prepare(
-        `INSERT INTO ${table} (sale_id, print_attempted_at) VALUES (?, ?)
-         ON CONFLICT (sale_id) DO UPDATE SET print_attempted_at = excluded.print_attempted_at`,
+        `INSERT INTO ${slot.table} (${slot.column}, print_attempted_at) VALUES (?, ?)
+         ON CONFLICT (${slot.column}) DO UPDATE SET print_attempted_at = excluded.print_attempted_at`,
       )
-      .run(key.saleId, at.toISOString());
+      .run(slot.value, at.toISOString());
     return;
   }
   database
@@ -50,11 +105,11 @@ export function markPrintAttempted(
 }
 
 export function markPrinted(database: LocalDatabase, key: PrintedDocumentKey, at: Date): void {
-  const table = printsTableOf(key.document);
-  if (table !== undefined) {
+  const slot = requiredPrintSlot(database, key);
+  if (slot !== undefined) {
     database
-      .prepare(`UPDATE ${table} SET printed_at = ? WHERE sale_id = ?`)
-      .run(at.toISOString(), key.saleId);
+      .prepare(`UPDATE ${slot.table} SET printed_at = ? WHERE ${slot.column} = ?`)
+      .run(at.toISOString(), slot.value);
     return;
   }
   database
@@ -115,16 +170,16 @@ export class SqliteReceiptLedger implements ReceiptLedger {
 
   private receiptDelivery({ document, saleId }: PrintedDocumentKey): ReceiptDelivery | undefined {
     const row = this.database
-      .prepare<{ sale_id: string; document: string }, DeliveryRow>(
+      .prepare<{ sale_id: string; document: string; credit_note_id: string | null }, DeliveryRow>(
         `SELECT CASE @document
                   WHEN 'credit_note'
-                    THEN (SELECT print_attempted_at FROM credit_note_prints WHERE sale_id = sales.id)
+                    THEN (SELECT print_attempted_at FROM credit_note_prints WHERE credit_note_id = @credit_note_id)
                   WHEN 'deferred_invoice'
                     THEN (SELECT print_attempted_at FROM deferred_invoice_prints WHERE sale_id = sales.id)
                   ELSE print_attempted_at END AS print_attempted_at,
                 CASE @document
                   WHEN 'credit_note'
-                    THEN (SELECT printed_at FROM credit_note_prints WHERE sale_id = sales.id)
+                    THEN (SELECT printed_at FROM credit_note_prints WHERE credit_note_id = @credit_note_id)
                   WHEN 'deferred_invoice'
                     THEN (SELECT printed_at FROM deferred_invoice_prints WHERE sale_id = sales.id)
                   ELSE printed_at END AS printed_at,
@@ -132,11 +187,16 @@ export class SqliteReceiptLedger implements ReceiptLedger {
                   WHERE sale_reprints.sale_id = sales.id AND sale_reprints.document = @document) AS reprint_count,
                 (state = 'VOIDED') AS voided,
                 EXISTS (SELECT 1 FROM sale_void_credit_notes
-                  WHERE sale_void_credit_notes.sale_id = sales.id
+                  WHERE sale_void_credit_notes.id = @credit_note_id
                     AND sale_void_credit_notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')) AS credit_note_authorized
          FROM sales WHERE id = @sale_id AND state IN ('COMPLETED', 'VOIDED')`,
       )
-      .get({ sale_id: saleId, document });
+      .get({
+        sale_id: saleId,
+        document,
+        credit_note_id:
+          document === "credit_note" ? (creditNoteIdToPrint(this.database, saleId) ?? null) : null,
+      });
     return row === undefined
       ? undefined
       : {
@@ -154,19 +214,25 @@ export class SqliteReceiptLedger implements ReceiptLedger {
   }
 
   private creditNoteContent(saleId: string) {
-    const content = readCreditNoteReceipt(this.database, saleId);
+    const creditNoteId = creditNoteIdToPrint(this.database, saleId);
+    const content =
+      creditNoteId === undefined ? null : readCreditNoteReceipt(this.database, creditNoteId);
     if (content === null) {
       throw new Error(`sale ${saleId} has no authorized credit note`);
     }
     return content;
   }
 
-  private storedReceipt({ document, saleId }: PrintedDocumentKey): StoredReceipt | undefined {
+  private storedReceipt(key: PrintedDocumentKey): StoredReceipt | undefined {
+    const slot = this.storedSlotOf(key);
+    if (slot === undefined) {
+      return undefined;
+    }
     const row = this.database
       .prepare<[string], StoredReceiptRow>(
-        `SELECT template_version, head, body FROM ${storedTableOf(document)} WHERE sale_id = ?`,
+        `SELECT template_version, head, body FROM ${slot.table} WHERE ${slot.column} = ?`,
       )
-      .get(saleId);
+      .get(slot.value);
     return row === undefined
       ? undefined
       : {
@@ -176,21 +242,37 @@ export class SqliteReceiptLedger implements ReceiptLedger {
         };
   }
 
-  private recordStoredReceipt(
-    { document, saleId }: PrintedDocumentKey,
-    receipt: StoredReceipt,
-  ): void {
+  private recordStoredReceipt(key: PrintedDocumentKey, receipt: StoredReceipt): void {
+    const slot = this.storedSlotOf(key);
+    if (slot === undefined) {
+      throw new Error(`sale ${key.saleId} has no credit note`);
+    }
     this.database
       .prepare(
-        `INSERT INTO ${storedTableOf(document)} (sale_id, template_version, head, body)
-         VALUES (@sale_id, @template_version, @head, @body)`,
+        `INSERT INTO ${slot.table} (${slot.column}, template_version, head, body)
+         VALUES (@value, @template_version, @head, @body)`,
       )
       .run({
-        sale_id: saleId,
+        value: slot.value,
         template_version: receipt.templateVersion,
         head: Buffer.from(receipt.head),
         body: Buffer.from(receipt.body),
       });
+  }
+
+  private storedSlotOf({ document, saleId }: PrintedDocumentKey): PrintSlot | undefined {
+    switch (document) {
+      case "credit_note": {
+        const creditNoteId = creditNoteIdToPrint(this.database, saleId);
+        return creditNoteId === undefined
+          ? undefined
+          : { table: "credit_note_receipts", column: "credit_note_id", value: creditNoteId };
+      }
+      case "deferred_invoice":
+        return { table: "deferred_invoice_receipts", column: "sale_id", value: saleId };
+      case "sale_receipt":
+        return { table: "sale_receipts", column: "sale_id", value: saleId };
+    }
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {
@@ -198,27 +280,5 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       throw new Error("the outbox has no chain key");
     }
     appendOutboxEvent(this.database, this.outboxChainKey, draft);
-  }
-}
-
-export function printsTableOf(document: PrintedDocumentKey["document"]): string | undefined {
-  switch (document) {
-    case "credit_note":
-      return "credit_note_prints";
-    case "deferred_invoice":
-      return "deferred_invoice_prints";
-    case "sale_receipt":
-      return undefined;
-  }
-}
-
-function storedTableOf(document: PrintedDocumentKey["document"]): string {
-  switch (document) {
-    case "credit_note":
-      return "credit_note_receipts";
-    case "deferred_invoice":
-      return "deferred_invoice_receipts";
-    case "sale_receipt":
-      return "sale_receipts";
   }
 }

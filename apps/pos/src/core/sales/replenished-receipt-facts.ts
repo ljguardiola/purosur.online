@@ -2,10 +2,10 @@ import type { PrintedDocumentKey } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import {
+  creditNoteIdToPrint,
   insertReprint,
   markPrintAttempted,
   markPrinted,
-  printsTableOf,
 } from "./sqlite-receipt-ledger";
 
 type ReceiptFact = Extract<SyncedFact, { kind: "sale_print_state_changed" | "reprint_recorded" }>;
@@ -15,24 +15,39 @@ interface Printing {
   printed_at: string | null;
 }
 
+function heldPrintingOf(
+  database: LocalDatabase,
+  document: PrintedDocumentKey["document"],
+  saleId: string,
+): Printing | undefined {
+  switch (document) {
+    case "sale_receipt":
+      return database
+        .prepare<[string], Printing>(
+          "SELECT print_attempted_at, printed_at FROM sales WHERE id = ?",
+        )
+        .get(saleId);
+    case "deferred_invoice":
+      return database
+        .prepare<[string], Printing>(
+          "SELECT print_attempted_at, printed_at FROM deferred_invoice_prints WHERE sale_id = ?",
+        )
+        .get(saleId);
+    case "credit_note":
+      return database
+        .prepare<[string], Printing>(
+          "SELECT print_attempted_at, printed_at FROM credit_note_prints WHERE credit_note_id = ?",
+        )
+        .get(creditNoteIdToPrint(database, saleId) ?? "");
+  }
+}
+
 function heldPrinting(database: LocalDatabase, { document, saleId }: PrintedDocumentKey): Printing {
   const sale = database.prepare("SELECT 1 FROM sales WHERE id = ?").get(saleId);
   if (sale === undefined) {
     throw new Error(`sale ${saleId} is not held`);
   }
-  const table = printsTableOf(document);
-  const held =
-    table === undefined
-      ? database
-          .prepare<[string], Printing>(
-            "SELECT print_attempted_at, printed_at FROM sales WHERE id = ?",
-          )
-          .get(saleId)
-      : database
-          .prepare<[string], Printing>(
-            `SELECT print_attempted_at, printed_at FROM ${table} WHERE sale_id = ?`,
-          )
-          .get(saleId);
+  const held = heldPrintingOf(database, document, saleId);
   return held ?? { print_attempted_at: null, printed_at: null };
 }
 
