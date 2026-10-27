@@ -799,12 +799,16 @@ export type {
   AssemblyBatchPreview,
   AssemblyBatchRefusal,
   AssemblyBatchResult,
+  AssemblyBatchVoidRefusal,
+  AssemblyBatchVoidResult,
 } from "./stock/assembly-batch-answers.js";
 export {
   assemblyBatchListSchema,
   assemblyBatchPreviewSchema,
   assemblyBatchRefusalSchema,
   assemblyBatchResultSchema,
+  assemblyBatchVoidRefusalSchema,
+  assemblyBatchVoidResultSchema,
 } from "./stock/assembly-batch-answers.js";
 export type { AssemblyBatchBody, AssemblyBatchPreviewQuery } from "./stock/assembly-batch-body.js";
 export {
