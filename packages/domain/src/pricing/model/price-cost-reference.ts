@@ -1,5 +1,10 @@
 import { type FreightToDistribute, freightPerUnit } from "../../purchasing/index.js";
-import { argentinaCalendarDay, type Fraction, roundHalfUp } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  type Fraction,
+  roundHalfUp,
+  type ZoneRules,
+} from "../../shared/index.js";
 import {
   knownLotCost,
   type LotCost,
@@ -38,7 +43,7 @@ interface DatedCost {
   instant: number;
 }
 
-function datedCost(source: CostSource): DatedCost | null {
+function datedCost(source: CostSource, rules: ZoneRules): DatedCost | null {
   if (source.kind === "purchase_line") {
     return {
       source,
@@ -54,7 +59,7 @@ function datedCost(source: CostSource): DatedCost | null {
   return {
     source,
     cost,
-    day: argentinaCalendarDay(source.countedAt),
+    day: argentinaCalendarDay(source.countedAt, rules),
     instant: source.countedAt.getTime(),
   };
 }
@@ -85,10 +90,10 @@ function compareRecency(a: DatedCost, b: DatedCost): number {
   );
 }
 
-function lastDatedCost(sources: readonly CostSource[]): DatedCost | null {
+function lastDatedCost(sources: readonly CostSource[], rules: ZoneRules): DatedCost | null {
   let last: DatedCost | null = null;
   for (const source of sources) {
-    const candidate = datedCost(source);
+    const candidate = datedCost(source, rules);
     if (candidate !== null && (last === null || compareRecency(candidate, last) > 0)) {
       last = candidate;
     }
@@ -131,8 +136,9 @@ function sum(left: Fraction, right: Fraction): Fraction {
 export function priceCostReference(
   sources: readonly CostSource[],
   unitPrice: number | null,
+  rules: ZoneRules,
 ): PriceCostReference | null {
-  const last = lastDatedCost(sources);
+  const last = lastDatedCost(sources, rules);
   if (last === null) {
     return null;
   }

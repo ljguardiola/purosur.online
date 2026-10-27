@@ -3,7 +3,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
-import type { PointCardType } from "@purosur/domain";
+import type { PointCardType, ZoneRulesSource } from "@purosur/domain";
 import {
   abandonMercadoPagoCharge,
   type FollowMercadoPagoChargeOutcome as FollowedMercadoPagoCharge,
@@ -36,6 +36,7 @@ export interface MercadoPagoChargeRequestDeps {
   orders: MercadoPagoChargeOrders;
   readOutboxChainKey: () => Promise<string | undefined>;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   restoration: RestorationProtocolEvidence;
 }
@@ -45,7 +46,7 @@ type MercadoPagoChargeSettlement =
   | { kind: "unavailable" };
 
 function mercadoPagoChargeSale(
-  { database, now, ids, restoration }: MercadoPagoChargeRequestDeps,
+  { database, now, zoneRules, ids, restoration }: MercadoPagoChargeRequestDeps,
   outboxChainKey: string | undefined,
 ): MercadoPagoChargeSale<
   PendingMercadoPagoPaymentRefusal,
@@ -55,13 +56,19 @@ function mercadoPagoChargeSale(
   const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
   return {
     recordPendingPayment: (payment) => {
-      const outcome = recordPendingMercadoPagoPayment({ ledger, restoration, ids }, payment);
+      const outcome = recordPendingMercadoPagoPayment(
+        { zoneRules, ledger, restoration, ids },
+        payment,
+      );
       return outcome.kind === "recorded" ? outcome : { kind: "refused", refusal: outcome };
     },
     settleApprovedPayment: (payment) =>
       outboxChainKey === undefined
         ? { kind: "unavailable" }
-        : settleApprovedMercadoPagoPayment({ ledger, restoration, clock: { now }, ids }, payment),
+        : settleApprovedMercadoPagoPayment(
+            { zoneRules, ledger, restoration, clock: { now }, ids },
+            payment,
+          ),
     replacePendingPayment: (payment) => {
       const outcome = replacePendingQrPayment({ ledger, restoration, ids }, payment);
       return outcome.kind === "replaced" ? outcome : { kind: "refused", refusal: outcome };

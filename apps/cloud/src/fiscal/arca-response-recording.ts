@@ -14,6 +14,7 @@ import {
   isPointOfSaleNumber,
   type OfflineSeriesDocumentType,
   selectConsumerBuyerTaxStatus,
+  type ZoneRulesSource,
 } from "@purosur/domain";
 import type {
   Fortnight,
@@ -132,6 +133,7 @@ export interface RecordArcaResponsesOptions {
   wsfeEndpoint: string;
   cuit: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   timeoutMs?: number;
 }
 
@@ -272,6 +274,7 @@ export async function recordArcaResponses(
     certificatePem: options.certificatePem,
     privateKeyPem: options.privateKeyPem,
     now: () => new Date(options.now().getTime() + logins * 1000),
+    zoneRules: options.zoneRules,
     onRawResponse: (raw) => current.onRawResponse(raw),
     ...timeout,
   });
@@ -324,7 +327,7 @@ export async function recordArcaResponses(
         const invoice = {
           token: first.token,
           pointOfSale: options.pointOfSale,
-          issuedOn: invoiceDateOf(options.now()),
+          issuedOn: invoiceDateOf(options.now(), options.zoneRules.zoneRules()),
           total: INVOICE_TOTAL_CENTS,
         };
         const invoiceRecordings: [string, number, number][] = [
@@ -407,7 +410,9 @@ async function recordOfflineAuthorizationCodes(
       onRawResponse: call.onRawResponse,
       ...(timeoutMs === undefined ? {} : { timeoutMs }),
     });
-  const withinWindow = fortnightsWithinRequestWindowOn(argentinaCalendarDay(options.now()));
+  const withinWindow = fortnightsWithinRequestWindowOn(
+    argentinaCalendarDay(options.now(), options.zoneRules.zoneRules()),
+  );
   let target: { fortnight: Fortnight; notGranted: string } | undefined;
   for (const fortnight of [...withinWindow].reverse()) {
     const lookup = capturedBy("FECAEAConsultar");
@@ -488,7 +493,11 @@ async function recordOfflineDocumentReports(
     return answer;
   };
   const reportsWith = (onRawResponse: (raw: string) => void) =>
-    new WsfeTaxAuthorityOfflineDocumentReports({ ...connection, onRawResponse });
+    new WsfeTaxAuthorityOfflineDocumentReports({
+      ...connection,
+      zoneRules: options.zoneRules,
+      onRawResponse,
+    });
   const codesWith = (onRawResponse: (raw: string) => void) =>
     new WsfeTaxAuthorityOfflineAuthorizationCodes({ ...connection, onRawResponse });
 
@@ -499,7 +508,9 @@ async function recordOfflineDocumentReports(
     reportsWith(onRawResponse).batchLimit(unissuedToken),
   );
 
-  const fortnight = fortnightContaining(argentinaCalendarDay(options.now()));
+  const fortnight = fortnightContaining(
+    argentinaCalendarDay(options.now(), options.zoneRules.zoneRules()),
+  );
   const lookup = capturedBy("FECAEAConsultar (the current fortnight)");
   const looked = await codesWith(lookup.onRawResponse).lookUp({ token, fortnight });
   let code: string | undefined;
@@ -543,7 +554,7 @@ async function recordOfflineDocumentReports(
     correction: null,
     documentType: FACTURA_C_DOCUMENT_TYPE,
     number,
-    issuedOn: invoiceDateOf(generatedAt),
+    issuedOn: invoiceDateOf(generatedAt, options.zoneRules.zoneRules()),
     generatedAt,
     buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
     buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,

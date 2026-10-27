@@ -175,6 +175,27 @@ describe("OpenAlertInput", () => {
     },
   );
 
+  it.each(["2025c", null])(
+    "accepts the device, the register's %s version and the cloud's version for a zone-rules-mismatch alert",
+    (registerVersion) => {
+      expectTypeOf<{
+        kind: "tz_rules_mismatch";
+        scope: string;
+        locationId: string;
+        detail: { deviceId: string; registerVersion: typeof registerVersion; cloudVersion: string };
+      }>().toExtend<OpenAlertInput>();
+    },
+  );
+
+  it("refuses a zone-rules-mismatch alert that does not name the cloud's version", () => {
+    expectTypeOf<{
+      kind: "tz_rules_mismatch";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; registerVersion: string | null };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a register-replenishment-failed alert with a failure the register does not report", () => {
     expectTypeOf<{
       kind: "register_replenishment_failed";

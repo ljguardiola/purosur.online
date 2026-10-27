@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { BuyerIdentificationThreshold } from "../model/buyer-identification-threshold.js";
 import { recordBuyerIdentificationThreshold } from "./record-buyer-identification-threshold.js";
 import { FakeBuyerIdentificationThresholdStore } from "./test-support/fake-buyer-identification-threshold-store.js";
@@ -19,7 +23,7 @@ function record(
   options: { amount?: number; confirmedLowerThanInEffect?: boolean } = {},
 ) {
   return recordBuyerIdentificationThreshold(
-    { store, clock },
+    { store, clock, zoneRules: new FakeZoneRulesSource() },
     {
       amount: options.amount ?? 3_000_000,
       validFrom,
@@ -30,6 +34,33 @@ function record(
 }
 
 describe("recordBuyerIdentificationThreshold", () => {
+  it("takes today from the zone rules it is given", async () => {
+    const store = new FakeBuyerIdentificationThresholdStore();
+    const lateEvening = { now: () => new Date("2026-06-11T01:00:00.000Z") };
+
+    const underArgentina = await recordBuyerIdentificationThreshold(
+      { store, clock: lateEvening, zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(-180)) },
+      {
+        amount: 3_000_000,
+        validFrom: "2026-06-10",
+        actorId: "actor-1",
+        confirmedLowerThanInEffect: false,
+      },
+    );
+    const underUtc = await recordBuyerIdentificationThreshold(
+      { store, clock: lateEvening, zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)) },
+      {
+        amount: 3_000_000,
+        validFrom: "2026-06-10",
+        actorId: "actor-1",
+        confirmedLowerThanInEffect: false,
+      },
+    );
+
+    expect(underArgentina).toMatchObject({ kind: "recorded" });
+    expect(underUtc).toEqual({ kind: "before_today", today: "2026-06-11" });
+  });
+
   it("records the first threshold, as revision 0, for today", async () => {
     const store = new FakeBuyerIdentificationThresholdStore();
 
@@ -66,7 +97,7 @@ describe("recordBuyerIdentificationThreshold", () => {
     const lateAtNightUtc = new Date("2026-06-10T01:00:00.000Z");
 
     const outcome = await recordBuyerIdentificationThreshold(
-      { store, clock: { now: () => lateAtNightUtc } },
+      { zoneRules: new FakeZoneRulesSource(), store, clock: { now: () => lateAtNightUtc } },
       {
         amount: 3_000_000,
         validFrom: "2026-06-09",

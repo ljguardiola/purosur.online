@@ -16,6 +16,7 @@ import {
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertProduct } from "../stock/test-support/stock-route-fixtures.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
@@ -36,7 +37,11 @@ const CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 const AN_HOUR_MS = 60 * 60 * 1000;
 
 function applyAt(at: Date, report = vi.fn()) {
-  return applySyncedEventsTask(route.db, { now: () => at, report });
+  return applySyncedEventsTask(route.db, {
+    zoneRules: fixedZoneRulesSource(),
+    now: () => at,
+    report,
+  });
 }
 
 async function pushingFromARegister() {

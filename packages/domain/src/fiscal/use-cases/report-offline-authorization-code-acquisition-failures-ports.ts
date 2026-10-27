@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { OfflineAuthorizationCodeAcquisitionUrgency } from "../model/offline-authorization-code-acquisition-urgency.js";
 import type { FortnightAcquisitionOutcome } from "./obtain-offline-authorization-codes.js";
@@ -28,4 +28,5 @@ export interface AcquisitionFailureReportPorts {
   store: AcquisitionFailureReportStore;
   notifier: AcquisitionFailureNotifier;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }

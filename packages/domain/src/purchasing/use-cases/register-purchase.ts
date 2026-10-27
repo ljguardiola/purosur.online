@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
 import { hasProductSaleUnitChanged } from "../model/packaging.js";
 import {
@@ -42,6 +42,7 @@ export interface RegisterPurchaseInput {
 export interface RegisterPurchasePorts {
   store: PurchasingStore;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface RegisteredPurchaseLine {
@@ -140,14 +141,14 @@ function resolveLine(
 }
 
 export async function registerPurchase(
-  { store, clock }: RegisterPurchasePorts,
+  { store, clock, zoneRules }: RegisterPurchasePorts,
   input: RegisterPurchaseInput,
 ): Promise<RegisterPurchaseOutcome> {
   if (!hasPurchaseLines(input.lines.length)) {
     return { kind: "no_lines" };
   }
   const recordedAt = clock.now();
-  if (isPurchaseDateInFuture(input.purchasedOn, recordedAt)) {
+  if (isPurchaseDateInFuture(input.purchasedOn, recordedAt, zoneRules.zoneRules())) {
     return { kind: "date_in_future" };
   }
 

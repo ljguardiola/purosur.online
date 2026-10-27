@@ -6,6 +6,7 @@ import type { AccessEmailSender } from "../credentials/recovery-email-sender.js"
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { alerts } from "../platform/db/schema.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -77,6 +78,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
+      fixedZoneRulesSource(),
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 

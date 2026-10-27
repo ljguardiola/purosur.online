@@ -18,6 +18,7 @@ import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerPricesListRoute } from "./prices-list-route.js";
@@ -44,7 +45,12 @@ beforeEach(async () => {
   await testDatabase.clear();
   currentNow = NOON;
   app = Fastify();
-  registerPricesListRoute(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => currentNow });
+  registerPricesListRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => currentNow,
+  });
 });
 
 afterEach(async () => {

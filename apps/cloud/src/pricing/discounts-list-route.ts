@@ -1,4 +1,5 @@
 import { discountListSchema } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import { listDiscounts } from "@purosur/domain/pricing/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -14,6 +15,7 @@ export interface DiscountsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 export function registerDiscountsListRoute<TQueryResult extends PgQueryResultHKT>(
@@ -23,7 +25,11 @@ export function registerDiscountsListRoute<TQueryResult extends PgQueryResultHKT
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const ports = { discounts: new DrizzleDiscountReader(options.db), clock: { now } };
+  const ports = {
+    discounts: new DrizzleDiscountReader(options.db),
+    clock: { now },
+    zoneRules: options.zoneRules,
+  };
 
   app.get(
     "/discounts",

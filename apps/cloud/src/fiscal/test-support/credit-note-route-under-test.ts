@@ -6,6 +6,7 @@ import type { reportError } from "../../platform/error-reporting.js";
 import { registerRouteAccess } from "../../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../../test-support/device-token-rotation-key.js";
+import { fixedZoneRulesSource } from "../../test-support/fixed-zone-rules-source.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
 import { registerCreditNoteRoute } from "../credit-note-route.js";
 import { WsfeTaxAuthorityCreditNotes } from "../wsfe-tax-authority-credit-notes.js";
@@ -62,6 +63,7 @@ export function creditNoteRouteUnderTest(): CreditNoteRouteUnderTest {
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
       now: () => NOW,
+      zoneRules: fixedZoneRulesSource(),
       connections: { withConnection: (work) => work(testDatabase.db) },
       vouchers: new WsfeTaxAuthorityVouchers(connection),
       taxAuthority: new WsfeTaxAuthorityLastAuthorized(connection),

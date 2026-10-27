@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { fiscalRequests } from "../platform/db/schema.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -87,10 +88,15 @@ describe("the unclear outcome decisions the server sets up on a real Postgres", 
       unclearCodes: [],
       answeredAt: ANSWERED_AT,
     });
-    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-      emailSender: UNUSED_EMAIL_SENDER,
-      schedules: false,
-    });
+    const backgroundJobs = await setUpBackgroundJobs(
+      backgroundJobsEnv(),
+      () => NOW,
+      fixedZoneRulesSource(),
+      {
+        emailSender: UNUSED_EMAIL_SENDER,
+        schedules: false,
+      },
+    );
     try {
       await backgroundJobs.db.transaction((transaction) =>
         enqueueUnclearOutcomeJob(transaction, request.fiscalDocumentId, ALREADY_DUE),

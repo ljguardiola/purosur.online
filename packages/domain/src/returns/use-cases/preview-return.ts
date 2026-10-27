@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import {
   assessReturnDraft,
   type ReturnDraftLine,
@@ -16,6 +16,7 @@ export interface PreviewReturnInput {
 export interface PreviewReturnPorts {
   reader: ReturnSaleReader;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type PreviewReturnOutcome =
@@ -24,7 +25,7 @@ export type PreviewReturnOutcome =
   | { kind: "previewed"; lines: ReturnLineAssessment[]; refundableTotal: number };
 
 export function previewReturn(
-  { reader, clock }: PreviewReturnPorts,
+  { reader, clock, zoneRules }: PreviewReturnPorts,
   { saleId, lines }: PreviewReturnInput,
 ): PreviewReturnOutcome {
   const facts = reader.saleForReturn({ kind: "sale", saleId });
@@ -39,6 +40,7 @@ export function previewReturn(
       soldAt: facts.occurredAt,
       goodConditionReturnDays: reader.goodConditionReturnDays(),
       now: clock.now(),
+      rules: zoneRules.zoneRules(),
       lines: returnSaleLines(facts),
     },
     lines,

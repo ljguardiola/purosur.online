@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { DeferredSaleFacts } from "../model/deferred-sale-lookup.js";
 import type { DeferredSaleInvoicingOutcome } from "./deferred-sale-lookup-ports.js";
 import { printDeferredSaleInvoice } from "./print-deferred-sale-invoice.js";
@@ -25,7 +26,7 @@ function scenario(
       lookup.invoice(saleId, 12, 101);
     }
   });
-  const ports = { ...rig.ports, lookup, invoicing };
+  const ports = { ...rig.ports, lookup, invoicing, zoneRules: new FakeZoneRulesSource() };
   const printing = printDeferredSaleInvoice(ports, { saleId: "sale-1" }, rig.watch);
   return { rig, lookup, invoicing, printing };
 }
@@ -112,7 +113,7 @@ describe("printDeferredSaleInvoice", () => {
       const rig = receiptRig();
 
       const outcome = await printDeferredSaleInvoice(
-        { ...rig.ports, lookup, invoicing },
+        { zoneRules: new FakeZoneRulesSource(), ...rig.ports, lookup, invoicing },
         { saleId: "sale-1" },
         rig.watch,
       );
@@ -130,7 +131,7 @@ describe("printDeferredSaleInvoice", () => {
 
       expect(
         await printDeferredSaleInvoice(
-          { ...rig.ports, lookup, invoicing },
+          { zoneRules: new FakeZoneRulesSource(), ...rig.ports, lookup, invoicing },
           { saleId: "sale-1" },
           rig.watch,
         ),

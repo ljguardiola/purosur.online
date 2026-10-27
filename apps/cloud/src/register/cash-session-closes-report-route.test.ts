@@ -7,6 +7,7 @@ import {
   signedInWith,
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerCashSessionClosesReportRoute } from "./cash-session-closes-report-route.js";
 import {
   applyClosedCashSession,
@@ -34,6 +35,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerCashSessionClosesReportRoute(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,

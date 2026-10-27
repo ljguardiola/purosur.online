@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { ReturnDraftLine } from "../model/return-draft.js";
 import { previewReturn } from "./preview-return.js";
 import { FakeReturnLedger, type FakeReturnLedgerState } from "./test-support/fake-return-ledger.js";
@@ -13,7 +14,10 @@ function preview(
   saleId = "sale-1",
 ) {
   const ledger = new FakeReturnLedger({ sales: [aSaleForReturn()], ...state });
-  return previewReturn({ reader: ledger, clock: new FixedClock(now) }, { saleId, lines });
+  return previewReturn(
+    { zoneRules: new FakeZoneRulesSource(), reader: ledger, clock: new FixedClock(now) },
+    { saleId, lines },
+  );
 }
 
 const YERBA: ReturnDraftLine = {
@@ -53,7 +57,11 @@ describe("previewReturn", () => {
   });
 
   it("tells the window has passed with the last day it was allowed", () => {
-    const outcome = preview([YERBA], {}, new Date(argentinaInstant("2026-09-28", "09:00")));
+    const outcome = preview(
+      [YERBA],
+      {},
+      new Date(argentinaInstant("2026-09-28", "09:00", FIXED_ARGENTINA_ZONE_RULES)),
+    );
 
     expect(outcome).toMatchObject({
       lines: [
@@ -73,7 +81,7 @@ describe("previewReturn", () => {
     const outcome = preview(
       [YERBA],
       { goodConditionReturnDays: 30 },
-      new Date(argentinaInstant("2026-09-28", "09:00")),
+      new Date(argentinaInstant("2026-09-28", "09:00", FIXED_ARGENTINA_ZONE_RULES)),
     );
 
     expect(outcome).toMatchObject({ lines: [{ refusal: null }] });
@@ -112,7 +120,7 @@ describe("previewReturn", () => {
     const before = structuredClone(ledger.state);
 
     previewReturn(
-      { reader: ledger, clock: new FixedClock(RETURNED_AT) },
+      { zoneRules: new FakeZoneRulesSource(), reader: ledger, clock: new FixedClock(RETURNED_AT) },
       { saleId: "sale-1", lines: [YERBA] },
     );
 

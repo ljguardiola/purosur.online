@@ -1,3 +1,4 @@
+import type { ZoneRulesSource } from "@purosur/domain";
 import { checkArcaVitality, type WsaaAuthenticationResult } from "@purosur/domain/fiscal/use-cases";
 import { arcaCredentialsOf } from "./arca-credentials.js";
 import { ArcaWsaaAuthentication } from "./wsaa-authentication.js";
@@ -38,6 +39,7 @@ export interface CheckArcaTestEnvironmentOptions extends ArcaTestEnvironmentChec
   wsaaEndpoint: string;
   wsfeEndpoint: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   timeoutMs?: number;
 }
 
@@ -108,6 +110,7 @@ async function checkLogin(options: CheckArcaTestEnvironmentOptions): Promise<Log
     certificatePem: options.certificatePem,
     privateKeyPem: options.privateKeyPem,
     now: options.now,
+    zoneRules: options.zoneRules,
     onRawResponse: (response) => {
       raw = response;
     },

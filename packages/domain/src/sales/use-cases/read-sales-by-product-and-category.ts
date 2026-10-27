@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import type { SalesReportGroup } from "../model/sales-report-group.js";
 import {
   type SalesOfGroup,
@@ -23,10 +28,14 @@ export interface SalesByProductAndCategoryReport {
 }
 
 export async function readSalesByProductAndCategory(
-  { reader, clock }: { reader: ProductSalesReportReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: ProductSalesReportReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId, group }: ReadSalesByProductAndCategoryInput,
 ): Promise<SalesByProductAndCategoryReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const query = { locationId, range, registerId };
   const sold =
     group === "product"

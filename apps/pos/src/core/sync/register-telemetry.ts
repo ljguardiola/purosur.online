@@ -12,11 +12,18 @@ import {
   type StorageSalesStop,
   type StorageTelemetry,
   salesDeniedReportOf,
+  type ZoneRulesVersionReport,
 } from "@purosur/domain";
 import { registerVersionOf } from "../register/register-version";
 
 function batteryTelemetryOf(battery: BatteryReport | undefined): { battery?: BatteryReport } {
   return battery === undefined ? {} : { battery };
+}
+
+function zoneRulesVersionReportOf(
+  readZoneRulesVersion: (() => string | null) | undefined,
+): ZoneRulesVersionReport {
+  return readZoneRulesVersion === undefined ? {} : { zone_rules_version: readZoneRulesVersion() };
 }
 
 export function registerTelemetryReader(
@@ -31,6 +38,7 @@ export function registerTelemetryReader(
   readClockOffsetMs: () => number | null = () => null,
   readPendingReplenishment: () => PendingReplenishment | undefined = () => undefined,
   appVersion: string | undefined = undefined,
+  readZoneRulesVersion: (() => string | null) | undefined = undefined,
 ): () => Promise<RegisterTelemetry> {
   return async () => ({
     ...(await readStorage()),
@@ -43,6 +51,7 @@ export function registerTelemetryReader(
     ...fiscalEmissionStoppedReportOf(readLatestPreEmissionGate()),
     ...clockDriftReportOf(readClockOffsetMs()),
     ...replenishmentFailedReportOf(readPendingReplenishment(), registerVersionOf(appVersion)),
+    ...zoneRulesVersionReportOf(readZoneRulesVersion),
     serial_devices: readSerialDevices(),
     ...batteryTelemetryOf(readBattery()),
   });

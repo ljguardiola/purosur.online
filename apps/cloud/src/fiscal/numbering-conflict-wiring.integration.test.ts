@@ -8,6 +8,7 @@ import { fiscalRequests, taxAuthorityLastAuthorizedNumbers } from "../platform/d
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpBackgroundJobs } from "../server.js";
 import { buildChangesRouteApp, pulledPage } from "../sync/test-support/changes-route.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -131,11 +132,19 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
         "fe-comp-ultimo-autorizado-token-error.xml",
       ),
     );
-    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-      emailSender: UNUSED_EMAIL_SENDER,
-      schedules: false,
+    const backgroundJobs = await setUpBackgroundJobs(
+      backgroundJobsEnv(),
+      () => NOW,
+      fixedZoneRulesSource(),
+      {
+        emailSender: UNUSED_EMAIL_SENDER,
+        schedules: false,
+      },
+    );
+    const app = buildChangesRouteApp(backgroundJobs.db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
     });
-    const app = buildChangesRouteApp(backgroundJobs.db, { now: () => NOW });
     const pointOfSaleRow = async () => {
       const page = await pulledPage(app, 0, deviceToken, { entity: "register_point_of_sale" });
       const last = page.changes.at(-1);
@@ -213,10 +222,15 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
           "fe-comp-ultimo-autorizado-token-error.xml",
         ),
       );
-      const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-        emailSender: UNUSED_EMAIL_SENDER,
-        schedules: false,
-      });
+      const backgroundJobs = await setUpBackgroundJobs(
+        backgroundJobsEnv(),
+        () => NOW,
+        fixedZoneRulesSource(),
+        {
+          emailSender: UNUSED_EMAIL_SENDER,
+          schedules: false,
+        },
+      );
       try {
         await backgroundJobs.db.transaction((transaction) =>
           enqueueNumberingDiagnosisJob(transaction, fiscalDocumentId),
@@ -271,11 +285,19 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
     const { registerId, deviceToken } = await registerHoldingPointOfSale(8, 1);
     const fiscalDocumentId = await leftUnclearByNumbering(registerId, 8, 2, "2026-10-05");
     fakeWsfe.behave(answersInTurn("fe-comp-ultimo-autorizado.xml", "fe-comp-consultar-found.xml"));
-    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
-      emailSender: UNUSED_EMAIL_SENDER,
-      schedules: false,
+    const backgroundJobs = await setUpBackgroundJobs(
+      backgroundJobsEnv(),
+      () => NOW,
+      fixedZoneRulesSource(),
+      {
+        emailSender: UNUSED_EMAIL_SENDER,
+        schedules: false,
+      },
+    );
+    const app = buildChangesRouteApp(backgroundJobs.db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
     });
-    const app = buildChangesRouteApp(backgroundJobs.db, { now: () => NOW });
     try {
       await backgroundJobs.db.transaction((transaction) =>
         enqueueNumberingDiagnosisJob(transaction, fiscalDocumentId),

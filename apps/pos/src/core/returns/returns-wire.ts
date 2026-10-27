@@ -8,6 +8,7 @@ import type {
   RefundAllocationRefusal,
   ReturnLineAssessment,
   ReturnLineRefusal,
+  ZoneRules,
 } from "@purosur/domain";
 import type { SaleForReturnView } from "@purosur/domain/returns/use-cases";
 import { inArgentinaTime } from "../platform/argentina-time";
@@ -45,10 +46,10 @@ function toWireWindow({ lastAllowedDay, open }: { lastAllowedDay: string; open: 
   return { last_allowed_day: lastAllowedDay, open };
 }
 
-export function toWireSaleForReturn(sale: SaleForReturnView): WireSale {
+export function toWireSaleForReturn(sale: SaleForReturnView, rules: ZoneRules): WireSale {
   return {
     sale_id: sale.saleId,
-    occurred_at: inArgentinaTime(sale.occurredAt),
+    occurred_at: inArgentinaTime(sale.occurredAt, rules),
     total: sale.total,
     invoice:
       sale.invoice === null

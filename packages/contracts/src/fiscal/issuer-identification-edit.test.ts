@@ -1,4 +1,5 @@
 import {
+  FIXED_ARGENTINA_ZONE_RULES,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
 } from "@purosur/domain";
@@ -10,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { issuerIdentificationEditBodySchema } from "./issuer-identification-edit.js";
 
 const TODAY = new Date("2026-09-25T12:00:00.000Z");
-const schema = issuerIdentificationEditBodySchema(TODAY);
+const schema = issuerIdentificationEditBodySchema(TODAY, FIXED_ARGENTINA_ZONE_RULES);
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -160,7 +161,10 @@ describe("issuerIdentificationEditBodySchema", () => {
   });
 
   it("takes today from Argentina's calendar at 23:30 there, when UTC is already on the next day", () => {
-    const lateSchema = issuerIdentificationEditBodySchema(new Date("2026-09-25T23:30:00-03:00"));
+    const lateSchema = issuerIdentificationEditBodySchema(
+      new Date("2026-09-25T23:30:00-03:00"),
+      FIXED_ARGENTINA_ZONE_RULES,
+    );
 
     expect(lateSchema.safeParse(validBody({ activity_start_date: "2026-09-25" })).success).toBe(
       true,
@@ -218,7 +222,37 @@ describe("issuerIdentificationEditBodySchema, declared latest day", () => {
     const justAfterUtcMidnight = new Date("2026-09-26T01:00:00.000Z");
 
     expect(
-      issuerIdentificationEditBodySchema(justAfterUtcMidnight).shape.activity_start_date.meta(),
+      issuerIdentificationEditBodySchema(
+        justAfterUtcMidnight,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ).shape.activity_start_date.meta(),
     ).toEqual({ latestDay: "2026-09-25" });
+  });
+});
+
+describe("issuerIdentificationEditBodySchema, under the zone rules it is given", () => {
+  const justAfterUtcMidnight = new Date("2026-09-26T01:00:00.000Z");
+  const utcRules = { version: "2026a", transitions: [{ from: new Date(0), offsetMinutes: 0 }] };
+
+  it("accepts the day of the offset the rules give, even when it is the next one in Argentina", () => {
+    const underUtc = issuerIdentificationEditBodySchema(justAfterUtcMidnight, utcRules);
+    const underArgentina = issuerIdentificationEditBodySchema(
+      justAfterUtcMidnight,
+      FIXED_ARGENTINA_ZONE_RULES,
+    );
+
+    expect(underUtc.safeParse(validBody({ activity_start_date: "2026-09-26" })).success).toBe(true);
+    expect(underArgentina.safeParse(validBody({ activity_start_date: "2026-09-26" })).success).toBe(
+      false,
+    );
+  });
+
+  it("declares as its latest day the day of the offset the rules give", () => {
+    expect(
+      issuerIdentificationEditBodySchema(
+        justAfterUtcMidnight,
+        utcRules,
+      ).shape.activity_start_date.meta(),
+    ).toEqual({ latestDay: "2026-09-26" });
   });
 });

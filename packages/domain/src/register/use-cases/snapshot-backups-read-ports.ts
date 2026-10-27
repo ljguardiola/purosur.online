@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { SnapshotLifecycleRules } from "../model/snapshot-lifecycle-rules.js";
 import type { SnapshotGeneration } from "./snapshot-generations.js";
 
@@ -21,6 +21,7 @@ export interface SnapshotBackupsReader {
 export interface RegisterSnapshotBackupsPorts {
   reader: SnapshotBackupsReader;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export interface ListSnapshotBackupRegistersPorts {

@@ -1,5 +1,5 @@
 import { returnsReportQuerySchema, returnsReportSchema } from "@purosur/contracts";
-import type { ReturnRow, ReturnsGroup } from "@purosur/domain";
+import type { ReturnRow, ReturnsGroup, ZoneRulesSource } from "@purosur/domain";
 import { readReturnsReport } from "@purosur/domain/returns/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -16,6 +16,7 @@ import { DrizzleReturnsReportReader } from "./drizzle-returns-report-reader.js";
 export interface ReturnsReportRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
+  zoneRules: ZoneRulesSource;
   now: () => Date;
 }
 
@@ -74,7 +75,7 @@ export function registerReturnsReportRoutes<TQueryResult extends PgQueryResultHK
         return;
       }
       const report = await readReturnsReport(
-        { reader, clock: { now } },
+        { reader, clock: { now }, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           asked: { from: query.from, to: query.to },

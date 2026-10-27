@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { aVoidedSaleFact } from "../model/test-support/synced-facts.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
 import {
@@ -59,6 +60,7 @@ const POINT = refund({
 function apply(application: FakeEventApplication, refunds: Refund[]) {
   return applyPendingEvents(
     {
+      zoneRules: new FakeZoneRulesSource(),
       eventApplication: application,
       upcaster: new FakeEventUpcaster({ "void-event": aVoidedSaleFact({ refunds }) }),
       clock: { now: () => NOW },

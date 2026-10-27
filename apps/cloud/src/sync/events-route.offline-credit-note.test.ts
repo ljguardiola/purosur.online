@@ -11,6 +11,7 @@ import {
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
@@ -105,9 +106,9 @@ describe("a credit note issued under a pre-obtained code pushed through POST /ev
     const body = pushOf(registerId, "credit_note_c", 3);
 
     expect((await push(body)).json()).toMatchObject({ status: "ok", ack_seq: 1 });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     expect((await push(body)).json()).toMatchObject({ status: "ok", ack_seq: 1 });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(offlineFiscalDocuments)).toEqual([
       expect.objectContaining({
@@ -145,7 +146,7 @@ describe("a credit note issued under a pre-obtained code pushed through POST /ev
     });
 
     await push(pushOf(registerId, "credit_note_c", 3));
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(offlineFiscalDocuments)).toHaveLength(1);
     expect(await route.db.select({ kind: alerts.kind }).from(alerts)).toEqual([

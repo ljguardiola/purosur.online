@@ -83,6 +83,7 @@ describe("alertKindPolicy", () => {
     ["fiscal_emission_stopped", "critical", null, "local", "register", true],
     ["clock_drift", "critical", null, "local", "register", true],
     ["register_replenishment_failed", "critical", null, "all", "register", true],
+    ["tz_rules_mismatch", "warning", null, "all", "register", true],
     ["fiscal_rejected", "critical", null, "all", "pointOfSaleDocumentType", true],
     ["offline_authorization_code_missing", "informational", null, "all", "registerFortnight", true],
     [
@@ -134,6 +135,7 @@ describe("alertKindPolicy", () => {
       "fiscal_emission_stopped",
       "clock_drift",
       "register_replenishment_failed",
+      "tz_rules_mismatch",
       "lots_expiring",
       "offsite_dump_unverified",
       "fortnight_report_pending",
@@ -177,6 +179,7 @@ describe("alertClosing", () => {
       fiscal_emission_stopped: "by_itself",
       clock_drift: "by_itself",
       register_replenishment_failed: "by_itself",
+      tz_rules_mismatch: "by_itself",
       outbox_chain_broken: "by_hand",
       lots_expiring: "by_itself",
       offsite_dump_unverified: "by_itself",
@@ -221,6 +224,7 @@ describe("alertKindsWithScope", () => {
       "fiscal_emission_stopped",
       "clock_drift",
       "register_replenishment_failed",
+      "tz_rules_mismatch",
       "clock_corrected",
       "register_backup_overdue",
     ]);

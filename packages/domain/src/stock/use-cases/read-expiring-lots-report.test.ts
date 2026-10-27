@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { ZoneRules } from "../../shared/index.js";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { ExpiringLotProduct, ExpiringLotRow } from "./expiring-lot-reader.js";
 import { readExpiringLotsReport } from "./read-expiring-lots-report.js";
 import {
@@ -37,12 +42,22 @@ function lot(
 
 async function read(
   rows: (ExpiringLotRow & { locationId: string })[],
-  options: { windowDays?: number; now?: Date; asked?: { from?: string; to?: string } } = {},
+  options: {
+    windowDays?: number;
+    now?: Date;
+    asked?: { from?: string; to?: string };
+    rules?: ZoneRules;
+  } = {},
 ) {
   const expiringLots = new FakeExpiringLotReader(rows);
   const branchSettings = new FakeBranchSettings(options.windowDays ?? 30);
   const report = await readExpiringLotsReport(
-    { expiringLots, branchSettings, clock: new FixedClock(options.now ?? NOON) },
+    {
+      expiringLots,
+      branchSettings,
+      clock: new FixedClock(options.now ?? NOON),
+      zoneRules: new FakeZoneRulesSource(options.rules),
+    },
     { locationId: "location-1", asked: options.asked ?? {} },
   );
   return { report, expiringLots, branchSettings };
@@ -65,6 +80,16 @@ describe("readExpiringLotsReport", () => {
     const { report } = await read([], { windowDays: 0, now: new Date("2026-10-14T01:00:00.000Z") });
 
     expect(report.period).toEqual({ from: "2026-10-13", to: "2026-10-13" });
+  });
+
+  it("takes today on the calendar of the zone rules it is given", async () => {
+    const { report } = await read([], {
+      windowDays: 0,
+      now: new Date("2026-10-14T01:00:00.000Z"),
+      rules: fixedOffsetZoneRules(0),
+    });
+
+    expect(report.period).toEqual({ from: "2026-10-14", to: "2026-10-14" });
   });
 
   it("lists the lots within the window and leaves out those beyond it", async () => {

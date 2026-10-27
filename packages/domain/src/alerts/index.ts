@@ -22,6 +22,7 @@ export {
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerZoneRulesObservation,
 } from "./model/alert-condition-observation.js";
 export {
   ALERT_CONDITION_EVALUATION_INTERVAL_MS,

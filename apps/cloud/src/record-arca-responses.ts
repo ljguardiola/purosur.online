@@ -5,6 +5,7 @@ import {
 } from "./fiscal/arca-response-recording.js";
 import { wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
+import { runtimeZoneRules } from "./register/runtime-zone-rules.js";
 
 if (import.meta.main) {
   const result = recordingSettingsOf(process.argv.slice(2), process.env);
@@ -12,6 +13,7 @@ if (import.meta.main) {
     console.error(`record-arca-responses: ${result.reason}`);
     process.exit(1);
   } else {
+    const rules = runtimeZoneRules();
     Promise.resolve()
       .then(() =>
         recordArcaResponses({
@@ -19,6 +21,7 @@ if (import.meta.main) {
           wsaaEndpoint: wsaaEndpointOf("homologation"),
           wsfeEndpoint: wsfeEndpointOf("homologation"),
           now: () => new Date(),
+          zoneRules: { zoneRules: () => rules },
         }),
       )
       .then((report) => {

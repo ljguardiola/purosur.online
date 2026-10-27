@@ -6,6 +6,7 @@ import { restorePendingIn } from "../backups/restore-pending";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -61,6 +62,7 @@ function deps(overrides: Partial<OpenCashSessionRequestDeps> = {}): OpenCashSess
         return `id-${count}`;
       },
     },
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }
@@ -110,6 +112,20 @@ function openedSessions(): unknown[] {
 }
 
 describe("opening a cash session on the register", () => {
+  it("writes when it was opened on the clock of the zone rules it is given", async () => {
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    expect(
+      await openCashSessionFor(deps({ zoneRules: { zoneRules: () => rules } }), 5000),
+    ).toMatchObject({
+      kind: "opened",
+      cash_session: { opened_at: "2026-09-30T12:00:00.000+00:00" },
+    });
+  });
+
   it("opens it for the person signed in on the register and answers the cash session as it stands for them", async () => {
     expect(await openCashSessionFor(deps(), 5000)).toEqual({
       kind: "opened",
@@ -225,7 +241,9 @@ describe("opening a cash session on the register", () => {
 
 describe("the open cash session", () => {
   it("is none while no session is open, and leaves the signed-in person signed in", () => {
-    expect(currentCashSession(database, signedInPerson.userId())).toBeNull();
+    expect(
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource()),
+    ).toBeNull();
     expect(signedInPerson.userId()).toBe("u1");
   });
 
@@ -233,7 +251,7 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     signedInPerson.clear();
 
-    currentCashSession(database, signedInPerson.userId());
+    currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource());
 
     expect(signedInPerson.userId()).toBeUndefined();
   });
@@ -243,7 +261,9 @@ describe("the open cash session", () => {
     signedInPerson.clear();
     database.exec("DROP TABLE role_permissions");
 
-    expect(() => currentCashSession(database, signedInPerson.userId())).toThrow();
+    expect(() =>
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource()),
+    ).toThrow();
     expect(signedInPerson.userId()).toBeUndefined();
   });
 
@@ -252,14 +272,16 @@ describe("the open cash session", () => {
     signedInPerson.clear();
     database.prepare("UPDATE cash_sessions SET opened_at = 'not a date'").run();
 
-    expect(() => currentCashSession(database, signedInPerson.userId())).toThrow();
+    expect(() =>
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource()),
+    ).toThrow();
     expect(signedInPerson.userId()).toBeUndefined();
   });
 
   it("names its opener with the permissions of the opener's role", async () => {
     await openCashSessionFor(deps(), 5000);
 
-    expect(currentCashSession(database, signedInPerson.userId())).toEqual({
+    expect(currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource())).toEqual({
       id: "id-1",
       opened_at: "2026-09-30T09:00:00.000-03:00",
       opened_by: {
@@ -275,7 +297,9 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     signedInPerson.clear();
 
-    expect(currentCashSession(database, signedInPerson.userId())?.locked).toBe(true);
+    expect(
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource())?.locked,
+    ).toBe(true);
   });
 
   it("is locked while a person who did not open it is signed in", async () => {
@@ -283,7 +307,9 @@ describe("the open cash session", () => {
     addPerson("u2", "cashier", "Bruno");
     signedInPerson.set("u2");
 
-    expect(currentCashSession(database, signedInPerson.userId())?.locked).toBe(true);
+    expect(
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource())?.locked,
+    ).toBe(true);
   });
 
   it("gives an Administrator opener every register ability", async () => {
@@ -292,9 +318,10 @@ describe("the open cash session", () => {
     signedInPerson.set("u3");
     await openCashSessionFor(deps(), 0);
 
-    expect(currentCashSession(database, signedInPerson.userId())?.opened_by.abilities).toEqual([
-      ...REGISTER_ABILITIES,
-    ]);
+    expect(
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource())?.opened_by
+        .abilities,
+    ).toEqual([...REGISTER_ABILITIES]);
   });
 
   it.each([
@@ -306,7 +333,9 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare(change).run();
 
-    expect(currentCashSession(database, signedInPerson.userId())?.opened_by).toEqual({
+    expect(
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource())?.opened_by,
+    ).toEqual({
       user_id: "u1",
       first_name: "Ada",
       abilities: ["open_cash_session", "invoice_deferred_sale"],
@@ -317,14 +346,19 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("UPDATE roles SET removed = 1").run();
 
-    expect(currentCashSession(database, signedInPerson.userId())?.opened_by.abilities).toEqual([]);
+    expect(
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource())?.opened_by
+        .abilities,
+    ).toEqual([]);
   });
 
   it("is still the open session when the opener's row is gone, with no name and no abilities", async () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("DELETE FROM users").run();
 
-    expect(currentCashSession(database, signedInPerson.userId())?.opened_by).toEqual({
+    expect(
+      currentCashSession(database, signedInPerson.userId(), fixedZoneRulesSource())?.opened_by,
+    ).toEqual({
       user_id: "u1",
       first_name: "",
       abilities: [],

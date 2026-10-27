@@ -12,8 +12,9 @@ export async function detectMissingOfflineAuthorizationCodes({
   holdings,
   alerts,
   clock,
+  zoneRules,
 }: MissingOfflineAuthorizationCodeDetectionPorts): Promise<number> {
-  const day = argentinaCalendarDay(clock.now());
+  const day = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
   const fortnights = fortnightsWithinRequestWindowOn(day);
   const registers = await holdings.registerHoldings(fortnights);
   const missingScopes = new Set<string>();

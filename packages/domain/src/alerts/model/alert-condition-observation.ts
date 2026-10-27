@@ -7,7 +7,11 @@ import {
   type Fortnight,
   type RejectionStandingChange,
 } from "../../fiscal/index.js";
-import type { ClockDriftReport } from "../../register/index.js";
+import {
+  type ClockDriftReport,
+  runsCloudZoneRulesVersion,
+  type ZoneRulesVersionReport,
+} from "../../register/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
 import type { ReplenishmentFailedReport } from "../../sync/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
@@ -180,6 +184,42 @@ export function registerReplenishmentObservation({
       scope: registerId,
       locationId,
       detail: { deviceId, failure: report.replenishment_failed },
+    },
+  };
+}
+
+interface RegisterZoneRulesStanding {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  report: ZoneRulesVersionReport;
+  cloudZoneRulesVersion: string | null;
+}
+
+export function registerZoneRulesObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report,
+  cloudZoneRulesVersion,
+}: RegisterZoneRulesStanding): AlertConditionObservation | undefined {
+  if (report.zone_rules_version === undefined || cloudZoneRulesVersion === null) {
+    return undefined;
+  }
+  if (runsCloudZoneRulesVersion(report.zone_rules_version, cloudZoneRulesVersion)) {
+    return { holds: false, kind: "tz_rules_mismatch", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: {
+      kind: "tz_rules_mismatch",
+      scope: registerId,
+      locationId,
+      detail: {
+        deviceId,
+        registerVersion: report.zone_rules_version,
+        cloudVersion: cloudZoneRulesVersion,
+      },
     },
   };
 }

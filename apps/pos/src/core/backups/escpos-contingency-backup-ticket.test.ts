@@ -1,3 +1,4 @@
+import { FIXED_ARGENTINA_ZONE_RULES } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { printoutOf } from "../sales/test-support/escpos-printout";
 import {
@@ -23,7 +24,7 @@ function ticket(
 }
 
 function printed(overrides: Partial<ContingencyBackupTicketPrintout> = {}) {
-  return printoutOf(renderContingencyBackupTicket(ticket(overrides)));
+  return printoutOf(renderContingencyBackupTicket(ticket(overrides), FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function row(left: string, right: string): string {
@@ -31,6 +32,17 @@ function row(left: string, right: string): string {
 }
 
 describe("the contingency backup ticket", () => {
+  it("writes when it was made on the clock of the zone rules it is given", () => {
+    const rules = {
+      version: "2026a",
+      transitions: [{ from: new Date("1970-01-01T00:00:00Z"), offsetMinutes: 0 }],
+    };
+
+    const { textLines } = printoutOf(renderContingencyBackupTicket(ticket(), rules));
+
+    expect(textLines).toContain(row("Fecha 09/10/2026", "Hora 15:07"));
+  });
+
   it("prints its title, its keeping instruction, where and when it was made, the operation and each QR code", () => {
     expect(printed().text).toBe(
       [

@@ -5,6 +5,7 @@ import {
   type OperationAuthority,
   type OutboxEventDraft,
   SALE_RETURNED_EVENT_TYPE,
+  type ZoneRulesSource,
 } from "../../shared/index.js";
 import {
   type RefundAllocation,
@@ -47,6 +48,7 @@ export interface CompleteReturnGrant {
 export interface CompleteReturnPorts<Grant extends CompleteReturnGrant, Refusal> {
   ledger: ReturnLedger;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   authority: OperationAuthority<Grant, Refusal>;
 }
@@ -68,7 +70,7 @@ export type CompleteReturnOutcome<Grant extends CompleteReturnGrant> =
     };
 
 export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>(
-  { ledger, clock, ids, authority }: CompleteReturnPorts<Grant, Refusal>,
+  { ledger, clock, zoneRules, ids, authority }: CompleteReturnPorts<Grant, Refusal>,
   { saleId, ticketSource, lines, refunds }: CompleteReturnInput,
 ): Promise<CompleteReturnOutcome<Grant> | Refusal> {
   const authorization = await authority.authorize();
@@ -100,6 +102,7 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
         soldAt: facts.occurredAt,
         goodConditionReturnDays: tx.goodConditionReturnDays(),
         now: occurredAt,
+        rules: zoneRules.zoneRules(),
         lines: standing,
       },
       lines,

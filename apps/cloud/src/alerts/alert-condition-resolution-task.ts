@@ -1,4 +1,4 @@
-import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
+import { ALERT_CONDITION_EVALUATION_INTERVAL_MS, type ZoneRulesSource } from "@purosur/domain";
 import {
   detectDeferredSaleDeadlines,
   detectExpiringLots,
@@ -49,9 +49,14 @@ import { observeAlertCondition } from "./observe-alert-condition.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";
 
+interface AlertTaskDeps {
+  now: () => Date;
+  zoneRules: ZoneRulesSource;
+}
+
 function resolveClearedConditionAlertsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return resolveStablyClearedAlerts({
     store: new DrizzleAlertStore(db, deps.now),
@@ -62,31 +67,33 @@ function resolveClearedConditionAlertsTask<TQueryResult extends PgQueryResultHKT
 
 function detectQuietRegistersTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectQuietRegisters({
     registers: new DrizzleWatchedRegisterReader(db),
     branchHours: new DrizzleBranchHoursReader(db),
     store: new DrizzleAlertStore(db, deps.now),
     clock: { now: deps.now },
+    zoneRules: deps.zoneRules,
     hasher: { hash: hashSourceAddress },
   });
 }
 
 function detectMissingOfflineAuthorizationCodesTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectMissingOfflineAuthorizationCodes({
     holdings: new DrizzleOfflineAuthorizationCodeHoldingReader(db),
     alerts: new DrizzleMissingOfflineAuthorizationCodeAlerts(db, deps.now),
     clock: { now: deps.now },
+    zoneRules: deps.zoneRules,
   });
 }
 
 function openRefundTaskAlertsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ) {
   return openOverdueRefundTaskAlerts({
     store: new DrizzleRefundTaskAlertStore(db),
@@ -96,7 +103,7 @@ function openRefundTaskAlertsTask<TQueryResult extends PgQueryResultHKT>(
 
 function openUnclearOutcomeAlertsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ) {
   return openOverdueUnclearOutcomeAlerts({
     store: new DrizzleUnclearOutcomeAlertStore(db),
@@ -106,30 +113,32 @@ function openUnclearOutcomeAlertsTask<TQueryResult extends PgQueryResultHKT>(
 
 function detectExpiringLotsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectExpiringLots({
     branches: new DrizzleBranchExpiryWindowReader(db),
     lots: new DrizzleExpiringLotReader(db),
     alerts: new DrizzleExpiringLotAlerts(db, deps.now),
     clock: { now: deps.now },
+    zoneRules: deps.zoneRules,
   });
 }
 
 function detectFortnightReportDeadlinesTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectFortnightReportDeadlines({
-    presentations: new DrizzleOwedFortnightPresentationReader(db),
+    presentations: new DrizzleOwedFortnightPresentationReader(db, deps.zoneRules),
     alerts: new DrizzleFortnightReportDeadlineAlerts(db, deps.now),
     clock: { now: deps.now },
+    zoneRules: deps.zoneRules,
   });
 }
 
 function detectOwedElsewherePresentationsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectOwedElsewherePresentations({
     presentations: new DrizzleOwedElsewherePresentationReader(db),
@@ -139,7 +148,7 @@ function detectOwedElsewherePresentationsTask<TQueryResult extends PgQueryResult
 
 function detectFortnightReportRegularizationsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectFortnightReportRegularizations({
     presentations: new DrizzleFortnightRegularizationReader(db),
@@ -149,7 +158,7 @@ function detectFortnightReportRegularizationsTask<TQueryResult extends PgQueryRe
 
 function detectRejectedFortnightDocumentsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectRejectedFortnightDocuments({
     presentations: new DrizzleRejectedFortnightDocumentReader(db),
@@ -159,7 +168,7 @@ function detectRejectedFortnightDocumentsTask<TQueryResult extends PgQueryResult
 
 function detectOverdueRegisterBackupsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectOverdueRegisterBackups({
     standings: new DrizzleRegisterBackupStandingReader(db),
@@ -174,20 +183,25 @@ function detectOverdueRegisterBackupsTask<TQueryResult extends PgQueryResultHKT>
 
 function regularizeUninvoiceableDeferredSalesTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ) {
   return regularizeUninvoiceableDeferredSales({
     store: new DrizzleDeferredSaleExpiryStore(db),
     clock: { now: deps.now },
+    zoneRules: deps.zoneRules,
   });
 }
 
 async function detectDeferredSaleDeadlinesTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: AlertTaskDeps,
 ): Promise<number> {
   return detectDeferredSaleDeadlines(
-    { alerts: new DrizzleDeferredSaleDueAlerts(db, deps.now), clock: { now: deps.now } },
+    {
+      alerts: new DrizzleDeferredSaleDueAlerts(db, deps.now),
+      clock: { now: deps.now },
+      zoneRules: deps.zoneRules,
+    },
     await new DrizzlePendingDeferredSaleReader(db).pendingDeferredSales(),
   );
 }
@@ -210,7 +224,7 @@ export interface AlertConditionResolutionJobsDeps {
 }
 
 export function alertConditionResolutionJobs(
-  options: { now: () => Date },
+  options: AlertTaskDeps,
   deps: AlertConditionResolutionJobsDeps = {},
 ): BackgroundJobs {
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
@@ -240,19 +254,40 @@ export function alertConditionResolutionJobs(
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
         await helpers.withPgClient(async (client) => {
           const db = doCreateDatabase(client);
-          await doResolve(db, { now: options.now });
-          await doDetectQuiet(db, { now: options.now });
-          await doDetectMissingCodes(db, { now: options.now });
-          await doOpenRefundTaskAlerts(db, { now: options.now });
-          await doOpenUnclearOutcomeAlerts(db, { now: options.now });
-          await doDetectExpiringLots(db, { now: options.now });
-          await doDetectFortnightReportDeadlines(db, { now: options.now });
-          await doDetectOwedElsewherePresentations(db, { now: options.now });
-          await doDetectFortnightReportRegularizations(db, { now: options.now });
-          await doDetectRejectedFortnightDocuments(db, { now: options.now });
-          await doDetectOverdueRegisterBackups(db, { now: options.now });
-          await doRegularizeUninvoiceableDeferredSales(db, { now: options.now });
-          await doDetectDeferredSaleDeadlines(db, { now: options.now });
+          await doResolve(db, { now: options.now, zoneRules: options.zoneRules });
+          await doDetectQuiet(db, { now: options.now, zoneRules: options.zoneRules });
+          await doDetectMissingCodes(db, { now: options.now, zoneRules: options.zoneRules });
+          await doOpenRefundTaskAlerts(db, { now: options.now, zoneRules: options.zoneRules });
+          await doOpenUnclearOutcomeAlerts(db, { now: options.now, zoneRules: options.zoneRules });
+          await doDetectExpiringLots(db, { now: options.now, zoneRules: options.zoneRules });
+          await doDetectFortnightReportDeadlines(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doDetectOwedElsewherePresentations(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doDetectFortnightReportRegularizations(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doDetectRejectedFortnightDocuments(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doDetectOverdueRegisterBackups(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doRegularizeUninvoiceableDeferredSales(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doDetectDeferredSaleDeadlines(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
         });
       },
     },

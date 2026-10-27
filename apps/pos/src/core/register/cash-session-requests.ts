@@ -11,6 +11,7 @@ import type {
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
+import type { ZoneRules, ZoneRulesSource } from "@purosur/domain";
 import {
   amountToCharge,
   type ClosedCashSession,
@@ -50,6 +51,7 @@ export interface CashSessionRequestDeps {
   gate: ActionGate;
   readOutboxChainKey: () => Promise<string | undefined>;
   now: Clock["now"];
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
 }
 
@@ -67,7 +69,15 @@ type OpeningRefusal = Extract<
 >;
 
 export async function openCashSessionFor(
-  { database, gate, readOutboxChainKey, now, ids, restoration }: OpenCashSessionRequestDeps,
+  {
+    database,
+    gate,
+    readOutboxChainKey,
+    now,
+    zoneRules,
+    ids,
+    restoration,
+  }: OpenCashSessionRequestDeps,
   openingFloat: number,
 ): Promise<OpenCashSessionOutcome> {
   const outboxChainKey = await readOutboxChainKey();
@@ -99,7 +109,10 @@ export async function openCashSessionFor(
     return { kind: outcome.kind };
   }
   const { openerId, opener } = outcome.grant;
-  return { kind: "opened", cash_session: cashSessionAnswer(outcome.session, opener, openerId) };
+  return {
+    kind: "opened",
+    cash_session: cashSessionAnswer(outcome.session, opener, openerId, zoneRules.zoneRules()),
+  };
 }
 
 export interface CloseCashSessionRequest {
@@ -289,6 +302,7 @@ export function sessionOpenSaleFor(database: LocalDatabase, now: Date): SessionO
 export function currentCashSession(
   database: LocalDatabase,
   signedInPersonId: string | undefined,
+  zoneRules: ZoneRulesSource,
 ): OpenCashSession | null {
   const session = readOpenSession(database);
   if (session === undefined) {
@@ -298,6 +312,7 @@ export function currentCashSession(
     session,
     new SqliteSignInStore(database).anyPerson(session.openedBy),
     signedInPersonId,
+    zoneRules.zoneRules(),
   );
 }
 
@@ -305,6 +320,7 @@ function cashSessionAnswer(
   session: Pick<OpenedCashSession, "id" | "openedAt" | "openedBy">,
   openerRecord: ActivePerson | undefined,
   signedInPersonId: string | undefined,
+  rules: ZoneRules,
 ): OpenCashSession {
   const opener = openerRecord ?? {
     firstName: "",
@@ -312,7 +328,7 @@ function cashSessionAnswer(
   };
   return {
     id: session.id,
-    opened_at: inArgentinaTime(session.openedAt),
+    opened_at: inArgentinaTime(session.openedAt, rules),
     opened_by: {
       user_id: session.openedBy,
       first_name: opener.firstName,

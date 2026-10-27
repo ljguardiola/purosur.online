@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 import { FixedClock } from "./test-support/fake-alert-store.js";
 import {
@@ -12,7 +13,7 @@ const FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
 
 function at(day: string, time = "12:00"): Date {
-  return new Date(argentinaInstant(day, time));
+  return new Date(argentinaInstant(day, time, FIXED_ARGENTINA_ZONE_RULES));
 }
 
 function register(overrides: Partial<FakeWatchedHolding> = {}): FakeWatchedHolding {
@@ -31,6 +32,7 @@ function detect(
 ) {
   const holdings = new FakeOfflineAuthorizationCodeHoldingReader(registers);
   const outcome = detectMissingOfflineAuthorizationCodes({
+    zoneRules: new FakeZoneRulesSource(),
     holdings,
     alerts,
     clock: new FixedClock(moment),

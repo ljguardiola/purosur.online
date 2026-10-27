@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 
 export interface BranchExpiryWindow {
@@ -30,4 +30,5 @@ export interface ExpiringLotDetectionPorts {
   lots: BranchExpiringLotReader;
   alerts: ExpiringLotAlerts;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }

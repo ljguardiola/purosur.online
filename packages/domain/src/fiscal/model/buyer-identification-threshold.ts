@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 
 export interface BuyerIdentificationThreshold {
   id: string;
@@ -79,8 +79,9 @@ export function chargeRefusal(
   amount: number,
   thresholds: readonly BuyerIdentificationThreshold[],
   moment: Date,
+  rules: ZoneRules,
 ): ChargeRefusal | undefined {
-  const inEffect = thresholdInEffectOn(thresholds, argentinaCalendarDay(moment));
+  const inEffect = thresholdInEffectOn(thresholds, argentinaCalendarDay(moment, rules));
   if (inEffect === undefined) {
     return { kind: "no_buyer_identification_threshold" };
   }

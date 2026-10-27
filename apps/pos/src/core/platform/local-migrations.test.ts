@@ -929,6 +929,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1035,6 +1036,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1136,6 +1138,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1236,6 +1239,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1365,6 +1369,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1484,6 +1489,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1607,6 +1613,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1738,6 +1745,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1836,6 +1844,7 @@ describe("the register's local migrations", () => {
         "0081_awaiting_contingency_ticket_recovery",
         "0082_sale_returns",
         "0083_point_card_type",
+        "0084_zone_rules",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -6988,6 +6997,67 @@ describe("the replenishment failure migration", () => {
   ])("accepts a failure written as %s", (statement) => {
     withDatabase((database) => {
       expect(() => database.exec(statement)).not.toThrow();
+    });
+  });
+});
+
+describe("the zone rules migration", () => {
+  function withDatabase(test: (database: ReturnType<typeof openLocalDatabase>) => void) {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    try {
+      test(database);
+    } finally {
+      database.close();
+    }
+  }
+
+  it("starts with no zone rules, so the register applies the fixed rules until its first delivery", () => {
+    withDatabase((database) => {
+      expect(database.prepare("SELECT version FROM zone_rules").all()).toEqual([]);
+    });
+  });
+
+  it("keeps the transitions and publication number of each version", () => {
+    withDatabase((database) => {
+      database
+        .prepare(
+          "INSERT INTO zone_rules (version, transitions, publication_number) VALUES (?, ?, ?)",
+        )
+        .run("2026a", "[]", 1);
+
+      expect(
+        database.prepare("SELECT version, transitions, publication_number FROM zone_rules").all(),
+      ).toEqual([{ version: "2026a", transitions: "[]", publication_number: 1 }]);
+    });
+  });
+
+  it("keeps two publications of one version", () => {
+    withDatabase((database) => {
+      const insert = database.prepare(
+        "INSERT INTO zone_rules (version, transitions, publication_number) VALUES ('2026a', '[]', ?)",
+      );
+      insert.run(1);
+      insert.run(3);
+
+      expect(
+        database
+          .prepare("SELECT version, publication_number FROM zone_rules ORDER BY publication_number")
+          .all(),
+      ).toEqual([
+        { version: "2026a", publication_number: 1 },
+        { version: "2026a", publication_number: 3 },
+      ]);
+    });
+  });
+
+  it("refuses two rows of one publication number", () => {
+    withDatabase((database) => {
+      const insert = database.prepare(
+        "INSERT INTO zone_rules (version, transitions, publication_number) VALUES (?, '[]', 1)",
+      );
+      insert.run("2026a");
+
+      expect(() => insert.run("2026b")).toThrow(/UNIQUE|PRIMARY/);
     });
   });
 });

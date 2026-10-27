@@ -11,6 +11,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
@@ -93,7 +94,7 @@ describe("an opening count and its withdrawal pushed through POST /events", () =
       },
     });
     expect((await push(count.body)).json()).toMatchObject({ status: "ok", ack_seq: 1 });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(lots)).toEqual([
       expect.objectContaining({
@@ -111,7 +112,7 @@ describe("an opening count and its withdrawal pushed through POST /events", () =
       payload: { movement_id: WITHDRAWAL_ID, withdrawn_movement_id: COUNT_ID },
     });
     expect((await push(withdrawal.body)).json()).toMatchObject({ status: "ok", ack_seq: 2 });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(lots)).toEqual([
       expect.objectContaining({ remaining: 0, withdrawn: true }),
@@ -143,7 +144,7 @@ describe("an opening count and its withdrawal pushed through POST /events", () =
     });
     expect(pushed.json()).toMatchObject({ status: "ok", ack_seq: 1 });
 
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(await route.db.select().from(lots)).toEqual([]);
     expect(await route.db.select().from(inbox)).toEqual([

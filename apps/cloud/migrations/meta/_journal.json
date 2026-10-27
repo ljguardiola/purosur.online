@@ -953,6 +953,13 @@
       "when": 1793100519133,
       "tag": "0142_point_card_type",
       "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1793119491292,
+      "tag": "0143_zone_rules",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { isFortnightPresentationOwed, owesFortnightReport } from "@purosur/domain";
+import { isFortnightPresentationOwed, owesFortnightReport, type ZoneRules } from "@purosur/domain";
 import type {
   OwedFortnightReport,
   RecordedFortnightReport,
@@ -24,8 +24,9 @@ export interface OwedFortnightReportWithState {
 export async function owedFortnightReportsWithState<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   today: string,
+  rules: ZoneRules,
 ): Promise<OwedFortnightReportWithState[]> {
-  const presentations = await closedFortnightPresentations(db, today);
+  const presentations = await closedFortnightPresentations(db, today, rules);
   return presentations.filter(isFortnightPresentationOwed);
 }
 
@@ -67,6 +68,7 @@ export async function fortnightReportsOwedAs<TQueryResult extends PgQueryResultH
 export async function closedFortnightPresentations<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   today: string,
+  rules: ZoneRules,
   locationId?: string,
 ): Promise<OwedFortnightReportWithState[]> {
   const codes = await db.select().from(caeaCodes);
@@ -125,6 +127,7 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
         owesFortnightReport(
           { fortnight, claimedAt, listed: isListed, ...(retiredAt && { retiredAt }) },
           today,
+          rules,
         ),
       )
       .map(({ pointOfSaleNumber, registerId, listed: isListed }) => {

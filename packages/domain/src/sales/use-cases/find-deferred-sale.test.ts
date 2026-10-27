@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { findDeferredSale } from "./find-deferred-sale.js";
 import { AdjustableClock } from "./test-support/adjustable-clock.js";
 import {
@@ -11,7 +12,13 @@ const SHORT_CODE = { kind: "short_code", shortCode: "7KQ4M2P9" } as const;
 
 function find(input: Parameters<typeof findDeferredSale>[1], sales = [deferredSaleFacts()]) {
   const lookup = new FakeDeferredSaleLookup(sales);
-  return { lookup, outcome: findDeferredSale({ lookup, clock: new AdjustableClock(NOW) }, input) };
+  return {
+    lookup,
+    outcome: findDeferredSale(
+      { zoneRules: new FakeZoneRulesSource(), lookup, clock: new AdjustableClock(NOW) },
+      input,
+    ),
+  };
 }
 
 describe("findDeferredSale", () => {

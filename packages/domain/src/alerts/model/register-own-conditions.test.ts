@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { BatteryReport, SerialDeviceStanding, StorageStanding } from "../../register/index.js";
-import { argentinaInstant } from "../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { ALERT_KINDS, isAlertKind } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
 import {
@@ -11,7 +11,7 @@ import {
 
 const MINUTE_MS = 60 * 1000;
 const HOURS = [{ dayOfWeek: 1, opensAt: "09:00", closesAt: "18:00" }];
-const NOW = new Date(argentinaInstant("2026-10-05", "12:00"));
+const NOW = new Date(argentinaInstant("2026-10-05", "12:00", FIXED_ARGENTINA_ZONE_RULES));
 
 const MATCHING: SerialDeviceStanding = { kind: "matching", path: "COM3" };
 
@@ -51,6 +51,7 @@ function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[
     lastAcceptedPushAt: minutesBefore(NOW, 1),
     hours: HOURS,
     now: NOW,
+    rules: FIXED_ARGENTINA_ZONE_RULES,
     serialDevices: { scale: MATCHING, reader: MATCHING },
     storage: HEALTHY_STORAGE,
     localDatabaseDamaged: false,
@@ -236,7 +237,7 @@ describe("registerOwnConditions", () => {
     expect(
       conditions({
         lastAcceptedPushAt: minutesBefore(NOW, 600),
-        now: new Date(argentinaInstant("2026-10-05", "22:00")),
+        now: new Date(argentinaInstant("2026-10-05", "22:00", FIXED_ARGENTINA_ZONE_RULES)),
       }),
     ).toEqual([]);
   });

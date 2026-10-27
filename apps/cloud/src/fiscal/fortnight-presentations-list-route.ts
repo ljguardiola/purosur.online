@@ -1,5 +1,5 @@
 import { fortnightPresentationListSchema } from "@purosur/contracts";
-import { argentinaCalendarDay } from "@purosur/domain";
+import { argentinaCalendarDay, type ZoneRulesSource } from "@purosur/domain";
 import type { BranchFortnightPresentation } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -16,6 +16,7 @@ export interface FortnightPresentationsRouteOptions<TQueryResult extends PgQuery
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 function toRejectedDocumentWire(rejected: BranchFortnightPresentation["rejectedDocument"]) {
@@ -57,7 +58,7 @@ export function registerFortnightPresentationsListRoute<TQueryResult extends PgQ
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const reader = new DrizzleFortnightPresentationReader(options.db);
+  const reader = new DrizzleFortnightPresentationReader(options.db, options.zoneRules);
 
   app.get(
     "/registers/fortnight-presentations",
@@ -68,7 +69,7 @@ export function registerFortnightPresentationsListRoute<TQueryResult extends PgQ
     async (request, reply) => {
       const listed = await reader.branchPresentations(
         openSessionOf(request).locationId,
-        argentinaCalendarDay(now()),
+        argentinaCalendarDay(now(), options.zoneRules.zoneRules()),
       );
       await reply.code(200).send(fortnightPresentationListSchema.parse(listed.map(toWire)));
     },

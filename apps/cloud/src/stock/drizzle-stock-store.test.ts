@@ -27,6 +27,7 @@ import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { aCashSessionOpenedFact, aCompletedSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
 import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
@@ -119,7 +120,11 @@ async function seedMovement(params: {
 }
 
 function portsAt(moment: Date) {
-  return { store: new DrizzleStockStore(db), clock: { now: () => moment } };
+  return {
+    store: new DrizzleStockStore(db),
+    clock: { now: () => moment },
+    zoneRules: fixedZoneRulesSource(),
+  };
 }
 
 describe("DrizzleStockStore", () => {

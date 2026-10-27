@@ -11,6 +11,7 @@ import {
   signedInWith,
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerReturnsReportRoutes } from "./returns-report-routes.js";
 import { applyReturn } from "./test-support/applied-returns.js";
 
@@ -34,7 +35,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
-  registerReturnsReportRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
+  registerReturnsReportRoutes(app, {
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    zoneRules: fixedZoneRulesSource(),
+    now: () => NOW,
+  });
 });
 
 afterEach(async () => {

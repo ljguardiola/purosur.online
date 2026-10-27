@@ -20,6 +20,7 @@ import {
   SESSION_NOON,
 } from "../test-support/backoffice-session.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerRegisterOfflinePointOfSaleConfigurationRoute } from "./register-offline-point-of-sale-configuration-route.js";
 import { registerRegisterPointOfSaleConfigurationRoute } from "./register-point-of-sale-configuration-route.js";
@@ -42,7 +43,12 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   enqueuedCounts = [];
-  const options = { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => SESSION_NOON };
+  const options = {
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => SESSION_NOON,
+    zoneRules: fixedZoneRulesSource(),
+  };
   registerRegisterPointOfSaleConfigurationRoute(app, options);
   registerRegisterOfflinePointOfSaleConfigurationRoute(app, {
     ...options,
@@ -308,6 +314,7 @@ describe("PUT /registers/:id/offline-point-of-sale", () => {
   it("answers 200 with no block, and asks for nothing, when invoicing is not configured", async () => {
     const withoutInvoicing = Fastify();
     registerRegisterOfflinePointOfSaleConfigurationRoute(withoutInvoicing, {
+      zoneRules: fixedZoneRulesSource(),
       db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => SESSION_NOON,

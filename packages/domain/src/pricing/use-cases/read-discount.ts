@@ -5,11 +5,11 @@ export type ReadDiscountOutcome =
   | { kind: "not_found" };
 
 export async function readDiscount(
-  { discounts, clock }: ListDiscountsPorts,
+  { discounts, clock, zoneRules }: ListDiscountsPorts,
   id: string,
 ): Promise<ReadDiscountOutcome> {
   const stored = await discounts.discount(id);
   return stored === undefined
     ? { kind: "not_found" }
-    : { kind: "found", discount: listedDiscount(stored, clock) };
+    : { kind: "found", discount: listedDiscount(stored, clock, zoneRules) };
 }

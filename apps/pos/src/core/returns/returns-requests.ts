@@ -27,7 +27,7 @@ import { SqliteReturnSaleReader } from "./sqlite-return-sale-reader";
 
 export type ReturnRequestDeps = Pick<
   OutboxSaleRequestDeps,
-  "database" | "gate" | "now" | "ids" | "readOutboxChainKey"
+  "database" | "gate" | "now" | "zoneRules" | "ids" | "readOutboxChainKey"
 >;
 
 export interface FindSaleForReturnRequest {
@@ -58,27 +58,33 @@ interface ReturnRequestGrant extends CompleteReturnGrant {
 }
 
 export async function findSaleForReturnFor(
-  { database, gate, now }: ReturnRequestDeps,
+  { database, gate, now, zoneRules }: ReturnRequestDeps,
   { ticket, authorization }: FindSaleForReturnRequest,
 ): Promise<FindSaleForReturnOutcome> {
   const guarded = await gate.runAuthorized({ kind: "process_return" }, authorization, async () =>
-    findSaleForReturn({ reader: new SqliteReturnSaleReader(database), clock: { now } }, ticket),
+    findSaleForReturn(
+      { zoneRules, reader: new SqliteReturnSaleReader(database), clock: { now } },
+      ticket,
+    ),
   );
   if (guarded.kind !== "performed") {
     return guarded;
   }
   const { result } = guarded;
   return result.kind === "found"
-    ? { kind: "found", sale: toWireSaleForReturn(result.sale) }
+    ? { kind: "found", sale: toWireSaleForReturn(result.sale, zoneRules.zoneRules()) }
     : result;
 }
 
 export async function previewReturnFor(
-  { database, gate, now }: ReturnRequestDeps,
+  { database, gate, now, zoneRules }: ReturnRequestDeps,
   request: PreviewReturnRequest,
 ): Promise<PreviewReturnOutcome> {
   const guarded = await gate.run({ kind: "preview_return" }, async () =>
-    previewReturn({ reader: new SqliteReturnSaleReader(database), clock: { now } }, request),
+    previewReturn(
+      { zoneRules, reader: new SqliteReturnSaleReader(database), clock: { now } },
+      request,
+    ),
   );
   if (guarded.kind !== "performed") {
     return guarded;
@@ -94,12 +100,13 @@ export async function previewReturnFor(
 }
 
 export async function completeReturnFor(
-  { database, gate, now, ids, readOutboxChainKey }: ReturnRequestDeps,
+  { database, gate, now, zoneRules, ids, readOutboxChainKey }: ReturnRequestDeps,
   { saleId, ticketSource, lines, refunds, authorization }: CompleteReturnRequest,
 ): Promise<CompleteReturnOutcome> {
   const outboxChainKey = await readOutboxChainKey();
   const outcome = await completeReturn<ReturnRequestGrant, ReturnRefusal>(
     {
+      zoneRules,
       ledger: new SqliteReturnLedger(database, outboxChainKey),
       clock: { now },
       ids,

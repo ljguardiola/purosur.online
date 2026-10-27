@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { buyerIdentificationRefusal } from "./buyer-identification-check.js";
 
 const threshold = { id: "t1", amount: 5000, validFrom: "2026-01-01", revision: 0 };
@@ -9,38 +10,56 @@ const notApprovedStates = ["REJECTED", "DECLINED", "PENDING"];
 
 describe("buyerIdentificationRefusal", () => {
   it("refuses a sale with no payment whose total reaches the threshold in effect, naming it", () => {
-    expect(buyerIdentificationRefusal(5000, [], [threshold], moment)).toEqual({
+    expect(
+      buyerIdentificationRefusal(5000, [], [threshold], moment, FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
       kind: "reaches_buyer_identification_threshold",
       threshold: 5000,
     });
   });
 
   it("refuses a sale with no payment when no threshold is in effect", () => {
-    expect(buyerIdentificationRefusal(1, [], [], moment)).toEqual({
+    expect(buyerIdentificationRefusal(1, [], [], moment, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
       kind: "no_buyer_identification_threshold",
     });
   });
 
   it("lets a sale with no payment below the threshold in effect be charged", () => {
-    expect(buyerIdentificationRefusal(4999, [], [threshold], moment)).toBeUndefined();
+    expect(
+      buyerIdentificationRefusal(4999, [], [threshold], moment, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBeUndefined();
   });
 
   it("refuses nothing once the sale has an approved payment, even when its total reaches the threshold", () => {
-    expect(buyerIdentificationRefusal(5000, [approved], [threshold], moment)).toBeUndefined();
+    expect(
+      buyerIdentificationRefusal(5000, [approved], [threshold], moment, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBeUndefined();
   });
 
   it("refuses nothing once the sale has an approved payment, even when no threshold is in effect", () => {
-    expect(buyerIdentificationRefusal(5000, [approved], [], moment)).toBeUndefined();
+    expect(
+      buyerIdentificationRefusal(5000, [approved], [], moment, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBeUndefined();
   });
 
   it.each(notApprovedStates)(
     "still applies the threshold when the sale's only payment is %s",
     (state) => {
-      expect(buyerIdentificationRefusal(5000, [{ state }], [threshold], moment)).toEqual({
+      expect(
+        buyerIdentificationRefusal(
+          5000,
+          [{ state }],
+          [threshold],
+          moment,
+          FIXED_ARGENTINA_ZONE_RULES,
+        ),
+      ).toEqual({
         kind: "reaches_buyer_identification_threshold",
         threshold: 5000,
       });
-      expect(buyerIdentificationRefusal(5000, [{ state }], [], moment)).toEqual({
+      expect(
+        buyerIdentificationRefusal(5000, [{ state }], [], moment, FIXED_ARGENTINA_ZONE_RULES),
+      ).toEqual({
         kind: "no_buyer_identification_threshold",
       });
     },
@@ -52,12 +71,22 @@ describe("buyerIdentificationRefusal", () => {
         fc.integer({ min: 1, max: 10_000 }),
         fc.array(fc.constantFrom(...notApprovedStates).map((state) => ({ state }))),
         (total, payments) => {
-          expect(buyerIdentificationRefusal(total, payments, [threshold], moment)).toEqual(
+          expect(
+            buyerIdentificationRefusal(
+              total,
+              payments,
+              [threshold],
+              moment,
+              FIXED_ARGENTINA_ZONE_RULES,
+            ),
+          ).toEqual(
             total >= threshold.amount
               ? { kind: "reaches_buyer_identification_threshold", threshold: threshold.amount }
               : undefined,
           );
-          expect(buyerIdentificationRefusal(total, payments, [], moment)).toEqual({
+          expect(
+            buyerIdentificationRefusal(total, payments, [], moment, FIXED_ARGENTINA_ZONE_RULES),
+          ).toEqual({
             kind: "no_buyer_identification_threshold",
           });
         },
@@ -75,7 +104,15 @@ describe("buyerIdentificationRefusal", () => {
         (total, before, after, withThreshold) => {
           const payments = [...before, approved, ...after];
           const thresholds = withThreshold ? [threshold] : [];
-          expect(buyerIdentificationRefusal(total, payments, thresholds, moment)).toBeUndefined();
+          expect(
+            buyerIdentificationRefusal(
+              total,
+              payments,
+              thresholds,
+              moment,
+              FIXED_ARGENTINA_ZONE_RULES,
+            ),
+          ).toBeUndefined();
         },
       ),
     );

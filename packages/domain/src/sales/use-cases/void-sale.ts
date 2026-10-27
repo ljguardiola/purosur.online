@@ -22,6 +22,7 @@ import {
   type OperationAuthority,
   type OutboxEventDraft,
   SALE_VOIDED_EVENT_TYPE,
+  type ZoneRulesSource,
 } from "../../shared/index.js";
 import { saleVoidStockMovements } from "../../stock/index.js";
 import type { SaleWithLines } from "../model/sale.js";
@@ -55,6 +56,7 @@ export interface VoidSaleGrant {
 export interface VoidSalePorts<Grant extends VoidSaleGrant, Refusal> {
   ledger: SaleVoidLedger;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   authority: OperationAuthority<Grant, Refusal>;
 }
@@ -72,7 +74,7 @@ export type VoidSaleOutcome<Grant extends VoidSaleGrant> =
     };
 
 export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
-  { ledger, clock, ids, authority }: VoidSalePorts<Grant, Refusal>,
+  { ledger, clock, zoneRules, ids, authority }: VoidSalePorts<Grant, Refusal>,
   { saleId, pendingRefundsConfirmed }: VoidSaleInput,
 ): Promise<VoidSaleOutcome<Grant> | Refusal> {
   const authorization = await authority.authorize();
@@ -109,6 +111,7 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
     }
 
     const voidedAt = clock.now();
+    const rules = zoneRules.zoneRules();
     tx.recordVoidedSale(sale.id, voidedAt, grant.authorizedBy);
     const refunds: SaleRefund[] = [];
     for (const refund of planned) {
@@ -151,7 +154,10 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
         : offlineRoute({
             occurredAt: voidedAt,
             series: offlineSeries,
-            offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(voidedAt)),
+            offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(
+              invoiceOwnFortnight(voidedAt, rules),
+            ),
+            rules,
           });
     if (creditNote !== null && offline?.kind !== "issue_offline") {
       tx.recordPendingCreditNote(creditNote);
@@ -170,21 +176,24 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
       }),
     );
     if (creditNote !== null && offline?.kind === "issue_offline") {
-      const document = offlineCreditNote({
-        id: ids.next(),
-        saleId: sale.id,
-        creditNoteId: creditNote.creditNoteId,
-        pointOfSale: offline.pointOfSale,
-        number: offline.number,
-        issuedOn: offline.issuedOn,
-        generatedAt: voidedAt,
-        offlineAuthorizationCode: offline.offlineAuthorizationCode,
-        fortnight: offline.fortnight,
-        total: creditNote.total,
-        receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
-        corrects: creditNote.correctedVoucher,
-        cause: "no_connectivity",
-      });
+      const document = offlineCreditNote(
+        {
+          id: ids.next(),
+          saleId: sale.id,
+          creditNoteId: creditNote.creditNoteId,
+          pointOfSale: offline.pointOfSale,
+          number: offline.number,
+          issuedOn: offline.issuedOn,
+          generatedAt: voidedAt,
+          offlineAuthorizationCode: offline.offlineAuthorizationCode,
+          fortnight: offline.fortnight,
+          total: creditNote.total,
+          receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
+          corrects: creditNote.correctedVoucher,
+          cause: "no_connectivity",
+        },
+        rules,
+      );
       tx.issueOfflineCreditNote(document);
       tx.recordClockMark({
         pointOfSale: offline.pointOfSale,

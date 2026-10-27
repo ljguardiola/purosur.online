@@ -1,5 +1,6 @@
 import { argentinaCalendarDay } from "./argentina-calendar.js";
 import { isCalendarDay } from "./calendar-day.js";
+import type { ZoneRules } from "./zone-rules.js";
 
 export interface ReportPeriod {
   from: string;
@@ -19,14 +20,15 @@ export function isReportPeriodAsked({
   return isCalendarDay(from) && isCalendarDay(to) && from <= to;
 }
 
-export function defaultReportPeriod(now: Date): ReportPeriod {
-  const today = argentinaCalendarDay(now);
+export function defaultReportPeriod(now: Date, rules: ZoneRules): ReportPeriod {
+  const today = argentinaCalendarDay(now, rules);
   return { from: today, to: today };
 }
 
 export function reportPeriodOf(
   { from, to }: { from: string | undefined; to: string | undefined },
   now: Date,
+  rules: ZoneRules,
 ): ReportPeriod {
-  return from !== undefined && to !== undefined ? { from, to } : defaultReportPeriod(now);
+  return from !== undefined && to !== undefined ? { from, to } : defaultReportPeriod(now, rules);
 }

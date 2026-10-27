@@ -71,6 +71,7 @@ export {
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerZoneRulesObservation,
   showsAlertScope,
 } from "./alerts/index.js";
 export type {
@@ -678,6 +679,8 @@ export type {
   StorageSalesStop,
   StorageStanding,
   WatchedRegister,
+  ZoneRulesPublication,
+  ZoneRulesVersionReport,
 } from "./register/index.js";
 export {
   BATTERY_READ_INTERVAL_MS,
@@ -698,6 +701,7 @@ export {
   cashMovementReason,
   clockDriftReportOf,
   clockOffsetMs,
+  currentZoneRulesPublication,
   diskStanding,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
@@ -916,24 +920,36 @@ export {
   signInLockoutWindowStart,
   signInLookupAttemptWindowStart,
 } from "./sessions/index.js";
-export type { IsoWeekday, ReportPeriod, SalesDeniedReason } from "./shared/index.js";
+export type {
+  IsoWeekday,
+  ReportPeriod,
+  SalesDeniedReason,
+  ZoneRules,
+  ZoneRulesSource,
+  ZoneTransition,
+} from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
+  areZoneTransitionsOrdered,
   argentinaCalendarDay,
   argentinaInstant,
+  FIXED_ARGENTINA_ZONE_RULES,
   isCalendarDay,
   isoWeekdayOf,
   isReportPeriodAsked,
   isValidCashAmount,
   lastDayOfMonth,
   latestKey,
+  localClock,
   MAX_CASH_AMOUNT_CENTS,
+  offsetAt,
   REPLENISHMENT_FAILURE_KINDS,
   SALE_COMPLETED_EVENT_TYPE,
   SALE_VOIDED_EVENT_TYPE,
   SALES_DENIED_REASONS,
   STORAGE_SALES_DENIED_REASONS,
   shiftCalendarDay,
+  utcOffsetText,
 } from "./shared/index.js";
 export type {
   AdjustmentReason,

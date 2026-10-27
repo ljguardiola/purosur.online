@@ -6,6 +6,7 @@ import { createTicketedOperations } from "../backups/ticketed-operation";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -65,6 +66,7 @@ function deps(overrides: Partial<ReceiptRequestDeps> = {}): ReceiptRequestDeps {
     printers: { configured: () => printer },
     jobs,
     ticketedSteps: (_operation, _subjectId, operate) => operate((step) => step()),
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }

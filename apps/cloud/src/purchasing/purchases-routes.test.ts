@@ -25,6 +25,7 @@ import {
   signedInWith,
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerPurchasesRoutes } from "./purchases-routes.js";
 
@@ -49,7 +50,12 @@ beforeEach(async () => {
   await testDatabase.clear();
   now = NOW;
   app = Fastify();
-  registerPurchasesRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => now });
+  registerPurchasesRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => now,
+  });
 });
 
 afterEach(async () => {

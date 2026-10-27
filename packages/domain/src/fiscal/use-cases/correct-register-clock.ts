@@ -1,5 +1,5 @@
 import { registerOperationAccess } from "../../register/index.js";
-import type { Clock, OperationAuthority } from "../../shared/index.js";
+import type { Clock, OperationAuthority, ZoneRulesSource } from "../../shared/index.js";
 import {
   type ClockLowering,
   clockCorrectedEvent,
@@ -17,6 +17,7 @@ export interface CorrectRegisterClockGrant {
 export interface CorrectRegisterClockPorts<Grant extends CorrectRegisterClockGrant, Refusal> {
   ledger: ClockCorrectionLedger;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   authority: OperationAuthority<Grant, Refusal>;
 }
@@ -31,6 +32,7 @@ export type CorrectRegisterClockOutcome<Grant extends CorrectRegisterClockGrant>
 export async function correctRegisterClock<Grant extends CorrectRegisterClockGrant, Refusal>({
   ledger,
   clock,
+  zoneRules,
   ids,
   authority,
 }: CorrectRegisterClockPorts<Grant, Refusal>): Promise<
@@ -54,7 +56,12 @@ export async function correctRegisterClock<Grant extends CorrectRegisterClockGra
     if (registerId === undefined) {
       return { kind: "unavailable" };
     }
-    const lowerings = clockLoweringsFor(tx.clockMarks(), clock.now(), taxAuthorityClockFloor(tx));
+    const lowerings = clockLoweringsFor(
+      tx.clockMarks(),
+      clock.now(),
+      taxAuthorityClockFloor(tx),
+      zoneRules.zoneRules(),
+    );
     if (lowerings.length === 0) {
       return { kind: "not_behind" };
     }

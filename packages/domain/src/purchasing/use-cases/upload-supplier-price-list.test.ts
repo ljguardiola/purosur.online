@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { SUPPLIER_PRICE_LIST_PDF_MAX_BYTES } from "../model/supplier-price-list.js";
 import { FakeSupplierPriceListFiles } from "./test-support/fake-supplier-price-list-files.js";
 import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
@@ -15,7 +16,7 @@ function setup() {
   const store = new FakeSupplierPriceListStore();
   store.seedSupplier({ id: "supplier-a", name: "Distribuidora Sur", active: true });
   const files = new FakeSupplierPriceListFiles();
-  return { store, files, ports: { store, files } };
+  return { store, files, ports: { store, files, zoneRules: new FakeZoneRulesSource() } };
 }
 
 function input(

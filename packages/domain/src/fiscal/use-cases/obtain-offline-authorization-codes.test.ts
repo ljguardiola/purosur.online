@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import { obtainOfflineAuthorizationCodes } from "./obtain-offline-authorization-codes.js";
 import type {
@@ -40,6 +41,7 @@ function setUp({ now = ON_OCTOBER_10, token = TOKEN as typeof TOKEN | null } = {
   const owedPresentations = new FakeOwedPresentationList();
   const obtain = () =>
     obtainOfflineAuthorizationCodes({
+      zoneRules: new FakeZoneRulesSource(),
       store,
       tokens: { validToken: async () => token },
       taxAuthority,

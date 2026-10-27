@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { addUnitToLine, mayBeSaleLineQuantity, newSaleLine } from "../model/sale-line.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import {
@@ -23,6 +23,7 @@ export type AddProductToSaleOutcome =
 export interface AddProductToSaleRequest {
   actorId: string;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   ids: IdGenerator;
   restoration: RegisterRestoration;
   findProduct: (tx: SaleLedgerTransaction) => SellableProduct | undefined;
@@ -30,7 +31,7 @@ export interface AddProductToSaleRequest {
 
 export function addProductToSale(
   tx: SaleLedgerTransaction,
-  { actorId, clock, ids, restoration, findProduct }: AddProductToSaleRequest,
+  { actorId, clock, zoneRules, ids, restoration, findProduct }: AddProductToSaleRequest,
 ): AddProductToSaleOutcome {
   const addition = saleToAddTo(tx, actorId, clock, restoration);
   if (isSaleAdditionRefusal(addition)) {
@@ -42,6 +43,7 @@ export function addProductToSale(
     return { kind: "product_not_found" };
   }
   const moment = clock.now();
+  const rules = zoneRules.zoneRules();
   if (product.saleUnit === "KG") {
     return tx.currentPrice(product.id)
       ? { kind: "weight_needed", productId: product.id, productName: product.name }
@@ -62,13 +64,14 @@ export function addProductToSale(
       moment,
       { ...existing, lines: existing.lines.map((each) => (each === line ? updated : each)) },
       line.manualAdjustment !== null && updated.manualAdjustment === null,
+      rules,
     );
   }
   const price = tx.currentPrice(product.id);
   if (!price) {
     return { kind: "no_price", productName: product.name };
   }
-  return addLineToSale(tx, addition, ids, moment, (lineId) =>
-    newSaleLine(lineId, product, price, validPromotions(tx, product.id, moment)),
+  return addLineToSale(tx, addition, ids, moment, rules, (lineId) =>
+    newSaleLine(lineId, product, price, validPromotions(tx, product.id, moment, rules)),
   );
 }

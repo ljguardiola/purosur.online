@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -29,6 +30,7 @@ function gate() {
 
 function availability(cloud: CloudReachability) {
   return paymentMethodAvailabilityFor({
+    zoneRules: fixedZoneRulesSource(),
     database,
     restoration: restorationOf(database),
     gate: gate(),
@@ -89,6 +91,7 @@ describe("the payment methods available for the sale being charged", () => {
     const saleId = await openSaleOfTwoYerbas({ database, signedInPerson });
     await chargeSaleInCashFor(
       {
+        zoneRules: fixedZoneRulesSource(),
         database,
         restoration: restorationOf(database),
         gate: gate(),

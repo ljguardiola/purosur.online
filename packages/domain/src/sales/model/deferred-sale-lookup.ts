@@ -1,4 +1,5 @@
 import { isDateOrderBroken, isDeferredSaleExpired } from "../../fiscal/index.js";
+import type { ZoneRules } from "../../shared/index.js";
 
 export type DeferredSaleInvoice =
   | { kind: "pending" }
@@ -22,6 +23,7 @@ export type DeferredSaleAvailability = "available" | "voided" | "expired" | "out
 export function deferredSaleAvailability(
   facts: DeferredSaleFacts,
   now: Date,
+  rules: ZoneRules,
 ): DeferredSaleAvailability {
   if (facts.cancelled || facts.saleVoided) {
     return "voided";
@@ -29,10 +31,10 @@ export function deferredSaleAvailability(
   if (facts.invoice.kind === "issued") {
     return "available";
   }
-  if (isDeferredSaleExpired(facts.occurredAt, now)) {
+  if (isDeferredSaleExpired(facts.occurredAt, now, rules)) {
     return "expired";
   }
-  return isDateOrderBroken(facts.occurredAt, facts.lastIssuedOn)
+  return isDateOrderBroken(facts.occurredAt, facts.lastIssuedOn, rules)
     ? "out_of_date_order"
     : "available";
 }

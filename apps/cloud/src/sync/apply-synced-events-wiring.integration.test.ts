@@ -10,6 +10,7 @@ import { inbox, salePayments, sales } from "../platform/db/schema.js";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpBackgroundJobs } from "../server.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -118,6 +119,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
+      fixedZoneRulesSource(),
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 

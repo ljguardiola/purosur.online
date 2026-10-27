@@ -7,6 +7,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { discounts, tags } from "../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -101,7 +102,11 @@ describe("writing a discount while another writer holds the change log, on a rea
     const outcome = await holdingTheChangeLog(
       () =>
         editDiscount(
-          { store: new DrizzleDiscountStore(db), clock: { now: () => new Date() } },
+          {
+            zoneRules: fixedZoneRulesSource(),
+            store: new DrizzleDiscountStore(db),
+            clock: { now: () => new Date() },
+          },
           { ...discountOn(tagId), id: created.id, version: 1, active: false },
         ),
       () => sql`update discounts set name = 'Otra' where id = ${created.id}`.then(() => undefined),

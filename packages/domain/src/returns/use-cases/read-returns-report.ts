@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import { type ReturnsGroup, returnsReportGroups } from "../model/returns-report.js";
 import type { ReturnsReportReader } from "./returns-report-reader.js";
 
@@ -15,10 +20,14 @@ export interface ReturnsReport {
 }
 
 export async function readReturnsReport(
-  { reader, clock }: { reader: ReturnsReportReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: ReturnsReportReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId }: ReadReturnsReportInput,
 ): Promise<ReturnsReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const records = await reader.returnsMade({ locationId, range, registerId });
   return { range, ...returnsReportGroups(records) };
 }

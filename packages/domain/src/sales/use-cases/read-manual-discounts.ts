@@ -1,4 +1,9 @@
-import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import {
+  type Clock,
+  type ReportPeriod,
+  reportPeriodOf,
+  type ZoneRulesSource,
+} from "../../shared/index.js";
 import {
   type DiscountAuthorizer,
   type ManualDiscountRow,
@@ -24,10 +29,14 @@ export interface ManualDiscountsReport {
 }
 
 export async function readManualDiscounts(
-  { reader, clock }: { reader: ManualDiscountsReportReader; clock: Clock },
+  {
+    reader,
+    clock,
+    zoneRules,
+  }: { reader: ManualDiscountsReportReader; clock: Clock; zoneRules: ZoneRulesSource },
   { locationId, asked, registerId, authorizedBy }: ReadManualDiscountsInput,
 ): Promise<ManualDiscountsReport> {
-  const range = reportPeriodOf(asked, clock.now());
+  const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const records = await reader.completedManualDiscounts({ locationId, range, registerId });
   const everyRow = manualDiscountRows(records);
   const rows =

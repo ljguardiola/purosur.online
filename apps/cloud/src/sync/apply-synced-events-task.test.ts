@@ -1,5 +1,6 @@
 import type { ApplyPendingEventsOutcome } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it, vi } from "vitest";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
   APPLY_SYNCED_EVENTS_TASK_IDENTIFIER,
@@ -28,7 +29,7 @@ const processed = (limitReached: boolean): ApplyPendingEventsOutcome => ({
 
 describe("applySyncedEventsJobs", () => {
   it("registers the apply synced events task and sweeps it every minute so due retries are tried", () => {
-    const jobs = applySyncedEventsJobs({ now: () => NOW });
+    const jobs = applySyncedEventsJobs({ zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(jobs.taskList[APPLY_SYNCED_EVENTS_TASK_IDENTIFIER]).toBeInstanceOf(Function);
     expect(jobs.crontab).toContain("* * * * * apply-synced-events");
@@ -40,7 +41,12 @@ describe("applySyncedEventsJobs", () => {
     const apply = vi.fn().mockResolvedValue({ kind: "idle" });
     const { borrowClient, helpers, client: fakeClient } = buildJobHelpers();
 
-    await taskOf(applySyncedEventsJobs({ now: () => NOW }, { createDatabase, apply }))({}, helpers);
+    await taskOf(
+      applySyncedEventsJobs(
+        { zoneRules: fixedZoneRulesSource(), now: () => NOW },
+        { createDatabase, apply },
+      ),
+    )({}, helpers);
 
     expect(borrowClient).toHaveBeenCalledTimes(1);
     expect(createDatabase).toHaveBeenCalledWith(fakeClient);
@@ -56,7 +62,10 @@ describe("applySyncedEventsJobs", () => {
     const { helpers } = buildJobHelpers();
 
     await taskOf(
-      applySyncedEventsJobs({ now: () => NOW }, { createDatabase: vi.fn(), apply, report }),
+      applySyncedEventsJobs(
+        { zoneRules: fixedZoneRulesSource(), now: () => NOW },
+        { createDatabase: vi.fn(), apply, report },
+      ),
     )({}, helpers);
 
     expect(apply.mock.calls[0]?.[1]).toMatchObject({ report });
@@ -66,10 +75,12 @@ describe("applySyncedEventsJobs", () => {
     const apply = vi.fn().mockResolvedValue(processed(true));
     const { addJob, helpers } = buildJobHelpers();
 
-    await taskOf(applySyncedEventsJobs({ now: () => NOW }, { createDatabase: vi.fn(), apply }))(
-      {},
-      helpers,
-    );
+    await taskOf(
+      applySyncedEventsJobs(
+        { zoneRules: fixedZoneRulesSource(), now: () => NOW },
+        { createDatabase: vi.fn(), apply },
+      ),
+    )({}, helpers);
 
     expect(addJob).toHaveBeenCalledWith(
       APPLY_SYNCED_EVENTS_TASK_IDENTIFIER,
@@ -85,10 +96,12 @@ describe("applySyncedEventsJobs", () => {
     const apply = vi.fn().mockResolvedValue(outcome);
     const { addJob, helpers } = buildJobHelpers();
 
-    await taskOf(applySyncedEventsJobs({ now: () => NOW }, { createDatabase: vi.fn(), apply }))(
-      {},
-      helpers,
-    );
+    await taskOf(
+      applySyncedEventsJobs(
+        { zoneRules: fixedZoneRulesSource(), now: () => NOW },
+        { createDatabase: vi.fn(), apply },
+      ),
+    )({}, helpers);
 
     expect(addJob).not.toHaveBeenCalled();
   });

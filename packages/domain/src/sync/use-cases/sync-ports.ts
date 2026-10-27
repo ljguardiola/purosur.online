@@ -1,5 +1,5 @@
 import type { Fortnight } from "../../fiscal/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, PublishedZoneRulesReader, ZoneRulesSource } from "../../shared/index.js";
 import type { LimitedEndpoint } from "../model/installation-request-limit.js";
 import type {
   PullAudience,
@@ -35,6 +35,7 @@ export interface PullPorts<TChange extends PulledChange> {
   changeLog: ChangeLog<TChange>;
   offlineAuthorizationCodes: OfflineAuthorizationCodeRequests;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type CloudChangeFeedAnswer<TChange extends PulledChange, TFailure> =
@@ -125,9 +126,10 @@ export interface RegisterStops {
   deviceId: string;
   locationId: string;
   report: RegisterTelemetry;
+  cloudZoneRulesVersion: string | null;
 }
 
-export interface InboxTransaction {
+export interface InboxTransaction extends PublishedZoneRulesReader {
   lockDevice(deviceId: string): Promise<void>;
   installationRevoked(deviceId: string): Promise<boolean>;
   receivedDeviceSeqs(deviceId: string): Promise<number[]>;

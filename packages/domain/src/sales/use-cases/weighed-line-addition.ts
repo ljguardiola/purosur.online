@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRules, ZoneRulesSource } from "../../shared/index.js";
 import { newWeighedSaleLine } from "../model/sale-line.js";
 import type { WeightSource } from "../model/weight-source.js";
 import {
@@ -41,18 +41,20 @@ export interface PricedProduct {
   product: Product;
   price: Price;
   moment: Date;
+  rules: ZoneRules;
 }
 
 export function pricedWeighedProduct(
   tx: SaleLedgerTransaction,
   clock: Clock,
+  zoneRules: ZoneRulesSource,
   product: Product,
 ): PricedProduct | { kind: "no_price"; productName: string } {
   const price = tx.currentPrice(product.id);
   if (!price) {
     return { kind: "no_price", productName: product.name };
   }
-  return { product, price, moment: clock.now() };
+  return { product, price, moment: clock.now(), rules: zoneRules.zoneRules() };
 }
 
 export function isNoPrice(
@@ -65,16 +67,16 @@ export function addWeighedLine(
   tx: SaleLedgerTransaction,
   addition: SaleAddition,
   ids: IdGenerator,
-  { product, price, moment }: PricedProduct,
+  { product, price, moment, rules }: PricedProduct,
   weightThousandths: number,
   weightSource: WeightSource,
 ): AddedLineOutcome {
-  return addLineToSale(tx, addition, ids, moment, (lineId) =>
+  return addLineToSale(tx, addition, ids, moment, rules, (lineId) =>
     newWeighedSaleLine(
       lineId,
       product,
       price,
-      validPromotions(tx, product.id, moment),
+      validPromotions(tx, product.id, moment, rules),
       weightThousandths,
       weightSource,
     ),

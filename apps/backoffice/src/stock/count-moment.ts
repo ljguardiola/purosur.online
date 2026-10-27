@@ -1,5 +1,6 @@
 import { type CalendarDate, fromDate, toCalendarDate } from "@internationalized/date";
 import { stockCountMomentSchema } from "@purosur/contracts";
+import type { ZoneRules } from "@purosur/domain";
 import { formatDate } from "@purosur/ui";
 import { STOCK_TIME_ZONE } from "./stock-period";
 
@@ -20,17 +21,24 @@ export function countMomentNow(now: Date): CountStart {
   };
 }
 
-export function countMomentInstant({ day, time }: CountMoment): string | undefined {
+export function countMomentInstant(
+  { day, time }: CountMoment,
+  rules: ZoneRules,
+): string | undefined {
   if (day === null) {
     return undefined;
   }
-  const moment = stockCountMomentSchema.safeParse({ day: day.toString(), time });
+  const moment = stockCountMomentSchema(rules).safeParse({ day: day.toString(), time });
   return moment.success ? moment.data : undefined;
 }
 
 // Cutting an untouched default down to its minute would date the count before movements already
 // registered earlier in that same minute, and undo them from what the count expects.
-export function countOccurredAt(moment: CountMoment, start: CountStart): string | undefined {
+export function countOccurredAt(
+  moment: CountMoment,
+  start: CountStart,
+  rules: ZoneRules,
+): string | undefined {
   const untouched = moment.day?.compare(start.day) === 0 && moment.time === start.time;
-  return untouched ? start.instant : countMomentInstant(moment);
+  return untouched ? start.instant : countMomentInstant(moment, rules);
 }

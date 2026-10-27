@@ -7,6 +7,7 @@ import { aDeferredSaleSatisfiedFact } from "@purosur/domain/sync/test-support";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { applyReplenishedDeferredSaleSatisfaction } from "./replenished-deferred-sale-satisfactions";
 import { SqliteDeferredSaleCatchUp } from "./sqlite-deferred-sale-catch-up";
@@ -162,6 +163,7 @@ describe("replenishing a deferred sale satisfied by an authorized invoice", () =
 
     function catchUp() {
       return catchUpDeferredSales({
+        zoneRules: fixedZoneRulesSource(),
         catchUp: new SqliteDeferredSaleCatchUp(database, CHAIN_KEY),
         documents: new SqliteRealTimeFiscalDocuments(database, CHAIN_KEY),
         roundTrips: new SqliteRoundTripSamples(database),

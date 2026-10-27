@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { arcaWsaaTokens, creditNotes, fiscalTasks } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import { CREDIT_NOTE_TASK_IDENTIFIER, creditNoteJobs } from "./credit-note-task.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
@@ -45,6 +46,7 @@ function taskUnderTest() {
     timeoutMs: 2_000,
   };
   const jobs = creditNoteJobs({
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
     vouchers: new WsfeTaxAuthorityVouchers(connection),
     taxAuthority: new WsfeTaxAuthorityLastAuthorized(connection),

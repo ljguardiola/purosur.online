@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -414,6 +415,7 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
 
     expect(
       await cancelSaleFor({
+        zoneRules: fixedZoneRulesSource(),
         database,
         gate: deps(new FakeOrders()).gate,
         now: () => CHARGE_NOW,
@@ -432,6 +434,7 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     expect(
       await chargeSaleInCashFor(
         {
+          zoneRules: fixedZoneRulesSource(),
           database,
           restoration: restorationOf(database),
           gate: deps(offline).gate,
@@ -450,6 +453,7 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     expect(
       await chargeSaleInCashFor(
         {
+          zoneRules: fixedZoneRulesSource(),
           database,
           restoration: restorationOf(database),
           gate: deps(online).gate,

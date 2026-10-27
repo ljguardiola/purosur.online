@@ -24,10 +24,10 @@ export type RecordBuyerIdentificationThresholdOutcome =
     };
 
 export async function recordBuyerIdentificationThreshold(
-  { store, clock }: BuyerIdentificationThresholdPorts,
+  { store, clock, zoneRules }: BuyerIdentificationThresholdPorts,
   input: RecordBuyerIdentificationThresholdInput,
 ): Promise<RecordBuyerIdentificationThresholdOutcome> {
-  const today = argentinaCalendarDay(clock.now());
+  const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
   return store.transaction<RecordBuyerIdentificationThresholdOutcome>(async (tx) => {
     if (!startsFromToday(input.validFrom, today)) {
       return { kind: "before_today", today };

@@ -5,6 +5,7 @@ import { derivePinVerifier } from "../credentials/pin-verifier";
 import { insertFiscalDocument } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createActionGate } from "../sessions/action-gate";
@@ -57,6 +58,7 @@ function deps(
     jobs,
     ticketedSteps: (_operation, _subjectId, operate) => operate((step) => step()),
     invoicing,
+    zoneRules: fixedZoneRulesSource(),
     ...overrides,
   };
 }

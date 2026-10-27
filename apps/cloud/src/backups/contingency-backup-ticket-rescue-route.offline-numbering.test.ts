@@ -3,6 +3,7 @@ import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-poin
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildChangesRouteApp, pulledPage } from "../sync/test-support/changes-route.js";
 import { SESSION_NOON } from "../test-support/backoffice-session.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   registerWithTicketKey,
   rescueRouteUnderTest,
@@ -62,7 +63,10 @@ async function offlineRegisterWithDeadInstallation() {
 }
 
 async function pulledOfflinePointOfSale(deviceToken: string) {
-  const pulls = buildChangesRouteApp(route.db, { now: () => SESSION_NOON });
+  const pulls = buildChangesRouteApp(route.db, {
+    zoneRules: fixedZoneRulesSource(),
+    now: () => SESSION_NOON,
+  });
   const page = await pulledPage(pulls, 0, deviceToken);
   await pulls.close();
   const [change] = page.changes.filter(

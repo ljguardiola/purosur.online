@@ -1,5 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import type { Clock, OperationAuthority } from "../../shared/index.js";
+import type { Clock, OperationAuthority, ZoneRulesSource } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
 import {
@@ -32,6 +32,7 @@ export interface ApplySaleDiscountPorts<Grant extends ApplySaleDiscountGrant, Re
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   authority: OperationAuthority<Grant, Refusal>;
 }
 
@@ -45,7 +46,7 @@ export type ApplySaleDiscountOutcome =
     } & OpenSaleStanding);
 
 export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Refusal>(
-  { ledger, restoration, clock, authority }: ApplySaleDiscountPorts<Grant, Refusal>,
+  { ledger, restoration, clock, zoneRules, authority }: ApplySaleDiscountPorts<Grant, Refusal>,
   { discount, reason }: ApplySaleDiscountInput,
 ): Promise<ApplySaleDiscountOutcome | Refusal> {
   const authorization = await authority.authorize();
@@ -71,7 +72,7 @@ export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Re
     return {
       kind: "applied",
       sale: discounted,
-      chargeRefusal: saleChargeRefusal(tx, discounted, moment),
+      chargeRefusal: saleChargeRefusal(tx, discounted, moment, zoneRules.zoneRules()),
       ...openSaleStanding(
         amountToCharge(discounted),
         tx.salePayments(sale.id),

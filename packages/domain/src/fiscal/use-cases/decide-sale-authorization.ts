@@ -1,3 +1,4 @@
+import type { ZoneRules } from "../../shared/index.js";
 import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
 import {
   offlineFiscalDocument,
@@ -22,6 +23,7 @@ export interface DecideSaleAuthorizationInput {
   decidedAt: Date;
   occurredAt: Date;
   total: number;
+  rules: ZoneRules;
 }
 
 export type DecideSaleAuthorizationOutcome =
@@ -33,7 +35,7 @@ export function decideSaleAuthorization(
   tx: SaleAuthorizationTransaction,
   ids: IdGenerator,
   shortCodes: ShortCodeRandomness,
-  { saleId, gate, decidedAt, occurredAt, total }: DecideSaleAuthorizationInput,
+  { saleId, gate, decidedAt, occurredAt, total, rules }: DecideSaleAuthorizationInput,
 ): DecideSaleAuthorizationOutcome {
   const series = tx.realTimeSeries();
   const offlineSeries = tx.offlineSeries();
@@ -44,7 +46,8 @@ export function decideSaleAuthorization(
     occurredAt,
     series,
     offlineSeries,
-    offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(occurredAt)),
+    offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(occurredAt, rules)),
+    rules,
   });
   if (route.kind === "defer") {
     const routeToDeferred = ({ sale, event }: DeferredSaleRecording) => {
@@ -64,18 +67,21 @@ export function decideSaleAuthorization(
   }
   const fiscalDocumentId = ids.next();
   if (route.kind === "issue_offline") {
-    const document = offlineFiscalDocument({
-      id: fiscalDocumentId,
-      saleId,
-      pointOfSale: route.pointOfSale,
-      number: route.number,
-      issuedOn: route.issuedOn,
-      generatedAt: decidedAt,
-      offlineAuthorizationCode: route.offlineAuthorizationCode,
-      fortnight: route.fortnight,
-      document: route.document,
-      cause: route.cause,
-    });
+    const document = offlineFiscalDocument(
+      {
+        id: fiscalDocumentId,
+        saleId,
+        pointOfSale: route.pointOfSale,
+        number: route.number,
+        issuedOn: route.issuedOn,
+        generatedAt: decidedAt,
+        offlineAuthorizationCode: route.offlineAuthorizationCode,
+        fortnight: route.fortnight,
+        document: route.document,
+        cause: route.cause,
+      },
+      rules,
+    );
     tx.issueOfflineFiscalDocument(document);
     tx.recordClockMark({
       pointOfSale: route.pointOfSale,
@@ -96,7 +102,7 @@ export function decideSaleAuthorization(
     saleId,
     pointOfSale: route.pointOfSale,
     number: route.number,
-    issuedOn: invoiceDateOf(decidedAt),
+    issuedOn: invoiceDateOf(decidedAt, rules),
     document: route.document,
     reservedAt: decidedAt,
   });

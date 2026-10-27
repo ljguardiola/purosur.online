@@ -1,4 +1,4 @@
-import type { JsonValue, OutboxEventDraft } from "../../shared/index.js";
+import type { JsonValue, OutboxEventDraft, ZoneRules } from "../../shared/index.js";
 import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
@@ -37,11 +37,14 @@ export interface OfflineFiscalDocument extends OfflineFiscalDocumentIssue {
   buyerDocumentNumber: number;
 }
 
-export function offlineFiscalDocument(issue: OfflineFiscalDocumentIssue): OfflineFiscalDocument {
+export function offlineFiscalDocument(
+  issue: OfflineFiscalDocumentIssue,
+  rules: ZoneRules,
+): OfflineFiscalDocument {
   return {
     ...issue,
     documentType: FACTURA_C_DOCUMENT_TYPE,
-    generationStamp: generationStampOf(issue.generatedAt),
+    generationStamp: generationStampOf(issue.generatedAt, rules),
     buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
     buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
   };
@@ -70,11 +73,14 @@ export interface OfflineCreditNote extends OfflineCreditNoteIssue {
   buyerDocumentNumber: number;
 }
 
-export function offlineCreditNote(issue: OfflineCreditNoteIssue): OfflineCreditNote {
+export function offlineCreditNote(
+  issue: OfflineCreditNoteIssue,
+  rules: ZoneRules,
+): OfflineCreditNote {
   return {
     ...issue,
     documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
-    generationStamp: generationStampOf(issue.generatedAt),
+    generationStamp: generationStampOf(issue.generatedAt, rules),
     buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
     buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
   };

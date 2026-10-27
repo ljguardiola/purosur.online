@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceComparisonRoutes } from "./supplier-price-comparison-routes.js";
 import { insertActor, insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
@@ -31,6 +32,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerSupplierPriceComparisonRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,

@@ -214,6 +214,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: true,
   },
+  tz_rules_mismatch: {
+    level: "warning",
+    escalation: null,
+    audience: "all",
+    scopeKind: "register",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
   outbox_chain_broken: {
     level: "warning",
     escalation: AFTER_OPENING,

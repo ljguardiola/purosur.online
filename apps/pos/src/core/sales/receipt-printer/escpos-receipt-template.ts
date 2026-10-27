@@ -1,13 +1,15 @@
 import {
-  ARGENTINA_TIME_ZONE,
   type CreditNoteCFiscalBlock,
   type CreditNoteReceiptContent,
   type DeferredSaleDocumentBlock,
+  localClock,
   type PointCardType,
   type ReceiptContent,
   type ReceiptCopy,
   STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
+  type ZoneRules,
+  type ZoneRulesSource,
 } from "@purosur/domain";
 import type { ReceiptTemplate, StoredReceipt } from "@purosur/domain/sales/use-cases";
 import {
@@ -251,22 +253,24 @@ function operation(
   out: Output,
   { occurredAt, servedByFirstName, operationNumber }: ReceiptContent["operation"],
   block: InvoiceBlock | null,
+  rules: ZoneRules,
   creditNote?: CorrectedInvoice,
 ): void {
+  const wallClock = localClock(occurredAt, rules);
   const date =
     creditNote === undefined
-      ? formatDate(occurredAt, {
+      ? formatDate(wallClock, {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
-          timeZone: ARGENTINA_TIME_ZONE,
+          timeZone: "UTC",
         })
       : calendarDay(creditNote.issuedOn);
-  const time = formatDate(occurredAt, {
+  const time = formatDate(wallClock, {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-    timeZone: ARGENTINA_TIME_ZONE,
+    timeZone: "UTC",
   });
   out.lines([
     RULE,
@@ -436,14 +440,14 @@ function refunds(out: Output, content: CreditNoteReceiptContent["refunds"]): voi
   ]);
 }
 
-function renderCreditNote(content: CreditNoteReceiptContent): StoredReceipt {
+function renderCreditNote(content: CreditNoteReceiptContent, rules: ZoneRules): StoredReceipt {
   const head = new Output();
   initialization(head);
   logo(head);
   branch(head, content.header);
   voucherType(head, content.fiscal, "NOTA DE CRÉDITO");
   const body = new Output();
-  operation(body, content.operation, content.fiscal, {
+  operation(body, content.operation, content.fiscal, rules, {
     issuedOn: content.issuedOn,
     corrects: content.fiscal.corrects,
   });
@@ -463,7 +467,7 @@ const DUPLICATE_LEGENDS: Record<string, (orderNumber: number) => Uint8Array> = {
   },
 };
 
-function render(content: ReceiptContent): StoredReceipt {
+function render(content: ReceiptContent, rules: ZoneRules): StoredReceipt {
   const invoice = content.fiscal?.invoiceClass === "C" ? content.fiscal : null;
   const deferred = content.fiscal?.invoiceClass === "X" ? content.fiscal : null;
   const head = new Output();
@@ -477,7 +481,7 @@ function render(content: ReceiptContent): StoredReceipt {
     voucherType(head, invoice, "FACTURA");
   }
   const body = new Output();
-  operation(body, content.operation, invoice);
+  operation(body, content.operation, invoice, rules);
   if (invoice !== null) {
     issuer(body, invoice);
   }
@@ -504,4 +508,10 @@ function printable(stored: StoredReceipt, copy: ReceiptCopy): Uint8Array {
   return concatenated([stored.head, legend(copy.orderNumber), stored.body]);
 }
 
-export const escPosReceiptTemplate: ReceiptTemplate = { render, renderCreditNote, printable };
+export function escPosReceiptTemplate(zoneRules: ZoneRulesSource): ReceiptTemplate {
+  return {
+    render: (content) => render(content, zoneRules.zoneRules()),
+    renderCreditNote: (content) => renderCreditNote(content, zoneRules.zoneRules()),
+    printable,
+  };
+}

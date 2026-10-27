@@ -30,7 +30,11 @@ export async function findDeferredSaleFor(
 ): Promise<FindDeferredSaleOutcome> {
   const guarded = await deps.gate.run({ kind: "sell" }, async () =>
     findDeferredSale(
-      { lookup: new SqliteDeferredSaleLookup(deps.database), clock: { now: deps.now } },
+      {
+        zoneRules: deps.zoneRules,
+        lookup: new SqliteDeferredSaleLookup(deps.database),
+        clock: { now: deps.now },
+      },
       reading,
     ),
   );
@@ -68,7 +72,11 @@ export async function printDeferredSaleInvoiceFor(
     { document: "deferred_invoice", saleId },
     (onGrant) => signedSellerAuthority(deps, onGrant),
     (ports, watch) =>
-      printDeferredSaleInvoice({ ...ports, lookup, invoicing: deps.invoicing }, { saleId }, watch),
+      printDeferredSaleInvoice(
+        { zoneRules: deps.zoneRules, ...ports, lookup, invoicing: deps.invoicing },
+        { saleId },
+        watch,
+      ),
   );
 }
 

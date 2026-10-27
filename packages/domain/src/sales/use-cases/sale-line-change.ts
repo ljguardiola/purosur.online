@@ -1,5 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRules } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
@@ -57,6 +57,7 @@ export function changedLine(
   line: SaleLine,
   updated: SaleLine,
   moment: Date,
+  rules: ZoneRules,
 ): ChangedLineOutcome {
   const changesTotal =
     updated.quantity !== line.quantity || updated.manualAdjustment !== line.manualAdjustment;
@@ -69,7 +70,7 @@ export function changedLine(
     removedManualDiscount: line.manualAdjustment !== null && updated.manualAdjustment === null,
     removedSaleDiscount,
     sale: changed,
-    chargeRefusal: saleChargeRefusal(tx, changed, moment),
+    chargeRefusal: saleChargeRefusal(tx, changed, moment, rules),
     ...openSaleStanding(
       amountToCharge(changed),
       tx.salePayments(changed.id),

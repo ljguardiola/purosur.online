@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, type ZoneRulesSource } from "../../shared/index.js";
 import { lotTarget } from "../model/lot-allocation.js";
 import { isExpired } from "../model/lot-expiry.js";
 import { lossDelta } from "../model/stock-movement-reason.js";
@@ -11,6 +11,10 @@ export interface DiscardExpiredLotInput {
   actorId: string;
 }
 
+export interface DiscardExpiredLotPorts extends StockPorts {
+  zoneRules: ZoneRulesSource;
+}
+
 export type DiscardExpiredLotOutcome =
   | { kind: "not_found" }
   | { kind: "not_expired" }
@@ -18,11 +22,11 @@ export type DiscardExpiredLotOutcome =
   | ({ kind: "discarded"; quantity: number } & AppliedStockMovement);
 
 export async function discardExpiredLot(
-  { store, clock }: StockPorts,
+  { store, clock, zoneRules }: DiscardExpiredLotPorts,
   input: DiscardExpiredLotInput,
 ): Promise<DiscardExpiredLotOutcome> {
   const occurredAt = clock.now();
-  const today = argentinaCalendarDay(occurredAt);
+  const today = argentinaCalendarDay(occurredAt, zoneRules.zoneRules());
   return store.transaction<DiscardExpiredLotOutcome>(async (tx) => {
     const productId = await tx.lotProduct(input.lotId, input.locationId);
     if (productId === undefined) {

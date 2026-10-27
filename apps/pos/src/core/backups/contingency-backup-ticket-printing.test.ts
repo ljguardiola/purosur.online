@@ -1,6 +1,7 @@
 import type { ContingencyBackupPrintFailureReason } from "@purosur/domain";
 import type { PrintNextContingencyBackupTicketOutcome } from "@purosur/domain/backups/use-cases";
 import { describe, expect, it } from "vitest";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { ControllableReceiptPrinter } from "../sales/test-support/controllable-receipt-printer";
 import { ManualTimers } from "../sales/test-support/manual-timers";
 import {
@@ -32,6 +33,7 @@ function printerWith(
 ) {
   const { reported, reportFailure } = failures();
   const printing = createContingencyBackupTicketPrinter({
+    zoneRules: fixedZoneRulesSource(),
     printoutOf: printout,
     printers: { configured: deviceOf },
     reportFailure,

@@ -1,4 +1,5 @@
 import { issuedFiscalDocumentsQuerySchema, issuedFiscalDocumentsSchema } from "@purosur/contracts";
+import type { ZoneRulesSource } from "@purosur/domain";
 import {
   type IssuedFiscalDocument,
   type IssuedFiscalDocumentVoucher,
@@ -19,6 +20,7 @@ import { DrizzleIssuedFiscalDocumentsReader } from "./drizzle-issued-fiscal-docu
 export interface IssuedFiscalDocumentsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
+  zoneRules: ZoneRulesSource;
   now: () => Date;
 }
 
@@ -49,7 +51,7 @@ export function registerIssuedFiscalDocumentsRoute<TQueryResult extends PgQueryR
         return;
       }
       const listing = await readIssuedFiscalDocuments(
-        { reader, clock: { now } },
+        { reader, clock: { now }, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           asked: { from: query.from, to: query.to },

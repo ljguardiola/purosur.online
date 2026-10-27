@@ -7,6 +7,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { cashSessions, inbox } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -35,6 +36,7 @@ afterAll(async () => {
 function applier() {
   return applyPendingEvents(
     {
+      zoneRules: fixedZoneRulesSource(),
       eventApplication: new DrizzleEventApplication(
         db,
         () => NOW,

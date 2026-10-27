@@ -1,4 +1,9 @@
-export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
+export type {
+  Clock,
+  OperationAuthority,
+  OperationAuthorization,
+  PublishedZoneRulesReader,
+} from "../../shared/index.js";
 export type {
   AdmitRestoredRegisterReplenishmentInput,
   AdmitRestoredRegisterReplenishmentOutcome,
@@ -168,6 +173,8 @@ export type {
   PruneSnapshotGenerationsOnDiskPorts,
 } from "./prune-snapshot-generations-on-disk.js";
 export { pruneSnapshotGenerationsOnDisk } from "./prune-snapshot-generations-on-disk.js";
+export type { PublishZoneRulesInput, PublishZoneRulesOutcome } from "./publish-zone-rules.js";
+export { publishZoneRules } from "./publish-zone-rules.js";
 export type {
   CashSessionClosesReport,
   ReadCashSessionClosesInput,
@@ -390,3 +397,11 @@ export type {
   VerifySnapshotGenerationsPorts,
 } from "./verify-snapshot-generations.js";
 export { verifySnapshotGenerations } from "./verify-snapshot-generations.js";
+export type {
+  CurrentZoneRules,
+  CurrentZoneRulesReader,
+  PublishedZoneRules,
+  ZoneRulesPorts,
+  ZoneRulesStore,
+  ZoneRulesStoreTransaction,
+} from "./zone-rules-store.js";

@@ -11,6 +11,7 @@ import {
 } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
 import {
   extractedListWithRow as sharedExtractedListWithRow,
@@ -46,6 +47,7 @@ beforeEach(async () => {
   registerSupplierPriceListsRoutes(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
   });
 });

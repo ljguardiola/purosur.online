@@ -1,6 +1,7 @@
 import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { addWeighedProduct } from "./add-weighed-product.js";
@@ -83,6 +84,7 @@ function weigh(
 ) {
   return addWeighedProduct(
     {
+      zoneRules: new FakeZoneRulesSource(),
       ledger: store,
       restoration: store.restoration,
       clock: new FixedClock(NOW),

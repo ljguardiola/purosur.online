@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
 import { eventApplicationUnderTest } from "../sync/test-support/drizzle-event-application.js";
 import { AMOUNT, pushSaleThenItsVoiding } from "../sync/test-support/voided-sale-push.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
   MERCADO_PAGO_REFUND_FOLLOW_TASK_IDENTIFIER,
@@ -48,6 +49,7 @@ async function pushedVoidOfSalePaidBy(method: "QR" | "POINT") {
 async function applyEverything() {
   await applyPendingEvents(
     {
+      zoneRules: fixedZoneRulesSource(),
       eventApplication: system.application,
       upcaster: syncedEventUpcaster,
       clock: { now: () => new Date("2026-10-06T15:00:00.000Z") },

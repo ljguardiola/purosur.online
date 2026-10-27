@@ -20,6 +20,7 @@ import {
 } from "../../payments/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
+import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../../platform/test-support/open-local-database";
 import { recordCashMovementFor } from "../../register/cash-movement-requests";
@@ -403,6 +404,7 @@ async function catchUpFirstDeferredSale(database: LocalDatabase, now: () => Date
     )
     .run(now().toISOString());
   const caughtUp = await catchUpDeferredSales({
+    zoneRules: fixedZoneRulesSource(),
     catchUp: new SqliteDeferredSaleCatchUp(database, OUTBOX_CHAIN_KEY),
     documents: new SqliteRealTimeFiscalDocuments(database, OUTBOX_CHAIN_KEY),
     roundTrips: new SqliteRoundTripSamples(database),
@@ -451,6 +453,7 @@ export async function withRegisterSession<TResult>(
       }),
       readOutboxChainKey: async () => OUTBOX_CHAIN_KEY,
       now,
+      zoneRules: fixedZoneRulesSource(),
       ids: uuidV7Ids,
       signedInPerson,
       paidOrderDiscovery: () => "checked" as const,

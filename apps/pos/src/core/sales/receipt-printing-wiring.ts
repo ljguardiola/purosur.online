@@ -51,6 +51,7 @@ export interface ReceiptPrintingWiringDeps {
   database: LocalDatabase | undefined;
   gate: ActionGate | undefined;
   now: ReceiptRequestDeps["now"];
+  zoneRules: ReceiptRequestDeps["zoneRules"];
   ids: ReceiptRequestDeps["ids"];
   readOutboxChainKey: ReceiptRequestDeps["readOutboxChainKey"];
   signedInUserId: ReceiptRequestDeps["signedInUserId"];
@@ -104,6 +105,7 @@ export function createReceiptPrinting({
   database,
   gate,
   now,
+  zoneRules,
   ids,
   readOutboxChainKey,
   signedInUserId,
@@ -134,6 +136,7 @@ export function createReceiptPrinting({
     database,
     gate,
     now,
+    zoneRules,
     ids,
     readOutboxChainKey,
     signedInUserId,

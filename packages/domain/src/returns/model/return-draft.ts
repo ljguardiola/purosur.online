@@ -1,3 +1,4 @@
+import type { ZoneRules } from "../../shared/index.js";
 import {
   lineRefundAmount,
   mustBeReturnedWhole,
@@ -16,6 +17,7 @@ export interface ReturnSaleContext {
   soldAt: Date;
   goodConditionReturnDays: number;
   now: Date;
+  rules: ZoneRules;
   lines: readonly ReturnSaleLine[];
 }
 
@@ -85,8 +87,9 @@ function verdictOf(
     draft.reason,
     context.soldAt,
     context.goodConditionReturnDays,
+    context.rules,
   );
-  if (!isReturnWindowOpen(lastAllowedDay, context.now)) {
+  if (!isReturnWindowOpen(lastAllowedDay, context.now, context.rules)) {
     return refused({ kind: "outside_window", reason: draft.reason, lastAllowedDay });
   }
   return {

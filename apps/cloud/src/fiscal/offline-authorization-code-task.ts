@@ -2,6 +2,7 @@ import {
   acquisitionUrgencyAlertLevel,
   argentinaCalendarDay,
   OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
+  type ZoneRulesSource,
 } from "@purosur/domain";
 import {
   currentFortnightCodeAfterObtaining,
@@ -35,6 +36,7 @@ export const OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER =
 
 export interface OfflineAuthorizationCodeInput {
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   taxAuthority: TaxAuthorityOfflineAuthorizationCodes;
   certificateFingerprint: string;
 }
@@ -45,7 +47,7 @@ export interface OfflineAuthorizationCodeJobsDeps {
 }
 
 export function offlineAuthorizationCodeJobs(
-  { now, taxAuthority, certificateFingerprint }: OfflineAuthorizationCodeInput,
+  { now, zoneRules, taxAuthority, certificateFingerprint }: OfflineAuthorizationCodeInput,
   deps: OfflineAuthorizationCodeJobsDeps = {},
 ): BackgroundJobs {
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
@@ -58,6 +60,7 @@ export function offlineAuthorizationCodeJobs(
       taxAuthority,
       owedPresentations: new DrizzleOwedPresentationList(db),
       clock: { now },
+      zoneRules,
     });
     if (outcome.kind === "no_offline_point_of_sale") {
       logger.debug("offline authorization code acquisition: no offline point of sale");
@@ -93,6 +96,7 @@ export function offlineAuthorizationCodeJobs(
         },
       },
       clock: { now },
+      zoneRules,
     });
     return outcome;
   };
@@ -105,7 +109,10 @@ export function offlineAuthorizationCodeJobs(
       [OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER]: async (_payload, helpers) => {
         const outcome = await helpers.withPgClient((client) => obtain(client, helpers));
         if (
-          currentFortnightCodeAfterObtaining(outcome, argentinaCalendarDay(now())) === "missing"
+          currentFortnightCodeAfterObtaining(
+            outcome,
+            argentinaCalendarDay(now(), zoneRules.zoneRules()),
+          ) === "missing"
         ) {
           throw new Error("the current fortnight's offline authorization code is still missing");
         }

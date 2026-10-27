@@ -1,5 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { fixedOffsetZoneRules } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   isBeforeTaxAuthorityLastIssuedDay,
   isBehindClockMark,
@@ -43,21 +45,47 @@ describe("isBehindClockMark", () => {
 
 describe("isBeforeTaxAuthorityLastIssuedDay", () => {
   it("never blocks a point of sale whose last authorized document's date is unknown", () => {
-    expect(isBeforeTaxAuthorityLastIssuedDay(new Date(0), null)).toBe(false);
+    expect(isBeforeTaxAuthorityLastIssuedDay(new Date(0), null, FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      false,
+    );
   });
 
   it("blocks a reading on an Argentine calendar day before the one the tax authority last authorized on", () => {
     expect(
-      isBeforeTaxAuthorityLastIssuedDay(new Date("2026-10-01T02:59:59.000Z"), "2026-10-01"),
+      isBeforeTaxAuthorityLastIssuedDay(
+        new Date("2026-10-01T02:59:59.000Z"),
+        "2026-10-01",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
     ).toBe(true);
   });
 
   it("lets a reading on that day or a later one through", () => {
     expect(
-      isBeforeTaxAuthorityLastIssuedDay(new Date("2026-10-01T03:00:00.000Z"), "2026-10-01"),
+      isBeforeTaxAuthorityLastIssuedDay(
+        new Date("2026-10-01T03:00:00.000Z"),
+        "2026-10-01",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
     ).toBe(false);
     expect(
-      isBeforeTaxAuthorityLastIssuedDay(new Date("2026-10-05T12:00:00.000Z"), "2026-10-01"),
+      isBeforeTaxAuthorityLastIssuedDay(
+        new Date("2026-10-05T12:00:00.000Z"),
+        "2026-10-01",
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isBeforeTaxAuthorityLastIssuedDay under given rules", () => {
+  it("reads the reading's day on the clock of the rules it is given", () => {
+    expect(
+      isBeforeTaxAuthorityLastIssuedDay(
+        new Date("2026-10-01T02:30:00.000Z"),
+        "2026-10-01",
+        fixedOffsetZoneRules(-120),
+      ),
     ).toBe(false);
   });
 });
@@ -68,12 +96,15 @@ describe("isInClockCorrectionLapse", () => {
     correctedReading: new Date("2026-10-01T15:00:00.000Z"),
   };
   const lapse = (overrides: Partial<Parameters<typeof isInClockCorrectionLapse>[0]> = {}) =>
-    isInClockCorrectionLapse({
-      reading: new Date("2026-10-02T15:00:00.000Z"),
-      taxAuthorityLastIssuedOn: "2026-10-05",
-      corrections: [CORRECTION],
-      ...overrides,
-    });
+    isInClockCorrectionLapse(
+      {
+        reading: new Date("2026-10-02T15:00:00.000Z"),
+        taxAuthorityLastIssuedOn: "2026-10-05",
+        corrections: [CORRECTION],
+        ...overrides,
+      },
+      FIXED_ARGENTINA_ZONE_RULES,
+    );
 
   it("holds while the reading is before the tax authority's day after a correction that lowered the clock across it", () => {
     expect(lapse()).toBe(true);
@@ -173,6 +204,43 @@ describe("isInClockCorrectionLapse", () => {
           {
             previousReading: new Date("2026-10-06T15:00:00.000Z"),
             correctedReading: new Date("2026-10-05T15:00:00.000Z"),
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it("reads every day on the clock of the rules it is given", () => {
+    const twoHoursBehindUtc = fixedOffsetZoneRules(-120);
+    const firstMomentOfTheDayAtTwoHoursBehindUtc = new Date("2026-10-05T02:30:00.000Z");
+    const lapseUnder = (overrides: Partial<Parameters<typeof isInClockCorrectionLapse>[0]>) =>
+      isInClockCorrectionLapse(
+        {
+          reading: new Date("2026-10-02T15:00:00.000Z"),
+          taxAuthorityLastIssuedOn: "2026-10-05",
+          corrections: [CORRECTION],
+          ...overrides,
+        },
+        twoHoursBehindUtc,
+      );
+
+    expect(lapseUnder({ reading: firstMomentOfTheDayAtTwoHoursBehindUtc })).toBe(false);
+    expect(
+      lapseUnder({
+        corrections: [
+          {
+            previousReading: firstMomentOfTheDayAtTwoHoursBehindUtc,
+            correctedReading: CORRECTION.correctedReading,
+          },
+        ],
+      }),
+    ).toBe(true);
+    expect(
+      lapseUnder({
+        corrections: [
+          {
+            previousReading: CORRECTION.previousReading,
+            correctedReading: firstMomentOfTheDayAtTwoHoursBehindUtc,
           },
         ],
       }),

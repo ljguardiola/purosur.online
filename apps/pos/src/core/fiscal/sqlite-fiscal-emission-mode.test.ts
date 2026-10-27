@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { readFiscalEmissionModeIn } from "./sqlite-fiscal-emission-mode";
 import { insertPreEmissionGateOutcome } from "./sqlite-pre-emission-gate";
 import {
@@ -36,14 +37,20 @@ afterEach(() => {
 
 describe("the fiscal emission mode, in the local database", () => {
   it("answers the mode of the register's series, connectivity and held code", () => {
-    expect(readFiscalEmissionModeIn(database, NOW)).toEqual({
+    expect(readFiscalEmissionModeIn(database, NOW, fixedZoneRulesSource())).toEqual({
       kind: "offline_code",
       cause: "no_connectivity",
     });
   });
 
   it("looks the code up for the fortnight of the moment it is given", () => {
-    expect(readFiscalEmissionModeIn(database, new Date("2026-10-02T12:00:00.000Z"))).toEqual({
+    expect(
+      readFiscalEmissionModeIn(
+        database,
+        new Date("2026-10-02T12:00:00.000Z"),
+        fixedZoneRulesSource(),
+      ),
+    ).toEqual({
       kind: "deferring",
       reason: "fiscally_offline",
     });
@@ -57,7 +64,7 @@ describe("the fiscal emission mode, in the local database", () => {
       outcome: { kind: "failed", reason: "legal_name_missing" },
     });
 
-    expect(readFiscalEmissionModeIn(database, NOW)).toEqual({
+    expect(readFiscalEmissionModeIn(database, NOW, fixedZoneRulesSource())).toEqual({
       kind: "deferring",
       reason: "pre_emission_gate_failed",
     });

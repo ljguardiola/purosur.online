@@ -24,6 +24,7 @@ import {
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { restorationOf } from "../register/test-support/restoration-of";
@@ -53,11 +54,23 @@ function voidLedger(chainKey: string | null = CHAIN_KEY): SqliteSaleVoidLedger {
 
 function sellTwo(): string {
   addScannedProduct(
-    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger: sales,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", code: "111" },
   );
   const outcome = addScannedProduct(
-    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger: sales,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", code: "111" },
   );
   if (outcome.kind !== "added") {
@@ -68,14 +81,26 @@ function sellTwo(): string {
 
 function payCash(saleId: string, tendered: number): void {
   chargeSaleInCash(
-    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger: sales,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", saleId, tendered },
   );
 }
 
 function payByTransfer(saleId: string, amount: number): void {
   chargeSaleByTransfer(
-    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    {
+      zoneRules: fixedZoneRulesSource(),
+      ledger: sales,
+      restoration: restorationOf(database),
+      clock: { now: () => NOW },
+      ids,
+    },
     { actorId: "u1", saleId, amount },
   );
 }
@@ -83,6 +108,7 @@ function payByTransfer(saleId: string, amount: number): void {
 function voidIt(saleId: string, options: { authorizedBy?: string; confirmed?: boolean } = {}) {
   return voidSale(
     {
+      zoneRules: fixedZoneRulesSource(),
       ledger: voidLedger(),
       clock: { now: () => VOIDED_AT },
       ids,
@@ -622,6 +648,7 @@ describe("voiding a sale", () => {
 
     const outcome = await voidSale(
       {
+        zoneRules: fixedZoneRulesSource(),
         ledger: voidLedger(null),
         clock: { now: () => VOIDED_AT },
         ids,

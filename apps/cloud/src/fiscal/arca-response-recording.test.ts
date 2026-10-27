@@ -1,7 +1,7 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { generationStampOf } from "@purosur/domain";
+import { FIXED_ARGENTINA_ZONE_RULES, generationStampOf } from "@purosur/domain";
 import {
   FICTIONAL_CERTIFICATE_CUIT,
   FICTIONAL_CUIT,
@@ -17,6 +17,7 @@ import {
   ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
   VALID_ARCA_CERTIFICATE,
 } from "../test-support/arca-certificate-fixtures.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   type ArcaRecordingReport,
   recordArcaResponses,
@@ -133,6 +134,7 @@ afterEach(() => {
 
 function record(options: { now?: () => Date } = {}) {
   return recordArcaResponses({
+    zoneRules: fixedZoneRulesSource(),
     certificatePem: credentials.certificatePem,
     privateKeyPem: credentials.privateKeyPem,
     outDir,
@@ -508,6 +510,7 @@ describe("recordArcaResponses", () => {
 
     await expect(
       recordArcaResponses({
+        zoneRules: fixedZoneRulesSource(),
         certificatePem: credentials.certificatePem,
         privateKeyPem: credentials.privateKeyPem,
         outDir,
@@ -527,6 +530,7 @@ describe("recordArcaResponses", () => {
 
     await expect(
       recordArcaResponses({
+        zoneRules: fixedZoneRulesSource(),
         certificatePem: credentials.certificatePem,
         privateKeyPem: credentials.privateKeyPem,
         outDir,
@@ -555,6 +559,7 @@ describe("recordArcaResponses invoicing calls", () => {
 
     await expect(
       recordArcaResponses({
+        zoneRules: fixedZoneRulesSource(),
         certificatePem: credentials.certificatePem,
         privateKeyPem: credentials.privateKeyPem,
         outDir,
@@ -745,6 +750,7 @@ describe("recordArcaResponses offline authorization code calls", () => {
 
     await expect(
       recordArcaResponses({
+        zoneRules: fixedZoneRulesSource(),
         certificatePem: credentials.certificatePem,
         privateKeyPem: credentials.privateKeyPem,
         outDir,
@@ -833,7 +839,7 @@ describe("recordArcaResponses offline document report calls", () => {
 
     const [accepted, partlyRejected] = requestsOf(ACCEPTED, PARTLY_REJECTED);
     expect(sent(accepted, "CbteFch")).toBe("20261001");
-    expect(sent(accepted, "CbteFchHsGen")).toBe(generationStampOf(NOW));
+    expect(sent(accepted, "CbteFchHsGen")).toBe(generationStampOf(NOW, FIXED_ARGENTINA_ZONE_RULES));
     expect(sent(accepted, "DocTipo")).toBe("99");
     expect(sent(accepted, "DocNro")).toBe("0");
     expect(sent(accepted, "CondicionIVAReceptorId")).toBe("5");
@@ -1072,6 +1078,7 @@ describe("recordArcaResponses offline document report calls", () => {
 
     await expect(
       recordArcaResponses({
+        zoneRules: fixedZoneRulesSource(),
         certificatePem: credentials.certificatePem,
         privateKeyPem: credentials.privateKeyPem,
         outDir,

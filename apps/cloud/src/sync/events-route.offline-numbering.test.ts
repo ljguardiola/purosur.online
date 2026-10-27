@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { inbox } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
@@ -91,13 +92,16 @@ describe("an offline document pushed through POST /events that reaches the last 
       payload: pushOfDocumentNumbered(registerId, 1000),
       headers: { authorization: `Bearer ${deviceToken}` },
     });
-    await applySyncedEventsTask(route.db, { now: () => NOW });
+    await applySyncedEventsTask(route.db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     expect(pushed.json()).toMatchObject({ status: "ok", ack_seq: 1 });
     expect(await route.db.select({ appliedAt: inbox.appliedAt }).from(inbox)).toEqual([
       { appliedAt: null },
     ]);
-    const pulls = buildChangesRouteApp(route.db, { now: () => NOW });
+    const pulls = buildChangesRouteApp(route.db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => NOW,
+    });
     const page = await pulledPage(pulls, 0, deviceToken);
     await pulls.close();
     expect(

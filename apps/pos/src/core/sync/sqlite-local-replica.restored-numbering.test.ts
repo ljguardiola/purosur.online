@@ -1,5 +1,5 @@
 import type { SyncChange } from "@purosur/contracts";
-import { restorationStanding } from "@purosur/domain";
+import { FIXED_ARGENTINA_ZONE_RULES, restorationStanding } from "@purosur/domain";
 import { resetRestoredSyncIdentity } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { restorePendingIn } from "../backups/restore-pending";
@@ -58,6 +58,7 @@ function reservedNumbers() {
       decidedAt: new Date("2026-09-30T12:05:00.000Z"),
       occurredAt: SALE_COMPLETED_AT,
       total: 12_500,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
       ids: {
         next: () => {
           issued += 1;

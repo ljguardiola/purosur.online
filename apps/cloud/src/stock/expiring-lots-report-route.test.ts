@@ -13,6 +13,7 @@ import {
   saleCompleted,
 } from "../sync/test-support/pushing-device.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerExpiringLotsReportRoute } from "./expiring-lots-report-route.js";
 import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
@@ -44,6 +45,7 @@ beforeEach(async () => {
   registerExpiringLotsReportRoute(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOW,
   });
 });
@@ -262,6 +264,7 @@ describe("GET /reports/expiring-lots after a register's sale is applied", () => 
     registerExpiringLotsReportRoute(route.app, {
       db: route.db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
+      zoneRules: fixedZoneRulesSource(),
       now: () => EVENTS_NOW,
     });
   });
@@ -315,7 +318,10 @@ describe("GET /reports/expiring-lots after a register's sale is applied", () => 
 
     expect(idsOf((await read()).json())).toEqual([lotId]);
 
-    await applySyncedEventsTask(route.db, { now: () => EVENTS_NOW });
+    await applySyncedEventsTask(route.db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => EVENTS_NOW,
+    });
 
     expect(idsOf((await read()).json())).toEqual([]);
   });

@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { CreditNoteReason } from "../model/credit-note.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { FiscalTask } from "../model/fiscal-task.js";
@@ -100,6 +100,7 @@ export interface IssueCreditNotePorts {
   requests: CreditNoteRequests;
   lanes: CreditNoteLanes;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
   tokens: WsaaTokenSource;
   vouchers: TaxAuthorityVoucherLookup;
   taxAuthority: TaxAuthorityLastAuthorizedLookup;

@@ -1,5 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { fixedOffsetZoneRules } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
@@ -121,57 +123,119 @@ describe("isIssuerIdentificationActivityStartDate", () => {
   const today = new Date("2026-09-25T12:00:00.000Z");
 
   it("accepts a past calendar date and today", () => {
-    expect(isIssuerIdentificationActivityStartDate("2020-01-15", today)).toBe(true);
-    expect(isIssuerIdentificationActivityStartDate("2026-09-25", today)).toBe(true);
+    expect(
+      isIssuerIdentificationActivityStartDate("2020-01-15", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
+    expect(
+      isIssuerIdentificationActivityStartDate("2026-09-25", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
   });
 
   it("rejects a date one day in the future", () => {
-    expect(isIssuerIdentificationActivityStartDate("2026-09-26", today)).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("2026-09-26", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
   });
 
   it("rejects a date that is not a zero-padded YYYY-MM-DD", () => {
-    expect(isIssuerIdentificationActivityStartDate("2020-1-15", today)).toBe(false);
-    expect(isIssuerIdentificationActivityStartDate("20200115", today)).toBe(false);
-    expect(isIssuerIdentificationActivityStartDate("2020-01-15T00:00", today)).toBe(false);
-    expect(isIssuerIdentificationActivityStartDate("", today)).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("2020-1-15", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("20200115", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate(
+        "2020-01-15T00:00",
+        today,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate("", today, FIXED_ARGENTINA_ZONE_RULES)).toBe(
+      false,
+    );
   });
 
   it("rejects anything before the four-digit year", () => {
-    expect(isIssuerIdentificationActivityStartDate("12020-01-15", today)).toBe(false);
-    expect(isIssuerIdentificationActivityStartDate(" 2020-01-15", today)).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("12020-01-15", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate(" 2020-01-15", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
   });
 
   it("rejects a calendar date that does not exist, such as February 30th", () => {
-    expect(isIssuerIdentificationActivityStartDate("2020-02-30", today)).toBe(false);
-    expect(isIssuerIdentificationActivityStartDate("2021-02-29", today)).toBe(false);
-    expect(isIssuerIdentificationActivityStartDate("2020-13-01", today)).toBe(false);
-    expect(isIssuerIdentificationActivityStartDate("2020-00-10", today)).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("2020-02-30", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("2021-02-29", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("2020-13-01", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("2020-00-10", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
   });
 
   it("accepts February 29th of a leap year", () => {
-    expect(isIssuerIdentificationActivityStartDate("2020-02-29", today)).toBe(true);
+    expect(
+      isIssuerIdentificationActivityStartDate("2020-02-29", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
   });
 
   it("accepts a date in the first hundred years of the calendar", () => {
-    expect(isIssuerIdentificationActivityStartDate("0001-01-01", today)).toBe(true);
-    expect(isIssuerIdentificationActivityStartDate("0050-06-15", today)).toBe(true);
-    expect(isIssuerIdentificationActivityStartDate("0099-12-31", today)).toBe(true);
+    expect(
+      isIssuerIdentificationActivityStartDate("0001-01-01", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
+    expect(
+      isIssuerIdentificationActivityStartDate("0050-06-15", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
+    expect(
+      isIssuerIdentificationActivityStartDate("0099-12-31", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(true);
   });
 
   it("rejects a date of year 0000, which a database date does not have", () => {
-    expect(isIssuerIdentificationActivityStartDate("0000-01-01", today)).toBe(false);
-    expect(isIssuerIdentificationActivityStartDate("0000-12-31", today)).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("0000-01-01", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate("0000-12-31", today, FIXED_ARGENTINA_ZONE_RULES),
+    ).toBe(false);
   });
 
   it("takes today from Argentina's calendar, not UTC's, late in the evening", () => {
     const lateEveningInArgentina = new Date("2026-09-25T23:30:00-03:00");
 
-    expect(isIssuerIdentificationActivityStartDate("2026-09-26", lateEveningInArgentina)).toBe(
-      false,
-    );
-    expect(isIssuerIdentificationActivityStartDate("2026-09-25", lateEveningInArgentina)).toBe(
-      true,
-    );
+    expect(
+      isIssuerIdentificationActivityStartDate(
+        "2026-09-26",
+        lateEveningInArgentina,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(false);
+    expect(
+      isIssuerIdentificationActivityStartDate(
+        "2026-09-25",
+        lateEveningInArgentina,
+        FIXED_ARGENTINA_ZONE_RULES,
+      ),
+    ).toBe(true);
+  });
+
+  it("takes today from the zone rules it is given", () => {
+    const lateEveningInArgentina = new Date("2026-09-25T23:30:00-03:00");
+
+    expect(
+      isIssuerIdentificationActivityStartDate(
+        "2026-09-26",
+        lateEveningInArgentina,
+        fixedOffsetZoneRules(0),
+      ),
+    ).toBe(true);
   });
 });
 

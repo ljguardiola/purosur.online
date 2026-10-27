@@ -36,7 +36,7 @@ export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResu
         return;
       }
       const report = await readExpiringLotsReport(
-        { expiringLots, branchSettings, clock: { now } },
+        { expiringLots, branchSettings, clock: { now }, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           asked: {

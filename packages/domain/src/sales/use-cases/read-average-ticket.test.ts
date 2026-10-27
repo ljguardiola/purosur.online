@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { readAverageTicket } from "./read-average-ticket.js";
 import { FakeSalesReportReader } from "./test-support/fake-sales-report-reader.js";
 
@@ -18,7 +19,7 @@ describe("readAverageTicket", () => {
     const reader = new FakeSalesReportReader(sold);
 
     const report = await readAverageTicket(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-04", to: "2026-10-06" },
@@ -48,7 +49,7 @@ describe("readAverageTicket", () => {
     const reader = new FakeSalesReportReader();
 
     await readAverageTicket(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-04", to: "2026-10-06" },
@@ -74,7 +75,7 @@ describe("readAverageTicket", () => {
     const reader = new FakeSalesReportReader(sold);
 
     const report = await readAverageTicket(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
@@ -87,7 +88,7 @@ describe("readAverageTicket", () => {
 
   it("has no change when the asked range has no sales", async () => {
     const report = await readAverageTicket(
-      { reader: new FakeSalesReportReader(sold), clock },
+      { zoneRules: new FakeZoneRulesSource(), reader: new FakeSalesReportReader(sold), clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-02", to: "2026-10-03" },
@@ -103,7 +104,7 @@ describe("readAverageTicket", () => {
     const reader = new FakeSalesReportReader(sold);
 
     const report = await readAverageTicket(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "0001-01-01", to: "0001-01-07" },

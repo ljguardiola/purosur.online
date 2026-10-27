@@ -27,6 +27,7 @@ export function registerPriceMarginRoute<TQueryResult extends PgQueryResultHKT>(
     products: new DrizzleActiveProductReader(options.db),
     purchaseCosts: new DrizzlePurchaseCostReader(options.db),
     initialCountCosts: new DrizzleInitialCountCostReader(options.db),
+    zoneRules: options.zoneRules,
   };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

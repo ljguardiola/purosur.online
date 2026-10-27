@@ -1,4 +1,4 @@
-import { REAL_TIME_AUTHORIZATION_TIMEOUT_MS } from "@purosur/domain";
+import { REAL_TIME_AUTHORIZATION_TIMEOUT_MS, type ZoneRulesSource } from "@purosur/domain";
 import {
   applyUnclearOutcomeDecisions,
   type CatchUpDeferredSalesPorts,
@@ -38,6 +38,7 @@ export interface RealTimeAuthorizationWiringDeps {
   cloudClient: CloudClientDeps | undefined;
   readDeviceToken: () => Promise<string | undefined>;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   reportFailure: (error: unknown) => void;
 }
 
@@ -75,9 +76,13 @@ export function deferredSaleCatchUpPorts(
     cloudClient,
     readDeviceToken,
     now,
+    zoneRules,
     ids,
     shortCodes,
-  }: Pick<RealTimeAuthorizationWiringDeps, "cloudClient" | "readDeviceToken" | "now"> &
+  }: Pick<
+    RealTimeAuthorizationWiringDeps,
+    "cloudClient" | "readDeviceToken" | "now" | "zoneRules"
+  > &
     Pick<DeferralIdentities, "ids" | "shortCodes">,
 ): CatchUpDeferredSalesPorts {
   return {
@@ -86,6 +91,7 @@ export function deferredSaleCatchUpPorts(
     roundTrips: new SqliteRoundTripSamples(database),
     taxAuthority: realTimeTaxAuthority({ cloudClient, readDeviceToken }),
     clock: { now },
+    zoneRules,
     ids,
     shortCodes,
   };
@@ -172,6 +178,7 @@ export function startRegisterHealthChecks({
   cloudClient,
   readDeviceToken,
   now,
+  zoneRules,
   scheduleNext,
   reportFailure,
   afterCheck,
@@ -228,6 +235,7 @@ export function startRegisterHealthChecks({
               cloudClient,
               readDeviceToken,
               now,
+              zoneRules,
               ids,
               shortCodes,
             }),

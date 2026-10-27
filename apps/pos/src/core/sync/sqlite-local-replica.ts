@@ -59,10 +59,12 @@ export class SqliteLocalReplica
   implements LocalReplica<RegisterPulledChange>, RedeliveryReplica<RegisterPulledChange>
 {
   private readonly database: LocalDatabase;
+  private readonly onZoneRulesSaved: () => void;
   private pepper: string | undefined;
 
-  constructor(database: LocalDatabase) {
+  constructor(database: LocalDatabase, onZoneRulesSaved: () => void = () => {}) {
     this.database = database;
+    this.onZoneRulesSaved = onZoneRulesSaved;
   }
 
   // A cursor only means something to the installation that pulled it: another one, perhaps of
@@ -122,6 +124,7 @@ export class SqliteLocalReplica
       this.writeChanges(page.changes, "pull");
       saveCursor.run(page.cursor);
     })();
+    this.announceZoneRules(page.changes);
   }
 
   async pendingRedeliveries(): Promise<PendingRedelivery[]> {
@@ -157,6 +160,7 @@ export class SqliteLocalReplica
         saveCursor.run(page.cursor, table);
       }
     })();
+    this.announceZoneRules(page.changes);
   }
 
   async finishRedelivery(entity: PulledEntity): Promise<void> {
@@ -168,6 +172,12 @@ export class SqliteLocalReplica
         forget.run(table);
       }
     })();
+  }
+
+  private announceZoneRules(changes: readonly RegisterPulledChange[]): void {
+    if (changes.some(({ change }) => change.entity === "zone_rules")) {
+      this.onZoneRulesSaved();
+    }
   }
 
   private writeChanges(changes: readonly RegisterPulledChange[], mode: PageWriteMode): void {
@@ -271,6 +281,9 @@ export class SqliteLocalReplica
           break;
         case "buyer_tax_status_set":
           fiscal.buyerTaxStatusSet(change);
+          break;
+        case "zone_rules":
+          fiscal.zoneRules(change);
           break;
         case "offline_authorization_code":
           fiscal.offlineAuthorizationCode(change);

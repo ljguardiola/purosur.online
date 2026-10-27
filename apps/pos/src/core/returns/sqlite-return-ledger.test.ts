@@ -1,6 +1,7 @@
 import { completeReturn } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { SqliteReturnLedger } from "./sqlite-return-ledger";
 import { openSecondSession, openSoldSaleDatabase } from "./test-support/sold-sale-database";
@@ -30,6 +31,7 @@ function returnYerba(
 ) {
   return completeReturn(
     {
+      zoneRules: fixedZoneRulesSource(),
       ledger: ledger(options.chainKey),
       clock: { now: () => RETURNED_AT },
       ids,

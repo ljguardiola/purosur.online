@@ -8,6 +8,7 @@ import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { hmacEventChain } from "../sync/hmac-event-chain.js";
 import { NOW as EVENTS_NOW, eventsRouteUnderTest } from "../sync/test-support/events-route.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerCurrentStockReportRoute } from "./current-stock-report-route.js";
 import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
@@ -39,6 +40,7 @@ beforeEach(async () => {
   registerCurrentStockReportRoute(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
+    zoneRules: fixedZoneRulesSource(),
     now: () => NOON,
   });
 });
@@ -278,6 +280,7 @@ describe("GET /reports/current-stock after a register's count is applied", () =>
     registerCurrentStockReportRoute(route.app, {
       db: route.db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
+      zoneRules: fixedZoneRulesSource(),
       now: () => EVENTS_NOW,
     });
   });
@@ -324,7 +327,10 @@ describe("GET /reports/current-stock after a register's count is applied", () =>
     expect(pushed.json()).toMatchObject({ status: "ok", ack_seq: 1 });
     expect((await read()).json().products).toEqual([]);
 
-    await applySyncedEventsTask(route.db, { now: () => EVENTS_NOW });
+    await applySyncedEventsTask(route.db, {
+      zoneRules: fixedZoneRulesSource(),
+      now: () => EVENTS_NOW,
+    });
 
     expect((await read()).json().products).toEqual([
       expect.objectContaining({ id: productId, balance: 6_000 }),

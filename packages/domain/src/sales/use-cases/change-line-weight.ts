@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { mayBeSaleLineQuantity, withWeight } from "../model/sale-line.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
@@ -21,6 +21,7 @@ export interface ChangeLineWeightPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  zoneRules: ZoneRulesSource;
 }
 
 export type ChangeLineWeightOutcome =
@@ -32,7 +33,7 @@ export type ChangeLineWeightOutcome =
   | ChangedLineOutcome;
 
 export function changeLineWeight(
-  { ledger, restoration, clock }: ChangeLineWeightPorts,
+  { ledger, restoration, clock, zoneRules }: ChangeLineWeightPorts,
   { actorId, lineId, weightThousandths, expectedWeightThousandths }: ChangeLineWeightInput,
 ): ChangeLineWeightOutcome {
   return ledger.transaction<ChangeLineWeightOutcome>((tx) => {
@@ -58,6 +59,6 @@ export function changeLineWeight(
     if (weightThousandths !== line.quantity || line.weightSource !== "MANUAL") {
       tx.recordChangedLine(updated);
     }
-    return changedLine(tx, sale, line, updated, clock.now());
+    return changedLine(tx, sale, line, updated, clock.now(), zoneRules.zoneRules());
   });
 }

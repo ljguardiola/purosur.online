@@ -65,6 +65,7 @@ import {
 } from "./test-support/build-test-app.js";
 import { buildTestDatabase, type TestDatabase } from "./test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "./test-support/device-token-rotation-key.js";
+import { fixedZoneRulesSource } from "./test-support/fixed-zone-rules-source.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "./test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "./test-support/seeded-location.js";
 
@@ -108,6 +109,7 @@ describe("GET /api/health", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -133,6 +135,7 @@ describe("GET /api/health", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -162,6 +165,7 @@ describe("GET /api/health", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -185,6 +189,7 @@ describe("GET /api/changes", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -212,6 +217,7 @@ describe("GET /api/changes", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -249,6 +255,7 @@ describe("POST /api/devices", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -296,6 +303,7 @@ describe("POST /api/devices numbering reconciliation", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -645,6 +653,7 @@ describe("a register-to-cloud request that fails", () => {
       version: "abc1234",
       setupFastifyErrorHandler,
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -1421,7 +1430,11 @@ describe("wiring the purchasing routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      purchasing: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     expect(await purchasingResponses(app)).toEqual(Array(34).fill(401));
@@ -1497,7 +1510,11 @@ describe("wiring the products routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      products: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      products: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     const list = await app.inject({ method: "GET", url: "/api/products" });
@@ -1554,7 +1571,11 @@ describe("wiring the discounts routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      discounts: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      discounts: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     expect(await discountsResponses(app)).toEqual([401, 401, 401, 401]);
@@ -1591,7 +1612,11 @@ describe("wiring the prices routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      prices: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      prices: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
@@ -1646,7 +1671,11 @@ describe("wiring the sales report routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      salesReports: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      salesReports: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     expect(await statusCodes(app)).toEqual(reportRequests.map(() => 401));
@@ -1671,7 +1700,11 @@ describe("wiring the returns report route", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      returns: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      returns: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        zoneRules: fixedZoneRulesSource(),
+      },
     });
 
     const response = await app.inject({
@@ -1701,7 +1734,11 @@ describe("wiring the payments report routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      paymentsReports: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      paymentsReports: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     const response = await app.inject({
@@ -1807,7 +1844,11 @@ describe("wiring the stock routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      stock: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      stock: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     expect(await statusCodes(app)).toEqual(stockRequests.map(() => 401));
@@ -1817,7 +1858,11 @@ describe("wiring the stock routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      stock: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      stock: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     const responses = await Promise.all(
@@ -1862,7 +1907,11 @@ describe("wiring the registers routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      registers: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+      registers: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
     });
 
     const list = await app.inject({ method: "GET", url: "/api/registers" });
@@ -1913,6 +1962,7 @@ describe("wiring the register point of sale routes", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       registersPointsOfSale: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         backofficeOrigin: "https://staging.purosur.online",
       },
@@ -2011,6 +2061,7 @@ describe("wiring the device enrollment route", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -2061,6 +2112,7 @@ describe("wiring the Mercado Pago order routes", () => {
       db: testDatabase.db,
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      zoneRules: fixedZoneRulesSource(),
     };
   }
 
@@ -2119,6 +2171,7 @@ describe("wiring the unclear outcome route", () => {
       db: testDatabase.db,
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      zoneRules: fixedZoneRulesSource(),
     };
   }
 
@@ -2175,6 +2228,7 @@ describe("wiring the restored register orphan sweep route", () => {
       db: testDatabase.db,
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      zoneRules: fixedZoneRulesSource(),
     };
   }
 
@@ -2220,6 +2274,7 @@ describe("wiring the device token rotation route", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
@@ -2252,6 +2307,31 @@ describe("wiring the branch settings routes", () => {
     const response = await app.inject({
       method: "GET",
       url: "/api/locations/current/settings",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("does not register GET /api/zone-rules/current when no currentZoneRules option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    const response = await app.inject({ method: "GET", url: "/api/zone-rules/current" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers GET /api/zone-rules/current when a currentZoneRules option is given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      currentZoneRules: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/zone-rules/current",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -2304,6 +2384,7 @@ describe("wiring the issuer identification routes", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       issuerIdentification: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         backofficeOrigin: "https://staging.purosur.online",
         authorizedCuit,
@@ -2336,6 +2417,7 @@ describe("wiring the issuer identification routes", () => {
       now: () => APP_CLOCK,
       version: "abc1234",
       issuerIdentification: {
+        zoneRules: fixedZoneRulesSource(),
         db: testDatabase.db,
         backofficeOrigin: "https://staging.purosur.online",
         authorizedCuit,
@@ -2369,6 +2451,7 @@ describe("wiring the buyer-identification threshold routes", () => {
           buyerIdentificationThresholds: {
             db: testDatabase.db,
             backofficeOrigin: "https://staging.purosur.online",
+            zoneRules: fixedZoneRulesSource(),
           },
         }),
       });
@@ -2597,6 +2680,7 @@ describe("the route access inventory", () => {
         url: "/api/locations/current/settings",
         access: capabilityAccess("branch_area"),
       },
+      { method: "GET", url: "/api/zone-rules/current", access: OPEN_SESSION_ACCESS },
       {
         method: "GET",
         url: "/api/fiscal-settings/issuer-identification",

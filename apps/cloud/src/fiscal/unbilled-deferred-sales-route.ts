@@ -1,5 +1,5 @@
 import { unbilledDeferredSalesSchema } from "@purosur/contracts";
-import { deferredSaleAgeInDays } from "@purosur/domain";
+import { deferredSaleAgeInDays, type ZoneRulesSource } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
@@ -15,6 +15,7 @@ export interface UnbilledDeferredSalesRouteOptions<TQueryResult extends PgQueryR
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 export function registerUnbilledDeferredSalesRoute<TQueryResult extends PgQueryResultHKT>(
@@ -44,7 +45,11 @@ export function registerUnbilledDeferredSalesRoute<TQueryResult extends PgQueryR
               ? null
               : {
                   occurred_at: oldestOccurredAt.toISOString(),
-                  age_days: deferredSaleAgeInDays(oldestOccurredAt, now()),
+                  age_days: deferredSaleAgeInDays(
+                    oldestOccurredAt,
+                    now(),
+                    options.zoneRules.zoneRules(),
+                  ),
                 },
         }),
       );

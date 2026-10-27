@@ -3,6 +3,7 @@ import {
   argentinaCalendarDay,
   type BuyerIdentificationThreshold,
   earliestThresholdStartDay,
+  type ZoneRulesSource,
 } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -18,6 +19,7 @@ export interface BuyerIdentificationThresholdsRouteOptions<TQueryResult extends 
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  zoneRules: ZoneRulesSource;
 }
 
 export function registerBuyerIdentificationThresholdsListRoute<
@@ -35,7 +37,7 @@ export function registerBuyerIdentificationThresholdsListRoute<
       config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (_request, reply) => {
-      const today = argentinaCalendarDay(now());
+      const today = argentinaCalendarDay(now(), options.zoneRules.zoneRules());
       const overview = await reader.readBuyerIdentificationThresholdOverview(today);
       await reply.code(200).send(
         buyerIdentificationThresholdOverviewSchema.parse({

@@ -2,6 +2,7 @@ import type { FiscalTaskDocumentType, OfflineDocumentCorrection } from "@purosur
 import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { rejectedDocumentRemedies } from "../../platform/db/schema.js";
+import { fixedZoneRulesSource } from "../../test-support/fixed-zone-rules-source.js";
 
 export async function insertRejectedDocumentRemedy<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -38,4 +39,5 @@ export async function insertRejectedDocumentRemedy<TQueryResult extends PgQueryR
 export const WITHOUT_CREDIT_NOTES = {
   enqueueCreditNote: async () => {},
   now: () => new Date("2026-10-16T12:00:00.000Z"),
+  zoneRules: fixedZoneRulesSource(),
 };

@@ -8,6 +8,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { ARGENTINA_ZONE_RULES } from "../platform/test-support/zone-rules";
 import { render } from "../shell/test-support/render-with-router";
 import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
 import { FiscalConfigurationScreen } from "./fiscal-configuration-screen";
@@ -40,6 +41,7 @@ function createServices(
       .mockResolvedValue({ kind: "ok", value: thresholds() }),
     recordBuyerIdentificationThreshold: vi.fn(),
     fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),

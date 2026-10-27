@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { EditDiscountInput } from "./edit-discount.js";
 import { editDiscount } from "./edit-discount.js";
 import type { FakeDiscountRow } from "./test-support/fake-discount-store.js";
@@ -66,7 +67,10 @@ describe("editDiscount", () => {
   it("answers not_found for a discount that does not exist", async () => {
     const store = seededStore();
 
-    const outcome = await editDiscount({ store, clock }, { ...input, id: "missing" });
+    const outcome = await editDiscount(
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
+      { ...input, id: "missing" },
+    );
 
     expect(outcome).toEqual({ kind: "not_found" });
     expect(store.operationOrder).toEqual(["lockDiscount"]);
@@ -75,7 +79,10 @@ describe("editDiscount", () => {
   it("refuses a stale version, writing nothing", async () => {
     const store = seededStore();
 
-    const outcome = await editDiscount({ store, clock }, { ...input, version: 2, name: "Otoño" });
+    const outcome = await editDiscount(
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
+      { ...input, version: 2, name: "Otoño" },
+    );
 
     expect(outcome).toEqual({ kind: "stale_version" });
     expect(store.snapshot().discounts).toEqual([stored]);
@@ -86,7 +93,7 @@ describe("editDiscount", () => {
     const store = seededStore();
 
     const outcome = await editDiscount(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       {
         ...input,
         name: "Otoño",
@@ -116,7 +123,10 @@ describe("editDiscount", () => {
   it("stores the weekdays sorted", async () => {
     const store = seededStore();
 
-    await editDiscount({ store, clock }, { ...input, weekdays: [5, 1, 3] });
+    await editDiscount(
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
+      { ...input, weekdays: [5, 1, 3] },
+    );
 
     expect(store.snapshot().discounts[0]?.weekdays).toEqual([1, 3, 5]);
   });
@@ -126,7 +136,10 @@ describe("editDiscount", () => {
     store.seedTarget({ kind: "PRODUCT", id: "product-1", active: true });
     store.seedDiscount({ ...stored, active: false });
 
-    const outcome = await editDiscount({ store, clock }, { ...input, active: true });
+    const outcome = await editDiscount(
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
+      { ...input, active: true },
+    );
 
     expect(outcome).toEqual({ kind: "applied", version: 4 });
     expect(store.snapshot().discounts[0]?.active).toBe(true);
@@ -135,7 +148,10 @@ describe("editDiscount", () => {
   it("does not check the target when it did not change, so a discount on a since-deactivated product can still be renamed", async () => {
     const store = seededStore(false);
 
-    const outcome = await editDiscount({ store, clock }, { ...input, name: "Otoño" });
+    const outcome = await editDiscount(
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
+      { ...input, name: "Otoño" },
+    );
 
     expect(outcome).toEqual({ kind: "applied", version: 4 });
     expect(store.operationOrder).toEqual(["lockDiscount", "updateDiscount"]);
@@ -145,7 +161,7 @@ describe("editDiscount", () => {
     const store = seededStore();
 
     const outcome = await editDiscount(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       { ...input, target: { kind: "CATEGORY", id: "category-1" } },
     );
 
@@ -159,7 +175,7 @@ describe("editDiscount", () => {
     store.seedTarget({ kind: "TAG", id: "product-1", active: true });
 
     const outcome = await editDiscount(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       { ...input, target: { kind: "TAG", id: "product-1" } },
     );
 
@@ -171,7 +187,7 @@ describe("editDiscount", () => {
     const store = seededStore();
 
     const outcome = await editDiscount(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       { ...input, target: { kind: "PRODUCT", id: "product-2" } },
     );
 
@@ -182,7 +198,7 @@ describe("editDiscount", () => {
     const store = seededStore();
 
     const outcome = await editDiscount(
-      { store, clock },
+      { zoneRules: new FakeZoneRulesSource(), store, clock },
       { ...input, target: { kind: "TAG", id: "tag-1" }, name: "Otoño" },
     );
 
@@ -195,7 +211,10 @@ describe("editDiscount", () => {
     it("switches a percentage discount to buy-N-pay-M on its product sold by the unit, checking the product", async () => {
       const store = seededStore();
 
-      const outcome = await editDiscount({ store, clock }, { ...input, benefit: buyThreePayTwo });
+      const outcome = await editDiscount(
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
+        { ...input, benefit: buyThreePayTwo },
+      );
 
       expect(outcome).toEqual({ kind: "applied", version: 4 });
       expect(store.snapshot().discounts[0]?.benefit).toEqual(buyThreePayTwo);
@@ -205,7 +224,10 @@ describe("editDiscount", () => {
     it("refuses switching to buy-N-pay-M on a product sold by weight, writing nothing", async () => {
       const store = seededStore(true, "KG");
 
-      const outcome = await editDiscount({ store, clock }, { ...input, benefit: buyThreePayTwo });
+      const outcome = await editDiscount(
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
+        { ...input, benefit: buyThreePayTwo },
+      );
 
       expect(outcome).toEqual({ kind: "target_not_sold_by_unit" });
       expect(store.snapshot().discounts).toEqual([stored]);
@@ -216,7 +238,7 @@ describe("editDiscount", () => {
       const store = storeWithBuyNPayMOn("UNIT");
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, target: { kind: "PRODUCT", id: "weighed-1" } },
       );
 
@@ -229,7 +251,7 @@ describe("editDiscount", () => {
       store.seedTarget({ kind: "CATEGORY", id: "category-1", active: true });
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, target: { kind: "CATEGORY", id: "category-1" } },
       );
 
@@ -240,7 +262,7 @@ describe("editDiscount", () => {
       const store = storeWithBuyNPayMOn("UNIT");
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, target: { kind: "PRODUCT", id: "unit-2" } },
       );
 
@@ -252,7 +274,7 @@ describe("editDiscount", () => {
       const store = storeWithBuyNPayMOn("UNIT");
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: { kind: "BUY_N_PAY_M", buyQty: 4, payQty: 3 } },
       );
 
@@ -269,7 +291,7 @@ describe("editDiscount", () => {
       const store = storeWithBuyNPayMOn("KG");
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, target: { kind: "PRODUCT", id: "weighed-1" } },
       );
 
@@ -279,7 +301,10 @@ describe("editDiscount", () => {
     it("answers target_not_found when switching to buy-N-pay-M on a since-deactivated product", async () => {
       const store = seededStore(false);
 
-      const outcome = await editDiscount({ store, clock }, { ...input, benefit: buyThreePayTwo });
+      const outcome = await editDiscount(
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
+        { ...input, benefit: buyThreePayTwo },
+      );
 
       expect(outcome).toEqual({ kind: "target_not_found" });
     });
@@ -289,9 +314,12 @@ describe("editDiscount", () => {
     const store = seededStore();
     store.failingWrites.add("updateDiscount");
 
-    await expect(editDiscount({ store, clock }, { ...input, name: "Otoño" })).rejects.toThrow(
-      "updateDiscount failed",
-    );
+    await expect(
+      editDiscount(
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
+        { ...input, name: "Otoño" },
+      ),
+    ).rejects.toThrow("updateDiscount failed");
 
     expect(store.snapshot().discounts).toEqual([stored]);
   });
@@ -299,7 +327,7 @@ describe("editDiscount", () => {
   it("runs entirely inside one transaction", async () => {
     const store = seededStore();
 
-    await editDiscount({ store, clock }, input);
+    await editDiscount({ zoneRules: new FakeZoneRulesSource(), store, clock }, input);
 
     expect(store.transactionCount).toBe(1);
   });
@@ -310,7 +338,7 @@ describe("editDiscount", () => {
       const before = store.snapshot();
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, active: true },
       );
 
@@ -323,7 +351,7 @@ describe("editDiscount", () => {
       const store = storeWithSwitchedOffBuyNPayM("KG", { active: true, validTo: "2026-12-01" });
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, validTo: "2027-01-31" },
       );
 
@@ -335,7 +363,7 @@ describe("editDiscount", () => {
       const lateInArgentina = { now: () => new Date("2026-12-15T02:00:00Z") };
 
       const outcome = await editDiscount(
-        { store, clock: lateInArgentina },
+        { zoneRules: new FakeZoneRulesSource(), store, clock: lateInArgentina },
         { ...input, benefit: buyThreePayTwo, validTo: "2026-12-14", active: true },
       );
 
@@ -346,7 +374,7 @@ describe("editDiscount", () => {
       const store = storeWithSwitchedOffBuyNPayM("UNIT");
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, active: true },
       );
 
@@ -362,7 +390,7 @@ describe("editDiscount", () => {
       const store = storeWithSwitchedOffBuyNPayM("KG", { active: true, validTo: "2026-12-01" });
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, validFrom: "2026-11-01", validTo: "2026-12-10" },
       );
 
@@ -374,7 +402,7 @@ describe("editDiscount", () => {
       const store = storeWithSwitchedOffBuyNPayM("KG");
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, active: false, name: "Otoño" },
       );
 
@@ -386,7 +414,7 @@ describe("editDiscount", () => {
       const store = storeWithBuyNPayMOn("KG");
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, name: "Otoño" },
       );
 
@@ -397,7 +425,10 @@ describe("editDiscount", () => {
     it("switches a percentage discount on without checking the product", async () => {
       const store = storeWithSwitchedOffBuyNPayM("KG", { benefit: stored.benefit });
 
-      const outcome = await editDiscount({ store, clock }, { ...input, active: true });
+      const outcome = await editDiscount(
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
+        { ...input, active: true },
+      );
 
       expect(outcome).toEqual({ kind: "applied", version: 4 });
       expect(store.operationOrder).toEqual(["lockDiscount", "updateDiscount"]);
@@ -416,7 +447,7 @@ describe("editDiscount", () => {
       const before = store.snapshot();
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, active: true },
       );
 
@@ -431,7 +462,7 @@ describe("editDiscount", () => {
       store.seedDiscount({ ...stored, benefit: buyThreePayTwo, active: false });
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, active: true },
       );
 
@@ -450,7 +481,7 @@ describe("editDiscount", () => {
       store.seedDiscount({ ...stored, benefit: buyThreePayTwo, target: category, active: false });
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         { ...input, benefit: buyThreePayTwo, target: category, active: true },
       );
 
@@ -463,7 +494,7 @@ describe("editDiscount", () => {
       store.seedTarget({ kind: "PRODUCT", id: "weighed-1", active: true, saleUnit: "KG" });
 
       const outcome = await editDiscount(
-        { store, clock },
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
         {
           ...input,
           benefit: buyThreePayTwo,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { LineDiscountRecord, SaleDiscountRecord } from "../model/manual-discounts-report.js";
 import { readManualDiscounts } from "./read-manual-discounts.js";
 import { FakeManualDiscountsReportReader } from "./test-support/fake-manual-discounts-report-reader.js";
@@ -46,7 +47,7 @@ describe("readManualDiscounts", () => {
     const reader = new FakeManualDiscountsReportReader(records);
 
     const report = await readManualDiscounts(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       {
         locationId: "branch-1",
         asked: { from: "2026-10-01", to: "2026-10-06" },
@@ -84,7 +85,7 @@ describe("readManualDiscounts", () => {
     const reader = new FakeManualDiscountsReportReader();
 
     const report = await readManualDiscounts(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { ...everyone, authorizedBy: undefined },
     );
 
@@ -96,7 +97,7 @@ describe("readManualDiscounts", () => {
     const reader = new FakeManualDiscountsReportReader();
 
     await readManualDiscounts(
-      { reader, clock },
+      { zoneRules: new FakeZoneRulesSource(), reader, clock },
       { ...everyone, registerId: "register-2", authorizedBy: undefined },
     );
 
@@ -108,11 +109,11 @@ describe("readManualDiscounts", () => {
       const reader = new FakeManualDiscountsReportReader(records);
 
       const byAna = await readManualDiscounts(
-        { reader, clock },
+        { zoneRules: new FakeZoneRulesSource(), reader, clock },
         { ...everyone, authorizedBy: "ana" },
       );
       const byBeto = await readManualDiscounts(
-        { reader, clock },
+        { zoneRules: new FakeZoneRulesSource(), reader, clock },
         { ...everyone, authorizedBy: "beto" },
       );
 
@@ -124,7 +125,7 @@ describe("readManualDiscounts", () => {
       const reader = new FakeManualDiscountsReportReader(records);
 
       const report = await readManualDiscounts(
-        { reader, clock },
+        { zoneRules: new FakeZoneRulesSource(), reader, clock },
         { ...everyone, authorizedBy: "beto" },
       );
 
@@ -141,7 +142,7 @@ describe("readManualDiscounts", () => {
       const reader = new FakeManualDiscountsReportReader(records);
 
       const report = await readManualDiscounts(
-        { reader, clock },
+        { zoneRules: new FakeZoneRulesSource(), reader, clock },
         { ...everyone, authorizedBy: "beto" },
       );
 
@@ -154,7 +155,10 @@ describe("readManualDiscounts", () => {
     it("does not ask the reader to filter", async () => {
       const reader = new FakeManualDiscountsReportReader(records);
 
-      await readManualDiscounts({ reader, clock }, { ...everyone, authorizedBy: "beto" });
+      await readManualDiscounts(
+        { zoneRules: new FakeZoneRulesSource(), reader, clock },
+        { ...everyone, authorizedBy: "beto" },
+      );
 
       expect(reader.reads[0]).not.toHaveProperty("authorizedBy");
     });
@@ -163,7 +167,7 @@ describe("readManualDiscounts", () => {
       const reader = new FakeManualDiscountsReportReader(records);
 
       const report = await readManualDiscounts(
-        { reader, clock },
+        { zoneRules: new FakeZoneRulesSource(), reader, clock },
         { ...everyone, authorizedBy: "nobody" },
       );
 
@@ -173,7 +177,11 @@ describe("readManualDiscounts", () => {
 
   it("reports no rows, zero totals and no authorizers for a range without discounts", async () => {
     const report = await readManualDiscounts(
-      { reader: new FakeManualDiscountsReportReader(), clock },
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        reader: new FakeManualDiscountsReportReader(),
+        clock,
+      },
       { ...everyone, authorizedBy: undefined },
     );
 

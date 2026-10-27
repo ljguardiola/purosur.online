@@ -1,10 +1,12 @@
 import type { SaleLine } from "../../../sales/index.js";
-import { argentinaInstant } from "../../../shared/index.js";
+import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../../shared/index.js";
 import type { ReturnablePayment } from "../../model/refund-allocation.js";
 import type { FakeStoredSale } from "./fake-return-ledger.js";
 
-const SOLD_AT = new Date(argentinaInstant("2026-09-12", "15:30"));
-export const RETURNED_AT = new Date(argentinaInstant("2026-09-20", "10:00"));
+const SOLD_AT = new Date(argentinaInstant("2026-09-12", "15:30", FIXED_ARGENTINA_ZONE_RULES));
+export const RETURNED_AT = new Date(
+  argentinaInstant("2026-09-20", "10:00", FIXED_ARGENTINA_ZONE_RULES),
+);
 
 export const YERBA_LINE: SaleLine = {
   id: "line-1",

@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "@purosur/domain";
+import { argentinaCalendarDay, type ZoneRulesSource } from "@purosur/domain";
 import {
   type FortnightPresentation,
   reportFortnights,
@@ -31,6 +31,7 @@ const FORTNIGHT_REPORT_INTERVAL_MS = 10 * 60 * 1000;
 
 export interface FortnightReportInput {
   now: () => Date;
+  zoneRules: ZoneRulesSource;
   declarations: TaxAuthorityNoMovementDeclarations;
   documentReports: TaxAuthorityOfflineDocumentReports;
   codeAuthority: TaxAuthorityOfflineAuthorizationCodes;
@@ -85,6 +86,7 @@ function problemOf({ outcome }: FortnightPresentation): {
 export function fortnightReportJobs(
   {
     now,
+    zoneRules,
     declarations,
     documentReports,
     codeAuthority,
@@ -100,6 +102,7 @@ export function fortnightReportJobs(
       reports: new DrizzleFortnightReportStore(db, {
         enqueueCreditNote: enqueueCreditNoteJob,
         now,
+        zoneRules,
       }),
       documents: new DrizzleOfflineDocumentsOfFortnight(db),
       streams: new DrizzleRegisterEventStreams(db),
@@ -110,13 +113,16 @@ export function fortnightReportJobs(
       owedPresentations: new DrizzleOwedPresentationList(db),
       tokens: new DrizzleWsaaTokenSource(db, { now }, WSFE_SERVICE, certificateFingerprint),
       clock: { now },
+      zoneRules,
     });
     if (outcome.kind === "no_token") {
       logger.debug("fortnight report: no valid token to ask the tax authority with");
       return;
     }
     if (outcome.presentations.length === 0) {
-      logger.debug(`fortnight report: nothing owed on ${argentinaCalendarDay(now())}`);
+      logger.debug(
+        `fortnight report: nothing owed on ${argentinaCalendarDay(now(), zoneRules.zoneRules())}`,
+      );
     }
     for (const presentation of outcome.presentations) {
       const line = describePresentation(presentation);

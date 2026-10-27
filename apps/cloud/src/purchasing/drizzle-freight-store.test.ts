@@ -9,6 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { auditLog, freightPurchases, freights } from "../platform/db/schema.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFreightStore } from "./drizzle-freight-store.js";
 import { insertFreightRow, insertPurchaseWithLines } from "./test-support/freight-fixtures.js";
@@ -24,7 +25,11 @@ let locationId: string;
 let productId: string;
 
 const store = () => new DrizzleFreightStore(db, () => NOW);
-const ports = () => ({ store: store(), clock: { now: () => NOW } });
+const ports = () => ({
+  store: store(),
+  clock: { now: () => NOW },
+  zoneRules: fixedZoneRulesSource(),
+});
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -209,7 +214,11 @@ describe("editing a freight through a freight store", () => {
     const later = new DrizzleFreightStore(db, () => new Date("2026-03-20T09:00:00.000Z"));
 
     await editFreight(
-      { store: later, clock: { now: () => new Date("2026-03-20T09:00:00.000Z") } },
+      {
+        zoneRules: fixedZoneRulesSource(),
+        store: later,
+        clock: { now: () => new Date("2026-03-20T09:00:00.000Z") },
+      },
       {
         ...values([purchase.purchaseId], { amountCents: 13_000 }),
         freightId: freight.id,

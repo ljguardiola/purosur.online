@@ -1,5 +1,6 @@
 import { parseDate } from "@internationalized/date";
 import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
+import { FIXED_ARGENTINA_ZONE_RULES } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -63,12 +64,18 @@ test("builds the request from the trimmed values, the chosen day and the version
     version: 3,
   });
   expect(
-    issuerIdentificationEditBodySchema(lateOnSeptember30InArgentina).safeParse(request).success,
+    issuerIdentificationEditBodySchema(
+      lateOnSeptember30InArgentina,
+      FIXED_ARGENTINA_ZONE_RULES,
+    ).safeParse(request).success,
   ).toBe(true);
 });
 
 test("a request without a day is refused by the contract on the activity start date", () => {
-  const result = issuerIdentificationEditBodySchema(lateOnSeptember30InArgentina).safeParse(
+  const result = issuerIdentificationEditBodySchema(
+    lateOnSeptember30InArgentina,
+    FIXED_ARGENTINA_ZONE_RULES,
+  ).safeParse(
     issuerIdentificationRequestFrom({
       ...issuerIdentificationFormValuesFrom(complete),
       activityStartDate: null,
@@ -112,7 +119,10 @@ test.each([
 ])(
   "an activity start date of $day, on Argentina's September 30, gets: $reason",
   ({ day, reason }) => {
-    const message = activityStartDateMessage(lateOnSeptember30InArgentina);
+    const message = activityStartDateMessage(
+      lateOnSeptember30InArgentina,
+      FIXED_ARGENTINA_ZONE_RULES,
+    );
 
     expect(
       message({
@@ -124,5 +134,27 @@ test.each([
 );
 
 test("offers Argentina's day as the latest activity start date", () => {
-  expect(latestActivityStartDate(lateOnSeptember30InArgentina)).toEqual(parseDate("2026-09-30"));
+  expect(latestActivityStartDate(lateOnSeptember30InArgentina, FIXED_ARGENTINA_ZONE_RULES)).toEqual(
+    parseDate("2026-09-30"),
+  );
+});
+
+test("offers as the latest activity start date the day of the zone rules it is given", () => {
+  const utcRules = { version: "2026a", transitions: [{ from: new Date(0), offsetMinutes: 0 }] };
+
+  expect(latestActivityStartDate(lateOnSeptember30InArgentina, utcRules)).toEqual(
+    parseDate("2026-10-01"),
+  );
+});
+
+test("refuses as future the day after the one of the zone rules it is given", () => {
+  const utcRules = { version: "2026a", transitions: [{ from: new Date(0), offsetMinutes: 0 }] };
+  const message = activityStartDateMessage(lateOnSeptember30InArgentina, utcRules);
+
+  expect(
+    message({ ...EMPTY_ISSUER_IDENTIFICATION_FORM, activityStartDate: parseDate("2026-10-01") }),
+  ).toBe("Revisá la fecha de inicio de actividades.");
+  expect(
+    message({ ...EMPTY_ISSUER_IDENTIFICATION_FORM, activityStartDate: parseDate("2026-10-02") }),
+  ).toBe("La fecha no puede ser futura.");
 });

@@ -1,7 +1,11 @@
 import { preEmissionGate, preEmissionGateFailedEvent } from "../../fiscal/index.js";
 import type { SalePayment } from "../../payments/index.js";
 import { paymentRecord } from "../../payments/index.js";
-import { type OutboxEventDraft, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
+import {
+  type OutboxEventDraft,
+  SALE_COMPLETED_EVENT_TYPE,
+  type ZoneRules,
+} from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { settledLines } from "../model/sale-discount.js";
 import { soldLineStockDelta } from "../model/sale-line.js";
@@ -25,12 +29,13 @@ export interface SaleCompletion {
   movements: readonly SaleCashMovement[];
   actorId: string;
   completedAt: Date;
+  rules: ZoneRules;
 }
 
 export function completeSale(
   tx: SaleLedgerTransaction,
   ids: IdGenerator,
-  { sale, total, payments, movements, actorId, completedAt }: SaleCompletion,
+  { sale, total, payments, movements, actorId, completedAt, rules }: SaleCompletion,
 ): void {
   const operationNumber = tx.takeOperationNumber();
   tx.recordCompletedSale(sale.id, completedAt, operationNumber);
@@ -73,6 +78,7 @@ export function completeSale(
     decidedAt: completedAt,
     occurredAt: completedAt,
     total,
+    rules,
     ids,
   });
   if (gate.kind === "failed") {
