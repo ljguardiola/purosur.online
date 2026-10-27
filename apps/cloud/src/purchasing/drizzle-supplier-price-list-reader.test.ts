@@ -261,8 +261,8 @@ describe("what a review says about the link and the earlier price of each row", 
     const review = await reader().review(listId);
 
     expect(review?.rows).toMatchObject([
-      { barcode: "7790000000011", reviewed: true, link: null, earlier: null },
-      { barcode: null, reviewed: false, link: null, earlier: null },
+      { barcode: "7790000000011", reviewed: true, link: null, remembered: false, earlier: null },
+      { barcode: null, reviewed: false, link: null, remembered: false, earlier: null },
     ]);
   });
 
@@ -365,7 +365,10 @@ describe("what a review says about the link and the earlier price of each row", 
 
     const review = await reader().review(listId);
 
-    expect(review?.rows.map((row) => row.earlier)).toEqual([null, null]);
+    expect(review?.rows.map((row) => [row.remembered, row.earlier])).toEqual([
+      [false, null],
+      [false, null],
+    ]);
   });
 
   it("takes the price of the latest list by date, and of the one confirmed later on a tie", async () => {
@@ -463,7 +466,7 @@ describe("what a review says about the link and the earlier price of each row", 
 
     const review = await reader().review(listId);
 
-    expect(review?.rows[0]?.earlier).toBeNull();
+    expect(review?.rows[0]).toMatchObject({ remembered: true, earlier: null });
   });
 
   it("leaves out the price the list itself recorded", async () => {
@@ -487,6 +490,25 @@ describe("what a review says about the link and the earlier price of each row", 
     const review = await reader().review(listId);
 
     expect(review?.rows[0]?.earlier?.priceCents).toBe(100);
+  });
+
+  it("tells a remembered item from one only the list itself recorded", async () => {
+    const rememberedId = await insertSupplierItem(db, { supplierId, keyValue: "Y-01" });
+    await insertSupplierItemPrice(db, {
+      itemId: rememberedId,
+      listId: await confirmedList(),
+      listDate: "2026-02-01",
+    });
+    const onlyHereId = await insertSupplierItem(db, { supplierId, keyValue: "Z-09" });
+    const listId = await confirmedList();
+    await insertPriceListRows(db, listId, [{ code: "Y-01" }, { code: "Z-09" }]);
+    for (const itemId of [rememberedId, onlyHereId]) {
+      await insertSupplierItemPrice(db, { itemId, listId, listDate: "2026-03-01" });
+    }
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows.map((row) => row.remembered)).toEqual([true, false]);
   });
 });
 

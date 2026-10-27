@@ -10,7 +10,10 @@ export interface FakeSupplierPriceListData {
     version?: number;
     pricesIncludeVat?: boolean | null;
   })[];
-  rows?: (Omit<SupplierPriceListReviewRow, "barcode" | "link" | "reviewed" | "earlier"> &
+  rows?: (Omit<
+    SupplierPriceListReviewRow,
+    "barcode" | "link" | "reviewed" | "remembered" | "earlier"
+  > &
     Partial<SupplierPriceListReviewRow> & { listId: string })[];
 }
 
@@ -41,6 +44,7 @@ export class FakeSupplierPriceListReader implements SupplierPriceListReader {
           barcode: null,
           link: null,
           reviewed: false,
+          remembered: false,
           earlier: null,
           ...row,
         })),

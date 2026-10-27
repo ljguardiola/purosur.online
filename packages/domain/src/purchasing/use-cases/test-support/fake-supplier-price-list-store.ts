@@ -61,6 +61,7 @@ export interface FakePriceListRow extends ProposedPriceListRow {
   position: number;
   editedBy: string | null;
   reviewed: boolean;
+  linkedByPerson: boolean;
 }
 
 export interface FakeSupplierItem extends Omit<SupplierItem, "currentListDate"> {
@@ -269,6 +270,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
         position,
         editedBy: null,
         reviewed: false,
+        linkedByPerson: false,
       });
     });
   }
@@ -299,7 +301,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
         code: row.code,
         priceCents: row.priceCents,
         link: cloneLink(row.link),
-        reviewed: row.reviewed,
+        linkedByPerson: row.linkedByPerson,
       }));
   }
 
@@ -386,6 +388,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       if (row.id === rowId && row.listId === listId) {
         row.link = cloneLink(link);
         row.reviewed = true;
+        row.linkedByPerson = true;
         row.editedBy = actorId;
       }
     }
@@ -543,6 +546,7 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
       link: null,
       editedBy: null,
       reviewed: false,
+      linkedByPerson: false,
       ...row,
     });
   }

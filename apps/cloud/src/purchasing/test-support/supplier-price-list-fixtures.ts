@@ -94,6 +94,7 @@ export interface PriceListRowSeed {
   packagingId?: string | null;
   vatRate?: number | null;
   reviewed?: boolean;
+  linkedByPerson?: boolean;
 }
 
 export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>(
@@ -119,6 +120,7 @@ export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>
           packagingId: row.packagingId ?? null,
           vatRate: row.vatRate ?? null,
           reviewed: row.reviewed ?? false,
+          linkedByPerson: row.linkedByPerson ?? false,
         })),
       )
       .returning({ id: supplierPriceListRows.id, position: supplierPriceListRows.position });

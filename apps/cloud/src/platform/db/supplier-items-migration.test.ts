@@ -88,11 +88,11 @@ async function migratedDatabase() {
 describe("the supplier items migration applied over a database that already holds data", {
   timeout: 30_000,
 }, () => {
-  it("keeps the rows of a list as not linked, not reviewed and without a barcode", async () => {
+  it("keeps the rows of a list as not linked, not reviewed, not linked by a person and without a barcode", async () => {
     const { migrated, listId } = await migratedDatabase();
 
     const { rows } = await migrated.query(
-      `select barcode, product_id, packaging_id, vat_rate, reviewed, description, price_cents
+      `select barcode, product_id, packaging_id, vat_rate, reviewed, linked_by_person, description, price_cents
        from supplier_price_list_rows where list_id = $1`,
       [listId],
     );
@@ -104,6 +104,7 @@ describe("the supplier items migration applied over a database that already hold
         packaging_id: null,
         vat_rate: null,
         reviewed: false,
+        linked_by_person: false,
         description: "Yerba 1 kg",
         price_cents: 1_500,
       },

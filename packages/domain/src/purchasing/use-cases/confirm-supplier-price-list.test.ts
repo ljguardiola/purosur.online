@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SUPPLIER_PRICE_LIST_STATES } from "../model/supplier-price-list.js";
 import { confirmSupplierPriceList } from "./confirm-supplier-price-list.js";
+import { linkSupplierPriceListRow } from "./link-supplier-price-list-row.js";
+import { markSupplierPriceListRowReviewed } from "./mark-supplier-price-list-row-reviewed.js";
 import type { SupplierItemLink } from "./supplier-price-list-store.js";
 import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
 
@@ -173,6 +175,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     priceCents: number | null;
     link?: SupplierItemLink | null;
     reviewed?: boolean;
+    linkedByPerson?: boolean;
   };
 
   function setupRows(rows: SeededRow[]) {
@@ -242,7 +245,14 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
   describe("a list dated before the item's latest price", () => {
     function setupOlder() {
       const store = setupRows([
-        { code: "Y-1", description: "Yerba vieja", priceCents: 100, link: LINK, reviewed: true },
+        {
+          code: "Y-1",
+          description: "Yerba vieja",
+          priceCents: 100,
+          link: LINK,
+          reviewed: true,
+          linkedByPerson: true,
+        },
       ]);
       const itemId = store.seedSupplierItem({
         description: "Yerba nueva",
@@ -301,8 +311,22 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
 
   it("copies the link of a linked row to its item, replacing the one it had", async () => {
     const store = setupRows([
-      { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK, reviewed: true },
-      { code: "Z-1", description: "Azúcar", priceCents: 100, link: LINK, reviewed: true },
+      {
+        code: "Y-1",
+        description: "Yerba",
+        priceCents: 100,
+        link: LINK,
+        reviewed: true,
+        linkedByPerson: true,
+      },
+      {
+        code: "Z-1",
+        description: "Azúcar",
+        priceCents: 100,
+        link: LINK,
+        reviewed: true,
+        linkedByPerson: true,
+      },
     ]);
     store.seedSupplierItem({
       description: "Yerba",
@@ -331,10 +355,70 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     expect(store.snapshot().items[0]?.link).toEqual(relinked);
   });
 
+  describe("a row whose link was copied when the list was read", () => {
+    const relinked = { productId: "product-2", packagingId: "packaging-2", vatRate: 1050 };
+
+    function setupCopied() {
+      const store = setupRows([
+        { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK, reviewed: false },
+      ]);
+      store.seedSupplierItem({
+        description: "Yerba",
+        key: { kind: "code", value: "Y-1" },
+        link: relinked,
+      });
+      store.seedProduct({ id: "product-3" });
+      store.seedPackaging({ id: "packaging-3", productId: "product-3" });
+      return store;
+    }
+
+    it("leaves the item's link alone once a person only marked the row reviewed", async () => {
+      const store = setupCopied();
+      await markSupplierPriceListRowReviewed(store, {
+        listId: "list-1",
+        rowId: "row-0",
+        version: 3,
+        actorId: "person-1",
+      });
+
+      await confirmSupplierPriceList(store, { ...input, version: 4 });
+
+      expect(store.snapshot().items[0]?.link).toEqual(relinked);
+    });
+
+    it("remembers the link a person made on the row", async () => {
+      const store = setupCopied();
+      await linkSupplierPriceListRow(store, {
+        listId: "list-1",
+        rowId: "row-0",
+        version: 3,
+        productId: "product-3",
+        packagingId: "packaging-3",
+        vatRate: null,
+        actorId: "person-1",
+      });
+
+      await confirmSupplierPriceList(store, { ...input, version: 4 });
+
+      expect(store.snapshot().items[0]?.link).toEqual({
+        productId: "product-3",
+        packagingId: "packaging-3",
+        vatRate: 1050,
+      });
+    });
+  });
+
   it("takes the link of the last row a person linked over a later row's copied link", async () => {
     const copied = { productId: "product-2", packagingId: "packaging-2", vatRate: 1050 };
     const store = setupRows([
-      { code: "Y-1", description: "A", priceCents: 100, link: LINK, reviewed: true },
+      {
+        code: "Y-1",
+        description: "A",
+        priceCents: 100,
+        link: LINK,
+        reviewed: true,
+        linkedByPerson: true,
+      },
       { code: "Y-1", description: "B", priceCents: 200, link: copied, reviewed: false },
     ]);
 
@@ -351,6 +435,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
         priceCents: 100,
         link: { productId: "product-2", packagingId: "packaging-2", vatRate: null },
         reviewed: true,
+        linkedByPerson: true,
       },
     ]);
     store.seedSupplierItem({
@@ -421,7 +506,14 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
 
     it("keeps the link of the last linked row when the last row, though reviewed, has none", async () => {
       const store = setupRows([
-        { code: "Y-1", description: "A", priceCents: 100, link: LINK, reviewed: true },
+        {
+          code: "Y-1",
+          description: "A",
+          priceCents: 100,
+          link: LINK,
+          reviewed: true,
+          linkedByPerson: true,
+        },
         { code: "Y-1", description: "B", priceCents: 200, link: null, reviewed: true },
       ]);
 
@@ -433,8 +525,22 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     it("takes the link of the last row when several are linked", async () => {
       const other = { productId: "product-2", packagingId: "packaging-2", vatRate: null };
       const store = setupRows([
-        { code: "Y-1", description: "A", priceCents: 100, link: LINK, reviewed: true },
-        { code: "Y-1", description: "B", priceCents: 200, link: other, reviewed: true },
+        {
+          code: "Y-1",
+          description: "A",
+          priceCents: 100,
+          link: LINK,
+          reviewed: true,
+          linkedByPerson: true,
+        },
+        {
+          code: "Y-1",
+          description: "B",
+          priceCents: 200,
+          link: other,
+          reviewed: true,
+          linkedByPerson: true,
+        },
       ]);
 
       await confirmSupplierPriceList(store, input);
@@ -521,8 +627,22 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     "confirmList",
   ] as const)("leaves the list unconfirmed and nothing remembered when %s fails", async (write) => {
     const store = setupRows([
-      { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK, reviewed: true },
-      { code: "Z-1", description: "Azúcar", priceCents: 100, link: LINK, reviewed: true },
+      {
+        code: "Y-1",
+        description: "Yerba",
+        priceCents: 100,
+        link: LINK,
+        reviewed: true,
+        linkedByPerson: true,
+      },
+      {
+        code: "Z-1",
+        description: "Azúcar",
+        priceCents: 100,
+        link: LINK,
+        reviewed: true,
+        linkedByPerson: true,
+      },
     ]);
     store.seedSupplierItem({ description: "Yerba", key: { kind: "code", value: "Y-1" } });
     store.failingWrites.add(write);

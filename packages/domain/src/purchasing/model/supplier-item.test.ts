@@ -279,6 +279,7 @@ describe("supplierPriceListRowStatus", () => {
     description: "Yerba 1 kg",
     priceCents: 1_000 as number | null,
     link: { vatRate: null as number | null } as { vatRate: number | null } | null,
+    remembered: true,
     earlier: earlier as { description: string; priceCents: number } | null,
     requiresVatRate: false,
   };
@@ -295,8 +296,28 @@ describe("supplierPriceListRowStatus", () => {
     ]);
   });
 
-  it("is new when no earlier list of the supplier had the item", () => {
-    expect(supplierPriceListRowStatus({ ...row, earlier: null, link: null })).toBe("new");
+  it("is new when no other list of the supplier had the item", () => {
+    expect(
+      supplierPriceListRowStatus({ ...row, remembered: false, earlier: null, link: null }),
+    ).toBe("new");
+  });
+
+  it("is new for an item never seen, whatever link or earlier price it carries", () => {
+    expect(supplierPriceListRowStatus({ ...row, remembered: false })).toBe("new");
+  });
+
+  it("is linked when a remembered item has no price dated before the list", () => {
+    expect(supplierPriceListRowStatus({ ...row, earlier: null })).toBe("linked");
+  });
+
+  it("is unlinked when a remembered item without a link has no price dated before the list", () => {
+    expect(supplierPriceListRowStatus({ ...row, earlier: null, link: null })).toBe("unlinked");
+  });
+
+  it("asks for the rate of a remembered item without one and without an earlier-dated price", () => {
+    expect(supplierPriceListRowStatus({ ...row, earlier: null, requiresVatRate: true })).toBe(
+      "vat_rate_missing",
+    );
   });
 
   it("is linked when a remembered link meets the same price and description", () => {
@@ -357,7 +378,7 @@ describe("supplierPriceListRowStatus", () => {
   it("is reviewed once a person linked the row or marked it reviewed, whatever else is true", () => {
     for (const changes of [
       {},
-      { earlier: null, link: null },
+      { remembered: false, earlier: null, link: null },
       { link: null },
       { priceCents: 5 },
       { description: "otra" },

@@ -362,6 +362,7 @@ describe("recording what the reading found", () => {
         packagingId,
         vatRate: 1_050,
         reviewed: false,
+        linkedByPerson: false,
       },
       {
         position: 1,
@@ -516,7 +517,7 @@ describe("closing the review", () => {
 });
 
 describe("the rows of a list", () => {
-  it("lists them in the order the reading found them with their price, the link they carry and whether a person reviewed them", async () => {
+  it("lists them in the order the reading found them with their price, the link they carry and whether a person made it", async () => {
     const listId = await insertPriceList(db, { supplierId, locationId, actorId });
     const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const packagingId = await insertPackaging(db, { productId, actorId });
@@ -529,8 +530,9 @@ describe("the rows of a list", () => {
         packagingId,
         vatRate: 2_100,
         reviewed: true,
+        linkedByPerson: true,
       },
-      { description: "Azúcar 1 kg", priceCents: null },
+      { description: "Azúcar 1 kg", priceCents: null, reviewed: true },
     ]);
 
     const rows = await store().transaction((tx) => tx.listRows(listId));
@@ -542,7 +544,7 @@ describe("the rows of a list", () => {
         code: "Y-01",
         priceCents: 900,
         link: { productId, packagingId, vatRate: 2_100 },
-        reviewed: true,
+        linkedByPerson: true,
       },
       {
         id: secondId,
@@ -550,7 +552,7 @@ describe("the rows of a list", () => {
         code: null,
         priceCents: null,
         link: null,
-        reviewed: false,
+        linkedByPerson: false,
       },
     ]);
   });
@@ -849,20 +851,30 @@ describe("linking and reviewing a row", () => {
     return { listId, rowId: rowId as string };
   }
 
-  it("links a row, marks it reviewed, advances the list's version and audits the change with who made it", async () => {
+  it("links a row as a person's link, marks it reviewed, advances the list's version and audits the change with who made it", async () => {
     const { listId, rowId } = await extractedListWithARow();
     const link = { ...(await target()), vatRate: 1_050 };
 
     await store().transaction((tx) => tx.linkRow(listId, rowId, link, actorId));
 
-    expect((await rowsOf(listId))[0]).toMatchObject({ ...link, reviewed: true });
+    expect((await rowsOf(listId))[0]).toMatchObject({
+      ...link,
+      reviewed: true,
+      linkedByPerson: true,
+    });
     expect((await listRow(listId))?.version).toBe(2);
     expect(await db.select().from(auditLog).where(eq(auditLog.entityId, rowId))).toMatchObject([
       {
         entity: "supplier_price_list_row",
         actorId,
-        previousValue: { productId: null, packagingId: null, vatRate: null, reviewed: false },
-        newValue: { ...link, reviewed: true },
+        previousValue: {
+          productId: null,
+          packagingId: null,
+          vatRate: null,
+          reviewed: false,
+          linkedByPerson: false,
+        },
+        newValue: { ...link, reviewed: true, linkedByPerson: true },
       },
     ]);
   });
@@ -879,16 +891,21 @@ describe("linking and reviewing a row", () => {
     expect(audits.map((audit) => audit.previousValue)).toContainEqual({
       ...first,
       reviewed: true,
+      linkedByPerson: true,
     });
     expect((await rowsOf(listId))[0]).toMatchObject({ ...second, reviewed: true });
   });
 
-  it("marks a row reviewed without touching its link, advances the version and audits it", async () => {
+  it("marks a row reviewed without touching its link or making it a person's, advances the version and audits it", async () => {
     const { listId, rowId } = await extractedListWithARow();
 
     await store().transaction((tx) => tx.markRowReviewed(listId, rowId, actorId));
 
-    expect((await rowsOf(listId))[0]).toMatchObject({ reviewed: true, productId: null });
+    expect((await rowsOf(listId))[0]).toMatchObject({
+      reviewed: true,
+      linkedByPerson: false,
+      productId: null,
+    });
     expect((await listRow(listId))?.version).toBe(2);
     expect(await db.select().from(auditLog).where(eq(auditLog.entityId, rowId))).toMatchObject([
       {

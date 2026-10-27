@@ -219,6 +219,7 @@ describe("findSupplierPriceListReview", () => {
         priceCents?: number | null;
         link?: typeof LINK | null;
         reviewed?: boolean;
+        remembered?: boolean;
         earlier?: { description: string; priceCents: number } | null;
       },
       list: { pricesIncludeVat: boolean | null; state?: "EXTRACTED" | "REVIEWED" } = {
@@ -237,6 +238,7 @@ describe("findSupplierPriceListReview", () => {
             priceCents: 10_000,
             page: null,
             link: LINK,
+            remembered: true,
             earlier: { description: "Yerba 1 kg", priceCents: 10_000 },
             ...row,
           },
@@ -305,7 +307,10 @@ describe("findSupplierPriceListReview", () => {
 
     it("derives the status from the row and what the supplier's other lists recorded", async () => {
       expect((await reviewOf({}))?.rows[0]?.status).toBe("linked");
-      expect((await reviewOf({ earlier: null, link: null }))?.rows[0]?.status).toBe("new");
+      expect(
+        (await reviewOf({ remembered: false, earlier: null, link: null }))?.rows[0]?.status,
+      ).toBe("new");
+      expect((await reviewOf({ earlier: null }))?.rows[0]?.status).toBe("linked");
       expect((await reviewOf({ reviewed: true, link: null }))?.rows[0]?.status).toBe("reviewed");
       expect((await reviewOf({ link: null }))?.rows[0]?.status).toBe("unlinked");
       expect((await reviewOf({ description: "Yerba 1 kg x" }))?.rows[0]?.status).toBe(
@@ -335,7 +340,8 @@ describe("findSupplierPriceListReview", () => {
 
       expect(await needing({})).toBe(false);
       expect(await needing({ reviewed: true, link: null })).toBe(false);
-      expect(await needing({ earlier: null, link: null })).toBe(true);
+      expect(await needing({ remembered: false, earlier: null, link: null })).toBe(true);
+      expect(await needing({ earlier: null })).toBe(false);
       expect(await needing({ link: null })).toBe(true);
       expect(await needing({ priceCents: 12_000 })).toBe(true);
       expect(await needing({ description: "Yerba 1 kg x" })).toBe(true);
@@ -388,11 +394,11 @@ describe("findSupplierPriceListReview", () => {
       const reader = new FakeSupplierPriceListReader({
         lists: [{ ...LIST, pricesIncludeVat: true }],
         rows: [
-          { id: "a", link: LINK, earlier: { description: "A", priceCents: 1 } },
-          { id: "b", link: LINK, earlier: { description: "B", priceCents: 1 } },
+          { id: "a", link: LINK, remembered: true, earlier: { description: "A", priceCents: 1 } },
+          { id: "b", link: LINK, remembered: true, earlier: { description: "B", priceCents: 1 } },
           { id: "c", link: null, earlier: null },
           { id: "d", link: null, earlier: null, reviewed: true },
-          { id: "e", link: LINK, earlier: { description: "E", priceCents: 2 } },
+          { id: "e", link: LINK, remembered: true, earlier: { description: "E", priceCents: 2 } },
         ].map((row) => ({
           listId: "list-1",
           description: row.id.toUpperCase(),
