@@ -151,6 +151,7 @@ export function itemRow(index: number): ReviewRow {
     status: "new",
     needsReview: true,
     previousPriceCents: null,
+    mayCreateProduct: true,
     pricePerSaleUnit: null,
   };
 }
@@ -183,6 +184,7 @@ export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
     status: "price_changed",
     needsReview: true,
     previousPriceCents: 24_800_000,
+    mayCreateProduct: false,
     pricePerSaleUnit: { numerator: "25450000", denominator: "25" },
   },
   {
@@ -197,6 +199,7 @@ export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
     status: "new",
     needsReview: true,
     previousPriceCents: null,
+    mayCreateProduct: true,
     pricePerSaleUnit: null,
   },
   {
@@ -211,6 +214,7 @@ export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
     status: "new",
     needsReview: true,
     previousPriceCents: null,
+    mayCreateProduct: true,
     pricePerSaleUnit: null,
   },
 ];
@@ -240,6 +244,7 @@ export const LINKED_ROW: ReviewRow = {
   status: "linked",
   needsReview: false,
   previousPriceCents: null,
+  mayCreateProduct: false,
   pricePerSaleUnit: { numerator: "19845000000", denominator: "11340" },
 };
 

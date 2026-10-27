@@ -2,6 +2,7 @@ import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   BadgePercent,
   Calculator,
+  CalendarClock,
   ChartColumn,
   HandCoins,
   List,
@@ -9,6 +10,7 @@ import {
   Receipt,
   Users,
   Wallet,
+  Warehouse,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
@@ -33,6 +35,8 @@ function ReportsArea() {
   const salesByCashierShown = Boolean(matchRoute({ to: "/reports/sales-by-cashier" }));
   const salesByPromotionShown = Boolean(matchRoute({ to: "/reports/sales-by-promotion" }));
   const manualDiscountsShown = Boolean(matchRoute({ to: "/reports/manual-discounts" }));
+  const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
+  const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   return (
     <AreaLayout
@@ -112,6 +116,24 @@ function ReportsArea() {
                 icon={<Receipt />}
                 search={averageTicketShown ? true : {}}
                 active={averageTicketShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/current-stock"
+                label="Stock actual valorizado"
+                icon={<Warehouse />}
+                search={currentStockShown ? true : {}}
+                active={currentStockShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/expiring-lots"
+                label="Lotes por vencer"
+                icon={<CalendarClock />}
+                search={expiringLotsShown ? true : {}}
+                active={expiringLotsShown}
               />
             </li>
             <li>

@@ -1,7 +1,11 @@
 import type {
   AssemblyBatchList,
   AssemblyBatchPreview,
+  CurrentStockReportBody,
+  CurrentStockReportQuery,
   ExpiringLotList,
+  ExpiringLotsReportBody,
+  ExpiringLotsReportQuery,
   InitialInventoryLotList,
   InitialInventoryLotsQuery,
   RecipeList,
@@ -21,6 +25,8 @@ import type {
   fetchAssemblyBatches,
   fetchAssemblyBatchPreview,
 } from "./assembly-batches-api";
+import type { fetchCurrentStockReport } from "./current-stock-report-api";
+import type { fetchExpiringLotsReport } from "./expiring-lots-report-api";
 import type { fetchRecipes } from "./recipes-api";
 import type {
   fetchExpectedBalance,
@@ -37,8 +43,12 @@ export const stockKey = ["stock"] as const;
 
 export const stockKeys = {
   balances: [...stockKey, "balances"] as const,
+  currentReport: (query: CurrentStockReportQuery) =>
+    [...stockKey, "current-report", query.category_id ?? ""] as const,
   products: [...stockKey, "products"] as const,
   expiringLots: [...stockKey, "expiring-lots"] as const,
+  expiringLotsReport: (query: ExpiringLotsReportQuery) =>
+    [...stockKey, "expiring-lots-report", query.from ?? "", query.to ?? ""] as const,
   recipes: [...stockKey, "recipes"] as const,
   assemblyBatches: (days: StockPeriodDays) => [...stockKey, "assembly-batches", days] as const,
   assemblyBatchProposal: ({ productId, size }: AssemblyBatchPreviewRequest) =>
@@ -63,6 +73,38 @@ export function useStockBalancesQuery(
   return useCloudQuery<StockBalanceList>({
     queryKey: stockKeys.balances,
     read: params.fetchStockBalances,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useCurrentStockReportQuery(
+  params: ReadParams & {
+    query: CurrentStockReportQuery;
+    fetchCurrentStockReport: typeof fetchCurrentStockReport;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<CurrentStockReportBody>({
+    queryKey: stockKeys.currentReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchCurrentStockReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useExpiringLotsReportQuery(
+  params: ReadParams & {
+    query: ExpiringLotsReportQuery;
+    fetchExpiringLotsReport: typeof fetchExpiringLotsReport;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ExpiringLotsReportBody>({
+    queryKey: stockKeys.expiringLotsReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchExpiringLotsReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

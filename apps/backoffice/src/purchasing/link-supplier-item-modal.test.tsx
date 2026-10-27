@@ -54,6 +54,7 @@ function renderModal({
   target = nutRow,
   mayCreatePackaging = true,
   remembersOnConfirm = true,
+  onCreateProduct = null,
   onLinked = () => {},
   onOutdated = () => {},
   onClose = () => {},
@@ -64,6 +65,7 @@ function renderModal({
   target?: typeof nutRow | null;
   mayCreatePackaging?: boolean;
   remembersOnConfirm?: boolean;
+  onCreateProduct?: ((row: typeof nutRow) => void) | null;
   onLinked?: () => void;
   onOutdated?: () => void;
   onClose?: () => void;
@@ -77,6 +79,7 @@ function renderModal({
           target={target}
           mayCreatePackaging={mayCreatePackaging}
           remembersOnConfirm={remembersOnConfirm}
+          onCreateProduct={onCreateProduct}
           services={services}
           onLinked={onLinked}
           onOutdated={onOutdated}
@@ -300,6 +303,52 @@ test("says quietly that there is no proposal", async () => {
   await expect
     .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem."))
     .toBeVisible();
+});
+
+test("offers to create the product when the item has no proposal and the screen allows it", async () => {
+  const onCreateProduct = vi.fn();
+  const screen = await renderModal({ onCreateProduct });
+
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Crear producto" }));
+
+  expect(onCreateProduct).toHaveBeenCalledWith(nutRow);
+});
+
+test("does not offer to create the product when the screen does not allow it", async () => {
+  const screen = await renderModal();
+
+  await expect
+    .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem."))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Crear producto" }).query()).toBeNull();
+});
+
+test("does not offer to create the product for an item the cloud says cannot have one", async () => {
+  const screen = await renderModal({
+    onCreateProduct: () => {},
+    target: { ...nutRow, mayCreateProduct: false },
+  });
+
+  await expect
+    .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem."))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Crear producto" }).query()).toBeNull();
+});
+
+test("does not offer to create the product when a product is proposed", async () => {
+  const services = createServices({
+    fetchSupplierItemLinkProposal: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: PROPOSED_BY_BARCODE }),
+  });
+  const screen = await renderModal({ services, onCreateProduct: () => {} });
+
+  await expect
+    .element(
+      screen.getByRole("dialog").getByText("Propuesto por código de barras: Pasas de uva").first(),
+    )
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Crear producto" }).query()).toBeNull();
 });
 
 test("says the proposal could not be made, and a product can still be searched", async () => {

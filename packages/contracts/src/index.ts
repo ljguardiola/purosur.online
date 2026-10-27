@@ -195,6 +195,15 @@ export {
   fortnightPresentationListSchema,
   fortnightPresentationSchema,
 } from "./fiscal/fortnight-presentation.js";
+export type {
+  IssuedFiscalDocumentsBody,
+  IssuedFiscalDocumentsQuery,
+} from "./fiscal/issued-fiscal-documents.js";
+export {
+  issuedFiscalDocumentsQuerySchema,
+  issuedFiscalDocumentsSchema,
+} from "./fiscal/issued-fiscal-documents.js";
+export { issuedFiscalDocumentsQueryNumberSchema } from "./fiscal/issued-fiscal-documents-query-number.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { OfflinePointOfSaleConfigurationBody } from "./fiscal/offline-point-of-sale-configuration.js";
@@ -422,6 +431,14 @@ export type { SupplierPriceListRowLinkBody } from "./purchasing/supplier-price-l
 export { supplierPriceListRowLinkBodySchema } from "./purchasing/supplier-price-list-row-link.js";
 export type { SupplierPriceListRowPriceBody } from "./purchasing/supplier-price-list-row-price.js";
 export { supplierPriceListRowPriceBodySchema } from "./purchasing/supplier-price-list-row-price.js";
+export type {
+  SupplierPriceListRowProductCreated,
+  SupplierPriceListRowProductCreationBody,
+} from "./purchasing/supplier-price-list-row-product-creation.js";
+export {
+  supplierPriceListRowProductCreatedSchema,
+  supplierPriceListRowProductCreationBodySchema,
+} from "./purchasing/supplier-price-list-row-product-creation.js";
 export type { SupplierPriceListRowRemovalBody } from "./purchasing/supplier-price-list-row-removal.js";
 export { supplierPriceListRowRemovalBodySchema } from "./purchasing/supplier-price-list-row-removal.js";
 export type { SupplierPriceListRowReviewBody } from "./purchasing/supplier-price-list-row-review.js";
@@ -784,11 +801,27 @@ export {
   assemblyBatchPreviewQuerySchema,
 } from "./stock/assembly-batch-body.js";
 export type {
+  CurrentStockReportBody,
+  CurrentStockReportQuery,
+} from "./stock/current-stock-report.js";
+export {
+  currentStockReportQuerySchema,
+  currentStockReportSchema,
+} from "./stock/current-stock-report.js";
+export type {
   ExpiredLotDiscardResult,
   ExpiringLot,
   ExpiringLotList,
 } from "./stock/expiring-lots.js";
 export { expiredLotDiscardResultSchema, expiringLotListSchema } from "./stock/expiring-lots.js";
+export type {
+  ExpiringLotsReportBody,
+  ExpiringLotsReportQuery,
+} from "./stock/expiring-lots-report.js";
+export {
+  expiringLotsReportQuerySchema,
+  expiringLotsReportSchema,
+} from "./stock/expiring-lots-report.js";
 export type {
   FindCountableProductOutcome,
   InitialCountLine,

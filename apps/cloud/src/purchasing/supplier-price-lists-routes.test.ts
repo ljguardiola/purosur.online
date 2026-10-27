@@ -15,7 +15,7 @@ import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.
 import { FakeSupplierPriceListWebPages } from "./test-support/fake-supplier-price-list-web-pages.js";
 import { fictionalPdf } from "./test-support/fictional-pdf.js";
 import { InMemorySupplierPriceListFiles } from "./test-support/in-memory-supplier-price-list-files.js";
-import { insertActor } from "./test-support/purchasing-fixtures.js";
+import { insertActor, insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertPriceListRows,
@@ -197,6 +197,33 @@ describe("GET /supplier-price-lists/:id", () => {
         },
       ],
     });
+  });
+
+  it("says a row with nothing linked may have a product created from it, and a linked row may not", async () => {
+    const { headers } = await manager();
+    const { listId, actorId } = await storedList({
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+      pricesIncludeVat: false,
+    });
+    const linked = await insertProduct(db, { name: "Yerba" });
+    const packagingId = await insertPackaging(db, { productId: linked.id, actorId });
+    await insertPriceListRows(db, listId, [
+      { description: "Sin vincular" },
+      { description: "Vinculado", productId: linked.id, packagingId },
+    ]);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/supplier-price-lists/${listId}`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().rows).toMatchObject([
+      { description: "Sin vincular", mayCreateProduct: true },
+      { description: "Vinculado", mayCreateProduct: false },
+    ]);
   });
 
   it("answers 404 for a list that does not exist", async () => {

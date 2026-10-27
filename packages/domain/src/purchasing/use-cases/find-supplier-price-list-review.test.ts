@@ -17,6 +17,18 @@ const LIST = {
   pricesIncludeVat: false,
 };
 
+const LINKED = {
+  product: { id: "product-1", name: "Yerba Piragüé", saleUnit: "UNIT" as const },
+  packaging: {
+    id: "packaging-1",
+    name: "Caja x 10",
+    quantityPerPackage: 10_000,
+    active: true,
+    saleUnit: "UNIT" as const,
+  },
+  vatRate: 1050,
+};
+
 describe("findSupplierPriceListReview", () => {
   it("answers not_found for a missing list", async () => {
     expect(await findSupplierPriceListReview(new FakeSupplierPriceListReader(), "list-1")).toEqual({
@@ -82,6 +94,7 @@ describe("findSupplierPriceListReview", () => {
           page: 3,
           barcode: null,
           link: null,
+          mayCreateProduct: true,
           status: "new",
           needsReview: true,
           previousPriceCents: null,
@@ -96,6 +109,7 @@ describe("findSupplierPriceListReview", () => {
           page: null,
           barcode: null,
           link: null,
+          mayCreateProduct: true,
           status: "new",
           needsReview: true,
           previousPriceCents: null,
@@ -184,6 +198,67 @@ describe("findSupplierPriceListReview", () => {
 
     expect(outcome.kind === "found" && outcome.actions).toEqual(actions);
   });
+
+  it.each(["EXTRACTED", "REVIEWED"] as const)(
+    "answers that only a row without a link may create a product in a list in state %s",
+    async (state) => {
+      const reader = new FakeSupplierPriceListReader({
+        lists: [{ ...LIST, state }],
+        rows: [
+          {
+            listId: "list-1",
+            id: "bare",
+            description: "A",
+            code: null,
+            presentation: null,
+            priceCents: 1,
+            page: null,
+          },
+          {
+            listId: "list-1",
+            id: "linked",
+            description: "B",
+            code: null,
+            presentation: null,
+            priceCents: 1,
+            page: null,
+            link: LINKED,
+          },
+        ],
+      });
+
+      const outcome = await findSupplierPriceListReview(reader, "list-1");
+
+      expect(outcome.kind === "found" && outcome.rows.map((row) => row.mayCreateProduct)).toEqual([
+        true,
+        false,
+      ]);
+    },
+  );
+
+  it.each(["READING", "READ_FAILED", "DISCARDED"] as const)(
+    "answers that no row may create a product in a list in state %s",
+    async (state) => {
+      const reader = new FakeSupplierPriceListReader({
+        lists: [{ ...LIST, state }],
+        rows: [
+          {
+            listId: "list-1",
+            id: "bare",
+            description: "A",
+            code: null,
+            presentation: null,
+            priceCents: 1,
+            page: null,
+          },
+        ],
+      });
+
+      const outcome = await findSupplierPriceListReview(reader, "list-1");
+
+      expect(outcome.kind === "found" && outcome.rows[0]?.mayCreateProduct).toBe(false);
+    },
+  );
 
   it.each([
     [false, true],

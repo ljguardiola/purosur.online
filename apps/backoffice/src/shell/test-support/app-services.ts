@@ -197,6 +197,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       createPackaging: vi.fn(),
+      createProductFromSupplierItem: vi.fn(),
+      fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      generateInternalBarcode: vi.fn(),
       confirmSupplierPriceList: vi.fn(),
       discardSupplierPriceList: vi.fn(),
     },
@@ -212,6 +215,12 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     salesByProductAndCategoryScreen: {
       fetchSalesByProductAndCategory: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    currentStockReportScreen: {
+      fetchCurrentStockReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    expiringLotsReportScreen: {
+      fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     salesByCashierScreen: {
       fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -331,6 +340,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     fiscalTasksScreen: {
       fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
       closeFiscalTask: vi.fn(),
+    },
+    issuedFiscalDocumentsScreen: {
+      fetchIssuedFiscalDocuments: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFiscalRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     pointsOfSaleScreen: {
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),

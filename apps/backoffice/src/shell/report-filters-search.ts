@@ -14,7 +14,9 @@ export const reportFiltersFields = {
 
 export type ReportFilters = { from: string; to: string; register: string };
 
-export function withoutRefusedPeriod<Filters extends ReportFilters>(filters: Filters): Filters {
+export function withoutRefusedPeriod<Filters extends { from: string; to: string }>(
+  filters: Filters,
+): Filters {
   return reportQuerySchema.safeParse({
     from: filters.from || undefined,
     to: filters.to || undefined,

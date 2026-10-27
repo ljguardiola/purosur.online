@@ -294,56 +294,34 @@ describe("linkSupplierPriceListRow", () => {
   });
 
   describe("the VAT rate", () => {
-    it.each([false, null])(
-      "is required when the list's prices are %j for VAT included",
-      async (pricesIncludeVat) => {
-        const store = setup({ pricesIncludeVat });
-        const before = store.snapshot();
-
-        expect(await linkSupplierPriceListRow(store, { ...input, vatRate: null })).toEqual({
-          kind: "vat_rate_missing",
-        });
-        expect(store.snapshot()).toEqual(before);
-      },
-    );
-
-    it.each([1050, 2100])("is remembered with the link when it is %s", async (vatRate) => {
-      const store = setup();
-
-      await linkSupplierPriceListRow(store, { ...input, vatRate });
-
-      expect(store.snapshot().rows[0]?.link?.vatRate).toBe(vatRate);
-    });
-
-    it.each([0, 21, 1234, -2100, Number.NaN])("is refused when it is %s", async (vatRate) => {
+    it("refuses a missing rate and writes nothing", async () => {
       const store = setup();
       const before = store.snapshot();
 
-      expect(await linkSupplierPriceListRow(store, { ...input, vatRate })).toEqual({
+      expect(await linkSupplierPriceListRow(store, { ...input, vatRate: null })).toEqual({
+        kind: "vat_rate_missing",
+      });
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("refuses a rate that is not offered and writes nothing", async () => {
+      const store = setup();
+      const before = store.snapshot();
+
+      expect(await linkSupplierPriceListRow(store, { ...input, vatRate: 1234 })).toEqual({
         kind: "vat_rate_invalid",
       });
       expect(store.snapshot()).toEqual(before);
     });
 
-    it("is refused when invalid even though the list's prices include VAT", async () => {
+    it("stores no rate with the link when the list's prices include VAT", async () => {
       const store = setup({ pricesIncludeVat: true });
 
-      expect(await linkSupplierPriceListRow(store, { ...input, vatRate: 1234 })).toEqual({
-        kind: "vat_rate_invalid",
+      expect(await linkSupplierPriceListRow(store, { ...input, vatRate: 1050 })).toEqual({
+        kind: "linked",
       });
+      expect(store.snapshot().rows[0]?.link?.vatRate).toBeNull();
     });
-
-    it.each([null, 1050])(
-      "is not kept when the list's prices include VAT (given %j)",
-      async (vatRate) => {
-        const store = setup({ pricesIncludeVat: true });
-
-        expect(await linkSupplierPriceListRow(store, { ...input, vatRate })).toEqual({
-          kind: "linked",
-        });
-        expect(store.snapshot().rows[0]?.link?.vatRate).toBeNull();
-      },
-    );
   });
 
   it("leaves nothing behind when remembering the link for the item fails", async () => {

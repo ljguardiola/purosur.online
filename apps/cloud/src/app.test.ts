@@ -1358,6 +1358,12 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "GET", url: "/api/supplier-price-comparison" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/link-choices" }),
+      app.inject({ method: "GET", url: "/api/supplier-price-lists/product-categories" }),
+      app.inject({
+        method: "POST",
+        url: "/api/supplier-price-lists/internal-barcodes",
+        headers: ORIGIN,
+      }),
       app.inject({ method: "POST", url: "/api/supplier-price-lists", headers: ORIGIN }),
       app.inject({ method: "GET", url: `/api/supplier-price-lists/${ID}` }),
       app.inject({ method: "GET", url: `/api/supplier-price-lists/${ID}/file` }),
@@ -1408,7 +1414,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(32).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(34).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1418,7 +1424,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(32).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(34).fill(401));
   });
 });
 
@@ -1713,6 +1719,8 @@ describe("wiring the refund routes", () => {
 describe("wiring the stock routes", () => {
   const stockRequests = [
     { method: "GET", url: "/api/inventory-levels" },
+    { method: "GET", url: "/api/reports/current-stock" },
+    { method: "GET", url: "/api/reports/expiring-lots" },
     { method: "GET", url: "/api/inventory-items" },
     { method: "GET", url: "/api/inventory-counts" },
     { method: "POST", url: "/api/inventory-counts" },
@@ -1860,6 +1868,8 @@ describe("wiring the register point of sale routes", () => {
     ["GET", "/api/registers/fortnight-presentations"],
     ["GET", "/api/fiscal/tasks"],
     ["GET", "/api/fiscal/unbilled-deferred-sales"],
+    ["GET", "/api/fiscal/documents"],
+    ["GET", "/api/fiscal/registers"],
     ["PUT", "/api/fiscal/tasks/00000000-0000-0000-0000-000000000000/closure"],
     ["POST", "/api/registers/fortnight-presentations/rejected-document-remedies"],
     ["GET", "/api/registers/buyer-tax-statuses"],
@@ -2693,6 +2703,16 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/supplier-price-lists/product-categories",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/internal-barcodes",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
         url: "/api/supplier-price-lists/:id",
         access: capabilityAccess("supplier_price_lists"),
       },
@@ -2709,6 +2729,11 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/supplier-price-lists/:id/rows/:rowId/link",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/product",
         access: capabilityAccess("supplier_price_lists"),
       },
       {
@@ -2888,6 +2913,16 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/inventory-levels",
         access: capabilityAccess("stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/current-stock",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/expiring-lots",
+        access: capabilityAccess("reports_area"),
       },
       {
         method: "GET",
@@ -3187,6 +3222,16 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/fiscal/unbilled-deferred-sales",
+        access: capabilityAccess("fiscal_information"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/documents",
+        access: capabilityAccess("fiscal_information"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/registers",
         access: capabilityAccess("fiscal_information"),
       },
       {
