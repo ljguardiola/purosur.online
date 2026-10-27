@@ -4,7 +4,6 @@ import {
   RESTORATION_STEPS,
   type RestorationEvidence,
   restorationStanding,
-  UNDELIVERED_RESTORATION_STEPS,
 } from "./restoration-protocol.js";
 
 const ALL_COMPLETED: RestorationEvidence = {
@@ -12,6 +11,7 @@ const ALL_COMPLETED: RestorationEvidence = {
   restore: "completed",
   reset_sync_identity: "completed",
   replenish: "completed",
+  recover_contingency_tickets: "completed",
   reconcile_fiscal_counters: "completed",
   regularize_orphan_authorizations: "completed",
   origin: "copy",
@@ -34,12 +34,6 @@ describe("RESTORATION_STEPS", () => {
       "regularize_orphan_authorizations",
       "open_session",
     ]);
-  });
-});
-
-describe("UNDELIVERED_RESTORATION_STEPS", () => {
-  it("names the one step nothing delivers yet", () => {
-    expect(UNDELIVERED_RESTORATION_STEPS).toEqual(["recover_contingency_tickets"]);
   });
 });
 
@@ -80,11 +74,8 @@ describe("restorationStanding", () => {
     });
   });
 
-  it("is held by every step that is neither undelivered nor the session opening", () => {
-    const undelivered: readonly string[] = UNDELIVERED_RESTORATION_STEPS;
-    const heldBy = RESTORATION_STEPS.filter(
-      (step) => step !== "open_session" && !undelivered.includes(step),
-    );
+  it("is held by every step but the session opening", () => {
+    const heldBy = RESTORATION_STEPS.filter((step) => step !== "open_session");
 
     for (const step of heldBy) {
       expect(restorationStanding({ ...ALL_COMPLETED, [step]: "pending" })).toEqual({
@@ -93,6 +84,27 @@ describe("restorationStanding", () => {
         origin: "copy",
       });
     }
+  });
+
+  it("is in progress at the contingency tickets recovery while only it is pending", () => {
+    expect(restorationStanding(evidence({ recover_contingency_tickets: "pending" }))).toEqual({
+      kind: "in_progress",
+      step: "recover_contingency_tickets",
+      origin: "copy",
+    });
+  });
+
+  it("holds the register at the contingency tickets recovery, after the replenishment and before the fiscal counters", () => {
+    expect(
+      restorationStanding(
+        evidence({ recover_contingency_tickets: "pending", reconcile_fiscal_counters: "pending" }),
+      ),
+    ).toMatchObject({ step: "recover_contingency_tickets" });
+    expect(
+      restorationStanding(
+        evidence({ replenish: "pending", recover_contingency_tickets: "pending" }),
+      ),
+    ).toMatchObject({ step: "replenish" });
   });
 
   it("is in progress at the fiscal counters reconciliation while only it is pending", () => {
@@ -129,12 +141,14 @@ describe("restorationStanding", () => {
         step,
         step,
         step,
-        (enroll, restore, reset, replenish, counters, orphans) => {
+        step,
+        (enroll, restore, reset, replenish, tickets, counters, orphans) => {
           const combination: RestorationEvidence = {
             enroll,
             restore,
             reset_sync_identity: reset,
             replenish,
+            recover_contingency_tickets: tickets,
             reconcile_fiscal_counters: counters,
             regularize_orphan_authorizations: orphans,
             origin: "copy",
@@ -160,6 +174,7 @@ describe("restorationStanding without the cloud", () => {
     "restore",
     "reset_sync_identity",
     "replenish",
+    "recover_contingency_tickets",
     "reconcile_fiscal_counters",
     "regularize_orphan_authorizations",
   ] as const;

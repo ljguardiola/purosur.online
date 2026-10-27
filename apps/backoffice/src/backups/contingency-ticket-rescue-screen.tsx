@@ -1,13 +1,25 @@
 import type { ContingencyBackupTicketRescueResponse } from "@purosur/contracts";
-import { dataColumn, StatusIndicator, Table, useTableModel } from "@purosur/ui";
+import {
+  dataColumn,
+  FloatingNotification,
+  StatusIndicator,
+  Table,
+  useTableModel,
+} from "@purosur/ui";
 import { useMutation } from "@tanstack/react-query";
-import { QrCode } from "lucide-react";
-import { useState } from "react";
+import { Check, QrCode, TriangleAlert } from "lucide-react";
+import { useRef, useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { useContingencyTicketRecoveriesQuery, useRefreshBackups } from "./backups-queries";
+import type { ContingencyTicketRecovery } from "./contingency-ticket-recovery-api";
 import type { RescueContingencyBackupTicketOutcome } from "./contingency-ticket-rescue-api";
 import type { ContingencyTicketRescueScreenServices } from "./contingency-ticket-rescue-services";
+import {
+  type FinishedRecoveryOutcome,
+  FinishTicketRecoveryModal,
+} from "./finish-ticket-recovery-modal";
 import {
   REFUSED_TICKET_STATUS,
   REFUSED_TICKET_TITLE,
@@ -15,6 +27,7 @@ import {
   rescuedTicketTotalText,
   rescuedTicketVouchersText,
 } from "./rescued-ticket-text";
+import { TicketRecoveriesSection } from "./ticket-recoveries-section";
 import { NO_PENDING_TICKETS, scanTicketCode } from "./ticket-scan";
 import { TicketScanPanel } from "./ticket-scan-panel";
 
@@ -28,6 +41,37 @@ type ScannedTicketResult =
   | { kind: "send_failed" };
 
 type ScannedTicket = { id: number; result: ScannedTicketResult };
+
+type RecoveryNotice = {
+  id: number;
+  tone: "success" | "error";
+  title: string;
+  description: string;
+};
+
+function finishedNotice(
+  outcome: FinishedRecoveryOutcome,
+  registerName: string,
+): Omit<RecoveryNotice, "id"> {
+  if (outcome === "finished") {
+    return {
+      tone: "success",
+      title: `Rescate de ${registerName} terminado`,
+      description: "Los tickets que se escaneen ahora ya no llegan a esa caja.",
+    };
+  }
+  return outcome === "already_finished"
+    ? {
+        tone: "success",
+        title: `El rescate de ${registerName} ya estaba terminado`,
+        description: "La lista ya está actualizada.",
+      }
+    : {
+        tone: "error",
+        title: `No se encontró el rescate de ${registerName}`,
+        description: "La lista ya está actualizada.",
+      };
+}
 
 export type ContingencyTicketRescueScreenProps = {
   onSessionEnded: () => void;
@@ -97,6 +141,14 @@ export function ContingencyTicketRescueScreen({
   services,
 }: ContingencyTicketRescueScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
+  const recoveries = useContingencyTicketRecoveriesQuery({
+    fetchContingencyTicketRecoveries: services.fetchContingencyTicketRecoveries,
+    onSessionEnded,
+  });
+  const refreshBackups = useRefreshBackups();
+  const [finishTarget, setFinishTarget] = useState<ContingencyTicketRecovery | null>(null);
+  const [recoveryNotice, setRecoveryNotice] = useState<RecoveryNotice | null>(null);
+  const lastNoticeId = useRef(0);
   const rescue = useMutation({
     mutationFn: (qrCodes: string[]) => services.rescueContingencyBackupTicket(qrCodes),
   });
@@ -188,30 +240,62 @@ export function ContingencyTicketRescueScreen({
     columns,
   });
 
+  function handleFinished(outcome: FinishedRecoveryOutcome) {
+    if (finishTarget) {
+      lastNoticeId.current += 1;
+      setRecoveryNotice({
+        id: lastNoticeId.current,
+        ...finishedNotice(outcome, finishTarget.register_name),
+      });
+    }
+    setFinishTarget(null);
+    void refreshBackups();
+  }
+
   return (
-    <ScreenLayout
-      topBar={
-        <div className="flex h-18 shrink-0 items-center border-border border-b bg-surface px-8">
-          <div className="flex flex-col justify-center">
-            <p className="text-text-subtle text-detail">Configuración</p>
-            <ScreenTitle>Rescate de tickets</ScreenTitle>
+    <>
+      <ScreenLayout
+        topBar={
+          <div className="flex h-18 shrink-0 items-center border-border border-b bg-surface px-8">
+            <div className="flex flex-col justify-center">
+              <p className="text-text-subtle text-detail">Configuración</p>
+              <ScreenTitle>Rescate de tickets</ScreenTitle>
+            </div>
           </div>
+        }
+        bodyClassName="flex-row gap-4 p-6"
+      >
+        <TicketScanPanel scanner={services.scanner} progress={progress} onCode={handleCode} />
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          <TicketRecoveriesSection data={recoveries} onFinish={setFinishTarget} />
+          <Table
+            aria-label="Tickets leídos"
+            table={table}
+            empty={{
+              icon: <QrCode />,
+              title: "Todavía no se leyó ningún ticket",
+              variant: "blank",
+            }}
+          />
         </div>
-      }
-      bodyClassName="flex-row gap-4 p-6"
-    >
-      <TicketScanPanel scanner={services.scanner} progress={progress} onCode={handleCode} />
-      <div className="min-w-0 flex-1">
-        <Table
-          aria-label="Tickets leídos"
-          table={table}
-          empty={{
-            icon: <QrCode />,
-            title: "Todavía no se leyó ningún ticket",
-            variant: "blank",
-          }}
+      </ScreenLayout>
+      <FinishTicketRecoveryModal
+        target={finishTarget}
+        onClose={() => setFinishTarget(null)}
+        onFinished={handleFinished}
+        onSessionEnded={onSessionEnded}
+        services={services.finishTicketRecoveryModal}
+      />
+      {recoveryNotice ? (
+        <FloatingNotification
+          key={recoveryNotice.id}
+          tone={recoveryNotice.tone}
+          icon={recoveryNotice.tone === "success" ? <Check /> : <TriangleAlert />}
+          title={recoveryNotice.title}
+          description={recoveryNotice.description}
+          onDismiss={() => setRecoveryNotice(null)}
         />
-      </div>
-    </ScreenLayout>
+      ) : null}
+    </>
   );
 }

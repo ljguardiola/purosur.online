@@ -1235,6 +1235,25 @@ export const registerContingencyTicketKeys = registerKeyVersions(
   "register_contingency_ticket_keys",
 );
 
+export const contingencyTicketRecoveries = pgTable(
+  "contingency_ticket_recoveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    restoredDeviceId: uuid("restored_device_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    finishedBy: uuid("finished_by").references(() => users.id),
+  },
+  (table) => [
+    uniqueIndex("contingency_ticket_recoveries_restored_device_id_key").on(table.restoredDeviceId),
+  ],
+);
+
 export const snapshotGenerationStatus = pgEnum(
   "snapshot_generation_status",
   SNAPSHOT_GENERATION_STATUSES,

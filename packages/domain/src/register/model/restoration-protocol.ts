@@ -11,16 +11,9 @@ export const RESTORATION_STEPS = [
   "open_session",
 ] as const;
 
-export type RestorationStep = (typeof RESTORATION_STEPS)[number];
+type RestorationStep = (typeof RESTORATION_STEPS)[number];
 
-export const UNDELIVERED_RESTORATION_STEPS = [
-  "recover_contingency_tickets",
-] as const satisfies readonly RestorationStep[];
-
-type DeliveredRestorationStep = Exclude<
-  RestorationStep,
-  "open_session" | (typeof UNDELIVERED_RESTORATION_STEPS)[number]
->;
+type DeliveredRestorationStep = Exclude<RestorationStep, "open_session">;
 
 type RestorationStepEvidence = "completed" | "pending";
 
@@ -43,14 +36,12 @@ export type RestorationEvidence = Readonly<
   }
 >;
 
-type HeldRestorationStep = Exclude<RestorationStep, "open_session">;
-
 export type RestorationStanding =
   | { kind: "completed" }
-  | { kind: "in_progress"; step: HeldRestorationStep; origin: ReplenishmentOrigin }
+  | { kind: "in_progress"; step: DeliveredRestorationStep; origin: ReplenishmentOrigin }
   | {
       kind: "without_connection";
-      step: Exclude<HeldRestorationStep, "enroll">;
+      step: Exclude<DeliveredRestorationStep, "enroll">;
       origin: ReplenishmentOrigin;
     }
   | { kind: "failed"; step: "restore" }
@@ -66,6 +57,7 @@ const DELIVERED_STEPS = [
   "restore",
   "reset_sync_identity",
   "replenish",
+  "recover_contingency_tickets",
   "reconcile_fiscal_counters",
   "regularize_orphan_authorizations",
 ] as const satisfies readonly DeliveredRestorationStep[];

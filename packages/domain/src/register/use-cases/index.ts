@@ -20,6 +20,15 @@ export type {
   AuthenticateInstallationOutcome,
 } from "./authenticate-installation.js";
 export { authenticateInstallation } from "./authenticate-installation.js";
+export type { AwaitContingencyTicketRecoveryOutcome } from "./await-contingency-ticket-recovery.js";
+export { awaitContingencyTicketRecovery } from "./await-contingency-ticket-recovery.js";
+export type {
+  AwaitContingencyTicketRecoveryPorts,
+  AwaitedContingencyTicketRecovery,
+  ContingencyTicketRecoveryPredecessor,
+  ContingencyTicketRecoveryRequester,
+  ContingencyTicketRecoveryStatus,
+} from "./await-contingency-ticket-recovery-ports.js";
 export type {
   BitlockerRecoveryKeyConsultation,
   BitlockerRecoveryKeyLoad,
