@@ -85,7 +85,7 @@ test("groups the cash reports in a card titled Caja", async () => {
 
   const cash = screen.getByRole("region", { name: "Caja" });
   await expect.element(cash).toBeVisible();
-  expect(cash.getByRole("link").elements()).toHaveLength(2);
+  expect(cash.getByRole("link").elements()).toHaveLength(3);
 });
 
 test("lists the returns report as a link to it in the Caja card when it is shown", async () => {
@@ -142,4 +142,12 @@ test("lists the lots approaching their expiry report as a link to it", async () 
   await expect
     .element(screen.getByRole("link", { name: "Lotes por vencer" }))
     .toHaveAttribute("href", "/reports/expiring-lots");
+});
+
+test("lists the losses by reason report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Mermas por motivo" }))
+    .toHaveAttribute("href", "/reports/losses-by-reason");
 });
