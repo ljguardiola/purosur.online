@@ -1909,15 +1909,15 @@ describe("asking for the detail of one sale of the history", () => {
     served_by_first_name: "Marta",
     line_count: 3,
     payments: [
-      { method: "CASH", amount: 5000 },
-      { method: "TRANSFER", amount: 2500 },
+      { method: "CASH", card_type: null, amount: 5000 },
+      { method: "TRANSFER", card_type: null, amount: 2500 },
     ],
     state: "deferred",
     voidability: {
       kind: "voidable",
       refunds: [
-        { method: "CASH", amount: 5000, state: "APPROVED", sent_by_cloud: false },
-        { method: "QR", amount: 2500, state: "PENDING", sent_by_cloud: true },
+        { method: "CASH", card_type: null, amount: 5000, state: "APPROVED", sent_by_cloud: false },
+        { method: "QR", card_type: null, amount: 2500, state: "PENDING", sent_by_cloud: true },
       ],
       credit_note_corrects: { point_of_sale: 3, number: 1204 },
     },
@@ -2008,7 +2008,7 @@ describe("asking for the detail of one sale of the history", () => {
   it.each([
     { kind: "found" },
     { kind: "found", detail: { ...detail, line_count: -1 } },
-    { kind: "found", detail: { ...detail, payments: [{ method: "CARD", amount: 1 }] } },
+    { kind: "found", detail: { ...detail, payments: [{ method: "CARD", card_type: null, amount: 1 }] } },
     { kind: "found", detail: { ...detail, next_copy: { kind: "reprint" } } },
     { kind: "found", detail: { ...detail, credit_note_id: undefined } },
     { kind: "found", detail: { ...detail, credit_note_id: "" } },
@@ -2066,7 +2066,7 @@ describe("asking for the detail of one sale of the history", () => {
         ...detail,
         voidability: {
           kind: "voidable",
-          refunds: [{ method: "CARD", amount: 1, state: "PENDING", sent_by_cloud: false }],
+          refunds: [{ method: "CARD", card_type: null, amount: 1, state: "PENDING", sent_by_cloud: false }],
         },
       },
     },
@@ -2076,7 +2076,7 @@ describe("asking for the detail of one sale of the history", () => {
         ...detail,
         voidability: {
           kind: "voidable",
-          refunds: [{ method: "CASH", amount: 1, state: "DISCARDED", sent_by_cloud: false }],
+          refunds: [{ method: "CASH", card_type: null, amount: 1, state: "DISCARDED", sent_by_cloud: false }],
         },
       },
     },
@@ -2086,7 +2086,7 @@ describe("asking for the detail of one sale of the history", () => {
         ...detail,
         voidability: {
           kind: "voidable",
-          refunds: [{ method: "CASH", amount: -1, state: "APPROVED", sent_by_cloud: false }],
+          refunds: [{ method: "CASH", card_type: null, amount: -1, state: "APPROVED", sent_by_cloud: false }],
         },
       },
     },
@@ -2096,7 +2096,7 @@ describe("asking for the detail of one sale of the history", () => {
         ...detail,
         voidability: {
           kind: "voidable",
-          refunds: [{ method: "QR", amount: 1, state: "PENDING" }],
+          refunds: [{ method: "QR", card_type: null, amount: 1, state: "PENDING" }],
         },
       },
     },
