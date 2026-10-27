@@ -29,6 +29,7 @@ export type {
   NewAssemblyBatch,
 } from "./assembly-batch-store.js";
 export type { BatchLotReader, PreviewLot } from "./batch-lot-reader.js";
+export type { CurrentStockReader } from "./current-stock-reader.js";
 export type {
   DiscardExpiredLotInput,
   DiscardExpiredLotOutcome,
@@ -85,6 +86,14 @@ export type {
   PreviewedBatchLot,
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
+export type {
+  CurrentStockCategory,
+  CurrentStockLot,
+  CurrentStockProduct,
+  CurrentStockReport,
+  ReadCurrentStockReportInput,
+} from "./read-current-stock-report.js";
+export { readCurrentStockReport } from "./read-current-stock-report.js";
 export type {
   ExpiringLotsView,
   ExpiringLotView,

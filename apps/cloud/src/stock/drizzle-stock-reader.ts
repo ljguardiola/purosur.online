@@ -7,6 +7,7 @@ import {
   type SaleUnit,
 } from "@purosur/domain";
 import type {
+  CurrentStockReader,
   LedgerAtMoment,
   LedgerLot,
   LotInStock,
@@ -78,7 +79,7 @@ async function productLotsOf<TQueryResult extends PgQueryResultHKT>(
 }
 
 export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
-  implements StockLedgerReader, StockListReader
+  implements StockLedgerReader, StockListReader, CurrentStockReader
 {
   private readonly db: PgDatabase<TQueryResult>;
 
@@ -117,6 +118,10 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
   }
 
   async stockLevels(locationId: string): Promise<StockLevel[]> {
+    return (await this.everyStockLevel(locationId)).filter(isListedInStockBalances);
+  }
+
+  async everyStockLevel(locationId: string): Promise<StockLevel[]> {
     const rows = await this.db
       .select({
         ...stockProductColumns,
@@ -134,7 +139,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
     for (const { productId, ...lot } of await this.lotsInStockAt(locationId)) {
       lotsByProduct.set(productId, [...(lotsByProduct.get(productId) ?? []), lot]);
     }
-    return rows.filter(isListedInStockBalances).map((row) => ({
+    return rows.map((row) => ({
       ...row,
       saleUnit: row.saleUnit as SaleUnit,
       lots: lotsByProduct.get(row.id) ?? [],

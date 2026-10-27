@@ -9,7 +9,12 @@ import {
   tagsListRoute,
 } from "../catalog/routes";
 import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
-import { fiscalConfigurationRoute, fiscalTasksRoute, pointsOfSaleRoute } from "../fiscal/routes";
+import {
+  fiscalConfigurationRoute,
+  fiscalTasksRoute,
+  issuedFiscalDocumentsRoute,
+  pointsOfSaleRoute,
+} from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import {
   handConfirmedPaymentsRoute,
@@ -46,6 +51,7 @@ import {
 import { compromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
   assemblyBatchesRoute,
+  currentStockReportRoute,
   expiringLotsRoute,
   initialInventoryRoute,
   recipesListRoute,
@@ -118,6 +124,7 @@ const routeTree = rootRoute.addChildren([
       mercadoPagoRefundsRoute,
       outsideRefundsRoute,
       fiscalTasksRoute,
+      issuedFiscalDocumentsRoute,
     ]),
     reportsAreaRoute.addChildren([
       reportsIndexRoute,
@@ -128,6 +135,7 @@ const routeTree = rootRoute.addChildren([
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
       averageTicketRoute,
+      currentStockReportRoute,
       salesByPromotionRoute,
       manualDiscountsRoute,
     ]),
