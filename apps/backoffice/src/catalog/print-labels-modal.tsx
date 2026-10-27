@@ -310,7 +310,10 @@ export function PrintLabelsModal({
                 </div>
                 <div className="flex flex-col gap-1">
                   <p className="text-heading text-text-accent">
-                    {plural(total, { one: "1 etiqueta", other: `${formatNumber(total)} etiquetas` })}
+                    {plural(total, {
+                      one: "1 etiqueta",
+                      other: `${formatNumber(total)} etiquetas`,
+                    })}
                   </p>
                   <p className="text-detail text-text-subtle">
                     Hoja autoadhesiva para cualquier impresora común.
