@@ -5,7 +5,8 @@ import type {
   WsaaAuthenticationResult,
 } from "@purosur/domain/fiscal/use-cases";
 import forge from "node-forge";
-import { type Client, createClientAsync } from "soap";
+import type { Client } from "soap";
+import { createArcaSoapClient } from "./arca-soap-client.js";
 
 // `wsdl/` sits beside both `src/` and `dist/` and ships through package.json's `files`.
 const WSAA_WSDL_PATH = fileURLToPath(new URL("../../wsdl/wsaa.wsdl", import.meta.url));
@@ -149,7 +150,7 @@ export class ArcaWsaaAuthentication implements WsaaAuthentication {
         this.certificatePem,
         this.privateKeyPem,
       );
-      this.client ??= createClientAsync(WSAA_WSDL_PATH, { endpoint: this.endpoint });
+      this.client ??= createArcaSoapClient(WSAA_WSDL_PATH, this.endpoint);
       const client = await this.client;
       let result: unknown;
       try {
