@@ -29,8 +29,8 @@ import {
   voucherText,
 } from "./issued-fiscal-document-text";
 import {
-  isDocumentNumberText,
   type IssuedFiscalDocumentsFilters,
+  isDocumentNumberText,
   issuedFiscalDocumentsQueryOf,
 } from "./issued-fiscal-documents-filters";
 import type { IssuedFiscalDocumentsScreenServices } from "./issued-fiscal-documents-services";
