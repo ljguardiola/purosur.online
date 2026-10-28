@@ -7,6 +7,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { defaultClientConditions, defaultServerConditions } from "vite";
 import { configDefaults, defineConfig } from "vitest/config";
+import { HeldRunReporter } from "./.github/scripts/held-run-reporter.mjs";
 import {
   ROOT_SLOW_TEST_THRESHOLD,
   SlowTestsReporter,
@@ -20,6 +21,10 @@ import { withoutPackageOutput } from "./.github/scripts/without-package-output.m
 const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
+
+const testDurationsReporter = new TestDurationsReporter({
+  outputFile: process.env["TEST_DURATIONS_FILE"],
+});
 
 process.env["TZ"] = "UTC";
 
@@ -91,7 +96,12 @@ export default defineConfig({
         browser: 2000,
         "catalog-visual": 4000,
       }),
-      new TestDurationsReporter({ outputFile: process.env["TEST_DURATIONS_FILE"] }),
+      testDurationsReporter,
+      new HeldRunReporter({
+        graceMs: 60_000,
+        stallMs: 5 * 60_000,
+        finishWith: [testDurationsReporter],
+      }),
     ],
     projects: [
       {
