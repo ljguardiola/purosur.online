@@ -306,3 +306,59 @@ describe("the sale of another register a return starts from", () => {
     expect(reader.saleForReturn({ kind: "sale", saleId: "sale-elsewhere" })).toEqual(KEPT.sale);
   });
 });
+
+describe("a sale of this register the cloud answered for", () => {
+  function keepCloudCopy(countedReturnIds: string[] = []): void {
+    const held = reader.saleForReturn({ kind: "sale", saleId: "sale-1" });
+    if (held === undefined) {
+      throw new Error("the sold sale database holds sale-1");
+    }
+    new SqliteRetainedBranchSales(database).keep({
+      ticket: { kind: "invoice", pointOfSale: 7, number: 501 },
+      sale: {
+        ...held,
+        invoice: { pointOfSale: 7, number: 501 },
+        payments: held.payments.map((payment) =>
+          payment.id === "pay-cash" ? { ...payment, refundedAmount: 2500 } : payment,
+        ),
+        returned: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }],
+      },
+      invoiceStanding: { fiscalDocuments: [], deferralPending: false },
+      countedReturnIds,
+    });
+  }
+
+  it("counts what other registers of the branch returned from it", () => {
+    keepCloudCopy();
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-1" })).toMatchObject({
+      returned: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }],
+      payments: [
+        { id: "pay-cash", refundedAmount: 2500 },
+        { id: "pay-transfer", refundedAmount: 0 },
+      ],
+    });
+  });
+
+  it("adds what this register returned of it that the cloud did not count yet", () => {
+    keepCloudCopy();
+    insertStoredReturn(database, "return-here", [
+      { saleLineId: "line-2", quantity: 2, refundedAmount: 2000 },
+    ]);
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-1" })?.returned).toEqual([
+      { saleLineId: "line-1", quantity: 1, refundedAmount: 2500 },
+      { saleLineId: "line-2", quantity: 2, refundedAmount: 2000 },
+    ]);
+  });
+
+  it("keeps the sale, its date and its invoice as this register holds them", () => {
+    keepCloudCopy();
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-1" })).toMatchObject({
+      sale: { id: "sale-1", registerId: "register-1" },
+      occurredAt: new Date(SOLD_AT),
+      invoice: null,
+    });
+  });
+});

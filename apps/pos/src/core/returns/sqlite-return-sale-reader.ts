@@ -2,6 +2,7 @@ import type { ReturnedFromLine, SaleForReturn } from "@purosur/domain";
 import {
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   settledLines,
+  withReturnsOfBranch,
   withUncountedReturns,
 } from "@purosur/domain";
 import type { ReturnSaleReader, SaleReturnSearch } from "@purosur/domain/returns/use-cases";
@@ -143,7 +144,7 @@ export function readSaleForReturn(
     return undefined;
   }
   const refunded = refundedByPayment(database, saleId);
-  return {
+  const held: SaleForReturn = {
     sale: { ...sale, lines: settledLines(sale) },
     occurredAt: new Date(occurredAt),
     invoice: invoiceOf(database, saleId),
@@ -158,6 +159,15 @@ export function readSaleForReturn(
     })),
     returned: returnedFromLines(database, saleId),
   };
+  const retained = readRetainedBranchSale(database, saleId);
+  return retained === undefined
+    ? held
+    : withReturnsOfBranch(
+        held,
+        retained.sale,
+        retained.countedReturnIds,
+        new SqliteOwnReturnsOfSale(database).returnsOfSale(saleId),
+      );
 }
 
 export class SqliteReturnSaleReader implements ReturnSaleReader {
