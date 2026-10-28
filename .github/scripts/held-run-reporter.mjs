@@ -16,7 +16,6 @@ function plural(count, word) {
 export class HeldRunReporter {
   #graceMs;
   #stallMs;
-  #finishWith;
   #log;
   #exit;
   #vitest;
@@ -30,22 +29,34 @@ export class HeldRunReporter {
   constructor({
     graceMs,
     stallMs,
-    finishWith = [],
     log = (line) => console.error(line),
     exit = (code) => process.exit(code),
   }) {
     this.#graceMs = graceMs;
     this.#stallMs = stallMs;
-    this.#finishWith = finishWith;
     this.#log = log;
     this.#exit = exit;
+  }
+
+  trackExecutedFiles(Sequencer) {
+    const guard = this;
+    return class extends Sequencer {
+      async sort(files) {
+        guard.#watch(files);
+        return super.sort(files);
+      }
+    };
   }
 
   onInit(vitest) {
     this.#vitest = vitest;
   }
 
-  onTestRunStart(specifications) {
+  onTestRunStart() {
+    this.#stop();
+  }
+
+  #watch(specifications) {
     this.#stop();
     if (this.#vitest.config.watch) return;
     this.#remaining = new Map(
@@ -141,11 +152,14 @@ export class HeldRunReporter {
     const failed = this.#finished.filter((testModule) => testModule.state() === "failed").length;
     const state = failed > 0 || errors.length > 0 ? "failed" : "passed";
     await Promise.all(
-      this.#finishWith.map((reporter) => reporter.onTestRunEnd?.(this.#finished, errors, state)),
+      this.#vitest.reporters
+        .filter((reporter) => reporter !== this)
+        .map((reporter) => reporter.onTestRunEnd?.(this.#finished, errors, state)),
     );
     this.#log(
       `held-run: ending with the tests' own result: ${state} ` +
-        `(${this.#finished.length} files, ${failed} failed)`,
+        `(${this.#finished.length} files, ${failed} failed` +
+        (errors.length > 0 ? `, ${plural(errors.length, "unhandled error")})` : ")"),
     );
     this.#exit(state === "passed" ? 0 : 1);
   }

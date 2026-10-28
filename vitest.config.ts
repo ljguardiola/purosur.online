@@ -22,9 +22,7 @@ const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-const testDurationsReporter = new TestDurationsReporter({
-  outputFile: process.env["TEST_DURATIONS_FILE"],
-});
+const heldRunReporter = new HeldRunReporter({ graceMs: 60_000, stallMs: 5 * 60_000 });
 
 process.env["TZ"] = "UTC";
 
@@ -82,7 +80,11 @@ export default defineConfig({
   test: {
     passWithNoTests: true,
     slowTestThreshold: ROOT_SLOW_TEST_THRESHOLD,
-    sequence: { sequencer: durationBalancedSequencer(process.env["TEST_DURATIONS"]) },
+    sequence: {
+      sequencer: heldRunReporter.trackExecutedFiles(
+        durationBalancedSequencer(process.env["TEST_DURATIONS"]),
+      ),
+    },
     reporters: [
       ...configDefaults.reporters,
       new SlowTestsReporter({
@@ -96,12 +98,8 @@ export default defineConfig({
         browser: 2000,
         "catalog-visual": 4000,
       }),
-      testDurationsReporter,
-      new HeldRunReporter({
-        graceMs: 60_000,
-        stallMs: 5 * 60_000,
-        finishWith: [testDurationsReporter],
-      }),
+      new TestDurationsReporter({ outputFile: process.env["TEST_DURATIONS_FILE"] }),
+      heldRunReporter,
     ],
     projects: [
       {
