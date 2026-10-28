@@ -3,11 +3,11 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import { organico, sinColorantes, sinTacc, vegano } from "../platform/test-support/tags";
 import { render } from "../shell/test-support/render-with-router";
 import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
 import { fillNewProductFieldsExceptBarcodes, scanInputOf } from "./test-support/product-form";
 import { driedFruits, groceries } from "./test-support/products";
-import { organico, sinColorantes, sinTacc, vegano } from "./test-support/tags";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);

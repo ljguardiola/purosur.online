@@ -17,27 +17,32 @@ import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-reac
 import { useEffect, useState } from "react";
 import { BarcodeChips, useBarcodeChips } from "../platform/barcode-chips";
 import { barcodeTakenError } from "../platform/barcode-list";
+import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions } from "../platform/category-path";
-import { retryAfterDetail } from "../platform/retry-after-detail";
-import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
-import type { createBrand } from "./brands-api";
-import type { ProductReload } from "./catalog-queries";
-import { NewBrandModal } from "./new-brand-modal";
-import { NewTagModal } from "./new-tag-modal";
+import { NewBrandModal } from "../platform/new-brand-modal";
+import { NewTagModal } from "../platform/new-tag-modal";
 import {
   BrandFieldWithCreation,
   brandFieldHelp,
   brandOptions,
   useStackedBrandCreation,
   withCreatedBrand,
-} from "./product-brand-field";
+} from "../platform/product-brand-field";
 import {
-  categoryNameOf,
   EMPTY_PRODUCT_FORM,
-  editedProductBarcodeProblemMessage,
   NET_CONTENT_UNIT_OPTIONS,
   PRODUCT_BRAND_INACTIVE_ERROR,
+  tagInactiveError,
+} from "../platform/product-form";
+import { TagsField, useStackedTagCreation, withCreatedTags } from "../platform/product-tags-field";
+import { retryAfterDetail } from "../platform/retry-after-detail";
+import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
+import type { createTag } from "../platform/tag-creation-api";
+import { type ProductReload, useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import {
+  categoryNameOf,
+  editedProductBarcodeProblemMessage,
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_EDIT_FIELDS,
   PRODUCT_EDIT_MESSAGES,
@@ -46,11 +51,8 @@ import {
   productFormValues,
   saleUnitHeldByDiscountError,
   saleUnitHeldByPackagingError,
-  tagInactiveError,
 } from "./product-form";
-import { TagsField, useStackedTagCreation, withCreatedTags } from "./product-tags-field";
 import type { editProduct } from "./products-api";
-import type { createTag } from "./tags-api";
 
 export type EditProductModalServices = {
   editProduct: typeof editProduct;
@@ -179,11 +181,16 @@ export function EditProductModal({
     problemMessage: editedProductBarcodeProblemMessage,
   });
 
-  const brandCreation = useStackedBrandCreation((brandId) =>
-    form.setFieldValue("brandId", brandId),
+  const markCatalogStale = useMarkCatalogStale();
+  const refreshCatalog = useRefreshCatalog();
+  const catalog = { markStale: markCatalogStale, refresh: refreshCatalog };
+  const brandCreation = useStackedBrandCreation(
+    (brandId) => form.setFieldValue("brandId", brandId),
+    catalog,
   );
-  const tagCreation = useStackedTagCreation((tagId) =>
-    form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+  const tagCreation = useStackedTagCreation(
+    (tagId) => form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+    catalog,
   );
   const closeForm = () => {
     brandCreation.finish();

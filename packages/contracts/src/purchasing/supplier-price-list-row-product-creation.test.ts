@@ -6,11 +6,17 @@ import {
 } from "./supplier-price-list-row-product-creation.js";
 
 const CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
+const BRAND_ID = "22222222-2222-2222-2222-222222222222";
+const TAG_ID = "33333333-3333-3333-3333-333333333333";
 const body = {
   version: 3,
+  name: "Aceite de almendras",
   saleUnit: "UNIT",
   categoryId: CATEGORY_ID,
+  brandId: null,
   barcodes: ["7790001000012"],
+  tagIds: [],
+  netContent: null,
   packagingName: "Caja x 10",
   quantityPerPackage: 10_000,
   vatRate: 2100,
@@ -124,15 +130,87 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
     },
   );
 
-  it("strips keys it does not know, the product's name among them", () => {
+  it("strips keys it does not know", () => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, unknown: "x" }).data,
+    ).toEqual(body);
+  });
+
+  it("reads the product's name trimmed", () => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, name: "  Yerba  " }).data
+        ?.name,
+    ).toBe("Yerba");
+  });
+
+  it("rejects an empty name", () => {
+    expect(firstFailure({ ...body, name: "" })).toEqual({
+      field: "name",
+      message: "name must not be empty",
+    });
+  });
+
+  it("keeps the brand id, or reads a missing one as no brand", () => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, brandId: BRAND_ID }).data
+        ?.brandId,
+    ).toBe(BRAND_ID);
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, brandId: undefined }).data
+        ?.brandId,
+    ).toBeNull();
+  });
+
+  it("rejects a malformed brand", () => {
+    expect(firstFailure({ ...body, brandId: "not-a-uuid" })).toEqual({
+      field: "brandId",
+      message: "brandId must be an existing brand's id, or null for none",
+    });
+  });
+
+  it("keeps the tag ids in the order sent, or reads missing ones as none", () => {
+    const other = "44444444-4444-4444-4444-444444444444";
     expect(
       supplierPriceListRowProductCreationBodySchema.safeParse({
         ...body,
-        name: "Yerba",
-        brandId: "x",
-        tagIds: [],
-      }).data,
-    ).toEqual(body);
+        tagIds: [other, TAG_ID],
+      }).data?.tagIds,
+    ).toEqual([other, TAG_ID]);
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, tagIds: undefined }).data
+        ?.tagIds,
+    ).toEqual([]);
+  });
+
+  it("rejects malformed tag ids", () => {
+    expect(firstFailure({ ...body, tagIds: ["not-a-uuid"] })).toEqual({
+      field: "tagIds",
+      message: "tagIds must be a list of existing tags' ids, [] for none",
+    });
+  });
+
+  it("keeps a net content's quantity and unit", () => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({
+        ...body,
+        netContent: { quantity: 125, unit: "ML", extra: true },
+      }).data?.netContent,
+    ).toEqual({ quantity: 125, unit: "ML" });
+  });
+
+  it("reports a net content's quantity that is not valid under netContentQuantity", () => {
+    expect(firstFailure({ ...body, netContent: { quantity: 0, unit: "KG" } })?.field).toBe(
+      "netContentQuantity",
+    );
+  });
+
+  it("reports a malformed net content only once, never under netContentQuantity", () => {
+    const result = supplierPriceListRowProductCreationBodySchema.safeParse({
+      ...body,
+      netContent: { quantity: "0", unit: "KG" },
+    });
+
+    expect(result.error?.issues.map((issue) => issue.path[0])).toEqual(["netContent"]);
   });
 });
 

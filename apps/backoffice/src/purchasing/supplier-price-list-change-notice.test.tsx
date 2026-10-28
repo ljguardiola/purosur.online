@@ -1,4 +1,4 @@
-import { PACKAGING_NAME_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
+import { PACKAGING_NAME_MAX_LENGTH } from "@purosur/domain";
 import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -25,7 +25,6 @@ test.each([
   [{ kind: "vat_rate_missing" }, { kind: "vatRateMissing" }],
   [{ kind: "vat_rate_invalid" }, { kind: "attemptFailed" }],
   [{ kind: "already_linked" }, { kind: "alreadyLinked" }],
-  [{ kind: "name_too_long" }, { kind: "nameTooLong" }],
   [{ kind: "presentation_too_long" }, { kind: "presentationTooLong" }],
 ] as const)("turns the outcome %j into the notice %j", (outcome, notice) => {
   expect(supplierPriceListChangeNoticeOf(outcome)).toEqual(notice);
@@ -67,11 +66,6 @@ test.each([
     { kind: "unpricedRows" },
     "Hay ítems sin precio",
     "Escribí el precio de cada uno o quitalos antes de confirmar.",
-  ],
-  [
-    { kind: "nameTooLong" },
-    "El nombre de la lista es demasiado largo",
-    `Tiene más de ${PRODUCT_NAME_MAX_LENGTH} caracteres, el máximo de un producto. No se puede crear el producto desde esta lista.`,
   ],
   [
     { kind: "presentationTooLong" },

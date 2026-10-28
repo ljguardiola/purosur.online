@@ -1,12 +1,16 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   createProductFromSupplierItem,
+  fetchProductCreationBrands,
   fetchProductCreationCategories,
+  fetchProductCreationTags,
   generateSupplierItemInternalBarcode,
 } from "./supplier-item-products-api";
 import {
   CREATION_BODY,
+  CREATION_BRANDS,
   CREATION_CATEGORIES,
+  CREATION_TAG_LIST,
   PRODUCT_CREATED,
 } from "./test-support/supplier-item-products";
 
@@ -49,6 +53,22 @@ describe("createProductFromSupplierItem", () => {
 
     const [, init] = vi.mocked(fetch).mock.calls[0] ?? [];
     expect(init?.body).toBe(JSON.stringify(CREATION_BODY));
+  });
+
+  test("sends the name, the brand, the tags and the net content", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(201, PRODUCT_CREATED));
+    const body = {
+      ...CREATION_BODY,
+      name: "Aceite de almendras",
+      brandId: CREATION_BRANDS[0]?.id ?? null,
+      tagIds: [CREATION_TAG_LIST.tags[0]?.id ?? ""],
+      netContent: { quantity: 125, unit: "ML" as const },
+    };
+
+    await createProductFromSupplierItem("list-1", "row-1", body);
+
+    const [, init] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(init?.body).toBe(JSON.stringify(body));
   });
 
   test("returns failed when the created product does not have the expected shape", async () => {
@@ -104,7 +124,7 @@ describe("createProductFromSupplierItem", () => {
     "vat_rate_missing",
     "vat_rate_invalid",
     "category_not_leaf",
-    "name_too_long",
+    "brand_inactive",
     "presentation_too_long",
   ] as const)("answers a 409 %s as that refusal", async (code) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
@@ -122,6 +142,32 @@ describe("createProductFromSupplierItem", () => {
     expect(await createProductFromSupplierItem("list-1", "row-1", CREATION_BODY)).toEqual({
       kind: "barcode_taken",
       codes: ["7790001000029"],
+    });
+  });
+
+  test("answers a 409 tag_inactive with the tag the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "tag_inactive", tagId: "tag-1" }));
+
+    expect(await createProductFromSupplierItem("list-1", "row-1", CREATION_BODY)).toEqual({
+      kind: "tag_inactive",
+      tagId: "tag-1",
+    });
+  });
+
+  test("answers a 409 tag_inactive naming no tag with an empty id", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "tag_inactive" }));
+
+    expect(await createProductFromSupplierItem("list-1", "row-1", CREATION_BODY)).toEqual({
+      kind: "tag_inactive",
+      tagId: "",
+    });
+  });
+
+  test("answers a 409 name_too_long as failed, since no list text limits the name any more", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "name_too_long" }));
+
+    expect(await createProductFromSupplierItem("list-1", "row-1", CREATION_BODY)).toEqual({
+      kind: "failed",
     });
   });
 
@@ -177,6 +223,56 @@ describe("fetchProductCreationCategories", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
     expect(await fetchProductCreationCategories()).toEqual(outcome);
+  });
+});
+
+describe("fetchProductCreationBrands", () => {
+  test("reads the brands the product can carry", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, CREATION_BRANDS));
+
+    expect(await fetchProductCreationBrands()).toEqual({ kind: "ok", value: CREATION_BRANDS });
+    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/product-brands");
+  });
+
+  test("returns failed when the brands do not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: 1 }]));
+
+    expect(await fetchProductCreationBrands()).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [401, { kind: "unauthenticated" }],
+    [403, { kind: "forbidden" }],
+    [500, { kind: "failed" }],
+  ] as const)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchProductCreationBrands()).toEqual(outcome);
+  });
+});
+
+describe("fetchProductCreationTags", () => {
+  test("reads the tags the product can carry", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, CREATION_TAG_LIST));
+
+    expect(await fetchProductCreationTags()).toEqual({ kind: "ok", value: CREATION_TAG_LIST });
+    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/product-tags");
+  });
+
+  test("returns failed when the tags do not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { tags: [{ id: 1 }] }));
+
+    expect(await fetchProductCreationTags()).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [401, { kind: "unauthenticated" }],
+    [403, { kind: "forbidden" }],
+    [500, { kind: "failed" }],
+  ] as const)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchProductCreationTags()).toEqual(outcome);
   });
 });
 

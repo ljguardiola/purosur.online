@@ -2,33 +2,28 @@ import {
   type SupplierPriceListRowProductCreationBody,
   supplierPriceListRowProductCreationBodySchema,
 } from "@purosur/contracts";
-import type { SaleUnit } from "@purosur/domain";
 import {
-  type BarcodeListValue,
-  barcodeListMessage,
-  barcodesWithScan,
-} from "../platform/barcode-list";
-import { categoryMessage } from "../platform/category-path";
+  EMPTY_PRODUCT_FORM,
+  PRODUCT_FIELDS,
+  PRODUCT_MESSAGES,
+  type ProductFormValues,
+  productRequestFrom,
+} from "../platform/product-form";
 import { schemaLimit } from "../platform/schema-limit";
 import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
 import type { SupplierPriceListRow } from "./supplier-price-lists-api";
 
-export type SupplierItemProductFormValues = {
-  saleUnit: SaleUnit;
+export type SupplierItemProductFormValues = ProductFormValues & {
   packagingName: string | null;
   quantity: string;
-  categoryId: string | null;
-  barcodes: BarcodeListValue;
   vatRate: string;
   version: number;
 };
 
 export const SUPPLIER_ITEM_PRODUCT_FIELDS = {
-  saleUnit: "saleUnit",
+  ...PRODUCT_FIELDS,
   packagingName: "packagingName",
   quantityPerPackage: "quantity",
-  categoryId: "categoryId",
-  barcodes: "barcodes",
   vatRate: "vatRate",
   version: null,
 } as const;
@@ -36,11 +31,9 @@ export const SUPPLIER_ITEM_PRODUCT_FIELDS = {
 const packagingNameSchema = supplierPriceListRowProductCreationBodySchema.shape.packagingName;
 
 export const EMPTY_SUPPLIER_ITEM_PRODUCT_FORM: SupplierItemProductFormValues = {
-  saleUnit: "UNIT",
+  ...EMPTY_PRODUCT_FORM,
   packagingName: "",
   quantity: "",
-  categoryId: null,
-  barcodes: { codes: [], scan: "" },
   vatRate: "",
   version: 1,
 };
@@ -54,6 +47,7 @@ export function supplierItemProductFormValuesOf(
 ): SupplierItemProductFormValues {
   return {
     ...EMPTY_SUPPLIER_ITEM_PRODUCT_FORM,
+    name: row.description,
     packagingName: row.presentation === null ? "" : null,
     barcodes: { codes: row.barcode === null ? [] : [row.barcode], scan: "" },
     version,
@@ -65,10 +59,8 @@ export function supplierItemProductRequestFrom(
   requiresVatRate: boolean,
 ): SupplierPriceListRowProductCreationBody {
   return {
+    ...productRequestFrom(values),
     version: values.version,
-    saleUnit: values.saleUnit,
-    categoryId: values.categoryId ?? "",
-    barcodes: barcodesWithScan(values.barcodes),
     packagingName: values.packagingName?.trim() ?? null,
     quantityPerPackage: parseStockQuantity(values.quantity, values.saleUnit) ?? Number.NaN,
     vatRate: requiresVatRate ? Number(values.vatRate) : null,
@@ -87,11 +79,9 @@ function packagingNameMessage({ packagingName }: SupplierItemProductFormValues):
 }
 
 export const SUPPLIER_ITEM_PRODUCT_MESSAGES = {
-  saleUnit: () => "Elegí la unidad de venta.",
+  ...PRODUCT_MESSAGES,
   packagingName: packagingNameMessage,
   quantity: ({ quantity, saleUnit }: SupplierItemProductFormValues) =>
     quantity.trim() === "" ? "Ingresá la cantidad por presentación." : quantityMessage(saleUnit),
-  categoryId: categoryMessage,
-  barcodes: barcodeListMessage,
   vatRate: () => "Elegí el IVA del ítem.",
 };

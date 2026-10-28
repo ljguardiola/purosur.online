@@ -22,7 +22,7 @@ import {
   BoundToggleChipGroup,
 } from "./request-form-fields";
 
-const { useAppForm } = createFormHook({
+const { useAppForm, withFieldGroup } = createFormHook({
   fieldContext,
   formContext,
   fieldComponents: {
@@ -40,6 +40,8 @@ const { useAppForm } = createFormHook({
   },
   formComponents: {},
 });
+
+export { withFieldGroup };
 
 type Message<Values> = string | ((values: Values) => string);
 

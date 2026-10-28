@@ -2,7 +2,6 @@ import { supplierPriceListRowProductCreationBodySchema } from "@purosur/contract
 import {
   Button,
   EmptyState,
-  FieldGroup,
   formatCents,
   InlineNotice,
   LoadFailure,
@@ -13,22 +12,32 @@ import {
 import { Check, PackagePlus, RotateCcw, ShieldX, Tags, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  BarcodeChips,
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
   useGenerateInternalBarcode,
 } from "../platform/barcode-chips";
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
+import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions } from "../platform/category-path";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
+import { NewBrandModal } from "../platform/new-brand-modal";
+import { NewTagModal } from "../platform/new-tag-modal";
+import { useStackedBrandCreation } from "../platform/product-brand-field";
+import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields";
+import { PRODUCT_BRAND_INACTIVE_ERROR, tagInactiveError } from "../platform/product-form";
+import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { quantityFieldKind } from "../platform/stock-quantity";
+import type { createTag } from "../platform/tag-creation-api";
+import type { CloudData } from "../platform/use-cloud-query";
 import {
+  useProductCreationBrandsQuery,
   useProductCreationCategoriesQuery,
+  useProductCreationChoicesRefresh,
+  useProductCreationTagsQuery,
   useSupplierItemLinkChoicesQuery,
 } from "./purchasing-queries";
 import { SupplierItemFact } from "./supplier-item-fact";
@@ -44,7 +53,9 @@ import {
 } from "./supplier-item-product-form";
 import type {
   createProductFromSupplierItem,
+  fetchProductCreationBrands,
   fetchProductCreationCategories,
+  fetchProductCreationTags,
 } from "./supplier-item-products-api";
 import {
   type SupplierPriceListChangeNotice,
@@ -57,6 +68,10 @@ import type { SupplierPriceListReviewList, SupplierPriceListRow } from "./suppli
 export type CreateProductFromSupplierItemModalServices = {
   createProductFromSupplierItem: typeof createProductFromSupplierItem;
   fetchProductCreationCategories: typeof fetchProductCreationCategories;
+  fetchProductCreationBrands: typeof fetchProductCreationBrands;
+  fetchProductCreationTags: typeof fetchProductCreationTags;
+  createBrand: typeof createBrand;
+  createTag: typeof createTag;
   fetchSupplierItemLinkChoices: typeof fetchSupplierItemLinkChoices;
   generateInternalBarcode: typeof generateInternalBarcode;
 };
@@ -64,6 +79,7 @@ export type CreateProductFromSupplierItemModalServices = {
 type CreateProductFromSupplierItemModalProps = {
   list: Pick<SupplierPriceListReviewList, "id" | "version" | "requiresVatRate" | "supplier">;
   target: SupplierPriceListRow | null;
+  mayCreateBrandsAndTags: boolean;
   services: CreateProductFromSupplierItemModalServices;
   onCreated: () => void;
   onOutdated: () => void;
@@ -78,6 +94,7 @@ function FieldHeading({ children }: { children: string }) {
 export function CreateProductFromSupplierItemModal({
   list,
   target,
+  mayCreateBrandsAndTags,
   services,
   onCreated,
   onOutdated,
@@ -93,6 +110,16 @@ export function CreateProductFromSupplierItemModal({
   const categories = useProductCreationCategoriesQuery({
     enabled: open,
     fetchProductCreationCategories: services.fetchProductCreationCategories,
+    onSessionEnded,
+  });
+  const brands = useProductCreationBrandsQuery({
+    enabled: open,
+    fetchProductCreationBrands: services.fetchProductCreationBrands,
+    onSessionEnded,
+  });
+  const tags = useProductCreationTagsQuery({
+    enabled: open,
+    fetchProductCreationTags: services.fetchProductCreationTags,
     onSessionEnded,
   });
   const choices = useSupplierItemLinkChoicesQuery({
@@ -137,6 +164,17 @@ export function CreateProductFromSupplierItemModal({
         showFieldError("categoryId", SUPPLIER_ITEM_PRODUCT_CATEGORY_NOT_LEAF_ERROR);
         return;
       }
+      if (outcome.kind === "brand_inactive") {
+        showFieldError("brandId", PRODUCT_BRAND_INACTIVE_ERROR);
+        return;
+      }
+      if (outcome.kind === "tag_inactive") {
+        showFieldError(
+          "tagIds",
+          tagInactiveError(tags.status === "loaded" ? tags.value.tags : [], outcome.tagId),
+        );
+        return;
+      }
       setNotice(supplierPriceListChangeNoticeOf(outcome));
     },
   });
@@ -154,6 +192,21 @@ export function CreateProductFromSupplierItemModal({
     PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   );
 
+  const catalog = useProductCreationChoicesRefresh();
+  const brandCreation = useStackedBrandCreation(
+    (brandId) => form.setFieldValue("brandId", brandId),
+    catalog,
+  );
+  const tagCreation = useStackedTagCreation(
+    (tagId) => form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+    catalog,
+  );
+  const closeForm = () => {
+    brandCreation.finish();
+    tagCreation.finish();
+    onClose();
+  };
+
   useEffect(() => {
     if (target) {
       reset(supplierItemProductFormValuesOf(target, list.version));
@@ -162,8 +215,18 @@ export function CreateProductFromSupplierItemModal({
       setGenerateRateLimit(null);
       setShown(target);
       setNotice(null);
+      brandCreation.reset();
+      tagCreation.reset();
     }
-  }, [target, list.version, reset, chips.reset, generate.reset]);
+  }, [
+    target,
+    list.version,
+    reset,
+    chips.reset,
+    generate.reset,
+    brandCreation.reset,
+    tagCreation.reset,
+  ]);
 
   const vatRates = choices.status === "loaded" ? choices.value.vatRates : null;
   const vatRateOptions = vatRates === null ? undefined : vatRateOptionsOf(vatRates);
@@ -176,32 +239,30 @@ export function CreateProductFromSupplierItemModal({
 
   const categoryOptions =
     categories.status === "loaded" ? categorySelectOptions(categories.value) : undefined;
+  const productData = combineCloudData(combineCloudData(categories, brands), tags);
   const dataStatus = list.requiresVatRate
-    ? combineCloudData(categories, choices).status
-    : categories.status;
+    ? combineCloudData(productData, choices).status
+    : productData.status;
 
-  function categoryField() {
+  function statusPlaceholder(
+    data: Exclude<CloudData<unknown>, { status: "loaded" }>,
+    what: string,
+  ) {
+    return data.status === "failed" ? (
+      <LoadFailure {...cloudLoadFailure(data, what)} />
+    ) : (
+      <LoadingPlaceholder variant="form" fields={1} />
+    );
+  }
+
+  function categoryPlaceholder() {
     if (categories.status === "loading") {
       return <LoadingPlaceholder variant="form" fields={1} />;
     }
     if (categories.status === "failed") {
       return <LoadFailure {...cloudLoadFailure(categories, "las categorías")} />;
     }
-    if (!categoryOptions) {
-      return <EmptyState icon={<Tags />} title="No hay categorías para elegir" variant="blank" />;
-    }
-    return (
-      <form.AppField name="categoryId">
-        {(field) => (
-          <field.Select
-            label="Categoría"
-            placeholder="Elegí una categoría"
-            options={categoryOptions}
-            required
-          />
-        )}
-      </form.AppField>
-    );
+    return <EmptyState icon={<Tags />} title="No hay categorías para elegir" variant="blank" />;
   }
 
   return (
@@ -209,7 +270,7 @@ export function CreateProductFromSupplierItemModal({
       open={open}
       onOpenChange={(next) => {
         if (!next) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -225,7 +286,7 @@ export function CreateProductFromSupplierItemModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -270,7 +331,6 @@ export function CreateProductFromSupplierItemModal({
             />
           )}
           <div className="flex flex-wrap items-end gap-6">
-            <SupplierItemFact label="Nombre">{row.description}</SupplierItemFact>
             {row.code === null ? null : (
               <SupplierItemFact label="Código">{row.code}</SupplierItemFact>
             )}
@@ -281,17 +341,39 @@ export function CreateProductFromSupplierItemModal({
               <SupplierItemFact label="Precio">{formatCents(row.priceCents)}</SupplierItemFact>
             )}
           </div>
-          <FieldGroup label="Unidad de venta" required>
-            <form.AppField name="saleUnit">
-              {(field) => (
-                <field.OptionCardGroup
-                  label="Unidad de venta"
-                  options={SALE_UNIT_OPTIONS}
-                  required
-                />
-              )}
-            </form.AppField>
-          </FieldGroup>
+          <ProductFields
+            form={form}
+            fields={PRODUCT_GROUP_FIELDS}
+            categories={
+              categoryOptions
+                ? { state: "loaded", options: categoryOptions }
+                : { state: "unavailable", placeholder: categoryPlaceholder() }
+            }
+            brands={
+              brands.status === "loaded"
+                ? {
+                    state: "loaded",
+                    items: brands.value,
+                    creation: mayCreateBrandsAndTags ? brandCreation : null,
+                  }
+                : { state: "unavailable", placeholder: statusPlaceholder(brands, "las marcas") }
+            }
+            tags={
+              tags.status === "loaded"
+                ? {
+                    state: "loaded",
+                    items: tags.value.tags,
+                    creation: mayCreateBrandsAndTags ? tagCreation : null,
+                  }
+                : {
+                    state: "unavailable",
+                    placeholder: statusPlaceholder(tags, "los distintivos"),
+                  }
+            }
+            chips={chips}
+            generation={generate.generation}
+            disabled={submitting}
+          />
           <div className="grid grid-cols-3 items-start gap-3">
             {row.presentation === null ? (
               <div className="col-span-2">
@@ -314,12 +396,6 @@ export function CreateProductFromSupplierItemModal({
               </form.AppField>
             </div>
           </div>
-          <div className="grid grid-cols-2 items-start gap-3">
-            <form.AppField name="barcodes">
-              {() => <BarcodeChips chips={chips} generation={generate.generation} />}
-            </form.AppField>
-            {categoryField()}
-          </div>
           {list.requiresVatRate ? (
             choices.status === "failed" ? (
               <LoadFailure {...cloudLoadFailure(choices, "el IVA")} />
@@ -335,6 +411,26 @@ export function CreateProductFromSupplierItemModal({
                 </form.AppField>
               </div>
             )
+          ) : null}
+          {mayCreateBrandsAndTags ? (
+            <>
+              <NewBrandModal
+                open={brandCreation.open}
+                context="Marcas"
+                createBrand={services.createBrand}
+                onCreated={brandCreation.select}
+                onClose={brandCreation.close}
+                onSessionEnded={onSessionEnded}
+              />
+              <NewTagModal
+                open={tagCreation.open}
+                context="Distintivos"
+                services={{ createTag: services.createTag }}
+                onCreated={tagCreation.select}
+                onClose={tagCreation.close}
+                onSessionEnded={onSessionEnded}
+              />
+            </>
           ) : null}
         </div>
       ) : null}

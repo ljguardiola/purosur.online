@@ -1,10 +1,5 @@
-import {
-  createBrand,
-  deactivateBrand,
-  editBrand,
-  fetchBrands,
-  reactivateBrand,
-} from "./brands-api";
+import { createBrand } from "../platform/brand-creation-api";
+import { deactivateBrand, editBrand, fetchBrands, reactivateBrand } from "./brands-api";
 
 export type BrandsListScreenServices = {
   fetchBrands: typeof fetchBrands;

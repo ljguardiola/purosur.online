@@ -31,7 +31,11 @@ export class FakeSupplierItemProductStore implements SupplierItemProductStore {
   snapshot(): FakeSupplierItemProductState {
     return {
       lists: this.lists.snapshot(),
-      products: this.products.map((product) => ({ ...product, barcodes: [...product.barcodes] })),
+      products: this.products.map((product) => ({
+        ...product,
+        barcodes: [...product.barcodes],
+        tagIds: [...product.tagIds],
+      })),
       packagings: this.packagings.map((packaging) => ({ ...packaging })),
     };
   }
@@ -83,7 +87,12 @@ export class FakeSupplierItemProductStore implements SupplierItemProductStore {
               return this.catalogRefusal;
             }
             const id = `product-new-${this.products.length + 1}`;
-            this.products.push({ id, ...input, barcodes: [...input.barcodes] });
+            this.products.push({
+              id,
+              ...input,
+              barcodes: [...input.barcodes],
+              tagIds: [...input.tagIds],
+            });
             return { kind: "created", productId: id };
           },
           insertPackaging: async (fields) => {

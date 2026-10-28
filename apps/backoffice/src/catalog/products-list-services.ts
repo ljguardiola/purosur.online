@@ -1,5 +1,7 @@
+import { createBrand } from "../platform/brand-creation-api";
 import { generateInternalBarcode } from "../platform/internal-barcodes-api";
-import { createBrand, fetchBrands } from "./brands-api";
+import { createTag } from "../platform/tag-creation-api";
+import { fetchBrands } from "./brands-api";
 import { fetchCategories } from "./categories-api";
 import type { DeactivateProductModalServices } from "./deactivate-product-modal";
 import type { EditProductModalServices } from "./edit-product-modal";
@@ -14,7 +16,7 @@ import {
   reactivateProduct,
 } from "./products-api";
 import type { ReactivateProductModalServices } from "./reactivate-product-modal";
-import { createTag, fetchTags } from "./tags-api";
+import { fetchTags } from "./tags-api";
 
 export type ProductsListScreenServices = {
   fetchProducts: typeof fetchProducts;

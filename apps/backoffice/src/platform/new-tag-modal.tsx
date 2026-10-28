@@ -1,8 +1,8 @@
 import { type TagSummary, tagCreationBodySchema } from "@purosur/contracts";
 import { Sparkles } from "lucide-react";
 import { NameCreationModal, type NameCreationOutcome } from "./name-creation-modal";
-import { TAG_NAME_TAKEN, tagNameMessage } from "./tag-form";
-import type { createTag } from "./tags-api";
+import type { createTag } from "./tag-creation-api";
+import { TAG_NAME_TAKEN, tagNameMessage } from "./tag-name";
 
 export type NewTagModalServices = {
   createTag: typeof createTag;

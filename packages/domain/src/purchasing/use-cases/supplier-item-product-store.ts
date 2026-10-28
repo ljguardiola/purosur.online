@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
 import type { NewPackagingFields } from "./purchasing-store.js";
 import type {
   SupplierItemLink,
@@ -8,13 +8,20 @@ import type {
 export interface CreateCatalogProductInput {
   name: string;
   categoryId: string;
+  brandId: string | null;
   saleUnit: SaleUnit;
   barcodes: string[];
+  tagIds: string[];
+  netContent: { quantity: number; unit: NetContentUnit } | null;
 }
 
 export type CreateCatalogProductOutcome =
   | { kind: "category_not_found" }
   | { kind: "category_not_leaf" }
+  | { kind: "brand_not_found" }
+  | { kind: "brand_inactive" }
+  | { kind: "tag_not_found" }
+  | { kind: "tag_inactive"; tagId: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; productId: string };
 

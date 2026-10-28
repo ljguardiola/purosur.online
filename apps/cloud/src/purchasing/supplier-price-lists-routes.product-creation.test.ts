@@ -3,11 +3,14 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  brands,
   categories,
   productBarcodes,
   productPackagings,
   products,
+  productTags,
   supplierPriceListRows,
+  tags,
 } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -66,9 +69,13 @@ const extractedListWithRow = (
 async function validBody(overrides: object = {}) {
   return {
     version: 1,
+    name: "Yerba mate 1 kg",
     saleUnit: "UNIT",
     categoryId: await insertLeafCategory(db),
+    brandId: null,
     barcodes: ["7790000000001"],
+    tagIds: [],
+    netContent: null,
     packagingName: "Caja x 10",
     quantityPerPackage: 10_000,
     vatRate: 2_100,
@@ -151,7 +158,7 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it("creates the product and its packaging named as the list states them with the given sale unit, links them, and answers 201 with their ids", async () => {
+  it("creates the product named as given and its packaging named as the list states it, with the given sale unit, links them, and answers 201 with their ids", async () => {
     const { headers } = await manager();
     const { listId, rowId } = await extractedListWithRow(
       {},
@@ -172,7 +179,7 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     };
     const [product] = await db.select().from(products).where(eq(products.id, productId));
     expect(product).toMatchObject({
-      name: "Yerba 1 kg",
+      name: "Yerba mate 1 kg",
       saleUnit: "KG",
       categoryId: body.categoryId,
       active: true,
@@ -195,6 +202,136 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
       linkedByPerson: true,
     });
     expect(await storedListVersion(db, listId)).toBe(2);
+  });
+
+  it("creates the product with the brand, the tags and the net content given", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const [brand] = await db.insert(brands).values({ name: "Dulcor" }).returning();
+    const [tag] = await db.insert(tags).values({ name: "Vegano" }).returning();
+    const body = await validBody({
+      brandId: brand?.id,
+      tagIds: [tag?.id],
+      netContent: { quantity: 125, unit: "ML" },
+    });
+
+    const response = await createProduct(headers, listId, rowId, body);
+
+    expect(response.statusCode).toBe(201);
+    const { productId } = response.json() as { productId: string };
+    const [product] = await db.select().from(products).where(eq(products.id, productId));
+    expect(product).toMatchObject({
+      brandId: brand?.id,
+      netContentQuantity: 125,
+      netContentUnit: "ML",
+    });
+    const tagged = await db.select().from(productTags).where(eq(productTags.productId, productId));
+    expect(tagged.map((row) => row.tagId)).toEqual([tag?.id]);
+  });
+
+  it("answers 400 naming netContentQuantity for a net content quantity that is not valid, creating nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+
+    const response = await createProduct(
+      headers,
+      listId,
+      rowId,
+      await validBody({ netContent: { quantity: 0, unit: "ML" } }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "netContentQuantity" }],
+    });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it("answers 400 naming name for a blank name, creating nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+
+    const response = await createProduct(headers, listId, rowId, await validBody({ name: " " }));
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "name" }],
+    });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it("answers 400 naming brandId for a brand that does not exist, creating nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+
+    const response = await createProduct(
+      headers,
+      listId,
+      rowId,
+      await validBody({ brandId: MISSING_ID }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "brandId" }],
+    });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it("answers 409 brand_inactive for a deactivated brand, creating nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const [brand] = await db.insert(brands).values({ name: "Dulcor", active: false }).returning();
+
+    const response = await createProduct(
+      headers,
+      listId,
+      rowId,
+      await validBody({ brandId: brand?.id }),
+    );
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "brand_inactive" });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it("answers 400 naming tagIds for a tag that does not exist, creating nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+
+    const response = await createProduct(
+      headers,
+      listId,
+      rowId,
+      await validBody({ tagIds: [MISSING_ID] }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "tagIds" }],
+    });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it("answers 409 tag_inactive naming the deactivated tag, creating nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const [tag] = await db.insert(tags).values({ name: "Vegano", active: false }).returning();
+
+    const response = await createProduct(
+      headers,
+      listId,
+      rowId,
+      await validBody({ tagIds: [tag?.id] }),
+    );
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "tag_inactive", tagId: tag?.id });
+    expect(await db.select().from(products)).toHaveLength(0);
   });
 
   it("answers 404 for a list or a row that does not exist", async () => {
@@ -287,22 +424,31 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it.each([
-    ["name_too_long", { description: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) }],
-    ["presentation_too_long", { presentation: "a".repeat(PACKAGING_NAME_MAX_LENGTH + 1) }],
-  ])(
-    "answers 409 %s for an item whose list text does not fit, creating nothing",
-    async (code, row) => {
-      const { headers } = await manager();
-      const { listId, rowId } = await extractedListWithRow({}, row);
+  it("answers 409 presentation_too_long for an item whose list presentation does not fit, creating nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow(
+      {},
+      { presentation: "a".repeat(PACKAGING_NAME_MAX_LENGTH + 1) },
+    );
 
-      const response = await createProduct(headers, listId, rowId, await validBody());
+    const response = await createProduct(headers, listId, rowId, await validBody());
 
-      expect(response.statusCode).toBe(409);
-      expect(response.json()).toMatchObject({ code });
-      expect(await db.select().from(products)).toHaveLength(0);
-    },
-  );
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "presentation_too_long" });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it("creates the product named as given even when the item's description is longer than a product's name may be", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow(
+      {},
+      { description: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) },
+    );
+
+    const response = await createProduct(headers, listId, rowId, await validBody());
+
+    expect(response.statusCode).toBe(201);
+  });
 
   it("answers 409 vat_rate_missing for a list whose prices exclude VAT when no rate was given, creating nothing", async () => {
     const { headers } = await manager();

@@ -4,14 +4,13 @@ import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-reac
 import { useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { TAG_NAME_TAKEN, tagNameMessage } from "../platform/tag-name";
 import type { TagReload } from "./catalog-queries";
 import {
   EMPTY_TAG_EDIT_FORM,
   renameReachText,
   TAG_EDIT_FIELDS,
-  TAG_NAME_TAKEN,
   tagEditRequestFrom,
-  tagNameMessage,
 } from "./tag-form";
 import type { editTag } from "./tags-api";
 

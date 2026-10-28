@@ -1,11 +1,4 @@
-import {
-  type TagCreationBody,
-  type TagEditBody,
-  type TagList,
-  type TagSummary,
-  tagListSchema,
-  tagSummarySchema,
-} from "@purosur/contracts";
+import { type TagEditBody, type TagList, tagListSchema } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -17,12 +10,6 @@ type RequestRefusal =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-export type CreateTagOutcome =
-  | { kind: "ok"; tag: TagSummary }
-  | { kind: "validation_failed"; field: string }
-  | { kind: "name_taken" }
-  | RequestRefusal;
 
 export type EditTagInput = { name: string; version: number };
 
@@ -78,28 +65,6 @@ export async function fetchTags(): Promise<FetchTagsOutcome> {
   }
   const parsed = tagListSchema.safeParse(await response.json().catch(() => undefined));
   return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
-}
-
-export async function createTag(input: { name: string }): Promise<CreateTagOutcome> {
-  const requestBody: TagCreationBody = { name: input.name };
-  let response: Response;
-  try {
-    response = await sendJson("POST", "/api/tags", requestBody);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    const parsed = tagSummarySchema.safeParse(await response.json().catch(() => undefined));
-    return parsed.success ? { kind: "ok", tag: parsed.data } : { kind: "failed" };
-  }
-  if (response.status === 400) {
-    const field = await readValidationFailedField(response);
-    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
-  }
-  if (response.status === 409) {
-    return { kind: "name_taken" };
-  }
-  return refusal(response);
 }
 
 export async function editTag(id: string, input: EditTagInput): Promise<EditTagOutcome> {

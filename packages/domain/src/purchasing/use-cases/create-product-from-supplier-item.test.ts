@@ -34,9 +34,13 @@ const input = {
   listId: "list-1",
   rowId: "row-1",
   version: 3,
+  name: "Yerba mate 1 kg",
   saleUnit: "UNIT" as SaleUnit,
   categoryId: "category-1",
+  brandId: null as string | null,
   barcodes: ["7790001000012"],
+  tagIds: [] as string[],
+  netContent: null as { quantity: number; unit: "KG" | "G" | "ML" | "L" | "UNIT" } | null,
   packagingName: null as string | null,
   quantityPerPackage: 10_000,
   vatRate: 2100 as number | null,
@@ -44,7 +48,7 @@ const input = {
 };
 
 describe("createProductFromSupplierItem", () => {
-  it("creates the product and its purchase presentation named as the list states them and links the row to them", async () => {
+  it("creates the product with the name given, its purchase presentation named as the list states it, and links the row to them", async () => {
     const store = setup();
 
     const outcome = await createProductFromSupplierItem(store, input);
@@ -58,10 +62,13 @@ describe("createProductFromSupplierItem", () => {
     expect(state.products).toEqual([
       {
         id: "product-new-1",
-        name: "Yerba 1 kg",
+        name: "Yerba mate 1 kg",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "UNIT",
         barcodes: ["7790001000012"],
+        tagIds: [],
+        netContent: null,
       },
     ]);
     expect(state.packagings).toEqual([
@@ -80,6 +87,32 @@ describe("createProductFromSupplierItem", () => {
       editedBy: "person-1",
     });
     expect(state.lists.lists[0]?.version).toBe(4);
+  });
+
+  it("creates the product with the brand, the tags and the net content given", async () => {
+    const store = setup();
+
+    await createProductFromSupplierItem(store, {
+      ...input,
+      brandId: "brand-1",
+      tagIds: ["tag-1", "tag-2"],
+      netContent: { quantity: 125, unit: "ML" },
+    });
+
+    expect(store.snapshot().products[0]).toMatchObject({
+      brandId: "brand-1",
+      tagIds: ["tag-1", "tag-2"],
+      netContent: { quantity: 125, unit: "ML" },
+    });
+  });
+
+  it("names the product as given even when the item's description is longer than a product's name may be", async () => {
+    const store = setup({}, { description: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) });
+
+    const outcome = await createProductFromSupplierItem(store, input);
+
+    expect(outcome.kind).toBe("created");
+    expect(store.snapshot().products[0]?.name).toBe("Yerba mate 1 kg");
   });
 
   it("names the presentation as the list states it even when another name is given", async () => {
@@ -263,13 +296,6 @@ describe("createProductFromSupplierItem", () => {
       expect(store.callOrder).toEqual(["lockList", "lockRow"]);
     });
 
-    it("answers name_too_long for an item whose description is longer than a product's name may be", async () => {
-      const store = setup({}, { description: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) });
-
-      expect(await refusedWithNothingWritten(store)).toEqual({ kind: "name_too_long" });
-      expect(store.callOrder).toEqual(["lockList", "lockRow"]);
-    });
-
     it("answers presentation_too_long for an item whose presentation is longer than a presentation's name may be", async () => {
       const store = setup({}, { presentation: "a".repeat(PACKAGING_NAME_MAX_LENGTH + 1) });
 
@@ -315,6 +341,10 @@ describe("createProductFromSupplierItem", () => {
     const catalogRefusals: NonNullable<FakeSupplierItemProductStore["catalogRefusal"]>[] = [
       { kind: "category_not_found" },
       { kind: "category_not_leaf" },
+      { kind: "brand_not_found" },
+      { kind: "brand_inactive" },
+      { kind: "tag_not_found" },
+      { kind: "tag_inactive", tagId: "tag-1" },
       { kind: "barcode_taken", codes: ["7790001000012"] },
     ];
 
