@@ -97,3 +97,29 @@ export function insertCreditNoteIssuedOffline(
     )
     .run({ corrected_point_of_sale: corrects.pointOfSale, corrected_number: corrects.number });
 }
+
+export function insertReturnCreditNote(
+  database: LocalDatabase,
+  { id, returnId }: { id: string; returnId: string },
+): void {
+  database
+    .prepare(
+      `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES (@return_id, 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-01T10:00:00.000Z')`,
+    )
+    .run({ return_id: returnId });
+  database
+    .prepare(
+      `INSERT INTO sale_credit_notes (
+         id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+         corrected_voucher_type, corrected_point_of_sale, corrected_number, state, point_of_sale,
+         number, issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at,
+         answered_at
+       ) VALUES (
+         @id, 'sale-1', @return_id, '2026-10-01', 350000, 5, 11, 12, 41, 'AUTHORIZED', 12, 8,
+         '2026-10-01', '${ISSUED_AT}', '71234567890998', '2026-10-11', '2026-10-01T10:00:00.000Z',
+         '${ANSWERED_AT}'
+       )`,
+    )
+    .run({ id, return_id: returnId });
+}
