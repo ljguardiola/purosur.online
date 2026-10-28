@@ -1,11 +1,5 @@
 import type { ReturnsReportBody } from "@purosur/contracts";
-import {
-  formatInvoiceNumber,
-  formatNumber,
-  formatOperationNumber,
-  formatPointOfSaleNumber,
-  formatWeight,
-} from "@purosur/ui";
+import { formatInvoiceNumber, formatOperationNumber, formatPointOfSaleNumber } from "@purosur/ui";
 
 type ReturnRow = ReturnsReportBody["typed"]["rows"][number];
 type ReturnLine = ReturnRow["lines"][number];
@@ -19,10 +13,6 @@ const DISPOSITION_TEXT: Record<ReturnLine["disposition"], string> = {
   restock: "vuelve a la venta",
   discard: "se descarta",
 };
-
-export function returnedQuantityText(saleUnit: ReturnLine["sale_unit"], quantity: number): string {
-  return saleUnit === "KG" ? formatWeight(quantity) : `${formatNumber(quantity)} u`;
-}
 
 export function returnLineDetail({
   reason,
