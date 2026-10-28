@@ -11,7 +11,7 @@ export interface SaleLinesGroup {
   lines: number;
 }
 
-export interface WeighedLinesCount {
+interface WeighedLinesCount {
   weighedLines: number;
   typedLines: number;
 }
