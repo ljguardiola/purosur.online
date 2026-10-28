@@ -938,6 +938,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1049,6 +1050,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1155,6 +1157,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1260,6 +1263,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1394,6 +1398,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1518,6 +1523,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1646,6 +1652,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1782,6 +1789,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1885,6 +1893,7 @@ describe("the register's local migrations", () => {
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
+        "0089_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5807,13 +5816,21 @@ describe("the register's local migrations", () => {
           occurred_at: "2026-09-30T15:11:00.000Z",
         },
       ]);
+      after
+        .prepare(
+          `INSERT INTO sale_credit_notes (
+             id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+             corrected_point_of_sale, corrected_number, state, recorded_at
+           ) VALUES ('note-1', 'sale-1', 1000, 5, 11, 12, 41, 'IN_PROGRESS', '2026-09-30T15:00:00.000Z')`,
+        )
+        .run();
       const reprint = (document: string, orderNumber: number) =>
         after
           .prepare(
-            `INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
-             VALUES ('sale-1', ?, ?, 'u1', 'retry', '2026-09-30T15:12:00.000Z')`,
+            `INSERT INTO sale_reprints (sale_id, document, credit_note_id, order_number, requested_by, reason_kind, occurred_at)
+             VALUES ('sale-1', ?, ?, ?, 'u1', 'retry', '2026-09-30T15:12:00.000Z')`,
           )
-          .run(document, orderNumber);
+          .run(document, document === "credit_note" ? "note-1" : null, orderNumber);
       expect(() => reprint("credit_note", 1)).not.toThrow();
       expect(() => reprint("credit_note", 1)).toThrow(/UNIQUE|PRIMARY KEY/);
       expect(() => reprint("sale_receipt", 2)).toThrow(/UNIQUE|PRIMARY KEY/);
@@ -6279,6 +6296,10 @@ describe("the deferred sale invoice prints migration", () => {
          VALUES ('s1', 'r1', 'device-1', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
          INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
          VALUES ('sale-1', 'r1', 'device-1', 's1', 'u1', 'COMPLETED', '2026-09-30T15:05:00.000Z', 1);
+         INSERT INTO sale_void_credit_notes (
+           id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+           corrected_point_of_sale, corrected_number, state, recorded_at
+         ) VALUES ('note-1', 'sale-1', 1000, 5, 11, 12, 41, 'IN_PROGRESS', '2026-09-30T15:00:00.000Z');
          INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at)
          VALUES ('sale-1', 'sale_receipt', 1, 'u1', 'u2', 'requested', 'Se mojo', '2026-09-30T15:10:00.000Z'),
                 ('sale-1', 'credit_note', 1, 'u1', NULL, 'retry', NULL, '2026-09-30T15:11:00.000Z');`,
@@ -6318,8 +6339,8 @@ describe("the deferred sale invoice prints migration", () => {
       const reprint = (document: string, orderNumber: number) =>
         after
           .prepare(
-            `INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
-             VALUES ('sale-1', ?, ?, 'u1', 'retry', '2026-09-30T15:12:00.000Z')`,
+            `INSERT INTO sale_reprints (sale_id, document, credit_note_id, order_number, requested_by, reason_kind, occurred_at)
+             VALUES ('sale-1', ?, NULL, ?, 'u1', 'retry', '2026-09-30T15:12:00.000Z')`,
           )
           .run(document, orderNumber);
       expect(() => reprint("deferred_invoice", 1)).not.toThrow();
