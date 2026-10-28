@@ -145,8 +145,8 @@ describe("recording the credit note a register issued under a pre-obtained code"
       completedAt: new Date("2026-10-06T11:30:00.000Z"),
       total: 4800,
     });
-    const recorded = anOfflineCreditNoteFact({ registerId, saleId });
-    await record(recorded, deviceId);
+    const creditNoteId = randomUUID();
+    await record(anOfflineCreditNoteFact({ registerId, saleId, creditNoteId }), deviceId);
 
     await expect(
       record(
@@ -154,7 +154,7 @@ describe("recording the credit note a register issued under a pre-obtained code"
           registerId,
           saleId: anotherSaleId,
           number: 4,
-          creditNoteId: recorded.document.creditNoteId,
+          creditNoteId,
         }),
         deviceId,
       ),
