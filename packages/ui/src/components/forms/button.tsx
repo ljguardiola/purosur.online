@@ -187,7 +187,7 @@ export function Button({
     return (
       <Tooltip description={disabledReason}>
         <AriaFocusable>
-          <button type="button" aria-disabled="true" className={className}>
+          <button type="button" aria-disabled="true" data-variant={variant} className={className}>
             {content}
           </button>
         </AriaFocusable>
@@ -199,6 +199,7 @@ export function Button({
     <AriaButton
       {...props}
       isDisabled={disabled || (dataStatus !== undefined && dataStatus !== "loaded")}
+      data-variant={variant}
       className={className}
     >
       {content}

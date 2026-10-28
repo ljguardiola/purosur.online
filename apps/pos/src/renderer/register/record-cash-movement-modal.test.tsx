@@ -204,6 +204,22 @@ describe("RecordCashMovementModal", () => {
     expect(onRecorded).toHaveBeenCalledOnce();
   });
 
+  it("records the movement with Ctrl+Enter pressed from the field being typed in", async () => {
+    const { screen, recordCashMovement, onRecorded } = await renderModal();
+    await choose(screen, "Gasto");
+    await fill(screen, "5.000,50", "Flete");
+
+    await userEvent.keyboard("{Control>}{Enter}{/Control}");
+
+    await expect.poll(() => onRecorded.mock.calls.length).toBe(1);
+    expect(recordCashMovement).toHaveBeenCalledExactlyOnceWith({
+      kind: "CASH_OUT",
+      amount: 500_050,
+      reason: "Flete",
+      authorization: undefined,
+    });
+  });
+
   it.each([
     ["", "Ingresá el importe."],
     ["abc", "Ingresá un importe válido, por ejemplo 5.000,00."],
