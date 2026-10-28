@@ -1,8 +1,4 @@
-import {
-  type CashMovementsBody,
-  cashMovementsSchema,
-  type ReportQuery,
-} from "@purosur/contracts";
+import { type CashMovementsBody, cashMovementsSchema, type ReportQuery } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { readCloudJson } from "../platform/read-cloud-json";
 
