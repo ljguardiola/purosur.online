@@ -1,5 +1,6 @@
 import { isValidCuit } from "./cuit.js";
 import {
+  CUIT_DOCUMENT_TYPE,
   FACTURA_C_VOUCHER_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
@@ -8,7 +9,6 @@ import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./fiscal-voucher-type.js";
 import { type DocumentTypeReportState, isOfflineDocumentReported } from "./fortnight-report.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 
-const CUIT_DOCUMENT_TYPE = 80;
 const CUIT_PREFIX_END = 2;
 const CUIT_BODY_END = 10;
 

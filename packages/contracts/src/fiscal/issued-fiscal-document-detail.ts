@@ -1,4 +1,9 @@
-import { PAYMENT_METHODS, POINT_CARD_TYPES } from "@purosur/domain";
+import {
+  BUYER_DOCUMENT_KINDS,
+  PAYMENT_METHODS,
+  POINT_CARD_TYPES,
+  SALE_UNITS,
+} from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
 import { issuedFiscalDocumentSchema } from "./issued-fiscal-documents.js";
@@ -16,17 +21,15 @@ const buyerSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("final_consumer") }),
   z.object({
     kind: z.literal("identified"),
-    document_type: z.int().positive(),
+    document_kind: z.enum(BUYER_DOCUMENT_KINDS),
     document_number: z.int().nonnegative(),
   }),
 ]);
 
 const lineSchema = z.object({
   product_name: z.string(),
-  quantity: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("units"), units: z.int().positive() }),
-    z.object({ kind: z.literal("weight"), grams: z.int().positive() }),
-  ]),
+  sale_unit: z.enum(SALE_UNITS),
+  quantity: z.int().positive(),
   promotion: z.object({ name: z.string() }).nullable(),
   amount: z.int().nonnegative(),
 });

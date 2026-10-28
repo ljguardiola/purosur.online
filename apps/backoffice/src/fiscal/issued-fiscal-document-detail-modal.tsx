@@ -17,9 +17,10 @@ import {
   type Tone,
   useTableModel,
 } from "@purosur/ui";
-import { ArrowLeft, FileSearch, FileText } from "lucide-react";
+import { ArrowLeft, Banknote, FileMinus, FileSearch, FileText, Package } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { paymentLabel } from "../platform/payment-label";
+import { saleUnitQuantityText } from "../platform/sale-unit-quantity";
 import { useIssuedFiscalDocumentQuery } from "./fiscal-queries";
 import {
   authorizationDetailText,
@@ -28,7 +29,6 @@ import {
   correctedVoucherText,
   issuedDay,
   issuedTime,
-  quantityText,
   voucherText,
 } from "./issued-fiscal-document-text";
 import type { fetchIssuedFiscalDocument } from "./issued-fiscal-documents-api";
@@ -65,7 +65,8 @@ const lineColumns = [
   dataColumn({
     id: "quantity",
     header: "Cantidad",
-    render: ({ item }: Numbered<Detail["lines"][number]>) => quantityText(item.quantity),
+    render: ({ item }: Numbered<Detail["lines"][number]>) =>
+      saleUnitQuantityText(item.sale_unit, item.quantity),
   }),
   dataColumn({
     id: "amount",
@@ -100,7 +101,13 @@ function LinesTable({ lines }: { lines: Detail["lines"] }) {
     id: ({ index }) => String(index),
     columns: lineColumns,
   });
-  return <Table aria-label="Productos vendidos" table={table} />;
+  return (
+    <Table
+      aria-label="Productos vendidos"
+      table={table}
+      empty={{ icon: <Package />, title: "Sin productos asociados.", variant: "blank" }}
+    />
+  );
 }
 
 function PaymentsTable({ payments }: { payments: Detail["payments"] }) {
@@ -109,20 +116,23 @@ function PaymentsTable({ payments }: { payments: Detail["payments"] }) {
     id: ({ index }) => String(index),
     columns: paymentColumns,
   });
-  return <Table aria-label="Pagos" table={table} />;
+  return (
+    <Table
+      aria-label="Pagos"
+      table={table}
+      empty={{ icon: <Banknote />, title: "Sin pagos asociados.", variant: "blank" }}
+    />
+  );
 }
 
 function creditNoteRow(creditNote: Detail["credit_notes"][number]): DocumentRowProps {
   return {
     title: voucherText(creditNote),
-    detail: issuedDay(creditNote),
+    detail: `${issuedDay(creditNote)} · ${formatCents(creditNote.total)}`,
     status: (
-      <div className="flex items-center gap-3">
-        <StatusIndicator tone={STATES[creditNote.state].tone}>
-          {STATES[creditNote.state].label}
-        </StatusIndicator>
-        <span className="font-bold text-body">{formatCents(creditNote.total)}</span>
-      </div>
+      <StatusIndicator tone={STATES[creditNote.state].tone}>
+        {STATES[creditNote.state].label}
+      </StatusIndicator>
     ),
   };
 }
@@ -133,7 +143,7 @@ function CreditNotes({ creditNotes }: { creditNotes: Detail["credit_notes"] }) {
     <div className="flex flex-col gap-2">
       <Eyebrow text="Notas de crédito" headingLevel={2} />
       {first === undefined ? (
-        <p className="text-detail text-text-subtle">Sin notas de crédito asociadas.</p>
+        <EmptyState icon={<FileMinus />} title="Sin notas de crédito asociadas." variant="blank" />
       ) : (
         <DocumentList
           label="Notas de crédito"

@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import type { PaymentMethod, PointCardType } from "../../payments/index.js";
 import type { IssuedDocumentBuyer } from "../model/issued-fiscal-document.js";
 import type {
@@ -7,7 +8,8 @@ import type {
 
 export interface IssuedFiscalDocumentLine {
   productName: string;
-  quantity: { kind: "units"; units: number } | { kind: "weight"; grams: number };
+  saleUnit: SaleUnit;
+  quantity: number;
   promotion: { name: string } | null;
   amount: number;
 }

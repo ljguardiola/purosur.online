@@ -112,11 +112,12 @@ export function registerIssuedFiscalDocumentsRoute<TQueryResult extends PgQueryR
               ? { kind: detail.buyer.kind }
               : {
                   kind: detail.buyer.kind,
-                  document_type: detail.buyer.documentType,
+                  document_kind: detail.buyer.documentKind,
                   document_number: detail.buyer.documentNumber,
                 },
           lines: detail.lines.map((line) => ({
             product_name: line.productName,
+            sale_unit: line.saleUnit,
             quantity: line.quantity,
             promotion: line.promotion,
             amount: line.amount,

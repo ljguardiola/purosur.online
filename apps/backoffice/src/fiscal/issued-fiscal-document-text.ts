@@ -9,7 +9,6 @@ import {
   formatInvoiceNumber,
   formatNumber,
   formatPointOfSaleNumber,
-  formatWeight,
   plural,
 } from "@purosur/ui";
 import { schemaText } from "../platform/schema-text";
@@ -86,38 +85,30 @@ export function documentsCountText(
   return `${plural(count, { one: "1 comprobante", other: `${formatNumber(count)} comprobantes` })} · ${period}`;
 }
 
-const IDENTIFIED_DOCUMENT_NAMES: Record<number, string> = {
-  80: "CUIT",
-  86: "CUIL",
-  87: "CDI",
-  96: "DNI",
-};
-
-const TAX_ID_DOCUMENT_TYPES = [80, 86];
+type IdentifiedBuyer = Extract<IssuedFiscalDocumentDetailBody["buyer"], { kind: "identified" }>;
 
 function taxIdText(number: number): string {
   const digits = String(number).padStart(11, "0");
   return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`;
 }
 
+const BUYER_DOCUMENTS: Record<
+  IdentifiedBuyer["document_kind"],
+  { name: string; numberText: (number: number) => string }
+> = {
+  cuit: { name: "CUIT", numberText: taxIdText },
+  cuil: { name: "CUIL", numberText: taxIdText },
+  cdi: { name: "CDI", numberText: String },
+  dni: { name: "DNI", numberText: String },
+  other: { name: "Documento", numberText: String },
+};
+
 export function buyerText(buyer: IssuedFiscalDocumentDetailBody["buyer"]): string {
   if (buyer.kind === "final_consumer") {
     return "Consumidor final";
   }
-  const name =
-    IDENTIFIED_DOCUMENT_NAMES[buyer.document_type] ?? `Documento tipo ${buyer.document_type}`;
-  const number = TAX_ID_DOCUMENT_TYPES.includes(buyer.document_type)
-    ? taxIdText(buyer.document_number)
-    : String(buyer.document_number);
-  return `${name} ${number}`;
-}
-
-export function quantityText(
-  quantity: IssuedFiscalDocumentDetailBody["lines"][number]["quantity"],
-): string {
-  return quantity.kind === "units"
-    ? `${formatNumber(quantity.units)} u`
-    : formatWeight(quantity.grams);
+  const { name, numberText } = BUYER_DOCUMENTS[buyer.document_kind];
+  return `${name} ${numberText(buyer.document_number)}`;
 }
 
 export function correctedVoucherText(voucher: Voucher): string {

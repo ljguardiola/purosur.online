@@ -1,4 +1,11 @@
-import { APPROVED_PAYMENT_STATE, buyerOfIssuedDocument, PAYMENT_METHODS } from "@purosur/domain";
+import {
+  APPROVED_PAYMENT_STATE,
+  buyerOfIssuedDocument,
+  PAYMENT_METHODS,
+  saleUnitOfWeightSource,
+  WEIGHT_SOURCES,
+  type WeightSource,
+} from "@purosur/domain";
 import type {
   IssuedFiscalDocumentDetail,
   IssuedFiscalDocumentDetailReader,
@@ -10,6 +17,17 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { discounts, saleLines, salePayments } from "../platform/db/schema.js";
 import { documentOf, issuedDocuments } from "./drizzle-issued-fiscal-documents-reader.js";
+
+function weightSourceOf(stored: string | null): WeightSource | null {
+  if (stored === null) {
+    return null;
+  }
+  const weightSource = WEIGHT_SOURCES.find((known) => known === stored);
+  if (weightSource === undefined) {
+    throw new Error(`weight source ${stored} is not one a sale line can have`);
+  }
+  return weightSource;
+}
 
 export class DrizzleIssuedFiscalDocumentDetailReader<TQueryResult extends PgQueryResultHKT>
   implements IssuedFiscalDocumentDetailReader
@@ -76,10 +94,8 @@ export class DrizzleIssuedFiscalDocumentDetailReader<TQueryResult extends PgQuer
       .where(eq(saleLines.saleId, saleId));
     return lines.map((line) => ({
       productName: line.productName,
-      quantity:
-        line.weightSource === null
-          ? { kind: "units", units: line.quantity }
-          : { kind: "weight", grams: line.quantity },
+      saleUnit: saleUnitOfWeightSource(weightSourceOf(line.weightSource)),
+      quantity: line.quantity,
       promotion: line.promotionName === null ? null : { name: line.promotionName },
       amount: line.amount,
     }));

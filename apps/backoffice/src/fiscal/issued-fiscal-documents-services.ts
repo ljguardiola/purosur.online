@@ -1,3 +1,4 @@
+import type { IssuedFiscalDocumentDetailModalServices } from "./issued-fiscal-document-detail-modal";
 import {
   fetchFiscalRegisters,
   fetchIssuedFiscalDocument,
@@ -6,9 +7,8 @@ import {
 
 export type IssuedFiscalDocumentsScreenServices = {
   fetchIssuedFiscalDocuments: typeof fetchIssuedFiscalDocuments;
-  fetchIssuedFiscalDocument: typeof fetchIssuedFiscalDocument;
   fetchFiscalRegisters: typeof fetchFiscalRegisters;
-};
+} & IssuedFiscalDocumentDetailModalServices;
 
 export const defaultIssuedFiscalDocumentsScreenServices: IssuedFiscalDocumentsScreenServices = {
   fetchIssuedFiscalDocuments,

@@ -6,6 +6,7 @@ import type { FacturaC } from "./pre-emission-gate.js";
 export const FACTURA_C_VOUCHER_TYPE = 11;
 export const FINAL_CONSUMER_DOCUMENT_TYPE = 99;
 export const FINAL_CONSUMER_DOCUMENT_NUMBER = 0;
+export const CUIT_DOCUMENT_TYPE = 80;
 export const CURRENCY_PESOS = "PES";
 export const EXCHANGE_RATE_PESOS = 1;
 export const AUTHORIZATION_CODE_TYPE_CAE = "E";
