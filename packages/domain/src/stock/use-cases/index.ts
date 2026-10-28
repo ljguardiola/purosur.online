@@ -179,6 +179,7 @@ export type {
 } from "./save-recipe.js";
 export { saveRecipe } from "./save-recipe.js";
 export type {
+  LotCostChoice,
   SetLotReferenceCostInput,
   SetLotReferenceCostOutcome,
 } from "./set-lot-reference-cost.js";

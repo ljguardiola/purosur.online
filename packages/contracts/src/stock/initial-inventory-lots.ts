@@ -6,6 +6,7 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 export const initialInventoryLotsQuerySchema = z
   .object({
@@ -43,12 +44,27 @@ export const initialInventoryLotListSchema = z.object({
 export type InitialInventoryLotList = z.output<typeof initialInventoryLotListSchema>;
 
 const UNIT_COST_MESSAGE = "unitCostCents must be a positive whole number of cents";
+const SUPPLIER_ITEM_MESSAGE = "supplierItemId must be a supplier item's id";
 
-export const lotReferenceCostBodySchema = z.object({
+const typedLotReferenceCostSchema = z.object({
   unitCostCents: z
     .number({ error: UNIT_COST_MESSAGE })
     .refine((cents) => Number.isInteger(cents) && isReferenceUnitCost(cents), UNIT_COST_MESSAGE)
     .meta({ maxValue: MAX_CASH_AMOUNT_CENTS }),
 });
+
+const suppliedLotReferenceCostSchema = z.object({
+  supplierItemId: recordIdSchema(SUPPLIER_ITEM_MESSAGE),
+});
+
+export const lotReferenceCostBodySchema = z.union(
+  [typedLotReferenceCostSchema, suppliedLotReferenceCostSchema],
+  {
+    error: ({ input }) =>
+      typeof input === "object" && input !== null && "supplierItemId" in input
+        ? SUPPLIER_ITEM_MESSAGE
+        : UNIT_COST_MESSAGE,
+  },
+);
 
 export type LotReferenceCostBody = z.input<typeof lotReferenceCostBodySchema>;
