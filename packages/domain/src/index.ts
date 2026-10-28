@@ -849,6 +849,7 @@ export type {
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleLine,
+  SaleLinesGroup,
   SaleStanding,
   SaleStandingDefinition,
   SaleState,

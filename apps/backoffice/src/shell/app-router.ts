@@ -43,6 +43,7 @@ import {
 import { returnsReportRoute } from "../returns/routes";
 import {
   averageTicketRoute,
+  handTypedWeightsRoute,
   manualDiscountsRoute,
   reportsIndexRoute,
   salesByCashierRoute,
@@ -138,6 +139,7 @@ const routeTree = rootRoute.addChildren([
       cashSessionClosesRoute,
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
+      handTypedWeightsRoute,
       averageTicketRoute,
       currentStockReportRoute,
       expiringLotsReportRoute,

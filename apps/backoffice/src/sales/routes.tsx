@@ -73,3 +73,12 @@ export const averageTicketRoute = createRoute({
   search: { middlewares: [stripSearchParams(averageTicketFilters.parse({}))] },
   component: lazyScreen(() => import("./average-ticket-page"), "AverageTicketPage"),
 });
+
+export const handTypedWeightsRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/hand-typed-weights",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportFiltersSearch,
+  search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
+  component: lazyScreen(() => import("./hand-typed-weights-page"), "HandTypedWeightsPage"),
+});
