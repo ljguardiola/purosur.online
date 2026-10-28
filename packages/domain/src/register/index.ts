@@ -30,6 +30,7 @@ export {
   cashMovementReason,
   isValidCashMovementAmount,
 } from "./model/cash-movement-kind.js";
+export type { ReportedCashMovement } from "./model/cash-movements-report.js";
 export type {
   CashMovement,
   CashMovementType,
@@ -39,7 +40,6 @@ export type {
   OpenedCashSession,
 } from "./model/cash-session.js";
 export { CASH_MOVEMENT_TYPES } from "./model/cash-session.js";
-export type { ReportedCashMovement } from "./model/cash-movements-report.js";
 export type { CashSessionClose } from "./model/cash-session-closes.js";
 export type {
   CashMovementRecordedFact,

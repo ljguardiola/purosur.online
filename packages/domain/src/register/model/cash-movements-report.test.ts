@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type ReportedCashMovement, cashMovementsSummary } from "./cash-movements-report.js";
+import { cashMovementsSummary, type ReportedCashMovement } from "./cash-movements-report.js";
 
 function aMovement(overrides: Partial<ReportedCashMovement> = {}): ReportedCashMovement {
   return {
