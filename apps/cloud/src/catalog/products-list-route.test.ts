@@ -6,6 +6,7 @@ import {
   brands,
   categories,
   productBarcodes,
+  prices,
   products,
   productTags,
   rolePermissions,
@@ -19,6 +20,7 @@ import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerProductsListRoute } from "./products-list-route.js";
 import { insertTag } from "./test-support/catalog-route-fixtures.js";
 
@@ -226,6 +228,7 @@ describe("GET /products", () => {
         labelCode: null,
         labelModules: null,
         version: semilla.version,
+        currentUnitPrice: null,
       },
       {
         id: maceta.id,
@@ -241,8 +244,49 @@ describe("GET /products", () => {
         labelCode: null,
         labelModules: null,
         version: maceta.version,
+        currentUnitPrice: null,
       },
     ]);
+  });
+
+  it("gives each product the price the branch charges for it today, none when it has no price", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const priced = await insertProduct({
+      name: "Miel pura",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: [],
+    });
+    const unpriced = await insertProduct({
+      name: "Almendras",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: [],
+    });
+    const priceListId = await seededPriceListId(db);
+    await db.insert(prices).values([
+      { productId: priced.id, priceListId, unitPrice: 1000, validFrom: new Date("2026-01-01") },
+      { productId: priced.id, priceListId, unitPrice: 1250, validFrom: new Date("2026-01-03") },
+    ]);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getProducts(rawSessionId);
+
+    const currentPrices = new Map(
+      response
+        .json()
+        .map((product: { id: string; currentUnitPrice: unknown }) => [
+          product.id,
+          product.currentUnitPrice,
+        ]),
+    );
+    expect(currentPrices).toEqual(
+      new Map([
+        [priced.id, 1250],
+        [unpriced.id, null],
+      ]),
+    );
   });
 
   it("gives each product the internal barcode its label carries, none when it is inactive", async () => {
