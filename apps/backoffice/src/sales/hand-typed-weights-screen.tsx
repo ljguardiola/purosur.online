@@ -5,12 +5,15 @@ import {
   dataColumn,
   FigureStat,
   formatNumber,
+  LoadFailure,
   plural,
   Table,
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
 import { Scale } from "lucide-react";
+import { useId } from "react";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
 import { schemaText } from "../platform/schema-text";
@@ -106,6 +109,8 @@ export function HandTypedWeightsScreen({
   services,
 }: HandTypedWeightsScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const cashiersHeadingId = useId();
+  const sessionsHeadingId = useId();
   const data = useHandTypedWeightsQuery({
     query: reportQueryOf(filters),
     fetchHandTypedWeights: services.fetchHandTypedWeights,
@@ -144,67 +149,81 @@ export function HandTypedWeightsScreen({
           registerFilter={registerFilter}
         />
       </div>
-      {data.status === "failed" ? null : (
-        <div className="grid grid-cols-3 gap-4">
-          {shown ? (
-            <>
-              <Card>
-                <FigureStat
-                  size="heading"
-                  label="Líneas pesadas"
-                  value={formatNumber(shown.totals.weighed_lines)}
-                />
-              </Card>
-              <Card>
-                <FigureStat
-                  size="heading"
-                  label="Tipeadas a mano"
-                  value={formatNumber(shown.totals.typed_lines)}
-                />
-              </Card>
-              <Card>
-                <FigureStat
-                  size="heading"
-                  label="Más tipeadas"
-                  value={topCashier === undefined ? NO_FIGURE : (topCashier.name ?? UNIDENTIFIED)}
-                  {...(topCashier === undefined
-                    ? {}
-                    : {
-                        detail: plural(topCashier.typed_lines, {
-                          one: "1 línea",
-                          other: `${formatNumber(topCashier.typed_lines)} líneas`,
-                        }),
-                      })}
-                />
-              </Card>
-            </>
-          ) : (
-            <>
-              <Card>
-                <FigureStat size="heading" label="Líneas pesadas" loading />
-              </Card>
-              <Card>
-                <FigureStat size="heading" label="Tipeadas a mano" loading />
-              </Card>
-              <Card>
-                <FigureStat size="heading" label="Más tipeadas" loading />
-              </Card>
-            </>
-          )}
-        </div>
+      {data.status === "failed" ? (
+        <LoadFailure {...cloudLoadFailure(data, "el reporte de pesos tipeados a mano")} />
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            {shown ? (
+              <>
+                <Card>
+                  <FigureStat
+                    size="heading"
+                    label="Líneas pesadas"
+                    value={formatNumber(shown.totals.weighed_lines)}
+                  />
+                </Card>
+                <Card>
+                  <FigureStat
+                    size="heading"
+                    label="Tipeadas a mano"
+                    value={formatNumber(shown.totals.typed_lines)}
+                  />
+                </Card>
+                <Card>
+                  <FigureStat
+                    size="heading"
+                    label="Más tipeadas"
+                    value={topCashier === undefined ? NO_FIGURE : (topCashier.name ?? UNIDENTIFIED)}
+                    {...(topCashier === undefined
+                      ? {}
+                      : {
+                          detail: plural(topCashier.typed_lines, {
+                            one: "1 línea",
+                            other: `${formatNumber(topCashier.typed_lines)} líneas`,
+                          }),
+                        })}
+                  />
+                </Card>
+              </>
+            ) : (
+              <>
+                <Card>
+                  <FigureStat size="heading" label="Líneas pesadas" loading />
+                </Card>
+                <Card>
+                  <FigureStat size="heading" label="Tipeadas a mano" loading />
+                </Card>
+                <Card>
+                  <FigureStat size="heading" label="Más tipeadas" loading />
+                </Card>
+              </>
+            )}
+          </div>
+          <section aria-labelledby={cashiersHeadingId} className="flex flex-col gap-3">
+            <h2 id={cashiersHeadingId} className="text-subheading text-text">
+              Por cajero
+            </h2>
+            <Table
+              aria-label="Pesos tipeados a mano por cajero"
+              table={cashiersTable}
+              {...cloudTableState(data, "el reporte de pesos tipeados a mano")}
+              empty={empty}
+            />
+          </section>
+          <section aria-labelledby={sessionsHeadingId} className="flex flex-col gap-3">
+            <h2 id={sessionsHeadingId} className="text-subheading text-text">
+              Por sesión
+            </h2>
+            <Table
+              aria-label="Pesos tipeados a mano por sesión"
+              table={sessionsTable}
+              {...cloudTableState(data, "el reporte de pesos tipeados a mano")}
+              empty={empty}
+            />
+          </section>
+        </>
       )}
-      <Table
-        aria-label="Pesos tipeados a mano por cajero"
-        table={cashiersTable}
-        {...cloudTableState(data, "el reporte de pesos tipeados a mano")}
-        empty={empty}
-      />
-      <Table
-        aria-label="Pesos tipeados a mano por sesión"
-        table={sessionsTable}
-        {...cloudTableState(data, "el reporte de pesos tipeados a mano")}
-        empty={empty}
-      />
     </ScreenLayout>
   );
 }
