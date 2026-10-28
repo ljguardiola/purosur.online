@@ -26,6 +26,7 @@
   "include": [
     "packages/*/src",
     "packages/ui/.storybook",
+    "patches",
     "vitest.config.ts",
     "vitest.mutation.config.ts",
     "vitest.global-setup.playwright-server.ts"

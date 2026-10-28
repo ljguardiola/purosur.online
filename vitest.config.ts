@@ -86,6 +86,7 @@ export default defineConfig({
         "backoffice-build": 1000,
         "register-build": 1000,
         "served-backoffice": 1000,
+        "dependency-patches": 30000,
         "cloud-integration": 5000,
         browser: 2000,
         "catalog-visual": 4000,
@@ -131,6 +132,14 @@ export default defineConfig({
         test: {
           name: "served-backoffice",
           include: ["apps/cloud/*.test.ts"],
+          environment: "node",
+          globalSetup: [r("./vitest.global-setup.playwright-server.ts")],
+        },
+      },
+      {
+        test: {
+          name: "dependency-patches",
+          include: ["patches/*.test.ts"],
           environment: "node",
           globalSetup: [r("./vitest.global-setup.playwright-server.ts")],
         },
