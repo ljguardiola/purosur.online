@@ -304,18 +304,22 @@ export {
   invoiceToCorrect,
 } from "./model/sale-credit-note.js";
 export type {
+  CreditNoteRoutingInvoiceState,
   OfflineCreditNoteClockMark,
   SaleCreditNoteRoute,
   SaleCreditNoteTransaction,
   SaleInvoiceStanding,
 } from "./model/sale-credit-note-route.js";
 export {
+  CREDIT_NOTE_ROUTING_INVOICE_STATES,
+  isCreditNoteRoutingInvoice,
   isInvoiceOnItsWay,
   issueOfflineSaleCreditNote,
   routeSaleCreditNote,
 } from "./model/sale-credit-note-route.js";
 export {
   awaitsUnclearOutcomeDecision,
+  recordedRequestDocumentState,
   TAX_AUTHORITY_HOLDING_ANSWER_KIND,
   TAX_AUTHORITY_HOLDING_DECISION_KIND,
   UNCLEAR_ANSWER_KINDS,

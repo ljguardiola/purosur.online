@@ -61,6 +61,7 @@ export const CASH_PAYMENT: ReturnablePayment = {
   amount: 15_000,
   state: "APPROVED",
   refundedAmount: 0,
+  cardType: null,
 };
 
 export const TRANSFER_PAYMENT: ReturnablePayment = {
@@ -70,6 +71,7 @@ export const TRANSFER_PAYMENT: ReturnablePayment = {
   amount: 6500,
   state: "APPROVED",
   refundedAmount: 0,
+  cardType: null,
 };
 
 export function aSaleForReturn(overrides: Partial<FakeStoredSale> = {}): FakeStoredSale {
@@ -81,7 +83,6 @@ export function aSaleForReturn(overrides: Partial<FakeStoredSale> = {}): FakeSto
       sessionId: "session-1",
       actorId: "cashier",
       state: "COMPLETED",
-      saleDiscount: null,
       lines: [YERBA_LINE, PROMOTED_LINE, CHEESE_LINE],
     },
     occurredAt: SOLD_AT,

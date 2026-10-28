@@ -43,7 +43,11 @@ export {
 } from "./model/receipt-reprint-reason.js";
 export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./model/sale.js";
 export { SALE_STATES_AFTER_COMPLETION } from "./model/sale.js";
-export type { SaleDiscount, SaleDiscountValue } from "./model/sale-discount.js";
+export type {
+  SaleDiscount,
+  SaleDiscountValue,
+  SettledSaleLine,
+} from "./model/sale-discount.js";
 export {
   amountToCharge,
   appliedSaleDiscountAmount,

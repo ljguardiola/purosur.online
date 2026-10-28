@@ -17,6 +17,10 @@ import {
   postToCloudWithBearer,
 } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
+import {
+  BRANCH_SALE_LOOKUP_TIMEOUT_MS,
+  CloudBranchSaleLookup,
+} from "../returns/cloud-branch-sale-lookup";
 import { checkRegisterHealth } from "./check-register-health";
 import { CloudCreditNotes } from "./cloud-credit-notes";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
@@ -201,7 +205,14 @@ export function startRegisterHealthChecks({
     post: (path, bearerToken, body, options) =>
       postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
   });
-  const creditNotes = new SqliteSaleCreditNotes(database);
+  const creditNotes = new SqliteSaleCreditNotes(
+    database,
+    new CloudBranchSaleLookup({
+      timeoutMs: BRANCH_SALE_LOOKUP_TIMEOUT_MS,
+      readDeviceToken,
+      get: (path, headers, options) => getFromCloud(cloudClient, path, headers, options),
+    }),
+  );
   const creditNotesCloud = cloudCreditNotes({ cloudClient, readDeviceToken });
   return startRegisterHealthMonitor({
     check: async () => {

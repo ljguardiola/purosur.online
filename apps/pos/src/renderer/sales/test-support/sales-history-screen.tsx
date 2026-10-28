@@ -77,11 +77,19 @@ export const DETAIL: SaleDetail = {
   operation_number: 482,
   served_by_first_name: "Tomás",
   line_count: 8,
-  payments: [{ method: "CASH", amount: 5_070_000 }],
+  payments: [{ method: "CASH", card_type: null, amount: 5_070_000 }],
   state: "completed",
   voidability: {
     kind: "voidable",
-    refunds: [{ method: "CASH", amount: 5_070_000, state: "APPROVED", sent_by_cloud: false }],
+    refunds: [
+      {
+        method: "CASH",
+        card_type: null,
+        amount: 5_070_000,
+        state: "APPROVED",
+        sent_by_cloud: false,
+      },
+    ],
     credit_note_corrects: { point_of_sale: 3, number: 1248 },
   },
   void_authorization_required: false,

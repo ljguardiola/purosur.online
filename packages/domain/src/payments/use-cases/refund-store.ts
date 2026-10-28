@@ -1,6 +1,6 @@
 import type { AlertKind } from "../../alerts/index.js";
 import type { MercadoPagoRefundStage } from "../model/mercado-pago-refund.js";
-import type { PaymentMethod } from "../model/payment.js";
+import type { PaymentMethod, PointCardType } from "../model/payment.js";
 import type { RefundOrigin } from "../model/payment-refund.js";
 
 export interface LockedRefund {
@@ -18,6 +18,7 @@ export interface PendingRefundRecord {
   registerId: string;
   registerName: string;
   method: string;
+  cardType: PointCardType | null;
   origin: RefundOrigin;
   amount: number;
   occurredAt: Date;

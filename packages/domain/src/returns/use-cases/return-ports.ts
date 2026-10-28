@@ -1,4 +1,9 @@
-import type { SaleCreditNoteTransaction, SaleInvoiceStanding } from "../../fiscal/index.js";
+import type {
+  CreditNoteRoutingInvoiceState,
+  SaleCreditNoteTransaction,
+  SaleInvoice,
+  SaleInvoiceStanding,
+} from "../../fiscal/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { TicketSource } from "../model/return-reasons.js";
 import type { SaleForReturn } from "../model/return-sale.js";
@@ -8,12 +13,48 @@ import type {
   ReturnedStockMovement,
 } from "../model/returned-sale.js";
 import type { TicketReference } from "../model/ticket-reference.js";
+import type { LocalReturnOfSale } from "../model/uncounted-returns.js";
 
 export type SaleReturnSearch = TicketReference | { kind: "sale"; saleId: string };
 
 export interface ReturnSaleReader {
   saleForReturn(search: SaleReturnSearch): SaleForReturn | undefined;
   goodConditionReturnDays(): number;
+}
+
+export interface BranchSaleFacts {
+  sale: SaleForReturn;
+  invoiceStanding: Omit<SaleInvoiceStanding, "fiscalDocuments"> & {
+    fiscalDocuments: readonly (SaleInvoice & { state: CreditNoteRoutingInvoiceState })[];
+  };
+  countedReturnIds: string[];
+}
+
+export type BranchSaleLookupAnswer =
+  | ({ kind: "found" } & BranchSaleFacts)
+  | { kind: "not_found" }
+  | { kind: "unreachable" }
+  | { kind: "failed" };
+
+export interface BranchSaleLookup {
+  saleForReturn(ticket: TicketReference): Promise<BranchSaleLookupAnswer>;
+}
+
+export interface BranchSaleForReturnReader {
+  saleForReturnInBranchOf(
+    registerId: string,
+    ticket: TicketReference,
+  ): Promise<BranchSaleFacts | undefined>;
+}
+
+export interface OwnReturnsOfSale {
+  returnsOfSale(saleId: string): LocalReturnOfSale[];
+}
+
+export type KeptBranchSale = BranchSaleFacts & { ticket: TicketReference };
+
+export interface RetainedBranchSales {
+  keep(sale: KeptBranchSale): void;
 }
 
 export interface IdGenerator {
@@ -23,6 +64,8 @@ export interface IdGenerator {
 export interface ReturningSession {
   id: string;
   openedBy: string;
+  registerId: string;
+  deviceId: string;
 }
 
 export interface RecordedReturn {

@@ -13,18 +13,21 @@ import {
   offlineCreditNoteIssuedEvent,
 } from "./offline-fiscal-document.js";
 import {
+  type FiscalDocumentState,
+  IN_PROGRESS_FISCAL_DOCUMENT_STATE,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceOwnFortnight,
   type OfflineSeries,
   offlineRoute,
 } from "./real-time-authorization.js";
 import { raisedClockMark } from "./register-clock.js";
-import type {
-  CorrectedInvoice,
-  CreditNoteOrigin,
-  CreditNoteToIssue,
-  InvoicedCreditNote,
-  SaleInvoice,
+import {
+  AUTHORIZED_INVOICE_STATE,
+  type CorrectedInvoice,
+  type CreditNoteOrigin,
+  type CreditNoteToIssue,
+  type InvoicedCreditNote,
+  type SaleInvoice,
 } from "./sale-credit-note.js";
 
 export interface SaleInvoiceStanding {
@@ -37,6 +40,19 @@ export function isInvoiceOnItsWay({ fiscalDocuments, deferralPending }: SaleInvo
     deferralPending ||
     fiscalDocuments.some(({ state }) => IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(state))
   );
+}
+
+export const CREDIT_NOTE_ROUTING_INVOICE_STATES = [
+  AUTHORIZED_INVOICE_STATE,
+  IN_PROGRESS_FISCAL_DOCUMENT_STATE,
+] as const satisfies readonly FiscalDocumentState[];
+
+export type CreditNoteRoutingInvoiceState = (typeof CREDIT_NOTE_ROUTING_INVOICE_STATES)[number];
+
+export function isCreditNoteRoutingInvoice<Invoice extends SaleInvoice>(
+  invoice: Invoice,
+): invoice is Invoice & { state: CreditNoteRoutingInvoiceState } {
+  return CREDIT_NOTE_ROUTING_INVOICE_STATES.some((state) => state === invoice.state);
 }
 
 export interface OfflineCreditNoteClockMark {

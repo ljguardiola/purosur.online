@@ -3425,6 +3425,7 @@ describe("the route access inventory", () => {
         url: "/api/devices/current/snapshot-key-version",
         access: PUBLIC_ACCESS,
       },
+      { method: "GET", url: "/api/devices/current/returns/sale", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },

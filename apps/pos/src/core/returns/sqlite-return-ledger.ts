@@ -24,9 +24,9 @@ export function insertReturn(database: LocalDatabase, returned: RecordedReturn):
          id, sale_id, register_id, device_id, session_id, actor_id, authorized_by, ticket_source,
          occurred_at
        )
-       SELECT @id, sales.id, sales.register_id, sales.device_id, @session_id, @actor_id,
-              @authorized_by, @ticket_source, @occurred_at
-       FROM sales WHERE sales.id = @sale_id`,
+       SELECT @id, @sale_id, cash_sessions.register_id, cash_sessions.device_id, cash_sessions.id,
+              @actor_id, @authorized_by, @ticket_source, @occurred_at
+       FROM cash_sessions WHERE cash_sessions.id = @session_id`,
     )
     .run({
       id: returned.id,
@@ -72,7 +72,14 @@ export class SqliteReturnLedger implements ReturnLedger {
       goodConditionReturnDays: () => readGoodConditionReturnDays(this.database),
       openSession: (): ReturningSession | undefined => {
         const session = readOpenSession(this.database);
-        return session && { id: session.id, openedBy: session.openedBy };
+        return (
+          session && {
+            id: session.id,
+            openedBy: session.openedBy,
+            registerId: session.registerId,
+            deviceId: session.deviceId,
+          }
+        );
       },
       outboxReady: () => this.outboxChainKey !== undefined,
       recordReturn: (returned: RecordedReturn) => insertReturn(this.database, returned),

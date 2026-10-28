@@ -346,8 +346,12 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
     }
   }
 
-  saleReturnHistory(saleId: string): Promise<SaleReturnHistory> {
-    return saleReturnHistory(this.tx, saleId);
+  async saleReturnHistory(
+    saleId: string,
+    event: UnappliedEvent,
+  ): Promise<SaleReturnHistory | undefined> {
+    const { locationId } = await this.originOf(event);
+    return saleReturnHistory(this.tx, saleId, locationId);
   }
 
   async applyReturnStock(

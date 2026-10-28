@@ -132,6 +132,7 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
             register_id: refund.registerId,
             register_name: refund.registerName,
             method: refund.method,
+            card_type: refund.cardType,
             origin: refund.origin,
             discardable: refund.discardable,
             amount: refund.amount,

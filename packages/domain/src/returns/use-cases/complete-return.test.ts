@@ -50,7 +50,12 @@ const INPUT: CompleteReturnInput = {
 function ledger(state: Partial<FakeReturnLedgerState> = {}): FakeReturnLedger {
   return new FakeReturnLedger({
     sales: [aSaleForReturn()],
-    openSession: { id: "session-2", openedBy: "cashier" },
+    openSession: {
+      id: "session-2",
+      openedBy: "cashier",
+      registerId: "register-1",
+      deviceId: "device-1",
+    },
     stockBalances: { yerba: 1000, queso: 5000 },
     ...state,
   });
@@ -1088,6 +1093,29 @@ describe("completeReturn credit note", () => {
       expect(store.state.issuedOfflineCreditNotes).toEqual([OFFLINE_CREDIT_NOTE]);
       expect(store.state.creditNotes).toEqual([]);
       expect(store.transactions).toBe(1);
+    });
+
+    it("reports the return and the credit note under the register of the open session, not the one that rang the sale up", async () => {
+      const [rungUp] = offlineLedger().state.sales;
+      const store = offlineLedger({
+        sales: [
+          {
+            ...(rungUp as NonNullable<typeof rungUp>),
+            sale: {
+              ...(rungUp as NonNullable<typeof rungUp>).sale,
+              registerId: "register-9",
+              deviceId: "device-9",
+            },
+          },
+        ],
+      });
+
+      await complete(store);
+
+      expect(store.state.outbox[0]).toMatchObject({
+        payload: { register_id: "register-1", device_id: "device-1" },
+      });
+      expect(store.state.outbox[1]).toMatchObject({ payload: { register_id: "register-1" } });
     });
 
     it("appends the return first and the contingency credit note's report event after it", async () => {

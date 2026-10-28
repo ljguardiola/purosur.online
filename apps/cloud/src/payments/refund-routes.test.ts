@@ -170,6 +170,25 @@ describe("GET /refunds/pending", () => {
     ]);
   });
 
+  it("lists the pending refund of a Point payment with its card type, and none for other methods", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const transferId = await aPendingRefund();
+    const point = await aPendingPointRefundOfCancelledSale(db, {
+      cancelledAt: NOW,
+      registerName: "Caja 2",
+    });
+
+    const response = await pendingRefunds(headers);
+
+    const body = pendingRefundsSchema.parse(response.json());
+    expect(body.refunds.map(({ id, method, card_type }) => ({ id, method, card_type }))).toEqual(
+      expect.arrayContaining([
+        { id: point.refundId, method: "POINT", card_type: "DEBIT" },
+        { id: transferId, method: "TRANSFER", card_type: null },
+      ]),
+    );
+  });
+
   it("lists the refund of a late payment beside the refunds of cancelled sales, each with its origin and whether it can be discarded", async () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
     const cancelledId = await aPendingRefund();

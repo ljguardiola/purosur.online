@@ -77,10 +77,10 @@ export function amountToCharge(sale: DiscountedSale): number {
   return saleTotal(sale.lines) - appliedSaleDiscountAmount(sale);
 }
 
-export function settledLines(sale: {
-  lines: readonly SaleLine[];
+export function settledLines<TLine extends Pick<SaleLine, "lineTotal">>(sale: {
+  lines: readonly TLine[];
   saleDiscount: SaleDiscount | null;
-}): SettledSaleLine[] {
+}): (TLine & { saleDiscountShare: number })[] {
   const { lines } = sale;
   const shares = spreadSaleDiscount(
     lines.map((line) => line.lineTotal),

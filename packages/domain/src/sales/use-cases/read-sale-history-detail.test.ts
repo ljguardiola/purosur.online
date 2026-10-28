@@ -38,8 +38,8 @@ function historySale(
       lineCount: 3,
       total: 7500,
       payments: [
-        { method: "CASH", amount: 5000 },
-        { method: "TRANSFER", amount: 2500 },
+        { method: "CASH", amount: 5000, cardType: null },
+        { method: "TRANSFER", amount: 2500, cardType: null },
       ],
       fiscal: {
         deferred: false,
@@ -94,15 +94,21 @@ describe("readSaleHistoryDetail", () => {
         servedByFirstName: "Marta",
         lineCount: 3,
         payments: [
-          { method: "CASH", amount: 5000 },
-          { method: "TRANSFER", amount: 2500 },
+          { method: "CASH", amount: 5000, cardType: null },
+          { method: "TRANSFER", amount: 2500, cardType: null },
         ],
         standing: "completed",
         voidability: {
           kind: "voidable",
           refunds: [
-            { method: "CASH", amount: 5000, state: "APPROVED", sentByCloud: false },
-            { method: "TRANSFER", amount: 2500, state: "PENDING", sentByCloud: false },
+            { method: "CASH", cardType: null, amount: 5000, state: "APPROVED", sentByCloud: false },
+            {
+              method: "TRANSFER",
+              cardType: null,
+              amount: 2500,
+              state: "PENDING",
+              sentByCloud: false,
+            },
           ],
           creditNoteCorrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
         },
@@ -201,7 +207,7 @@ describe("readSaleHistoryDetail", () => {
   });
 
   describe("whether the sale may be voided", () => {
-    const CASH_ONLY = [{ method: "CASH" as const, amount: 7500 }];
+    const CASH_ONLY = [{ method: "CASH" as const, amount: 7500, cardType: null }];
     const NO_INVOICE = { deferred: true, fiscalDocument: null };
     const NOT_INVOICED = { fiscal: NO_INVOICE, invoices: [] };
 
@@ -217,17 +223,29 @@ describe("readSaleHistoryDetail", () => {
         voidability({
           ...NOT_INVOICED,
           payments: [
-            { method: "CASH", amount: 5000 },
-            { method: "TRANSFER", amount: 1500 },
-            { method: "STANDALONE_TERMINAL", amount: 1000 },
+            { method: "CASH", amount: 5000, cardType: null },
+            { method: "TRANSFER", amount: 1500, cardType: null },
+            { method: "STANDALONE_TERMINAL", amount: 1000, cardType: null },
           ],
         }),
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "CASH", amount: 5000, state: "APPROVED", sentByCloud: false },
-          { method: "TRANSFER", amount: 1500, state: "PENDING", sentByCloud: false },
-          { method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING", sentByCloud: false },
+          { method: "CASH", cardType: null, amount: 5000, state: "APPROVED", sentByCloud: false },
+          {
+            method: "TRANSFER",
+            cardType: null,
+            amount: 1500,
+            state: "PENDING",
+            sentByCloud: false,
+          },
+          {
+            method: "STANDALONE_TERMINAL",
+            cardType: null,
+            amount: 1000,
+            state: "PENDING",
+            sentByCloud: false,
+          },
         ],
         creditNoteCorrects: null,
       });
@@ -292,15 +310,21 @@ describe("readSaleHistoryDetail", () => {
         voidability({
           ...NOT_INVOICED,
           payments: [
-            { method: "QR", amount: 7500 },
-            { method: "POINT", amount: 1200 },
+            { method: "QR", amount: 7500, cardType: null },
+            { method: "POINT", amount: 1200, cardType: "CREDIT" },
           ],
         }),
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "QR", amount: 7500, state: "PENDING", sentByCloud: true },
-          { method: "POINT", amount: 1200, state: "PENDING", sentByCloud: true },
+          { method: "QR", cardType: null, amount: 7500, state: "PENDING", sentByCloud: true },
+          {
+            method: "POINT",
+            cardType: "CREDIT",
+            amount: 1200,
+            state: "PENDING",
+            sentByCloud: true,
+          },
         ],
         creditNoteCorrects: null,
       });

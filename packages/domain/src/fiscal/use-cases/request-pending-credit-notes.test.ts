@@ -78,8 +78,9 @@ function register(
   replies: CloudReply[] = [],
   pointOfSale: number | null = 12,
   standings: Record<string, SaleInvoiceStanding> = {},
+  refreshed: Record<string, SaleInvoiceStanding> = {},
 ) {
-  const creditNotes = new FakeRegisterCreditNotes(pending, pointOfSale, standings);
+  const creditNotes = new FakeRegisterCreditNotes(pending, pointOfSale, standings, refreshed);
   const cloud = new FakeCloudCreditNotes(replies);
   const run = () => requestPendingCreditNotes({ creditNotes, cloud, clock: new ManualClock(NOW) });
   return { creditNotes, cloud, run };
@@ -225,6 +226,87 @@ describe("requestPendingCreditNotes", () => {
       });
       expect(creditNotes.answered.size).toBe(0);
       expect(cloud.calls).toEqual([]);
+    });
+
+    describe("whose invoice was on its way when the register last learned of it", () => {
+      it("learns the invoice from the branch sale again and ties the credit note to it", async () => {
+        const { creditNotes, cloud, run } = register(
+          [awaitingNote(1)],
+          [AUTHORIZED],
+          12,
+          { "sale-1": ON_ITS_WAY },
+          { "sale-1": INVOICED },
+        );
+
+        await run();
+
+        expect(creditNotes.refreshLookups).toEqual(["sale-1"]);
+        expect([...creditNotes.tied.keys()]).toEqual(["credit-note-1"]);
+        expect(cloud.calls.map(({ invoice }) => invoice !== undefined)).toEqual([true]);
+      });
+
+      it.each([
+        ["the branch sale could not be asked", {}],
+        ["the invoice is still on its way", { "sale-1": ON_ITS_WAY }],
+      ])("stays in progress, asking the cloud for nothing, when %s", async (_name, refreshed) => {
+        const { creditNotes, cloud, run } = register(
+          [awaitingNote(1)],
+          [AUTHORIZED],
+          12,
+          { "sale-1": ON_ITS_WAY },
+          refreshed,
+        );
+
+        expect(await run()).toEqual({
+          kind: "requested",
+          answers: [{ creditNoteId: "credit-note-1", answer: { kind: "in_progress" } }],
+        });
+
+        expect(creditNotes.refreshLookups).toEqual(["sale-1"]);
+        expect(creditNotes.answered.size).toBe(0);
+        expect(creditNotes.tied.size).toBe(0);
+        expect(cloud.calls).toEqual([]);
+      });
+
+      it("records that a person must regularize it when the branch sale says no invoice is on its way any more", async () => {
+        const { creditNotes, run } = register(
+          [awaitingNote(1)],
+          [],
+          12,
+          { "sale-1": ON_ITS_WAY },
+          { "sale-1": NEVER },
+        );
+
+        await run();
+
+        expect(creditNotes.answered.get("credit-note-1")?.answer).toEqual({
+          kind: "regularization_required",
+        });
+      });
+
+      it("is not asked again for a sale with an invoice, even while another one is on its way", async () => {
+        const { creditNotes, run } = register([awaitingNote(1)], [AUTHORIZED], 12, {
+          "sale-1": { fiscalDocuments: [AUTHORIZED_INVOICE], deferralPending: true },
+        });
+
+        await run();
+
+        expect(creditNotes.refreshLookups).toEqual([]);
+        expect([...creditNotes.tied.keys()]).toEqual(["credit-note-1"]);
+      });
+
+      it.each([
+        ["an invoice", INVOICED],
+        ["no invoice on its way", NEVER],
+      ])("is not asked again for a sale with %s", async (_name, standing) => {
+        const { creditNotes, run } = register([awaitingNote(1)], [AUTHORIZED], 12, {
+          "sale-1": standing,
+        });
+
+        await run();
+
+        expect(creditNotes.refreshLookups).toEqual([]);
+      });
     });
 
     it("records that a person must regularize those no invoice is on its way to, and goes on", async () => {

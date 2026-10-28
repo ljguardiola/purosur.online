@@ -17,6 +17,7 @@ const refund: Record<string, unknown> = {
   register_id: REGISTER_ID,
   register_name: "Caja 1",
   method: "TRANSFER",
+  card_type: null,
   origin: "sale_cancelled",
   discardable: false,
   amount: 2000,
@@ -37,6 +38,18 @@ describe("pendingRefundsSchema", () => {
     const list = { refunds: [refund, { ...refund, id: SALE_ID }] };
 
     expect(pendingRefundsSchema.parse(list)).toEqual(list);
+  });
+
+  it.each(["DEBIT", "CREDIT"])("accepts a Point refund paid by %s card", (card_type) => {
+    const list = { refunds: [{ ...refund, method: "POINT", card_type }] };
+
+    expect(pendingRefundsSchema.parse(list)).toEqual(list);
+  });
+
+  it.each([undefined, "PREPAID"])("refuses a refund whose card type is %s", (card_type) => {
+    const list = { refunds: [{ ...refund, card_type }] };
+
+    expect(pendingRefundsSchema.safeParse(list).success).toBe(false);
   });
 
   it("accepts a branch without pending refunds", () => {

@@ -149,6 +149,10 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import {
+  BRANCH_SALE_LOOKUP_TIMEOUT_MS,
+  CloudBranchSaleLookup,
+} from "./returns/cloud-branch-sale-lookup";
+import {
   completeReturnFor,
   findSaleForReturnFor,
   previewReturnFor,
@@ -893,6 +897,15 @@ const startupRecovery = takingStartupStep(
 });
 await startupRecovery.authorizationsSettled;
 
+const branchSaleLookup = new CloudBranchSaleLookup({
+  timeoutMs: BRANCH_SALE_LOOKUP_TIMEOUT_MS,
+  readDeviceToken,
+  get: async (path, headers, options) =>
+    cloudClient === undefined
+      ? { kind: "unreachable" }
+      : getFromCloud(cloudClient, path, headers, options),
+});
+
 const returnRequestDeps = (
   database: NonNullable<typeof localDatabase>,
   gate: NonNullable<typeof actionGate>,
@@ -904,6 +917,7 @@ const returnRequestDeps = (
   now,
   ids: uuidV7Ids,
   creditNotes: cloudCreditNotes({ cloudClient, readDeviceToken }),
+  branchSales: branchSaleLookup,
   invoicing: deferredSaleInvoicing,
   printCreditNote: receiptPrinting.printSaleCreditNote,
   reportFailure: (error) => reportFailure("settling the credit note of a return", error),
@@ -1352,7 +1366,11 @@ const rendererRequestDeps: RendererRequestDeps = {
   findSaleForReturn:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (request) => findSaleForReturnFor(returnRequestDeps(localDatabase, actionGate), request),
+      : (request) =>
+          findSaleForReturnFor(
+            { ...returnRequestDeps(localDatabase, actionGate), branchSales: branchSaleLookup },
+            request,
+          ),
   previewReturn:
     localDatabase === undefined || actionGate === undefined
       ? undefined

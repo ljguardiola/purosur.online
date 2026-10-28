@@ -11,13 +11,14 @@ import {
   type VoucherReference,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   creditNotes,
   pointOfSaleClaims,
   registerPointsOfSale,
+  registers,
   saleCreditNoteRefusals,
 } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
@@ -57,15 +58,15 @@ class DrizzleSaleCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     return current !== undefined;
   }
 
-  async registerIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
+  async branchIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
+    const requesting = alias(registers, "requesting_register");
     const [claim] = await this.db
       .select({ registerId: pointOfSaleClaims.registerId })
       .from(pointOfSaleClaims)
+      .innerJoin(registers, eq(registers.id, pointOfSaleClaims.registerId))
+      .innerJoin(requesting, eq(requesting.locationId, registers.locationId))
       .where(
-        and(
-          eq(pointOfSaleClaims.registerId, registerId),
-          eq(pointOfSaleClaims.pointOfSaleNumber, pointOfSale),
-        ),
+        and(eq(requesting.id, registerId), eq(pointOfSaleClaims.pointOfSaleNumber, pointOfSale)),
       );
     return claim !== undefined;
   }

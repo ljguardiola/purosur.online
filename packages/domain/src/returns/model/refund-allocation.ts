@@ -2,6 +2,7 @@ import {
   APPROVED_PAYMENT_STATE,
   exceedsRefundable,
   type PaymentMethod,
+  type PointCardType,
   refundableAmount,
 } from "../../payments/index.js";
 
@@ -12,6 +13,7 @@ export interface ReturnablePayment {
   amount: number;
   state: string;
   refundedAmount: number;
+  cardType: PointCardType | null;
 }
 
 export type PaymentIneligibleReason = "not_cash" | "nothing_left";
@@ -21,6 +23,7 @@ export interface PaymentRefundability {
   method: PaymentMethod;
   amount: number;
   refundedAmount: number;
+  cardType: PointCardType | null;
   remaining: number;
   eligible: boolean;
   ineligibleReason: PaymentIneligibleReason | null;
@@ -57,6 +60,7 @@ export function returnablePayments(payments: readonly ReturnablePayment[]): Paym
       method: payment.method,
       amount: payment.amount,
       refundedAmount: payment.refundedAmount,
+      cardType: payment.cardType,
       remaining: refundableAmount(payment.amount, payment.refundedAmount),
       eligible: ineligibleReason === null,
       ineligibleReason,

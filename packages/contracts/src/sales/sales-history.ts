@@ -3,6 +3,7 @@ import {
   FISCAL_AUTHORIZATIONS,
   PAYMENT_METHODS,
   PLANNED_REFUND_STATES,
+  POINT_CARD_TYPES,
   SALE_STANDINGS,
   SALE_VOID_REFUSALS,
 } from "@purosur/domain";
@@ -65,6 +66,7 @@ const saleVoidabilitySchema = z.discriminatedUnion("kind", [
     refunds: z.array(
       z.object({
         method: z.enum(PAYMENT_METHODS),
+        card_type: z.enum(POINT_CARD_TYPES).nullable(),
         amount: z.int().nonnegative(),
         state: z.enum(PLANNED_REFUND_STATES),
         sent_by_cloud: z.boolean(),
@@ -85,7 +87,13 @@ const saleHistoryDetailSchema = z.object({
   operation_number: operationNumberSchema,
   served_by_first_name: z.string(),
   line_count: z.int().nonnegative(),
-  payments: z.array(z.object({ method: z.enum(PAYMENT_METHODS), amount: z.int() })),
+  payments: z.array(
+    z.object({
+      method: z.enum(PAYMENT_METHODS),
+      card_type: z.enum(POINT_CARD_TYPES).nullable(),
+      amount: z.int(),
+    }),
+  ),
   state: saleStateSchema,
   voidability: saleVoidabilitySchema,
   void_authorization_required: z.boolean(),

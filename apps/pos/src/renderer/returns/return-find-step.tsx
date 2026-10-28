@@ -70,6 +70,8 @@ export function ReturnFindStep({
         break;
       case "not_found":
       case "voided":
+      case "needs_connection":
+      case "lookup_failed":
         setRefusal(outcome.kind);
         break;
       case "not_signed_in":

@@ -74,6 +74,7 @@ export function toWireSaleForReturn(sale: SaleForReturnView, rules: ZoneRules): 
     payments: sale.payments.map((payment) => ({
       payment_id: payment.paymentId,
       method: payment.method,
+      card_type: payment.cardType,
       amount: payment.amount,
       refunded_amount: payment.refundedAmount,
       remaining: payment.remaining,

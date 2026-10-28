@@ -262,6 +262,7 @@ const FOUND = {
       {
         payment_id: "pay-cash",
         method: "CASH",
+        card_type: null,
         amount: 15_000,
         refunded_amount: 0,
         remaining: 15_000,
@@ -271,6 +272,7 @@ const FOUND = {
       {
         payment_id: "pay-transfer",
         method: "TRANSFER",
+        card_type: null,
         amount: 6500,
         refunded_amount: 0,
         remaining: 6500,
@@ -469,5 +471,27 @@ describe("the answer to completing a return", () => {
       returnsCoreToRendererMessageSchema.safeParse(result("complete-return-result", outcome))
         .success,
     ).toBe(false);
+  });
+});
+
+describe("the outcome of finding the sale to return", () => {
+  it("tells the renderer that a sale of another register needs a connection", () => {
+    const message = {
+      type: "find-sale-for-return-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "needs_connection" },
+    };
+
+    expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("tells the renderer that looking for a sale of another register failed", () => {
+    const message = {
+      type: "find-sale-for-return-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "lookup_failed" },
+    };
+
+    expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 });
