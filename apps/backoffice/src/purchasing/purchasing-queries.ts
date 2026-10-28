@@ -276,15 +276,24 @@ export function useProductCreationTagsQuery(params: {
 
 export function useProductCreationChoicesRefresh() {
   const client = useQueryClient();
-  const keys = [purchasingKeys.productCreationBrands, purchasingKeys.productCreationTags];
   return {
     markStale: async () => {
-      await Promise.all(
-        keys.map((queryKey) => client.invalidateQueries({ queryKey, refetchType: "none" })),
-      );
+      await Promise.all([
+        client.invalidateQueries({
+          queryKey: purchasingKeys.productCreationBrands,
+          refetchType: "none",
+        }),
+        client.invalidateQueries({
+          queryKey: purchasingKeys.productCreationTags,
+          refetchType: "none",
+        }),
+      ]);
     },
     refresh: async () => {
-      await Promise.all(keys.map((queryKey) => client.invalidateQueries({ queryKey })));
+      await Promise.all([
+        client.invalidateQueries({ queryKey: purchasingKeys.productCreationBrands }),
+        client.invalidateQueries({ queryKey: purchasingKeys.productCreationTags }),
+      ]);
     },
   };
 }
