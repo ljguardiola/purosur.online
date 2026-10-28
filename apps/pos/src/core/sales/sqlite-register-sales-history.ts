@@ -20,7 +20,7 @@ import type {
   SalesHistoryPage,
 } from "@purosur/domain/sales/use-cases";
 import { readUncancelledDeferredSaleRecord } from "../fiscal/sqlite-deferred-sales";
-import { readCreditNoteOfSale } from "../fiscal/sqlite-sale-credit-notes";
+import { readCreditNotesOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
@@ -150,7 +150,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     if (sale === undefined) {
       return undefined;
     }
-    const creditNote = readCreditNoteOfSale(this.database, sale.id);
     return {
       saleId: sale.id,
       occurredAt: new Date(sale.occurred_at),
@@ -167,8 +166,11 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       voided: sale.voided === 1,
       inOpenSession: sale.in_open_session === 1,
       invoices: readSaleInvoices(this.database, sale.id),
-      creditNote: creditNote?.answer ?? null,
-      creditNoteId: creditNote?.creditNoteId ?? null,
+      creditNotes: readCreditNotesOfSale(this.database, sale.id).map((note) => ({
+        creditNoteId: note.creditNoteId,
+        origin: note.origin.kind,
+        standing: note.answer,
+      })),
       deferredInvoiceIssued:
         readUncancelledDeferredSaleRecord(this.database, sale.id)?.satisfied === true,
       deferredShortCode: sale.deferred_short_code,

@@ -1900,6 +1900,12 @@ describe("asking for the detail of one sale of the history", () => {
     expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  const CREDIT_NOTE = {
+    credit_note_id: "credit-note-1",
+    origin: "sale_void",
+    standing: { kind: "in_progress" },
+    next_copy: null,
+  };
   const detail = {
     sale_id: "sale-1",
     occurred_at: "2026-10-08T12:00:00.000Z",
@@ -1922,11 +1928,9 @@ describe("asking for the detail of one sale of the history", () => {
       credit_note_corrects: { point_of_sale: 3, number: 1204 },
     },
     void_authorization_required: false,
-    credit_note: null,
-    credit_note_id: null,
+    credit_notes: [],
     reprint: { kind: "available" },
     next_copy: { kind: "duplicate", order_number: 2 },
-    credit_note_next_copy: null,
     deferred_invoice_next_copy: null,
     short_code: null,
   };
@@ -1946,10 +1950,14 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, void_authorization_required: true } },
     {
       kind: "found",
-      detail: { ...detail, credit_note_next_copy: { kind: "duplicate", order_number: 1 } },
+      detail: {
+        ...detail,
+        credit_notes: [
+          { ...CREDIT_NOTE, next_copy: { kind: "duplicate", order_number: 1 } },
+          { ...CREDIT_NOTE, credit_note_id: "credit-note-2", origin: "sale_return" },
+        ],
+      },
     },
-    { kind: "found", detail: { ...detail, credit_note_next_copy: { kind: "original" } } },
-    { kind: "found", detail: { ...detail, credit_note_id: "credit-note-1" } },
     { kind: "found", detail: { ...detail, deferred_invoice_next_copy: { kind: "original" } } },
     {
       kind: "found",
@@ -1981,22 +1989,29 @@ describe("asking for the detail of one sale of the history", () => {
       detail: {
         ...detail,
         state: "voided",
-        credit_note: {
-          kind: "authorized",
-          point_of_sale: 3,
-          number: 41,
-          issued_on: "2026-10-07",
-          authorization_code: "75123456789099",
-          authorization_code_due_on: "2026-10-17",
-        },
+        credit_notes: [
+          {
+            ...CREDIT_NOTE,
+            standing: {
+              kind: "authorized",
+              point_of_sale: 3,
+              number: 41,
+              issued_on: "2026-10-07",
+              authorization_code: "75123456789099",
+              authorization_code_due_on: "2026-10-17",
+            },
+          },
+        ],
       },
     },
-    { kind: "found", detail: { ...detail, state: "voided", credit_note: { kind: "in_progress" } } },
-    { kind: "found", detail: { ...detail, state: "voided", credit_note: { kind: "rejected" } } },
-    {
+    ...["in_progress", "rejected", "already_credited", "regularization_required"].map((kind) => ({
       kind: "found",
-      detail: { ...detail, state: "voided", credit_note: { kind: "already_credited" } },
-    },
+      detail: {
+        ...detail,
+        state: "voided",
+        credit_notes: [{ ...CREDIT_NOTE, standing: { kind } }],
+      },
+    })),
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -2013,11 +2028,21 @@ describe("asking for the detail of one sale of the history", () => {
       detail: { ...detail, payments: [{ method: "CARD", card_type: null, amount: 1 }] },
     },
     { kind: "found", detail: { ...detail, next_copy: { kind: "reprint" } } },
-    { kind: "found", detail: { ...detail, credit_note_id: undefined } },
-    { kind: "found", detail: { ...detail, credit_note_id: "" } },
-    { kind: "found", detail: { ...detail, credit_note_id: 7 } },
-    { kind: "found", detail: { ...detail, credit_note_next_copy: undefined } },
-    { kind: "found", detail: { ...detail, credit_note_next_copy: { kind: "reprint" } } },
+    { kind: "found", detail: { ...detail, credit_notes: undefined } },
+    {
+      kind: "found",
+      detail: { ...detail, credit_notes: [{ ...CREDIT_NOTE, credit_note_id: "" }] },
+    },
+    { kind: "found", detail: { ...detail, credit_notes: [{ ...CREDIT_NOTE, credit_note_id: 7 }] } },
+    {
+      kind: "found",
+      detail: { ...detail, credit_notes: [{ ...CREDIT_NOTE, next_copy: undefined }] },
+    },
+    {
+      kind: "found",
+      detail: { ...detail, credit_notes: [{ ...CREDIT_NOTE, next_copy: { kind: "reprint" } }] },
+    },
+    { kind: "found", detail: { ...detail, credit_notes: [{ ...CREDIT_NOTE, origin: "refund" }] } },
     { kind: "found", detail: { ...detail, deferred_invoice_next_copy: undefined } },
     { kind: "found", detail: { ...detail, deferred_invoice_next_copy: { kind: "reprint" } } },
     { kind: "found", detail: { ...detail, short_code: undefined } },
@@ -2033,9 +2058,17 @@ describe("asking for the detail of one sale of the history", () => {
       kind: "found",
       detail: { ...detail, voidability: { kind: "not_voidable", refusal: "carries_invoice" } },
     },
-    { kind: "found", detail: { ...detail, credit_note: undefined } },
-    { kind: "found", detail: { ...detail, credit_note: { kind: "issued" } } },
-    { kind: "found", detail: { ...detail, credit_note: { kind: "authorized", number: 41 } } },
+    {
+      kind: "found",
+      detail: { ...detail, credit_notes: [{ ...CREDIT_NOTE, standing: { kind: "issued" } }] },
+    },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        credit_notes: [{ ...CREDIT_NOTE, standing: { kind: "authorized", number: 41 } }],
+      },
+    },
     { kind: "found", detail: { ...detail, voidability: { kind: "voidable" } } },
     {
       kind: "found",

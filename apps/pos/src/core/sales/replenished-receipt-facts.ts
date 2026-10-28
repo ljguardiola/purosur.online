@@ -7,6 +7,8 @@ type ReceiptFact = Extract<SyncedFact, { kind: "sale_print_state_changed" | "rep
 
 type SalePrintState = Extract<ReceiptFact, { kind: "sale_print_state_changed" }>["printState"];
 
+type SaleReprint = Extract<ReceiptFact, { kind: "reprint_recorded" }>["reprint"];
+
 interface Printing {
   print_attempted_at: string | null;
   printed_at: string | null;
@@ -43,32 +45,37 @@ function requireHeldSale(database: LocalDatabase, saleId: string): void {
 }
 
 function heldCreditNoteId(database: LocalDatabase, saleId: string, named: string | null): string {
-  const held = database
-    .prepare<[string], { id: string }>("SELECT id FROM sale_credit_notes WHERE sale_id = ?")
-    .all(saleId)
-    .map(({ id }) => id);
   if (named === null) {
-    const [only] = held;
-    if (only === undefined || held.length > 1) {
-      throw new Error(`sale ${saleId} holds ${held.length} credit notes and the print names none`);
+    const ofVoid = database
+      .prepare<[string], { id: string }>(
+        "SELECT id FROM sale_credit_notes WHERE sale_id = ? AND return_id IS NULL",
+      )
+      .get(saleId);
+    if (ofVoid === undefined) {
+      throw new Error(`sale ${saleId} holds no credit note of its void and the event names none`);
     }
-    return only;
+    return ofVoid.id;
   }
-  if (!held.includes(named)) {
+  const held = database
+    .prepare<[string, string], { id: string }>(
+      "SELECT id FROM sale_credit_notes WHERE sale_id = ? AND id = ?",
+    )
+    .get(saleId, named);
+  if (held === undefined) {
     throw new Error(`credit note ${named} is not held by sale ${saleId}`);
   }
   return named;
 }
 
-function keyOf(database: LocalDatabase, printState: SalePrintState): PrintedDocumentKey {
-  requireHeldSale(database, printState.saleId);
-  return printState.document === "credit_note"
+function keyOf(database: LocalDatabase, named: SalePrintState | SaleReprint): PrintedDocumentKey {
+  requireHeldSale(database, named.saleId);
+  return named.document === "credit_note"
     ? {
         document: "credit_note",
-        saleId: printState.saleId,
-        creditNoteId: heldCreditNoteId(database, printState.saleId, printState.creditNoteId),
+        saleId: named.saleId,
+        creditNoteId: heldCreditNoteId(database, named.saleId, named.creditNoteId),
       }
-    : { document: printState.document, saleId: printState.saleId };
+    : { document: named.document, saleId: named.saleId };
 }
 
 function isLater(candidate: Date, held: string | null): boolean {
@@ -78,14 +85,24 @@ function isLater(candidate: Date, held: string | null): boolean {
 export function applyReplenishedReceiptFact(database: LocalDatabase, fact: ReceiptFact): void {
   if (fact.kind === "reprint_recorded") {
     const { reprint } = fact;
-    requireHeldSale(database, reprint.saleId);
+    const key = keyOf(database, reprint);
     const held = database
       .prepare(
-        "SELECT 1 FROM sale_reprints WHERE sale_id = ? AND document = ? AND order_number = ?",
+        "SELECT 1 FROM sale_reprints WHERE sale_id = ? AND document = ? AND credit_note_id IS ? AND order_number = ?",
       )
-      .get(reprint.saleId, reprint.document, reprint.orderNumber);
+      .get(
+        reprint.saleId,
+        reprint.document,
+        key.document === "credit_note" ? key.creditNoteId : null,
+        reprint.orderNumber,
+      );
     if (held === undefined) {
-      insertReprint(database, reprint);
+      insertReprint(
+        database,
+        key.document === "credit_note"
+          ? { ...reprint, document: "credit_note", creditNoteId: key.creditNoteId }
+          : { ...reprint, document: key.document },
+      );
     }
     return;
   }

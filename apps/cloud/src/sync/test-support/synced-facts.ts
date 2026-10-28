@@ -292,21 +292,34 @@ export function aSalePrintStateFact(
   };
 }
 
-export function aReprintFact(
-  overrides: Partial<FactOf<"reprint_recorded">["reprint"]> = {},
-): FactOf<"reprint_recorded"> {
+type Reprint = FactOf<"reprint_recorded">["reprint"];
+
+type ReprintFields = Partial<Omit<Reprint, "document" | "creditNoteId">>;
+
+type ReprintOverrides =
+  | (ReprintFields & { document?: "sale_receipt" | "deferred_invoice" })
+  | (ReprintFields & { document: "credit_note"; creditNoteId?: string | null });
+
+export function aReprintFact(overrides: ReprintOverrides = {}): FactOf<"reprint_recorded"> {
+  const facts = {
+    saleId: overrides.saleId ?? randomUUID(),
+    orderNumber: overrides.orderNumber ?? 1,
+    requestedBy: overrides.requestedBy ?? USER,
+    authorizedBy: overrides.authorizedBy ?? null,
+    reason: overrides.reason ?? ({ kind: "retry" } as const),
+    occurredAt: overrides.occurredAt ?? new Date("2026-10-06T11:30:00.000Z"),
+  };
   return {
     kind: "reprint_recorded",
-    reprint: {
-      saleId: randomUUID(),
-      document: "sale_receipt",
-      orderNumber: 1,
-      requestedBy: USER,
-      authorizedBy: null,
-      reason: { kind: "retry" },
-      occurredAt: new Date("2026-10-06T11:30:00.000Z"),
-      ...overrides,
-    },
+    reprint:
+      overrides.document === "credit_note"
+        ? {
+            ...facts,
+            document: "credit_note",
+            creditNoteId:
+              overrides.creditNoteId === undefined ? randomUUID() : overrides.creditNoteId,
+          }
+        : { ...facts, document: overrides.document ?? "sale_receipt" },
   };
 }
 
