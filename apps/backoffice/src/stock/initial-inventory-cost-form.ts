@@ -1,7 +1,8 @@
 import { type LotReferenceCostBody, lotReferenceCostBodySchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { formatCents, parseAmountCents } from "@purosur/ui";
+import { formatCalendarDayNumeric, formatCents, parseAmountCents } from "@purosur/ui";
 import { schemaLimit } from "../platform/schema-limit";
+import type { InitialInventoryLot } from "./edit-lot-cost-modal";
 
 const COST_REQUIRED = "Ingresá el costo de referencia.";
 const COST_MALFORMED = "Escribí el costo con coma para los decimales, por ejemplo 10.180,50.";
@@ -9,12 +10,30 @@ const UNIT_COST_SCHEMA = lotReferenceCostBodySchema.options[0].shape.unitCostCen
 const COST_OUT_OF_RANGE = `Ingresá un costo mayor a cero, de hasta ${formatCents(schemaLimit(UNIT_COST_SCHEMA.meta()?.["maxValue"]))}.`;
 const COST_REVIEW = "Revisá el costo.";
 
-export type CostFormValues = { cost: string };
+export type CostFormValues = { cost: string; supplierItemId: string | null };
 
-export const EMPTY_COST_FORM: CostFormValues = { cost: "" };
+export const EMPTY_COST_FORM: CostFormValues = { cost: "", supplierItemId: null };
 
-export function costRequestFrom({ cost }: CostFormValues): LotReferenceCostBody {
-  return { unitCostCents: parseAmountCents(cost) ?? Number.NaN };
+export const supplierPriceMessage = "Elegí el precio de un proveedor.";
+
+export function costFormValuesOf({ supplierPrices }: InitialInventoryLot): CostFormValues {
+  const chosen = supplierPrices.find((price) => price.current) ?? supplierPrices[0];
+  return { ...EMPTY_COST_FORM, supplierItemId: chosen?.supplierItemId ?? null };
+}
+
+export function costRequestFrom({ cost, supplierItemId }: CostFormValues): LotReferenceCostBody {
+  return supplierItemId === null
+    ? { unitCostCents: parseAmountCents(cost) ?? Number.NaN }
+    : { supplierItemId };
+}
+
+export function supplierPriceOptions({ saleUnit, supplierPrices }: InitialInventoryLot) {
+  const unit = saleUnit === "KG" ? "kg" : "unidad";
+  return supplierPrices.map((price) => ({
+    value: price.supplierItemId,
+    label: `${price.supplierName} · ${price.packagingName}`,
+    description: `${formatCents(price.unitCostCents)} por ${unit} · Lista del ${formatCalendarDayNumeric(price.listDate)}${price.cheapest ? " · La más barata" : ""}`,
+  }));
 }
 
 export function costMessage({ cost }: CostFormValues): string {
