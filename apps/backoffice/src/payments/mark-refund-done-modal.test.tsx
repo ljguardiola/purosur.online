@@ -48,7 +48,13 @@ async function confirm(screen: Awaited<ReturnType<typeof renderModal>>) {
 test("names the card type of a Point refund it asks to mark as done", async () => {
   const screen = await renderModal({ target: creditPointRefund });
 
-  await expect.element(screen.getByRole("dialog").getByText(/por point · crédito\./)).toBeVisible();
+  await expect
+    .element(
+      screen
+        .getByRole("dialog")
+        .getByText("Confirmá que ya se lo devolviste al cliente por Point · Crédito."),
+    )
+    .toBeVisible();
 });
 
 test("asks about the refund by its amount and how it was paid back", async () => {
