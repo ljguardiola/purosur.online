@@ -14,6 +14,7 @@ import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import {
   insertCreditNote,
   insertCreditNoteIssuedOffline,
+  insertReturnCreditNote,
   insertVoidedSale,
 } from "./test-support/credit-note-receipt-database";
 
@@ -26,7 +27,7 @@ let ledger: SqliteReceiptLedger;
 function recordReprintOf(tx: ReceiptLedgerTransaction, reprint: ReceiptReprint): void {
   tx.recordReprint(
     reprint.document === "credit_note"
-      ? { document: "credit_note", saleId: reprint.saleId, creditNoteId: "note-1" }
+      ? { document: "credit_note", saleId: reprint.saleId, creditNoteId: reprint.creditNoteId }
       : { document: reprint.document, saleId: reprint.saleId },
     reprint,
   );
@@ -221,6 +222,7 @@ describe("a receipt ledger's recorded reprints", () => {
       {
         sale_id: "sale-1",
         document: "sale_receipt",
+        credit_note_id: null,
         order_number: 1,
         requested_by: "u1",
         authorized_by: "u2",
@@ -231,6 +233,7 @@ describe("a receipt ledger's recorded reprints", () => {
       {
         sale_id: "sale-1",
         document: "sale_receipt",
+        credit_note_id: null,
         order_number: 2,
         requested_by: "u1",
         authorized_by: null,
@@ -657,6 +660,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
       recordReprintOf(tx, {
         document: "credit_note",
         saleId: "sale-1",
+        creditNoteId: "note-1",
         orderNumber: 1,
         requestedBy: "u1",
         authorizedBy: "u2",
@@ -697,29 +701,79 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   });
 
   it("numbers its reprints apart from the sale receipt's and refuses a repeated number of its own", () => {
-    const reprint = (document: "sale_receipt" | "credit_note") => ({
-      document,
+    const common = {
       saleId: "sale-1",
       orderNumber: 1,
       requestedBy: "u1",
       authorizedBy: null,
       reason: { kind: "retry" } as const,
       occurredAt: new Date("2026-09-30T16:10:00.000Z"),
-    });
+    };
+    const ofReceipt: ReceiptReprint = { ...common, document: "sale_receipt" };
+    const ofCreditNote: ReceiptReprint = {
+      ...common,
+      document: "credit_note",
+      creditNoteId: "note-1",
+    };
 
     inTransaction((tx) => {
-      recordReprintOf(tx, reprint("sale_receipt"));
-      recordReprintOf(tx, reprint("credit_note"));
+      recordReprintOf(tx, ofReceipt);
+      recordReprintOf(tx, ofCreditNote);
     });
 
     expect(() =>
       inTransaction((tx) => {
-        recordReprintOf(tx, reprint("credit_note"));
+        recordReprintOf(tx, ofCreditNote);
       }),
     ).toThrow();
     expect(database.prepare("SELECT document FROM sale_reprints ORDER BY document").all()).toEqual([
       { document: "credit_note" },
       { document: "sale_receipt" },
+    ]);
+  });
+
+  it("numbers the reprints of each credit note of a sale apart", () => {
+    insertReturnCreditNote(database, { id: "note-2", returnId: "return-1" });
+    const reprintOf = (creditNoteId: string, orderNumber: number): ReceiptReprint => ({
+      document: "credit_note",
+      saleId: "sale-1",
+      creditNoteId,
+      orderNumber,
+      requestedBy: "u1",
+      authorizedBy: null,
+      reason: { kind: "retry" },
+      occurredAt: new Date("2026-09-30T16:10:00.000Z"),
+    });
+    const returnNote = {
+      document: "credit_note",
+      saleId: "sale-1",
+      creditNoteId: "note-2",
+    } as const;
+
+    inTransaction((tx) => {
+      recordReprintOf(tx, reprintOf("note-1", 1));
+      recordReprintOf(tx, reprintOf("note-1", 2));
+    });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.reprintCount).toBe(2);
+    expect(inTransaction((tx) => tx.receiptDelivery(returnNote))?.reprintCount).toBe(0);
+
+    inTransaction((tx) => {
+      recordReprintOf(tx, reprintOf("note-2", 1));
+    });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.reprintCount).toBe(2);
+    expect(inTransaction((tx) => tx.receiptDelivery(returnNote))?.reprintCount).toBe(1);
+    expect(
+      database
+        .prepare(
+          "SELECT credit_note_id, order_number FROM sale_reprints ORDER BY credit_note_id, order_number",
+        )
+        .all(),
+    ).toEqual([
+      { credit_note_id: "note-1", order_number: 1 },
+      { credit_note_id: "note-1", order_number: 2 },
+      { credit_note_id: "note-2", order_number: 1 },
     ]);
   });
 

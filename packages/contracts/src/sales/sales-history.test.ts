@@ -25,11 +25,9 @@ const detail = {
     credit_note_corrects: null,
   },
   void_authorization_required: false,
-  credit_note: null,
-  credit_note_id: null,
+  credit_notes: [],
   reprint: { kind: "available" },
   next_copy: { kind: "original" },
-  credit_note_next_copy: null,
   deferred_invoice_next_copy: null,
   short_code: null,
 };
@@ -94,5 +92,63 @@ describe("saleHistoryDetailOutcomeSchema", () => {
         }),
       ).success,
     ).toBe(false);
+  });
+
+  describe("the credit notes of the sale", () => {
+    const creditNote: Record<string, unknown> = {
+      credit_note_id: "credit-note-1",
+      origin: "sale_void",
+      standing: { kind: "in_progress" },
+      next_copy: null,
+    };
+    const accepts = (credit_notes: unknown[]) =>
+      saleHistoryDetailOutcomeSchema.safeParse(outcome({ credit_notes })).success;
+
+    it("accepts a sale with no credit note and one with the void's and each return's", () => {
+      expect(accepts([])).toBe(true);
+      expect(
+        accepts([
+          creditNote,
+          { ...creditNote, credit_note_id: "credit-note-2", origin: "sale_return" },
+          {
+            ...creditNote,
+            credit_note_id: "credit-note-3",
+            origin: "sale_return",
+            standing: { kind: "regularization_required" },
+          },
+        ]),
+      ).toBe(true);
+    });
+
+    it("accepts the next copy of a credit note, an original or a numbered duplicate", () => {
+      expect(accepts([{ ...creditNote, next_copy: { kind: "original" } }])).toBe(true);
+      expect(accepts([{ ...creditNote, next_copy: { kind: "duplicate", order_number: 2 } }])).toBe(
+        true,
+      );
+      expect(accepts([{ ...creditNote, next_copy: { kind: "duplicate", order_number: 0 } }])).toBe(
+        false,
+      );
+    });
+
+    it("refuses a credit note that names no credit note or names an empty one", () => {
+      expect(accepts([{ ...creditNote, credit_note_id: "" }])).toBe(false);
+      expect(accepts([{ ...creditNote, credit_note_id: null }])).toBe(false);
+    });
+
+    it("refuses an origin that is not a void's or a return's", () => {
+      expect(accepts([{ ...creditNote, origin: "refund" }])).toBe(false);
+    });
+
+    it("refuses a credit note without any one of its fields", () => {
+      for (const field of Object.keys(creditNote)) {
+        const { [field]: _removed, ...rest } = creditNote;
+
+        expect(accepts([rest]), field).toBe(false);
+      }
+    });
+
+    it("refuses a standing that is not one of a credit note", () => {
+      expect(accepts([{ ...creditNote, standing: { kind: "issued" } }])).toBe(false);
+    });
   });
 });

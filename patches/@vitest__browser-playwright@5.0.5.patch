@@ -1,0 +1,13 @@
+diff --git a/dist/index.js b/dist/index.js
+index 3105ebe97ddd7add6c4257602029ea58e7a11fd0..7b48ba8767280563a1bed2bf6dac018d1b308172 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1365,7 +1365,7 @@ class PlaywrightBrowserProvider {
+ 		debug?.("[%s][%s] creating the browser page for %s", sessionId, this.browserName, url);
+ 		const browserPage = await this.openBrowserPage(sessionId, options);
+ 		debug?.("[%s][%s] browser page is created, opening %s", sessionId, this.browserName, url);
+-		await browserPage.goto(url, { timeout: 0 });
++		await browserPage.goto(url, { timeout: 0, waitUntil: "commit" });
+ 		await this._throwIfClosing(browserPage);
+ 	}
+ 	async _throwIfClosing(disposable) {

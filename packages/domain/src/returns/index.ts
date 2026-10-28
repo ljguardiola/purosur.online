@@ -36,4 +36,4 @@ export type {
 } from "./model/returns-report.js";
 export type { TicketReference } from "./model/ticket-reference.js";
 export { ticketReferenceFromQrText } from "./model/ticket-reference.js";
-export { withUncountedReturns } from "./model/uncounted-returns.js";
+export { withReturnsOfBranch, withUncountedReturns } from "./model/uncounted-returns.js";

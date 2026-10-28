@@ -217,6 +217,7 @@ export { recordPendingMercadoPagoPayment } from "./record-pending-mercado-pago-p
 export type { RegisterRestoration } from "./register-restoration.js";
 export type {
   RegisterSalesHistory,
+  SaleHistoryCreditNote,
   SaleHistoryRecord,
   SalesHistoryEntry,
   SalesHistoryFilter,

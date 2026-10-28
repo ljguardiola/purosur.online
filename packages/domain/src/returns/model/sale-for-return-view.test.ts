@@ -107,6 +107,37 @@ describe("saleForReturnOutcome", () => {
     });
   });
 
+  it("lists each line with what it sold, what it charged and what can still come back", () => {
+    const outcome = saleForReturnOutcome(facts(), 15, NOW, FIXED_ARGENTINA_ZONE_RULES);
+
+    expect(outcome.kind === "found" && outcome.sale.lines).toEqual([
+      {
+        id: "line-1",
+        productId: "yerba",
+        productName: "Yerba 1 kg",
+        saleUnit: "UNIT",
+        soldQuantity: 3,
+        returnedQuantity: 0,
+        returnableQuantity: 3,
+        chargedAmount: 7500,
+        refundedAmount: 0,
+        mustBeReturnedWhole: false,
+      },
+      {
+        id: "line-2",
+        productId: "galletitas",
+        productName: "Galletitas",
+        saleUnit: "UNIT",
+        soldQuantity: 4,
+        returnedQuantity: 0,
+        returnableQuantity: 4,
+        chargedAmount: 4000,
+        refundedAmount: 0,
+        mustBeReturnedWhole: true,
+      },
+    ]);
+  });
+
   it("totals what the lines charged once the sale's discount was spread over them", () => {
     const discounted = facts();
     const shares = [652, 348];

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { insertSaleCreditNote } from "../fiscal/test-support/sale-credit-notes.js";
 import { saleReprints, sales } from "../platform/db/schema.js";
 import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -162,6 +163,7 @@ describe("recording the reprints of an applied sale", () => {
       {
         saleId,
         document: "sale_receipt",
+        creditNoteId: null,
         orderNumber: 1,
         requestedBy: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
         authorizedBy: null,
@@ -372,11 +374,80 @@ describe("recording the reprints of an applied sale's credit note", () => {
 
   it("refuses a second reprint of the credit note under an order number it already has", async () => {
     const saleId = await appliedSale();
-    await recordReprint({ saleId, document: "credit_note", orderNumber: 1 });
+    const creditNoteId = randomUUID();
+    await recordReprint({ saleId, document: "credit_note", creditNoteId, orderNumber: 1 });
 
     await expect(
-      recordReprint({ saleId, document: "credit_note", orderNumber: 1 }),
+      recordReprint({ saleId, document: "credit_note", creditNoteId, orderNumber: 1 }),
     ).rejects.toThrow();
+  });
+
+  it("keeps the reprint of a credit note against the credit note it names", async () => {
+    const saleId = await appliedSale();
+    const creditNoteId = randomUUID();
+
+    await recordReprint({ saleId, document: "credit_note", creditNoteId, orderNumber: 1 });
+
+    const [row] = await system.db.select().from(saleReprints);
+    expect(row).toMatchObject({ document: "credit_note", creditNoteId });
+  });
+
+  it("numbers the reprints of each credit note of a sale apart", async () => {
+    const saleId = await appliedSale();
+    const reprinted = randomUUID();
+    const neverReprinted = randomUUID();
+
+    await recordReprint({
+      saleId,
+      document: "credit_note",
+      creditNoteId: reprinted,
+      orderNumber: 1,
+    });
+
+    const rows = await system.db.select().from(saleReprints);
+    expect(rows.map((row) => [row.creditNoteId, row.orderNumber])).toEqual([[reprinted, 1]]);
+    await expect(
+      recordReprint({
+        saleId,
+        document: "credit_note",
+        creditNoteId: neverReprinted,
+        orderNumber: 1,
+      }),
+    ).resolves.toBeUndefined();
+    expect(await system.db.select().from(saleReprints)).toHaveLength(2);
+  });
+
+  it("records a legacy reprint of a credit note, which names none, against the sale's void credit note", async () => {
+    const saleId = await appliedSale();
+    const voidCreditNote = await insertSaleCreditNote(system.db, origin.registerId, saleId);
+    await insertSaleCreditNote(system.db, origin.registerId, saleId, {
+      reason: "sale_return",
+      returnId: randomUUID(),
+      issueOn: "2026-10-07",
+    });
+
+    await recordReprint({ saleId, document: "credit_note", creditNoteId: null, orderNumber: 1 });
+
+    const [row] = await system.db.select().from(saleReprints);
+    expect(row).toMatchObject({ document: "credit_note", creditNoteId: voidCreditNote });
+    await expect(
+      recordReprint({
+        saleId,
+        document: "credit_note",
+        creditNoteId: voidCreditNote,
+        orderNumber: 1,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("refuses a legacy reprint of a credit note of a sale the cloud holds no void credit note of, and keeps none", async () => {
+    const saleId = await appliedSale();
+
+    await expect(
+      recordReprint({ saleId, document: "credit_note", creditNoteId: null, orderNumber: 1 }),
+    ).rejects.toThrow(/sale .* has no void credit note/);
+
+    expect(await system.db.select().from(saleReprints)).toEqual([]);
   });
 
   it("refuses the reprint of a credit note of a sale of another register and keeps none", async () => {
