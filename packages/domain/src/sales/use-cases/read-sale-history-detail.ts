@@ -49,7 +49,7 @@ export type SaleVoidability =
     }
   | { kind: "not_voidable"; refusal: SaleVoidRefusal };
 
-export interface SaleHistoryDetailCreditNote extends SaleHistoryCreditNote {
+interface SaleHistoryDetailCreditNote extends SaleHistoryCreditNote {
   nextCopy: ReceiptCopy | null;
 }
 
