@@ -1,3 +1,4 @@
+export { supplierOfferPrice } from "../model/supplier-offer.js";
 export type {
   ConfirmSupplierPriceListInput,
   ConfirmSupplierPriceListOutcome,
