@@ -4,7 +4,7 @@ import { CircleCheck, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react"
 import { useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { paymentLabel } from "./payment-label";
+import { paymentLabelInSentence } from "./payment-label";
 import type { markRefundDone } from "./refunds-api";
 
 export type MarkRefundDoneModalServices = {
@@ -146,7 +146,7 @@ export function MarkRefundDoneModal({
         {shown ? (
           <p className="text-body text-text">
             Confirmá que ya se lo devolviste al cliente por{" "}
-            {paymentLabel(shown.method, shown.card_type).toLowerCase()}.
+            {paymentLabelInSentence(shown.method, shown.card_type)}.
           </p>
         ) : null}
         {notice?.kind === "attemptFailed" && (
