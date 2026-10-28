@@ -181,6 +181,20 @@ describe("findBranchSaleForReturn", () => {
       expect(retained.kept).toEqual([]);
     });
 
+    it("answers not found for a sale still open on this register without asking the cloud", async () => {
+      const open = aSaleForReturn();
+      open.sale.state = "OPEN";
+
+      const { outcome, lookup, retained } = find(thisRegisterSaleThroughCloud(), {
+        search: BY_INVOICE,
+        ledger: new FakeReturnLedger({ sales: [open] }),
+      });
+
+      expect(await outcome).toEqual({ kind: "not_found" });
+      expect(lookup.asked).toEqual([]);
+      expect(retained.kept).toEqual([]);
+    });
+
     it("answers voided without asking the cloud", async () => {
       const gone = aSaleForReturn();
       gone.sale.state = "VOIDED";
