@@ -11,14 +11,14 @@ import {
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
 
-const RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
-const TESTS_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}`;
-const VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
+const RUN_CONDITION = `\${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.skip_allowed != 'true' || needs.scope.outputs.docs_only != 'true') }}`;
+const TESTS_CONDITION = `\${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.skip_allowed != 'true' || needs.scope.outputs.tests_needed != 'false') }}`;
+const VISUAL_CONDITION = `\${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.skip_allowed != 'true' || needs.scope.outputs.catalog_changed != 'false') }}`;
 
 const AGGREGATE_RUN = "node .github/scripts/aggregate-verify-result.mjs";
 
 const AGGREGATE_ENV = {
-  EVENT_NAME: `\${{ github.event_name }}`,
+  SCOPE_SKIP_ALLOWED: `\${{ needs.scope.outputs.skip_allowed }}`,
   SCOPE_RESULT: `\${{ needs.scope.result }}`,
   SCOPE_DOCS_ONLY: `\${{ needs.scope.outputs.docs_only }}`,
   SCOPE_TESTS_NEEDED: `\${{ needs.scope.outputs.tests_needed }}`,
@@ -30,12 +30,21 @@ const AGGREGATE_ENV = {
 
 const HISTORY_SCAN_RUN = "node --test .github/scripts/no-secrets-in-commit-history.test.mjs";
 
-const HISTORY_SCAN_BASE_REF = `\${{ github.event.pull_request.base.sha }}`;
+const HISTORY_SCAN_BASE_REF = `\${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}`;
+
+const PREVIOUS_VERIFY_RUN = "node .github/scripts/previous-commit-verified.mjs";
+
+const PREVIOUS_VERIFY_ENV = {
+  EVENT_NAME: `\${{ github.event_name }}`,
+  PREVIOUS_SHA: `\${{ github.event.before }}`,
+  GITHUB_TOKEN: `\${{ github.token }}`,
+};
 
 const SCOPE_OUTPUTS = {
   docs_only: `\${{ steps.scope.outputs.docs_only }}`,
   tests_needed: `\${{ steps.scope.outputs.tests_needed }}`,
   catalog_changed: `\${{ steps.scope.outputs.catalog_changed }}`,
+  skip_allowed: `\${{ steps.previous-verify.outputs.skip_allowed }}`,
 };
 
 function scopeJobLines({
@@ -46,6 +55,10 @@ function scopeJobLines({
   run = HISTORY_SCAN_RUN,
   stepExtra = [],
   baseRef = HISTORY_SCAN_BASE_REF,
+  previousStepId = "previous-verify",
+  previousRun = PREVIOUS_VERIFY_RUN,
+  previousStepExtra = [],
+  previousEnv = PREVIOUS_VERIFY_ENV,
 } = {}) {
   return [
     "  scope:",
@@ -57,6 +70,11 @@ function scopeJobLines({
     "    steps:",
     `      - id: ${scopeStepId}`,
     `        run: ${scopeRun}`,
+    `      - id: ${previousStepId}`,
+    `        run: ${previousRun}`,
+    ...previousStepExtra.map((line) => `        ${line}`),
+    "        env:",
+    ...Object.entries(previousEnv).map(([name, value]) => `          ${name}: ${value}`),
     `      - run: ${run}`,
     ...stepExtra.map((line) => `        ${line}`),
     ...(baseRef === null ? [] : ["        env:", `          CHANGE_BASE_REF: ${baseRef}`]),
@@ -349,6 +367,52 @@ for (const [label, scope, pattern] of [
     "publishes another value that is not the scope step's output of the same name",
     { outputs: { ...SCOPE_OUTPUTS, skip_all: SCOPE_OUTPUTS.docs_only } },
     /scope job's skip_all output is/,
+  ],
+  [
+    "takes the skip permission from the scope step",
+    { outputs: { ...SCOPE_OUTPUTS, skip_allowed: `\${{ steps.scope.outputs.skip_allowed }}` } },
+    /scope job's skip_allowed output is .*steps\.scope\.outputs\.skip_allowed.*, expected .*steps\.previous-verify\.outputs\.skip_allowed/,
+  ],
+  [
+    "hard-codes the skip permission",
+    { outputs: { ...SCOPE_OUTPUTS, skip_allowed: "true" } },
+    /scope job's skip_allowed output is/,
+  ],
+  [
+    "does not publish the skip permission",
+    {
+      outputs: {
+        docs_only: SCOPE_OUTPUTS.docs_only,
+        tests_needed: SCOPE_OUTPUTS.tests_needed,
+        catalog_changed: SCOPE_OUTPUTS.catalog_changed,
+      },
+    },
+    /scope job's skip_allowed output is/,
+  ],
+  [
+    "decides the skip permission in a step without the id its output reads",
+    { previousStepId: "previous" },
+    /scope job has no step with id previous-verify whose run is exactly/,
+  ],
+  [
+    "gives the previous-verify id to a step that does not ask about the previous commit",
+    { previousRun: 'echo skip_allowed=true >> "$GITHUB_OUTPUT"' },
+    /scope job has no step with id previous-verify whose run is exactly/,
+  ],
+  [
+    "overrides the previous-verify step's shell",
+    { previousStepExtra: ["shell: bash -c 'echo skip_allowed=true >> $GITHUB_OUTPUT' {0}"] },
+    /scope job's previous-verify step sets its own shell/,
+  ],
+  [
+    "asks about a commit other than the one before the push",
+    { previousEnv: { ...PREVIOUS_VERIFY_ENV, PREVIOUS_SHA: `\${{ github.sha }}` } },
+    /scope job's previous-verify step's PREVIOUS_SHA is/,
+  ],
+  [
+    "hard-codes the event the previous-verify step judges",
+    { previousEnv: { ...PREVIOUS_VERIFY_ENV, EVENT_NAME: "pull_request" } },
+    /scope job's previous-verify step's EVENT_NAME is/,
   ],
   [
     "decides its scope in a step without the id its outputs read",
@@ -742,6 +806,23 @@ test("flags a static job that skips whenever the test shards read no changed pat
   assertSingleViolation(violations, /static job runs under/);
 });
 
+const PULL_REQUEST_ONLY_CONDITIONS = {
+  static: `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`,
+  tests: `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}`,
+  visual: `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`,
+};
+
+for (const [job, condition] of Object.entries(PULL_REQUEST_ONLY_CONDITIONS)) {
+  test(`flags a ${job} job that skips without asking whether skipping is allowed`, () => {
+    const violations = findVerifyWorkflowViolations(
+      workflow({ [`${job}If`]: condition }),
+      packageJson(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`${job} job runs under`));
+  });
+}
+
 for (const job of ["static", "tests", "visual"]) {
   test(`flags a ${job} job whose if can never be true`, () => {
     const violations = findVerifyWorkflowViolations(
@@ -957,6 +1038,25 @@ test("flags a verify aggregate step whose static result is hardcoded to success"
   );
 
   assertSingleViolation(violations, /aggregate step's STATIC_RESULT is/);
+});
+
+test("flags a verify aggregate step that judges skips by the event instead of the skip permission", () => {
+  const { SCOPE_SKIP_ALLOWED: _, ...rest } = AGGREGATE_ENV;
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyEnv: { EVENT_NAME: `\${{ github.event_name }}`, ...rest } }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /aggregate step's SCOPE_SKIP_ALLOWED is/);
+});
+
+test("flags a verify aggregate step whose skip permission is hardcoded", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyEnv: { ...AGGREGATE_ENV, SCOPE_SKIP_ALLOWED: "true" } }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /aggregate step's SCOPE_SKIP_ALLOWED is/);
 });
 
 test("flags a verify:static script that turns its parts into a shell comment", () => {
