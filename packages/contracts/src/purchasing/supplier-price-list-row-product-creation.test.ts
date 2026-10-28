@@ -1,4 +1,9 @@
-import { PACKAGING_NAME_MAX_LENGTH } from "@purosur/domain";
+import {
+  NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_QUANTITY_MAX_DECIMALS,
+  PACKAGING_NAME_MAX_LENGTH,
+  PRODUCT_NAME_MAX_LENGTH,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   supplierPriceListRowProductCreatedSchema,
@@ -6,11 +11,17 @@ import {
 } from "./supplier-price-list-row-product-creation.js";
 
 const CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
+const BRAND_ID = "22222222-2222-2222-2222-222222222222";
+const TAG_ID = "33333333-3333-3333-3333-333333333333";
 const body = {
   version: 3,
+  name: "Aceite de almendras",
   saleUnit: "UNIT",
   categoryId: CATEGORY_ID,
+  brandId: null,
   barcodes: ["7790001000012"],
+  tagIds: [],
+  netContent: null,
   packagingName: "Caja x 10",
   quantityPerPackage: 10_000,
   vatRate: 2100,
@@ -124,15 +135,127 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
     },
   );
 
-  it("strips keys it does not know, the product's name among them", () => {
+  it("strips keys it does not know", () => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, unknown: "x" }).data,
+    ).toEqual(body);
+  });
+
+  it("reads the product's name trimmed", () => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, name: "  Yerba  " }).data
+        ?.name,
+    ).toBe("Yerba");
+  });
+
+  it.each([undefined, "", "   ", 5, null])("rejects the name %j", (name) => {
+    expect(firstFailure({ ...body, name })).toEqual({
+      field: "name",
+      message: "name must not be empty",
+    });
+  });
+
+  it("accepts a name of exactly the maximum length and rejects a longer one", () => {
     expect(
       supplierPriceListRowProductCreationBodySchema.safeParse({
         ...body,
-        name: "Yerba",
-        brandId: "x",
-        tagIds: [],
-      }).data,
-    ).toEqual(body);
+        name: "a".repeat(PRODUCT_NAME_MAX_LENGTH),
+      }).success,
+    ).toBe(true);
+    expect(firstFailure({ ...body, name: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) })).toEqual({
+      field: "name",
+      message: `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
+    });
+  });
+
+  it("tells a form how long the product's name may be", () => {
+    expect(supplierPriceListRowProductCreationBodySchema.shape.name.meta()).toEqual({
+      maxLength: PRODUCT_NAME_MAX_LENGTH,
+    });
+  });
+
+  it("keeps the brand id, or reads a missing one as no brand", () => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, brandId: BRAND_ID }).data
+        ?.brandId,
+    ).toBe(BRAND_ID);
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, brandId: undefined }).data
+        ?.brandId,
+    ).toBeNull();
+  });
+
+  it.each(["", "not-a-uuid", 42])("rejects the brand %j", (brandId) => {
+    expect(firstFailure({ ...body, brandId })).toEqual({
+      field: "brandId",
+      message: "brandId must be an existing brand's id, or null for none",
+    });
+  });
+
+  it("keeps the tag ids in the order sent, or reads missing ones as none", () => {
+    const other = "44444444-4444-4444-4444-444444444444";
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({
+        ...body,
+        tagIds: [other, TAG_ID],
+      }).data?.tagIds,
+    ).toEqual([other, TAG_ID]);
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, tagIds: undefined }).data
+        ?.tagIds,
+    ).toEqual([]);
+  });
+
+  it.each([["not-a-uuid"], "x", [42]])("rejects the tag ids %j", (tagIds) => {
+    expect(firstFailure({ ...body, tagIds })).toEqual({
+      field: "tagIds",
+      message: "tagIds must be a list of existing tags' ids, [] for none",
+    });
+  });
+
+  it("rejects a repeated tag", () => {
+    expect(firstFailure({ ...body, tagIds: [TAG_ID, TAG_ID] })).toEqual({
+      field: "tagIds",
+      message: "tagIds must not repeat a tag",
+    });
+  });
+
+  it("keeps a net content's quantity and unit", () => {
+    expect(
+      supplierPriceListRowProductCreationBodySchema.safeParse({
+        ...body,
+        netContent: { quantity: 125, unit: "ML", extra: true },
+      }).data?.netContent,
+    ).toEqual({ quantity: 125, unit: "ML" });
+  });
+
+  it.each(["125 ml", { quantity: "125", unit: "ML" }, { quantity: 125, unit: "LB" }])(
+    "rejects the malformed net content %j",
+    (netContent) => {
+      expect(firstFailure({ ...body, netContent })).toEqual({
+        field: "netContent",
+        message: "netContent must be an object with a quantity and a listed unit, or absent/null",
+      });
+    },
+  );
+
+  it.each([0, -1, 1.0001, NET_CONTENT_QUANTITY_MAX + 1, Infinity])(
+    "reports the net content's quantity %s under netContentQuantity",
+    (quantity) => {
+      expect(firstFailure({ ...body, netContent: { quantity, unit: "KG" } })).toEqual({
+        field: "netContentQuantity",
+        message: `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`,
+      });
+    },
+  );
+
+  it("reports a malformed net content only once, never under netContentQuantity", () => {
+    const result = supplierPriceListRowProductCreationBodySchema.safeParse({
+      ...body,
+      netContent: { quantity: "0", unit: "KG" },
+    });
+
+    expect(result.error?.issues.map((issue) => issue.path[0])).toEqual(["netContent"]);
   });
 });
 
