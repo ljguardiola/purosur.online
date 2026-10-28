@@ -89,6 +89,17 @@ test("names the report and its figures", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("shows the cashiers under their own heading, before the sessions", async () => {
+  const screen = await renderScreen(createServices());
+
+  await expect.element(screen.getByRole("heading", { name: "Por cajero", level: 2 })).toBeVisible();
+  const headings = screen
+    .getByRole("heading", { level: 2 })
+    .elements()
+    .map((heading) => heading.textContent);
+  expect(headings).toEqual(["Por cajero", "Por sesión"]);
+});
+
 test("shows each cashier with the lines weighed and the ones typed by hand, as the cloud ordered them", async () => {
   const screen = await renderScreen(createServices());
 
@@ -255,7 +266,11 @@ test("shows a failed load with a retry that loads the report again", async () =>
     .mockResolvedValueOnce({ kind: "ok", value: handTypedWeightsReport });
   const screen = await renderScreen(services);
 
-  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
+  await expect
+    .element(screen.getByText("No pudimos abrir el reporte de pesos tipeados a mano"))
+    .toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
   expect(services.fetchHandTypedWeights).toHaveBeenCalledTimes(2);
