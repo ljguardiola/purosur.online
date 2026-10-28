@@ -145,14 +145,7 @@ function answerOf(row: CreditNoteRow): VoidCreditNoteStanding {
   }
 }
 
-function readCreditNote(
-  database: LocalDatabase,
-  condition: "notes.id = ?" | "notes.sale_id = ? AND notes.return_id IS NULL",
-  value: string,
-): StoredCreditNote | null {
-  const row = database
-    .prepare<[string], CreditNoteRow>(
-      `SELECT ${NOTE_COLUMNS},
+const CREDIT_NOTE_SELECT = `SELECT ${NOTE_COLUMNS},
               notes.state, notes.point_of_sale, notes.number, notes.issued_on, notes.issued_at,
               notes.authorization_code, notes.authorization_code_due_on, notes.recorded_at,
               notes.answered_at,
@@ -165,18 +158,35 @@ function readCreditNote(
               documents.fortnight_end AS offline_fortnight_end
        FROM sale_credit_notes AS notes
        LEFT JOIN offline_fiscal_documents AS documents
-         ON documents.id = notes.offline_fiscal_document_id
-       WHERE ${condition}`,
-    )
+         ON documents.id = notes.offline_fiscal_document_id`;
+
+function storedCreditNoteOf(row: CreditNoteRow): StoredCreditNote {
+  return {
+    ...noteOf(row),
+    recordedAt: new Date(row.recorded_at),
+    answeredAt: row.answered_at === null ? null : new Date(row.answered_at),
+    answer: answerOf(row),
+  };
+}
+
+function readCreditNote(
+  database: LocalDatabase,
+  condition: "notes.id = ?" | "notes.sale_id = ? AND notes.return_id IS NULL",
+  value: string,
+): StoredCreditNote | null {
+  const row = database
+    .prepare<[string], CreditNoteRow>(`${CREDIT_NOTE_SELECT} WHERE ${condition}`)
     .get(value);
-  return row === undefined
-    ? null
-    : {
-        ...noteOf(row),
-        recordedAt: new Date(row.recorded_at),
-        answeredAt: row.answered_at === null ? null : new Date(row.answered_at),
-        answer: answerOf(row),
-      };
+  return row === undefined ? null : storedCreditNoteOf(row);
+}
+
+export function readCreditNotesOfSale(database: LocalDatabase, saleId: string): StoredCreditNote[] {
+  return database
+    .prepare<[string], CreditNoteRow>(
+      `${CREDIT_NOTE_SELECT} WHERE notes.sale_id = ? ORDER BY notes.recorded_at, notes.id`,
+    )
+    .all(saleId)
+    .map(storedCreditNoteOf);
 }
 
 export function readCreditNoteOfSale(

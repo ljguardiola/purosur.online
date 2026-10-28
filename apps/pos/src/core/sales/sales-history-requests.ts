@@ -141,12 +141,14 @@ export async function saleHistoryDetailFor(
       state: detail.standing,
       voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,
-      credit_note: toWireCreditNote(detail.creditNote),
-      credit_note_id: detail.creditNoteId,
+      credit_notes: detail.creditNotes.map((creditNote) => ({
+        credit_note_id: creditNote.creditNoteId,
+        origin: creditNote.origin,
+        standing: toWireCreditNote(creditNote.standing),
+        next_copy: creditNote.nextCopy === null ? null : toWireCopy(creditNote.nextCopy),
+      })),
       reprint: detail.reprint,
       next_copy: toWireCopy(detail.nextCopy),
-      credit_note_next_copy:
-        detail.creditNoteNextCopy === null ? null : toWireCopy(detail.creditNoteNextCopy),
       deferred_invoice_next_copy:
         detail.deferredInvoiceNextCopy === null ? null : toWireCopy(detail.deferredInvoiceNextCopy),
       short_code: detail.shortCode,

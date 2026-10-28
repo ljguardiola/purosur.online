@@ -22,6 +22,7 @@ export const saleCreditNoteSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("rejected") }),
   z.object({ kind: z.literal("in_progress") }),
+  z.object({ kind: z.literal("regularization_required") }),
   z.object({ kind: z.literal("already_credited") }),
 ]);
 export type SaleCreditNote = z.infer<typeof saleCreditNoteSchema>;
