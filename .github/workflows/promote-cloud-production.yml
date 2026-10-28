@@ -5,6 +5,14 @@ name: Promote cloud to production
 # every check.
 on:
   workflow_dispatch:
+    inputs:
+      declared_breaks:
+        description: >-
+          The previous release's route tests this release breaks on purpose, as a JSON array of
+          "<file> > <test's full name>" strings. Empty when none.
+        type: string
+        required: false
+        default: ""
 
 concurrency:
   group: promote-cloud-production
@@ -142,6 +150,12 @@ jobs:
         with:
           node-version-file: .node-version
 
+      - name: Read the declared breaks
+        if: env.PREVIOUS_TAG != ''
+        env:
+          DECLARED_BREAKS: ${{ inputs.declared_breaks }}
+        run: node .github/scripts/previous-release-contract.mjs check-declared
+
       # Outside the workspace, so pnpm treats it as a workspace root of its own.
       - name: Check out the previous release beside this one
         if: env.PREVIOUS_TAG != ''
@@ -176,10 +190,26 @@ jobs:
         working-directory: ${{ runner.temp }}/previous
         run: pnpm install --frozen-lockfile
 
+      # The judge step below decides whether its failures stop the promote.
       - name: Run the previous release's route tests
+        id: route-tests
         if: env.PREVIOUS_TAG != ''
+        continue-on-error: true
         working-directory: ${{ runner.temp }}/previous
-        run: xargs -a "$RUNNER_TEMP/route-tests.txt" pnpm exec vitest run --project node
+        env:
+          RESULTS_FILE: ${{ runner.temp }}/route-test-results.json
+          RESULTS_REPORTER: ${{ github.workspace }}/.github/scripts/previous-release-contract-reporter.mjs
+        run: >-
+          xargs -a "$RUNNER_TEMP/route-tests.txt"
+          pnpm exec vitest run --project node --reporter=default --reporter="$RESULTS_REPORTER"
+
+      - name: Allow only the declared breaks to fail
+        if: env.PREVIOUS_TAG != ''
+        env:
+          DECLARED_BREAKS: ${{ inputs.declared_breaks }}
+          RESULTS_FILE: ${{ runner.temp }}/route-test-results.json
+          TESTS_OUTCOME: ${{ steps.route-tests.outcome }}
+        run: node .github/scripts/previous-release-contract.mjs judge
 
   register-minimum:
     name: no active register falls below a raised minimum version
