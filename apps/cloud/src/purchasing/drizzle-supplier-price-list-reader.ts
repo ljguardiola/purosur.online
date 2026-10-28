@@ -177,7 +177,7 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
   // price of its latest list before this one, null when every one of them is dated after it.
   private async rememberedItems(
     list: { id: string; supplierId: string; listDate: string | null; confirmedAt: Date | null },
-    rows: { code: string | null; description: string }[],
+    rows: { code: string | null; description: string; presentation: string | null }[],
   ) {
     const keys = rows.map(supplierItemKey);
     if (keys.length === 0) {

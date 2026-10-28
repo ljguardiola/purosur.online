@@ -265,6 +265,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       .select({
         description: supplierPriceListRows.description,
         code: supplierPriceListRows.supplierCode,
+        presentation: supplierPriceListRows.presentation,
       })
       .from(supplierPriceListRows)
       .where(and(eq(supplierPriceListRows.id, rowId), eq(supplierPriceListRows.listId, listId)))
@@ -278,6 +279,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         id: supplierPriceListRows.id,
         description: supplierPriceListRows.description,
         code: supplierPriceListRows.supplierCode,
+        presentation: supplierPriceListRows.presentation,
         priceCents: supplierPriceListRows.priceCents,
         productId: supplierPriceListRows.productId,
         packagingId: supplierPriceListRows.packagingId,

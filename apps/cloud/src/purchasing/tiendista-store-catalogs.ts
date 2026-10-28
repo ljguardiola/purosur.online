@@ -55,14 +55,16 @@ function rowOf(item: unknown): ExtractedPriceListRow | null {
     return null;
   }
   const brand = nonBlankText(entry["marca"]);
-  const unit = nonBlankText(entry["unidad"]);
   return {
     description: cut(
-      [name, brand, packSizeOf(unit)].filter((part) => part !== null).join(" "),
+      brand === null ? name : `${name} ${brand}`,
       PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
     ),
     code: cutOrNull(codeOf(entry["id"]), PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH),
-    presentation: cutOrNull(unit, PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH),
+    presentation: cutOrNull(
+      packSizeOf(nonBlankText(entry["unidad"])),
+      PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
+    ),
     priceCents: priceCents(entry["precio"]),
     page: null,
     barcode: null,
