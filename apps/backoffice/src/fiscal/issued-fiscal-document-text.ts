@@ -1,10 +1,15 @@
-import { type IssuedFiscalDocumentsBody, issuedFiscalDocumentsSchema } from "@purosur/contracts";
+import {
+  type IssuedFiscalDocumentDetailBody,
+  type IssuedFiscalDocumentsBody,
+  issuedFiscalDocumentsSchema,
+} from "@purosur/contracts";
 import {
   formatCalendarDayNumeric,
   formatDate,
   formatInvoiceNumber,
   formatNumber,
   formatPointOfSaleNumber,
+  formatWeight,
   plural,
 } from "@purosur/ui";
 import { schemaText } from "../platform/schema-text";
@@ -79,4 +84,42 @@ export function documentsCountText(
       ? formatCalendarDayNumeric(range.from)
       : `del ${formatCalendarDayNumeric(range.from)} al ${formatCalendarDayNumeric(range.to)}`;
   return `${plural(count, { one: "1 comprobante", other: `${formatNumber(count)} comprobantes` })} · ${period}`;
+}
+
+const IDENTIFIED_DOCUMENT_NAMES: Record<number, string> = {
+  80: "CUIT",
+  86: "CUIL",
+  87: "CDI",
+  96: "DNI",
+};
+
+const TAX_ID_DOCUMENT_TYPES = [80, 86];
+
+function taxIdText(number: number): string {
+  const digits = String(number).padStart(11, "0");
+  return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`;
+}
+
+export function buyerText(buyer: IssuedFiscalDocumentDetailBody["buyer"]): string {
+  if (buyer.kind === "final_consumer") {
+    return "Consumidor final";
+  }
+  const name =
+    IDENTIFIED_DOCUMENT_NAMES[buyer.document_type] ?? `Documento tipo ${buyer.document_type}`;
+  const number = TAX_ID_DOCUMENT_TYPES.includes(buyer.document_type)
+    ? taxIdText(buyer.document_number)
+    : String(buyer.document_number);
+  return `${name} ${number}`;
+}
+
+export function quantityText(
+  quantity: IssuedFiscalDocumentDetailBody["lines"][number]["quantity"],
+): string {
+  return quantity.kind === "units"
+    ? `${formatNumber(quantity.units)} u`
+    : formatWeight(quantity.grams);
+}
+
+export function correctedVoucherText(voucher: Voucher): string {
+  return `Corrige la ${voucherText(voucher)}`;
 }
