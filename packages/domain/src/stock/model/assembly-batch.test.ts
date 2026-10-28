@@ -474,16 +474,50 @@ describe("ASSEMBLY_BATCH_STATUSES", () => {
 });
 
 describe("assemblyBatchStatus", () => {
-  it("is voidable while nothing was taken from the batch's lot", () => {
-    expect(assemblyBatchStatus({ voided: false, lotConsumed: false })).toBe("voidable");
+  const OWN = { assemblyBatchId: "batch-1" };
+
+  it("is voidable while nothing moved its lot", () => {
+    expect(assemblyBatchStatus({ id: "batch-1", voided: false, lotMovements: [] })).toBe(
+      "voidable",
+    );
   });
 
-  it("is consumed once the batch's lot had any consumption", () => {
-    expect(assemblyBatchStatus({ voided: false, lotConsumed: true })).toBe("consumed");
+  it("is voidable while only the batch's own movements moved its lot", () => {
+    expect(assemblyBatchStatus({ id: "batch-1", voided: false, lotMovements: [OWN] })).toBe(
+      "voidable",
+    );
+  });
+
+  it("is consumed once a movement of no batch, such as a sale, moved its lot", () => {
+    expect(
+      assemblyBatchStatus({
+        id: "batch-1",
+        voided: false,
+        lotMovements: [OWN, { assemblyBatchId: null }],
+      }),
+    ).toBe("consumed");
+  });
+
+  it("is consumed once another batch took from its lot", () => {
+    expect(
+      assemblyBatchStatus({
+        id: "batch-1",
+        voided: false,
+        lotMovements: [OWN, { assemblyBatchId: "batch-2" }],
+      }),
+    ).toBe("consumed");
   });
 
   it("is voided whether or not its lot had consumption", () => {
-    expect(assemblyBatchStatus({ voided: true, lotConsumed: false })).toBe("voided");
-    expect(assemblyBatchStatus({ voided: true, lotConsumed: true })).toBe("voided");
+    expect(assemblyBatchStatus({ id: "batch-1", voided: true, lotMovements: [OWN] })).toBe(
+      "voided",
+    );
+    expect(
+      assemblyBatchStatus({
+        id: "batch-1",
+        voided: true,
+        lotMovements: [OWN, { assemblyBatchId: null }],
+      }),
+    ).toBe("voided");
   });
 });

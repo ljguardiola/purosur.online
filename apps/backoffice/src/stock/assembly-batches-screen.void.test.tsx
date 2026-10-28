@@ -101,10 +101,7 @@ test("a voided batch is confirmed, the list is read again and shows the batch as
 
 test("a batch that was already voided or consumed offers to update the list, which reads it again", async () => {
   const services = createServices();
-  vi.mocked(services.voidAssemblyBatch).mockResolvedValue({
-    kind: "consumed",
-    message: "La tanda ya tuvo consumo: corregila con un ajuste y un recuento.",
-  });
+  vi.mocked(services.voidAssemblyBatch).mockResolvedValue({ kind: "consumed" });
   const screen = await loaded(services, [mixBatch]);
   vi.mocked(services.fetchAssemblyBatches).mockResolvedValue({
     kind: "ok",

@@ -583,7 +583,7 @@ describe("POST /assembly-batches/:id/void", () => {
     expect(response.json()).toMatchObject({ code: "already_voided" });
   });
 
-  it("answers 409 for a batch whose lot had a consumption, saying it is corrected with an adjustment and a count", async () => {
+  it("answers 409 for a batch whose lot had a consumption", async () => {
     const { headers, ids, userId, locationId, batchId } = await registeredBatch();
     await recordLoss(
       { store: new DrizzleStockStore(db), clock: { now: () => NOW } },
@@ -593,10 +593,7 @@ describe("POST /assembly-batches/:id/void", () => {
     const response = await voidBatch(headers, batchId);
 
     expect(response.statusCode).toBe(409);
-    expect(response.json()).toEqual({
-      code: "consumed",
-      message: "La tanda ya tuvo consumo: corregila con un ajuste y un recuento.",
-    });
+    expect(response.json()).toMatchObject({ code: "consumed" });
     const [batch] = await db.select().from(assemblyBatches);
     expect(batch?.voidedAt).toBeNull();
   });

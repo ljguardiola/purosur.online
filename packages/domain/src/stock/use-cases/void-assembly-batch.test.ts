@@ -3,29 +3,19 @@ import {
   type RegisterAssemblyBatchInput,
   registerAssemblyBatch,
 } from "./register-assembly-batch.js";
-import { BAG, BRANCH, MIX, NUTS, storeWithRecipe } from "./test-support/assembly-batch-scenario.js";
+import {
+  assemblyBatchInput,
+  BAG,
+  BRANCH,
+  MIX,
+  NUTS,
+  storeWithRecipe,
+} from "./test-support/assembly-batch-scenario.js";
 import { type FakeStockStore, FixedClock } from "./test-support/fake-stock-store.js";
 import { type VoidAssemblyBatchOutcome, voidAssemblyBatch } from "./void-assembly-batch.js";
 
 const ASSEMBLED_AT = new Date("2026-05-04T13:00:00.000Z");
 const VOIDED_AT = new Date("2026-05-04T15:30:00.000Z");
-
-function registerInput(
-  overrides: Partial<RegisterAssemblyBatchInput> = {},
-): RegisterAssemblyBatchInput {
-  return {
-    productId: MIX.productId,
-    locationId: BRANCH,
-    recipeVersion: 2,
-    used: [
-      { componentProductId: NUTS.productId, quantity: 12_000 },
-      { componentProductId: BAG.productId, quantity: 2_000 },
-    ],
-    output: 14_000,
-    actorId: "person-1",
-    ...overrides,
-  };
-}
 
 async function storeWithBatch(
   options: { nutsInLots?: boolean; overrides?: Partial<RegisterAssemblyBatchInput> } = {},
@@ -33,7 +23,7 @@ async function storeWithBatch(
   const store = storeWithRecipe({ nutsInLots: options.nutsInLots ?? true });
   const outcome = await registerAssemblyBatch(
     { store, clock: new FixedClock(ASSEMBLED_AT) },
-    registerInput(options.overrides),
+    assemblyBatchInput(options.overrides),
   );
   expect(outcome.kind).toBe("recorded");
   return store;
@@ -114,7 +104,10 @@ describe("voidAssemblyBatch", () => {
     const store = storeWithRecipe();
     store.seedLot({ id: "mix-debt", ...MIX, remaining: -3_000 });
     store.seedBalance({ ...MIX, quantity: -3_000 });
-    await registerAssemblyBatch({ store, clock: new FixedClock(ASSEMBLED_AT) }, registerInput());
+    await registerAssemblyBatch(
+      { store, clock: new FixedClock(ASSEMBLED_AT) },
+      assemblyBatchInput(),
+    );
 
     await voidBatch(store);
 
@@ -178,7 +171,10 @@ describe("voidAssemblyBatch", () => {
       actorId: "person-2",
       supersededByCountId: null,
     });
-    await registerAssemblyBatch({ store, clock: new FixedClock(ASSEMBLED_AT) }, registerInput());
+    await registerAssemblyBatch(
+      { store, clock: new FixedClock(ASSEMBLED_AT) },
+      assemblyBatchInput(),
+    );
 
     await voidBatch(store);
 
@@ -217,6 +213,19 @@ describe("voidAssemblyBatch", () => {
       const outcome = await voidBatch(store);
 
       expect(outcome).toEqual({ kind: "consumed" });
+      expect(store.snapshot()).toEqual(before);
+    },
+  );
+
+  it.each(["recordMovement", "allocateToLot", "addToBalance", "recordAssemblyBatchVoid"] as const)(
+    "leaves the batch, the movements, the lots and the balances as they were when %s fails",
+    async (operation) => {
+      const store = await storeWithBatch();
+      const before = store.snapshot();
+      store.failingWrites.add(operation);
+
+      await expect(voidBatch(store)).rejects.toThrow(`${operation} failed`);
+
       expect(store.snapshot()).toEqual(before);
     },
   );
@@ -260,14 +269,14 @@ describe("voidAssemblyBatch", () => {
     await voidBatch(store);
 
     const locks = store.operationOrder.filter((operation) =>
-      ["lockAssemblyBatch", "lockProductStock", "isBatchLotConsumed"].includes(operation),
+      ["lockAssemblyBatch", "lockProductStock", "batchLotMovements"].includes(operation),
     );
     expect(locks).toEqual([
       "lockAssemblyBatch",
       "lockProductStock",
       "lockProductStock",
       "lockProductStock",
-      "isBatchLotConsumed",
+      "batchLotMovements",
     ]);
     expect(store.lockedProducts).toEqual([BAG.productId, MIX.productId, NUTS.productId]);
   });

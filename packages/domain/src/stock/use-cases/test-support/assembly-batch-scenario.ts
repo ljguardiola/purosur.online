@@ -1,4 +1,5 @@
 import type { Recipe } from "../recipe-store.js";
+import type { RegisterAssemblyBatchInput } from "../register-assembly-batch.js";
 import { FakeStockStore } from "./fake-stock-store.js";
 
 export const BRANCH = "branch-1";
@@ -50,4 +51,21 @@ export function storeWithRecipe({ nutsInLots = true } = {}): FakeStockStore {
     costQuantity: 1_000,
   });
   return store;
+}
+
+export function assemblyBatchInput(
+  overrides: Partial<RegisterAssemblyBatchInput> = {},
+): RegisterAssemblyBatchInput {
+  return {
+    productId: MIX.productId,
+    locationId: BRANCH,
+    recipeVersion: 2,
+    used: [
+      { componentProductId: NUTS.productId, quantity: 12_000 },
+      { componentProductId: BAG.productId, quantity: 2_000 },
+    ],
+    output: 14_000,
+    actorId: "person-1",
+    ...overrides,
+  };
 }

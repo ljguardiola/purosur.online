@@ -1,5 +1,6 @@
 import type { SaleUnit } from "../../../catalog/index.js";
 import type { Clock } from "../../../shared/index.js";
+import type { BatchLotMovement } from "../../model/assembly-batch.js";
 import type { NewBatchLot, NewInitialCountLot, NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
 import { isLotCostIncomplete, type LotCost } from "../../model/lot-value.js";
@@ -377,16 +378,15 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
     });
   }
 
-  async isBatchLotConsumed(batchId: string): Promise<boolean> {
-    this.store.operationOrder.push("isBatchLotConsumed");
+  async batchLotMovements(batchId: string): Promise<BatchLotMovement[]> {
+    this.store.operationOrder.push("batchLotMovements");
     const lot = this.state.lots.find((row) => row.assemblyBatchId === batchId);
-    return this.state.allocations.some(({ movementId, lotId }) => {
-      const movement = this.state.movements.find((row) => row.id === movementId);
-      return (
-        lotId === lot?.id &&
-        !(movement?.assemblyBatchId === batchId && movement.kind === "assembly_in")
-      );
-    });
+    return this.state.allocations
+      .filter(({ lotId }) => lotId === lot?.id)
+      .map(({ movementId }) => ({
+        assemblyBatchId:
+          this.state.movements.find((row) => row.id === movementId)?.assemblyBatchId ?? null,
+      }));
   }
 
   async recordAssemblyBatchVoid(batchVoid: AssemblyBatchVoid): Promise<void> {

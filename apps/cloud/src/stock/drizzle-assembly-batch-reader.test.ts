@@ -112,7 +112,7 @@ describe("DrizzleAssemblyBatchReader.batches", () => {
   });
 });
 
-describe("DrizzleAssemblyBatchReader.batches voided and consumed", () => {
+describe("DrizzleAssemblyBatchReader.batches voided and what moved its lot", () => {
   type Context = Awaited<ReturnType<typeof seeded>>;
 
   async function batchOf(context: Context, at = "2026-05-04T13:00:00.000Z") {
@@ -130,32 +130,31 @@ describe("DrizzleAssemblyBatchReader.batches voided and consumed", () => {
     return new DrizzleAssemblyBatchReader(db).batches({ locationId, ...MAY });
   }
 
-  async function consume(
+  async function move(
     batch: Awaited<ReturnType<typeof batchOf>>,
-    kind: "adjustment" | "loss" | "assembly_out" | "assembly_in",
+    kind: "loss" | "assembly_in",
     delta: number,
-    linkedTo = batch.batchId,
   ) {
     const movementId = await insertMovement(db, {
       productId: batch.mix,
       locationId: batch.locationId,
       actorId: batch.actorId,
       kind,
-      reason: kind === "loss" ? "spoiled" : kind === "adjustment" ? "found" : null,
+      reason: kind === "loss" ? "spoiled" : null,
       delta,
       occurredAt: new Date("2026-05-05T10:00:00.000Z"),
-      ...(kind === "assembly_out" || kind === "assembly_in" ? { assemblyBatchId: linkedTo } : {}),
+      ...(kind === "assembly_in" ? { assemblyBatchId: batch.batchId } : {}),
     });
     await db.insert(lotAllocations).values({ movementId, lotId: batch.lotId, quantity: delta });
   }
 
-  it("answers a batch nothing touched as neither voided nor consumed", async () => {
+  it("answers a batch nothing touched as not voided and with nothing that moved its lot", async () => {
     const context = await seeded();
     const batch = await batchOf(context);
 
     const [found] = await listed(batch.locationId);
 
-    expect(found).toMatchObject({ voided: false, lotConsumed: false });
+    expect(found).toMatchObject({ voided: false, lotMovements: [] });
   });
 
   it("answers a batch as voided once it was voided", async () => {
@@ -168,43 +167,24 @@ describe("DrizzleAssemblyBatchReader.batches voided and consumed", () => {
 
     const [found] = await listed(batch.locationId);
 
-    expect(found).toMatchObject({ voided: true, lotConsumed: false });
+    expect(found).toMatchObject({ voided: true });
   });
 
-  it("answers a batch as consumed when an adjustment or a loss took from its lot", async () => {
-    const context = await seeded();
-    const sold = await batchOf(context);
-    await consume(sold, "adjustment", -1_000);
-    const lost = await batchOf(context, "2026-05-06T13:00:00.000Z");
-    await consume(lost, "loss", -500);
-
-    const found = await listed(sold.locationId);
-
-    expect(found.find((batch) => batch.id === sold.batchId)?.lotConsumed).toBe(true);
-    expect(found.find((batch) => batch.id === lost.batchId)?.lotConsumed).toBe(true);
-  });
-
-  it("does not count as consumption an allocation of the batch's own assembly movement, nor another batch's consumption", async () => {
+  it("answers the batch each movement that moved a batch's lot belongs to", async () => {
     const context = await seeded();
     const own = await batchOf(context);
-    await consume(own, "assembly_in", 14_000);
-    const untouched = await batchOf(context, "2026-05-06T13:00:00.000Z");
+    await move(own, "assembly_in", 14_000);
+    const lost = await batchOf(context, "2026-05-06T13:00:00.000Z");
+    await move(lost, "loss", -500);
 
     const found = await listed(own.locationId);
 
-    expect(found.find((batch) => batch.id === own.batchId)?.lotConsumed).toBe(false);
-    expect(found.find((batch) => batch.id === untouched.batchId)?.lotConsumed).toBe(false);
-  });
-
-  it("counts as consumption a component use of the batch's lot by another batch's assembly", async () => {
-    const context = await seeded();
-    const batch = await batchOf(context);
-    const other = await batchOf(context, "2026-05-06T13:00:00.000Z");
-    await consume(batch, "assembly_out", -2_000, other.batchId);
-
-    const found = await listed(batch.locationId);
-
-    expect(found.find((listing) => listing.id === batch.batchId)?.lotConsumed).toBe(true);
+    expect(found.find((batch) => batch.id === own.batchId)?.lotMovements).toEqual([
+      { assemblyBatchId: own.batchId },
+    ]);
+    expect(found.find((batch) => batch.id === lost.batchId)?.lotMovements).toEqual([
+      { assemblyBatchId: null },
+    ]);
   });
 });
 

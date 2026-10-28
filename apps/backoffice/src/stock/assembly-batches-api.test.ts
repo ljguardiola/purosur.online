@@ -261,13 +261,13 @@ describe("voidAssemblyBatch", () => {
   });
 
   test.each([
-    [404, "not_found", "No hay una tanda con ese id."],
-    [409, "already_voided", "La tanda ya fue anulada."],
-    [409, "consumed", "La tanda ya tuvo consumo: corregila con un ajuste y un recuento."],
-  ] as const)("answers a %i refusal %s with the cloud's message", async (status, code, message) => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code, message }));
+    [404, "not_found"],
+    [409, "already_voided"],
+    [409, "consumed"],
+  ] as const)("answers a %i refusal %s by its code", async (status, code) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code, message: "refused" }));
 
-    expect(await voidAssemblyBatch(mixBatch.id)).toEqual({ kind: code, message });
+    expect(await voidAssemblyBatch(mixBatch.id)).toEqual({ kind: code });
   });
 
   test("returns failed for a refusal that is not one the cloud declares", async () => {

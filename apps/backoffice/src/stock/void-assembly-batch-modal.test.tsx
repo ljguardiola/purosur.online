@@ -110,16 +110,35 @@ test("cannot be confirmed twice while the request is in flight", async () => {
   pending.resolve({ kind: "failed" });
 });
 
+test("cannot be closed, by its close button or by Escape, while the request is in flight", async () => {
+  const pending =
+    deferred<Awaited<ReturnType<VoidAssemblyBatchModalServices["voidAssemblyBatch"]>>>();
+  const voidAssemblyBatch = vi
+    .fn<VoidAssemblyBatchModalServices["voidAssemblyBatch"]>()
+    .mockReturnValue(pending.promise);
+  const onClose = vi.fn();
+  const screen = await renderModal({ voidAssemblyBatch, onClose });
+  const dialog = await confirm(screen);
+
+  await userEvent.tab();
+  await userEvent.keyboard("{Escape}");
+
+  expect(onClose).not.toHaveBeenCalled();
+  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  pending.resolve({ kind: "failed" });
+});
+
 test.each([
-  ["not_found", "No hay una tanda con ese id."],
+  ["not_found", "No se encontró la tanda."],
   ["already_voided", "La tanda ya fue anulada."],
   ["consumed", "La tanda ya tuvo consumo: corregila con un ajuste y un recuento."],
 ] as const)(
-  "tells %s with the cloud's message, and updating the list reports it",
+  "tells %s in its own words, and updating the list reports it",
   async (kind, message) => {
     const voidAssemblyBatch = vi
       .fn<VoidAssemblyBatchModalServices["voidAssemblyBatch"]>()
-      .mockResolvedValue({ kind, message });
+      .mockResolvedValue({ kind });
     const onOutdated = vi.fn();
     const screen = await renderModal({ voidAssemblyBatch, onOutdated });
     const dialog = await confirm(screen);

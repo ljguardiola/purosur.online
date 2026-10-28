@@ -15,7 +15,7 @@ function batch(id: string, assembledAt: string): ReadAssemblyBatch {
     costIncomplete: false,
     expiresOn: null,
     voided: false,
-    lotConsumed: false,
+    lotMovements: [{ assemblyBatchId: id }],
   };
 }
 
@@ -60,22 +60,36 @@ describe("listAssemblyBatches", () => {
 
 describe("listAssemblyBatches status", () => {
   it.each([
-    { voided: false, lotConsumed: false, status: "voidable" },
-    { voided: false, lotConsumed: true, status: "consumed" },
-    { voided: true, lotConsumed: false, status: "voided" },
-    { voided: true, lotConsumed: true, status: "voided" },
+    {
+      voided: false,
+      takenBy: "the batch itself",
+      lotMovements: [{ assemblyBatchId: "one" }],
+      status: "voidable",
+    },
+    {
+      voided: false,
+      takenBy: "a sale",
+      lotMovements: [{ assemblyBatchId: null }],
+      status: "consumed",
+    },
+    {
+      voided: true,
+      takenBy: "the batch itself",
+      lotMovements: [{ assemblyBatchId: "one" }],
+      status: "voided",
+    },
   ] as const)(
-    "answers a batch voided $voided with its lot consumed $lotConsumed as $status",
-    async ({ voided, lotConsumed, status }) => {
+    "answers a batch voided $voided whose lot was moved by $takenBy as $status",
+    async ({ voided, lotMovements, status }) => {
       const reader = new FakeAssemblyBatchListReader([
-        { ...batch("one", "2026-05-10T10:00:00.000Z"), voided, lotConsumed },
+        { ...batch("one", "2026-05-10T10:00:00.000Z"), voided, lotMovements: [...lotMovements] },
       ]);
 
       const [listed] = await listAssemblyBatches(reader, QUERY);
 
       expect(listed?.status).toBe(status);
       expect(listed).not.toHaveProperty("voided");
-      expect(listed).not.toHaveProperty("lotConsumed");
+      expect(listed).not.toHaveProperty("lotMovements");
     },
   );
 });
