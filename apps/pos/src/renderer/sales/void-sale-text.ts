@@ -1,6 +1,6 @@
 import type { TagProps } from "@purosur/ui";
 import { formatCents } from "@purosur/ui";
-import { paymentMethodName } from "../platform/payment-method-names";
+import { paidPaymentName } from "../platform/payment-method-names";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 
 type Voidability = SaleDetail["voidability"];
@@ -31,7 +31,7 @@ export function voidRefundPresentation(refund: VoidRefund): {
   chip: { label: string; tone: TagProps["tone"] };
   pending: boolean;
 } {
-  const title = `${paymentMethodName(refund.method)} · ${formatCents(refund.amount)}`;
+  const title = `${paidPaymentName(refund.method, refund.card_type)} · ${formatCents(refund.amount)}`;
   if (refund.state === "APPROVED") {
     return {
       title,

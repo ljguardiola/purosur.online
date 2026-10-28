@@ -30,6 +30,7 @@ describe("voidRefundPresentation", () => {
     expect(
       voidRefundPresentation({
         method: "CASH",
+        card_type: null,
         amount: 100_000,
         state: "APPROVED",
         sent_by_cloud: false,
@@ -47,7 +48,13 @@ describe("voidRefundPresentation", () => {
     ["STANDALONE_TERMINAL", "Terminal independiente"],
   ] as const)("leaves a %s refund for a person to make outside the register", (method, name) => {
     expect(
-      voidRefundPresentation({ method, amount: 250_000, state: "PENDING", sent_by_cloud: false }),
+      voidRefundPresentation({
+        method,
+        card_type: null,
+        amount: 250_000,
+        state: "PENDING",
+        sent_by_cloud: false,
+      }),
     ).toEqual({
       title: `${name} · $ 2.500,00`,
       description: "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
@@ -63,7 +70,13 @@ describe("voidRefundPresentation", () => {
     "leaves a %s refund for the cloud to send to Mercado Pago once confirmed",
     (method, name) => {
       expect(
-        voidRefundPresentation({ method, amount: 250_000, state: "PENDING", sent_by_cloud: true }),
+        voidRefundPresentation({
+          method,
+          card_type: null,
+          amount: 250_000,
+          state: "PENDING",
+          sent_by_cloud: true,
+        }),
       ).toEqual({
         title: `${name} · $ 2.500,00`,
         description:
@@ -74,10 +87,23 @@ describe("voidRefundPresentation", () => {
     },
   );
 
+  it("names the card type of the refund of a Point payment", () => {
+    expect(
+      voidRefundPresentation({
+        method: "POINT",
+        card_type: "DEBIT",
+        amount: 250_000,
+        state: "PENDING",
+        sent_by_cloud: true,
+      }).title,
+    ).toBe("Point · Débito · $ 2.500,00");
+  });
+
   it("follows what the core says about who sends the refund, not the payment method", () => {
     expect(
       voidRefundPresentation({
         method: "QR",
+        card_type: null,
         amount: 1_000,
         state: "PENDING",
         sent_by_cloud: false,

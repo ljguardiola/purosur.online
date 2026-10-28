@@ -14,6 +14,7 @@ function payment(overrides: Partial<ReturnablePayment> = {}): ReturnablePayment 
     amount: 5000,
     state: "APPROVED",
     refundedAmount: 0,
+    cardType: null,
     ...overrides,
   };
 }
@@ -26,6 +27,7 @@ describe("returnablePayments", () => {
         method: "CASH",
         amount: 5000,
         refundedAmount: 1200,
+        cardType: null,
         remaining: 3800,
         eligible: true,
         ineligibleReason: null,
@@ -42,11 +44,21 @@ describe("returnablePayments", () => {
           method,
           amount: 5000,
           refundedAmount: 0,
+          cardType: null,
           remaining: 5000,
           eligible: false,
           ineligibleReason: "not_cash",
         },
       ]);
+    },
+  );
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "carries the %s card type of a Point payment",
+    (cardType) => {
+      expect(
+        returnablePayments([payment({ method: "POINT", provider: "X", cardType })])[0],
+      ).toMatchObject({ method: "POINT", cardType });
     },
   );
 
@@ -57,6 +69,7 @@ describe("returnablePayments", () => {
         method: "CASH",
         amount: 5000,
         refundedAmount: 5000,
+        cardType: null,
         remaining: 0,
         eligible: false,
         ineligibleReason: "nothing_left",

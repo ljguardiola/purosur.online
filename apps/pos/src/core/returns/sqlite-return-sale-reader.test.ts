@@ -155,6 +155,27 @@ describe("the sale a return starts from", () => {
     ]);
   });
 
+  it.each([
+    ["DEBIT", "DEBIT"],
+    ["CREDIT", "CREDIT"],
+    [null, null],
+  ] as const)("carries a Point payment recorded with card type %s as %s", (recorded, carried) => {
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+         VALUES ('pay-point', 'sale-1', 'SALE', 'POINT', 'MERCADOPAGO_POINT', ?, 800, 'APPROVED', ?, ?)`,
+      )
+      .run(recorded, SOLD_AT, SOLD_AT);
+
+    const found = reader.saleForReturn({ kind: "sale", saleId: "sale-1" });
+
+    expect(found?.payments.map(({ id, cardType }) => ({ id, cardType }))).toEqual([
+      { id: "pay-cash", cardType: null },
+      { id: "pay-transfer", cardType: null },
+      { id: "pay-point", cardType: carried },
+    ]);
+  });
+
   it("carries what each line already returned and was refunded across every earlier return", () => {
     insertStoredReturn(database, "return-1", [
       { saleLineId: "line-1", quantity: 1, refundedAmount: 2500 },

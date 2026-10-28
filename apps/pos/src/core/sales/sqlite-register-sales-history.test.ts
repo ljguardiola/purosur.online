@@ -20,7 +20,11 @@ interface SaleSeed {
   operationNumber?: number | null;
   actor?: string;
   lines?: number[];
-  payments?: { method: "CASH" | "TRANSFER" | "QR"; amount: number }[];
+  payments?: {
+    method: "CASH" | "TRANSFER" | "QR" | "POINT";
+    amount: number;
+    cardType?: "DEBIT" | "CREDIT";
+  }[];
   fiscal?: { state: FiscalDocumentState; pointOfSale?: number; number?: number };
   deferred?: boolean | "satisfied" | "cancelled";
   offlineDocument?: { pointOfSale: number; number: number };
@@ -95,6 +99,13 @@ function addSale({
            VALUES (?, ?, 'SALE', 'TRANSFER', 'NONE', ?, NULL, 'u1', ?, 'APPROVED', ?)`,
         )
         .run(paymentId, id, payment.amount, occurredAt, occurredAt);
+    } else if (payment.method === "POINT") {
+      database
+        .prepare(
+          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+           VALUES (?, ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', ?, ?, 'APPROVED', ?, ?)`,
+        )
+        .run(paymentId, id, payment.cardType ?? null, payment.amount, occurredAt, occurredAt);
     } else {
       database
         .prepare(
@@ -644,8 +655,8 @@ describe("SqliteRegisterSalesHistory", () => {
         lineCount: 3,
         total: 4500,
         payments: [
-          { method: "CASH", amount: 1000 },
-          { method: "TRANSFER", amount: 3500 },
+          { method: "CASH", amount: 1000, cardType: null },
+          { method: "TRANSFER", amount: 3500, cardType: null },
         ],
         fiscal: {
           deferred: false,
@@ -823,7 +834,29 @@ describe("SqliteRegisterSalesHistory", () => {
     it("shows a Mercado Pago QR payment of the sale with its amount", () => {
       addSale({ id: "sale-1", lines: [3070], payments: [{ method: "QR", amount: 3070 }] });
 
-      expect(history.saleOfRegister("sale-1")?.payments).toEqual([{ method: "QR", amount: 3070 }]);
+      expect(history.saleOfRegister("sale-1")?.payments).toEqual([
+        { method: "QR", amount: 3070, cardType: null },
+      ]);
+    });
+
+    it.each([
+      ["DEBIT", "DEBIT"],
+      ["CREDIT", "CREDIT"],
+      [undefined, null],
+    ] as const)("shows a Point payment recorded with card type %s as %s", (recorded, shown) => {
+      addSale({
+        id: "sale-1",
+        lines: [3070],
+        payments: [
+          recorded === undefined
+            ? { method: "POINT", amount: 3070 }
+            : { method: "POINT", amount: 3070, cardType: recorded },
+        ],
+      });
+
+      expect(history.saleOfRegister("sale-1")?.payments).toEqual([
+        { method: "POINT", amount: 3070, cardType: shown },
+      ]);
     });
 
     it("finds a sale of a closed session, outside the open session", () => {

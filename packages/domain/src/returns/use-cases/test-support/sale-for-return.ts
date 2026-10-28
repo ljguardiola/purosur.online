@@ -61,6 +61,7 @@ export const CASH_PAYMENT: ReturnablePayment = {
   amount: 15_000,
   state: "APPROVED",
   refundedAmount: 0,
+  cardType: null,
 };
 
 export const TRANSFER_PAYMENT: ReturnablePayment = {
@@ -70,6 +71,7 @@ export const TRANSFER_PAYMENT: ReturnablePayment = {
   amount: 6500,
   state: "APPROVED",
   refundedAmount: 0,
+  cardType: null,
 };
 
 export function aSaleForReturn(overrides: Partial<FakeStoredSale> = {}): FakeStoredSale {

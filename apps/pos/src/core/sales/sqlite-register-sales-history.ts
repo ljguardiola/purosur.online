@@ -158,9 +158,10 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       servedByFirstName: sale.first_name,
       lineCount: sale.line_count,
       total: this.totalOf(sale.id),
-      payments: readSalePayments(this.database, sale.id).map(({ method, amount }) => ({
-        method,
-        amount,
+      payments: readSalePayments(this.database, sale.id).map((payment) => ({
+        method: payment.method,
+        amount: payment.amount,
+        cardType: payment.method === "POINT" ? payment.cardType : null,
       })),
       fiscal: this.fiscalFactsOfSale(sale.id),
       voided: sale.voided === 1,

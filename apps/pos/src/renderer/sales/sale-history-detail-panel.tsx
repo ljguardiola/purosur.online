@@ -16,7 +16,7 @@ import {
 } from "@purosur/ui";
 import { CircleX, FileSearch, Lock, Printer, ReceiptText, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { paymentMethodName } from "../platform/payment-method-names";
+import { paidPaymentName } from "../platform/payment-method-names";
 import type { CoreData } from "../platform/use-core-query";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import {
@@ -166,7 +166,7 @@ function Sale({
   const details = nonEmptyRows(detailRows(sale));
   const payments = nonEmptyRows(
     sale.payments.map((payment) => ({
-      label: paymentMethodName(payment.method),
+      label: paidPaymentName(payment.method, payment.card_type),
       value: formatCents(payment.amount),
     })),
   );

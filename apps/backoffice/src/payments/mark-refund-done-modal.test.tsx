@@ -1,19 +1,26 @@
+import type { PendingRefundsBody } from "@purosur/contracts";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { MarkRefundDoneModal, type MarkRefundDoneModalServices } from "./mark-refund-done-modal";
-import { TRANSFER_REFUND_ID, transferRefund } from "./test-support/refund-fixtures";
+import {
+  creditPointRefund,
+  TRANSFER_REFUND_ID,
+  transferRefund,
+} from "./test-support/refund-fixtures";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
 function renderModal({
+  target = transferRefund,
   markRefundDone = vi.fn<MarkRefundDoneModalServices["markRefundDone"]>(),
   onDone = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
 }: {
+  target?: PendingRefundsBody["refunds"][number];
   markRefundDone?: MarkRefundDoneModalServices["markRefundDone"];
   onDone?: () => void;
   onClose?: () => void;
@@ -22,7 +29,7 @@ function renderModal({
   return render(
     <main>
       <MarkRefundDoneModal
-        target={transferRefund}
+        target={target}
         onClose={onClose}
         onDone={onDone}
         onSessionEnded={onSessionEnded}
@@ -37,6 +44,18 @@ async function confirm(screen: Awaited<ReturnType<typeof renderModal>>) {
   await userEvent.click(dialog.getByRole("button", { name: "Marcar como hecho" }));
   return dialog;
 }
+
+test("names the card type of a Point refund it asks to mark as done", async () => {
+  const screen = await renderModal({ target: creditPointRefund });
+
+  await expect
+    .element(
+      screen
+        .getByRole("dialog")
+        .getByText("Confirmá que ya se lo devolviste al cliente por Point · Crédito."),
+    )
+    .toBeVisible();
+});
 
 test("asks about the refund by its amount and how it was paid back", async () => {
   const screen = await renderModal();

@@ -182,6 +182,7 @@ describe("finding the sale to return", () => {
       {
         payment_id: "pay-cash",
         method: "CASH",
+        card_type: null,
         amount: 6000,
         refunded_amount: 0,
         remaining: 6000,
@@ -191,6 +192,7 @@ describe("finding the sale to return", () => {
       {
         payment_id: "pay-transfer",
         method: "TRANSFER",
+        card_type: null,
         amount: 5500,
         refunded_amount: 0,
         remaining: 5500,
@@ -199,6 +201,30 @@ describe("finding the sale to return", () => {
       },
     ]);
   });
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "answers the %s card type of a Point payment, listed as not refundable from the register",
+    async (cardType) => {
+      database
+        .prepare(
+          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+           VALUES ('pay-point', 'sale-1', 'SALE', 'POINT', 'MERCADOPAGO_POINT', ?, 800, 'APPROVED', ?, ?)`,
+        )
+        .run(cardType, "2026-09-12T18:30:00.000Z", "2026-09-12T18:30:00.000Z");
+
+      const outcome = await findSaleForReturnFor(deps(), { ticket: BY_SALE });
+
+      expect(
+        outcome.kind === "found" &&
+          outcome.sale.payments.find(({ payment_id }) => payment_id === "pay-point"),
+      ).toMatchObject({
+        method: "POINT",
+        card_type: cardType,
+        eligible: false,
+        ineligible_reason: "not_cash",
+      });
+    },
+  );
 
   it("finds the sale from the invoice of its ticket", async () => {
     database.exec(

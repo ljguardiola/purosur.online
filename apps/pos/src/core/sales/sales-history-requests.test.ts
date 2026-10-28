@@ -60,6 +60,7 @@ interface SaleSeed {
   authorizedDocumentNumber?: number;
   state?: "COMPLETED" | "VOIDED";
   session?: string;
+  pointCardType?: "DEBIT" | "CREDIT";
 }
 
 function addSale({
@@ -70,6 +71,7 @@ function addSale({
   authorizedDocumentNumber,
   state = "COMPLETED",
   session = "s1",
+  pointCardType,
 }: SaleSeed): void {
   database
     .prepare(
@@ -83,12 +85,21 @@ function addSale({
        VALUES (?, ?, 1, 'p1', 'Yerba', 2, 1500, 'list-1', 0, 3000)`,
     )
     .run(`line-${id}`, id);
-  database
-    .prepare(
-      `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
-       VALUES (?, ?, 'SALE', 'CASH', 'NONE', 3000, 3000, 'APPROVED', ?)`,
-    )
-    .run(`pay-${id}`, id, occurredAt);
+  if (pointCardType === undefined) {
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES (?, ?, 'SALE', 'CASH', 'NONE', 3000, 3000, 'APPROVED', ?)`,
+      )
+      .run(`pay-${id}`, id, occurredAt);
+  } else {
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, occurred_at, wait_ends_at)
+         VALUES (?, ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', ?, 3000, 'APPROVED', ?, ?)`,
+      )
+      .run(`pay-${id}`, id, pointCardType, occurredAt, occurredAt);
+  }
   if (deferred) {
     database
       .prepare(
@@ -323,11 +334,19 @@ describe("the detail of a sale of the history", () => {
         operation_number: 482,
         served_by_first_name: "Linus",
         line_count: 1,
-        payments: [{ method: "CASH", amount: 3000 }],
+        payments: [{ method: "CASH", card_type: null, amount: 3000 }],
         state: "completed",
         voidability: {
           kind: "voidable",
-          refunds: [{ method: "CASH", amount: 3000, state: "APPROVED", sent_by_cloud: false }],
+          refunds: [
+            {
+              method: "CASH",
+              card_type: null,
+              amount: 3000,
+              state: "APPROVED",
+              sent_by_cloud: false,
+            },
+          ],
           credit_note_corrects: { point_of_sale: 3, number: 1204 },
         },
         void_authorization_required: true,
@@ -354,7 +373,15 @@ describe("the detail of a sale of the history", () => {
 
     expect(answer.kind === "found" && answer.detail.voidability).toEqual({
       kind: "voidable",
-      refunds: [{ method: "CASH", amount: 3000, state: "APPROVED", sent_by_cloud: false }],
+      refunds: [
+        {
+          method: "CASH",
+          card_type: null,
+          amount: 3000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
       credit_note_corrects: { point_of_sale: 3, number: 1204 },
     });
   });
@@ -371,10 +398,41 @@ describe("the detail of a sale of the history", () => {
 
     expect(answer.kind === "found" && answer.detail.voidability).toEqual({
       kind: "voidable",
-      refunds: [{ method: "CASH", amount: 3000, state: "APPROVED", sent_by_cloud: false }],
+      refunds: [
+        {
+          method: "CASH",
+          card_type: null,
+          amount: 3000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
       credit_note_corrects: null,
     });
   });
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "answers the card type of a Point payment, and of the refund it would get, as %s",
+    async (pointCardType) => {
+      addSale({
+        id: "by-card",
+        occurredAt: "2026-10-08T09:30:00.000Z",
+        operationNumber: 483,
+        deferred: true,
+        pointCardType,
+      });
+
+      const answer = await saleHistoryDetailFor(deps(), "by-card");
+
+      expect(answer.kind === "found" && answer.detail.payments).toEqual([
+        { method: "POINT", card_type: pointCardType, amount: 3000 },
+      ]);
+      expect(answer.kind === "found" && answer.detail.voidability).toMatchObject({
+        kind: "voidable",
+        refunds: [{ method: "POINT", card_type: pointCardType, amount: 3000 }],
+      });
+    },
+  );
 
   it("answers that voiding needs no other person's authorization to a person who may void", async () => {
     addPerson("supervisor", "Grace", ["view_sales_history", "void_sale"]);

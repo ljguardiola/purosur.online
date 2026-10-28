@@ -55,6 +55,7 @@ export const TEA: SaleLineForReturn = {
 export const CASH: PaymentForReturn = {
   payment_id: "pay-cash",
   method: "CASH",
+  card_type: null,
   amount: 1_500_000,
   refunded_amount: 0,
   remaining: 1_500_000,
@@ -65,6 +66,7 @@ export const CASH: PaymentForReturn = {
 export const TRANSFER: PaymentForReturn = {
   payment_id: "pay-transfer",
   method: "TRANSFER",
+  card_type: null,
   amount: 1_033_500,
   refunded_amount: 0,
   remaining: 1_033_500,

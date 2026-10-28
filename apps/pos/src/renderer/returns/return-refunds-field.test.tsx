@@ -12,9 +12,15 @@ import {
   returnRequestSchema,
 } from "./return-form";
 import { ReturnRefundsField } from "./return-refunds-field";
-import { SALE } from "./test-support/sale-for-return";
+import { SALE, TRANSFER } from "./test-support/sale-for-return";
 
-function RefundsForm({ disabled = false }: { disabled?: boolean }) {
+function RefundsForm({
+  disabled = false,
+  payments = SALE.payments,
+}: {
+  disabled?: boolean;
+  payments?: typeof SALE.payments;
+}) {
   const { form, submit, values } = useRequestForm({
     defaultValues: EMPTY_RETURN_FORM,
     request: {
@@ -30,7 +36,7 @@ function RefundsForm({ disabled = false }: { disabled?: boolean }) {
       <form.AppField name="refunds">
         {() => (
           <ReturnRefundsField
-            texts={refundTextsFor(SALE.payments, 970_000, values.refunds)}
+            texts={refundTextsFor(payments, 970_000, values.refunds)}
             disabled={disabled}
           />
         )}
@@ -42,10 +48,15 @@ function RefundsForm({ disabled = false }: { disabled?: boolean }) {
   );
 }
 
-async function renderField(disabled?: boolean) {
+async function renderField(disabled?: boolean, payments?: typeof SALE.payments) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
-  return render(<RefundsForm {...(disabled === undefined ? {} : { disabled })} />);
+  return render(
+    <RefundsForm
+      {...(disabled === undefined ? {} : { disabled })}
+      {...(payments === undefined ? {} : { payments })}
+    />,
+  );
 }
 
 describe("ReturnRefundsField", () => {
@@ -57,6 +68,17 @@ describe("ReturnRefundsField", () => {
     await expect
       .element(screen.getByRole("textbox", { name: "Reintegro por Efectivo" }))
       .toHaveValue("9.700,00");
+  });
+
+  it("names the card type of a Point payment, in its name and its refund label", async () => {
+    const screen = await renderField(false, [
+      { ...TRANSFER, payment_id: "pay-point", method: "POINT", card_type: "DEBIT" },
+    ]);
+
+    await expect.element(screen.getByText("Point · Débito", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Reintegro por Point · Débito" }))
+      .toBeInTheDocument();
   });
 
   it("locks a payment that is not refunded from the register, saying why", async () => {

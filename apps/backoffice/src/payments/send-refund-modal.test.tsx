@@ -1,21 +1,27 @@
-import type { ConfirmedRefundBody } from "@purosur/contracts";
+import type { ConfirmedRefundBody, PendingRefundsBody } from "@purosur/contracts";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { SendRefundModal, type SendRefundModalServices } from "./send-refund-modal";
-import { CLOUD_SENT_REFUND_ID, unconfirmedCloudRefund } from "./test-support/refund-fixtures";
+import {
+  CLOUD_SENT_REFUND_ID,
+  debitPointRefund,
+  unconfirmedCloudRefund,
+} from "./test-support/refund-fixtures";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
 function renderModal({
+  target = unconfirmedCloudRefund,
   confirmRefund = vi.fn<SendRefundModalServices["confirmRefund"]>(),
   onConfirmed = () => {},
   onOutdated = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
 }: {
+  target?: PendingRefundsBody["refunds"][number];
   confirmRefund?: SendRefundModalServices["confirmRefund"];
   onConfirmed?: (body: ConfirmedRefundBody) => void;
   onOutdated?: () => void;
@@ -25,7 +31,7 @@ function renderModal({
   return render(
     <main>
       <SendRefundModal
-        target={unconfirmedCloudRefund}
+        target={target}
         onClose={onClose}
         onConfirmed={onConfirmed}
         onOutdated={onOutdated}
@@ -59,6 +65,12 @@ test("asks whether to send the refund, with its amount, method and reason", asyn
       ),
     )
     .toBeVisible();
+});
+
+test("names the card type of a Point refund it asks to send", async () => {
+  const screen = await renderModal({ target: debitPointRefund });
+
+  await expect.element(screen.getByRole("dialog").getByText(/Point · Débito/)).toBeVisible();
 });
 
 test("confirming sends the refund and reports Mercado Pago's answer", async () => {

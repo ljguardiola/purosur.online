@@ -10,6 +10,7 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { useEffect, useEffectEvent, useState } from "react";
 import { paymentMethodLabel } from "../platform/payment-method-label";
+import { paymentLabel } from "./payment-label";
 import { refundDeliveryStatus } from "./refund-delivery-status";
 import { refundDate } from "./refund-moments";
 import { refundReason } from "./refund-reason";
@@ -44,9 +45,11 @@ export const methodColumn = dataColumn({
     const order = refund.provider_order_id === null ? null : `Orden ${refund.provider_order_id}`;
     const description = [status, order].filter((part) => part !== null).join(" · ") || null;
     return description === null ? (
-      paymentMethodLabel(refund.method)
+      paymentLabel(refund.method, refund.card_type)
     ) : (
-      <TableCellText description={description}>{paymentMethodLabel(refund.method)}</TableCellText>
+      <TableCellText description={description}>
+        {paymentLabel(refund.method, refund.card_type)}
+      </TableCellText>
     );
   },
 });
