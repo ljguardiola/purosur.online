@@ -10,10 +10,10 @@ export type {
 export { DocumentList } from "./components/data-display/document-list";
 export type { FigureStatProps } from "./components/data-display/figure-stat";
 export { FigureStat } from "./components/data-display/figure-stat";
-export type { HighlightedFigureProps } from "./components/data-display/highlighted-figure";
-export { HighlightedFigure } from "./components/data-display/highlighted-figure";
 export type { HelpArticleBodyProps } from "./components/data-display/help-article-body";
 export { HelpArticleBody } from "./components/data-display/help-article-body";
+export type { HighlightedFigureProps } from "./components/data-display/highlighted-figure";
+export { HighlightedFigure } from "./components/data-display/highlighted-figure";
 export type { PercentBarProps } from "./components/data-display/percent-bar";
 export { PercentBar } from "./components/data-display/percent-bar";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";

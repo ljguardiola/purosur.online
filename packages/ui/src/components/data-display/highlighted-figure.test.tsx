@@ -25,9 +25,7 @@ test("shows the label at the start and the value at the end of one row", async (
       <HighlightedFigure label="Margen" value="45,6 %" />
     </div>,
   );
-  const cardBox = (
-    figureOf(screen).firstElementChild as HTMLElement
-  ).getBoundingClientRect();
+  const cardBox = (figureOf(screen).firstElementChild as HTMLElement).getBoundingClientRect();
   const label = screen.getByText("Margen").element().getBoundingClientRect();
   const value = screen.getByText("45,6 %").element().getBoundingClientRect();
 
