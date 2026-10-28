@@ -1,4 +1,5 @@
 import type {
+  BrandSummary,
   CategorySummary,
   FreightList,
   LinkablePurchaseList,
@@ -11,6 +12,7 @@ import type {
   SupplierPriceComparison,
   SupplierPriceListSummary,
   SupplierSummary,
+  TagList,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -28,7 +30,11 @@ import type {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
 } from "./supplier-item-links-api";
-import type { fetchProductCreationCategories } from "./supplier-item-products-api";
+import type {
+  fetchProductCreationBrands,
+  fetchProductCreationCategories,
+  fetchProductCreationTags,
+} from "./supplier-item-products-api";
 import type { fetchSupplierPriceComparison } from "./supplier-price-comparison-api";
 import type {
   fetchSupplierPriceListReview,
@@ -51,6 +57,8 @@ export const purchasingKeys = {
   supplierItemLinkProposal: [...purchasingKey, "supplier-item-link-proposal"] as const,
   supplierItemLinkChoices: [...purchasingKey, "supplier-item-link-choices"] as const,
   productCreationCategories: [...purchasingKey, "product-creation-categories"] as const,
+  productCreationBrands: [...purchasingKey, "product-creation-brands"] as const,
+  productCreationTags: [...purchasingKey, "product-creation-tags"] as const,
   supplierPriceComparison: [...purchasingKey, "supplier-price-comparison"] as const,
 };
 
@@ -234,6 +242,51 @@ export function useProductCreationCategoriesQuery(params: {
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+export function useProductCreationBrandsQuery(params: {
+  enabled: boolean;
+  fetchProductCreationBrands: typeof fetchProductCreationBrands;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<BrandSummary[]>({
+    queryKey: purchasingKeys.productCreationBrands,
+    enabled: params.enabled,
+    read: params.fetchProductCreationBrands,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useProductCreationTagsQuery(params: {
+  enabled: boolean;
+  fetchProductCreationTags: typeof fetchProductCreationTags;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<TagList>({
+    queryKey: purchasingKeys.productCreationTags,
+    enabled: params.enabled,
+    read: params.fetchProductCreationTags,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useProductCreationChoicesRefresh() {
+  const client = useQueryClient();
+  const keys = [purchasingKeys.productCreationBrands, purchasingKeys.productCreationTags];
+  return {
+    markStale: async () => {
+      await Promise.all(
+        keys.map((queryKey) => client.invalidateQueries({ queryKey, refetchType: "none" })),
+      );
+    },
+    refresh: async () => {
+      await Promise.all(keys.map((queryKey) => client.invalidateQueries({ queryKey })));
+    },
+  };
 }
 
 export function useSupplierPriceComparisonQuery(params: {
