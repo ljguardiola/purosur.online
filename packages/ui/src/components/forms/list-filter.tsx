@@ -48,11 +48,12 @@ const searchableBoxClassName =
   "hover:not-focus-within:bg-surface-subtle has-focus-visible:focus-ring";
 
 function SearchableListFilter<V extends string>({
+  name,
   label,
   options,
   value,
   onChange,
-}: Omit<ListFilterProps<V>, "name" | "searchable">) {
+}: Omit<ListFilterProps<V>, "searchable">) {
   const { contains } = useFilter({ sensitivity: "base" });
   const boxRef = useRef<HTMLDivElement>(null);
   const uniqueOptions = lastOptionPerValue(options);
@@ -70,6 +71,7 @@ function SearchableListFilter<V extends string>({
 
   return (
     <AriaComboBox
+      name={name}
       className="min-w-0"
       items={visibleOptions}
       selectedKey={value}
@@ -153,7 +155,13 @@ export function ListFilter<V extends string>({
 
   if (searchable) {
     return (
-      <SearchableListFilter label={label} options={options} value={value} onChange={onChange} />
+      <SearchableListFilter
+        name={name}
+        label={label}
+        options={options}
+        value={value}
+        onChange={onChange}
+      />
     );
   }
 

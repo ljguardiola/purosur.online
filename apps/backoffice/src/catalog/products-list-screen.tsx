@@ -192,6 +192,9 @@ export function ProductsListScreen({
     !offeredBrandIds.has(chosenBrandFilter)
       ? "ALL"
       : chosenBrandFilter;
+  if (brandFilter !== chosenBrandFilter) {
+    setChosenBrandFilter(brandFilter);
+  }
 
   useEffect(() => {
     const shown: ProductsListFilters = {
