@@ -146,9 +146,7 @@ describe("createProductFromSupplierItem", () => {
   });
 
   test("answers a 409 tag_inactive with the tag the cloud refused", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      jsonResponse(409, { code: "tag_inactive", tagId: "tag-1" }),
-    );
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "tag_inactive", tagId: "tag-1" }));
 
     expect(await createProductFromSupplierItem("list-1", "row-1", CREATION_BODY)).toEqual({
       kind: "tag_inactive",

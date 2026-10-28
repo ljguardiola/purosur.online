@@ -10,7 +10,10 @@ import {
 } from "./create-product-from-supplier-item-modal";
 import { LINK_CHOICES } from "./test-support/supplier-item-links";
 import {
+  CREATION_BRAND,
+  CREATION_BRANDS,
   CREATION_CATEGORIES,
+  CREATION_TAG_LIST,
   DRIED_FRUITS,
   PRODUCT_CREATED,
 } from "./test-support/supplier-item-products";
@@ -38,6 +41,14 @@ function createServices(
     fetchProductCreationCategories: vi
       .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationCategories"]>()
       .mockResolvedValue({ kind: "ok", value: CREATION_CATEGORIES }),
+    fetchProductCreationBrands: vi
+      .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationBrands"]>()
+      .mockResolvedValue({ kind: "ok", value: CREATION_BRANDS }),
+    fetchProductCreationTags: vi
+      .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationTags"]>()
+      .mockResolvedValue({ kind: "ok", value: CREATION_TAG_LIST }),
+    createBrand: vi.fn<CreateProductFromSupplierItemModalServices["createBrand"]>(),
+    createTag: vi.fn<CreateProductFromSupplierItemModalServices["createTag"]>(),
     fetchSupplierItemLinkChoices: vi
       .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
       .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
@@ -51,6 +62,7 @@ function renderModal({
   services = createServices(),
   list = LIST,
   target = nutRow,
+  mayCreateBrandsAndTags = true,
   onCreated = () => {},
   onOutdated = () => {},
   onClose = () => {},
@@ -59,6 +71,7 @@ function renderModal({
   services?: CreateProductFromSupplierItemModalServices;
   list?: Parameters<typeof CreateProductFromSupplierItemModal>[0]["list"];
   target?: typeof nutRow | null;
+  mayCreateBrandsAndTags?: boolean;
   onCreated?: () => void;
   onOutdated?: () => void;
   onClose?: () => void;
@@ -70,6 +83,7 @@ function renderModal({
         <CreateProductFromSupplierItemModal
           list={list}
           target={target}
+          mayCreateBrandsAndTags={mayCreateBrandsAndTags}
           services={services}
           onCreated={onCreated}
           onOutdated={onOutdated}
@@ -111,19 +125,45 @@ test("shows nothing while there is no item to create the product from", async ()
   expect(screen.getByRole("dialog").query()).toBeNull();
 });
 
-test("names the supplier, and shows the item's name, code, presentation and price as the list states them, none of them editable", async () => {
+test("names the supplier, and shows the item's code, presentation and price as the list states them, none of them editable", async () => {
   const screen = await renderModal();
   const dialog = dialogOf(screen);
 
   await expect.element(dialog.getByText("Crear producto desde la lista")).toBeVisible();
   await expect.element(dialog.getByText("Distribuidora Andina")).toBeVisible();
-  await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
   await expect.element(dialog.getByText("NM-10")).toBeVisible();
   await expect.element(dialog.getByText("Presentación de compra")).toBeVisible();
   await expect.element(dialog.getByText("Caja 10 kg")).toBeVisible();
   await expect.element(dialog.getByText("$ 142.000,00")).toBeVisible();
-  expect(dialog.getByRole("textbox", { name: /^Nombre/ }).query()).toBeNull();
   expect(dialog.getByRole("textbox", { name: /^Presentación de compra/ }).query()).toBeNull();
+});
+
+test("offers the product's fields as a new product does, in the same order, the name filled from the item's description", async () => {
+  const screen = await renderModal();
+  const dialog = dialogOf(screen);
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Nuez mariposa extra light x 10 kg");
+  const labels = [
+    dialog.getByRole("textbox", { name: /^Nombre/ }),
+    dialog.getByRole("button", { name: /^Elegí una categoría/ }),
+    dialog.getByRole("button", { name: /Marca/ }),
+    dialog.getByRole("textbox", { name: "Contenido neto" }),
+    dialog.getByRole("group", { name: "Distintivos" }),
+    dialog.getByRole("radio", { name: "Por unidad" }),
+    dialog.getByRole("button", { name: "Generar código interno" }),
+    dialog.getByRole("textbox", { name: /^Contiene/ }),
+  ].map((locator) => locator.element());
+  const inOrder = labels.every(
+    (element, index) =>
+      index === 0 ||
+      (labels[index - 1]?.compareDocumentPosition(element) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  expect(inOrder).toBe(true);
+  await expect
+    .element(dialog.getByRole("button", { name: /Marca/ }))
+    .toHaveTextContent("Sin marca");
 });
 
 test("starts with the barcode the reading found", async () => {
@@ -172,13 +212,236 @@ test("creates the product with what was filled in and tells the screen", async (
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
   expect(services.createProductFromSupplierItem).toHaveBeenCalledWith(LIST.id, nutRow.id, {
     version: 3,
+    name: "Nuez mariposa extra light x 10 kg",
     saleUnit: "UNIT",
     categoryId: DRIED_FRUITS.id,
+    brandId: null,
     barcodes: ["7790001000029"],
+    tagIds: [],
+    netContent: null,
     packagingName: null,
     quantityPerPackage: 10_000,
     vatRate: null,
   });
+});
+
+test("creates the product with the name changed, the brand chosen and the net content typed", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Aceite de almendras");
+  await userEvent.click(dialog.getByRole("button", { name: /Marca/ }));
+  await userEvent.click(dialog.getByRole("option", { name: CREATION_BRAND.name }));
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "125");
+  await userEvent.click(dialog.getByRole("button", { name: "g Unidad" }));
+  await userEvent.click(dialog.getByRole("option", { name: "ml" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
+  await userEvent.click(page.getByRole("menuitem", { name: "Sin TACC" }));
+  await fillTheRest(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .poll(() => vi.mocked(services.createProductFromSupplierItem).mock.calls.length)
+    .toBe(1);
+  expect(services.createProductFromSupplierItem).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({
+      name: "Aceite de almendras",
+      brandId: CREATION_BRAND.id,
+      tagIds: [CREATION_TAG_LIST.tags[0]?.id],
+      netContent: { quantity: 125, unit: "ML" },
+    }),
+  );
+});
+
+test("does not create the product with the name cleared, and shows the message a new product shows", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+
+  await userEvent.clear(dialog.getByRole("textbox", { name: /^Nombre/ }));
+  await fillTheRest(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Ingresá el nombre del producto.")).toBeVisible();
+  expect(services.createProductFromSupplierItem).not.toHaveBeenCalled();
+});
+
+test("shows the same net content message as a new product for a quantity that is not valid", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "0");
+  await fillTheRest(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText(/^Ingresá una cantidad mayor que cero, de hasta/))
+    .toBeVisible();
+  expect(services.createProductFromSupplierItem).not.toHaveBeenCalled();
+});
+
+test("offers only the active brands, and the active tags, by name", async () => {
+  const screen = await renderModal({
+    services: createServices({
+      fetchProductCreationBrands: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: [
+          CREATION_BRAND,
+          {
+            ...CREATION_BRAND,
+            id: "b2a00000-0000-4000-8000-000000000002",
+            name: "Granuz",
+            active: false,
+          },
+        ],
+      }),
+    }),
+  });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: /Marca/ }));
+
+  const options = dialog.getByRole("option").all();
+  expect(options.map((option) => option.element().textContent)).toEqual(["Sin marca", "Dulcor"]);
+});
+
+test("offers to create a brand and a tag to a session that may manage the catalog, and creates the brand without losing what was typed", async () => {
+  const services = createServices();
+  const dulcorNuevo = {
+    ...CREATION_BRAND,
+    id: "b2a00000-0000-4000-8000-000000000009",
+    name: "Cabriola",
+  };
+  vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcorNuevo });
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Aceite de almendras");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
+  const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
+  await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Cabriola");
+  await userEvent.click(brandDialog.getByRole("button", { name: "Crear la marca" }));
+
+  expect(services.createBrand).toHaveBeenCalledWith({ name: "Cabriola" });
+  await expect.poll(() => page.getByRole("dialog", { name: "Nueva marca" }).query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toHaveTextContent("Cabriola");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Aceite de almendras");
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
+  await expect.element(page.getByRole("menuitem", { name: "Crear distintivo…" })).toBeVisible();
+});
+
+test("offers no way to create a brand or a tag to a session that may not manage the catalog", async () => {
+  const screen = await renderModal({ mayCreateBrandsAndTags: false });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+
+  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
+  await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
+  expect(page.getByRole("menuitem", { name: "Crear distintivo…" }).query()).toBeNull();
+});
+
+test("says the brands are loading and creating waits for them", async () => {
+  const services = createServices({
+    fetchProductCreationBrands: vi.fn().mockReturnValue(new Promise(() => {})),
+  });
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+
+  await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeDisabled();
+  expect(dialog.getByRole("button", { name: /Marca/ }).query()).toBeNull();
+});
+
+test("says the brands could not be opened, and reading them again recovers", async () => {
+  const services = createServices({
+    fetchProductCreationBrands: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockResolvedValue({ kind: "ok", value: CREATION_BRANDS }),
+  });
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+
+  await expect.element(dialog.getByText("No pudimos abrir las marcas")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+});
+
+test("says the tags are loading and creating waits for them", async () => {
+  const services = createServices({
+    fetchProductCreationTags: vi.fn().mockReturnValue(new Promise(() => {})),
+  });
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+
+  await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeDisabled();
+  expect(dialog.getByRole("group", { name: "Distintivos" }).query()).toBeNull();
+});
+
+test("says the tags could not be opened, and reading them again recovers", async () => {
+  const services = createServices({
+    fetchProductCreationTags: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockResolvedValue({ kind: "ok", value: CREATION_TAG_LIST }),
+  });
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+
+  await expect.element(dialog.getByText("No pudimos abrir los distintivos")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
+});
+
+test("ends the session when the brands or the tags come back unauthenticated", async () => {
+  const onSessionEnded = vi.fn();
+  await renderModal({
+    services: createServices({
+      fetchProductCreationBrands: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+    }),
+    onSessionEnded,
+  });
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells the chosen brand was deactivated, on the brand, the way a new product does", async () => {
+  const services = createServices();
+  vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({ kind: "brand_inactive" });
+  const screen = await renderModal({ services });
+
+  const dialog = await create(screen);
+
+  await expect
+    .element(dialog.getByText("La marca elegida se dio de baja. Elegí otra o dejala sin marca."))
+    .toBeVisible();
+});
+
+test("tells the tag that was deactivated by name, on the tags, the way a new product does", async () => {
+  const services = createServices();
+  vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({
+    kind: "tag_inactive",
+    tagId: CREATION_TAG_LIST.tags[0]?.id ?? "",
+  });
+  const screen = await renderModal({ services });
+
+  const dialog = await create(screen);
+
+  await expect
+    .element(dialog.getByText('"Sin TACC" se dio de baja. Quitalo para guardar.'))
+    .toBeVisible();
 });
 
 test("creates the product with the presentation typed for an item whose list states none", async () => {
@@ -431,17 +694,18 @@ test("tells the product was not created, and creating stays available", async ()
   await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeEnabled();
 });
 
-test.each([
-  ["name_too_long", "El nombre de la lista es demasiado largo"],
-  ["presentation_too_long", "La presentación de la lista es demasiado larga"],
-] as const)("tells %s, and creating stays available", async (kind, title) => {
+test("tells the item's presentation is too long, and creating stays available", async () => {
   const services = createServices();
-  vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({ kind });
+  vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({
+    kind: "presentation_too_long",
+  });
   const screen = await renderModal({ services });
 
   const dialog = await create(screen);
 
-  await expect.element(dialog.getByText(title)).toBeVisible();
+  await expect
+    .element(dialog.getByText("La presentación de la lista es demasiado larga"))
+    .toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeEnabled();
 });
 

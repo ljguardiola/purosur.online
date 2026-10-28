@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_PRODUCT_FORM, PRODUCT_MESSAGES, productRequestFrom } from "../platform/product-form";
 import {
   SUPPLIER_ITEM_PRODUCT_MESSAGES,
   type SupplierItemProductFormValues,
@@ -14,23 +15,27 @@ const [, unlinkedWithoutPresentation, nutRow] = EXTRACTED_ROWS as [
 ];
 
 const FILLED: SupplierItemProductFormValues = {
+  name: "Aceite de almendras",
+  categoryId: "category-1",
+  brandId: "",
   saleUnit: "UNIT",
+  netContent: { quantity: "", unit: "G" },
+  barcodes: { codes: ["7790001000029"], scan: "" },
+  tagIds: [],
   packagingName: " Caja 10 kg ",
   quantity: "10",
-  categoryId: "category-1",
-  barcodes: { codes: ["7790001000029"], scan: "" },
   vatRate: "",
   version: 3,
 };
 
 describe("supplierItemProductFormValuesOf", () => {
-  it("starts from the item's barcode, sold by the unit, with no presentation to type when the list states one", () => {
+  it("starts as a new product does, with the item's description as the name and its barcode, and no presentation to type when the list states one", () => {
     expect(supplierItemProductFormValuesOf(nutRow, 3)).toEqual({
-      saleUnit: "UNIT",
+      ...EMPTY_PRODUCT_FORM,
+      name: nutRow.description,
+      barcodes: { codes: ["7790001000029"], scan: "" },
       packagingName: null,
       quantity: "",
-      categoryId: null,
-      barcodes: { codes: ["7790001000029"], scan: "" },
       vatRate: "",
       version: 3,
     });
@@ -48,13 +53,28 @@ describe("supplierItemProductRequestFrom", () => {
   it("builds the request with the presentation's name trimmed and the quantity in the stock's units", () => {
     expect(supplierItemProductRequestFrom(FILLED, false)).toEqual({
       version: 3,
+      name: "Aceite de almendras",
       saleUnit: "UNIT",
       categoryId: "category-1",
+      brandId: null,
       barcodes: ["7790001000029"],
+      tagIds: [],
+      netContent: null,
       packagingName: "Caja 10 kg",
       quantityPerPackage: 10_000,
       vatRate: null,
     });
+  });
+
+  it("builds the product's part of the request as a new product does", () => {
+    const filled = {
+      ...FILLED,
+      brandId: "brand-1",
+      tagIds: ["tag-1"],
+      netContent: { quantity: "125", unit: "ML" as const },
+    };
+
+    expect(supplierItemProductRequestFrom(filled, false)).toMatchObject(productRequestFrom(filled));
   });
 
   it("sends no presentation's name when the list states the presentation", () => {
@@ -126,8 +146,15 @@ describe("SUPPLIER_ITEM_PRODUCT_MESSAGES", () => {
     ).toBe("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
   });
 
-  it("asks for the sale unit and the VAT rate", () => {
-    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.saleUnit()).toBe("Elegí la unidad de venta.");
+  it("asks for the VAT rate", () => {
     expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.vatRate()).toBe("Elegí el IVA del ítem.");
+  });
+
+  it("words the product's fields as a new product does", () => {
+    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.name({ ...FILLED, name: " " })).toBe(
+      PRODUCT_MESSAGES.name({ ...FILLED, name: " " }),
+    );
+    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.saleUnit()).toBe(PRODUCT_MESSAGES.saleUnit());
+    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.brandId()).toBe(PRODUCT_MESSAGES.brandId());
   });
 });
