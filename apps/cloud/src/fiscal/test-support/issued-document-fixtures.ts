@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  cashSessions,
+  categories,
   creditNotes,
   discounts,
   fiscalRequests,
@@ -8,7 +10,9 @@ import {
   registers,
   saleLines,
   salePayments,
+  sales,
 } from "../../platform/db/schema.js";
+import { seededLocationId } from "../../test-support/seeded-location.js";
 
 type Db = PgDatabase<PgQueryResultHKT>;
 
@@ -146,10 +150,18 @@ export async function insertSalePayment(
 }
 
 export async function insertPromotion(db: Db, name: string): Promise<string> {
+  const [category] = await db
+    .insert(categories)
+    .values({ name: `Categoría de ${name}` })
+    .returning({ id: categories.id });
+  if (!category) {
+    throw new Error("test setup: seeding the category returned no row");
+  }
   const [promotion] = await db
     .insert(discounts)
     .values({
       name,
+      categoryId: category.id,
       kind: "PERCENT_OFF",
       percent: 10,
       validFrom: "2026-10-01",
@@ -160,4 +172,31 @@ export async function insertPromotion(db: Db, name: string): Promise<string> {
     throw new Error("test setup: seeding the promotion returned no row");
   }
   return promotion.id;
+}
+
+export async function insertCompletedSale(
+  db: Db,
+  {
+    saleId,
+    registerId,
+    deviceId,
+    at,
+  }: { saleId: string; registerId: string; deviceId: string; at: Date },
+): Promise<void> {
+  const origin = { locationId: await seededLocationId(db), registerId, deviceId };
+  const sessionId = randomUUID();
+  const actorId = randomUUID();
+  await db
+    .insert(cashSessions)
+    .values({ id: sessionId, ...origin, openedBy: actorId, openedAt: at, openingFloat: 0 });
+  await db.insert(sales).values({
+    id: saleId,
+    ...origin,
+    sessionId,
+    actorId,
+    state: "COMPLETED",
+    completedAt: at,
+    total: 1_500,
+    appliedAt: at,
+  });
 }

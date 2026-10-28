@@ -6,6 +6,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzleIssuedFiscalDocumentDetailReader } from "./drizzle-issued-fiscal-document-detail-reader.js";
 import {
   insertCaeaDocument,
+  insertCompletedSale,
   insertOnlineCreditNote,
   insertPromotion,
   insertReceiptRequest,
@@ -13,7 +14,6 @@ import {
   insertSalePayment,
   insertSoldLine,
 } from "./test-support/issued-document-fixtures.js";
-import { insertRecordedSale } from "./test-support/recorded-sale-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const RECEIPT = { voucherType: 11, pointOfSale: 7, number: 12 };
@@ -36,16 +36,16 @@ beforeEach(async () => {
 });
 
 async function aBranchWithRegister(name = "Caja 1") {
-  const { registerId, locationId } = await insertEnrolledInstallation(db, {
+  const { registerId, locationId, deviceId } = await insertEnrolledInstallation(db, {
     now: NOW,
     registerName: name,
   });
-  return { registerId, locationId };
+  return { registerId, locationId, deviceId };
 }
 
-async function aSale(registerId: string) {
+async function aSale(registerId: string, deviceId: string) {
   const saleId = randomUUID();
-  await insertRecordedSale(db, { saleId, registerId, at: NOW });
+  await insertCompletedSale(db, { saleId, registerId, deviceId, at: NOW });
   return saleId;
 }
 
@@ -59,10 +59,10 @@ function detailOf(locationId: string, voucher: typeof RECEIPT) {
 describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () => {
   describe("a receipt requested online", () => {
     it("reads its document, its buyer as the final consumer and its authorization", async () => {
-      const { registerId, locationId } = await aBranchWithRegister("Caja 1");
+      const { registerId, locationId, deviceId } = await aBranchWithRegister("Caja 1");
       await insertReceiptRequest(db, registerId, {
         ...RECEIPT,
-        saleId: await aSale(registerId),
+        saleId: await aSale(registerId, deviceId),
         issuedOn: "2026-10-05",
         total: 4_800,
         authorizationCode: "75123456789012",
@@ -85,8 +85,8 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
     });
 
     it("reads the lines as sold: by unit, by weight and with the promotion applied", async () => {
-      const { registerId, locationId } = await aBranchWithRegister();
-      const saleId = await aSale(registerId);
+      const { registerId, locationId, deviceId } = await aBranchWithRegister();
+      const saleId = await aSale(registerId, deviceId);
       await insertReceiptRequest(db, registerId, { ...RECEIPT, saleId });
       const promotionId = await insertPromotion(db, "Lácteos 2x1");
       await insertSoldLine(db, saleId, {
@@ -121,8 +121,8 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
     });
 
     it("reads a weight typed by hand as grams too", async () => {
-      const { registerId, locationId } = await aBranchWithRegister();
-      const saleId = await aSale(registerId);
+      const { registerId, locationId, deviceId } = await aBranchWithRegister();
+      const saleId = await aSale(registerId, deviceId);
       await insertReceiptRequest(db, registerId, { ...RECEIPT, saleId });
       await insertSoldLine(db, saleId, { quantity: 250, weightSource: "MANUAL" });
 
@@ -132,8 +132,8 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
     });
 
     it("reads only the approved payments, with their method and card type", async () => {
-      const { registerId, locationId } = await aBranchWithRegister();
-      const saleId = await aSale(registerId);
+      const { registerId, locationId, deviceId } = await aBranchWithRegister();
+      const saleId = await aSale(registerId, deviceId);
       await insertReceiptRequest(db, registerId, { ...RECEIPT, saleId });
       await insertSalePayment(db, saleId, { method: "CASH", amount: 3_800 });
       await insertSalePayment(db, saleId, {
@@ -160,8 +160,8 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
     });
 
     it("refuses to read a payment whose method is not one the cloud knows", async () => {
-      const { registerId, locationId } = await aBranchWithRegister();
-      const saleId = await aSale(registerId);
+      const { registerId, locationId, deviceId } = await aBranchWithRegister();
+      const saleId = await aSale(registerId, deviceId);
       await insertReceiptRequest(db, registerId, { ...RECEIPT, saleId });
       await insertSalePayment(db, saleId, { method: "CHEQUE" });
 
@@ -271,6 +271,7 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
       await insertReceiptRequest(db, registerId, RECEIPT);
       await insertCaeaDocument(db, registerId, {
         documentType: "credit_note_c",
+        creditNoteId: randomUUID(),
         pointOfSale: 8,
         number: 9,
         correctedVoucherType: 11,
@@ -311,6 +312,8 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
       await insertReceiptRequest(db, registerId, RECEIPT);
       await insertOnlineCreditNote(db, registerId, {
         number: null,
+        issuedOn: null,
+        requestedAt: null,
         answerKind: null,
         answeredAt: null,
         authorizationCode: null,
@@ -330,8 +333,8 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
 
   describe("a credit note", () => {
     it("reads the voucher it corrects and the sale it was issued for, with no credit notes of its own", async () => {
-      const { registerId, locationId } = await aBranchWithRegister();
-      const saleId = await aSale(registerId);
+      const { registerId, locationId, deviceId } = await aBranchWithRegister();
+      const saleId = await aSale(registerId, deviceId);
       await insertSoldLine(db, saleId, {
         productName: "Yerba 1 kg",
         quantity: 1,
