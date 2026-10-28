@@ -476,7 +476,7 @@ describe("SaleHistoryDetailPanel", () => {
       });
 
       await expect
-        .element(screen.getByText("Nota de crédito C de devolución", { exact: true }))
+        .element(screen.getByText("Nota de crédito C de devolución", { exact: true }).first())
         .toBeVisible();
       await expect.element(screen.getByText("PV 00004 · Nº 00000012")).toBeVisible();
       await expect
