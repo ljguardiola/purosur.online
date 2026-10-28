@@ -1,84 +1,29 @@
 import { describe, expect, it } from "vitest";
-import type { Recipe } from "./recipe-store.js";
 import {
   type RegisterAssemblyBatchInput,
   type RegisterAssemblyBatchOutcome,
   registerAssemblyBatch,
 } from "./register-assembly-batch.js";
+import {
+  assemblyBatchInput,
+  BAG,
+  BRANCH,
+  MIX,
+  NUTS,
+  RECIPE,
+  storeWithRecipe,
+} from "./test-support/assembly-batch-scenario.js";
 import { FakeStockStore, FixedClock } from "./test-support/fake-stock-store.js";
 
 const ASSEMBLED_AT = new Date("2026-05-04T13:00:00.000Z");
-const BRANCH = "branch-1";
-const MIX = { productId: "product-mix", locationId: BRANCH };
-const NUTS = { productId: "product-nuts", locationId: BRANCH };
-const BAG = { productId: "product-bag", locationId: BRANCH };
-
-const RECIPE: Recipe = {
-  productId: MIX.productId,
-  version: 2,
-  components: [
-    { componentProductId: NUTS.productId, quantityPerOutputUnit: 600 },
-    { componentProductId: BAG.productId, quantityPerOutputUnit: 1_000 },
-  ],
-};
-
-function storeWithRecipe({ nutsInLots = true } = {}): FakeStockStore {
-  const store = new FakeStockStore();
-  store.seedProduct({ id: MIX.productId, saleUnit: "KG" });
-  store.seedProduct({ id: NUTS.productId, saleUnit: "KG" });
-  store.seedProduct({ id: BAG.productId, saleUnit: "UNIT" });
-  store.seedRecipe(RECIPE);
-  store.seedBalance({ ...NUTS, quantity: 15_000 });
-  store.seedBalance({ ...BAG, quantity: 50_000 });
-  if (nutsInLots) {
-    store.seedLot({
-      id: "nuts-late",
-      ...NUTS,
-      remaining: 10_000,
-      expiresOn: "2027-03-01",
-      costTotalCents: 5_000,
-      costQuantity: 1_000,
-    });
-    store.seedLot({
-      id: "nuts-soon",
-      ...NUTS,
-      remaining: 5_000,
-      expiresOn: "2027-01-15",
-      costTotalCents: 3_000,
-      costQuantity: 1_000,
-    });
-  }
-  store.seedLot({
-    id: "bag-lot",
-    ...BAG,
-    remaining: 50_000,
-    expiresOn: null,
-    costTotalCents: 100,
-    costQuantity: 1_000,
-  });
-  return store;
-}
-
-function input(overrides: Partial<RegisterAssemblyBatchInput> = {}): RegisterAssemblyBatchInput {
-  return {
-    productId: MIX.productId,
-    locationId: BRANCH,
-    recipeVersion: 2,
-    used: [
-      { componentProductId: NUTS.productId, quantity: 12_000 },
-      { componentProductId: BAG.productId, quantity: 2_000 },
-    ],
-    output: 14_000,
-    actorId: "person-1",
-    ...overrides,
-  };
-}
-
 function register(
   store: FakeStockStore,
   overrides: Partial<RegisterAssemblyBatchInput> = {},
 ): Promise<RegisterAssemblyBatchOutcome> {
-  return registerAssemblyBatch({ store, clock: new FixedClock(ASSEMBLED_AT) }, input(overrides));
+  return registerAssemblyBatch(
+    { store, clock: new FixedClock(ASSEMBLED_AT) },
+    assemblyBatchInput(overrides),
+  );
 }
 
 describe("registerAssemblyBatch", () => {

@@ -4,10 +4,14 @@ import {
   type AssemblyBatchPreview,
   type AssemblyBatchRefusal,
   type AssemblyBatchResult,
+  type AssemblyBatchVoidRefusal,
+  type AssemblyBatchVoidResult,
   assemblyBatchListSchema,
   assemblyBatchPreviewSchema,
   assemblyBatchRefusalSchema,
   assemblyBatchResultSchema,
+  assemblyBatchVoidRefusalSchema,
+  assemblyBatchVoidResultSchema,
   type StockPeriodDays,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -30,6 +34,11 @@ export type RegisterAssemblyBatchOutcome =
   | { kind: "nothing_used" }
   | { kind: "invalid_output" }
   | { kind: "invalid_quantity"; componentProductId: string }
+  | RequestRefusal;
+
+export type VoidAssemblyBatchOutcome =
+  | { kind: "ok"; batch: AssemblyBatchVoidResult["batch"] }
+  | { kind: AssemblyBatchVoidRefusal["code"] }
   | RequestRefusal;
 
 function refusal(response: Response): RequestRefusal {
@@ -133,6 +142,28 @@ export async function registerAssemblyBatch(
       await response.json().catch(() => undefined),
     );
     return refused.success ? outcomeOf(refused.data) : { kind: "failed" };
+  }
+  return refusal(response);
+}
+
+export async function voidAssemblyBatch(batchId: string): Promise<VoidAssemblyBatchOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/assembly-batches/${batchId}/void`, { method: "POST" });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = assemblyBatchVoidResultSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return parsed.success ? { kind: "ok", batch: parsed.data.batch } : { kind: "failed" };
+  }
+  if (response.status === 404 || response.status === 409) {
+    const refused = assemblyBatchVoidRefusalSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return refused.success ? { kind: refused.data.code } : { kind: "failed" };
   }
   return refusal(response);
 }

@@ -169,3 +169,24 @@ export function batchQuantityRefusal({
   }
   return isMovementQuantity(assembledSaleUnit, output) ? null : { kind: "invalid_output" };
 }
+
+export const ASSEMBLY_BATCH_STATUSES = ["voidable", "consumed", "voided"] as const;
+
+export type AssemblyBatchStatus = (typeof ASSEMBLY_BATCH_STATUSES)[number];
+
+export interface BatchLotMovement {
+  assemblyBatchId: string | null;
+}
+
+export function assemblyBatchStatus(batch: {
+  id: string;
+  voided: boolean;
+  lotMovements: readonly BatchLotMovement[];
+}): AssemblyBatchStatus {
+  if (batch.voided) {
+    return "voided";
+  }
+  return batch.lotMovements.some((movement) => movement.assemblyBatchId !== batch.id)
+    ? "consumed"
+    : "voidable";
+}

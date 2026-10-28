@@ -1,5 +1,6 @@
 import type { AssemblyBatch, RecipeSummary } from "@purosur/contracts";
 import {
+  actionsColumn,
   Button,
   dataColumn,
   FloatingNotification,
@@ -7,10 +8,11 @@ import {
   SearchField,
   Table,
   TableCellText,
+  Tag,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { Check, CookingPot, Plus, Search, SearchX } from "lucide-react";
+import { Ban, Check, CookingPot, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
@@ -34,6 +36,7 @@ import {
   type StockPeriod,
 } from "./stock-period";
 import { useAssemblyBatchesQuery, useRefreshStock } from "./stock-queries";
+import { VoidAssemblyBatchModal } from "./void-assembly-batch-modal";
 
 export type AssemblyBatchesScreenProps = {
   filters: AssemblyBatchesFilters;
@@ -47,54 +50,6 @@ type ScreenNotice = { id: number; title: string; description: string };
 const NO_BATCHES: AssemblyBatch[] = [];
 const NO_RECIPES: RecipeSummary[] = [];
 
-const columns = [
-  dataColumn({
-    id: "date",
-    header: "Fecha",
-    render: (batch: AssemblyBatch) => (
-      <TableCellText strong description={formatStockTime(batch.assembledAt)}>
-        {formatStockDay(batch.assembledAt)}
-      </TableCellText>
-    ),
-  }),
-  dataColumn({
-    id: "product",
-    header: "Producto armado",
-    render: (batch: AssemblyBatch) => <TableCellText strong>{batch.productName}</TableCellText>,
-  }),
-  dataColumn({
-    id: "output",
-    header: "Obtenido",
-    align: "end",
-    render: (batch: AssemblyBatch) => (
-      <TableCellText>{formatStockQuantity(batch.output, batch.saleUnit)}</TableCellText>
-    ),
-  }),
-  dataColumn({
-    id: "unitCost",
-    header: "Costo unitario",
-    align: "end",
-    render: (batch: AssemblyBatch) => {
-      const cost = batchUnitCostText(batch, batch.saleUnit);
-      return cost === null ? (
-        <TableCellText tone="subtle">{BATCH_COST_INCOMPLETE}</TableCellText>
-      ) : (
-        <TableCellText>{cost}</TableCellText>
-      );
-    },
-  }),
-  dataColumn({
-    id: "expiresOn",
-    header: "Vence",
-    render: (batch: AssemblyBatch) =>
-      batch.expiresOn === null ? (
-        <TableCellText tone="subtle">{BATCH_WITHOUT_EXPIRY}</TableCellText>
-      ) : (
-        <TableCellText>{batchExpiryText(batch.expiresOn)}</TableCellText>
-      ),
-  }),
-] as const;
-
 export function AssemblyBatchesScreen({
   filters,
   onFiltersChange,
@@ -104,6 +59,7 @@ export function AssemblyBatchesScreen({
   const [search, setSearch] = useState(filters.search);
   const [period, setPeriod] = useState<StockPeriod>(filters.period);
   const [modalOpen, setModalOpen] = useState(false);
+  const [voiding, setVoiding] = useState<AssemblyBatch | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
   const reportFilters = useEffectEvent(onFiltersChange);
   const refreshStock = useRefreshStock();
@@ -129,6 +85,73 @@ export function AssemblyBatchesScreen({
 
   const { batches, recipes } =
     data.status === "loaded" ? data.value : { batches: NO_BATCHES, recipes: NO_RECIPES };
+
+  const columns = [
+    dataColumn({
+      id: "date",
+      header: "Fecha",
+      render: (batch: AssemblyBatch) => (
+        <TableCellText strong description={formatStockTime(batch.assembledAt)}>
+          {formatStockDay(batch.assembledAt)}
+        </TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "product",
+      header: "Producto armado",
+      render: (batch: AssemblyBatch) => (
+        <div className="flex items-center gap-2">
+          <TableCellText strong>{batch.productName}</TableCellText>
+          {batch.status === "voided" ? <Tag tone="neutral">Anulada</Tag> : null}
+        </div>
+      ),
+    }),
+    dataColumn({
+      id: "output",
+      header: "Obtenido",
+      align: "end",
+      render: (batch: AssemblyBatch) => (
+        <TableCellText>{formatStockQuantity(batch.output, batch.saleUnit)}</TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "unitCost",
+      header: "Costo unitario",
+      align: "end",
+      render: (batch: AssemblyBatch) => {
+        const cost = batchUnitCostText(batch, batch.saleUnit);
+        return cost === null ? (
+          <TableCellText tone="subtle">{BATCH_COST_INCOMPLETE}</TableCellText>
+        ) : (
+          <TableCellText>{cost}</TableCellText>
+        );
+      },
+    }),
+    dataColumn({
+      id: "expiresOn",
+      header: "Vence",
+      render: (batch: AssemblyBatch) =>
+        batch.expiresOn === null ? (
+          <TableCellText tone="subtle">{BATCH_WITHOUT_EXPIRY}</TableCellText>
+        ) : (
+          <TableCellText>{batchExpiryText(batch.expiresOn)}</TableCellText>
+        ),
+    }),
+    actionsColumn({
+      id: "actions",
+      header: "Acciones de la tanda",
+      actions: [
+        (batch: AssemblyBatch) =>
+          batch.status === "voidable"
+            ? {
+                icon: <Ban />,
+                "aria-label": `Anular tanda de ${batch.productName}`,
+                onPress: () => setVoiding(batch),
+              }
+            : undefined,
+      ],
+    }),
+  ] as const;
 
   const table = useTableModel({
     items: batches,
@@ -218,6 +241,27 @@ export function AssemblyBatchesScreen({
             void refreshStock();
           }}
           onClose={() => setModalOpen(false)}
+          onSessionEnded={onSessionEnded}
+        />
+      ) : null}
+      {voiding ? (
+        <VoidAssemblyBatchModal
+          batch={voiding}
+          services={services}
+          onVoided={() => {
+            setVoiding(null);
+            setNotice((previous) => ({
+              id: (previous?.id ?? 0) + 1,
+              title: "Tanda anulada",
+              description: `Se anuló la tanda de ${voiding.productName}.`,
+            }));
+            void refreshStock();
+          }}
+          onOutdated={() => {
+            setVoiding(null);
+            void refreshStock();
+          }}
+          onClose={() => setVoiding(null)}
           onSessionEnded={onSessionEnded}
         />
       ) : null}

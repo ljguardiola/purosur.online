@@ -5,7 +5,7 @@ import type {
   RecipeListing,
   RecipeListReader,
 } from "@purosur/domain/stock/use-cases";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   assemblyBatches,
@@ -84,6 +84,7 @@ export class DrizzleRecipeListReader<TQueryResult extends PgQueryResultHKT>
         and(
           inArray(assemblyBatches.productId, [...productIds]),
           eq(assemblyBatches.locationId, locationId),
+          isNull(assemblyBatches.voidedAt),
         ),
       )
       .orderBy(desc(assemblyBatches.assembledAt), desc(assemblyBatches.id));

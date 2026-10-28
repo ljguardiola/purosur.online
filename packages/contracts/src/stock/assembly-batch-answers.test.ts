@@ -4,6 +4,8 @@ import {
   assemblyBatchPreviewSchema,
   assemblyBatchRefusalSchema,
   assemblyBatchResultSchema,
+  assemblyBatchVoidRefusalSchema,
+  assemblyBatchVoidResultSchema,
 } from "./assembly-batch-answers.js";
 
 const batch = {
@@ -16,6 +18,7 @@ const batch = {
   unitCostCents: 3_586,
   costIncomplete: false,
   expiresOn: "2027-01-15",
+  status: "voidable",
 };
 
 describe("assemblyBatchResultSchema", () => {
@@ -99,9 +102,23 @@ describe("assemblyBatchListSchema", () => {
     "unitCostCents",
     "costIncomplete",
     "expiresOn",
+    "status",
   ])("rejects a batch without %s", (key) => {
     expect(
       assemblyBatchListSchema.safeParse({ batches: [{ ...batch, [key]: undefined }], recipes: [] })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each(["voidable", "consumed", "voided"])("accepts a batch that is %s", (status) => {
+    expect(
+      assemblyBatchListSchema.safeParse({ batches: [{ ...batch, status }], recipes: [] }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a status a batch cannot have", () => {
+    expect(
+      assemblyBatchListSchema.safeParse({ batches: [{ ...batch, status: "pending" }], recipes: [] })
         .success,
     ).toBe(false);
   });
@@ -185,5 +202,47 @@ describe("assemblyBatchRefusalSchema", () => {
     [{ code: "stale_recipe" }],
   ])("rejects the body %j", (body) => {
     expect(assemblyBatchRefusalSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("assemblyBatchVoidResultSchema", () => {
+  const result = { batch: { id: "b-1", voidedAt: "2026-05-04T15:30:00.000Z" } };
+
+  it("accepts the voided batch with the moment it was voided", () => {
+    expect(assemblyBatchVoidResultSchema.safeParse(result).data).toEqual(result);
+  });
+
+  it.each(["id", "voidedAt"])("rejects a batch without %s", (key) => {
+    expect(
+      assemblyBatchVoidResultSchema.safeParse({ batch: { ...result.batch, [key]: undefined } })
+        .success,
+    ).toBe(false);
+  });
+
+  it("rejects a moment that is not an ISO date and time", () => {
+    expect(
+      assemblyBatchVoidResultSchema.safeParse({ batch: { ...result.batch, voidedAt: "today" } })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("assemblyBatchVoidRefusalSchema", () => {
+  const message = "refused";
+
+  it.each([
+    { code: "not_found", message },
+    { code: "already_voided", message },
+    { code: "consumed", message },
+  ])("accepts the refusal $code as the cloud sends it", (refusal) => {
+    expect(assemblyBatchVoidRefusalSchema.safeParse(refusal).data).toEqual(refusal);
+  });
+
+  it.each([
+    [{ code: "stale_recipe", message }],
+    [{ code: "consumed" }],
+    [{ code: "voided", message }],
+  ])("rejects the body %j", (body) => {
+    expect(assemblyBatchVoidRefusalSchema.safeParse(body).success).toBe(false);
   });
 });

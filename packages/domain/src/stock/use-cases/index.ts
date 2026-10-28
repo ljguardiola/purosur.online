@@ -1,4 +1,5 @@
 export type { Clock, Scale, ScaleReading } from "../../shared/index.js";
+export type { BatchLotMovement } from "../model/assembly-batch.js";
 export type { LossRecord, LostProduct, ReasonLosses } from "../model/losses-by-reason.js";
 export type { NewBatchLot, NewInitialCountLot, NewLot } from "../model/lot.js";
 export type { StockLot } from "../model/lot-allocation.js";
@@ -21,12 +22,16 @@ export type {
   AssemblyBatchesQuery,
   AssemblyBatchListing,
   AssemblyBatchListReader,
+  ReadAssemblyBatch,
 } from "./assembly-batch-list-reader.js";
 export type {
   AssemblyBatchPorts,
   AssemblyBatchStore,
   AssemblyBatchTransaction,
+  AssemblyBatchVoid,
   BatchLotCost,
+  BatchMovementAllocation,
+  LockedAssemblyBatch,
   NewAssemblyBatch,
 } from "./assembly-batch-store.js";
 export type { BatchLotReader, PreviewLot } from "./batch-lot-reader.js";
@@ -203,6 +208,11 @@ export type {
   StockStore,
   StockStoreTransaction,
 } from "./stock-store.js";
+export type {
+  VoidAssemblyBatchInput,
+  VoidAssemblyBatchOutcome,
+} from "./void-assembly-batch.js";
+export { voidAssemblyBatch } from "./void-assembly-batch.js";
 export type {
   WeighCountedProductInput,
   WeighCountedProductOutcome,

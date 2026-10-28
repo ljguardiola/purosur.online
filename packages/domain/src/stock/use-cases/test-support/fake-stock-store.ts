@@ -1,12 +1,16 @@
 import type { SaleUnit } from "../../../catalog/index.js";
 import type { Clock } from "../../../shared/index.js";
+import type { BatchLotMovement } from "../../model/assembly-batch.js";
 import type { NewBatchLot, NewInitialCountLot, NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
 import { isLotCostIncomplete, type LotCost } from "../../model/lot-value.js";
 import type {
   AssemblyBatchStore,
   AssemblyBatchTransaction,
+  AssemblyBatchVoid,
   BatchLotCost,
+  BatchMovementAllocation,
+  LockedAssemblyBatch,
   NewAssemblyBatch,
 } from "../assembly-batch-store.js";
 import type { Recipe } from "../recipe-store.js";
@@ -30,6 +34,8 @@ export interface FakeStockProduct {
 
 interface FakeAssemblyBatch extends NewAssemblyBatch {
   id: string;
+  voidedAt?: Date;
+  voidedBy?: string;
 }
 
 export interface FakeStockMovement extends NewStockMovement {
@@ -81,7 +87,8 @@ type WriteOperation =
   | "openTechnicalLot"
   | "allocateToLot"
   | "insertAssemblyBatch"
-  | "recordBatchLot";
+  | "recordBatchLot"
+  | "recordAssemblyBatchVoid";
 
 function cloneState(state: FakeStockState): FakeStockState {
   return {
@@ -98,6 +105,7 @@ function cloneState(state: FakeStockState): FakeStockState {
     batches: state.batches.map((row) => ({
       ...row,
       assembledAt: new Date(row.assembledAt),
+      ...(row.voidedAt && { voidedAt: new Date(row.voidedAt) }),
       lines: row.lines.map((line) => ({ ...line })),
     })),
     recipes: state.recipes.map((row) => ({
@@ -337,6 +345,58 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
       lines: batch.lines.map((line) => ({ ...line })),
     });
     return id;
+  }
+
+  async lockAssemblyBatch(
+    batchId: string,
+    locationId: string,
+  ): Promise<LockedAssemblyBatch | undefined> {
+    this.store.operationOrder.push("lockAssemblyBatch");
+    const batch = this.state.batches.find((row) => row.id === batchId);
+    const lot = this.state.lots.find((row) => row.assemblyBatchId === batchId);
+    if (!batch || batch.locationId !== locationId || !lot) {
+      return undefined;
+    }
+    return {
+      id: batch.id,
+      productId: batch.productId,
+      lotId: lot.id,
+      voided: batch.voidedAt !== undefined,
+      componentProductIds: batch.lines.map((line) => line.componentProductId),
+    };
+  }
+
+  async assemblyBatchAllocations(batchId: string): Promise<BatchMovementAllocation[]> {
+    this.store.operationOrder.push("assemblyBatchAllocations");
+    return this.state.allocations.flatMap(({ movementId, lotId, quantity }) => {
+      const movement = this.state.movements.find((row) => row.id === movementId);
+      return movement &&
+        movement.assemblyBatchId === batchId &&
+        (movement.kind === "assembly_out" || movement.kind === "assembly_in")
+        ? [{ productId: movement.productId, kind: movement.kind, lotId, quantity }]
+        : [];
+    });
+  }
+
+  async batchLotMovements(batchId: string): Promise<BatchLotMovement[]> {
+    this.store.operationOrder.push("batchLotMovements");
+    const lot = this.state.lots.find((row) => row.assemblyBatchId === batchId);
+    return this.state.allocations
+      .filter(({ lotId }) => lotId === lot?.id)
+      .map(({ movementId }) => ({
+        assemblyBatchId:
+          this.state.movements.find((row) => row.id === movementId)?.assemblyBatchId ?? null,
+      }));
+  }
+
+  async recordAssemblyBatchVoid(batchVoid: AssemblyBatchVoid): Promise<void> {
+    this.beforeWrite("recordAssemblyBatchVoid");
+    const batch = this.state.batches.find((row) => row.id === batchVoid.batchId);
+    if (!batch) {
+      throw new Error(`batch ${batchVoid.batchId} does not exist`);
+    }
+    batch.voidedAt = new Date(batchVoid.voidedAt);
+    batch.voidedBy = batchVoid.actorId;
   }
 
   async recipe(productId: string): Promise<Recipe | undefined> {

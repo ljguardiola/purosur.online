@@ -1,0 +1,10 @@
+ALTER TABLE "stock_movements" DROP CONSTRAINT "stock_movements_kind_check";--> statement-breakpoint
+ALTER TABLE "stock_movements" DROP CONSTRAINT "stock_movements_reason_unless_count_sale_or_receipt_check";--> statement-breakpoint
+ALTER TABLE "stock_movements" DROP CONSTRAINT "stock_movements_assembly_batch_iff_assembly_check";--> statement-breakpoint
+ALTER TABLE "assembly_batches" ADD COLUMN "voided_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "assembly_batches" ADD COLUMN "voided_by" uuid;--> statement-breakpoint
+ALTER TABLE "assembly_batches" ADD CONSTRAINT "assembly_batches_voided_by_users_id_fk" FOREIGN KEY ("voided_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assembly_batches" ADD CONSTRAINT "assembly_batches_voided_check" CHECK (("assembly_batches"."voided_at" is null) = ("assembly_batches"."voided_by" is null));--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_kind_check" CHECK ("stock_movements"."kind" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void'));--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_reason_unless_count_sale_or_receipt_check" CHECK (("stock_movements"."kind" in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = ("stock_movements"."reason" is null));--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_assembly_batch_iff_assembly_check" CHECK (("stock_movements"."kind" in ('assembly_out', 'assembly_in', 'assembly_void')) = ("stock_movements"."assembly_batch_id" is not null));

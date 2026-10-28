@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { assemblyBatches, lotAllocations } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleAssemblyBatchReader } from "./drizzle-assembly-batch-reader.js";
 import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
@@ -9,6 +11,7 @@ import {
 } from "./test-support/lot-fixtures.js";
 import {
   insertLocation,
+  insertMovement,
   insertProduct,
   signedInWith,
 } from "./test-support/stock-route-fixtures.js";
@@ -106,6 +109,82 @@ describe("DrizzleAssemblyBatchReader.batches", () => {
     const listed = await new DrizzleAssemblyBatchReader(db).batches({ locationId, ...MAY });
 
     expect(listed.map((batch) => batch.id).sort()).toEqual([first.batchId, last.batchId].sort());
+  });
+});
+
+describe("DrizzleAssemblyBatchReader.batches voided and what moved its lot", () => {
+  type Context = Awaited<ReturnType<typeof seeded>>;
+
+  async function batchOf(context: Context, at = "2026-05-04T13:00:00.000Z") {
+    const { actorId, locationId, mix } = context;
+    const batch = await insertAssemblyBatch(db, {
+      productId: mix,
+      locationId,
+      actorId,
+      assembledAt: new Date(at),
+    });
+    return { actorId, locationId, mix, ...batch };
+  }
+
+  async function listed(locationId: string) {
+    return new DrizzleAssemblyBatchReader(db).batches({ locationId, ...MAY });
+  }
+
+  async function move(
+    batch: Awaited<ReturnType<typeof batchOf>>,
+    kind: "loss" | "assembly_in",
+    delta: number,
+  ) {
+    const movementId = await insertMovement(db, {
+      productId: batch.mix,
+      locationId: batch.locationId,
+      actorId: batch.actorId,
+      kind,
+      reason: kind === "loss" ? "spoiled" : null,
+      delta,
+      occurredAt: new Date("2026-05-05T10:00:00.000Z"),
+      ...(kind === "assembly_in" ? { assemblyBatchId: batch.batchId } : {}),
+    });
+    await db.insert(lotAllocations).values({ movementId, lotId: batch.lotId, quantity: delta });
+  }
+
+  it("answers a batch nothing touched as not voided and with nothing that moved its lot", async () => {
+    const context = await seeded();
+    const batch = await batchOf(context);
+
+    const [found] = await listed(batch.locationId);
+
+    expect(found).toMatchObject({ voided: false, lotMovements: [] });
+  });
+
+  it("answers a batch as voided once it was voided", async () => {
+    const context = await seeded();
+    const batch = await batchOf(context);
+    await db
+      .update(assemblyBatches)
+      .set({ voidedAt: new Date("2026-05-05T10:00:00.000Z"), voidedBy: batch.actorId })
+      .where(eq(assemblyBatches.id, batch.batchId));
+
+    const [found] = await listed(batch.locationId);
+
+    expect(found).toMatchObject({ voided: true });
+  });
+
+  it("answers the batch each movement that moved a batch's lot belongs to", async () => {
+    const context = await seeded();
+    const own = await batchOf(context);
+    await move(own, "assembly_in", 14_000);
+    const lost = await batchOf(context, "2026-05-06T13:00:00.000Z");
+    await move(lost, "loss", -500);
+
+    const found = await listed(own.locationId);
+
+    expect(found.find((batch) => batch.id === own.batchId)?.lotMovements).toEqual([
+      { assemblyBatchId: own.batchId },
+    ]);
+    expect(found.find((batch) => batch.id === lost.batchId)?.lotMovements).toEqual([
+      { assemblyBatchId: null },
+    ]);
   });
 });
 

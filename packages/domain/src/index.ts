@@ -968,6 +968,7 @@ export {
 } from "./shared/index.js";
 export type {
   AdjustmentReason,
+  AssemblyBatchStatus,
   InitialCountCostFilter,
   LossReason,
   ManualStockMovementKind,
@@ -978,7 +979,9 @@ export type {
 } from "./stock/index.js";
 export {
   ADJUSTMENT_REASONS,
+  ASSEMBLY_BATCH_STATUSES,
   adjustmentDirections,
+  assemblyBatchStatus,
   countResult,
   DEFAULT_STOCK_PERIOD_DAYS,
   expectedBalance,

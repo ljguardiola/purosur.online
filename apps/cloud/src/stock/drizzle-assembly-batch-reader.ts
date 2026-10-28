@@ -1,15 +1,16 @@
 import { isLotCostIncomplete, lotUnitCostCents, type SaleUnit } from "@purosur/domain";
 import type {
   AssemblyBatchesQuery,
-  AssemblyBatchListing,
   AssemblyBatchListReader,
   BatchLotReader,
   PreviewLot,
   ProductStockKey,
+  ReadAssemblyBatch,
 } from "@purosur/domain/stock/use-cases";
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { assemblyBatches, lots, products } from "../platform/db/schema.js";
+import { batchLotMovements } from "./assembly-batch-lot-movements.js";
 
 export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
   implements AssemblyBatchListReader, BatchLotReader
@@ -20,7 +21,7 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async batches(query: AssemblyBatchesQuery): Promise<AssemblyBatchListing[]> {
+  async batches(query: AssemblyBatchesQuery): Promise<ReadAssemblyBatch[]> {
     const rows = await this.db
       .select({
         id: assemblyBatches.id,
@@ -33,6 +34,7 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
         costQuantity: lots.costQuantity,
         costIncomplete: lots.costIncomplete,
         expiresOn: lots.expiresOn,
+        voided: sql<boolean>`${assemblyBatches.voidedAt} is not null`,
       })
       .from(assemblyBatches)
       .innerJoin(products, eq(products.id, assemblyBatches.productId))
@@ -44,8 +46,13 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
           lt(assemblyBatches.assembledAt, query.to),
         ),
       );
+    const lotMovements = await batchLotMovements(
+      this.db,
+      rows.map((row) => row.id),
+    );
     return rows.map(({ costTotalCents, costQuantity, saleUnit, ...row }) => ({
       ...row,
+      lotMovements: lotMovements.get(row.id) ?? [],
       saleUnit: saleUnit as SaleUnit,
       unitCostCents: lotUnitCostCents({
         cost:

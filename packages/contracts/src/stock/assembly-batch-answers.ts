@@ -1,4 +1,4 @@
-import { isCalendarDay, SALE_UNITS } from "@purosur/domain";
+import { ASSEMBLY_BATCH_STATUSES, isCalendarDay, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
 import { recipeSummarySchema } from "./recipe-summary.js";
 
@@ -32,6 +32,7 @@ const assemblyBatchSchema = z.object({
   assembledAt: moment,
   output: z.int(),
   ...batchCostSchema,
+  status: z.enum(ASSEMBLY_BATCH_STATUSES),
 });
 
 export const assemblyBatchListSchema = z.object({
@@ -71,3 +72,17 @@ export const assemblyBatchRefusalSchema = z.discriminatedUnion("code", [
 ]);
 
 export type AssemblyBatchRefusal = z.output<typeof assemblyBatchRefusalSchema>;
+
+export const assemblyBatchVoidResultSchema = z.object({
+  batch: z.object({ id: z.string(), voidedAt: moment }),
+});
+
+export type AssemblyBatchVoidResult = z.output<typeof assemblyBatchVoidResultSchema>;
+
+export const assemblyBatchVoidRefusalSchema = z.discriminatedUnion("code", [
+  z.object({ code: z.literal("not_found"), message }),
+  z.object({ code: z.literal("already_voided"), message }),
+  z.object({ code: z.literal("consumed"), message }),
+]);
+
+export type AssemblyBatchVoidRefusal = z.output<typeof assemblyBatchVoidRefusalSchema>;

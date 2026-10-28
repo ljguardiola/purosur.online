@@ -1006,6 +1006,39 @@ describe("assembly_batches", () => {
     expect(batch.createdAt).toBeInstanceOf(Date);
   });
 
+  it("keeps who voided the batch and when, both or neither", async () => {
+    const { batch, actorId } = await seedBatchOfMix();
+
+    expect(batch).toMatchObject({ voidedAt: null, voidedBy: null });
+    await expect(
+      db
+        .update(assemblyBatches)
+        .set({ voidedAt: new Date() })
+        .where(eq(assemblyBatches.id, batch.id)),
+    ).rejects.toMatchObject({ cause: { constraint: "assembly_batches_voided_check" } });
+    await expect(
+      db.update(assemblyBatches).set({ voidedBy: actorId }).where(eq(assemblyBatches.id, batch.id)),
+    ).rejects.toMatchObject({ cause: { constraint: "assembly_batches_voided_check" } });
+    await expect(
+      db
+        .update(assemblyBatches)
+        .set({ voidedAt: new Date(), voidedBy: MISSING_ID })
+        .where(eq(assemblyBatches.id, batch.id)),
+    ).rejects.toMatchObject({ cause: { constraint: "assembly_batches_voided_by_users_id_fk" } });
+    await db
+      .update(assemblyBatches)
+      .set({ voidedAt: new Date("2026-05-05T10:00:00.000Z"), voidedBy: actorId })
+      .where(eq(assemblyBatches.id, batch.id));
+    const [voided] = await db
+      .select()
+      .from(assemblyBatches)
+      .where(eq(assemblyBatches.id, batch.id));
+    expect(voided).toMatchObject({
+      voidedAt: new Date("2026-05-05T10:00:00.000Z"),
+      voidedBy: actorId,
+    });
+  });
+
   it("rejects an output that is not positive", async () => {
     const { fields } = await seedBatchOfMix();
 
@@ -1133,6 +1166,24 @@ describe("assembly_batches", () => {
       db
         .insert(stockMovements)
         .values({ ...movement, kind: "assembly_in", reason: "found", assemblyBatchId: batch.id }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "stock_movements_reason_unless_count_sale_or_receipt_check" },
+    });
+    await db
+      .insert(stockMovements)
+      .values({ ...movement, kind: "assembly_void", assemblyBatchId: batch.id });
+    await expect(
+      db.insert(stockMovements).values({ ...movement, kind: "assembly_void" }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "stock_movements_assembly_batch_iff_assembly_check" },
+    });
+    await expect(
+      db.insert(stockMovements).values({
+        ...movement,
+        kind: "assembly_void",
+        reason: "found",
+        assemblyBatchId: batch.id,
+      }),
     ).rejects.toMatchObject({
       cause: { constraint: "stock_movements_reason_unless_count_sale_or_receipt_check" },
     });

@@ -3,6 +3,7 @@ import {
   fetchAssemblyBatches,
   fetchAssemblyBatchPreview,
   registerAssemblyBatch,
+  voidAssemblyBatch,
 } from "./assembly-batches-api";
 import { assemblyBatchList, mixBatch, mixPreview } from "./test-support/assembly-batches";
 import { almendras, mixDeFrutosSecos, nueces } from "./test-support/recipes";
@@ -239,5 +240,60 @@ describe("registerAssemblyBatch", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await registerAssemblyBatch(body)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("voidAssemblyBatch", () => {
+  test("posts the void of the batch and answers when it was voided on 200", async () => {
+    const result = { batch: { id: mixBatch.id, voidedAt: "2026-09-16T10:00:00.000Z" } };
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, result));
+
+    expect(await voidAssemblyBatch(mixBatch.id)).toEqual({ kind: "ok", batch: result.batch });
+    expect(fetch).toHaveBeenCalledWith(`/api/assembly-batches/${mixBatch.id}/void`, {
+      method: "POST",
+    });
+  });
+
+  test("returns failed when the answer does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { batch: { id: mixBatch.id } }));
+
+    expect(await voidAssemblyBatch(mixBatch.id)).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [404, "not_found"],
+    [409, "already_voided"],
+    [409, "consumed"],
+  ] as const)("answers a %i refusal %s by its code", async (status, code) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code, message: "refused" }));
+
+    expect(await voidAssemblyBatch(mixBatch.id)).toEqual({ kind: code });
+  });
+
+  test("returns failed for a refusal that is not one the cloud declares", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other", message: "x" }));
+
+    expect(await voidAssemblyBatch(mixBatch.id)).toEqual({ kind: "failed" });
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await voidAssemblyBatch(mixBatch.id)).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "45" }));
+
+    expect(await voidAssemblyBatch(mixBatch.id)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 45,
+    });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await voidAssemblyBatch(mixBatch.id)).toEqual({ kind: "failed" });
   });
 });

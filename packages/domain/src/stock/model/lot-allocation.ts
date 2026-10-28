@@ -23,7 +23,8 @@ export function allocatesToLots(kind: StockMovementKind): boolean {
     kind === "return" ||
     kind === "loss" ||
     kind === "adjustment" ||
-    kind === "assembly_out"
+    kind === "assembly_out" ||
+    kind === "assembly_void"
   );
 }
 
@@ -110,13 +111,13 @@ export function receiptAllocations(
   ];
 }
 
-export function saleVoidAllocations(
+export function voidedMovementAllocations(
   lots: readonly StockLot[],
-  saleAllocations: readonly { lotId: string; quantity: number }[],
+  originalAllocations: readonly { lotId: string; quantity: number }[],
   delta: number,
 ): PlannedLotAllocation[] {
   const returned = new Map<string, number>();
-  for (const { lotId, quantity } of saleAllocations) {
+  for (const { lotId, quantity } of originalAllocations) {
     returned.set(lotId, (returned.get(lotId) ?? 0) - quantity);
   }
   const uncovered = [...returned.values()].reduce((rest, quantity) => rest - quantity, delta);

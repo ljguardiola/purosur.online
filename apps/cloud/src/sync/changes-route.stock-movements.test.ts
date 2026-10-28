@@ -1,5 +1,11 @@
 import { registerPurchase } from "@purosur/domain/purchasing/use-cases";
-import { recordLoss, registerCount } from "@purosur/domain/stock/use-cases";
+import {
+  recordLoss,
+  registerAssemblyBatch,
+  registerCount,
+  saveRecipe,
+  voidAssemblyBatch,
+} from "@purosur/domain/stock/use-cases";
 import { asc } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -14,7 +20,11 @@ import {
 } from "../platform/db/schema.js";
 import { DrizzlePurchasingStore } from "../purchasing/drizzle-purchasing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { DrizzleAssemblyBatchStore } from "../stock/drizzle-assembly-batch-store.js";
+import { DrizzleRecipeStore } from "../stock/drizzle-recipe-store.js";
 import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";
+import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
+import { insertProduct as insertStockProduct } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -198,5 +208,71 @@ describe("GET /changes carrying stock movements", () => {
         },
       },
     ]);
+  });
+
+  it("gives a register the void of a batch, which brings the components and the finished product back to what they were before it", async () => {
+    const locationId = await seededLocationId(db);
+    const actorId = await insertActor(locationId);
+    const mix = await insertStockProduct(db, { name: "Mix", saleUnit: "KG" });
+    const nuts = await insertStockProduct(db, { name: "Nueces", saleUnit: "KG" });
+    await saveRecipe(new DrizzleRecipeStore(db, () => NOW), {
+      productId: mix.productId,
+      components: [{ componentProductId: nuts.productId, quantityPerOutputUnit: 1_000 }],
+      version: null,
+      actorId,
+    });
+    await insertPurchasedLot(db, {
+      productId: nuts.productId,
+      locationId,
+      actorId,
+      remaining: 10_000,
+    });
+    await db
+      .insert(stockBalances)
+      .values({ productId: nuts.productId, locationId, quantity: 10_000 });
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    const since = await lastLoggedChangeSeq(db);
+    const batches = { store: new DrizzleAssemblyBatchStore(db), clock: { now: () => NOW } };
+    const recorded = await registerAssemblyBatch(batches, {
+      productId: mix.productId,
+      locationId,
+      recipeVersion: 1,
+      used: [{ componentProductId: nuts.productId, quantity: 8_000 }],
+      output: 8_000,
+      actorId,
+    });
+    if (recorded.kind !== "recorded") {
+      throw new Error("test setup: the batch was not recorded");
+    }
+
+    await voidAssemblyBatch(batches, {
+      batchId: recorded.batch.id,
+      locationId,
+      actorId,
+    });
+
+    const pulled = (await pullAfter(since, deviceToken)).filter(
+      (change) => change.entity === "stock_movement",
+    );
+    const kindsAndDeltas = pulled.map((change) => [
+      change.row.product_id === mix.productId ? "mix" : "nuts",
+      change.row.kind,
+      change.row.delta,
+    ]);
+    expect(kindsAndDeltas).toEqual(
+      expect.arrayContaining([
+        ["nuts", "assembly_out", -8_000],
+        ["mix", "assembly_in", 8_000],
+        ["nuts", "assembly_void", 8_000],
+        ["mix", "assembly_void", -8_000],
+      ]),
+    );
+    expect(pulled).toHaveLength(4);
+    const balanceOf = (productId: string) =>
+      pulled
+        .filter((change) => change.row.product_id === productId)
+        .reduce((sum, change) => sum + (change.row.delta as number), 0);
+    expect(balanceOf(nuts.productId)).toBe(0);
+    expect(balanceOf(mix.productId)).toBe(0);
   });
 });

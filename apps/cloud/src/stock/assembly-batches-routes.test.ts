@@ -1,4 +1,4 @@
-import { saveRecipe } from "@purosur/domain/stock/use-cases";
+import { recordLoss, saveRecipe } from "@purosur/domain/stock/use-cases";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -7,11 +7,13 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerAssemblyBatchesRoutes } from "./assembly-batches-routes.js";
 import { DrizzleRecipeStore } from "./drizzle-recipe-store.js";
+import { DrizzleStockStore } from "./drizzle-stock-store.js";
 import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
 import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertBalance,
+  insertLocation,
   insertProduct,
   signedInWith,
 } from "./test-support/stock-route-fixtures.js";
@@ -159,6 +161,33 @@ describe("GET /assembly-batches", () => {
     expect(listed.recipes).toMatchObject([
       { productId: ids.mix, version: 1, lastBatch: { assembledAt: "2026-09-14T10:00:00.000Z" } },
     ]);
+  });
+
+  it("tells each batch's status: voided, no longer voidable once its lot was consumed, or still voidable", async () => {
+    const { headers, userId, locationId } = await batchMaker();
+    const ids = await mixWithStock(userId, locationId);
+    const make = async (at: string) => {
+      const response = await post(headers, body(ids));
+      expect(response.statusCode).toBe(200);
+      const id = response.json().batch.id as string;
+      await db
+        .update(assemblyBatches)
+        .set({ assembledAt: new Date(at) })
+        .where(eq(assemblyBatches.id, id));
+      return id;
+    };
+    const voidable = await make("2026-09-10T10:00:00.000Z");
+    const voided = await make("2026-09-11T10:00:00.000Z");
+    await app.inject({ method: "POST", url: `/assembly-batches/${voided}/void`, headers });
+
+    const response = await app.inject({ method: "GET", url: "/assembly-batches?days=30", headers });
+
+    const statuses = Object.fromEntries(
+      response
+        .json()
+        .batches.map((batch: { id: string; status: string }) => [batch.id, batch.status]),
+    );
+    expect(statuses).toEqual({ [voidable]: "voidable", [voided]: "voided" });
   });
 
   it("defaults to the last thirty days", async () => {
@@ -442,5 +471,130 @@ describe("POST /assembly-batches", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "invalid_output" });
+  });
+});
+
+describe("POST /assembly-batches/:id/void", () => {
+  function voidBatch(headers: Record<string, string>, id: string) {
+    return app.inject({ method: "POST", url: `/assembly-batches/${id}/void`, headers });
+  }
+
+  async function registeredBatch() {
+    const maker = await batchMaker();
+    const ids = await mixWithStock(maker.userId, maker.locationId);
+    const response = await post(maker.headers, body(ids));
+    return { ...maker, ids, batchId: response.json().batch.id as string };
+  }
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/assembly-batches/${MISSING_ID}/void`,
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("returns 403 to a user without the batches permission, voiding nothing", async () => {
+    const { headers, userId, locationId } = await withoutBatchesPermission();
+    const { productId } = await insertProduct(db, { name: "Mix", saleUnit: "KG" });
+    const { batchId } = await insertAssemblyBatch(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      assembledAt: NOW,
+    });
+
+    const response = await voidBatch(headers, batchId);
+
+    expect(response.statusCode).toBe(403);
+    const [batch] = await db.select().from(assemblyBatches);
+    expect(batch?.voidedAt).toBeNull();
+  });
+
+  it("rejects a request from another origin", async () => {
+    const { headers, batchId } = await registeredBatch();
+
+    const response = await voidBatch({ ...headers, origin: "https://attacker.example" }, batchId);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("returns 400 for an id that is not a record id, before any lookup", async () => {
+    const { headers } = await batchMaker();
+
+    const response = await voidBatch(headers, "not-an-id");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("voids an untouched batch, answering when it was voided and keeping who voided it", async () => {
+    const { headers, userId, batchId } = await registeredBatch();
+
+    const response = await voidBatch(headers, batchId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ batch: { id: batchId, voidedAt: NOW.toISOString() } });
+    const [batch] = await db.select().from(assemblyBatches);
+    expect(batch).toMatchObject({ voidedAt: NOW, voidedBy: userId });
+    const voids = await db
+      .select()
+      .from(stockMovements)
+      .where(eq(stockMovements.kind, "assembly_void"));
+    expect(voids).toHaveLength(3);
+  });
+
+  it("answers 404 for a batch that does not exist", async () => {
+    const { headers } = await registeredBatch();
+
+    const response = await voidBatch(headers, MISSING_ID);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
+  it("answers 404 for a batch of another branch, leaving it as it was", async () => {
+    const { headers, userId, ids } = await registeredBatch();
+    const { batchId } = await insertAssemblyBatch(db, {
+      productId: ids.mix,
+      locationId: await insertLocation(db),
+      actorId: userId,
+      assembledAt: NOW,
+    });
+
+    const response = await voidBatch(headers, batchId);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+    const [batch] = await db.select().from(assemblyBatches).where(eq(assemblyBatches.id, batchId));
+    expect(batch?.voidedAt).toBeNull();
+  });
+
+  it("answers 409 for a batch that was already voided", async () => {
+    const { headers, batchId } = await registeredBatch();
+    await voidBatch(headers, batchId);
+
+    const response = await voidBatch(headers, batchId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "already_voided" });
+  });
+
+  it("answers 409 for a batch whose lot had a consumption", async () => {
+    const { headers, ids, userId, locationId, batchId } = await registeredBatch();
+    await recordLoss(
+      { store: new DrizzleStockStore(db), clock: { now: () => NOW } },
+      { productId: ids.mix, locationId, reason: "spoiled", quantity: 1_000, actorId: userId },
+    );
+
+    const response = await voidBatch(headers, batchId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "consumed" });
+    const [batch] = await db.select().from(assemblyBatches);
+    expect(batch?.voidedAt).toBeNull();
   });
 });

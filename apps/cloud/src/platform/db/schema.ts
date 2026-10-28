@@ -529,9 +529,15 @@ export const assemblyBatches = pgTable(
       .notNull()
       .references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => users.id),
   },
   (table) => [
     check("assembly_batches_output_qty_check", sql`${table.outputQty} > 0`),
+    check(
+      "assembly_batches_voided_check",
+      sql`(${table.voidedAt} is null) = (${table.voidedBy} is null)`,
+    ),
     index("assembly_batches_location_id_assembled_at_idx").on(table.locationId, table.assembledAt),
   ],
 );
@@ -587,11 +593,11 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
@@ -603,7 +609,7 @@ export const stockMovements = pgTable(
     ),
     check(
       "stock_movements_assembly_batch_iff_assembly_check",
-      sql`(${table.kind} in ('assembly_out', 'assembly_in')) = (${table.assemblyBatchId} is not null)`,
+      sql`(${table.kind} in ('assembly_out', 'assembly_in', 'assembly_void')) = (${table.assemblyBatchId} is not null)`,
     ),
     index("stock_movements_product_id_location_id_occurred_at_idx").on(
       table.productId,

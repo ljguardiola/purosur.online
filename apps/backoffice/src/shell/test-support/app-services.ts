@@ -168,6 +168,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchAssemblyBatches: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchAssemblyBatchPreview: vi.fn(),
       registerAssemblyBatch: vi.fn(),
+      voidAssemblyBatch: vi.fn(),
     },
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
