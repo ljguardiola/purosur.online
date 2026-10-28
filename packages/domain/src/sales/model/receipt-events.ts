@@ -13,12 +13,17 @@ export type SalePrintState = PrintTimes &
 
 type SaleReprintReason = { kind: "retry" } | { kind: "requested"; text: string };
 
-export interface SaleReprint {
+interface ReprintFacts {
   saleId: string;
-  document: PrintedDocument;
   orderNumber: number;
   requestedBy: string;
   authorizedBy: string | null;
   reason: SaleReprintReason;
   occurredAt: Date;
 }
+
+export type SaleReprint = ReprintFacts &
+  (
+    | { document: Exclude<PrintedDocument, "credit_note"> }
+    | { document: "credit_note"; creditNoteId: string | null }
+  );

@@ -433,22 +433,24 @@ function printStateChanged(
 function reprintRecorded(
   payload: SyncedEventPayloads["reprint_recorded@1"],
   document: PrintedDocument,
+  creditNoteId: string | null,
   event: UnappliedEvent,
 ): SyncedFact {
+  const copy = {
+    saleId: payload.sale_id,
+    orderNumber: payload.order_number,
+    requestedBy: payload.requested_by,
+    authorizedBy: payload.authorized_by,
+    reason:
+      payload.reason_kind === "retry"
+        ? ({ kind: "retry" } as const)
+        : ({ kind: "requested", text: payload.reason_text } as const),
+    occurredAt: event.occurredAt,
+  };
   return {
     kind: "reprint_recorded",
-    reprint: {
-      saleId: payload.sale_id,
-      document,
-      orderNumber: payload.order_number,
-      requestedBy: payload.requested_by,
-      authorizedBy: payload.authorized_by,
-      reason:
-        payload.reason_kind === "retry"
-          ? { kind: "retry" }
-          : { kind: "requested", text: payload.reason_text },
-      occurredAt: event.occurredAt,
-    },
+    reprint:
+      document === "credit_note" ? { document, creditNoteId, ...copy } : { document, ...copy },
   };
 }
 
@@ -520,8 +522,15 @@ const FACT_OF: {
       payload.document,
       payload.document === "credit_note" ? payload.credit_note_id : null,
     ),
-  "reprint_recorded@1": (payload, event) => reprintRecorded(payload, "sale_receipt", event),
-  "reprint_recorded@2": (payload, event) => reprintRecorded(payload, payload.document, event),
+  "reprint_recorded@1": (payload, event) => reprintRecorded(payload, "sale_receipt", null, event),
+  "reprint_recorded@2": (payload, event) => reprintRecorded(payload, payload.document, null, event),
+  "reprint_recorded@3": (payload, event) =>
+    reprintRecorded(
+      payload,
+      payload.document,
+      payload.document === "credit_note" ? payload.credit_note_id : null,
+      event,
+    ),
   "sale_cancelled@1": cancelledSale,
   "sale_cancelled@2": cancelledSale,
   "sale_cancelled@3": cancelledSale,
