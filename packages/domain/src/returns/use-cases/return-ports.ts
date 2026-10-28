@@ -1,4 +1,9 @@
-import type { SaleCreditNoteTransaction, SaleInvoiceStanding } from "../../fiscal/index.js";
+import type {
+  CreditNoteRoutingInvoiceState,
+  SaleCreditNoteTransaction,
+  SaleInvoice,
+  SaleInvoiceStanding,
+} from "../../fiscal/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { TicketSource } from "../model/return-reasons.js";
 import type { SaleForReturn } from "../model/return-sale.js";
@@ -19,7 +24,9 @@ export interface ReturnSaleReader {
 
 export interface BranchSaleFacts {
   sale: SaleForReturn;
-  invoiceStanding: SaleInvoiceStanding;
+  invoiceStanding: Omit<SaleInvoiceStanding, "fiscalDocuments"> & {
+    fiscalDocuments: readonly (SaleInvoice & { state: CreditNoteRoutingInvoiceState })[];
+  };
   countedReturnIds: string[];
 }
 

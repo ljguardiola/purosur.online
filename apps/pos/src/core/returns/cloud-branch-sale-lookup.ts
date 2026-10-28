@@ -4,7 +4,7 @@ import {
   branchSaleForReturnAnswerSchema,
   isRetryableCloudError,
 } from "@purosur/contracts";
-import type { SaleDiscount, TicketReference } from "@purosur/domain";
+import type { TicketReference } from "@purosur/domain";
 import type {
   BranchSaleFacts,
   BranchSaleLookup,
@@ -35,16 +35,6 @@ function queryOf(ticket: TicketReference): BranchSaleForReturnQuery {
     : { deferred_id: ticket.id, short_code: ticket.shortCode };
 }
 
-function discountOf({ sale_discount: discount }: BranchSaleForReturnAnswer["sale"]) {
-  if (discount === null) {
-    return null;
-  }
-  const common = { reason: discount.reason, authorizedBy: discount.authorized_by };
-  return discount.kind === "PERCENT"
-    ? ({ kind: "PERCENT", percent: discount.percent, ...common } satisfies SaleDiscount)
-    : ({ kind: "AMOUNT", amount: discount.amount, ...common } satisfies SaleDiscount);
-}
-
 function factsOf(answer: BranchSaleForReturnAnswer): BranchSaleFacts {
   const { sale } = answer;
   return {
@@ -56,7 +46,6 @@ function factsOf(answer: BranchSaleForReturnAnswer): BranchSaleFacts {
         sessionId: sale.session_id,
         actorId: sale.actor_id,
         state: sale.state,
-        saleDiscount: discountOf(sale),
         lines: sale.lines.map((line) => ({
           id: line.id,
           productId: line.product_id,

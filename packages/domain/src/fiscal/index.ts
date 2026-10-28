@@ -304,6 +304,7 @@ export {
   invoiceToCorrect,
 } from "./model/sale-credit-note.js";
 export type {
+  CreditNoteRoutingInvoiceState,
   OfflineCreditNoteClockMark,
   SaleCreditNoteRoute,
   SaleCreditNoteTransaction,
@@ -316,7 +317,6 @@ export {
   issueOfflineSaleCreditNote,
   routeSaleCreditNote,
 } from "./model/sale-credit-note-route.js";
-export type { RecordedRequestKinds } from "./model/unclear-outcome-decision.js";
 export {
   awaitsUnclearOutcomeDecision,
   recordedRequestDocumentState,

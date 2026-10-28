@@ -73,33 +73,6 @@ export interface RecordedRequestOutcome {
   decision: UnclearOutcomeDecision | null;
 }
 
-export interface RecordedRequestKinds {
-  answer: RealTimeAuthorizationAnswer["kind"] | null;
-  decision: UnclearOutcomeDecision["kind"] | null;
-}
-
-export function recordedRequestDocumentState({
-  answer,
-  decision,
-}: RecordedRequestKinds): FiscalDocumentState {
-  if (
-    answer === TAX_AUTHORITY_HOLDING_ANSWER_KIND ||
-    decision === TAX_AUTHORITY_HOLDING_DECISION_KIND
-  ) {
-    return "AUTHORIZED";
-  }
-  if (decision === "released") {
-    return "RELEASED";
-  }
-  if (decision === "conflicting") {
-    return "CONFLICTING";
-  }
-  if (answer === "rejected") {
-    return "REJECTED";
-  }
-  return answer === null ? IN_PROGRESS_FISCAL_DOCUMENT_STATE : "UNKNOWN";
-}
-
 export type ClearAuthorizationAnswer = Extract<
   RealTimeAuthorizationAnswer,
   { kind: "authorized" | "rejected" }
@@ -149,6 +122,18 @@ export function unclearDocumentSettlement(
         authorizationCodeDueOn: told.decision.authorizationCodeDueOn,
       };
   }
+}
+
+export function recordedRequestDocumentState(
+  recorded: RecordedRequestOutcome,
+): FiscalDocumentState {
+  const told = outcomeToldToAskingRegister(recorded);
+  if (told.kind !== "pending") {
+    return unclearDocumentSettlement(told).state;
+  }
+  return recorded.answer === null
+    ? IN_PROGRESS_FISCAL_DOCUMENT_STATE
+    : realTimeAuthorizationResolution(recorded.answer).state;
 }
 
 export type UnclearOutcomeVerdict = UnclearOutcomeDecision | { kind: "pending"; askAgainAt: Date };

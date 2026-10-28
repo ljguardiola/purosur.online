@@ -1,5 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import type { SaleWithLines, SettledSaleLine } from "../../sales/index.js";
+import type { Sale, SettledSaleLine } from "../../sales/index.js";
 import type { ReturnablePayment } from "./refund-allocation.js";
 import type { ReturnSaleLine } from "./return-draft.js";
 
@@ -14,7 +14,7 @@ type SaleLineForReturn = Pick<
   "id" | "productId" | "productName" | "saleUnit" | "quantity" | "promotionId" | "lineTotal"
 >;
 
-type SaleOfReturn = Omit<SaleWithLines, "lines"> & { lines: SaleLineForReturn[] };
+type SaleOfReturn = Sale & { lines: SaleLineForReturn[] };
 
 export interface SaleForReturn {
   sale: SaleOfReturn;

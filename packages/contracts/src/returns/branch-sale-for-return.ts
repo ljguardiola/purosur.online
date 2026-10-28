@@ -1,7 +1,5 @@
 import {
   CREDIT_NOTE_ROUTING_INVOICE_STATES,
-  mayBeManualDiscountAmount,
-  mayBeManualDiscountPercent,
   PAYMENT_METHODS,
   SALE_STATES_AFTER_COMPLETION,
   SALE_UNITS,
@@ -49,21 +47,6 @@ const cents = z.int().nonnegative();
 
 const quantity = z.int().nonnegative();
 
-const saleDiscountSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("PERCENT"),
-    percent: z.int().refine(mayBeManualDiscountPercent),
-    reason: z.string(),
-    authorized_by: z.string().nullable(),
-  }),
-  z.object({
-    kind: z.literal("AMOUNT"),
-    amount: z.int().refine(mayBeManualDiscountAmount),
-    reason: z.string(),
-    authorized_by: z.string().nullable(),
-  }),
-]);
-
 const invoiceStandingSchema = z.object({
   fiscal_documents: z.array(
     z.object({
@@ -85,7 +68,6 @@ export const branchSaleForReturnAnswerSchema = z.object({
     session_id: z.string(),
     actor_id: z.string(),
     state: z.enum(SALE_STATES_AFTER_COMPLETION),
-    sale_discount: saleDiscountSchema.nullable(),
     lines: z.array(
       z.object({
         id: z.string(),

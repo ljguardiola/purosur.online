@@ -252,7 +252,6 @@ export type {
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
   RebuiltUnclearDeferral,
-  RecordedRequestKinds,
   RegisterOfflineAuthorizationCodeHolding,
   RejectedDocumentOfPresentation,
   RejectedDocumentRemedy,

@@ -2,12 +2,12 @@ import {
   type DeferredSaleState,
   EXPIRED_DEFERRED_SALE_STATE,
   FACTURA_C_DOCUMENT_TYPE,
+  isCreditNoteRoutingInvoice,
   isUnbilledDeferredSale,
   OPEN_FISCAL_TASK_STATE,
   PAYMENT_METHODS,
   PENDING_DEFERRED_SALE_STATE,
   REFUND_DISCARDED_STATE,
-  type RecordedRequestKinds,
   recordedRequestDocumentState,
   SALE_STATES_AFTER_COMPLETION,
   SALE_UNITS,
@@ -18,6 +18,7 @@ import {
 import type { BranchSaleFacts, BranchSaleForReturnReader } from "@purosur/domain/returns/use-cases";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { answerOf, decisionOf } from "../fiscal/fiscal-request-answer.js";
 import { heldByTaxAuthority } from "../fiscal/held-by-tax-authority.js";
 import {
   deferredSales,
@@ -34,38 +35,11 @@ import {
   sales,
 } from "../platform/db/schema.js";
 
-type SaleRow = {
-  id: string;
-  registerId: string;
-  deviceId: string;
-  sessionId: string;
-  actorId: string;
-  state: string;
-  completedAt: Date | null;
-  saleDiscountKind: string | null;
-  saleDiscountValue: number | null;
-  saleDiscountReason: string | null;
-  saleDiscountAuthorizedBy: string | null;
-};
-
 function saleStateOf(state: string): SaleState {
   if (state === "COMPLETED" || state === "VOIDED") {
     return state;
   }
   throw new Error(`sale state ${state} is not one a completed sale can have`);
-}
-
-function saleDiscountOf(row: SaleRow): BranchSaleFacts["sale"]["sale"]["saleDiscount"] {
-  if (row.saleDiscountKind === null || row.saleDiscountValue === null) {
-    return null;
-  }
-  const rest = {
-    reason: row.saleDiscountReason ?? "",
-    authorizedBy: row.saleDiscountAuthorizedBy,
-  };
-  return row.saleDiscountKind === "PERCENT"
-    ? { kind: "PERCENT", percent: row.saleDiscountValue, ...rest }
-    : { kind: "AMOUNT", amount: row.saleDiscountValue, ...rest };
 }
 
 export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResultHKT>
@@ -94,10 +68,6 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         actorId: sales.actorId,
         state: sales.state,
         completedAt: sales.completedAt,
-        saleDiscountKind: sales.saleDiscountKind,
-        saleDiscountValue: sales.saleDiscountValue,
-        saleDiscountReason: sales.saleDiscountReason,
-        saleDiscountAuthorizedBy: sales.saleDiscountAuthorizedBy,
       })
       .from(sales)
       .innerJoin(registers, this.askingRegisterBranch(registerId))
@@ -114,7 +84,6 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
           sessionId: sale.sessionId,
           actorId: sale.actorId,
           state: saleStateOf(sale.state),
-          saleDiscount: saleDiscountOf(sale),
           lines: await this.linesOf(sale.id),
         },
         occurredAt: sale.completedAt,
@@ -178,7 +147,13 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         number: fiscalRequests.number,
         buyerTaxStatusCode: fiscalRequests.buyerTaxStatusCode,
         answerKind: fiscalRequests.answerKind,
+        authorizationCode: fiscalRequests.authorizationCode,
+        authorizationCodeDueOn: fiscalRequests.authorizationCodeDueOn,
+        rejectionCodes: fiscalRequests.rejectionCodes,
+        rejectionClass: fiscalRequests.rejectionClass,
         decision: fiscalRequests.decision,
+        adoptedAuthorizationCode: fiscalRequests.adoptedAuthorizationCode,
+        adoptedAuthorizationCodeDueOn: fiscalRequests.adoptedAuthorizationCodeDueOn,
       })
       .from(fiscalRequests)
       .where(eq(fiscalRequests.saleId, saleId));
@@ -212,13 +187,15 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         ),
       );
     const realTime = requests.map(
-      ({ answerKind, decision, ...invoice }): SaleInvoice => ({
+      (request): SaleInvoice => ({
         origin: "real_time",
         state: recordedRequestDocumentState({
-          answer: answerKind as RecordedRequestKinds["answer"],
-          decision: decision as RecordedRequestKinds["decision"],
+          answer: answerOf(request),
+          decision: decisionOf(request),
         }),
-        ...invoice,
+        pointOfSale: request.pointOfSale,
+        number: request.number,
+        buyerTaxStatusCode: request.buyerTaxStatusCode,
       }),
     );
     return {
@@ -227,7 +204,7 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         ...offline.map(
           (invoice): SaleInvoice => ({ origin: "offline", state: "AUTHORIZED", ...invoice }),
         ),
-      ],
+      ].filter(isCreditNoteRoutingInvoice),
       deferralPending: deferrals.some(({ state, openTaskId }) =>
         isUnbilledDeferredSale({
           state: state as DeferredSaleState,
