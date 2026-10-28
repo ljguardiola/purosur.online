@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { FICTIONAL_CUIT } from "../test-support/fictional-tax-identities.js";
 import {
+  CUIT_DOCUMENT_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
@@ -88,10 +90,32 @@ describe("buyerOfIssuedDocument", () => {
     });
   });
 
-  it("is the identified buyer, with the stored document, for any other document type", () => {
-    expect(buyerOfIssuedDocument(96, 12_345_678)).toEqual({
+  it("is the buyer identified with a CUIT for the CUIT's document type", () => {
+    const cuit = Number(FICTIONAL_CUIT.replaceAll("-", ""));
+
+    expect(buyerOfIssuedDocument(CUIT_DOCUMENT_TYPE, cuit)).toEqual({
       kind: "identified",
-      documentType: 96,
+      documentKind: "cuit",
+      documentNumber: cuit,
+    });
+  });
+
+  it.each([
+    [86, "cuil"],
+    [87, "cdi"],
+    [96, "dni"],
+  ] as const)("names the tax authority's document type %i as a %s", (documentType, kind) => {
+    expect(buyerOfIssuedDocument(documentType, 12_345_678)).toEqual({
+      kind: "identified",
+      documentKind: kind,
+      documentNumber: 12_345_678,
+    });
+  });
+
+  it("is a buyer identified with another document for a type it does not name", () => {
+    expect(buyerOfIssuedDocument(91, 12_345_678)).toEqual({
+      kind: "identified",
+      documentKind: "other",
       documentNumber: 12_345_678,
     });
   });

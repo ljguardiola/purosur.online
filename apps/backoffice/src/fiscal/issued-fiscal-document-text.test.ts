@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { expect, test } from "vitest";
 import {
   authorizationDetailText,
@@ -7,7 +8,6 @@ import {
   documentsCountText,
   issuedDay,
   issuedTime,
-  quantityText,
   voucherDetailText,
   voucherText,
 } from "./issued-fiscal-document-text";
@@ -17,6 +17,8 @@ import {
   creditNote,
   unauthorizedReceipt,
 } from "./test-support/issued-fiscal-documents-fixtures";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 test.each([
   [authorizedReceipt, "Factura C 00003-00001247"],
@@ -92,25 +94,15 @@ test("writes the final consumer as the buyer", () => {
 });
 
 test.each([
-  [96, 12345678, "DNI 12345678"],
-  [80, 20000000001, "CUIT 20-00000000-1"],
-  [86, 20000000001, "CUIL 20-00000000-1"],
-  [87, 12345678, "CDI 12345678"],
-  [91, 12345678, "Documento tipo 91 12345678"],
-])("writes an identified buyer of document type %i and number %i as %s", (type, number, text) => {
-  expect(buyerText({ kind: "identified", document_type: type, document_number: number })).toBe(
+  ["dni", 12345678, "DNI 12345678"],
+  ["cuit", FICTIONAL_CUIT_NUMBER, `CUIT ${FICTIONAL_CUIT}`],
+  ["cuil", FICTIONAL_CUIT_NUMBER, `CUIL ${FICTIONAL_CUIT}`],
+  ["cdi", 12345678, "CDI 12345678"],
+  ["other", 12345678, "Documento 12345678"],
+] as const)("writes a buyer identified by a %s numbered %i as %s", (kind, number, text) => {
+  expect(buyerText({ kind: "identified", document_kind: kind, document_number: number })).toBe(
     text,
   );
-});
-
-test("writes units sold as units", () => {
-  expect(quantityText({ kind: "units", units: 2 })).toBe("2 u");
-  expect(quantityText({ kind: "units", units: 1200 })).toBe("1.200 u");
-});
-
-test("writes a weight sold in kilograms", () => {
-  expect(quantityText({ kind: "weight", grams: 450 })).toBe("0,450 kg");
-  expect(quantityText({ kind: "weight", grams: 1250 })).toBe("1,250 kg");
 });
 
 test("names the receipt a credit note corrects", () => {

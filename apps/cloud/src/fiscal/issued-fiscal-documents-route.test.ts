@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -14,6 +15,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerIssuedFiscalDocumentsRoute } from "./issued-fiscal-documents-route.js";
 import {
+  insertCaeaDocument,
   insertCompletedSale,
   insertOnlineCreditNote,
   insertReceiptRequest,
@@ -408,13 +410,15 @@ describe("GET /fiscal/documents/:voucher_type/:point_of_sale/:number", () => {
       lines: expect.arrayContaining([
         {
           product_name: "Yerba 1 kg",
-          quantity: { kind: "units", units: 2 },
+          sale_unit: "UNIT",
+          quantity: 2,
           promotion: null,
           amount: 3_000,
         },
         {
           product_name: "Queso cremoso",
-          quantity: { kind: "weight", grams: 450 },
+          sale_unit: "KG",
+          quantity: 450,
           promotion: null,
           amount: 1_800,
         },
@@ -446,6 +450,24 @@ describe("GET /fiscal/documents/:voucher_type/:point_of_sale/:number", () => {
       kind: "credit_note",
       corrected_voucher: { voucher_type: 11, point_of_sale: 7, number: 12 },
       credit_notes: [],
+    });
+  });
+
+  it("answers an identified buyer by the kind of document that identifies them", async () => {
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+    const { registerId } = await insertEnrolledInstallation(db, { now: NOW });
+    const cuit = Number(FICTIONAL_CUIT.replaceAll("-", ""));
+    await insertCaeaDocument(db, registerId, {
+      pointOfSale: 8,
+      number: 5,
+      buyerDocumentType: 80,
+      buyerDocumentNumber: cuit,
+    });
+
+    const response = await documentDetail(headers, "11/8/5");
+
+    expect(response.json()).toMatchObject({
+      buyer: { kind: "identified", document_kind: "cuit", document_number: cuit },
     });
   });
 });

@@ -100,13 +100,15 @@ export const authorizedReceiptDetail: IssuedFiscalDocumentDetailBody = {
   lines: [
     {
       product_name: "Yerba 1 kg",
-      quantity: { kind: "units", units: 2 },
+      sale_unit: "UNIT",
+      quantity: 2,
       promotion: null,
       amount: 850000,
     },
     {
       product_name: "Queso cremoso",
-      quantity: { kind: "weight", grams: 450 },
+      sale_unit: "KG",
+      quantity: 450,
       promotion: { name: "Lácteos 2x1" },
       amount: 900275,
     },
@@ -126,7 +128,8 @@ export const creditNoteDetail: IssuedFiscalDocumentDetailBody = {
   lines: [
     {
       product_name: "Yerba 1 kg",
-      quantity: { kind: "units", units: 1 },
+      sale_unit: "UNIT",
+      quantity: 1,
       promotion: null,
       amount: 320000,
     },

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
@@ -18,6 +19,7 @@ import {
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const RECEIPT = { voucherType: 11, pointOfSale: 7, number: 12 };
 const CREDIT_NOTE = { voucherType: 13, pointOfSale: 7, number: 3 };
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -108,19 +110,21 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
       expect(detail?.lines).toHaveLength(2);
       expect(detail?.lines).toContainEqual({
         productName: "Yerba 1 kg",
-        quantity: { kind: "units", units: 2 },
+        saleUnit: "UNIT",
+        quantity: 2,
         promotion: null,
         amount: 3_000,
       });
       expect(detail?.lines).toContainEqual({
         productName: "Queso cremoso",
-        quantity: { kind: "weight", grams: 450 },
+        saleUnit: "KG",
+        quantity: 450,
         promotion: { name: "Lácteos 2x1" },
         amount: 1_800,
       });
     });
 
-    it("reads a weight typed by hand as grams too", async () => {
+    it("reads a weight typed by hand as sold by weight too", async () => {
       const { registerId, locationId, deviceId } = await aBranchWithRegister();
       const saleId = await aSale(registerId, deviceId);
       await insertReceiptRequest(db, registerId, { ...RECEIPT, saleId });
@@ -128,7 +132,9 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
 
       const detail = await detailOf(locationId, RECEIPT);
 
-      expect(detail?.lines.map((line) => line.quantity)).toEqual([{ kind: "weight", grams: 250 }]);
+      expect(detail?.lines.map(({ saleUnit, quantity }) => ({ saleUnit, quantity }))).toEqual([
+        { saleUnit: "KG", quantity: 250 },
+      ]);
     });
 
     it("reads only the approved payments, with their method and card type", async () => {
@@ -201,7 +207,7 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
       expect(detail).toMatchObject({
         contingency: true,
         authorization: { kind: "caea", code: "21403471111111" },
-        buyer: { kind: "identified", documentType: 96, documentNumber: 12_345_678 },
+        buyer: { kind: "identified", documentKind: "dni", documentNumber: 12_345_678 },
       });
     });
 
@@ -211,15 +217,15 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
         pointOfSale: 8,
         number: 5,
         buyerDocumentType: 80,
-        buyerDocumentNumber: 20_111_111_112,
+        buyerDocumentNumber: FICTIONAL_CUIT_NUMBER,
       });
 
       const detail = await detailOf(locationId, { voucherType: 11, pointOfSale: 8, number: 5 });
 
       expect(detail?.buyer).toEqual({
         kind: "identified",
-        documentType: 80,
-        documentNumber: 20_111_111_112,
+        documentKind: "cuit",
+        documentNumber: FICTIONAL_CUIT_NUMBER,
       });
     });
 

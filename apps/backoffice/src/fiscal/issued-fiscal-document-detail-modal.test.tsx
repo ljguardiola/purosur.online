@@ -146,7 +146,11 @@ test("shows each payment with its method and amount", async () => {
 test("shows an identified buyer with the document type and number", async () => {
   const detail = {
     ...authorizedReceiptDetail,
-    buyer: { kind: "identified" as const, document_type: 96, document_number: 12345678 },
+    buyer: {
+      kind: "identified" as const,
+      document_kind: "dni" as const,
+      document_number: 12345678,
+    },
   };
   const screen = await renderModal(servicesAnswering({ kind: "ok", value: detail }));
 
@@ -160,9 +164,8 @@ test("lists the credit notes issued against a receipt", async () => {
 
   const list = screen.getByRole("list", { name: "Notas de crédito" });
   await expect.element(list.getByText("Nota de crédito C 00003-00000041")).toBeVisible();
-  await expect.element(list.getByText("12/09/2026")).toBeVisible();
-  await expect.element(list.getByText("Autorizado")).toBeVisible();
-  await expect.element(list.getByText("$ 3.200,00")).toBeVisible();
+  await expect.element(list.getByText("12/09/2026 · $ 3.200,00", { exact: true })).toBeVisible();
+  await expect.element(list.getByText("Autorizado", { exact: true })).toBeVisible();
   expect(screen.getByText("Sin notas de crédito asociadas.").query()).toBeNull();
 });
 
@@ -172,6 +175,17 @@ test("says a receipt has no credit notes associated when it has none", async () 
   );
 
   await expect.element(screen.getByText("Sin notas de crédito asociadas.")).toBeVisible();
+});
+
+test("says a document has no lines and no payments when its sale has none", async () => {
+  const detail = { ...authorizedReceiptDetail, ...unauthorizedReceipt, lines: [], payments: [] };
+  const screen = await renderModal(
+    servicesAnswering({ kind: "ok", value: detail }),
+    unauthorizedReceipt,
+  );
+
+  await expect.element(screen.getByText("Sin productos asociados.")).toBeVisible();
+  await expect.element(screen.getByText("Sin pagos asociados.")).toBeVisible();
 });
 
 test("names the receipt a credit note corrects, and lists no credit notes of its own", async () => {

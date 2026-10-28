@@ -61,13 +61,15 @@ describe("issuedFiscalDocumentDetailSchema", () => {
     lines: [
       {
         product_name: "Yerba 1 kg",
-        quantity: { kind: "units", units: 2 },
+        sale_unit: "UNIT",
+        quantity: 2,
         promotion: null,
         amount: 3_000,
       },
       {
         product_name: "Queso cremoso",
-        quantity: { kind: "weight", grams: 450 },
+        sale_unit: "KG",
+        quantity: 450,
         promotion: { name: "Lácteos 2x1" },
         amount: 1_800,
       },
@@ -92,7 +94,7 @@ describe("issuedFiscalDocumentDetailSchema", () => {
   it("accepts an identified buyer", () => {
     const identified = {
       ...detail,
-      buyer: { kind: "identified", document_type: 96, document_number: 12_345_678 },
+      buyer: { kind: "identified", document_kind: "dni", document_number: 12_345_678 },
     };
 
     expect(issuedFiscalDocumentDetailSchema.parse(identified)).toEqual(identified);
@@ -106,63 +108,52 @@ describe("issuedFiscalDocumentDetailSchema", () => {
 
   it.each([
     ["a buyer of another kind", { buyer: { kind: "company" } }],
-    ["an identified buyer without a number", { buyer: { kind: "identified", document_type: 96 } }],
     [
-      "a line sold by a quantity of another kind",
+      "an identified buyer without a number",
+      { buyer: { kind: "identified", document_kind: "dni" } },
+    ],
+    [
+      "an identified buyer of a document kind it does not name",
+      { buyer: { kind: "identified", document_kind: "passport", document_number: 1 } },
+    ],
+    [
+      "an identified buyer named by the tax authority's document type",
+      { buyer: { kind: "identified", document_type: 96, document_number: 12_345_678 } },
+    ],
+    [
+      "a line sold by another unit",
       {
-        lines: [
-          {
-            product_name: "A",
-            quantity: { kind: "liters", liters: 1 },
-            promotion: null,
-            amount: 1,
-          },
-        ],
+        lines: [{ product_name: "A", sale_unit: "LITER", quantity: 1, promotion: null, amount: 1 }],
       },
     ],
     [
       "a line of zero units",
       {
-        lines: [
-          { product_name: "A", quantity: { kind: "units", units: 0 }, promotion: null, amount: 1 },
-        ],
+        lines: [{ product_name: "A", sale_unit: "UNIT", quantity: 0, promotion: null, amount: 1 }],
       },
     ],
     [
       "a line of fractional grams",
       {
-        lines: [
-          {
-            product_name: "A",
-            quantity: { kind: "weight", grams: 10.5 },
-            promotion: null,
-            amount: 1,
-          },
-        ],
+        lines: [{ product_name: "A", sale_unit: "KG", quantity: 10.5, promotion: null, amount: 1 }],
       },
     ],
     [
       "a line of zero grams",
       {
-        lines: [
-          { product_name: "A", quantity: { kind: "weight", grams: 0 }, promotion: null, amount: 1 },
-        ],
+        lines: [{ product_name: "A", sale_unit: "KG", quantity: 0, promotion: null, amount: 1 }],
       },
     ],
     [
       "a line with a negative amount",
       {
-        lines: [
-          { product_name: "A", quantity: { kind: "units", units: 1 }, promotion: null, amount: -1 },
-        ],
+        lines: [{ product_name: "A", sale_unit: "UNIT", quantity: 1, promotion: null, amount: -1 }],
       },
     ],
     [
       "a line with a promotion without a name",
       {
-        lines: [
-          { product_name: "A", quantity: { kind: "units", units: 1 }, promotion: {}, amount: 1 },
-        ],
+        lines: [{ product_name: "A", sale_unit: "UNIT", quantity: 1, promotion: {}, amount: 1 }],
       },
     ],
     [

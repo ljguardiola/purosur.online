@@ -22,7 +22,6 @@ import {
   issuedFiscalDocuments,
   noIssuedFiscalDocuments,
   pagedIssuedFiscalDocuments,
-  receiptDetailWithCreditNote,
 } from "./test-support/issued-fiscal-documents-fixtures";
 import { createIssuedFiscalDocumentsServices } from "./test-support/issued-fiscal-documents-screen-services";
 
@@ -164,7 +163,7 @@ test("offers to open the detail of each document, named after its voucher", asyn
   }
 });
 
-test("shows an authorized receipt's state, authorization, buyer, lines, total and payment when its detail is opened", async () => {
+test("opens the detail of the document whose action was pressed, asking the cloud for its voucher", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
     kind: "ok",
@@ -181,34 +180,9 @@ test("shows an authorized receipt's state, authorization, buyer, lines, total an
     point_of_sale: 3,
     number: 1247,
   });
-  const dialog = screen.getByRole("dialog", { name: /Factura C 00003-00001247/ });
-  await expect.element(dialog.getByText("Autorizado")).toBeVisible();
-  await expect.element(dialog.getByText("CAE 75123456789012")).toBeVisible();
-  await expect.element(dialog.getByText("Vence el 26/09/2026")).toBeVisible();
-  await expect.element(dialog.getByText("Consumidor final")).toBeVisible();
-  await expect.element(dialog.getByRole("row", { name: /Yerba 1 kg/ })).toBeVisible();
-  await expect.element(dialog.getByText("$ 8.500,00")).toBeVisible();
-  await expect.element(dialog.getByRole("row", { name: /Queso cremoso/ })).toBeVisible();
-  await expect.element(dialog.getByText("$ 9.002,75")).toBeVisible();
-  await expect.element(dialog.getByText("Total", { exact: true })).toBeVisible();
-  await expect.element(dialog.getByText("Efectivo")).toBeVisible();
-  await expect.element(dialog.getByText("Sin notas de crédito asociadas.")).toBeVisible();
-});
-
-test("lists the credit note issued against a receipt when its detail is opened", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
-    kind: "ok",
-    value: receiptDetailWithCreditNote,
-  });
-  const screen = await renderScreen(services);
-
-  await userEvent.click(
-    screen.getByRole("button", { name: "Ver el detalle de la Factura C 00003-00001247" }),
-  );
-
-  const list = screen.getByRole("list", { name: "Notas de crédito" });
-  await expect.element(list.getByText("Nota de crédito C 00003-00000041")).toBeVisible();
+  await expect
+    .element(screen.getByRole("dialog", { name: /Factura C 00003-00001247/ }))
+    .toBeVisible();
 });
 
 test("closes the detail and keeps the list", async () => {
