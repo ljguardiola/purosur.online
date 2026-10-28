@@ -128,12 +128,12 @@ describe("productRequestFrom", () => {
 });
 
 describe("the empty form", () => {
-  it("starts with nothing chosen, no brand, and the net content in grams", () => {
+  it("starts sold by the unit, with no category, no brand, and the net content in grams", () => {
     expect(EMPTY_PRODUCT_FORM).toEqual({
       name: "",
       categoryId: null,
       brandId: "",
-      saleUnit: null,
+      saleUnit: "UNIT",
       netContent: { quantity: "", unit: "G" },
       barcodes: NO_BARCODES,
       tagIds: [],
