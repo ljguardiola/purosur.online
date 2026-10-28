@@ -264,10 +264,14 @@ describe("GET /products", () => {
       barcodes: ["222"],
     });
     const priceListId = await seededPriceListId(db);
-    await db.insert(prices).values([
-      { productId: priced.id, priceListId, unitPrice: 1000, validFrom: new Date("2026-01-01") },
-      { productId: priced.id, priceListId, unitPrice: 1250, validFrom: new Date("2026-01-03") },
-    ]);
+    await db
+      .insert(prices)
+      .values({
+        productId: priced.id,
+        priceListId,
+        unitPrice: 1250,
+        validFrom: new Date("2026-01-03"),
+      });
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 

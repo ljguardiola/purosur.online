@@ -1,21 +1,15 @@
 import { expect, test } from "vitest";
-import {
-  almondOil,
-  hierbasDelOasis,
-  honey,
-  lavenderOil,
-  pricedAlmonds,
-} from "./test-support/products";
+import { almondOil, honey, lavenderOil, pricedAlmonds, vitora } from "./test-support/products";
 import { createServices, mockLoaded, renderScreen } from "./test-support/products-list-screen";
 
 test("shows each product's brand, net content, barcode and current price", async () => {
   const services = createServices();
-  mockLoaded(services, [almondOil], undefined, [hierbasDelOasis]);
+  mockLoaded(services, [almondOil], undefined, [vitora]);
 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("cell", { name: "Aceite de Almendras" })).toBeVisible();
-  await expect.element(screen.getByRole("cell", { name: "Hierbas del Oasis" })).toBeVisible();
+  await expect.element(screen.getByRole("cell", { name: "Vitora" })).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "30 ml" })).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "7790001234567" })).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "$ 4.500,00" })).toBeVisible();
@@ -23,7 +17,7 @@ test("shows each product's brand, net content, barcode and current price", async
 
 test("shows the columns in order after the product's name", async () => {
   const services = createServices();
-  mockLoaded(services, [almondOil], undefined, [hierbasDelOasis]);
+  mockLoaded(services, [almondOil], undefined, [vitora]);
 
   const screen = await renderScreen(services);
 
@@ -62,11 +56,11 @@ test("leaves the brand and net content cells empty and reads Sin precio for a pr
 
 test("still shows the name of an inactive brand", async () => {
   const services = createServices();
-  mockLoaded(services, [almondOil], undefined, [{ ...hierbasDelOasis, active: false }]);
+  mockLoaded(services, [almondOil], undefined, [{ ...vitora, active: false }]);
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("cell", { name: "Hierbas del Oasis" })).toBeVisible();
+  await expect.element(screen.getByRole("cell", { name: "Vitora" })).toBeVisible();
 });
 
 test("shows the price of a product sold by weight per kilogram", async () => {

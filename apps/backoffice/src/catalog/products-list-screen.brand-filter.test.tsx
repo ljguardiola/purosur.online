@@ -3,11 +3,12 @@ import { userEvent } from "vitest/browser";
 import { productsListFilters } from "./routes";
 import {
   almondOil,
+  cabriola,
   creamCheese,
-  hierbasDelOasis,
   honey,
   lavenderOil,
-  serenisima,
+  retiredHoney,
+  vitora,
 } from "./test-support/products";
 import {
   createServices,
@@ -20,7 +21,7 @@ function brandFilter(screen: Screen) {
   return screen.getByRole("combobox", { name: /Marca/ });
 }
 
-const brands = [serenisima, hierbasDelOasis];
+const brands = [cabriola, vitora];
 const products = [almondOil, lavenderOil, creamCheese, honey];
 
 beforeEach(() => {
@@ -34,7 +35,7 @@ test("filtering by a brand lists only that brand's products", async () => {
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
 
   await userEvent.click(brandFilter(screen));
-  await userEvent.click(screen.getByRole("option", { name: "Hierbas del Oasis" }));
+  await userEvent.click(screen.getByRole("option", { name: "Vitora" }));
 
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
   await expect.element(screen.getByText("Aceite de Almendras")).toBeVisible();
@@ -61,7 +62,7 @@ test("offers Todas, Sin marca and then the brands that have listed products by n
   const services = createServices();
   mockLoaded(services, [almondOil, creamCheese], undefined, [
     ...brands,
-    { ...hierbasDelOasis, id: "b2a40000-0000-4000-8000-000000000003", name: "Granuz" },
+    { ...vitora, id: "b2a40000-0000-4000-8000-000000000003", name: "Granuz" },
   ]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
@@ -72,7 +73,7 @@ test("offers Todas, Sin marca and then the brands that have listed products by n
     .getByRole("option")
     .elements()
     .map((option) => option.textContent?.trim());
-  expect(labels).toEqual(["Todas", "Sin marca", "Hierbas del Oasis", "Serenísima"]);
+  expect(labels).toEqual(["Todas", "Sin marca", "Cabriola", "Vitora"]);
 });
 
 test("typing in the brand filter narrows its options", async () => {
@@ -82,10 +83,10 @@ test("typing in the brand filter narrows its options", async () => {
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
   await userEvent.click(brandFilter(screen));
 
-  await userEvent.fill(brandFilter(screen), "sere");
+  await userEvent.fill(brandFilter(screen), "cabr");
 
-  await expect.element(screen.getByRole("option", { name: "Serenísima" })).toBeVisible();
-  expect(screen.getByRole("option", { name: "Hierbas del Oasis" }).query()).toBeNull();
+  await expect.element(screen.getByRole("option", { name: "Cabriola" })).toBeVisible();
+  expect(screen.getByRole("option", { name: "Vitora" }).query()).toBeNull();
 });
 
 test("reports the chosen brand to the URL", async () => {
@@ -96,11 +97,11 @@ test("reports the chosen brand to the URL", async () => {
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
 
   await userEvent.click(brandFilter(screen));
-  await userEvent.click(screen.getByRole("option", { name: "Serenísima" }));
+  await userEvent.click(screen.getByRole("option", { name: "Cabriola" }));
 
   expect(onFiltersChange).toHaveBeenLastCalledWith({
     ...productsListFilters.parse({}),
-    brand: serenisima.id,
+    brand: cabriola.id,
   });
 });
 
@@ -109,10 +110,10 @@ test("opens on the brand it is given", async () => {
   mockLoaded(services, products, undefined, brands);
 
   const screen = await renderScreen(services, () => {}, {
-    filters: { ...productsListFilters.parse({}), brand: serenisima.id },
+    filters: { ...productsListFilters.parse({}), brand: cabriola.id },
   });
 
-  await expect.element(brandFilter(screen)).toHaveValue("Serenísima");
+  await expect.element(brandFilter(screen)).toHaveValue("Cabriola");
   await expect.element(screen.getByText("Queso crema")).toBeVisible();
   expect(screen.getByText("Aceite de Almendras").query()).toBeNull();
 });
@@ -130,4 +131,27 @@ test("falls back to every brand when the brand it is given is not one the list o
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
   await expect.element(brandFilter(screen)).toHaveValue("Todas");
   expect(onFiltersChange).toHaveBeenLastCalledWith(productsListFilters.parse({}));
+});
+
+test("keeps every brand once a status with none of the chosen brand's products made it fall back", async () => {
+  const services = createServices();
+  mockLoaded(services, products, undefined, brands);
+  vi.mocked(services.fetchProducts).mockImplementation(async (status) => ({
+    kind: "ok",
+    value: status === "inactive" ? [retiredHoney] : products,
+  }));
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("4 productos activos")).toBeVisible();
+  await userEvent.click(brandFilter(screen));
+  await userEvent.click(screen.getByRole("option", { name: "Vitora" }));
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
+  await expect.element(brandFilter(screen)).toHaveValue("Todas");
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Inactivos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Activos" }));
+
+  await expect.element(screen.getByText("4 productos activos")).toBeVisible();
+  await expect.element(brandFilter(screen)).toHaveValue("Todas");
 });

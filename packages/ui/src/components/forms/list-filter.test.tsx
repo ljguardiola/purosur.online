@@ -830,6 +830,15 @@ test("a searchable filter is a combobox named after its label and shows the chos
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("names the form value of a searchable filter with the name it is given, holding the chosen value", async () => {
+  const screen = await render(
+    <ListFilter {...searchableProps({ name: "brand", value: "acme" })} />,
+  );
+
+  const named = screen.container.querySelector<HTMLInputElement>('input[name="brand"]');
+  expect(named?.value).toBe("acme");
+});
+
 test("a searchable filter keeps the trigger look of the plain one", async () => {
   const screen = await render(<ListFilter {...searchableProps()} />);
   const input = screen.getByRole("combobox", { name: /Marca/ }).element() as HTMLElement;

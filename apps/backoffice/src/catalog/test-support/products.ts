@@ -55,17 +55,17 @@ export const retiredHoney: ListedProduct = {
   active: false,
 };
 
-export const hierbasDelOasis: BrandSummary = {
+export const vitora: BrandSummary = {
   id: "b2a40000-0000-4000-8000-000000000001",
-  name: "Hierbas del Oasis",
+  name: "Vitora",
   active: true,
   version: 1,
   productCount: 2,
 };
 
-export const serenisima: BrandSummary = {
+export const cabriola: BrandSummary = {
   id: "b2a40000-0000-4000-8000-000000000002",
-  name: "Serenísima",
+  name: "Cabriola",
   active: false,
   version: 1,
   productCount: 1,
@@ -75,7 +75,7 @@ export const almondOil: ListedProduct = {
   ...honey,
   id: "90d00000-0000-4000-8000-000000000004",
   name: "Aceite de Almendras",
-  brandId: hierbasDelOasis.id,
+  brandId: vitora.id,
   barcodes: ["7790001234567"],
   netContent: { quantity: 30, unit: "ML" },
   currentUnitPrice: 450000,
@@ -85,7 +85,7 @@ export const lavenderOil: ListedProduct = {
   ...honey,
   id: "90d00000-0000-4000-8000-000000000005",
   name: "Aceite de Lavanda",
-  brandId: hierbasDelOasis.id,
+  brandId: vitora.id,
   barcodes: ["7790001234574", "7790001234581"],
 };
 
@@ -93,7 +93,7 @@ export const creamCheese: ListedProduct = {
   ...honey,
   id: "90d00000-0000-4000-8000-000000000006",
   name: "Queso crema",
-  brandId: serenisima.id,
+  brandId: cabriola.id,
   barcodes: ["7790001234598"],
 };
 
