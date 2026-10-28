@@ -5,6 +5,7 @@ import {
   LOSS_REASONS,
   lossDelta,
   RECORDED_LOSS_REASONS,
+  RECORDED_STOCK_MOVEMENT_REASONS,
   STOCK_DIRECTIONS,
   SYSTEM_LOSS_REASONS,
   signedDelta,
@@ -41,6 +42,24 @@ describe("RECORDED_LOSS_REASONS", () => {
 describe("ADJUSTMENT_REASONS", () => {
   it("lists the reasons a person picks for an adjustment, in the order they are offered", () => {
     expect(ADJUSTMENT_REASONS).toEqual([
+      "purchase_correction",
+      "supplier_return",
+      "batch_correction",
+    ]);
+  });
+});
+
+describe("RECORDED_STOCK_MOVEMENT_REASONS", () => {
+  it("lists every reason a manual stock movement is recorded with, losses before adjustments", () => {
+    expect(RECORDED_STOCK_MOVEMENT_REASONS).toEqual([
+      "broken_or_spilled",
+      "spoiled",
+      "portioning_waste",
+      "tasting_or_sample",
+      "store_consumption",
+      "theft",
+      "expired",
+      "return_discard",
       "purchase_correction",
       "supplier_return",
       "batch_correction",
