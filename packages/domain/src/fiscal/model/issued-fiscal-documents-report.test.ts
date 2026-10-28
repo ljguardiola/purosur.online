@@ -114,16 +114,19 @@ describe("issuedFiscalDocumentsReport", () => {
     [1, 16, 63],
     [0, 5, 0],
     [5, 5, 1_000],
-  ])("rounds the share of %i CAEA documents among %i to %i tenths of a percent", (caea, all, tenths) => {
-    const groups = [
-      group({ authorizationKind: "caea", count: caea }),
-      group({ count: all - caea }),
-    ].filter((each) => each.count > 0);
+  ])(
+    "rounds the share of %i CAEA documents among %i to %i tenths of a percent",
+    (caea, all, tenths) => {
+      const groups = [
+        group({ authorizationKind: "caea", count: caea }),
+        group({ count: all - caea }),
+      ].filter((each) => each.count > 0);
 
-    const { totals } = issuedFiscalDocumentsReport(groups);
+      const { totals } = issuedFiscalDocumentsReport(groups);
 
-    expect(totals.contingency.shareTenthsOfPercent).toBe(tenths);
-  });
+      expect(totals.contingency.shareTenthsOfPercent).toBe(tenths);
+    },
+  );
 
   it("sorts the rows by voucher type, then point of sale, then CAE before CAEA", () => {
     const { rows } = issuedFiscalDocumentsReport([
