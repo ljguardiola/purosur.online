@@ -55,16 +55,12 @@ export function lotCostIsPrice(cost: LotCost | null, pricePerSaleUnit: Fraction)
   );
 }
 
-function compareText(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-
 export function cheapestFirst(prices: readonly LoadedSupplierPrice[]): LoadedSupplierPrice[] {
   return [...prices].sort(
     (a, b) =>
       compareFractions(a.pricePerSaleUnit, b.pricePerSaleUnit) ||
       compareSpanishText(a.supplierName, b.supplierName) ||
-      compareText(a.supplierItemId, b.supplierItemId),
+      compareSpanishText(a.supplierItemId, b.supplierItemId),
   );
 }
 
