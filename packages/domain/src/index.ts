@@ -812,6 +812,7 @@ export {
   returnedReceiptLine,
   TICKET_SOURCES,
   ticketReferenceFromQrText,
+  withReturnsOfBranch,
   withUncountedReturns,
 } from "./returns/index.js";
 export type {
