@@ -65,6 +65,37 @@ export function formatWeightInput(thousandths: number): string {
   return formatNumber(thousandths / 1000, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
+export const NET_CONTENT_UNIT_LABELS = {
+  G: "g",
+  KG: "kg",
+  ML: "ml",
+  L: "l",
+  UNIT: "u",
+};
+
+export interface NetContent {
+  quantity: number;
+  unit: keyof typeof NET_CONTENT_UNIT_LABELS;
+}
+
+export function formatNetContent(netContent: NetContent): string {
+  return `${formatNumber(netContent.quantity)} ${NET_CONTENT_UNIT_LABELS[netContent.unit]}`;
+}
+
+export function formatProductDescription(product: {
+  name: string;
+  brandName: string | null;
+  netContent: NetContent | null;
+}): string {
+  return [
+    product.name,
+    product.brandName,
+    product.netContent === null ? null : formatNetContent(product.netContent),
+  ]
+    .filter((part) => part !== null)
+    .join(" ");
+}
+
 export function formatPointOfSaleNumber(number: number): string {
   return String(number).padStart(5, "0");
 }
