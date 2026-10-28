@@ -534,6 +534,142 @@ describe("GET /reports/sales-by-cashier", () => {
   });
 });
 
+function handTypedWeights(headers: Record<string, string>, query = "") {
+  return app.inject({ method: "GET", url: `/reports/hand-typed-weights${query}`, headers });
+}
+
+function weighedLine(weightSource: "SCALE" | "MANUAL" | null) {
+  return { ...promotionLine(randomUUID(), 0), weight_source: weightSource };
+}
+
+describe("GET /reports/hand-typed-weights access", () => {
+  const request = handTypedWeights;
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await request({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe("GET /reports/hand-typed-weights", () => {
+  it.each([
+    ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
+    ["a register that is not an id", "?register_id=caja-1"],
+    ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
+  ])("answers 400 to %s", async (_name, query) => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await handTypedWeights(headers, query);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("reports the current Argentina day when no range is asked", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await handTypedWeights(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      cashiers: [],
+      sessions: [],
+      totals: { weighed_lines: 0, typed_lines: 0 },
+    });
+  });
+
+  it("answers the weighed lines and the ones typed by hand by cashier and by session", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    await receiveSale(3_000, [
+      weighedLine("SCALE"),
+      weighedLine("MANUAL"),
+      weighedLine("MANUAL"),
+      weighedLine(null),
+    ]);
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
+
+    const response = await handTypedWeights(headers);
+
+    const body = response.json();
+    expect(body.cashiers).toEqual([
+      { cashier_id: USER, name: null, weighed_lines: 3, typed_lines: 2 },
+    ]);
+    expect(body.sessions).toEqual([
+      {
+        session_id: expect.any(String),
+        register_name: "Caja 1",
+        opened_at: "2026-10-07T13:00:00.000Z",
+        weighed_lines: 3,
+        typed_lines: 2,
+      },
+    ]);
+    expect(body.totals).toEqual({ weighed_lines: 3, typed_lines: 2 });
+  });
+
+  it("shows a pushed sale only once its event was applied", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    await receiveSale(1_000, [weighedLine("MANUAL")]);
+
+    const before = await handTypedWeights(headers, "?from=2026-10-07&to=2026-10-07");
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
+    const after = await handTypedWeights(headers, "?from=2026-10-07&to=2026-10-07");
+
+    expect(before.json().totals).toEqual({ weighed_lines: 0, typed_lines: 0 });
+    expect(after.json().totals).toEqual({ weighed_lines: 1, typed_lines: 1 });
+  });
+
+  it("filters by an asked register of the branch", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { registerId } = await receiveSale(1_000, [weighedLine("MANUAL")]);
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
+
+    const ofTheRegister = await handTypedWeights(headers, `?register_id=${registerId}`);
+    const ofAnotherRegister = await handTypedWeights(headers, `?register_id=${randomUUID()}`);
+
+    expect(ofTheRegister.json().totals.typed_lines).toBe(1);
+    expect(ofAnotherRegister.json().totals.typed_lines).toBe(0);
+  });
+
+  it("reports the branch of the session and never another", async () => {
+    const otherLocationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["view_reports"], NOW, {
+      locationId: otherLocationId,
+    });
+    await receiveSale(1_000, [weighedLine("MANUAL")]);
+    await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
+
+    const response = await handTypedWeights(headers);
+
+    expect(response.json().cashiers).toEqual([]);
+  });
+});
+
 function salesByPromotion(headers: Record<string, string>, query = "") {
   return app.inject({ method: "GET", url: `/reports/sales-by-promotion${query}`, headers });
 }
