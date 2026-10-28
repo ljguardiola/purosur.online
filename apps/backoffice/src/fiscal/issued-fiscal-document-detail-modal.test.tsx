@@ -14,6 +14,8 @@ import {
   unauthorizedReceipt,
 } from "./test-support/issued-fiscal-documents-fixtures";
 
+type Voucher = { voucher_type: number; point_of_sale: number; number: number };
+
 type Outcome = Awaited<
   ReturnType<IssuedFiscalDocumentDetailModalServices["fetchIssuedFiscalDocument"]>
 >;
@@ -26,14 +28,18 @@ function servicesAnswering(outcome: Outcome | Promise<never>) {
   } satisfies IssuedFiscalDocumentDetailModalServices;
 }
 
+function voucherOf({ voucher_type, point_of_sale, number }: Voucher) {
+  return { voucher_type, point_of_sale, number };
+}
+
 function renderModal(
   services: IssuedFiscalDocumentDetailModalServices,
-  voucher: Parameters<typeof IssuedFiscalDocumentDetailModal>[0]["voucher"] = authorizedReceipt,
+  voucher: Voucher | null = authorizedReceipt,
   handlers: { onClose?: () => void; onSessionEnded?: () => void } = {},
 ) {
   return render(
     <IssuedFiscalDocumentDetailModal
-      voucher={voucher}
+      voucher={voucher === null ? null : voucherOf(voucher)}
       onClose={handlers.onClose ?? (() => {})}
       onSessionEnded={handlers.onSessionEnded ?? (() => {})}
       services={services}
