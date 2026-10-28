@@ -36,6 +36,7 @@ import {
   suppliersListRoute,
 } from "../purchasing/routes";
 import {
+  cashMovementsRoute,
   cashSessionClosesRoute,
   registersListRoute,
   snapshotBackupsRoute,
@@ -137,6 +138,7 @@ const routeTree = rootRoute.addChildren([
       salesByPaymentMethodRoute,
       handConfirmedPaymentsRoute,
       cashSessionClosesRoute,
+      cashMovementsRoute,
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
       handTypedWeightsRoute,
