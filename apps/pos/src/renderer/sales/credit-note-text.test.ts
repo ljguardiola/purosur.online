@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { creditNoteRow, voidedSaleNotice } from "./credit-note-text";
+import { creditNoteRow, creditNoteRowOf, voidedSaleNotice } from "./credit-note-text";
 
 const AUTHORIZED = {
   kind: "authorized",
@@ -50,7 +50,40 @@ describe("creditNoteRow", () => {
   });
 });
 
+describe("creditNoteRow of a credit note to be regularized", () => {
+  it("says it is to be regularized", () => {
+    expect(creditNoteRow({ kind: "regularization_required" })).toEqual({
+      label: "Nota de crédito C",
+      value: "A regularizar",
+    });
+  });
+});
+
+describe("creditNoteRowOf", () => {
+  it("keeps the void's row as it is", () => {
+    expect(creditNoteRowOf({ origin: "sale_void", standing: AUTHORIZED })).toEqual(
+      creditNoteRow(AUTHORIZED),
+    );
+  });
+
+  it.each([
+    [AUTHORIZED, "Nota de crédito C de devolución", "PV 00004 · Nº 00000012"],
+    [ISSUED_OFFLINE, "Nota de crédito C · CAEA de devolución", "PV 00009 · Nº 00000041"],
+    [{ kind: "in_progress" } as const, "Nota de crédito C de devolución", "En trámite con ARCA"],
+  ])("says a return's credit note is the return's: %j", (standing, label, value) => {
+    expect(creditNoteRowOf({ origin: "sale_return", standing })).toEqual({ label, value });
+  });
+});
+
 describe("voidedSaleNotice", () => {
+  it("says the credit note was left to be regularized and who to tell", () => {
+    expect(voidedSaleNotice({ kind: "regularization_required" })).toEqual({
+      tone: "warning",
+      title: "Venta anulada",
+      description: "La nota de crédito quedó para regularizar. Avisá al Administrador.",
+    });
+  });
+
   it.each([null, AUTHORIZED, ISSUED_OFFLINE])(
     "only says the merchandise went back to stock: %j",
     (creditNote) => {

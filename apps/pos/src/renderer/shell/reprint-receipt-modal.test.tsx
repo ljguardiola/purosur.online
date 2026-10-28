@@ -14,7 +14,7 @@ import type { SignedInPerson } from "./signed-in-person";
 import { render } from "./test-support/render-with-router";
 
 type Sale = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"] &
-  Pick<ReprintReceiptModalProps["sale"], "next_copy">;
+  Pick<ReprintReceiptModalProps["sale"], "next_copy" | "credit_note">;
 
 const SALE: Sale = {
   sale_id: "sale-1",
@@ -36,9 +36,8 @@ const SALE: Sale = {
   void_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
+  credit_notes: [],
   credit_note: null,
-  credit_note_id: null,
-  credit_note_next_copy: null,
   deferred_invoice_next_copy: null,
   short_code: null,
 };
@@ -506,7 +505,6 @@ describe("ReprintReceiptModal", () => {
         authorization_code: "75123456789012",
         authorization_code_due_on: "2026-10-19",
       },
-      credit_note_next_copy: { kind: "duplicate", order_number: 2 },
       next_copy: { kind: "duplicate", order_number: 2 },
     };
 
