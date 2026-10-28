@@ -74,6 +74,7 @@ describe("issuedFiscalDocumentDetailSchema", () => {
         amount: 1_800,
       },
     ],
+    sale_total: 4_800,
     payments: [
       { method: "CASH", card_type: null, amount: 3_800 },
       { method: "POINT", card_type: "DEBIT", amount: 1_000 },
@@ -89,6 +90,18 @@ describe("issuedFiscalDocumentDetailSchema", () => {
     const detailOfCreditNote = { ...detail, ...creditNote, credit_notes: [] };
 
     expect(issuedFiscalDocumentDetailSchema.parse(detailOfCreditNote)).toEqual(detailOfCreditNote);
+  });
+
+  it("accepts a document whose sale is not known yet", () => {
+    const withoutSale = { ...detail, sale_total: null };
+
+    expect(issuedFiscalDocumentDetailSchema.parse(withoutSale)).toEqual(withoutSale);
+  });
+
+  it("accepts a sale total of zero", () => {
+    const free = { ...detail, sale_total: 0 };
+
+    expect(issuedFiscalDocumentDetailSchema.parse(free)).toEqual(free);
   });
 
   it("accepts an identified buyer", () => {
@@ -167,6 +180,10 @@ describe("issuedFiscalDocumentDetailSchema", () => {
     ["a payment without a card type", { payments: [{ method: "CASH", amount: 1 }] }],
     ["a payment of zero", { payments: [{ method: "CASH", card_type: null, amount: 0 }] }],
     ["a credit note that is not a document", { credit_notes: [{ number: 1 }] }],
+    ["a negative sale total", { sale_total: -1 }],
+    ["a fractional sale total", { sale_total: 10.5 }],
+    ["a sale total written as text", { sale_total: "4800" }],
+    ["no sale total", { sale_total: undefined }],
     ["no lines", { lines: undefined }],
     ["no payments", { payments: undefined }],
     ["no credit notes", { credit_notes: undefined }],

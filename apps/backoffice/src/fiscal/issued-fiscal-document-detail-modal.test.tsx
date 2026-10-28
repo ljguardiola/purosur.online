@@ -123,8 +123,62 @@ test("shows each line as sold, with its quantity, its promotion and its amount, 
   await expect.element(queso.getByText("0,450 kg")).toBeVisible();
   await expect.element(queso.getByText("Lácteos 2x1")).toBeVisible();
   await expect.element(queso.getByText("$ 9.002,75")).toBeVisible();
-  await expect.element(screen.getByText("Total", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Total de la venta", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Total del comprobante", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("$ 17.502,75").first()).toBeVisible();
   await expect.element(screen.getByText("$ 17.502,75").last()).toBeVisible();
+});
+
+test("shows a partial credit note's sale total under its lines and its own amount apart", async () => {
+  const detail = {
+    ...creditNoteDetail,
+    total: 180000,
+    sale_total: 480000,
+    lines: [
+      {
+        product_name: "Yerba 1 kg",
+        sale_unit: "UNIT" as const,
+        quantity: 2,
+        promotion: null,
+        amount: 300000,
+      },
+      {
+        product_name: "Queso cremoso",
+        sale_unit: "KG" as const,
+        quantity: 450,
+        promotion: null,
+        amount: 180000,
+      },
+    ],
+  };
+  const screen = await renderModal(servicesAnswering({ kind: "ok", value: detail }), creditNote);
+
+  await expect.element(screen.getByText("$ 4.800,00")).toBeVisible();
+  await expect.element(screen.getByText("$ 1.800,00")).toBeVisible();
+  const saleTotal = screen.getByText("Total de la venta", { exact: true });
+  const ownTotal = screen.getByText("Total del comprobante", { exact: true });
+  await expect.element(saleTotal).toBeVisible();
+  await expect.element(ownTotal).toBeVisible();
+  const products = screen.getByRole("heading", { name: "Productos" }).element();
+  const payments = screen.getByRole("heading", { name: "Pagos" }).element();
+  const saleTotalPosition = saleTotal.element().compareDocumentPosition(products);
+  const ownTotalPosition = ownTotal.element().compareDocumentPosition(products);
+  expect(saleTotalPosition & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+  expect(ownTotalPosition & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(
+    saleTotal.element().compareDocumentPosition(payments) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+test("hides the sale total when the sale is not known yet, and still shows the document's own amount", async () => {
+  const detail = { ...authorizedReceiptDetail, ...unauthorizedReceipt, sale_total: null };
+  const screen = await renderModal(
+    servicesAnswering({ kind: "ok", value: detail }),
+    unauthorizedReceipt,
+  );
+
+  await expect.element(screen.getByText("Total del comprobante", { exact: true })).toBeVisible();
+  expect(screen.getByText("Total de la venta").query()).toBeNull();
 });
 
 test("shows each payment with its method and amount", async () => {

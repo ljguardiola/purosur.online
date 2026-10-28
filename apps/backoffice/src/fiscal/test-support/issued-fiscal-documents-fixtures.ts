@@ -113,6 +113,7 @@ export const authorizedReceiptDetail: IssuedFiscalDocumentDetailBody = {
       amount: 900275,
     },
   ],
+  sale_total: 1750275,
   payments: [{ method: "CASH", card_type: null, amount: 1750275 }],
   credit_notes: [],
 };
@@ -134,6 +135,7 @@ export const creditNoteDetail: IssuedFiscalDocumentDetailBody = {
       amount: 320000,
     },
   ],
+  sale_total: 320000,
   payments: [{ method: "POINT", card_type: "DEBIT", amount: 320000 }],
   credit_notes: [],
 };

@@ -181,7 +181,8 @@ export async function insertCompletedSale(
     registerId,
     deviceId,
     at,
-  }: { saleId: string; registerId: string; deviceId: string; at: Date },
+    total = 1_500,
+  }: { saleId: string; registerId: string; deviceId: string; at: Date; total?: number },
 ): Promise<void> {
   const origin = { locationId: await seededLocationId(db), registerId, deviceId };
   const sessionId = randomUUID();
@@ -196,7 +197,7 @@ export async function insertCompletedSale(
     actorId,
     state: "COMPLETED",
     completedAt: at,
-    total: 1_500,
+    total,
     appliedAt: at,
   });
 }

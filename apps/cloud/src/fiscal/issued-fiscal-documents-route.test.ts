@@ -362,7 +362,7 @@ describe("GET /fiscal/documents/:voucher_type/:point_of_sale/:number", () => {
       registerName: "Caja 1",
     });
     const saleId = randomUUID();
-    await insertCompletedSale(db, { saleId, registerId, deviceId, at: NOW });
+    await insertCompletedSale(db, { saleId, registerId, deviceId, at: NOW, total: 4_800 });
     await insertSoldLine(db, saleId, { productName: "Yerba 1 kg", quantity: 2, lineTotal: 3_000 });
     await insertSoldLine(db, saleId, {
       productName: "Queso cremoso",
@@ -423,6 +423,7 @@ describe("GET /fiscal/documents/:voucher_type/:point_of_sale/:number", () => {
           amount: 1_800,
         },
       ]),
+      sale_total: 4_800,
       payments: [{ method: "CASH", card_type: null, amount: 4_800 }],
       credit_notes: [
         expect.objectContaining({
@@ -450,6 +451,7 @@ describe("GET /fiscal/documents/:voucher_type/:point_of_sale/:number", () => {
       kind: "credit_note",
       corrected_voucher: { voucher_type: 11, point_of_sale: 7, number: 12 },
       credit_notes: [],
+      sale_total: null,
     });
   });
 

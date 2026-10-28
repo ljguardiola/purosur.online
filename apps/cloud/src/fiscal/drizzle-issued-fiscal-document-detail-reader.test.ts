@@ -187,7 +187,12 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
       const detail = await detailOf(locationId, RECEIPT);
 
       expect(detail).toMatchObject({ state: "awaiting_authorization", authorization: null });
-      expect(detail).toMatchObject({ lines: [], payments: [], creditNotes: [] });
+      expect(detail).toMatchObject({
+        lines: [],
+        payments: [],
+        creditNotes: [],
+        saleTotal: null,
+      });
     });
   });
 
@@ -369,6 +374,35 @@ describe("DrizzleIssuedFiscalDocumentDetailReader.issuedDocumentOfBranch", () =>
       });
       expect(detail?.lines).toHaveLength(1);
       expect(detail?.payments).toEqual([{ method: "CASH", cardType: null, amount: 1_500 }]);
+    });
+  });
+
+  describe("the total of the sale", () => {
+    it("reads the total of the sale a partial credit note belongs to, apart from its own total", async () => {
+      const { registerId, locationId, deviceId } = await aBranchWithRegister();
+      const saleId = randomUUID();
+      await insertCompletedSale(db, { saleId, registerId, deviceId, at: NOW, total: 4_800 });
+      await insertOnlineCreditNote(db, registerId, {
+        ...CREDIT_NOTE,
+        saleId,
+        associatedNumber: RECEIPT.number,
+        total: 1_800,
+      });
+
+      const detail = await detailOf(locationId, CREDIT_NOTE);
+
+      expect(detail).toMatchObject({ total: 1_800, saleTotal: 4_800 });
+    });
+
+    it("reads the total of the sale of a receipt", async () => {
+      const { registerId, locationId, deviceId } = await aBranchWithRegister();
+      const saleId = randomUUID();
+      await insertCompletedSale(db, { saleId, registerId, deviceId, at: NOW, total: 4_800 });
+      await insertReceiptRequest(db, registerId, { ...RECEIPT, saleId, total: 4_800 });
+
+      const detail = await detailOf(locationId, RECEIPT);
+
+      expect(detail?.saleTotal).toBe(4_800);
     });
   });
 
