@@ -136,6 +136,21 @@ describe("applying a returned sale", () => {
     expect(fake.state.stockReturnedByCustomers).toEqual([]);
   });
 
+  it("is retried, with the reason, and leaves nothing recorded when its sale is not one of the branch of the register that returned it", async () => {
+    const fake = application(appliedSale(), appliedSession(), returnEvent());
+    fake.saleReturnHistories.delete("sale-1");
+
+    await apply(fake);
+
+    expect(fake.event("return-event")).toMatchObject({
+      appliedAt: null,
+      attempts: 1,
+      error: "sale sale-1 is not a completed sale of the branch of the register that returned it",
+    });
+    expect(fake.state.recorded).toEqual([]);
+    expect(fake.state.stockReturnedByCustomers).toEqual([]);
+  });
+
   describe("against the history its sale holds", () => {
     const FLAGGED = [
       [

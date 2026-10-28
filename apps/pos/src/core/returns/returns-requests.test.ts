@@ -1,5 +1,7 @@
 import { encodePinHash } from "@purosur/contracts";
+import type { TicketReference } from "@purosur/domain";
 import type { CloudCreditNoteAnswer, CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
+import type { BranchSaleLookupAnswer } from "@purosur/domain/returns/use-cases";
 import type { DeferredSaleInvoicingOutcome } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
@@ -7,7 +9,12 @@ import {
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
+  insertOfflineAuthorizationCode,
+  insertOfflineCreditNoteSeriesCount,
+  insertOfflineNumberBlock,
+  insertOfflinePointOfSale,
   insertPointOfSale,
+  OFFLINE_POINT_OF_SALE,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
@@ -17,10 +24,11 @@ import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import {
   completeReturnFor,
+  type FindSaleForReturnDeps,
   findSaleForReturnFor,
   previewReturnFor,
-  type ReturnRequestDeps,
 } from "./returns-requests";
+import { readRetainedBranchSale } from "./sqlite-retained-branch-sales";
 import { openSecondSession, openSoldSaleDatabase } from "./test-support/sold-sale-database";
 
 const NOW = new Date("2026-09-20T15:00:00.000Z");
@@ -31,8 +39,10 @@ const SUPERVISOR_PIN = "1234";
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
 let idCount: number;
+let askedTickets: TicketReference[];
+let cloudAnswer: BranchSaleLookupAnswer;
 
-function deps(overrides: Partial<ReturnRequestDeps> = {}): ReturnRequestDeps {
+function deps(overrides: Partial<FindSaleForReturnDeps> = {}): FindSaleForReturnDeps {
   return {
     database,
     gate: createActionGate({
@@ -43,6 +53,12 @@ function deps(overrides: Partial<ReturnRequestDeps> = {}): ReturnRequestDeps {
       now: () => NOW,
     }),
     readOutboxChainKey: async () => CHAIN_KEY,
+    branchSales: {
+      async saleForReturn(ticket) {
+        askedTickets.push(ticket);
+        return cloudAnswer;
+      },
+    },
     now: () => NOW,
     ids: {
       next: () => {
@@ -104,6 +120,8 @@ function count(table: string): number {
 
 beforeEach(() => {
   idCount = 0;
+  askedTickets = [];
+  cloudAnswer = { kind: "not_found" };
   database = openSoldSaleDatabase();
   openSecondSession(database);
   addPerson("u3", "Linus", ["sell_and_charge", "process_return"]);
@@ -115,6 +133,60 @@ beforeEach(() => {
 afterEach(() => {
   database.close();
 });
+
+const BRANCH_SALE_TICKET = { kind: "invoice", pointOfSale: 7, number: 501 } as const;
+
+const BRANCH_SALE: Extract<BranchSaleLookupAnswer, { kind: "found" }> = {
+  kind: "found",
+  sale: {
+    sale: {
+      id: "sale-elsewhere",
+      registerId: "register-2",
+      deviceId: "device-b",
+      sessionId: "session-b",
+      actorId: "cashier-b",
+      state: "COMPLETED",
+      lines: [
+        {
+          id: "line-elsewhere",
+          productId: "yerba",
+          productName: "Yerba 1 kg",
+          saleUnit: "UNIT",
+          quantity: 3,
+          promotionId: null,
+          lineTotal: 7500,
+        },
+      ],
+    },
+    occurredAt: new Date("2026-09-12T18:30:00.000Z"),
+    invoice: { pointOfSale: 7, number: 501 },
+    payments: [
+      {
+        id: "pay-elsewhere",
+        method: "CASH",
+        provider: "NONE",
+        amount: 7500,
+        state: "APPROVED",
+        refundedAmount: 0,
+        cardType: null,
+      },
+    ],
+    returned: [],
+  },
+  invoiceStanding: {
+    fiscalDocuments: [
+      {
+        origin: "real_time",
+        state: "AUTHORIZED",
+        pointOfSale: 7,
+        number: 501,
+        buyerTaxStatusCode: 5,
+      },
+    ],
+    deferralPending: false,
+  },
+  countedReturnIds: [],
+};
 
 describe("finding the sale to return", () => {
   it("writes when the sale happened on the clock of the zone rules it is given", async () => {
@@ -251,6 +323,67 @@ describe("finding the sale to return", () => {
         ticket: { kind: "invoice", pointOfSale: 12, number: 99 },
       }),
     ).toEqual({ kind: "not_found" });
+  });
+
+  it("finds a sale of another register through the cloud and keeps a copy of it", async () => {
+    cloudAnswer = BRANCH_SALE;
+
+    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toMatchObject({
+      kind: "found",
+      sale: {
+        sale_id: "sale-elsewhere",
+        invoice: { point_of_sale: 7, number: 501 },
+        lines: [{ id: "line-elsewhere", returnable_quantity: 3 }],
+      },
+    });
+    expect(askedTickets).toEqual([BRANCH_SALE_TICKET]);
+    expect(readRetainedBranchSale(database, "sale-elsewhere")).toEqual({
+      sale: BRANCH_SALE.sale,
+      invoiceStanding: BRANCH_SALE.invoiceStanding,
+      ticket: BRANCH_SALE_TICKET,
+      countedReturnIds: [],
+    });
+  });
+
+  it("counts what this register already returned of a sale of another register", async () => {
+    cloudAnswer = BRANCH_SALE;
+    database.exec(
+      `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-here', 'sale-elsewhere', 'register-1', 'device-a', 'session-1', 'u1', 'TYPED', '2026-09-20T12:00:00.000Z');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+       VALUES ('return-here', 'line-elsewhere', 1, 'defective', 'discard', 2500);`,
+    );
+
+    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toMatchObject({
+      kind: "found",
+      sale: { lines: [{ id: "line-elsewhere", returned_quantity: 1, returnable_quantity: 2 }] },
+    });
+  });
+
+  it("answers that a connection is needed when the cloud cannot be reached", async () => {
+    cloudAnswer = { kind: "unreachable" };
+
+    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toEqual({
+      kind: "needs_connection",
+    });
+    expect(readRetainedBranchSale(database, "sale-elsewhere")).toBeUndefined();
+  });
+
+  it("never asks the cloud on behalf of a cashier without the permission", async () => {
+    addPerson("u4", "Ada", ["sell_and_charge"]);
+    signedInPerson.set("u4");
+    cloudAnswer = BRANCH_SALE;
+
+    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toEqual({
+      kind: "lacks_permission",
+    });
+    expect(askedTickets).toEqual([]);
+  });
+
+  it("does not ask the cloud for a sale this register holds", async () => {
+    await findSaleForReturnFor(deps(), { ticket: BY_SALE });
+
+    expect(askedTickets).toEqual([]);
   });
 
   it("answers voided for a sale that was voided", async () => {
@@ -558,7 +691,7 @@ describe("the credit note of a completed return", () => {
     calls: CloudCreditNoteCall[];
     printed: { saleId: string; creditNoteId: string }[];
     failures: unknown[];
-    deps: Partial<ReturnRequestDeps>;
+    deps: Partial<FindSaleForReturnDeps>;
   }
 
   function rig(
@@ -698,5 +831,292 @@ describe("the credit note of a completed return", () => {
     expect(storedNotes()).toEqual([
       { return_id: "id-1", state: "IN_PROGRESS", corrected_number: 41 },
     ]);
+  });
+});
+
+describe("returning a sale another register rang up", () => {
+  const LINE_BACK = {
+    saleLineId: "line-elsewhere",
+    quantity: 1,
+    reason: "change_of_mind",
+    disposition: "restock",
+  } as const;
+
+  const COMPLETION = {
+    saleId: "sale-elsewhere",
+    ticketSource: "TYPED" as const,
+    lines: [LINE_BACK],
+    refunds: [{ paymentId: "pay-elsewhere", amount: 2500 }],
+  };
+
+  const AUTHORIZED: CloudCreditNoteAnswer = {
+    kind: "authorized",
+    pointOfSale: 12,
+    number: 7,
+    issuedOn: "2026-09-20",
+    issuedAt: NOW,
+    authorizationCode: "75123456789012",
+    authorizationCodeDueOn: "2026-09-30",
+  };
+
+  async function findWithConnection(answer: BranchSaleLookupAnswer = BRANCH_SALE) {
+    cloudAnswer = answer;
+    await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET });
+    cloudAnswer = { kind: "unreachable" };
+    askedTickets = [];
+  }
+
+  function storedNotes() {
+    return database
+      .prepare(
+        "SELECT sale_id, return_id, state, corrected_point_of_sale, corrected_number FROM sale_credit_notes",
+      )
+      .all();
+  }
+
+  it("previews it without asking the cloud once the sale was found", async () => {
+    await findWithConnection();
+
+    expect(
+      await previewReturnFor(deps(), { saleId: "sale-elsewhere", lines: [LINE_BACK] }),
+    ).toEqual({
+      kind: "previewed",
+      lines: [
+        {
+          sale_line_id: "line-elsewhere",
+          quantity: 1,
+          reason: "change_of_mind",
+          disposition: "restock",
+          refusal: null,
+          refund_amount: 2500,
+        },
+      ],
+      refundable_total: 2500,
+    });
+    expect(askedTickets).toEqual([]);
+  });
+
+  it("completes it without a connection, refunding in cash from the open session and queueing the return", async () => {
+    await findWithConnection();
+
+    const outcome = await completeReturnFor(deps(), COMPLETION);
+
+    expect(outcome).toEqual({
+      kind: "completed",
+      return_id: "id-1",
+      refunded_total: 2500,
+      refunds: [{ payment_id: "pay-elsewhere", method: "CASH", amount: 2500, state: "APPROVED" }],
+      authorized_by: null,
+    });
+    expect(askedTickets).toEqual([]);
+    expect(
+      database.prepare("SELECT sale_id, session_id, register_id, device_id FROM returns").all(),
+    ).toEqual([
+      {
+        sale_id: "sale-elsewhere",
+        session_id: "session-2",
+        register_id: "register-1",
+        device_id: "device-a",
+      },
+    ]);
+    expect(
+      database.prepare("SELECT payment_id, return_id, amount FROM payment_refunds").all(),
+    ).toEqual([{ payment_id: "pay-elsewhere", return_id: "id-1", amount: 2500 }]);
+    expect(
+      database
+        .prepare("SELECT session_id, type, amount FROM cash_movements WHERE type = 'REFUND'")
+        .all(),
+    ).toEqual([{ session_id: "session-2", type: "REFUND", amount: 2500 }]);
+    expect(
+      database
+        .prepare<[], { payload: string }>(
+          "SELECT payload FROM outbox WHERE event_type = 'sale_returned'",
+        )
+        .all()
+        .map(({ payload }) => JSON.parse(payload)),
+    ).toMatchObject([
+      { sale_id: "sale-elsewhere", register_id: "register-1", device_id: "device-a" },
+    ]);
+  });
+
+  it("counts the return against the copy of the sale, so the same line cannot be returned past what was sold", async () => {
+    await findWithConnection();
+    await completeReturnFor(deps(), {
+      ...COMPLETION,
+      lines: [{ ...LINE_BACK, quantity: 3 }],
+      refunds: [{ paymentId: "pay-elsewhere", amount: 7500 }],
+    });
+
+    expect(
+      await previewReturnFor(deps(), { saleId: "sale-elsewhere", lines: [LINE_BACK] }),
+    ).toMatchObject({ lines: [{ refusal: expect.anything() }] });
+  });
+
+  it("requests the credit note from the cloud for the invoice the other register issued", async () => {
+    insertPointOfSale(database, 0);
+    insertHealthCheck(database, { checkedAt: "2026-09-20T14:59:58.000Z" });
+    await findWithConnection();
+    const calls: CloudCreditNoteCall[] = [];
+
+    const outcome = await completeReturnFor(
+      deps({
+        creditNotes: {
+          request: async (call) => {
+            calls.push(call);
+            return AUTHORIZED;
+          },
+        },
+      }),
+      COMPLETION,
+    );
+
+    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 2500 });
+    expect(calls).toMatchObject([
+      { invoice: { voucher: { pointOfSale: 7, number: 501 }, buyerTaxStatusCode: 5 } },
+    ]);
+    expect(storedNotes()).toEqual([
+      {
+        sale_id: "sale-elsewhere",
+        return_id: "id-1",
+        state: "AUTHORIZED",
+        corrected_point_of_sale: 7,
+        corrected_number: 501,
+      },
+    ]);
+  });
+
+  it("issues the credit note itself, correcting the other register's invoice, when the register is not online", async () => {
+    insertPointOfSale(database, 0);
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE);
+    insertOfflineCreditNoteSeriesCount(database, OFFLINE_POINT_OF_SALE, 0);
+    insertOfflineNumberBlock(database, "block-1", 1, 50, OFFLINE_POINT_OF_SALE, "credit_note_c");
+    insertOfflineAuthorizationCode(database);
+    await findWithConnection();
+
+    const outcome = await completeReturnFor(deps(), COMPLETION);
+
+    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 2500 });
+    expect(storedNotes()).toEqual([
+      {
+        sale_id: "sale-elsewhere",
+        return_id: "id-1",
+        state: "ISSUED_OFFLINE",
+        corrected_point_of_sale: 7,
+        corrected_number: 501,
+      },
+    ]);
+    expect(
+      database
+        .prepare("SELECT sale_id, document_type, corrected_number FROM offline_fiscal_documents")
+        .all(),
+    ).toEqual([
+      { sale_id: "sale-elsewhere", document_type: "credit_note_c", corrected_number: 501 },
+    ]);
+  });
+
+  it("holds the credit note for the invoice when it is still on its way on the other register", async () => {
+    await findWithConnection({
+      ...BRANCH_SALE,
+      invoiceStanding: { fiscalDocuments: [], deferralPending: true },
+    });
+
+    await completeReturnFor(deps(), COMPLETION);
+
+    expect(storedNotes()).toEqual([
+      {
+        sale_id: "sale-elsewhere",
+        return_id: "id-1",
+        state: "AWAITING_INVOICE",
+        corrected_point_of_sale: null,
+        corrected_number: null,
+      },
+    ]);
+  });
+
+  describe("a credit note held for an invoice that was on its way", () => {
+    const ON_ITS_WAY = {
+      ...BRANCH_SALE,
+      invoiceStanding: { fiscalDocuments: [], deferralPending: true },
+    };
+    const DEFERRED_TICKET = { kind: "deferred", id: "deferred-9", shortCode: "7KQ4M2P9" } as const;
+
+    async function completeWith(
+      reply: BranchSaleLookupAnswer,
+      cloudReply: CloudCreditNoteAnswer | null,
+    ) {
+      cloudAnswer = ON_ITS_WAY;
+      await findSaleForReturnFor(deps(), { ticket: DEFERRED_TICKET });
+      cloudAnswer = reply;
+      askedTickets = [];
+      const calls: CloudCreditNoteCall[] = [];
+      await completeReturnFor(
+        deps({
+          creditNotes: {
+            request: async (call) => {
+              calls.push(call);
+              return cloudReply;
+            },
+          },
+        }),
+        COMPLETION,
+      );
+      return calls;
+    }
+
+    it("is tied to the invoice and requested once the branch says the invoice exists", async () => {
+      insertPointOfSale(database, 0);
+      const calls = await completeWith(BRANCH_SALE, AUTHORIZED);
+
+      expect(askedTickets).toEqual([DEFERRED_TICKET]);
+      expect(calls).toMatchObject([{ invoice: { voucher: { pointOfSale: 7, number: 501 } } }]);
+      expect(storedNotes()).toEqual([
+        {
+          sale_id: "sale-elsewhere",
+          return_id: "id-1",
+          state: "AUTHORIZED",
+          corrected_point_of_sale: 7,
+          corrected_number: 501,
+        },
+      ]);
+      expect(readRetainedBranchSale(database, "sale-elsewhere")?.invoiceStanding).toEqual(
+        BRANCH_SALE.invoiceStanding,
+      );
+    });
+
+    it.each<[string, BranchSaleLookupAnswer]>([
+      ["cannot be reached", { kind: "unreachable" }],
+      ["has no such sale", { kind: "not_found" }],
+    ])("keeps waiting, and keeps the copy, when the branch %s", async (_name, reply) => {
+      insertPointOfSale(database, 0);
+      const calls = await completeWith(reply, AUTHORIZED);
+
+      expect(askedTickets).toEqual([DEFERRED_TICKET]);
+      expect(calls).toEqual([]);
+      expect(storedNotes()).toMatchObject([{ state: "AWAITING_INVOICE", corrected_number: null }]);
+      expect(readRetainedBranchSale(database, "sale-elsewhere")?.invoiceStanding).toEqual(
+        ON_ITS_WAY.invoiceStanding,
+      );
+    });
+  });
+
+  it("does not ask the branch again for a sale whose invoice is already known", async () => {
+    insertPointOfSale(database, 0);
+    insertHealthCheck(database, { checkedAt: "2026-09-20T14:59:58.000Z" });
+    await findWithConnection();
+
+    await completeReturnFor(deps({ creditNotes: { request: async () => AUTHORIZED } }), COMPLETION);
+
+    expect(askedTickets).toEqual([]);
+  });
+
+  it("asks for no credit note when the sale was never invoiced", async () => {
+    await findWithConnection({
+      ...BRANCH_SALE,
+      invoiceStanding: { fiscalDocuments: [], deferralPending: false },
+    });
+
+    await completeReturnFor(deps(), COMPLETION);
+
+    expect(storedNotes()).toEqual([]);
   });
 });

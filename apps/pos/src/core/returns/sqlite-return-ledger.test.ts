@@ -1,4 +1,4 @@
-import { completeReturn } from "@purosur/domain/returns/use-cases";
+import { completeReturn, type RecordedReturn } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   insertDeferredSale,
@@ -96,6 +96,8 @@ describe("the register's open session, seen by a return", () => {
     expect(ledger().transaction((tx) => tx.openSession())).toEqual({
       id: "session-2",
       openedBy: "u1",
+      registerId: "register-1",
+      deviceId: "device-a",
     });
   });
 
@@ -249,6 +251,70 @@ describe("completing a return in the register", () => {
     }
     expect(count("stock_movements")).toBe(1);
     expect(balanceOf("yerba")).toBeUndefined();
+  });
+});
+
+describe("recording a return of a sale another register rang up", () => {
+  const RETURN: RecordedReturn = {
+    id: "return-elsewhere",
+    saleId: "sale-elsewhere",
+    sessionId: "session-2",
+    actorId: "u1",
+    authorizedBy: null,
+    ticketSource: "TYPED",
+    occurredAt: RETURNED_AT,
+    refundedTotal: 2500,
+    lines: [
+      {
+        saleLineId: "line-elsewhere",
+        productId: "yerba",
+        quantity: 1,
+        reason: "change_of_mind",
+        disposition: "restock",
+        refundedAmount: 2500,
+      },
+    ],
+  };
+
+  it("keeps the return under the register and device of the session it was made in", () => {
+    ledger().transaction((tx) => {
+      tx.recordReturn(RETURN);
+      tx.recordRefund({
+        id: "refund-elsewhere",
+        returnId: "return-elsewhere",
+        saleId: "sale-elsewhere",
+        paymentId: "pay-elsewhere",
+        method: "CASH",
+        provider: "NONE",
+        amount: 2500,
+        state: "APPROVED",
+        occurredAt: RETURNED_AT,
+      });
+    });
+
+    expect(
+      database.prepare("SELECT id, sale_id, register_id, device_id FROM returns").all(),
+    ).toEqual([
+      {
+        id: "return-elsewhere",
+        sale_id: "sale-elsewhere",
+        register_id: "register-1",
+        device_id: "device-a",
+      },
+    ]);
+    expect(database.prepare("SELECT payment_id, return_id FROM payment_refunds").all()).toEqual([
+      { payment_id: "pay-elsewhere", return_id: "return-elsewhere" },
+    ]);
+  });
+
+  it("keeps a return of the register's own sale under the same register and device", () => {
+    ledger().transaction((tx) =>
+      tx.recordReturn({ ...RETURN, id: "return-own", saleId: "sale-1" }),
+    );
+
+    expect(database.prepare("SELECT register_id, device_id FROM returns").all()).toEqual([
+      { register_id: "register-1", device_id: "device-a" },
+    ]);
   });
 });
 

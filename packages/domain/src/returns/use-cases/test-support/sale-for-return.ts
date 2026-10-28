@@ -83,7 +83,6 @@ export function aSaleForReturn(overrides: Partial<FakeStoredSale> = {}): FakeSto
       sessionId: "session-1",
       actorId: "cashier",
       state: "COMPLETED",
-      saleDiscount: null,
       lines: [YERBA_LINE, PROMOTED_LINE, CHEESE_LINE],
     },
     occurredAt: SOLD_AT,

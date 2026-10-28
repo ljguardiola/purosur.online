@@ -4,6 +4,8 @@ import {
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
 import {
+  type FiscalDocumentState,
+  IN_PROGRESS_FISCAL_DOCUMENT_STATE,
   type RealTimeAuthorizationAnswer,
   type RealTimeAuthorizationResolution,
   realTimeAuthorizationResolution,
@@ -120,6 +122,18 @@ export function unclearDocumentSettlement(
         authorizationCodeDueOn: told.decision.authorizationCodeDueOn,
       };
   }
+}
+
+export function recordedRequestDocumentState(
+  recorded: RecordedRequestOutcome,
+): FiscalDocumentState {
+  const told = outcomeToldToAskingRegister(recorded);
+  if (told.kind !== "pending") {
+    return unclearDocumentSettlement(told).state;
+  }
+  return recorded.answer === null
+    ? IN_PROGRESS_FISCAL_DOCUMENT_STATE
+    : realTimeAuthorizationResolution(recorded.answer).state;
 }
 
 export type UnclearOutcomeVerdict = UnclearOutcomeDecision | { kind: "pending"; askAgainAt: Date };

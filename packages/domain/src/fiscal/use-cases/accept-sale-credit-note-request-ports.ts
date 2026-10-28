@@ -32,7 +32,7 @@ export interface SaleCreditNoteRecord {
 
 export interface SaleCreditNoteLane {
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
-  registerIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
+  branchIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   recordedCreditNote(registerId: string, creditNoteId: string): Promise<CreditNote | null>;
   /**
    * The total of the invoice the voucher names, or null when the cloud does not hold it.

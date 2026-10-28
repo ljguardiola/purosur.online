@@ -15,9 +15,6 @@ export function applyReplenishedReturnFact(
   database: LocalDatabase,
   { saleReturn }: ReturnedSaleFact,
 ): void {
-  if (!held(database, "SELECT 1 FROM sales WHERE id = ?", saleReturn.saleId)) {
-    throw new Error(`sale ${saleReturn.saleId} is not held`);
-  }
   if (held(database, "SELECT 1 FROM returns WHERE id = ?", saleReturn.id)) {
     return;
   }

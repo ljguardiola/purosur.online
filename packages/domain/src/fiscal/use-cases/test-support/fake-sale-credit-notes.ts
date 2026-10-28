@@ -13,9 +13,12 @@ function voucherKey({ voucherType, pointOfSale, number }: VoucherReference): str
   return [voucherType, pointOfSale, number].join("-");
 }
 
+const DEFAULT_BRANCH = "branch-1";
+
 export interface FakeRegisterPointsOfSale {
   realTime: number;
   offline?: number;
+  branch?: string;
 }
 
 export interface RecordedCreditNote {
@@ -80,9 +83,16 @@ export class FakeSaleCreditNoteStore implements SaleCreditNoteLanes {
     return this.registers.get(registerId)?.realTime === pointOfSale;
   }
 
-  issuesFrom(registerId: string, pointOfSale: number): boolean {
-    const register = this.registers.get(registerId);
-    return register?.realTime === pointOfSale || register?.offline === pointOfSale;
+  branchIssuesFrom(registerId: string, pointOfSale: number): boolean {
+    const requesting = this.registers.get(registerId);
+    if (requesting === undefined) {
+      return false;
+    }
+    return [...this.registers.values()].some(
+      (register) =>
+        (register.branch ?? DEFAULT_BRANCH) === (requesting.branch ?? DEFAULT_BRANCH) &&
+        (register.realTime === pointOfSale || register.offline === pointOfSale),
+    );
   }
 
   async inPointOfSaleLane<TOutcome>(
@@ -111,9 +121,9 @@ class FakeSaleCreditNoteLane implements SaleCreditNoteLane {
     return this.store.isRealTimeOf(registerId, pointOfSale);
   }
 
-  async registerIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
-    this.store.operations.push("registerIssuesFromPointOfSale");
-    return this.store.issuesFrom(registerId, pointOfSale);
+  async branchIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
+    this.store.operations.push("branchIssuesFromPointOfSale");
+    return this.store.branchIssuesFrom(registerId, pointOfSale);
   }
 
   async recordedCreditNote(registerId: string, creditNoteId: string): Promise<CreditNote | null> {

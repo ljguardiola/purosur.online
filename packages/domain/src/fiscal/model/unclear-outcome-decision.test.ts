@@ -10,6 +10,7 @@ import {
   awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
   outcomeToldToAskingRegister,
+  recordedRequestDocumentState,
   type TaxAuthorityEvidence,
   type TaxAuthorityVoucher,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
@@ -416,5 +417,54 @@ describe("a voucher type other than factura C", () => {
       authorizationCode: "75123456789012",
       authorizationCodeDueOn: "2026-10-11",
     });
+  });
+});
+
+describe("recordedRequestDocumentState", () => {
+  const AUTHORIZED: RealTimeAuthorizationAnswer = {
+    kind: "authorized",
+    authorizationCode: "75123456789012",
+    authorizationCodeDueOn: "2026-10-11",
+  };
+  const REJECTED: RealTimeAuthorizationAnswer = {
+    kind: "rejected",
+    codes: [10015],
+    rejectionClass: "content",
+  };
+  const UNCLEAR: RealTimeAuthorizationAnswer = { kind: "unclear" };
+  const NOT_ATTEMPTED: RealTimeAuthorizationAnswer = { kind: "not_attempted" };
+  const ADOPTED: UnclearOutcomeDecision = {
+    kind: "adopted",
+    authorizationCode: "75123456789012",
+    authorizationCodeDueOn: "2026-10-11",
+  };
+  const RELEASED: UnclearOutcomeDecision = { kind: "released" };
+  const CONFLICTING: UnclearOutcomeDecision = { kind: "conflicting" };
+
+  it.each<
+    [
+      string,
+      ReturnType<typeof recordedRequestDocumentState>,
+      RealTimeAuthorizationAnswer | null,
+      UnclearOutcomeDecision | null,
+    ]
+  >([
+    ["authorized", "AUTHORIZED", AUTHORIZED, null],
+    ["unclear and then adopted", "AUTHORIZED", UNCLEAR, ADOPTED],
+    ["not attempted and then adopted", "AUTHORIZED", NOT_ATTEMPTED, ADOPTED],
+    ["unanswered and then adopted", "AUTHORIZED", null, ADOPTED],
+    ["neither answered nor decided", "REQUESTING", null, null],
+    ["rejected", "REJECTED", REJECTED, null],
+    ["unclear and not decided", "UNKNOWN", UNCLEAR, null],
+    ["not attempted and not decided", "UNKNOWN", NOT_ATTEMPTED, null],
+    ["unclear and then released", "RELEASED", UNCLEAR, RELEASED],
+    ["unanswered and then released", "RELEASED", null, RELEASED],
+    ["unclear and then found conflicting", "CONFLICTING", UNCLEAR, CONFLICTING],
+    ["unanswered and then found conflicting", "CONFLICTING", null, CONFLICTING],
+    ["rejected, whatever was released later", "REJECTED", REJECTED, RELEASED],
+    ["rejected, whatever was found conflicting later", "REJECTED", REJECTED, CONFLICTING],
+    ["authorized, whatever was released later", "AUTHORIZED", AUTHORIZED, RELEASED],
+  ])("stands a request %s as %s", (_name, state, answer, decision) => {
+    expect(recordedRequestDocumentState({ answer, decision })).toBe(state);
   });
 });

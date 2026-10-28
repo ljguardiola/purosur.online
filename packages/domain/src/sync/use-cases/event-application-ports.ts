@@ -55,9 +55,10 @@ export interface EventApplicationTransaction {
     at: Date,
   ): Promise<void>;
   /**
-   * What the sale's history holds, read before the return that asks is recorded.
+   * What the sale's history holds, read before the return that asks is recorded; nothing when the
+   * sale is not a completed sale of the branch of the register that pushed the event.
    */
-  saleReturnHistory(saleId: string): Promise<SaleReturnHistory>;
+  saleReturnHistory(saleId: string, event: UnappliedEvent): Promise<SaleReturnHistory | undefined>;
   applyReturnStock(saleReturn: ReturnedSale, event: UnappliedEvent): Promise<StockApplication>;
   requestMercadoPagoRefundFollow(): Promise<void>;
   applySaleStock(

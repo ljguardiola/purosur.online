@@ -105,7 +105,11 @@ export type FiscalDocumentState =
 
 export const SERIES_WAITING_STATES: readonly FiscalDocumentState[] = ["REQUESTING", "UNKNOWN"];
 
-export const IN_PROGRESS_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] = ["REQUESTING"];
+export const IN_PROGRESS_FISCAL_DOCUMENT_STATE = "REQUESTING" satisfies FiscalDocumentState;
+
+export const IN_PROGRESS_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] = [
+  IN_PROGRESS_FISCAL_DOCUMENT_STATE,
+];
 
 export const OUTCOME_UNKNOWN_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] = ["UNKNOWN"];
 

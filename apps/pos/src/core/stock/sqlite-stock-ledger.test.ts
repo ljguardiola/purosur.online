@@ -76,7 +76,7 @@ describe("recording a sale's stock movement", () => {
     ]);
   });
 
-  it("refuses a movement of a sale line that doesn't exist", () => {
+  it("records a movement of a sale line of a sale another register rang up", () => {
     expect(() =>
       insertSaleStockMovement(database, {
         id: "movement-1",
@@ -85,7 +85,7 @@ describe("recording a sale's stock movement", () => {
         delta: -2000,
         occurredAt: SOLD_AT,
       }),
-    ).toThrow();
+    ).not.toThrow();
   });
 
   it("refuses a second movement under the same id", () => {

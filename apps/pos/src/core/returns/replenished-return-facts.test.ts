@@ -198,7 +198,22 @@ describe("replenishing a return into a restored register", () => {
     expect(rows("SELECT * FROM stock_balances")).toEqual(before);
   });
 
-  it("refuses a return of a sale the register does not hold", () => {
-    expect(() => returnSale({ saleId: "missing" })).toThrow("sale missing is not held");
+  it("holds a return of a sale another register rang up, in the register and session it was made in", () => {
+    returnSale({ saleId: "sale-elsewhere" });
+
+    expect(rows("SELECT id, sale_id, register_id, session_id FROM returns")).toEqual([
+      {
+        id: "return-1",
+        sale_id: "sale-elsewhere",
+        register_id: "register-new",
+        session_id: "session-2",
+      },
+    ]);
+    expect(rows("SELECT id, payment_id, return_id FROM payment_refunds")).toEqual([
+      { id: "refund-1", payment_id: "payment-1", return_id: "return-1" },
+    ]);
+    expect(rows("SELECT return_id, sale_line_id FROM return_lines")).toEqual([
+      { return_id: "return-1", sale_line_id: "line-1" },
+    ]);
   });
 });

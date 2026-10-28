@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import type { SaleLine, SaleWithLines } from "../../sales/index.js";
-import { returnSaleLines } from "./return-sale.js";
+import { returnSaleLines, type SaleForReturn } from "./return-sale.js";
 
 function line(overrides: Partial<SaleLine> = {}): SaleLine {
   return {
@@ -73,16 +73,14 @@ describe("returnSaleLines", () => {
     ]);
   });
 
-  it("charges each line what it paid after its share of the sale's discount", () => {
-    const discounted = sale([line(), line({ id: "line-2", quantity: 1, lineTotal: 2500 })], {
-      kind: "AMOUNT",
-      amount: 1000,
-      reason: "cliente frecuente",
-      authorizedBy: null,
-    });
+  it("charges each line the total it settled at, its share of the sale's discount already taken", () => {
+    const discounted = sale(
+      [line({ lineTotal: 7500 - 751 }), line({ id: "line-2", quantity: 1, lineTotal: 2500 - 249 })],
+      { kind: "AMOUNT", amount: 1000, reason: "cliente frecuente", authorizedBy: null },
+    );
 
     expect(returnSaleLines({ sale: discounted, returned: [] }).map((l) => l.chargedAmount)).toEqual(
-      [7500 - 750, 2500 - 250],
+      [7500 - 751, 2500 - 249],
     );
   });
 
@@ -96,5 +94,38 @@ describe("returnSaleLines", () => {
       [0, 0],
       [1, 2500],
     ]);
+  });
+
+  it("stands the lines of a sale known only by the facts returns read", () => {
+    expect(
+      returnSaleLines({
+        sale: {
+          id: "sale-1",
+          registerId: "register-1",
+          deviceId: "device-1",
+          sessionId: "session-1",
+          actorId: "cashier",
+          state: "COMPLETED",
+          lines: [
+            {
+              id: "line-1",
+              productId: "yerba",
+              productName: "Yerba 1 kg",
+              saleUnit: "UNIT",
+              quantity: 3,
+              promotionId: null,
+              lineTotal: 7500,
+            },
+          ],
+        },
+        returned: [],
+      }),
+    ).toMatchObject([{ id: "line-1", soldQuantity: 3, chargedAmount: 7500 }]);
+  });
+});
+
+describe("SaleForReturn", () => {
+  it("holds no discount on the sale's total beside its lines, which are already net of it", () => {
+    expectTypeOf<SaleForReturn["sale"]>().not.toHaveProperty("saleDiscount");
   });
 });

@@ -1,9 +1,15 @@
 import type { ReturnedFromLine, SaleForReturn } from "@purosur/domain";
-import { DEFAULT_GOOD_CONDITION_RETURN_DAYS } from "@purosur/domain";
+import {
+  DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  settledLines,
+  withUncountedReturns,
+} from "@purosur/domain";
 import type { ReturnSaleReader, SaleReturnSearch } from "@purosur/domain/returns/use-cases";
 import { readRecordedPayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { readSale } from "../sales/sqlite-open-sale";
+import { SqliteOwnReturnsOfSale } from "./sqlite-own-returns-of-sale";
+import { readRetainedBranchSale } from "./sqlite-retained-branch-sales";
 
 interface SaleDateRow {
   occurred_at: string | null;
@@ -103,14 +109,32 @@ function returnedFromLines(database: LocalDatabase, saleId: string): ReturnedFro
     }));
 }
 
+function readRetainedSaleForReturn(
+  database: LocalDatabase,
+  saleId: string,
+): SaleForReturn | undefined {
+  const retained = readRetainedBranchSale(database, saleId);
+  return (
+    retained &&
+    withUncountedReturns(
+      retained.sale,
+      retained.countedReturnIds,
+      new SqliteOwnReturnsOfSale(database).returnsOfSale(saleId),
+    )
+  );
+}
+
 export function readSaleForReturn(
   database: LocalDatabase,
   search: SaleReturnSearch,
 ): SaleForReturn | undefined {
   const saleId = saleIdOf(database, search);
-  const sale = saleId === undefined ? undefined : readSale(database, saleId);
-  if (saleId === undefined || sale === undefined) {
+  if (saleId === undefined) {
     return undefined;
+  }
+  const sale = readSale(database, saleId);
+  if (sale === undefined) {
+    return readRetainedSaleForReturn(database, saleId);
   }
   const occurredAt = database
     .prepare<[string], SaleDateRow>("SELECT occurred_at FROM sales WHERE id = ?")
@@ -120,7 +144,7 @@ export function readSaleForReturn(
   }
   const refunded = refundedByPayment(database, saleId);
   return {
-    sale,
+    sale: { ...sale, lines: settledLines(sale) },
     occurredAt: new Date(occurredAt),
     invoice: invoiceOf(database, saleId),
     payments: readRecordedPayments(database, saleId).map((payment) => ({

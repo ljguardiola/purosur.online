@@ -11,14 +11,17 @@ import {
   cashMovements,
   categories,
   inbox,
+  locations,
   paymentRefunds,
   products,
+  registers,
   returnLines,
   saleReturns,
   stockBalances,
   stockMovements,
   users,
 } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   APPLICATION_NOW,
@@ -258,14 +261,16 @@ describe("recording the returns of applied events", () => {
 });
 
 describe("reading the history of a sale before a return", () => {
-  function history(saleId: string) {
-    return system.application.transaction((tx) => tx.saleReturnHistory(saleId));
+  function history(saleId: string, deviceId: string) {
+    return system.application.transaction((tx) =>
+      tx.saleReturnHistory(saleId, eventOf(deviceId, "sale_returned", randomUUID())),
+    );
   }
 
   it("holds when the sale was made and what each of its lines and payments sold and gave", async () => {
-    const { completed } = await setUp();
+    const { completed, deviceId } = await setUp();
 
-    expect(await history(completed.id)).toEqual({
+    expect(await history(completed.id, deviceId)).toEqual({
       saleOccurredAt: COMPLETED_AT,
       goodConditionReturnDays: 15,
       lines: [{ saleLineId: completed.lines[0]?.id, soldQuantity: 2, returnedQuantity: 0 }],
@@ -274,13 +279,13 @@ describe("reading the history of a sale before a return", () => {
   });
 
   it("holds the days the sale's branch accepts a change of mind", async () => {
-    const { completed, locationId } = await setUp();
+    const { completed, locationId, deviceId } = await setUp();
     await system.db
       .update(branchSettings)
       .set({ goodConditionReturnDays: 7 })
       .where(eq(branchSettings.locationId, locationId));
 
-    expect((await history(completed.id)).goodConditionReturnDays).toBe(7);
+    expect((await history(completed.id, deviceId))?.goodConditionReturnDays).toBe(7);
   });
 
   it("counts what earlier returns took back from each line and each payment", async () => {
@@ -296,14 +301,14 @@ describe("reading the history of a sale before a return", () => {
       eventOf(setup.deviceId, "sale_returned", second.id),
     );
 
-    expect(await history(setup.completed.id)).toMatchObject({
+    expect(await history(setup.completed.id, setup.deviceId)).toMatchObject({
       lines: [{ soldQuantity: 2, returnedQuantity: 2 }],
       payments: [{ amount: 5000, refundedAmount: 4800 }],
     });
   });
 
   it("counts what a refund of any other origin already gave back from a payment, and ignores a discarded one", async () => {
-    const { completed } = await setUp();
+    const { completed, deviceId } = await setUp();
     const paymentId = completed.payments[0]?.id as string;
     await system.db.insert(paymentRefunds).values([
       {
@@ -341,7 +346,7 @@ describe("reading the history of a sale before a return", () => {
       },
     ]);
 
-    expect((await history(completed.id)).payments).toEqual([
+    expect((await history(completed.id, deviceId))?.payments).toEqual([
       { paymentId, amount: 5000, refundedAmount: 1000 },
     ]);
   });
@@ -721,6 +726,87 @@ describe("applying a pushed return", () => {
     expect(event).toMatchObject({ appliedAt: null, attempts: 1 });
     expect(await system.db.select().from(saleReturns)).toEqual([]);
     expect(await system.db.select().from(stockMovements)).toEqual([]);
+  });
+
+  describe("a return pushed by a register other than the one that rang the sale up", () => {
+    async function setUpTwoRegisters(returningInOtherBranch = false) {
+      const selling = await system.enrollInstallation({ registerName: "Caja 2" });
+      let returning = await system.enrollInstallation({ registerName: "Caja 1" });
+      if (returningInOtherBranch) {
+        const [branch] = await system.db
+          .insert(locations)
+          .values({})
+          .returning({ id: locations.id });
+        const [register] = await system.db
+          .insert(registers)
+          .values({ locationId: branch?.id as string, name: "Caja 3" })
+          .returning({ id: registers.id });
+        returning = await insertEnrolledInstallation(system.db, {
+          now: APPLICATION_NOW,
+          existingRegisterId: register?.id as string,
+        });
+      }
+      await system.db.insert(users).values({
+        id: CASHIER,
+        firstName: "Ada",
+        email: "ada@example.com",
+        locationId: selling.locationId,
+      });
+      const productId = await insertProduct();
+      for (const { locationId } of [selling, returning]) {
+        await system.db
+          .insert(stockBalances)
+          .values({ productId, locationId, quantity: 5000 })
+          .onConflictDoNothing();
+      }
+      const sale = await pushSale(selling.deviceId, productId);
+      const returnSessionId = randomUUID();
+      await insertInboxEvent(system.db, returning.deviceId, {
+        aggregateType: "CashSession",
+        aggregateId: returnSessionId,
+        eventType: "cash_session_opened",
+        schemaVersion: 1,
+        payload: { opened_by: CASHIER, opened_at: returnedAt, opening_float: 10_000 },
+      });
+      return { selling, returning, productId, sale: { ...sale, returnSessionId } };
+    }
+
+    it("records the return with the register that pushed it, against the sale of the other register, and counts it for that sale", async () => {
+      const { selling, returning, productId, sale } = await setUpTwoRegisters();
+      const { returnId } = await pushReturn(returning.deviceId, productId, sale);
+      await applyPending();
+
+      const [recorded] = await system.db.select().from(saleReturns);
+      expect(recorded).toMatchObject({
+        id: returnId,
+        saleId: sale.saleId,
+        registerId: returning.registerId,
+        deviceId: returning.deviceId,
+      });
+      expect(recorded?.registerId).not.toBe(selling.registerId);
+
+      await pushReturn(selling.deviceId, productId, sale, { quantity: 2 });
+      const outcome = await applyPending();
+
+      expect(outcome).toMatchObject({ applied: 1, flagged: 1 });
+      expect(await system.db.select().from(alerts)).toEqual([
+        expect.objectContaining({ kind: "event_invariant_violated" }),
+      ]);
+    });
+
+    it("keeps a return of a sale of another branch to retry, writing nothing", async () => {
+      const { returning, productId, sale } = await setUpTwoRegisters(true);
+      const { eventId } = await pushReturn(returning.deviceId, productId, sale);
+
+      const outcome = await applyPending();
+
+      expect(outcome).toMatchObject({ kind: "processed", retried: 1 });
+      const [event] = await system.db.select().from(inbox).where(eq(inbox.eventId, eventId));
+      expect(event).toMatchObject({ appliedAt: null, attempts: 1 });
+      expect(await system.db.select().from(saleReturns)).toEqual([]);
+      expect(await system.db.select().from(paymentRefunds)).toEqual([]);
+      expect(await system.db.select().from(stockMovements)).toHaveLength(1);
+    });
   });
 
   it("applies nothing of the return, the refund included, when its stock is refused", async () => {

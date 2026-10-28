@@ -18,7 +18,8 @@ import {
 export async function saleReturnHistory<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   saleId: string,
-): Promise<SaleReturnHistory> {
+  locationId: string,
+): Promise<SaleReturnHistory | undefined> {
   const [sale] = await tx
     .select({
       completedAt: sales.completedAt,
@@ -26,9 +27,9 @@ export async function saleReturnHistory<TQueryResult extends PgQueryResultHKT>(
     })
     .from(sales)
     .leftJoin(branchSettings, eq(branchSettings.locationId, sales.locationId))
-    .where(eq(sales.id, saleId));
+    .where(and(eq(sales.id, saleId), eq(sales.locationId, locationId)));
   if (!sale?.completedAt) {
-    throw new Error(`sale ${saleId} is not a completed sale`);
+    return undefined;
   }
   const lines = await tx
     .select({

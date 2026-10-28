@@ -8,8 +8,13 @@ import {
   type VoidCreditNoteStanding,
 } from "@purosur/domain";
 import type { PendingCreditNote, RegisterCreditNotes } from "@purosur/domain/fiscal/use-cases";
+import type { BranchSaleLookup } from "@purosur/domain/returns/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
+import {
+  readRetainedBranchSale,
+  SqliteRetainedBranchSales,
+} from "../returns/sqlite-retained-branch-sales";
 import { readUncancelledDeferredSaleRecord } from "./sqlite-deferred-sales";
 import { readSaleInvoices } from "./sqlite-sale-invoices";
 
@@ -188,10 +193,19 @@ export function readCreditNoteById(
   return readCreditNote(database, "notes.id = ?", creditNoteId);
 }
 
+function readCopyOfBranchSale(database: LocalDatabase, saleId: string) {
+  const held = database.prepare<[string], object>("SELECT 1 FROM sales WHERE id = ?").get(saleId);
+  return held === undefined ? readRetainedBranchSale(database, saleId) : undefined;
+}
+
 export function readSaleInvoiceStanding(
   database: LocalDatabase,
   saleId: string,
 ): SaleInvoiceStanding {
+  const retained = readCopyOfBranchSale(database, saleId);
+  if (retained !== undefined) {
+    return retained.invoiceStanding;
+  }
   const deferred = readUncancelledDeferredSaleRecord(database, saleId);
   return {
     fiscalDocuments: readSaleInvoices(database, saleId),
@@ -321,9 +335,25 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
 
 export class SqliteSaleCreditNotes implements RegisterCreditNotes {
   private readonly database: LocalDatabase;
+  private readonly branchSales: BranchSaleLookup | undefined;
 
-  constructor(database: LocalDatabase) {
+  constructor(database: LocalDatabase, branchSales?: BranchSaleLookup) {
     this.database = database;
+    this.branchSales = branchSales;
+  }
+
+  async refreshBranchSaleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding | undefined> {
+    const kept = readCopyOfBranchSale(this.database, saleId);
+    if (this.branchSales === undefined || kept === undefined) {
+      return undefined;
+    }
+    const answer = await this.branchSales.saleForReturn(kept.ticket);
+    if (answer.kind !== "found") {
+      return undefined;
+    }
+    const { kind: _kind, ...facts } = answer;
+    new SqliteRetainedBranchSales(this.database).keep({ ...facts, ticket: kept.ticket });
+    return facts.invoiceStanding;
   }
 
   async inProgress(): Promise<PendingCreditNote[]> {

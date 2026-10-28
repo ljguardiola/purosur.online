@@ -17,6 +17,12 @@ export interface RegisterCreditNotes {
   realTimePointOfSale(): Promise<number | null>;
   saleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding>;
   /**
+   * Asks the branch again for the invoice of a sale another register rang up and updates what the
+   * register kept of it. Resolves to nothing when the sale is not one the register kept or the branch
+   * could not answer; what the register kept then stays as it was.
+   */
+  refreshBranchSaleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding | undefined>;
+  /**
    * Makes a credit note that waited for its invoice correct that invoice.
    */
   tieToInvoice(creditNoteId: string, invoice: CorrectedInvoice): Promise<void>;

@@ -60,7 +60,7 @@ export async function acceptSaleCreditNoteRequest(
       }
 
       if (
-        !(await lane.registerIssuesFromPointOfSale(registerId, asked.correctedVoucher.pointOfSale))
+        !(await lane.branchIssuesFromPointOfSale(registerId, asked.correctedVoucher.pointOfSale))
       ) {
         return { kind: "voucher_not_owned" };
       }

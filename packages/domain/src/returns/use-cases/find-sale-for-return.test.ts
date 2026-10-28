@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { settledLines } from "../../sales/index.js";
 import type { ZoneRules } from "../../shared/index.js";
 import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
@@ -91,12 +92,15 @@ describe("findSaleForReturn", () => {
 
     it("charges the total of a sale with a discount on its total", () => {
       const discounted = aSaleForReturn();
-      discounted.sale.saleDiscount = {
-        kind: "AMOUNT",
-        amount: 1500,
-        reason: "cliente frecuente",
-        authorizedBy: null,
-      };
+      discounted.sale.lines = settledLines({
+        lines: discounted.sale.lines,
+        saleDiscount: {
+          kind: "AMOUNT",
+          amount: 1500,
+          reason: "cliente frecuente",
+          authorizedBy: null,
+        },
+      });
 
       expect(find({ sales: [discounted] }, BY_INVOICE)).toMatchObject({
         sale: { total: 20_000 },
@@ -170,14 +174,17 @@ describe("findSaleForReturn", () => {
       });
     });
 
-    it("shows what each line paid after its share of the sale's discount", () => {
+    it("shows what each line paid after the share of the sale's discount it was settled at", () => {
       const discounted = aSaleForReturn();
-      discounted.sale.saleDiscount = {
-        kind: "AMOUNT",
-        amount: 2150,
-        reason: "cliente frecuente",
-        authorizedBy: null,
-      };
+      discounted.sale.lines = settledLines({
+        lines: discounted.sale.lines,
+        saleDiscount: {
+          kind: "AMOUNT",
+          amount: 2150,
+          reason: "cliente frecuente",
+          authorizedBy: null,
+        },
+      });
 
       const outcome = find({ sales: [discounted] }, BY_INVOICE);
 

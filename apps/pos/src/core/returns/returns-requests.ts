@@ -14,9 +14,10 @@ import {
   requestReturnCreditNote,
 } from "@purosur/domain/fiscal/use-cases";
 import {
+  type BranchSaleLookup,
   type CompleteReturnGrant,
   completeReturn,
-  findSaleForReturn,
+  findBranchSaleForReturn,
   type OperationAuthorization,
   previewReturn,
   type SaleReturnSearch,
@@ -30,6 +31,8 @@ import {
   toWireRefundRefusal,
   toWireSaleForReturn,
 } from "./returns-wire";
+import { SqliteOwnReturnsOfSale } from "./sqlite-own-returns-of-sale";
+import { SqliteRetainedBranchSales } from "./sqlite-retained-branch-sales";
 import { SqliteReturnLedger } from "./sqlite-return-ledger";
 import { SqliteReturnSaleReader } from "./sqlite-return-sale-reader";
 
@@ -38,6 +41,7 @@ export type ReturnRequestDeps = Pick<
   "database" | "gate" | "now" | "zoneRules" | "ids" | "readOutboxChainKey"
 > & {
   creditNotes?: CloudCreditNotes | undefined;
+  branchSales?: BranchSaleLookup | undefined;
   invoicing?: DeferredSaleInvoicing | undefined;
   printCreditNote?:
     | ((creditNote: { saleId: string; creditNoteId: string }) => Promise<void>)
@@ -51,14 +55,22 @@ const NO_INVOICING: ReturnedSaleInvoicing = {
 };
 
 async function settleCreditNote(
-  { database, now, creditNotes, invoicing, printCreditNote, reportFailure }: ReturnRequestDeps,
+  {
+    database,
+    now,
+    creditNotes,
+    branchSales,
+    invoicing,
+    printCreditNote,
+    reportFailure,
+  }: ReturnRequestDeps,
   saleId: string,
   creditNote: ReturnCreditNoteToRequest,
 ): Promise<void> {
   const report = reportFailure ?? (() => undefined);
   const outcome = await requestReturnCreditNote(
     {
-      creditNotes: new SqliteSaleCreditNotes(database),
+      creditNotes: new SqliteSaleCreditNotes(database, branchSales),
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
       clock: { now },
       printer: {
@@ -75,6 +87,8 @@ async function settleCreditNote(
     report(outcome.creditNote.error);
   }
 }
+
+export type FindSaleForReturnDeps = ReturnRequestDeps & { branchSales: BranchSaleLookup };
 
 export interface FindSaleForReturnRequest {
   ticket: SaleReturnSearch;
@@ -104,12 +118,19 @@ interface ReturnRequestGrant extends CompleteReturnGrant {
 }
 
 export async function findSaleForReturnFor(
-  { database, gate, now, zoneRules }: ReturnRequestDeps,
+  { database, gate, now, zoneRules, branchSales }: FindSaleForReturnDeps,
   { ticket, authorization }: FindSaleForReturnRequest,
 ): Promise<FindSaleForReturnOutcome> {
   const guarded = await gate.runAuthorized({ kind: "process_return" }, authorization, async () =>
-    findSaleForReturn(
-      { zoneRules, reader: new SqliteReturnSaleReader(database), clock: { now } },
+    findBranchSaleForReturn(
+      {
+        reader: new SqliteReturnSaleReader(database),
+        lookup: branchSales,
+        ownReturns: new SqliteOwnReturnsOfSale(database),
+        retained: new SqliteRetainedBranchSales(database),
+        clock: { now },
+        zoneRules,
+      },
       ticket,
     ),
   );
