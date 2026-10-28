@@ -50,7 +50,12 @@ export function decideSkipAllowed({ eventName, previousSha, runs }) {
   return { skipAllowed: true, reason: `${previousSha}'s Verify run ${run.id} succeeded` };
 }
 
-export async function fetchPreviousCommitRuns({ repository, token, previousSha, fetchImpl = fetch }) {
+export async function fetchPreviousCommitRuns({
+  repository,
+  token,
+  previousSha,
+  fetchImpl = fetch,
+}) {
   const url = new URL(
     `https://api.github.com/repos/${repository}/actions/workflows/verify.yml/runs`,
   );

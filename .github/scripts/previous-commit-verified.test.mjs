@@ -156,11 +156,7 @@ test("ignores runs of another commit, another event or another branch", () => {
   const decision = decideSkipAllowed({
     eventName: "push",
     previousSha: PREVIOUS,
-    runs: [
-      run({ sha: OTHER }),
-      run({ event: "pull_request" }),
-      run({ branch: "feat/1-other" }),
-    ],
+    runs: [run({ sha: OTHER }), run({ event: "pull_request" }), run({ branch: "feat/1-other" })],
   });
 
   assert.equal(decision.skipAllowed, false);
