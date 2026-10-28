@@ -1,4 +1,4 @@
-import type { ProductSummary } from "@purosur/contracts";
+import type { ListedProduct, ProductSummary } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { productsListFilters } from "./routes";
@@ -69,7 +69,7 @@ test("edits a product and shows the updated data in the list", async () => {
 
 test("reloading an inactive product after a stale-version conflict finds it", async () => {
   const services = createServices();
-  const inactiveHoney: ProductSummary = { ...honey, active: false };
+  const inactiveHoney: ListedProduct = { ...honey, active: false };
   mockLoaded(services, [inactiveHoney]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
@@ -137,7 +137,7 @@ test("a stale-version reload over the list of every product reads that list once
 
 test("a stale-version reload of a product the list on screen does not hold reads every product once", async () => {
   const services = createServices();
-  const inactiveHoney: ProductSummary = { ...honey, active: false };
+  const inactiveHoney: ListedProduct = { ...honey, active: false };
   mockLoaded(services, [inactiveHoney]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);

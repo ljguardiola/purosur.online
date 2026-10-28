@@ -1,4 +1,4 @@
-import type { CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { CategorySummary, ListedProduct } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -101,14 +101,14 @@ const otherDrinks: CategorySummary = {
 };
 
 test("the category filter offers only leaf categories, labeled by their full path, in tree order", async () => {
-  const soda: ProductSummary = {
+  const soda: ListedProduct = {
     ...almonds,
     id: "90d00000-0000-4000-8000-000000000003",
     name: "Soda 2 l",
     categoryId: otherDrinks.id,
     categoryName: "Otros",
   };
-  const matchboxes: ProductSummary = {
+  const matchboxes: ListedProduct = {
     ...honey,
     id: "90d00000-0000-4000-8000-000000000004",
     name: "Fósforos",
@@ -142,7 +142,7 @@ test("the category filter offers only leaf categories, labeled by their full pat
 });
 
 test("the Categoría column shows each product's category by its full path", async () => {
-  const matchboxes: ProductSummary = {
+  const matchboxes: ListedProduct = {
     ...honey,
     id: "90d00000-0000-4000-8000-000000000004",
     name: "Fósforos",
@@ -184,7 +184,7 @@ test("the status filter defaults to active products and refetches with the selec
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   expect(services.fetchProducts).toHaveBeenLastCalledWith("active");
 
-  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
+  const inactiveAlmonds: ListedProduct = { ...almonds, active: false };
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({
     kind: "ok",
     value: [inactiveAlmonds],
@@ -198,7 +198,7 @@ test("the status filter defaults to active products and refetches with the selec
 
 test("shows an Estado column with an Activo or Inactivo tag", async () => {
   const services = createServices();
-  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
+  const inactiveAlmonds: ListedProduct = { ...almonds, active: false };
   mockLoaded(services, [honey, inactiveAlmonds]);
   const screen = await renderScreen(services);
 
@@ -208,7 +208,7 @@ test("shows an Estado column with an Activo or Inactivo tag", async () => {
 
 test("the actions column offers the ban action only on an active row", async () => {
   const services = createServices();
-  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
+  const inactiveAlmonds: ListedProduct = { ...almonds, active: false };
   mockLoaded(services, [honey, inactiveAlmonds]);
   const screen = await renderScreen(services);
 
@@ -427,15 +427,15 @@ test("has no accessibility violations once loaded, and with the create modal ope
 
 test("opens with the filters and ordering it is given", async () => {
   const services = createServices();
-  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
-  const inactiveWalnuts: ProductSummary = {
+  const inactiveAlmonds: ListedProduct = { ...almonds, active: false };
+  const inactiveWalnuts: ListedProduct = {
     ...almonds,
     id: "90d00000-0000-4000-8000-000000000003",
     name: "Nueces peladas",
     barcodes: ["7790000000002"],
     active: false,
   };
-  const inactiveHoney: ProductSummary = { ...honey, name: "Miel peladas", active: false };
+  const inactiveHoney: ListedProduct = { ...honey, name: "Miel peladas", active: false };
   mockLoaded(services, [inactiveAlmonds, inactiveHoney, inactiveWalnuts]);
 
   const screen = await renderScreen(services, () => {}, {

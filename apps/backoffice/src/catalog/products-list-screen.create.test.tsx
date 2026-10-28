@@ -1,4 +1,4 @@
-import type { ProductSummary } from "@purosur/contracts";
+import type { ListedProduct, ProductSummary } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { radioLabel } from "../platform/test-support/radio-label";
@@ -82,7 +82,7 @@ test("creates a product and shows it in the list", async () => {
 
 test("a product created while only inactive products are listed stays out of the list", async () => {
   const services = createServices();
-  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
+  const inactiveAlmonds: ListedProduct = { ...almonds, active: false };
   mockLoaded(services, [inactiveAlmonds]);
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);

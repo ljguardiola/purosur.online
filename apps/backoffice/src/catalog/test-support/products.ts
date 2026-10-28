@@ -1,4 +1,4 @@
-import type { CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary, ListedProduct } from "@purosur/contracts";
 
 export const groceries: CategorySummary = {
   id: "ca7e0000-0000-4000-8000-000000000001",
@@ -13,7 +13,7 @@ export const driedFruits: CategorySummary = {
   parentId: null,
 };
 
-export const honey: ProductSummary = {
+export const honey: ListedProduct = {
   id: "90d00000-0000-4000-8000-000000000001",
   name: "Miel pura de abeja 1 kg",
   categoryId: "ca7e0000-0000-4000-8000-000000000001",
@@ -27,9 +27,10 @@ export const honey: ProductSummary = {
   labelCode: null,
   labelModules: null,
   version: 1,
+  currentUnitPrice: null,
 };
 
-export const almonds: ProductSummary = {
+export const almonds: ListedProduct = {
   id: "90d00000-0000-4000-8000-000000000002",
   name: "Almendras peladas",
   categoryId: "ca7e0000-0000-4000-8000-000000000002",
@@ -43,12 +44,57 @@ export const almonds: ProductSummary = {
   labelCode: null,
   labelModules: null,
   version: 1,
+  currentUnitPrice: null,
 };
 
-export const retiredHoney: ProductSummary = {
+export const retiredHoney: ListedProduct = {
   ...honey,
   id: "90d00000-0000-4000-8000-000000000003",
   name: "Miel de caña 500 g",
   barcodes: ["7790987000022"],
   active: false,
 };
+
+export const hierbasDelOasis: BrandSummary = {
+  id: "b2a40000-0000-4000-8000-000000000001",
+  name: "Hierbas del Oasis",
+  active: true,
+  version: 1,
+  productCount: 2,
+};
+
+export const serenisima: BrandSummary = {
+  id: "b2a40000-0000-4000-8000-000000000002",
+  name: "Serenísima",
+  active: false,
+  version: 1,
+  productCount: 1,
+};
+
+export const almondOil: ListedProduct = {
+  ...honey,
+  id: "90d00000-0000-4000-8000-000000000004",
+  name: "Aceite de Almendras",
+  brandId: hierbasDelOasis.id,
+  barcodes: ["7790001234567"],
+  netContent: { quantity: 30, unit: "ML" },
+  currentUnitPrice: 450000,
+};
+
+export const lavenderOil: ListedProduct = {
+  ...honey,
+  id: "90d00000-0000-4000-8000-000000000005",
+  name: "Aceite de Lavanda",
+  brandId: hierbasDelOasis.id,
+  barcodes: ["7790001234574", "7790001234581"],
+};
+
+export const creamCheese: ListedProduct = {
+  ...honey,
+  id: "90d00000-0000-4000-8000-000000000006",
+  name: "Queso crema",
+  brandId: serenisima.id,
+  barcodes: ["7790001234598"],
+};
+
+export const pricedAlmonds: ListedProduct = { ...almonds, currentUnitPrice: 120000 };
