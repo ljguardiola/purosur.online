@@ -2,9 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   creditNotes,
+  discounts,
   fiscalRequests,
   offlineFiscalDocuments,
   registers,
+  saleLines,
+  salePayments,
 } from "../../platform/db/schema.js";
 
 type Db = PgDatabase<PgQueryResultHKT>;
@@ -104,4 +107,57 @@ export async function insertCaeaDocument(
     recordedAt: new Date("2026-10-05T15:30:00.000Z"),
     ...overrides,
   });
+}
+
+export async function insertSoldLine(
+  db: Db,
+  saleId: string,
+  overrides: Partial<typeof saleLines.$inferInsert> = {},
+): Promise<void> {
+  await db.insert(saleLines).values({
+    id: randomUUID(),
+    saleId,
+    productId: randomUUID(),
+    productName: "Yerba 1 kg",
+    quantity: 1,
+    listUnitPrice: 1_500,
+    priceListId: randomUUID(),
+    discountAmount: 0,
+    lineTotal: 1_500,
+    ...overrides,
+  });
+}
+
+export async function insertSalePayment(
+  db: Db,
+  saleId: string,
+  overrides: Partial<typeof salePayments.$inferInsert> = {},
+): Promise<void> {
+  await db.insert(salePayments).values({
+    id: randomUUID(),
+    saleId,
+    method: "CASH",
+    provider: "NONE",
+    amount: 1_500,
+    state: "APPROVED",
+    occurredAt: new Date("2026-10-05T13:00:00.000Z"),
+    ...overrides,
+  });
+}
+
+export async function insertPromotion(db: Db, name: string): Promise<string> {
+  const [promotion] = await db
+    .insert(discounts)
+    .values({
+      name,
+      kind: "PERCENT_OFF",
+      percent: 10,
+      validFrom: "2026-10-01",
+      validTo: "2026-10-31",
+    })
+    .returning({ id: discounts.id });
+  if (!promotion) {
+    throw new Error("test setup: seeding the promotion returned no row");
+  }
+  return promotion.id;
 }
