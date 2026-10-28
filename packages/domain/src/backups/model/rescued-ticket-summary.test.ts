@@ -15,6 +15,7 @@ describe("rescuedTicketSummary", () => {
     ["sale_completed", "sale"],
     ["sale_cancelled", "paid_sale_cancellation"],
     ["sale_voided", "sale_void"],
+    ["sale_returned", "return"],
     ["cash_movement_recorded", "cash_movement"],
     ["cash_session_opened", "cash_session_opening"],
     ["cash_session_closed", "cash_session_closing"],
