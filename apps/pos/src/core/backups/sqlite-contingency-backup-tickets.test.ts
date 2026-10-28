@@ -157,6 +157,53 @@ describe("whether the customer's own document was printed", () => {
     expect((await consider())[0]?.customerDocumentPrinted).toBeNull();
   });
 
+  describe("for a return", () => {
+    function insertReturnCreditNote(state: string, number: number | null): void {
+      database.exec(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-09T12:00:00.000Z');
+         INSERT INTO sale_credit_notes (
+           id, sale_id, return_id, requested_issue_on, total, state, point_of_sale, number,
+           issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at
+         ) VALUES (
+           'note-r1', 'sale-1', 'return-1', '2026-10-09', 1000, '${state}', ${number === null ? "NULL" : "12"},
+           ${number ?? "NULL"}, ${number === null ? "NULL" : "'2026-10-09'"}, ${number === null ? "NULL" : "'2026-10-09T12:00:01.000Z'"},
+           ${number === null ? "NULL" : "'71234567890999'"}, ${number === null ? "NULL" : "'2026-10-19'"},
+           '2026-10-09T12:00:00.000Z'
+         )`,
+      );
+    }
+
+    it("is the credit note being printed for the return that issued one, not the void's", async () => {
+      insertVoidedSale(database);
+      insertCreditNote(database);
+      insertReturnCreditNote("AUTHORIZED", 9);
+      await record(ticket({ operation: "return", subjectId: "return-1" }));
+
+      expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
+
+      database.exec(
+        `INSERT INTO credit_note_prints (credit_note_id, print_attempted_at, printed_at)
+         VALUES ('note-1', '2026-10-09T12:00:30.000Z', '2026-10-09T12:00:31.000Z')`,
+      );
+      expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
+
+      database.exec(
+        `INSERT INTO credit_note_prints (credit_note_id, print_attempted_at, printed_at)
+         VALUES ('note-r1', '2026-10-09T12:00:30.000Z', '2026-10-09T12:00:31.000Z')`,
+      );
+      expect((await consider())[0]?.customerDocumentPrinted).toBe(true);
+    });
+
+    it("is no document at all for a return without an authorized credit note", async () => {
+      insertVoidedSale(database);
+      insertReturnCreditNote("REJECTED", null);
+      await record(ticket({ operation: "return", subjectId: "return-1" }));
+
+      expect((await consider())[0]?.customerDocumentPrinted).toBeNull();
+    });
+  });
+
   it.each([
     "paid_sale_cancellation",
     "cash_movement",

@@ -102,6 +102,83 @@ describe("POST /contingency-backup-tickets/rescue", () => {
     );
   });
 
+  it("names a ticket that carries a completed return as a return", async () => {
+    const register = await registerWithTicketKey(route.db);
+    const session = await rescueSession(route.db);
+    const returnId = "01a17b16-e642-71b9-8431-f03e95f2e4be";
+    const cashier = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
+    const returned = ticketEvent(4, {
+      aggregate_type: "Return",
+      aggregate_id: returnId,
+      event_type: "sale_returned",
+      occurred_at: "2026-10-06T15:28:00.000Z",
+      actor_id: cashier,
+      payload: {
+        actor_id: cashier,
+        authorized_by: null,
+        cash_movements: [
+          {
+            actor_id: cashier,
+            amount: 2400,
+            id: "01a17b16-e643-71ea-a6b9-563e041d49aa",
+            occurred_at: "2026-10-06T15:28:00.000Z",
+            ref_id: returnId,
+            ref_type: "return",
+            type: "REFUND",
+          },
+        ],
+        device_id: "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f01",
+        id: returnId,
+        lines: [
+          {
+            disposition: "restock",
+            product_id: "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+            quantity: 1,
+            reason: "change_of_mind",
+            refunded_amount: 2400,
+            sale_line_id: "01a17b16-e63f-7444-be6c-a002bd9f12ff",
+          },
+        ],
+        occurred_at: "2026-10-06T15:28:00.000Z",
+        refunds: [
+          {
+            amount: 2400,
+            id: "01a17b16-e643-71ea-a6b9-53e783c80c61",
+            kind: "REFUND",
+            method: "CASH",
+            occurred_at: "2026-10-06T15:28:00.000Z",
+            parent_id: "01a17b16-e640-712f-958f-7857c9a8795f",
+            provider: "NONE",
+            state: "APPROVED",
+          },
+        ],
+        register_id: "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+        sale_id: "01a17b16-e63f-7444-be6c-9fc6c25fccc8",
+        session_id: "01a17b16-e5ed-7208-842c-09eee7eeaad9",
+        stock_movements: [
+          {
+            delta: 1000,
+            id: "01a17b16-e643-71ea-a6b9-58ed5936cbf7",
+            kind: "return",
+            occurred_at: "2026-10-06T15:28:00.000Z",
+            product_id: "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+            reason: null,
+            sale_line_id: "01a17b16-e63f-7444-be6c-a002bd9f12ff",
+          },
+        ],
+        ticket_source: "TYPED",
+      },
+    });
+
+    const response = await rescuing(route, session, register.seal([returned]));
+
+    expect(response.json()).toMatchObject({
+      outcome: "rescued",
+      received: 1,
+      summary: { operation: "return", occurred_at: "2026-10-06T15:28:00.000Z" },
+    });
+  });
+
   it("receives nothing new when the same ticket is scanned again", async () => {
     const register = await registerWithTicketKey(route.db);
     const session = await rescueSession(route.db);

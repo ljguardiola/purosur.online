@@ -147,4 +147,43 @@ describe("the contingency backup ticket", () => {
       false,
     );
   });
+
+  describe("for a return", () => {
+    const returned = (
+      overrides: Partial<Extract<ContingencyBackupTicketPrintout["operation"], { kind: "return" }>> = {},
+    ) => ({
+      kind: "return" as const,
+      originalOperationNumber: 482,
+      cashRefunded: 123450,
+      ...overrides,
+    });
+
+    it("names the return, the original ticket and the cash refunded, before the document it backs", () => {
+      const backs = { kind: "credit_note", pointOfSale: 3, number: 12 } as const;
+
+      const lines = printed({ operation: returned(), backs }).textLines;
+
+      const start = lines.indexOf(row("Operación", "Devolución"));
+      expect(start).toBeGreaterThan(-1);
+      expect(lines.slice(start, start + 4)).toEqual([
+        row("Operación", "Devolución"),
+        row("Ticket original", "000482"),
+        row("Efectivo devuelto", "$ 1.234,50"),
+        row("Respalda", "Nota de crédito C 00003-00000012"),
+      ]);
+    });
+
+    it("leaves out the original ticket when the register does not know its number", () => {
+      const lines = printed({ operation: returned({ originalOperationNumber: null }) }).textLines;
+
+      expect(lines.some((line) => line.startsWith("Ticket original"))).toBe(false);
+      expect(lines).toContain(row("Efectivo devuelto", "$ 1.234,50"));
+    });
+
+    it("leaves out the cash refunded when nothing was refunded in cash", () => {
+      const lines = printed({ operation: returned({ cashRefunded: 0 }) }).textLines;
+
+      expect(lines.some((line) => line.startsWith("Efectivo devuelto"))).toBe(false);
+    });
+  });
 });

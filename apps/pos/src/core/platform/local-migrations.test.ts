@@ -8496,3 +8496,99 @@ describe("the voided assembly batches migration", () => {
     });
   });
 });
+
+describe("the returns in the contingency backup tickets migration", () => {
+  const MIGRATION = "0088_contingency_backup_ticket_returns";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withHeldTickets(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO contingency_backup_tickets (id, operation, subject_id, first_device_seq, last_device_seq, created_at, key_version, qr_codes, printed_at, discarded_at)
+         VALUES ('ticket-1', 'sale', 'sale-1', 1, 3, '2026-10-12T12:00:00.000Z', 2, '["AB","CD"]', '2026-10-12T12:01:00.000Z', NULL),
+                ('ticket-2', 'cash_movement', NULL, 4, 4, '2026-10-12T12:05:00.000Z', NULL, NULL, NULL, '2026-10-12T13:00:00.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  const insertTicket = (database: Database, operation: string) =>
+    database
+      .prepare(
+        `INSERT INTO contingency_backup_tickets (id, operation, subject_id, first_device_seq, last_device_seq, created_at)
+         VALUES ('ticket-3', @operation, 'return-1', 5, 5, '2026-10-13T12:00:00.000Z')`,
+      )
+      .run({ operation });
+
+  it("keeps every ticket a register holds", () => {
+    withHeldTickets((database) => {
+      expect(
+        database.prepare("SELECT * FROM contingency_backup_tickets ORDER BY id").all(),
+      ).toEqual([
+        {
+          id: "ticket-1",
+          operation: "sale",
+          subject_id: "sale-1",
+          first_device_seq: 1,
+          last_device_seq: 3,
+          created_at: "2026-10-12T12:00:00.000Z",
+          key_version: 2,
+          qr_codes: '["AB","CD"]',
+          printed_at: "2026-10-12T12:01:00.000Z",
+          discarded_at: null,
+        },
+        {
+          id: "ticket-2",
+          operation: "cash_movement",
+          subject_id: null,
+          first_device_seq: 4,
+          last_device_seq: 4,
+          created_at: "2026-10-12T12:05:00.000Z",
+          key_version: null,
+          qr_codes: null,
+          printed_at: null,
+          discarded_at: "2026-10-12T13:00:00.000Z",
+        },
+      ]);
+    });
+  });
+
+  it("keeps the index of the tickets by creation", () => {
+    withHeldTickets((database) => {
+      expect(
+        database
+          .prepare<[], { name: string }>(
+            "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'contingency_backup_tickets' AND name NOT LIKE 'sqlite_%'",
+          )
+          .all()
+          .map(({ name }) => name),
+      ).toEqual(["contingency_backup_tickets_by_creation"]);
+    });
+  });
+
+  it("accepts the ticket of a return", () => {
+    withHeldTickets((database) => {
+      expect(() => insertTicket(database, "return")).not.toThrow();
+    });
+  });
+
+  it("still refuses an unknown operation", () => {
+    withHeldTickets((database) => {
+      expect(() => insertTicket(database, "refund")).toThrow(/CHECK/);
+    });
+  });
+});
