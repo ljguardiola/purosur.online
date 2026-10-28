@@ -43,7 +43,7 @@ function FormModal({
           <Button
             variant="primary"
             disabled={disabled}
-            disabledReason={disabledReason}
+            {...(disabledReason === undefined ? {} : { disabledReason })}
             onPress={onSend}
           >
             Crear
