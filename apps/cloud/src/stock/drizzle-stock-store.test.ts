@@ -20,6 +20,7 @@ import {
   stockCountLots,
   stockCounts,
   stockMovements,
+  supplierItemPrices,
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -30,6 +31,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
+import { insertLoadedSupplierPrice } from "./test-support/loaded-supplier-price-fixtures.js";
 import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
 
 const COUNTED_AT = new Date("2026-09-15T21:32:00.000Z");
@@ -893,6 +895,138 @@ describe("DrizzleStockStore initial count", () => {
     ]);
     expect(await db.select().from(stockMovements)).toEqual([
       expect.objectContaining({ id: MOVEMENT_ID, kind: "opening_count", delta: 6_000 }),
+    ]);
+  });
+
+  it("costs the lot at the cheapest price loaded for the product, kept exact", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const otherProductId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    await insertLoadedSupplierPrice(db, { productId, actorId, priceCents: 1_000 });
+    await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId,
+      priceCents: 1_000,
+      quantityPerPackage: 3_000,
+    });
+    await insertLoadedSupplierPrice(db, {
+      productId: otherProductId,
+      actorId,
+      priceCents: 1,
+    });
+
+    await count(new DrizzleStockStore(db), { productId, locationId, actorId });
+
+    expect(await db.select().from(lots)).toEqual([
+      expect.objectContaining({ costIncomplete: false, costTotalCents: 1, costQuantity: 3 }),
+    ]);
+  });
+
+  it("costs the lot at the price a loaded list gives with VAT added when the list excludes it", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId,
+      priceCents: 1_000,
+      pricesIncludeVat: false,
+      vatRate: 2_100,
+    });
+
+    await count(new DrizzleStockStore(db), { productId, locationId, actorId });
+
+    expect(await db.select().from(lots)).toEqual([
+      expect.objectContaining({
+        costIncomplete: false,
+        costTotalCents: 1_210,
+        costQuantity: 1_000,
+      }),
+    ]);
+  });
+
+  it("uses only the latest price of each supplier item", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    const { supplierItemId } = await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId,
+      priceCents: 500,
+      listDate: "2026-02-01",
+    });
+    const [item] = await db
+      .select({ listId: supplierItemPrices.listId })
+      .from(supplierItemPrices)
+      .where(eq(supplierItemPrices.itemId, supplierItemId));
+    await db.insert(supplierItemPrices).values({
+      itemId: supplierItemId,
+      listId: item?.listId ?? "",
+      priceCents: 900,
+      listDate: "2026-03-01",
+      pricesIncludeVat: true,
+      confirmedAt: new Date("2026-03-02T12:00:00.000Z"),
+    });
+
+    await count(new DrizzleStockStore(db), { productId, locationId, actorId });
+
+    expect(await db.select().from(lots)).toEqual([
+      expect.objectContaining({ costTotalCents: 900, costQuantity: 1_000 }),
+    ]);
+  });
+
+  it("leaves the cost incomplete when the only prices loaded cannot be bought or priced", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId,
+      priceCents: 100,
+      packagingActive: false,
+    });
+    await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId,
+      priceCents: 100,
+      pricesIncludeVat: false,
+      vatRate: null,
+    });
+
+    await count(new DrizzleStockStore(db), { productId, locationId, actorId });
+
+    expect(await db.select().from(lots)).toEqual([
+      expect.objectContaining({ costIncomplete: true, costTotalCents: null, costQuantity: null }),
+    ]);
+  });
+
+  it("answers each loaded price with its supplier, packaging, list date and exact price, whatever its sale unit", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    const { supplierItemId } = await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId,
+      supplierName: "Distribuidora Sur",
+      packagingName: "Caja x 3",
+      priceCents: 1_000,
+      quantityPerPackage: 3_000,
+      listDate: "2026-03-01",
+    });
+
+    const prices = await new DrizzleStockStore(db).transaction((tx) =>
+      tx.loadedSupplierPrices(productId),
+    );
+
+    expect(prices).toEqual([
+      {
+        supplierItemId,
+        supplierName: "Distribuidora Sur",
+        packagingName: "Caja x 3",
+        listDate: "2026-03-01",
+        pricePerSaleUnit: { numerator: 1_000n, denominator: 3n },
+      },
     ]);
   });
 
