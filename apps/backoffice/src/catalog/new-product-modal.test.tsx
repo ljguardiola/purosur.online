@@ -113,6 +113,23 @@ test("creates a product with a net content", async () => {
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
 });
 
+test("creates the product with Ctrl+Enter pressed from the field being typed in", async () => {
+  const services = createServices();
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  const onCreated = vi.fn();
+  const { dialog } = await renderModal(services, { onCreated });
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await scanCode(scanInputOf(dialog), "7790000000099");
+
+  await userEvent.keyboard("{Control>}{Enter}{/Control}");
+
+  await expect.poll(() => onCreated.mock.calls.length).toBe(1);
+  expect(services.createProduct).toHaveBeenCalledOnce();
+  expect(services.createProduct).toHaveBeenCalledWith(
+    expect.objectContaining({ name: "Producto nuevo", barcodes: ["7790000000099"] }),
+  );
+});
+
 test("rejects an invalid net content quantity, without calling the API", async () => {
   const services = createServices();
   const { dialog } = await renderModal(services);

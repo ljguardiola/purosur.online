@@ -13,15 +13,20 @@ export interface StoredReceipt {
 
 export type ReceiptReason = { kind: "retry" } | { kind: "requested"; text: string };
 
-export interface ReceiptReprint {
+interface ReprintRecord {
   saleId: string;
-  document: PrintedDocument;
   orderNumber: number;
   requestedBy: string;
   authorizedBy: string | null;
   reason: ReceiptReason;
   occurredAt: Date;
 }
+
+export type ReceiptReprint = ReprintRecord &
+  (
+    | { document: Exclude<PrintedDocument, "credit_note"> }
+    | { document: "credit_note"; creditNoteId: string }
+  );
 
 export interface ReceiptLedger {
   transaction<TOutcome>(work: (tx: ReceiptLedgerTransaction) => TOutcome): TOutcome;

@@ -5,7 +5,7 @@ const NON_FAILING_RESULTS = new Set(["success", "skipped"]);
 // GitHub reports a job's `needs.<job>.result` as "skipped" when its own `if:` didn't run it, and
 // reduces a shard matrix job's result to "failure"/"cancelled" if any shard failed/was cancelled.
 export function decideVerifyResult({
-  eventName,
+  scopeSkipAllowed,
   scopeResult,
   scopeDocsOnly,
   scopeTestsNeeded,
@@ -14,8 +14,8 @@ export function decideVerifyResult({
   testsResult,
   visualResult,
 }) {
-  const isDecisivelyDocsOnly =
-    eventName === "pull_request" && scopeResult === "success" && scopeDocsOnly === "true";
+  const mayCountSkips = scopeResult === "success" && scopeSkipAllowed === "true";
+  const isDecisivelyDocsOnly = mayCountSkips && scopeDocsOnly === "true";
 
   const staticOk = isDecisivelyDocsOnly
     ? NON_FAILING_RESULTS.has(staticResult)
@@ -24,8 +24,7 @@ export function decideVerifyResult({
     return { ok: false, reason: `static: ${staticResult}` };
   }
 
-  const isDecisivelyTestsUnneeded =
-    eventName === "pull_request" && scopeResult === "success" && scopeTestsNeeded === "false";
+  const isDecisivelyTestsUnneeded = mayCountSkips && scopeTestsNeeded === "false";
   const testsOk = isDecisivelyTestsUnneeded
     ? NON_FAILING_RESULTS.has(testsResult)
     : testsResult === "success";
@@ -33,7 +32,7 @@ export function decideVerifyResult({
     return { ok: false, reason: `tests: ${testsResult}` };
   }
 
-  const isDecisivelyCatalogUnchanged = scopeResult === "success" && scopeCatalogChanged === "false";
+  const isDecisivelyCatalogUnchanged = mayCountSkips && scopeCatalogChanged === "false";
   const visualOk = isDecisivelyCatalogUnchanged
     ? NON_FAILING_RESULTS.has(visualResult)
     : visualResult === "success";
@@ -53,7 +52,7 @@ export function decideVerifyResult({
 
 export function runCli({ env = process.env, log = console.log, logError = console.error } = {}) {
   const decision = decideVerifyResult({
-    eventName: env.EVENT_NAME,
+    scopeSkipAllowed: env.SCOPE_SKIP_ALLOWED,
     scopeResult: env.SCOPE_RESULT,
     scopeDocsOnly: env.SCOPE_DOCS_ONLY,
     scopeTestsNeeded: env.SCOPE_TESTS_NEEDED,

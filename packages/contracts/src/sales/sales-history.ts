@@ -97,14 +97,19 @@ const saleHistoryDetailSchema = z.object({
   state: saleStateSchema,
   voidability: saleVoidabilitySchema,
   void_authorization_required: z.boolean(),
-  credit_note: saleCreditNoteSchema.nullable(),
-  credit_note_id: z.string().min(1).nullable(),
+  credit_notes: z.array(
+    z.object({
+      credit_note_id: z.string().min(1),
+      origin: z.enum(["sale_void", "sale_return"]),
+      standing: saleCreditNoteSchema,
+      next_copy: receiptCopySchema.nullable(),
+    }),
+  ),
   reprint: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("available") }),
     z.object({ kind: z.literal("sale_voided") }),
   ]),
   next_copy: receiptCopySchema,
-  credit_note_next_copy: receiptCopySchema.nullable(),
   deferred_invoice_next_copy: receiptCopySchema.nullable(),
   short_code: z.string().nullable(),
 });

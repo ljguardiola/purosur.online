@@ -312,14 +312,17 @@ const reprintRecordedFields = {
   authorized_by: text.nullable(),
 };
 
-const reprintRecordedSchema = <Fields extends typeof reprintRecordedFields>(fields: Fields) =>
+const reprintRecordedSchema = <Fields extends typeof reprintRecordedFields>(
+  fields: Fields,
+  object: typeof z.object | typeof z.strictObject = z.object,
+) =>
   z.discriminatedUnion("reason_kind", [
-    z.object({
+    object({
       ...fields,
       reason_kind: z.literal("retry"),
       reason_text: z.null(),
     }),
-    z.object({
+    object({
       ...fields,
       reason_kind: z.literal("requested"),
       reason_text: z.string().refine((reason) => receiptReprintReason(reason) === reason),
@@ -332,6 +335,24 @@ const reprintRecordedV2Schema = reprintRecordedSchema({
   ...reprintRecordedFields,
   document: printedDocumentSchema,
 });
+
+const reprintRecordedV3Schema = z.discriminatedUnion("document", [
+  reprintRecordedSchema(
+    {
+      ...reprintRecordedFields,
+      document: z.enum(PRINTED_DOCUMENTS.filter((document) => document !== "credit_note")),
+    },
+    z.strictObject,
+  ),
+  reprintRecordedSchema(
+    {
+      ...reprintRecordedFields,
+      document: z.literal("credit_note"),
+      credit_note_id: text,
+    },
+    z.strictObject,
+  ),
+]);
 
 const saleRefundFields = {
   id: text,
@@ -697,6 +718,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_print_state_changed@3": salePrintStateChangedV3Schema,
   "reprint_recorded@1": reprintRecordedV1Schema,
   "reprint_recorded@2": reprintRecordedV2Schema,
+  "reprint_recorded@3": reprintRecordedV3Schema,
   "sale_cancelled@1": saleCancelledV1Schema,
   "sale_cancelled@2": saleCancelledV2Schema,
   "sale_cancelled@3": saleCancelledV3Schema,

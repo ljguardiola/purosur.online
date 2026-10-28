@@ -1562,6 +1562,7 @@ describe("decoding the events the registers pushed", () => {
           reprint: {
             saleId: SALE,
             document,
+            ...(document === "credit_note" ? { creditNoteId: null } : {}),
             orderNumber: 3,
             requestedBy: USER,
             authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
@@ -1572,6 +1573,82 @@ describe("decoding the events the registers pushed", () => {
       });
     },
   );
+
+  it("reads a copy of a credit note as a copy of the credit note the event names", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "reprint_recorded",
+          schema_version: 3,
+          occurred_at: "2026-10-06T11:33:00.000Z",
+          payload: {
+            sale_id: SALE,
+            document: "credit_note",
+            credit_note_id: "credit-note-7",
+            order_number: 1,
+            requested_by: USER,
+            authorized_by: null,
+            reason_kind: "retry",
+            reason_text: null,
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "reprint_recorded",
+        reprint: {
+          saleId: SALE,
+          document: "credit_note",
+          creditNoteId: "credit-note-7",
+          orderNumber: 1,
+          requestedBy: USER,
+          authorizedBy: null,
+          reason: { kind: "retry" },
+          occurredAt: new Date("2026-10-06T11:33:00.000Z"),
+        },
+      },
+    });
+  });
+
+  it("reads a copy of a deferred invoice from version 3 with no credit note", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "reprint_recorded",
+          schema_version: 3,
+          occurred_at: "2026-10-06T11:34:00.000Z",
+          payload: {
+            sale_id: SALE,
+            document: "deferred_invoice",
+            order_number: 2,
+            requested_by: USER,
+            authorized_by: null,
+            reason_kind: "retry",
+            reason_text: null,
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "reprint_recorded",
+        reprint: {
+          saleId: SALE,
+          document: "deferred_invoice",
+          orderNumber: 2,
+          requestedBy: USER,
+          authorizedBy: null,
+          reason: { kind: "retry" },
+          occurredAt: new Date("2026-10-06T11:34:00.000Z"),
+        },
+      },
+    });
+  });
 
   it("reads a copy somebody asked for with its reason and the person who authorized it", () => {
     const decoded = upcaster.decode(

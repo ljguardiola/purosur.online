@@ -39,18 +39,20 @@ function reprint(
   reason: Extract<ReceiptFact, { kind: "reprint_recorded" }>["reprint"]["reason"],
   saleId = "sale-1",
   document: PrintedDocumentKey["document"] = "sale_receipt",
+  creditNoteId: string | null = null,
 ): ReceiptFact {
+  const facts = {
+    saleId,
+    orderNumber,
+    requestedBy: "cashier-1",
+    authorizedBy: "supervisor-1",
+    reason,
+    occurredAt: new Date("2026-10-07T10:30:00.000Z"),
+  };
   return {
     kind: "reprint_recorded",
-    reprint: {
-      saleId,
-      document,
-      orderNumber,
-      requestedBy: "cashier-1",
-      authorizedBy: "supervisor-1",
-      reason,
-      occurredAt: new Date("2026-10-07T10:30:00.000Z"),
-    },
+    reprint:
+      document === "credit_note" ? { document, creditNoteId, ...facts } : { document, ...facts },
   };
 }
 
@@ -63,7 +65,7 @@ function printing() {
 function reprints() {
   return database
     .prepare(
-      "SELECT sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at FROM sale_reprints ORDER BY order_number",
+      "SELECT sale_id, document, credit_note_id, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at FROM sale_reprints ORDER BY order_number",
     )
     .all();
 }
@@ -148,6 +150,7 @@ describe("replenishing the reprints of a sale into a restored register", () => {
       {
         sale_id: "sale-1",
         document: "sale_receipt",
+        credit_note_id: null,
         order_number: 1,
         requested_by: "cashier-1",
         authorized_by: "supervisor-1",
@@ -158,6 +161,7 @@ describe("replenishing the reprints of a sale into a restored register", () => {
       {
         sale_id: "sale-1",
         document: "sale_receipt",
+        credit_note_id: null,
         order_number: 2,
         requested_by: "cashier-1",
         authorized_by: "supervisor-1",
@@ -258,6 +262,31 @@ describe("replenishing the credit note of a sale into a restored register", () =
     ]);
   });
 
+  it("holds a reprint of a legacy event that names no credit note against the sale's credit note", () => {
+    applyReplenishedReceiptFact(database, reprint(1, { kind: "retry" }, "sale-1", "credit_note"));
+    applyReplenishedReceiptFact(database, reprint(1, { kind: "retry" }, "sale-1", "credit_note"));
+
+    expect(reprints()).toMatchObject([{ document: "credit_note", credit_note_id: "note-1" }]);
+  });
+
+  it("holds a reprint against the credit note the event names", () => {
+    applyReplenishedReceiptFact(
+      database,
+      reprint(1, { kind: "retry" }, "sale-1", "credit_note", "note-1"),
+    );
+
+    expect(reprints()).toMatchObject([{ document: "credit_note", credit_note_id: "note-1" }]);
+  });
+
+  it("refuses a reprint of a credit note the sale does not hold", () => {
+    expect(() =>
+      applyReplenishedReceiptFact(
+        database,
+        reprint(1, { kind: "retry" }, "sale-1", "credit_note", "note-9"),
+      ),
+    ).toThrow("credit note note-9 is not held by sale sale-1");
+  });
+
   it("is refused for a sale the register does not hold", () => {
     expect(() =>
       applyReplenishedReceiptFact(
@@ -276,7 +305,7 @@ describe("replenishing the credit note of a sale into a restored register", () =
     ).toThrow("credit note note-9 is not held by sale sale-1");
   });
 
-  it("holds the print of an event that names no credit note on the only one the sale holds", () => {
+  it("holds the print of an event that names no credit note on the sale's credit note", () => {
     applyReplenishedReceiptFact(
       database,
       printState("sale-1", "2026-10-07T11:00:05.000Z", null, "credit_note", null),
@@ -315,13 +344,53 @@ describe("replenishing the credit note of a sale into a restored register", () =
       ]);
     });
 
-    it("is refused for an event that names no credit note: the sale holds more than one", () => {
+    it("holds the print of an event that names no credit note on the credit note of the void, not a return's", () => {
+      applyReplenishedReceiptFact(
+        database,
+        printState("sale-1", "2026-10-08T11:00:05.000Z", null, "credit_note", null),
+      );
+
+      expect(database.prepare("SELECT credit_note_id FROM credit_note_prints").all()).toEqual([
+        { credit_note_id: "note-1" },
+      ]);
+    });
+
+    it("holds a reprint against the credit note of a return the event names, beside the void's with the same order number", () => {
+      applyReplenishedReceiptFact(
+        database,
+        reprint(1, { kind: "retry" }, "sale-1", "credit_note", "note-r1"),
+      );
+      applyReplenishedReceiptFact(database, reprint(1, { kind: "retry" }, "sale-1", "credit_note"));
+      applyReplenishedReceiptFact(
+        database,
+        reprint(1, { kind: "retry" }, "sale-1", "credit_note", "note-r1"),
+      );
+
+      expect(
+        database
+          .prepare("SELECT credit_note_id, order_number FROM sale_reprints ORDER BY credit_note_id")
+          .all(),
+      ).toEqual([
+        { credit_note_id: "note-1", order_number: 1 },
+        { credit_note_id: "note-r1", order_number: 1 },
+      ]);
+    });
+
+    it("is refused for an event that names no credit note when the sale holds only a return's", () => {
+      database.exec("DELETE FROM sale_credit_notes WHERE id = 'note-1'");
+
       expect(() =>
         applyReplenishedReceiptFact(
           database,
           printState("sale-1", "2026-10-08T11:00:05.000Z", null, "credit_note", null),
         ),
-      ).toThrow("sale sale-1 holds 2 credit notes and the print names none");
+      ).toThrow("sale sale-1 holds no credit note of its void and the event names none");
+      expect(() =>
+        applyReplenishedReceiptFact(
+          database,
+          reprint(1, { kind: "retry" }, "sale-1", "credit_note"),
+        ),
+      ).toThrow("sale sale-1 holds no credit note of its void and the event names none");
     });
   });
 
@@ -333,7 +402,7 @@ describe("replenishing the credit note of a sale into a restored register", () =
         database,
         printState("sale-1", "2026-10-07T11:00:05.000Z", null, "credit_note", null),
       ),
-    ).toThrow("sale sale-1 holds 0 credit notes and the print names none");
+    ).toThrow("sale sale-1 holds no credit note of its void and the event names none");
   });
 });
 

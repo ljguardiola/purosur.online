@@ -111,18 +111,25 @@ const STATIC_SHARD_OPTION = `--test-shard=\${TEST_SHARD:-1/1}`;
 const EXPECTED_STATIC_RUN = `\${{ matrix.command }}`;
 const EXPECTED_STATIC_TEST_SHARD = `\${{ matrix.shard }}`;
 const EXPECTED_STATIC_BASE_REF = `\${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}`;
-const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
-const EXPECTED_TESTS_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}`;
-const EXPECTED_VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
+const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.skip_allowed != 'true' || needs.scope.outputs.docs_only != 'true') }}`;
+const EXPECTED_TESTS_CONDITION = `\${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.skip_allowed != 'true' || needs.scope.outputs.tests_needed != 'false') }}`;
+const EXPECTED_VISUAL_CONDITION = `\${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.skip_allowed != 'true' || needs.scope.outputs.catalog_changed != 'false') }}`;
 const EXPECTED_VERIFY_CONDITION = "always()";
 const SCOPE_STEP_ID = "scope";
 const SCOPE_COMMAND = "node .github/scripts/change-scope.mjs";
 const SCOPE_DECISIONS = ["docs_only", "tests_needed", "catalog_changed"];
+const PREVIOUS_VERIFY_STEP_ID = "previous-verify";
+const PREVIOUS_VERIFY_COMMAND = "node .github/scripts/previous-commit-verified.mjs";
+const SKIP_PERMISSION = "skip_allowed";
+const EXPECTED_PREVIOUS_VERIFY_ENV = {
+  EVENT_NAME: `\${{ github.event_name }}`,
+  PREVIOUS_SHA: `\${{ github.event.before }}`,
+};
 const HISTORY_SCAN_COMMAND = "node --test .github/scripts/no-secrets-in-commit-history.test.mjs";
-const EXPECTED_HISTORY_SCAN_BASE_REF = `\${{ github.event.pull_request.base.sha }}`;
+const EXPECTED_HISTORY_SCAN_BASE_REF = EXPECTED_STATIC_BASE_REF;
 const AGGREGATE_COMMAND = "node .github/scripts/aggregate-verify-result.mjs";
 const EXPECTED_AGGREGATE_ENV = {
-  EVENT_NAME: `\${{ github.event_name }}`,
+  SCOPE_SKIP_ALLOWED: `\${{ needs.scope.outputs.skip_allowed }}`,
   SCOPE_RESULT: `\${{ needs.scope.result }}`,
   SCOPE_DOCS_ONLY: `\${{ needs.scope.outputs.docs_only }}`,
   SCOPE_TESTS_NEEDED: `\${{ needs.scope.outputs.tests_needed }}`,
@@ -236,6 +243,32 @@ function runnerJobViolations(doc, jobId, job, command, expectedCondition) {
   return violations;
 }
 
+function previousVerifyStepViolations(doc, job) {
+  const step = steps(doc, job).find(
+    (candidate) => resolveScalar(doc, mapGet(doc, candidate, "id")) === PREVIOUS_VERIFY_STEP_ID,
+  );
+  const run = resolveScalar(doc, mapGet(doc, step, "run"));
+  if (typeof run !== "string" || run.trim() !== PREVIOUS_VERIFY_COMMAND) {
+    return [
+      `verify.yml's scope job has no step with id ${PREVIOUS_VERIFY_STEP_ID} whose run is exactly \`${PREVIOUS_VERIFY_COMMAND}\``,
+    ];
+  }
+
+  const violations = [];
+  if (mapHas(doc, step, "shell")) {
+    violations.push(`verify.yml's scope job's ${PREVIOUS_VERIFY_STEP_ID} step sets its own shell`);
+  }
+  for (const [name, expected] of Object.entries(EXPECTED_PREVIOUS_VERIFY_ENV)) {
+    const actual = resolveScalar(doc, mapGet(doc, mapGet(doc, step, "env"), name));
+    if (actual !== expected) {
+      violations.push(
+        `verify.yml's scope job's ${PREVIOUS_VERIFY_STEP_ID} step's ${name} is \`${actual}\`, expected \`${expected}\``,
+      );
+    }
+  }
+  return violations;
+}
+
 // Scope runs even when static and tests are skipped for a docs-only change, whose net diff can hide
 // a secret one of its commits added and a later one removed.
 function scopeJobViolations(doc, job) {
@@ -262,15 +295,18 @@ function scopeJobViolations(doc, job) {
   const published = isMap(outputsNode)
     ? outputsNode.items.map((pair) => String(resolveScalar(doc, pair.key)))
     : [];
-  for (const name of new Set([...SCOPE_DECISIONS, ...published])) {
+  for (const name of new Set([...SCOPE_DECISIONS, SKIP_PERMISSION, ...published])) {
     const actual = resolveScalar(doc, mapGet(doc, outputsNode, name));
-    const expected = `\${{ steps.${SCOPE_STEP_ID}.outputs.${name} }}`;
+    const stepId = name === SKIP_PERMISSION ? PREVIOUS_VERIFY_STEP_ID : SCOPE_STEP_ID;
+    const expected = `\${{ steps.${stepId}.outputs.${name} }}`;
     if (actual !== expected) {
       violations.push(
         `verify.yml's scope job's ${name} output is \`${actual}\`, expected \`${expected}\``,
       );
     }
   }
+
+  violations.push(...previousVerifyStepViolations(doc, job));
 
   const step = stepRunningExactly(doc, job, HISTORY_SCAN_COMMAND);
   if (step === undefined) {

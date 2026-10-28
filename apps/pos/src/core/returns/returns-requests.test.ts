@@ -380,7 +380,7 @@ describe("finding the sale to return", () => {
     expect(askedTickets).toEqual([]);
   });
 
-  it("does not ask the cloud for a sale this register holds", async () => {
+  it("does not ask the cloud for a sale the cashier already confirmed by its id", async () => {
     await findSaleForReturnFor(deps(), { ticket: BY_SALE });
 
     expect(askedTickets).toEqual([]);

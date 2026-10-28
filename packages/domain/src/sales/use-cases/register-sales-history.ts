@@ -1,4 +1,4 @@
-import type { SaleInvoice, VoidCreditNoteStanding } from "../../fiscal/index.js";
+import type { CreditNoteOrigin, SaleInvoice, VoidCreditNoteStanding } from "../../fiscal/index.js";
 import type { PointCardType } from "../../payments/index.js";
 import type { CompletedSalePayment } from "../model/completed-sale.js";
 import type { SaleFiscalFacts, SaleStanding } from "../model/sale-history.js";
@@ -26,6 +26,12 @@ export interface SalesHistoryPage {
   total: number;
 }
 
+export interface SaleHistoryCreditNote {
+  creditNoteId: string;
+  origin: CreditNoteOrigin["kind"];
+  standing: VoidCreditNoteStanding;
+}
+
 export interface SaleHistoryRecord {
   saleId: string;
   occurredAt: Date;
@@ -39,8 +45,7 @@ export interface SaleHistoryRecord {
   inOpenSession: boolean;
   hasReturn: boolean;
   invoices: SaleInvoice[];
-  creditNote: VoidCreditNoteStanding | null;
-  creditNoteId: string | null;
+  creditNotes: SaleHistoryCreditNote[];
   deferredInvoiceIssued: boolean;
   deferredShortCode: string | null;
 }

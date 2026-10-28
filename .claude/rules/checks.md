@@ -2,7 +2,7 @@
 
 CI is the only thing that allows a merge: the `pr-contract` and `verify` checks are both required. A workflow step that references a GitHub Action by a moving tag (e.g. `@v4`) instead of a pinned commit SHA does not pass review. `pnpm verify` rejects a workflow job without a `timeout-minutes`.
 
-CI's `verify` skips the parts a pull request cannot affect: a change made only of Markdown files outside `apps/`, `packages/` and `.github/` skips every check but the scope decision, one made only of those files and files under `.claude/` skips the tests, and the design-system screenshots run only when `packages/ui` or one of their inputs changes. The required check still reports its result. A push to `main` always runs the static checks and the tests.
+CI's `verify` skips the parts a change cannot affect: a change made only of Markdown files outside `apps/`, `packages/` and `.github/` skips every check but the scope decision, one made only of those files and files under `.claude/` skips the tests, and the design-system screenshots run only when `packages/ui` or one of their inputs changes. The required check still reports its result. A push to `main` skips them the same way only when the commit before it on `main` passed `verify`; when that run failed, was cancelled, has not finished or cannot be read, every check runs.
 
 No tool checks that `packages/ui` carries no screens — composed screens live in each app — so every pull request is reviewed for it by hand.
 
