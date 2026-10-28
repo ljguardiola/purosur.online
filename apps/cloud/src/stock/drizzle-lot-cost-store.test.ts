@@ -128,7 +128,7 @@ describe("DrizzleLotCostStore.setReferenceCost", () => {
 
 describe("DrizzleLotCostStore.loadedSupplierPrices", () => {
   it("answers the prices loaded for the product asked, priced per sale unit, and none of other products or unpriced offers", async () => {
-    const { actorId, locationId, productId } = await seeded();
+    const { actorId, productId } = await seeded();
     const { productId: otherProductId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const { supplierItemId } = await insertLoadedSupplierPrice(db, {
       productId,
@@ -151,7 +151,6 @@ describe("DrizzleLotCostStore.loadedSupplierPrices", () => {
 
     const prices = await store.transaction((tx) => tx.loadedSupplierPrices(productId));
 
-    expect(locationId).toBeDefined();
     expect(prices).toEqual([
       {
         supplierItemId,
