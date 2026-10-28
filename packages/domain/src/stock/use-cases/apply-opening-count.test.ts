@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { LoadedSupplierPrice } from "../model/lot-reference-cost.js";
 import { MAX_STOCK_QUANTITY } from "../model/stock-quantity.js";
 import { type ApplyOpeningCountInput, applyOpeningCount } from "./apply-opening-count.js";
 import { FakeStockStore } from "./test-support/fake-stock-store.js";
@@ -13,6 +14,21 @@ function storeWithProducts(): FakeStockStore {
   store.seedProduct({ id: "product-yerba", saleUnit: "UNIT" });
   store.seedProduct({ id: "product-harina", saleUnit: "KG" });
   return store;
+}
+
+function loadedPrice(
+  supplierItemId: string,
+  cents: bigint,
+  overrides: Partial<LoadedSupplierPrice> = {},
+): LoadedSupplierPrice {
+  return {
+    supplierItemId,
+    supplierName: "Distribuidora Sur",
+    packagingName: "Caja",
+    listDate: "2026-03-01",
+    pricePerSaleUnit: { numerator: cents, denominator: 1n },
+    ...overrides,
+  };
 }
 
 function line(overrides: Partial<ApplyOpeningCountInput> = {}): ApplyOpeningCountInput {
@@ -89,6 +105,68 @@ describe("applyOpeningCount", () => {
       },
     ]);
     expect(outcome).toEqual({ kind: "recorded", lotId: "lot-1" });
+  });
+
+  it("costs the lot at the cheapest price loaded for the product, exactly", async () => {
+    const store = storeWithProducts();
+    store.seedSupplierPrices("product-yerba", [
+      loadedPrice("item-dear", 900n),
+      loadedPrice("item-cheap", 1_000n, {
+        pricePerSaleUnit: { numerator: 1_000n, denominator: 3n },
+      }),
+    ]);
+    store.seedSupplierPrices("product-harina", [loadedPrice("item-other", 1n)]);
+
+    await apply(store, line());
+
+    expect(store.snapshot().lots).toMatchObject([
+      { costTotalCents: 1, costQuantity: 3, costComplete: true },
+    ]);
+  });
+
+  it("leaves the cost incomplete when no price is loaded for the product", async () => {
+    const store = storeWithProducts();
+    store.seedSupplierPrices("product-harina", [loadedPrice("item-other", 100n)]);
+
+    await apply(store, line());
+
+    expect(store.snapshot().lots).toMatchObject([
+      { costTotalCents: null, costQuantity: null, costComplete: false },
+    ]);
+  });
+
+  it("costs the lot of a count that a later count supersedes the same way", async () => {
+    const store = storeWithProducts();
+    store.seedSupplierPrices("product-yerba", [loadedPrice("item-a", 250n)]);
+    store.seedMovement({
+      ...YERBA,
+      kind: "count",
+      reason: null,
+      delta: 0,
+      occurredAt: new Date("2026-03-11T10:00:00.000Z"),
+      actorId: "person-2",
+      supersededByCountId: null,
+    });
+
+    await apply(store, line());
+
+    expect(store.snapshot().lots).toMatchObject([
+      { costTotalCents: 250, costQuantity: 1_000, costComplete: true },
+    ]);
+  });
+
+  it("reads the loaded prices only for a lot it creates", async () => {
+    const store = storeWithProducts();
+    store.seedSupplierPrices("product-yerba", [loadedPrice("item-a", 250n)]);
+
+    await apply(store, line({ productId: "product-ghost" }));
+    await apply(store, line({ counted: 1_500 }));
+    expect(store.operationOrder).not.toContain("loadedSupplierPrices");
+
+    await apply(store, line());
+    await apply(store, line());
+
+    expect(store.operationOrder.filter((name) => name === "loadedSupplierPrices")).toHaveLength(1);
   });
 
   it("makes one lot per line, so the same product counted with two expiry dates yields two lots", async () => {

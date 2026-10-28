@@ -43,15 +43,23 @@ describe("lotOfOpeningCount", () => {
     locationId: "branch-1",
     counted: 6_000,
     expiresOn: "2027-01-31",
+    cost: null,
   };
 
-  it("makes a lot of the counted quantity that remembers the movement that counted it and its expiry", () => {
+  it("makes a lot of the counted quantity that remembers the movement that counted it, its expiry and its cost", () => {
     expect(lotOfOpeningCount(COUNT)).toEqual({
       productId: "yerba",
       locationId: "branch-1",
       originMovementId: "movement-1",
       quantityReceived: 6_000,
       expiresOn: "2027-01-31",
+      cost: null,
+    });
+  });
+
+  it("carries the cost it was given", () => {
+    expect(lotOfOpeningCount({ ...COUNT, cost: { totalCents: 1, quantity: 3 } })).toMatchObject({
+      cost: { totalCents: 1, quantity: 3 },
     });
   });
 
