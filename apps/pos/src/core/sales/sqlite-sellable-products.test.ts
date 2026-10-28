@@ -39,10 +39,10 @@ function addProduct(id: string, options: ProductOptions = {}): void {
     );
 }
 
-function addBrand(id: string, name: string, options: { active?: boolean; removed?: boolean } = {}) {
+function addBrand(id: string, name: string, options: { active?: boolean } = {}) {
   database
-    .prepare("INSERT INTO brands (id, name, active, version, removed) VALUES (?, ?, ?, 1, ?)")
-    .run(id, name, options.active === false ? 0 : 1, options.removed ? 1 : 0);
+    .prepare("INSERT INTO brands (id, name, active, version) VALUES (?, ?, ?, 1)")
+    .run(id, name, options.active === false ? 0 : 1);
 }
 
 function addBarcode(productId: string, code: string, active = true, position = 1): void {
@@ -251,18 +251,14 @@ describe("the name a sellable product is shown with", () => {
   it("carries the brand's current name once the brand is renamed", () => {
     addBrand("b1", "Vitora");
     addProduct("p1", { name: "Aceite de Almendras", brandId: "b1" });
-    database.prepare("UPDATE brands SET name = 'Vitora Natural', version = 2 WHERE id = 'b1'").run();
+    database
+      .prepare("UPDATE brands SET name = 'Vitora Natural', version = 2 WHERE id = 'b1'")
+      .run();
 
     expect(shownNames()).toEqual(everywhere("Aceite de Almendras Vitora Natural"));
   });
 
-  it.each([
-    ["a brand the register has not received", undefined],
-    ["a brand removed from the register's catalog", { removed: true }],
-  ])("leaves out %s", (_case, brand) => {
-    if (brand) {
-      addBrand("b1", "Vitora", brand);
-    }
+  it("leaves out a brand the register has not received", () => {
     addProduct("p1", {
       name: "Aceite de Almendras",
       brandId: "b1",

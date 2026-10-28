@@ -8887,17 +8887,16 @@ describe("the brands migration", () => {
     }
   });
 
-  it("refuses a brand whose active or removed flag is neither 0 nor 1", () => {
+  it("refuses a brand whose active flag is neither 0 nor 1", () => {
     const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
     try {
-      const insert = (active: number, removed: number) =>
+      const insert = (active: number) =>
         database
-          .prepare("INSERT INTO brands (id, name, active, version, removed) VALUES (?, 'Vitora', ?, 1, ?)")
-          .run(`b-${active}-${removed}`, active, removed);
+          .prepare("INSERT INTO brands (id, name, active, version) VALUES (?, 'Vitora', ?, 1)")
+          .run(`b-${active}`, active);
 
-      expect(() => insert(1, 0)).not.toThrow();
-      expect(() => insert(2, 0)).toThrow(/CHECK/);
-      expect(() => insert(1, 2)).toThrow(/CHECK/);
+      expect(() => insert(1)).not.toThrow();
+      expect(() => insert(2)).toThrow(/CHECK/);
     } finally {
       database.close();
     }

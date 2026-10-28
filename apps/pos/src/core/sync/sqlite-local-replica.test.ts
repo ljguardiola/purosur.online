@@ -750,7 +750,7 @@ describe("the register's local copy of what it pulls", () => {
 
   it("saves a brand with its version, and a newer version replaces it while an older or the same one does not", async () => {
     await save(brandChange(1, brandRow({ version: 2 })));
-    expect(replica.brand(BRAND_ID)).toEqual({ ...brandRow({ version: 2 }), removed: false });
+    expect(replica.brand(BRAND_ID)).toEqual(brandRow({ version: 2 }));
 
     await save(
       brandChange(2, brandRow({ name: "Vieja", version: 1 })),
@@ -759,12 +759,7 @@ describe("the register's local copy of what it pulls", () => {
     expect(replica.brand(BRAND_ID)).toMatchObject({ name: "Vitora", version: 2 });
 
     await save(brandChange(4, brandRow({ name: "Vitora Natural", active: false, version: 3 })));
-    expect(replica.brand(BRAND_ID)).toEqual({
-      name: "Vitora Natural",
-      active: false,
-      version: 3,
-      removed: false,
-    });
+    expect(replica.brand(BRAND_ID)).toEqual({ name: "Vitora Natural", active: false, version: 3 });
   });
 
   it("saves the tags a product carries, marking the ones a newer version no longer carries as inactive instead of deleting them", async () => {

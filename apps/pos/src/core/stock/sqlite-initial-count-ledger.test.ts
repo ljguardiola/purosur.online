@@ -216,9 +216,7 @@ describe("the lines of the initial count", () => {
 
   it("reads a counted line with its product's name, brand and net content", () => {
     database
-      .prepare(
-        "INSERT INTO brands (id, name, active, version, removed) VALUES ('b1', 'Vitora', 1, 1, 0)",
-      )
+      .prepare("INSERT INTO brands (id, name, active, version) VALUES ('b1', 'Vitora', 1, 1)")
       .run();
     database
       .prepare(

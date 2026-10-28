@@ -438,11 +438,11 @@ export class SqliteLocalReplica
 
   brand(id: string) {
     const record = this.database
-      .prepare<[string], { name: string; active: number; version: number; removed: number }>(
-        "SELECT name, active, version, removed FROM brands WHERE id = ?",
+      .prepare<[string], { name: string; active: number; version: number }>(
+        "SELECT name, active, version FROM brands WHERE id = ?",
       )
       .get(id);
-    return record && { ...record, active: record.active === 1, removed: record.removed === 1 };
+    return record && { ...record, active: record.active === 1 };
   }
 
   priceList(id: string) {

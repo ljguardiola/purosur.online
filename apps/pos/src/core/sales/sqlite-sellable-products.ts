@@ -14,8 +14,7 @@ export const SHOWN_PRODUCT_COLUMNS = `products.name AS name, brands.name AS bran
   products.net_content_quantity AS net_content_quantity,
   products.net_content_unit AS net_content_unit`;
 
-export const JOIN_PRODUCT_BRAND =
-  "LEFT JOIN brands ON brands.id = products.brand_id AND brands.removed = 0";
+export const JOIN_PRODUCT_BRAND = "LEFT JOIN brands ON brands.id = products.brand_id";
 
 export function shownProductName(row: ShownProductColumns): string {
   return formatProductDescription({
