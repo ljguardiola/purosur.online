@@ -316,6 +316,7 @@ export const initialLotAlmonds: InitialLot = {
   costIncomplete: false,
   unitCostCents: 1_018_000,
   valueCents: 4_479_200,
+  supplierPrices: [],
 };
 
 export const initialLotHoney: InitialLot = {
@@ -331,6 +332,7 @@ export const initialLotHoney: InitialLot = {
   costIncomplete: false,
   unitCostCents: 544_000,
   valueCents: 13_056_000,
+  supplierPrices: [],
 };
 
 export const initialLotTeaWithoutCost: InitialLot = {
@@ -346,6 +348,7 @@ export const initialLotTeaWithoutCost: InitialLot = {
   costIncomplete: true,
   unitCostCents: null,
   valueCents: null,
+  supplierPrices: [],
 };
 
 export const initialLotWithdrawnStillHeld: InitialLot = {
@@ -361,4 +364,5 @@ export const initialLotWithdrawnStillHeld: InitialLot = {
   costIncomplete: true,
   unitCostCents: null,
   valueCents: null,
+  supplierPrices: [],
 };
