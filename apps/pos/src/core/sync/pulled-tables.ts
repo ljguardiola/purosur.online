@@ -8,6 +8,7 @@ export const PULLED_TABLES = {
   product_barcodes: "product",
   product_tags: "product",
   tags: "tag",
+  brands: "brand",
   price_lists: "price_list",
   prices: "price",
   users: "user",

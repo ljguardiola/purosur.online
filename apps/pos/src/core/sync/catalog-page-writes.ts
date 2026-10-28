@@ -64,6 +64,13 @@ export function prepareCatalogPageWrites(database: LocalDatabase, mode: PageWrit
        name = excluded.name, active = excluded.active, version = excluded.version, removed = 0
      WHERE excluded.version ${accepts} tags.version`,
   );
+  const saveBrand = database.prepare(
+    `INSERT INTO brands (id, name, active, version, removed)
+     VALUES (@id, @name, @active, @version, 0)
+     ON CONFLICT (id) DO UPDATE SET
+       name = excluded.name, active = excluded.active, version = excluded.version, removed = 0
+     WHERE excluded.version ${accepts} brands.version`,
+  );
   const savePriceList = database.prepare(
     `INSERT INTO price_lists (id, name, version) VALUES (@id, @name, @version)
      ON CONFLICT (id) DO UPDATE SET name = excluded.name, version = excluded.version
@@ -148,6 +155,15 @@ export function prepareCatalogPageWrites(database: LocalDatabase, mode: PageWrit
 
     tag({ entity_id, row }: ChangeOf<"tag">): void {
       saveTag.run({
+        id: entity_id,
+        name: row.name,
+        active: row.active ? 1 : 0,
+        version: row.version,
+      });
+    },
+
+    brand({ entity_id, row }: ChangeOf<"brand">): void {
+      saveBrand.run({
         id: entity_id,
         name: row.name,
         active: row.active ? 1 : 0,
