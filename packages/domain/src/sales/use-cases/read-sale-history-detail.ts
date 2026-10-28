@@ -1,8 +1,4 @@
-import {
-  invoiceToCorrect,
-  type VoidCreditNoteStanding,
-  type VoucherReference,
-} from "../../fiscal/index.js";
+import { invoiceToCorrect, type VoucherReference } from "../../fiscal/index.js";
 import {
   isRefundSentByCloud,
   type PlannedRefundState,
@@ -24,7 +20,11 @@ import {
 import { type SaleVoidRefusal, saleVoidRefusal } from "../model/sale-void.js";
 import { receiptDeliveryOf } from "./receipt-delivery-of.js";
 import type { ReceiptLedger } from "./receipt-ports.js";
-import type { RegisterSalesHistory, SaleHistoryRecord } from "./register-sales-history.js";
+import type {
+  RegisterSalesHistory,
+  SaleHistoryCreditNote,
+  SaleHistoryRecord,
+} from "./register-sales-history.js";
 
 export interface ReadSaleHistoryDetailPorts {
   history: RegisterSalesHistory;
@@ -49,6 +49,10 @@ export type SaleVoidability =
     }
   | { kind: "not_voidable"; refusal: SaleVoidRefusal };
 
+export interface SaleHistoryDetailCreditNote extends SaleHistoryCreditNote {
+  nextCopy: ReceiptCopy | null;
+}
+
 export interface SaleHistoryDetail {
   saleId: string;
   occurredAt: Date;
@@ -60,11 +64,9 @@ export interface SaleHistoryDetail {
   payments: SaleHistoryRecord["payments"];
   standing: SaleStanding;
   voidability: SaleVoidability;
-  creditNote: VoidCreditNoteStanding | null;
-  creditNoteId: string | null;
+  creditNotes: SaleHistoryDetailCreditNote[];
   reprint: SaleReceiptAvailability;
   nextCopy: ReceiptCopy;
-  creditNoteNextCopy: ReceiptCopy | null;
   deferredInvoiceNextCopy: ReceiptCopy | null;
   shortCode: string | null;
 }
@@ -90,14 +92,9 @@ export function readSaleHistoryDetail(
     invoices: _invoices,
     deferredInvoiceIssued,
     deferredShortCode,
+    creditNotes,
     ...shown
   } = record;
-  const { creditNoteId } = record;
-  const creditNoteDelivery =
-    creditNoteId !== null &&
-    (record.creditNote?.kind === "authorized" || record.creditNote?.kind === "issued_offline")
-      ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId, creditNoteId })
-      : undefined;
   const deferredInvoiceDelivery = deferredInvoiceIssued
     ? receiptDeliveryOf({ ledger }, { document: "deferred_invoice", saleId })
     : undefined;
@@ -105,17 +102,32 @@ export function readSaleHistoryDetail(
     kind: "found",
     detail: {
       ...shown,
+      creditNotes: creditNotes.map((creditNote) => ({
+        ...creditNote,
+        nextCopy: nextCopyOfCreditNote(ledger, saleId, creditNote),
+      })),
       comprobante: saleComprobanteOf(fiscal),
       standing: saleStandingOf({ ...fiscal, voided }),
       voidability: saleVoidabilityOf(record),
       reprint: receiptPrintAvailability("sale_receipt", { voided }),
       nextCopy: delivery.nextCopy,
-      creditNoteNextCopy: creditNoteDelivery?.kind === "found" ? creditNoteDelivery.nextCopy : null,
       deferredInvoiceNextCopy:
         deferredInvoiceDelivery?.kind === "found" ? deferredInvoiceDelivery.nextCopy : null,
       shortCode: deferredShortCode,
     },
   };
+}
+
+function nextCopyOfCreditNote(
+  ledger: ReceiptLedger,
+  saleId: string,
+  { creditNoteId, standing }: SaleHistoryCreditNote,
+): ReceiptCopy | null {
+  if (standing.kind !== "authorized" && standing.kind !== "issued_offline") {
+    return null;
+  }
+  const delivery = receiptDeliveryOf({ ledger }, { document: "credit_note", saleId, creditNoteId });
+  return delivery.kind === "found" ? delivery.nextCopy : null;
 }
 
 function saleVoidabilityOf({
