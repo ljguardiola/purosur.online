@@ -155,7 +155,11 @@ describe("withReturnsOfBranch", () => {
   it("adds the returns this register made that the branch did not count", () => {
     const outcome = withReturnsOfBranch(heldHere(), knownToBranch(), [], [localReturn()]);
 
-    expect(outcome.returned[0]).toEqual({ saleLineId: "line-1", quantity: 3, refundedAmount: 3000 });
+    expect(outcome.returned[0]).toEqual({
+      saleLineId: "line-1",
+      quantity: 3,
+      refundedAmount: 3000,
+    });
     expect(outcome.payments[0]?.refundedAmount).toBe(3000);
   });
 
@@ -167,7 +171,11 @@ describe("withReturnsOfBranch", () => {
       [localReturn()],
     );
 
-    expect(outcome.returned[0]).toEqual({ saleLineId: "line-1", quantity: 1, refundedAmount: 1000 });
+    expect(outcome.returned[0]).toEqual({
+      saleLineId: "line-1",
+      quantity: 1,
+      refundedAmount: 1000,
+    });
     expect(outcome.payments[0]?.refundedAmount).toBe(1000);
   });
 
