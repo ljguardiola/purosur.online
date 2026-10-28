@@ -185,6 +185,26 @@ describe("tone text on its own message background contrast", () => {
   }
 });
 
+const highlightedFigureTextTones = {
+  "text-eyebrow": AA_TEXT_CONTRAST,
+  "text-subtle": AAA_TEXT_CONTRAST,
+} satisfies Record<string, number>;
+
+describe("highlighted figure text on its pale green background contrast", () => {
+  for (const [tone, threshold] of Object.entries(highlightedFigureTextTones)) {
+    it(`${tone} reaches ${threshold}:1 against success-subtle`, () => {
+      const textHex = colors[tone];
+      const backgroundHex = colors["success-subtle"];
+
+      expect(textHex, `${tone} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(backgroundHex).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+        threshold,
+      );
+    });
+  }
+});
+
 describe("option card help text on its chosen background contrast", () => {
   it(`text-subtle reaches ${AAA_TEXT_CONTRAST}:1 against action-subtle`, () => {
     const textHex = colors["text-subtle"];
