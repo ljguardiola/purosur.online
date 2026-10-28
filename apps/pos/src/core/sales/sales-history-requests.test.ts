@@ -350,11 +350,9 @@ describe("the detail of a sale of the history", () => {
           credit_note_corrects: { point_of_sale: 3, number: 1204 },
         },
         void_authorization_required: true,
-        credit_note: null,
-        credit_note_id: null,
+        credit_notes: [],
         reprint: { kind: "available" },
         next_copy: { kind: "original" },
-        credit_note_next_copy: null,
         deferred_invoice_next_copy: null,
         short_code: null,
       },
@@ -531,7 +529,7 @@ describe("the detail of a sale of the history", () => {
 
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
-      expect(answer.kind === "found" && answer.detail.credit_note).toEqual({
+      expect(answer.kind === "found" && answer.detail.credit_notes[0]?.standing).toEqual({
         kind: "in_progress",
       });
     });
@@ -550,7 +548,7 @@ describe("the detail of a sale of the history", () => {
 
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
-      expect(answer.kind === "found" && answer.detail.credit_note).toEqual({
+      expect(answer.kind === "found" && answer.detail.credit_notes[0]?.standing).toEqual({
         kind: "authorized",
         point_of_sale: 3,
         number: 7,
@@ -565,7 +563,7 @@ describe("the detail of a sale of the history", () => {
 
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
-      expect(answer.kind === "found" && answer.detail.credit_note).toEqual({
+      expect(answer.kind === "found" && answer.detail.credit_notes[0]?.standing).toEqual({
         kind: "already_credited",
       });
     });
@@ -575,7 +573,9 @@ describe("the detail of a sale of the history", () => {
 
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
-      expect(answer.kind === "found" && answer.detail.credit_note).toEqual({ kind: "rejected" });
+      expect(answer.kind === "found" && answer.detail.credit_notes[0]?.standing).toEqual({
+        kind: "rejected",
+      });
     });
 
     const AUTHORIZED = {
@@ -589,12 +589,24 @@ describe("the detail of a sale of the history", () => {
       answered_at: "2026-10-08T10:00:05.000Z",
     };
 
-    it("names the credit note the sale holds", async () => {
+    it("names the credit note the sale holds as the void's", async () => {
       addCreditNote({});
 
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
-      expect(answer.kind === "found" && answer.detail.credit_note_id).toBe("note-1");
+      expect(answer.kind === "found" && answer.detail.credit_notes).toMatchObject([
+        { credit_note_id: "note-1", origin: "sale_void" },
+      ]);
+    });
+
+    it("answers a credit note to regularize as such", async () => {
+      addCreditNote({ state: "REGULARIZATION_REQUIRED", answered_at: "2026-10-08T10:00:05.000Z" });
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_notes[0]?.standing).toEqual({
+        kind: "regularization_required",
+      });
     });
 
     it("answers its original as the next printing of an authorized credit note never printed", async () => {
@@ -602,7 +614,7 @@ describe("the detail of a sale of the history", () => {
 
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
-      expect(answer.kind === "found" && answer.detail.credit_note_next_copy).toEqual({
+      expect(answer.kind === "found" && answer.detail.credit_notes[0]?.next_copy).toEqual({
         kind: "original",
       });
     });
@@ -611,14 +623,14 @@ describe("the detail of a sale of the history", () => {
       addCreditNote(AUTHORIZED);
       database.exec(
         `INSERT INTO credit_note_prints (credit_note_id, print_attempted_at) VALUES ('note-1', '2026-10-08T10:01:00.000Z');
-         INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
-         VALUES ('gone', 'credit_note', 1, 'clerk', 'retry', '2026-10-08T10:02:00.000Z')`,
+         INSERT INTO sale_reprints (sale_id, document, credit_note_id, order_number, requested_by, reason_kind, occurred_at)
+         VALUES ('gone', 'credit_note', 'note-1', 1, 'clerk', 'retry', '2026-10-08T10:02:00.000Z')`,
       );
 
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
       expect(answer.kind === "found" && answer.detail).toMatchObject({
-        credit_note_next_copy: { kind: "duplicate", order_number: 2 },
+        credit_notes: [{ next_copy: { kind: "duplicate", order_number: 2 } }],
         next_copy: { kind: "original" },
       });
     });
@@ -628,7 +640,171 @@ describe("the detail of a sale of the history", () => {
 
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
-      expect(answer.kind === "found" && answer.detail.credit_note_next_copy).toBeNull();
+      expect(answer.kind === "found" && answer.detail.credit_notes[0]?.next_copy).toBeNull();
+    });
+  });
+
+  describe("the credit notes of a sale with returns", () => {
+    const AUTHORIZED_ANSWER = {
+      state: "AUTHORIZED",
+      issued_on: "2026-10-09",
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-19",
+      answered_at: "2026-10-09T10:00:05.000Z",
+    };
+
+    function addSaleWithReturns(): void {
+      addSale({
+        id: "gone",
+        occurredAt: "2026-10-08T10:00:00.000Z",
+        operationNumber: 2,
+        state: "COMPLETED",
+      });
+    }
+
+    function addReturnCreditNote(
+      noteId: string,
+      returnId: string,
+      recordedAt: string,
+      answer: Record<string, string | number | null>,
+    ): void {
+      database
+        .prepare(
+          `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+           VALUES (@return_id, 'gone', 'r1', 'device-1', 's1', 'clerk', 'QR', @recorded_at)`,
+        )
+        .run({ return_id: returnId, recorded_at: recordedAt });
+      database
+        .prepare(
+          `INSERT INTO sale_credit_notes (
+             id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+             corrected_voucher_type, corrected_point_of_sale, corrected_number, state,
+             point_of_sale, number, issued_on, issued_at, authorization_code,
+             authorization_code_due_on, recorded_at, answered_at
+           ) VALUES (
+             @id, 'gone', @return_id, '2026-10-09', 1000, 5, 11, 3, 41, @state, @point_of_sale,
+             @number, @issued_on, @issued_at, @authorization_code, @authorization_code_due_on,
+             @recorded_at, @answered_at
+           )`,
+        )
+        .run({
+          id: noteId,
+          return_id: returnId,
+          recorded_at: recordedAt,
+          state: "IN_PROGRESS",
+          point_of_sale: null,
+          number: null,
+          issued_on: null,
+          issued_at: null,
+          authorization_code: null,
+          authorization_code_due_on: null,
+          answered_at: null,
+          ...answer,
+        });
+    }
+
+    it("lists the credit notes of two returns, each with its standing and number, in the order they were issued", async () => {
+      addSaleWithReturns();
+      addReturnCreditNote("note-second", "return-2", "2026-10-09T11:00:00.000Z", {
+        ...AUTHORIZED_ANSWER,
+        point_of_sale: 3,
+        number: 9,
+        issued_at: "2026-10-09T11:00:03.000Z",
+      });
+      addReturnCreditNote("note-first", "return-1", "2026-10-09T10:00:00.000Z", {
+        ...AUTHORIZED_ANSWER,
+        point_of_sale: 3,
+        number: 8,
+        issued_at: "2026-10-09T10:00:03.000Z",
+      });
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_notes).toEqual([
+        {
+          credit_note_id: "note-first",
+          origin: "sale_return",
+          standing: {
+            kind: "authorized",
+            point_of_sale: 3,
+            number: 8,
+            issued_on: "2026-10-09",
+            authorization_code: "75123456789012",
+            authorization_code_due_on: "2026-10-19",
+          },
+          next_copy: { kind: "original" },
+        },
+        {
+          credit_note_id: "note-second",
+          origin: "sale_return",
+          standing: {
+            kind: "authorized",
+            point_of_sale: 3,
+            number: 9,
+            issued_on: "2026-10-09",
+            authorization_code: "75123456789012",
+            authorization_code_due_on: "2026-10-19",
+          },
+          next_copy: { kind: "original" },
+        },
+      ]);
+    });
+
+    it("counts the next printing of each credit note by its own reprints", async () => {
+      addSaleWithReturns();
+      addReturnCreditNote("note-first", "return-1", "2026-10-09T10:00:00.000Z", {
+        ...AUTHORIZED_ANSWER,
+        point_of_sale: 3,
+        number: 8,
+        issued_at: "2026-10-09T10:00:03.000Z",
+      });
+      addReturnCreditNote("note-second", "return-2", "2026-10-09T11:00:00.000Z", {
+        ...AUTHORIZED_ANSWER,
+        point_of_sale: 3,
+        number: 9,
+        issued_at: "2026-10-09T11:00:03.000Z",
+      });
+      database.exec(
+        `INSERT INTO credit_note_prints (credit_note_id, print_attempted_at) VALUES ('note-first', '2026-10-09T10:01:00.000Z');
+         INSERT INTO sale_reprints (sale_id, document, credit_note_id, order_number, requested_by, reason_kind, occurred_at)
+         VALUES ('gone', 'credit_note', 'note-first', 1, 'clerk', 'retry', '2026-10-09T10:02:00.000Z')`,
+      );
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(
+        answer.kind === "found" && answer.detail.credit_notes.map((note) => note.next_copy),
+      ).toEqual([{ kind: "duplicate", order_number: 2 }, { kind: "original" }]);
+    });
+
+    it("lists the void's credit note first and the credit notes of the returns after it", async () => {
+      addSaleWithReturns();
+      database
+        .prepare(
+          `INSERT INTO sale_credit_notes (
+             id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+             corrected_point_of_sale, corrected_number, state, recorded_at
+           ) VALUES ('note-void', 'gone', 2000, 5, 11, 3, 41, 'IN_PROGRESS', '2026-10-08T12:00:00.000Z')`,
+        )
+        .run();
+      addReturnCreditNote("note-return", "return-1", "2026-10-08T11:00:00.000Z", {
+        state: "REGULARIZATION_REQUIRED",
+        answered_at: "2026-10-08T11:00:05.000Z",
+      });
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(
+        answer.kind === "found" &&
+          answer.detail.credit_notes.map(({ credit_note_id, origin, standing }) => [
+            credit_note_id,
+            origin,
+            standing.kind,
+          ]),
+      ).toEqual([
+        ["note-return", "sale_return", "regularization_required"],
+        ["note-void", "sale_void", "in_progress"],
+      ]);
     });
   });
 
