@@ -8847,3 +8847,50 @@ describe("the credit note reprints migration", () => {
     });
   });
 });
+
+describe("the brands migration", () => {
+  const MIGRATION = "0090_brands";
+
+  it("keeps every product the register holds with its brand, and starts with no brands until the next pull", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO products (id, name, category_id, sale_unit, active, version, removed, brand_id)
+         VALUES ('p1', 'Aceite de Almendras', 'c', 'UNIT', 1, 1, 0, 'b1')`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        expect(after.prepare("SELECT id, brand_id FROM products").all()).toEqual([
+          { id: "p1", brand_id: "b1" },
+        ]);
+        expect(after.prepare("SELECT id FROM brands").all()).toEqual([]);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a brand whose active or removed flag is neither 0 nor 1", () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    try {
+      const insert = (active: number, removed: number) =>
+        database
+          .prepare("INSERT INTO brands (id, name, active, version, removed) VALUES (?, 'Vitora', ?, 1, ?)")
+          .run(`b-${active}-${removed}`, active, removed);
+
+      expect(() => insert(1, 0)).not.toThrow();
+      expect(() => insert(2, 0)).toThrow(/CHECK/);
+      expect(() => insert(1, 2)).toThrow(/CHECK/);
+    } finally {
+      database.close();
+    }
+  });
+});
