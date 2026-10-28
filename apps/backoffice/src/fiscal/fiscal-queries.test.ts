@@ -101,3 +101,33 @@ test("keys the detail of each issued document apart", () => {
     fiscalKeys.issuedDocument({ voucher_type: 11, point_of_sale: 3, number: 2 }),
   );
 });
+
+test("invalidating the fiscal key marks the issued documents report stale", async () => {
+  const client = new QueryClient();
+  client.setQueryData(fiscalKeys.issuedDocumentsReport({}), {});
+
+  await client.invalidateQueries({ queryKey: fiscalKey, refetchType: "none" });
+
+  expect(client.getQueryState(fiscalKeys.issuedDocumentsReport({}))?.isInvalidated).toBe(true);
+});
+
+test("each range and register has its own issued documents report key", () => {
+  const registerId = "11111111-1111-4111-8111-111111111111";
+  const keys = [
+    fiscalKeys.issuedDocumentsReport({}),
+    fiscalKeys.issuedDocumentsReport({ from: "2026-10-01", to: "2026-10-07" }),
+    fiscalKeys.issuedDocumentsReport({ from: "2026-10-01", to: "2026-10-08" }),
+    fiscalKeys.issuedDocumentsReport({ from: "2026-09-30", to: "2026-10-07" }),
+    fiscalKeys.issuedDocumentsReport({ register_id: registerId }),
+    fiscalKeys.issuedDocumentsReport({
+      from: "2026-10-01",
+      to: "2026-10-07",
+      register_id: registerId,
+    }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+  expect(JSON.stringify(fiscalKeys.issuedDocumentsReport({}))).not.toBe(
+    JSON.stringify(fiscalKeys.issuedDocuments({})),
+  );
+});

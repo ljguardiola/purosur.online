@@ -10,6 +10,7 @@ import {
   issuedTime,
   voucherDetailText,
   voucherText,
+  voucherTypeText,
 } from "./issued-fiscal-document-text";
 import {
   authorizedReceipt,
@@ -109,4 +110,12 @@ test("names the receipt a credit note corrects", () => {
   expect(correctedVoucherText({ voucher_type: 11, point_of_sale: 3, number: 1246 })).toBe(
     "Corrige la Factura C 00003-00001246",
   );
+});
+
+test.each([
+  [11, "Factura C"],
+  [13, "Nota de crédito C"],
+  [99, "Comprobante tipo 99"],
+])("names voucher type %i as %s", (voucherType, name) => {
+  expect(voucherTypeText(voucherType)).toBe(name);
 });
