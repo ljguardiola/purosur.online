@@ -7,7 +7,7 @@ import {
   formatPointOfSaleNumber,
   formatShortCode,
 } from "@purosur/ui/formatters";
-import { encodePc850 } from "../sales/receipt-printer/pc850";
+import { encodePc850 } from "../platform/escpos/pc850";
 
 export type BackedDocument =
   | { kind: "invoice"; pointOfSale: number; number: number }

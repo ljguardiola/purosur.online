@@ -22,7 +22,7 @@ import {
   formatPointOfSaleNumber,
   formatShortCode,
 } from "@purosur/ui/formatters";
-import { encodePc850 } from "./pc850";
+import { encodePc850 } from "../../platform/escpos/pc850";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
 type InvoiceBlock = Extract<NonNullable<ReceiptContent["fiscal"]>, { invoiceClass: "C" }>;
