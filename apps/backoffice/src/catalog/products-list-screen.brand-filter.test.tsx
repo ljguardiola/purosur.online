@@ -9,7 +9,16 @@ import {
   lavenderOil,
   serenisima,
 } from "./test-support/products";
-import { createServices, mockLoaded, renderScreen } from "./test-support/products-list-screen";
+import {
+  createServices,
+  mockLoaded,
+  renderScreen,
+  type Screen,
+} from "./test-support/products-list-screen";
+
+function brandFilter(screen: Screen) {
+  return screen.getByRole("combobox", { name: /Marca/ });
+}
 
 const brands = [serenisima, hierbasDelOasis];
 const products = [almondOil, lavenderOil, creamCheese, honey];
@@ -24,7 +33,7 @@ test("filtering by a brand lists only that brand's products", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Marca: Todas" }));
+  await userEvent.click(brandFilter(screen));
   await userEvent.click(screen.getByRole("option", { name: "Hierbas del Oasis" }));
 
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
@@ -40,7 +49,7 @@ test("filtering by Sin marca lists only the products with no brand", async () =>
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Marca: Todas" }));
+  await userEvent.click(brandFilter(screen));
   await userEvent.click(screen.getByRole("option", { name: "Sin marca" }));
 
   await expect.element(screen.getByText("1 producto activo")).toBeVisible();
@@ -57,7 +66,7 @@ test("offers Todas, Sin marca and then the brands that have listed products by n
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Marca: Todas" }));
+  await userEvent.click(brandFilter(screen));
 
   const labels = screen
     .getByRole("option")
@@ -71,9 +80,9 @@ test("typing in the brand filter narrows its options", async () => {
   mockLoaded(services, products, undefined, brands);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Marca: Todas" }));
+  await userEvent.click(brandFilter(screen));
 
-  await userEvent.fill(screen.getByRole("combobox", { name: "Marca:" }), "sere");
+  await userEvent.fill(brandFilter(screen), "sere");
 
   await expect.element(screen.getByRole("option", { name: "Serenísima" })).toBeVisible();
   expect(screen.getByRole("option", { name: "Hierbas del Oasis" }).query()).toBeNull();
@@ -86,7 +95,7 @@ test("reports the chosen brand to the URL", async () => {
   const screen = await renderScreen(services, () => {}, { onFiltersChange });
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Marca: Todas" }));
+  await userEvent.click(brandFilter(screen));
   await userEvent.click(screen.getByRole("option", { name: "Serenísima" }));
 
   expect(onFiltersChange).toHaveBeenLastCalledWith({
@@ -103,7 +112,7 @@ test("opens on the brand it is given", async () => {
     filters: { ...productsListFilters.parse({}), brand: serenisima.id },
   });
 
-  await expect.element(screen.getByRole("button", { name: "Marca: Serenísima" })).toBeVisible();
+  await expect.element(brandFilter(screen)).toHaveValue("Serenísima");
   await expect.element(screen.getByText("Queso crema")).toBeVisible();
   expect(screen.getByText("Aceite de Almendras").query()).toBeNull();
 });
@@ -119,6 +128,6 @@ test("falls back to every brand when the brand it is given is not one the list o
   });
 
   await expect.element(screen.getByText("4 productos activos")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Marca: Todas" })).toBeVisible();
+  await expect.element(brandFilter(screen)).toHaveValue("Todas");
   expect(onFiltersChange).toHaveBeenLastCalledWith(productsListFilters.parse({}));
 });
