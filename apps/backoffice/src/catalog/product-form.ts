@@ -48,7 +48,7 @@ export const EMPTY_PRODUCT_FORM: ProductFormValues = {
   name: "",
   categoryId: null,
   brandId: NO_BRAND,
-  saleUnit: null,
+  saleUnit: "UNIT",
   netContent: { quantity: "", unit: "G" },
   barcodes: { codes: [], scan: "" },
   tagIds: [],
