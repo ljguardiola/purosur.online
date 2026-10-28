@@ -10,9 +10,9 @@ const PASSING = {
   visualResult: "success",
 };
 
-test("passes on a push when static, tests and visual all succeed", () => {
+test("passes when skipping is not allowed and static, tests and visual all succeed", () => {
   const decision = decideVerifyResult({
-    eventName: "push",
+    scopeSkipAllowed: "false",
     scopeResult: "skipped",
     scopeDocsOnly: "",
     staticResult: "success",
@@ -23,9 +23,9 @@ test("passes on a push when static, tests and visual all succeed", () => {
   assert.equal(decision.ok, true);
 });
 
-test("fails on a push when static fails, even though scope was never run", () => {
+test("fails when skipping is not allowed and static fails, even though scope was never run", () => {
   const decision = decideVerifyResult({
-    eventName: "push",
+    scopeSkipAllowed: "false",
     scopeResult: "skipped",
     scopeDocsOnly: "",
     staticResult: "failure",
@@ -37,9 +37,9 @@ test("fails on a push when static fails, even though scope was never run", () =>
   assert.match(decision.reason, /static/);
 });
 
-test("fails on a push when the test shards fail", () => {
+test("fails when skipping is not allowed and the test shards fail", () => {
   const decision = decideVerifyResult({
-    eventName: "push",
+    scopeSkipAllowed: "false",
     scopeResult: "skipped",
     scopeDocsOnly: "",
     staticResult: "success",
@@ -51,9 +51,9 @@ test("fails on a push when the test shards fail", () => {
   assert.match(decision.reason, /tests/);
 });
 
-test("passes on a pull request when scope says docs-only and static/tests were skipped", () => {
+test("passes when skipping is allowed and scope says docs-only and static/tests were skipped", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "true",
     staticResult: "skipped",
@@ -65,9 +65,9 @@ test("passes on a pull request when scope says docs-only and static/tests were s
   assert.equal(decision.ok, true);
 });
 
-test("passes on a pull request when scope says docs-only and static/tests still ran and succeeded", () => {
+test("passes when skipping is allowed and scope says docs-only and static/tests still ran and succeeded", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "true",
     staticResult: "success",
@@ -78,9 +78,9 @@ test("passes on a pull request when scope says docs-only and static/tests still 
   assert.equal(decision.ok, true);
 });
 
-test("fails on a pull request when scope says docs-only but static still failed", () => {
+test("fails when skipping is allowed and scope says docs-only but static still failed", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "true",
     staticResult: "failure",
@@ -94,7 +94,7 @@ test("fails on a pull request when scope says docs-only but static still failed"
 
 test("requires static and tests to have actually run when scope says the change is not docs-only", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     staticResult: "skipped",
@@ -105,9 +105,9 @@ test("requires static and tests to have actually run when scope says the change 
   assert.equal(decision.ok, false);
 });
 
-test("passes on a pull request whose scope failed once static and tests ran and succeeded", () => {
+test("passes when skipping is allowed but scope failed, once static and tests ran and succeeded", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "failure",
     scopeDocsOnly: "",
     staticResult: "success",
@@ -119,9 +119,9 @@ test("passes on a pull request whose scope failed once static and tests ran and 
 });
 
 for (const scopeResult of ["failure", "cancelled"]) {
-  test(`fails a pull request whose scope ended ${scopeResult} while static and tests were skipped`, () => {
+  test(`fails a run allowed to skip whose scope ended ${scopeResult} while static and tests were skipped`, () => {
     const decision = decideVerifyResult({
-      eventName: "pull_request",
+      scopeSkipAllowed: "true",
       scopeResult,
       scopeDocsOnly: "true",
       staticResult: "skipped",
@@ -133,9 +133,9 @@ for (const scopeResult of ["failure", "cancelled"]) {
   });
 }
 
-test("fails a push that claims docs-only while static and tests were skipped", () => {
+test("fails a run not allowed to skip that claims docs-only while static and tests were skipped", () => {
   const decision = decideVerifyResult({
-    eventName: "push",
+    scopeSkipAllowed: "false",
     scopeResult: "success",
     scopeDocsOnly: "true",
     staticResult: "skipped",
@@ -149,7 +149,7 @@ test("fails a push that claims docs-only while static and tests were skipped", (
 for (const missing of [undefined, ""]) {
   test(`fails when the static result is ${JSON.stringify(missing)}`, () => {
     const decision = decideVerifyResult({
-      eventName: "pull_request",
+      scopeSkipAllowed: "true",
       scopeResult: "success",
       scopeDocsOnly: "false",
       staticResult: missing,
@@ -163,7 +163,7 @@ for (const missing of [undefined, ""]) {
 
   test(`fails when the tests result is ${JSON.stringify(missing)}`, () => {
     const decision = decideVerifyResult({
-      eventName: "pull_request",
+      scopeSkipAllowed: "true",
       scopeResult: "success",
       scopeDocsOnly: "false",
       staticResult: "success",
@@ -177,14 +177,14 @@ for (const missing of [undefined, ""]) {
 }
 
 test("runCli fails when the static and tests results are not set at all", () => {
-  const { deps } = fakeCli({ EVENT_NAME: "pull_request", SCOPE_RESULT: "success" });
+  const { deps } = fakeCli({ SCOPE_SKIP_ALLOWED: "true", SCOPE_RESULT: "success" });
 
   assert.equal(runCli(deps), 1);
 });
 
 test("fails a cancelled test shard even when static succeeded", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     staticResult: "success",
@@ -196,9 +196,9 @@ test("fails a cancelled test shard even when static succeeded", () => {
   assert.match(decision.reason, /tests/);
 });
 
-test("passes on a pull request when scope says the test shards read no changed path, static ran and tests were skipped", () => {
+test("passes when skipping is allowed and scope says the test shards read no changed path, static ran and tests were skipped", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     staticResult: "success",
@@ -213,7 +213,7 @@ test("passes on a pull request when scope says the test shards read no changed p
 
 test("requires static to have actually run when scope says only the test shards may be skipped", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     staticResult: "skipped",
@@ -226,9 +226,9 @@ test("requires static to have actually run when scope says only the test shards 
   assert.match(decision.reason, /static/);
 });
 
-test("fails on a pull request when scope says the test shards read no changed path but they still failed", () => {
+test("fails when skipping is allowed and scope says the test shards read no changed path but they still failed", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     staticResult: "success",
@@ -241,9 +241,9 @@ test("fails on a pull request when scope says the test shards read no changed pa
   assert.match(decision.reason, /tests/);
 });
 
-test("fails on a pull request when scope says docs-only but the test shards still ran and failed", () => {
+test("fails when skipping is allowed and scope says docs-only but the test shards still ran and failed", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "true",
     staticResult: "skipped",
@@ -259,7 +259,7 @@ test("fails on a pull request when scope says docs-only but the test shards stil
 for (const scopeTestsNeeded of ["true", "", undefined]) {
   test(`requires the test shards to have actually run when scope's tests_needed is ${JSON.stringify(scopeTestsNeeded)}`, () => {
     const decision = decideVerifyResult({
-      eventName: "pull_request",
+      scopeSkipAllowed: "true",
       scopeResult: "success",
       scopeDocsOnly: "true",
       staticResult: "skipped",
@@ -274,9 +274,9 @@ for (const scopeTestsNeeded of ["true", "", undefined]) {
 }
 
 for (const scopeResult of ["failure", "cancelled"]) {
-  test(`fails a pull request whose scope ended ${scopeResult} while claiming the test shards could be skipped`, () => {
+  test(`fails a run allowed to skip whose scope ended ${scopeResult} while claiming the test shards could be skipped`, () => {
     const decision = decideVerifyResult({
-      eventName: "pull_request",
+      scopeSkipAllowed: "true",
       scopeResult,
       scopeDocsOnly: "false",
       staticResult: "success",
@@ -290,9 +290,9 @@ for (const scopeResult of ["failure", "cancelled"]) {
   });
 }
 
-test("fails a push that claims the test shards could be skipped while they were", () => {
+test("fails a run not allowed to skip that claims the test shards could be skipped while they were", () => {
   const decision = decideVerifyResult({
-    eventName: "push",
+    scopeSkipAllowed: "false",
     scopeResult: "success",
     scopeDocsOnly: "false",
     staticResult: "success",
@@ -307,7 +307,7 @@ test("fails a push that claims the test shards could be skipped while they were"
 
 test("runCli reads scope's tests_needed from SCOPE_TESTS_NEEDED", () => {
   const { deps, calls } = fakeCli({
-    EVENT_NAME: "pull_request",
+    SCOPE_SKIP_ALLOWED: "true",
     SCOPE_RESULT: "success",
     SCOPE_DOCS_ONLY: "false",
     SCOPE_TESTS_NEEDED: "false",
@@ -322,7 +322,7 @@ test("runCli reads scope's tests_needed from SCOPE_TESTS_NEEDED", () => {
 
 test("passes when the scope decisively says the catalog is unchanged and visual was skipped", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     scopeCatalogChanged: "false",
@@ -336,7 +336,7 @@ test("passes when the scope decisively says the catalog is unchanged and visual 
 
 test("passes when the scope decisively says the catalog is unchanged and visual still ran and succeeded", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     scopeCatalogChanged: "false",
@@ -350,7 +350,7 @@ test("passes when the scope decisively says the catalog is unchanged and visual 
 
 test("fails when the scope decisively says the catalog is unchanged but visual still failed", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     scopeCatalogChanged: "false",
@@ -365,7 +365,7 @@ test("fails when the scope decisively says the catalog is unchanged but visual s
 
 test("requires visual to have actually run when scope says the catalog changed", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     scopeCatalogChanged: "true",
@@ -378,9 +378,9 @@ test("requires visual to have actually run when scope says the catalog changed",
   assert.match(decision.reason, /visual/);
 });
 
-test("requires visual to have actually run on a push, even though scope's docs-only column never gates a push", () => {
+test("passes when skipping is not allowed and visual ran and succeeded", () => {
   const decision = decideVerifyResult({
-    eventName: "push",
+    scopeSkipAllowed: "false",
     scopeResult: "success",
     scopeDocsOnly: "",
     scopeCatalogChanged: "false",
@@ -392,10 +392,57 @@ test("requires visual to have actually run on a push, even though scope's docs-o
   assert.equal(decision.ok, true);
 });
 
+for (const scopeSkipAllowed of ["false", "", undefined]) {
+  test(`requires visual to have actually run when skip_allowed is ${JSON.stringify(scopeSkipAllowed)}, even if scope says the catalog is unchanged`, () => {
+    const decision = decideVerifyResult({
+      scopeSkipAllowed,
+      scopeResult: "success",
+      scopeDocsOnly: "false",
+      scopeCatalogChanged: "false",
+      staticResult: "success",
+      testsResult: "success",
+      visualResult: "skipped",
+    });
+
+    assert.equal(decision.ok, false);
+    assert.match(decision.reason, /visual/);
+  });
+
+  test(`requires static and tests to have actually run when skip_allowed is ${JSON.stringify(scopeSkipAllowed)}, even if scope says docs-only`, () => {
+    const decision = decideVerifyResult({
+      scopeSkipAllowed,
+      scopeResult: "success",
+      scopeDocsOnly: "true",
+      scopeTestsNeeded: "false",
+      scopeCatalogChanged: "false",
+      staticResult: "skipped",
+      testsResult: "skipped",
+      visualResult: "skipped",
+    });
+
+    assert.equal(decision.ok, false);
+  });
+}
+
+test("passes a docs-only change with every job skipped when skipping is allowed", () => {
+  const decision = decideVerifyResult({
+    scopeSkipAllowed: "true",
+    scopeResult: "success",
+    scopeDocsOnly: "true",
+    scopeTestsNeeded: "false",
+    scopeCatalogChanged: "false",
+    staticResult: "skipped",
+    testsResult: "skipped",
+    visualResult: "skipped",
+  });
+
+  assert.equal(decision.ok, true);
+});
+
 for (const scopeResult of ["failure", "cancelled"]) {
   test(`requires visual to have actually run when scope ended ${scopeResult}, even if it claims catalog_changed=false`, () => {
     const decision = decideVerifyResult({
-      eventName: "pull_request",
+      scopeSkipAllowed: "true",
       scopeResult,
       scopeDocsOnly: "true",
       scopeCatalogChanged: "false",
@@ -411,7 +458,7 @@ for (const scopeResult of ["failure", "cancelled"]) {
 
 test("fails a cancelled visual job even when static and tests succeeded", () => {
   const decision = decideVerifyResult({
-    eventName: "pull_request",
+    scopeSkipAllowed: "true",
     scopeResult: "success",
     scopeDocsOnly: "false",
     scopeCatalogChanged: "true",
@@ -427,7 +474,7 @@ test("fails a cancelled visual job even when static and tests succeeded", () => 
 for (const missing of [undefined, ""]) {
   test(`fails when the visual result is ${JSON.stringify(missing)}`, () => {
     const decision = decideVerifyResult({
-      eventName: "pull_request",
+      scopeSkipAllowed: "true",
       scopeResult: "success",
       scopeDocsOnly: "false",
       scopeCatalogChanged: "true",
@@ -453,7 +500,7 @@ function fakeCli(env) {
 
 test("runCli exits 0 and logs the reason when every required job succeeded", () => {
   const { deps, calls } = fakeCli({
-    EVENT_NAME: "push",
+    SCOPE_SKIP_ALLOWED: "false",
     SCOPE_RESULT: "skipped",
     SCOPE_DOCS_ONLY: "",
     SCOPE_CATALOG_CHANGED: "true",
@@ -471,7 +518,7 @@ test("runCli exits 0 and logs the reason when every required job succeeded", () 
 
 test("runCli exits 1 and logs the reason to stderr when a required job failed", () => {
   const { deps, calls } = fakeCli({
-    EVENT_NAME: "push",
+    SCOPE_SKIP_ALLOWED: "false",
     SCOPE_RESULT: "skipped",
     SCOPE_DOCS_ONLY: "",
     SCOPE_CATALOG_CHANGED: "true",
@@ -491,7 +538,7 @@ test("runCli exits 1 and logs the reason to stderr when a required job failed", 
 const scriptPath = fileURLToPath(new URL("./aggregate-verify-result.mjs", import.meta.url));
 
 const failingJobEnv = {
-  EVENT_NAME: "push",
+  SCOPE_SKIP_ALLOWED: "false",
   SCOPE_RESULT: "skipped",
   SCOPE_CATALOG_CHANGED: "true",
   STATIC_RESULT: "success",
