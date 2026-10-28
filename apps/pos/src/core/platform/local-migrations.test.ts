@@ -937,6 +937,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1047,6 +1048,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1152,6 +1154,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1256,6 +1259,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1389,6 +1393,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1512,6 +1517,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1639,6 +1645,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1774,6 +1781,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1876,6 +1884,7 @@ describe("the register's local migrations", () => {
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
         "0087_voided_assembly_batches",
+        "0088_contingency_backup_ticket_returns",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before

@@ -206,13 +206,14 @@ describe("reading what a ticket prints", () => {
       database
         .prepare(
           `INSERT INTO sale_credit_notes (
-             id, sale_id, return_id, requested_issue_on, total, state, point_of_sale, number,
-             issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at,
-             answered_at
+             id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+             corrected_voucher_type, corrected_point_of_sale, corrected_number, state,
+             point_of_sale, number, issued_on, issued_at, authorization_code,
+             authorization_code_due_on, recorded_at, answered_at
            ) VALUES (
-             'note-r1', 'sale-1', 'return-1', '2026-09-20', 2500, @state,
-             @point_of_sale, @number, '2026-09-20', '2026-09-20T12:00:01.000Z', @code,
-             '2026-09-30', '2026-09-20T12:00:00.000Z', '2026-09-20T12:00:02.000Z'
+             'note-r1', 'sale-1', 'return-1', '2026-09-20', 2500, 5, 11, 12, 41, @state,
+             @point_of_sale, @number, @issued_on, @issued_at, @code,
+             @due_on, '2026-09-20T12:00:00.000Z', '2026-09-20T12:00:02.000Z'
            )`,
         )
         .run({
@@ -220,6 +221,9 @@ describe("reading what a ticket prints", () => {
           point_of_sale: state === "AUTHORIZED" ? 12 : null,
           number: state === "AUTHORIZED" ? 9 : null,
           code: state === "AUTHORIZED" ? "71234567890999" : null,
+          issued_on: state === "AUTHORIZED" ? "2026-09-20" : null,
+          issued_at: state === "AUTHORIZED" ? "2026-09-20T12:00:01.000Z" : null,
+          due_on: state === "AUTHORIZED" ? "2026-09-30" : null,
         });
     }
 

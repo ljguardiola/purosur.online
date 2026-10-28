@@ -158,26 +158,39 @@ describe("whether the customer's own document was printed", () => {
   });
 
   describe("for a return", () => {
-    function insertReturnCreditNote(state: string, number: number | null): void {
+    function insertReturnCreditNote(state: string, authorized: boolean): void {
       database.exec(
         `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
-         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-09T12:00:00.000Z');
-         INSERT INTO sale_credit_notes (
-           id, sale_id, return_id, requested_issue_on, total, state, point_of_sale, number,
-           issued_on, issued_at, authorization_code, authorization_code_due_on, recorded_at
-         ) VALUES (
-           'note-r1', 'sale-1', 'return-1', '2026-10-09', 1000, '${state}', ${number === null ? "NULL" : "12"},
-           ${number ?? "NULL"}, ${number === null ? "NULL" : "'2026-10-09'"}, ${number === null ? "NULL" : "'2026-10-09T12:00:01.000Z'"},
-           ${number === null ? "NULL" : "'71234567890999'"}, ${number === null ? "NULL" : "'2026-10-19'"},
-           '2026-10-09T12:00:00.000Z'
-         )`,
+         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-09T12:00:00.000Z')`,
       );
+      database
+        .prepare(
+          `INSERT INTO sale_credit_notes (
+             id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+             corrected_voucher_type, corrected_point_of_sale, corrected_number, state,
+             point_of_sale, number, issued_on, issued_at, authorization_code,
+             authorization_code_due_on, recorded_at, answered_at
+           ) VALUES (
+             'note-r1', 'sale-1', 'return-1', '2026-10-09', 1000, 5, 11, 12, 41, @state,
+             @point_of_sale, @number, @issued_on, @issued_at, @code, @due_on,
+             '2026-10-09T12:00:00.000Z', '2026-10-09T12:00:02.000Z'
+           )`,
+        )
+        .run({
+          state,
+          point_of_sale: authorized ? 12 : null,
+          number: authorized ? 9 : null,
+          issued_on: authorized ? "2026-10-09" : null,
+          issued_at: authorized ? "2026-10-09T12:00:01.000Z" : null,
+          code: authorized ? "71234567890999" : null,
+          due_on: authorized ? "2026-10-19" : null,
+        });
     }
 
     it("is the credit note being printed for the return that issued one, not the void's", async () => {
       insertVoidedSale(database);
       insertCreditNote(database);
-      insertReturnCreditNote("AUTHORIZED", 9);
+      insertReturnCreditNote("AUTHORIZED", true);
       await record(ticket({ operation: "return", subjectId: "return-1" }));
 
       expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
@@ -197,7 +210,7 @@ describe("whether the customer's own document was printed", () => {
 
     it("is no document at all for a return without an authorized credit note", async () => {
       insertVoidedSale(database);
-      insertReturnCreditNote("REJECTED", null);
+      insertReturnCreditNote("REJECTED", false);
       await record(ticket({ operation: "return", subjectId: "return-1" }));
 
       expect((await consider())[0]?.customerDocumentPrinted).toBeNull();
