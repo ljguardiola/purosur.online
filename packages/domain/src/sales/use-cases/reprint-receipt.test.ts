@@ -153,7 +153,7 @@ describe("reprintReceipt", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "reprint_recorded",
-        schema_version: 2,
+        schema_version: 3,
         payload: {
           sale_id: "sale-1",
           document: "sale_receipt",
