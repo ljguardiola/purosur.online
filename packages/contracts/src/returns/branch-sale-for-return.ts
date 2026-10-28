@@ -1,6 +1,7 @@
 import {
   CREDIT_NOTE_ROUTING_INVOICE_STATES,
   PAYMENT_METHODS,
+  POINT_CARD_TYPES,
   SALE_STATES_AFTER_COMPLETION,
   SALE_UNITS,
   type TicketReference,
@@ -93,6 +94,7 @@ export const branchSaleForReturnAnswerSchema = z.object({
       amount: cents,
       state: z.string(),
       refunded_amount: cents,
+      card_type: z.enum(POINT_CARD_TYPES).nullable(),
     }),
   ),
   returned: z.array(z.object({ sale_line_id: z.string(), quantity, refunded_amount: cents })),

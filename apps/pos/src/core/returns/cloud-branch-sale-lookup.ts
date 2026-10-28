@@ -68,6 +68,7 @@ function factsOf(answer: BranchSaleForReturnAnswer): BranchSaleFacts {
         amount: payment.amount,
         state: payment.state,
         refundedAmount: payment.refunded_amount,
+        cardType: payment.card_type,
       })),
       returned: answer.returned.map((line) => ({
         saleLineId: line.sale_line_id,

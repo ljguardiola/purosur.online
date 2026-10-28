@@ -78,6 +78,7 @@ function toAnswerWire({
       amount: payment.amount,
       state: payment.state,
       refunded_amount: payment.refundedAmount,
+      card_type: payment.cardType,
     })),
     returned: facts.returned.map((line) => ({
       sale_line_id: line.saleLineId,

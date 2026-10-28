@@ -268,6 +268,7 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         provider: salePayments.provider,
         amount: salePayments.amount,
         state: salePayments.state,
+        cardType: salePayments.cardType,
         refundedAmount: sql<number>`coalesce(sum(${paymentRefunds.amount}), 0)::bigint`.mapWith(
           Number,
         ),
