@@ -15,11 +15,10 @@ export interface LoadedSupplierPriceSeed {
   supplierName?: string;
   packagingName?: string;
   quantityPerPackage?: number;
-  packagingActive?: boolean;
   packagingSaleUnit?: SaleUnit;
   priceCents: number;
   pricesIncludeVat?: boolean;
-  vatRate?: number | null;
+  vatRate?: number;
   listDate?: string;
   confirmedAt?: Date;
 }
@@ -41,14 +40,13 @@ export async function insertLoadedSupplierPrice<TQueryResult extends PgQueryResu
     actorId: seed.actorId,
     quantityPerPackage: seed.quantityPerPackage ?? 1_000,
     ...(seed.packagingName === undefined ? {} : { name: seed.packagingName }),
-    ...(seed.packagingActive === undefined ? {} : { active: seed.packagingActive }),
     ...(seed.packagingSaleUnit === undefined ? {} : { saleUnit: seed.packagingSaleUnit }),
   });
   const supplierItemId = await insertSupplierItem(db, {
     supplierId,
     productId: seed.productId,
     packagingId,
-    vatRate: seed.vatRate === undefined ? 2_100 : seed.vatRate,
+    vatRate: seed.vatRate ?? 2_100,
   });
   const listId = await insertPriceList(db, {
     supplierId,
