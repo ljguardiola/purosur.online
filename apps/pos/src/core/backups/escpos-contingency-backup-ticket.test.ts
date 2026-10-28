@@ -155,7 +155,7 @@ describe("the contingency backup ticket", () => {
       > = {},
     ) => ({
       kind: "return" as const,
-      originalOperationNumber: 482,
+      original: { kind: "operation_number" as const, operationNumber: 482 },
       cashRefunded: 123450,
       ...overrides,
     });
@@ -175,8 +175,17 @@ describe("the contingency backup ticket", () => {
       ]);
     });
 
+    it.each([
+      [{ kind: "invoice", pointOfSale: 1, number: 12 }, "Factura C 00001-00000012"],
+      [{ kind: "deferred_sale_document", shortCode: "7KQ4M2PA" }, "Documento X 7KQ4-M2PA"],
+    ] as const)("names the original ticket of another register's sale as %j", (original, text) => {
+      expect(printed({ operation: returned({ original }) }).textLines).toContain(
+        row("Ticket original", text),
+      );
+    });
+
     it("leaves out the original ticket when the register does not know its number", () => {
-      const lines = printed({ operation: returned({ originalOperationNumber: null }) }).textLines;
+      const lines = printed({ operation: returned({ original: null }) }).textLines;
 
       expect(lines.some((line) => line.startsWith("Ticket original"))).toBe(false);
       expect(lines).toContain(row("Efectivo devuelto", "$ 1.234,50"));

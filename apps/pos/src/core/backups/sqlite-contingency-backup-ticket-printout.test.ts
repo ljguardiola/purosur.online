@@ -229,7 +229,11 @@ describe("reading what a ticket prints", () => {
       await record("return", "return-1");
 
       expect(printout()).toMatchObject({
-        operation: { kind: "return", originalOperationNumber: 482, cashRefunded: 1500 },
+        operation: {
+          kind: "return",
+          original: { kind: "operation_number", operationNumber: 482 },
+          cashRefunded: 1500,
+        },
         backs: null,
       });
     });
@@ -240,8 +244,59 @@ describe("reading what a ticket prints", () => {
 
       expect(printout()?.operation).toEqual({
         kind: "return",
-        originalOperationNumber: null,
+        original: null,
         cashRefunded: 1500,
+      });
+    });
+
+    describe("of a sale another register rang up", () => {
+      function keepBranchSale(ticket: object, saleId = "branch-sale"): void {
+        database.prepare("UPDATE returns SET sale_id = ?").run(saleId);
+        database
+          .prepare("INSERT INTO branch_sales_for_return (sale_id, facts) VALUES (?, ?)")
+          .run(
+            saleId,
+            JSON.stringify({ ticket, sale: { occurredAt: "2026-09-12T18:30:00.000Z" } }),
+          );
+      }
+
+      it("names the invoice the sale was found by", async () => {
+        keepBranchSale({ kind: "invoice", pointOfSale: 1, number: 12 });
+        await record("return", "return-1");
+
+        expect(printout()?.operation).toEqual({
+          kind: "return",
+          original: { kind: "invoice", pointOfSale: 1, number: 12 },
+          cashRefunded: 1500,
+        });
+      });
+
+      it("names the deferred sale document the sale was found by", async () => {
+        keepBranchSale({ kind: "deferred", id: "deferred-1", shortCode: "7KQ4M2PA" });
+        await record("return", "return-1");
+
+        expect(printout()?.operation).toMatchObject({
+          original: { kind: "deferred_sale_document", shortCode: "7KQ4M2PA" },
+        });
+      });
+
+      it("prefers the operation number of a sale this register holds", async () => {
+        keepBranchSale({ kind: "invoice", pointOfSale: 1, number: 12 }, "sale-1");
+        await record("return", "return-1");
+
+        expect(printout()?.operation).toMatchObject({
+          original: { kind: "operation_number", operationNumber: 482 },
+        });
+      });
+
+      it("falls back to the retained ticket when the held sale has no operation number", async () => {
+        keepBranchSale({ kind: "invoice", pointOfSale: 1, number: 12 }, "sale-1");
+        database.prepare("UPDATE sales SET operation_number = NULL").run();
+        await record("return", "return-1");
+
+        expect(printout()?.operation).toMatchObject({
+          original: { kind: "invoice", pointOfSale: 1, number: 12 },
+        });
       });
     });
 
