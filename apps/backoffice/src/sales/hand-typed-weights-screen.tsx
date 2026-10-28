@@ -3,6 +3,7 @@ import { handTypedWeightsSchema } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
+  EmptyState,
   FigureStat,
   formatNumber,
   LoadFailure,
@@ -127,14 +128,11 @@ export function HandTypedWeightsScreen({
     id: (row) => row.session_id,
     columns: sessionColumns,
   });
-  const topCashier = shown?.cashiers[0];
-  const empty = {
-    icon: <Scale />,
-    title: registerChosen
-      ? "No hay productos pesados en esta caja en este período"
-      : "No hay productos pesados en este período",
-    variant: registerChosen ? "filtered" : "blank",
-  } as const;
+  const mostTyped = shown?.totals.most_typed ?? null;
+  const nothingWeighed =
+    data.status === "loaded" &&
+    cashiersTable.getRowModel().rows.length === 0 &&
+    sessionsTable.getRowModel().rows.length === 0;
 
   return (
     <ScreenLayout
@@ -173,14 +171,14 @@ export function HandTypedWeightsScreen({
                 <Card>
                   <FigureStat
                     size="heading"
-                    label="Más tipeadas"
-                    value={topCashier === undefined ? NO_FIGURE : (topCashier.name ?? UNIDENTIFIED)}
-                    {...(topCashier === undefined
+                    label="Más tipeó"
+                    value={mostTyped === null ? NO_FIGURE : (mostTyped.name ?? UNIDENTIFIED)}
+                    {...(mostTyped === null
                       ? {}
                       : {
-                          detail: plural(topCashier.typed_lines, {
+                          detail: plural(mostTyped.typed_lines, {
                             one: "1 línea",
-                            other: `${formatNumber(topCashier.typed_lines)} líneas`,
+                            other: `${formatNumber(mostTyped.typed_lines)} líneas`,
                           }),
                         })}
                   />
@@ -195,33 +193,45 @@ export function HandTypedWeightsScreen({
                   <FigureStat size="heading" label="Tipeadas a mano" loading />
                 </Card>
                 <Card>
-                  <FigureStat size="heading" label="Más tipeadas" loading />
+                  <FigureStat size="heading" label="Más tipeó" loading />
                 </Card>
               </>
             )}
           </div>
-          <section aria-labelledby={cashiersHeadingId} className="flex flex-col gap-3">
-            <h2 id={cashiersHeadingId} className="text-subheading text-text">
-              Por cajero
-            </h2>
-            <Table
-              aria-label="Pesos tipeados a mano por cajero"
-              table={cashiersTable}
-              {...cloudTableState(data, "el reporte de pesos tipeados a mano")}
-              empty={empty}
+          {nothingWeighed ? (
+            <EmptyState
+              icon={<Scale />}
+              title={
+                registerChosen
+                  ? "No hay productos pesados en esta caja en este período"
+                  : "No hay productos pesados en este período"
+              }
+              variant={registerChosen ? "filtered" : "blank"}
             />
-          </section>
-          <section aria-labelledby={sessionsHeadingId} className="flex flex-col gap-3">
-            <h2 id={sessionsHeadingId} className="text-subheading text-text">
-              Por sesión
-            </h2>
-            <Table
-              aria-label="Pesos tipeados a mano por sesión"
-              table={sessionsTable}
-              {...cloudTableState(data, "el reporte de pesos tipeados a mano")}
-              empty={empty}
-            />
-          </section>
+          ) : (
+            <>
+              <section aria-labelledby={cashiersHeadingId} className="flex flex-col gap-3">
+                <h2 id={cashiersHeadingId} className="text-subheading text-text">
+                  Por cajero
+                </h2>
+                <Table
+                  aria-label="Pesos tipeados a mano por cajero"
+                  table={cashiersTable}
+                  {...cloudTableState(data, "el reporte de pesos tipeados a mano")}
+                />
+              </section>
+              <section aria-labelledby={sessionsHeadingId} className="flex flex-col gap-3">
+                <h2 id={sessionsHeadingId} className="text-subheading text-text">
+                  Por sesión
+                </h2>
+                <Table
+                  aria-label="Pesos tipeados a mano por sesión"
+                  table={sessionsTable}
+                  {...cloudTableState(data, "el reporte de pesos tipeados a mano")}
+                />
+              </section>
+            </>
+          )}
         </>
       )}
     </ScreenLayout>

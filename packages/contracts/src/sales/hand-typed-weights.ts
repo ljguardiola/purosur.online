@@ -23,7 +23,13 @@ export const handTypedWeightsSchema = z.object({
       typed_lines: count,
     }),
   ),
-  totals: z.object({ weighed_lines: count, typed_lines: count }),
+  totals: z.object({
+    weighed_lines: count,
+    typed_lines: count,
+    most_typed: z
+      .object({ cashier_id: z.string().min(1), name: z.string().nullable(), typed_lines: count })
+      .nullable(),
+  }),
 });
 
 export type HandTypedWeightsBody = z.output<typeof handTypedWeightsSchema>;

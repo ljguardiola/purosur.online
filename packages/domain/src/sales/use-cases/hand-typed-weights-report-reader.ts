@@ -1,5 +1,5 @@
 import type { ReportPeriod } from "../../shared/index.js";
-import type { WeighedLinesGroup } from "../model/hand-typed-weights-report.js";
+import type { SaleLinesGroup } from "../model/hand-typed-weights-report.js";
 
 export interface HandTypedWeightsQuery {
   locationId: string;
@@ -8,5 +8,5 @@ export interface HandTypedWeightsQuery {
 }
 
 export interface HandTypedWeightsReportReader {
-  weighedLinesOfCompletedSales(query: HandTypedWeightsQuery): Promise<WeighedLinesGroup[]>;
+  completedSaleLinesByWeightSource(query: HandTypedWeightsQuery): Promise<SaleLinesGroup[]>;
 }

@@ -5,9 +5,9 @@ import {
   type ZoneRulesSource,
 } from "../../shared/index.js";
 import {
-  type WeighedLinesCount,
   type WeighedLinesOfCashier,
   type WeighedLinesOfSession,
+  type WeighedLinesTotals,
   weighedLinesByCashier,
   weighedLinesBySession,
   weighedLinesTotals,
@@ -24,7 +24,7 @@ export interface HandTypedWeightsReport {
   range: ReportPeriod;
   cashiers: WeighedLinesOfCashier[];
   sessions: WeighedLinesOfSession[];
-  totals: WeighedLinesCount;
+  totals: WeighedLinesTotals;
 }
 
 export async function readHandTypedWeights(
@@ -36,7 +36,7 @@ export async function readHandTypedWeights(
   { locationId, asked, registerId }: ReadHandTypedWeightsInput,
 ): Promise<HandTypedWeightsReport> {
   const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
-  const groups = await reader.weighedLinesOfCompletedSales({ locationId, range, registerId });
+  const groups = await reader.completedSaleLinesByWeightSource({ locationId, range, registerId });
   return {
     range,
     cashiers: weighedLinesByCashier(groups),

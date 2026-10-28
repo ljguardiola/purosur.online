@@ -1,8 +1,4 @@
-import {
-  ARGENTINA_TIME_ZONE,
-  SALES_REPORT_SALE_STATE,
-  type WeighedLinesGroup,
-} from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, SALES_REPORT_SALE_STATE, type SaleLinesGroup } from "@purosur/domain";
 import type {
   HandTypedWeightsQuery,
   HandTypedWeightsReportReader,
@@ -23,11 +19,11 @@ export class DrizzleHandTypedWeightsReportReader<TQueryResult extends PgQueryRes
     this.db = db;
   }
 
-  async weighedLinesOfCompletedSales({
+  async completedSaleLinesByWeightSource({
     locationId,
     range,
     registerId,
-  }: HandTypedWeightsQuery): Promise<WeighedLinesGroup[]> {
+  }: HandTypedWeightsQuery): Promise<SaleLinesGroup[]> {
     const rows = await this.db
       .select({
         sessionId: sales.sessionId,

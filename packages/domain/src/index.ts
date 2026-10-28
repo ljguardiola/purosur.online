@@ -849,6 +849,7 @@ export type {
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleLine,
+  SaleLinesGroup,
   SaleStanding,
   SaleStandingDefinition,
   SaleState,
@@ -863,7 +864,6 @@ export type {
   SoldLinesOfGroup,
   SoldProduct,
   SoldTotals,
-  WeighedLinesGroup,
   WeightSource,
 } from "./sales/index.js";
 export {

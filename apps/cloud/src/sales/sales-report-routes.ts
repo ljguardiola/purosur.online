@@ -188,6 +188,14 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
         totals: {
           weighed_lines: report.totals.weighedLines,
           typed_lines: report.totals.typedLines,
+          most_typed:
+            report.totals.mostTyped === null
+              ? null
+              : {
+                  cashier_id: report.totals.mostTyped.cashierId,
+                  name: report.totals.mostTyped.name,
+                  typed_lines: report.totals.mostTyped.typedLines,
+                },
         },
       }),
     );

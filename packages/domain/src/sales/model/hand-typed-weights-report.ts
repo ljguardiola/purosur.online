@@ -1,7 +1,7 @@
 import { codeUnitOrder, nameOrder } from "./report-order.js";
 import type { WeightSource } from "./weight-source.js";
 
-export interface WeighedLinesGroup {
+export interface SaleLinesGroup {
   sessionId: string;
   registerName: string;
   openedAt: Date;
@@ -14,6 +14,10 @@ export interface WeighedLinesGroup {
 export interface WeighedLinesCount {
   weighedLines: number;
   typedLines: number;
+}
+
+export interface WeighedLinesTotals extends WeighedLinesCount {
+  mostTyped: { cashierId: string; name: string | null; typedLines: number } | null;
 }
 
 export interface WeighedLinesOfCashier extends WeighedLinesCount {
@@ -31,7 +35,7 @@ function emptyCount(): WeighedLinesCount {
   return { weighedLines: 0, typedLines: 0 };
 }
 
-function addGroup(count: WeighedLinesCount, group: WeighedLinesGroup): void {
+function addGroup(count: WeighedLinesCount, group: SaleLinesGroup): void {
   if (group.weightSource === null) {
     return;
   }
@@ -46,8 +50,8 @@ function moreTypedOrder(a: WeighedLinesCount, b: WeighedLinesCount): number {
 }
 
 function countsBy<TKey extends { id: string }, TRow extends WeighedLinesCount>(
-  groups: readonly WeighedLinesGroup[],
-  keyOf: (group: WeighedLinesGroup) => TKey,
+  groups: readonly SaleLinesGroup[],
+  keyOf: (group: SaleLinesGroup) => TKey,
   rowOf: (key: TKey, count: WeighedLinesCount) => TRow,
 ): TRow[] {
   const counted = new Map<string, { key: TKey; count: WeighedLinesCount }>();
@@ -62,9 +66,7 @@ function countsBy<TKey extends { id: string }, TRow extends WeighedLinesCount>(
     .map(({ key, count }) => rowOf(key, count));
 }
 
-export function weighedLinesByCashier(
-  groups: readonly WeighedLinesGroup[],
-): WeighedLinesOfCashier[] {
+export function weighedLinesByCashier(groups: readonly SaleLinesGroup[]): WeighedLinesOfCashier[] {
   return countsBy(
     groups,
     (group) => ({ id: group.cashierId, name: group.cashierName }),
@@ -75,9 +77,7 @@ export function weighedLinesByCashier(
   );
 }
 
-export function weighedLinesBySession(
-  groups: readonly WeighedLinesGroup[],
-): WeighedLinesOfSession[] {
+export function weighedLinesBySession(groups: readonly SaleLinesGroup[]): WeighedLinesOfSession[] {
   return countsBy(
     groups,
     (group) => ({
@@ -99,10 +99,21 @@ export function weighedLinesBySession(
   );
 }
 
-export function weighedLinesTotals(groups: readonly WeighedLinesGroup[]): WeighedLinesCount {
+export function weighedLinesTotals(groups: readonly SaleLinesGroup[]): WeighedLinesTotals {
   const totals = emptyCount();
   for (const group of groups) {
     addGroup(totals, group);
   }
-  return totals;
+  const [mostTyped] = weighedLinesByCashier(groups);
+  return {
+    ...totals,
+    mostTyped:
+      mostTyped === undefined || mostTyped.typedLines === 0
+        ? null
+        : {
+            cashierId: mostTyped.cashierId,
+            name: mostTyped.name,
+            typedLines: mostTyped.typedLines,
+          },
+  };
 }
