@@ -24,6 +24,7 @@ interface TicketRow {
   sealed: 0 | 1;
   sale_receipt_printed: 0 | 1 | null;
   void_credit_note_printed: 0 | 1 | null;
+  return_credit_note_printed: 0 | 1 | null;
   printed_at: string | null;
   discarded_at: string | null;
 }
@@ -53,6 +54,19 @@ const TICKET_COLUMNS = `
                 AND sale_credit_notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')
            )
          ) AS void_credit_note_printed,
+         (SELECT COALESCE(
+             (SELECT credit_note_prints.printed_at IS NOT NULL FROM credit_note_prints
+               JOIN sale_credit_notes AS returned_notes
+                 ON returned_notes.id = credit_note_prints.credit_note_id
+               WHERE returned_notes.return_id = tickets.subject_id),
+             0
+           )
+           WHERE EXISTS (
+             SELECT 1 FROM sale_credit_notes
+              WHERE sale_credit_notes.return_id = tickets.subject_id
+                AND sale_credit_notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')
+           )
+         ) AS return_credit_note_printed,
          tickets.printed_at AS printed_at, tickets.discarded_at AS discarded_at
     FROM contingency_backup_tickets AS tickets`;
 
@@ -76,6 +90,7 @@ function recordOf(row: TicketRow): ContingencyBackupTicketRecord {
     customerDocumentPrinted: customerDocumentPrinted(operationOf(row), {
       saleReceipt: printedOf(row.sale_receipt_printed),
       voidCreditNote: printedOf(row.void_credit_note_printed),
+      returnCreditNote: printedOf(row.return_credit_note_printed),
     }),
     printedAt: row.printed_at === null ? null : new Date(row.printed_at),
     discardedAt: row.discarded_at === null ? null : new Date(row.discarded_at),

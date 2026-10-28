@@ -37,6 +37,7 @@ describe("CONTINGENCY_BACKUP_OPERATIONS", () => {
       "sale",
       "paid_sale_cancellation",
       "sale_void",
+      "return",
       "cash_movement",
       "cash_session_opening",
       "cash_session_closing",
@@ -277,27 +278,51 @@ describe("customerDocumentPrinted", () => {
 
   it("waits for the sale's receipt for a sale", () => {
     for (const saleReceipt of PRINTS) {
-      expect(customerDocumentPrinted("sale", { saleReceipt, voidCreditNote: !saleReceipt })).toBe(
-        saleReceipt,
-      );
+      expect(
+        customerDocumentPrinted("sale", {
+          saleReceipt,
+          voidCreditNote: !saleReceipt,
+          returnCreditNote: !saleReceipt,
+        }),
+      ).toBe(saleReceipt);
     }
   });
 
   it("waits for the credit note of a void, and for nothing when the void has none", () => {
     for (const voidCreditNote of PRINTS) {
       expect(
-        customerDocumentPrinted("sale_void", { saleReceipt: !voidCreditNote, voidCreditNote }),
+        customerDocumentPrinted("sale_void", {
+          saleReceipt: !voidCreditNote,
+          voidCreditNote,
+          returnCreditNote: !voidCreditNote,
+        }),
       ).toBe(voidCreditNote);
+    }
+  });
+
+  it("waits for the credit note of a return, and for nothing when the return has none", () => {
+    for (const returnCreditNote of PRINTS) {
+      expect(
+        customerDocumentPrinted("return", {
+          saleReceipt: !returnCreditNote,
+          voidCreditNote: !returnCreditNote,
+          returnCreditNote,
+        }),
+      ).toBe(returnCreditNote);
     }
   });
 
   it.each(
     CONTINGENCY_BACKUP_OPERATIONS.filter(
-      (operation) => operation !== "sale" && operation !== "sale_void",
+      (operation) => operation !== "sale" && operation !== "sale_void" && operation !== "return",
     ),
   )("waits for no customer document for %s", (operation) => {
-    expect(customerDocumentPrinted(operation, { saleReceipt: false, voidCreditNote: false })).toBe(
-      null,
-    );
+    expect(
+      customerDocumentPrinted(operation, {
+        saleReceipt: false,
+        voidCreditNote: false,
+        returnCreditNote: false,
+      }),
+    ).toBe(null);
   });
 });

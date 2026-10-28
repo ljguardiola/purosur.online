@@ -11,6 +11,7 @@ export type TicketableRendererRequests = Pick<
   | "abandonMercadoPagoCharge"
   | "cancelPaidSale"
   | "voidSale"
+  | "completeReturn"
   | "recordCashMovement"
   | "openCashSession"
   | "closeCashSession"
@@ -54,6 +55,9 @@ export function ticketedRendererRequests<TRequests extends TicketableRendererReq
     ),
     cancelPaidSale: ticketed("paid_sale_cancellation", requests.cancelPaidSale, saleOfRequest),
     voidSale: ticketed("sale_void", requests.voidSale, saleOfRequest),
+    completeReturn: ticketed("return", requests.completeReturn, (_args, outcome) =>
+      outcome.kind === "completed" ? outcome.return_id : null,
+    ),
     recordCashMovement: ticketed("cash_movement", requests.recordCashMovement),
     openCashSession: ticketed("cash_session_opening", requests.openCashSession),
     closeCashSession: ticketed("cash_session_closing", requests.closeCashSession),
