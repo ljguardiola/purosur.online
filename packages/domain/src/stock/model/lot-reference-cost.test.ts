@@ -126,6 +126,11 @@ describe("referenceCostOfPrice", () => {
       quantity: STOCK_QUANTITY_PER_UNIT,
     });
     expect(referenceCostOfPrice({ numerator: limit + 2n, denominator: 1n })).toBeNull();
+    expect(referenceCostOfPrice({ numerator: 1_000n, denominator: limit })).toEqual({
+      totalCents: 1,
+      quantity: Number.MAX_SAFE_INTEGER,
+    });
+    expect(referenceCostOfPrice({ numerator: 1_000n, denominator: limit + 1n })).toBeNull();
     expect(referenceCostOfPrice({ numerator: 1n, denominator: limit })).toBeNull();
     expect(referenceCostOfPrice({ numerator: 1n, denominator: limit / 1_000n })).toEqual({
       totalCents: 1,
