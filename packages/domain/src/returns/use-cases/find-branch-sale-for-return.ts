@@ -39,11 +39,11 @@ export async function findBranchSaleForReturn(
     );
   const held = reader.saleForReturn(search);
   const local = outcomeOf(held);
-  if (local.kind === "voided" || search.kind === "sale") {
+  if (search.kind === "sale" || (held !== undefined && local.kind !== "found")) {
     return local;
   }
   const answer = await lookup.saleForReturn(search);
-  if (held !== undefined && local.kind === "found") {
+  if (held !== undefined) {
     if (answer.kind !== "found" || answer.sale.sale.id !== held.sale.id) {
       return local;
     }
