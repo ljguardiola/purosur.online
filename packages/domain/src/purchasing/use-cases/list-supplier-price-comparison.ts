@@ -1,6 +1,11 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import { compareFractions, compareSpanishText, type Fraction } from "../../shared/index.js";
-import { cheapestOffer, type SupplierOfferUnpricedReason } from "../model/supplier-item.js";
+import {
+  cheapestOffer,
+  compareFractions,
+  compareSpanishText,
+  type Fraction,
+} from "../../shared/index.js";
+import type { SupplierOfferUnpricedReason } from "../model/supplier-item.js";
 import { supplierOfferPrice } from "../model/supplier-offer.js";
 import type {
   ComparableProduct,

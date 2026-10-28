@@ -3,6 +3,7 @@ import type { SaleUnit } from "@purosur/domain";
 import { formatCalendarDayNumeric, formatCents, parseAmountCents } from "@purosur/ui";
 import { schemaLimit } from "../platform/schema-limit";
 import type { InitialInventoryLot } from "./edit-lot-cost-modal";
+import { formatStockUnitCost } from "./stock-cost";
 
 const COST_REQUIRED = "Ingresá el costo de referencia.";
 const COST_MALFORMED = "Escribí el costo con coma para los decimales, por ejemplo 10.180,50.";
@@ -28,11 +29,10 @@ export function costRequestFrom({ cost, supplierItemId }: CostFormValues): LotRe
 }
 
 export function supplierPriceOptions({ saleUnit, supplierPrices }: InitialInventoryLot) {
-  const unit = saleUnit === "KG" ? "kg" : "unidad";
   return supplierPrices.map((price) => ({
     value: price.supplierItemId,
-    label: `${price.supplierName} · ${price.packagingName}`,
-    description: `${formatCents(price.unitCostCents)} por ${unit} · Lista del ${formatCalendarDayNumeric(price.listDate)}${price.cheapest ? " · La más barata" : ""}`,
+    label: `${price.supplierName} del ${formatCalendarDayNumeric(price.listDate)} · ${price.packagingName} · ${formatStockUnitCost(price.unitCostCents, saleUnit)}`,
+    ...(price.cheapest ? { status: "La más barata" } : {}),
   }));
 }
 

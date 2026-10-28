@@ -66,10 +66,15 @@ const typedLotReferenceCostSchema = z.object({
       UNIT_COST_MESSAGE,
     )
     .meta({ maxValue: MAX_CASH_AMOUNT_CENTS }),
+  supplierItemId: z.never().optional(),
 });
 
 const suppliedLotReferenceCostSchema = z.object({
-  supplierItemId: recordIdSchema(SUPPLIER_ITEM_MESSAGE),
+  supplierItemId: z
+    .unknown()
+    .nonoptional()
+    .refine((id): id is string => typeof id === "string", SUPPLIER_ITEM_MESSAGE)
+    .pipe(recordIdSchema(SUPPLIER_ITEM_MESSAGE)),
 });
 
 export const lotReferenceCostBodySchema = z.union(

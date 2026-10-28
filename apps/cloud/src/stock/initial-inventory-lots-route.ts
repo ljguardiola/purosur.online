@@ -89,9 +89,9 @@ export function registerInitialInventoryLotsRoutes<TQueryResult extends PgQueryR
         locationId: openSessionOf(request).locationId,
         lotId: ids.lotId,
         choice:
-          "supplierItemId" in body
-            ? { kind: "supplier_price", supplierItemId: body.supplierItemId }
-            : { kind: "typed", unitCostCents: body.unitCostCents },
+          "unitCostCents" in body
+            ? { kind: "typed", unitCostCents: body.unitCostCents }
+            : { kind: "supplier_price", supplierItemId: body.supplierItemId },
       },
     );
 

@@ -1,4 +1,4 @@
-import { compareFractions, type Fraction, foldedText } from "../../shared/index.js";
+import { type Fraction, foldedText } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
 
 export interface SupplierItemKey {
@@ -133,22 +133,6 @@ export const SUPPLIER_OFFER_UNPRICED_REASONS = [
 ] as const;
 
 export type SupplierOfferUnpricedReason = (typeof SUPPLIER_OFFER_UNPRICED_REASONS)[number];
-
-// The earliest offer wins a tie.
-export function cheapestOffer<T extends { pricePerSaleUnit: Fraction }>(
-  offers: readonly T[],
-): T | undefined {
-  let cheapest: T | undefined;
-  for (const offer of offers) {
-    if (
-      cheapest === undefined ||
-      compareFractions(offer.pricePerSaleUnit, cheapest.pricePerSaleUnit) < 0
-    ) {
-      cheapest = offer;
-    }
-  }
-  return cheapest;
-}
 
 export const SUPPLIER_PRICE_LIST_ROW_STATUSES = [
   "new",

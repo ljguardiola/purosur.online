@@ -1,6 +1,6 @@
 import {
+  cheapestOffer,
   compareFractions,
-  compareSpanishText,
   type Fraction,
   isValidCashAmount,
 } from "../../shared/index.js";
@@ -29,9 +29,12 @@ function greatestCommonDivisor(a: bigint, b: bigint): bigint {
   return b === 0n ? a : greatestCommonDivisor(b, a % b);
 }
 
-// The price over the sale units of its denominator, never rounded; null when the exact cost does
-// not fit the whole numbers a cost is stored in.
+// The price over the sale units of its denominator, never rounded; null for a price of nothing or
+// when the exact cost does not fit the whole numbers a cost is stored in.
 export function referenceCostOfPrice(pricePerSaleUnit: Fraction): LotCost | null {
+  if (pricePerSaleUnit.numerator <= 0n) {
+    return null;
+  }
   const quantity = pricePerSaleUnit.denominator * BigInt(STOCK_QUANTITY_PER_UNIT);
   const divisor = greatestCommonDivisor(pricePerSaleUnit.numerator, quantity);
   const totalCents = pricePerSaleUnit.numerator / divisor;
@@ -56,12 +59,7 @@ export function lotCostIsPrice(cost: LotCost | null, pricePerSaleUnit: Fraction)
 }
 
 export function cheapestFirst(prices: readonly LoadedSupplierPrice[]): LoadedSupplierPrice[] {
-  return [...prices].sort(
-    (a, b) =>
-      compareFractions(a.pricePerSaleUnit, b.pricePerSaleUnit) ||
-      compareSpanishText(a.supplierName, b.supplierName) ||
-      compareSpanishText(a.supplierItemId, b.supplierItemId),
-  );
+  return [...prices].sort((a, b) => compareFractions(a.pricePerSaleUnit, b.pricePerSaleUnit));
 }
 
 export function selectableSupplierPrices(
@@ -73,6 +71,6 @@ export function selectableSupplierPrices(
 }
 
 export function proposedReferenceCost(prices: readonly LoadedSupplierPrice[]): LotCost | null {
-  const [cheapest] = selectableSupplierPrices(prices);
+  const cheapest = cheapestOffer(selectableSupplierPrices(prices));
   return cheapest === undefined ? null : referenceCostOfPrice(cheapest.pricePerSaleUnit);
 }

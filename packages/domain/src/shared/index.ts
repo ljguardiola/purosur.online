@@ -12,6 +12,7 @@ export {
   shiftCalendarDay,
 } from "./calendar-day.js";
 export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./cash-amount.js";
+export { cheapestOffer } from "./cheapest-offer.js";
 export type { Clock } from "./clock.js";
 export { codePointLength } from "./code-point-length.js";
 export { foldedText } from "./folded-text.js";

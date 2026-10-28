@@ -1,5 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import { compareSpanishText } from "../../shared/index.js";
+import { cheapestOffer, compareSpanishText } from "../../shared/index.js";
 import {
   type InitialCountCostFilter,
   initialCountCostIncomplete,
@@ -49,7 +49,9 @@ export interface InitialCountLotSupplierPrice {
 
 function supplierPricesOf(row: InitialCountLotRow): InitialCountLotSupplierPrice[] {
   const known = knownLotCost(row);
-  return selectableSupplierPrices(row.supplierPrices).flatMap((price, index) => {
+  const selectable = selectableSupplierPrices(row.supplierPrices);
+  const cheapest = cheapestOffer(selectable);
+  return selectable.flatMap((price) => {
     const cost = referenceCostOfPrice(price.pricePerSaleUnit);
     return cost === null
       ? []
@@ -60,7 +62,7 @@ function supplierPricesOf(row: InitialCountLotRow): InitialCountLotSupplierPrice
             packagingName: price.packagingName,
             listDate: price.listDate,
             unitCostCents: unitCostCents(cost.totalCents, cost.quantity),
-            cheapest: index === 0,
+            cheapest: price === cheapest,
             current: lotCostIsPrice(known, price.pricePerSaleUnit),
           },
         ];

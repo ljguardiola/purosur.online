@@ -1,6 +1,6 @@
 import { type InitialInventoryLotList, lotReferenceCostBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, type RequestSubmission, useRequestForm } from "@purosur/ui";
-import { Check, Pencil, ShieldX, Store, TriangleAlert, X } from "lucide-react";
+import { Check, Pencil, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -28,7 +28,7 @@ export type EditLotCostModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
   onSaved: (lot: InitialInventoryLot) => void;
-  onGone: (lot: InitialInventoryLot) => void;
+  onOutdated: (lot: InitialInventoryLot) => void;
 };
 
 type Notice =
@@ -45,7 +45,7 @@ export function EditLotCostModal({
   onClose,
   onSessionEnded,
   onSaved,
-  onGone,
+  onOutdated,
 }: EditLotCostModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -76,13 +76,15 @@ export function EditLotCostModal({
       sendToMyAccount();
     } else if (outcome.kind === "not_found" || outcome.kind === "lot_withdrawn") {
       setNotice({ kind: "gone" });
-      onGone(lot);
+      onOutdated(lot);
     } else if (outcome.kind === "not_an_initial_count_lot") {
       setNotice({ kind: "notInitialCount" });
     } else if (outcome.kind === "cost_chosen_from_supplier_prices") {
       setNotice({ kind: "pricesLoaded" });
+      onOutdated(lot);
     } else if (outcome.kind === "supplier_price_not_found") {
       setNotice({ kind: "priceGone" });
+      onOutdated(lot);
     } else if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind !== "validation_failed" || !showWireFieldError(outcome.field)) {
@@ -184,22 +186,16 @@ export function EditLotCostModal({
           />
         )}
         {firstPrice !== undefined ? (
-          <>
-            <p className="text-body text-text-subtle">{lotDescription}</p>
-            <form.AppField name="supplierItemId">
-              {(field) => (
-                <field.OptionCardGroup
-                  layout="row"
-                  label={referenceCostLabel(lot.saleUnit)}
-                  options={[
-                    { ...firstPrice, icon: <Store /> },
-                    ...otherPrices.map((price) => ({ ...price, icon: <Store /> })),
-                  ]}
-                  required
-                />
-              )}
-            </form.AppField>
-          </>
+          <form.AppField name="supplierItemId">
+            {(field) => (
+              <field.Select
+                label="Lista de proveedor"
+                options={[firstPrice, ...otherPrices]}
+                description={lotDescription}
+                required
+              />
+            )}
+          </form.AppField>
         ) : (
           <form.AppField name="cost">
             {(field) => (
