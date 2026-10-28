@@ -8346,3 +8346,144 @@ describe("the returns of other registers' sales migration", () => {
     });
   });
 });
+
+describe("the voided assembly batches migration", () => {
+  const MIGRATION = "0087_voided_assembly_batches";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withHeldMovements(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at, superseded_by_count_id, expires_on, withdraws_movement_id)
+         VALUES ('movement-1', 'p1', 'return', 'line-1', 1, '2026-10-12T12:00:00.000Z', NULL, NULL, NULL),
+                ('movement-2', 'p1', 'count', NULL, -2, '2026-10-12T12:05:00.000Z', NULL, NULL, NULL),
+                ('movement-3', 'p1', 'sale', 'line-2', -1, '2026-10-12T12:01:00.000Z', 'movement-2', NULL, NULL),
+                ('movement-4', 'p2', 'opening_count', NULL, 5000, '2026-10-01T09:00:00.000Z', NULL, '2027-01-31', NULL),
+                ('movement-5', 'p2', 'opening_count_withdrawal', NULL, -5000, '2026-10-01T09:30:00.000Z', NULL, NULL, 'movement-4'),
+                ('movement-6', 'p3', 'assembly_in', NULL, 14000, '2026-10-12T13:00:00.000Z', NULL, NULL, NULL);`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  const insertMovement = (database: Database, values: Record<string, string | null> = {}) =>
+    database
+      .prepare(
+        `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES (@id, 'p3', @kind, @sale_line_id, -14000, '2026-10-13T12:00:00.000Z')`,
+      )
+      .run({ id: "movement-7", kind: "assembly_void", sale_line_id: null, ...values });
+
+  it("keeps every stock movement a register holds", () => {
+    withHeldMovements((database) => {
+      expect(database.prepare("SELECT * FROM stock_movements ORDER BY id").all()).toEqual([
+        {
+          id: "movement-1",
+          product_id: "p1",
+          kind: "return",
+          sale_line_id: "line-1",
+          delta: 1,
+          occurred_at: "2026-10-12T12:00:00.000Z",
+          superseded_by_count_id: null,
+          expires_on: null,
+          withdraws_movement_id: null,
+        },
+        {
+          id: "movement-2",
+          product_id: "p1",
+          kind: "count",
+          sale_line_id: null,
+          delta: -2,
+          occurred_at: "2026-10-12T12:05:00.000Z",
+          superseded_by_count_id: null,
+          expires_on: null,
+          withdraws_movement_id: null,
+        },
+        {
+          id: "movement-3",
+          product_id: "p1",
+          kind: "sale",
+          sale_line_id: "line-2",
+          delta: -1,
+          occurred_at: "2026-10-12T12:01:00.000Z",
+          superseded_by_count_id: "movement-2",
+          expires_on: null,
+          withdraws_movement_id: null,
+        },
+        {
+          id: "movement-4",
+          product_id: "p2",
+          kind: "opening_count",
+          sale_line_id: null,
+          delta: 5000,
+          occurred_at: "2026-10-01T09:00:00.000Z",
+          superseded_by_count_id: null,
+          expires_on: "2027-01-31",
+          withdraws_movement_id: null,
+        },
+        {
+          id: "movement-5",
+          product_id: "p2",
+          kind: "opening_count_withdrawal",
+          sale_line_id: null,
+          delta: -5000,
+          occurred_at: "2026-10-01T09:30:00.000Z",
+          superseded_by_count_id: null,
+          expires_on: null,
+          withdraws_movement_id: "movement-4",
+        },
+        {
+          id: "movement-6",
+          product_id: "p3",
+          kind: "assembly_in",
+          sale_line_id: null,
+          delta: 14000,
+          occurred_at: "2026-10-12T13:00:00.000Z",
+          superseded_by_count_id: null,
+          expires_on: null,
+          withdraws_movement_id: null,
+        },
+      ]);
+    });
+  });
+
+  it("keeps the index of the movements of a product", () => {
+    withHeldMovements((database) => {
+      expect(
+        database
+          .prepare<[], { name: string }>(
+            "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'stock_movements' AND name NOT LIKE 'sqlite_%'",
+          )
+          .all()
+          .map(({ name }) => name),
+      ).toEqual(["stock_movements_by_product"]);
+    });
+  });
+
+  it("records the movement of a voided assembly batch", () => {
+    withHeldMovements((database) => {
+      expect(() => insertMovement(database)).not.toThrow();
+    });
+  });
+
+  it("still refuses an unknown kind and a sale line on a voided batch's movement", () => {
+    withHeldMovements((database) => {
+      expect(() => insertMovement(database, { kind: "assembly_undo" })).toThrow(/CHECK/);
+      expect(() => insertMovement(database, { sale_line_id: "line-1" })).toThrow(/CHECK/);
+    });
+  });
+});

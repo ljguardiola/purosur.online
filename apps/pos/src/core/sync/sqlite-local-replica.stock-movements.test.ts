@@ -153,6 +153,8 @@ describe("the stock movements a register pulls", () => {
     ["the withdrawal of an initial count", "opening_count_withdrawal", -5000, 5000],
     ["the components an assembled batch consumed", "assembly_out", -4000, 6000],
     ["the output an assembled batch made", "assembly_in", 14_000, 24_000],
+    ["a component a voided batch gives back", "assembly_void", 4000, 14_000],
+    ["the output a voided batch takes back", "assembly_void", -14_000, -4000],
   ] as const)("replicate %s recorded at another register", async (_, kind, delta, expected) => {
     await save(stockMovementChange(1, "other-register-count", { kind, delta }));
 
