@@ -178,7 +178,7 @@ test("asks the cloud for the range and the register the URL names", async () => 
 test("asks the cloud again for the register chosen in the filters", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Beto")).toBeVisible();
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
@@ -191,7 +191,7 @@ test("asks the cloud again for the register chosen in the filters", async () => 
 test("keeps the previous rows, marked as updating, while another register loads", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Beto")).toBeVisible();
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
   vi.mocked(services.fetchHandTypedWeights).mockReturnValue(new Promise(() => {}));
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
@@ -200,7 +200,7 @@ test("keeps the previous rows, marked as updating, while another register loads"
   await expect
     .element(screen.getByRole("table", { name: "Pesos tipeados a mano por cajero" }))
     .toHaveAttribute("aria-busy", "true");
-  await expect.element(screen.getByText("Beto")).toBeVisible();
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
   await expect.element(screen.getByText("6 líneas")).toBeVisible();
 });
 
@@ -257,7 +257,7 @@ test("shows a failed load with a retry that loads the report again", async () =>
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
 
-  await expect.element(screen.getByText("Beto")).toBeVisible();
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
   expect(services.fetchHandTypedWeights).toHaveBeenCalledTimes(2);
 });
 

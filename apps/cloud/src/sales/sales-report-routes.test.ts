@@ -61,6 +61,10 @@ function salesByDay(headers: Record<string, string>, query = "") {
 async function receiveSale(
   total: number,
   lines: JsonValue[] = [],
+  version: { schemaVersion: number; payload: Record<string, JsonValue> } = {
+    schemaVersion: 2,
+    payload: {},
+  },
 ): Promise<{ registerId: string }> {
   const { deviceId, registerId } = await insertEnrolledInstallation(db, {
     now: NOW,
@@ -84,8 +88,9 @@ async function receiveSale(
     aggregateType: "Sale",
     aggregateId: saleId,
     eventType: "sale_completed",
-    schemaVersion: 2,
+    schemaVersion: version.schemaVersion,
     payload: {
+      ...version.payload,
       id: saleId,
       register_id: registerId,
       device_id: deviceId,
@@ -538,8 +543,24 @@ function handTypedWeights(headers: Record<string, string>, query = "") {
   return app.inject({ method: "GET", url: `/reports/hand-typed-weights${query}`, headers });
 }
 
-function weighedLine(weightSource: "SCALE" | "MANUAL" | null) {
+function weighedLine(weightSource: "SCALE" | "MANUAL") {
   return { ...promotionLine(randomUUID(), 0), weight_source: weightSource };
+}
+
+function receiveWeighedSale(weightSources: ("SCALE" | "MANUAL")[]) {
+  const lines = weightSources.map(weighedLine);
+  return receiveSale(lines.length * 4_800, lines, {
+    schemaVersion: 6,
+    payload: {
+      operation_number: 1,
+      stock_movements: lines.map((line) => ({
+        id: randomUUID(),
+        sale_line_id: line.id,
+        product_id: line.product_id,
+        delta: -line.quantity,
+      })),
+    },
+  });
 }
 
 describe("GET /reports/hand-typed-weights access", () => {
@@ -606,12 +627,7 @@ describe("GET /reports/hand-typed-weights", () => {
 
   it("answers the weighed lines and the ones typed by hand by cashier and by session", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
-    await receiveSale(3_000, [
-      weighedLine("SCALE"),
-      weighedLine("MANUAL"),
-      weighedLine("MANUAL"),
-      weighedLine(null),
-    ]);
+    await receiveWeighedSale(["SCALE", "MANUAL", "MANUAL"]);
     await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const response = await handTypedWeights(headers);
@@ -634,7 +650,7 @@ describe("GET /reports/hand-typed-weights", () => {
 
   it("shows a pushed sale only once its event was applied", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
-    await receiveSale(1_000, [weighedLine("MANUAL")]);
+    await receiveWeighedSale(["MANUAL"]);
 
     const before = await handTypedWeights(headers, "?from=2026-10-07&to=2026-10-07");
     await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
@@ -646,7 +662,7 @@ describe("GET /reports/hand-typed-weights", () => {
 
   it("filters by an asked register of the branch", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
-    const { registerId } = await receiveSale(1_000, [weighedLine("MANUAL")]);
+    const { registerId } = await receiveWeighedSale(["MANUAL"]);
     await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const ofTheRegister = await handTypedWeights(headers, `?register_id=${registerId}`);
@@ -661,7 +677,7 @@ describe("GET /reports/hand-typed-weights", () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW, {
       locationId: otherLocationId,
     });
-    await receiveSale(1_000, [weighedLine("MANUAL")]);
+    await receiveWeighedSale(["MANUAL"]);
     await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const response = await handTypedWeights(headers);

@@ -20,7 +20,7 @@ test("groups the sales reports in a card titled Ventas", async () => {
   await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   const sales = screen.getByRole("region", { name: "Ventas" });
   await expect.element(sales).toBeVisible();
-  expect(sales.getByRole("link").elements()).toHaveLength(7);
+  expect(sales.getByRole("link").elements()).toHaveLength(8);
   await expectNoAccessibilityViolations(screen.container);
 });
 
