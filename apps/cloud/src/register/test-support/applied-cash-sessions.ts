@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
+import type { CashMovementKind } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleEventApplication } from "../../sync/drizzle-event-application.js";
 import {
+  aCashMovementRecordedFact,
   aCashSessionClosedFact,
   aCashSessionOpenedFact,
 } from "../../sync/test-support/synced-facts.js";
@@ -73,6 +75,31 @@ export async function applyClosedCashSession<TQueryResult extends PgQueryResultH
         difference: countedCash - expectedCash,
       }),
       eventOf(deviceId, sessionId, "cash_session_closed", closedAt),
+    );
+  });
+}
+
+export async function applyCashMovement<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  movement: {
+    deviceId: string;
+    sessionId: string;
+    type: CashMovementKind;
+    amount: number;
+    reason: string;
+    occurredAt: Date;
+  },
+): Promise<void> {
+  const { deviceId, sessionId, type, amount, reason, occurredAt } = movement;
+  const application = new DrizzleEventApplication(
+    db,
+    () => occurredAt,
+    async () => {},
+  );
+  await application.transaction(async (tx) => {
+    await tx.record(
+      aCashMovementRecordedFact({ sessionId, type, amount, reason, occurredAt }),
+      eventOf(deviceId, sessionId, "cash_movement_recorded", occurredAt),
     );
   });
 }
