@@ -1,6 +1,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { CreditNoteRoutingInvoiceState } from "../../fiscal/index.js";
-import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import type { ZoneRules } from "../../shared/index.js";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import type { TicketReference } from "../model/ticket-reference.js";
 import { findBranchSaleForReturn } from "./find-branch-sale-for-return.js";
 import type { BranchSaleFacts, BranchSaleLookupAnswer } from "./return-ports.js";
@@ -55,6 +59,8 @@ function find(
     search?: Parameters<typeof findBranchSaleForReturn>[1];
     own?: FakeOwnReturns;
     ledger?: FakeReturnLedger;
+    now?: Date;
+    zoneRules?: ZoneRules;
   } = {},
 ) {
   const lookup = new FakeBranchSaleLookup(answer);
@@ -65,8 +71,8 @@ function find(
       lookup,
       ownReturns: options.own ?? new FakeOwnReturns(),
       retained,
-      clock: new FixedClock(RETURNED_AT),
-      zoneRules: new FakeZoneRulesSource(),
+      clock: new FixedClock(options.now ?? RETURNED_AT),
+      zoneRules: new FakeZoneRulesSource(options.zoneRules),
     },
     options.search ?? OTHER_REGISTER_INVOICE,
   );
@@ -206,6 +212,37 @@ describe("findBranchSaleForReturn", () => {
 
       expect(await outcome).toEqual({ kind: "voided" });
       expect(lookup.asked).toEqual([]);
+    });
+
+    it("closes a window at the end of the last day on the calendar of the zone rules it is given", async () => {
+      const justAfterMidnightUtc = new Date("2026-09-28T02:00:00.000Z");
+      const bySaleId = { kind: "sale", saleId: "sale-1" } as const;
+
+      const underArgentina = await find(thisRegisterSaleThroughCloud(), {
+        search: bySaleId,
+        now: justAfterMidnightUtc,
+        zoneRules: fixedOffsetZoneRules(-180),
+      }).outcome;
+      const underUtc = await find(thisRegisterSaleThroughCloud(), {
+        search: bySaleId,
+        now: justAfterMidnightUtc,
+        zoneRules: fixedOffsetZoneRules(0),
+      }).outcome;
+
+      expect(
+        underArgentina.kind === "found" && underArgentina.sale.windows.change_of_mind.open,
+      ).toBe(true);
+      expect(underUtc.kind === "found" && underUtc.sale.windows.change_of_mind.open).toBe(false);
+    });
+
+    it("changes nothing in the register", async () => {
+      const ledger = new FakeReturnLedger({ sales: [aSaleForReturn()] });
+      const before = structuredClone(ledger.state);
+
+      await find(thisRegisterSaleThroughCloud(), { search: BY_INVOICE, ledger }).outcome;
+
+      expect(ledger.state).toEqual(before);
+      expect(ledger.transactions).toBe(0);
     });
 
     it("never asks the cloud for a sale the cashier already confirmed by its id", async () => {
