@@ -1,4 +1,4 @@
-import type { ProductSummary } from "@purosur/contracts";
+import type { ListedProduct } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { honey } from "./test-support/products";
@@ -10,7 +10,7 @@ import {
 } from "./test-support/products-list-screen";
 
 // A valid check-digit value in the GS1 restricted-circulation range.
-const honeyWithInternalBarcode: ProductSummary = {
+const honeyWithInternalBarcode: ListedProduct = {
   ...honey,
   id: "00000020-0000-4000-8000-000000000000",
   barcodes: ["2000000000015"],

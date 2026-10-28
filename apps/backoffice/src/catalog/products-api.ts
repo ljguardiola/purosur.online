@@ -1,8 +1,8 @@
 import {
   type LabelSheetBody,
+  type ListedProduct,
   type ProductCreationBody,
   type ProductEditBody,
-  type ProductSummary,
   productListSchema,
 } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
@@ -16,7 +16,7 @@ type NetContent = { quantity: number; unit: NetContentUnit };
 
 export type ProductStatusFilter = "active" | "inactive" | "all";
 
-export type FetchProductsOutcome = CloudReadOutcome<ProductSummary[]>;
+export type FetchProductsOutcome = CloudReadOutcome<ListedProduct[]>;
 
 export type CreateProductInput = {
   name: string;

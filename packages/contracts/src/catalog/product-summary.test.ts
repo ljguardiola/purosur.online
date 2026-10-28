@@ -1,6 +1,6 @@
 import { NET_CONTENT_UNITS, SALE_UNITS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { productListSchema, productSummarySchema } from "./product-summary.js";
+import { listedProductSchema, productListSchema, productSummarySchema } from "./product-summary.js";
 
 const honey = {
   id: "product-1",
@@ -135,17 +135,53 @@ describe("productSummarySchema", () => {
   });
 });
 
+const pricedHoney = { ...honey, currentUnitPrice: 125000 };
+const unpricedAlmonds = { ...almonds, currentUnitPrice: null };
+
+describe("listedProductSchema", () => {
+  it("accepts a product with its current unit price in cents and one without", () => {
+    expect(listedProductSchema.safeParse(pricedHoney).data).toEqual(pricedHoney);
+    expect(listedProductSchema.safeParse(unpricedAlmonds).data).toEqual(unpricedAlmonds);
+    expect(listedProductSchema.safeParse({ ...honey, currentUnitPrice: 0 }).success).toBe(true);
+  });
+
+  it("requires the current unit price, null when there is none", () => {
+    expect(listedProductSchema.safeParse(honey).success).toBe(false);
+  });
+
+  it.each([-1, 10.5, "1000", undefined])("refuses %j as the current unit price", (value) => {
+    expect(listedProductSchema.safeParse({ ...honey, currentUnitPrice: value }).success).toBe(
+      false,
+    );
+  });
+
+  it("still requires what a product summary requires", () => {
+    const { id: _omitted, ...rest } = pricedHoney;
+
+    expect(listedProductSchema.safeParse(rest).success).toBe(false);
+  });
+});
+
 describe("productListSchema", () => {
   it("accepts a list of products, empty or not", () => {
     expect(productListSchema.safeParse([]).data).toEqual([]);
-    expect(productListSchema.safeParse([honey, almonds]).data).toEqual([honey, almonds]);
+    expect(productListSchema.safeParse([pricedHoney, unpricedAlmonds]).data).toEqual([
+      pricedHoney,
+      unpricedAlmonds,
+    ]);
   });
 
-  it.each([undefined, null, {}, "products", honey])("refuses %j as a list", (body) => {
+  it.each([undefined, null, {}, "products", pricedHoney])("refuses %j as a list", (body) => {
     expect(productListSchema.safeParse(body).success).toBe(false);
   });
 
   it("refuses a list holding a malformed product", () => {
-    expect(productListSchema.safeParse([honey, { ...almonds, active: "no" }]).success).toBe(false);
+    expect(
+      productListSchema.safeParse([pricedHoney, { ...unpricedAlmonds, active: "no" }]).success,
+    ).toBe(false);
+  });
+
+  it("refuses a list holding a product without its current unit price", () => {
+    expect(productListSchema.safeParse([pricedHoney, almonds]).success).toBe(false);
   });
 });

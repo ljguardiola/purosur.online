@@ -105,8 +105,12 @@ export type { ProductCreationBody } from "./catalog/product-creation.js";
 export { netContentQuantitySchema, productCreationBodySchema } from "./catalog/product-creation.js";
 export type { ProductEditBody } from "./catalog/product-edit.js";
 export { productEditBarcodesSchema, productEditBodySchema } from "./catalog/product-edit.js";
-export type { ProductSummary } from "./catalog/product-summary.js";
-export { productListSchema, productSummarySchema } from "./catalog/product-summary.js";
+export type { ListedProduct, ProductSummary } from "./catalog/product-summary.js";
+export {
+  listedProductSchema,
+  productListSchema,
+  productSummarySchema,
+} from "./catalog/product-summary.js";
 export type { TagCreationBody } from "./catalog/tag-creation.js";
 export { tagCreationBodySchema } from "./catalog/tag-creation.js";
 export type { TagEditBody } from "./catalog/tag-edit.js";
