@@ -1,4 +1,9 @@
-import { issuedFiscalDocumentsQuerySchema, issuedFiscalDocumentsSchema } from "@purosur/contracts";
+import {
+  issuedFiscalDocumentDetailSchema,
+  issuedFiscalDocumentPathSchema,
+  issuedFiscalDocumentsQuerySchema,
+  issuedFiscalDocumentsSchema,
+} from "@purosur/contracts";
 import type { ZoneRulesSource } from "@purosur/domain";
 import {
   type IssuedFiscalDocument,
@@ -15,6 +20,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleIssuedFiscalDocumentDetailReader } from "./drizzle-issued-fiscal-document-detail-reader.js";
 import { DrizzleIssuedFiscalDocumentsReader } from "./drizzle-issued-fiscal-documents-reader.js";
 
 export interface IssuedFiscalDocumentsRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -23,6 +29,11 @@ export interface IssuedFiscalDocumentsRouteOptions<TQueryResult extends PgQueryR
   zoneRules: ZoneRulesSource;
   now: () => Date;
 }
+
+const NOT_FOUND_RESPONSE = {
+  code: "not_found",
+  message: "no issued fiscal document with that voucher",
+} as const;
 
 const voucherOnTheWire = ({ voucherType, pointOfSale, number }: IssuedFiscalDocumentVoucher) => ({
   voucher_type: voucherType,
@@ -38,6 +49,7 @@ export function registerIssuedFiscalDocumentsRoute<TQueryResult extends PgQueryR
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleIssuedFiscalDocumentsReader(options.db);
+  const detailReader = new DrizzleIssuedFiscalDocumentDetailReader(options.db);
 
   app.get(
     "/fiscal/documents",
@@ -64,27 +76,77 @@ export function registerIssuedFiscalDocumentsRoute<TQueryResult extends PgQueryR
       await reply.code(200).send(
         issuedFiscalDocumentsSchema.parse({
           range: listing.range,
-          documents: listing.documents.map((document) => ({
-            kind: document.kind,
-            ...voucherOnTheWire(document),
-            issued_on: document.issuedOn,
-            issued_at: document.issuedAt.toISOString(),
-            register: document.register,
-            authorization: authorizationOnTheWire(document.authorization),
-            state: document.state,
-            contingency: document.contingency,
-            total: document.total,
-            corrected_voucher:
-              document.correctedVoucher === null
-                ? null
-                : voucherOnTheWire(document.correctedVoucher),
-          })),
+          documents: listing.documents.map(documentOnTheWire),
           total: listing.total,
           page_size: listing.pageSize,
         }),
       );
     },
   );
+
+  app.get(
+    "/fiscal/documents/:voucher_type/:point_of_sale/:number",
+    {
+      preHandler: sameOriginGuard(options.backofficeOrigin),
+      config: { access: capabilityAccess("fiscal_information"), sessionSource },
+    },
+    async (request, reply) => {
+      const path = await readValidatedBody(reply, issuedFiscalDocumentPathSchema, request.params);
+      if (!path) {
+        return;
+      }
+      const detail = await detailReader.issuedDocumentOfBranch(openSessionOf(request).locationId, {
+        voucherType: path.voucher_type,
+        pointOfSale: path.point_of_sale,
+        number: path.number,
+      });
+      if (detail === undefined) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
+      await reply.code(200).send(
+        issuedFiscalDocumentDetailSchema.parse({
+          ...documentOnTheWire(detail),
+          buyer:
+            detail.buyer.kind === "final_consumer"
+              ? { kind: detail.buyer.kind }
+              : {
+                  kind: detail.buyer.kind,
+                  document_type: detail.buyer.documentType,
+                  document_number: detail.buyer.documentNumber,
+                },
+          lines: detail.lines.map((line) => ({
+            product_name: line.productName,
+            quantity: line.quantity,
+            promotion: line.promotion,
+            amount: line.amount,
+          })),
+          payments: detail.payments.map((payment) => ({
+            method: payment.method,
+            card_type: payment.cardType,
+            amount: payment.amount,
+          })),
+          credit_notes: detail.creditNotes.map(documentOnTheWire),
+        }),
+      );
+    },
+  );
+}
+
+function documentOnTheWire(document: IssuedFiscalDocument) {
+  return {
+    kind: document.kind,
+    ...voucherOnTheWire(document),
+    issued_on: document.issuedOn,
+    issued_at: document.issuedAt.toISOString(),
+    register: document.register,
+    authorization: authorizationOnTheWire(document.authorization),
+    state: document.state,
+    contingency: document.contingency,
+    total: document.total,
+    corrected_voucher:
+      document.correctedVoucher === null ? null : voucherOnTheWire(document.correctedVoucher),
+  };
 }
 
 function authorizationOnTheWire(authorization: IssuedFiscalDocument["authorization"]) {
