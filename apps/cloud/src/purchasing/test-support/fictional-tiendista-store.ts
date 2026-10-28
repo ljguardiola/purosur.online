@@ -56,6 +56,20 @@ const fictionalTiendistaProducts = [
     precio: 700,
     agotado: false,
   },
+  {
+    nombre: "Aceite de oliva extra virgen x500 ml",
+    marca: "Olivares del Sur",
+    unidad: "Unidad",
+    precio: 9000,
+    agotado: false,
+  },
+  {
+    nombre: "Aceite de oliva extra virgen x500 ml",
+    marca: "Olivares del Sur",
+    unidad: "x5u ($8500 c/u)",
+    precio: 42500,
+    agotado: false,
+  },
 ];
 
 export function fictionalTiendistaProductDataBytes(

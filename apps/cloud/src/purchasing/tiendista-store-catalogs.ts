@@ -39,6 +39,12 @@ function parsedAmount(value: string): number | null {
   return value.trim() === "" ? null : Number(value);
 }
 
+const PRICE_PER_UNIT = /\s*\([^()]*c\/u\s*\)$/iu;
+
+function packSizeOf(unit: string | null): string | null {
+  return unit === null ? null : nonBlankText(unit.replace(PRICE_PER_UNIT, ""));
+}
+
 function rowOf(item: unknown): ExtractedPriceListRow | null {
   if (typeof item !== "object" || item === null || Array.isArray(item)) {
     return null;
@@ -56,7 +62,7 @@ function rowOf(item: unknown): ExtractedPriceListRow | null {
     ),
     code: cutOrNull(codeOf(entry["id"]), PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH),
     presentation: cutOrNull(
-      nonBlankText(entry["unidad"]),
+      packSizeOf(nonBlankText(entry["unidad"])),
       PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
     ),
     priceCents: priceCents(entry["precio"]),

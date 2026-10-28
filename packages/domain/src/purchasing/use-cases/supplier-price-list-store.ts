@@ -64,6 +64,7 @@ export interface StoredPriceListRow {
   id: string;
   description: string;
   code: string | null;
+  presentation: string | null;
   priceCents: number | null;
   link: SupplierItemLink | null;
   // Whether a person linked the row in this list, rather than its link being copied when the list
@@ -101,7 +102,10 @@ export type LockSupplierPriceListResult =
 
 export type LockSupplierPriceListRowResult =
   | { kind: "not_found" }
-  | { kind: "locked"; row: { description: string; code: string | null } };
+  | {
+      kind: "locked";
+      row: { description: string; code: string | null; presentation: string | null };
+    };
 
 export interface ProposedPriceListRow {
   description: string;

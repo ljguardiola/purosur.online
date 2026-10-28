@@ -10,13 +10,24 @@ export function normalizeSupplierItemDescription(description: string): string {
   return foldedText(description).replace(/\s+/gu, " ").trim();
 }
 
+// A normalized text holds no line break, so the one joining the description and the presentation
+// keeps every pair, and every description alone, apart.
+function descriptionKeyValue(description: string, presentation: string | null): string {
+  const normalizedDescription = normalizeSupplierItemDescription(description);
+  const normalizedPresentation = normalizeSupplierItemDescription(presentation ?? "");
+  return normalizedPresentation === ""
+    ? normalizedDescription
+    : `${normalizedDescription}\n${normalizedPresentation}`;
+}
+
 export function supplierItemKey(item: {
   code: string | null;
   description: string;
+  presentation: string | null;
 }): SupplierItemKey {
   const code = item.code?.trim() ?? "";
   return code === ""
-    ? { kind: "description", value: normalizeSupplierItemDescription(item.description) }
+    ? { kind: "description", value: descriptionKeyValue(item.description, item.presentation) }
     : { kind: "code", value: code };
 }
 
@@ -191,9 +202,9 @@ export function needsReview(status: SupplierPriceListRowStatus): boolean {
 
 // Several rows of one list may print the same item; the list records it once, as its last row
 // says, and `rows` keeps all of them in position order.
-export function lastRowOfEachItem<T extends { code: string | null; description: string }>(
-  rows: readonly T[],
-): { key: SupplierItemKey; row: T; rows: T[] }[] {
+export function lastRowOfEachItem<
+  T extends { code: string | null; description: string; presentation: string | null },
+>(rows: readonly T[]): { key: SupplierItemKey; row: T; rows: T[] }[] {
   const byKey = new Map<string, { key: SupplierItemKey; row: T; rows: T[] }>();
   for (const row of rows) {
     const key = supplierItemKey(row);

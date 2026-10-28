@@ -56,34 +56,87 @@ describe("normalizeSupplierItemDescription", () => {
 
 describe("supplierItemKey", () => {
   it("identifies an item by its code, trimmed and as printed", () => {
-    expect(supplierItemKey({ code: "  Y-001a ", description: "Yerba 1 kg" })).toEqual({
+    expect(
+      supplierItemKey({ code: "  Y-001a ", description: "Yerba 1 kg", presentation: null }),
+    ).toEqual({
       kind: "code",
       value: "Y-001a",
     });
   });
 
   it("keeps two codes that differ only in case apart", () => {
-    expect(supplierItemKey({ code: "ab", description: "x" })).not.toEqual(
-      supplierItemKey({ code: "AB", description: "x" }),
+    expect(supplierItemKey({ code: "ab", description: "x", presentation: null })).not.toEqual(
+      supplierItemKey({ code: "AB", description: "x", presentation: null }),
     );
   });
 
   it.each([null, "", "   ", "\t\n"])(
     "identifies an item with the code %j by its normalized description",
     (code) => {
-      expect(supplierItemKey({ code, description: "  Yerbá   MATE 1 Kg" })).toEqual({
+      expect(
+        supplierItemKey({ code, description: "  Yerbá   MATE 1 Kg", presentation: null }),
+      ).toEqual({
         kind: "description",
         value: "yerba mate 1 kg",
       });
     },
   );
 
-  it("ignores the description when the item has a code", () => {
+  it("ignores the description and the presentation when the item has a code", () => {
     fc.assert(
-      fc.property(fc.string(), fc.string(), (first, second) => {
-        expect(supplierItemKey({ code: "A-1", description: first })).toEqual(
-          supplierItemKey({ code: "A-1", description: second }),
-        );
+      fc.property(
+        fc.string(),
+        fc.string(),
+        fc.option(fc.string()),
+        fc.option(fc.string()),
+        (first, second, firstPresentation, secondPresentation) => {
+          expect(
+            supplierItemKey({ code: "A-1", description: first, presentation: firstPresentation }),
+          ).toEqual(
+            supplierItemKey({ code: "A-1", description: second, presentation: secondPresentation }),
+          );
+        },
+      ),
+    );
+  });
+
+  it.each([null, "", "   ", "\t\n"])(
+    "identifies an item with no code and the presentation %j by its description alone",
+    (presentation) => {
+      expect(
+        supplierItemKey({ code: null, description: "  Yerbá   MATE 1 Kg", presentation }),
+      ).toEqual({ kind: "description", value: "yerba mate 1 kg" });
+    },
+  );
+
+  it("identifies an item with no code by its normalized description and presentation", () => {
+    expect(
+      supplierItemKey({ code: null, description: " Sal  FINA ", presentation: "  Caja\tx10 " }),
+    ).toEqual({ kind: "description", value: "sal fina\ncaja x10" });
+  });
+
+  it("keeps two presentations of one description with no code apart", () => {
+    expect(
+      supplierItemKey({ code: null, description: "Sal fina", presentation: "Unidad" }),
+    ).not.toEqual(supplierItemKey({ code: null, description: "Sal fina", presentation: "x5u" }));
+  });
+
+  it("matches a presentation written with other spacing, case or accents", () => {
+    expect(
+      supplierItemKey({ code: null, description: "Sal fina", presentation: "Caja x10" }),
+    ).toEqual(supplierItemKey({ code: null, description: "sal FINA", presentation: " cája  X10" }));
+  });
+
+  it("never gives an item with a presentation the key of another item with or without one", () => {
+    const text = fc.string({ unit: fc.constantFrom("a", "b", " ", "\n", "\t") });
+    fc.assert(
+      fc.property(text, fc.option(text), text, fc.option(text), (d1, p1, d2, p2) => {
+        const first = supplierItemKey({ code: null, description: d1, presentation: p1 });
+        const second = supplierItemKey({ code: null, description: d2, presentation: p2 });
+        const sameItem =
+          normalizeSupplierItemDescription(d1) === normalizeSupplierItemDescription(d2) &&
+          normalizeSupplierItemDescription(p1 ?? "") === normalizeSupplierItemDescription(p2 ?? "");
+        expect(sameSupplierItemKey(first, second)).toBe(sameItem);
       }),
     );
   });
@@ -402,11 +455,12 @@ describe("needsReview", () => {
 });
 
 describe("lastRowOfEachItem", () => {
-  const row = (id: string, code: string | null, description: string) => ({
-    id,
-    code,
-    description,
-  });
+  const row = (
+    id: string,
+    code: string | null,
+    description: string,
+    presentation: string | null = null,
+  ) => ({ id, code, description, presentation });
 
   it("keeps one row per item, the last by position, in order of first appearance", () => {
     const rows = [
@@ -432,6 +486,23 @@ describe("lastRowOfEachItem", () => {
     const rows = [row("1", "yerba", "x"), row("2", null, "yerba")];
 
     expect(lastRowOfEachItem(rows)).toHaveLength(2);
+  });
+
+  it("keeps two presentations of one description with no code as different items", () => {
+    const rows = [
+      row("1", null, "Sal fina", "Unidad"),
+      row("2", null, "Sal fina", "x5u"),
+      row("3", null, "sal fina", " UNIDAD "),
+    ];
+
+    expect(lastRowOfEachItem(rows)).toEqual([
+      {
+        key: { kind: "description", value: "sal fina\nunidad" },
+        row: rows[2],
+        rows: [rows[0], rows[2]],
+      },
+      { key: { kind: "description", value: "sal fina\nx5u" }, row: rows[1], rows: [rows[1]] },
+    ]);
   });
 
   it("answers nothing for no rows", () => {

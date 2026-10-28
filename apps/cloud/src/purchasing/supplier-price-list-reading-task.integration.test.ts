@@ -198,6 +198,18 @@ describe("supplierPriceListReadingJobs against a real job queue", () => {
         presentation: "Paquete 500 g",
         priceCents: 70000,
       },
+      {
+        description: "Aceite de oliva extra virgen x500 ml Olivares del Sur",
+        supplierCode: null,
+        presentation: "Unidad",
+        priceCents: 900000,
+      },
+      {
+        description: "Aceite de oliva extra virgen x500 ml Olivares del Sur",
+        supplierCode: null,
+        presentation: "x5u",
+        priceCents: 4250000,
+      },
     ]);
   });
 });

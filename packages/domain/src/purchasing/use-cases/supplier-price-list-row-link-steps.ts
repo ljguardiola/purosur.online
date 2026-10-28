@@ -37,7 +37,7 @@ export async function linkRowAndRememberItem(
     list: Pick<LockedSupplierPriceList, "state" | "supplierId">;
     listId: string;
     rowId: string;
-    row: { description: string; code: string | null };
+    row: { description: string; code: string | null; presentation: string | null };
   },
   link: SupplierItemLink,
   actorId: string,
