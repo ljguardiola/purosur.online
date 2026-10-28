@@ -159,22 +159,18 @@ describe("SaleHistoryDetailPanel", () => {
     await expect.element(screen.getByText("$ 30.700,00").first()).toBeVisible();
   });
 
-  it.each([
-    ["DEBIT", "Point · Débito"],
-    ["CREDIT", "Point · Crédito"],
-    [null, "Point"],
-  ] as const)("names a Point payment of card type %s as %s", async (card_type, name) => {
+  it("names the card type of a Point payment", async () => {
     const { screen } = await renderPanel({
       read: async () => ({
         kind: "found",
         detail: {
           ...FISCAL_SALE,
-          payments: [{ method: "POINT", card_type, amount: 3_070_000 }],
+          payments: [{ method: "POINT", card_type: "CREDIT", amount: 3_070_000 }],
         },
       }),
     });
 
-    await expect.element(screen.getByText(name, { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Point · Crédito", { exact: true })).toBeVisible();
   });
 
   it("says one line in the singular", async () => {

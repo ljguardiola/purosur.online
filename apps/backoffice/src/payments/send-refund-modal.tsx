@@ -2,9 +2,9 @@ import type { ConfirmedRefundBody, PendingRefundsBody } from "@purosur/contracts
 import { Button, formatCents, InlineNotice, Modal } from "@purosur/ui";
 import { RotateCcw, Send, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { paymentLabel } from "../platform/payment-method-label";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { paymentLabel } from "./payment-label";
 import { refundReason } from "./refund-reason";
 import type { confirmRefund } from "./refunds-api";
 

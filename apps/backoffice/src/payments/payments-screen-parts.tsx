@@ -9,7 +9,8 @@ import {
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { useEffect, useEffectEvent, useState } from "react";
-import { paymentLabel, paymentMethodLabel } from "../platform/payment-method-label";
+import { paymentMethodLabel } from "../platform/payment-method-label";
+import { paymentLabel } from "./payment-label";
 import { refundDeliveryStatus } from "./refund-delivery-status";
 import { refundDate } from "./refund-moments";
 import { refundReason } from "./refund-reason";

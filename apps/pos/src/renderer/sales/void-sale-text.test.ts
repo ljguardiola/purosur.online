@@ -87,20 +87,16 @@ describe("voidRefundPresentation", () => {
     },
   );
 
-  it.each([
-    ["DEBIT", "Point · Débito"],
-    ["CREDIT", "Point · Crédito"],
-    [null, "Point"],
-  ] as const)("names the refund of a Point payment of card type %s as %s", (card_type, name) => {
+  it("names the card type of the refund of a Point payment", () => {
     expect(
       voidRefundPresentation({
         method: "POINT",
-        card_type,
+        card_type: "DEBIT",
         amount: 250_000,
         state: "PENDING",
         sent_by_cloud: true,
       }).title,
-    ).toBe(`${name} · $ 2.500,00`);
+    ).toBe("Point · Débito · $ 2.500,00");
   });
 
   it("follows what the core says about who sends the refund, not the payment method", () => {

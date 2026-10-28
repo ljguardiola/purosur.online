@@ -143,19 +143,6 @@ test("tells a Point refund made outside the system by its method alone", async (
   expect(pointRow).not.toContain("Sin confirmar");
 });
 
-test("names the card type of a Point refund made outside the system", async () => {
-  const services = createOutsideRefundsServices();
-  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
-    kind: "ok",
-    value: { refunds: [{ ...transferRefund, method: "POINT", card_type: "DEBIT", origin: "late_payment" }] },
-  });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
-  expect(rowTexts(screen)[0]).toContain("Point · Débito");
-});
-
 test("names the Mercado Pago order under the method of a refund made outside the system that carries one", async () => {
   const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({

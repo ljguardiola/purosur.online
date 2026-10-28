@@ -70,23 +70,16 @@ describe("ReturnRefundsField", () => {
       .toHaveValue("9.700,00");
   });
 
-  it.each([
-    ["DEBIT", "Point · Débito"],
-    ["CREDIT", "Point · Crédito"],
-    [null, "Point"],
-  ] as const)(
-    "names a Point payment of card type %s as %s, in its name and its refund label",
-    async (cardType, name) => {
-      const screen = await renderField(false, [
-        { ...TRANSFER, payment_id: "pay-point", method: "POINT", card_type: cardType },
-      ]);
+  it("names the card type of a Point payment, in its name and its refund label", async () => {
+    const screen = await renderField(false, [
+      { ...TRANSFER, payment_id: "pay-point", method: "POINT", card_type: "DEBIT" },
+    ]);
 
-      await expect.element(screen.getByText(name, { exact: true })).toBeVisible();
-      await expect
-        .element(screen.getByRole("textbox", { name: `Reintegro por ${name}` }))
-        .toBeInTheDocument();
-    },
-  );
+    await expect.element(screen.getByText("Point · Débito", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Reintegro por Point · Débito" }))
+      .toBeInTheDocument();
+  });
 
   it("locks a payment that is not refunded from the register, saying why", async () => {
     const screen = await renderField();

@@ -181,9 +181,7 @@ describe("GET /refunds/pending", () => {
     const response = await pendingRefunds(headers);
 
     const body = pendingRefundsSchema.parse(response.json());
-    expect(
-      body.refunds.map(({ id, method, card_type }) => ({ id, method, card_type })),
-    ).toEqual(
+    expect(body.refunds.map(({ id, method, card_type }) => ({ id, method, card_type }))).toEqual(
       expect.arrayContaining([
         { id: point.refundId, method: "POINT", card_type: "DEBIT" },
         { id: transferId, method: "TRANSFER", card_type: null },
