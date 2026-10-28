@@ -158,7 +158,9 @@ describe("ReturnLinesTable", () => {
     await expect.element(quantity).toHaveValue("2");
     await expect.element(quantity).toHaveAttribute("readonly");
     await userEvent.hover(quantity);
-    await expect.element(screen.getByText("Las promociones se devuelven completas")).toBeVisible();
+    await expect
+      .element(screen.getByRole("tooltip", { name: "Las promociones se devuelven completas" }))
+      .toBeVisible();
   });
 
   it("offers no checkbox for a line already returned in full, and says it was", async () => {
