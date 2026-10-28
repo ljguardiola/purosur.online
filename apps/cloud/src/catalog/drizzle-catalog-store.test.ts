@@ -61,7 +61,8 @@ async function loggedChanges() {
     .from(changes)
     .orderBy(asc(changes.changeSeq));
   return rows.filter(
-    (row) => row.entity === "category" ||
+    (row) =>
+      row.entity === "category" ||
       row.entity === "product" ||
       row.entity === "tag" ||
       row.entity === "brand",

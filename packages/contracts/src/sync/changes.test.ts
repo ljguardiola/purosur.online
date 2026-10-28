@@ -893,7 +893,10 @@ describe("changesPageSchema", () => {
       pageOf(change(1, "brand", { ...brandRow, active: undefined })),
     ],
     ["a brand without its name", pageOf(change(1, "brand", { ...brandRow, name: undefined }))],
-    ["a brand without its version", pageOf(change(1, "brand", { ...brandRow, version: undefined }))],
+    [
+      "a brand without its version",
+      pageOf(change(1, "brand", { ...brandRow, version: undefined })),
+    ],
     [
       "an issuer identification without its CUIT",
       pageOf(

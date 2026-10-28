@@ -12,6 +12,7 @@ import { highestSyncedOfflineNumber as highestSyncedOfflineNumberOf } from "../f
 import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "../fiscal/offline-authorization-code-version.js";
 import {
   branchFirstCashSessions,
+  brands,
   buyerIdentificationThresholds,
   buyerTaxStatusSets,
   caeaCodes,
@@ -35,7 +36,6 @@ import {
   roles,
   stockMovements,
   tags,
-  brands,
   taxAuthorityLastAuthorizedNumbers,
   userPins,
   userRoles,
@@ -47,6 +47,7 @@ import { PRICE_VERSION } from "../pricing/price-version.js";
 import { STOCK_MOVEMENT_VERSION } from "../stock/stock-movement-version.js";
 import type {
   BranchFirstCashSessionRow,
+  BrandRow,
   BuyerIdentificationThresholdRow,
   BuyerTaxStatusSetRow,
   CategoryRow,
@@ -66,7 +67,6 @@ import type {
   RoleRow,
   StockMovementRow,
   TagRow,
-  BrandRow,
   UserRow,
   ZoneRulesRow,
 } from "./pulled-changes.js";

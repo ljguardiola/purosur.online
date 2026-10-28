@@ -19,6 +19,7 @@ import {
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
 import {
   readBranchFirstCashSessions,
+  readBrands,
   readBuyerIdentificationThresholds,
   readBuyerTaxStatusSets,
   readCategories,
@@ -38,7 +39,6 @@ import {
   readRoles,
   readStockMovements,
   readTags,
-  readBrands,
   readUsers,
   readZoneRules,
 } from "./read-pulled-rows.js";
