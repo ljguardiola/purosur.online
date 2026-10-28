@@ -1368,6 +1368,8 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/link-choices" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/product-categories" }),
+      app.inject({ method: "GET", url: "/api/supplier-price-lists/product-brands" }),
+      app.inject({ method: "GET", url: "/api/supplier-price-lists/product-tags" }),
       app.inject({
         method: "POST",
         url: "/api/supplier-price-lists/internal-barcodes",
@@ -2822,6 +2824,16 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/supplier-price-lists/product-categories",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/product-brands",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/product-tags",
         access: capabilityAccess("supplier_price_lists"),
       },
       {

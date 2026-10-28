@@ -2,11 +2,14 @@ import { createProductFromSupplierItem } from "@purosur/domain/purchasing/use-ca
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  brands,
   categories,
   changes,
   productBarcodes,
   productPackagings,
   products,
+  productTags,
+  tags,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleSupplierItemProductStore } from "./drizzle-supplier-item-product-store.js";
@@ -55,7 +58,15 @@ async function catalogRowCounts() {
 }
 
 function newProduct(categoryId: string, barcodes: string[] = ["7790000000001"]) {
-  return { name: "Yerba 1 kg", categoryId, saleUnit: "UNIT" as const, barcodes };
+  return {
+    name: "Yerba 1 kg",
+    categoryId,
+    brandId: null,
+    saleUnit: "UNIT" as const,
+    barcodes,
+    tagIds: [],
+    netContent: null,
+  };
 }
 
 describe("lockRow", () => {
@@ -132,6 +143,85 @@ describe("createCatalogProduct", () => {
       .from(productBarcodes)
       .where(eq(productBarcodes.productId, outcome.productId));
     expect(barcodes.map((barcode) => barcode.code)).toEqual(["7791234567890"]);
+  });
+
+  it("creates the product with the brand, tags and net content given", async () => {
+    const categoryId = await leafCategory();
+    const [brand] = await db.insert(brands).values({ name: "Dulcor" }).returning();
+    const [tag] = await db.insert(tags).values({ name: "Vegano" }).returning();
+    if (!brand || !tag) {
+      throw new Error("test setup: seeding the brand and the tag returned no row");
+    }
+
+    const outcome = await store().transaction((tx) =>
+      tx.createCatalogProduct({
+        ...newProduct(categoryId),
+        brandId: brand.id,
+        tagIds: [tag.id],
+        netContent: { quantity: 125, unit: "ML" },
+      }),
+    );
+
+    if (outcome.kind !== "created") {
+      throw new Error(`expected the product to be created, got ${outcome.kind}`);
+    }
+    const [product] = await db.select().from(products).where(eq(products.id, outcome.productId));
+    expect(product).toMatchObject({
+      brandId: brand.id,
+      netContentQuantity: "125",
+      netContentUnit: "ML",
+    });
+    const tagged = await db
+      .select()
+      .from(productTags)
+      .where(eq(productTags.productId, outcome.productId));
+    expect(tagged.map((row) => row.tagId)).toEqual([tag.id]);
+  });
+
+  it("answers brand_not_found for a brand that does not exist", async () => {
+    const categoryId = await leafCategory();
+
+    const outcome = await store().transaction((tx) =>
+      tx.createCatalogProduct({ ...newProduct(categoryId), brandId: MISSING_ID }),
+    );
+
+    expect(outcome).toEqual({ kind: "brand_not_found" });
+    expect(await catalogRowCounts()).toMatchObject({ products: 0 });
+  });
+
+  it("answers brand_inactive for a deactivated brand", async () => {
+    const categoryId = await leafCategory();
+    const [brand] = await db.insert(brands).values({ name: "Dulcor", active: false }).returning();
+
+    const outcome = await store().transaction((tx) =>
+      tx.createCatalogProduct({ ...newProduct(categoryId), brandId: brand?.id ?? MISSING_ID }),
+    );
+
+    expect(outcome).toEqual({ kind: "brand_inactive" });
+    expect(await catalogRowCounts()).toMatchObject({ products: 0 });
+  });
+
+  it("answers tag_not_found for a tag that does not exist", async () => {
+    const categoryId = await leafCategory();
+
+    const outcome = await store().transaction((tx) =>
+      tx.createCatalogProduct({ ...newProduct(categoryId), tagIds: [MISSING_ID] }),
+    );
+
+    expect(outcome).toEqual({ kind: "tag_not_found" });
+    expect(await catalogRowCounts()).toMatchObject({ products: 0 });
+  });
+
+  it("answers tag_inactive naming a deactivated tag", async () => {
+    const categoryId = await leafCategory();
+    const [tag] = await db.insert(tags).values({ name: "Vegano", active: false }).returning();
+
+    const outcome = await store().transaction((tx) =>
+      tx.createCatalogProduct({ ...newProduct(categoryId), tagIds: [tag?.id ?? MISSING_ID] }),
+    );
+
+    expect(outcome).toEqual({ kind: "tag_inactive", tagId: tag?.id });
+    expect(await catalogRowCounts()).toMatchObject({ products: 0 });
   });
 
   it("logs the new product for synchronization", async () => {
@@ -243,9 +333,13 @@ describe("creating a product from a supplier item through the use case", () => {
       listId,
       rowId,
       version: 1,
+      name: "Yerba",
       saleUnit: "UNIT",
       categoryId,
+      brandId: null,
       barcodes: ["7790000000001"],
+      tagIds: [],
+      netContent: null,
       packagingName: "Caja x 10",
       quantityPerPackage: 10_000,
       vatRate: 2_100,
