@@ -107,13 +107,60 @@ describe("recording the credit note a register issued under a pre-obtained code"
     expect(await system.db.select().from(offlineFiscalDocuments)).toHaveLength(1);
   });
 
-  it("refuses a second credit note for the same sale", async () => {
+  it("keeps every credit note of the same sale, each as its own document", async () => {
     const { deviceId, registerId, saleId } = await enrolledWithSale();
-    await record(anOfflineCreditNoteFact({ registerId, saleId }), deviceId);
+    const first = anOfflineCreditNoteFact({ registerId, saleId });
+    const second = anOfflineCreditNoteFact({ registerId, saleId, number: 4 });
+
+    await record(first, deviceId);
+    await record(second, deviceId);
+
+    expect(
+      await system.db
+        .select({
+          id: offlineFiscalDocuments.id,
+          number: offlineFiscalDocuments.number,
+          creditNoteId: offlineFiscalDocuments.creditNoteId,
+        })
+        .from(offlineFiscalDocuments)
+        .orderBy(offlineFiscalDocuments.number),
+    ).toEqual([
+      {
+        id: first.document.fiscalDocumentId,
+        number: 3,
+        creditNoteId: first.document.creditNoteId,
+      },
+      {
+        id: second.document.fiscalDocumentId,
+        number: 4,
+        creditNoteId: second.document.creditNoteId,
+      },
+    ]);
+  });
+
+  it("refuses a credit note already recorded as another document", async () => {
+    const { deviceId, registerId, saleId } = await enrolledWithSale();
+    const anotherSaleId = await applyCompletedSale(system.db, {
+      deviceId,
+      completedAt: new Date("2026-10-06T11:30:00.000Z"),
+      total: 4800,
+    });
+    const creditNoteId = randomUUID();
+    await record(anOfflineCreditNoteFact({ registerId, saleId, creditNoteId }), deviceId);
 
     await expect(
-      record(anOfflineCreditNoteFact({ registerId, saleId, number: 4 }), deviceId),
+      record(
+        anOfflineCreditNoteFact({
+          registerId,
+          saleId: anotherSaleId,
+          number: 4,
+          creditNoteId,
+        }),
+        deviceId,
+      ),
     ).rejects.toThrow();
+
+    expect(await system.db.select().from(offlineFiscalDocuments)).toHaveLength(1);
   });
 
   it("refuses a credit note that names another register than the one that pushed it", async () => {

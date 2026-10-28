@@ -1,6 +1,8 @@
 import {
   type AverageTicketBody,
   averageTicketSchema,
+  type HandTypedWeightsBody,
+  handTypedWeightsSchema,
   type ManualDiscountsBody,
   type ManualDiscountsQuery,
   manualDiscountsSchema,
@@ -105,4 +107,19 @@ export function fetchAverageTicket(
   const search = params.toString();
   const path = "/api/reports/average-ticket";
   return readCloudJson(search ? `${path}?${search}` : path, averageTicketSchema);
+}
+
+export function fetchHandTypedWeights(
+  query: ReportQuery,
+): Promise<CloudReadOutcome<HandTypedWeightsBody>> {
+  const params = new URLSearchParams();
+  for (const key of ["from", "to", "register_id"] as const) {
+    const value = query[key];
+    if (value !== undefined) {
+      params.set(key, value);
+    }
+  }
+  const search = params.toString();
+  const path = "/api/reports/hand-typed-weights";
+  return readCloudJson(search ? `${path}?${search}` : path, handTypedWeightsSchema);
 }

@@ -1,4 +1,4 @@
-import type { ProductSummary } from "@purosur/contracts";
+import type { ListedProduct } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { productsListFilters } from "./routes";
@@ -34,7 +34,7 @@ test("the row action opens the edit modal pre-filled with the product's data", a
 test("edits a product and shows the updated data in the list", async () => {
   const services = createServices();
   mockLoaded(services, [honey]);
-  const updated: ProductSummary = { ...honey, name: "Miel pura de abeja 500 g", version: 2 };
+  const updated: ListedProduct = { ...honey, name: "Miel pura de abeja 500 g", version: 2 };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchProducts)
     .mockResolvedValueOnce({ kind: "ok", value: [honey] })
@@ -69,7 +69,7 @@ test("edits a product and shows the updated data in the list", async () => {
 
 test("reloading an inactive product after a stale-version conflict finds it", async () => {
   const services = createServices();
-  const inactiveHoney: ProductSummary = { ...honey, active: false };
+  const inactiveHoney: ListedProduct = { ...honey, active: false };
   mockLoaded(services, [inactiveHoney]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
@@ -78,7 +78,7 @@ test("reloading an inactive product after a stale-version conflict finds it", as
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
 
-  const freshened: ProductSummary = {
+  const freshened: ListedProduct = {
     ...inactiveHoney,
     name: "Miel pura de abeja 900 g",
     version: 2,
@@ -101,7 +101,7 @@ test("a stale-version reload reads only the list on screen when it holds the pro
   const dialog = await openEditProductModal(screen, honey);
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
-  const freshened: ProductSummary = { ...honey, name: "Miel pura de abeja 900 g", version: 2 };
+  const freshened: ListedProduct = { ...honey, name: "Miel pura de abeja 900 g", version: 2 };
   vi.mocked(services.fetchProducts).mockClear();
   vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "ok", value: [freshened] });
 
@@ -123,7 +123,7 @@ test("a stale-version reload over the list of every product reads that list once
   const dialog = await openEditProductModal(screen, honey);
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
-  const freshened: ProductSummary = { ...honey, name: "Miel pura de abeja 900 g", version: 2 };
+  const freshened: ListedProduct = { ...honey, name: "Miel pura de abeja 900 g", version: 2 };
   vi.mocked(services.fetchProducts).mockClear();
   vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "ok", value: [freshened] });
 
@@ -137,14 +137,14 @@ test("a stale-version reload over the list of every product reads that list once
 
 test("a stale-version reload of a product the list on screen does not hold reads every product once", async () => {
   const services = createServices();
-  const inactiveHoney: ProductSummary = { ...honey, active: false };
+  const inactiveHoney: ListedProduct = { ...honey, active: false };
   mockLoaded(services, [inactiveHoney]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
   const dialog = await openEditProductModal(screen, inactiveHoney);
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
-  const freshened: ProductSummary = { ...inactiveHoney, name: "Miel pura de abeja 900 g" };
+  const freshened: ListedProduct = { ...inactiveHoney, name: "Miel pura de abeja 900 g" };
   vi.mocked(services.fetchProducts).mockClear();
   vi.mocked(services.fetchProducts).mockImplementation(async (status) =>
     status === "all" ? { kind: "ok", value: [freshened] } : { kind: "ok", value: [] },

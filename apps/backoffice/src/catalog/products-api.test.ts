@@ -41,18 +41,19 @@ const honey: ProductSummary = {
 };
 
 test("fetchProducts lists every product on 200, defaulting to the active filter", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [honey]));
+  const listed = { ...honey, currentUnitPrice: 450000 };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [listed]));
 
   const outcome = await fetchProducts();
 
-  expect(outcome).toEqual({ kind: "ok", value: [honey] });
+  expect(outcome).toEqual({ kind: "ok", value: [listed] });
   expect(fetch).toHaveBeenCalledWith("/api/products?status=active");
 });
 
 test.each(["active", "inactive", "all"] as const)(
   "fetchProducts sends the requested status filter %s",
   async (status) => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [honey]));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...honey, currentUnitPrice: null }]));
 
     await fetchProducts(status);
 
@@ -80,6 +81,12 @@ test("fetchProducts returns rate_limited with the Retry-After header on 429", as
 
 test("fetchProducts returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await fetchProducts()).toEqual({ kind: "failed" });
+});
+
+test("fetchProducts returns failed on a product without its current price", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [honey]));
 
   expect(await fetchProducts()).toEqual({ kind: "failed" });
 });

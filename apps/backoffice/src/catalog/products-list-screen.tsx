@@ -1,12 +1,20 @@
-import type { BrandSummary, CategorySummary, ProductSummary, TagList } from "@purosur/contracts";
+import type {
+  BrandSummary,
+  CategorySummary,
+  ListedProduct,
+  ProductSummary,
+  TagList,
+} from "@purosur/contracts";
 import {
   actionsColumn,
   Button,
   dataColumn,
+  formatCents,
   ListFilter,
   plural,
   SearchField,
   StatusIndicator,
+  sortedItems,
   Table,
   type TableSort,
   textOrder,
@@ -22,8 +30,11 @@ import {
 } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import { formatNetContent } from "../platform/net-content";
+import { perSaleUnit } from "../platform/per-sale-unit";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { barcodesSummary } from "./barcodes-summary";
 import {
   useBrandsQuery,
   useCategoriesQuery,
@@ -48,12 +59,13 @@ export type ProductsListScreenProps = {
   services: ProductsListScreenServices;
 };
 
-const NO_PRODUCTS: ProductSummary[] = [];
+const NO_PRODUCTS: ListedProduct[] = [];
 const NO_CATEGORIES: CategorySummary[] = [];
 const NO_BRANDS: BrandSummary[] = [];
 const NO_TAG_LIST: TagList = { tags: [], taggedProductCount: 0 };
 
 type CategoryFilter = "ALL" | string;
+type BrandFilter = "ALL" | "NONE" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
 
 const UNIT_OPTION_LABELS = {
@@ -90,7 +102,14 @@ function unitLabel(saleUnit: ProductSaleUnit): string {
   return UNIT_OPTION_LABELS[saleUnit];
 }
 
-const productNameOrder = textOrder((product: ProductSummary) => product.name);
+function priceText(product: ListedProduct): string {
+  return product.currentUnitPrice === null
+    ? "Sin precio"
+    : perSaleUnit(formatCents(product.currentUnitPrice), product.saleUnit);
+}
+
+const productNameOrder = textOrder((product: ListedProduct) => product.name);
+const brandOrder = textOrder((brand: { label: string }) => brand.label);
 
 export function ProductsListScreen({
   filters,
@@ -108,6 +127,7 @@ export function ProductsListScreen({
   const [chosenCategoryFilter, setChosenCategoryFilter] = useState<CategoryFilter>(
     filters.category,
   );
+  const [chosenBrandFilter, setChosenBrandFilter] = useState<BrandFilter>(filters.brand);
   const [unitFilter, setUnitFilter] = useState<UnitFilter>(filters.unit);
   const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>(filters.status);
   const [sort, setSort] = useState<TableSort<"product">>({
@@ -161,10 +181,26 @@ export function ProductsListScreen({
       ? "ALL"
       : chosenCategoryFilter;
 
+  const brandsWithProducts = brands.filter((brand) =>
+    products.some((product) => product.brandId === brand.id),
+  );
+  const offeredBrandIds = new Set(brandsWithProducts.map(({ id }) => id));
+  const brandFilter =
+    data.status === "loaded" &&
+    chosenBrandFilter !== "ALL" &&
+    chosenBrandFilter !== "NONE" &&
+    !offeredBrandIds.has(chosenBrandFilter)
+      ? "ALL"
+      : chosenBrandFilter;
+  if (brandFilter !== chosenBrandFilter) {
+    setChosenBrandFilter(brandFilter);
+  }
+
   useEffect(() => {
     const shown: ProductsListFilters = {
       search,
       category: categoryFilter,
+      brand: brandFilter,
       unit: unitFilter,
       status: statusFilter,
       sort: sort.direction,
@@ -172,7 +208,7 @@ export function ProductsListScreen({
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
-  }, [search, categoryFilter, unitFilter, statusFilter, sort.direction, filters]);
+  }, [search, categoryFilter, brandFilter, unitFilter, statusFilter, sort.direction, filters]);
 
   const categoryLabels = categoryPathLabels(categories);
 
@@ -185,6 +221,17 @@ export function ProductsListScreen({
         label: categoryLabels.get(category.id) ?? category.name,
       })),
   ] as [{ value: CategoryFilter; label: string }, ...{ value: CategoryFilter; label: string }[]];
+
+  const brandFilterOptions = [
+    { value: "ALL" as const, label: "Todas" },
+    { value: "NONE" as const, label: "Sin marca" },
+    ...sortedItems(
+      brandsWithProducts.map((brand) => ({ value: brand.id, label: brand.name })),
+      { order: brandOrder, direction: "ascending" },
+    ),
+  ] as [{ value: BrandFilter; label: string }, ...{ value: BrandFilter; label: string }[]];
+
+  const brandNames = new Map(brands.map((brand) => [brand.id, brand.name]));
 
   const unitFilterOptions = [
     { value: "ALL" as const, label: "Todas" },
@@ -203,22 +250,44 @@ export function ProductsListScreen({
       id: "product",
       header: "Producto",
       sort: { order: productNameOrder, firstDirection: "ascending" },
-      render: (item: ProductSummary) => item.name,
+      render: (item: ListedProduct) => item.name,
+    }),
+    dataColumn({
+      id: "brand",
+      header: "Marca",
+      render: (item: ListedProduct) =>
+        item.brandId === null ? "" : (brandNames.get(item.brandId) ?? ""),
+    }),
+    dataColumn({
+      id: "netContent",
+      header: "Contenido neto",
+      render: (item: ListedProduct) =>
+        item.netContent === null ? "" : formatNetContent(item.netContent),
+    }),
+    dataColumn({
+      id: "barcodes",
+      header: "Código de barras",
+      render: (item: ListedProduct) => barcodesSummary(item.barcodes),
     }),
     dataColumn({
       id: "category",
       header: "Categoría",
-      render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
+      render: (item: ListedProduct) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     }),
     dataColumn({
       id: "unit",
       header: "Unidad",
-      render: (item: ProductSummary) => unitLabel(item.saleUnit),
+      render: (item: ListedProduct) => unitLabel(item.saleUnit),
+    }),
+    dataColumn({
+      id: "price",
+      header: "Precio",
+      render: priceText,
     }),
     dataColumn({
       id: "status",
       header: "Estado",
-      render: (item: ProductSummary) =>
+      render: (item: ListedProduct) =>
         item.active ? (
           <StatusIndicator tone="success">Activo</StatusIndicator>
         ) : (
@@ -229,12 +298,12 @@ export function ProductsListScreen({
       id: "actions",
       header: "Acciones",
       actions: [
-        (item: ProductSummary) => ({
+        (item: ListedProduct) => ({
           icon: <Pencil />,
           "aria-label": `Editar el producto ${item.name}`,
           onPress: () => setEditTarget(item),
         }),
-        (item: ProductSummary) =>
+        (item: ListedProduct) =>
           item.active
             ? {
                 icon: <Ban />,
@@ -256,6 +325,8 @@ export function ProductsListScreen({
     search: { text: search, in: (product) => [product.name, ...product.barcodes] },
     filter: (product) =>
       (categoryFilter === "ALL" || product.categoryId === categoryFilter) &&
+      (brandFilter === "ALL" ||
+        (brandFilter === "NONE" ? product.brandId === null : product.brandId === brandFilter)) &&
       (unitFilter === "ALL" || product.saleUnit === unitFilter),
     columns,
     sort,
@@ -319,6 +390,14 @@ export function ProductsListScreen({
             options={categoryFilterOptions}
             value={categoryFilter}
             onChange={setChosenCategoryFilter}
+          />
+          <ListFilter
+            name="brand"
+            label="Marca:"
+            options={brandFilterOptions}
+            value={brandFilter}
+            onChange={setChosenBrandFilter}
+            searchable
           />
           <ListFilter
             name="unit"

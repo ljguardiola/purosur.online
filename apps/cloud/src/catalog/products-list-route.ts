@@ -3,14 +3,16 @@ import type { ZoneRulesSource } from "@purosur/domain";
 import type { ProductActivityScope } from "@purosur/domain/catalog/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { DrizzleCurrentPriceReader } from "../pricing/drizzle-current-price-reader.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
+  openSessionOf,
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
-import { toProductSummary } from "./product-summary-wire.js";
+import { toListedProduct } from "./product-summary-wire.js";
 
 const PRODUCT_STATUS_SCOPES: ReadonlyMap<string, ProductActivityScope> = new Map([
   ["active", "active"],
@@ -46,6 +48,7 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const catalog = new DrizzleCatalogListReader(options.db);
+  const currentPrices = new DrizzleCurrentPriceReader(options.db);
 
   app.get<{ Querystring: { status?: string } }>(
     "/products",
@@ -68,7 +71,12 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
       }
 
       const rows = await catalog.products(scope);
-      await reply.code(200).send(productListSchema.parse(rows.map(toProductSummary)));
+      const currentUnitPrices = await currentPrices.currentUnitPrices(
+        openSessionOf(request).locationId,
+      );
+      await reply
+        .code(200)
+        .send(productListSchema.parse(rows.map((row) => toListedProduct(row, currentUnitPrices))));
     },
   );
 }

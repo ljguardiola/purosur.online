@@ -10,6 +10,7 @@ test("opens the products list on active products, every category and unit, by na
   expect(productsListFilters.parse({})).toEqual({
     search: "",
     category: "ALL",
+    brand: "ALL",
     unit: "ALL",
     status: "active",
     sort: "ascending",
@@ -20,6 +21,7 @@ test("keeps the products list filters a URL names", () => {
   const filters = {
     search: "miel",
     category: "category-1",
+    brand: "brand-1",
     unit: "KG",
     status: "inactive",
     sort: "descending",
@@ -29,7 +31,14 @@ test("keeps the products list filters a URL names", () => {
 
 test("falls back to each products list default for a value the list does not offer", () => {
   expect(
-    productsListFilters.parse({ search: 7, category: [], unit: "LITRE", status: "x", sort: "up" }),
+    productsListFilters.parse({
+      search: 7,
+      category: [],
+      brand: 3,
+      unit: "LITRE",
+      status: "x",
+      sort: "up",
+    }),
   ).toEqual(productsListFilters.parse({}));
 });
 

@@ -2515,7 +2515,10 @@ export const offlineFiscalDocuments = pgTable(
     correctedNumber: integer("corrected_number"),
   },
   (table) => [
-    unique("offline_fiscal_documents_sale_document_key").on(table.saleId, table.documentType),
+    uniqueIndex("offline_fiscal_documents_one_invoice_per_sale")
+      .on(table.saleId)
+      .where(sql`${table.documentType} = ${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)}`),
+    uniqueIndex("offline_fiscal_documents_credit_note_key").on(table.creditNoteId),
     index("offline_fiscal_documents_corrected_voucher_idx")
       .on(table.correctedVoucherType, table.correctedPointOfSale, table.correctedNumber)
       .where(sql`${table.documentType} = ${sql.raw(`'${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)}`),

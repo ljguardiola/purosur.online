@@ -1,6 +1,7 @@
 import type {
   BrandSummary,
   CategorySummary,
+  ListedProduct,
   ProductSummary,
   TagList,
   TagSummary,
@@ -65,7 +66,7 @@ export function useProductsQuery(params: {
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<ProductSummary[]>({
+  return useCloudQuery<ListedProduct[]>({
     queryKey: catalogKeys.products(params.status),
     read: () => params.fetchProducts(params.status),
     onSessionEnded: params.onSessionEnded,

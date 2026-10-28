@@ -9,6 +9,7 @@ import {
 } from "../payments/test-support/payments-report-fixtures";
 import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
 import { returnsReport } from "../returns/test-support/returns-fixtures";
+import { handTypedWeightsReport } from "../sales/test-support/hand-typed-weights-fixtures";
 import {
   ANA_USER_ID,
   averageTicketReport,
@@ -36,6 +37,7 @@ opensOnlyScreens([
   "/reports/cash-session-closes",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
+  "/reports/hand-typed-weights",
   "/reports/sales-by-promotion",
   "/reports/manual-discounts",
   "/reports/average-ticket",
@@ -79,6 +81,10 @@ function reportsServices(capabilities: Capability[]) {
   vi.mocked(services.salesByCashierScreen.fetchSalesByCashier).mockResolvedValue({
     kind: "ok",
     value: cashierSalesReport,
+  });
+  vi.mocked(services.handTypedWeightsScreen.fetchHandTypedWeights).mockResolvedValue({
+    kind: "ok",
+    value: handTypedWeightsReport,
   });
   vi.mocked(services.salesByPromotionScreen.fetchSalesByPromotion).mockResolvedValue({
     kind: "ok",
@@ -493,6 +499,40 @@ test("rewrites a refused range of the sales by cashier report out of the address
   expect(services.salesByCashierScreen.fetchSalesByCashier).toHaveBeenCalledWith({});
 });
 
+test("opens the weights typed by hand report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(
+    screen.getByRole("main").getByRole("link", { name: "Pesos tipeados a mano" }),
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pesos tipeados a mano", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/hand-typed-weights");
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
+  expect(services.handTypedWeightsScreen.fetchHandTypedWeights).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Pesos tipeados a mano · Puro Sur");
+});
+
+test("keeps the weights typed by hand report's filters after following its own side column link", async () => {
+  const url = "/reports/hand-typed-weights?from=2026-10-01&to=2026-10-07";
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Pesos tipeados a mano" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
+
+  await userEvent.click(sectionLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+});
+
 test("opens the discounts by promotion report from the list and reads it from the cloud", async () => {
   const services = reportsServices(["reports_area"]);
   window.history.pushState(null, "", "/reports");
@@ -755,6 +795,7 @@ test.each([
   "/reports/cash-session-closes",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
+  "/reports/hand-typed-weights",
   "/reports/sales-by-promotion",
   "/reports/manual-discounts",
   "/reports/average-ticket",
@@ -775,6 +816,7 @@ test.each([
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
   ).not.toHaveBeenCalled();
   expect(services.salesByCashierScreen.fetchSalesByCashier).not.toHaveBeenCalled();
+  expect(services.handTypedWeightsScreen.fetchHandTypedWeights).not.toHaveBeenCalled();
   expect(services.salesByPromotionScreen.fetchSalesByPromotion).not.toHaveBeenCalled();
   expect(services.manualDiscountsScreen.fetchManualDiscounts).not.toHaveBeenCalled();
   expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();

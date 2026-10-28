@@ -166,7 +166,7 @@ describe("recording the document a register issued under a pre-obtained code", (
     expect(await system.db.select().from(offlineFiscalDocuments)).toHaveLength(1);
   });
 
-  it("refuses a second document for the same sale", async () => {
+  it("refuses a second factura for the same sale", async () => {
     const { deviceId, registerId, saleId } = await enrolledWithSale();
     await record(anOfflineFiscalDocumentFact({ registerId, saleId }), deviceId);
 
