@@ -46,6 +46,7 @@ import type { ReportRegisterFilterServices } from "../register/report-register-f
 import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
 import type { ReturnsReportScreenServices } from "../returns/returns-report-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
+import type { HandTypedWeightsScreenServices } from "../sales/hand-typed-weights-services";
 import type { ManualDiscountsScreenServices } from "../sales/manual-discounts-services";
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
@@ -112,6 +113,7 @@ export type AppServices = {
   salesByDayScreen: SalesByDayScreenServices;
   salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
   salesByCashierScreen: SalesByCashierScreenServices;
+  handTypedWeightsScreen: HandTypedWeightsScreenServices;
   salesByPromotionScreen: SalesByPromotionScreenServices;
   manualDiscountsScreen: ManualDiscountsScreenServices;
   returnsReportScreen: ReturnsReportScreenServices;

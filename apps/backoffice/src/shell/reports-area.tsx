@@ -10,6 +10,7 @@ import {
   Package,
   PackageX,
   Receipt,
+  Scale,
   Undo2,
   Users,
   Wallet,
@@ -38,6 +39,7 @@ function ReportsArea() {
     matchRoute({ to: "/reports/sales-by-product-and-category" }),
   );
   const salesByCashierShown = Boolean(matchRoute({ to: "/reports/sales-by-cashier" }));
+  const handTypedWeightsShown = Boolean(matchRoute({ to: "/reports/hand-typed-weights" }));
   const salesByPromotionShown = Boolean(matchRoute({ to: "/reports/sales-by-promotion" }));
   const manualDiscountsShown = Boolean(matchRoute({ to: "/reports/manual-discounts" }));
   const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
@@ -117,6 +119,15 @@ function ReportsArea() {
                     icon={<Users />}
                     search={salesByCashierShown ? true : {}}
                     active={salesByCashierShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/hand-typed-weights"
+                    label="Pesos tipeados a mano"
+                    icon={<Scale />}
+                    search={handTypedWeightsShown ? true : {}}
+                    active={handTypedWeightsShown}
                   />
                 </li>
                 <li>
