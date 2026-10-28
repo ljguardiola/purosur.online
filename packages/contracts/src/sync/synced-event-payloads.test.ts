@@ -217,6 +217,7 @@ describe("synced event payloads", () => {
       "qr_payment_replaced@1",
       "reprint_recorded@1",
       "reprint_recorded@2",
+      "reprint_recorded@3",
       "sale_cancelled@1",
       "sale_cancelled@2",
       "sale_cancelled@3",
@@ -2218,6 +2219,106 @@ describe("synced event payloads", () => {
       );
       expect(accepts("reprint_recorded", 2, { ...retry(), reason_kind: "other" })).toBe(false);
       expect(accepts("reprint_recorded", 2, { ...retry(), order_number: 0 })).toBe(false);
+    });
+  });
+
+  describe("reprint_recorded v3", () => {
+    const retry = (document: string, extra: Payload = {}): Payload => ({
+      sale_id: "sale-1",
+      document,
+      order_number: 1,
+      requested_by: "cashier",
+      authorized_by: null,
+      reason_kind: "retry",
+      reason_text: null,
+      ...extra,
+    });
+    const requested = (document: string, extra: Payload = {}): Payload => ({
+      ...retry(document, extra),
+      order_number: 2,
+      authorized_by: "manager",
+      reason_kind: "requested",
+      reason_text: "El cliente la perdio",
+    });
+    const creditNoteRetry = (): Payload => retry("credit_note", { credit_note_id: "note-1" });
+
+    it("accepts a retry and a requested copy of a credit note, naming the credit note", () => {
+      expect(accepts("reprint_recorded", 3, creditNoteRetry())).toBe(true);
+      expect(
+        accepts("reprint_recorded", 3, requested("credit_note", { credit_note_id: "note-1" })),
+      ).toBe(true);
+    });
+
+    it.each(["sale_receipt", "deferred_invoice"])(
+      "accepts a copy of a %s, which names no credit note",
+      (document) => {
+        expect(accepts("reprint_recorded", 3, retry(document))).toBe(true);
+        expect(accepts("reprint_recorded", 3, requested(document))).toBe(true);
+      },
+    );
+
+    it("refuses a copy of a credit note that names none or an empty one", () => {
+      expect(accepts("reprint_recorded", 3, retry("credit_note"))).toBe(false);
+      expect(accepts("reprint_recorded", 3, requested("credit_note"))).toBe(false);
+      expect(accepts("reprint_recorded", 3, retry("credit_note", { credit_note_id: "" }))).toBe(
+        false,
+      );
+      expect(accepts("reprint_recorded", 3, retry("credit_note", { credit_note_id: null }))).toBe(
+        false,
+      );
+    });
+
+    it.each(["sale_receipt", "deferred_invoice"])(
+      "refuses a copy of a %s that names a credit note",
+      (document) => {
+        expect(accepts("reprint_recorded", 3, retry(document, { credit_note_id: "note-1" }))).toBe(
+          false,
+        );
+        expect(
+          accepts("reprint_recorded", 3, requested(document, { credit_note_id: "note-1" })),
+        ).toBe(false);
+      },
+    );
+
+    it("refuses a document the register does not print", () => {
+      expect(accepts("reprint_recorded", 3, retry("invoice"))).toBe(false);
+    });
+
+    it("refuses the copy without any one of its fields", () => {
+      for (const field of Object.keys(creditNoteRetry())) {
+        const { [field]: _removed, ...rest } = creditNoteRetry();
+
+        expect(accepts("reprint_recorded", 3, rest), field).toBe(false);
+      }
+    });
+
+    it("applies the reason rules of version 2", () => {
+      const longest = "a".repeat(RECEIPT_REPRINT_REASON_MAX_LENGTH);
+
+      expect(accepts("reprint_recorded", 3, retry("sale_receipt", { reason_text: "texto" }))).toBe(
+        false,
+      );
+      expect(
+        accepts("reprint_recorded", 3, { ...requested("sale_receipt"), reason_text: null }),
+      ).toBe(false);
+      expect(
+        accepts("reprint_recorded", 3, { ...requested("sale_receipt"), reason_text: longest }),
+      ).toBe(true);
+      expect(
+        accepts("reprint_recorded", 3, {
+          ...requested("sale_receipt"),
+          reason_text: `${longest}a`,
+        }),
+      ).toBe(false);
+      expect(
+        accepts("reprint_recorded", 3, { ...requested("sale_receipt"), reason_text: " perdida" }),
+      ).toBe(false);
+      expect(accepts("reprint_recorded", 3, retry("sale_receipt", { reason_kind: "other" }))).toBe(
+        false,
+      );
+      expect(accepts("reprint_recorded", 3, retry("sale_receipt", { order_number: 0 }))).toBe(
+        false,
+      );
     });
   });
 
