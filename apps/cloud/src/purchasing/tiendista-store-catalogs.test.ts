@@ -28,19 +28,14 @@ describe("TiendistaStoreCatalogs", () => {
     expect(await catalogs.rows(fictionalTiendistaProductDataBytes())).toEqual({
       kind: "read",
       rows: [
-        row("Yerba mate suave Don Ernesto Unidad", "101", "Unidad", 320000),
-        row("Yerba mate suave Don Ernesto Pack x 6", "102", "Pack x 6", 1800000),
-        row("Yerba mate suave Don Ernesto Pack x 12", "103", "Pack x 12", 3450000),
-        row("Fideos tirabuzon La Pampita Unidad", "104", "Unidad", 125050),
-        row("Aceite de girasol Campo Verde Botella 900 ml", "105", "Botella 900 ml", 289050),
-        row("Sal fina Paquete 500 g", "106", "Paquete 500 g", 70000),
-        row("Aceite de oliva extra virgen x500 ml Olivares del Sur Unidad", null, "Unidad", 900000),
-        row(
-          "Aceite de oliva extra virgen x500 ml Olivares del Sur x5u",
-          null,
-          "x5u ($8500 c/u)",
-          4250000,
-        ),
+        row("Yerba mate suave Don Ernesto", "101", "Unidad", 320000),
+        row("Yerba mate suave Don Ernesto", "102", "Pack x 6", 1800000),
+        row("Yerba mate suave Don Ernesto", "103", "Pack x 12", 3450000),
+        row("Fideos tirabuzon La Pampita", "104", "Unidad", 125050),
+        row("Aceite de girasol Campo Verde", "105", "Botella 900 ml", 289050),
+        row("Sal fina", "106", "Paquete 500 g", 70000),
+        row("Aceite de oliva extra virgen x500 ml Olivares del Sur", null, "Unidad", 900000),
+        row("Aceite de oliva extra virgen x500 ml Olivares del Sur", null, "x5u", 4250000),
       ],
     });
   });
@@ -122,36 +117,12 @@ describe("TiendistaStoreCatalogs", () => {
       },
     );
 
-    it("names the pack size, so each pack size of a product with no code is its own item", async () => {
-      const [unit, pack] = await rowsOf([
-        { nombre: "Sal fina", marca: "Campo Verde", unidad: "Unidad", precio: 700 },
-        { nombre: "Sal fina", marca: "Campo Verde", unidad: "x5u ($650 c/u)", precio: 3250 },
+    it("leaves the unit out", async () => {
+      const [first] = await rowsOf([
+        { nombre: "Sal fina", marca: "Campo Verde", unidad: "x5u ($650 c/u)" },
       ]);
-      if (unit === undefined || pack === undefined) {
-        throw new Error("test setup: expected two rows");
-      }
 
-      expect(supplierItemKey(unit)).not.toEqual(supplierItemKey(pack));
-    });
-
-    it("leaves out the pack size's price per unit, so a later list keeps matching each pack size", async () => {
-      const [earlier] = await rowsOf([{ nombre: "Sal fina", unidad: "x5u ($650 c/u)" }]);
-      const [later] = await rowsOf([{ nombre: "Sal fina", unidad: " x5u  ( $700 C/U ) " }]);
-
-      expect(earlier?.description).toBe("Sal fina x5u");
-      expect(later?.description).toBe("Sal fina x5u");
-    });
-
-    it("keeps a parenthesis of the unit that is not a price per unit", async () => {
-      const [first] = await rowsOf([{ nombre: "Sal fina", unidad: "Pack (6 u)" }]);
-
-      expect(first?.description).toBe("Sal fina Pack (6 u)");
-    });
-
-    it.each([undefined, null, "", "  ", 3])("is the name alone for the unit %j", async (unidad) => {
-      const [first] = await rowsOf([{ nombre: "Sal fina", unidad }]);
-
-      expect(first?.description).toBe("Sal fina");
+      expect(first?.description).toBe("Sal fina Campo Verde");
     });
 
     it("is cut to the longest description a row may have, in code points", async () => {
@@ -170,11 +141,44 @@ describe("TiendistaStoreCatalogs", () => {
       expect(first?.presentation).toBe("Pack x 6");
     });
 
-    it.each([undefined, null, "", "  ", 3])("is none for the unit %j", async (unidad) => {
-      const [first] = await rowsOf([{ nombre: "Sal", unidad }]);
+    it("leaves out the unit's price per unit, so a later list keeps matching each pack size", async () => {
+      const [earlier] = await rowsOf([{ nombre: "Sal fina", unidad: "x5u ($650 c/u)" }]);
+      const [later] = await rowsOf([{ nombre: "Sal fina", unidad: " x5u  ( $700 C/U ) " }]);
+      if (earlier === undefined || later === undefined) {
+        throw new Error("test setup: expected a row of each list");
+      }
 
-      expect(first?.presentation).toBeNull();
+      expect(earlier.presentation).toBe("x5u");
+      expect(later.presentation).toBe("x5u");
+      expect(supplierItemKey(earlier)).toEqual(supplierItemKey(later));
     });
+
+    it("tells each pack size of a product with no code apart as its own item", async () => {
+      const [unit, pack] = await rowsOf([
+        { nombre: "Sal fina", marca: "Campo Verde", unidad: "Unidad", precio: 700 },
+        { nombre: "Sal fina", marca: "Campo Verde", unidad: "x5u ($650 c/u)", precio: 3250 },
+      ]);
+      if (unit === undefined || pack === undefined) {
+        throw new Error("test setup: expected two rows");
+      }
+
+      expect(supplierItemKey(unit)).not.toEqual(supplierItemKey(pack));
+    });
+
+    it("keeps a parenthesis of the unit that is not a price per unit", async () => {
+      const [first] = await rowsOf([{ nombre: "Sal fina", unidad: "Pack (6 u)" }]);
+
+      expect(first?.presentation).toBe("Pack (6 u)");
+    });
+
+    it.each([undefined, null, "", "  ", 3, "($650 c/u)", " ( $650 C/U ) "])(
+      "is none for the unit %j",
+      async (unidad) => {
+        const [first] = await rowsOf([{ nombre: "Sal", unidad }]);
+
+        expect(first?.presentation).toBeNull();
+      },
+    );
 
     it("is cut to the longest short text a row may have", async () => {
       const [first] = await rowsOf([

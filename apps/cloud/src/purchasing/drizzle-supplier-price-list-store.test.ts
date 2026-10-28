@@ -400,7 +400,7 @@ describe("reviewing the rows", () => {
       state: "EXTRACTED",
     });
     const otherListId = await insertPriceList(db, { supplierId, locationId, actorId });
-    const [rowId] = await insertPriceListRows(db, listId, [{}]);
+    const [rowId] = await insertPriceListRows(db, listId, [{ presentation: "Caja x10" }]);
 
     const [own, foreign, missing] = await store().transaction((tx) =>
       Promise.all([
@@ -410,7 +410,10 @@ describe("reviewing the rows", () => {
       ]),
     );
 
-    expect(own).toEqual({ kind: "locked", row: { description: "Producto 0", code: null } });
+    expect(own).toEqual({
+      kind: "locked",
+      row: { description: "Producto 0", code: null, presentation: "Caja x10" },
+    });
     expect(foreign).toEqual({ kind: "not_found" });
     expect(missing).toEqual({ kind: "not_found" });
   });
@@ -525,6 +528,7 @@ describe("the rows of a list", () => {
       {
         description: "Yerba 1 kg",
         code: "Y-01",
+        presentation: "Paquete",
         priceCents: 900,
         productId,
         packagingId,
@@ -542,6 +546,7 @@ describe("the rows of a list", () => {
         id: firstId,
         description: "Yerba 1 kg",
         code: "Y-01",
+        presentation: "Paquete",
         priceCents: 900,
         link: { productId, packagingId, vatRate: 2_100 },
         linkedByPerson: true,
@@ -550,6 +555,7 @@ describe("the rows of a list", () => {
         id: secondId,
         description: "Azúcar 1 kg",
         code: null,
+        presentation: null,
         priceCents: null,
         link: null,
         linkedByPerson: false,

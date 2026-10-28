@@ -287,7 +287,10 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     this.store.lockCallOrder.push("lockRow");
     const row = this.state.rows.find((other) => other.id === rowId && other.listId === listId);
     return row
-      ? { kind: "locked", row: { description: row.description, code: row.code } }
+      ? {
+          kind: "locked",
+          row: { description: row.description, code: row.code, presentation: row.presentation },
+        }
       : { kind: "not_found" };
   }
 
@@ -299,6 +302,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
         id: row.id,
         description: row.description,
         code: row.code,
+        presentation: row.presentation,
         priceCents: row.priceCents,
         link: cloneLink(row.link),
         linkedByPerson: row.linkedByPerson,
@@ -557,7 +561,7 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
     const id = item.id ?? `item-${this.state.nextId++}`;
     this.state.items.push({
       supplierId: "supplier-a",
-      key: supplierItemKey({ code: null, description: item.description }),
+      key: supplierItemKey({ code: null, description: item.description, presentation: null }),
       link: null,
       ...item,
       id,

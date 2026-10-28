@@ -712,7 +712,7 @@ describe("readSupplierPriceList of a store's catalog", () => {
     const link = { productId: "product-1", packagingId: "packaging-1", vatRate: null };
     store.seedSupplierItem({
       description: "Yerba Monte Verde 1 kg",
-      key: { kind: "description", value: "yerba monte verde 1 kg" },
+      key: { kind: "description", value: "yerba monte verde 1 kg\nunidad" },
       link,
     });
     storeCatalogs.answer = { kind: "read", rows: [unitRow] };
@@ -720,6 +720,21 @@ describe("readSupplierPriceList of a store's catalog", () => {
     await readSupplierPriceList(ports, input);
 
     expect(store.snapshot().rows[0]?.link).toEqual(link);
+  });
+
+  it("gives the link remembered for one pack size of a product with no code to that pack size only", async () => {
+    const { store, storeCatalogs, ports } = await setupCatalog();
+    const link = { productId: "product-1", packagingId: "packaging-1", vatRate: null };
+    store.seedSupplierItem({
+      description: "Yerba Monte Verde 1 kg",
+      key: { kind: "description", value: "yerba monte verde 1 kg\nunidad" },
+      link,
+    });
+    storeCatalogs.answer = { kind: "read", rows: catalogRows };
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().rows.map((row) => row.link)).toEqual([link, null]);
   });
 
   it("fails a catalog that cannot be read as an unreadable document", async () => {
