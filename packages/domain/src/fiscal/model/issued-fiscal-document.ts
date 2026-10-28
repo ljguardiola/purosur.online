@@ -1,3 +1,4 @@
+import { FINAL_CONSUMER_DOCUMENT_TYPE } from "./factura-c-fiscal-block.js";
 import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
 import { UNCLEAR_ANSWER_KINDS, type UnclearOutcomeDecision } from "./unclear-outcome-decision.js";
 
@@ -38,3 +39,17 @@ export const LISTED_ONLINE_DOCUMENT_STATES: readonly ListedOnlineDocumentState[]
     }),
   ),
 ];
+
+export type IssuedDocumentBuyer =
+  | { kind: "final_consumer" }
+  | { kind: "identified"; documentType: number; documentNumber: number };
+
+export function buyerOfIssuedDocument(
+  documentType: number,
+  documentNumber: number,
+): IssuedDocumentBuyer {
+  if (documentType === FINAL_CONSUMER_DOCUMENT_TYPE) {
+    return { kind: "final_consumer" };
+  }
+  return { kind: "identified", documentType, documentNumber };
+}
