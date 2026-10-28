@@ -1,5 +1,5 @@
 import { CASH_MOVEMENT_KINDS, type CashMovementKind } from "@purosur/domain";
-import { readCreditNoteOfSale } from "../fiscal/sqlite-sale-credit-notes";
+import { readCreditNoteById, readCreditNoteOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleFiscalDocument } from "../fiscal/sqlite-sale-fiscal-document";
 import type { LocalDatabase } from "../platform/local-database";
 import type {
@@ -46,6 +46,26 @@ function operationNumberOf(database: LocalDatabase, saleId: string | null): numb
   );
 }
 
+function returnOperationOf(database: LocalDatabase, returnId: string | null): PrintedOperation {
+  const original = database
+    .prepare<[string | null], { operation_number: number | null }>(
+      `SELECT sales.operation_number AS operation_number FROM returns
+         JOIN sales ON sales.id = returns.sale_id WHERE returns.id = ?`,
+    )
+    .get(returnId);
+  const cash = database
+    .prepare<[string | null], { cash_refunded: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS cash_refunded FROM payment_refunds
+        WHERE return_id = ? AND method = 'CASH'`,
+    )
+    .get(returnId);
+  return {
+    kind: "return",
+    originalOperationNumber: original?.operation_number ?? null,
+    cashRefunded: cash?.cash_refunded ?? 0,
+  };
+}
+
 function operationOf(database: LocalDatabase, ticket: TicketRow): PrintedOperation | undefined {
   switch (ticket.operation) {
     case "sale":
@@ -55,6 +75,8 @@ function operationOf(database: LocalDatabase, ticket: TicketRow): PrintedOperati
       const operationNumber = operationNumberOf(database, ticket.subject_id);
       return operationNumber === undefined ? undefined : { kind: "numbered", operationNumber };
     }
+    case "return":
+      return returnOperationOf(database, ticket.subject_id);
     case "cash_movement":
       return { kind: "cash_movement", movement: movementOf(database, ticket) };
     case "cash_session_opening":
@@ -91,10 +113,21 @@ function creditNote(database: LocalDatabase, saleId: string): BackedDocument | n
     : null;
 }
 
+function creditNoteOfReturn(database: LocalDatabase, returnId: string): BackedDocument | null {
+  const row = database
+    .prepare<[string], { id: string }>("SELECT id FROM sale_credit_notes WHERE return_id = ?")
+    .get(returnId);
+  const answer = row && readCreditNoteById(database, row.id)?.answer;
+  return answer?.kind === "authorized" || answer?.kind === "issued_offline"
+    ? { kind: "credit_note", pointOfSale: answer.pointOfSale, number: answer.number }
+    : null;
+}
+
 function backedDocumentOf(database: LocalDatabase, ticket: TicketRow): BackedDocument | null {
   if (ticket.subject_id === null) return null;
   if (ticket.operation === "sale") return saleDocument(database, ticket.subject_id);
   if (ticket.operation === "sale_void") return creditNote(database, ticket.subject_id);
+  if (ticket.operation === "return") return creditNoteOfReturn(database, ticket.subject_id);
   return null;
 }
 

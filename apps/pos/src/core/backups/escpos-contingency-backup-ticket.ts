@@ -1,5 +1,6 @@
 import { type CashMovementKind, localClock, type ZoneRules } from "@purosur/domain";
 import {
+  formatCents,
   formatDate,
   formatInvoiceNumber,
   formatOperationNumber,
@@ -15,6 +16,7 @@ export type BackedDocument =
 
 export type PrintedOperation =
   | { kind: "numbered"; operationNumber: number }
+  | { kind: "return"; originalOperationNumber: number | null; cashRefunded: number }
   | { kind: "cash_movement"; movement: CashMovementKind | null }
   | { kind: "cash_session_opening" }
   | { kind: "cash_session_closing" }
@@ -91,12 +93,26 @@ function operationName(operation: PrintedOperation): string {
   switch (operation.kind) {
     case "numbered":
       return formatOperationNumber(operation.operationNumber);
+    case "return":
+      return "Devolución";
     case "cash_movement":
       if (operation.movement === null) return "Movimiento de efectivo";
       return operation.movement === "CASH_IN" ? "Ingreso de efectivo" : "Retiro de efectivo";
     default:
       return OPERATION_NAMES[operation.kind];
   }
+}
+
+function returnRows(operation: PrintedOperation): string[] {
+  if (operation.kind !== "return") return [];
+  return [
+    ...(operation.originalOperationNumber === null
+      ? []
+      : row("Ticket original", formatOperationNumber(operation.originalOperationNumber))),
+    ...(operation.cashRefunded === 0
+      ? []
+      : row("Efectivo devuelto", formatCents(operation.cashRefunded))),
+  ];
 }
 
 function backedDocumentName(document: BackedDocument): string {
@@ -190,6 +206,7 @@ export function renderContingencyBackupTicket(
     ...row("Caja", registerName),
     ...row(`Fecha ${date}`, `Hora ${time}`),
     ...row("Operación", operationName(operation)),
+    ...returnRows(operation),
     ...(backs === null ? [] : row("Respalda", backedDocumentName(backs))),
     RULE,
   ]);
