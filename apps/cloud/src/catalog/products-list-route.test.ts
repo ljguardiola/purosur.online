@@ -5,8 +5,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import {
   brands,
   categories,
-  productBarcodes,
   prices,
+  productBarcodes,
   products,
   productTags,
   rolePermissions,
@@ -255,13 +255,13 @@ describe("GET /products", () => {
       name: "Miel pura",
       categoryId,
       saleUnit: "UNIT",
-      barcodes: [],
+      barcodes: ["111"],
     });
     const unpriced = await insertProduct({
       name: "Almendras",
       categoryId,
       saleUnit: "KG",
-      barcodes: [],
+      barcodes: ["222"],
     });
     const priceListId = await seededPriceListId(db);
     await db.insert(prices).values([
