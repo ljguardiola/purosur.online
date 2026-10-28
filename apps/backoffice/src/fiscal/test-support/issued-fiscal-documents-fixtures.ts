@@ -89,7 +89,7 @@ export const pagedIssuedFiscalDocuments: IssuedFiscalDocumentsBody = {
   page_size: 25,
 };
 
-export const creditNoteAgainstReceipt: IssuedFiscalDocument = {
+const creditNoteAgainstReceipt: IssuedFiscalDocument = {
   ...creditNote,
   corrected_voucher: { voucher_type: 11, point_of_sale: 3, number: 1247 },
 };
