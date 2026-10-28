@@ -103,6 +103,10 @@ export type {
 } from "./find-deferred-sale.js";
 export { findDeferredSale } from "./find-deferred-sale.js";
 export type {
+  HandTypedWeightsQuery,
+  HandTypedWeightsReportReader,
+} from "./hand-typed-weights-report-reader.js";
+export type {
   ManualDiscountsQuery,
   ManualDiscountsReportReader,
 } from "./manual-discounts-report-reader.js";
@@ -147,6 +151,11 @@ export type {
   TicketOfPeriod,
 } from "./read-average-ticket.js";
 export { readAverageTicket } from "./read-average-ticket.js";
+export type {
+  HandTypedWeightsReport,
+  ReadHandTypedWeightsInput,
+} from "./read-hand-typed-weights.js";
+export { readHandTypedWeights } from "./read-hand-typed-weights.js";
 export type {
   ManualDiscountsReport,
   ReadManualDiscountsInput,

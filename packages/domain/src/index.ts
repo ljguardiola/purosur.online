@@ -862,6 +862,7 @@ export type {
   SoldLinesOfGroup,
   SoldProduct,
   SoldTotals,
+  WeighedLinesGroup,
   WeightSource,
 } from "./sales/index.js";
 export {

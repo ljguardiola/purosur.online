@@ -80,7 +80,11 @@ export function weighedLinesBySession(
 ): WeighedLinesOfSession[] {
   return countsBy(
     groups,
-    (group) => ({ id: group.sessionId, registerName: group.registerName, openedAt: group.openedAt }),
+    (group) => ({
+      id: group.sessionId,
+      registerName: group.registerName,
+      openedAt: group.openedAt,
+    }),
     (key, count) => ({
       sessionId: key.id,
       registerName: key.registerName,

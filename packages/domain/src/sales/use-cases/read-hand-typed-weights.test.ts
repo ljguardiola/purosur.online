@@ -59,7 +59,13 @@ describe("readHandTypedWeights", () => {
         { cashierId: "u1", name: "Ana", weighedLines: 5, typedLines: 1 },
       ],
       sessions: [
-        { sessionId: "s1", registerName: "Caja 1", openedAt: OPENED_AT, weighedLines: 7, typedLines: 3 },
+        {
+          sessionId: "s1",
+          registerName: "Caja 1",
+          openedAt: OPENED_AT,
+          weighedLines: 7,
+          typedLines: 3,
+        },
       ],
       totals: { weighedLines: 7, typedLines: 3 },
     });
