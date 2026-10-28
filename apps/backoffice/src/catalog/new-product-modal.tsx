@@ -21,35 +21,35 @@ import {
   useGenerateInternalBarcode,
 } from "../platform/barcode-chips";
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
+import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions } from "../platform/category-path";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
-import { retryAfterDetail } from "../platform/retry-after-detail";
-import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
-import type { createBrand } from "./brands-api";
-import { NewBrandModal } from "./new-brand-modal";
-import { NewTagModal } from "./new-tag-modal";
+import { NewBrandModal } from "../platform/new-brand-modal";
+import { NewTagModal } from "../platform/new-tag-modal";
 import {
   BrandFieldWithCreation,
   brandFieldHelp,
   brandOptions,
   useStackedBrandCreation,
   withCreatedBrand,
-} from "./product-brand-field";
+} from "../platform/product-brand-field";
 import {
-  categoryNameOf,
   EMPTY_PRODUCT_FORM,
   NET_CONTENT_UNIT_OPTIONS,
   PRODUCT_BRAND_INACTIVE_ERROR,
-  PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_FIELDS,
   PRODUCT_MESSAGES,
   productRequestFrom,
   tagInactiveError,
-} from "./product-form";
-import { TagsField, useStackedTagCreation, withCreatedTags } from "./product-tags-field";
+} from "../platform/product-form";
+import { TagsField, useStackedTagCreation, withCreatedTags } from "../platform/product-tags-field";
+import { retryAfterDetail } from "../platform/retry-after-detail";
+import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
+import type { createTag } from "../platform/tag-creation-api";
+import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import { categoryNameOf, PRODUCT_CATEGORY_NOT_LEAF_ERROR } from "./product-form";
 import type { createProduct } from "./products-api";
-import type { createTag } from "./tags-api";
 
 export type NewProductModalServices = {
   createProduct: typeof createProduct;
@@ -159,11 +159,16 @@ export function NewProductModal({
     PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   );
 
-  const brandCreation = useStackedBrandCreation((brandId) =>
-    form.setFieldValue("brandId", brandId),
+  const markCatalogStale = useMarkCatalogStale();
+  const refreshCatalog = useRefreshCatalog();
+  const catalog = { markStale: markCatalogStale, refresh: refreshCatalog };
+  const brandCreation = useStackedBrandCreation(
+    (brandId) => form.setFieldValue("brandId", brandId),
+    catalog,
   );
-  const tagCreation = useStackedTagCreation((tagId) =>
-    form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+  const tagCreation = useStackedTagCreation(
+    (tagId) => form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+    catalog,
   );
   const closeForm = () => {
     brandCreation.finish();

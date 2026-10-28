@@ -9,7 +9,7 @@ import {
   useFieldContext,
 } from "@purosur/ui";
 import { useState } from "react";
-import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import type { CatalogRefresh } from "./product-brand-field";
 
 const INACTIVE_TAG_STATUS = "Inactivo";
 
@@ -63,9 +63,10 @@ type StackedTagCreation = {
 // The tag modal opens over the product form, which stays mounted with everything typed in it.
 // Reading the catalog again while that form is open could fail and close it, so the tags it
 // creates are kept here and the catalog is only read again once the form closes.
-export function useStackedTagCreation(chooseTag: (tagId: string) => void): StackedTagCreation {
-  const markCatalogStale = useMarkCatalogStale();
-  const refreshCatalog = useRefreshCatalog();
+export function useStackedTagCreation(
+  chooseTag: (tagId: string) => void,
+  catalog: CatalogRefresh,
+): StackedTagCreation {
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<TagSummary[]>([]);
   return {
@@ -81,11 +82,11 @@ export function useStackedTagCreation(chooseTag: (tagId: string) => void): Stack
       setCreated((previous) => [...previous, tag]);
       chooseTag(tag.id);
       setOpen(false);
-      void markCatalogStale();
+      void catalog.markStale();
     },
     finish: () => {
       if (created.length > 0) {
-        void refreshCatalog();
+        void catalog.refresh();
       }
     },
   };

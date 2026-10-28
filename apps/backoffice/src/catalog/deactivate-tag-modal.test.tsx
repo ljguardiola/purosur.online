@@ -1,9 +1,9 @@
 import type { TagSummary } from "@purosur/contracts";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { sinTacc } from "../platform/test-support/tags";
 import { render } from "../shell/test-support/render-with-router";
 import { DeactivateTagModal, type DeactivateTagModalServices } from "./deactivate-tag-modal";
-import { sinTacc } from "./test-support/tags";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
