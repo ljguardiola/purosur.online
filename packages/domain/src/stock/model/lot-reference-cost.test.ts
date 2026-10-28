@@ -256,7 +256,7 @@ describe("proposedReferenceCost", () => {
         price("huge", { numerator: 1n, denominator: BigInt(Number.MAX_SAFE_INTEGER) }),
         price("a", { numerator: 900n, denominator: 1n }),
       ]),
-    ).toEqual(referenceCostOf(900));
+    ).toEqual({ totalCents: 9, quantity: 10 });
   });
 
   it("is nothing when no price is loaded", () => {
