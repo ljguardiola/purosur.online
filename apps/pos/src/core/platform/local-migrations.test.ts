@@ -8601,3 +8601,228 @@ describe("the returns in the contingency backup tickets migration", () => {
     });
   });
 });
+
+describe("the credit note reprints migration", () => {
+  const MIGRATION = "0089_credit_note_reprints";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withHeldReprints(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, voided_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'VOIDED', '2026-09-30T12:05:00.000Z', '2026-09-30T12:40:00.000Z'),
+                ('sale-2', 'r1', 'device-a', 's1', 'u1', 'VOIDED', '2026-09-30T12:06:00.000Z', '2026-09-30T12:41:00.000Z'),
+                ('sale-3', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:07:00.000Z', NULL);
+         INSERT INTO sale_credit_notes (
+           id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+           corrected_point_of_sale, corrected_number, state, recorded_at
+         ) VALUES
+           ('note-1', 'sale-1', 1000, 5, 11, 12, 41, 'IN_PROGRESS', '2026-09-30T12:40:00.000Z'),
+           ('note-2', 'sale-2', 2000, 5, 11, 12, 42, 'IN_PROGRESS', '2026-09-30T12:41:00.000Z');
+         INSERT INTO sale_reprints (
+           sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text,
+           occurred_at
+         ) VALUES
+           ('sale-1', 'sale_receipt', 1, 'u1', NULL, 'retry', NULL, '2026-09-30T13:00:00.000Z'),
+           ('sale-1', 'credit_note', 1, 'u1', NULL, 'retry', NULL, '2026-09-30T13:01:00.000Z'),
+           ('sale-1', 'credit_note', 2, 'u1', 'u2', 'requested', 'la perdió', '2026-09-30T13:02:00.000Z'),
+           ('sale-2', 'credit_note', 1, 'u1', NULL, 'retry', NULL, '2026-09-30T13:03:00.000Z'),
+           ('sale-3', 'deferred_invoice', 1, 'u1', NULL, 'retry', NULL, '2026-09-30T13:04:00.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  function insertReprint(database: Database, fields: Record<string, string | number | null>) {
+    return database
+      .prepare(
+        `INSERT INTO sale_reprints (
+           sale_id, document, credit_note_id, order_number, requested_by, authorized_by,
+           reason_kind, reason_text, occurred_at
+         ) VALUES (
+           @sale_id, @document, @credit_note_id, @order_number, 'u1', NULL, 'retry', NULL,
+           '2026-10-13T12:00:00.000Z'
+         )`,
+      )
+      .run({
+        sale_id: "sale-1",
+        document: "credit_note",
+        credit_note_id: "note-1",
+        order_number: 3,
+        ...fields,
+      });
+  }
+
+  it("keeps every reprint a register holds, a credit note's now of the sale's credit note", () => {
+    withHeldReprints((database) => {
+      expect(
+        database
+          .prepare(
+            `SELECT sale_id, document, credit_note_id, order_number, requested_by, authorized_by,
+                    reason_kind, reason_text, occurred_at
+             FROM sale_reprints ORDER BY occurred_at`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          sale_id: "sale-1",
+          document: "sale_receipt",
+          credit_note_id: null,
+          order_number: 1,
+          requested_by: "u1",
+          authorized_by: null,
+          reason_kind: "retry",
+          reason_text: null,
+          occurred_at: "2026-09-30T13:00:00.000Z",
+        },
+        {
+          sale_id: "sale-1",
+          document: "credit_note",
+          credit_note_id: "note-1",
+          order_number: 1,
+          requested_by: "u1",
+          authorized_by: null,
+          reason_kind: "retry",
+          reason_text: null,
+          occurred_at: "2026-09-30T13:01:00.000Z",
+        },
+        {
+          sale_id: "sale-1",
+          document: "credit_note",
+          credit_note_id: "note-1",
+          order_number: 2,
+          requested_by: "u1",
+          authorized_by: "u2",
+          reason_kind: "requested",
+          reason_text: "la perdió",
+          occurred_at: "2026-09-30T13:02:00.000Z",
+        },
+        {
+          sale_id: "sale-2",
+          document: "credit_note",
+          credit_note_id: "note-2",
+          order_number: 1,
+          requested_by: "u1",
+          authorized_by: null,
+          reason_kind: "retry",
+          reason_text: null,
+          occurred_at: "2026-09-30T13:03:00.000Z",
+        },
+        {
+          sale_id: "sale-3",
+          document: "deferred_invoice",
+          credit_note_id: null,
+          order_number: 1,
+          requested_by: "u1",
+          authorized_by: null,
+          reason_kind: "retry",
+          reason_text: null,
+          occurred_at: "2026-09-30T13:04:00.000Z",
+        },
+      ]);
+    });
+  });
+
+  it("numbers the reprints of each credit note of a sale apart", () => {
+    withHeldReprints((database) => {
+      database
+        .prepare(
+          `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+           VALUES ('return-1', 'sale-1', 'r1', 'device-a', 's1', 'u1', 'QR', '2026-10-13T12:00:00.000Z')`,
+        )
+        .run();
+      database
+        .prepare(
+          `INSERT INTO sale_credit_notes (
+             id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+             corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at
+           ) VALUES (
+             'note-return', 'sale-1', 'return-1', '2026-10-13', 500, 5, 11, 12, 41, 'IN_PROGRESS',
+             '2026-10-13T12:00:00.000Z'
+           )`,
+        )
+        .run();
+
+      expect(() =>
+        insertReprint(database, { credit_note_id: "note-return", order_number: 1 }),
+      ).not.toThrow();
+      expect(() => insertReprint(database, { order_number: 1 })).toThrow(/UNIQUE/);
+      expect(() =>
+        insertReprint(database, { credit_note_id: "note-return", order_number: 1 }),
+      ).toThrow(/UNIQUE/);
+    });
+  });
+
+  it("still holds the reprints of any other document once per order number", () => {
+    withHeldReprints((database) => {
+      expect(() =>
+        insertReprint(database, {
+          document: "sale_receipt",
+          credit_note_id: null,
+          order_number: 2,
+        }),
+      ).not.toThrow();
+      expect(() =>
+        insertReprint(database, {
+          document: "sale_receipt",
+          credit_note_id: null,
+          order_number: 2,
+        }),
+      ).toThrow(/UNIQUE/);
+      expect(() =>
+        insertReprint(database, {
+          sale_id: "sale-3",
+          document: "deferred_invoice",
+          credit_note_id: null,
+          order_number: 1,
+        }),
+      ).toThrow(/UNIQUE/);
+    });
+  });
+
+  it("refuses a credit note's reprint naming no credit note, another document's naming one, and one of a credit note the register does not hold", () => {
+    withHeldReprints((database) => {
+      expect(() => insertReprint(database, { credit_note_id: null })).toThrow(/CHECK/);
+      expect(() => insertReprint(database, { document: "sale_receipt", order_number: 2 })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertReprint(database, { credit_note_id: "missing" })).toThrow(/FOREIGN KEY/);
+    });
+  });
+
+  it("still refuses an unknown document, an order number below one and a reason text that does not match the reason", () => {
+    withHeldReprints((database) => {
+      expect(() => insertReprint(database, { document: "invoice", credit_note_id: null })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertReprint(database, { order_number: 0 })).toThrow(/CHECK/);
+      expect(() =>
+        database
+          .prepare(
+            `INSERT INTO sale_reprints (
+               sale_id, document, credit_note_id, order_number, requested_by, reason_kind,
+               reason_text, occurred_at
+             ) VALUES ('sale-1', 'credit_note', 'note-1', 9, 'u1', 'requested', NULL,
+               '2026-10-13T12:00:00.000Z')`,
+          )
+          .run(),
+      ).toThrow(/CHECK/);
+    });
+  });
+});
