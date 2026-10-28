@@ -129,7 +129,7 @@ test("shows each line as sold, with its quantity, its promotion and its amount, 
   await expect.element(screen.getByText("$ 17.502,75").last()).toBeVisible();
 });
 
-test("shows a partial credit note's sale total under its lines and its own amount apart", async () => {
+test("a partial credit note's detail shows the sale's total under its lines and its own amount apart", async () => {
   const detail = {
     ...creditNoteDetail,
     total: 180000,
@@ -140,14 +140,14 @@ test("shows a partial credit note's sale total under its lines and its own amoun
         sale_unit: "UNIT" as const,
         quantity: 2,
         promotion: null,
-        amount: 300000,
+        amount: 250000,
       },
       {
         product_name: "Queso cremoso",
         sale_unit: "KG" as const,
         quantity: 450,
         promotion: null,
-        amount: 180000,
+        amount: 230000,
       },
     ],
   };
