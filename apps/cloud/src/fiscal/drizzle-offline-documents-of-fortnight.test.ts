@@ -119,6 +119,39 @@ describe("DrizzleOfflineDocumentsOfFortnight", () => {
     ]);
   });
 
+  it("reads every credit note issued for the same sale, one for each return", async () => {
+    const { saleId } = await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+    });
+    for (const number of [1, 2]) {
+      await insertOfflineCreditNote(db, {
+        registerId,
+        pointOfSale: 8,
+        fortnight: OCTOBER_FIRST_HALF,
+        number,
+        corrects: { voucherType: 11, pointOfSale: 8, number: 1 },
+        saleId,
+      });
+    }
+
+    const documents = await new DrizzleOfflineDocumentsOfFortnight(db).documentsOn(
+      8,
+      OCTOBER_FIRST_HALF,
+    );
+
+    expect(
+      documents
+        .filter(({ documentType }) => documentType === "credit_note_c")
+        .map(({ number, saleId: creditedSale }) => [number, creditedSale]),
+    ).toEqual([
+      [1, saleId],
+      [2, saleId],
+    ]);
+  });
+
   it("reads the correction of the newest remedy that corrected the document, whatever remedies came after it", async () => {
     await insertOfflineFiscalDocument(db, {
       registerId,

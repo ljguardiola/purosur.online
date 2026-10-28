@@ -1,7 +1,7 @@
 import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "@purosur/domain";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { creditNotes, offlineFiscalDocuments } from "../platform/db/schema.js";
+import { creditNotes, offlineFiscalDocuments, sales } from "../platform/db/schema.js";
 
 export async function voidCreditNoteOfSale<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -17,10 +17,12 @@ export async function voidCreditNoteOfSale<TQueryResult extends PgQueryResultHKT
   const [issuedOffline] = await db
     .select({ creditNoteId: offlineFiscalDocuments.creditNoteId })
     .from(offlineFiscalDocuments)
+    .innerJoin(sales, eq(sales.id, offlineFiscalDocuments.saleId))
     .where(
       and(
         eq(offlineFiscalDocuments.saleId, saleId),
         eq(offlineFiscalDocuments.documentType, CREDIT_NOTE_C_DOCUMENT_TYPE),
+        eq(sales.state, "VOIDED"),
       ),
     );
   return issuedOffline?.creditNoteId ?? null;
