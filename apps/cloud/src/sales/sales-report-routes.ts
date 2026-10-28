@@ -1,5 +1,6 @@
 import {
   averageTicketSchema,
+  handTypedWeightsSchema,
   manualDiscountsQuerySchema,
   manualDiscountsSchema,
   reportQuerySchema,
@@ -12,6 +13,7 @@ import {
 import type { ManualAdjustmentValue, ZoneRulesSource } from "@purosur/domain";
 import {
   readAverageTicket,
+  readHandTypedWeights,
   readManualDiscounts,
   readSalesByCashier,
   readSalesByDay,
@@ -29,6 +31,7 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleCashierSalesReportReader } from "./drizzle-cashier-sales-report-reader.js";
+import { DrizzleHandTypedWeightsReportReader } from "./drizzle-hand-typed-weights-report-reader.js";
 import { DrizzleManualDiscountsReportReader } from "./drizzle-manual-discounts-report-reader.js";
 import { DrizzleProductSalesReportReader } from "./drizzle-product-sales-report-reader.js";
 import { DrizzlePromotionSalesReportReader } from "./drizzle-promotion-sales-report-reader.js";
@@ -64,6 +67,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
   const cashierReader = new DrizzleCashierSalesReportReader(options.db);
   const promotionReader = new DrizzlePromotionSalesReportReader(options.db);
   const manualDiscountsReader = new DrizzleManualDiscountsReportReader(options.db);
+  const handTypedWeightsReader = new DrizzleHandTypedWeightsReportReader(options.db);
   const preHandler = sameOriginGuard(options.backofficeOrigin);
   const config = { access: capabilityAccess("reports_area"), sessionSource };
 
@@ -147,6 +151,43 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
           sales_count: report.totals.salesCount,
           total: report.totals.total,
           average_ticket: report.totals.averageTicket,
+        },
+      }),
+    );
+  });
+
+  app.get("/reports/hand-typed-weights", { preHandler, config }, async (request, reply) => {
+    const query = await readValidatedBody(reply, reportQuerySchema, request.query);
+    if (!query) {
+      return;
+    }
+    const report = await readHandTypedWeights(
+      { reader: handTypedWeightsReader, clock: { now }, zoneRules: options.zoneRules },
+      {
+        locationId: openSessionOf(request).locationId,
+        asked: { from: query.from, to: query.to },
+        registerId: query.register_id,
+      },
+    );
+    await reply.code(200).send(
+      handTypedWeightsSchema.parse({
+        range: report.range,
+        cashiers: report.cashiers.map((row) => ({
+          cashier_id: row.cashierId,
+          name: row.name,
+          weighed_lines: row.weighedLines,
+          typed_lines: row.typedLines,
+        })),
+        sessions: report.sessions.map((row) => ({
+          session_id: row.sessionId,
+          register_name: row.registerName,
+          opened_at: row.openedAt.toISOString(),
+          weighed_lines: row.weighedLines,
+          typed_lines: row.typedLines,
+        })),
+        totals: {
+          weighed_lines: report.totals.weighedLines,
+          typed_lines: report.totals.typedLines,
         },
       }),
     );

@@ -56,6 +56,14 @@ test("lists the sales by cashier report as a link to it", async () => {
     .toHaveAttribute("href", "/reports/sales-by-cashier");
 });
 
+test("lists the weights typed by hand report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Pesos tipeados a mano" }))
+    .toHaveAttribute("href", "/reports/hand-typed-weights");
+});
+
 test("lists the discounts by promotion report as a link to it", async () => {
   const screen = await renderScreen();
 
