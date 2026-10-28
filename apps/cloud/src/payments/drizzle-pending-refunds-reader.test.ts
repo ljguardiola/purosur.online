@@ -214,6 +214,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
           registerId: late.registerId,
           registerName: "Caja 7",
           method: "QR",
+          cardType: null,
           origin: "late_payment",
           amount: late.amount,
           occurredAt: NOW,
