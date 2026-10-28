@@ -301,11 +301,12 @@ describe("readInitialCountLots", () => {
       ]);
     });
 
-    it("marks as cheapest the first of prices tied in value, by supplier name and then by supplier item", async () => {
+    it("marks as cheapest the earliest read of prices tied in value", async () => {
       const tied = { numerator: 100n, denominator: 1n };
       const { lots } = await read([
         row("l1", {
           supplierPrices: [
+            price("dear", { numerator: 900n, denominator: 1n }, { supplierName: "Alfa" }),
             price("z", tied, { supplierName: "Zeta" }),
             price("b", { numerator: 200n, denominator: 2n }, { supplierName: "Alfa" }),
             price("a", tied, { supplierName: "Alfa" }),
@@ -316,9 +317,10 @@ describe("readInitialCountLots", () => {
       expect(
         lots[0]?.supplierPrices.map(({ supplierItemId, cheapest }) => [supplierItemId, cheapest]),
       ).toEqual([
-        ["a", true],
+        ["z", true],
         ["b", false],
-        ["z", false],
+        ["a", false],
+        ["dear", false],
       ]);
     });
 

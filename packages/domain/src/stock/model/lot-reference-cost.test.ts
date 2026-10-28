@@ -119,6 +119,11 @@ describe("referenceCostOfPrice", () => {
     );
   });
 
+  it("has no cost for a price of nothing", () => {
+    expect(referenceCostOfPrice({ numerator: 0n, denominator: 1n })).toBeNull();
+    expect(referenceCostOfPrice({ numerator: 0n, denominator: 7n })).toBeNull();
+  });
+
   it("has no cost for a price that does not fit the whole numbers a cost is stored in", () => {
     const limit = BigInt(Number.MAX_SAFE_INTEGER);
     expect(referenceCostOfPrice({ numerator: limit, denominator: 1n })).toEqual({
@@ -189,15 +194,16 @@ describe("cheapestFirst", () => {
     expect(sorted.map((entry) => entry.supplierItemId)).toEqual(["b", "a", "c"]);
   });
 
-  it("breaks a tie by supplier name and then by supplier item", () => {
+  it("keeps prices tied in value in the order given", () => {
     const tied = { numerator: 100n, denominator: 1n };
     const sorted = cheapestFirst([
-      price("z", tied, { supplierName: "Ábaco" }),
-      price("y", tied, { supplierName: "Zeta" }),
-      price("b", tied, { supplierName: "Ábaco" }),
+      price("z", tied, { supplierName: "Zeta" }),
+      price("cheap", { numerator: 1n, denominator: 1n }),
+      price("B", { numerator: 200n, denominator: 2n }, { supplierName: "Ábaco" }),
+      price("a", tied, { supplierName: "Ábaco" }),
     ]);
 
-    expect(sorted.map((entry) => entry.supplierItemId)).toEqual(["b", "z", "y"]);
+    expect(sorted.map((entry) => entry.supplierItemId)).toEqual(["cheap", "z", "B", "a"]);
   });
 
   it("leaves the given prices as they were", () => {
@@ -243,6 +249,15 @@ describe("selectableSupplierPrices", () => {
 
     expect(selectable.map((entry) => entry.supplierItemId)).toEqual(["cheap", "dear"]);
   });
+
+  it("leaves out a price of nothing", () => {
+    const selectable = selectableSupplierPrices([
+      price("free", { numerator: 0n, denominator: 1n }),
+      price("cheap", { numerator: 100n, denominator: 1n }),
+    ]);
+
+    expect(selectable.map((entry) => entry.supplierItemId)).toEqual(["cheap"]);
+  });
 });
 
 describe("proposedReferenceCost", () => {
@@ -262,6 +277,10 @@ describe("proposedReferenceCost", () => {
         price("a", { numerator: 900n, denominator: 1n }),
       ]),
     ).toEqual({ totalCents: 9, quantity: 10 });
+  });
+
+  it("is nothing when the only price loaded is of nothing", () => {
+    expect(proposedReferenceCost([price("free", { numerator: 0n, denominator: 1n })])).toBeNull();
   });
 
   it("is nothing when no price is loaded", () => {

@@ -460,13 +460,16 @@ describe("PUT /initial-inventory-lots/:lotId/reference-cost with supplier prices
     expect(lot).toMatchObject({ costTotalCents: 1, costQuantity: 3, costIncomplete: false });
   });
 
-  it("reaches the body validator for a supplier item that is no id", async () => {
+  it("reaches the body validator for a supplier item that is no id, naming its field", async () => {
     const { headers } = await signedInWith(db, ["record_initial_inventory"], NOW);
 
     const response = await setCostRequest(headers, MISSING_ID, { supplierItemId: "not-an-id" });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "supplierItemId" }],
+    });
   });
 
   it("refuses a typed cost once the product has a loaded price, answering a conflict", async () => {

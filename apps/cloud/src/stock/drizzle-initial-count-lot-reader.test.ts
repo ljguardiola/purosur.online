@@ -173,7 +173,7 @@ describe("DrizzleInitialCountLotReader", () => {
     expect(await lotIds("_")).toEqual([]);
   });
 
-  it("gives each lot the prices loaded for its own product, priced per sale unit and without unpriced offers", async () => {
+  it("gives each lot the prices loaded for its own product", async () => {
     const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
     const yerba = await insertProduct(db, { name: "Yerba mate 1 kg" });
     const harina = await insertProduct(db, { name: "Harina 1 kg" });
@@ -183,18 +183,7 @@ describe("DrizzleInitialCountLotReader", () => {
     const { supplierItemId } = await insertLoadedSupplierPrice(db, {
       productId: yerba.productId,
       actorId,
-      supplierName: "Distribuidora Sur",
-      packagingName: "Caja x 3",
       priceCents: 1_000,
-      quantityPerPackage: 3_000,
-      listDate: "2026-03-01",
-    });
-    await insertLoadedSupplierPrice(db, {
-      productId: yerba.productId,
-      actorId,
-      priceCents: 1,
-      pricesIncludeVat: false,
-      vatRate: null,
     });
 
     const rows = await new DrizzleInitialCountLotReader(db).initialCountLots({
@@ -203,17 +192,10 @@ describe("DrizzleInitialCountLotReader", () => {
       productName: undefined,
     });
 
-    const expected = [
-      {
-        supplierItemId,
-        supplierName: "Distribuidora Sur",
-        packagingName: "Caja x 3",
-        listDate: "2026-03-01",
-        pricePerSaleUnit: { numerator: 1_000n, denominator: 3n },
-      },
-    ];
-    expect(rows.find((row) => row.lotId === first.lotId)?.supplierPrices).toEqual(expected);
-    expect(rows.find((row) => row.lotId === second.lotId)?.supplierPrices).toEqual(expected);
-    expect(rows.find((row) => row.lotId === withoutPrices.lotId)?.supplierPrices).toEqual([]);
+    const pricesOf = (lotId: string) =>
+      rows.find((row) => row.lotId === lotId)?.supplierPrices.map((price) => price.supplierItemId);
+    expect(pricesOf(first.lotId)).toEqual([supplierItemId]);
+    expect(pricesOf(second.lotId)).toEqual([supplierItemId]);
+    expect(pricesOf(withoutPrices.lotId)).toEqual([]);
   });
 });

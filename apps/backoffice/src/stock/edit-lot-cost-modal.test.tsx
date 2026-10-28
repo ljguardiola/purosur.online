@@ -19,7 +19,7 @@ function createProps(overrides: Partial<EditLotCostModalProps> = {}): EditLotCos
     onClose: vi.fn(),
     onSessionEnded: vi.fn(),
     onSaved: vi.fn(),
-    onGone: vi.fn(),
+    onOutdated: vi.fn(),
     ...overrides,
   };
 }
@@ -131,7 +131,7 @@ test.each([[{ kind: "not_found" }], [{ kind: "lot_withdrawn" }]] as const)(
     const dialog = screen.getByRole("dialog");
     await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este lote ya no existe");
     await expect.element(dialog.getByRole("button", { name: SAVE })).toBeDisabled();
-    expect(props.onGone).toHaveBeenCalledWith(initialLotAlmonds);
+    expect(props.onOutdated).toHaveBeenCalledWith(initialLotAlmonds);
     expect(props.onClose).not.toHaveBeenCalled();
   },
 );
@@ -208,12 +208,11 @@ test("ends the session when saving finds it over", async () => {
   await expect.poll(() => vi.mocked(props.onSessionEnded).mock.calls.length).toBe(1);
 });
 
-function cardOf(screen: Awaited<ReturnType<typeof renderModal>>, name: string): HTMLElement {
-  const label = screen.getByRole("radio", { name }).element().closest("label");
-  if (!label) {
-    throw new Error(`no label for the card ${name}`);
-  }
-  return label;
+const PRICE_LIST = /Lista de proveedor/;
+
+async function choosePrice(screen: Awaited<ReturnType<typeof renderModal>>, name: RegExp) {
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: PRICE_LIST }));
+  await userEvent.click(screen.getByRole("option", { name }));
 }
 
 const lotWithPrices = {
@@ -225,16 +224,17 @@ const lotWithPrices = {
   ],
 };
 
-test("offers the loaded prices instead of a typed cost, each with its supplier, packaging, cost and list date", async () => {
+test("offers the loaded prices instead of a typed cost, each with its supplier, list date, packaging and cost, marking the cheapest", async () => {
   const screen = await renderModal(createProps({ lot: lotWithPrices }));
 
   const dialog = screen.getByRole("dialog", { name: "Almendras peladas" });
-  await expect.element(dialog.getByRole("radio", { name: "Alfa · Caja x 10" })).toBeVisible();
-  await expect.element(dialog.getByRole("radio", { name: "Beta · Bolsa" })).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: PRICE_LIST }));
   await expect
-    .element(dialog.getByText("$ 9.500,00 por kg · Lista del 01/03/2026 · La más barata"))
-    .toBeVisible();
-  await expect.element(dialog.getByText("$ 10.180,00 por kg · Lista del 15/02/2026")).toBeVisible();
+    .element(screen.getByRole("option", { name: /^Alfa/ }))
+    .toHaveTextContent("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kgLa más barata");
+  await expect
+    .element(screen.getByRole("option", { name: /^Beta/ }))
+    .toHaveTextContent("Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg");
   expect(dialog.getByRole("textbox").query()).toBeNull();
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -244,7 +244,9 @@ test("starts on the price the lot's cost already equals and saves it as the supp
   vi.mocked(props.services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
   const screen = await renderModal(props);
 
-  await expect.element(screen.getByRole("radio", { name: "Beta · Bolsa" })).toBeChecked();
+  await expect
+    .element(screen.getByRole("button", { name: PRICE_LIST }))
+    .toHaveTextContent("Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg");
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
   await expect
@@ -262,13 +264,38 @@ test("starts on the cheapest price when the lot's cost equals none, and saves an
   vi.mocked(props.services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
   const screen = await renderModal(props);
 
-  await expect.element(screen.getByRole("radio", { name: "Alfa · Caja x 10" })).toBeChecked();
-  await userEvent.click(cardOf(screen, "Beta · Bolsa"));
+  await expect
+    .element(screen.getByRole("button", { name: PRICE_LIST }))
+    .toHaveTextContent("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kgLa más barata");
+  await choosePrice(screen, /^Beta/);
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
   await expect
     .poll(() => vi.mocked(props.services.setLotReferenceCost).mock.lastCall)
     .toEqual([initialLotAlmonds.lotId, { supplierItemId: supplierPriceBeta.supplierItemId }]);
+});
+
+test("fits six loaded prices in the modal and offers every one", async () => {
+  const supplierPrices = ["Alfa", "Beta", "Gamma", "Delta", "Épsilon", "Zeta"].map(
+    (supplierName, index) => ({
+      ...supplierPriceAlfa,
+      supplierItemId: `00000000-0000-4000-8000-0000000000d${index}`,
+      supplierName,
+      cheapest: index === 0,
+      current: false,
+    }),
+  );
+  const screen = await renderModal(createProps({ lot: { ...lotWithPrices, supplierPrices } }));
+
+  const dialog = screen.getByRole("dialog").element();
+  const overflowing = [dialog, ...dialog.querySelectorAll("*")].filter(
+    (element) =>
+      !["hidden", "clip"].includes(getComputedStyle(element).overflowX) &&
+      element.scrollWidth > element.clientWidth,
+  );
+  expect(overflowing).toEqual([]);
+  await userEvent.click(screen.getByRole("button", { name: PRICE_LIST }));
+  expect(screen.getByRole("option").elements()).toHaveLength(6);
 });
 
 test.each([
@@ -296,5 +323,6 @@ test.each([
     await expect.element(dialog.getByText(title)).toBeVisible();
     await expect.element(dialog.getByText(description)).toBeVisible();
     await expect.element(dialog.getByRole("button", { name: SAVE })).toBeDisabled();
+    expect(props.onOutdated).toHaveBeenCalledWith(initialLotAlmonds);
   },
 );

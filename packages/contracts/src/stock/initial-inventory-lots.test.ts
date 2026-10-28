@@ -182,15 +182,42 @@ describe("lotReferenceCostBodySchema", () => {
   it.each([
     ["no id", ""],
     ["something that is no id", "not-an-id"],
+    ["a number", 5],
+    ["nothing", null],
   ])(
-    "refuses a supplier item given as %s, saying it must be a supplier item's id",
+    "refuses a supplier item given as %s on its own field, saying it must be a supplier item's id",
     (_case, supplierItemId) => {
       const result = lotReferenceCostBodySchema.safeParse({ supplierItemId });
 
       expect(result.success).toBe(false);
-      expect(result.error?.issues[0]?.message).toBe("supplierItemId must be a supplier item's id");
+      expect(result.error?.issues).toEqual([
+        expect.objectContaining({
+          path: ["supplierItemId"],
+          message: "supplierItemId must be a supplier item's id",
+        }),
+      ]);
     },
   );
+
+  it("reads a body naming a supplier item as that price's choice, whatever cost it also carries", () => {
+    const supplierItemId = "33333333-3333-4333-8333-333333333333";
+
+    expect(lotReferenceCostBodySchema.parse({ unitCostCents: 3_500, supplierItemId })).toEqual({
+      supplierItemId,
+    });
+  });
+
+  it.each([
+    ["nothing", null],
+    ["a number", 5],
+    ["a text", "x"],
+  ])("refuses a body that is %s, saying a supplier item's id is expected", (_case, body) => {
+    const result = lotReferenceCostBodySchema.safeParse(body);
+
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({ path: [], message: "supplierItemId must be a supplier item's id" }),
+    ]);
+  });
 
   it("refuses a body with no cost or a cost that is no number, with the same message", () => {
     for (const body of [{}, { unitCostCents: "35" }]) {

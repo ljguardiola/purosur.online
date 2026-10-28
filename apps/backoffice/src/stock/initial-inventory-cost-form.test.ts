@@ -92,7 +92,7 @@ test("builds the request from the price chosen, ignoring what was typed", () => 
   });
 });
 
-test("offers each loaded price with its supplier, packaging, cost per the unit sold, list date and whether it is the cheapest", () => {
+test("offers each loaded price with its supplier, list date, packaging and cost per the unit sold, marking the cheapest", () => {
   const lot = {
     ...initialLotAlmonds,
     supplierPrices: [
@@ -104,24 +104,23 @@ test("offers each loaded price with its supplier, packaging, cost per the unit s
   expect(supplierPriceOptions(lot)).toEqual([
     {
       value: supplierPriceAlfa.supplierItemId,
-      label: "Alfa · Caja x 10",
-      description: "$ 9.500,00 por kg · Lista del 01/03/2026 · La más barata",
+      label: "Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kg",
+      status: "La más barata",
     },
     {
       value: supplierPriceBeta.supplierItemId,
-      label: "Beta · Bolsa",
-      description: "$ 10.180,00 por kg · Lista del 15/02/2026",
+      label: "Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg",
     },
   ]);
 });
 
-test("names the unit of a product sold by the unit", () => {
+test("writes the cost of a product sold by the unit with no unit", () => {
   const lot = {
     ...initialLotHoney,
     supplierPrices: [{ ...supplierPriceAlfa, cheapest: false, current: false }],
   };
 
-  expect(supplierPriceOptions(lot)[0]?.description).toContain("por unidad");
+  expect(supplierPriceOptions(lot)[0]?.label).toBe("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00");
 });
 
 test("asks to choose a price when none is", () => {

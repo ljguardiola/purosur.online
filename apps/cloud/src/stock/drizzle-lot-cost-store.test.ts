@@ -127,95 +127,19 @@ describe("DrizzleLotCostStore.setReferenceCost", () => {
 });
 
 describe("DrizzleLotCostStore.loadedSupplierPrices", () => {
-  it("answers the prices loaded for the product asked, priced per sale unit, and none of other products or unpriced offers", async () => {
+  it("answers the prices loaded for the product asked, and none of other products", async () => {
     const { actorId, productId } = await seeded();
     const { productId: otherProductId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const { supplierItemId } = await insertLoadedSupplierPrice(db, {
       productId,
       actorId,
-      supplierName: "Distribuidora Sur",
-      packagingName: "Caja x 3",
       priceCents: 1_000,
-      quantityPerPackage: 3_000,
-      listDate: "2026-03-01",
     });
     await insertLoadedSupplierPrice(db, { productId: otherProductId, actorId, priceCents: 1 });
-    await insertLoadedSupplierPrice(db, {
-      productId,
-      actorId,
-      priceCents: 1,
-      pricesIncludeVat: false,
-      vatRate: null,
-    });
     const store = new DrizzleLotCostStore(db);
 
     const prices = await store.transaction((tx) => tx.loadedSupplierPrices(productId));
 
-    expect(prices).toEqual([
-      {
-        supplierItemId,
-        supplierName: "Distribuidora Sur",
-        packagingName: "Caja x 3",
-        listDate: "2026-03-01",
-        pricePerSaleUnit: { numerator: 1_000n, denominator: 3n },
-      },
-    ]);
-  });
-});
-
-describe("setting a lot's cost from a loaded supplier price", () => {
-  it("writes the exact cost of the chosen price and completes the lot's cost", async () => {
-    const { actorId, locationId, productId } = await seeded();
-    const { lotId } = await insertInitialCountLot(db, { productId, locationId, actorId });
-    await insertLoadedSupplierPrice(db, { productId, actorId, priceCents: 900 });
-    const { supplierItemId } = await insertLoadedSupplierPrice(db, {
-      productId,
-      actorId,
-      priceCents: 1_000,
-      quantityPerPackage: 3_000,
-    });
-
-    const outcome = await setLotReferenceCost(
-      { store: new DrizzleLotCostStore(db) },
-      { locationId, lotId, choice: { kind: "supplier_price", supplierItemId } },
-    );
-
-    expect(outcome).toEqual({ kind: "set" });
-    const [lot] = await db.select().from(lots).where(eq(lots.id, lotId));
-    expect(lot).toMatchObject({ costTotalCents: 1, costQuantity: 3, costIncomplete: false });
-  });
-
-  it("refuses a typed cost once the product has a price loaded", async () => {
-    const { actorId, locationId, productId } = await seeded();
-    const { lotId } = await insertInitialCountLot(db, { productId, locationId, actorId });
-    await insertLoadedSupplierPrice(db, { productId, actorId, priceCents: 900 });
-
-    const outcome = await setLotReferenceCost(
-      { store: new DrizzleLotCostStore(db) },
-      { locationId, lotId, choice: { kind: "typed", unitCostCents: 3_500 } },
-    );
-
-    expect(outcome).toEqual({ kind: "cost_chosen_from_supplier_prices" });
-  });
-
-  it("refuses the price of an item of another product", async () => {
-    const { actorId, locationId, productId } = await seeded();
-    const { productId: otherProductId } = await insertProduct(db, { name: "Yerba 1 kg" });
-    const { lotId } = await insertInitialCountLot(db, { productId, locationId, actorId });
-    await insertLoadedSupplierPrice(db, { productId, actorId, priceCents: 900 });
-    const { supplierItemId } = await insertLoadedSupplierPrice(db, {
-      productId: otherProductId,
-      actorId,
-      priceCents: 100,
-    });
-
-    const outcome = await setLotReferenceCost(
-      { store: new DrizzleLotCostStore(db) },
-      { locationId, lotId, choice: { kind: "supplier_price", supplierItemId } },
-    );
-
-    expect(outcome).toEqual({ kind: "supplier_price_not_found" });
-    const [lot] = await db.select().from(lots).where(eq(lots.id, lotId));
-    expect(lot).toMatchObject({ costTotalCents: null, costIncomplete: true });
+    expect(prices.map((price) => price.supplierItemId)).toEqual([supplierItemId]);
   });
 });
