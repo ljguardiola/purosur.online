@@ -28,6 +28,11 @@ export const ADJUSTMENT_REASONS = [
 
 export type AdjustmentReason = (typeof ADJUSTMENT_REASONS)[number];
 
+export const RECORDED_STOCK_MOVEMENT_REASONS = [
+  ...RECORDED_LOSS_REASONS,
+  ...ADJUSTMENT_REASONS,
+] as const satisfies readonly (RecordedLossReason | AdjustmentReason)[];
+
 export const STOCK_DIRECTIONS = ["add", "subtract"] as const;
 
 export type StockDirection = (typeof STOCK_DIRECTIONS)[number];
