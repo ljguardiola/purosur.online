@@ -4,7 +4,7 @@ import type { IssuedDocumentKind, IssuedDocumentState } from "./issued-fiscal-do
 export const COUNTED_AS_ISSUED_STATE: IssuedDocumentState = "authorized";
 
 export const ISSUED_AUTHORIZATION_KINDS = ["cae", "caea"] as const;
-export type IssuedAuthorizationKind = (typeof ISSUED_AUTHORIZATION_KINDS)[number];
+type IssuedAuthorizationKind = (typeof ISSUED_AUTHORIZATION_KINDS)[number];
 
 const TENTHS_OF_A_PERCENT = 1_000n;
 
