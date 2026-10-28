@@ -170,3 +170,10 @@ export function row(left: string, right: string, indent = "", width = COLUMNS): 
   const last = lines.pop() ?? indent;
   return [...lines, last + " ".repeat(width - last.length - right.length) + right];
 }
+
+export function labeledValue(label: string, value: string): string[] {
+  if (label.length + 1 + value.length <= COLUMNS) {
+    return [label + " ".repeat(COLUMNS - label.length - value.length) + value];
+  }
+  return [label, ...wrapped(value, COLUMNS).map((line) => line.padStart(COLUMNS))];
+}
