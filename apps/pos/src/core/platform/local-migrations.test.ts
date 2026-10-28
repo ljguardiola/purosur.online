@@ -936,6 +936,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1045,6 +1046,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1149,6 +1151,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1252,6 +1255,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1384,6 +1388,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1506,6 +1511,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1632,6 +1638,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1766,6 +1773,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1867,6 +1875,7 @@ describe("the register's local migrations", () => {
         "0084_zone_rules",
         "0085_return_credit_notes",
         "0086_returns_of_branch_sales",
+        "0087_voided_assembly_batches",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
