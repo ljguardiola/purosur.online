@@ -37,6 +37,17 @@ export const initialInventoryLotListSchema = z.object({
       costIncomplete: z.boolean(),
       unitCostCents: z.int().nullable(),
       valueCents: z.int().nullable(),
+      supplierPrices: z.array(
+        z.object({
+          supplierItemId: z.string(),
+          supplierName: z.string(),
+          packagingName: z.string(),
+          listDate: z.string().refine(isCalendarDay),
+          unitCostCents: z.int(),
+          cheapest: z.boolean(),
+          current: z.boolean(),
+        }),
+      ),
     }),
   ),
 });

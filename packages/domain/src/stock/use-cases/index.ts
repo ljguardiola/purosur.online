@@ -114,6 +114,7 @@ export { readExpiringLotsReport } from "./read-expiring-lots-report.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {
+  InitialCountLotSupplierPrice,
   InitialCountLotView,
   ReadInitialCountLotsInput,
 } from "./read-initial-count-lots.js";
