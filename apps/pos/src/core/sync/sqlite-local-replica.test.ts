@@ -46,12 +46,14 @@ const CATEGORY_ID = "9b2f1c3e-58a4-4f0e-8a4d-3c1f7a5e2d10";
 const PRODUCT_ID = "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d";
 const TAG_ID = "3d594650-3436-4a2b-9b14-6a1f0f3b9a11";
 const OTHER_TAG_ID = "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f";
+const BRAND_ID = "8a2b4c6d-1e3f-4a5b-8c7d-9e0f1a2b3c4d";
 const PRICE_LIST_ID = "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d";
 const PRICE_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
 
 type CategoryRow = Extract<SyncChange, { entity: "category" }>["row"];
 type ProductRow = Extract<SyncChange, { entity: "product" }>["row"];
 type TagRow = Extract<SyncChange, { entity: "tag" }>["row"];
+type BrandRow = Extract<SyncChange, { entity: "brand" }>["row"];
 type PriceListRow = Extract<SyncChange, { entity: "price_list" }>["row"];
 type PriceRow = Extract<SyncChange, { entity: "price" }>["row"];
 
@@ -79,6 +81,10 @@ function productRow(overrides: Partial<ProductRow> = {}): ProductRow {
 
 function tagRow(overrides: Partial<TagRow> = {}): TagRow {
   return { name: "Sin TACC", active: true, version: 1, ...overrides };
+}
+
+function brandRow(overrides: Partial<BrandRow> = {}): BrandRow {
+  return { name: "Vitora", active: true, version: 1, ...overrides };
 }
 
 function priceListRow(overrides: Partial<PriceListRow> = {}): PriceListRow {
@@ -110,6 +116,10 @@ function productChange(changeSeq: number, row: ProductRow): RegisterPulledChange
 
 function tagChange(changeSeq: number, row: TagRow): RegisterPulledChange {
   return pulled({ change_seq: changeSeq, entity: "tag", entity_id: TAG_ID, row });
+}
+
+function brandChange(changeSeq: number, row: BrandRow): RegisterPulledChange {
+  return pulled({ change_seq: changeSeq, entity: "brand", entity_id: BRAND_ID, row });
 }
 
 function priceListChange(changeSeq: number, row: PriceListRow): RegisterPulledChange {
@@ -736,6 +746,25 @@ describe("the register's local copy of what it pulls", () => {
 
     await save(removalChange(4, "tag", TAG_ID, 4));
     expect(replica.tag(TAG_ID)).toEqual({ ...tagRow({ version: 4 }), removed: true });
+  });
+
+  it("saves a brand with its version, and a newer version replaces it while an older or the same one does not", async () => {
+    await save(brandChange(1, brandRow({ version: 2 })));
+    expect(replica.brand(BRAND_ID)).toEqual({ ...brandRow({ version: 2 }), removed: false });
+
+    await save(
+      brandChange(2, brandRow({ name: "Vieja", version: 1 })),
+      brandChange(3, brandRow({ name: "Otra", version: 2 })),
+    );
+    expect(replica.brand(BRAND_ID)).toMatchObject({ name: "Vitora", version: 2 });
+
+    await save(brandChange(4, brandRow({ name: "Vitora Natural", active: false, version: 3 })));
+    expect(replica.brand(BRAND_ID)).toEqual({
+      name: "Vitora Natural",
+      active: false,
+      version: 3,
+      removed: false,
+    });
   });
 
   it("saves the tags a product carries, marking the ones a newer version no longer carries as inactive instead of deleting them", async () => {
