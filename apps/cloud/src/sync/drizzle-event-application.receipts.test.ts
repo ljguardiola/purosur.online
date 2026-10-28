@@ -108,6 +108,35 @@ describe("recording the receipt events of applied events", () => {
     expect(rows.map((row) => row.document).sort()).toEqual(["credit_note", "sale_receipt"]);
   });
 
+  it("records the reprint against the credit note it names and numbers it for that credit note alone", async () => {
+    const { saleId, deviceId } = await appliedSale();
+    const reprinted = randomUUID();
+
+    await record(
+      aReprintFact({ saleId, document: "credit_note", creditNoteId: reprinted, orderNumber: 1 }),
+      saleId,
+      "reprint_recorded",
+      deviceId,
+    );
+
+    const rows = await system.db.select().from(saleReprints);
+    expect(rows.map((row) => [row.creditNoteId, row.orderNumber])).toEqual([[reprinted, 1]]);
+  });
+
+  it("keeps a reprint that names no credit note with no credit note", async () => {
+    const { saleId, deviceId } = await appliedSale();
+
+    await record(
+      aReprintFact({ saleId, document: "credit_note", creditNoteId: null, orderNumber: 1 }),
+      saleId,
+      "reprint_recorded",
+      deviceId,
+    );
+
+    const [row] = await system.db.select().from(saleReprints);
+    expect(row).toMatchObject({ document: "credit_note", creditNoteId: null });
+  });
+
   it("keeps the print state of a credit note apart from the receipt's", async () => {
     const { saleId, deviceId } = await appliedSale();
     const printedAt = new Date("2026-10-06T11:21:05.000Z");
