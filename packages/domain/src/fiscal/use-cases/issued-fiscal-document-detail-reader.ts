@@ -1,0 +1,36 @@
+import type { SaleUnit } from "../../catalog/index.js";
+import type { PaymentMethod, PointCardType } from "../../payments/index.js";
+import type { IssuedDocumentBuyer } from "../model/issued-fiscal-document.js";
+import type {
+  IssuedFiscalDocument,
+  IssuedFiscalDocumentVoucher,
+} from "./issued-fiscal-documents-reader.js";
+
+export interface IssuedFiscalDocumentLine {
+  productName: string;
+  saleUnit: SaleUnit;
+  quantity: number;
+  promotion: { name: string } | null;
+  amount: number;
+}
+
+export interface IssuedFiscalDocumentPayment {
+  method: PaymentMethod;
+  cardType: PointCardType | null;
+  amount: number;
+}
+
+export interface IssuedFiscalDocumentDetail extends IssuedFiscalDocument {
+  buyer: IssuedDocumentBuyer;
+  saleTotal: number | null;
+  lines: IssuedFiscalDocumentLine[];
+  payments: IssuedFiscalDocumentPayment[];
+  creditNotes: IssuedFiscalDocument[];
+}
+
+export interface IssuedFiscalDocumentDetailReader {
+  issuedDocumentOfBranch(
+    locationId: string,
+    voucher: IssuedFiscalDocumentVoucher,
+  ): Promise<IssuedFiscalDocumentDetail | undefined>;
+}

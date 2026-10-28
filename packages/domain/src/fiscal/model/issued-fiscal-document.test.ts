@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { FICTIONAL_CUIT } from "../test-support/fictional-tax-identities.js";
 import {
+  CUIT_DOCUMENT_TYPE,
+  FINAL_CONSUMER_DOCUMENT_NUMBER,
+  FINAL_CONSUMER_DOCUMENT_TYPE,
+} from "./factura-c-fiscal-block.js";
+import {
+  buyerOfIssuedDocument,
   CAEA_DOCUMENT_ISSUED_STATE,
   ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
   LISTED_ONLINE_DOCUMENT_STATES,
@@ -68,4 +75,48 @@ it("lists a document issued under a CAEA as authorized", () => {
 
 it("pages fifty documents at a time", () => {
   expect(ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE).toBe(50);
+});
+
+describe("buyerOfIssuedDocument", () => {
+  it("is the final consumer when the document names the final consumer's document type", () => {
+    expect(
+      buyerOfIssuedDocument(FINAL_CONSUMER_DOCUMENT_TYPE, FINAL_CONSUMER_DOCUMENT_NUMBER),
+    ).toEqual({ kind: "final_consumer" });
+  });
+
+  it("is the final consumer whatever number accompanies the final consumer's document type", () => {
+    expect(buyerOfIssuedDocument(FINAL_CONSUMER_DOCUMENT_TYPE, 12_345_678)).toEqual({
+      kind: "final_consumer",
+    });
+  });
+
+  it("is the buyer identified with a CUIT for the CUIT's document type", () => {
+    const cuit = Number(FICTIONAL_CUIT.replaceAll("-", ""));
+
+    expect(buyerOfIssuedDocument(CUIT_DOCUMENT_TYPE, cuit)).toEqual({
+      kind: "identified",
+      documentKind: "cuit",
+      documentNumber: cuit,
+    });
+  });
+
+  it.each([
+    [86, "cuil"],
+    [87, "cdi"],
+    [96, "dni"],
+  ] as const)("names the tax authority's document type %i as a %s", (documentType, kind) => {
+    expect(buyerOfIssuedDocument(documentType, 12_345_678)).toEqual({
+      kind: "identified",
+      documentKind: kind,
+      documentNumber: 12_345_678,
+    });
+  });
+
+  it("is a buyer identified with another document for a type it does not name", () => {
+    expect(buyerOfIssuedDocument(91, 12_345_678)).toEqual({
+      kind: "identified",
+      documentKind: "other",
+      documentNumber: 12_345_678,
+    });
+  });
 });

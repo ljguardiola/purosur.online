@@ -1,13 +1,5 @@
 import { expect, test } from "vitest";
-import { returnedQuantityText, returnLineDetail, returnSaleText } from "./returns-text";
-
-test("writes a quantity of units with its unit", () => {
-  expect(returnedQuantityText("UNIT", 2)).toBe("2 u");
-});
-
-test("writes a quantity by weight in kilograms", () => {
-  expect(returnedQuantityText("KG", 350)).toBe("0,350 kg");
-});
+import { returnLineDetail, returnSaleText } from "./returns-text";
 
 test.each([
   ["change_of_mind", "restock", "Arrepentimiento · vuelve a la venta"],

@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { BACK_REGISTER_ID, registers } from "../shell/test-support/report-fixtures";
-import { fetchFiscalRegisters, fetchIssuedFiscalDocuments } from "./issued-fiscal-documents-api";
-import { issuedFiscalDocuments } from "./test-support/issued-fiscal-documents-fixtures";
+import {
+  fetchFiscalRegisters,
+  fetchIssuedFiscalDocument,
+  fetchIssuedFiscalDocuments,
+} from "./issued-fiscal-documents-api";
+import {
+  authorizedReceiptDetail,
+  issuedFiscalDocuments,
+} from "./test-support/issued-fiscal-documents-fixtures";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -101,4 +108,48 @@ test("answers a refused registers read as the cloud refused it", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
 
   expect(await fetchFiscalRegisters()).toEqual({ kind: "forbidden" });
+});
+
+const receiptVoucher = { voucher_type: 11, point_of_sale: 3, number: 1247 };
+
+test("reads the detail of the document whose voucher is given", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, authorizedReceiptDetail));
+
+  expect(await fetchIssuedFiscalDocument(receiptVoucher)).toEqual({
+    kind: "ok",
+    value: authorizedReceiptDetail,
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/fiscal/documents/11/3/1247");
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [404, { kind: "not_found" }],
+  [500, { kind: "failed" }],
+])("answers %i to the detail as %j", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchIssuedFiscalDocument(receiptVoucher)).toEqual(outcome);
+});
+
+test("reads the retry time of a rate-limited detail", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "12" }));
+
+  expect(await fetchIssuedFiscalDocument(receiptVoucher)).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 12,
+  });
+});
+
+test("treats a detail body that does not match as failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...authorizedReceiptDetail, lines: 3 }));
+
+  expect(await fetchIssuedFiscalDocument(receiptVoucher)).toEqual({ kind: "failed" });
+});
+
+test("treats a detail request that cannot be made as failed", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+  expect(await fetchIssuedFiscalDocument(receiptVoucher)).toEqual({ kind: "failed" });
 });

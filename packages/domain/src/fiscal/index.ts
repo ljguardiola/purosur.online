@@ -174,8 +174,15 @@ export {
   owesFortnightReport,
 } from "./model/fortnight-report.js";
 export { generationStampOf } from "./model/generation-stamp.js";
-export type { IssuedDocumentKind, IssuedDocumentState } from "./model/issued-fiscal-document.js";
+export type {
+  BuyerDocumentKind,
+  IssuedDocumentBuyer,
+  IssuedDocumentKind,
+  IssuedDocumentState,
+} from "./model/issued-fiscal-document.js";
 export {
+  BUYER_DOCUMENT_KINDS,
+  buyerOfIssuedDocument,
   CAEA_DOCUMENT_ISSUED_STATE,
   ISSUED_DOCUMENT_KINDS,
   ISSUED_DOCUMENT_STATES,

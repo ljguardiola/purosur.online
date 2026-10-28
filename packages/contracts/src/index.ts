@@ -202,6 +202,14 @@ export {
   fortnightPresentationSchema,
 } from "./fiscal/fortnight-presentation.js";
 export type {
+  IssuedFiscalDocumentDetailBody,
+  IssuedFiscalDocumentPath,
+} from "./fiscal/issued-fiscal-document-detail.js";
+export {
+  issuedFiscalDocumentDetailSchema,
+  issuedFiscalDocumentPathSchema,
+} from "./fiscal/issued-fiscal-document-detail.js";
+export type {
   IssuedFiscalDocumentsBody,
   IssuedFiscalDocumentsQuery,
 } from "./fiscal/issued-fiscal-documents.js";

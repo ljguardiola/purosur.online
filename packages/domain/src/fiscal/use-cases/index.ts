@@ -316,6 +316,12 @@ export type {
 } from "./issue-credit-note.js";
 export { creditNoteAnswerOf, issueCreditNote } from "./issue-credit-note.js";
 export type {
+  IssuedFiscalDocumentDetail,
+  IssuedFiscalDocumentDetailReader,
+  IssuedFiscalDocumentLine,
+  IssuedFiscalDocumentPayment,
+} from "./issued-fiscal-document-detail-reader.js";
+export type {
   IssuedFiscalDocument,
   IssuedFiscalDocumentAuthorization,
   IssuedFiscalDocumentsPage,

@@ -1,5 +1,6 @@
 import type { IssuedFiscalDocumentsBody } from "@purosur/contracts";
 import {
+  actionsColumn,
   dataColumn,
   formatCents,
   ListFilter,
@@ -12,7 +13,7 @@ import {
   type Tone,
   useTableModel,
 } from "@purosur/ui";
-import { FileText, Search } from "lucide-react";
+import { Eye, FileText, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
@@ -21,6 +22,7 @@ import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { useIssuedFiscalDocumentsQuery } from "./fiscal-queries";
+import { IssuedFiscalDocumentDetailModal } from "./issued-fiscal-document-detail-modal";
 import {
   authorizationDetailText,
   authorizationText,
@@ -42,10 +44,15 @@ export type IssuedFiscalDocumentsScreenProps = {
   onFiltersChange: (filters: IssuedFiscalDocumentsFilters) => void;
   onSessionEnded: () => void;
   registerFilter: ReportRegisterField;
-  services: Pick<IssuedFiscalDocumentsScreenServices, "fetchIssuedFiscalDocuments">;
+  services: Pick<
+    IssuedFiscalDocumentsScreenServices,
+    "fetchIssuedFiscalDocuments" | "fetchIssuedFiscalDocument"
+  >;
 };
 
 type IssuedFiscalDocument = IssuedFiscalDocumentsBody["documents"][number];
+
+type Voucher = Pick<IssuedFiscalDocument, "voucher_type" | "point_of_sale" | "number">;
 
 const NO_DOCUMENTS: IssuedFiscalDocument[] = [];
 
@@ -82,42 +89,60 @@ function stateCell(document: IssuedFiscalDocument) {
   );
 }
 
-const documentColumns = [
-  dataColumn({
-    id: "issued",
-    header: "Emitido",
-    render: (document: IssuedFiscalDocument) => (
-      <TableCellText description={issuedTime(document)}>{issuedDay(document)}</TableCellText>
-    ),
-  }),
-  dataColumn({
-    id: "voucher",
-    header: "Comprobante",
-    render: (document: IssuedFiscalDocument) => (
-      <TableCellText strong description={voucherDetailText(document)}>
-        {voucherText(document)}
-      </TableCellText>
-    ),
-  }),
-  dataColumn({
-    id: "authorization",
-    header: "Autorización",
-    render: (document: IssuedFiscalDocument) => (
-      <TableCellText tone={document.authorization === null ? "subtle" : undefined}>
-        {authorizationText(document.authorization)}
-      </TableCellText>
-    ),
-  }),
-  dataColumn({ id: "state", header: "Estado", render: stateCell }),
-  dataColumn({
-    id: "total",
-    header: "Total",
-    align: "end",
-    render: (document: IssuedFiscalDocument) => (
-      <TableCellText strong>{formatCents(document.total)}</TableCellText>
-    ),
-  }),
-] as const;
+function documentColumnsOf(onOpen: (voucher: Voucher) => void) {
+  return [
+    dataColumn({
+      id: "issued",
+      header: "Emitido",
+      render: (document: IssuedFiscalDocument) => (
+        <TableCellText description={issuedTime(document)}>{issuedDay(document)}</TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "voucher",
+      header: "Comprobante",
+      render: (document: IssuedFiscalDocument) => (
+        <TableCellText strong description={voucherDetailText(document)}>
+          {voucherText(document)}
+        </TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "authorization",
+      header: "Autorización",
+      render: (document: IssuedFiscalDocument) => (
+        <TableCellText tone={document.authorization === null ? "subtle" : undefined}>
+          {authorizationText(document.authorization)}
+        </TableCellText>
+      ),
+    }),
+    dataColumn({ id: "state", header: "Estado", render: stateCell }),
+    dataColumn({
+      id: "total",
+      header: "Total",
+      align: "end",
+      render: (document: IssuedFiscalDocument) => (
+        <TableCellText strong>{formatCents(document.total)}</TableCellText>
+      ),
+    }),
+    actionsColumn({
+      id: "actions",
+      header: "Acciones del comprobante",
+      actions: [
+        (document: IssuedFiscalDocument) => ({
+          icon: <Eye />,
+          "aria-label": `Ver el detalle de la ${voucherText(document)}`,
+          onPress: () =>
+            onOpen({
+              voucher_type: document.voucher_type,
+              point_of_sale: document.point_of_sale,
+              number: document.number,
+            }),
+        }),
+      ],
+    }),
+  ] as const;
+}
 
 export function IssuedFiscalDocumentsScreen({
   filters,
@@ -127,6 +152,7 @@ export function IssuedFiscalDocumentsScreen({
   services,
 }: IssuedFiscalDocumentsScreenProps) {
   const [numberText, setNumberText] = useState(filters.number);
+  const [openVoucher, setOpenVoucher] = useState<Voucher | null>(null);
   const read = useIssuedFiscalDocumentsQuery({
     query: issuedFiscalDocumentsQueryOf(filters),
     fetchIssuedFiscalDocuments: services.fetchIssuedFiscalDocuments,
@@ -149,7 +175,7 @@ export function IssuedFiscalDocumentsScreen({
   const table = useTableModel({
     items: shown?.documents ?? NO_DOCUMENTS,
     id: documentId,
-    columns: documentColumns,
+    columns: documentColumnsOf(setOpenVoucher),
   });
   const filtered = filters.kind !== "ALL" || filters.register !== "ALL" || filters.number !== "";
   const pageCount = shown === undefined ? 1 : Math.ceil(shown.total / shown.page_size);
@@ -224,6 +250,12 @@ export function IssuedFiscalDocumentsScreen({
             </div>
           )
         }
+      />
+      <IssuedFiscalDocumentDetailModal
+        voucher={openVoucher}
+        onClose={() => setOpenVoucher(null)}
+        onSessionEnded={onSessionEnded}
+        services={services}
       />
     </ScreenLayout>
   );

@@ -3,6 +3,8 @@ import {
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   CREDIT_NOTE_C_VOUCHER_TYPE,
   FACTURA_C_VOUCHER_TYPE,
+  FINAL_CONSUMER_DOCUMENT_NUMBER,
+  FINAL_CONSUMER_DOCUMENT_TYPE,
   type IssuedDocumentKind,
   type IssuedDocumentState,
   LISTED_ONLINE_DOCUMENT_STATES,
@@ -76,6 +78,13 @@ function onlineReceipts() {
     correctedVoucherType: nullNumber.as("correctedVoucherType"),
     correctedPointOfSale: nullNumber.as("correctedPointOfSale"),
     correctedNumber: nullNumber.as("correctedNumber"),
+    saleId: sql<string>`${fiscalRequests.saleId}::text`.as("saleId"),
+    buyerDocumentType: sql<number>`${literal(FINAL_CONSUMER_DOCUMENT_TYPE)}::int`.as(
+      "buyerDocumentType",
+    ),
+    buyerDocumentNumber: sql<number>`${literal(FINAL_CONSUMER_DOCUMENT_NUMBER)}::bigint`
+      .mapWith(Number)
+      .as("buyerDocumentNumber"),
   };
 }
 
@@ -113,6 +122,13 @@ function onlineCreditNotes() {
       "correctedPointOfSale",
     ),
     correctedNumber: sql<number | null>`${creditNotes.associatedNumber}`.as("correctedNumber"),
+    saleId: sql<string>`${creditNotes.saleId}::text`.as("saleId"),
+    buyerDocumentType: sql<number>`${literal(FINAL_CONSUMER_DOCUMENT_TYPE)}::int`.as(
+      "buyerDocumentType",
+    ),
+    buyerDocumentNumber: sql<number>`${literal(FINAL_CONSUMER_DOCUMENT_NUMBER)}::bigint`
+      .mapWith(Number)
+      .as("buyerDocumentNumber"),
   };
 }
 
@@ -152,7 +168,33 @@ function offlineDocuments() {
     correctedNumber: sql<number | null>`${offlineFiscalDocuments.correctedNumber}`.as(
       "correctedNumber",
     ),
+    saleId: sql<string>`${offlineFiscalDocuments.saleId}::text`.as("saleId"),
+    buyerDocumentType: sql<number>`${offlineFiscalDocuments.buyerDocumentType}`.as(
+      "buyerDocumentType",
+    ),
+    buyerDocumentNumber: sql<number>`${offlineFiscalDocuments.buyerDocumentNumber}`
+      .mapWith(Number)
+      .as("buyerDocumentNumber"),
   };
+}
+
+export function issuedDocuments<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+) {
+  return unionAll(
+    db
+      .select(onlineReceipts())
+      .from(fiscalRequests)
+      .innerJoin(registers, eq(registers.id, fiscalRequests.registerId)),
+    db
+      .select(onlineCreditNotes())
+      .from(creditNotes)
+      .innerJoin(registers, eq(registers.id, creditNotes.registerId)),
+    db
+      .select(offlineDocuments())
+      .from(offlineFiscalDocuments)
+      .innerJoin(registers, eq(registers.id, offlineFiscalDocuments.registerId)),
+  ).as("issued");
 }
 
 export class DrizzleIssuedFiscalDocumentsReader<TQueryResult extends PgQueryResultHKT>
@@ -172,20 +214,7 @@ export class DrizzleIssuedFiscalDocumentsReader<TQueryResult extends PgQueryResu
     number,
     page,
   }: IssuedFiscalDocumentsQuery): Promise<IssuedFiscalDocumentsPage> {
-    const issued = unionAll(
-      this.db
-        .select(onlineReceipts())
-        .from(fiscalRequests)
-        .innerJoin(registers, eq(registers.id, fiscalRequests.registerId)),
-      this.db
-        .select(onlineCreditNotes())
-        .from(creditNotes)
-        .innerJoin(registers, eq(registers.id, creditNotes.registerId)),
-      this.db
-        .select(offlineDocuments())
-        .from(offlineFiscalDocuments)
-        .innerJoin(registers, eq(registers.id, offlineFiscalDocuments.registerId)),
-    ).as("issued");
+    const issued = issuedDocuments(this.db);
     const listed = and(
       eq(issued.locationId, locationId),
       sql`${issued.state} is not null`,
@@ -217,7 +246,7 @@ export class DrizzleIssuedFiscalDocumentsReader<TQueryResult extends PgQueryResu
   }
 }
 
-interface IssuedRow {
+export interface IssuedRow {
   kind: IssuedDocumentKind;
   voucherType: number;
   pointOfSale: number;
@@ -237,6 +266,9 @@ interface IssuedRow {
   correctedVoucherType: number | null;
   correctedPointOfSale: number | null;
   correctedNumber: number | null;
+  saleId: string;
+  buyerDocumentType: number;
+  buyerDocumentNumber: number;
 }
 
 function authorizationOf(row: IssuedRow): IssuedFiscalDocument["authorization"] {
@@ -258,7 +290,7 @@ function authorizationOf(row: IssuedRow): IssuedFiscalDocument["authorization"] 
   };
 }
 
-function documentOf(row: IssuedRow): IssuedFiscalDocument {
+export function documentOf(row: IssuedRow): IssuedFiscalDocument {
   return {
     kind: row.kind,
     voucherType: row.voucherType,

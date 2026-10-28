@@ -15,6 +15,7 @@ import { useId } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
+import { saleUnitQuantityText } from "../platform/sale-unit-quantity";
 import { schemaText } from "../platform/schema-text";
 import { ReportFilters } from "../shell/report-filters";
 import {
@@ -26,7 +27,7 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { useReturnsReportQuery } from "./returns-queries";
 import type { ReturnsReportScreenServices } from "./returns-report-services";
-import { returnedQuantityText, returnLineDetail, returnSaleText } from "./returns-text";
+import { returnLineDetail, returnSaleText } from "./returns-text";
 
 export type ReturnsReportScreenProps = {
   filters: ReportFiltersValue;
@@ -89,7 +90,7 @@ const returnColumns = [
       <div className="flex flex-col gap-2">
         {row.lines.map((line) => (
           <TableCellText key={line.sale_line_id} description={returnLineDetail(line)}>
-            {`${line.product_name} × ${returnedQuantityText(line.sale_unit, line.quantity)}`}
+            {`${line.product_name} × ${saleUnitQuantityText(line.sale_unit, line.quantity)}`}
           </TableCellText>
         ))}
       </div>

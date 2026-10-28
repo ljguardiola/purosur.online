@@ -40,7 +40,7 @@ const authorizationSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-const issuedFiscalDocumentSchema = voucherSchema.extend({
+export const issuedFiscalDocumentSchema = voucherSchema.extend({
   kind: z.enum(ISSUED_DOCUMENT_KINDS),
   issued_on: calendarDay,
   issued_at: z.iso.datetime({ offset: true }).meta({ timeZone: ARGENTINA_TIME_ZONE }),
