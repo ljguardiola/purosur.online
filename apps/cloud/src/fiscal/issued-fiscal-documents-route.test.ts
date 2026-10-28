@@ -14,9 +14,12 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerIssuedFiscalDocumentsRoute } from "./issued-fiscal-documents-route.js";
 import {
+  insertCompletedSale,
   insertOnlineCreditNote,
   insertReceiptRequest,
   insertRegisterOf,
+  insertSalePayment,
+  insertSoldLine,
 } from "./test-support/issued-document-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
@@ -283,6 +286,166 @@ describe("GET /fiscal/documents", () => {
           },
         },
       ],
+    });
+  });
+});
+
+function documentDetail(headers: Record<string, string>, voucher = "11/7/12") {
+  return app.inject({ method: "GET", url: `/fiscal/documents/${voucher}`, headers });
+}
+
+describe("GET /fiscal/documents/:voucher_type/:point_of_sale/:number", () => {
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await documentDetail({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+
+    const response = await documentDetail({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view fiscal documents, even one who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { registerId } = await insertEnrolledInstallation(db, { now: NOW });
+    await insertReceiptRequest(db, registerId, { pointOfSale: 7, number: 12 });
+
+    const response = await documentDetail(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it.each([
+    ["a voucher type with letters", "abc/7/12"],
+    ["a point of sale of zero", "11/0/12"],
+    ["a point of sale above the largest", "11/100000/12"],
+    ["a number of zero", "11/7/0"],
+  ])("answers 400 to %s", async (_name, voucher) => {
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+
+    const response = await documentDetail(headers, voucher);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("answers 404 to a voucher that was never issued", async () => {
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+
+    const response = await documentDetail(headers, "11/7/99");
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
+  it("answers 404 to a voucher issued by another branch", async () => {
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+    const otherRegister = await insertRegisterOf(db, await insertLocation(db), "Caja 9");
+    await insertReceiptRequest(db, otherRegister, { pointOfSale: 7, number: 12 });
+
+    const response = await documentDetail(headers);
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("answers the detail of a receipt with the shape of the contract", async () => {
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+    const { registerId, deviceId } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 1",
+    });
+    const saleId = randomUUID();
+    await insertCompletedSale(db, { saleId, registerId, deviceId, at: NOW });
+    await insertSoldLine(db, saleId, { productName: "Yerba 1 kg", quantity: 2, lineTotal: 3_000 });
+    await insertSoldLine(db, saleId, {
+      productName: "Queso cremoso",
+      quantity: 450,
+      weightSource: "SCALE",
+      lineTotal: 1_800,
+    });
+    await insertSalePayment(db, saleId, { amount: 4_800 });
+    await insertReceiptRequest(db, registerId, {
+      saleId,
+      pointOfSale: 7,
+      number: 12,
+      issuedOn: "2026-10-05",
+      receivedAt: new Date("2026-10-05T13:00:00.000Z"),
+      total: 4_800,
+    });
+    await insertOnlineCreditNote(db, registerId, {
+      pointOfSale: 7,
+      number: 3,
+      associatedNumber: 12,
+      issuedOn: "2026-10-06",
+      requestedAt: new Date("2026-10-06T14:00:00.000Z"),
+      total: 1_800,
+    });
+
+    const response = await documentDetail(headers);
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.lines).toHaveLength(2);
+    expect(body).toEqual({
+      kind: "receipt",
+      voucher_type: 11,
+      point_of_sale: 7,
+      number: 12,
+      issued_on: "2026-10-05",
+      issued_at: "2026-10-05T13:00:00.000Z",
+      register: { id: registerId, name: "Caja 1" },
+      authorization: { kind: "cae", code: "75123456789012", due_on: "2026-10-15" },
+      state: "authorized",
+      contingency: false,
+      total: 4_800,
+      corrected_voucher: null,
+      buyer: { kind: "final_consumer" },
+      lines: expect.arrayContaining([
+        {
+          product_name: "Yerba 1 kg",
+          quantity: { kind: "units", units: 2 },
+          promotion: null,
+          amount: 3_000,
+        },
+        {
+          product_name: "Queso cremoso",
+          quantity: { kind: "weight", grams: 450 },
+          promotion: null,
+          amount: 1_800,
+        },
+      ]),
+      payments: [{ method: "CASH", card_type: null, amount: 4_800 }],
+      credit_notes: [
+        expect.objectContaining({
+          kind: "credit_note",
+          voucher_type: 13,
+          number: 3,
+          corrected_voucher: { voucher_type: 11, point_of_sale: 7, number: 12 },
+        }),
+      ],
+    });
+  });
+
+  it("answers the detail of a credit note naming the receipt it corrects", async () => {
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+    const { registerId } = await insertEnrolledInstallation(db, { now: NOW });
+    await insertOnlineCreditNote(db, registerId, {
+      pointOfSale: 7,
+      number: 3,
+      associatedNumber: 12,
+    });
+
+    const response = await documentDetail(headers, "13/7/3");
+
+    expect(response.json()).toMatchObject({
+      kind: "credit_note",
+      corrected_voucher: { voucher_type: 11, point_of_sale: 7, number: 12 },
+      credit_notes: [],
     });
   });
 });
