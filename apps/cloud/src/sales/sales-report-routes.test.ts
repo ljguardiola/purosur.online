@@ -14,6 +14,7 @@ import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSalesReportRoutes } from "./sales-report-routes.js";
 import { applyCompletedSale } from "./test-support/applied-sales.js";
 import {
@@ -544,6 +545,15 @@ function handTypedWeights(headers: Record<string, string>, query = "") {
 }
 
 async function receiveWeighedSale(weightSources: ("SCALE" | "MANUAL")[]) {
+  await db
+    .insert(users)
+    .values({
+      id: USER,
+      firstName: "Ana",
+      email: "ana@example.com",
+      locationId: await seededLocationId(db),
+    })
+    .onConflictDoNothing();
   const categoryId = await insertCategoryNamed(db, "Fiambres");
   const lines = await Promise.all(
     weightSources.map(async (weightSource) => {
@@ -648,7 +658,7 @@ describe("GET /reports/hand-typed-weights", () => {
 
     const body = response.json();
     expect(body.cashiers).toEqual([
-      { cashier_id: USER, name: null, weighed_lines: 3, typed_lines: 2 },
+      { cashier_id: USER, name: "Ana", weighed_lines: 3, typed_lines: 2 },
     ]);
     expect(body.sessions).toEqual([
       {
