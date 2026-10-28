@@ -3,6 +3,7 @@ import {
   centered,
   concatenated,
   EscPosWriter,
+  labeledValue,
   RULE,
   row,
   SMALL_COLUMNS,
@@ -188,6 +189,25 @@ describe("laying out lines of the paper's width", () => {
       "Sucursal",
       " Avenida Siempre",
       "        Viva 742",
+    ]);
+  });
+
+  it("puts a label and a value that fit together on one line", () => {
+    expect(labeledValue("Respalda", "Factura C 00003-00001234")).toEqual([
+      `Respalda${" ".repeat(16)}Factura C 00003-00001234`,
+    ]);
+  });
+
+  it("puts a label and a value that do not fit together on one line each, the value aligned right", () => {
+    const value = "Avenida Siempre Viva 742, Springfield, Buenos";
+    expect(labeledValue("Sucursal", value)).toEqual(["Sucursal", value.padStart(48)]);
+  });
+
+  it("wraps a value wider than the paper on lines aligned right", () => {
+    expect(labeledValue("Caja", `${"x".repeat(40)} ${"y".repeat(20)}`)).toEqual([
+      "Caja",
+      `${" ".repeat(8)}${"x".repeat(40)}`,
+      `${" ".repeat(28)}${"y".repeat(20)}`,
     ]);
   });
 
