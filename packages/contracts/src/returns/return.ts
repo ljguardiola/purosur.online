@@ -1,6 +1,7 @@
 import {
   PAYMENT_METHODS,
   PLANNED_REFUND_STATES,
+  POINT_CARD_TYPES,
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
   SALE_UNITS,
@@ -87,6 +88,7 @@ const saleForReturnSchema = z.object({
     z.object({
       payment_id: z.string(),
       method: z.enum(PAYMENT_METHODS),
+      card_type: z.enum(POINT_CARD_TYPES).nullable(),
       amount: cents,
       refunded_amount: cents,
       remaining: cents,

@@ -2,6 +2,7 @@ import {
   ARGENTINA_TIME_ZONE,
   MERCADO_PAGO_REFUND_STAGES,
   PAYMENT_METHODS,
+  POINT_CARD_TYPES,
   REFUND_ORIGINS,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -17,6 +18,7 @@ export const pendingRefundsSchema = z.object({
       register_id: recordIdSchema(),
       register_name: z.string(),
       method: z.enum(PAYMENT_METHODS),
+      card_type: z.enum(POINT_CARD_TYPES).nullable(),
       origin: z.enum(REFUND_ORIGINS),
       discardable: z.boolean(),
       amount: z.int().nonnegative(),

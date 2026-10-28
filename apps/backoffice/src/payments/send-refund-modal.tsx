@@ -2,9 +2,9 @@ import type { ConfirmedRefundBody, PendingRefundsBody } from "@purosur/contracts
 import { Button, formatCents, InlineNotice, Modal } from "@purosur/ui";
 import { RotateCcw, Send, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { paymentMethodLabel } from "../platform/payment-method-label";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { paymentLabel } from "./payment-label";
 import { refundReason } from "./refund-reason";
 import type { confirmRefund } from "./refunds-api";
 
@@ -151,7 +151,7 @@ export function SendRefundModal({
           <div className="flex flex-col gap-2">
             <p className="text-body text-text">
               Se devuelven {formatCents(shown.amount)} al cliente por{" "}
-              {paymentMethodLabel(shown.method)}.
+              {paymentLabel(shown.method, shown.card_type)}.
             </p>
             <p className="text-body text-text-subtle">{refundReason(shown).detail}</p>
           </div>

@@ -6,6 +6,7 @@ import {
 import {
   isRefundSentByCloud,
   type PlannedRefundState,
+  type PointCardType,
   plannedRefundState,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "../../payments/index.js";
@@ -39,6 +40,7 @@ export type SaleVoidability =
       kind: "voidable";
       refunds: {
         method: SaleHistoryRecord["payments"][number]["method"];
+        cardType: PointCardType | null;
         amount: number;
         state: PlannedRefundState;
         sentByCloud: boolean;
@@ -134,8 +136,9 @@ function saleVoidabilityOf({
   }
   return {
     kind: "voidable",
-    refunds: payments.map(({ method, amount }) => ({
+    refunds: payments.map(({ method, amount, cardType }) => ({
       method,
+      cardType,
       amount,
       state: plannedRefundState(method),
       sentByCloud: isRefundSentByCloud({ method, origin: SALE_VOIDED_REFUND_ORIGIN }),

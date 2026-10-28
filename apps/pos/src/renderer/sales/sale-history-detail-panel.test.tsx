@@ -21,15 +21,27 @@ const FISCAL_SALE: SaleDetail = {
   served_by_first_name: "Tomás",
   line_count: 8,
   payments: [
-    { method: "TRANSFER", amount: 3_070_000 },
-    { method: "CASH", amount: 2_000_000 },
+    { method: "TRANSFER", card_type: null, amount: 3_070_000 },
+    { method: "CASH", card_type: null, amount: 2_000_000 },
   ],
   state: "completed",
   voidability: {
     kind: "voidable",
     refunds: [
-      { method: "TRANSFER", amount: 3_070_000, state: "PENDING", sent_by_cloud: false },
-      { method: "CASH", amount: 2_000_000, state: "APPROVED", sent_by_cloud: false },
+      {
+        method: "TRANSFER",
+        card_type: null,
+        amount: 3_070_000,
+        state: "PENDING",
+        sent_by_cloud: false,
+      },
+      {
+        method: "CASH",
+        card_type: null,
+        amount: 2_000_000,
+        state: "APPROVED",
+        sent_by_cloud: false,
+      },
     ],
     credit_note_corrects: null,
   },
@@ -136,12 +148,29 @@ describe("SaleHistoryDetailPanel", () => {
     const { screen } = await renderPanel({
       read: async () => ({
         kind: "found",
-        detail: { ...FISCAL_SALE, payments: [{ method: "QR", amount: 3_070_000 }] },
+        detail: {
+          ...FISCAL_SALE,
+          payments: [{ method: "QR", card_type: null, amount: 3_070_000 }],
+        },
       }),
     });
 
     await expect.element(screen.getByText("QR de Mercado Pago", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("$ 30.700,00").first()).toBeVisible();
+  });
+
+  it("names the card type of a Point payment", async () => {
+    const { screen } = await renderPanel({
+      read: async () => ({
+        kind: "found",
+        detail: {
+          ...FISCAL_SALE,
+          payments: [{ method: "POINT", card_type: "CREDIT", amount: 3_070_000 }],
+        },
+      }),
+    });
+
+    await expect.element(screen.getByText("Point · Crédito", { exact: true })).toBeVisible();
   });
 
   it("says one line in the singular", async () => {

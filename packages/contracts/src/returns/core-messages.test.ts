@@ -262,6 +262,7 @@ const FOUND = {
       {
         payment_id: "pay-cash",
         method: "CASH",
+        card_type: null,
         amount: 15_000,
         refunded_amount: 0,
         remaining: 15_000,
@@ -271,6 +272,7 @@ const FOUND = {
       {
         payment_id: "pay-transfer",
         method: "TRANSFER",
+        card_type: null,
         amount: 6500,
         refunded_amount: 0,
         remaining: 6500,

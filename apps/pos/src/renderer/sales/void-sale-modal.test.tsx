@@ -22,7 +22,7 @@ const SALE: SaleDetail = {
   operation_number: 482,
   served_by_first_name: "Tomás",
   line_count: 8,
-  payments: [{ method: "CASH", amount: 5_070_000 }],
+  payments: [{ method: "CASH", card_type: null, amount: 5_070_000 }],
   state: "deferred",
   voidability: { kind: "voidable", refunds: [], credit_note_corrects: null },
   void_authorization_required: false,
@@ -56,12 +56,14 @@ const AUTHORIZED_CREDIT_NOTE = {
 } as const;
 const CASH_REFUND: VoidRefund = {
   method: "CASH",
+  card_type: null,
   amount: 5_070_000,
   state: "APPROVED",
   sent_by_cloud: false,
 };
 const TRANSFER_REFUND: VoidRefund = {
   method: "TRANSFER",
+  card_type: null,
   amount: 250_000,
   state: "PENDING",
   sent_by_cloud: false,
@@ -286,7 +288,7 @@ describe("VoidSaleModal", () => {
     const { screen, send } = await renderModal({
       refunds: [
         CASH_REFUND,
-        { method: "QR", amount: 90_000, state: "PENDING", sent_by_cloud: true },
+        { method: "QR", card_type: null, amount: 90_000, state: "PENDING", sent_by_cloud: true },
       ],
     });
 
@@ -310,7 +312,13 @@ describe("VoidSaleModal", () => {
     const { screen, send } = await renderModal({
       refunds: [
         TRANSFER_REFUND,
-        { method: "STANDALONE_TERMINAL", amount: 90_000, state: "PENDING", sent_by_cloud: false },
+        {
+          method: "STANDALONE_TERMINAL",
+          card_type: null,
+          amount: 90_000,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
       ],
     });
     const [first, second] = screen.getByText("Confirmo").elements();

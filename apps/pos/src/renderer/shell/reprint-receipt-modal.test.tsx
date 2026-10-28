@@ -30,7 +30,7 @@ const SALE: Sale = {
   operation_number: 482,
   served_by_first_name: "Tomás",
   line_count: 8,
-  payments: [{ method: "CASH", amount: 5_070_000 }],
+  payments: [{ method: "CASH", card_type: null, amount: 5_070_000 }],
   state: "completed",
   voidability: { kind: "not_voidable", refusal: "session_closed" },
   void_authorization_required: false,

@@ -154,6 +154,7 @@ export function readSaleForReturn(
       amount: payment.amount,
       state: payment.state,
       refundedAmount: refunded.get(payment.id) ?? 0,
+      cardType: payment.method === "POINT" ? payment.cardType : null,
     })),
     returned: returnedFromLines(database, saleId),
   };

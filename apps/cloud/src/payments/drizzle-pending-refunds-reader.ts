@@ -1,5 +1,6 @@
 import {
   methodsCoveringRefundedSale,
+  type PointCardType,
   REFUND_ORIGINS,
   REFUND_PENDING_STATE,
   type RefundOrigin,
@@ -37,6 +38,7 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         registerId: registers.id,
         registerName: registers.name,
         method: paymentRefunds.method,
+        cardType: sql<PointCardType | null>`case when ${salePayments.id} is null then ${paymentTransactions.cardType} else ${salePayments.cardType} end`,
         origin: paymentRefunds.origin,
         providerOrderId: paymentRefunds.providerOrderId,
         amount: paymentRefunds.amount,

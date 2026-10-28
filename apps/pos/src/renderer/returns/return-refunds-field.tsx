@@ -1,5 +1,5 @@
 import { fieldErrorMessage, formatCents, TextField, useFieldContext } from "@purosur/ui";
-import { paymentMethodName } from "../platform/payment-method-names";
+import { paidPaymentName } from "../platform/payment-method-names";
 import type { PaymentRefundText, ReturnFormValues } from "./return-form";
 import { isRefundTextInvalid } from "./return-form";
 import { paymentIneligibleText } from "./return-text";
@@ -16,7 +16,7 @@ export function ReturnRefundsField({ texts, disabled }: ReturnRefundsFieldProps)
   return (
     <ul className="flex flex-col gap-4">
       {texts.map(({ payment, text }) => {
-        const name = paymentMethodName(payment.method);
+        const name = paidPaymentName(payment.method, payment.card_type);
         const label = `Reintegro por ${name}`;
         return (
           <li key={payment.payment_id} className="flex items-center justify-between gap-3">
