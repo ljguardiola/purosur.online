@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { handTypedWeightsSchema } from "./hand-typed-weights.js";
 
@@ -43,6 +44,12 @@ describe("handTypedWeightsSchema", () => {
     };
 
     expect(handTypedWeightsSchema.parse(empty)).toEqual(empty);
+  });
+
+  it("declares the zone the opening of a session is shown in", () => {
+    const sessionShape = handTypedWeightsSchema.shape.sessions.element;
+
+    expect(sessionShape.shape.opened_at.meta()).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
   });
 
   it.each([
