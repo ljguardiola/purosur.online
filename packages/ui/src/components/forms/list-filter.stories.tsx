@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { within } from "storybook/test";
+import { userEvent, within } from "storybook/test";
 import {
   playArrowKeyFocusesListboxOption,
   playClickExpandsTrigger,
@@ -57,4 +57,44 @@ export const OptionHovered: Story = {
 
 export const OptionFocusVisible: Story = {
   play: playArrowKeyFocusesListboxOption(trigger, "Abiertas"),
+};
+
+const brandOptions: [Option<string>, Option<string>, Option<string>, Option<string>] = [
+  { value: "all", label: "Todas" },
+  { value: "acme", label: "Acme" },
+  { value: "zenit", label: "Zenit" },
+  { value: "zafiro", label: "Zafiro" },
+];
+
+const searchableArgs = {
+  label: "Marca",
+  options: brandOptions,
+  value: "acme",
+  searchable: true,
+};
+
+function brandInput(canvasElement: HTMLElement): HTMLElement {
+  return within(canvasElement).getByRole("combobox", { name: /Marca/ });
+}
+
+export const SearchableClosed: StoryObj<typeof ListFilter<string>> = {
+  args: searchableArgs,
+};
+
+export const SearchableTyping: StoryObj<typeof ListFilter<string>> = {
+  args: searchableArgs,
+  play: async ({ canvasElement }) => {
+    const input = brandInput(canvasElement);
+    await userEvent.clear(input);
+    await userEvent.type(input, "z");
+  },
+};
+
+export const SearchableNoResults: StoryObj<typeof ListFilter<string>> = {
+  args: searchableArgs,
+  play: async ({ canvasElement }) => {
+    const input = brandInput(canvasElement);
+    await userEvent.clear(input);
+    await userEvent.type(input, "qqq");
+  },
 };
