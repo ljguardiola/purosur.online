@@ -799,3 +799,121 @@ test("names the native select it renders for form submission with the name it is
 test("requires a name", () => {
   expectTypeOf<Omit<ListFilterProps<Status>, "name">>().not.toExtend<ListFilterProps<Status>>();
 });
+
+const brandOptions: [Option<string>, Option<string>, Option<string>] = [
+  { value: "all", label: "Todas" },
+  { value: "acme", label: "Acme" },
+  { value: "zenit", label: "Zenit" },
+];
+
+function searchableProps(overrides: Partial<ListFilterProps<string>> = {}): ListFilterProps<string> {
+  return {
+    name: "brand",
+    label: "Marca",
+    options: brandOptions,
+    value: "all",
+    onChange: () => {},
+    searchable: true,
+    ...overrides,
+  };
+}
+
+test("a searchable filter is a combobox named after its label and shows the chosen value", async () => {
+  const screen = await render(<ListFilter {...searchableProps({ value: "acme" })} />);
+
+  const input = screen.getByRole("combobox", { name: /Marca/ });
+  await expect.element(input).toHaveValue("Acme");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("a searchable filter keeps the trigger look of the plain one", async () => {
+  const screen = await render(<ListFilter {...searchableProps()} />);
+  const input = screen.getByRole("combobox", { name: /Marca/ }).element() as HTMLElement;
+  const box = input.parentElement as HTMLElement;
+  const style = getComputedStyle(box);
+
+  expect(box.getBoundingClientRect().height).toBeGreaterThan(43);
+  expect(box.getBoundingClientRect().height).toBeLessThan(45);
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(style.borderRadius).toBe("8px");
+  expect(style.borderWidth).toBe("2px");
+  expect(style.borderColor).toBe(tokenRgb("border"));
+  expect(screen.getByText("Marca", { exact: true }).element()).toBeTruthy();
+});
+
+test("typing narrows the options of a searchable filter", async () => {
+  const screen = await render(<ListFilter {...searchableProps()} />);
+
+  await screen.getByRole("combobox", { name: /Marca/ }).fill("zen");
+
+  await expect.element(screen.getByRole("option", { name: "Zenit" })).toBeVisible();
+  expect(screen.getByRole("option", { name: "Acme" }).query()).toBeNull();
+  expect(screen.getByRole("option", { name: "Todas" }).query()).toBeNull();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("choosing an option of a searchable filter gives the caller its value", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<ListFilter {...searchableProps({ onChange })} />);
+
+  await screen.getByRole("combobox", { name: /Marca/ }).fill("zen");
+  await screen.getByRole("option", { name: "Zenit" }).click();
+
+  expect(onChange).toHaveBeenCalledWith("zenit");
+  await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+});
+
+test("a searchable filter says Sin resultados when nothing matches", async () => {
+  const screen = await render(<ListFilter {...searchableProps()} />);
+
+  await screen.getByRole("combobox", { name: /Marca/ }).fill("qqq");
+
+  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  expect(screen.getByRole("option").query()).toBeNull();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("a searchable filter restores the chosen label when it loses focus without a match", async () => {
+  const onChange = vi.fn();
+  const screen = await render(
+    <>
+      <ListFilter {...searchableProps({ value: "acme", onChange })} />
+      <button type="button">Otro</button>
+    </>,
+  );
+  const input = screen.getByRole("combobox", { name: /Marca/ });
+
+  await input.fill("qqq");
+  await userEvent.click(screen.getByRole("button", { name: "Otro" }).element());
+
+  await expect.element(input).toHaveValue("Acme");
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("a searchable filter restores the chosen label on Escape", async () => {
+  const screen = await render(<ListFilter {...searchableProps({ value: "acme" })} />);
+  const input = screen.getByRole("combobox", { name: /Marca/ });
+
+  await input.fill("zen");
+  await userEvent.keyboard("{Escape}");
+
+  await expect.element(input).toHaveValue("Acme");
+});
+
+test("a searchable filter shows the same chevron as the plain one and no search icon", async () => {
+  const screen = await render(<ListFilter {...searchableProps()} />);
+  const input = screen.getByRole("combobox", { name: /Marca/ });
+  const box = input.element().parentElement as HTMLElement;
+
+  expect(box.querySelectorAll("svg")).toHaveLength(1);
+  expect(box.querySelector("svg")?.classList.contains("lucide-chevron-down")).toBe(true);
+  expect(box.querySelector(".lucide-search")).toBeNull();
+
+  await input.click();
+
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+  expect(box.querySelector("svg")?.classList.contains("lucide-chevron-up")).toBe(true);
+});
