@@ -31,7 +31,7 @@ export { REPLENISHMENT_FAILURE_KINDS } from "./replenishment-failure-kind.js";
 export type { ReportPeriod } from "./report-period.js";
 export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 export type { Fraction } from "./rounding.js";
-export { roundHalfUp } from "./rounding.js";
+export { compareFractions, roundHalfUp } from "./rounding.js";
 export type {
   SalesDeniedReason,
   SalesDeniedReport,

@@ -1,9 +1,8 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import { compareSpanishText, type Fraction } from "../../shared/index.js";
+import { compareFractions, compareSpanishText, type Fraction } from "../../shared/index.js";
 import { mayBuyByPackaging } from "../model/packaging.js";
 import {
   cheapestOffer,
-  compareFractions,
   pricePerSaleUnit,
   type SupplierOfferUnpricedReason,
 } from "../model/supplier-item.js";
