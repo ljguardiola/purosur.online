@@ -4,8 +4,6 @@ import {
   type DiscountTargetKind,
   type PromotionTerms,
   SALES_REPORT_SALE_STATE,
-  WEIGHT_SOURCES,
-  type WeightSource,
 } from "@purosur/domain";
 import type {
   PromotionSalesQuery,
@@ -14,20 +12,10 @@ import type {
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { categories, discounts, products, saleLines, sales, tags } from "../platform/db/schema.js";
+import { storedWeightSource } from "../platform/db/stored-weight-source.js";
 import { storedBenefit } from "../pricing/drizzle-discount-store.js";
 
 const saleDay = sql<string>`to_char(${sales.completedAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
-
-function weightSourceOf(stored: string | null): WeightSource | null {
-  if (stored === null) {
-    return null;
-  }
-  const weightSource = WEIGHT_SOURCES.find((known) => known === stored);
-  if (weightSource === undefined) {
-    throw new Error(`A stored sale line has an unknown weight source: ${stored}`);
-  }
-  return weightSource;
-}
 
 function termsOf(
   discount: typeof discounts.$inferSelect | null,
@@ -108,7 +96,7 @@ export class DrizzlePromotionSalesReportReader<TQueryResult extends PgQueryResul
       promotionId: row.promotionId,
       name: row.discount?.name ?? null,
       terms: termsOf(row.discount, row.targetName),
-      weightSource: weightSourceOf(row.weightSource),
+      weightSource: storedWeightSource(row.weightSource),
       quantity: row.quantity,
       lines: row.lines,
       discounted: row.discounted,

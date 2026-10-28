@@ -2,13 +2,12 @@ import {
   ARGENTINA_TIME_ZONE,
   SALES_REPORT_SALE_STATE,
   type SoldLinesOfGroup,
-  WEIGHT_SOURCES,
-  type WeightSource,
 } from "@purosur/domain";
 import type { ProductSalesReportReader, SoldLinesQuery } from "@purosur/domain/sales/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { products, saleLines, sales } from "../platform/db/schema.js";
+import { storedWeightSource } from "../platform/db/stored-weight-source.js";
 
 const saleDay = sql<string>`to_char(${sales.completedAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
@@ -20,17 +19,6 @@ const categoryPaths = sql`(
   )
   select id, path from walk
 ) as category_paths`;
-
-function weightSourceOf(stored: string | null): WeightSource | null {
-  if (stored === null) {
-    return null;
-  }
-  const weightSource = WEIGHT_SOURCES.find((known) => known === stored);
-  if (weightSource === undefined) {
-    throw new Error(`A stored sale line has an unknown weight source: ${stored}`);
-  }
-  return weightSource;
-}
 
 export class DrizzleProductSalesReportReader<TQueryResult extends PgQueryResultHKT>
   implements ProductSalesReportReader
@@ -58,7 +46,7 @@ export class DrizzleProductSalesReportReader<TQueryResult extends PgQueryResultH
     return rows.map(({ id, name, weightSource, quantity, amount }) => ({
       id,
       path: [name],
-      weightSource: weightSourceOf(weightSource),
+      weightSource: storedWeightSource(weightSource),
       quantity,
       amount,
     }));
@@ -83,7 +71,7 @@ export class DrizzleProductSalesReportReader<TQueryResult extends PgQueryResultH
     return rows.map(({ id, path: names, weightSource, quantity, amount }) => ({
       id,
       path: names ?? [],
-      weightSource: weightSourceOf(weightSource),
+      weightSource: storedWeightSource(weightSource),
       quantity,
       amount,
     }));
