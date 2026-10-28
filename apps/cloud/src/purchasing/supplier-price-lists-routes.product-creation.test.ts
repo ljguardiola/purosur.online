@@ -222,7 +222,7 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     const [product] = await db.select().from(products).where(eq(products.id, productId));
     expect(product).toMatchObject({
       brandId: brand?.id,
-      netContentQuantity: "125",
+      netContentQuantity: 125,
       netContentUnit: "ML",
     });
     const tagged = await db.select().from(productTags).where(eq(productTags.productId, productId));

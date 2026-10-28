@@ -168,7 +168,7 @@ describe("createCatalogProduct", () => {
     const [product] = await db.select().from(products).where(eq(products.id, outcome.productId));
     expect(product).toMatchObject({
       brandId: brand.id,
-      netContentQuantity: "125",
+      netContentQuantity: 125,
       netContentUnit: "ML",
     });
     const tagged = await db
