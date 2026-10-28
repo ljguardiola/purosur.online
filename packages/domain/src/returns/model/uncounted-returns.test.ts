@@ -24,6 +24,7 @@ function facts(): SaleForReturn {
         amount: 10_000,
         state: "APPROVED",
         refundedAmount: 1000,
+        cardType: null,
       },
       {
         id: "pay-card",
@@ -32,6 +33,7 @@ function facts(): SaleForReturn {
         amount: 5000,
         state: "APPROVED",
         refundedAmount: 0,
+        cardType: null,
       },
     ],
     returned: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 1000 }],

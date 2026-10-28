@@ -185,6 +185,7 @@ describe("reading a sale of the branch to return it from another register", () =
             amount: 5000,
             state: "APPROVED",
             refundedAmount: 0,
+            cardType: null,
           },
         ],
         returned: [],

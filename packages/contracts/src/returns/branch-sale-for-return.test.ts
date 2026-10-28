@@ -86,6 +86,7 @@ const answer = {
       amount: 7500,
       state: "APPROVED",
       refunded_amount: 0,
+      card_type: null,
     },
   ],
   returned: [{ sale_line_id: "line-1", quantity: 1, refunded_amount: 2500 }],
@@ -156,6 +157,25 @@ describe("branchSaleForReturnAnswerSchema", () => {
     ).toEqual(standing);
   });
 
+  it("reads the card a Point payment was paid with", () => {
+    const point = {
+      ...answer,
+      payments: [
+        {
+          id: "pay-point",
+          method: "POINT",
+          provider: "MERCADOPAGO_POINT",
+          amount: 7500,
+          state: "APPROVED",
+          refunded_amount: 0,
+          card_type: "DEBIT",
+        },
+      ],
+    };
+
+    expect(branchSaleForReturnAnswerSchema.parse(point).payments[0]?.card_type).toBe("DEBIT");
+  });
+
   it("reads a voided sale so the register can say it was voided", () => {
     expect(
       branchSaleForReturnAnswerSchema.safeParse({
@@ -208,6 +228,14 @@ describe("branchSaleForReturnAnswerSchema", () => {
       },
     ],
     ["no counted return ids", { ...answer, counted_return_ids: undefined }],
+    [
+      "a payment without its card type",
+      { ...answer, payments: [{ ...answer.payments[0], card_type: undefined }] },
+    ],
+    [
+      "an unknown card type",
+      { ...answer, payments: [{ ...answer.payments[0], card_type: "PREPAID" }] },
+    ],
     [
       "a fractional quantity",
       {

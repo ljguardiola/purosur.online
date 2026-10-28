@@ -46,6 +46,7 @@ function facts(overrides: Partial<SaleForReturn> = {}): SaleForReturn {
         amount: 11_500,
         state: "APPROVED",
         refundedAmount: 0,
+        cardType: null,
       },
     ],
     returned: [],

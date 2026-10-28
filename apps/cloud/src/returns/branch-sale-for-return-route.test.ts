@@ -217,6 +217,7 @@ describe("GET /devices/current/returns/sale", () => {
         ],
         deferral_pending: false,
       },
+      payments: [{ method: "CASH", card_type: null }],
       counted_return_ids: [],
     });
     expect(response.json().sale).not.toHaveProperty("sale_discount");

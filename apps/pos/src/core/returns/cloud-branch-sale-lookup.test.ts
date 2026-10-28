@@ -46,12 +46,13 @@ const ANSWER = {
   },
   payments: [
     {
-      id: "pay-cash",
-      method: "CASH",
-      provider: "NONE",
+      id: "pay-point",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
       amount: 7500,
       state: "APPROVED",
       refunded_amount: 500,
+      card_type: "DEBIT",
     },
   ],
   returned: [{ sale_line_id: "line-1", quantity: 1, refunded_amount: 2500 }],
@@ -134,12 +135,13 @@ describe("finding a sale of another register of the branch in the cloud", () => 
         invoice: { pointOfSale: 3, number: 1204 },
         payments: [
           {
-            id: "pay-cash",
-            method: "CASH",
-            provider: "NONE",
+            id: "pay-point",
+            method: "POINT",
+            provider: "MERCADOPAGO_POINT",
             amount: 7500,
             state: "APPROVED",
             refundedAmount: 500,
+            cardType: "DEBIT",
           },
         ],
         returned: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }],
