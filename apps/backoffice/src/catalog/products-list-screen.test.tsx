@@ -442,6 +442,7 @@ test("opens with the filters and ordering it is given", async () => {
     filters: {
       search: "peladas",
       category: driedFruits.id,
+      brand: "ALL",
       unit: "KG",
       status: "inactive",
       sort: "descending",

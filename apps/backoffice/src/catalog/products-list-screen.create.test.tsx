@@ -1,4 +1,4 @@
-import type { ListedProduct, ProductSummary } from "@purosur/contracts";
+import type { ListedProduct } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { radioLabel } from "../platform/test-support/radio-label";
@@ -28,7 +28,7 @@ test("opens the create modal, and cancel closes it without calling the API", asy
 test("creates a product and shows it in the list", async () => {
   const services = createServices();
   mockLoaded(services, []);
-  const created: ProductSummary = {
+  const created: ListedProduct = {
     id: "90d00000-0000-4000-8000-000000000003",
     name: "Pasta de maní 380 g",
     categoryId: "ca7e0000-0000-4000-8000-000000000001",
@@ -42,6 +42,7 @@ test("creates a product and shows it in the list", async () => {
     labelCode: null,
     labelModules: null,
     version: 1,
+    currentUnitPrice: null,
   };
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchProducts)
