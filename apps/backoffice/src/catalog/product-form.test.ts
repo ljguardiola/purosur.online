@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { NET_CONTENT_QUANTITY_INVALID } from "./net-content-quantity";
 import {
   brandMessage,
@@ -6,6 +6,7 @@ import {
   editedProductBarcodeProblemMessage,
   netContentMessage,
   PRODUCT_EDIT_MESSAGES,
+  type ProductFormValues,
   productFormValues,
   productMessage,
   productRequestFrom,
@@ -41,16 +42,12 @@ describe("productMessage", () => {
 });
 
 describe("saleUnitMessage", () => {
-  it("asks to choose the unit when none is chosen", () => {
-    expect(saleUnitMessage({ ...EMPTY_PRODUCT_FORM, saleUnit: null })).toBe(
-      "Elegí la unidad de venta.",
-    );
+  it("does not accept a form without a chosen unit", () => {
+    expectTypeOf<null>().not.toExtend<ProductFormValues["saleUnit"]>();
   });
 
   it("asks to review a chosen unit", () => {
-    expect(saleUnitMessage({ ...EMPTY_PRODUCT_FORM, saleUnit: "KG" })).toBe(
-      "Revisá la unidad de venta.",
-    );
+    expect(saleUnitMessage()).toBe("Revisá la unidad de venta.");
   });
 });
 
