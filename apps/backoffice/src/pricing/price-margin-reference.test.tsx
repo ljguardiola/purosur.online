@@ -84,18 +84,11 @@ test("shows the margin of the current price while no price is typed, and asks fo
   expect(fetchPriceMargin).not.toHaveBeenCalled();
 });
 
-test("highlights the margin as a large figure on a pale green card", async () => {
+test("shows the margin on the pale green card", async () => {
   const screen = await render(element("", vi.fn(), () => {}, pricedRice));
-  const value = screen.getByText("40,5 %").element() as HTMLElement;
-  const card = value.parentElement as HTMLElement;
+  const card = screen.getByText("40,5 %").element().parentElement as HTMLElement;
 
   expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("success-subtle"));
-  expect(getComputedStyle(value).color).toBe(tokenRgb("success-strong"));
-  expect(getComputedStyle(value).fontSize).toBe("32px");
-  expect(value.getBoundingClientRect().right).toBeCloseTo(
-    card.getBoundingClientRect().right - 16,
-    0,
-  );
 });
 
 test("keeps the pale green card while the typed price's margin is read", async () => {

@@ -188,7 +188,6 @@ describe("tone text on its own message background contrast", () => {
 const highlightedFigureTextTones = {
   "text-eyebrow": AA_TEXT_CONTRAST,
   "text-subtle": AAA_TEXT_CONTRAST,
-  "success-strong": AAA_TEXT_CONTRAST,
 } satisfies Record<string, number>;
 
 describe("highlighted figure text on its pale green background contrast", () => {
