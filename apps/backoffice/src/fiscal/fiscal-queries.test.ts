@@ -79,3 +79,25 @@ test("invalidating the fiscal key marks the fiscal tasks and the unbilled deferr
   expect(client.getQueryState(fiscalKeys.fiscalTasks)?.isInvalidated).toBe(true);
   expect(client.getQueryState(fiscalKeys.unbilledDeferredSales)?.isInvalidated).toBe(true);
 });
+
+test("invalidating the fiscal key marks the detail of an issued document stale too", async () => {
+  const client = new QueryClient();
+  const voucher = { voucher_type: 11, point_of_sale: 3, number: 1247 };
+  client.setQueryData(fiscalKeys.issuedDocument(voucher), {});
+
+  await client.invalidateQueries({ queryKey: fiscalKey, refetchType: "none" });
+
+  expect(client.getQueryState(fiscalKeys.issuedDocument(voucher))?.isInvalidated).toBe(true);
+});
+
+test("keys the detail of each issued document apart", () => {
+  expect(fiscalKeys.issuedDocument({ voucher_type: 11, point_of_sale: 3, number: 1 })).not.toEqual(
+    fiscalKeys.issuedDocument({ voucher_type: 13, point_of_sale: 3, number: 1 }),
+  );
+  expect(fiscalKeys.issuedDocument({ voucher_type: 11, point_of_sale: 3, number: 1 })).not.toEqual(
+    fiscalKeys.issuedDocument({ voucher_type: 11, point_of_sale: 4, number: 1 }),
+  );
+  expect(fiscalKeys.issuedDocument({ voucher_type: 11, point_of_sale: 3, number: 1 })).not.toEqual(
+    fiscalKeys.issuedDocument({ voucher_type: 11, point_of_sale: 3, number: 2 }),
+  );
+});

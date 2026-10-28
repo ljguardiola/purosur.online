@@ -2,9 +2,12 @@ import { expect, test } from "vitest";
 import {
   authorizationDetailText,
   authorizationText,
+  buyerText,
+  correctedVoucherText,
   documentsCountText,
   issuedDay,
   issuedTime,
+  quantityText,
   voucherDetailText,
   voucherText,
 } from "./issued-fiscal-document-text";
@@ -81,5 +84,37 @@ test("counts documents with the period they were listed for", () => {
 test("counts a single document and names a one-day period once", () => {
   expect(documentsCountText(1, { from: "2026-09-12", to: "2026-09-12" })).toBe(
     "1 comprobante · 12/09/2026",
+  );
+});
+
+test("writes the final consumer as the buyer", () => {
+  expect(buyerText({ kind: "final_consumer" })).toBe("Consumidor final");
+});
+
+test.each([
+  [96, 12345678, "DNI 12345678"],
+  [80, 20000000001, "CUIT 20-00000000-1"],
+  [86, 20000000001, "CUIL 20-00000000-1"],
+  [87, 12345678, "CDI 12345678"],
+  [91, 12345678, "Documento tipo 91 12345678"],
+])("writes an identified buyer of document type %i and number %i as %s", (type, number, text) => {
+  expect(buyerText({ kind: "identified", document_type: type, document_number: number })).toBe(
+    text,
+  );
+});
+
+test("writes units sold as units", () => {
+  expect(quantityText({ kind: "units", units: 2 })).toBe("2 u");
+  expect(quantityText({ kind: "units", units: 1200 })).toBe("1.200 u");
+});
+
+test("writes a weight sold in kilograms", () => {
+  expect(quantityText({ kind: "weight", grams: 450 })).toBe("0,450 kg");
+  expect(quantityText({ kind: "weight", grams: 1250 })).toBe("1,250 kg");
+});
+
+test("names the receipt a credit note corrects", () => {
+  expect(correctedVoucherText({ voucher_type: 11, point_of_sale: 3, number: 1246 })).toBe(
+    "Corrige la Factura C 00003-00001246",
   );
 });
