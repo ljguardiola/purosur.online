@@ -24,6 +24,7 @@ import {
   SUPPLIER_PRICE_LIST_READ_FAILURES,
   SUPPLIER_PRICE_LIST_SOURCE_KINDS,
   SUPPLIER_PRICE_LIST_STATES,
+  storeCatalogListTerms,
 } from "./supplier-price-list.js";
 
 describe("supplier price list constants", () => {
@@ -36,7 +37,7 @@ describe("supplier price list constants", () => {
       "DISCARDED",
     ]);
     expect(SUPPLIER_PRICE_LIST_SOURCE_KINDS).toEqual(["PDF", "WEB_PAGE"]);
-    expect(SUPPLIER_PRICE_LIST_CONTENT_KINDS).toEqual(["PDF", "HTML"]);
+    expect(SUPPLIER_PRICE_LIST_CONTENT_KINDS).toEqual(["PDF", "HTML", "STORE_CATALOG"]);
     expect(SUPPLIER_PRICE_LIST_READ_FAILURES).toEqual([
       "unreadable_document",
       "no_items_found",
@@ -358,5 +359,14 @@ describe("pricedRows", () => {
     ];
 
     expect(pricedRows(rows)).toEqual([rows[0], rows[2]]);
+  });
+});
+
+describe("storeCatalogListTerms", () => {
+  it("dates a store's catalog on the day it was read, with its prices including VAT", () => {
+    expect(storeCatalogListTerms("2026-03-10")).toEqual({
+      listDate: "2026-03-10",
+      pricesIncludeVat: true,
+    });
   });
 });

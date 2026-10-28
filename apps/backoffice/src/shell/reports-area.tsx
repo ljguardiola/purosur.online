@@ -7,6 +7,7 @@ import {
   HandCoins,
   List,
   Package,
+  PackageX,
   Receipt,
   Undo2,
   Users,
@@ -40,6 +41,7 @@ function ReportsArea() {
   const manualDiscountsShown = Boolean(matchRoute({ to: "/reports/manual-discounts" }));
   const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
+  const lossesByReasonShown = Boolean(matchRoute({ to: "/reports/losses-by-reason" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   const returnsShown = Boolean(matchRoute({ to: "/reports/returns" }));
   return (
@@ -140,6 +142,15 @@ function ReportsArea() {
                     icon={<CalendarClock />}
                     search={expiringLotsShown ? true : {}}
                     active={expiringLotsShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/losses-by-reason"
+                    label="Mermas por motivo"
+                    icon={<PackageX />}
+                    search={lossesByReasonShown ? true : {}}
+                    active={lossesByReasonShown}
                   />
                 </li>
                 <li>

@@ -1,5 +1,6 @@
-import { Card, Eyebrow, formatDayAndTime, Tag } from "@purosur/ui";
+import { Card, Eyebrow, Tag } from "@purosur/ui";
 import type { ReactNode } from "react";
+import { compromiseResponseDoneMoment } from "./compromise-response-moments";
 
 type StepState = { done: boolean; doneAt: string | null; available: boolean };
 
@@ -15,7 +16,7 @@ function StateTag({ state }: { state: StepState }) {
   if (state.done && state.doneAt !== null) {
     return (
       <Tag tone="success" variant="status">
-        {`Hecho el ${formatDayAndTime(state.doneAt)}`}
+        {`Hecho el ${compromiseResponseDoneMoment(state.doneAt)}`}
       </Tag>
     );
   }

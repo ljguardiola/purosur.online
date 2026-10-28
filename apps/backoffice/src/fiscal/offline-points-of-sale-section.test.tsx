@@ -1,4 +1,4 @@
-import { formatDayAndTime, formatPointOfSaleNumber } from "@purosur/ui";
+import { formatPointOfSaleNumber } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -81,7 +81,7 @@ test("offers no action on a point of sale the cloud says may not be retired", as
   expect(screen.getByRole("button", { name: retireAction(6) }).query()).toBeNull();
 });
 
-test("shows a retired point of sale with the day it was retired and no action", async () => {
+test("shows a retired point of sale with the day it was retired in Argentine time and no action", async () => {
   const retiredAt = "2026-10-01T15:30:00.000Z";
   const screen = await render(
     sectionFor(
@@ -93,9 +93,7 @@ test("shows a retired point of sale with the day it was retired and no action", 
   );
 
   await expect.element(screen.getByText("Dado de baja", { exact: true })).toBeVisible();
-  await expect
-    .element(screen.getByText(formatDayAndTime(retiredAt), { exact: true }))
-    .toBeVisible();
+  await expect.element(screen.getByText("01/10/2026 · 12:30", { exact: true })).toBeVisible();
   expect(screen.getByRole("button", { name: retireAction(6) }).query()).toBeNull();
 });
 

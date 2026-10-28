@@ -59,6 +59,7 @@ import type { CurrentStockReportScreenServices } from "../stock/current-stock-re
 import type { ExpiringLotsReportScreenServices } from "../stock/expiring-lots-report-services";
 import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
+import type { LossesByReasonReportScreenServices } from "../stock/losses-by-reason-report-services";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
@@ -124,6 +125,7 @@ export type AppServices = {
   expiringLotsScreen: ExpiringLotsScreenServices;
   currentStockReportScreen: CurrentStockReportScreenServices;
   expiringLotsReportScreen: ExpiringLotsReportScreenServices;
+  lossesByReasonReportScreen: LossesByReasonReportScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;

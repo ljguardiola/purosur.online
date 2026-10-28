@@ -18,6 +18,7 @@ export async function applyReturn<TQueryResult extends PgQueryResultHKT>(
     returnedAt: Date;
     sale?: Partial<CompletedSale>;
     saleReturn?: Partial<ReturnedSale>;
+    applyStock?: boolean;
   },
 ): Promise<{ completed: CompletedSale; saleReturn: ReturnedSale }> {
   const { deviceId, soldAt, returnedAt } = input;
@@ -74,10 +75,11 @@ export async function applyReturn<TQueryResult extends PgQueryResultHKT>(
       aCashSessionOpenedFact({ id: returnSessionId, openedAt: returnedAt }),
       eventOf("CashSession", returnSessionId, "cash_session_opened", returnedAt),
     );
-    await tx.record(
-      { kind: "sale_returned", saleReturn, creditNote: null },
-      eventOf("Sale", completed.id, "sale_returned", returnedAt),
-    );
+    const returnedEvent = eventOf("Sale", completed.id, "sale_returned", returnedAt);
+    await tx.record({ kind: "sale_returned", saleReturn, creditNote: null }, returnedEvent);
+    if (input.applyStock) {
+      await tx.applyReturnStock(saleReturn, returnedEvent);
+    }
   });
   return { completed, saleReturn };
 }

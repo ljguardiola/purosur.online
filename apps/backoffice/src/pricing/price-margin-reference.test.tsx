@@ -11,6 +11,7 @@ const costReference: PriceCostReference = {
   freightPerUnitCents: 18000,
   totalCostCents: 446000,
   marginTenthsOfPercent: 456,
+  costIncomplete: false,
 };
 
 const rice: PriceProduct = {

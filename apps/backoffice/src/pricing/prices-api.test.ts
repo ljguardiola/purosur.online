@@ -31,6 +31,7 @@ const rice: PriceProduct = {
     freightPerUnitCents: 18000,
     totalCostCents: 446000,
     marginTenthsOfPercent: 405,
+    costIncomplete: false,
   },
 };
 
@@ -379,6 +380,7 @@ const riceCostReference = {
   freightPerUnitCents: 18000,
   totalCostCents: 446000,
   marginTenthsOfPercent: 456,
+  costIncomplete: false,
 };
 
 test("fetchPriceMargin asks for the margin of the typed price and returns the cost reference on 200", async () => {

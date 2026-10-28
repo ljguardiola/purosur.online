@@ -12,6 +12,7 @@ export const priceCostReferenceSchema = z.object({
   freightPerUnitCents: z.int().nonnegative(),
   totalCostCents: z.int().nonnegative(),
   marginTenthsOfPercent: z.int().nullable(),
+  costIncomplete: z.boolean(),
 });
 
 export const priceProductSchema = z.object({

@@ -7,6 +7,7 @@ import {
 import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
 import { FakePriceListExtractor } from "./test-support/fake-price-list-extractor.js";
+import { FakeStoreCatalogs } from "./test-support/fake-store-catalogs.js";
 import { FakeSupplierPriceListFiles } from "./test-support/fake-supplier-price-list-files.js";
 import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
 
@@ -14,6 +15,7 @@ const NOW = new Date("2026-03-11T01:30:00Z");
 const SENT_ON = "2026-03-10";
 const PDF = new Uint8Array([37, 80, 68, 70, 45]);
 const HTML = new Uint8Array([60, 104, 116, 109, 108, 62]);
+const STORE_CATALOG = new Uint8Array([91, 123, 125, 93]);
 
 function setup(
   listFields: Parameters<FakeSupplierPriceListStore["seedList"]>[0] = { id: "list-1" },
@@ -24,11 +26,13 @@ function setup(
   const files = new FakeSupplierPriceListFiles();
   files.stored.set("list-1", PDF);
   const extractor = new FakePriceListExtractor();
+  const storeCatalogs = new FakeStoreCatalogs();
   return {
     store,
     files,
     extractor,
-    ports: { store, files, extractor, zoneRules: new FakeZoneRulesSource() },
+    storeCatalogs,
+    ports: { store, files, extractor, storeCatalogs, zoneRules: new FakeZoneRulesSource() },
   };
 }
 
@@ -184,7 +188,7 @@ describe("readSupplierPriceList", () => {
       expect(extractor.received).toEqual([{ kind: "web_page", html: HTML }]);
     });
 
-    it.each(["PDF", "HTML"] as const)(
+    it.each(["PDF", "HTML", "STORE_CATALOG"] as const)(
       "reads the kept file of the %s content kind the list records",
       async (contentKind) => {
         const { store, files, extractor, ports } = setup();
@@ -633,5 +637,113 @@ describe("readSupplierPriceList rows of a supplier with remembered items", () =>
     );
 
     expect(rows.map((row) => row.link)).toEqual([LINK, other]);
+  });
+});
+
+describe("readSupplierPriceList of a store's catalog", () => {
+  const unitRow = {
+    description: "Yerba Monte Verde 1 kg",
+    code: null,
+    presentation: "Unidad",
+    priceCents: 4_500_00,
+    page: null,
+    barcode: null,
+  };
+  const packRow = { ...unitRow, presentation: "Pack x 10", priceCents: 42_000_00 };
+  const catalogRows = [unitRow, packRow];
+
+  async function setupCatalog() {
+    const context = setup({
+      id: "list-1",
+      sourceKind: "WEB_PAGE",
+      fileName: null,
+      sourceUrl: "https://tienda.example/almacen-del-sur",
+      contentKind: "STORE_CATALOG",
+    });
+    context.files.stored.clear();
+    await context.files.store("list-1", STORE_CATALOG, "STORE_CATALOG");
+    return context;
+  }
+
+  it("proposes the catalog's rows in its order, dated the day it was read, with prices including VAT", async () => {
+    const { store, storeCatalogs, ports } = await setupCatalog();
+    storeCatalogs.answer = { kind: "read", rows: catalogRows };
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({ kind: "extracted", rowCount: 2 });
+
+    const state = store.snapshot();
+    expect(state.lists[0]).toMatchObject({
+      state: "EXTRACTED",
+      listDate: SENT_ON,
+      pricesIncludeVat: true,
+      sentAt: NOW,
+      sentOn: SENT_ON,
+    });
+    expect(state.rows).toEqual([
+      expect.objectContaining({ ...unitRow, listId: "list-1", position: 0 }),
+      expect.objectContaining({ ...packRow, listId: "list-1", position: 1 }),
+    ]);
+  });
+
+  it("reads the kept catalog and never calls the AI service", async () => {
+    const { extractor, storeCatalogs, ports } = await setupCatalog();
+    storeCatalogs.answer = { kind: "read", rows: catalogRows };
+
+    await readSupplierPriceList(ports, input);
+
+    expect(storeCatalogs.received).toEqual([STORE_CATALOG]);
+    expect(extractor.received).toEqual([]);
+  });
+
+  it("keeps a catalog row's price only when it is valid", async () => {
+    const { store, storeCatalogs, ports } = await setupCatalog();
+    storeCatalogs.answer = {
+      kind: "read",
+      rows: [{ ...unitRow, priceCents: -1 }, packRow],
+    };
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().rows.map((row) => row.priceCents)).toEqual([null, 42_000_00]);
+  });
+
+  it("gives a catalog row the link remembered for its item", async () => {
+    const { store, storeCatalogs, ports } = await setupCatalog();
+    const link = { productId: "product-1", packagingId: "packaging-1", vatRate: null };
+    store.seedSupplierItem({
+      description: "Yerba Monte Verde 1 kg",
+      key: { kind: "description", value: "yerba monte verde 1 kg" },
+      link,
+    });
+    storeCatalogs.answer = { kind: "read", rows: [unitRow] };
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().rows[0]?.link).toEqual(link);
+  });
+
+  it("fails a catalog that cannot be read as an unreadable document", async () => {
+    const { store, storeCatalogs, ports } = await setupCatalog();
+    storeCatalogs.answer = { kind: "unreadable" };
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({
+      kind: "failed",
+      reason: "unreadable_document",
+    });
+    expect(store.snapshot().lists[0]).toMatchObject({
+      state: "READ_FAILED",
+      readFailure: "unreadable_document",
+    });
+  });
+
+  it("fails a catalog with no products as having no items", async () => {
+    const { store, storeCatalogs, ports } = await setupCatalog();
+    storeCatalogs.answer = { kind: "read", rows: [] };
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({
+      kind: "failed",
+      reason: "no_items_found",
+    });
+    expect(store.snapshot().lists[0]).toMatchObject({ readFailure: "no_items_found" });
   });
 });

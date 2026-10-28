@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import type { AssemblyBatchCost } from "./assembly-batch-cost-reader.js";
 import type { PurchaseLineCost } from "./purchase-cost-reader.js";
 import { readPriceMargin } from "./read-price-margin.js";
 import { fakeActiveProductReader } from "./test-support/fake-active-product-reader.js";
+import { fakeAssemblyBatchCostReader } from "./test-support/fake-assembly-batch-cost-reader.js";
 import { fakeInitialCountCostReader } from "./test-support/fake-initial-count-cost-reader.js";
 import { fakePurchaseCostReader } from "./test-support/fake-purchase-cost-reader.js";
 
@@ -17,7 +19,19 @@ const purchase: PurchaseLineCost = {
 
 const input = { locationId: "location-1", productId: "a", unitPrice: 2000 };
 
-function ports(purchases: PurchaseLineCost[], activeProductIds: string[] = ["a"]) {
+const batch: AssemblyBatchCost = {
+  productId: "a",
+  batchId: "batch-a",
+  assembledAt: new Date("2026-03-08T10:00:00Z"),
+  cost: { totalCents: 800, quantity: 1000 },
+  costIncomplete: true,
+};
+
+function ports(
+  purchases: PurchaseLineCost[],
+  activeProductIds: string[] = ["a"],
+  batches: AssemblyBatchCost[] = [],
+) {
   return {
     products: fakeActiveProductReader(activeProductIds),
     zoneRules: new FakeZoneRulesSource(),
@@ -31,6 +45,7 @@ function ports(purchases: PurchaseLineCost[], activeProductIds: string[] = ["a"]
         cost: { totalCents: 900, quantity: 1000 },
       },
     ]),
+    batchCosts: fakeAssemblyBatchCostReader(batches),
   };
 }
 
@@ -45,6 +60,7 @@ describe("readPriceMargin", () => {
         freightPerUnitCents: 0,
         totalCostCents: 1200,
         marginTenthsOfPercent: 400,
+        costIncomplete: false,
       },
     });
   });
@@ -69,6 +85,7 @@ describe("readPriceMargin", () => {
         freightPerUnitCents: 300,
         totalCostCents: 1500,
         marginTenthsOfPercent: 250,
+        costIncomplete: false,
       },
     });
   });
@@ -85,6 +102,21 @@ describe("readPriceMargin", () => {
     expect(outcome).toMatchObject({ kind: "read", costReference: { lastCostCents: 900 } });
   });
 
+  it("takes the most recent batch's cost and flags it when incomplete", async () => {
+    const outcome = await readPriceMargin(ports([purchase], ["a"], [batch]), input);
+
+    expect(outcome).toEqual({
+      kind: "read",
+      costReference: {
+        lastCostCents: 800,
+        freightPerUnitCents: 0,
+        totalCostCents: 800,
+        marginTenthsOfPercent: 600,
+        costIncomplete: true,
+      },
+    });
+  });
+
   it("reads the costs of the product only, at the input's branch", async () => {
     const read = ports([purchase]);
 
@@ -92,6 +124,7 @@ describe("readPriceMargin", () => {
 
     expect(read.purchaseCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a"] }]);
     expect(read.initialCountCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a"] }]);
+    expect(read.batchCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a"] }]);
   });
 
   it("gives no cost reference for a product with no cost source", async () => {
@@ -111,5 +144,6 @@ describe("readPriceMargin", () => {
     expect(outcome).toEqual({ kind: "not_found" });
     expect(read.purchaseCosts.asked).toEqual([]);
     expect(read.initialCountCosts.asked).toEqual([]);
+    expect(read.batchCosts.asked).toEqual([]);
   });
 });
