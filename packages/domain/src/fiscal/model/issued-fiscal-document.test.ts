@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  FINAL_CONSUMER_DOCUMENT_NUMBER,
+  FINAL_CONSUMER_DOCUMENT_TYPE,
+} from "./factura-c-fiscal-block.js";
+import {
+  buyerOfIssuedDocument,
   CAEA_DOCUMENT_ISSUED_STATE,
   ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
   LISTED_ONLINE_DOCUMENT_STATES,
@@ -68,4 +73,26 @@ it("lists a document issued under a CAEA as authorized", () => {
 
 it("pages fifty documents at a time", () => {
   expect(ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE).toBe(50);
+});
+
+describe("buyerOfIssuedDocument", () => {
+  it("is the final consumer when the document names the final consumer's document type", () => {
+    expect(
+      buyerOfIssuedDocument(FINAL_CONSUMER_DOCUMENT_TYPE, FINAL_CONSUMER_DOCUMENT_NUMBER),
+    ).toEqual({ kind: "final_consumer" });
+  });
+
+  it("is the final consumer whatever number accompanies the final consumer's document type", () => {
+    expect(buyerOfIssuedDocument(FINAL_CONSUMER_DOCUMENT_TYPE, 12_345_678)).toEqual({
+      kind: "final_consumer",
+    });
+  });
+
+  it("is the identified buyer, with the stored document, for any other document type", () => {
+    expect(buyerOfIssuedDocument(96, 12_345_678)).toEqual({
+      kind: "identified",
+      documentType: 96,
+      documentNumber: 12_345_678,
+    });
+  });
 });
