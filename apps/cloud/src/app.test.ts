@@ -3225,6 +3225,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/cash-movements",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/registers/sync-status",
         access: OPEN_SESSION_ACCESS,
       },
