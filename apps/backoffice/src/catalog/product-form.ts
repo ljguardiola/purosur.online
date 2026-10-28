@@ -36,7 +36,7 @@ export type ProductFormValues = {
   name: string;
   categoryId: string | null;
   brandId: string;
-  saleUnit: ProductSaleUnit | null;
+  saleUnit: ProductSaleUnit;
   netContent: NetContentValue;
   barcodes: BarcodeListValue;
   tagIds: string[];
@@ -48,7 +48,7 @@ export const EMPTY_PRODUCT_FORM: ProductFormValues = {
   name: "",
   categoryId: null,
   brandId: NO_BRAND,
-  saleUnit: null,
+  saleUnit: "UNIT",
   netContent: { quantity: "", unit: "G" },
   barcodes: { codes: [], scan: "" },
   tagIds: [],
@@ -79,11 +79,7 @@ function netContentFrom({ quantity, unit }: NetContentValue) {
   return { quantity: parseNetContentQuantity(quantity) ?? Number.NaN, unit };
 }
 
-export type ProductRequest = Omit<ProductCreationBody, "saleUnit"> & {
-  saleUnit: ProductSaleUnit | null;
-};
-
-export function productRequestFrom(values: ProductFormValues): ProductRequest {
+export function productRequestFrom(values: ProductFormValues): ProductCreationBody {
   return {
     name: values.name,
     categoryId: values.categoryId ?? "",
@@ -97,7 +93,7 @@ export function productRequestFrom(values: ProductFormValues): ProductRequest {
 
 export function productEditRequestFrom(
   values: ProductEditFormValues,
-): ProductRequest & { version: number } {
+): ProductCreationBody & { version: number } {
   return { ...productRequestFrom(values), version: values.version };
 }
 
@@ -139,8 +135,8 @@ export function tagsMessage(): string {
   return "Un distintivo elegido ya no existe.";
 }
 
-export function saleUnitMessage({ saleUnit }: ProductFormValues): string {
-  return saleUnit ? "Revisá la unidad de venta." : "Elegí la unidad de venta.";
+export function saleUnitMessage(): string {
+  return "Revisá la unidad de venta.";
 }
 
 export function netContentMessage({ netContent }: ProductFormValues): string {

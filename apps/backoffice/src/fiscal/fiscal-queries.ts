@@ -3,6 +3,8 @@ import type {
   IssuedFiscalDocumentDetailBody,
   IssuedFiscalDocumentsBody,
   IssuedFiscalDocumentsQuery,
+  IssuedFiscalDocumentsReportBody,
+  IssuedFiscalDocumentsReportQuery,
   UnbilledDeferredSales,
 } from "@purosur/contracts";
 import type { ZoneRules } from "@purosur/domain";
@@ -27,6 +29,7 @@ import type {
   fetchIssuedFiscalDocument,
   fetchIssuedFiscalDocuments,
 } from "./issued-fiscal-documents-api";
+import type { fetchIssuedFiscalDocumentsReport } from "./issued-fiscal-documents-report-api";
 import type { fetchIssuerIdentification, IssuerIdentification } from "./issuer-identification-api";
 import type { fetchOfflinePointsOfSale, OfflinePointOfSale } from "./offline-points-of-sale-api";
 import type { fetchRegisterPointsOfSale, RegisterPointOfSale } from "./register-points-of-sale-api";
@@ -63,6 +66,14 @@ export const fiscalKeys = {
       voucher.voucher_type,
       voucher.point_of_sale,
       voucher.number,
+    ] as const,
+  issuedDocumentsReport: (query: IssuedFiscalDocumentsReportQuery) =>
+    [
+      ...fiscalKey,
+      "issued-documents-report",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
     ] as const,
   issuedDocuments: (query: IssuedFiscalDocumentsQuery) =>
     [
@@ -327,6 +338,21 @@ export function useIssuedFiscalDocumentQuery(params: {
   return useCloudQuery<IssuedFiscalDocumentRead>({
     queryKey: fiscalKeys.issuedDocument(params.voucher),
     read: () => readIssuedFiscalDocument(params.voucher, params.fetchIssuedFiscalDocument),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useIssuedFiscalDocumentsReportQuery(params: {
+  query: IssuedFiscalDocumentsReportQuery;
+  fetchIssuedFiscalDocumentsReport: typeof fetchIssuedFiscalDocumentsReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<IssuedFiscalDocumentsReportBody>({
+    queryKey: fiscalKeys.issuedDocumentsReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchIssuedFiscalDocumentsReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

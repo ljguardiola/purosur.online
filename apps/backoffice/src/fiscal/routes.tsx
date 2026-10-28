@@ -1,7 +1,9 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
-import { canSeeCashArea, canSeeFiscalInformation } from "../shell/backoffice-access";
+import { canSeeCashArea, canSeeFiscalInformation, canSeeReports } from "../shell/backoffice-access";
 import { cashAndFiscalAreaRoute } from "../shell/cash-and-fiscal-area";
 import { lazyScreen } from "../shell/lazy-screen";
+import { reportFiltersSearch } from "../shell/report-filters-search";
+import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { issuedFiscalDocumentsFilters } from "./issued-fiscal-documents-filters";
 
@@ -35,5 +37,17 @@ export const issuedFiscalDocumentsRoute = createRoute({
   component: lazyScreen(
     () => import("./issued-fiscal-documents-page"),
     "IssuedFiscalDocumentsPage",
+  ),
+});
+
+export const issuedFiscalDocumentsReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/fiscal-documents",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportFiltersSearch,
+  search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
+  component: lazyScreen(
+    () => import("./issued-fiscal-documents-report-page"),
+    "IssuedFiscalDocumentsReportPage",
   ),
 });

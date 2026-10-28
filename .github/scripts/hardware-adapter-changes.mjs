@@ -15,6 +15,7 @@ import {
 
 const LOG_PREFIX = "hardware-adapter-changes";
 const SALES = "apps/pos/src/core/sales";
+const ESCPOS = "apps/pos/src/core/platform/escpos";
 
 const PRINTER = "printer";
 const SCALE = "scale";
@@ -24,6 +25,7 @@ const DEVICES = [PRINTER, SCALE, BARCODE_READER];
 
 const ADAPTER_FOLDERS = [
   { folder: `${SALES}/receipt-printer/`, devices: [PRINTER] },
+  { folder: `${ESCPOS}/`, devices: [PRINTER] },
   { folder: `${SALES}/scale/`, devices: [SCALE] },
   { folder: `${SALES}/barcode-reader/`, devices: [BARCODE_READER] },
   { folder: `${SALES}/serial-link/`, devices: [SCALE, BARCODE_READER] },

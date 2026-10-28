@@ -1,8 +1,13 @@
-import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/contracts";
+import type {
+  SaleCreditNote,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
+} from "@purosur/contracts";
 import type { SummaryRowGroupProps, SummaryRowProps } from "@purosur/ui";
 import { formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
 
 export type SaleDetail = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
+export type SaleDetailCreditNote = SaleDetail["credit_notes"][number];
 type ShownComprobante = Extract<
   SalesHistoryOutcome,
   { kind: "found" }
@@ -27,16 +32,19 @@ export function comprobantePresentation(
 export const CREDIT_NOTE_NAME = "Nota de crédito C";
 
 export type PrintableCreditNote = Extract<
-  NonNullable<SaleDetail["credit_note"]>,
+  SaleCreditNote,
   { kind: "authorized" | "issued_offline" }
 >;
 
-export function creditNoteComprobantePresentation(creditNote: PrintableCreditNote): {
+export function creditNoteComprobantePresentation(
+  creditNote: PrintableCreditNote,
+  name: string = CREDIT_NOTE_NAME,
+): {
   name: string;
   detail: string;
 } {
   return {
-    name: creditNote.kind === "issued_offline" ? `${CREDIT_NOTE_NAME} · CAEA` : CREDIT_NOTE_NAME,
+    name: creditNote.kind === "issued_offline" ? `${name} · CAEA` : name,
     detail: `PV ${formatPointOfSaleNumber(creditNote.point_of_sale)} · Nº ${formatInvoiceNumber(creditNote.number)}`,
   };
 }

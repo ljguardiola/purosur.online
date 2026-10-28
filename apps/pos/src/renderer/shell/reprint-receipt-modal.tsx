@@ -2,6 +2,7 @@ import type {
   Authorization,
   ReceiptCopyShown,
   ReprintSaleReceiptOutcome,
+  SaleCreditNote,
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, PrintedDocument } from "@purosur/domain";
@@ -56,7 +57,8 @@ const AUTHORIZING = "reimprimir comprobantes";
 const PERMISSION: AuthorizablePermissionKey = "reprint_receipt";
 
 type ReprintableSale = Pick<SaleDetail, "sale_id" | "occurred_at"> &
-  Partial<Pick<SaleDetail, "comprobante" | "operation_number" | "credit_note">> & {
+  Partial<Pick<SaleDetail, "comprobante" | "operation_number">> & {
+    credit_note?: SaleCreditNote | null;
     next_copy: Extract<NextReceiptCopy, { kind: "duplicate" }>;
   };
 

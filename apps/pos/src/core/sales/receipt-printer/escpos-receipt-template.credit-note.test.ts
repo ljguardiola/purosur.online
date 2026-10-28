@@ -9,8 +9,8 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
+import { printoutOf } from "../../platform/escpos/test-support/escpos-printout";
 import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
-import { printoutOf } from "../test-support/escpos-printout";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
 
 const RULE = "─".repeat(48);

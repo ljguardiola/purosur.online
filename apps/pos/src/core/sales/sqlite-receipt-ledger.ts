@@ -83,16 +83,17 @@ export function insertReprint(database: LocalDatabase, reprint: ReceiptReprint):
   database
     .prepare(
       `INSERT INTO sale_reprints (
-         sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text,
-         occurred_at
+         sale_id, document, credit_note_id, order_number, requested_by, authorized_by, reason_kind,
+         reason_text, occurred_at
        ) VALUES (
-         @sale_id, @document, @order_number, @requested_by, @authorized_by, @reason_kind,
+         @sale_id, @document, @credit_note_id, @order_number, @requested_by, @authorized_by, @reason_kind,
          @reason_text, @occurred_at
        )`,
     )
     .run({
       sale_id: reprint.saleId,
       document: reprint.document,
+      credit_note_id: reprint.document === "credit_note" ? reprint.creditNoteId : null,
       order_number: reprint.orderNumber,
       requested_by: reprint.requestedBy,
       authorized_by: reprint.authorizedBy,
@@ -146,7 +147,8 @@ export class SqliteReceiptLedger implements ReceiptLedger {
                     THEN (SELECT printed_at FROM deferred_invoice_prints WHERE sale_id = sales.id)
                   ELSE printed_at END AS printed_at,
                 (SELECT count(*) FROM sale_reprints
-                  WHERE sale_reprints.sale_id = sales.id AND sale_reprints.document = @document) AS reprint_count,
+                  WHERE sale_reprints.sale_id = sales.id AND sale_reprints.document = @document
+                    AND sale_reprints.credit_note_id IS @credit_note_id) AS reprint_count,
                 (state = 'VOIDED') AS voided,
                 EXISTS (SELECT 1 FROM sale_credit_notes
                   WHERE sale_credit_notes.id = @credit_note_id

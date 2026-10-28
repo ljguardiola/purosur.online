@@ -15,11 +15,9 @@ export { findBranchSaleForReturn } from "./find-branch-sale-for-return.js";
 export type {
   FindSaleForReturnInput,
   FindSaleForReturnOutcome,
-  FindSaleForReturnPorts,
   ReturnableLineView,
   SaleForReturnView,
 } from "./find-sale-for-return.js";
-export { findSaleForReturn } from "./find-sale-for-return.js";
 export type {
   PreviewReturnInput,
   PreviewReturnOutcome,

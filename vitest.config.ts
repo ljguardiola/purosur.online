@@ -7,6 +7,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { defaultClientConditions, defaultServerConditions } from "vite";
 import { configDefaults, defineConfig } from "vitest/config";
+import { HeldRunReporter } from "./.github/scripts/held-run-reporter.mjs";
 import {
   ROOT_SLOW_TEST_THRESHOLD,
   SlowTestsReporter,
@@ -20,6 +21,8 @@ import { withoutPackageOutput } from "./.github/scripts/without-package-output.m
 const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
+
+const heldRunReporter = new HeldRunReporter({ graceMs: 60_000, stallMs: 5 * 60_000 });
 
 process.env["TZ"] = "UTC";
 
@@ -77,7 +80,11 @@ export default defineConfig({
   test: {
     passWithNoTests: true,
     slowTestThreshold: ROOT_SLOW_TEST_THRESHOLD,
-    sequence: { sequencer: durationBalancedSequencer(process.env["TEST_DURATIONS"]) },
+    sequence: {
+      sequencer: heldRunReporter.trackExecutedFiles(
+        durationBalancedSequencer(process.env["TEST_DURATIONS"]),
+      ),
+    },
     reporters: [
       ...configDefaults.reporters,
       new SlowTestsReporter({
@@ -86,11 +93,13 @@ export default defineConfig({
         "backoffice-build": 1000,
         "register-build": 1000,
         "served-backoffice": 1000,
+        "dependency-patches": 30000,
         "cloud-integration": 5000,
         browser: 2000,
         "catalog-visual": 4000,
       }),
       new TestDurationsReporter({ outputFile: process.env["TEST_DURATIONS_FILE"] }),
+      heldRunReporter,
     ],
     projects: [
       {
@@ -131,6 +140,14 @@ export default defineConfig({
         test: {
           name: "served-backoffice",
           include: ["apps/cloud/*.test.ts"],
+          environment: "node",
+          globalSetup: [r("./vitest.global-setup.playwright-server.ts")],
+        },
+      },
+      {
+        test: {
+          name: "dependency-patches",
+          include: ["patches/*.test.ts"],
           environment: "node",
           globalSetup: [r("./vitest.global-setup.playwright-server.ts")],
         },

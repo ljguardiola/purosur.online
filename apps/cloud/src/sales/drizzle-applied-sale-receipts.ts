@@ -2,6 +2,7 @@ import type { PrintedDocument } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { voidCreditNoteOfSale } from "../fiscal/drizzle-void-credit-note.js";
 import { saleReprints, sales } from "../platform/db/schema.js";
 import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js";
 
@@ -55,6 +56,19 @@ export async function recordAppliedPrintState<TQueryResult extends PgQueryResult
   }
 }
 
+async function legacyReprintedCreditNote<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  saleId: string,
+): Promise<string> {
+  const creditNoteId = await voidCreditNoteOfSale(tx, saleId);
+  if (creditNoteId === null) {
+    throw new Error(
+      `sale ${saleId} has no void credit note for a reprint of a credit note that names none`,
+    );
+  }
+  return creditNoteId;
+}
+
 export async function recordAppliedReprint<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   origin: AppliedOrigin,
@@ -70,6 +84,9 @@ export async function recordAppliedReprint<TQueryResult extends PgQueryResultHKT
   }
   await tx.insert(saleReprints).values({
     ...fields,
+    ...(reprint.document === "credit_note" && reprint.creditNoteId === null
+      ? { creditNoteId: await legacyReprintedCreditNote(tx, reprint.saleId) }
+      : {}),
     reasonKind: reason.kind,
     reasonText: reason.kind === "requested" ? reason.text : null,
   });

@@ -189,6 +189,11 @@ export {
   ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
   LISTED_ONLINE_DOCUMENT_STATES,
 } from "./model/issued-fiscal-document.js";
+export type { IssuedDocumentGroup } from "./model/issued-fiscal-documents-report.js";
+export {
+  COUNTED_AS_ISSUED_STATE,
+  ISSUED_AUTHORIZATION_KINDS,
+} from "./model/issued-fiscal-documents-report.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,

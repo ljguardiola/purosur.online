@@ -71,6 +71,23 @@ describe("creditNoteComprobantePresentation of a credit note issued under the co
       }),
     ).toEqual({ name: "Nota de crédito C · CAEA", detail: "PV 00009 · Nº 00000041" });
   });
+
+  it("marks the contingency code after the name it is given", () => {
+    expect(
+      creditNoteComprobantePresentation(
+        {
+          kind: "issued_offline",
+          point_of_sale: 9,
+          number: 41,
+          issued_on: "2026-10-09",
+          offline_authorization_code: "71234567890123",
+          fortnight_start: "2026-10-01",
+          fortnight_end: "2026-10-15",
+        },
+        "Nota de crédito C de devolución",
+      ).name,
+    ).toBe("Nota de crédito C de devolución · CAEA");
+  });
 });
 
 describe("receiptCopyPresentation", () => {

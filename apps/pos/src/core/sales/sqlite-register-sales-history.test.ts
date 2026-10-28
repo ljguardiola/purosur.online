@@ -679,40 +679,77 @@ describe("SqliteRegisterSalesHistory", () => {
             buyerTaxStatusCode: 5,
           },
         ],
-        creditNote: null,
-        creditNoteId: null,
+        creditNotes: [],
         deferredInvoiceIssued: false,
         deferredShortCode: null,
         hasReturn: false,
       });
     });
 
-    it("names the credit note of a voided sale, and no credit note of the returns of a sale", () => {
+    it("lists the credit note of a voided sale and those of the returns of a sale, in the order recorded", () => {
       addSale({ id: "sale-1", fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 } });
       database.exec(
         `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
-         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 'open-session', 'u1', 'TYPED', '2026-10-08T13:00:00.000Z');
+         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 'open-session', 'u1', 'TYPED', '2026-10-08T13:00:00.000Z'),
+                ('return-2', 'sale-1', 'r1', 'device-1', 'open-session', 'u1', 'TYPED', '2026-10-08T13:30:00.000Z');
          INSERT INTO sale_credit_notes (
            id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
-           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at
-         ) VALUES (
-           'note-of-return', 'sale-1', 'return-1', '2026-10-08', 500, 5, 11, 7, 1204, 'IN_PROGRESS',
-           '2026-10-08T13:00:00.000Z'
-         )`,
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at,
+           answered_at
+         ) VALUES
+           ('note-of-return-2', 'sale-1', 'return-2', '2026-10-08', 300, 5, 11, 7, 1204, 'REJECTED', '2026-10-08T13:30:00.000Z', '2026-10-08T13:30:05.000Z'),
+           ('note-of-return-1', 'sale-1', 'return-1', '2026-10-08', 500, 5, 11, 7, 1204, 'IN_PROGRESS', '2026-10-08T13:00:00.000Z', NULL);`,
       );
 
-      expect(history.saleOfRegister("sale-1")?.creditNoteId).toBeNull();
+      expect(history.saleOfRegister("sale-1")?.creditNotes).toEqual([
+        {
+          creditNoteId: "note-of-return-1",
+          origin: "sale_return",
+          standing: { kind: "in_progress" },
+        },
+        { creditNoteId: "note-of-return-2", origin: "sale_return", standing: { kind: "rejected" } },
+      ]);
 
       database.exec(
         `INSERT INTO sale_credit_notes (
            id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
-           corrected_point_of_sale, corrected_number, state, recorded_at
+           corrected_point_of_sale, corrected_number, state, recorded_at, answered_at
          ) VALUES (
-           'note-of-void', 'sale-1', 4500, 5, 11, 7, 1204, 'IN_PROGRESS', '2026-10-08T14:00:00.000Z'
+           'note-of-void', 'sale-1', 4500, 5, 11, 7, 1204, 'REGULARIZATION_REQUIRED', '2026-10-08T14:00:00.000Z', '2026-10-08T14:00:05.000Z'
          )`,
       );
 
-      expect(history.saleOfRegister("sale-1")?.creditNoteId).toBe("note-of-void");
+      expect(
+        history
+          .saleOfRegister("sale-1")
+          ?.creditNotes.map(({ creditNoteId, origin }) => [creditNoteId, origin]),
+      ).toEqual([
+        ["note-of-return-1", "sale_return"],
+        ["note-of-return-2", "sale_return"],
+        ["note-of-void", "sale_void"],
+      ]);
+      expect(history.saleOfRegister("sale-1")?.creditNotes[2]?.standing).toEqual({
+        kind: "regularization_required",
+      });
+    });
+
+    it("lists credit notes recorded at the same moment by their id", () => {
+      addSale({ id: "sale-1" });
+      database.exec(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'r1', 'device-1', 'open-session', 'u1', 'TYPED', '2026-10-08T13:00:00.000Z'),
+                ('return-2', 'sale-1', 'r1', 'device-1', 'open-session', 'u1', 'TYPED', '2026-10-08T13:00:00.000Z');
+         INSERT INTO sale_credit_notes (
+           id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at
+         ) VALUES
+           ('note-b', 'sale-1', 'return-2', '2026-10-08', 300, 5, 11, 7, 1204, 'IN_PROGRESS', '2026-10-08T13:00:00.000Z'),
+           ('note-a', 'sale-1', 'return-1', '2026-10-08', 500, 5, 11, 7, 1204, 'IN_PROGRESS', '2026-10-08T13:00:00.000Z');`,
+      );
+
+      expect(
+        history.saleOfRegister("sale-1")?.creditNotes.map(({ creditNoteId }) => creditNoteId),
+      ).toEqual(["note-a", "note-b"]);
     });
 
     it("says whether a return was made against the sale", () => {
@@ -884,14 +921,16 @@ describe("SqliteRegisterSalesHistory", () => {
     it("shows no credit note for a sale that has none", () => {
       addSale({ id: "plain" });
 
-      expect(history.saleOfRegister("plain")?.creditNote).toBeNull();
+      expect(history.saleOfRegister("plain")?.creditNotes).toEqual([]);
     });
 
     it("shows the credit note of a voided sale in progress", () => {
       addSale({ id: "gone", state: "VOIDED" });
       addCreditNote("gone");
 
-      expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "in_progress" });
+      expect(history.saleOfRegister("gone")?.creditNotes[0]?.standing).toEqual({
+        kind: "in_progress",
+      });
     });
 
     it("shows the authorization of the credit note of a voided sale", () => {
@@ -907,7 +946,7 @@ describe("SqliteRegisterSalesHistory", () => {
         answered_at: "2026-10-08T12:31:00.000Z",
       });
 
-      expect(history.saleOfRegister("gone")?.creditNote).toEqual({
+      expect(history.saleOfRegister("gone")?.creditNotes[0]?.standing).toEqual({
         kind: "authorized",
         pointOfSale: 3,
         number: 7,
@@ -925,14 +964,18 @@ describe("SqliteRegisterSalesHistory", () => {
         answered_at: "2026-10-08T12:31:00.000Z",
       });
 
-      expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "already_credited" });
+      expect(history.saleOfRegister("gone")?.creditNotes[0]?.standing).toEqual({
+        kind: "already_credited",
+      });
     });
 
     it("shows the rejection of the credit note of a voided sale", () => {
       addSale({ id: "gone", state: "VOIDED" });
       addCreditNote("gone", { state: "REJECTED", answered_at: "2026-10-08T12:31:00.000Z" });
 
-      expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "rejected" });
+      expect(history.saleOfRegister("gone")?.creditNotes[0]?.standing).toEqual({
+        kind: "rejected",
+      });
     });
   });
 });

@@ -48,9 +48,7 @@ const FISCAL_SALE: SaleDetail = {
   void_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
-  credit_note: null,
-  credit_note_id: null,
-  credit_note_next_copy: null,
+  credit_notes: [],
   deferred_invoice_next_copy: null,
   short_code: null,
 };
@@ -309,7 +307,7 @@ describe("SaleHistoryDetailPanel", () => {
       .not.toBeInTheDocument();
   });
 
-  describe("the credit note of a voided sale", () => {
+  describe("the credit notes of a sale", () => {
     const VOIDED = {
       ...FISCAL_SALE,
       state: "voided",
@@ -324,7 +322,6 @@ describe("SaleHistoryDetailPanel", () => {
       authorization_code: "75123456789012",
       authorization_code_due_on: "2026-10-19",
     } as const;
-
     const ISSUED_OFFLINE = {
       kind: "issued_offline",
       point_of_sale: 9,
@@ -334,10 +331,37 @@ describe("SaleHistoryDetailPanel", () => {
       fortnight_start: "2026-10-01",
       fortnight_end: "2026-10-15",
     } as const;
+    const voidedWith = (
+      standing: SaleDetail["credit_notes"][number]["standing"],
+      next_copy: SaleDetail["credit_notes"][number]["next_copy"] = null,
+    ): SaleDetail => ({
+      ...VOIDED,
+      credit_notes: [{ credit_note_id: "cn-void", origin: "sale_void", standing, next_copy }],
+    });
+    const TWO_RETURNS: SaleDetail = {
+      ...FISCAL_SALE,
+      credit_notes: [
+        {
+          credit_note_id: "cn-first",
+          origin: "sale_return",
+          standing: AUTHORIZED,
+          next_copy: { kind: "original" },
+        },
+        {
+          credit_note_id: "cn-second",
+          origin: "sale_return",
+          standing: ISSUED_OFFLINE,
+          next_copy: { kind: "duplicate", order_number: 2 },
+        },
+      ],
+    };
 
     it("shows the point of sale and number of an authorized one and prints it from its button", async () => {
       const { screen, onPrintCreditNote } = await renderPanel({
-        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: AUTHORIZED } }),
+        read: async () => ({
+          kind: "found",
+          detail: voidedWith(AUTHORIZED, { kind: "original" }),
+        }),
       });
 
       await expect.element(screen.getByText("Nota de crédito C", { exact: true })).toBeVisible();
@@ -346,6 +370,7 @@ describe("SaleHistoryDetailPanel", () => {
 
       expect(onPrintCreditNote).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({ sale_id: "sale-1" }),
+        expect.objectContaining({ credit_note_id: "cn-void" }),
       );
       await expectNoAccessibilityViolations(screen.container);
     });
@@ -354,7 +379,7 @@ describe("SaleHistoryDetailPanel", () => {
       const { screen, onPrintCreditNote } = await renderPanel({
         read: async () => ({
           kind: "found",
-          detail: { ...VOIDED, credit_note: ISSUED_OFFLINE },
+          detail: voidedWith(ISSUED_OFFLINE, { kind: "original" }),
         }),
       });
 
@@ -368,48 +393,29 @@ describe("SaleHistoryDetailPanel", () => {
       await expectNoAccessibilityViolations(screen.container);
     });
 
-    it("offers the original of an authorized credit note never printed, printing it right away", async () => {
-      const { screen, onPrintCreditNote, onReprintCreditNote } = await renderPanel({
-        read: async () => ({
-          kind: "found",
-          detail: {
-            ...VOIDED,
-            credit_note: AUTHORIZED,
-            credit_note_next_copy: { kind: "original" },
-          },
-        }),
-      });
-
-      await expect
-        .element(screen.getByRole("button", { name: "Reimprimir duplicado" }))
-        .not.toBeInTheDocument();
-      await userEvent.click(screen.getByRole("button", { name: "Imprimir nota de crédito" }));
-
-      expect(onPrintCreditNote).toHaveBeenCalledOnce();
-      expect(onReprintCreditNote).not.toHaveBeenCalled();
-    });
-
     it("offers a duplicate of an authorized credit note already printed, asking before printing it", async () => {
       const { screen, onPrintCreditNote, onReprintCreditNote } = await renderPanel({
         read: async () => ({
           kind: "found",
-          detail: {
-            ...VOIDED,
-            credit_note: AUTHORIZED,
-            credit_note_next_copy: { kind: "duplicate", order_number: 2 },
-          },
+          detail: voidedWith(AUTHORIZED, { kind: "duplicate", order_number: 2 }),
         }),
       });
 
       await expect
         .element(screen.getByRole("button", { name: "Imprimir nota de crédito" }))
         .not.toBeInTheDocument();
-      await userEvent.click(screen.getByRole("button", { name: "Reimprimir duplicado" }));
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reimprimir duplicado de nota de crédito",
+          exact: true,
+        }),
+      );
 
       expect(onReprintCreditNote).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ sale_id: "sale-1" }),
         expect.objectContaining({
-          sale_id: "sale-1",
-          credit_note_next_copy: { kind: "duplicate", order_number: 2 },
+          credit_note_id: "cn-void",
+          next_copy: { kind: "duplicate", order_number: 2 },
         }),
       );
       expect(onPrintCreditNote).not.toHaveBeenCalled();
@@ -420,26 +426,203 @@ describe("SaleHistoryDetailPanel", () => {
       [{ kind: "in_progress" } as const, "En trámite con ARCA"],
       [{ kind: "rejected" } as const, "No emitida"],
       [{ kind: "already_credited" } as const, "No emitida: la factura ya tenía una"],
-    ])("shows one that is not authorized and offers no printing: %j", async (creditNote, shown) => {
+      [{ kind: "regularization_required" } as const, "A regularizar"],
+    ])("shows one that is not authorized and offers no printing: %j", async (standing, shown) => {
       const { screen } = await renderPanel({
-        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: creditNote } }),
+        read: async () => ({ kind: "found", detail: voidedWith(standing) }),
       });
 
       await expect.element(screen.getByText("Nota de crédito C", { exact: true })).toBeVisible();
       await expect.element(screen.getByText(shown)).toBeVisible();
       await expect
-        .element(screen.getByRole("button", { name: "Imprimir nota de crédito" }))
+        .element(screen.getByRole("button", { name: /Imprimir nota de crédito/ }))
         .not.toBeInTheDocument();
     });
 
     it("shows none for a sale that had no invoice", async () => {
       const { screen } = await renderPanel({
-        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: null } }),
+        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_notes: [] } }),
       });
 
       await expect.element(screen.getByText("Anulada", { exact: true })).toBeVisible();
       await expect
         .element(screen.getByText("Nota de crédito C", { exact: true }))
+        .not.toBeInTheDocument();
+    });
+
+    it("lists the void's credit note and each return's, in order, saying which are the returns'", async () => {
+      const { screen } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: {
+            ...VOIDED,
+            credit_notes: [
+              {
+                credit_note_id: "cn-first",
+                origin: "sale_return",
+                standing: AUTHORIZED,
+                next_copy: null,
+              },
+              {
+                credit_note_id: "cn-second",
+                origin: "sale_return",
+                standing: { kind: "in_progress" },
+                next_copy: null,
+              },
+              {
+                credit_note_id: "cn-void",
+                origin: "sale_void",
+                standing: ISSUED_OFFLINE,
+                next_copy: null,
+              },
+            ],
+          },
+        }),
+      });
+
+      await expect
+        .element(screen.getByText("Nota de crédito C de devolución", { exact: true }).first())
+        .toBeVisible();
+      await expect.element(screen.getByText("PV 00004 · Nº 00000012")).toBeVisible();
+      await expect
+        .element(screen.getByText("Nota de crédito C de devolución", { exact: true }).nth(1))
+        .toBeVisible();
+      await expect.element(screen.getByText("En trámite con ARCA")).toBeVisible();
+      await expect
+        .element(screen.getByText("Nota de crédito C · CAEA", { exact: true }))
+        .toBeVisible();
+      await expect.element(screen.getByText("PV 00009 · Nº 00000041")).toBeVisible();
+    });
+
+    it("says a return's credit note issued under the contingency code is the return's", async () => {
+      const { screen } = await renderPanel({
+        read: async () => ({ kind: "found", detail: TWO_RETURNS }),
+      });
+
+      await expect
+        .element(screen.getByText("Nota de crédito C de devolución · CAEA", { exact: true }))
+        .toBeVisible();
+    });
+
+    it("offers one button per printable credit note, each naming its number and acting on its note only", async () => {
+      const { screen, onPrintCreditNote, onReprintCreditNote } = await renderPanel({
+        read: async () => ({ kind: "found", detail: TWO_RETURNS }),
+      });
+
+      await expect
+        .element(screen.getByRole("button", { name: "Imprimir nota de crédito", exact: true }))
+        .not.toBeInTheDocument();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Imprimir nota de crédito PV 00004 · Nº 00000012" }),
+      );
+      expect(onPrintCreditNote).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ sale_id: "sale-1" }),
+        expect.objectContaining({ credit_note_id: "cn-first" }),
+      );
+      expect(onReprintCreditNote).not.toHaveBeenCalled();
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reimprimir duplicado de nota de crédito PV 00009 · Nº 00000041",
+        }),
+      );
+      expect(onReprintCreditNote).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ sale_id: "sale-1" }),
+        expect.objectContaining({ credit_note_id: "cn-second" }),
+      );
+      expect(onPrintCreditNote).toHaveBeenCalledOnce();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("tells the sale's duplicate apart from the duplicate of its only credit note", async () => {
+      const { screen, onReprint, onReprintCreditNote } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: {
+            ...FISCAL_SALE,
+            credit_notes: [
+              {
+                credit_note_id: "cn-first",
+                origin: "sale_return",
+                standing: AUTHORIZED,
+                next_copy: { kind: "duplicate", order_number: 1 },
+              },
+            ],
+          },
+        }),
+      });
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reimprimir duplicado de nota de crédito",
+          exact: true,
+        }),
+      );
+      expect(onReprintCreditNote).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ sale_id: "sale-1" }),
+        expect.objectContaining({ credit_note_id: "cn-first" }),
+      );
+      expect(onReprint).not.toHaveBeenCalled();
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "Reimprimir duplicado", exact: true }),
+      );
+      expect(onReprint).toHaveBeenCalledOnce();
+    });
+
+    it("offers no button for a credit note the core gives no copy to print of", async () => {
+      const { screen } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: {
+            ...FISCAL_SALE,
+            credit_notes: [
+              {
+                credit_note_id: "cn-first",
+                origin: "sale_return",
+                standing: AUTHORIZED,
+                next_copy: null,
+              },
+            ],
+          },
+        }),
+      });
+
+      await expect.element(screen.getByText("PV 00004 · Nº 00000012")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: /nota de crédito/ }))
+        .not.toBeInTheDocument();
+    });
+
+    it("offers a button only for the credit notes that can be printed", async () => {
+      const { screen } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: {
+            ...FISCAL_SALE,
+            credit_notes: [
+              {
+                credit_note_id: "cn-first",
+                origin: "sale_return",
+                standing: { kind: "in_progress" },
+                next_copy: null,
+              },
+              {
+                credit_note_id: "cn-second",
+                origin: "sale_return",
+                standing: AUTHORIZED,
+                next_copy: { kind: "original" },
+              },
+            ],
+          },
+        }),
+      });
+
+      await expect
+        .element(screen.getByRole("button", { name: "Imprimir nota de crédito" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: /Imprimir nota de crédito PV/ }))
         .not.toBeInTheDocument();
     });
   });
