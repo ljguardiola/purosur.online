@@ -8,16 +8,16 @@ import {
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import {
-  insertCreditNote,
-  insertCreditNoteIssuedOffline,
-  insertVoidedSale,
-} from "../sales/test-support/credit-note-receipt-database";
-import {
   insertBranchSettings,
   insertStoredRefund,
   insertStoredReturn,
   openSoldSaleDatabase,
 } from "../returns/test-support/sold-sale-database";
+import {
+  insertCreditNote,
+  insertCreditNoteIssuedOffline,
+  insertVoidedSale,
+} from "../sales/test-support/credit-note-receipt-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import {
   CHAIN_KEY,
@@ -193,9 +193,7 @@ describe("reading what a ticket prints", () => {
         method: "TRANSFER",
         amount: 1000,
       });
-      database
-        .prepare("UPDATE payment_refunds SET return_id = 'return-1'")
-        .run();
+      database.prepare("UPDATE payment_refunds SET return_id = 'return-1'").run();
     });
 
     afterEach(() => {

@@ -150,7 +150,9 @@ describe("the contingency backup ticket", () => {
 
   describe("for a return", () => {
     const returned = (
-      overrides: Partial<Extract<ContingencyBackupTicketPrintout["operation"], { kind: "return" }>> = {},
+      overrides: Partial<
+        Extract<ContingencyBackupTicketPrintout["operation"], { kind: "return" }>
+      > = {},
     ) => ({
       kind: "return" as const,
       originalOperationNumber: 482,
