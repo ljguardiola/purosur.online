@@ -66,6 +66,24 @@ describe("the void credit note of a sale", () => {
     expect(await voidCreditNoteOfSale(system.db, randomUUID())).toBeNull();
   });
 
+  it("is none for a sale that was not voided, whose only offline credit note is a return's", async () => {
+    const saleId = await applyCompletedSale(system.db, {
+      deviceId,
+      completedAt: COMPLETED_AT,
+      total: 4800,
+    });
+    await insertOfflineCreditNote(system.db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: FORTNIGHT,
+      number: 3,
+      corrects: CORRECTED_INVOICE,
+      saleId,
+    });
+
+    expect(await voidCreditNoteOfSale(system.db, saleId)).toBeNull();
+  });
+
   it("is none for a sale that was not voided, whose offline credit notes are its returns'", async () => {
     const saleId = await applyCompletedSale(system.db, {
       deviceId,
