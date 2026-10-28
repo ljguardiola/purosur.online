@@ -92,6 +92,32 @@ test("sends the form with Ctrl+Enter pressed from a text field", async () => {
   expect(onSend).toHaveBeenCalledOnce();
 });
 
+test("sends the form with Ctrl+Enter pressed from a field of a centered modal", async () => {
+  const onSend = vi.fn();
+  const screen = await render(
+    <Modal
+      open
+      onOpenChange={() => {}}
+      headerLayout="centered"
+      tone="info"
+      icon={<Info />}
+      title="Abrir la caja"
+      footer={
+        <Button variant="primary" onPress={onSend}>
+          Abrir
+        </Button>
+      }
+    >
+      <NameField label="Monto inicial" />
+    </Modal>,
+  );
+
+  await userEvent.click(screen.getByRole("textbox", { name: "Monto inicial" }));
+  await userEvent.keyboard(CTRL_ENTER);
+
+  expect(onSend).toHaveBeenCalledOnce();
+});
+
 test("sends the form with Ctrl+Enter pressed from multi-line text", async () => {
   const onSend = vi.fn();
   const screen = await render(
