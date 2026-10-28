@@ -159,6 +159,7 @@ describe("the sale a return starts from", () => {
         amount: 6000,
         state: "APPROVED",
         refundedAmount: 2500,
+        cardType: null,
       },
       {
         id: "pay-transfer",
@@ -167,6 +168,7 @@ describe("the sale a return starts from", () => {
         amount: 5500,
         state: "APPROVED",
         refundedAmount: 0,
+        cardType: null,
       },
     ]);
   });
@@ -253,6 +255,7 @@ describe("the sale of another register a return starts from", () => {
           amount: 7500,
           state: "APPROVED",
           refundedAmount: 500,
+          cardType: null,
         },
       ],
       returned: [{ saleLineId: "line-elsewhere", quantity: 1, refundedAmount: 2500 }],

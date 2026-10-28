@@ -168,6 +168,7 @@ const BRANCH_SALE: Extract<BranchSaleLookupAnswer, { kind: "found" }> = {
         amount: 7500,
         state: "APPROVED",
         refundedAmount: 0,
+        cardType: null,
       },
     ],
     returned: [],
