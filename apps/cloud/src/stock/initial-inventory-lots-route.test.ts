@@ -5,6 +5,7 @@ import { lots } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerInitialInventoryLotsRoutes } from "./initial-inventory-lots-route.js";
+import { insertLoadedSupplierPrice } from "./test-support/loaded-supplier-price-fixtures.js";
 import {
   insertInitialCountLot,
   insertPurchasedLot,
@@ -374,5 +375,72 @@ describe("PUT /initial-inventory-lots/:lotId/reference-cost", () => {
     expect(purchase.statusCode).toBe(409);
     expect(purchase.json()).toMatchObject({ code: "not_an_initial_count_lot" });
     expect(technicalResponse.statusCode).toBe(409);
+  });
+});
+
+describe("PUT /initial-inventory-lots/:lotId/reference-cost with supplier prices", () => {
+  it("sets the lot's cost to the loaded price of the supplier item chosen, answering no content", async () => {
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["record_initial_inventory"],
+      NOW,
+    );
+    const { productId } = await insertProduct(db);
+    const { lotId } = await insertInitialCountLot(db, { productId, locationId, actorId: userId });
+    await insertLoadedSupplierPrice(db, { productId, actorId: userId, priceCents: 900 });
+    const { supplierItemId } = await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId: userId,
+      priceCents: 1_000,
+      quantityPerPackage: 3_000,
+    });
+
+    const response = await setCostRequest(headers, lotId, { supplierItemId });
+
+    expect(response.statusCode).toBe(204);
+    const [lot] = await db.select().from(lots).where(eq(lots.id, lotId));
+    expect(lot).toMatchObject({ costTotalCents: 1, costQuantity: 3, costIncomplete: false });
+  });
+
+  it("reaches the body validator for a supplier item that is no id", async () => {
+    const { headers } = await signedInWith(db, ["record_initial_inventory"], NOW);
+
+    const response = await setCostRequest(headers, MISSING_ID, { supplierItemId: "not-an-id" });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("refuses a typed cost once the product has a loaded price, answering a conflict", async () => {
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["record_initial_inventory"],
+      NOW,
+    );
+    const { productId } = await insertProduct(db);
+    const { lotId } = await insertInitialCountLot(db, { productId, locationId, actorId: userId });
+    await insertLoadedSupplierPrice(db, { productId, actorId: userId, priceCents: 900 });
+
+    const response = await setCostRequest(headers, lotId, { unitCostCents: 100 });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "cost_chosen_from_supplier_prices" });
+    const [lot] = await db.select().from(lots).where(eq(lots.id, lotId));
+    expect(lot).toMatchObject({ costIncomplete: true });
+  });
+
+  it("refuses a supplier item with no loaded price for the lot's product, answering a conflict", async () => {
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["record_initial_inventory"],
+      NOW,
+    );
+    const { productId } = await insertProduct(db);
+    const { lotId } = await insertInitialCountLot(db, { productId, locationId, actorId: userId });
+
+    const response = await setCostRequest(headers, lotId, { supplierItemId: MISSING_ID });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "supplier_price_not_found" });
   });
 });

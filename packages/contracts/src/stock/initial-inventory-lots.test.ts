@@ -116,10 +116,31 @@ describe("lotReferenceCostBodySchema", () => {
   });
 
   it("declares in its metadata the largest cost it accepts", () => {
-    const unitCostCents = lotReferenceCostBodySchema.shape.unitCostCents;
+    const [typedBody] = lotReferenceCostBodySchema.options;
+    const unitCostCents = typedBody.shape.unitCostCents;
 
     expect(unitCostCents.meta()).toMatchObject({ maxValue: MAX_CASH_AMOUNT_CENTS });
   });
+
+  it("accepts the id of a supplier item whose loaded price is chosen as the cost", () => {
+    const supplierItemId = "33333333-3333-4333-8333-333333333333";
+
+    expect(lotReferenceCostBodySchema.parse({ supplierItemId })).toEqual({ supplierItemId });
+  });
+
+  it.each([
+    ["no id", ""],
+    ["something that is no id", "not-an-id"],
+    ["a number", 5],
+  ])(
+    "refuses a supplier item given as %s, saying it must be a supplier item's id",
+    (_case, supplierItemId) => {
+      const result = lotReferenceCostBodySchema.safeParse({ supplierItemId });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("supplierItemId must be a supplier item's id");
+    },
+  );
 
   it("refuses a body with no cost or a cost that is no number, with the same message", () => {
     for (const body of [{}, { unitCostCents: "35" }]) {
