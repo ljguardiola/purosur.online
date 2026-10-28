@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTicketedOperations } from "../backups/ticketed-operation";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import { insertFiscalDocument } from "../fiscal/test-support/real-time-authorization-database";
+import { printoutOf } from "../platform/escpos/test-support/escpos-printout";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
@@ -20,7 +21,6 @@ import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import type { ReceiptRequestDeps } from "./receipt-requests";
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
 import { insertCreditNote, insertVoidedSale } from "./test-support/credit-note-receipt-database";
-import { printoutOf } from "./test-support/escpos-printout";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
