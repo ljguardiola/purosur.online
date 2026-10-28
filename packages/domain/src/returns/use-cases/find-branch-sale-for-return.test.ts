@@ -75,31 +75,132 @@ function find(
 
 describe("findBranchSaleForReturn", () => {
   describe("a sale of this register", () => {
-    it("answers with the sale without asking the cloud", async () => {
-      const { outcome, lookup } = find({ kind: "unreachable" }, { search: BY_INVOICE });
+    function thisRegisterSaleThroughCloud(
+      overrides: Partial<Pick<BranchSaleFacts, "countedReturnIds">> = {},
+    ) {
+      const { deferred: _deferred, ...facts } = aSaleForReturn();
+      facts.returned = [{ saleLineId: "line-1", quantity: 2, refundedAmount: 5000 }];
+      facts.payments = facts.payments.map((payment) =>
+        payment.id === "pay-cash" ? { ...payment, refundedAmount: 5000 } : payment,
+      );
+      return {
+        kind: "found",
+        sale: facts,
+        invoiceStanding: INVOICE_STANDING,
+        countedReturnIds: [],
+        ...overrides,
+      } satisfies BranchSaleLookupAnswer;
+    }
 
-      expect(await outcome).toMatchObject({ kind: "found", sale: { saleId: "sale-1" } });
-      expect(lookup.asked).toEqual([]);
+    it("asks the cloud for its ticket", async () => {
+      const { outcome, lookup } = find(thisRegisterSaleThroughCloud(), { search: BY_INVOICE });
+      await outcome;
+
+      expect(lookup.asked).toEqual([BY_INVOICE]);
+    });
+
+    it("counts what other registers of the branch already returned from it", async () => {
+      const { outcome } = find(thisRegisterSaleThroughCloud(), { search: BY_INVOICE });
+
+      const answer = await outcome;
+      expect(answer).toMatchObject({ kind: "found", sale: { saleId: "sale-1" } });
+      expect(answer.kind === "found" && answer.sale.lines[0]).toMatchObject({
+        returnedQuantity: 2,
+        returnableQuantity: 1,
+      });
+      expect(answer.kind === "found" && answer.sale.payments[0]).toMatchObject({
+        refundedAmount: 5000,
+        remaining: 10_000,
+      });
+    });
+
+    it("adds the returns this register made that the cloud did not count", async () => {
+      const own = new FakeOwnReturns({
+        "sale-1": [
+          {
+            id: "return-local",
+            lines: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }],
+            refunds: [{ paymentId: "pay-cash", amount: 2500 }],
+          },
+        ],
+      });
+
+      const { outcome } = find(thisRegisterSaleThroughCloud(), { search: BY_INVOICE, own });
+
+      const answer = await outcome;
+      expect(answer.kind === "found" && answer.sale.lines[0]).toMatchObject({
+        returnedQuantity: 3,
+        returnableQuantity: 0,
+      });
+      expect(answer.kind === "found" && answer.sale.payments[0]).toMatchObject({
+        refundedAmount: 7500,
+      });
+    });
+
+    it("keeps the copy of the sale as the cloud sent it, so completing the return counts it too", async () => {
+      const found = thisRegisterSaleThroughCloud({ countedReturnIds: ["return-cloud"] });
+
+      const { outcome, retained } = find(found, { search: BY_INVOICE });
+      await outcome;
+
+      expect(retained.kept).toEqual([
+        {
+          sale: found.sale,
+          invoiceStanding: INVOICE_STANDING,
+          ticket: BY_INVOICE,
+          countedReturnIds: ["return-cloud"],
+        },
+      ]);
+    });
+
+    it.each([
+      { kind: "unreachable" },
+      { kind: "failed" },
+      { kind: "not_found" },
+    ] satisfies BranchSaleLookupAnswer[])(
+      "answers with the sale as this register holds it when the cloud answers $kind",
+      async (answer) => {
+        const { outcome, retained } = find(answer, { search: BY_INVOICE });
+
+        const found = await outcome;
+        expect(found).toMatchObject({ kind: "found", sale: { saleId: "sale-1" } });
+        expect(found.kind === "found" && found.sale.lines[0]).toMatchObject({
+          returnedQuantity: 0,
+        });
+        expect(retained.kept).toEqual([]);
+      },
+    );
+
+    it("does not take the cloud's answer about another sale for the same ticket", async () => {
+      const { outcome, retained } = find(foundThroughCloud(), { search: BY_INVOICE });
+
+      const found = await outcome;
+      expect(found.kind === "found" && found.sale.lines[0]).toMatchObject({
+        returnedQuantity: 0,
+      });
+      expect(retained.kept).toEqual([]);
     });
 
     it("answers voided without asking the cloud", async () => {
       const gone = aSaleForReturn();
       gone.sale.state = "VOIDED";
 
-      const { outcome, lookup } = find(
-        { kind: "unreachable" },
-        { search: BY_INVOICE, ledger: new FakeReturnLedger({ sales: [gone] }) },
-      );
+      const { outcome, lookup } = find(thisRegisterSaleThroughCloud(), {
+        search: BY_INVOICE,
+        ledger: new FakeReturnLedger({ sales: [gone] }),
+      });
 
       expect(await outcome).toEqual({ kind: "voided" });
       expect(lookup.asked).toEqual([]);
     });
 
-    it("keeps no copy", async () => {
-      const { outcome, retained } = find({ kind: "unreachable" }, { search: BY_INVOICE });
-      await outcome;
+    it("never asks the cloud for a sale the cashier already confirmed by its id", async () => {
+      const { outcome, lookup } = find(thisRegisterSaleThroughCloud(), {
+        search: { kind: "sale", saleId: "sale-1" },
+      });
 
-      expect(retained.kept).toEqual([]);
+      expect(await outcome).toMatchObject({ kind: "found", sale: { saleId: "sale-1" } });
+      expect(lookup.asked).toEqual([]);
     });
   });
 
