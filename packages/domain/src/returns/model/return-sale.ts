@@ -1,6 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import type { SaleLine, SaleWithLines } from "../../sales/index.js";
-import { settledLines } from "../../sales/index.js";
+import type { SaleWithLines, SettledSaleLine } from "../../sales/index.js";
 import type { ReturnablePayment } from "./refund-allocation.js";
 import type { ReturnSaleLine } from "./return-draft.js";
 
@@ -11,7 +10,7 @@ export interface ReturnedFromLine {
 }
 
 type SaleLineForReturn = Pick<
-  SaleLine,
+  SettledSaleLine,
   "id" | "productId" | "productName" | "saleUnit" | "quantity" | "promotionId" | "lineTotal"
 >;
 
@@ -35,7 +34,7 @@ export function returnSaleLines({
   sale,
   returned,
 }: Pick<SaleForReturn, "sale" | "returned">): ReturnStandingLine[] {
-  return settledLines(sale).map((line) => {
+  return sale.lines.map((line) => {
     const earlier = returned.find(({ saleLineId }) => saleLineId === line.id);
     return {
       id: line.id,

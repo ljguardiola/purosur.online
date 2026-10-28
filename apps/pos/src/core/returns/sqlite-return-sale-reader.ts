@@ -1,5 +1,9 @@
 import type { ReturnedFromLine, SaleForReturn } from "@purosur/domain";
-import { DEFAULT_GOOD_CONDITION_RETURN_DAYS, withUncountedReturns } from "@purosur/domain";
+import {
+  DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  settledLines,
+  withUncountedReturns,
+} from "@purosur/domain";
 import type { ReturnSaleReader, SaleReturnSearch } from "@purosur/domain/returns/use-cases";
 import { readRecordedPayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
@@ -140,7 +144,7 @@ export function readSaleForReturn(
   }
   const refunded = refundedByPayment(database, saleId);
   return {
-    sale,
+    sale: { ...sale, lines: settledLines(sale) },
     occurredAt: new Date(occurredAt),
     invoice: invoiceOf(database, saleId),
     payments: readRecordedPayments(database, saleId).map((payment) => ({

@@ -193,12 +193,16 @@ export function readCreditNoteById(
   return readCreditNote(database, "notes.id = ?", creditNoteId);
 }
 
+function readCopyOfBranchSale(database: LocalDatabase, saleId: string) {
+  const held = database.prepare<[string], object>("SELECT 1 FROM sales WHERE id = ?").get(saleId);
+  return held === undefined ? readRetainedBranchSale(database, saleId) : undefined;
+}
+
 export function readSaleInvoiceStanding(
   database: LocalDatabase,
   saleId: string,
 ): SaleInvoiceStanding {
-  const held = database.prepare<[string], object>("SELECT 1 FROM sales WHERE id = ?").get(saleId);
-  const retained = held === undefined ? readRetainedBranchSale(database, saleId) : undefined;
+  const retained = readCopyOfBranchSale(database, saleId);
   if (retained !== undefined) {
     return retained.invoiceStanding;
   }
@@ -339,7 +343,7 @@ export class SqliteSaleCreditNotes implements RegisterCreditNotes {
   }
 
   async refreshBranchSaleInvoiceStanding(saleId: string): Promise<SaleInvoiceStanding | undefined> {
-    const kept = readRetainedBranchSale(this.database, saleId);
+    const kept = readCopyOfBranchSale(this.database, saleId);
     if (this.branchSales === undefined || kept === undefined) {
       return undefined;
     }

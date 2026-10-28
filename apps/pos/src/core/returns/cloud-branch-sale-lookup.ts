@@ -2,6 +2,7 @@ import {
   type BranchSaleForReturnAnswer,
   type BranchSaleForReturnQuery,
   branchSaleForReturnAnswerSchema,
+  isRetryableCloudError,
 } from "@purosur/contracts";
 import type { SaleDiscount, TicketReference } from "@purosur/domain";
 import type {
@@ -26,6 +27,7 @@ export interface CloudBranchSaleLookupDeps {
 }
 
 const UNREACHABLE: BranchSaleLookupAnswer = { kind: "unreachable" };
+const FAILED: BranchSaleLookupAnswer = { kind: "failed" };
 
 function queryOf(ticket: TicketReference): BranchSaleForReturnQuery {
   return ticket.kind === "invoice"
@@ -94,20 +96,22 @@ function factsOf(answer: BranchSaleForReturnAnswer): BranchSaleFacts {
       })),
       deferralPending: answer.invoice_standing.deferral_pending,
     },
-    goodConditionReturnDays: answer.good_condition_return_days,
     countedReturnIds: answer.counted_return_ids,
   };
 }
 
 function answerOf(response: CloudResponse): BranchSaleLookupAnswer {
-  if (response.kind === "error") {
-    return response.error.code === "not_found" ? { kind: "not_found" } : UNREACHABLE;
-  }
   if (response.kind === "unreachable") {
     return UNREACHABLE;
   }
+  if (response.kind === "error") {
+    if (response.error.code === "not_found") {
+      return { kind: "not_found" };
+    }
+    return isRetryableCloudError(response.error.code) ? UNREACHABLE : FAILED;
+  }
   const answer = branchSaleForReturnAnswerSchema.safeParse(response.body);
-  return answer.success ? { kind: "found", ...factsOf(answer.data) } : UNREACHABLE;
+  return answer.success ? { kind: "found", ...factsOf(answer.data) } : FAILED;
 }
 
 export class CloudBranchSaleLookup implements BranchSaleLookup {
@@ -120,7 +124,7 @@ export class CloudBranchSaleLookup implements BranchSaleLookup {
   async saleForReturn(ticket: TicketReference): Promise<BranchSaleLookupAnswer> {
     const deviceToken = await this.deps.readDeviceToken();
     if (deviceToken === undefined) {
-      return UNREACHABLE;
+      return FAILED;
     }
     const query = new URLSearchParams(queryOf(ticket));
     const response = await this.deps.get(

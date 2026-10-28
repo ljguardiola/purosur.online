@@ -14,7 +14,8 @@ export type FindBranchSaleForReturnInput = FindSaleForReturnInput;
 
 export type FindBranchSaleForReturnOutcome =
   | FindSaleForReturnOutcome
-  | { kind: "needs_connection" };
+  | { kind: "needs_connection" }
+  | { kind: "lookup_failed" };
 
 export interface FindBranchSaleForReturnPorts {
   reader: ReturnSaleReader;
@@ -40,10 +41,13 @@ export async function findBranchSaleForReturn(
   if (answer.kind === "not_found") {
     return { kind: "not_found" };
   }
-  const { sale, invoiceStanding, goodConditionReturnDays, countedReturnIds } = answer;
+  if (answer.kind === "failed") {
+    return { kind: "lookup_failed" };
+  }
+  const { sale, invoiceStanding, countedReturnIds } = answer;
   const outcome = saleForReturnOutcome(
     withUncountedReturns(sale, countedReturnIds, ownReturns.returnsOfSale(sale.sale.id)),
-    goodConditionReturnDays,
+    reader.goodConditionReturnDays(),
     clock.now(),
     zoneRules.zoneRules(),
   );
@@ -52,7 +56,6 @@ export async function findBranchSaleForReturn(
       sale,
       invoiceStanding,
       ticket: search,
-      goodConditionReturnDays,
       countedReturnIds,
     });
   }

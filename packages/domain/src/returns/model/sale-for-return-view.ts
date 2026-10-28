@@ -1,4 +1,4 @@
-import { amountToCharge } from "../../sales/index.js";
+import { saleTotal } from "../../sales/index.js";
 import type { ZoneRules } from "../../shared/index.js";
 import { type PaymentRefundability, returnablePayments } from "./refund-allocation.js";
 import { mustBeReturnedWhole, returnableQuantity } from "./return-line.js";
@@ -51,7 +51,7 @@ export function saleForReturnOutcome(
     sale: {
       saleId: facts.sale.id,
       occurredAt: facts.occurredAt,
-      total: amountToCharge(facts.sale),
+      total: saleTotal(facts.sale.lines),
       invoice: facts.invoice,
       windows: returnWindows(facts.occurredAt, goodConditionReturnDays, now, zoneRules),
       lines: returnSaleLines(facts).map(viewOfLine),

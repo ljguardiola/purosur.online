@@ -20,14 +20,14 @@ export interface ReturnSaleReader {
 export interface BranchSaleFacts {
   sale: SaleForReturn;
   invoiceStanding: SaleInvoiceStanding;
-  goodConditionReturnDays: number;
   countedReturnIds: string[];
 }
 
 export type BranchSaleLookupAnswer =
   | ({ kind: "found" } & BranchSaleFacts)
   | { kind: "not_found" }
-  | { kind: "unreachable" };
+  | { kind: "unreachable" }
+  | { kind: "failed" };
 
 export interface BranchSaleLookup {
   saleForReturn(ticket: TicketReference): Promise<BranchSaleLookupAnswer>;

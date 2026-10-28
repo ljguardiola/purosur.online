@@ -1,5 +1,5 @@
 import {
-  type FiscalDocumentState,
+  CREDIT_NOTE_ROUTING_INVOICE_STATES,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   PAYMENT_METHODS,
@@ -47,6 +47,8 @@ export type BranchSaleForReturnQuery =
 
 const cents = z.int().nonnegative();
 
+const quantity = z.int().nonnegative();
+
 const saleDiscountSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("PERCENT"),
@@ -62,16 +64,11 @@ const saleDiscountSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-const ROUTABLE_INVOICE_STATES = [
-  "AUTHORIZED",
-  "REQUESTING",
-] as const satisfies readonly FiscalDocumentState[];
-
 const invoiceStandingSchema = z.object({
   fiscal_documents: z.array(
     z.object({
       origin: z.enum(["real_time", "offline"]),
-      state: z.enum(ROUTABLE_INVOICE_STATES),
+      state: z.enum(CREDIT_NOTE_ROUTING_INVOICE_STATES),
       point_of_sale: pointOfSaleNumberSchema,
       number: z.int().positive(),
       buyer_tax_status_code: z.int().positive(),
@@ -95,7 +92,7 @@ export const branchSaleForReturnAnswerSchema = z.object({
         product_id: z.string(),
         product_name: z.string(),
         sale_unit: z.enum(SALE_UNITS),
-        quantity: cents,
+        quantity,
         promotion_id: z.string().nullable(),
         line_total: cents,
       }),
@@ -116,10 +113,7 @@ export const branchSaleForReturnAnswerSchema = z.object({
       refunded_amount: cents,
     }),
   ),
-  returned: z.array(
-    z.object({ sale_line_id: z.string(), quantity: cents, refunded_amount: cents }),
-  ),
-  good_condition_return_days: z.int().nonnegative(),
+  returned: z.array(z.object({ sale_line_id: z.string(), quantity, refunded_amount: cents })),
   counted_return_ids: z.array(z.string()),
 });
 export type BranchSaleForReturnAnswer = z.infer<typeof branchSaleForReturnAnswerSchema>;

@@ -158,8 +158,10 @@ export function restoredCreditNoteSettlement(
     : { kind: "never_requested" };
 }
 
+export const AUTHORIZED_INVOICE_STATE = "AUTHORIZED" satisfies FiscalDocumentState;
+
 function isAuthorized({ state }: SaleInvoice): boolean {
-  return state === "AUTHORIZED";
+  return state === AUTHORIZED_INVOICE_STATE;
 }
 
 export function invoiceToCorrect(invoices: readonly SaleInvoice[]): CorrectedInvoice | null {

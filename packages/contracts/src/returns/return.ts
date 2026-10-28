@@ -101,6 +101,7 @@ export const findSaleForReturnOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("voided") }),
   z.object({ kind: z.literal("needs_connection") }),
+  z.object({ kind: z.literal("lookup_failed") }),
   notSignedInOutcome,
   ...authorizationRefusalSchema.options,
 ]);

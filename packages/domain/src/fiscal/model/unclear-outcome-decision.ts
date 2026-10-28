@@ -4,6 +4,8 @@ import {
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
 import {
+  type FiscalDocumentState,
+  IN_PROGRESS_FISCAL_DOCUMENT_STATE,
   type RealTimeAuthorizationAnswer,
   type RealTimeAuthorizationResolution,
   realTimeAuthorizationResolution,
@@ -69,6 +71,33 @@ export type UnclearOutcomeDecision =
 export interface RecordedRequestOutcome {
   answer: RealTimeAuthorizationAnswer | null;
   decision: UnclearOutcomeDecision | null;
+}
+
+export interface RecordedRequestKinds {
+  answer: RealTimeAuthorizationAnswer["kind"] | null;
+  decision: UnclearOutcomeDecision["kind"] | null;
+}
+
+export function recordedRequestDocumentState({
+  answer,
+  decision,
+}: RecordedRequestKinds): FiscalDocumentState {
+  if (
+    answer === TAX_AUTHORITY_HOLDING_ANSWER_KIND ||
+    decision === TAX_AUTHORITY_HOLDING_DECISION_KIND
+  ) {
+    return "AUTHORIZED";
+  }
+  if (decision === "released") {
+    return "RELEASED";
+  }
+  if (decision === "conflicting") {
+    return "CONFLICTING";
+  }
+  if (answer === "rejected") {
+    return "REJECTED";
+  }
+  return answer === null ? IN_PROGRESS_FISCAL_DOCUMENT_STATE : "UNKNOWN";
 }
 
 export type ClearAuthorizationAnswer = Extract<
