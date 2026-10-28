@@ -5,7 +5,9 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
   isRouteTestFile,
+  judgeRun,
   listFiles,
+  parseDeclaredBreaks,
   replaceMigrations,
   runCli,
   selectRouteTests,
@@ -101,14 +103,204 @@ test("replaces the previous release's migrations with exactly the new release's"
   });
 });
 
-function fakeCli({ argv, env = {}, files = [] }) {
-  const calls = { swaps: [], logs: [], errors: [] };
+const SECOND_CREDIT_NOTE =
+  "apps/cloud/src/fiscal/credit-note-route.test.ts > POST /fiscal/credit-notes > what it answers > refuses a second credit note for an invoice that already has one, issuing nothing";
+const ALERT_ONCE =
+  "apps/cloud/src/fiscal/credit-note-route.test.ts > POST /fiscal/credit-notes > what it answers > opens, once, an alert about the invoice that already had a credit note, naming the voided sale";
+const ORPHAN_SWEEP =
+  "apps/cloud/src/fiscal/restored-register-orphan-sweep-route.test.ts > POST /devices/current/orphan-sweep > what the sweep answers > requests the credit note of one of two authorized requests of one sale, keeping the other as its receipt";
+const UNRELATED = "apps/cloud/src/alerts/alert-close-route.test.ts > closes an open alert";
+
+test("reads no declared break from an empty input", () => {
+  for (const input of [undefined, "", "  \n"]) {
+    assert.deepEqual(parseDeclaredBreaks(input), { declared: [] }, String(input));
+  }
+});
+
+test("reads the declared breaks from a JSON array of test identities", () => {
+  assert.deepEqual(
+    parseDeclaredBreaks(JSON.stringify([SECOND_CREDIT_NOTE, ALERT_ONCE, ORPHAN_SWEEP])),
+    { declared: [SECOND_CREDIT_NOTE, ALERT_ONCE, ORPHAN_SWEEP] },
+  );
+});
+
+test("refuses declared breaks that are not a JSON array of test identities", () => {
+  for (const input of [
+    SECOND_CREDIT_NOTE,
+    "{}",
+    '"apps/cloud/src/a-route.test.ts > a test"',
+    "[1]",
+    '[""]',
+    '["a test with no file"]',
+    '["apps/cloud/src/a-route.test.ts > "]',
+  ]) {
+    assert.match(parseDeclaredBreaks(input).error ?? "", /declared/, input);
+  }
+});
+
+function results({ tests = [], otherFailures = [] } = {}) {
+  return { tests, otherFailures };
+}
+
+test("with nothing declared, a run whose tests all pass passes", () => {
+  const verdict = judgeRun({
+    testsPassed: true,
+    results: results({ tests: [{ id: UNRELATED, state: "passed" }] }),
+    declared: [],
+  });
+
+  assert.equal(verdict.passed, true);
+});
+
+test("with nothing declared, any failing test stops the promote", () => {
+  const verdict = judgeRun({
+    testsPassed: false,
+    results: results({ tests: [{ id: UNRELATED, state: "failed" }] }),
+    declared: [],
+  });
+
+  assert.equal(verdict.passed, false);
+  assert.match(verdict.lines.join("\n"), new RegExp(`undeclared failure: ${UNRELATED}`));
+});
+
+test("with nothing declared, a failed run stops the promote even without a failing test", () => {
+  const verdict = judgeRun({ testsPassed: false, results: results(), declared: [] });
+
+  assert.equal(verdict.passed, false);
+});
+
+test("passes when the failing tests are exactly the declared ones, listing each", () => {
+  const verdict = judgeRun({
+    testsPassed: false,
+    results: results({
+      tests: [
+        { id: SECOND_CREDIT_NOTE, state: "failed" },
+        { id: ALERT_ONCE, state: "failed" },
+        { id: ORPHAN_SWEEP, state: "failed" },
+        { id: UNRELATED, state: "passed" },
+      ],
+    }),
+    declared: [SECOND_CREDIT_NOTE, ALERT_ONCE, ORPHAN_SWEEP],
+  });
+
+  assert.equal(verdict.passed, true);
+  assert.deepEqual(verdict.lines, [
+    `declared break failed: ${SECOND_CREDIT_NOTE}`,
+    `declared break failed: ${ALERT_ONCE}`,
+    `declared break failed: ${ORPHAN_SWEEP}`,
+  ]);
+});
+
+test("passes when the failing tests are a subset of the declared ones, reporting the one that passed", () => {
+  const verdict = judgeRun({
+    testsPassed: false,
+    results: results({
+      tests: [
+        { id: SECOND_CREDIT_NOTE, state: "failed" },
+        { id: ALERT_ONCE, state: "passed" },
+      ],
+    }),
+    declared: [SECOND_CREDIT_NOTE, ALERT_ONCE],
+  });
+
+  assert.equal(verdict.passed, true);
+  assert.deepEqual(verdict.lines, [
+    `declared break failed: ${SECOND_CREDIT_NOTE}`,
+    `declared break passed: ${ALERT_ONCE}`,
+  ]);
+});
+
+test("a declared test that passes in a passing run is reported, not a failure", () => {
+  const verdict = judgeRun({
+    testsPassed: true,
+    results: results({ tests: [{ id: SECOND_CREDIT_NOTE, state: "passed" }] }),
+    declared: [SECOND_CREDIT_NOTE],
+  });
+
+  assert.equal(verdict.passed, true);
+  assert.deepEqual(verdict.lines, [`declared break passed: ${SECOND_CREDIT_NOTE}`]);
+});
+
+test("reports a declared test that was skipped or did not run", () => {
+  const verdict = judgeRun({
+    testsPassed: true,
+    results: results({ tests: [{ id: ALERT_ONCE, state: "skipped" }] }),
+    declared: [ALERT_ONCE, ORPHAN_SWEEP],
+  });
+
+  assert.equal(verdict.passed, true);
+  assert.deepEqual(verdict.lines, [
+    `declared break skipped: ${ALERT_ONCE}`,
+    `declared break did not run: ${ORPHAN_SWEEP}`,
+  ]);
+});
+
+test("an undeclared failing test still stops the promote beside declared ones", () => {
+  const verdict = judgeRun({
+    testsPassed: false,
+    results: results({
+      tests: [
+        { id: SECOND_CREDIT_NOTE, state: "failed" },
+        { id: UNRELATED, state: "failed" },
+      ],
+    }),
+    declared: [SECOND_CREDIT_NOTE],
+  });
+
+  assert.equal(verdict.passed, false);
+  assert.deepEqual(verdict.lines, [
+    `declared break failed: ${SECOND_CREDIT_NOTE}`,
+    `undeclared failure: ${UNRELATED}`,
+  ]);
+});
+
+test("a failure outside any test stops the promote even when every failing test is declared", () => {
+  const verdict = judgeRun({
+    testsPassed: false,
+    results: results({
+      tests: [{ id: SECOND_CREDIT_NOTE, state: "failed" }],
+      otherFailures: ["unhandled error: boom"],
+    }),
+    declared: [SECOND_CREDIT_NOTE],
+  });
+
+  assert.equal(verdict.passed, false);
+  assert.match(verdict.lines.join("\n"), /undeclared failure: unhandled error: boom/);
+});
+
+test("a failed run without any failing test stops the promote even with declared breaks", () => {
+  const verdict = judgeRun({
+    testsPassed: false,
+    results: results({ tests: [{ id: SECOND_CREDIT_NOTE, state: "passed" }] }),
+    declared: [SECOND_CREDIT_NOTE],
+  });
+
+  assert.equal(verdict.passed, false);
+});
+
+test("a failed run without results stops the promote even with declared breaks", () => {
+  const verdict = judgeRun({
+    testsPassed: false,
+    results: undefined,
+    declared: [SECOND_CREDIT_NOTE],
+  });
+
+  assert.equal(verdict.passed, false);
+  assert.match(verdict.lines.join("\n"), /no results/);
+});
+
+function fakeCli({ argv, env = {}, files = [], runResults }) {
+  const calls = { swaps: [], logs: [], errors: [], resultsRead: [] };
   return {
     calls,
     deps: {
       argv,
       env: { PREVIOUS_DIR: "/previous", CURRENT_DIR: "/current", ...env },
       listFiles: (dir) => (dir === "/previous/apps/cloud/src" ? files : []),
+      readResults: (path) => {
+        calls.resultsRead.push(path);
+        return runResults;
+      },
       replaceMigrations: (arguments_) => calls.swaps.push(arguments_),
       log: (message) => calls.logs.push(message),
       logError: (message) => calls.errors.push(message),
@@ -142,11 +334,78 @@ test("the swap-migrations command gives the previous release the new migrations"
   assert.deepEqual(calls.swaps, [{ previousDir: "/previous", currentDir: "/current" }]);
 });
 
+test("the check-declared command prints each declared break", async () => {
+  const { deps, calls } = fakeCli({
+    argv: ["check-declared"],
+    env: { DECLARED_BREAKS: JSON.stringify([SECOND_CREDIT_NOTE]) },
+  });
+
+  assert.equal(await runCli(deps), 0);
+  assert.deepEqual(calls.logs, [`declared break: ${SECOND_CREDIT_NOTE}`]);
+});
+
+test("the check-declared command reports that nothing is declared", async () => {
+  const { deps, calls } = fakeCli({ argv: ["check-declared"] });
+
+  assert.equal(await runCli(deps), 0);
+  assert.deepEqual(calls.logs, ["no declared break"]);
+});
+
+test("the check-declared command refuses a malformed declaration", async () => {
+  const { deps, calls } = fakeCli({
+    argv: ["check-declared"],
+    env: { DECLARED_BREAKS: SECOND_CREDIT_NOTE },
+  });
+
+  assert.equal(await runCli(deps), 1);
+  assert.match(calls.errors.join("\n"), /declared/);
+});
+
+test("the judge command passes a run whose only failures are declared, logging each", async () => {
+  const { deps, calls } = fakeCli({
+    argv: ["judge"],
+    env: {
+      DECLARED_BREAKS: JSON.stringify([SECOND_CREDIT_NOTE]),
+      RESULTS_FILE: "/results.json",
+      TESTS_OUTCOME: "failure",
+    },
+    runResults: results({ tests: [{ id: SECOND_CREDIT_NOTE, state: "failed" }] }),
+  });
+
+  assert.equal(await runCli(deps), 0);
+  assert.deepEqual(calls.resultsRead, ["/results.json"]);
+  assert.deepEqual(calls.logs, [`declared break failed: ${SECOND_CREDIT_NOTE}`]);
+});
+
+test("the judge command fails a run with an undeclared failure", async () => {
+  const { deps, calls } = fakeCli({
+    argv: ["judge"],
+    env: { RESULTS_FILE: "/results.json", TESTS_OUTCOME: "failure" },
+    runResults: results({ tests: [{ id: UNRELATED, state: "failed" }] }),
+  });
+
+  assert.equal(await runCli(deps), 1);
+  assert.match(calls.errors.join("\n"), /undeclared failure/);
+});
+
+test("the judge command passes a successful run", async () => {
+  const { deps } = fakeCli({
+    argv: ["judge"],
+    env: { RESULTS_FILE: "/results.json", TESTS_OUTCOME: "success" },
+    runResults: results({ tests: [{ id: UNRELATED, state: "passed" }] }),
+  });
+
+  assert.equal(await runCli(deps), 0);
+});
+
 test("the commands fail without their inputs", async () => {
   for (const [argv, env] of [
     [[], {}],
     [["list"], { PREVIOUS_DIR: "" }],
     [["swap-migrations"], { CURRENT_DIR: "" }],
+    [["judge"], { TESTS_OUTCOME: "failure" }],
+    [["judge"], { RESULTS_FILE: "/results.json" }],
+    [["judge"], { RESULTS_FILE: "/results.json", TESTS_OUTCOME: "failure", DECLARED_BREAKS: "[" }],
     [["unknown"], {}],
   ]) {
     const { deps, calls } = fakeCli({ argv, env });
