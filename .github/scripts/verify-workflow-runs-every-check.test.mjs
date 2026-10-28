@@ -360,7 +360,13 @@ for (const [label, scope, pattern] of [
   ],
   [
     "does not publish the catalog decision",
-    { outputs: { docs_only: SCOPE_OUTPUTS.docs_only, tests_needed: SCOPE_OUTPUTS.tests_needed } },
+    {
+      outputs: {
+        docs_only: SCOPE_OUTPUTS.docs_only,
+        tests_needed: SCOPE_OUTPUTS.tests_needed,
+        skip_allowed: SCOPE_OUTPUTS.skip_allowed,
+      },
+    },
     /scope job's catalog_changed output is/,
   ],
   [
