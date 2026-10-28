@@ -151,7 +151,7 @@ describe("applyOpeningCount", () => {
     await apply(store, line());
 
     expect(store.snapshot().lots).toMatchObject([
-      { costTotalCents: 250, costQuantity: 1_000, costComplete: true },
+      { costTotalCents: 1, costQuantity: 4, costComplete: true },
     ]);
   });
 

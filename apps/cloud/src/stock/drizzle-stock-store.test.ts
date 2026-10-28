@@ -23,6 +23,8 @@ import {
   supplierItemPrices,
   users,
 } from "../platform/db/schema.js";
+import { insertProduct as insertPurchasingProduct } from "../purchasing/test-support/purchasing-fixtures.js";
+import { insertPriceList } from "../purchasing/test-support/supplier-price-list-fixtures.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
@@ -901,7 +903,7 @@ describe("DrizzleStockStore initial count", () => {
   it("costs the lot at the cheapest price loaded for the product, kept exact", async () => {
     const locationId = await seededLocationId(db);
     const productId = await insertProduct({ saleUnit: "UNIT" });
-    const otherProductId = await insertProduct({ saleUnit: "UNIT" });
+    const { id: otherProductId } = await insertPurchasingProduct(db, { name: "Yerba 1 kg" });
     const actorId = await insertUser(locationId);
     await insertLoadedSupplierPrice(db, { productId, actorId, priceCents: 1_000 });
     await insertLoadedSupplierPrice(db, {
@@ -940,8 +942,8 @@ describe("DrizzleStockStore initial count", () => {
     expect(await db.select().from(lots)).toEqual([
       expect.objectContaining({
         costIncomplete: false,
-        costTotalCents: 1_210,
-        costQuantity: 1_000,
+        costTotalCents: 121,
+        costQuantity: 100,
       }),
     ]);
   });
@@ -950,19 +952,20 @@ describe("DrizzleStockStore initial count", () => {
     const locationId = await seededLocationId(db);
     const productId = await insertProduct({ saleUnit: "UNIT" });
     const actorId = await insertUser(locationId);
-    const { supplierItemId } = await insertLoadedSupplierPrice(db, {
+    const { supplierItemId, supplierId } = await insertLoadedSupplierPrice(db, {
       productId,
       actorId,
       priceCents: 500,
       listDate: "2026-02-01",
     });
-    const [item] = await db
-      .select({ listId: supplierItemPrices.listId })
-      .from(supplierItemPrices)
-      .where(eq(supplierItemPrices.itemId, supplierItemId));
     await db.insert(supplierItemPrices).values({
       itemId: supplierItemId,
-      listId: item?.listId ?? "",
+      listId: await insertPriceList(db, {
+        supplierId,
+        locationId,
+        actorId,
+        state: "REVIEWED",
+      }),
       priceCents: 900,
       listDate: "2026-03-01",
       pricesIncludeVat: true,
@@ -972,7 +975,7 @@ describe("DrizzleStockStore initial count", () => {
     await count(new DrizzleStockStore(db), { productId, locationId, actorId });
 
     expect(await db.select().from(lots)).toEqual([
-      expect.objectContaining({ costTotalCents: 900, costQuantity: 1_000 }),
+      expect.objectContaining({ costTotalCents: 9, costQuantity: 10 }),
     ]);
   });
 
