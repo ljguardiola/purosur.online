@@ -2,7 +2,6 @@ import { supplierPriceListRowProductCreationBodySchema } from "@purosur/contract
 import {
   Button,
   EmptyState,
-  FieldGroup,
   formatCents,
   InlineNotice,
   LoadFailure,
@@ -13,7 +12,6 @@ import {
 import { Check, PackagePlus, RotateCcw, ShieldX, Tags, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  BarcodeChips,
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
   useGenerateInternalBarcode,
@@ -26,24 +24,15 @@ import { combineCloudData } from "../platform/combine-cloud-data";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
-import {
-  BrandFieldWithCreation,
-  brandFieldHelp,
-  brandOptions,
-  useStackedBrandCreation,
-  withCreatedBrand,
-} from "../platform/product-brand-field";
-import {
-  NET_CONTENT_UNIT_OPTIONS,
-  PRODUCT_BRAND_INACTIVE_ERROR,
-  tagInactiveError,
-} from "../platform/product-form";
-import { TagsField, useStackedTagCreation, withCreatedTags } from "../platform/product-tags-field";
+import { useStackedBrandCreation } from "../platform/product-brand-field";
+import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields";
+import { PRODUCT_BRAND_INACTIVE_ERROR, tagInactiveError } from "../platform/product-form";
+import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { quantityFieldKind } from "../platform/stock-quantity";
 import type { createTag } from "../platform/tag-creation-api";
+import type { CloudData } from "../platform/use-cloud-query";
 import {
   useProductCreationBrandsQuery,
   useProductCreationCategoriesQuery,
@@ -255,80 +244,25 @@ export function CreateProductFromSupplierItemModal({
     ? combineCloudData(productData, choices).status
     : productData.status;
 
-  function categoryField() {
+  function statusPlaceholder(
+    data: Exclude<CloudData<unknown>, { status: "loaded" }>,
+    what: string,
+  ) {
+    return data.status === "failed" ? (
+      <LoadFailure {...cloudLoadFailure(data, what)} />
+    ) : (
+      <LoadingPlaceholder variant="form" fields={1} />
+    );
+  }
+
+  function categoryPlaceholder() {
     if (categories.status === "loading") {
       return <LoadingPlaceholder variant="form" fields={1} />;
     }
     if (categories.status === "failed") {
       return <LoadFailure {...cloudLoadFailure(categories, "las categorías")} />;
     }
-    if (!categoryOptions) {
-      return <EmptyState icon={<Tags />} title="No hay categorías para elegir" variant="blank" />;
-    }
-    return (
-      <form.AppField name="categoryId">
-        {(field) => (
-          <field.Select
-            label="Categoría"
-            placeholder="Elegí una categoría"
-            options={categoryOptions}
-            required
-          />
-        )}
-      </form.AppField>
-    );
-  }
-
-  function brandField() {
-    if (brands.status === "loading") {
-      return <LoadingPlaceholder variant="form" fields={1} />;
-    }
-    if (brands.status === "failed") {
-      return <LoadFailure {...cloudLoadFailure(brands, "las marcas")} />;
-    }
-    const offered = withCreatedBrand(brands.value, brandCreation.created);
-    return (
-      <form.AppField name="brandId">
-        {(field) => {
-          const select = (
-            <field.Select
-              label="Marca"
-              options={brandOptions(offered, null)}
-              {...brandFieldHelp(offered, field.state.value)}
-            />
-          );
-          return mayCreateBrandsAndTags ? (
-            <BrandFieldWithCreation
-              disabled={submitting}
-              onCreateBrand={brandCreation.start}
-              select={select}
-            />
-          ) : (
-            select
-          );
-        }}
-      </form.AppField>
-    );
-  }
-
-  function tagsField() {
-    if (tags.status === "loading") {
-      return <LoadingPlaceholder variant="form" fields={1} />;
-    }
-    if (tags.status === "failed") {
-      return <LoadFailure {...cloudLoadFailure(tags, "los distintivos")} />;
-    }
-    return (
-      <form.AppField name="tagIds">
-        {() => (
-          <TagsField
-            tags={withCreatedTags(tags.value.tags, tagCreation.created)}
-            onCreateTag={mayCreateBrandsAndTags ? tagCreation.start : undefined}
-            disabled={submitting}
-          />
-        )}
-      </form.AppField>
-    );
+    return <EmptyState icon={<Tags />} title="No hay categorías para elegir" variant="blank" />;
   }
 
   return (
@@ -407,35 +341,39 @@ export function CreateProductFromSupplierItemModal({
               <SupplierItemFact label="Precio">{formatCents(row.priceCents)}</SupplierItemFact>
             )}
           </div>
-          <form.AppField name="name">
-            {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
-          </form.AppField>
-          {categoryField()}
-          {brandField()}
-          <form.AppField name="netContent">
-            {(field) => (
-              <field.QuantityUnitField
-                label="Contenido neto"
-                options={NET_CONTENT_UNIT_OPTIONS}
-                unitLabel="Unidad"
-              />
-            )}
-          </form.AppField>
-          {tagsField()}
-          <FieldGroup label="Unidad de venta" required>
-            <form.AppField name="saleUnit">
-              {(field) => (
-                <field.OptionCardGroup
-                  label="Unidad de venta"
-                  options={SALE_UNIT_OPTIONS}
-                  required
-                />
-              )}
-            </form.AppField>
-          </FieldGroup>
-          <form.AppField name="barcodes">
-            {() => <BarcodeChips chips={chips} generation={generate.generation} />}
-          </form.AppField>
+          <ProductFields
+            form={form}
+            fields={PRODUCT_GROUP_FIELDS}
+            categories={
+              categoryOptions
+                ? { state: "loaded", options: categoryOptions }
+                : { state: "unavailable", placeholder: categoryPlaceholder() }
+            }
+            brands={
+              brands.status === "loaded"
+                ? {
+                    state: "loaded",
+                    items: brands.value,
+                    creation: mayCreateBrandsAndTags ? brandCreation : null,
+                  }
+                : { state: "unavailable", placeholder: statusPlaceholder(brands, "las marcas") }
+            }
+            tags={
+              tags.status === "loaded"
+                ? {
+                    state: "loaded",
+                    items: tags.value.tags,
+                    creation: mayCreateBrandsAndTags ? tagCreation : null,
+                  }
+                : {
+                    state: "unavailable",
+                    placeholder: statusPlaceholder(tags, "los distintivos"),
+                  }
+            }
+            chips={chips}
+            generation={generate.generation}
+            disabled={submitting}
+          />
           <div className="grid grid-cols-3 items-start gap-3">
             {row.presentation === null ? (
               <div className="col-span-2">

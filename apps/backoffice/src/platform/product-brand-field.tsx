@@ -47,7 +47,7 @@ export type CatalogRefresh = {
   refresh: () => Promise<void>;
 };
 
-type StackedBrandCreation = {
+export type StackedBrandCreation = {
   open: boolean;
   created: BrandSummary | null;
   start: () => void;

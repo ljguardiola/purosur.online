@@ -123,7 +123,7 @@ export { QuantityUnitField } from "./components/forms/quantity-unit-field";
 export type { RadioGroupProps } from "./components/forms/radio-group";
 export { RadioGroup } from "./components/forms/radio-group";
 export type { RequestSubmission } from "./components/forms/request-form/request-form";
-export { useRequestForm } from "./components/forms/request-form/request-form";
+export { useRequestForm, withFieldGroup } from "./components/forms/request-form/request-form";
 export { useFieldContext } from "./components/forms/request-form/request-form-context";
 export {
   fieldErrorMessage,

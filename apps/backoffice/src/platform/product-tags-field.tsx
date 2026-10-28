@@ -50,7 +50,7 @@ export function withCreatedTags(tags: TagSummary[], created: TagSummary[]): TagS
   return missing.length === 0 ? tags : [...tags, ...missing];
 }
 
-type StackedTagCreation = {
+export type StackedTagCreation = {
   open: boolean;
   created: TagSummary[];
   start: () => void;
