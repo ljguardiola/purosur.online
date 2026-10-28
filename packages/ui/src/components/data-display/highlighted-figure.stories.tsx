@@ -29,7 +29,7 @@ export const Loading: Story = {
 };
 
 export const Narrow: Story = {
-  args: { detail: "$ 8.200,00 − $ 4.460,00 sobre el precio", value: "$ 1.234.567,00" },
+  args: { detail: "$ 8.200,00 − $ 4.460,00 sobre el precio" },
   decorators: [
     (Story) => (
       <div style={{ width: "240px" }}>
