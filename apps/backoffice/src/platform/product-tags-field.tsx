@@ -98,7 +98,7 @@ export function TagsField({
   disabled,
 }: {
   tags: TagSummary[];
-  onCreateTag: () => void;
+  onCreateTag: (() => void) | undefined;
   disabled: boolean;
 }) {
   const field = useFieldContext<string[]>();
@@ -109,7 +109,7 @@ export function TagsField({
       value={field.state.value}
       onChange={field.handleChange}
       addLabel="Agregar distintivo"
-      create={{ label: "Crear distintivo…", onAction: onCreateTag }}
+      {...(onCreateTag && { create: { label: "Crear distintivo…", onAction: onCreateTag } })}
       disabled={disabled}
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
       {...tagFieldHelp(tags, field.state.value)}

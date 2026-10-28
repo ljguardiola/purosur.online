@@ -145,6 +145,9 @@ test("offers the product's fields as a new product does, in the same order, the 
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Nuez mariposa extra light x 10 kg");
+  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+  await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
   const labels = [
     dialog.getByRole("textbox", { name: /^Nombre/ }),
     dialog.getByRole("button", { name: /^Elegí una categoría/ }),
@@ -187,7 +190,7 @@ test("starts sold by the unit, with the quantity in units", async () => {
   const dialog = dialogOf(screen);
 
   await expect.element(dialog.getByRole("radio", { name: "Por unidad" })).toBeChecked();
-  await expect.element(dialog.getByText("u", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("u", { exact: true }).last()).toBeVisible();
 });
 
 test("asks for the barcode and the category, without claiming the barcode the list gave is missing", async () => {
@@ -478,7 +481,7 @@ test("lets the person sell by weight, and then the quantity is in kilos", async 
   await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
 
   await userEvent.click(radioLabel(dialog, "Por peso"));
-  await expect.element(dialog.getByText("kg", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("kg", { exact: true }).last()).toBeVisible();
   await fillTheRest(dialog, "10,5");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 

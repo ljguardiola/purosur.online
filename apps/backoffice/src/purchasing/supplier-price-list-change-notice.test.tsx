@@ -1,4 +1,4 @@
-import { PACKAGING_NAME_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
+import { PACKAGING_NAME_MAX_LENGTH } from "@purosur/domain";
 import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import {
