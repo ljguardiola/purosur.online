@@ -1,5 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
-import { supplierOfferPrice } from "@purosur/domain/purchasing/use-cases";
+import { type SaleUnit, supplierOfferPrice } from "@purosur/domain";
 import type { LoadedSupplierPrice } from "@purosur/domain/stock/use-cases";
 import { inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
