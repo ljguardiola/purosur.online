@@ -210,6 +210,22 @@ test("passes when the failing tests are a subset of the declared ones, reporting
   ]);
 });
 
+test("reports a declared break as failed when any of the tests it names failed", () => {
+  const verdict = judgeRun({
+    testsPassed: false,
+    results: results({
+      tests: [
+        { id: SECOND_CREDIT_NOTE, state: "passed" },
+        { id: SECOND_CREDIT_NOTE, state: "failed" },
+      ],
+    }),
+    declared: [SECOND_CREDIT_NOTE],
+  });
+
+  assert.equal(verdict.passed, true);
+  assert.deepEqual(verdict.lines, [`declared break failed: ${SECOND_CREDIT_NOTE}`]);
+});
+
 test("a declared test that passes in a passing run is reported, not a failure", () => {
   const verdict = judgeRun({
     testsPassed: true,
