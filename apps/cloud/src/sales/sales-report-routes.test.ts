@@ -544,7 +544,7 @@ function handTypedWeights(headers: Record<string, string>, query = "") {
 }
 
 function weighedLine(weightSource: "SCALE" | "MANUAL") {
-  return { ...promotionLine(randomUUID(), 0), weight_source: weightSource };
+  return { ...promotionLine(randomUUID(), 0), quantity: 2_000, weight_source: weightSource };
 }
 
 function receiveWeighedSale(weightSources: ("SCALE" | "MANUAL")[]) {
