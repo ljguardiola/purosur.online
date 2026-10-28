@@ -2,9 +2,11 @@ import { cloudErrorSchema } from "@purosur/contracts";
 import { pullAudienceOf } from "@purosur/domain";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
+  createBrand,
   createCategory,
   createProduct,
   createTag,
+  deactivateBrand,
   deactivateProduct,
   deactivateTag,
   editProduct,
@@ -570,6 +572,23 @@ describe("GET /changes carrying the catalog and the prices", () => {
       },
     ]);
     expect(page).toMatchObject({ cursor: 9, has_more: false });
+  });
+
+  it("gives a brand with its name, active flag and version, as it is now at every change of it", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    const created = await createBrand(catalogStore(), { name: "La Serenísima" });
+    if (created.kind !== "created") {
+      throw new Error(`test setup: creating the brand ended as ${created.kind}`);
+    }
+    await deactivateBrand(catalogStore(), created.brand.id);
+
+    const page = await pullSinceSeeded(deviceToken);
+
+    const row = { name: "La Serenísima", active: false, version: 2 };
+    expect(page.changes).toEqual([
+      { change_seq: 5, entity: "brand", entity_id: created.brand.id, row },
+      { change_seq: 6, entity: "brand", entity_id: created.brand.id, row },
+    ]);
   });
 
   it("gives a deactivated tag marked inactive, at its version, and a removed tag as a removal", async () => {
