@@ -16,7 +16,7 @@ import { CircleX, Lock, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
-import type { SaleDetail } from "../shell/sale-receipt-text";
+import type { SaleDetail, SaleDetailCreditNote } from "../shell/sale-receipt-text";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
@@ -94,7 +94,10 @@ export function SalesHistoryScreen({
   });
   const [selectedSaleId, setSelectedSaleId] = useState<string>();
   const [reprinting, setReprinting] = useState<SaleDetail>();
-  const [reprintingCreditNote, setReprintingCreditNote] = useState<SaleDetail>();
+  const [reprintingCreditNote, setReprintingCreditNote] = useState<{
+    sale: SaleDetail;
+    creditNote: SaleDetailCreditNote;
+  }>();
   const [reprintingInvoice, setReprintingInvoice] = useState<SaleDetail>();
   const [voiding, setVoiding] = useState<SaleDetail>();
   const [voided, setVoided] = useState<{ creditNote: SaleCreditNote | null }>();
@@ -103,23 +106,19 @@ export function SalesHistoryScreen({
   const [printingOriginals, setPrintingOriginals] = useState<ReadonlySet<string>>(new Set());
   const history = useSalesHistoryQuery({ ...choice, read: salesHistory });
   const refreshHistory = useRefreshSalesHistory();
-  const nextCreditNoteCopy = reprintingCreditNote?.credit_note_next_copy;
+  const nextCreditNoteCopy = reprintingCreditNote?.creditNote.next_copy;
   const nextInvoiceCopy = reprintingInvoice?.deferred_invoice_next_copy;
 
-  async function printOriginalOf(document: PrintedDocument, sale: SaleDetail) {
-    const printing = `${document}:${sale.sale_id}`;
+  async function printOriginalOf(
+    document: PrintedDocument,
+    printing: string,
+    ask: () => Promise<PrintOriginalReceiptOutcome | PrintCreditNoteOutcome>,
+  ) {
     if (printingOriginals.has(printing)) {
       return;
     }
     setPrintingOriginals((all) => new Set(all).add(printing));
-    const creditNoteId = sale.credit_note_id;
-    const asked =
-      document === "sale_receipt"
-        ? printOriginalReceipt(sale.sale_id)
-        : creditNoteId === null
-          ? Promise.resolve({ kind: "not_found" } as const)
-          : printCreditNote(sale.sale_id, creditNoteId);
-    const outcome = await asked.catch((): "failed" => "failed");
+    const outcome = await ask().catch((): "failed" => "failed");
     setPrintingOriginals((all) => {
       const still = new Set(all);
       still.delete(printing);
@@ -192,10 +191,18 @@ export function SalesHistoryScreen({
         saleId={selectedSaleId}
         readDetail={saleHistoryDetail}
         onReprint={setReprinting}
-        onPrintOriginal={(sale) => void printOriginalOf("sale_receipt", sale)}
+        onPrintOriginal={(sale) =>
+          void printOriginalOf("sale_receipt", `sale_receipt:${sale.sale_id}`, () =>
+            printOriginalReceipt(sale.sale_id),
+          )
+        }
         onVoid={setVoiding}
-        onPrintCreditNote={(sale) => void printOriginalOf("credit_note", sale)}
-        onReprintCreditNote={setReprintingCreditNote}
+        onPrintCreditNote={(sale, creditNote) =>
+          void printOriginalOf("credit_note", `credit_note:${creditNote.credit_note_id}`, () =>
+            printCreditNote(sale.sale_id, creditNote.credit_note_id),
+          )
+        }
+        onReprintCreditNote={(sale, creditNote) => setReprintingCreditNote({ sale, creditNote })}
         onReprintDeferredInvoice={setReprintingInvoice}
       />
       {reprinting === undefined || reprinting.next_copy.kind !== "duplicate" ? null : (
@@ -222,13 +229,17 @@ export function SalesHistoryScreen({
       {reprintingCreditNote !== undefined && nextCreditNoteCopy?.kind === "duplicate" ? (
         <ReprintReceiptModal
           document="credit_note"
-          sale={{ ...reprintingCreditNote, next_copy: nextCreditNoteCopy }}
+          sale={{
+            ...reprintingCreditNote.sale,
+            credit_note: reprintingCreditNote.creditNote.standing,
+            next_copy: nextCreditNoteCopy,
+          }}
           person={person}
           loadAuthorizers={loadAuthorizers}
           reprint={(saleId, reason, authorization) =>
             reprintCreditNote(
               saleId,
-              reprintingCreditNote.credit_note_id ?? "",
+              reprintingCreditNote.creditNote.credit_note_id,
               reason,
               authorization,
             )

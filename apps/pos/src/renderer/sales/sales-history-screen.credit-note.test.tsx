@@ -1,6 +1,7 @@
 import type { PrintCreditNoteOutcome } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { SaleDetail } from "../shell/sale-receipt-text";
 import { chooseSale, DETAIL, renderScreen } from "./test-support/sales-history-screen";
 
 const AUTHORIZED_CREDIT_NOTE = {
@@ -12,7 +13,7 @@ const AUTHORIZED_CREDIT_NOTE = {
   authorization_code_due_on: "2026-10-19",
 } as const;
 
-const VOIDED_DETAIL = {
+const VOIDED_DETAIL: SaleDetail = {
   ...DETAIL,
   state: "voided",
   voidability: { kind: "not_voidable", refusal: "not_completed" },
@@ -25,9 +26,9 @@ const VOIDED_DETAIL = {
       next_copy: { kind: "original" },
     },
   ],
-} as const;
+};
 
-const PRINTED_DETAIL = {
+const PRINTED_DETAIL: SaleDetail = {
   ...VOIDED_DETAIL,
   credit_notes: [
     {
@@ -37,7 +38,7 @@ const PRINTED_DETAIL = {
       next_copy: { kind: "duplicate", order_number: 1 },
     },
   ],
-} as const;
+};
 
 const ISSUED_OFFLINE_CREDIT_NOTE = {
   kind: "issued_offline",
@@ -49,7 +50,7 @@ const ISSUED_OFFLINE_CREDIT_NOTE = {
   fortnight_end: "2026-10-15",
 } as const;
 
-const TWO_RETURNS_DETAIL = {
+const TWO_RETURNS_DETAIL: SaleDetail = {
   ...DETAIL,
   credit_notes: [
     {
@@ -65,7 +66,7 @@ const TWO_RETURNS_DETAIL = {
       next_copy: { kind: "duplicate", order_number: 1 },
     },
   ],
-} as const;
+};
 
 const PRINT = "Imprimir nota de crédito";
 const REPRINT = "Reimprimir duplicado";
@@ -122,10 +123,10 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
           kind: "found",
           detail: {
             ...TWO_RETURNS_DETAIL,
-            credit_notes: [
-              TWO_RETURNS_DETAIL.credit_notes[0],
-              { ...TWO_RETURNS_DETAIL.credit_notes[1], next_copy: { kind: "original" } },
-            ],
+            credit_notes: TWO_RETURNS_DETAIL.credit_notes.map((creditNote) => ({
+              ...creditNote,
+              next_copy: { kind: "original" },
+            })),
           },
         }),
         printCreditNote: () => new Promise(() => undefined),
