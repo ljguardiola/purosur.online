@@ -1,4 +1,4 @@
-import type { IssuedFiscalDocumentsBody } from "@purosur/contracts";
+import type { IssuedFiscalDocumentDetailBody, IssuedFiscalDocumentsBody } from "@purosur/contracts";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../../shell/test-support/report-fixtures";
 
 type IssuedFiscalDocument = IssuedFiscalDocumentsBody["documents"][number];
@@ -87,4 +87,55 @@ export const pagedIssuedFiscalDocuments: IssuedFiscalDocumentsBody = {
   documents: [authorizedReceipt, creditNote],
   total: 131,
   page_size: 25,
+};
+
+const creditNoteAgainstReceipt: IssuedFiscalDocument = {
+  ...creditNote,
+  corrected_voucher: { voucher_type: 11, point_of_sale: 3, number: 1247 },
+};
+
+export const authorizedReceiptDetail: IssuedFiscalDocumentDetailBody = {
+  ...authorizedReceipt,
+  buyer: { kind: "final_consumer" },
+  lines: [
+    {
+      product_name: "Yerba 1 kg",
+      sale_unit: "UNIT",
+      quantity: 2,
+      promotion: null,
+      amount: 850000,
+    },
+    {
+      product_name: "Queso cremoso",
+      sale_unit: "KG",
+      quantity: 450,
+      promotion: { name: "Lácteos 2x1" },
+      amount: 900275,
+    },
+  ],
+  sale_total: 1750275,
+  payments: [{ method: "CASH", card_type: null, amount: 1750275 }],
+  credit_notes: [],
+};
+
+export const receiptDetailWithCreditNote: IssuedFiscalDocumentDetailBody = {
+  ...authorizedReceiptDetail,
+  credit_notes: [creditNoteAgainstReceipt],
+};
+
+export const creditNoteDetail: IssuedFiscalDocumentDetailBody = {
+  ...creditNote,
+  buyer: { kind: "final_consumer" },
+  lines: [
+    {
+      product_name: "Yerba 1 kg",
+      sale_unit: "UNIT",
+      quantity: 1,
+      promotion: null,
+      amount: 320000,
+    },
+  ],
+  sale_total: 320000,
+  payments: [{ method: "POINT", card_type: "DEBIT", amount: 320000 }],
+  credit_notes: [],
 };

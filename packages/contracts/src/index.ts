@@ -202,6 +202,14 @@ export {
   fortnightPresentationSchema,
 } from "./fiscal/fortnight-presentation.js";
 export type {
+  IssuedFiscalDocumentDetailBody,
+  IssuedFiscalDocumentPath,
+} from "./fiscal/issued-fiscal-document-detail.js";
+export {
+  issuedFiscalDocumentDetailSchema,
+  issuedFiscalDocumentPathSchema,
+} from "./fiscal/issued-fiscal-document-detail.js";
+export type {
   IssuedFiscalDocumentsBody,
   IssuedFiscalDocumentsQuery,
 } from "./fiscal/issued-fiscal-documents.js";
@@ -210,6 +218,14 @@ export {
   issuedFiscalDocumentsSchema,
 } from "./fiscal/issued-fiscal-documents.js";
 export { issuedFiscalDocumentsQueryNumberSchema } from "./fiscal/issued-fiscal-documents-query-number.js";
+export type {
+  IssuedFiscalDocumentsReportBody,
+  IssuedFiscalDocumentsReportQuery,
+} from "./fiscal/issued-fiscal-documents-report.js";
+export {
+  issuedFiscalDocumentsReportQuerySchema,
+  issuedFiscalDocumentsReportSchema,
+} from "./fiscal/issued-fiscal-documents-report.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { OfflinePointOfSaleConfigurationBody } from "./fiscal/offline-point-of-sale-configuration.js";

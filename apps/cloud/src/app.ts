@@ -102,6 +102,7 @@ import { registerFiscalTasksListRoute } from "./fiscal/fiscal-tasks-list-route.j
 import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
+import { registerIssuedFiscalDocumentsReportRoute } from "./fiscal/issued-fiscal-documents-report-route.js";
 import { registerIssuedFiscalDocumentsRoute } from "./fiscal/issued-fiscal-documents-route.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
@@ -791,6 +792,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerFiscalTaskClosingRoute(api, { ...options.registersPointsOfSale, now });
         registerUnbilledDeferredSalesRoute(api, { ...options.registersPointsOfSale, now });
         registerIssuedFiscalDocumentsRoute(api, { ...options.registersPointsOfSale, now });
+        registerIssuedFiscalDocumentsReportRoute(api, { ...options.registersPointsOfSale, now });
         registerFiscalRegistersRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
         registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });

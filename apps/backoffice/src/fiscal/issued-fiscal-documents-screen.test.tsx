@@ -18,6 +18,7 @@ import {
 import { IssuedFiscalDocumentsScreen } from "./issued-fiscal-documents-screen";
 import type { IssuedFiscalDocumentsScreenServices } from "./issued-fiscal-documents-services";
 import {
+  authorizedReceiptDetail,
   issuedFiscalDocuments,
   noIssuedFiscalDocuments,
   pagedIssuedFiscalDocuments,
@@ -145,11 +146,61 @@ test("counts the documents with the period the cloud answered for", async () => 
   expect(dateSegments(screen, "Hasta")).toEqual(["30", "9", "2026"]);
 });
 
-test("offers no row action", async () => {
+test("offers to open the detail of each document, named after its voucher", async () => {
   const screen = await renderScreen(createServices());
   await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
 
-  expect(screen.getByRole("table").getByRole("button").query()).toBeNull();
+  const table = screen.getByRole("table", { name: "Comprobantes y notas de crédito" });
+  for (const voucher of [
+    "Factura C 00003-00001247",
+    "Nota de crédito C 00003-00000041",
+    "Factura C 00007-00000088",
+    "Factura C 00003-00001248",
+  ]) {
+    await expect
+      .element(table.getByRole("button", { name: `Ver el detalle de la ${voucher}` }))
+      .toBeVisible();
+  }
+});
+
+test("opens the detail of the document whose action was pressed, asking the cloud for its voucher", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
+    kind: "ok",
+    value: authorizedReceiptDetail,
+  });
+  const screen = await renderScreen(services);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Ver el detalle de la Factura C 00003-00001247" }),
+  );
+
+  expect(services.fetchIssuedFiscalDocument).toHaveBeenCalledWith({
+    voucher_type: 11,
+    point_of_sale: 3,
+    number: 1247,
+  });
+  await expect
+    .element(screen.getByRole("dialog", { name: /Factura C 00003-00001247/ }))
+    .toBeVisible();
+});
+
+test("closes the detail and keeps the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
+    kind: "ok",
+    value: authorizedReceiptDetail,
+  });
+  const screen = await renderScreen(services);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Ver el detalle de la Factura C 00003-00001247" }),
+  );
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
 });
 
 test("asks the cloud for the first page with no filter when the URL has none", async () => {

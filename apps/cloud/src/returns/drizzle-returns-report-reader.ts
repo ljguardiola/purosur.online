@@ -8,8 +8,6 @@ import {
   type ReturnRecordLine,
   saleUnitOfWeightSource,
   TICKET_SOURCES,
-  WEIGHT_SOURCES,
-  type WeightSource,
 } from "@purosur/domain";
 import type { ReturnsReportQuery, ReturnsReportReader } from "@purosur/domain/returns/use-cases";
 import { and, asc, eq, inArray, isNull, or, type SQL, sql } from "drizzle-orm";
@@ -25,6 +23,7 @@ import {
   sales,
   users,
 } from "../platform/db/schema.js";
+import { storedWeightSource } from "../platform/db/stored-weight-source.js";
 
 const authorizedOnline = or(
   ...LISTED_ONLINE_DOCUMENT_STATES.filter((facts) => facts.state === "authorized").map((facts) =>
@@ -47,10 +46,6 @@ function known<T extends string>(options: readonly T[], stored: string, what: st
     throw new Error(`A stored return has an unknown ${what}: ${stored}`);
   }
   return found;
-}
-
-function weightSourceOf(stored: string | null): WeightSource | null {
-  return stored === null ? null : known(WEIGHT_SOURCES, stored, "weight source");
 }
 
 type Invoice = { pointOfSale: number; number: number };
@@ -155,7 +150,7 @@ async function linesOf<TQueryResult extends PgQueryResultHKT>(
     lines.push({
       saleLineId: row.saleLineId,
       productName: row.productName,
-      saleUnit: saleUnitOfWeightSource(weightSourceOf(row.weightSource)),
+      saleUnit: saleUnitOfWeightSource(storedWeightSource(row.weightSource)),
       quantity: row.quantity,
       reason: known(RETURN_REASONS, row.reason, "reason"),
       disposition: known(RETURN_DISPOSITIONS, row.disposition, "disposition"),

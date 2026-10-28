@@ -1,12 +1,16 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { expect, test } from "vitest";
 import {
   authorizationDetailText,
   authorizationText,
+  buyerText,
+  correctedVoucherText,
   documentsCountText,
   issuedDay,
   issuedTime,
   voucherDetailText,
   voucherText,
+  voucherTypeText,
 } from "./issued-fiscal-document-text";
 import {
   authorizedReceipt,
@@ -14,6 +18,8 @@ import {
   creditNote,
   unauthorizedReceipt,
 } from "./test-support/issued-fiscal-documents-fixtures";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 test.each([
   [authorizedReceipt, "Factura C 00003-00001247"],
@@ -82,4 +88,34 @@ test("counts a single document and names a one-day period once", () => {
   expect(documentsCountText(1, { from: "2026-09-12", to: "2026-09-12" })).toBe(
     "1 comprobante · 12/09/2026",
   );
+});
+
+test("writes the final consumer as the buyer", () => {
+  expect(buyerText({ kind: "final_consumer" })).toBe("Consumidor final");
+});
+
+test.each([
+  ["dni", 12345678, "DNI 12345678"],
+  ["cuit", FICTIONAL_CUIT_NUMBER, `CUIT ${FICTIONAL_CUIT}`],
+  ["cuil", FICTIONAL_CUIT_NUMBER, `CUIL ${FICTIONAL_CUIT}`],
+  ["cdi", 12345678, "CDI 12345678"],
+  ["other", 12345678, "Documento 12345678"],
+] as const)("writes a buyer identified by a %s numbered %i as %s", (kind, number, text) => {
+  expect(buyerText({ kind: "identified", document_kind: kind, document_number: number })).toBe(
+    text,
+  );
+});
+
+test("names the receipt a credit note corrects", () => {
+  expect(correctedVoucherText({ voucher_type: 11, point_of_sale: 3, number: 1246 })).toBe(
+    "Corrige la Factura C 00003-00001246",
+  );
+});
+
+test.each([
+  [11, "Factura C"],
+  [13, "Nota de crédito C"],
+  [99, "Comprobante tipo 99"],
+])("names voucher type %i as %s", (voucherType, name) => {
+  expect(voucherTypeText(voucherType)).toBe(name);
 });

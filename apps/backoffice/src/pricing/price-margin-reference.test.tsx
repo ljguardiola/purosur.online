@@ -1,5 +1,6 @@
 import type { PriceCostReference, PriceProduct } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
+import { tokenRgb } from "@purosur/ui/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -81,6 +82,21 @@ test("shows the margin of the current price while no price is typed, and asks fo
   await expect.element(screen.getByText("40,5 %")).toBeVisible();
   await expect.element(screen.getByText("$ 7.500,00 − $ 4.460,00 sobre el precio")).toBeVisible();
   expect(fetchPriceMargin).not.toHaveBeenCalled();
+});
+
+test("shows the margin on the pale green card", async () => {
+  const screen = await render(element("", vi.fn(), () => {}, pricedRice));
+  const card = screen.getByText("40,5 %").element().parentElement as HTMLElement;
+
+  expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("success-subtle"));
+});
+
+test("keeps the pale green card while the typed price's margin is read", async () => {
+  const screen = await render(element("8.200,00", vi.fn().mockReturnValue(new Promise(() => {}))));
+  const label = screen.getByText("Margen con este precio").element();
+  const card = label.closest("[aria-busy]") as HTMLElement;
+
+  expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("success-subtle"));
 });
 
 test("shows no margin for a product without a price while no price is typed", async () => {

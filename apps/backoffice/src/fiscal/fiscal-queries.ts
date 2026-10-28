@@ -1,7 +1,10 @@
 import type {
   FiscalTasks,
+  IssuedFiscalDocumentDetailBody,
   IssuedFiscalDocumentsBody,
   IssuedFiscalDocumentsQuery,
+  IssuedFiscalDocumentsReportBody,
+  IssuedFiscalDocumentsReportQuery,
   UnbilledDeferredSales,
 } from "@purosur/contracts";
 import type { ZoneRules } from "@purosur/domain";
@@ -22,11 +25,25 @@ import type {
   FortnightPresentation,
   fetchFortnightPresentations,
 } from "./fortnight-presentations-api";
-import type { fetchIssuedFiscalDocuments } from "./issued-fiscal-documents-api";
+import type {
+  fetchIssuedFiscalDocument,
+  fetchIssuedFiscalDocuments,
+} from "./issued-fiscal-documents-api";
+import type { fetchIssuedFiscalDocumentsReport } from "./issued-fiscal-documents-report-api";
 import type { fetchIssuerIdentification, IssuerIdentification } from "./issuer-identification-api";
 import type { fetchOfflinePointsOfSale, OfflinePointOfSale } from "./offline-points-of-sale-api";
 import type { fetchRegisterPointsOfSale, RegisterPointOfSale } from "./register-points-of-sale-api";
 import type { fetchUnbilledDeferredSales } from "./unbilled-deferred-sales-api";
+
+export type IssuedFiscalDocumentVoucher = {
+  voucher_type: number;
+  point_of_sale: number;
+  number: number;
+};
+
+export type IssuedFiscalDocumentRead =
+  | { kind: "found"; document: IssuedFiscalDocumentDetailBody }
+  | { kind: "not_found" };
 
 export const fiscalKey = ["fiscal"] as const;
 
@@ -42,6 +59,22 @@ export const fiscalKeys = {
   fiscalTasks: [...fiscalKey, "tasks"] as const,
   unbilledDeferredSales: [...fiscalKey, "unbilled-deferred-sales"] as const,
   zoneRules: [...fiscalKey, "zone-rules"] as const,
+  issuedDocument: (voucher: IssuedFiscalDocumentVoucher) =>
+    [
+      ...fiscalKey,
+      "issued-document",
+      voucher.voucher_type,
+      voucher.point_of_sale,
+      voucher.number,
+    ] as const,
+  issuedDocumentsReport: (query: IssuedFiscalDocumentsReportQuery) =>
+    [
+      ...fiscalKey,
+      "issued-documents-report",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
+    ] as const,
   issuedDocuments: (query: IssuedFiscalDocumentsQuery) =>
     [
       ...fiscalKey,
@@ -277,6 +310,49 @@ export function useIssuedFiscalDocumentsQuery(params: {
     queryKey: fiscalKeys.issuedDocuments(params.query),
     keepPreviousData: true,
     read: () => params.fetchIssuedFiscalDocuments(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+async function readIssuedFiscalDocument(
+  voucher: IssuedFiscalDocumentVoucher,
+  read: typeof fetchIssuedFiscalDocument,
+): Promise<CloudReadOutcome<IssuedFiscalDocumentRead>> {
+  const outcome = await read(voucher);
+  if (outcome.kind === "ok") {
+    return { kind: "ok", value: { kind: "found", document: outcome.value } };
+  }
+  if (outcome.kind === "not_found") {
+    return { kind: "ok", value: { kind: "not_found" } };
+  }
+  return outcome;
+}
+
+export function useIssuedFiscalDocumentQuery(params: {
+  voucher: IssuedFiscalDocumentVoucher;
+  fetchIssuedFiscalDocument: typeof fetchIssuedFiscalDocument;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<IssuedFiscalDocumentRead>({
+    queryKey: fiscalKeys.issuedDocument(params.voucher),
+    read: () => readIssuedFiscalDocument(params.voucher, params.fetchIssuedFiscalDocument),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useIssuedFiscalDocumentsReportQuery(params: {
+  query: IssuedFiscalDocumentsReportQuery;
+  fetchIssuedFiscalDocumentsReport: typeof fetchIssuedFiscalDocumentsReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<IssuedFiscalDocumentsReportBody>({
+    queryKey: fiscalKeys.issuedDocumentsReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchIssuedFiscalDocumentsReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

@@ -1,11 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  cashSessions,
+  categories,
   creditNotes,
+  discounts,
   fiscalRequests,
   offlineFiscalDocuments,
   registers,
+  saleLines,
+  salePayments,
+  sales,
 } from "../../platform/db/schema.js";
+import { seededLocationId } from "../../test-support/seeded-location.js";
 
 type Db = PgDatabase<PgQueryResultHKT>;
 
@@ -103,5 +110,94 @@ export async function insertCaeaDocument(
     cause: "no_connectivity",
     recordedAt: new Date("2026-10-05T15:30:00.000Z"),
     ...overrides,
+  });
+}
+
+export async function insertSoldLine(
+  db: Db,
+  saleId: string,
+  overrides: Partial<typeof saleLines.$inferInsert> = {},
+): Promise<void> {
+  await db.insert(saleLines).values({
+    id: randomUUID(),
+    saleId,
+    productId: randomUUID(),
+    productName: "Yerba 1 kg",
+    quantity: 1,
+    listUnitPrice: 1_500,
+    priceListId: randomUUID(),
+    discountAmount: 0,
+    lineTotal: 1_500,
+    ...overrides,
+  });
+}
+
+export async function insertSalePayment(
+  db: Db,
+  saleId: string,
+  overrides: Partial<typeof salePayments.$inferInsert> = {},
+): Promise<void> {
+  await db.insert(salePayments).values({
+    id: randomUUID(),
+    saleId,
+    method: "CASH",
+    provider: "NONE",
+    amount: 1_500,
+    state: "APPROVED",
+    occurredAt: new Date("2026-10-05T13:00:00.000Z"),
+    ...overrides,
+  });
+}
+
+export async function insertPromotion(db: Db, name: string): Promise<string> {
+  const [category] = await db
+    .insert(categories)
+    .values({ name: `Categoría de ${name}` })
+    .returning({ id: categories.id });
+  if (!category) {
+    throw new Error("test setup: seeding the category returned no row");
+  }
+  const [promotion] = await db
+    .insert(discounts)
+    .values({
+      name,
+      categoryId: category.id,
+      kind: "PERCENT_OFF",
+      percent: 10,
+      validFrom: "2026-10-01",
+      validTo: "2026-10-31",
+    })
+    .returning({ id: discounts.id });
+  if (!promotion) {
+    throw new Error("test setup: seeding the promotion returned no row");
+  }
+  return promotion.id;
+}
+
+export async function insertCompletedSale(
+  db: Db,
+  {
+    saleId,
+    registerId,
+    deviceId,
+    at,
+    total = 1_500,
+  }: { saleId: string; registerId: string; deviceId: string; at: Date; total?: number },
+): Promise<void> {
+  const origin = { locationId: await seededLocationId(db), registerId, deviceId };
+  const sessionId = randomUUID();
+  const actorId = randomUUID();
+  await db
+    .insert(cashSessions)
+    .values({ id: sessionId, ...origin, openedBy: actorId, openedAt: at, openingFloat: 0 });
+  await db.insert(sales).values({
+    id: saleId,
+    ...origin,
+    sessionId,
+    actorId,
+    state: "COMPLETED",
+    completedAt: at,
+    total,
+    appliedAt: at,
   });
 }

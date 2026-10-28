@@ -1,4 +1,8 @@
-import { type IssuedFiscalDocumentsBody, issuedFiscalDocumentsSchema } from "@purosur/contracts";
+import {
+  type IssuedFiscalDocumentDetailBody,
+  type IssuedFiscalDocumentsBody,
+  issuedFiscalDocumentsSchema,
+} from "@purosur/contracts";
 import {
   formatCalendarDayNumeric,
   formatDate,
@@ -21,9 +25,12 @@ const VOUCHER_TYPE_NAMES: Record<number, string> = {
   13: "Nota de crédito C",
 };
 
+export function voucherTypeText(voucherType: number): string {
+  return VOUCHER_TYPE_NAMES[voucherType] ?? `Comprobante tipo ${voucherType}`;
+}
+
 export function voucherText(voucher: Voucher): string {
-  const name =
-    VOUCHER_TYPE_NAMES[voucher.voucher_type] ?? `Comprobante tipo ${voucher.voucher_type}`;
+  const name = voucherTypeText(voucher.voucher_type);
   return `${name} ${formatPointOfSaleNumber(voucher.point_of_sale)}-${formatInvoiceNumber(voucher.number)}`;
 }
 
@@ -79,4 +86,34 @@ export function documentsCountText(
       ? formatCalendarDayNumeric(range.from)
       : `del ${formatCalendarDayNumeric(range.from)} al ${formatCalendarDayNumeric(range.to)}`;
   return `${plural(count, { one: "1 comprobante", other: `${formatNumber(count)} comprobantes` })} · ${period}`;
+}
+
+type IdentifiedBuyer = Extract<IssuedFiscalDocumentDetailBody["buyer"], { kind: "identified" }>;
+
+function taxIdText(number: number): string {
+  const digits = String(number).padStart(11, "0");
+  return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`;
+}
+
+const BUYER_DOCUMENTS: Record<
+  IdentifiedBuyer["document_kind"],
+  { name: string; numberText: (number: number) => string }
+> = {
+  cuit: { name: "CUIT", numberText: taxIdText },
+  cuil: { name: "CUIL", numberText: taxIdText },
+  cdi: { name: "CDI", numberText: String },
+  dni: { name: "DNI", numberText: String },
+  other: { name: "Documento", numberText: String },
+};
+
+export function buyerText(buyer: IssuedFiscalDocumentDetailBody["buyer"]): string {
+  if (buyer.kind === "final_consumer") {
+    return "Consumidor final";
+  }
+  const { name, numberText } = BUYER_DOCUMENTS[buyer.document_kind];
+  return `${name} ${numberText(buyer.document_number)}`;
+}
+
+export function correctedVoucherText(voucher: Voucher): string {
+  return `Corrige la ${voucherText(voucher)}`;
 }

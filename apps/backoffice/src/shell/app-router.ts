@@ -12,6 +12,7 @@ import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../c
 import {
   fiscalConfigurationRoute,
   fiscalTasksRoute,
+  issuedFiscalDocumentsReportRoute,
   issuedFiscalDocumentsRoute,
   pointsOfSaleRoute,
 } from "../fiscal/routes";
@@ -144,6 +145,7 @@ const routeTree = rootRoute.addChildren([
       salesByPromotionRoute,
       manualDiscountsRoute,
       returnsReportRoute,
+      issuedFiscalDocumentsReportRoute,
     ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,

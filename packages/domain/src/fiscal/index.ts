@@ -174,14 +174,26 @@ export {
   owesFortnightReport,
 } from "./model/fortnight-report.js";
 export { generationStampOf } from "./model/generation-stamp.js";
-export type { IssuedDocumentKind, IssuedDocumentState } from "./model/issued-fiscal-document.js";
+export type {
+  BuyerDocumentKind,
+  IssuedDocumentBuyer,
+  IssuedDocumentKind,
+  IssuedDocumentState,
+} from "./model/issued-fiscal-document.js";
 export {
+  BUYER_DOCUMENT_KINDS,
+  buyerOfIssuedDocument,
   CAEA_DOCUMENT_ISSUED_STATE,
   ISSUED_DOCUMENT_KINDS,
   ISSUED_DOCUMENT_STATES,
   ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
   LISTED_ONLINE_DOCUMENT_STATES,
 } from "./model/issued-fiscal-document.js";
+export type { IssuedDocumentGroup } from "./model/issued-fiscal-documents-report.js";
+export {
+  COUNTED_AS_ISSUED_STATE,
+  ISSUED_AUTHORIZATION_KINDS,
+} from "./model/issued-fiscal-documents-report.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,

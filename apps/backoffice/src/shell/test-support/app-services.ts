@@ -237,6 +237,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     manualDiscountsScreen: {
       fetchManualDiscounts: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    issuedFiscalDocumentsReportScreen: {
+      fetchIssuedFiscalDocumentsReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     returnsReportScreen: {
       fetchReturnsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
@@ -353,6 +356,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     issuedFiscalDocumentsScreen: {
       fetchIssuedFiscalDocuments: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchIssuedFiscalDocument: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     pointsOfSaleScreen: {

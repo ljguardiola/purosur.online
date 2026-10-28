@@ -6,8 +6,6 @@ import {
   SALES_REPORT_SALE_STATE,
   type SaleDiscountRecord,
   type SaleDiscountValue,
-  WEIGHT_SOURCES,
-  type WeightSource,
 } from "@purosur/domain";
 import type {
   ManualDiscountsQuery,
@@ -17,6 +15,7 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alias } from "drizzle-orm/pg-core";
 import { saleLines, sales, users } from "../platform/db/schema.js";
+import { storedWeightSource } from "../platform/db/stored-weight-source.js";
 
 const saleDay = sql<string>`to_char(${sales.completedAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
@@ -47,17 +46,6 @@ function saleDiscountOf(kind: string | null, value: number | null): SaleDiscount
     throw new Error("A stored sale discount on the total is a new price");
   }
   return adjustment;
-}
-
-function weightSourceOf(stored: string | null): WeightSource | null {
-  if (stored === null) {
-    return null;
-  }
-  const weightSource = WEIGHT_SOURCES.find((known) => known === stored);
-  if (weightSource === undefined) {
-    throw new Error(`A stored sale line has an unknown weight source: ${stored}`);
-  }
-  return weightSource;
 }
 
 export class DrizzleManualDiscountsReportReader<TQueryResult extends PgQueryResultHKT>
@@ -175,7 +163,7 @@ async function lineDiscounts<TQueryResult extends PgQueryResultHKT>(
     lineId: row.lineId,
     productName: row.productName,
     quantity: row.quantity,
-    weightSource: weightSourceOf(row.weightSource),
+    weightSource: storedWeightSource(row.weightSource),
     listUnitPrice: row.listUnitPrice,
     adjustment: adjustmentOf(row.kind, row.value),
   }));
