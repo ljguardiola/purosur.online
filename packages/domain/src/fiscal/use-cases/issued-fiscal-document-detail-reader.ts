@@ -22,6 +22,7 @@ export interface IssuedFiscalDocumentPayment {
 
 export interface IssuedFiscalDocumentDetail extends IssuedFiscalDocument {
   buyer: IssuedDocumentBuyer;
+  saleTotal: number | null;
   lines: IssuedFiscalDocumentLine[];
   payments: IssuedFiscalDocumentPayment[];
   creditNotes: IssuedFiscalDocument[];

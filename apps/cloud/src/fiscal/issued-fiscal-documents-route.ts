@@ -115,6 +115,7 @@ export function registerIssuedFiscalDocumentsRoute<TQueryResult extends PgQueryR
                   document_kind: detail.buyer.documentKind,
                   document_number: detail.buyer.documentNumber,
                 },
+          sale_total: detail.saleTotal,
           lines: detail.lines.map((line) => ({
             product_name: line.productName,
             sale_unit: line.saleUnit,

@@ -42,6 +42,7 @@ const paymentSchema = z.object({
 
 export const issuedFiscalDocumentDetailSchema = issuedFiscalDocumentSchema.extend({
   buyer: buyerSchema,
+  sale_total: z.int().nonnegative().nullable(),
   lines: z.array(lineSchema),
   payments: z.array(paymentSchema),
   credit_notes: z.array(issuedFiscalDocumentSchema),

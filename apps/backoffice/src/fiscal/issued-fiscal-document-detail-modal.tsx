@@ -177,15 +177,20 @@ function DocumentDetail({ document }: { document: Detail }) {
           { label: "Emitido", value: `${issuedDay(document)} · ${issuedTime(document)}` },
           { label: "Caja", value: document.register.name },
           { label: "Comprador", value: buyerText(document.buyer) },
+          { label: "Total del comprobante", value: formatCents(document.total) },
         ]}
       />
       <div className="flex flex-col gap-2">
         <Eyebrow text="Productos" headingLevel={2} />
         <LinesTable lines={document.lines} />
-        <SummaryRowGroup
-          variant="plain"
-          rows={[{ label: "Total", value: formatCents(document.total), strong: true }]}
-        />
+        {document.sale_total === null ? null : (
+          <SummaryRowGroup
+            variant="plain"
+            rows={[
+              { label: "Total de la venta", value: formatCents(document.sale_total), strong: true },
+            ]}
+          />
+        )}
       </div>
       <div className="flex flex-col gap-2">
         <Eyebrow text="Pagos" headingLevel={2} />

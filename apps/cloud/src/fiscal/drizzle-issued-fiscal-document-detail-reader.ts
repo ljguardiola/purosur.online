@@ -13,7 +13,7 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { discounts, saleLines, salePayments } from "../platform/db/schema.js";
+import { discounts, saleLines, salePayments, sales } from "../platform/db/schema.js";
 import { storedWeightSource } from "../platform/db/stored-weight-source.js";
 import { documentOf, issuedDocuments } from "./drizzle-issued-fiscal-documents-reader.js";
 
@@ -62,10 +62,20 @@ export class DrizzleIssuedFiscalDocumentDetailReader<TQueryResult extends PgQuer
     return {
       ...documentOf(row),
       buyer: buyerOfIssuedDocument(row.buyerDocumentType, row.buyerDocumentNumber),
+      saleTotal: await this.saleTotalOf(row.saleId),
       lines: await this.linesOf(row.saleId),
       payments: await this.paymentsOf(row.saleId),
       creditNotes: creditNotes.map(documentOf),
     };
+  }
+
+  private async saleTotalOf(saleId: string): Promise<number | null> {
+    const [sale] = await this.db
+      .select({ total: sales.total })
+      .from(sales)
+      .where(eq(sales.id, saleId))
+      .limit(1);
+    return sale?.total ?? null;
   }
 
   private async linesOf(saleId: string): Promise<IssuedFiscalDocumentLine[]> {
