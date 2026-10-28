@@ -4,6 +4,7 @@ export const CONTINGENCY_BACKUP_OPERATIONS = [
   "sale",
   "paid_sale_cancellation",
   "sale_void",
+  "return",
   "cash_movement",
   "cash_session_opening",
   "cash_session_closing",
@@ -63,17 +64,20 @@ export interface ContingencyBackupTicketsSummary {
 export interface CustomerDocumentPrints {
   saleReceipt: boolean | null;
   voidCreditNote: boolean | null;
+  returnCreditNote: boolean | null;
 }
 
 export function customerDocumentPrinted(
   operation: ContingencyBackupOperation,
-  { saleReceipt, voidCreditNote }: CustomerDocumentPrints,
+  { saleReceipt, voidCreditNote, returnCreditNote }: CustomerDocumentPrints,
 ): boolean | null {
   switch (operation) {
     case "sale":
       return saleReceipt;
     case "sale_void":
       return voidCreditNote;
+    case "return":
+      return returnCreditNote;
     default:
       return null;
   }

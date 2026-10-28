@@ -31,6 +31,7 @@ test.each([
   ["sale", "Venta"],
   ["paid_sale_cancellation", "Anulación de una venta cobrada"],
   ["sale_void", "Anulación de una venta"],
+  ["return", "Devolución"],
   ["cash_movement", "Movimiento de caja"],
   ["cash_session_opening", "Apertura de caja"],
   ["cash_session_closing", "Cierre de caja"],

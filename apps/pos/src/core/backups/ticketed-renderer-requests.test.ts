@@ -9,7 +9,7 @@ import {
 const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
 const AUTHORIZATION = { user_id: "supervisor", pin: "1234" };
 
-function setup() {
+function setup(overrides: Partial<TicketableRendererRequests> = {}) {
   const recorded: { operation: ContingencyBackupOperation; subjectId: string | null }[] = [];
   let lastDeviceSeq = 0;
   const { ticketed } = createTicketedOperations({
@@ -46,6 +46,13 @@ function setup() {
     abandonMercadoPagoCharge: async () => ({ kind: "replaced" }),
     cancelPaidSale: async () => ({ kind: "not_signed_in" }),
     voidSale: async () => ({ kind: "not_signed_in" }),
+    completeReturn: async () => ({
+      kind: "completed",
+      return_id: "return-1",
+      refunded_total: 100,
+      refunds: [],
+      authorized_by: null,
+    }),
     recordCashMovement: async () => ({ kind: "invalid_amount" }),
     openCashSession: async () => ({ kind: "not_signed_in" }),
     closeCashSession: async () => ({ kind: "not_signed_in" }),
@@ -62,6 +69,7 @@ function setup() {
       read: async () => ({ kind: "unavailable" }),
       correct: async () => ({ kind: "not_signed_in" }),
     },
+    ...overrides,
   };
   const ticketedRequests = ticketedRendererRequests(requests, {
     ticketed,
@@ -110,6 +118,34 @@ describe("the renderer requests that leave a contingency backup ticket", () => {
       { operation: "paid_sale_cancellation", subjectId: "sale-1" },
       { operation: "sale_void", subjectId: "sale-2" },
     ]);
+  });
+
+  it("tickets a completed return with the return it recorded", async () => {
+    const { ticketedRequests, recorded } = setup();
+
+    await ticketedRequests.completeReturn?.({
+      saleId: "sale-1",
+      ticketSource: "QR",
+      lines: [],
+      refunds: [],
+    });
+
+    expect(recorded).toEqual([{ operation: "return", subjectId: "return-1" }]);
+  });
+
+  it("tickets a return that was not completed with no subject", async () => {
+    const { ticketedRequests, recorded } = setup({
+      completeReturn: async () => ({ kind: "not_signed_in" }),
+    });
+
+    await ticketedRequests.completeReturn?.({
+      saleId: "sale-1",
+      ticketSource: "QR",
+      lines: [],
+      refunds: [],
+    });
+
+    expect(recorded).toEqual([{ operation: "return", subjectId: null }]);
   });
 
   it("tickets the cash session, the cash movements, the initial count and the clock with no subject", async () => {
