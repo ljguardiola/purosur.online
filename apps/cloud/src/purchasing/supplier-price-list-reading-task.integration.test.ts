@@ -163,40 +163,52 @@ describe("supplierPriceListReadingJobs against a real job queue", () => {
       })),
     ).toEqual([
       {
-        description: "Yerba mate suave Don Ernesto",
+        description: "Yerba mate suave Don Ernesto Unidad",
         supplierCode: "101",
         presentation: "Unidad",
         priceCents: 320000,
       },
       {
-        description: "Yerba mate suave Don Ernesto",
+        description: "Yerba mate suave Don Ernesto Pack x 6",
         supplierCode: "102",
         presentation: "Pack x 6",
         priceCents: 1800000,
       },
       {
-        description: "Yerba mate suave Don Ernesto",
+        description: "Yerba mate suave Don Ernesto Pack x 12",
         supplierCode: "103",
         presentation: "Pack x 12",
         priceCents: 3450000,
       },
       {
-        description: "Fideos tirabuzon La Pampita",
+        description: "Fideos tirabuzon La Pampita Unidad",
         supplierCode: "104",
         presentation: "Unidad",
         priceCents: 125050,
       },
       {
-        description: "Aceite de girasol Campo Verde",
+        description: "Aceite de girasol Campo Verde Botella 900 ml",
         supplierCode: "105",
         presentation: "Botella 900 ml",
         priceCents: 289050,
       },
       {
-        description: "Sal fina",
+        description: "Sal fina Paquete 500 g",
         supplierCode: "106",
         presentation: "Paquete 500 g",
         priceCents: 70000,
+      },
+      {
+        description: "Aceite de oliva extra virgen x500 ml Olivares del Sur Unidad",
+        supplierCode: null,
+        presentation: "Unidad",
+        priceCents: 900000,
+      },
+      {
+        description: "Aceite de oliva extra virgen x500 ml Olivares del Sur x5u",
+        supplierCode: null,
+        presentation: "x5u ($8500 c/u)",
+        priceCents: 4250000,
       },
     ]);
   });
