@@ -228,7 +228,7 @@ test("does nothing with Ctrl+Enter while the primary button says why it is disab
   expect(onSend).not.toHaveBeenCalled();
 });
 
-test("presses nothing with Ctrl+Enter from the footer's own buttons, so a modal with nothing to type in its body is never sent by it", async () => {
+test("presses nothing with Ctrl+Enter from the footer's own buttons", async () => {
   const onConfirm = vi.fn();
   const screen = await render(
     <Modal

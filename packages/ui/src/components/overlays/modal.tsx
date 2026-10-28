@@ -92,10 +92,9 @@ export function Modal(props: ModalProps) {
   const footerRef = useRef<HTMLDivElement>(null);
 
   // Capturing, because react-aria's fields stop the keys they handle from bubbling; listening on the
-  // body leaves the header's and footer's own buttons out, so a modal with nothing to type in its
-  // body is never sent by it. A field's list is portaled outside the panel and a stacked modal is
-  // mounted after the one below it, so the modal that sends is the last one open in the document, not
-  // the closest panel.
+  // body leaves the header's and footer's own buttons out. A field's list is portaled outside the
+  // panel and a stacked modal is mounted after the one below it, so the modal that sends is the last
+  // one open in the document, not the closest panel.
   function sendWithCtrlEnter(event: KeyboardEvent) {
     const ownFooter = footerRef.current;
     const openFooters = document.querySelectorAll("[data-modal-footer]");
