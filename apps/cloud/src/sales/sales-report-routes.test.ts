@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { JsonValue } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { inbox, users } from "../platform/db/schema.js";
+import { inbox, products, users } from "../platform/db/schema.js";
 import { insertDiscount } from "../pricing/test-support/discount-route-fixtures.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
@@ -543,12 +543,26 @@ function handTypedWeights(headers: Record<string, string>, query = "") {
   return app.inject({ method: "GET", url: `/reports/hand-typed-weights${query}`, headers });
 }
 
-function weighedLine(weightSource: "SCALE" | "MANUAL") {
-  return { ...promotionLine(randomUUID(), 0), quantity: 2_000, weight_source: weightSource };
-}
-
-function receiveWeighedSale(weightSources: ("SCALE" | "MANUAL")[]) {
-  const lines = weightSources.map(weighedLine);
+async function receiveWeighedSale(weightSources: ("SCALE" | "MANUAL")[]) {
+  const categoryId = await insertCategoryNamed(db, "Fiambres");
+  const lines = await Promise.all(
+    weightSources.map(async (weightSource) => {
+      const [product] = await db
+        .insert(products)
+        .values({ name: "Queso", categoryId, saleUnit: "KG" })
+        .returning({ id: products.id });
+      if (!product) {
+        throw new Error("test setup: seeding the product returned no row");
+      }
+      return {
+        ...promotionLine(randomUUID(), 0),
+        product_id: product.id,
+        promotion_id: null,
+        quantity: 2_000,
+        weight_source: weightSource,
+      };
+    }),
+  );
   return receiveSale(lines.length * 4_800, lines, {
     schemaVersion: 6,
     payload: {
