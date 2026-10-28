@@ -9301,9 +9301,9 @@
       },
       "policies": {},
       "checkConstraints": {
-        "sale_reprints_credit_note_id_only_for_credit_note_check": {
-          "name": "sale_reprints_credit_note_id_only_for_credit_note_check",
-          "value": "\"sale_reprints\".\"credit_note_id\" is null or \"sale_reprints\".\"document\" = 'credit_note'"
+        "sale_reprints_credit_note_id_check": {
+          "name": "sale_reprints_credit_note_id_check",
+          "value": "(\"sale_reprints\".\"document\" = 'credit_note') = (\"sale_reprints\".\"credit_note_id\" is not null)"
         },
         "sale_reprints_document_check": {
           "name": "sale_reprints_document_check",

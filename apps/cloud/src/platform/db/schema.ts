@@ -1594,8 +1594,8 @@ export const saleReprints = pgTable(
       .on(table.saleId, table.document, table.creditNoteId, table.orderNumber)
       .nullsNotDistinct(),
     check(
-      "sale_reprints_credit_note_id_only_for_credit_note_check",
-      sql`${table.creditNoteId} is null or ${table.document} = 'credit_note'`,
+      "sale_reprints_credit_note_id_check",
+      sql`(${table.document} = 'credit_note') = (${table.creditNoteId} is not null)`,
     ),
     check(
       "sale_reprints_document_check",

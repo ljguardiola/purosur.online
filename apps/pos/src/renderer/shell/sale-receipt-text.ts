@@ -36,12 +36,15 @@ export type PrintableCreditNote = Extract<
   { kind: "authorized" | "issued_offline" }
 >;
 
-export function creditNoteComprobantePresentation(creditNote: PrintableCreditNote): {
+export function creditNoteComprobantePresentation(
+  creditNote: PrintableCreditNote,
+  name: string = CREDIT_NOTE_NAME,
+): {
   name: string;
   detail: string;
 } {
   return {
-    name: creditNote.kind === "issued_offline" ? `${CREDIT_NOTE_NAME} · CAEA` : CREDIT_NOTE_NAME,
+    name: creditNote.kind === "issued_offline" ? `${name} · CAEA` : name,
     detail: `PV ${formatPointOfSaleNumber(creditNote.point_of_sale)} · Nº ${formatInvoiceNumber(creditNote.number)}`,
   };
 }

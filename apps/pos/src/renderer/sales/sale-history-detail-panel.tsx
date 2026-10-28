@@ -24,7 +24,7 @@ import {
   nonEmptyRows,
   receiptCopyPresentation,
 } from "../shell/sale-receipt-text";
-import { creditNotePrintButton, creditNoteRowOf, isPrintableCreditNote } from "./credit-note-text";
+import { creditNotePrintButton, creditNoteRowOf } from "./credit-note-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
 import { useSaleHistoryDetailQuery } from "./sales-queries";
 import { voidRefusalReason } from "./void-sale-text";
@@ -80,9 +80,7 @@ function SaleFooter({
     voidability.kind === "voidable" ? undefined : voidRefusalReason(voidability.refusal);
   const offersVoid = voidability.kind === "voidable" || refusalReason !== undefined;
   const printableCreditNotes = sale.credit_notes.flatMap((creditNote) =>
-    isPrintableCreditNote(creditNote.standing)
-      ? [{ ...creditNote, standing: creditNote.standing }]
-      : [],
+    creditNote.next_copy === null ? [] : [{ ...creditNote, next_copy: creditNote.next_copy }],
   );
   const offersCreditNote = printableCreditNotes.length > 0;
   const offersInvoiceDuplicate =
@@ -129,7 +127,7 @@ function SaleFooter({
           fullWidth
           icon={<Printer />}
           onPress={() =>
-            creditNote.next_copy?.kind === "duplicate"
+            creditNote.next_copy.kind === "duplicate"
               ? onReprintCreditNote(sale, creditNote)
               : onPrintCreditNote(sale, creditNote)
           }
