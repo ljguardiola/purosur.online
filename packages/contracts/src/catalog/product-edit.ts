@@ -1,9 +1,12 @@
 import { barcodeListProblem } from "@purosur/domain";
 import { z } from "zod";
-import { barcodeListSchema, loadedVersionSchema } from "../shared/index.js";
-import { requiredBrandIdSchema } from "./product-brand-id.js";
+import {
+  barcodeListSchema,
+  loadedVersionSchema,
+  requiredBrandIdSchema,
+  requiredTagIdsSchema,
+} from "../shared/index.js";
 import { productBodySchema } from "./product-creation.js";
-import { requiredTagIdsSchema } from "./product-tag-ids.js";
 
 export const productEditBarcodesSchema = barcodeListSchema(barcodeListProblem);
 

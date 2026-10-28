@@ -37,7 +37,16 @@ export { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "./pin-hash-scheme
 export { plannedRefundSchema } from "./planned-refund.js";
 export { pointOfSaleNumberSchema } from "./point-of-sale-number.js";
 export { pointTerminalIdSchema } from "./point-terminal-id.js";
+export { optionalBrandIdSchema, requiredBrandIdSchema } from "./product-brand-id.js";
 export { barcodeListSchema } from "./product-fields.js";
+export { productNameSchema } from "./product-name.js";
+export {
+  checkNetContentQuantity,
+  NET_CONTENT_QUANTITY_CHECK_OPTIONS,
+  netContentQuantitySchema,
+  productNetContentSchema,
+} from "./product-net-content.js";
+export { optionalTagIdsSchema, requiredTagIdsSchema } from "./product-tag-ids.js";
 export { pushedEventSchema } from "./pushed-event.js";
 export { qrExternalPosIdSchema } from "./qr-external-pos-id.js";
 export { recordIdSchema } from "./record-id.js";
