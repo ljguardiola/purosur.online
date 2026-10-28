@@ -11,9 +11,9 @@ export async function listAssemblyBatches(
 ): Promise<AssemblyBatchListing[]> {
   const batches = await reader.batches(query);
   return batches
-    .map(({ voided, lotConsumed, ...batch }) => ({
+    .map(({ voided, lotMovements, ...batch }) => ({
       ...batch,
-      status: assemblyBatchStatus({ voided, lotConsumed }),
+      status: assemblyBatchStatus({ id: batch.id, voided, lotMovements }),
     }))
     .sort((a, b) => b.assembledAt.getTime() - a.assembledAt.getTime() || b.id.localeCompare(a.id));
 }

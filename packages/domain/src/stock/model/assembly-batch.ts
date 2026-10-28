@@ -174,12 +174,19 @@ export const ASSEMBLY_BATCH_STATUSES = ["voidable", "consumed", "voided"] as con
 
 export type AssemblyBatchStatus = (typeof ASSEMBLY_BATCH_STATUSES)[number];
 
-export function assemblyBatchStatus(facts: {
+export interface BatchLotMovement {
+  assemblyBatchId: string | null;
+}
+
+export function assemblyBatchStatus(batch: {
+  id: string;
   voided: boolean;
-  lotConsumed: boolean;
+  lotMovements: readonly BatchLotMovement[];
 }): AssemblyBatchStatus {
-  if (facts.voided) {
+  if (batch.voided) {
     return "voided";
   }
-  return facts.lotConsumed ? "consumed" : "voidable";
+  return batch.lotMovements.some((movement) => movement.assemblyBatchId !== batch.id)
+    ? "consumed"
+    : "voidable";
 }

@@ -1,3 +1,4 @@
+import { assemblyBatchStatus } from "../model/assembly-batch.js";
 import { voidedMovementAllocations } from "../model/lot-allocation.js";
 import { productsInLockOrder } from "../model/recipe.js";
 import { recordStockMovement } from "./apply-stock-movement.js";
@@ -31,9 +32,6 @@ export async function voidAssemblyBatch(
     if (batch === undefined) {
       return { kind: "not_found" };
     }
-    if (batch.voided) {
-      return { kind: "already_voided" };
-    }
 
     const lockOrder = productsInLockOrder(
       batch.productId,
@@ -45,7 +43,15 @@ export async function voidAssemblyBatch(
     for (const productId of lockOrder) {
       await tx.lockProductStock({ productId, locationId: input.locationId });
     }
-    if (await tx.isBatchLotConsumed(batch.id)) {
+    const status = assemblyBatchStatus({
+      id: batch.id,
+      voided: batch.voided,
+      lotMovements: await tx.batchLotMovements(batch.id),
+    });
+    if (status === "voided") {
+      return { kind: "already_voided" };
+    }
+    if (status === "consumed") {
       return { kind: "consumed" };
     }
 

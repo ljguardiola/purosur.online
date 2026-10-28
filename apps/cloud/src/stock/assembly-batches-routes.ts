@@ -45,12 +45,9 @@ const REFUSALS = {
 } as const satisfies Record<AssemblyBatchRefusal["code"], { status: number; message: string }>;
 
 const VOID_REFUSALS = {
-  not_found: { status: 404, message: "No hay una tanda con ese id." },
-  already_voided: { status: 409, message: "La tanda ya fue anulada." },
-  consumed: {
-    status: 409,
-    message: "La tanda ya tuvo consumo: corregila con un ajuste y un recuento.",
-  },
+  not_found: { status: 404, message: "no assembly batch with that id" },
+  already_voided: { status: 409, message: "the assembly batch was already voided" },
+  consumed: { status: 409, message: "the assembly batch's lot already had consumption" },
 } as const satisfies Record<AssemblyBatchVoidRefusal["code"], { status: number; message: string }>;
 
 async function refuse(

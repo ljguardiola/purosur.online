@@ -1,4 +1,4 @@
-import type { AssemblyBatch } from "@purosur/contracts";
+import type { AssemblyBatch, AssemblyBatchVoidRefusal } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { Ban, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
@@ -20,10 +20,18 @@ type VoidAssemblyBatchModalProps = {
   services: VoidAssemblyBatchModalServices;
 };
 
+type VoidRefusal = AssemblyBatchVoidRefusal["code"];
+
+const VOID_REFUSAL_TEXTS: Record<VoidRefusal, string> = {
+  not_found: "No se encontró la tanda.",
+  already_voided: "La tanda ya fue anulada.",
+  consumed: "La tanda ya tuvo consumo: corregila con un ajuste y un recuento.",
+};
+
 type VoidNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "outdated"; message: string };
+  | { kind: "outdated"; refusal: VoidRefusal };
 
 export function VoidAssemblyBatchModal({
   batch,
@@ -62,7 +70,7 @@ export function VoidAssemblyBatchModal({
       setNotice({ kind: "attemptFailed" });
       return;
     }
-    setNotice({ kind: "outdated", message: outcome.message });
+    setNotice({ kind: "outdated", refusal: outcome.kind });
   }
 
   return (
@@ -77,7 +85,7 @@ export function VoidAssemblyBatchModal({
       tone="info"
       icon={<Ban />}
       title={`¿Anular la tanda de ${batch.productName}?`}
-      closable
+      closable={!submitting}
       footer={
         <>
           <Button
@@ -128,7 +136,11 @@ export function VoidAssemblyBatchModal({
           />
         )}
         {notice?.kind === "outdated" && (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice.message} />
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={VOID_REFUSAL_TEXTS[notice.refusal]}
+          />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

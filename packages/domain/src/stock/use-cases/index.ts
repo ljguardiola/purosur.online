@@ -1,4 +1,5 @@
 export type { Clock, Scale, ScaleReading } from "../../shared/index.js";
+export type { BatchLotMovement } from "../model/assembly-batch.js";
 export type { LossRecord, LostProduct, ReasonLosses } from "../model/losses-by-reason.js";
 export type { NewBatchLot, NewInitialCountLot, NewLot } from "../model/lot.js";
 export type { StockLot } from "../model/lot-allocation.js";

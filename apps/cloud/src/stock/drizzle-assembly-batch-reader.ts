@@ -10,7 +10,7 @@ import type {
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { assemblyBatches, lots, products } from "../platform/db/schema.js";
-import { batchLotConsumed } from "./assembly-batch-lot-consumption.js";
+import { batchLotMovements } from "./assembly-batch-lot-movements.js";
 
 export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
   implements AssemblyBatchListReader, BatchLotReader
@@ -35,7 +35,6 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
         costIncomplete: lots.costIncomplete,
         expiresOn: lots.expiresOn,
         voided: sql<boolean>`${assemblyBatches.voidedAt} is not null`,
-        lotConsumed: batchLotConsumed(assemblyBatches.id),
       })
       .from(assemblyBatches)
       .innerJoin(products, eq(products.id, assemblyBatches.productId))
@@ -47,8 +46,13 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
           lt(assemblyBatches.assembledAt, query.to),
         ),
       );
+    const lotMovements = await batchLotMovements(
+      this.db,
+      rows.map((row) => row.id),
+    );
     return rows.map(({ costTotalCents, costQuantity, saleUnit, ...row }) => ({
       ...row,
+      lotMovements: lotMovements.get(row.id) ?? [],
       saleUnit: saleUnit as SaleUnit,
       unitCostCents: lotUnitCostCents({
         cost:

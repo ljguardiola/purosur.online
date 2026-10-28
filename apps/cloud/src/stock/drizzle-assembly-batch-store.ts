@@ -4,6 +4,7 @@ import type {
   AssemblyBatchTransaction,
   AssemblyBatchVoid,
   BatchLotCost,
+  BatchLotMovement,
   BatchMovementAllocation,
   LockedAssemblyBatch,
   NewAssemblyBatch,
@@ -23,7 +24,7 @@ import {
   stockMovements,
 } from "../platform/db/schema.js";
 import { withPendingChanges } from "../sync/change-log.js";
-import { batchLotConsumed } from "./assembly-batch-lot-consumption.js";
+import { batchLotMovements } from "./assembly-batch-lot-movements.js";
 import { DrizzleStockStoreTransaction } from "./drizzle-stock-store.js";
 
 class DrizzleAssemblyBatchTransaction<TQueryResult extends PgQueryResultHKT>
@@ -164,12 +165,8 @@ class DrizzleAssemblyBatchTransaction<TQueryResult extends PgQueryResultHKT>
     }));
   }
 
-  async isBatchLotConsumed(batchId: string): Promise<boolean> {
-    const [found] = await this.tx
-      .select({ consumed: batchLotConsumed(assemblyBatches.id) })
-      .from(assemblyBatches)
-      .where(eq(assemblyBatches.id, batchId));
-    return found?.consumed === true;
+  async batchLotMovements(batchId: string): Promise<BatchLotMovement[]> {
+    return (await batchLotMovements(this.tx, [batchId])).get(batchId) ?? [];
   }
 
   async recordAssemblyBatchVoid(batchVoid: AssemblyBatchVoid): Promise<void> {

@@ -1,5 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import type { AssemblyBatchStatus } from "../model/assembly-batch.js";
+import type { AssemblyBatchStatus, BatchLotMovement } from "../model/assembly-batch.js";
 
 export interface ReadAssemblyBatch {
   id: string;
@@ -12,10 +12,10 @@ export interface ReadAssemblyBatch {
   costIncomplete: boolean;
   expiresOn: string | null;
   voided: boolean;
-  lotConsumed: boolean;
+  lotMovements: BatchLotMovement[];
 }
 
-export interface AssemblyBatchListing extends Omit<ReadAssemblyBatch, "voided" | "lotConsumed"> {
+export interface AssemblyBatchListing extends Omit<ReadAssemblyBatch, "voided" | "lotMovements"> {
   status: AssemblyBatchStatus;
 }
 

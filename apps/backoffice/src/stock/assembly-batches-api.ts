@@ -38,7 +38,7 @@ export type RegisterAssemblyBatchOutcome =
 
 export type VoidAssemblyBatchOutcome =
   | { kind: "ok"; batch: AssemblyBatchVoidResult["batch"] }
-  | { kind: AssemblyBatchVoidRefusal["code"]; message: string }
+  | { kind: AssemblyBatchVoidRefusal["code"] }
   | RequestRefusal;
 
 function refusal(response: Response): RequestRefusal {
@@ -163,9 +163,7 @@ export async function voidAssemblyBatch(batchId: string): Promise<VoidAssemblyBa
     const refused = assemblyBatchVoidRefusalSchema.safeParse(
       await response.json().catch(() => undefined),
     );
-    return refused.success
-      ? { kind: refused.data.code, message: refused.data.message }
-      : { kind: "failed" };
+    return refused.success ? { kind: refused.data.code } : { kind: "failed" };
   }
   return refusal(response);
 }

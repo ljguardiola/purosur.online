@@ -1,5 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import type { BatchComponentUse } from "../model/assembly-batch.js";
+import type { BatchComponentUse, BatchLotMovement } from "../model/assembly-batch.js";
 import type { NewBatchLot } from "../model/lot.js";
 import type { LotCost } from "../model/lot-value.js";
 import type { Recipe } from "./recipe-store.js";
@@ -50,7 +50,7 @@ export interface AssemblyBatchTransaction extends StockStoreTransaction {
   recordBatchLot(lot: NewBatchLot): Promise<string>;
   lockAssemblyBatch(batchId: string, locationId: string): Promise<LockedAssemblyBatch | undefined>;
   assemblyBatchAllocations(batchId: string): Promise<BatchMovementAllocation[]>;
-  isBatchLotConsumed(batchId: string): Promise<boolean>;
+  batchLotMovements(batchId: string): Promise<BatchLotMovement[]>;
   recordAssemblyBatchVoid(batchVoid: AssemblyBatchVoid): Promise<void>;
 }
 
