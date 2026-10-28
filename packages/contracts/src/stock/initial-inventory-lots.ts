@@ -59,8 +59,12 @@ const SUPPLIER_ITEM_MESSAGE = "supplierItemId must be a supplier item's id";
 
 const typedLotReferenceCostSchema = z.object({
   unitCostCents: z
-    .number({ error: UNIT_COST_MESSAGE })
-    .refine((cents) => Number.isInteger(cents) && isReferenceUnitCost(cents), UNIT_COST_MESSAGE)
+    .unknown()
+    .refine(
+      (cents): cents is number =>
+        typeof cents === "number" && Number.isInteger(cents) && isReferenceUnitCost(cents),
+      UNIT_COST_MESSAGE,
+    )
     .meta({ maxValue: MAX_CASH_AMOUNT_CENTS }),
 });
 
