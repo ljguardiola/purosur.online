@@ -159,6 +159,8 @@ test("a partial credit note's detail shows the sale's total under its lines and 
   const ownTotal = screen.getByText("Total del comprobante", { exact: true });
   await expect.element(saleTotal).toBeVisible();
   await expect.element(ownTotal).toBeVisible();
+  expect(saleTotal.element().parentElement?.textContent).toBe("Total de la venta$ 4.800,00");
+  expect(ownTotal.element().parentElement?.textContent).toBe("Total del comprobante$ 1.800,00");
   const products = screen.getByRole("heading", { name: "Productos" }).element();
   const payments = screen.getByRole("heading", { name: "Pagos" }).element();
   const saleTotalPosition = saleTotal.element().compareDocumentPosition(products);
