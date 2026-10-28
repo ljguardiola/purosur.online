@@ -138,7 +138,7 @@ test("names the supplier, and shows the item's code, presentation and price as t
   expect(dialog.getByRole("textbox", { name: /^Presentación de compra/ }).query()).toBeNull();
 });
 
-test("offers the product's fields as a new product does, in the same order, the name filled from the item's description", async () => {
+test("offers the product's fields, the name filled from the item's description, followed by the quantity the presentation contains", async () => {
   const screen = await renderModal();
   const dialog = dialogOf(screen);
 
@@ -146,27 +146,12 @@ test("offers the product's fields as a new product does, in the same order, the 
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Nuez mariposa extra light x 10 kg");
   await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
   await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
-  const labels = [
-    dialog.getByRole("textbox", { name: /^Nombre/ }),
-    dialog.getByRole("button", { name: /^Elegí una categoría/ }),
-    dialog.getByRole("button", { name: /Marca/ }),
-    dialog.getByRole("textbox", { name: "Contenido neto" }),
-    dialog.getByRole("group", { name: "Distintivos" }),
-    dialog.getByRole("radio", { name: "Por unidad" }),
-    dialog.getByRole("button", { name: "Generar código interno" }),
-    dialog.getByRole("textbox", { name: /^Contiene/ }),
-  ].map((locator) => locator.element());
-  const inOrder = labels.every(
-    (element, index) =>
-      index === 0 ||
-      (labels[index - 1]?.compareDocumentPosition(element) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
-  );
-  expect(inOrder).toBe(true);
-  await expect
-    .element(dialog.getByRole("button", { name: /Marca/ }))
-    .toHaveTextContent("Sin marca");
+  const lastProductField = dialog.getByRole("button", { name: "Generar código interno" }).element();
+  const quantity = dialog.getByRole("textbox", { name: /^Contiene/ }).element();
+  expect(
+    lastProductField.compareDocumentPosition(quantity) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });
 
 test("starts with the barcode the reading found", async () => {
@@ -305,7 +290,24 @@ test("offers only the active brands, and the active tags, by name", async () => 
           },
         ],
       }),
+      fetchProductCreationTags: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: {
+          ...CREATION_TAG_LIST,
+          tags: [
+            ...CREATION_TAG_LIST.tags,
+            {
+              id: "7a600000-0000-4000-8000-0000000000a9",
+              name: "Sin colorantes",
+              active: false,
+              version: 1,
+              productCount: 2,
+            },
+          ],
+        },
+      }),
     }),
+    mayCreateBrandsAndTags: false,
   });
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
@@ -314,6 +316,10 @@ test("offers only the active brands, and the active tags, by name", async () => 
 
   const options = dialog.getByRole("option").all();
   expect(options.map((option) => option.element().textContent)).toEqual(["Sin marca", "Dulcor"]);
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
+  await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
+  expect(page.getByRole("menuitem", { name: "Sin colorantes" }).query()).toBeNull();
 });
 
 test("offers to create a brand and a tag to a session that may manage the catalog, and creates the brand without losing what was typed", async () => {
@@ -341,6 +347,37 @@ test("offers to create a brand and a tag to a session that may manage the catalo
     .toHaveValue("Aceite de almendras");
   await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
   await expect.element(page.getByRole("menuitem", { name: "Crear distintivo…" })).toBeVisible();
+});
+
+test("creating a brand leaves the brands and the tags unread while the form is open, and reads them once the form closes", async () => {
+  const services = createServices();
+  const cabriola = {
+    ...CREATION_BRAND,
+    id: "b2a00000-0000-4000-8000-000000000009",
+    name: "Cabriola",
+  };
+  vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: cabriola });
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
+  const brandsReads = vi.mocked(services.fetchProductCreationBrands).mock.calls.length;
+  const tagsReads = vi.mocked(services.fetchProductCreationTags).mock.calls.length;
+
+  await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
+  const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
+  await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Cabriola");
+  await userEvent.click(brandDialog.getByRole("button", { name: "Crear la marca" }));
+  await expect.poll(() => page.getByRole("dialog", { name: "Nueva marca" }).query()).toBeNull();
+
+  expect(vi.mocked(services.fetchProductCreationBrands).mock.calls.length).toBe(brandsReads);
+  expect(vi.mocked(services.fetchProductCreationTags).mock.calls.length).toBe(tagsReads);
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect
+    .poll(() => vi.mocked(services.fetchProductCreationBrands).mock.calls.length)
+    .toBeGreaterThan(brandsReads);
+  await expect
+    .poll(() => vi.mocked(services.fetchProductCreationTags).mock.calls.length)
+    .toBeGreaterThan(tagsReads);
 });
 
 test("offers no way to create a brand or a tag to a session that may not manage the catalog", async () => {
@@ -408,17 +445,20 @@ test("says the tags could not be opened, and reading them again recovers", async
   await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
 });
 
-test("ends the session when the brands or the tags come back unauthenticated", async () => {
-  const onSessionEnded = vi.fn();
-  await renderModal({
-    services: createServices({
-      fetchProductCreationBrands: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
-    }),
-    onSessionEnded,
-  });
+test.each(["fetchProductCreationBrands", "fetchProductCreationTags"] as const)(
+  "ends the session when %s comes back unauthenticated",
+  async (read) => {
+    const onSessionEnded = vi.fn();
+    await renderModal({
+      services: createServices({
+        [read]: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+      }),
+      onSessionEnded,
+    });
 
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
+    await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+  },
+);
 
 test("tells the chosen brand was deactivated, on the brand, the way a new product does", async () => {
   const services = createServices();
