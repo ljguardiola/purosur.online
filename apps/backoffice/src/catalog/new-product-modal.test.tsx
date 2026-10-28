@@ -136,19 +136,17 @@ test("rejects an invalid net content quantity, without calling the API", async (
   expect(services.createProduct).not.toHaveBeenCalled();
 });
 
-test("reports an invalid net content quantity on the first submit even without a sale unit", async () => {
+test("reports an invalid net content quantity on the first submit even without a category", async () => {
   const services = createServices();
   const { dialog } = await renderModal(services);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "abc");
   await scanCode(scanInputOf(dialog), "12345");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
-  await expect.element(dialog.getByText("Elegí la unidad de venta.")).toBeVisible();
+  await expect.element(dialog.getByText("Elegí una categoría.")).toBeVisible();
   await expect
     .element(
       dialog.getByText(
@@ -268,11 +266,11 @@ test("shows the generic failure notice on create when the cloud refuses a field 
   await expect.element(dialog.getByText("No se pudo crear el producto")).toBeVisible();
 });
 
-test("opens the create modal with neither a category nor a sale unit pre-chosen", async () => {
+test("opens the create modal with no category pre-chosen and the product sold by the unit", async () => {
   const { dialog } = await renderModal(createServices());
 
   await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
-  await expect.element(dialog.getByRole("radio", { name: "Por unidad" })).not.toBeChecked();
+  await expect.element(dialog.getByRole("radio", { name: "Por unidad" })).toBeChecked();
   await expect.element(dialog.getByRole("radio", { name: "Por peso" })).not.toBeChecked();
 });
 
@@ -286,20 +284,6 @@ test("rejects creating a product without choosing a category, without calling th
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
   await expect.element(dialog.getByText("Elegí una categoría.")).toBeVisible();
-  expect(services.createProduct).not.toHaveBeenCalled();
-});
-
-test("rejects creating a product without choosing a sale unit, without calling the API", async () => {
-  const services = createServices();
-  const { dialog } = await renderModal(services);
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
-  await scanCode(scanInputOf(dialog), "12345");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
-
-  await expect.element(dialog.getByText("Elegí la unidad de venta.")).toBeVisible();
   expect(services.createProduct).not.toHaveBeenCalled();
 });
 
