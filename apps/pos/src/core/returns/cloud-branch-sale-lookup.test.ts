@@ -11,12 +11,6 @@ const ANSWER = {
     session_id: "session-2",
     actor_id: "cashier",
     state: "COMPLETED",
-    sale_discount: {
-      kind: "AMOUNT",
-      amount: 1500,
-      reason: "cliente frecuente",
-      authorized_by: null,
-    },
     lines: [
       {
         id: "line-1",
@@ -124,12 +118,6 @@ describe("finding a sale of another register of the branch in the cloud", () => 
           sessionId: "session-2",
           actorId: "cashier",
           state: "COMPLETED",
-          saleDiscount: {
-            kind: "AMOUNT",
-            amount: 1500,
-            reason: "cliente frecuente",
-            authorizedBy: null,
-          },
           lines: [
             {
               id: "line-1",
@@ -179,39 +167,12 @@ describe("finding a sale of another register of the branch in the cloud", () => 
     });
   });
 
-  it("reads a sale with a percent discount and no invoice", async () => {
-    const { lookup } = lookupWith({
-      kind: "ok",
-      body: {
-        ...ANSWER,
-        invoice: null,
-        sale: {
-          ...ANSWER.sale,
-          sale_discount: { kind: "PERCENT", percent: 10, reason: "promo", authorized_by: "u2" },
-        },
-      },
-    });
+  it("reads a sale with no invoice", async () => {
+    const { lookup } = lookupWith({ kind: "ok", body: { ...ANSWER, invoice: null } });
 
     expect(await lookup.saleForReturn(DEFERRED)).toMatchObject({
       kind: "found",
-      sale: {
-        invoice: null,
-        sale: {
-          saleDiscount: { kind: "PERCENT", percent: 10, reason: "promo", authorizedBy: "u2" },
-        },
-      },
-    });
-  });
-
-  it("reads a sale with no discount", async () => {
-    const { lookup } = lookupWith({
-      kind: "ok",
-      body: { ...ANSWER, sale: { ...ANSWER.sale, sale_discount: null } },
-    });
-
-    expect(await lookup.saleForReturn(INVOICE)).toMatchObject({
-      kind: "found",
-      sale: { sale: { saleDiscount: null } },
+      sale: { invoice: null },
     });
   });
 

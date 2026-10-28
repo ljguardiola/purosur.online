@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import type { SaleLine, SaleWithLines } from "../../sales/index.js";
-import { returnSaleLines } from "./return-sale.js";
+import { returnSaleLines, type SaleForReturn } from "./return-sale.js";
 
 function line(overrides: Partial<SaleLine> = {}): SaleLine {
   return {
@@ -106,7 +106,6 @@ describe("returnSaleLines", () => {
           sessionId: "session-1",
           actorId: "cashier",
           state: "COMPLETED",
-          saleDiscount: null,
           lines: [
             {
               id: "line-1",
@@ -122,5 +121,11 @@ describe("returnSaleLines", () => {
         returned: [],
       }),
     ).toMatchObject([{ id: "line-1", soldQuantity: 3, chargedAmount: 7500 }]);
+  });
+});
+
+describe("SaleForReturn", () => {
+  it("holds no discount on the sale's total beside its lines, which are already net of it", () => {
+    expectTypeOf<SaleForReturn["sale"]>().not.toHaveProperty("saleDiscount");
   });
 });

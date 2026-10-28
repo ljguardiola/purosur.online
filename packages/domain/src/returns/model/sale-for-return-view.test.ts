@@ -15,7 +15,6 @@ function facts(overrides: Partial<SaleForReturn> = {}): SaleForReturn {
       sessionId: "session-1",
       actorId: "cashier",
       state: "COMPLETED",
-      saleDiscount: null,
       lines: [
         {
           id: "line-1",
@@ -109,12 +108,6 @@ describe("saleForReturnOutcome", () => {
 
   it("totals what the lines charged once the sale's discount was spread over them", () => {
     const discounted = facts();
-    discounted.sale.saleDiscount = {
-      kind: "AMOUNT",
-      amount: 1000,
-      reason: "cliente frecuente",
-      authorizedBy: null,
-    };
     const shares = [652, 348];
     discounted.sale.lines = discounted.sale.lines.map((line, position) => ({
       ...line,

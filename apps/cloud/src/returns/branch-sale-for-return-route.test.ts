@@ -219,34 +219,7 @@ describe("GET /devices/current/returns/sale", () => {
       },
       counted_return_ids: [],
     });
-  });
-
-  it("answers only the invoices a credit note is routed by", async () => {
-    const { asking, completed, selling } = await ringUpOnAnotherRegister();
-    await db.insert(fiscalRequests).values({
-      fiscalDocumentId: randomUUID(),
-      registerId: selling.registerId,
-      saleId: completed.id,
-      pointOfSale: 7,
-      number: 41,
-      issuedOn: "2026-10-06",
-      total: 4800,
-      buyerTaxStatusCode: 5,
-      receivedAt: COMPLETED_AT,
-      notAfter: COMPLETED_AT,
-      answerKind: "rejected",
-      rejectionCodes: [10015],
-      rejectionClass: "content",
-      answeredAt: COMPLETED_AT,
-    });
-
-    const response = await get(INVOICE_QUERY, `Bearer ${asking.deviceToken}`);
-
-    expect(
-      branchSaleForReturnAnswerSchema
-        .parse(response.json())
-        .invoice_standing.fiscal_documents.map(({ number }) => number),
-    ).toEqual([42]);
+    expect(response.json().sale).not.toHaveProperty("sale_discount");
   });
 
   it("answers a voided sale as voided so the register can say so", async () => {

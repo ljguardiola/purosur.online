@@ -146,7 +146,6 @@ const BRANCH_SALE: Extract<BranchSaleLookupAnswer, { kind: "found" }> = {
       sessionId: "session-b",
       actorId: "cashier-b",
       state: "COMPLETED",
-      saleDiscount: null,
       lines: [
         {
           id: "line-elsewhere",

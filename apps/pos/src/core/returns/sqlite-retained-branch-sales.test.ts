@@ -14,7 +14,6 @@ const FACTS: KeptBranchSale = {
       sessionId: "session-2",
       actorId: "cashier",
       state: "COMPLETED",
-      saleDiscount: { kind: "PERCENT", percent: 10, reason: "promo", authorizedBy: null },
       lines: [
         {
           id: "line-9",

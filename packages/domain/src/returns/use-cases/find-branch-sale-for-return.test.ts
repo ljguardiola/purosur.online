@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import type { SaleInvoiceStanding } from "../../fiscal/index.js";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { CreditNoteRoutingInvoiceState } from "../../fiscal/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { TicketReference } from "../model/ticket-reference.js";
 import { findBranchSaleForReturn } from "./find-branch-sale-for-return.js";
-import type { BranchSaleLookupAnswer } from "./return-ports.js";
+import type { BranchSaleFacts, BranchSaleLookupAnswer } from "./return-ports.js";
 import {
   FakeBranchSaleLookup,
   FakeOwnReturns,
@@ -35,10 +35,10 @@ const INVOICE_STANDING = {
     },
   ],
   deferralPending: false,
-} satisfies SaleInvoiceStanding;
+} satisfies BranchSaleFacts["invoiceStanding"];
 
 function foundThroughCloud(
-  overrides: Partial<{ countedReturnIds: string[]; invoiceStanding: SaleInvoiceStanding }> = {},
+  overrides: Partial<Pick<BranchSaleFacts, "countedReturnIds" | "invoiceStanding">> = {},
 ) {
   return {
     kind: "found",
@@ -253,5 +253,13 @@ describe("findBranchSaleForReturn", () => {
       expect(await outcome).toEqual({ kind: "not_found" });
       expect(lookup.asked).toEqual([]);
     });
+  });
+});
+
+describe("BranchSaleFacts", () => {
+  it("holds only the invoices a credit note is routed by", () => {
+    expectTypeOf<
+      BranchSaleFacts["invoiceStanding"]["fiscalDocuments"][number]["state"]
+    >().toEqualTypeOf<CreditNoteRoutingInvoiceState>();
   });
 });

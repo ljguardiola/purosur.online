@@ -12,7 +12,6 @@ function facts(): SaleForReturn {
       sessionId: "session-1",
       actorId: "cashier",
       state: "COMPLETED",
-      saleDiscount: null,
       lines: [],
     },
     occurredAt: new Date(argentinaInstant("2026-09-12", "15:30", FIXED_ARGENTINA_ZONE_RULES)),

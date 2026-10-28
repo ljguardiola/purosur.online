@@ -163,7 +163,6 @@ describe("reading a sale of the branch to return it from another register", () =
           sessionId,
           actorId: CASHIER,
           state: "COMPLETED",
-          saleDiscount: null,
           lines: [
             {
               id: completed.lines[0]?.id,
@@ -215,7 +214,7 @@ describe("reading a sale of the branch to return it from another register", () =
     expect(found?.sale.sale.lines[0]?.saleUnit).toBe("KG");
   });
 
-  it("holds the discount on the sale's total", async () => {
+  it("holds no discount on the sale's total beside the lines, which are already net of it", async () => {
     const { asking, selling, completed } = await setUp({
       saleDiscount: {
         kind: "PERCENT",
@@ -229,12 +228,7 @@ describe("reading a sale of the branch to return it from another register", () =
 
     const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
 
-    expect(found?.sale.sale.saleDiscount).toEqual({
-      kind: "PERCENT",
-      percent: 10,
-      reason: "cliente frecuente",
-      authorizedBy: null,
-    });
+    expect(found?.sale.sale).not.toHaveProperty("saleDiscount");
   });
 
   describe("finding the sale by its ticket", () => {
@@ -479,9 +473,16 @@ describe("reading a sale of the branch to return it from another register", () =
       });
     });
 
-    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>, string]>([
+    const UNCLEAR: Partial<typeof fiscalRequests.$inferInsert> = {
+      answerKind: "unclear",
+      authorizationCode: null,
+      authorizationCodeDueOn: null,
+      unclearCodes: [],
+    };
+
+    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>]>([
       [
-        "a rejected invoice",
+        "rejected invoice",
         {
           answerKind: "rejected",
           authorizationCode: null,
@@ -489,19 +490,17 @@ describe("reading a sale of the branch to return it from another register", () =
           rejectionCodes: [10015],
           rejectionClass: "content",
         },
-        "REJECTED",
+      ],
+      ["invoice left unclear", UNCLEAR],
+      [
+        "invoice released after an unclear answer",
+        { ...UNCLEAR, decision: "released", decidedAt: COMPLETED_AT },
       ],
       [
-        "an invoice left unclear",
-        {
-          answerKind: "unclear",
-          authorizationCode: null,
-          authorizationCodeDueOn: null,
-          unclearCodes: [],
-        },
-        "UNKNOWN",
+        "invoice found conflicting after an unclear answer",
+        { ...UNCLEAR, decision: "conflicting", decidedAt: COMPLETED_AT },
       ],
-    ])("holds %s in the state it stands at", async (_name, columns, state) => {
+    ])("holds no %s, which no credit note is routed by", async (_name, columns) => {
       const { asking, selling, completed } = await setUp();
       await authorizeInvoice(selling.registerId, completed.id, columns);
       const ticket = await deferTicket(selling, completed.id, {
@@ -511,7 +510,7 @@ describe("reading a sale of the branch to return it from another register", () =
 
       const found = await reader().saleForReturnInBranchOf(asking.registerId, ticket);
 
-      expect(found?.invoiceStanding.fiscalDocuments).toMatchObject([{ number: 42, state }]);
+      expect(found?.invoiceStanding.fiscalDocuments).toEqual([]);
     });
 
     it.each<[string, Partial<typeof deferredSales.$inferInsert>, boolean]>([

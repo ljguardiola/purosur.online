@@ -52,12 +52,6 @@ const answer = {
     session_id: "session-2",
     actor_id: "cashier",
     state: "COMPLETED",
-    sale_discount: {
-      kind: "AMOUNT",
-      amount: 1500,
-      reason: "cliente frecuente",
-      authorized_by: null,
-    },
     lines: [
       {
         id: "line-1",
@@ -103,10 +97,9 @@ describe("branchSaleForReturnAnswerSchema", () => {
     expect(branchSaleForReturnAnswerSchema.parse(answer)).toEqual(answer);
   });
 
-  it("reads a sale without a discount, an invoice, returns or counted returns", () => {
+  it("reads a sale without an invoice, returns or counted returns", () => {
     const bare = {
       ...answer,
-      sale: { ...answer.sale, sale_discount: null },
       invoice: null,
       invoice_standing: { fiscal_documents: [], deferral_pending: false },
       returned: [],
@@ -116,8 +109,8 @@ describe("branchSaleForReturnAnswerSchema", () => {
     expect(branchSaleForReturnAnswerSchema.parse(bare)).toEqual(bare);
   });
 
-  it("reads a percentage discount", () => {
-    const percent = {
+  it("reads no discount on the sale's total beside the lines, which are already net of it", () => {
+    const discounted = {
       ...answer,
       sale: {
         ...answer.sale,
@@ -125,7 +118,9 @@ describe("branchSaleForReturnAnswerSchema", () => {
       },
     };
 
-    expect(branchSaleForReturnAnswerSchema.parse(percent)).toEqual(percent);
+    expect(branchSaleForReturnAnswerSchema.parse(discounted).sale).not.toHaveProperty(
+      "sale_discount",
+    );
   });
 
   it("reads a date the cloud sends with its time zone offset", () => {

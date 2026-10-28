@@ -210,7 +210,6 @@ describe("the sale of another register a return starts from", () => {
         sessionId: "session-b",
         actorId: "cashier-b",
         state: "COMPLETED",
-        saleDiscount: null,
         lines: [
           {
             id: "line-elsewhere",
