@@ -101,6 +101,7 @@ describe("DrizzleIssuedFiscalDocumentsReportReader.issuedGroups", () => {
     await insertOnlineCreditNote(db, registerId, { total: 1_500 });
     await insertCaeaDocument(db, registerId, {
       documentType: "credit_note_c",
+      creditNoteId: crypto.randomUUID(),
       total: 400,
       correctedVoucherType: 11,
       correctedPointOfSale: 8,
