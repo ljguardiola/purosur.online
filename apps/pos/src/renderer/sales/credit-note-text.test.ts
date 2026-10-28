@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { creditNoteRow, creditNoteRowOf, voidedSaleNotice } from "./credit-note-text";
+import {
+  creditNotePrintButton,
+  creditNoteRow,
+  creditNoteRowOf,
+  voidedSaleNotice,
+} from "./credit-note-text";
 
 const AUTHORIZED = {
   kind: "authorized",
@@ -68,11 +73,57 @@ describe("creditNoteRowOf", () => {
 
   it.each([
     [AUTHORIZED, "Nota de crédito C de devolución", "PV 00004 · Nº 00000012"],
-    [ISSUED_OFFLINE, "Nota de crédito C · CAEA de devolución", "PV 00009 · Nº 00000041"],
+    [ISSUED_OFFLINE, "Nota de crédito C de devolución · CAEA", "PV 00009 · Nº 00000041"],
     [{ kind: "in_progress" } as const, "Nota de crédito C de devolución", "En trámite con ARCA"],
   ])("says a return's credit note is the return's: %j", (standing, label, value) => {
     expect(creditNoteRowOf({ origin: "sale_return", standing })).toEqual({ label, value });
   });
+});
+
+describe("creditNotePrintButton", () => {
+  it("names the only credit note's original as the credit note", () => {
+    expect(
+      creditNotePrintButton({ standing: AUTHORIZED, next_copy: { kind: "original" } }, false),
+    ).toBe("Imprimir nota de crédito");
+  });
+
+  it("names the only credit note's duplicate as the credit note's, unlike the sale's receipt", () => {
+    expect(
+      creditNotePrintButton(
+        { standing: ISSUED_OFFLINE, next_copy: { kind: "duplicate", order_number: 2 } },
+        false,
+      ),
+    ).toBe("Reimprimir duplicado de nota de crédito");
+  });
+
+  it("names the original of one of several credit notes by its point of sale and number", () => {
+    expect(
+      creditNotePrintButton({ standing: AUTHORIZED, next_copy: { kind: "original" } }, true),
+    ).toBe("Imprimir nota de crédito PV 00004 · Nº 00000012");
+  });
+
+  it("names the duplicate of one of several credit notes by its point of sale and number", () => {
+    expect(
+      creditNotePrintButton(
+        { standing: ISSUED_OFFLINE, next_copy: { kind: "duplicate", order_number: 2 } },
+        true,
+      ),
+    ).toBe("Reimprimir duplicado de nota de crédito PV 00009 · Nº 00000041");
+  });
+
+  it.each([
+    { kind: "in_progress" },
+    { kind: "rejected" },
+    { kind: "already_credited" },
+    { kind: "regularization_required" },
+  ] as const)(
+    "names one of several credit notes with no number only as a credit note: %j",
+    (standing) => {
+      expect(creditNotePrintButton({ standing, next_copy: { kind: "original" } }, true)).toBe(
+        "Imprimir nota de crédito",
+      );
+    },
+  );
 });
 
 describe("voidedSaleNotice", () => {

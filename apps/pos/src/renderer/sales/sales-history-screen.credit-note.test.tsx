@@ -70,6 +70,7 @@ const TWO_RETURNS_DETAIL: SaleDetail = {
 
 const PRINT = "Imprimir nota de crédito";
 const REPRINT = "Reimprimir duplicado";
+const REPRINT_CREDIT_NOTE = "Reimprimir duplicado de nota de crédito";
 
 describe("SalesHistoryScreen credit note of a voided sale", () => {
   it("asks the core to print it and says it comes out as soon as the printer is ready", async () => {
@@ -84,99 +85,6 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
     await expect
       .element(screen.getByText("La nota de crédito sale en cuanto la impresora esté lista"))
       .toBeVisible();
-  });
-
-  describe("a sale with two returns", () => {
-    it("lists both credit notes with their state and number", async () => {
-      const { screen } = await renderScreen({
-        saleHistoryDetail: async () => ({ kind: "found", detail: TWO_RETURNS_DETAIL }),
-      });
-      await chooseSale(screen, "11:42");
-
-      await expect
-        .element(screen.getByText("Nota de crédito C de devolución", { exact: true }))
-        .toBeVisible();
-      await expect.element(screen.getByText("PV 00003 · Nº 00000007")).toBeVisible();
-      await expect
-        .element(screen.getByText("Nota de crédito C · CAEA de devolución", { exact: true }))
-        .toBeVisible();
-      await expect.element(screen.getByText("PV 00003 · Nº 00000009")).toBeVisible();
-    });
-
-    it("prints the first one's original asking the core for that credit note only", async () => {
-      const { screen, printCreditNote, reprintCreditNote } = await renderScreen({
-        saleHistoryDetail: async () => ({ kind: "found", detail: TWO_RETURNS_DETAIL }),
-      });
-      await chooseSale(screen, "11:42");
-
-      await userEvent.click(
-        screen.getByRole("button", { name: "Imprimir nota de crédito PV 00003 · Nº 00000007" }),
-      );
-
-      expect(printCreditNote).toHaveBeenCalledExactlyOnceWith("sale-1", "return-note-1");
-      expect(reprintCreditNote).not.toHaveBeenCalled();
-    });
-
-    it("keeps the other credit note printable while one is printing", async () => {
-      const { screen, printCreditNote } = await renderScreen({
-        saleHistoryDetail: async () => ({
-          kind: "found",
-          detail: {
-            ...TWO_RETURNS_DETAIL,
-            credit_notes: TWO_RETURNS_DETAIL.credit_notes.map((creditNote) => ({
-              ...creditNote,
-              next_copy: { kind: "original" },
-            })),
-          },
-        }),
-        printCreditNote: () => new Promise(() => undefined),
-      });
-      await chooseSale(screen, "11:42");
-
-      await userEvent.click(
-        screen.getByRole("button", { name: "Imprimir nota de crédito PV 00003 · Nº 00000007" }),
-      );
-      await userEvent.click(
-        screen.getByRole("button", { name: "Imprimir nota de crédito PV 00003 · Nº 00000009" }),
-      );
-
-      expect(printCreditNote.mock.calls).toEqual([
-        ["sale-1", "return-note-1"],
-        ["sale-1", "return-note-2"],
-      ]);
-    });
-
-    it("reprints the second one naming its own comprobante and number, asking the core for that credit note only", async () => {
-      const { screen, reprintCreditNote, printCreditNote } = await renderScreen({
-        saleHistoryDetail: async () => ({ kind: "found", detail: TWO_RETURNS_DETAIL }),
-      });
-      await chooseSale(screen, "11:42");
-
-      await userEvent.click(
-        screen.getByRole("button", {
-          name: "Reimprimir duplicado de nota de crédito PV 00003 · Nº 00000009",
-        }),
-      );
-
-      const dialog = screen.getByRole("dialog");
-      await expect
-        .element(dialog.getByText("Nota de crédito C · CAEA · PV 00003 · Nº 00000009"))
-        .toBeVisible();
-      await expect.element(dialog.getByText("COPIA DUPLICADA Nº 1")).toBeVisible();
-      await userEvent.fill(
-        screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
-        "El cliente la perdió",
-      );
-      await userEvent.click(dialog.getByRole("button", { name: REPRINT }));
-
-      expect(reprintCreditNote).toHaveBeenCalledExactlyOnceWith(
-        "sale-1",
-        "return-note-2",
-        "El cliente la perdió",
-        undefined,
-      );
-      expect(printCreditNote).not.toHaveBeenCalled();
-    });
   });
 
   it("asks for no reason before printing the original", async () => {
@@ -226,7 +134,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
       });
       await chooseSale(screen, "11:42");
 
-      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+      await userEvent.click(screen.getByRole("button", { name: REPRINT_CREDIT_NOTE }));
 
       await expect
         .element(screen.getByText("REIMPRIMIR NOTA DE CRÉDITO DE LA VENTA DE LAS 11:42"))
@@ -260,7 +168,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
       });
       await chooseSale(screen, "11:42");
 
-      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+      await userEvent.click(screen.getByRole("button", { name: REPRINT_CREDIT_NOTE }));
 
       const dialog = screen.getByRole("dialog");
       await expect
@@ -276,7 +184,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
         saleHistoryDetail: async () => ({ kind: "found", detail: PRINTED_DETAIL }),
       });
       await chooseSale(screen, "11:42");
-      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+      await userEvent.click(screen.getByRole("button", { name: REPRINT_CREDIT_NOTE }));
 
       await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
@@ -292,7 +200,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
         reprintCreditNote: async () => ({ kind: "not_found" }),
       });
       await chooseSale(screen, "11:42");
-      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+      await userEvent.click(screen.getByRole("button", { name: REPRINT_CREDIT_NOTE }));
       await userEvent.fill(
         screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
         "Otra copia",
@@ -436,5 +344,98 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
         screen.getByText("La nota de crédito quedó para regularizar. Avisá al Administrador."),
       )
       .toBeVisible();
+  });
+});
+
+describe("SalesHistoryScreen credit notes of a sale with two returns", () => {
+  it("lists both credit notes with their state and number", async () => {
+    const { screen } = await renderScreen({
+      saleHistoryDetail: async () => ({ kind: "found", detail: TWO_RETURNS_DETAIL }),
+    });
+    await chooseSale(screen, "11:42");
+
+    await expect
+      .element(screen.getByText("Nota de crédito C de devolución", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText("PV 00003 · Nº 00000007")).toBeVisible();
+    await expect
+      .element(screen.getByText("Nota de crédito C de devolución · CAEA", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText("PV 00003 · Nº 00000009")).toBeVisible();
+  });
+
+  it("prints the first one's original asking the core for that credit note only", async () => {
+    const { screen, printCreditNote, reprintCreditNote } = await renderScreen({
+      saleHistoryDetail: async () => ({ kind: "found", detail: TWO_RETURNS_DETAIL }),
+    });
+    await chooseSale(screen, "11:42");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Imprimir nota de crédito PV 00003 · Nº 00000007" }),
+    );
+
+    expect(printCreditNote).toHaveBeenCalledExactlyOnceWith("sale-1", "return-note-1");
+    expect(reprintCreditNote).not.toHaveBeenCalled();
+  });
+
+  it("keeps the other credit note printable while one is printing", async () => {
+    const { screen, printCreditNote } = await renderScreen({
+      saleHistoryDetail: async () => ({
+        kind: "found",
+        detail: {
+          ...TWO_RETURNS_DETAIL,
+          credit_notes: TWO_RETURNS_DETAIL.credit_notes.map((creditNote) => ({
+            ...creditNote,
+            next_copy: { kind: "original" },
+          })),
+        },
+      }),
+      printCreditNote: () => new Promise(() => undefined),
+    });
+    await chooseSale(screen, "11:42");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Imprimir nota de crédito PV 00003 · Nº 00000007" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Imprimir nota de crédito PV 00003 · Nº 00000009" }),
+    );
+
+    expect(printCreditNote.mock.calls).toEqual([
+      ["sale-1", "return-note-1"],
+      ["sale-1", "return-note-2"],
+    ]);
+  });
+
+  it("reprints the second one naming its own comprobante and number, asking the core for that credit note only", async () => {
+    const { screen, reprintCreditNote, printCreditNote } = await renderScreen({
+      saleHistoryDetail: async () => ({ kind: "found", detail: TWO_RETURNS_DETAIL }),
+    });
+    await chooseSale(screen, "11:42");
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Reimprimir duplicado de nota de crédito PV 00003 · Nº 00000009",
+      }),
+    );
+
+    const dialog = screen.getByRole("dialog");
+    await expect
+      .element(dialog.getByText("Nota de crédito C · CAEA · PV 00003 · Nº 00000009"))
+      .toBeVisible();
+    await expect.element(dialog.getByText("COPIA DUPLICADA Nº 1")).toBeVisible();
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
+      "El cliente la perdió",
+    );
+    await userEvent.click(dialog.getByRole("button", { name: REPRINT }));
+
+    expect(reprintCreditNote).toHaveBeenCalledExactlyOnceWith(
+      "sale-1",
+      "return-note-2",
+      "El cliente la perdió",
+      undefined,
+    );
+    expect(printCreditNote).not.toHaveBeenCalled();
   });
 });

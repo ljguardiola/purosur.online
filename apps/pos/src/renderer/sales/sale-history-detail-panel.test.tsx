@@ -404,7 +404,12 @@ describe("SaleHistoryDetailPanel", () => {
       await expect
         .element(screen.getByRole("button", { name: "Imprimir nota de crédito" }))
         .not.toBeInTheDocument();
-      await userEvent.click(screen.getByRole("button", { name: "Reimprimir duplicado" }));
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reimprimir duplicado de nota de crédito",
+          exact: true,
+        }),
+      );
 
       expect(onReprintCreditNote).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({ sale_id: "sale-1" }),
@@ -495,7 +500,7 @@ describe("SaleHistoryDetailPanel", () => {
       });
 
       await expect
-        .element(screen.getByText("Nota de crédito C · CAEA de devolución", { exact: true }))
+        .element(screen.getByText("Nota de crédito C de devolución · CAEA", { exact: true }))
         .toBeVisible();
     });
 
@@ -527,6 +532,66 @@ describe("SaleHistoryDetailPanel", () => {
       );
       expect(onPrintCreditNote).toHaveBeenCalledOnce();
       await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("tells the sale's duplicate apart from the duplicate of its only credit note", async () => {
+      const { screen, onReprint, onReprintCreditNote } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: {
+            ...FISCAL_SALE,
+            credit_notes: [
+              {
+                credit_note_id: "cn-first",
+                origin: "sale_return",
+                standing: AUTHORIZED,
+                next_copy: { kind: "duplicate", order_number: 1 },
+              },
+            ],
+          },
+        }),
+      });
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Reimprimir duplicado de nota de crédito",
+          exact: true,
+        }),
+      );
+      expect(onReprintCreditNote).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ sale_id: "sale-1" }),
+        expect.objectContaining({ credit_note_id: "cn-first" }),
+      );
+      expect(onReprint).not.toHaveBeenCalled();
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "Reimprimir duplicado", exact: true }),
+      );
+      expect(onReprint).toHaveBeenCalledOnce();
+    });
+
+    it("offers no button for a credit note the core gives no copy to print of", async () => {
+      const { screen } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: {
+            ...FISCAL_SALE,
+            credit_notes: [
+              {
+                credit_note_id: "cn-first",
+                origin: "sale_return",
+                standing: AUTHORIZED,
+                next_copy: null,
+              },
+            ],
+          },
+        }),
+      });
+
+      await expect.element(screen.getByText("PV 00004 · Nº 00000012")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: /nota de crédito/ }))
+        .not.toBeInTheDocument();
     });
 
     it("offers a button only for the credit notes that can be printed", async () => {

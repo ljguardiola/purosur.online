@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { insertSaleCreditNote } from "../fiscal/test-support/sale-credit-notes.js";
 import { saleReprints, sales } from "../platform/db/schema.js";
 import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -416,16 +417,37 @@ describe("recording the reprints of an applied sale's credit note", () => {
     expect(await system.db.select().from(saleReprints)).toHaveLength(2);
   });
 
-  it("keeps a legacy reprint of a credit note, which names none, with no credit note", async () => {
+  it("records a legacy reprint of a credit note, which names none, against the sale's void credit note", async () => {
     const saleId = await appliedSale();
+    const voidCreditNote = await insertSaleCreditNote(system.db, origin.registerId, saleId);
+    await insertSaleCreditNote(system.db, origin.registerId, saleId, {
+      reason: "sale_return",
+      returnId: randomUUID(),
+      issueOn: "2026-10-07",
+    });
 
     await recordReprint({ saleId, document: "credit_note", creditNoteId: null, orderNumber: 1 });
 
     const [row] = await system.db.select().from(saleReprints);
-    expect(row).toMatchObject({ document: "credit_note", creditNoteId: null });
+    expect(row).toMatchObject({ document: "credit_note", creditNoteId: voidCreditNote });
+    await expect(
+      recordReprint({
+        saleId,
+        document: "credit_note",
+        creditNoteId: voidCreditNote,
+        orderNumber: 1,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("refuses a legacy reprint of a credit note of a sale the cloud holds no void credit note of, and keeps none", async () => {
+    const saleId = await appliedSale();
+
     await expect(
       recordReprint({ saleId, document: "credit_note", creditNoteId: null, orderNumber: 1 }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/sale .* has no void credit note/);
+
+    expect(await system.db.select().from(saleReprints)).toEqual([]);
   });
 
   it("refuses the reprint of a credit note of a sale of another register and keeps none", async () => {

@@ -1,4 +1,4 @@
-import { expect, expectTypeOf, test } from "vitest";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
@@ -123,6 +123,35 @@ test("renders every row it is given, in order", async () => {
   const group = screen.container.firstElementChild as HTMLElement;
   expect(group.children[0]?.textContent).toBe("Items3");
   expect(group.children[2]?.textContent).toBe("Total$130.00");
+});
+
+test("renders two rows that share a label as two rows of their own, in order", async () => {
+  const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const screen = await render(
+      <SummaryRowGroup
+        rows={[
+          { label: "Nota de crédito", value: "Nº 1" },
+          { label: "Total", value: "$130.00" },
+          { label: "Nota de crédito", value: "Nº 2" },
+        ]}
+      />,
+    );
+    const group = screen.container.firstElementChild as HTMLElement;
+
+    expect(Array.from(group.children, (row) => row.textContent)).toEqual([
+      "Nota de créditoNº 1",
+      "Total$130.00",
+      "Nota de créditoNº 2",
+    ]);
+    expect(
+      reported.mock.calls
+        .map((call) => call.map(String).join(" "))
+        .filter((message) => message.includes("same key")),
+    ).toEqual([]);
+  } finally {
+    reported.mockRestore();
+  }
 });
 
 test("renders a row it is given as strong or as a saving, not in the plain form", async () => {
