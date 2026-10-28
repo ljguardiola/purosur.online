@@ -189,17 +189,10 @@ export {
   ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
   LISTED_ONLINE_DOCUMENT_STATES,
 } from "./model/issued-fiscal-document.js";
-export type {
-  IssuedAuthorizationKind,
-  IssuedDocumentGroup,
-  IssuedDocumentsReport,
-  IssuedDocumentsReportRow,
-  IssuedDocumentsReportTotals,
-} from "./model/issued-fiscal-documents-report.js";
+export type { IssuedDocumentGroup } from "./model/issued-fiscal-documents-report.js";
 export {
   COUNTED_AS_ISSUED_STATE,
   ISSUED_AUTHORIZATION_KINDS,
-  issuedFiscalDocumentsReport,
 } from "./model/issued-fiscal-documents-report.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
