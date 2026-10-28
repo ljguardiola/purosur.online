@@ -95,7 +95,7 @@ describe("saleHistoryDetailOutcomeSchema", () => {
   });
 
   describe("the credit notes of the sale", () => {
-    const creditNote = {
+    const creditNote: Record<string, unknown> = {
       credit_note_id: "credit-note-1",
       origin: "sale_void",
       standing: { kind: "in_progress" },
