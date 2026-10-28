@@ -104,6 +104,17 @@ test("leaves the returns report out when it is not shown", async () => {
   expect(screen.getByRole("link", { name: "Devoluciones" }).query()).toBeNull();
 });
 
+test("groups the fiscal reports in a card titled Fiscal", async () => {
+  const screen = await renderScreen();
+
+  const fiscal = screen.getByRole("region", { name: "Fiscal" });
+  await expect.element(fiscal).toBeVisible();
+  expect(fiscal.getByRole("link").elements()).toHaveLength(1);
+  await expect
+    .element(fiscal.getByRole("link", { name: "Comprobantes emitidos" }))
+    .toHaveAttribute("href", "/reports/fiscal-documents");
+});
+
 test("lists the payments confirmed by hand report as a link to it", async () => {
   const screen = await renderScreen();
 

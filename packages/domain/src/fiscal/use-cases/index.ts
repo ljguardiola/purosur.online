@@ -330,6 +330,10 @@ export type {
   IssuedFiscalDocumentVoucher,
 } from "./issued-fiscal-documents-reader.js";
 export type {
+  IssuedFiscalDocumentsReportQuery,
+  IssuedFiscalDocumentsReportReader,
+} from "./issued-fiscal-documents-report-reader.js";
+export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,
   IssuerIdentification,
@@ -395,6 +399,11 @@ export type {
   ReadIssuedFiscalDocumentsInput,
 } from "./read-issued-fiscal-documents.js";
 export { readIssuedFiscalDocuments } from "./read-issued-fiscal-documents.js";
+export type {
+  IssuedFiscalDocumentsReport,
+  ReadIssuedFiscalDocumentsReportInput,
+} from "./read-issued-fiscal-documents-report.js";
+export { readIssuedFiscalDocumentsReport } from "./read-issued-fiscal-documents-report.js";
 export type {
   ClockGuardBlock,
   ReadRegisterClockGuardPorts,

@@ -1,6 +1,6 @@
 import { FIXED_ARGENTINA_ZONE_RULES } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { printoutOf } from "../sales/test-support/escpos-printout";
+import { printoutOf } from "../platform/escpos/test-support/escpos-printout";
 import {
   type BackedDocument,
   type ContingencyBackupTicketPrintout,

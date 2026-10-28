@@ -12,6 +12,7 @@ import {
 } from "../fiscal/test-support/real-time-authorization-database";
 import { scriptedDeferrals } from "../fiscal/test-support/scripted-deferrals";
 import type { CloudClientDeps } from "../platform/cloud-client";
+import { printoutOf } from "../platform/escpos/test-support/escpos-printout";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
@@ -23,7 +24,6 @@ import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { createReceiptPrinting } from "./receipt-printing-wiring";
 import { insertCreditNote } from "./test-support/credit-note-receipt-database";
-import { printoutOf } from "./test-support/escpos-printout";
 import { ScriptedSocket } from "./test-support/scripted-socket";
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
