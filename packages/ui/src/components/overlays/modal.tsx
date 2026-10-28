@@ -1,4 +1,11 @@
-import { Children, Fragment, isValidElement, type ReactNode } from "react";
+import {
+  Children,
+  Fragment,
+  isValidElement,
+  type KeyboardEvent,
+  type ReactNode,
+  useRef,
+} from "react";
 import {
   Dialog as AriaDialog,
   Heading as AriaHeading,
@@ -62,6 +69,12 @@ function hasContent(node: ReactNode): boolean {
   );
 }
 
+function isCtrlEnter(event: KeyboardEvent): boolean {
+  return (
+    event.key === "Enter" && event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey
+  );
+}
+
 export function Modal(props: ModalProps) {
   const {
     open,
@@ -76,6 +89,26 @@ export function Modal(props: ModalProps) {
     bodyPadding = "default",
     footer,
   } = props;
+  const footerRef = useRef<HTMLDivElement>(null);
+
+  // Capturing, because react-aria's fields stop the keys they handle from bubbling; listening on the
+  // body leaves the header's and footer's own buttons out. A field's list is portaled outside the
+  // panel and a stacked modal is mounted after the one below it, so the modal that sends is the last
+  // one open in the document, not the closest panel.
+  function sendWithCtrlEnter(event: KeyboardEvent) {
+    const ownFooter = footerRef.current;
+    const openFooters = document.querySelectorAll("[data-modal-footer]");
+    if (
+      !isCtrlEnter(event) ||
+      ownFooter === null ||
+      openFooters[openFooters.length - 1] !== ownFooter
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    ownFooter.querySelector<HTMLElement>('[data-variant="primary"]')?.click();
+  }
 
   return (
     <AriaModalOverlay
@@ -96,7 +129,10 @@ export function Modal(props: ModalProps) {
       >
         <AriaDialog className="flex min-h-0 flex-1 flex-col outline-none">
           {props.headerLayout === "centered" ? (
-            <div className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6">
+            <div
+              className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6"
+              onKeyDownCapture={sendWithCtrlEnter}
+            >
               <span
                 aria-hidden="true"
                 className={[
@@ -146,6 +182,7 @@ export function Modal(props: ModalProps) {
                     // auto and scrolls the whole body as one block.
                     bodyPadding === "none" ? "flex flex-col" : "p-6",
                   ].join(" ")}
+                  onKeyDownCapture={sendWithCtrlEnter}
                 >
                   {children}
                 </div>
@@ -154,7 +191,11 @@ export function Modal(props: ModalProps) {
           )}
           {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
               square corners over the panel's rounded ones. */}
-          <div className="flex shrink-0 items-center gap-3 rounded-b-xl border-t border-border bg-surface-subtle py-4 px-6">
+          <div
+            ref={footerRef}
+            data-modal-footer
+            className="flex shrink-0 items-center gap-3 rounded-b-xl border-t border-border bg-surface-subtle py-4 px-6"
+          >
             {footer}
           </div>
         </AriaDialog>
