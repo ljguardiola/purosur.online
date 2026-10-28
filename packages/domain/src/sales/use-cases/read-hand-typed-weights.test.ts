@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
-import type { WeighedLinesGroup } from "../model/hand-typed-weights-report.js";
+import type { SaleLinesGroup } from "../model/hand-typed-weights-report.js";
 import { readHandTypedWeights } from "./read-hand-typed-weights.js";
 import { FakeHandTypedWeightsReportReader } from "./test-support/fake-hand-typed-weights-report-reader.js";
 
@@ -9,7 +9,7 @@ const clock = { now: () => NOW };
 const noRange = { from: undefined, to: undefined };
 const OPENED_AT = new Date("2026-10-06T11:00:00.000Z");
 
-const groups: WeighedLinesGroup[] = [
+const groups: SaleLinesGroup[] = [
   {
     sessionId: "s1",
     registerName: "Caja 1",
@@ -67,7 +67,11 @@ describe("readHandTypedWeights", () => {
           typedLines: 3,
         },
       ],
-      totals: { weighedLines: 7, typedLines: 3 },
+      totals: {
+        weighedLines: 7,
+        typedLines: 3,
+        mostTyped: { cashierId: "u2", name: null, typedLines: 2 },
+      },
     });
     expect(reader.reads).toEqual([
       {
@@ -113,6 +117,6 @@ describe("readHandTypedWeights", () => {
 
     expect(report.cashiers).toEqual([]);
     expect(report.sessions).toEqual([]);
-    expect(report.totals).toEqual({ weighedLines: 0, typedLines: 0 });
+    expect(report.totals).toEqual({ weighedLines: 0, typedLines: 0, mostTyped: null });
   });
 });

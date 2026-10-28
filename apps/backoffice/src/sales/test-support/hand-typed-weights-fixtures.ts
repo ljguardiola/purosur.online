@@ -27,7 +27,11 @@ export const handTypedWeightsReport: HandTypedWeightsBody = {
       typed_lines: 1,
     },
   ],
-  totals: { weighed_lines: 42, typed_lines: 9 },
+  totals: {
+    weighed_lines: 42,
+    typed_lines: 9,
+    most_typed: { cashier_id: BETO_ID, name: "Beto", typed_lines: 6 },
+  },
 };
 
 export const singleTypedWeightReport: HandTypedWeightsBody = {
@@ -42,12 +46,31 @@ export const singleTypedWeightReport: HandTypedWeightsBody = {
       typed_lines: 1,
     },
   ],
-  totals: { weighed_lines: 3, typed_lines: 1 },
+  totals: {
+    weighed_lines: 3,
+    typed_lines: 1,
+    most_typed: { cashier_id: ANA_ID, name: "Ana", typed_lines: 1 },
+  },
 };
 
 export const noHandTypedWeightsReport: HandTypedWeightsBody = {
   range: { from: "2026-10-07", to: "2026-10-07" },
   cashiers: [],
   sessions: [],
-  totals: { weighed_lines: 0, typed_lines: 0 },
+  totals: { weighed_lines: 0, typed_lines: 0, most_typed: null },
+};
+
+export const scaleWeightsReport: HandTypedWeightsBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  cashiers: [{ cashier_id: ANA_ID, name: "Ana", weighed_lines: 3, typed_lines: 0 }],
+  sessions: [
+    {
+      session_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      register_name: "Caja principal",
+      opened_at: "2026-10-07T12:00:00.000Z",
+      weighed_lines: 3,
+      typed_lines: 0,
+    },
+  ],
+  totals: { weighed_lines: 3, typed_lines: 0, most_typed: null },
 };

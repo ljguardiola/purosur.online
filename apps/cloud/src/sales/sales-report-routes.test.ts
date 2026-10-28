@@ -645,7 +645,7 @@ describe("GET /reports/hand-typed-weights", () => {
       range: { from: "2026-10-07", to: "2026-10-07" },
       cashiers: [],
       sessions: [],
-      totals: { weighed_lines: 0, typed_lines: 0 },
+      totals: { weighed_lines: 0, typed_lines: 0, most_typed: null },
     });
   });
 
@@ -669,7 +669,11 @@ describe("GET /reports/hand-typed-weights", () => {
         typed_lines: 2,
       },
     ]);
-    expect(body.totals).toEqual({ weighed_lines: 3, typed_lines: 2 });
+    expect(body.totals).toEqual({
+      weighed_lines: 3,
+      typed_lines: 2,
+      most_typed: { cashier_id: USER, name: "Ana", typed_lines: 2 },
+    });
   });
 
   it("shows a pushed sale only once its event was applied", async () => {
@@ -680,8 +684,8 @@ describe("GET /reports/hand-typed-weights", () => {
     await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
     const after = await handTypedWeights(headers, "?from=2026-10-07&to=2026-10-07");
 
-    expect(before.json().totals).toEqual({ weighed_lines: 0, typed_lines: 0 });
-    expect(after.json().totals).toEqual({ weighed_lines: 1, typed_lines: 1 });
+    expect(before.json().totals).toMatchObject({ weighed_lines: 0, typed_lines: 0 });
+    expect(after.json().totals).toMatchObject({ weighed_lines: 1, typed_lines: 1 });
   });
 
   it("filters by an asked register of the branch", async () => {

@@ -27,7 +27,11 @@ const report = {
       typed_lines: 2,
     },
   ],
-  totals: { weighed_lines: 8, typed_lines: 2 },
+  totals: {
+    weighed_lines: 8,
+    typed_lines: 2,
+    most_typed: { cashier_id: "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77", name: "Ana", typed_lines: 2 },
+  },
 };
 
 describe("handTypedWeightsSchema", () => {
@@ -40,10 +44,19 @@ describe("handTypedWeightsSchema", () => {
       ...report,
       cashiers: [],
       sessions: [],
-      totals: { weighed_lines: 0, typed_lines: 0 },
+      totals: { weighed_lines: 0, typed_lines: 0, most_typed: null },
     };
 
     expect(handTypedWeightsSchema.parse(empty)).toEqual(empty);
+  });
+
+  it("accepts a cashier who typed the most without a name", () => {
+    const unnamed = {
+      ...report,
+      totals: { ...report.totals, most_typed: { ...report.totals.most_typed, name: null } },
+    };
+
+    expect(handTypedWeightsSchema.parse(unnamed)).toEqual(unnamed);
   });
 
   it("declares the zone the opening of a session is shown in", () => {
@@ -64,8 +77,25 @@ describe("handTypedWeightsSchema", () => {
       { sessions: [{ ...report.sessions[0], opened_at: "ayer" }] },
     ],
     ["a negative session typed count", { sessions: [{ ...report.sessions[0], typed_lines: -1 }] }],
-    ["a total that is not a number", { totals: { weighed_lines: "8", typed_lines: 2 } }],
-    ["a missing typed total", { totals: { weighed_lines: 8 } }],
+    ["a total that is not a number", { totals: { ...report.totals, weighed_lines: "8" } }],
+    ["a missing typed total", { totals: { weighed_lines: 8, most_typed: null } }],
+    ["a missing cashier who typed the most", { totals: { weighed_lines: 8, typed_lines: 2 } }],
+    [
+      "an empty id of the cashier who typed the most",
+      { totals: { ...report.totals, most_typed: { ...report.totals.most_typed, cashier_id: "" } } },
+    ],
+    [
+      "a negative count of the cashier who typed the most",
+      {
+        totals: { ...report.totals, most_typed: { ...report.totals.most_typed, typed_lines: -1 } },
+      },
+    ],
+    [
+      "a count with decimals of the cashier who typed the most",
+      {
+        totals: { ...report.totals, most_typed: { ...report.totals.most_typed, typed_lines: 1.5 } },
+      },
+    ],
     ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
   ])("refuses %s", (_name, change) => {
     expect(handTypedWeightsSchema.safeParse({ ...report, ...change }).success).toBe(false);

@@ -1,4 +1,4 @@
-import type { WeighedLinesGroup } from "../../model/hand-typed-weights-report.js";
+import type { SaleLinesGroup } from "../../model/hand-typed-weights-report.js";
 import type {
   HandTypedWeightsQuery,
   HandTypedWeightsReportReader,
@@ -6,13 +6,13 @@ import type {
 
 export class FakeHandTypedWeightsReportReader implements HandTypedWeightsReportReader {
   readonly reads: HandTypedWeightsQuery[] = [];
-  private readonly groups: WeighedLinesGroup[];
+  private readonly groups: SaleLinesGroup[];
 
-  constructor(groups: WeighedLinesGroup[] = []) {
+  constructor(groups: SaleLinesGroup[] = []) {
     this.groups = groups;
   }
 
-  async weighedLinesOfCompletedSales(query: HandTypedWeightsQuery): Promise<WeighedLinesGroup[]> {
+  async completedSaleLinesByWeightSource(query: HandTypedWeightsQuery): Promise<SaleLinesGroup[]> {
     this.reads.push({ ...query, range: { ...query.range } });
     return this.groups.map((group) => ({ ...group }));
   }

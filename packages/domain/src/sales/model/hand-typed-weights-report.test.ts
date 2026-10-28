@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  type WeighedLinesGroup,
+  type SaleLinesGroup,
   weighedLinesByCashier,
   weighedLinesBySession,
   weighedLinesTotals,
 } from "./hand-typed-weights-report.js";
 
 const group = (
-  overrides: Partial<WeighedLinesGroup> & Pick<WeighedLinesGroup, "weightSource" | "lines">,
-): WeighedLinesGroup => ({
+  overrides: Partial<SaleLinesGroup> & Pick<SaleLinesGroup, "weightSource" | "lines">,
+): SaleLinesGroup => ({
   sessionId: "s1",
   registerName: "Caja 1",
   openedAt: new Date("2026-10-06T11:00:00.000Z"),
@@ -135,10 +135,31 @@ describe("weighedLinesTotals", () => {
         group({ cashierId: "u2", weightSource: "MANUAL", lines: 2 }),
         group({ cashierId: "u2", weightSource: null, lines: 8 }),
       ]),
-    ).toEqual({ weighedLines: 7, typedLines: 2 });
+    ).toEqual({
+      weighedLines: 7,
+      typedLines: 2,
+      mostTyped: { cashierId: "u2", name: "Ana", typedLines: 2 },
+    });
+  });
+
+  it("names the cashier who typed the most lines by hand, more weighed lines breaking a tie", () => {
+    const totals = weighedLinesTotals([
+      group({ cashierId: "u1", cashierName: "Ana", weightSource: "SCALE", lines: 9 }),
+      group({ cashierId: "u2", cashierName: "Beto", weightSource: "MANUAL", lines: 2 }),
+      group({ cashierId: "u3", cashierName: "Carla", weightSource: "MANUAL", lines: 2 }),
+      group({ cashierId: "u3", cashierName: "Carla", weightSource: "SCALE", lines: 1 }),
+    ]);
+
+    expect(totals.mostTyped).toEqual({ cashierId: "u3", name: "Carla", typedLines: 2 });
+  });
+
+  it("names nobody when no weighed line was typed by hand", () => {
+    const totals = weighedLinesTotals([group({ weightSource: "SCALE", lines: 4 })]);
+
+    expect(totals).toEqual({ weighedLines: 4, typedLines: 0, mostTyped: null });
   });
 
   it("is zero without groups", () => {
-    expect(weighedLinesTotals([])).toEqual({ weighedLines: 0, typedLines: 0 });
+    expect(weighedLinesTotals([])).toEqual({ weighedLines: 0, typedLines: 0, mostTyped: null });
   });
 });

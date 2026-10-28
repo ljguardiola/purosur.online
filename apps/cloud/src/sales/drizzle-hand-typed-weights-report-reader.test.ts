@@ -86,7 +86,7 @@ function ordered<T extends { cashierId: string; weightSource: string | null }>(r
   );
 }
 
-describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () => {
+describe("DrizzleHandTypedWeightsReportReader.completedSaleLinesByWeightSource", () => {
   it("counts the lines of each cashier in each session by where their weight came from", async () => {
     const { deviceId, locationId } = await aRegister("Caja 7");
     const ana = await aUser("Ana", locationId);
@@ -96,7 +96,7 @@ describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () 
     await soldBy(ana, deviceId, ["MANUAL"], { inOpenSession: sessionId });
     await soldBy(beto, deviceId, ["SCALE"], { inOpenSession: sessionId });
 
-    const groups = await reader().weighedLinesOfCompletedSales({
+    const groups = await reader().completedSaleLinesByWeightSource({
       locationId,
       range: wholeOctober,
       registerId: undefined,
@@ -119,7 +119,7 @@ describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () 
     await soldBy(ana, deviceId, ["MANUAL"]);
     await soldBy(ana, deviceId, ["MANUAL"]);
 
-    const groups = await reader().weighedLinesOfCompletedSales({
+    const groups = await reader().completedSaleLinesByWeightSource({
       locationId,
       range: wholeOctober,
       registerId: undefined,
@@ -133,7 +133,7 @@ describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () 
     const stranger = randomUUID();
     await soldBy(stranger, deviceId, ["SCALE"]);
 
-    const groups = await reader().weighedLinesOfCompletedSales({
+    const groups = await reader().completedSaleLinesByWeightSource({
       locationId,
       range: wholeOctober,
       registerId: undefined,
@@ -153,7 +153,7 @@ describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () 
       overrides: { actorId: ana, lines: [weighed("MANUAL")] },
     });
 
-    const groups = await reader().weighedLinesOfCompletedSales({
+    const groups = await reader().completedSaleLinesByWeightSource({
       locationId,
       range: wholeOctober,
       registerId: undefined,
@@ -171,7 +171,7 @@ describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () 
     await soldBy(ana, deviceId, ["SCALE"], at("2026-10-07T02:59:00.000Z"));
     await soldBy(ana, deviceId, ["MANUAL"], at("2026-10-07T03:00:00.000Z"));
 
-    const groups = await reader().weighedLinesOfCompletedSales({
+    const groups = await reader().completedSaleLinesByWeightSource({
       locationId,
       range: { from: "2026-10-05", to: "2026-10-06" },
       registerId: undefined,
@@ -187,7 +187,7 @@ describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () 
     await soldBy(ana, first.deviceId, ["SCALE"]);
     await soldBy(ana, second.deviceId, ["MANUAL"]);
 
-    const groups = await reader().weighedLinesOfCompletedSales({
+    const groups = await reader().completedSaleLinesByWeightSource({
       locationId: first.locationId,
       range: wholeOctober,
       registerId: second.registerId,
@@ -204,12 +204,12 @@ describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () 
     await soldBy(ana, own.deviceId, ["SCALE"]);
     await soldBy(ana, other.deviceId, ["MANUAL"]);
 
-    const ofTheBranch = await reader().weighedLinesOfCompletedSales({
+    const ofTheBranch = await reader().completedSaleLinesByWeightSource({
       locationId: own.locationId,
       range: wholeOctober,
       registerId: undefined,
     });
-    const ofAnotherBranchsRegister = await reader().weighedLinesOfCompletedSales({
+    const ofAnotherBranchsRegister = await reader().completedSaleLinesByWeightSource({
       locationId: own.locationId,
       range: wholeOctober,
       registerId: other.registerId,
@@ -222,7 +222,7 @@ describe("DrizzleHandTypedWeightsReportReader.weighedLinesOfCompletedSales", () 
   it("reports nothing for a range without sales", async () => {
     const { locationId } = await aRegister();
 
-    const groups = await reader().weighedLinesOfCompletedSales({
+    const groups = await reader().completedSaleLinesByWeightSource({
       locationId,
       range: wholeOctober,
       registerId: undefined,

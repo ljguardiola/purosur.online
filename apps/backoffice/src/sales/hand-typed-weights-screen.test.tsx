@@ -17,6 +17,7 @@ import type { HandTypedWeightsScreenServices } from "./hand-typed-weights-servic
 import {
   handTypedWeightsReport,
   noHandTypedWeightsReport,
+  scaleWeightsReport,
   singleTypedWeightReport,
 } from "./test-support/hand-typed-weights-fixtures";
 
@@ -84,9 +85,27 @@ test("names the report and its figures", async () => {
   await expect.element(screen.getByText("42", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Tipeadas a mano").first()).toBeVisible();
   await expect.element(screen.getByText("9", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Más tipeadas")).toBeVisible();
+  await expect.element(screen.getByText("Más tipeó")).toBeVisible();
   await expect.element(screen.getByText("6 líneas")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("names nobody as the one who typed the most when no line was typed by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchHandTypedWeights).mockResolvedValue({
+    kind: "ok",
+    value: scaleWeightsReport,
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(
+      screen.getByRole("table", { name: "Pesos tipeados a mano por cajero" }).getByText("Ana"),
+    )
+    .toBeVisible();
+  expect(screen.getByText("—", { exact: true }).elements()).toHaveLength(1);
+  expect(screen.getByText("0 líneas").query()).toBeNull();
 });
 
 test("shows the cashiers under their own heading, before the sessions", async () => {
@@ -237,9 +256,8 @@ test("says nothing was weighed in the period, with no cashier, when there are no
 
   const screen = await renderScreen(services);
 
-  await expect
-    .element(screen.getByText("No hay productos pesados en este período").first())
-    .toBeVisible();
+  await expect.element(screen.getByText("No hay productos pesados en este período")).toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
   expect(screen.getByText("—", { exact: true }).elements()).toHaveLength(1);
 });
 
@@ -255,8 +273,9 @@ test("says the register weighed nothing in the period when one is chosen and non
   });
 
   await expect
-    .element(screen.getByText("No hay productos pesados en esta caja en este período").first())
+    .element(screen.getByText("No hay productos pesados en esta caja en este período"))
     .toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
 });
 
 test("shows a failed load with a retry that loads the report again", async () => {
