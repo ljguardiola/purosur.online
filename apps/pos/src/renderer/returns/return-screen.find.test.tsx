@@ -115,6 +115,7 @@ describe("ReturnScreen asking for the customer's ticket", () => {
       { kind: "needs_connection" },
       "Se necesita conexión a internet para buscar una venta de otra caja.",
     ],
+    [{ kind: "lookup_failed" }, "No se pudo buscar la venta en las otras cajas"],
     [{ kind: "voided" }, "Esa venta está anulada: no se puede devolver."],
     [{ kind: "unavailable" }, "No se pudo buscar la venta"],
   ] as const)(

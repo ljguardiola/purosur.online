@@ -10,6 +10,7 @@ import {
   awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
   outcomeToldToAskingRegister,
+  recordedRequestDocumentState,
   type TaxAuthorityEvidence,
   type TaxAuthorityVoucher,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
@@ -416,5 +417,30 @@ describe("a voucher type other than factura C", () => {
       authorizationCode: "75123456789012",
       authorizationCodeDueOn: "2026-10-11",
     });
+  });
+});
+
+describe("recordedRequestDocumentState", () => {
+  it.each<
+    [
+      RealTimeAuthorizationAnswer["kind"] | null,
+      UnclearOutcomeDecision["kind"] | null,
+      ReturnType<typeof recordedRequestDocumentState>,
+    ]
+  >([
+    ["authorized", null, "AUTHORIZED"],
+    ["unclear", "adopted", "AUTHORIZED"],
+    ["not_attempted", "adopted", "AUTHORIZED"],
+    [null, "adopted", "AUTHORIZED"],
+    [null, null, "REQUESTING"],
+    ["rejected", null, "REJECTED"],
+    ["unclear", null, "UNKNOWN"],
+    ["not_attempted", null, "UNKNOWN"],
+    ["unclear", "released", "RELEASED"],
+    [null, "released", "RELEASED"],
+    ["unclear", "conflicting", "CONFLICTING"],
+    [null, "conflicting", "CONFLICTING"],
+  ])("stands a request answered %s and decided %s as %s", (answer, decision, state) => {
+    expect(recordedRequestDocumentState({ answer, decision })).toBe(state);
   });
 });

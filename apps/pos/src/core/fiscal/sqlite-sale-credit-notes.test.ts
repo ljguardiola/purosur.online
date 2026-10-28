@@ -658,7 +658,6 @@ describe("the invoice standing of a sale another register rang up", () => {
       },
       invoiceStanding,
       ticket: { kind: "invoice", pointOfSale: 4, number: 88 },
-      goodConditionReturnDays: 15,
       countedReturnIds: [],
     });
   }
@@ -746,7 +745,6 @@ describe("asking the branch again for the invoice of a sale another register ran
       },
       invoiceStanding: invoiceStanding as typeof INVOICED,
       ticket: TICKET,
-      goodConditionReturnDays: 15,
       countedReturnIds: [],
     };
   }
@@ -770,7 +768,6 @@ describe("asking the branch again for the invoice of a sale another register ran
     answer = {
       kind: "found",
       ...facts(INVOICED),
-      goodConditionReturnDays: 30,
       countedReturnIds: ["return-cloud"],
     };
 
@@ -782,7 +779,6 @@ describe("asking the branch again for the invoice of a sale another register ran
     expect(readRetainedBranchSale(database, "sale-elsewhere")).toMatchObject({
       invoiceStanding: INVOICED,
       ticket: TICKET,
-      goodConditionReturnDays: 30,
       countedReturnIds: ["return-cloud"],
     });
     await expect(creditNotes.saleInvoiceStanding("sale-elsewhere")).resolves.toEqual(INVOICED);
@@ -811,11 +807,14 @@ describe("asking the branch again for the invoice of a sale another register ran
     expect(asked).toEqual([]);
   });
 
-  it("asks nothing for a sale the register holds itself", async () => {
-    insertCompletedSale(database, "sale-1");
+  it("asks nothing for a sale the register holds itself, even when it kept a copy of it", async () => {
+    insertCompletedSale(database, "sale-elsewhere");
+    keepCopy(ON_ITS_WAY);
     answer = { kind: "found", ...facts(INVOICED) };
 
-    await expect(refreshing().refreshBranchSaleInvoiceStanding("sale-1")).resolves.toBeUndefined();
+    await expect(
+      refreshing().refreshBranchSaleInvoiceStanding("sale-elsewhere"),
+    ).resolves.toBeUndefined();
 
     expect(asked).toEqual([]);
   });

@@ -44,7 +44,6 @@ function foundThroughCloud(
     kind: "found",
     sale: otherRegisterSale(),
     invoiceStanding: INVOICE_STANDING,
-    goodConditionReturnDays: 15,
     countedReturnIds: [],
     ...overrides,
   } satisfies BranchSaleLookupAnswer;
@@ -112,8 +111,10 @@ describe("findBranchSaleForReturn", () => {
       expect(lookup.asked).toEqual([OTHER_REGISTER_INVOICE]);
     });
 
-    it("finds the sale of another register of the branch with the cloud's good condition days", async () => {
-      const { outcome } = find({ ...foundThroughCloud(), goodConditionReturnDays: 30 });
+    it("finds the sale of another register of the branch, open for this branch's change-of-mind days", async () => {
+      const { outcome } = find(foundThroughCloud(), {
+        ledger: new FakeReturnLedger({ sales: [aSaleForReturn()], goodConditionReturnDays: 30 }),
+      });
 
       expect(await outcome).toMatchObject({
         kind: "found",
@@ -137,7 +138,6 @@ describe("findBranchSaleForReturn", () => {
           sale: found.sale,
           invoiceStanding: INVOICE_STANDING,
           ticket: OTHER_REGISTER_INVOICE,
-          goodConditionReturnDays: 15,
           countedReturnIds: ["return-cloud"],
         },
       ]);
@@ -215,6 +215,13 @@ describe("findBranchSaleForReturn", () => {
       const { outcome, retained } = find({ kind: "unreachable" });
 
       expect(await outcome).toEqual({ kind: "needs_connection" });
+      expect(retained.kept).toEqual([]);
+    });
+
+    it("answers that the lookup failed when the cloud was reached but could not answer with the sale", async () => {
+      const { outcome, retained } = find({ kind: "failed" });
+
+      expect(await outcome).toEqual({ kind: "lookup_failed" });
       expect(retained.kept).toEqual([]);
     });
 

@@ -61,7 +61,6 @@ const ANSWER = {
     },
   ],
   returned: [{ sale_line_id: "line-1", quantity: 1, refunded_amount: 2500 }],
-  good_condition_return_days: 15,
   counted_return_ids: ["return-1"],
 };
 
@@ -176,7 +175,6 @@ describe("finding a sale of another register of the branch in the cloud", () => 
         ],
         deferralPending: true,
       },
-      goodConditionReturnDays: 15,
       countedReturnIds: ["return-1"],
     });
   });
@@ -226,12 +224,8 @@ describe("finding a sale of another register of the branch in the cloud", () => 
   it.each([
     ["the cloud is unreachable", { kind: "unreachable" } satisfies CloudResponse],
     [
-      "the cloud refuses for another reason",
+      "the cloud is unavailable for a while",
       { kind: "error", error: cloudError("server_unavailable", "down") } satisfies CloudResponse,
-    ],
-    [
-      "the cloud answers a body that is not a sale",
-      { kind: "ok", body: { sale: 1 } } satisfies CloudResponse,
     ],
   ])("answers unreachable when %s", async (_name, response) => {
     const { lookup } = lookupWith(response);
@@ -239,10 +233,32 @@ describe("finding a sale of another register of the branch in the cloud", () => 
     expect(await lookup.saleForReturn(INVOICE)).toEqual({ kind: "unreachable" });
   });
 
-  it("answers unreachable, asking nothing, when the register has no device token", async () => {
+  it.each([
+    [
+      "the cloud refuses the device",
+      {
+        kind: "error",
+        error: cloudError("device_token_rejected", "unknown token"),
+      } satisfies CloudResponse,
+    ],
+    [
+      "the cloud fails on its own side",
+      { kind: "error", error: cloudError("internal_error", "broken") } satisfies CloudResponse,
+    ],
+    [
+      "the cloud answers a body that is not a sale",
+      { kind: "ok", body: { sale: 1 } } satisfies CloudResponse,
+    ],
+  ])("answers failed when %s", async (_name, response) => {
+    const { lookup } = lookupWith(response);
+
+    expect(await lookup.saleForReturn(INVOICE)).toEqual({ kind: "failed" });
+  });
+
+  it("answers failed, asking nothing, when the register has no device token", async () => {
     const { gets, lookup } = lookupWith({ kind: "ok", body: ANSWER }, null);
 
-    expect(await lookup.saleForReturn(INVOICE)).toEqual({ kind: "unreachable" });
+    expect(await lookup.saleForReturn(INVOICE)).toEqual({ kind: "failed" });
     expect(gets).toEqual([]);
   });
 });

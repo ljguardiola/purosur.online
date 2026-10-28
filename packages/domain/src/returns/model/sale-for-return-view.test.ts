@@ -107,6 +107,25 @@ describe("saleForReturnOutcome", () => {
     });
   });
 
+  it("totals what the lines charged once the sale's discount was spread over them", () => {
+    const discounted = facts();
+    discounted.sale.saleDiscount = {
+      kind: "AMOUNT",
+      amount: 1000,
+      reason: "cliente frecuente",
+      authorizedBy: null,
+    };
+    const shares = [652, 348];
+    discounted.sale.lines = discounted.sale.lines.map((line, position) => ({
+      ...line,
+      lineTotal: line.lineTotal - (shares[position] ?? 0),
+    }));
+
+    const outcome = saleForReturnOutcome(discounted, 15, NOW, FIXED_ARGENTINA_ZONE_RULES);
+
+    expect(outcome.kind === "found" && outcome.sale.total).toBe(10_500);
+  });
+
   it("follows the good condition days it is given", () => {
     const outcome = saleForReturnOutcome(facts(), 30, NOW, FIXED_ARGENTINA_ZONE_RULES);
 

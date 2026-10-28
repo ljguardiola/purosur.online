@@ -185,7 +185,6 @@ const BRANCH_SALE: Extract<BranchSaleLookupAnswer, { kind: "found" }> = {
     ],
     deferralPending: false,
   },
-  goodConditionReturnDays: 15,
   countedReturnIds: [],
 };
 
@@ -316,7 +315,6 @@ describe("finding the sale to return", () => {
       sale: BRANCH_SALE.sale,
       invoiceStanding: BRANCH_SALE.invoiceStanding,
       ticket: BRANCH_SALE_TICKET,
-      goodConditionReturnDays: 15,
       countedReturnIds: [],
     });
   });

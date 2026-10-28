@@ -3,10 +3,12 @@ import type { OutboxEventDraft } from "../../shared/index.js";
 import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import type { FiscalOnlineSignalEvidence } from "./fiscal-online-signal.js";
 import type { OfflineCreditNote } from "./offline-fiscal-document.js";
+import type { FiscalDocumentState } from "./real-time-authorization.js";
 import type { CorrectedInvoice } from "./sale-credit-note.js";
 import {
   type CreditNoteRecorder,
   type CreditNoteRoutingFacts,
+  isCreditNoteRoutingInvoice,
   isInvoiceOnItsWay,
   issueOfflineSaleCreditNote,
   type OfflineCreditNoteClockMark,
@@ -256,6 +258,27 @@ describe("isInvoiceOnItsWay", () => {
     ["an authorized invoice", [document("AUTHORIZED")]],
   ])("is false for %s that is not deferred", (_case, fiscalDocuments) => {
     expect(isInvoiceOnItsWay({ fiscalDocuments, deferralPending: false })).toBe(false);
+  });
+});
+
+describe("isCreditNoteRoutingInvoice", () => {
+  it.each<[FiscalDocumentState, boolean]>([
+    ["AUTHORIZED", true],
+    ["REQUESTING", true],
+    ["UNKNOWN", false],
+    ["REJECTED", false],
+    ["RELEASED", false],
+    ["CONFLICTING", false],
+  ])("is %s an invoice a credit note is routed by: %s", (state, routing) => {
+    expect(
+      isCreditNoteRoutingInvoice({
+        origin: "real_time",
+        state,
+        pointOfSale: 3,
+        number: 1204,
+        buyerTaxStatusCode: 5,
+      }),
+    ).toBe(routing);
   });
 });
 

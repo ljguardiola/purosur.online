@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
+import { SqliteRetainedBranchSales } from "../returns/sqlite-retained-branch-sales";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { CHAIN_KEY, outboxEventDraft } from "../sync/test-support/sqlite-local-outbox";
 import {
@@ -966,6 +967,7 @@ describe("catching up the deferred sales, as the register's health is checked", 
       unclear?: () => Promise<Response>;
       authorize?: () => Promise<Response>;
       creditNote?: () => Promise<Response>;
+      branchSale?: () => Promise<Response>;
     } = {},
     failures: unknown[] = [],
     readOutboxChainKey: () => Promise<string | undefined> = async () => CHAIN_KEY,
@@ -980,6 +982,9 @@ describe("catching up the deferred sales, as the register's health is checked", 
       }
       if (path === "/api/fiscal/credit-notes") {
         return (answers.creditNote ?? (async () => json({ state: "IN_PROGRESS" })))();
+      }
+      if (path === "/api/devices/current/returns/sale" && answers.branchSale !== undefined) {
+        return answers.branchSale();
       }
       return healthy();
     });
@@ -1115,6 +1120,101 @@ describe("catching up the deferred sales, as the register's health is checked", 
     expect(
       database.prepare("SELECT id, state, corrected_number FROM sale_credit_notes").all(),
     ).toEqual([{ id: "note-1", state: "AUTHORIZED", corrected_number: 101 }]);
+  });
+
+  it("asks the branch again for the invoice of a sale another register rang up, then asks for the credit note of its return, correcting that invoice", async () => {
+    new SqliteRetainedBranchSales(database).keep({
+      sale: {
+        sale: {
+          id: "sale-elsewhere",
+          registerId: "register-2",
+          deviceId: "device-2",
+          sessionId: "session-2",
+          actorId: "u1",
+          state: "COMPLETED",
+          saleDiscount: null,
+          lines: [],
+        },
+        occurredAt: new Date("2026-09-30T11:00:00.000Z"),
+        invoice: null,
+        payments: [],
+        returned: [],
+      },
+      invoiceStanding: { fiscalDocuments: [], deferralPending: true },
+      ticket: { kind: "deferred", id: "deferred-9", shortCode: "7KQ4M2P9" },
+      countedReturnIds: [],
+    });
+    database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-elsewhere', 'register-1', 'device-a', 'session-1', 'u1', 'QR', '2026-09-30T12:20:00.000Z')`,
+      )
+      .run();
+    appendOutboxEvent(database, CHAIN_KEY, {
+      ...outboxEventDraft(7),
+      aggregate_type: "Return",
+      aggregate_id: "return-1",
+      event_type: "sale_returned",
+      schema_version: 2,
+      payload: { id: "return-1", sale_id: "sale-elsewhere" },
+    });
+    insertPendingCreditNote(database, {
+      creditNoteId: "note-1",
+      saleId: "sale-elsewhere",
+      total: 3000,
+      receiverTaxStatusCode: null,
+      correctedVoucher: null,
+      origin: { kind: "sale_return", returnId: "return-1", issuedOn: "2026-09-30" },
+    });
+    const { sent, tick } = ticking({
+      branchSale: async () =>
+        json({
+          sale: {
+            id: "sale-elsewhere",
+            register_id: "register-2",
+            device_id: "device-2",
+            session_id: "session-2",
+            actor_id: "u1",
+            state: "COMPLETED",
+            sale_discount: null,
+            lines: [],
+          },
+          occurred_at: "2026-09-30T11:00:00.000Z",
+          invoice: { point_of_sale: 4, number: 88 },
+          invoice_standing: {
+            fiscal_documents: [
+              {
+                origin: "real_time",
+                state: "AUTHORIZED",
+                point_of_sale: 4,
+                number: 88,
+                buyer_tax_status_code: 5,
+              },
+            ],
+            deferral_pending: false,
+          },
+          payments: [],
+          returned: [],
+          counted_return_ids: [],
+        }),
+    });
+
+    await tick();
+
+    expect(sent.map(({ path }) => path)).toEqual([
+      "/api/health",
+      "/api/devices/current/returns/sale",
+      "/api/fiscal/credit-notes",
+    ]);
+    expect(
+      database
+        .prepare(
+          "SELECT id, state, corrected_point_of_sale, corrected_number FROM sale_credit_notes",
+        )
+        .all(),
+    ).toEqual([
+      { id: "note-1", state: "IN_PROGRESS", corrected_point_of_sale: 4, corrected_number: 88 },
+    ]);
   });
 
   it("reports a failure of the catch-up without ending the tick", async () => {

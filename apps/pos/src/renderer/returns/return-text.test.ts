@@ -56,6 +56,13 @@ describe("the refusal of finding the sale", () => {
     });
   });
 
+  it("says looking for a sale of another register failed", () => {
+    expect(findRefusalText("lookup_failed")).toEqual({
+      title: "No se pudo buscar la venta en las otras cajas",
+      description: "Probá de nuevo.",
+    });
+  });
+
   it("says a voided sale cannot be returned", () => {
     expect(findRefusalText("voided")).toEqual({
       title: "Esa venta está anulada: no se puede devolver.",

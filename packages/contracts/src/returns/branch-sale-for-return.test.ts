@@ -95,7 +95,6 @@ const answer = {
     },
   ],
   returned: [{ sale_line_id: "line-1", quantity: 1, refunded_amount: 2500 }],
-  good_condition_return_days: 15,
   counted_return_ids: ["return-1"],
 };
 
@@ -175,7 +174,6 @@ describe("branchSaleForReturnAnswerSchema", () => {
     ["an open sale", { ...answer, sale: { ...answer.sale, state: "OPEN" } }],
     ["a cancelled sale", { ...answer, sale: { ...answer.sale, state: "CANCELLED" } }],
     ["a date that is not a date", { ...answer, occurred_at: "yesterday" }],
-    ["a negative good condition days", { ...answer, good_condition_return_days: -1 }],
     [
       "an unknown sale unit",
       {

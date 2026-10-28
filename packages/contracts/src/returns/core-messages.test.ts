@@ -482,4 +482,14 @@ describe("the outcome of finding the sale to return", () => {
 
     expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
+
+  it("tells the renderer that looking for a sale of another register failed", () => {
+    const message = {
+      type: "find-sale-for-return-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "lookup_failed" },
+    };
+
+    expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
 });

@@ -53,7 +53,6 @@ const FACTS: KeptBranchSale = {
     ],
     deferralPending: true,
   },
-  goodConditionReturnDays: 15,
   countedReturnIds: ["return-1"],
 };
 
@@ -84,12 +83,10 @@ describe("the copy of a branch sale the cloud answered", () => {
 
     retained.keep({
       ...FACTS,
-      goodConditionReturnDays: 30,
       countedReturnIds: ["return-1", "return-2"],
     });
 
     expect(readRetainedBranchSale(database, "sale-9")).toMatchObject({
-      goodConditionReturnDays: 30,
       countedReturnIds: ["return-1", "return-2"],
     });
     expect(

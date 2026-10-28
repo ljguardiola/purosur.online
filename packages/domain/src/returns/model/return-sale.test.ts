@@ -73,16 +73,14 @@ describe("returnSaleLines", () => {
     ]);
   });
 
-  it("charges each line what it paid after its share of the sale's discount", () => {
-    const discounted = sale([line(), line({ id: "line-2", quantity: 1, lineTotal: 2500 })], {
-      kind: "AMOUNT",
-      amount: 1000,
-      reason: "cliente frecuente",
-      authorizedBy: null,
-    });
+  it("charges each line the total it settled at, its share of the sale's discount already taken", () => {
+    const discounted = sale(
+      [line({ lineTotal: 7500 - 751 }), line({ id: "line-2", quantity: 1, lineTotal: 2500 - 249 })],
+      { kind: "AMOUNT", amount: 1000, reason: "cliente frecuente", authorizedBy: null },
+    );
 
     expect(returnSaleLines({ sale: discounted, returned: [] }).map((l) => l.chargedAmount)).toEqual(
-      [7500 - 750, 2500 - 250],
+      [7500 - 751, 2500 - 249],
     );
   });
 

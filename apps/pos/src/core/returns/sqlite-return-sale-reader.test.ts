@@ -46,6 +46,20 @@ describe("the sale a return starts from", () => {
     ]);
   });
 
+  it("charges each line the share of the sale's discount the sale spread over it, in the order it rang the lines up", () => {
+    database.exec(
+      `UPDATE sales SET sale_discount_kind = 'AMOUNT', sale_discount_value = 1000,
+         sale_discount_reason = 'cliente frecuente' WHERE id = 'sale-1'`,
+    );
+
+    const found = reader.saleForReturn({ kind: "sale", saleId: "sale-1" });
+
+    expect(found?.sale.lines.map(({ id, lineTotal }) => ({ id, lineTotal }))).toEqual([
+      { id: "line-1", lineTotal: 7500 - 652 },
+      { id: "line-2", lineTotal: 4000 - 348 },
+    ]);
+  });
+
   it("is none for a sale the register does not hold", () => {
     expect(reader.saleForReturn({ kind: "sale", saleId: "missing" })).toBeUndefined();
   });
@@ -224,7 +238,6 @@ describe("the sale of another register a return starts from", () => {
       returned: [{ saleLineId: "line-elsewhere", quantity: 1, refundedAmount: 2500 }],
     },
     invoiceStanding: { fiscalDocuments: [], deferralPending: false },
-    goodConditionReturnDays: 15,
     countedReturnIds: ["return-counted"],
   };
 

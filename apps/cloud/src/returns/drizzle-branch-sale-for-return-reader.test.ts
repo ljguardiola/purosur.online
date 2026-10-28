@@ -3,11 +3,12 @@ import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied
 import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertDeferredSaleTaskRow } from "../fiscal/test-support/deferred-sale-fixtures.js";
 import {
-  branchSettings,
   categories,
   deferredSales,
   fiscalRequests,
+  type fiscalTasks,
   locations,
   offlineFiscalDocuments,
   paymentRefunds,
@@ -201,7 +202,6 @@ describe("reading a sale of the branch to return it from another register", () =
         ],
         deferralPending: false,
       },
-      goodConditionReturnDays: 15,
       countedReturnIds: [],
     });
   });
@@ -235,19 +235,6 @@ describe("reading a sale of the branch to return it from another register", () =
       reason: "cliente frecuente",
       authorizedBy: null,
     });
-  });
-
-  it("holds the days the branch accepts a change of mind", async () => {
-    const { asking, selling, completed } = await setUp();
-    await authorizeInvoice(selling.registerId, completed.id);
-    await system.db
-      .update(branchSettings)
-      .set({ goodConditionReturnDays: 7 })
-      .where(eq(branchSettings.locationId, asking.locationId));
-
-    const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
-
-    expect(found?.goodConditionReturnDays).toBe(7);
   });
 
   describe("finding the sale by its ticket", () => {
@@ -492,7 +479,7 @@ describe("reading a sale of the branch to return it from another register", () =
       });
     });
 
-    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>]>([
+    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>, string]>([
       [
         "a rejected invoice",
         {
@@ -502,6 +489,7 @@ describe("reading a sale of the branch to return it from another register", () =
           rejectionCodes: [10015],
           rejectionClass: "content",
         },
+        "REJECTED",
       ],
       [
         "an invoice left unclear",
@@ -511,8 +499,9 @@ describe("reading a sale of the branch to return it from another register", () =
           authorizationCodeDueOn: null,
           unclearCodes: [],
         },
+        "UNKNOWN",
       ],
-    ])("holds no invoice for %s", async (_name, columns) => {
+    ])("holds %s in the state it stands at", async (_name, columns, state) => {
       const { asking, selling, completed } = await setUp();
       await authorizeInvoice(selling.registerId, completed.id, columns);
       const ticket = await deferTicket(selling, completed.id, {
@@ -522,12 +511,11 @@ describe("reading a sale of the branch to return it from another register", () =
 
       const found = await reader().saleForReturnInBranchOf(asking.registerId, ticket);
 
-      expect(found?.invoiceStanding.fiscalDocuments).toEqual([]);
+      expect(found?.invoiceStanding.fiscalDocuments).toMatchObject([{ number: 42, state }]);
     });
 
     it.each<[string, Partial<typeof deferredSales.$inferInsert>, boolean]>([
       ["pending", {}, true],
-      ["expired", { state: "expired", expiredAt: COMPLETED_AT }, true],
       ["satisfied", { state: "satisfied", satisfiedAt: COMPLETED_AT }, false],
       ["cancelled", { state: "cancelled", cancelledAt: COMPLETED_AT }, false],
     ])("holds a %s deferral as pending or not", async (_name, columns, pending) => {
@@ -538,6 +526,29 @@ describe("reading a sale of the branch to return it from another register", () =
 
       expect(found?.invoiceStanding).toEqual({ fiscalDocuments: [], deferralPending: pending });
     });
+
+    it.each<[string, Pick<typeof fiscalTasks.$inferInsert, "state" | "closedAt">, boolean]>([
+      ["still open", { state: "open" }, true],
+      ["already closed", { state: "closed", closedAt: RETURNED_AT }, false],
+    ])(
+      "holds an expired deferral whose regularization is %s as pending or not",
+      async (_name, task, pending) => {
+        const { asking, selling, completed } = await setUp();
+        const ticket = await deferTicket(selling, completed.id, {
+          state: "expired",
+          expiredAt: COMPLETED_AT,
+        });
+        await insertDeferredSaleTaskRow(system.db, {
+          registerId: selling.registerId,
+          deferredSaleId: ticket.id,
+          ...task,
+        });
+
+        const found = await reader().saleForReturnInBranchOf(asking.registerId, ticket);
+
+        expect(found?.invoiceStanding.deferralPending).toBe(pending);
+      },
+    );
   });
 
   describe("only within the asking register's branch", () => {
