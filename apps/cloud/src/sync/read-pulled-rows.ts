@@ -35,6 +35,7 @@ import {
   roles,
   stockMovements,
   tags,
+  brands,
   taxAuthorityLastAuthorizedNumbers,
   userPins,
   userRoles,
@@ -65,6 +66,7 @@ import type {
   RoleRow,
   StockMovementRow,
   TagRow,
+  BrandRow,
   UserRow,
   ZoneRulesRow,
 } from "./pulled-changes.js";
@@ -197,6 +199,21 @@ export async function readTags<TQueryResult extends PgQueryResultHKT>(
     .from(tags)
     .where(inArray(tags.id, [...ids]))
     .orderBy(asc(tags.id));
+  return new Map(rows.map(({ id, ...row }) => [id, row]));
+}
+
+export async function readBrands<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, BrandRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({ id: brands.id, name: brands.name, active: brands.active, version: brands.version })
+    .from(brands)
+    .where(inArray(brands.id, [...ids]))
+    .orderBy(asc(brands.id));
   return new Map(rows.map(({ id, ...row }) => [id, row]));
 }
 
