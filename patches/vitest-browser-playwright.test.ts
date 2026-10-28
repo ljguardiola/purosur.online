@@ -27,8 +27,6 @@ afterEach(async () => {
   await new Promise((resolve) => neverAnswers.close(resolve));
 });
 
-// The image keeps the page's load event from ever firing; its own tests still run in a frame of
-// their own, so the run ends as soon as they do.
 test("a browser run ends once its files finish, even when the runner page never finishes loading", {
   timeout: 120_000,
 }, async () => {
