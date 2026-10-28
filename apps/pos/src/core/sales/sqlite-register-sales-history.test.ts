@@ -694,10 +694,11 @@ describe("SqliteRegisterSalesHistory", () => {
                 ('return-2', 'sale-1', 'r1', 'device-1', 'open-session', 'u1', 'TYPED', '2026-10-08T13:30:00.000Z');
          INSERT INTO sale_credit_notes (
            id, sale_id, return_id, requested_issue_on, total, receiver_tax_status_code,
-           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at
+           corrected_voucher_type, corrected_point_of_sale, corrected_number, state, recorded_at,
+           answered_at
          ) VALUES
-           ('note-of-return-2', 'sale-1', 'return-2', '2026-10-08', 300, 5, 11, 7, 1204, 'REJECTED', '2026-10-08T13:30:00.000Z'),
-           ('note-of-return-1', 'sale-1', 'return-1', '2026-10-08', 500, 5, 11, 7, 1204, 'IN_PROGRESS', '2026-10-08T13:00:00.000Z');`,
+           ('note-of-return-2', 'sale-1', 'return-2', '2026-10-08', 300, 5, 11, 7, 1204, 'REJECTED', '2026-10-08T13:30:00.000Z', '2026-10-08T13:30:05.000Z'),
+           ('note-of-return-1', 'sale-1', 'return-1', '2026-10-08', 500, 5, 11, 7, 1204, 'IN_PROGRESS', '2026-10-08T13:00:00.000Z', NULL);`,
       );
 
       expect(history.saleOfRegister("sale-1")?.creditNotes).toEqual([
@@ -712,9 +713,9 @@ describe("SqliteRegisterSalesHistory", () => {
       database.exec(
         `INSERT INTO sale_credit_notes (
            id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
-           corrected_point_of_sale, corrected_number, state, recorded_at
+           corrected_point_of_sale, corrected_number, state, recorded_at, answered_at
          ) VALUES (
-           'note-of-void', 'sale-1', 4500, 5, 11, 7, 1204, 'REGULARIZATION_REQUIRED', '2026-10-08T14:00:00.000Z'
+           'note-of-void', 'sale-1', 4500, 5, 11, 7, 1204, 'REGULARIZATION_REQUIRED', '2026-10-08T14:00:00.000Z', '2026-10-08T14:00:05.000Z'
          )`,
       );
 

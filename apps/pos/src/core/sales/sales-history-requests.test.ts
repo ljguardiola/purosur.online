@@ -777,7 +777,7 @@ describe("the detail of a sale of the history", () => {
       ).toEqual([{ kind: "duplicate", order_number: 2 }, { kind: "original" }]);
     });
 
-    it("lists the void's credit note first and the credit notes of the returns after it", async () => {
+    it("lists the credit notes of a return and of the void in the order they were recorded, each with its origin", async () => {
       addSaleWithReturns();
       database
         .prepare(
