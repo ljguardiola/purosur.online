@@ -151,6 +151,7 @@ describe("GET /initial-inventory-lots", () => {
           costIncomplete: false,
           unitCostCents: 3_500,
           valueCents: 8_750,
+          supplierPrices: [],
         },
         {
           lotId: unknown.lotId,
@@ -165,6 +166,63 @@ describe("GET /initial-inventory-lots", () => {
           costIncomplete: true,
           unitCostCents: null,
           valueCents: null,
+          supplierPrices: [],
+        },
+      ],
+    });
+  });
+
+  it("offers with each lot the prices loaded for its product, cheapest first, marking the one its cost equals", async () => {
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["record_initial_inventory"],
+      NOW,
+    );
+    const { productId } = await insertProduct(db);
+    const { lotId } = await insertInitialCountLot(db, { productId, locationId, actorId: userId });
+    const cheap = await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId: userId,
+      supplierName: "Alfa",
+      packagingName: "Caja x 3",
+      priceCents: 1_000,
+      quantityPerPackage: 3_000,
+      listDate: "2026-04-01",
+    });
+    const dear = await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId: userId,
+      supplierName: "Beta",
+      packagingName: "Bolsa",
+      priceCents: 900,
+      listDate: "2026-03-01",
+    });
+    await setCostRequest(headers, lotId, { supplierItemId: cheap.supplierItemId });
+
+    const response = await listRequest(headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().lots[0]).toMatchObject({
+      costIncomplete: false,
+      unitCostCents: 333,
+      supplierPrices: [
+        {
+          supplierItemId: cheap.supplierItemId,
+          supplierName: "Alfa",
+          packagingName: "Caja x 3",
+          listDate: "2026-04-01",
+          unitCostCents: 333,
+          cheapest: true,
+          current: true,
+        },
+        {
+          supplierItemId: dear.supplierItemId,
+          supplierName: "Beta",
+          packagingName: "Bolsa",
+          listDate: "2026-03-01",
+          unitCostCents: 900,
+          cheapest: false,
+          current: false,
         },
       ],
     });

@@ -19,6 +19,17 @@ const LOT = {
   costIncomplete: false,
   unitCostCents: 3_500,
   valueCents: 8_750,
+  supplierPrices: [],
+};
+
+const SUPPLIER_PRICE = {
+  supplierItemId: "33333333-3333-4333-8333-333333333333",
+  supplierName: "Distribuidora Sur",
+  packagingName: "Caja x 10",
+  listDate: "2026-03-01",
+  unitCostCents: 3_500,
+  cheapest: true,
+  current: false,
 };
 
 describe("initialInventoryLotsQuerySchema", () => {
@@ -70,6 +81,33 @@ describe("initialInventoryLotListSchema", () => {
     expect(initialInventoryLotListSchema.parse({ lots: [withdrawn] })).toEqual({
       lots: [withdrawn],
     });
+  });
+
+  it("accepts the loaded supplier prices of the lot's product", () => {
+    const lot = {
+      ...LOT,
+      supplierPrices: [SUPPLIER_PRICE, { ...SUPPLIER_PRICE, cheapest: false }],
+    };
+
+    expect(initialInventoryLotListSchema.parse({ lots: [lot] })).toEqual({ lots: [lot] });
+  });
+
+  it.each([
+    ["no supplier prices field", { supplierPrices: undefined }],
+    ["a fractional unit cost", { unitCostCents: 3_500.5 }],
+    ["a list date that is no calendar day", { listDate: "2026-02-30" }],
+    ["no cheapest mark", { cheapest: undefined }],
+    ["no current mark", { current: undefined }],
+    ["no supplier name", { supplierName: undefined }],
+    ["no packaging name", { packagingName: undefined }],
+    ["no supplier item", { supplierItemId: undefined }],
+  ])("refuses a lot with %s", (_case, override) => {
+    const supplierPrices =
+      "supplierPrices" in override ? undefined : [{ ...SUPPLIER_PRICE, ...override }];
+
+    expect(
+      initialInventoryLotListSchema.safeParse({ lots: [{ ...LOT, supplierPrices }] }).success,
+    ).toBe(false);
   });
 
   it("accepts a lot that never expires", () => {
