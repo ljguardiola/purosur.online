@@ -1,22 +1,21 @@
-import { newestPrice, priceReviewAt, type SaleUnit } from "@purosur/domain";
+import { priceReviewAt, type SaleUnit } from "@purosur/domain";
 import type {
-  CurrentPrice,
   PriceReviewCategory,
   PriceReviewReader,
   PricesUnderReview,
   PricesUnderReviewQuery,
   PriceUnderReview,
 } from "@purosur/domain/pricing/use-cases";
-import { and, desc, eq, isNull, max, sql } from "drizzle-orm";
-import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { and, desc, eq, isNull } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   branchSettings,
   categories,
   priceReviewPostponements,
   priceReviews,
-  prices,
   products,
 } from "../platform/db/schema.js";
+import { newestPricesOfList } from "./newest-prices-of-list.js";
 
 interface CategoryTreeRow {
   id: string;
@@ -87,40 +86,11 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       .innerJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(products.active, true));
 
-    const every = alias(prices, "every_price");
-    const newestPrices = this.db
-      .select({
-        id: prices.id,
-        unitPrice: prices.unitPrice,
-        validFrom: prices.validFrom,
-      })
-      .from(prices)
-      .where(
-        and(
-          eq(prices.productId, products.id),
-          eq(prices.priceListId, settings.priceListId),
-          eq(
-            prices.validFrom,
-            this.db
-              .select({ validFrom: max(every.validFrom) })
-              .from(every)
-              .where(
-                and(eq(every.productId, products.id), eq(every.priceListId, settings.priceListId)),
-              ),
-          ),
-        ),
-      )
-      .as("newest_prices");
-    const priceRows = await this.db
-      .select({
-        productId: products.id,
-        id: newestPrices.id,
-        unitPrice: newestPrices.unitPrice,
-        validFrom: newestPrices.validFrom,
-      })
-      .from(products)
-      .innerJoinLateral(newestPrices, sql`true`)
-      .where(eq(products.active, true));
+    const currentPriceByProductId = await newestPricesOfList(
+      this.db,
+      settings.priceListId,
+      "active-products",
+    );
 
     const latestReviewRows = await this.db
       .selectDistinctOn([priceReviews.productId], {
@@ -141,26 +111,6 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
         ),
       );
 
-    const pricesByProductId = new Map<string, typeof priceRows>();
-    for (const row of priceRows) {
-      const productPrices = pricesByProductId.get(row.productId);
-      if (productPrices) {
-        productPrices.push(row);
-      } else {
-        pricesByProductId.set(row.productId, [row]);
-      }
-    }
-    const currentPriceByProductId = new Map<string, CurrentPrice>();
-    for (const [productId, productPrices] of pricesByProductId) {
-      const current = newestPrice(productPrices);
-      if (current) {
-        currentPriceByProductId.set(productId, {
-          id: current.id,
-          unitPrice: current.unitPrice,
-          validFrom: current.validFrom,
-        });
-      }
-    }
     const lastReviewedAtByProductId = new Map<string, Date>(
       latestReviewRows.map((row) => [row.productId, row.reviewedAt]),
     );

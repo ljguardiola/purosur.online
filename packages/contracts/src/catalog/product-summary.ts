@@ -18,6 +18,11 @@ export const productSummarySchema = z.object({
   version: z.int(),
 });
 
-export const productListSchema = z.array(productSummarySchema);
+export const listedProductSchema = productSummarySchema.extend({
+  currentUnitPrice: z.int().nonnegative().nullable(),
+});
+
+export const productListSchema = z.array(listedProductSchema);
 
 export type ProductSummary = z.output<typeof productSummarySchema>;
+export type ListedProduct = z.output<typeof listedProductSchema>;
