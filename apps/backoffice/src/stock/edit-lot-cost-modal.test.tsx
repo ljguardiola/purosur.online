@@ -208,6 +208,14 @@ test("ends the session when saving finds it over", async () => {
   await expect.poll(() => vi.mocked(props.onSessionEnded).mock.calls.length).toBe(1);
 });
 
+function cardOf(screen: Awaited<ReturnType<typeof renderModal>>, name: string): HTMLElement {
+  const label = screen.getByRole("radio", { name }).element().closest("label");
+  if (!label) {
+    throw new Error(`no label for the card ${name}`);
+  }
+  return label;
+}
+
 const lotWithPrices = {
   ...initialLotAlmonds,
   costIncomplete: false,
@@ -227,7 +235,7 @@ test("offers the loaded prices instead of a typed cost, each with its supplier, 
     .element(dialog.getByText("$ 9.500,00 por kg · Lista del 01/03/2026 · La más barata"))
     .toBeVisible();
   await expect.element(dialog.getByText("$ 10.180,00 por kg · Lista del 15/02/2026")).toBeVisible();
-  expect(dialog.getByLabelText("Costo de referencia por kg").elements()).toHaveLength(0);
+  expect(dialog.getByRole("textbox").query()).toBeNull();
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -255,7 +263,7 @@ test("starts on the cheapest price when the lot's cost equals none, and saves an
   const screen = await renderModal(props);
 
   await expect.element(screen.getByRole("radio", { name: "Alfa · Caja x 10" })).toBeChecked();
-  await userEvent.click(screen.getByRole("radio", { name: "Beta · Bolsa" }));
+  await userEvent.click(cardOf(screen, "Beta · Bolsa"));
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
   await expect

@@ -292,6 +292,7 @@ const initialLots = {
       costIncomplete: false,
       unitCostCents: 1_018_000,
       valueCents: 4_479_200,
+      supplierPrices: [],
     },
   ],
 };

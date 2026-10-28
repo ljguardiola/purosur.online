@@ -153,6 +153,19 @@ describe("lotReferenceCostBodySchema", () => {
     });
   });
 
+  it.each([
+    ["not a number", "abc"],
+    ["not a number at all", Number.NaN],
+    ["missing", undefined],
+  ])("names the cost field when the cost is %s", (_case, unitCostCents) => {
+    const result = lotReferenceCostBodySchema.safeParse({ unitCostCents });
+
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["unitCostCents"],
+      message: "unitCostCents must be a positive whole number of cents",
+    });
+  });
+
   it("declares in its metadata the largest cost it accepts", () => {
     const [typedBody] = lotReferenceCostBodySchema.options;
     const unitCostCents = typedBody.shape.unitCostCents;
@@ -169,7 +182,6 @@ describe("lotReferenceCostBodySchema", () => {
   it.each([
     ["no id", ""],
     ["something that is no id", "not-an-id"],
-    ["a number", 5],
   ])(
     "refuses a supplier item given as %s, saying it must be a supplier item's id",
     (_case, supplierItemId) => {
