@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import type { SaleForReturn } from "./return-sale.js";
-import { type LocalReturnOfSale, withUncountedReturns } from "./uncounted-returns.js";
+import {
+  type LocalReturnOfSale,
+  withReturnsOfBranch,
+  withUncountedReturns,
+} from "./uncounted-returns.js";
 
 function facts(): SaleForReturn {
   return {
@@ -106,5 +110,102 @@ describe("withUncountedReturns", () => {
     withUncountedReturns(given, [], [localReturn()]);
 
     expect(given).toEqual(facts());
+  });
+});
+
+describe("withReturnsOfBranch", () => {
+  function heldHere(): SaleForReturn {
+    return {
+      ...facts(),
+      invoice: { pointOfSale: 3, number: 1204 },
+      payments: facts().payments.map((payment) => ({ ...payment, refundedAmount: 0 })),
+      returned: [],
+    };
+  }
+
+  function knownToBranch(): SaleForReturn {
+    return {
+      ...facts(),
+      invoice: null,
+      returned: [
+        { saleLineId: "line-1", quantity: 1, refundedAmount: 1000 },
+        { saleLineId: "line-2", quantity: 2, refundedAmount: 800 },
+      ],
+    };
+  }
+
+  it("counts what the branch already returned from each line", () => {
+    expect(withReturnsOfBranch(heldHere(), knownToBranch(), [], []).returned).toEqual([
+      { saleLineId: "line-1", quantity: 1, refundedAmount: 1000 },
+      { saleLineId: "line-2", quantity: 2, refundedAmount: 800 },
+    ]);
+  });
+
+  it("counts what the branch already refunded from each payment", () => {
+    expect(
+      withReturnsOfBranch(heldHere(), knownToBranch(), [], []).payments.map(
+        ({ id, refundedAmount }) => [id, refundedAmount],
+      ),
+    ).toEqual([
+      ["pay-cash", 1000],
+      ["pay-card", 0],
+    ]);
+  });
+
+  it("adds the returns this register made that the branch did not count", () => {
+    const outcome = withReturnsOfBranch(heldHere(), knownToBranch(), [], [localReturn()]);
+
+    expect(outcome.returned[0]).toEqual({ saleLineId: "line-1", quantity: 3, refundedAmount: 3000 });
+    expect(outcome.payments[0]?.refundedAmount).toBe(3000);
+  });
+
+  it("does not add a return of this register the branch already counted", () => {
+    const outcome = withReturnsOfBranch(
+      heldHere(),
+      knownToBranch(),
+      ["return-local"],
+      [localReturn()],
+    );
+
+    expect(outcome.returned[0]).toEqual({ saleLineId: "line-1", quantity: 1, refundedAmount: 1000 });
+    expect(outcome.payments[0]?.refundedAmount).toBe(1000);
+  });
+
+  it("keeps the sale, its date, its invoice and its payments as this register holds them", () => {
+    const here = heldHere();
+    here.payments = here.payments.map((payment) =>
+      payment.id === "pay-cash" ? { ...payment, state: "PENDING" } : payment,
+    );
+
+    const outcome = withReturnsOfBranch(here, knownToBranch(), [], []);
+
+    expect(outcome.sale).toEqual(here.sale);
+    expect(outcome.occurredAt).toEqual(here.occurredAt);
+    expect(outcome.invoice).toEqual({ pointOfSale: 3, number: 1204 });
+    expect(outcome.payments.map(({ id, state }) => [id, state])).toEqual([
+      ["pay-cash", "PENDING"],
+      ["pay-card", "APPROVED"],
+    ]);
+  });
+
+  it("keeps what this register refunded from a payment the branch does not know", () => {
+    const here = heldHere();
+    here.payments = here.payments.map((payment) =>
+      payment.id === "pay-card" ? { ...payment, refundedAmount: 700 } : payment,
+    );
+    const branch = knownToBranch();
+    branch.payments = branch.payments.filter(({ id }) => id !== "pay-card");
+
+    expect(withReturnsOfBranch(here, branch, [], []).payments[1]?.refundedAmount).toBe(700);
+  });
+
+  it("does not change the facts it is given", () => {
+    const here = heldHere();
+    const branch = knownToBranch();
+
+    withReturnsOfBranch(here, branch, [], [localReturn()]);
+
+    expect(here).toEqual(heldHere());
+    expect(branch).toEqual(knownToBranch());
   });
 });
