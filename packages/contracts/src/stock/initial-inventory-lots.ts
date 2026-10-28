@@ -74,12 +74,7 @@ const suppliedLotReferenceCostSchema = z.object({
 
 export const lotReferenceCostBodySchema = z.union(
   [typedLotReferenceCostSchema, suppliedLotReferenceCostSchema],
-  {
-    error: ({ input }) =>
-      typeof input === "object" && input !== null && "supplierItemId" in input
-        ? SUPPLIER_ITEM_MESSAGE
-        : UNIT_COST_MESSAGE,
-  },
+  { error: SUPPLIER_ITEM_MESSAGE },
 );
 
 export type LotReferenceCostBody = z.input<typeof lotReferenceCostBodySchema>;
