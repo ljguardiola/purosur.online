@@ -8,6 +8,8 @@ import {
   initialLotAlmonds,
   initialLotHoney,
   initialLotWithdrawnStillHeld,
+  supplierPriceAlfa,
+  supplierPriceBeta,
 } from "./test-support/stock-fixtures";
 
 function createProps(overrides: Partial<EditLotCostModalProps> = {}): EditLotCostModalProps {
@@ -205,3 +207,86 @@ test("ends the session when saving finds it over", async () => {
 
   await expect.poll(() => vi.mocked(props.onSessionEnded).mock.calls.length).toBe(1);
 });
+
+const lotWithPrices = {
+  ...initialLotAlmonds,
+  costIncomplete: false,
+  supplierPrices: [
+    { ...supplierPriceAlfa, cheapest: true, current: false },
+    { ...supplierPriceBeta, cheapest: false, current: true },
+  ],
+};
+
+test("offers the loaded prices instead of a typed cost, each with its supplier, packaging, cost and list date", async () => {
+  const screen = await renderModal(createProps({ lot: lotWithPrices }));
+
+  const dialog = screen.getByRole("dialog", { name: "Almendras peladas" });
+  await expect.element(dialog.getByRole("radio", { name: "Alfa · Caja x 10" })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Beta · Bolsa" })).toBeVisible();
+  await expect
+    .element(dialog.getByText("$ 9.500,00 por kg · Lista del 01/03/2026 · La más barata"))
+    .toBeVisible();
+  await expect.element(dialog.getByText("$ 10.180,00 por kg · Lista del 15/02/2026")).toBeVisible();
+  expect(dialog.getByLabelText("Costo de referencia por kg").elements()).toHaveLength(0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("starts on the price the lot's cost already equals and saves it as the supplier item", async () => {
+  const props = createProps({ lot: lotWithPrices });
+  vi.mocked(props.services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal(props);
+
+  await expect.element(screen.getByRole("radio", { name: "Beta · Bolsa" })).toBeChecked();
+  await userEvent.click(screen.getByRole("button", { name: SAVE }));
+
+  await expect
+    .poll(() => vi.mocked(props.services.setLotReferenceCost).mock.lastCall)
+    .toEqual([initialLotAlmonds.lotId, { supplierItemId: supplierPriceBeta.supplierItemId }]);
+  await expect.poll(() => vi.mocked(props.onSaved).mock.lastCall).toEqual([lotWithPrices]);
+});
+
+test("starts on the cheapest price when the lot's cost equals none, and saves another chosen", async () => {
+  const lot = {
+    ...lotWithPrices,
+    supplierPrices: lotWithPrices.supplierPrices.map((price) => ({ ...price, current: false })),
+  };
+  const props = createProps({ lot });
+  vi.mocked(props.services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal(props);
+
+  await expect.element(screen.getByRole("radio", { name: "Alfa · Caja x 10" })).toBeChecked();
+  await userEvent.click(screen.getByRole("radio", { name: "Beta · Bolsa" }));
+  await userEvent.click(screen.getByRole("button", { name: SAVE }));
+
+  await expect
+    .poll(() => vi.mocked(props.services.setLotReferenceCost).mock.lastCall)
+    .toEqual([initialLotAlmonds.lotId, { supplierItemId: supplierPriceBeta.supplierItemId }]);
+});
+
+test.each([
+  [
+    { kind: "cost_chosen_from_supplier_prices" },
+    "Este producto ya tiene precios de proveedores",
+    "Cerrá y volvé a abrir el lote para elegir uno.",
+  ],
+  [
+    { kind: "supplier_price_not_found" },
+    "Ese precio ya no está disponible",
+    "Cerrá y volvé a abrir el lote para ver los precios cargados.",
+  ],
+] as const)(
+  "a save that ends %j shows %s and disables saving",
+  async (outcome, title, description) => {
+    const props = createProps();
+    vi.mocked(props.services.setLotReferenceCost).mockResolvedValue(outcome);
+    const screen = await renderModal(props);
+
+    await userEvent.fill(screen.getByLabelText("Costo de referencia por kg"), "100");
+    await userEvent.click(screen.getByRole("button", { name: SAVE }));
+
+    const dialog = screen.getByRole("dialog");
+    await expect.element(dialog.getByText(title)).toBeVisible();
+    await expect.element(dialog.getByText(description)).toBeVisible();
+    await expect.element(dialog.getByRole("button", { name: SAVE })).toBeDisabled();
+  },
+);
