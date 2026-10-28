@@ -2,9 +2,11 @@ import { CASH_MOVEMENT_KINDS, type CashMovementKind } from "@purosur/domain";
 import { readCreditNoteById, readCreditNoteOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleFiscalDocument } from "../fiscal/sqlite-sale-fiscal-document";
 import type { LocalDatabase } from "../platform/local-database";
+import { readRetainedBranchSale } from "../returns/sqlite-retained-branch-sales";
 import type {
   BackedDocument,
   ContingencyBackupTicketPrintout,
+  OriginalTicket,
   PrintedOperation,
 } from "./escpos-contingency-backup-ticket";
 
@@ -46,11 +48,25 @@ function operationNumberOf(database: LocalDatabase, saleId: string | null): numb
   );
 }
 
+function originalTicketOf(
+  database: LocalDatabase,
+  sale: { sale_id: string; operation_number: number | null },
+): OriginalTicket | null {
+  if (sale.operation_number !== null) {
+    return { kind: "operation_number", operationNumber: sale.operation_number };
+  }
+  const ticket = readRetainedBranchSale(database, sale.sale_id)?.ticket;
+  if (ticket === undefined) return null;
+  return ticket.kind === "invoice"
+    ? { kind: "invoice", pointOfSale: ticket.pointOfSale, number: ticket.number }
+    : { kind: "deferred_sale_document", shortCode: ticket.shortCode };
+}
+
 function returnOperationOf(database: LocalDatabase, returnId: string | null): PrintedOperation {
-  const original = database
-    .prepare<[string | null], { operation_number: number | null }>(
-      `SELECT sales.operation_number AS operation_number FROM returns
-         JOIN sales ON sales.id = returns.sale_id WHERE returns.id = ?`,
+  const sale = database
+    .prepare<[string | null], { sale_id: string; operation_number: number | null }>(
+      `SELECT returns.sale_id AS sale_id, sales.operation_number AS operation_number
+         FROM returns LEFT JOIN sales ON sales.id = returns.sale_id WHERE returns.id = ?`,
     )
     .get(returnId);
   const cash = database
@@ -61,7 +77,7 @@ function returnOperationOf(database: LocalDatabase, returnId: string | null): Pr
     .get(returnId);
   return {
     kind: "return",
-    originalOperationNumber: original?.operation_number ?? null,
+    original: sale === undefined ? null : originalTicketOf(database, sale),
     cashRefunded: cash?.cash_refunded ?? 0,
   };
 }

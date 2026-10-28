@@ -14,9 +14,13 @@ export type BackedDocument =
   | { kind: "credit_note"; pointOfSale: number; number: number }
   | { kind: "deferred_sale_document"; shortCode: string };
 
+export type OriginalTicket =
+  | { kind: "operation_number"; operationNumber: number }
+  | Extract<BackedDocument, { kind: "invoice" | "deferred_sale_document" }>;
+
 export type PrintedOperation =
   | { kind: "numbered"; operationNumber: number }
-  | { kind: "return"; originalOperationNumber: number | null; cashRefunded: number }
+  | { kind: "return"; original: OriginalTicket | null; cashRefunded: number }
   | { kind: "cash_movement"; movement: CashMovementKind | null }
   | { kind: "cash_session_opening" }
   | { kind: "cash_session_closing" }
@@ -103,12 +107,18 @@ function operationName(operation: PrintedOperation): string {
   }
 }
 
+function originalTicketName(original: OriginalTicket): string {
+  return original.kind === "operation_number"
+    ? formatOperationNumber(original.operationNumber)
+    : backedDocumentName(original);
+}
+
 function returnRows(operation: PrintedOperation): string[] {
   if (operation.kind !== "return") return [];
   return [
-    ...(operation.originalOperationNumber === null
+    ...(operation.original === null
       ? []
-      : row("Ticket original", formatOperationNumber(operation.originalOperationNumber))),
+      : row("Ticket original", originalTicketName(operation.original))),
     ...(operation.cashRefunded === 0
       ? []
       : row("Efectivo devuelto", formatCents(operation.cashRefunded))),
