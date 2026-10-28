@@ -63,6 +63,7 @@ const CATALOG_INPUT_FILES = new Set([
   "vitest.global-setup.playwright-server.ts",
   "tsconfig.json",
   ".github/workflows/verify.yml",
+  ".github/scripts/held-run-reporter.mjs",
   ".github/scripts/slow-tests-reporter.mjs",
   ".github/scripts/without-package-output.mjs",
   ".github/scripts/test-durations.mjs",

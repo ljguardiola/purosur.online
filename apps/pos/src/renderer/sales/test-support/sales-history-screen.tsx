@@ -95,9 +95,7 @@ export const DETAIL: SaleDetail = {
   void_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
-  credit_note: null,
-  credit_note_id: null,
-  credit_note_next_copy: null,
+  credit_notes: [],
   deferred_invoice_next_copy: null,
   short_code: null,
 };

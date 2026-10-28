@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
+import { insertSaleCreditNote } from "../fiscal/test-support/sale-credit-notes.js";
 import { saleReprints, sales } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
@@ -33,13 +34,13 @@ async function record(fact: SyncedFact, saleId: string, eventType: string, devic
 }
 
 async function appliedSale() {
-  const { deviceId } = await system.enrollInstallation();
+  const { deviceId, registerId } = await system.enrollInstallation();
   const saleId = await applyCompletedSale(system.db, {
     deviceId,
     completedAt: new Date("2026-10-06T11:20:00.000Z"),
     total: 4800,
   });
-  return { saleId, deviceId };
+  return { saleId, deviceId, registerId };
 }
 
 describe("recording the receipt events of applied events", () => {
@@ -106,6 +107,36 @@ describe("recording the receipt events of applied events", () => {
 
     const rows = await system.db.select().from(saleReprints);
     expect(rows.map((row) => row.document).sort()).toEqual(["credit_note", "sale_receipt"]);
+  });
+
+  it("records the reprint against the credit note it names and numbers it for that credit note alone", async () => {
+    const { saleId, deviceId } = await appliedSale();
+    const reprinted = randomUUID();
+
+    await record(
+      aReprintFact({ saleId, document: "credit_note", creditNoteId: reprinted, orderNumber: 1 }),
+      saleId,
+      "reprint_recorded",
+      deviceId,
+    );
+
+    const rows = await system.db.select().from(saleReprints);
+    expect(rows.map((row) => [row.creditNoteId, row.orderNumber])).toEqual([[reprinted, 1]]);
+  });
+
+  it("records a reprint that names no credit note against the sale's void credit note", async () => {
+    const { saleId, deviceId, registerId } = await appliedSale();
+    const voidCreditNote = await insertSaleCreditNote(system.db, registerId, saleId);
+
+    await record(
+      aReprintFact({ saleId, document: "credit_note", creditNoteId: null, orderNumber: 1 }),
+      saleId,
+      "reprint_recorded",
+      deviceId,
+    );
+
+    const [row] = await system.db.select().from(saleReprints);
+    expect(row).toMatchObject({ document: "credit_note", creditNoteId: voidCreditNote });
   });
 
   it("keeps the print state of a credit note apart from the receipt's", async () => {

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTicketedOperations } from "../backups/ticketed-operation";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import { insertFiscalDocument } from "../fiscal/test-support/real-time-authorization-database";
+import { printoutOf } from "../platform/escpos/test-support/escpos-printout";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
@@ -20,7 +21,6 @@ import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import type { ReceiptRequestDeps } from "./receipt-requests";
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
 import { insertCreditNote, insertVoidedSale } from "./test-support/credit-note-receipt-database";
-import { printoutOf } from "./test-support/escpos-printout";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
@@ -369,10 +369,11 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     ]);
     expect(outboxEvents().at(-1)).toEqual({
       event_type: "reprint_recorded",
-      schema_version: 2,
+      schema_version: 3,
       payload: {
         sale_id: "sale-1",
         document: "credit_note",
+        credit_note_id: "note-1",
         order_number: 1,
         requested_by: "supervisor",
         authorized_by: null,
@@ -655,6 +656,65 @@ describe("printing the credit notes of the returns of a sale", () => {
       schema_version: 3,
       payload: { document: "credit_note", credit_note_id: "note-r2" },
     });
+  });
+
+  it("prints, from the history, only the credit note it names", async () => {
+    await printCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-r2" });
+    printer.becomeReady();
+
+    await vi.waitFor(() => expect(printedNotes()).toEqual([{ credit_note_id: "note-r2" }]));
+    expect(printer.handed).toHaveLength(1);
+    expect(database.prepare("SELECT credit_note_id FROM credit_note_receipts").all()).toEqual([
+      { credit_note_id: "note-r2" },
+    ]);
+  });
+
+  it("reprints the second return's credit note recording and numbering the reprint for it alone", async () => {
+    await printCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-r1" });
+    printer.becomeReady();
+    await vi.waitFor(() => expect(printedNotes()).toHaveLength(1));
+    await vi.waitFor(async () => {
+      await printCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-r2" });
+      expect(printer.waiting).toHaveLength(2);
+    });
+    printer.becomeReady();
+    await vi.waitFor(() => expect(printedNotes()).toHaveLength(2));
+    signedInPerson.set("supervisor");
+
+    for (const creditNoteId of ["note-r1", "note-r1", "note-r2"]) {
+      await vi.waitFor(async () => {
+        const outcome = await reprintCreditNoteFor(deps(), {
+          saleId: "sale-1",
+          creditNoteId,
+          reason: REASON,
+        });
+        expect(outcome.kind).toBe("started");
+      });
+      printer.becomeReady();
+    }
+
+    await vi.waitFor(() =>
+      expect(
+        database
+          .prepare(
+            "SELECT credit_note_id, order_number FROM sale_reprints ORDER BY credit_note_id, order_number",
+          )
+          .all(),
+      ).toEqual([
+        { credit_note_id: "note-r1", order_number: 1 },
+        { credit_note_id: "note-r1", order_number: 2 },
+        { credit_note_id: "note-r2", order_number: 1 },
+      ]),
+    );
+    expect(
+      outboxEvents()
+        .filter(({ event_type }) => event_type === "reprint_recorded")
+        .map(({ payload }) => payload),
+    ).toMatchObject([
+      { credit_note_id: "note-r1", order_number: 1 },
+      { credit_note_id: "note-r1", order_number: 2 },
+      { credit_note_id: "note-r2", order_number: 1 },
+    ]);
   });
 
   it("prints nothing for a credit note that is not one of the sale's", async () => {

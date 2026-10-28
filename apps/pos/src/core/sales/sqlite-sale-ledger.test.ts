@@ -30,6 +30,7 @@ import {
   insertOfflinePointOfSale,
   insertPointOfSale,
 } from "../fiscal/test-support/real-time-authorization-database";
+import { printoutOf } from "../platform/escpos/test-support/escpos-printout";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
@@ -42,7 +43,6 @@ import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { escPosReceiptTemplate } from "./receipt-printer/escpos-receipt-template";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
-import { printoutOf } from "./test-support/escpos-printout";
 import { ReceiptPrintObserver } from "./test-support/receipt-print-watch";
 import {
   addBarcode,
