@@ -25,9 +25,12 @@ const VOUCHER_TYPE_NAMES: Record<number, string> = {
   13: "Nota de crédito C",
 };
 
+export function voucherTypeText(voucherType: number): string {
+  return VOUCHER_TYPE_NAMES[voucherType] ?? `Comprobante tipo ${voucherType}`;
+}
+
 export function voucherText(voucher: Voucher): string {
-  const name =
-    VOUCHER_TYPE_NAMES[voucher.voucher_type] ?? `Comprobante tipo ${voucher.voucher_type}`;
+  const name = voucherTypeText(voucher.voucher_type);
   return `${name} ${formatPointOfSaleNumber(voucher.point_of_sale)}-${formatInvoiceNumber(voucher.number)}`;
 }
 

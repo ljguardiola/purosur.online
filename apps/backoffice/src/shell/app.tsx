@@ -17,6 +17,7 @@ import type { RegisterPasskeyScreenServices } from "../credentials/register-pass
 import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
 import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
 import type { FiscalTasksScreenServices } from "../fiscal/fiscal-tasks-services";
+import type { IssuedFiscalDocumentsReportScreenServices } from "../fiscal/issued-fiscal-documents-report-services";
 import type { IssuedFiscalDocumentsScreenServices } from "../fiscal/issued-fiscal-documents-services";
 import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred-sales-pill";
@@ -114,6 +115,7 @@ export type AppServices = {
   salesByPromotionScreen: SalesByPromotionScreenServices;
   manualDiscountsScreen: ManualDiscountsScreenServices;
   returnsReportScreen: ReturnsReportScreenServices;
+  issuedFiscalDocumentsReportScreen: IssuedFiscalDocumentsReportScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   handConfirmedPaymentsScreen: HandConfirmedPaymentsScreenServices;

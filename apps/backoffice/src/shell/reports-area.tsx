@@ -4,6 +4,7 @@ import {
   Calculator,
   CalendarClock,
   ChartColumn,
+  FileText,
   HandCoins,
   List,
   Package,
@@ -43,6 +44,7 @@ function ReportsArea() {
   const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
   const lossesByReasonShown = Boolean(matchRoute({ to: "/reports/losses-by-reason" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
+  const issuedFiscalDocumentsShown = Boolean(matchRoute({ to: "/reports/fiscal-documents" }));
   const returnsShown = Boolean(matchRoute({ to: "/reports/returns" }));
   return (
     <AreaLayout
@@ -169,6 +171,15 @@ function ReportsArea() {
                     icon={<HandCoins />}
                     search={manualDiscountsShown ? true : {}}
                     active={manualDiscountsShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/fiscal-documents"
+                    label="Comprobantes emitidos"
+                    icon={<FileText />}
+                    search={issuedFiscalDocumentsShown ? true : {}}
+                    active={issuedFiscalDocumentsShown}
                   />
                 </li>
               </>
