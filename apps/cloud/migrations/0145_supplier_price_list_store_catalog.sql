@@ -1,0 +1,2 @@
+ALTER TABLE "supplier_price_lists" DROP CONSTRAINT "supplier_price_lists_file_content_kind_check";--> statement-breakpoint
+ALTER TABLE "supplier_price_lists" ADD CONSTRAINT "supplier_price_lists_file_content_kind_check" CHECK ("supplier_price_lists"."file_content_kind" in ('PDF', 'HTML', 'STORE_CATALOG'));

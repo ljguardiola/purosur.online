@@ -144,7 +144,7 @@ afterEach(() => {
 });
 
 describe("finding a deferred sale for a customer who returns", () => {
-  it("answers the sale a typed short code belongs to, not yet invoiced", async () => {
+  it("answers the sale a typed short code belongs to, not yet invoiced, at Argentina time", async () => {
     addDeferredSale("sale-1", "7KQ4M2P9");
 
     expect(
@@ -152,7 +152,7 @@ describe("finding a deferred sale for a customer who returns", () => {
     ).toEqual({
       kind: "found",
       sale_id: "sale-1",
-      occurred_at: SOLD_AT,
+      occurred_at: "2026-10-07T08:59:00.000-03:00",
       total: 3000,
       short_code: "7KQ4M2P9",
       invoice: { kind: "pending" },

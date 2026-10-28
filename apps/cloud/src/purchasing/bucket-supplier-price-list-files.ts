@@ -11,6 +11,7 @@ interface BucketSupplierPriceListFilesDeps {
 const OBJECT_TYPES = {
   PDF: { extension: "pdf", mediaType: "application/pdf" },
   HTML: { extension: "html", mediaType: "text/html" },
+  STORE_CATALOG: { extension: "json", mediaType: "application/json" },
 } as const satisfies Record<SupplierPriceListContentKind, { extension: string; mediaType: string }>;
 
 function amzDate(date: Date): string {

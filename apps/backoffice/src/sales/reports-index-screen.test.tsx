@@ -125,7 +125,7 @@ test("groups the stock reports in a card titled Stock", async () => {
 
   const stock = screen.getByRole("region", { name: "Stock" });
   await expect.element(stock).toBeVisible();
-  expect(stock.getByRole("link").elements()).toHaveLength(2);
+  expect(stock.getByRole("link").elements()).toHaveLength(3);
 });
 
 test("lists the valued current stock report as a link to it", async () => {
@@ -142,4 +142,12 @@ test("lists the lots approaching their expiry report as a link to it", async () 
   await expect
     .element(screen.getByRole("link", { name: "Lotes por vencer" }))
     .toHaveAttribute("href", "/reports/expiring-lots");
+});
+
+test("lists the losses by reason report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Mermas por motivo" }))
+    .toHaveAttribute("href", "/reports/losses-by-reason");
 });

@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
 
@@ -6,7 +7,7 @@ const branchOfflinePointOfSaleSchema = z.object({
   register_id: z.string(),
   register_name: z.string(),
   retirable: z.boolean(),
-  retired_at: z.iso.datetime().nullable(),
+  retired_at: z.iso.datetime().nullable().meta({ timeZone: ARGENTINA_TIME_ZONE }),
 });
 
 export const branchOfflinePointOfSaleListSchema = z.array(branchOfflinePointOfSaleSchema);

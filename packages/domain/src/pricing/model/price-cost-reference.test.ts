@@ -48,6 +48,25 @@ function initialCountCosting(costCents: number, countedAt: string): CostSource {
   return initialCount(countedAt, { cost: { totalCents: costCents, quantity: 1000 } });
 }
 
+function assemblyBatch(
+  batchId: string,
+  assembledAt: string,
+  fields: Partial<Extract<CostSource, { kind: "assembly_batch" }>> = {},
+): CostSource {
+  return {
+    kind: "assembly_batch",
+    batchId,
+    assembledAt: new Date(assembledAt),
+    cost: { totalCents: 800, quantity: 1000 },
+    costIncomplete: false,
+    ...fields,
+  };
+}
+
+function batchCosting(costCents: number, batchId: string, assembledAt: string): CostSource {
+  return assemblyBatch(batchId, assembledAt, { cost: { totalCents: costCents, quantity: 1000 } });
+}
+
 function lastCostOf(sources: CostSource[]): number | null {
   return priceCostReference(sources, null, FIXED_ARGENTINA_ZONE_RULES)?.lastCostCents ?? null;
 }
@@ -148,6 +167,145 @@ const cost = fc.record({
 });
 const price = fc.integer({ min: 1, max: 100_000_000 });
 
+describe("the last cost source with assembly batches", () => {
+  it("is a batch more recent than the last purchase and the initial count", () => {
+    const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
+    const counted = initialCountCosting(200, "2026-03-02T10:00:00Z");
+    const assembled = batchCosting(300, "x", "2026-03-05T15:00:00Z");
+
+    expect(lastCostOf([bought, counted, assembled])).toBe(300);
+    expect(lastCostOf([assembled, counted, bought])).toBe(300);
+  });
+
+  it("is the purchase or the initial count when it is more recent than the batch", () => {
+    const assembled = batchCosting(300, "x", "2026-03-01T15:00:00Z");
+    const bought = purchaseCosting(100, "a", "2026-03-05", "2026-03-05T10:00:00Z");
+    const counted = initialCountCosting(200, "2026-03-06T10:00:00Z");
+
+    expect(lastCostOf([assembled, bought])).toBe(100);
+    expect(lastCostOf([assembled, bought, counted])).toBe(200);
+  });
+
+  it("is the batch with the latest assembly instant", () => {
+    const earlier = batchCosting(100, "a", "2026-03-01T10:00:00Z");
+    const later = batchCosting(200, "b", "2026-03-01T11:00:00Z");
+
+    expect(lastCostOf([later, earlier])).toBe(200);
+    expect(lastCostOf([earlier, later])).toBe(200);
+  });
+
+  it("dates a batch at its Argentina calendar day", () => {
+    const assembledOnTheFirstInArgentina = batchCosting(300, "x", "2026-03-02T01:00:00Z");
+    const boughtOnTheSecond = purchaseCosting(100, "a", "2026-03-02", "2026-03-02T00:30:00Z");
+
+    expect(lastCostOf([boughtOnTheSecond, assembledOnTheFirstInArgentina])).toBe(100);
+  });
+
+  it("compares a batch and a purchase on the same day by instant", () => {
+    const assembled = batchCosting(300, "x", "2026-03-01T15:00:00Z");
+    const boughtBefore = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T14:00:00Z");
+    const boughtAfter = purchaseCosting(200, "a", "2026-03-01", "2026-03-01T16:00:00Z");
+
+    expect(lastCostOf([boughtBefore, assembled])).toBe(300);
+    expect(lastCostOf([boughtAfter, assembled])).toBe(200);
+  });
+
+  it("prefers a purchase line, then a batch, then an initial count of the same day and instant", () => {
+    const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T15:00:00Z");
+    const assembled = batchCosting(300, "x", "2026-03-01T15:00:00Z");
+    const counted = initialCountCosting(200, "2026-03-01T15:00:00Z");
+
+    expect(lastCostOf([counted, assembled, bought])).toBe(100);
+    expect(lastCostOf([bought, assembled, counted])).toBe(100);
+    expect(lastCostOf([counted, assembled])).toBe(300);
+    expect(lastCostOf([assembled, counted])).toBe(300);
+  });
+
+  it("breaks a tie of day and instant between batches with the lower batch id", () => {
+    const low = batchCosting(100, "a", "2026-03-01T10:00:00Z");
+    const high = batchCosting(200, "b", "2026-03-01T10:00:00Z");
+
+    expect(lastCostOf([high, low])).toBe(100);
+    expect(lastCostOf([low, high])).toBe(100);
+  });
+
+  it("is still a batch whose cost is incomplete, unlike an incomplete initial count", () => {
+    const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
+    const incomplete = assemblyBatch("x", "2026-03-05T15:00:00Z", { costIncomplete: true });
+
+    expect(lastCostOf([bought, incomplete])).toBe(800);
+  });
+});
+
+describe("the incomplete cost flag of the cost reference", () => {
+  function referenceOf(sources: CostSource[]) {
+    return priceCostReference(sources, 2000, FIXED_ARGENTINA_ZONE_RULES);
+  }
+
+  it("is set when the last cost is a batch with an incomplete cost, which still prices it", () => {
+    const incomplete = assemblyBatch("x", "2026-03-05T15:00:00Z", {
+      costIncomplete: true,
+      cost: { totalCents: 1200, quantity: 1000 },
+    });
+
+    expect(referenceOf([incomplete])).toEqual({
+      lastCostCents: 1200,
+      freightPerUnitCents: 0,
+      totalCostCents: 1200,
+      marginTenthsOfPercent: 400,
+      costIncomplete: true,
+    });
+  });
+
+  it("is not set when the last cost is a complete batch", () => {
+    expect(referenceOf([assemblyBatch("x", "2026-03-05T15:00:00Z")])?.costIncomplete).toBe(false);
+  });
+
+  it("is not set when an incomplete batch is older than the last cost", () => {
+    const incomplete = assemblyBatch("x", "2026-03-01T15:00:00Z", { costIncomplete: true });
+    const bought = purchaseCosting(100, "a", "2026-03-05", "2026-03-05T10:00:00Z");
+    const counted = initialCountCosting(200, "2026-03-06T10:00:00Z");
+
+    expect(referenceOf([incomplete, bought])?.costIncomplete).toBe(false);
+    expect(referenceOf([incomplete, counted])?.costIncomplete).toBe(false);
+  });
+
+  it("is set only by the chosen batch, not by another incomplete batch", () => {
+    const olderIncomplete = assemblyBatch("a", "2026-03-01T15:00:00Z", { costIncomplete: true });
+    const newerComplete = assemblyBatch("b", "2026-03-02T15:00:00Z");
+    const olderComplete = assemblyBatch("c", "2026-03-01T15:00:00Z");
+    const newerIncomplete = assemblyBatch("d", "2026-03-02T15:00:00Z", { costIncomplete: true });
+
+    expect(referenceOf([olderIncomplete, newerComplete])?.costIncomplete).toBe(false);
+    expect(referenceOf([olderComplete, newerIncomplete])?.costIncomplete).toBe(true);
+  });
+
+  it("is never set for a purchase line or an initial count", () => {
+    const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
+    const counted = initialCountCosting(200, "2026-03-02T10:00:00Z");
+
+    expect(referenceOf([bought])?.costIncomplete).toBe(false);
+    expect(referenceOf([counted])?.costIncomplete).toBe(false);
+  });
+
+  it("prices a batch with no freight, from its recorded cost, for every cost and price", () => {
+    fc.assert(
+      fc.property(cost, price, fc.boolean(), (c, p, costIncomplete) => {
+        const reference = priceCostReference(
+          [assemblyBatch("x", "2026-03-05T15:00:00Z", { cost: c, costIncomplete })],
+          p,
+          FIXED_ARGENTINA_ZONE_RULES,
+        );
+        const exact = (c.totalCents * 1000) / c.quantity;
+        expect(Math.abs((reference?.lastCostCents ?? 0) - exact)).toBeLessThanOrEqual(0.5 + 1e-6);
+        expect(reference?.totalCostCents).toBe(reference?.lastCostCents);
+        expect(reference?.freightPerUnitCents).toBe(0);
+        expect(reference?.costIncomplete).toBe(costIncomplete);
+      }),
+    );
+  });
+});
+
 function sourceWith(c: { totalCents: number; quantity: number }): CostSource {
   return purchase("a", "2026-03-01", "2026-03-01T10:00:00Z", c);
 }
@@ -184,6 +342,7 @@ describe("priceCostReference", () => {
       freightPerUnitCents: 0,
       totalCostCents: 1200,
       marginTenthsOfPercent: 400,
+      costIncomplete: false,
     });
   });
 
@@ -199,6 +358,7 @@ describe("priceCostReference", () => {
       freightPerUnitCents: 0,
       totalCostCents: 1200,
       marginTenthsOfPercent: null,
+      costIncomplete: false,
     });
   });
 
@@ -208,6 +368,7 @@ describe("priceCostReference", () => {
     ).toMatchObject({
       lastCostCents: 700,
       marginTenthsOfPercent: 300,
+      costIncomplete: false,
     });
   });
 
@@ -241,6 +402,7 @@ describe("priceCostReference", () => {
     ).toMatchObject({
       lastCostCents: 501,
       marginTenthsOfPercent: 500,
+      costIncomplete: false,
     });
   });
 
@@ -274,6 +436,7 @@ describe("priceCostReference", () => {
     ).toMatchObject({
       lastCostCents: 0,
       marginTenthsOfPercent: 1000,
+      costIncomplete: false,
     });
   });
 
@@ -360,6 +523,7 @@ describe("the freight in the cost reference", () => {
       freightPerUnitCents: 250,
       totalCostCents: 1250,
       marginTenthsOfPercent: 375,
+      costIncomplete: false,
     });
   });
 
@@ -375,6 +539,7 @@ describe("the freight in the cost reference", () => {
       freightPerUnitCents: 0,
       totalCostCents: 1000,
       marginTenthsOfPercent: 500,
+      costIncomplete: false,
     });
   });
 
@@ -428,6 +593,7 @@ describe("the freight in the cost reference", () => {
       freightPerUnitCents: 0,
       totalCostCents: 501,
       marginTenthsOfPercent: 499,
+      costIncomplete: false,
     });
   });
 
@@ -442,6 +608,7 @@ describe("the freight in the cost reference", () => {
       freightPerUnitCents: 0,
       totalCostCents: 700,
       marginTenthsOfPercent: 650,
+      costIncomplete: false,
     });
   });
 

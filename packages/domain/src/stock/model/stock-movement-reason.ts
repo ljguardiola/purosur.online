@@ -15,6 +15,11 @@ type SystemLossReason = (typeof SYSTEM_LOSS_REASONS)[number];
 
 export type RecordedLossReason = LossReason | SystemLossReason;
 
+export const RECORDED_LOSS_REASONS = [
+  ...LOSS_REASONS,
+  ...SYSTEM_LOSS_REASONS,
+] as const satisfies readonly RecordedLossReason[];
+
 export const ADJUSTMENT_REASONS = [
   "purchase_correction",
   "supplier_return",

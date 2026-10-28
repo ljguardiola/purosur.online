@@ -232,6 +232,7 @@ import { registerCurrentStockReportRoute } from "./stock/current-stock-report-ro
 import { registerExpiringLotsReportRoute } from "./stock/expiring-lots-report-route.js";
 import { registerExpiringLotsRoutes } from "./stock/expiring-lots-route.js";
 import { registerInitialInventoryLotsRoutes } from "./stock/initial-inventory-lots-route.js";
+import { registerLossesByReasonReportRoute } from "./stock/losses-by-reason-report-route.js";
 import { registerRecipesRoutes } from "./stock/recipes-routes.js";
 import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
 import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
@@ -718,6 +719,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerStockBalancesRoute(api, { ...options.stock, now });
         registerCurrentStockReportRoute(api, { ...options.stock, now });
         registerExpiringLotsReportRoute(api, { ...options.stock, now });
+        registerLossesByReasonReportRoute(api, { ...options.stock, now });
         registerStockProductsRoute(api, { ...options.stock, now });
         registerRecipesRoutes(api, { ...options.stock, now });
         registerAssemblyBatchesRoutes(api, { ...options.stock, now });
