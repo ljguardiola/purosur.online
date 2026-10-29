@@ -8,8 +8,7 @@
     ".github/scripts/held-run-reporter.d.mts",
     ".github/scripts/slow-tests-reporter.d.mts",
     ".github/scripts/without-package-output.d.mts",
-    "apps/pos/electron-builder.config.d.mts",
-    "packages/contracts/test-support/field-change-readers/*.js"
+    "apps/pos/electron-builder.config.d.mts"
   ],
   "workspaces": {
     ".": {
@@ -47,6 +46,9 @@
       "vitest": {
         "entry": ["src/**/*.test.{ts,tsx}", "src/**/*.visual.tsx"]
       }
+    },
+    "packages/contracts": {
+      "entry": ["test-support/field-change-readers/*.js"]
     },
     "packages/*": {}
   }
