@@ -1,12 +1,12 @@
 import type { SignInUser } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
+  ComboBox,
   EmptyState,
   Eyebrow,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
-  Select,
   sortedItems,
   textOrder,
 } from "@purosur/ui";
@@ -123,8 +123,7 @@ export function AuthorizationSection({
       {firstOption === undefined ? null : (
         <div className="flex items-end gap-3">
           <div className="min-w-0 flex-1">
-            <Select
-              name="authorizer"
+            <ComboBox
               label="Persona que autoriza"
               placeholder="Elegí a la persona"
               options={[firstOption, ...otherOptions]}
