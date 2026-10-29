@@ -21,7 +21,7 @@ import {
 } from "../platform/barcode-chips";
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
-import { categorySelectOptions } from "../platform/category-path";
+import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
@@ -40,12 +40,15 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import type { createCategory } from "./categories-api";
+import { NewCategoryModal } from "./new-category-modal";
 import { categoryNameOf, PRODUCT_CATEGORY_NOT_LEAF_ERROR } from "./product-form";
 import type { createProduct } from "./products-api";
 
 export type NewProductModalServices = {
   createProduct: typeof createProduct;
   createBrand: typeof createBrand;
+  createCategory: typeof createCategory;
   createTag: typeof createTag;
   generateInternalBarcode: typeof generateInternalBarcode;
 };
@@ -71,7 +74,8 @@ export function NewProductModal({
   tags,
   services,
 }: NewProductModalProps) {
-  const { createProduct, createBrand, createTag, generateInternalBarcode } = services;
+  const { createProduct, createBrand, createCategory, createTag, generateInternalBarcode } =
+    services;
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<
     | { kind: "attemptFailed" }
@@ -158,12 +162,17 @@ export function NewProductModal({
     (brand) => form.setFieldValue("brandId", brand.id),
     catalog,
   );
+  const categoryCreation = useStackedCreation<CategorySummary>(
+    (category) => form.setFieldValue("categoryId", category.id),
+    catalog,
+  );
   const tagCreation = useStackedTagCreation(
     (tagId) => form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
     catalog,
   );
   const closeForm = () => {
     brandCreation.finish();
+    categoryCreation.finish();
     tagCreation.finish();
     onClose();
   };
@@ -175,11 +184,21 @@ export function NewProductModal({
       setNotice(null);
       generate.reset();
       brandCreation.reset();
+      categoryCreation.reset();
       tagCreation.reset();
     }
-  }, [open, reset, chips.reset, generate.reset, brandCreation.reset, tagCreation.reset]);
+  }, [
+    open,
+    reset,
+    chips.reset,
+    generate.reset,
+    brandCreation.reset,
+    categoryCreation.reset,
+    tagCreation.reset,
+  ]);
 
-  const categoryOptions = categorySelectOptions(categories);
+  const offeredCategories = [...withCreatedCategory(categories, categoryCreation.created)];
+  const categoryOptions = categorySelectOptions(offeredCategories);
 
   return (
     <Modal
@@ -241,7 +260,7 @@ export function NewProductModal({
           fields={PRODUCT_GROUP_FIELDS}
           categories={
             categoryOptions
-              ? { state: "loaded", options: categoryOptions, creation: null }
+              ? { state: "loaded", options: categoryOptions, creation: categoryCreation }
               : {
                   state: "unavailable",
                   placeholder: (
@@ -269,6 +288,15 @@ export function NewProductModal({
           onCreated={brandCreation.select}
           onClose={brandCreation.close}
           onSessionEnded={onSessionEnded}
+        />
+        <NewCategoryModal
+          open={categoryCreation.open}
+          initialName={categoryCreation.initialName}
+          onClose={categoryCreation.close}
+          onCreated={categoryCreation.select}
+          onSessionEnded={onSessionEnded}
+          createCategory={createCategory}
+          categories={offeredCategories}
         />
         <NewTagModal
           open={tagCreation.open}

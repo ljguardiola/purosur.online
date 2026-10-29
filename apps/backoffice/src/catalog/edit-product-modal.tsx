@@ -18,7 +18,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { BarcodeChips, useBarcodeChips } from "../platform/barcode-chips";
 import { barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
-import { categorySelectOptions } from "../platform/category-path";
+import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
 import { brandFieldHelp, brandOptions, withCreatedBrand } from "../platform/product-brand-field";
@@ -35,6 +35,8 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { type ProductReload, useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import type { createCategory } from "./categories-api";
+import { NewCategoryModal } from "./new-category-modal";
 import { productDescription } from "./product-description";
 import {
   categoryNameOf,
@@ -53,6 +55,7 @@ import type { editProduct } from "./products-api";
 export type EditProductModalServices = {
   editProduct: typeof editProduct;
   createBrand: typeof createBrand;
+  createCategory: typeof createCategory;
   createTag: typeof createTag;
 };
 
@@ -86,7 +89,7 @@ export function EditProductModal({
   tags,
   services,
 }: EditProductModalProps) {
-  const { editProduct, createBrand, createTag } = services;
+  const { editProduct, createBrand, createCategory, createTag } = services;
   const sendToMyAccount = useSendToMyAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
@@ -184,12 +187,17 @@ export function EditProductModal({
     (brand) => form.setFieldValue("brandId", brand.id),
     catalog,
   );
+  const categoryCreation = useStackedCreation<CategorySummary>(
+    (category) => form.setFieldValue("categoryId", category.id),
+    catalog,
+  );
   const tagCreation = useStackedTagCreation(
     (tagId) => form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
     catalog,
   );
   const closeForm = () => {
     brandCreation.finish();
+    categoryCreation.finish();
     tagCreation.finish();
     onClose();
   };
@@ -205,11 +213,21 @@ export function EditProductModal({
       setNotice(null);
       setReloading(false);
       brandCreation.reset();
+      categoryCreation.reset();
       tagCreation.reset();
     }
-  }, [open, target, reset, chips.reset, brandCreation.reset, tagCreation.reset]);
+  }, [
+    open,
+    target,
+    reset,
+    chips.reset,
+    brandCreation.reset,
+    categoryCreation.reset,
+    tagCreation.reset,
+  ]);
 
-  const categoryOptions = categorySelectOptions(categories);
+  const offeredCategories = [...withCreatedCategory(categories, categoryCreation.created)];
+  const categoryOptions = categorySelectOptions(offeredCategories);
 
   async function handleReload() {
     if (!target) {
@@ -347,7 +365,12 @@ export function EditProductModal({
           <form.AppField name="categoryId">
             {(field) =>
               categoryOptions ? (
-                <field.ComboBox label="Categoría" options={categoryOptions} required />
+                <field.ComboBox
+                  label="Categoría"
+                  options={categoryOptions}
+                  required
+                  creation={{ recordKind: "categoría", onCreate: categoryCreation.start }}
+                />
               ) : (
                 <FieldGroup label="Categoría" required>
                   <SharedFieldError>{() => null}</SharedFieldError>
@@ -406,6 +429,15 @@ export function EditProductModal({
             onCreated={brandCreation.select}
             onClose={brandCreation.close}
             onSessionEnded={onSessionEnded}
+          />
+          <NewCategoryModal
+            open={categoryCreation.open}
+            initialName={categoryCreation.initialName}
+            onClose={categoryCreation.close}
+            onCreated={categoryCreation.select}
+            onSessionEnded={onSessionEnded}
+            createCategory={createCategory}
+            categories={offeredCategories}
           />
           <NewTagModal
             open={tagCreation.open}
