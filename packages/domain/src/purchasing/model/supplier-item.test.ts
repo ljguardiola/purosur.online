@@ -1,8 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { compareFractions } from "../../shared/index.js";
 import {
-  cheapestOffer,
-  compareFractions,
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
   isEarlierPrice,
   isSupplierItemVatRate,
@@ -270,58 +269,6 @@ describe("pricePerSaleUnit", () => {
         },
       ),
     );
-  });
-});
-
-describe("compareFractions", () => {
-  it("orders fractions by value whatever their reduction", () => {
-    expect(
-      compareFractions({ numerator: 1n, denominator: 3n }, { numerator: 1n, denominator: 2n }),
-    ).toBeLessThan(0);
-    expect(
-      compareFractions({ numerator: 2n, denominator: 3n }, { numerator: 1n, denominator: 2n }),
-    ).toBeGreaterThan(0);
-    expect(
-      compareFractions({ numerator: 2n, denominator: 4n }, { numerator: 1n, denominator: 2n }),
-    ).toBe(0);
-  });
-
-  it("agrees with the sign of the difference of the values for any two fractions", () => {
-    const fraction = fc.record({
-      numerator: fc.bigInt({ min: 0n, max: 10n ** 12n }),
-      denominator: fc.bigInt({ min: 1n, max: 10n ** 12n }),
-    });
-    fc.assert(
-      fc.property(fraction, fraction, (a, b) => {
-        const difference = a.numerator * b.denominator - b.numerator * a.denominator;
-        expect(Math.sign(compareFractions(a, b))).toBe(
-          difference > 0n ? 1 : difference < 0n ? -1 : 0,
-        );
-      }),
-    );
-  });
-});
-
-describe("cheapestOffer", () => {
-  const offer = (name: string, numerator: bigint, denominator: bigint) => ({
-    name,
-    pricePerSaleUnit: { numerator, denominator },
-  });
-
-  it("answers nothing without offers", () => {
-    expect(cheapestOffer([])).toBeUndefined();
-  });
-
-  it("answers the offer with the lowest price per sale unit", () => {
-    const offers = [offer("a", 1n, 2n), offer("b", 1n, 3n), offer("c", 3n, 4n)];
-
-    expect(cheapestOffer(offers)?.name).toBe("b");
-  });
-
-  it("keeps the earliest offer among equally cheap ones", () => {
-    const offers = [offer("a", 2n, 4n), offer("b", 1n, 2n), offer("c", 1n, 2n)];
-
-    expect(cheapestOffer(offers)?.name).toBe("a");
   });
 });
 

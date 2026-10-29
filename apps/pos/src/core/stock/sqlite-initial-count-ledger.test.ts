@@ -214,6 +214,23 @@ describe("the lines of the initial count", () => {
     expect(read("unknown")).toBeUndefined();
   });
 
+  it("reads a counted line with its product's name, brand and net content", () => {
+    database
+      .prepare("INSERT INTO brands (id, name, active, version) VALUES ('b1', 'Vitora', 1, 1)")
+      .run();
+    database
+      .prepare(
+        `UPDATE products SET brand_id = 'b1', net_content_quantity = 30, net_content_unit = 'ML'
+         WHERE id = 'p1'`,
+      )
+      .run();
+    record("m1", "opening_count", { productId: "p1", delta: 6 });
+
+    expect(ledger().transaction((tx) => tx.initialCountLine("m1"))?.productName).toBe(
+      "Yerba Vitora 30 ml",
+    );
+  });
+
   it("lists the lines that were not withdrawn", () => {
     record("m1", "opening_count", { productId: "p2", delta: 1500 });
     record("m2", "opening_count", { productId: "p1", delta: 6 });

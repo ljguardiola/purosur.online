@@ -16,13 +16,16 @@ interface ProductOptions {
   unit?: string;
   active?: boolean;
   removed?: boolean;
+  brandId?: string;
+  netContent?: { quantity: number; unit: string };
 }
 
 function addProduct(id: string, options: ProductOptions = {}): void {
   database
     .prepare(
-      `INSERT INTO products (id, name, category_id, sale_unit, active, version, removed)
-       VALUES (?, ?, 'c', ?, ?, 1, ?)`,
+      `INSERT INTO products (id, name, category_id, sale_unit, active, version, removed,
+         brand_id, net_content_quantity, net_content_unit)
+       VALUES (?, ?, 'c', ?, ?, 1, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -30,7 +33,16 @@ function addProduct(id: string, options: ProductOptions = {}): void {
       options.unit ?? "UNIT",
       options.active === false ? 0 : 1,
       options.removed ? 1 : 0,
+      options.brandId ?? null,
+      options.netContent?.quantity ?? null,
+      options.netContent?.unit ?? null,
     );
+}
+
+function addBrand(id: string, name: string) {
+  database
+    .prepare("INSERT INTO brands (id, name, active, version) VALUES (?, ?, 1, 1)")
+    .run(id, name);
 }
 
 function addBarcode(productId: string, code: string, active = true, position = 1): void {
@@ -195,5 +207,31 @@ describe("the products a name search looks through", () => {
     database.prepare("DELETE FROM own_register").run();
 
     expect(searchable().map((product) => product.timesSoldHere)).toEqual([0]);
+  });
+});
+
+describe("the name a sellable product is shown with", () => {
+  function shownNames() {
+    addBarcode("p1", "111");
+    return {
+      byBarcode: readActiveProductByBarcode(database, "111")?.name,
+      byId: readActiveProductById(database, "p1")?.name,
+      searchable: readSearchableProducts(database).map((product) => product.name),
+    };
+  }
+
+  function everywhere(name: string) {
+    return { byBarcode: name, byId: name, searchable: [name] };
+  }
+
+  it("follows the product's name with its brand's name and its net content", () => {
+    addBrand("b1", "Vitora");
+    addProduct("p1", {
+      name: "Aceite de Almendras",
+      brandId: "b1",
+      netContent: { quantity: 30, unit: "ML" },
+    });
+
+    expect(shownNames()).toEqual(everywhere("Aceite de Almendras Vitora 30 ml"));
   });
 });

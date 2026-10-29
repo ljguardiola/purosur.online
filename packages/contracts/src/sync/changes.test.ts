@@ -52,6 +52,7 @@ const productRow = {
 };
 
 const tagRow = { name: "Sin TACC", active: true, version: 1 };
+const brandRow = { name: "Vitora", active: true, version: 1 };
 
 const priceListRow = { name: "Lista minorista", version: 1 };
 
@@ -283,6 +284,8 @@ describe("changesPageSchema", () => {
     ["a deactivated tag", change(1, "tag", { ...tagRow, active: false, version: 2 })],
     ["a product with no tag", change(1, "product", { ...productRow, tag_ids: [] })],
     ["the removal of a tag", removal(1, "tag", 2)],
+    ["a brand", change(1, "brand", brandRow)],
+    ["a deactivated brand", change(1, "brand", { ...brandRow, active: false, version: 2 })],
     ["a price list", change(1, "price_list", priceListRow)],
     ["a price", change(1, "price", priceRow)],
     ["the removal of a category", removal(1, "category", 2)],
@@ -456,6 +459,7 @@ describe("changesPageSchema", () => {
       change(3, "product", productRow),
       change(4, "price_list", priceListRow),
       change(7, "tag", tagRow),
+      change(10, "brand", brandRow),
       change(8, "user", userRow),
       change(9, "role", roleRow),
       change(5, "price", priceRow),
@@ -884,6 +888,15 @@ describe("changesPageSchema", () => {
     ],
     ["a tag without its active flag", pageOf(change(1, "tag", { ...tagRow, active: undefined }))],
     ["a tag without its name", pageOf(change(1, "tag", { ...tagRow, name: undefined }))],
+    [
+      "a brand without its active flag",
+      pageOf(change(1, "brand", { ...brandRow, active: undefined })),
+    ],
+    ["a brand without its name", pageOf(change(1, "brand", { ...brandRow, name: undefined }))],
+    [
+      "a brand without its version",
+      pageOf(change(1, "brand", { ...brandRow, version: undefined })),
+    ],
     [
       "an issuer identification without its CUIT",
       pageOf(

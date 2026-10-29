@@ -303,6 +303,26 @@ export function withoutBalance({ balance: _balance, ...product }: StockBalance):
 
 type InitialLot = InitialInventoryLotList["lots"][number];
 
+export const supplierPriceAlfa: InitialLot["supplierPrices"][number] = {
+  supplierItemId: "00000000-0000-4000-8000-0000000000c1",
+  supplierName: "Alfa",
+  packagingName: "Caja x 10",
+  listDate: "2026-03-01",
+  unitCostCents: 950_000,
+  cheapest: true,
+  current: false,
+};
+
+export const supplierPriceBeta: InitialLot["supplierPrices"][number] = {
+  supplierItemId: "00000000-0000-4000-8000-0000000000c2",
+  supplierName: "Beta",
+  packagingName: "Bolsa",
+  listDate: "2026-02-15",
+  unitCostCents: 1_018_000,
+  cheapest: false,
+  current: false,
+};
+
 export const initialLotAlmonds: InitialLot = {
   lotId: "00000000-0000-4000-8000-0000000000b1",
   productId: almonds.id,
@@ -316,6 +336,7 @@ export const initialLotAlmonds: InitialLot = {
   costIncomplete: false,
   unitCostCents: 1_018_000,
   valueCents: 4_479_200,
+  supplierPrices: [],
 };
 
 export const initialLotHoney: InitialLot = {
@@ -331,6 +352,7 @@ export const initialLotHoney: InitialLot = {
   costIncomplete: false,
   unitCostCents: 544_000,
   valueCents: 13_056_000,
+  supplierPrices: [],
 };
 
 export const initialLotTeaWithoutCost: InitialLot = {
@@ -346,6 +368,7 @@ export const initialLotTeaWithoutCost: InitialLot = {
   costIncomplete: true,
   unitCostCents: null,
   valueCents: null,
+  supplierPrices: [],
 };
 
 export const initialLotWithdrawnStillHeld: InitialLot = {
@@ -361,4 +384,5 @@ export const initialLotWithdrawnStillHeld: InitialLot = {
   costIncomplete: true,
   unitCostCents: null,
   valueCents: null,
+  supplierPrices: [],
 };

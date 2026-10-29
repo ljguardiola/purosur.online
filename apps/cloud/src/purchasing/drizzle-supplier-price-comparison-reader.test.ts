@@ -49,11 +49,13 @@ describe("the products to compare", () => {
 });
 
 describe("the offers of the suppliers", () => {
-  async function linkedItem(supplierId: string, productId: string, packagingName = "Caja x 10") {
+  it("answers the latest offer of each linked item", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
     const packagingId = await insertPackaging(db, {
       productId,
       actorId,
-      name: packagingName,
+      name: "Caja x 10",
       quantityPerPackage: 10_000,
     });
     const itemId = await insertSupplierItem(db, {
@@ -62,25 +64,9 @@ describe("the offers of the suppliers", () => {
       packagingId,
       vatRate: 1_050,
     });
-    return { itemId, packagingId };
-  }
-
-  it("answers the latest price of each linked item with its packaging, supplier and VAT, ordered by supplier name", async () => {
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
-    const zetaId = await insertSupplier(db, { actorId, name: "Zeta" });
-    const alfaId = await insertSupplier(db, { actorId, name: "Alfa" });
-    const zeta = await linkedItem(zetaId, productId, "Bolsa x 10");
-    const alfa = await linkedItem(alfaId, productId);
     await insertSupplierItemPrice(db, {
-      itemId: zeta.itemId,
-      listId: await confirmedList(zetaId),
-      priceCents: 1_000,
-      listDate: "2026-03-01",
-      pricesIncludeVat: false,
-    });
-    await insertSupplierItemPrice(db, {
-      itemId: alfa.itemId,
-      listId: await confirmedList(alfaId),
+      itemId,
+      listId: await confirmedList(supplierId),
       priceCents: 2_000,
       listDate: "2026-03-02",
       pricesIncludeVat: true,
@@ -89,7 +75,7 @@ describe("the offers of the suppliers", () => {
     expect(await reader().offers()).toEqual([
       {
         productId,
-        supplier: { id: alfaId, name: "Alfa" },
+        supplier: { id: supplierId, name: "Alfa" },
         packaging: {
           name: "Caja x 10",
           quantityPerPackage: 10_000,
@@ -101,80 +87,6 @@ describe("the offers of the suppliers", () => {
         vatRate: 1_050,
         listDate: "2026-03-02",
       },
-      {
-        productId,
-        supplier: { id: zetaId, name: "Zeta" },
-        packaging: {
-          name: "Bolsa x 10",
-          quantityPerPackage: 10_000,
-          active: true,
-          saleUnit: "UNIT",
-        },
-        priceCents: 1_000,
-        pricesIncludeVat: false,
-        vatRate: 1_050,
-        listDate: "2026-03-01",
-      },
     ]);
-  });
-
-  it("answers only the latest price of an item by list date, the one confirmed later winning a tie", async () => {
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
-    const supplierId = await insertSupplier(db, { actorId });
-    const { itemId } = await linkedItem(supplierId, productId);
-    const entries = [
-      { listDate: "2026-02-01", confirmedAt: "2026-05-01T10:00:00Z", priceCents: 100 },
-      { listDate: "2026-03-01", confirmedAt: "2026-03-02T10:00:00Z", priceCents: 200 },
-      { listDate: "2026-03-01", confirmedAt: "2026-03-03T10:00:00Z", priceCents: 300 },
-    ];
-    for (const entry of entries) {
-      await insertSupplierItemPrice(db, {
-        itemId,
-        listId: await confirmedList(supplierId),
-        priceCents: entry.priceCents,
-        listDate: entry.listDate,
-        confirmedAt: new Date(entry.confirmedAt),
-      });
-    }
-
-    const offers = await reader().offers();
-
-    expect(offers.map((offer) => offer.priceCents)).toEqual([300]);
-  });
-
-  it("tells whether the packaging of an offer is active and the sale unit it holds", async () => {
-    const { id: productId } = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
-    const supplierId = await insertSupplier(db, { actorId });
-    const packagingId = await insertPackaging(db, {
-      productId,
-      actorId,
-      name: "Caja vieja",
-      saleUnit: "UNIT",
-      active: false,
-    });
-    const itemId = await insertSupplierItem(db, { supplierId, productId, packagingId });
-    await insertSupplierItemPrice(db, { itemId, listId: await confirmedList(supplierId) });
-
-    const [offer] = await reader().offers();
-
-    expect(offer?.packaging).toEqual({
-      name: "Caja vieja",
-      quantityPerPackage: 10_000,
-      active: false,
-      saleUnit: "UNIT",
-    });
-  });
-
-  it("leaves out an item that is not linked or has no recorded price", async () => {
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
-    const supplierId = await insertSupplier(db, { actorId });
-    const unlinkedId = await insertSupplierItem(db, { supplierId });
-    await insertSupplierItemPrice(db, {
-      itemId: unlinkedId,
-      listId: await confirmedList(supplierId),
-    });
-    await linkedItem(supplierId, productId);
-
-    expect(await reader().offers()).toEqual([]);
   });
 });

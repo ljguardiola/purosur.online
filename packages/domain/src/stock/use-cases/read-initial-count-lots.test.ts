@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { LoadedSupplierPrice } from "../model/lot-reference-cost.js";
 import { readInitialCountLots } from "./read-initial-count-lots.js";
 import { FakeInitialCountLotReader } from "./test-support/fake-initial-count-lot-reader.js";
 
@@ -16,6 +17,7 @@ function row(id: string, overrides: Record<string, unknown> = {}) {
     remaining: 6_000,
     costIncomplete: true,
     cost: null,
+    supplierPrices: [] as LoadedSupplierPrice[],
     ...overrides,
   };
 }
@@ -50,6 +52,7 @@ describe("readInitialCountLots", () => {
         costIncomplete: true,
         unitCostCents: null,
         valueCents: null,
+        supplierPrices: [],
       },
     ]);
   });
@@ -248,5 +251,122 @@ describe("readInitialCountLots", () => {
     ]);
 
     expect(lots.map((lot) => lot.lotId)).toEqual(["l-2", "l-1"]);
+  });
+
+  describe("supplier prices", () => {
+    function price(
+      supplierItemId: string,
+      pricePerSaleUnit: { numerator: bigint; denominator: bigint },
+      overrides: Partial<LoadedSupplierPrice> = {},
+    ): LoadedSupplierPrice {
+      return {
+        supplierItemId,
+        supplierName: "Distribuidora Sur",
+        packagingName: "Caja",
+        listDate: "2026-03-01",
+        pricePerSaleUnit,
+        ...overrides,
+      };
+    }
+
+    it("offers the prices loaded for the product, cheapest first, with the cost per sale unit rounded only to be shown", async () => {
+      const { lots } = await read([
+        row("l1", {
+          supplierPrices: [
+            price("dear", { numerator: 900n, denominator: 1n }, { packagingName: "Bolsa" }),
+            price("cheap", { numerator: 1_000n, denominator: 3n }, { listDate: "2026-04-01" }),
+          ],
+        }),
+      ]);
+
+      expect(lots[0]?.supplierPrices).toEqual([
+        {
+          supplierItemId: "cheap",
+          supplierName: "Distribuidora Sur",
+          packagingName: "Caja",
+          listDate: "2026-04-01",
+          unitCostCents: 333,
+          cheapest: true,
+          current: false,
+        },
+        {
+          supplierItemId: "dear",
+          supplierName: "Distribuidora Sur",
+          packagingName: "Bolsa",
+          listDate: "2026-03-01",
+          unitCostCents: 900,
+          cheapest: false,
+          current: false,
+        },
+      ]);
+    });
+
+    it("marks as cheapest the earliest read of prices tied in value", async () => {
+      const tied = { numerator: 100n, denominator: 1n };
+      const { lots } = await read([
+        row("l1", {
+          supplierPrices: [
+            price("dear", { numerator: 900n, denominator: 1n }, { supplierName: "Alfa" }),
+            price("z", tied, { supplierName: "Zeta" }),
+            price("b", { numerator: 200n, denominator: 2n }, { supplierName: "Alfa" }),
+            price("a", tied, { supplierName: "Alfa" }),
+          ],
+        }),
+      ]);
+
+      expect(
+        lots[0]?.supplierPrices.map(({ supplierItemId, cheapest }) => [supplierItemId, cheapest]),
+      ).toEqual([
+        ["z", true],
+        ["b", false],
+        ["a", false],
+        ["dear", false],
+      ]);
+    });
+
+    it("marks as current the price the lot's known cost equals, whatever its reduction", async () => {
+      const { lots } = await read([
+        row("l1", {
+          cost: { totalCents: 1, quantity: 3 },
+          costIncomplete: false,
+          supplierPrices: [
+            price("equal", { numerator: 1_000n, denominator: 3n }),
+            price("rounds-the-same", { numerator: 333n, denominator: 1n }),
+          ],
+        }),
+      ]);
+
+      expect(
+        lots[0]?.supplierPrices.map(({ supplierItemId, current }) => [supplierItemId, current]),
+      ).toEqual([
+        ["rounds-the-same", false],
+        ["equal", true],
+      ]);
+    });
+
+    it("marks no price as current while the lot's cost is incomplete", async () => {
+      const { lots } = await read([
+        row("l1", {
+          cost: { totalCents: 1, quantity: 3 },
+          costIncomplete: true,
+          supplierPrices: [price("a", { numerator: 1_000n, denominator: 3n })],
+        }),
+      ]);
+
+      expect(lots[0]?.supplierPrices.map(({ current }) => current)).toEqual([false]);
+    });
+
+    it("leaves out a price whose exact cost cannot be stored", async () => {
+      const { lots } = await read([
+        row("l1", {
+          supplierPrices: [
+            price("huge", { numerator: 1n, denominator: BigInt(Number.MAX_SAFE_INTEGER) }),
+            price("a", { numerator: 100n, denominator: 1n }),
+          ],
+        }),
+      ]);
+
+      expect(lots[0]?.supplierPrices.map(({ supplierItemId }) => supplierItemId)).toEqual(["a"]);
+    });
   });
 });

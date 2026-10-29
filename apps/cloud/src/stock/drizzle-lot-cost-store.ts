@@ -1,4 +1,5 @@
 import type {
+  LoadedSupplierPrice,
   LockedLot,
   LotCostStore,
   LotCostTransaction,
@@ -7,6 +8,7 @@ import type {
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { lots } from "../platform/db/schema.js";
+import { loadedSupplierPricesOf } from "./loaded-supplier-prices.js";
 
 class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
   implements LotCostTransaction
@@ -20,6 +22,7 @@ class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
   async lockLot(locationId: string, lotId: string): Promise<LockedLot | undefined> {
     const [lot] = await this.tx
       .select({
+        productId: lots.productId,
         technical: lots.technical,
         purchaseLineId: lots.purchaseLineId,
         assemblyBatchId: lots.assemblyBatchId,
@@ -39,7 +42,16 @@ class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
         : lot.purchaseLineId === null
           ? "initial_count"
           : "purchase";
-    return { origin, withdrawn: lot.withdrawn, remaining: lot.remaining };
+    return {
+      productId: lot.productId,
+      origin,
+      withdrawn: lot.withdrawn,
+      remaining: lot.remaining,
+    };
+  }
+
+  async loadedSupplierPrices(productId: string): Promise<LoadedSupplierPrice[]> {
+    return (await loadedSupplierPricesOf(this.tx, [productId])).get(productId) ?? [];
   }
 
   async setReferenceCost(

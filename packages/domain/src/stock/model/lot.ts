@@ -1,3 +1,5 @@
+import type { LotCost } from "./lot-value.js";
+
 export interface PurchasedLine {
   id: string;
   productId: string;
@@ -42,6 +44,7 @@ export interface NewInitialCountLot {
   originMovementId: string;
   quantityReceived: number;
   expiresOn: string | null;
+  cost: LotCost | null;
 }
 
 export function lotOfOpeningCount(line: {
@@ -50,6 +53,7 @@ export function lotOfOpeningCount(line: {
   locationId: string;
   counted: number;
   expiresOn: string | null;
+  cost: LotCost | null;
 }): NewInitialCountLot {
   return {
     productId: line.productId,
@@ -57,6 +61,7 @@ export function lotOfOpeningCount(line: {
     originMovementId: line.movementId,
     quantityReceived: line.counted,
     expiresOn: line.expiresOn,
+    cost: line.cost,
   };
 }
 

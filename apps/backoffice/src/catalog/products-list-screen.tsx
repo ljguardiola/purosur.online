@@ -20,6 +20,7 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatNetContent } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { Ban, Package, Pencil, Plus, Printer, RotateCcw, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -30,7 +31,6 @@ import {
 } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
-import { formatNetContent } from "../platform/net-content";
 import { perSaleUnit } from "../platform/per-sale-unit";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";

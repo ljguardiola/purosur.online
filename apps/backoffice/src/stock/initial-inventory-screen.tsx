@@ -240,7 +240,7 @@ export function InitialInventoryScreen({
           onClose={() => setEditTarget(null)}
           onSessionEnded={onSessionEnded}
           onSaved={handleSaved}
-          onGone={() => void refreshStock()}
+          onOutdated={() => void refreshStock()}
         />
       ) : null}
       {notice ? (

@@ -49,6 +49,12 @@ export interface TagRow {
   version: number;
 }
 
+export interface BrandRow {
+  name: string;
+  active: boolean;
+  version: number;
+}
+
 export interface UserRow {
   firstName: string;
   roleId: string;
@@ -175,6 +181,7 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "category"; row: CategoryRow }
   | { entity: "product"; row: ProductRow }
   | { entity: "tag"; row: TagRow }
+  | { entity: "brand"; row: BrandRow }
   | { entity: "price_list"; row: PriceListRow }
   | { entity: "price"; row: PriceRow }
   | { entity: "user"; row: UserRow }

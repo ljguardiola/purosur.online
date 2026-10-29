@@ -6,6 +6,7 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 export const initialInventoryLotsQuerySchema = z
   .object({
@@ -36,6 +37,17 @@ export const initialInventoryLotListSchema = z.object({
       costIncomplete: z.boolean(),
       unitCostCents: z.int().nullable(),
       valueCents: z.int().nullable(),
+      supplierPrices: z.array(
+        z.object({
+          supplierItemId: z.string(),
+          supplierName: z.string(),
+          packagingName: z.string(),
+          listDate: z.string().refine(isCalendarDay),
+          unitCostCents: z.int(),
+          cheapest: z.boolean(),
+          current: z.boolean(),
+        }),
+      ),
     }),
   ),
 });
@@ -43,12 +55,31 @@ export const initialInventoryLotListSchema = z.object({
 export type InitialInventoryLotList = z.output<typeof initialInventoryLotListSchema>;
 
 const UNIT_COST_MESSAGE = "unitCostCents must be a positive whole number of cents";
+const SUPPLIER_ITEM_MESSAGE = "supplierItemId must be a supplier item's id";
 
-export const lotReferenceCostBodySchema = z.object({
+const typedLotReferenceCostSchema = z.object({
   unitCostCents: z
-    .number({ error: UNIT_COST_MESSAGE })
-    .refine((cents) => Number.isInteger(cents) && isReferenceUnitCost(cents), UNIT_COST_MESSAGE)
+    .unknown()
+    .refine(
+      (cents): cents is number =>
+        typeof cents === "number" && Number.isInteger(cents) && isReferenceUnitCost(cents),
+      UNIT_COST_MESSAGE,
+    )
     .meta({ maxValue: MAX_CASH_AMOUNT_CENTS }),
+  supplierItemId: z.never().optional(),
 });
+
+const suppliedLotReferenceCostSchema = z.object({
+  supplierItemId: z
+    .unknown()
+    .nonoptional()
+    .refine((id): id is string => typeof id === "string", SUPPLIER_ITEM_MESSAGE)
+    .pipe(recordIdSchema(SUPPLIER_ITEM_MESSAGE)),
+});
+
+export const lotReferenceCostBodySchema = z.union(
+  [typedLotReferenceCostSchema, suppliedLotReferenceCostSchema],
+  { error: SUPPLIER_ITEM_MESSAGE },
+);
 
 export type LotReferenceCostBody = z.input<typeof lotReferenceCostBodySchema>;

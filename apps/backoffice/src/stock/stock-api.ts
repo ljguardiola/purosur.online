@@ -218,6 +218,8 @@ export type SetLotReferenceCostOutcome =
   | { kind: "not_found" }
   | { kind: "lot_withdrawn" }
   | { kind: "not_an_initial_count_lot" }
+  | { kind: "cost_chosen_from_supplier_prices" }
+  | { kind: "supplier_price_not_found" }
   | CloudRefusal;
 
 export async function setLotReferenceCost(
@@ -244,7 +246,13 @@ export async function setLotReferenceCost(
   if (response.status === 404 || response.status === 409) {
     const code = ((await response.json().catch(() => undefined)) as { code?: unknown } | undefined)
       ?.code;
-    if (code === "not_found" || code === "lot_withdrawn" || code === "not_an_initial_count_lot") {
+    if (
+      code === "not_found" ||
+      code === "lot_withdrawn" ||
+      code === "not_an_initial_count_lot" ||
+      code === "cost_chosen_from_supplier_prices" ||
+      code === "supplier_price_not_found"
+    ) {
       return { kind: code };
     }
     return { kind: "failed" };
