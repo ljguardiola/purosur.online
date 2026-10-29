@@ -12,6 +12,7 @@ import {
   Table,
   TableCellText,
   Tag,
+  textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
@@ -39,6 +40,14 @@ export type CurrentStockReportScreenProps = {
 type Product = CurrentStockReportBody["products"][number];
 
 const NO_PRODUCTS: Product[] = [];
+
+const productDescriptionOrder = textOrder((product: Product) =>
+  formatProductDescription({
+    name: product.name,
+    brandName: product.brand_name,
+    netContent: product.net_content,
+  }),
+);
 
 const ALL_CATEGORIES = "ALL";
 
@@ -146,7 +155,7 @@ export function CurrentStockReportScreen({
       id: "product",
       header: "Producto",
       sort: {
-        order: (a: Product, b: Product) => a.name.localeCompare(b.name, "es"),
+        order: productDescriptionOrder,
         firstDirection: "ascending",
       },
       render: (item: Product) => (

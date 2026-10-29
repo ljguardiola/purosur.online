@@ -9,6 +9,7 @@ import type {
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
+import { productNameWithBrand } from "../catalog/product-name-with-brand.js";
 import { containsText } from "../platform/contains-pattern.js";
 import {
   branchSettings,
@@ -159,7 +160,8 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       const matching = await this.db
         .select({ id: products.id })
         .from(products)
-        .where(containsText(products.name, query.search));
+        .leftJoin(brands, eq(brands.id, products.brandId))
+        .where(containsText(productNameWithBrand(), query.search));
       const matchingIds = new Set(matching.map((row) => row.id));
       filtered = filtered.filter((row) => matchingIds.has(row.id));
     }

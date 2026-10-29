@@ -22,7 +22,7 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { DeactivatePackagingModal } from "./deactivate-packaging-modal";
 import { EditPackagingModal } from "./edit-packaging-modal";
 import { NewPackagingModal } from "./new-packaging-modal";
-import { packagingProductDescription } from "./packaging-form";
+import { packagingProductDescription } from "./packaging-product-description";
 import type { PackagingsListScreenServices } from "./packagings-list-services";
 import { usePackagingsQuery, useRefreshPurchasing, useReloadPackaging } from "./purchasing-queries";
 import { ReactivatePackagingModal } from "./reactivate-packaging-modal";
@@ -46,11 +46,11 @@ const PACKAGING_STATUS_EMPTY_TITLE = {
   all: "Sin resultados",
 } satisfies Record<PackagingStatusFilter, string>;
 
-const productNameOrder = textOrder((packaging: PackagingSummary) => packaging.productName);
+const productDescriptionOrder = textOrder(packagingProductDescription);
 const packagingNameOrder = textOrder((packaging: PackagingSummary) => packaging.name);
 
 const productOrder: ItemOrder<PackagingSummary> = (a, b) =>
-  productNameOrder(a, b) || packagingNameOrder(a, b);
+  productDescriptionOrder(a, b) || packagingNameOrder(a, b);
 
 function showsStatus(packaging: PackagingSummary, status: PackagingStatusFilter): boolean {
   return status === "all" || packaging.active === (status === "active");

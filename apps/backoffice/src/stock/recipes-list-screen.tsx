@@ -43,7 +43,13 @@ type ScreenNotice = { id: number; title: string; description: string };
 const NO_RECIPES: RecipeSummary[] = [];
 const NO_PRODUCTS: never[] = [];
 
-const productNameOrder = textOrder((recipe: RecipeSummary) => recipe.productName);
+const productDescriptionOrder = textOrder((recipe: RecipeSummary) =>
+  formatProductDescription({
+    name: recipe.productName,
+    brandName: recipe.brandName,
+    netContent: recipe.netContent,
+  }),
+);
 
 function LastBatchCell({ recipe }: { recipe: RecipeSummary }) {
   const { lastBatch } = recipe;
@@ -105,7 +111,7 @@ export function RecipesListScreen({
     dataColumn({
       id: "product",
       header: "Producto armado",
-      sort: { order: productNameOrder, firstDirection: "ascending" },
+      sort: { order: productDescriptionOrder, firstDirection: "ascending" },
       render: (item: RecipeSummary) => (
         <TableCellText strong description={recipeSubtitle(item)}>
           {formatProductDescription({

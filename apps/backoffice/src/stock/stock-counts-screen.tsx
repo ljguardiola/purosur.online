@@ -60,7 +60,13 @@ function countedWay(count: StockCount): string {
 
 type CountSortColumn = StockCountsFilters["sortBy"];
 
-const productOrder = textOrder((count: StockCount) => count.productName);
+const productOrder = textOrder((count: StockCount) =>
+  formatProductDescription({
+    name: count.productName,
+    brandName: count.brandName,
+    netContent: count.netContent,
+  }),
+);
 
 function numberOrder(value: (count: StockCount) => number): ItemOrder<StockCount> {
   return (a, b) => value(a) - value(b);

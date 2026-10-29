@@ -119,11 +119,15 @@ export function EditDiscountModal({
         return;
       }
       if (outcome.kind === "product_sold_by_weight") {
-        const listed = targets.products.find((product) => product.id === values.targetId);
+        const described =
+          targets.products.find((product) => product.id === values.targetId) ??
+          (loaded?.target.kind === "PRODUCT" && loaded.target.id === values.targetId
+            ? loaded.target
+            : undefined);
         showFieldError(
           "targetId",
           productSoldByWeightMessage(
-            listed === undefined ? outcome.productName : formatProductDescription(listed),
+            described === undefined ? outcome.productName : formatProductDescription(described),
           ),
         );
         return;

@@ -78,14 +78,6 @@ export function packagingProductLabel(product: PackagingProduct): string {
   return formatProductDescription({ brandName: null, netContent: null, ...product });
 }
 
-export function packagingProductDescription({
-  productName,
-  brandName,
-  netContent,
-}: Pick<PackagingSummary, "productName" | "brandName" | "netContent">): string {
-  return formatProductDescription({ name: productName, brandName, netContent });
-}
-
 export function packagingProductOptions(
   products: readonly PackagingProduct[],
 ): [{ value: string; label: string }, ...{ value: string; label: string }[]] | undefined {

@@ -12,9 +12,9 @@ import {
   packagingEditRequestFrom,
   packagingFormValuesOf,
   packagingNameMessage,
-  packagingProductDescription,
   packagingQuantityMessage,
 } from "./packaging-form";
+import { packagingProductDescription } from "./packaging-product-description";
 import type { editPackaging } from "./packagings-api";
 import type { PackagingReload } from "./purchasing-queries";
 

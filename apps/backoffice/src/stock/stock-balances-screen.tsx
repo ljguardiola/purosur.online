@@ -44,7 +44,7 @@ const CORRECTION_NOTES = {
   purchase_or_count: "Sin lotes · se corrige con una compra o un recuento",
 } as const;
 
-const productOrder = textOrder((product: StockBalance) => product.name);
+const productOrder = textOrder((product: StockBalance) => formatProductDescription(product));
 
 function numberOrder(value: (product: StockBalance) => number | null): ItemOrder<StockBalance> {
   return (a, b) => (value(a) ?? Number.NEGATIVE_INFINITY) - (value(b) ?? Number.NEGATIVE_INFINITY);

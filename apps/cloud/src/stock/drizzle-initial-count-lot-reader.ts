@@ -7,6 +7,7 @@ import type {
 import { and, eq, isNotNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
+import { productNameWithBrand } from "../catalog/product-name-with-brand.js";
 import { containsText } from "../platform/contains-pattern.js";
 import { brands, categories, lots, products } from "../platform/db/schema.js";
 import { loadedSupplierPricesOf } from "./loaded-supplier-prices.js";
@@ -52,7 +53,7 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
             : eq(lots.costIncomplete, query.costIncomplete),
           query.productName === undefined
             ? undefined
-            : containsText(products.name, query.productName),
+            : containsText(productNameWithBrand(), query.productName),
         ),
       );
     const pricesByProduct = await loadedSupplierPricesOf(this.db, [
