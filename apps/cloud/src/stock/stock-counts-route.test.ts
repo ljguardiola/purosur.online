@@ -566,6 +566,8 @@ describe("GET /inventory-levels/:productId", () => {
     expect(response.json()).toEqual({
       id: productId,
       name: "Almendras peladas",
+      brandName: null,
+      netContent: null,
       categoryId,
       categoryName: "Frutos secos",
       saleUnit: "KG",
