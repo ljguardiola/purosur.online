@@ -5,7 +5,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { PurchasesListScreen } from "./purchases-list-screen";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
-import { compraDeAvena, compraDeMiel } from "./test-support/purchases";
+import { compraDeAceite, compraDeAvena, compraDeMiel } from "./test-support/purchases";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -92,6 +92,14 @@ test("lists each purchase with its date, supplier and receipt, followed by its l
       "10/09/2026Granos del ValleSin comprobante",
       "Avena arrollada12,500 kg$ 2.000,00 por kg$ 2.000,00 por kg",
     ]);
+});
+
+test("describes each line's product with its brand name and net content", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPurchases).mockResolvedValue({ kind: "ok", value: [compraDeAceite] });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
 });
 
 test("writes a line's count of packages the way every amount reads", async () => {

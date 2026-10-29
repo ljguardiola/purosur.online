@@ -5,7 +5,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { EditPackagingModal, type EditPackagingModalServices } from "./edit-packaging-modal";
 import type { PackagingReload } from "./purchasing-queries";
-import { bolsaDeAvena, cajaDeMiel } from "./test-support/packagings";
+import { bolsaDeAvena, cajaDeAceite, cajaDeMiel } from "./test-support/packagings";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -77,6 +77,14 @@ test("opens titled with the packaging's name, the product fixed and the quantity
   await expect
     .element(dialog.getByRole("textbox", { name: /^Cantidad por presentación/ }))
     .toHaveValue("25,000");
+});
+
+test("shows the fixed product with its brand name and net content", async () => {
+  const screen = await renderModal({ target: cajaDeAceite });
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("textbox", { name: "Producto" }))
+    .toHaveValue("Aceite de Almendras Vitora 30 ml");
 });
 
 test("shows a unit product's quantity in whole units", async () => {

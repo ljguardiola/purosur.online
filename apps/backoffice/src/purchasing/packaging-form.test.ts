@@ -8,7 +8,12 @@ import {
   packagingProductOptions,
   packagingQuantityMessage,
 } from "./packaging-form";
-import { bolsaDeAvena, cajaDeMiel, packagableProducts } from "./test-support/packagings";
+import {
+  aceiteDeAlmendras,
+  bolsaDeAvena,
+  cajaDeMiel,
+  packagableProducts,
+} from "./test-support/packagings";
 
 const values = { productId: null, name: "", quantity: "", version: 1 };
 
@@ -53,6 +58,19 @@ describe("packagingProductOptions", () => {
       packagingProductOptions([...packagableProducts].reverse())?.map((option) => option.label),
     ).toEqual(["Almendras peladas", "Avena arrollada", "Miel pura de abeja 1 kg"]);
     expect(packagingProductOptions([])).toBeUndefined();
+  });
+
+  it("describes each product with its brand name and net content", () => {
+    expect(
+      packagingProductOptions([aceiteDeAlmendras, ...packagableProducts])?.map(
+        (option) => option.label,
+      ),
+    ).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
+      "Almendras peladas",
+      "Avena arrollada",
+      "Miel pura de abeja 1 kg",
+    ]);
   });
 });
 

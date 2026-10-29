@@ -67,9 +67,27 @@ export const aceiteDeAlmendras: PackagingList["products"][number] = {
 };
 
 export const packagableProducts: PackagingList["products"] = [
-  { id: "90d00000-0000-4000-8000-000000000001", name: "Miel pura de abeja 1 kg", brandName: null, netContent: null, saleUnit: "UNIT" },
-  { id: "90d00000-0000-4000-8000-000000000002", name: "Avena arrollada", brandName: null, netContent: null, saleUnit: "KG" },
-  { id: "90d00000-0000-4000-8000-000000000003", name: "Almendras peladas", brandName: null, netContent: null, saleUnit: "KG" },
+  {
+    id: "90d00000-0000-4000-8000-000000000001",
+    name: "Miel pura de abeja 1 kg",
+    brandName: null,
+    netContent: null,
+    saleUnit: "UNIT",
+  },
+  {
+    id: "90d00000-0000-4000-8000-000000000002",
+    name: "Avena arrollada",
+    brandName: null,
+    netContent: null,
+    saleUnit: "KG",
+  },
+  {
+    id: "90d00000-0000-4000-8000-000000000003",
+    name: "Almendras peladas",
+    brandName: null,
+    netContent: null,
+    saleUnit: "KG",
+  },
 ];
 
 export function packagingList(
