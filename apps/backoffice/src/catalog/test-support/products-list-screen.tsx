@@ -28,6 +28,7 @@ export function createServices(
     fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchTags: vi.fn().mockResolvedValue({ kind: "ok", value: tagList([]) }),
     createBrand: vi.fn(),
+    createCategory: vi.fn(),
     createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     printLabels: vi.fn(),

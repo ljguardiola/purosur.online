@@ -20,6 +20,7 @@ function createServices(overrides: Partial<NewProductModalServices> = {}): NewPr
   return {
     createProduct: vi.fn(),
     createBrand: vi.fn(),
+    createCategory: vi.fn(),
     createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     ...overrides,

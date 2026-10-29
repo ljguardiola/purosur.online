@@ -93,6 +93,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
         .fn()
         .mockResolvedValue({ kind: "ok", value: { tags: [], taggedProductCount: 0 } }),
       createBrand: vi.fn(),
+      createCategory: vi.fn(),
       createTag: vi.fn(),
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),

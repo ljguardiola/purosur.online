@@ -21,6 +21,7 @@ function createServices(
   return {
     editProduct: vi.fn(),
     createBrand: vi.fn(),
+    createCategory: vi.fn(),
     createTag: vi.fn(),
     ...overrides,
   };

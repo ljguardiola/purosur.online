@@ -17,6 +17,7 @@ function createServices(): NewProductModalServices {
   return {
     createProduct: vi.fn(),
     createBrand: vi.fn(),
+    createCategory: vi.fn(),
     createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
   };
