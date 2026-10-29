@@ -869,7 +869,7 @@ test("a save that succeeds after the editor moved on to another request never re
   const ui = modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved);
   await screen.rerender(ui);
 
-  pendingSave.resolve({ kind: "ok" });
+  pendingSave.resolve({ kind: "ok", role: storeRole });
   await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();
@@ -924,7 +924,7 @@ test("ignores a passkey-authorized retry that resolves late after the editor mov
   const ui = modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved);
   await screen.rerender(ui);
 
-  retry.resolve({ kind: "ok" });
+  retry.resolve({ kind: "ok", role: storeRole });
   await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();

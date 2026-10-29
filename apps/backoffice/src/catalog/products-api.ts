@@ -3,7 +3,9 @@ import {
   type ListedProduct,
   type ProductCreationBody,
   type ProductEditBody,
+  type ProductSummary,
   productListSchema,
+  productSummarySchema,
 } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -29,7 +31,7 @@ export type CreateProductInput = {
 };
 
 export type CreateProductOutcome =
-  | { kind: "ok" }
+  | { kind: "ok"; product: ProductSummary }
   | { kind: "validation_failed"; field: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
@@ -132,7 +134,8 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     return { kind: "failed" };
   }
   if (response.ok) {
-    return { kind: "ok" };
+    const parsed = productSummarySchema.safeParse(await response.json().catch(() => undefined));
+    return parsed.success ? { kind: "ok", product: parsed.data } : { kind: "failed" };
   }
   if (response.status === 400) {
     const field = await readValidationFailedField(response);

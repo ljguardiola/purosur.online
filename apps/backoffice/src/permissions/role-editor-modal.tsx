@@ -52,7 +52,7 @@ import {
 } from "./roles-api";
 
 export type RoleEditorRequest =
-  | { kind: "new" }
+  | { kind: "new"; initialName?: string }
   | { kind: "edit"; roleId: string }
   | { kind: "duplicate"; source: RoleSummary };
 
@@ -79,7 +79,7 @@ const defaultRoleEditorModalServices: RoleEditorModalServices = {
 export type RoleEditorModalProps = {
   request: RoleEditorRequest | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (created?: RoleSummary) => void;
   onSessionEnded: () => void;
   services?: RoleEditorModalServices;
 };
@@ -90,7 +90,7 @@ type FormNotice =
   | { kind: "staleVersion" };
 
 type RoleSeed =
-  | { kind: "new" }
+  | { kind: "new"; initialName?: string }
   | { kind: "duplicate"; source: RoleSummary }
   | { kind: "edit"; role: RoleDetail };
 
@@ -98,7 +98,7 @@ function seededName(seed: RoleSeed): string {
   if (seed.kind === "duplicate") {
     return `Copia de ${roleDisplayName(seed.source)}`;
   }
-  return seed.kind === "edit" ? (seed.role.name ?? "") : "";
+  return seed.kind === "edit" ? (seed.role.name ?? "") : (seed.initialName ?? "");
 }
 
 function seededPermissions(
@@ -203,7 +203,7 @@ type RoleEditorSessionProps = {
   seed: RoleSeed;
   catalog: PermissionCatalogWire;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (created?: RoleSummary) => void;
   onSessionEnded: () => void;
   services: RoleEditorModalServices;
 };
@@ -277,7 +277,7 @@ function RoleEditorSession({
         return;
       }
       if (outcome.kind === "ok") {
-        onSaved();
+        onSaved("role" in outcome ? outcome.role : undefined);
         return;
       }
       if (outcome.kind === "unauthenticated") {

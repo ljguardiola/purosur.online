@@ -1,6 +1,7 @@
 import {
   type BrandSummary,
   type CategorySummary,
+  type ProductSummary,
   productCreationBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
@@ -55,8 +56,9 @@ export type NewProductModalServices = {
 
 type NewProductModalProps = {
   open: boolean;
+  initialName?: string;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (product: ProductSummary) => void;
   onSessionEnded: () => void;
   categories: CategorySummary[];
   brands: BrandSummary[];
@@ -66,6 +68,7 @@ type NewProductModalProps = {
 
 export function NewProductModal({
   open,
+  initialName = "",
   onClose,
   onCreated,
   onSessionEnded,
@@ -95,7 +98,7 @@ export function NewProductModal({
       setNotice(null);
       const outcome = await createProduct(parsed);
       if (outcome.kind === "ok") {
-        onCreated();
+        onCreated(outcome.product);
         return;
       }
       if (outcome.kind === "unauthenticated") {
@@ -179,7 +182,7 @@ export function NewProductModal({
 
   useEffect(() => {
     if (open) {
-      reset();
+      reset({ ...EMPTY_PRODUCT_FORM, name: initialName });
       chips.reset();
       setNotice(null);
       generate.reset();
@@ -189,6 +192,7 @@ export function NewProductModal({
     }
   }, [
     open,
+    initialName,
     reset,
     chips.reset,
     generate.reset,

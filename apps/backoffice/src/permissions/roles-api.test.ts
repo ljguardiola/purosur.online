@@ -368,12 +368,6 @@ test("editRole returns failed when the request throws", async () => {
   expect(outcome).toEqual({ kind: "failed" });
 });
 
-test("createRole returns ok on 201 whatever the body says, since the role is already created", async () => {
-  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 201 }));
-
-  expect(await createRole({ name: "Depósito", permissions: [] })).toEqual({ kind: "ok" });
-});
-
 test("editRole returns ok on 200 whatever the body says, since the change is already applied", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 200 }));
 

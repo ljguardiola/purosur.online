@@ -659,12 +659,6 @@ test("fetchProducts returns failed when a listed product does not have the expec
   expect(await fetchProducts()).toEqual({ kind: "failed" });
 });
 
-test("createProduct returns ok on 201 whatever the body says, since the product is already created", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "product-1" }));
-
-  expect(await createProduct(createInput)).toEqual({ kind: "ok" });
-});
-
 test("editProduct returns ok on 200 whatever the body says, since the change is already applied", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...honey, barcodes: "7790987000015" }));
 
