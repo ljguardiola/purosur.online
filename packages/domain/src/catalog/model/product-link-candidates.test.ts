@@ -209,9 +209,9 @@ describe("productLinkCandidates", () => {
       product("2", "Granola", "Kos", { quantity: 1, unit: "KG" }),
     ];
 
-    expect(
-      productLinkCandidates(products, "granola berries 1 kg kos").map(({ id }) => id),
-    ).toEqual(["2", "1"]);
+    expect(productLinkCandidates(products, "granola berries 1 kg kos").map(({ id }) => id)).toEqual(
+      ["2", "1"],
+    );
   });
 
   it("never answers more than the limit nor a product with no word in common", () => {
