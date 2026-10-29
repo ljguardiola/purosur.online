@@ -8,20 +8,54 @@ const clock = { now: () => NOW };
 const noRange = { from: undefined, to: undefined };
 
 const ofProducts = [
-  { id: "p1", path: ["Azúcar 1 kg"], weightSource: null, quantity: 4, amount: 9_600 },
+  {
+    id: "p1",
+    path: ["Azúcar 1 kg"],
+    brandName: null,
+    netContent: null,
+    weightSource: null,
+    quantity: 4,
+    amount: 9_600,
+  },
   {
     id: "p2",
     path: ["Queso cremoso"],
+    brandName: null,
+    netContent: null,
     weightSource: "SCALE" as const,
     quantity: 1_500,
     amount: 18_000,
   },
-  { id: "p1", path: ["Azúcar 1 kg"], weightSource: null, quantity: 1, amount: 2_400 },
+  {
+    id: "p1",
+    path: ["Azúcar 1 kg"],
+    brandName: null,
+    netContent: null,
+    weightSource: null,
+    quantity: 1,
+    amount: 2_400,
+  },
 ];
 
 const ofCategories = [
-  { id: "c1", path: ["Almacén", "Dulces"], weightSource: null, quantity: 2, amount: 500 },
-  { id: null, path: [], weightSource: "MANUAL" as const, quantity: 300, amount: 700 },
+  {
+    id: "c1",
+    path: ["Almacén", "Dulces"],
+    brandName: null,
+    netContent: null,
+    weightSource: null,
+    quantity: 2,
+    amount: 500,
+  },
+  {
+    id: null,
+    path: [],
+    brandName: null,
+    netContent: null,
+    weightSource: "MANUAL" as const,
+    quantity: 300,
+    amount: 700,
+  },
 ];
 
 describe("readSalesByProductAndCategory", () => {
@@ -42,8 +76,24 @@ describe("readSalesByProductAndCategory", () => {
       range: { from: "2026-10-01", to: "2026-10-06" },
       group: "product",
       rows: [
-        { id: "p2", path: ["Queso cremoso"], units: 0, thousandths: 1_500, amount: 18_000 },
-        { id: "p1", path: ["Azúcar 1 kg"], units: 5, thousandths: 0, amount: 12_000 },
+        {
+          id: "p2",
+          path: ["Queso cremoso"],
+          brandName: null,
+          netContent: null,
+          units: 0,
+          thousandths: 1_500,
+          amount: 18_000,
+        },
+        {
+          id: "p1",
+          path: ["Azúcar 1 kg"],
+          brandName: null,
+          netContent: null,
+          units: 5,
+          thousandths: 0,
+          amount: 12_000,
+        },
       ],
       totals: { units: 5, thousandths: 1_500, amount: 30_000 },
     });
@@ -70,8 +120,24 @@ describe("readSalesByProductAndCategory", () => {
 
     expect(report.group).toBe("category");
     expect(report.rows).toEqual([
-      { id: null, path: [], units: 0, thousandths: 300, amount: 700 },
-      { id: "c1", path: ["Almacén", "Dulces"], units: 2, thousandths: 0, amount: 500 },
+      {
+        id: null,
+        path: [],
+        brandName: null,
+        netContent: null,
+        units: 0,
+        thousandths: 300,
+        amount: 700,
+      },
+      {
+        id: "c1",
+        path: ["Almacén", "Dulces"],
+        brandName: null,
+        netContent: null,
+        units: 2,
+        thousandths: 0,
+        amount: 500,
+      },
     ]);
     expect(report.totals).toEqual({ units: 2, thousandths: 300, amount: 1_200 });
     expect(reader.productReads).toEqual([]);
