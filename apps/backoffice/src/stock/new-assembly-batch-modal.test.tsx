@@ -11,7 +11,9 @@ import {
 import { assemblyBatchList, mixPreview } from "./test-support/assembly-batches";
 import { AssemblyBatchesReader } from "./test-support/assembly-batches-reader";
 import {
+  aceiteDeAlmendras,
   almendras,
+  balsamo,
   cajaDeInfusiones,
   mixDeFrutosSecos,
   nueces,
@@ -662,4 +664,53 @@ test("cancel closes the modal", async () => {
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
 
   expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test("offers each product that has a recipe by its brand and net content", async () => {
+  const screen = await renderModal({ recipes: [balsamo] });
+
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("combobox", { name: /^Producto armado/ }),
+  );
+
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("option")
+        .all()
+        .map((option) => option.element().textContent),
+    )
+    .toEqual(["Bálsamo de caléndula Herbaria 50 g"]);
+});
+
+test("names the component that is no longer available by its brand and net content", async () => {
+  const services = createServices({
+    fetchAssemblyBatchPreview: vi
+      .fn<NewAssemblyBatchModalServices["fetchAssemblyBatchPreview"]>()
+      .mockResolvedValue({
+        kind: "ok",
+        value: {
+          proposal: {
+            used: [{ componentProductId: aceiteDeAlmendras.id, quantity: 2_500 }],
+            output: 5_000,
+          },
+          lot: null,
+        },
+      }),
+    registerAssemblyBatch: vi
+      .fn<NewAssemblyBatchModalServices["registerAssemblyBatch"]>()
+      .mockResolvedValue({ kind: "component_not_found", componentProductId: aceiteDeAlmendras.id }),
+  });
+  const screen = await renderModal({ recipes: [balsamo], services });
+  await chooseProduct(screen, "Bálsamo de caléndula Herbaria 50 g");
+  await typeSize(screen, "5");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Usado de Aceite de Almendras Vitora 30 ml" }))
+    .not.toHaveValue("");
+
+  const dialog = await submit(screen);
+
+  await expect
+    .element(dialog.getByText("Aceite de Almendras Vitora 30 ml ya no está disponible"))
+    .toBeVisible();
 });

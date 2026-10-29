@@ -7,6 +7,7 @@ import { InitialInventoryScreen } from "./initial-inventory-screen";
 import type { InitialInventoryScreenServices } from "./initial-inventory-services";
 import { type InitialInventoryFilters, initialInventoryFilters } from "./routes";
 import {
+  initialLotAlmondOil,
   initialLotAlmonds,
   initialLotHoney,
   initialLotTeaWithoutCost,
@@ -311,4 +312,28 @@ test("reads the lots again when a typed cost is refused for loaded prices, so th
     .element(reopened.getByRole("combobox", { name: /Lista de proveedor/ }))
     .toHaveValue("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kg");
   await expect.element(reopened.getByText("La más barata")).toBeVisible();
+});
+
+test("shows each lot's product with its brand and net content", async () => {
+  const screen = await renderScreen(createServices([initialLotAlmondOil]));
+
+  const table = screen.getByRole("table", { name: TABLE });
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
+test("names the lot's product by its brand and net content when editing its cost", async () => {
+  const services = createServices([initialLotAlmondOil]);
+  vi.mocked(services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+  const dialog = await openEdit(screen, "Aceite de Almendras Vitora 30 ml");
+
+  await userEvent.fill(dialog.getByLabelText("Costo de referencia por unidad"), "1.250");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
+
+  await expect
+    .element(
+      screen.getByRole("status").getByText("Costo guardado Aceite de Almendras Vitora 30 ml."),
+    )
+    .toBeInTheDocument();
 });

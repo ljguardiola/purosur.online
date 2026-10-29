@@ -199,3 +199,16 @@ test("the components' message describes the whole group", async () => {
     .element(screen.getByRole("group", { name: "Componentes" }))
     .toHaveAccessibleDescription("Almendras: ingresá la cantidad.");
 });
+
+test("adds a chosen product named by its brand and net content", async () => {
+  const screen = await renderField();
+
+  await addComponent(screen, "Aceite de Almendras Vitora 30 ml");
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Cantidad de Aceite de Almendras Vitora 30 ml" }))
+    .toHaveValue("");
+  await expect
+    .element(screen.getByRole("button", { name: "Quitar Aceite de Almendras Vitora 30 ml" }))
+    .toBeVisible();
+});

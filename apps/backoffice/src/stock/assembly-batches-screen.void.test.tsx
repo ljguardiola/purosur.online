@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
   assemblyBatchList,
+  balsamoBatch,
   infusionsBatch,
   mixBatch,
   voidedBatch,
@@ -133,4 +134,33 @@ test("ends the session when voiding finds no open session", async () => {
   await confirmVoid(screen);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("names the batch to void and the voided one by its product's brand and net content", async () => {
+  const services = createServices();
+  vi.mocked(services.voidAssemblyBatch).mockResolvedValue({
+    kind: "ok",
+    batch: { id: balsamoBatch.id, voidedAt: "2026-09-16T10:00:00.000Z" },
+  });
+  const screen = await loaded(services, [balsamoBatch]);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Anular tanda de Bálsamo de caléndula Herbaria 50 g" }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(
+      dialog.getByRole("heading", {
+        name: "¿Anular la tanda de Bálsamo de caléndula Herbaria 50 g?",
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(dialog.getByText(/se descuentan 5 u de Bálsamo de caléndula Herbaria 50 g/))
+    .toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Anular tanda" }));
+
+  await expect
+    .element(screen.getByText("Se anuló la tanda de Bálsamo de caléndula Herbaria 50 g."))
+    .toBeVisible();
 });

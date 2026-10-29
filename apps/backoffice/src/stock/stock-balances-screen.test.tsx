@@ -8,6 +8,7 @@ import { type StockBalancesFilters, stockBalancesFilters } from "./routes";
 import { StockBalancesScreen } from "./stock-balances-screen";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
 import {
+  almondOil,
   almonds,
   crackers,
   honey,
@@ -375,4 +376,35 @@ test("typing in the category filter offers only the matching categories", async 
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Almacén"]);
+});
+
+test("shows each product with its brand and net content", async () => {
+  const screen = await renderScreen(listed([almondOil, honey]));
+
+  const table = screen.getByRole("table", { name: "Saldos" });
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+  await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+});
+
+test("finds a product by the brand shown with it", async () => {
+  const screen = await renderScreen(listed([almondOil, honey]));
+  const table = screen.getByRole("table", { name: "Saldos" });
+  await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("searchbox"), "vitora");
+
+  await expect.element(table.getByText("Miel pura de abeja 1 kg")).not.toBeInTheDocument();
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
+test("names the product's lots by its brand and net content", async () => {
+  const screen = await renderScreen(listed([almondOil]));
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Ver los lotes de Aceite de Almendras Vitora 30 ml" }),
+  );
+
+  await expect
+    .element(screen.getByRole("table", { name: "Lotes de Aceite de Almendras Vitora 30 ml" }))
+    .toBeVisible();
 });

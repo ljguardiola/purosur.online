@@ -5,7 +5,7 @@ import {
   recipeSubtitle,
   recipesCountText,
 } from "./recipe-summary-text";
-import { cajaDeInfusiones, mixDeFrutosSecos } from "./test-support/recipes";
+import { balsamo, cajaDeInfusiones, mixDeFrutosSecos } from "./test-support/recipes";
 
 describe("recipeComponentCountText", () => {
   it.each([
@@ -26,13 +26,22 @@ describe("recipeComponentNamesText", () => {
   });
 
   it("starts the list with a capital letter and keeps the rest as given", () => {
-    expect(recipeComponentNamesText([{ name: "almendras" }, { name: "nueces" }])).toBe(
-      "Almendras y nueces",
-    );
+    expect(
+      recipeComponentNamesText([
+        { name: "almendras", brandName: null, netContent: null },
+        { name: "nueces", brandName: null, netContent: null },
+      ]),
+    ).toBe("Almendras y nueces");
+  });
+
+  it("names each component with its brand and net content", () => {
+    expect(recipeComponentNamesText(balsamo.components)).toBe("Aceite de Almendras Vitora 30 ml");
   });
 
   it("names the only component", () => {
-    expect(recipeComponentNamesText([{ name: "Té verde" }])).toBe("Té verde");
+    expect(
+      recipeComponentNamesText([{ name: "Té verde", brandName: null, netContent: null }]),
+    ).toBe("Té verde");
   });
 });
 

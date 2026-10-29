@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import {
+  almondOilExpiredLot,
   chiaExpiredLot,
   expiringLotList,
   oatsYesterdayLot,
@@ -145,4 +146,20 @@ test("ends the session when the cloud says it is over while discarding", async (
   await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("names the lot to discard and the lot discarded by its product's brand and net content", async () => {
+  const services = servicesListing(expiringLotList([almondOilExpiredLot]), expiringLotList([]));
+  vi.mocked(services.discardExpiredLot).mockResolvedValue({ kind: "ok", value: DISCARDED });
+  const screen = await renderScreen(services);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Dar de baja el lote de Aceite de Almendras Vitora 30 ml" }),
+  );
+
+  await expect
+    .element(
+      screen.getByText("Aceite de Almendras Vitora 30 ml: 1,200 kg como merma por vencimiento."),
+    )
+    .toBeVisible();
 });

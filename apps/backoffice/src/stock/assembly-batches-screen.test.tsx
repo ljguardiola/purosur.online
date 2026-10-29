@@ -2,7 +2,12 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { assemblyBatchesFilters } from "./routes";
-import { assemblyBatchList, infusionsBatch, mixBatch } from "./test-support/assembly-batches";
+import {
+  assemblyBatchList,
+  balsamoBatch,
+  infusionsBatch,
+  mixBatch,
+} from "./test-support/assembly-batches";
 import {
   createServices,
   deferred,
@@ -296,3 +301,17 @@ function registeredBatch() {
     expiresOn: mixBatch.expiresOn,
   };
 }
+
+test("shows each batch's product with its brand and net content", async () => {
+  const screen = await loaded(createServices(), [balsamoBatch]);
+
+  await expect.element(screen.getByText("Bálsamo de caléndula Herbaria 50 g")).toBeVisible();
+});
+
+test("the search field also finds a batch by the brand shown with its product", async () => {
+  const screen = await loaded(createServices(), [mixBatch, balsamoBatch]);
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar un producto armado"), "herbaria");
+
+  await expect.poll(() => rowTexts(screen).map((text) => text.slice(15, 22))).toEqual(["Bálsamo"]);
+});

@@ -10,8 +10,11 @@ import {
   recipeSaveRequestFrom,
 } from "./recipe-form";
 import {
+  aceiteDeAlmendras,
   almendras,
+  balsamo,
   cajaDeInfusiones,
+  cremaNutritiva,
   miel,
   mixDeFrutosSecos,
   nueces,
@@ -42,6 +45,31 @@ describe("recipeFormValuesOf", () => {
       ],
       version: 1,
     });
+  });
+});
+
+describe("recipeFormValuesOf names", () => {
+  it("names each component by its brand and net content", () => {
+    expect(recipeFormValuesOf(balsamo).components.map((c) => c.name)).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
+    ]);
+  });
+});
+
+describe("recipeProductOptions labels", () => {
+  it("offers each product by its name, brand and net content", () => {
+    expect(recipeProductOptions([cremaNutritiva, { ...almendras, saleUnit: "KG" }], [])).toEqual([
+      { value: almendras.id, label: "Almendras" },
+      { value: cremaNutritiva.id, label: "Crema nutritiva Vitora 200 g" },
+    ]);
+  });
+});
+
+describe("recipeComponentOptions labels", () => {
+  it("offers each component by its name, brand and net content", () => {
+    expect(recipeComponentOptions([{ ...aceiteDeAlmendras, saleUnit: "UNIT" }], null, [])).toEqual([
+      { value: aceiteDeAlmendras.id, label: "Aceite de Almendras Vitora 30 ml" },
+    ]);
   });
 });
 

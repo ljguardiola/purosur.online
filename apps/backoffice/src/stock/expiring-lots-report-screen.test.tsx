@@ -17,6 +17,7 @@ import {
 import { ExpiringLotsReportScreen } from "./expiring-lots-report-screen";
 import type { ExpiringLotsReportScreenServices } from "./expiring-lots-report-services";
 import {
+  almondOilLot,
   breadLot,
   cheeseLot,
   expiredYogurtLot,
@@ -280,4 +281,11 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded).toHaveBeenCalled();
+});
+
+test("shows each lot's product with its brand and net content", async () => {
+  const screen = await renderScreen(listed(expiringLotsReport([almondOilLot])));
+
+  const table = screen.getByRole("table", TABLE);
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
 });

@@ -10,6 +10,8 @@ import { type StockCountsFilters, stockCountsFilters } from "./routes";
 import { StockCountsScreen } from "./stock-counts-screen";
 import type { StockCountsScreenServices } from "./stock-counts-services";
 import {
+  almondOil,
+  almondOilCount,
   almonds,
   almondsCount,
   crackers,
@@ -390,4 +392,48 @@ test("typing in the category filter offers only the matching categories", async 
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Frutos secos"]);
+});
+
+test("shows a count's product with its brand and net content", async () => {
+  const screen = await renderScreen(createServices([almondOilCount]));
+
+  const table = screen.getByRole("table", { name: "Recuentos" });
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
+test("finds a count by the brand shown with its product", async () => {
+  const screen = await renderScreen(createServices([honeyCount, almondOilCount]));
+  const table = screen.getByRole("table", { name: "Recuentos" });
+  await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("searchbox"), "vitora");
+
+  await expect.element(table.getByText("Miel pura de abeja 1 kg")).not.toBeInTheDocument();
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
+test("offers and names the product by its brand and net content when starting a count", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchStockProducts).mockResolvedValue({
+    kind: "ok",
+    value: { products: [almondOil].map(withoutBalance) },
+  });
+  vi.mocked(services.registerCount).mockResolvedValue({
+    kind: "ok",
+    value: { expected: 17_000, delta: -1000, balance: 16_000, superseded: false },
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openNewCount(screen);
+  await chooseProduct(screen, "Aceite de Almendras Vitora 30 ml");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "16");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
+
+  await expect
+    .element(
+      screen
+        .getByRole("status")
+        .getByText("Saldo corregido Aceite de Almendras Vitora 30 ml queda en 16 u."),
+    )
+    .toBeInTheDocument();
 });
