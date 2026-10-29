@@ -1,11 +1,5 @@
 import type { HelpArticle, HelpBlock } from "./help";
-
-function normalizeForSearch(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
+import { textContains } from "./text-search";
 
 function blockText(block: HelpBlock<string>): readonly string[] {
   switch (block.kind) {
@@ -21,13 +15,10 @@ function blockText(block: HelpBlock<string>): readonly string[] {
 }
 
 export function articleMatchesQuery(article: HelpArticle<string, string>, query: string): boolean {
-  const needle = normalizeForSearch(query);
-  if (normalizeForSearch(article.title).includes(needle)) {
+  if (textContains(article.title, query)) {
     return true;
   }
-  return article.body.some((block) =>
-    blockText(block).some((text) => normalizeForSearch(text).includes(needle)),
-  );
+  return article.body.some((block) => blockText(block).some((text) => textContains(text, query)));
 }
 
 export function searchArticles<Articles extends Record<string, HelpArticle<string, string>>>(
