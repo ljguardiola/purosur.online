@@ -1,15 +1,12 @@
+import type { LabelSheetItem } from "@purosur/domain/catalog/use-cases";
+import { formatProductDescription } from "@purosur/formatting";
+
 const LABEL_COLUMNS = 3;
 const LABEL_ROWS = 8;
 export const LABELS_PER_PAGE = LABEL_COLUMNS * LABEL_ROWS;
 export const LABEL_WIDTH_MM = 70;
 const A4_HEIGHT_MM = 297;
 export const LABEL_HEIGHT_MM = A4_HEIGHT_MM / LABEL_ROWS;
-
-export interface LabelSheetItem {
-  name: string;
-  code: string;
-  count: number;
-}
 
 export interface PositionedLabel {
   name: string;
@@ -29,8 +26,9 @@ export interface LabelSheetPage {
 function flatten(items: LabelSheetItem[]): Array<{ name: string; code: string }> {
   const flattened: Array<{ name: string; code: string }> = [];
   for (const item of items) {
+    const name = formatProductDescription(item);
     for (let repetition = 0; repetition < item.count; repetition += 1) {
-      flattened.push({ name: item.name, code: item.code });
+      flattened.push({ name, code: item.code });
     }
   }
   return flattened;

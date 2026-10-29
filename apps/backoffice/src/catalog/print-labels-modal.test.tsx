@@ -744,7 +744,6 @@ test("names each product row and its label buttons by the product's name, brand 
 
   const dialog = await openPrintLabelsModal(screen);
 
-  await expect.element(dialog.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
   await expect
     .element(
       dialog.getByRole("button", {
@@ -759,13 +758,21 @@ test("names each product row and its label buttons by the product's name, brand 
       }),
     )
     .toBeVisible();
+  const preview = dialog.getByRole("group", { name: "Vista previa de la etiqueta" }).element();
+  const rowNames = dialog
+    .getByText("Aceite de Almendras Vitora 30 ml", { exact: true })
+    .elements()
+    .filter((element) => !preview.contains(element));
+  expect(rowNames).toHaveLength(1);
 });
 
-test("keeps the label preview on the product's name alone", async () => {
+test("previews the label with the product's name, brand and net content", async () => {
   const screen = await renderModal(createServices(), { products: [almondOilWithInternalBarcode] });
 
   const dialog = await openPrintLabelsModal(screen);
 
   const preview = dialog.getByRole("group", { name: "Vista previa de la etiqueta" });
-  await expect.element(preview.getByText("Aceite de Almendras", { exact: true })).toBeVisible();
+  await expect
+    .element(preview.getByText("Aceite de Almendras Vitora 30 ml", { exact: true }))
+    .toBeVisible();
 });

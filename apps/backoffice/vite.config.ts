@@ -52,13 +52,13 @@ export default defineConfig(({ mode }) => {
               {
                 name: "initial",
                 tags: ["$initial"],
-                test: /[\\/](?:node_modules|packages[\\/]ui[\\/]src)[\\/]/,
+                test: /[\\/](?:node_modules|packages[\\/](?:ui|formatting)[\\/]src)[\\/]/,
                 priority: 2,
                 includeDependenciesRecursively: false,
               },
               {
                 name: "ui",
-                test: /[\\/]packages[\\/]ui[\\/]src[\\/]/,
+                test: /[\\/]packages[\\/](?:ui|formatting)[\\/]src[\\/]/,
                 priority: 1,
                 minShareCount: 4,
               },

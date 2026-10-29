@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - packages/ui/**
+      - packages/formatting/**
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
