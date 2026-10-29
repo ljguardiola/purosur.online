@@ -137,6 +137,31 @@ export function aCancelledSaleFact(overrides: Partial<SaleCancelled["sale"]> = {
   };
 }
 
+type SaleLineRemoved = Extract<SyncedFact, { kind: "sale_line_removed" }>;
+
+export function aRemovedSaleLineFact(
+  overrides: Partial<SaleLineRemoved["removal"]> = {},
+): SaleLineRemoved {
+  return {
+    kind: "sale_line_removed",
+    removal: {
+      saleId: "sale-1",
+      sessionId: "session-1",
+      actorId: "cashier-1",
+      removedAt: new Date("2026-10-07T10:02:00.000Z"),
+      line: {
+        id: "line-1",
+        productId: "product-1",
+        productName: "Yerba mate 1 kg",
+        quantity: 2,
+        weightSource: null,
+        lineTotal: 3000,
+      },
+      ...overrides,
+    },
+  };
+}
+
 type SaleVoided = Extract<SyncedFact, { kind: "sale_voided" }>;
 
 export function aVoidedSaleFact(overrides: Partial<SaleVoided["sale"]> = {}): SaleVoided {

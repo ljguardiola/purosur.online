@@ -10,6 +10,7 @@ import {
   aCancelledSaleFact,
   aCompletedSaleFact,
   aDeferredSaleSatisfiedFact,
+  aRemovedSaleLineFact,
   aVoidedSaleFact,
 } from "@purosur/domain/sync/test-support";
 import type { RegisterReplenishmentTransaction, SyncedFact } from "@purosur/domain/sync/use-cases";
@@ -373,6 +374,45 @@ describe("the register's store for replenishing a restored register", () => {
         { id: "sale-1", state: "COMPLETED" },
         { id: "sale-2", state: "CANCELLED" },
       ]);
+    });
+
+    it("applies a cancelled sale that took no approved payment without payments or refunds", async () => {
+      const application = await store.transaction((tx) =>
+        tx.applyFact(
+          aCancelledSaleFact({ id: "sale-3", payments: [], refunds: [], cashMovements: [] }),
+          SOURCE,
+        ),
+      );
+
+      expect(application).toBe("applied");
+      expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
+        { id: "sale-3", state: "CANCELLED" },
+      ]);
+      expect(count("payment_transactions")).toBe(0);
+      expect(count("payment_refunds")).toBe(0);
+    });
+
+    it("applies a removed sale line by leaving the register as it is, since the line is already gone", async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+      const before = [
+        "sales",
+        "sale_lines",
+        "payment_transactions",
+        "cash_movements",
+        "stock_movements",
+      ].map(count);
+
+      const application = await store.transaction((tx) =>
+        tx.applyFact(aRemovedSaleLineFact({ saleId: "sale-1" }), SOURCE),
+      );
+
+      expect(application).toBe("applied");
+      expect(
+        ["sales", "sale_lines", "payment_transactions", "cash_movements", "stock_movements"].map(
+          count,
+        ),
+      ).toEqual(before);
+      expect(count("outbox")).toBe(0);
     });
 
     it("applies an opening count fact with the stock writers", async () => {

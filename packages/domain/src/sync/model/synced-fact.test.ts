@@ -11,6 +11,7 @@ import {
   AN_OPENING_COUNT_WITHDRAWN_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
+  aRemovedSaleLineFact,
   aReturnedSaleFact,
   aVoidedSaleFact,
 } from "./test-support/synced-facts.js";
@@ -26,6 +27,12 @@ describe("what a synced fact needs applied before it", () => {
     expect(dependenciesOf(aCancelledSaleFact({ sessionId: "session-9" }))).toEqual([
       { aggregateType: "CashSession", aggregateId: "session-9" },
     ]);
+  });
+
+  it("is only the cash session a removed sale line was removed in, never its sale", () => {
+    expect(
+      dependenciesOf(aRemovedSaleLineFact({ saleId: "sale-9", sessionId: "session-9" })),
+    ).toEqual([{ aggregateType: "CashSession", aggregateId: "session-9" }]);
   });
 
   it("is the cash session a voided sale was made in", () => {
@@ -118,6 +125,14 @@ describe("what a synced fact breaks that only its own history shows", () => {
       "approved_payments_below_total",
       "stock_movements_do_not_match_lines",
     ]);
+  });
+
+  it("is nothing for a removed sale line", () => {
+    expect(invariantBreaksOf(aRemovedSaleLineFact())).toEqual([]);
+  });
+
+  it("is nothing for a cancelled sale that took no approved payment and refunded none", () => {
+    expect(invariantBreaksOf(aCancelledSaleFact({ payments: [], refunds: [] }))).toEqual([]);
   });
 
   it("is nothing for a cancelled sale whose refunds settle each approved payment", () => {
