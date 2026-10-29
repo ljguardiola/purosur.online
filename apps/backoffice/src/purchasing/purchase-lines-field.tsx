@@ -15,8 +15,15 @@ import {
   useFieldContext,
 } from "@purosur/ui";
 import { Package, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { useState } from "react";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { quantityFieldKind } from "../platform/stock-quantity";
-import { type BackofficeAccess, canSeePricesArea } from "../shell/backoffice-access";
+import {
+  type BackofficeAccess,
+  canManagePurchasePackagings,
+  canSeePricesArea,
+} from "../shell/backoffice-access";
+import { NewPackagingModal, type NewPackagingModalServices } from "./new-packaging-modal";
 import { packagingProductOptions } from "./packaging-form";
 import {
   emptyPurchaseLine,
@@ -25,6 +32,7 @@ import {
   type PurchaseProducts,
   purchasePackagingOptions,
 } from "./purchase-form";
+import { useMarkPurchasingStale, useRefreshPurchasing } from "./purchasing-queries";
 
 const LOADED_BY_OPTIONS = [
   { value: "quantity" as const, label: "Cantidad" },
@@ -37,6 +45,8 @@ type PurchaseLinesFieldProps = {
   packagings: readonly PackagingSummary[];
   refusals: Readonly<Record<number, string>>;
   onLinesChange: () => void;
+  services: NewPackagingModalServices;
+  onSessionEnded: () => void;
 };
 
 export function PurchaseLinesField({
@@ -45,10 +55,33 @@ export function PurchaseLinesField({
   packagings,
   refusals,
   onLinesChange,
+  services,
+  onSessionEnded,
 }: PurchaseLinesFieldProps) {
   const field = useFieldContext<PurchaseLineValues[]>();
   const lines = field.state.value;
   const productOptions = packagingProductOptions(products);
+  const markPurchasingStale = useMarkPurchasingStale();
+  const refreshPurchasing = useRefreshPurchasing();
+  const [creatingFor, setCreatingFor] = useState<{ lineId: number; productId: string } | null>(
+    null,
+  );
+  const [createdPackagings, setCreatedPackagings] = useState<PackagingSummary[]>([]);
+  const packagingCreation = useStackedCreation<PackagingSummary>(
+    (packaging) => {
+      setCreatedPackagings([...createdPackagings, packaging]);
+      if (creatingFor !== null) {
+        change(creatingFor.lineId, { packagingId: packaging.id });
+      }
+    },
+    { markStale: markPurchasingStale, refresh: refreshPurchasing },
+  );
+  const offeredPackagings = [
+    ...packagings,
+    ...createdPackagings.filter(
+      (created) => !packagings.some((packaging) => packaging.id === created.id),
+    ),
+  ];
 
   if (!productOptions) {
     return (
@@ -74,24 +107,35 @@ export function PurchaseLinesField({
           {...(errorMessageId === undefined ? {} : { "aria-describedby": errorMessageId })}
           className="flex min-w-0 flex-col gap-3"
         >
-          {lines.map((line, index) => (
-            <PurchaseLineFields
-              key={line.id}
-              line={line}
-              offersPriceReview={canSeePricesArea(access)}
-              number={index + 1}
-              productOptions={productOptions}
-              products={products}
-              packagings={packagings}
-              refusal={refusals[index]}
-              removable={lines.length > 1}
-              onChange={(patch) => change(line.id, patch)}
-              onRemove={() => {
-                onLinesChange();
-                field.handleChange(lines.filter((other) => other.id !== line.id));
-              }}
-            />
-          ))}
+          {lines.map((line, index) => {
+            const productId = line.productId;
+            return (
+              <PurchaseLineFields
+                key={line.id}
+                line={line}
+                offersPriceReview={canSeePricesArea(access)}
+                number={index + 1}
+                productOptions={productOptions}
+                products={products}
+                packagings={offeredPackagings}
+                refusal={refusals[index]}
+                onCreatePackaging={
+                  canManagePurchasePackagings(access) && productId !== null
+                    ? (typedName) => {
+                        setCreatingFor({ lineId: line.id, productId });
+                        packagingCreation.start(typedName);
+                      }
+                    : null
+                }
+                removable={lines.length > 1}
+                onChange={(patch) => change(line.id, patch)}
+                onRemove={() => {
+                  onLinesChange();
+                  field.handleChange(lines.filter((other) => other.id !== line.id));
+                }}
+              />
+            );
+          })}
           <div>
             <Button
               variant="secondary"
@@ -104,6 +148,16 @@ export function PurchaseLinesField({
               Agregar línea
             </Button>
           </div>
+          <NewPackagingModal
+            open={packagingCreation.open}
+            products={[...products]}
+            {...(creatingFor === null ? {} : { productId: creatingFor.productId })}
+            initialName={packagingCreation.initialName}
+            services={services}
+            onCreated={packagingCreation.select}
+            onClose={packagingCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
         </fieldset>
       )}
     </SharedFieldError>
@@ -125,6 +179,7 @@ type PurchaseLineFieldsProps = {
   products: PurchaseProducts;
   packagings: readonly PackagingSummary[];
   refusal: string | undefined;
+  onCreatePackaging: ((typedName: string) => void) | null;
   removable: boolean;
   onChange: (patch: Partial<PurchaseLineValues>) => void;
   onRemove: () => void;
@@ -138,6 +193,7 @@ function PurchaseLineFields({
   products,
   packagings,
   refusal,
+  onCreatePackaging,
   removable,
   onChange,
   onRemove,
@@ -181,6 +237,9 @@ function PurchaseLineFields({
                   value={line.packagingId}
                   onChange={(packagingId) => onChange({ packagingId })}
                   required
+                  {...(onCreatePackaging === null
+                    ? {}
+                    : { creation: { recordKind: "presentación", onCreate: onCreatePackaging } })}
                 />
               ) : (
                 <InlineNotice

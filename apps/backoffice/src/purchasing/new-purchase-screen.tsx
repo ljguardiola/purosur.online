@@ -1,5 +1,9 @@
 import { parseDate } from "@internationalized/date";
-import { type PurchaseChoices, purchaseRegistrationBodySchema } from "@purosur/contracts";
+import {
+  type PurchaseChoices,
+  purchaseRegistrationBodySchema,
+  type SupplierSummary,
+} from "@purosur/contracts";
 import {
   Button,
   Card,
@@ -16,10 +20,12 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { AreaTopBar } from "../shell/area-top-bar";
-import type { BackofficeAccess } from "../shell/backoffice-access";
+import { type BackofficeAccess, canManageSuppliers } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
+import { NewSupplierModal } from "./new-supplier-modal";
 import {
   emptyPurchaseForm,
   PURCHASE_FIELDS,
@@ -37,10 +43,15 @@ import {
   purchaseRegistrationRequestFrom,
   purchaseSupplierOptions,
   RECEIPT_TYPE_OPTIONS,
+  withCreatedSupplier,
 } from "./purchase-form";
 import { PurchaseLinesField } from "./purchase-lines-field";
 import { PURCHASE_REGISTERED_STATE } from "./purchase-registered-state";
-import { usePurchaseChoicesQuery, useRefreshPurchasing } from "./purchasing-queries";
+import {
+  useMarkPurchasingStale,
+  usePurchaseChoicesQuery,
+  useRefreshPurchasing,
+} from "./purchasing-queries";
 
 export type NewPurchaseScreenProps = {
   access: BackofficeAccess;
@@ -152,6 +163,12 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
     },
   });
 
+  const markPurchasingStale = useMarkPurchasingStale();
+  const supplierCreation = useStackedCreation<SupplierSummary>(
+    (supplier) => form.setFieldValue("supplierId", supplier.id),
+    { markStale: markPurchasingStale, refresh: refreshPurchasing },
+  );
+
   useEffect(() => {
     if (today === null || today === datedOn) {
       return;
@@ -162,7 +179,9 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
     setDatedOn(today);
   }, [today, datedOn, form]);
 
-  const supplierOptions = purchaseSupplierOptions(suppliers);
+  const supplierOptions = purchaseSupplierOptions(
+    withCreatedSupplier(suppliers, supplierCreation.created),
+  );
   const nothingToChoose = !supplierOptions || products.length === 0;
 
   return (
@@ -230,6 +249,14 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
                         placeholder="Elegí un proveedor"
                         options={supplierOptions}
                         required
+                        {...(canManageSuppliers(access)
+                          ? {
+                              creation: {
+                                recordKind: "proveedor",
+                                onCreate: supplierCreation.start,
+                              },
+                            }
+                          : {})}
                       />
                     )}
                   </form.AppField>
@@ -281,10 +308,20 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
                   packagings={packagings}
                   refusals={lineRefusals}
                   onLinesChange={() => setLineRefusals({})}
+                  services={services}
+                  onSessionEnded={onSessionEnded}
                 />
               )}
             </form.AppField>
           </Card>
+          <NewSupplierModal
+            open={supplierCreation.open}
+            initialName={supplierCreation.initialName}
+            services={services}
+            onCreated={supplierCreation.select}
+            onClose={supplierCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
         </div>
       )}
     </ScreenLayout>

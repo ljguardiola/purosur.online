@@ -1,3 +1,4 @@
+import type { SupplierSummary } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -11,8 +12,14 @@ import { Check, FileText, Globe, Truck, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { purchaseSupplierOptions } from "./purchase-form";
-import { useSuppliersQuery } from "./purchasing-queries";
+import { useStackedCreation } from "../platform/stacked-creation";
+import { NewSupplierModal, type NewSupplierModalServices } from "./new-supplier-modal";
+import { purchaseSupplierOptions, withCreatedSupplier } from "./purchase-form";
+import {
+  useMarkPurchasingStale,
+  useRefreshPurchasing,
+  useSuppliersQuery,
+} from "./purchasing-queries";
 import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
 import { webPageRefusalHint, webPageRefusalMessage } from "./supplier-price-list-web-page-refusal";
 import type {
@@ -34,11 +41,12 @@ export type UploadSupplierPriceListModalServices = {
   uploadSupplierPriceList: typeof uploadSupplierPriceList;
   loadSupplierPriceListWebPage: typeof loadSupplierPriceListWebPage;
   fetchSuppliers: typeof fetchSuppliers;
-};
+} & NewSupplierModalServices;
 
 type UploadSupplierPriceListModalProps = {
   open: boolean;
   initialSupplierId: string | null;
+  mayCreateSupplier: boolean;
   services: UploadSupplierPriceListModalServices;
   onUploaded: () => void;
   onClose: () => void;
@@ -67,6 +75,7 @@ function UploadNotice({ notice }: { notice: ReadNotice | null }) {
 export function UploadSupplierPriceListModal({
   open,
   initialSupplierId,
+  mayCreateSupplier,
   services,
   onUploaded,
   onClose,
@@ -158,13 +167,25 @@ export function UploadSupplierPriceListModal({
     },
   });
 
+  const markPurchasingStale = useMarkPurchasingStale();
+  const refreshPurchasing = useRefreshPurchasing();
+  const supplierCreation = useStackedCreation<SupplierSummary>(
+    (supplier) => form.setFieldValue("supplierId", supplier.id),
+    { markStale: markPurchasingStale, refresh: refreshPurchasing },
+  );
+  const closeModal = () => {
+    supplierCreation.finish();
+    onClose();
+  };
+
   useEffect(() => {
     if (open) {
       reset({ ...EMPTY_UPLOAD_FORM, supplierId: initialSupplierId });
       setNotice(null);
       setRefusedPage(null);
+      supplierCreation.reset();
     }
-  }, [open, initialSupplierId, reset]);
+  }, [open, initialSupplierId, reset, supplierCreation.reset]);
 
   const hint =
     values.source === "WEB_PAGE" && refusedPage?.url === values.url
@@ -173,7 +194,11 @@ export function UploadSupplierPriceListModal({
 
   const supplierOptions =
     suppliers.status === "loaded"
-      ? purchaseSupplierOptions(suppliers.value.filter((supplier) => supplier.active))
+      ? purchaseSupplierOptions(
+          withCreatedSupplier(suppliers.value, supplierCreation.created).filter(
+            (supplier) => supplier.active,
+          ),
+        )
       : undefined;
 
   return (
@@ -181,7 +206,7 @@ export function UploadSupplierPriceListModal({
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeModal();
         }
       }}
       width="standard"
@@ -197,7 +222,7 @@ export function UploadSupplierPriceListModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeModal}
           >
             Cancelar
           </Button>
@@ -236,6 +261,9 @@ export function UploadSupplierPriceListModal({
                 placeholder="Elegí un proveedor"
                 options={supplierOptions}
                 required
+                {...(mayCreateSupplier
+                  ? { creation: { recordKind: "proveedor", onCreate: supplierCreation.start } }
+                  : {})}
               />
             )}
           </form.AppField>
@@ -269,6 +297,14 @@ export function UploadSupplierPriceListModal({
           </form.AppField>
         )}
         {hint === undefined ? null : <p className="text-detail text-text-subtle">{hint}</p>}
+        <NewSupplierModal
+          open={supplierCreation.open}
+          initialName={supplierCreation.initialName}
+          services={services}
+          onCreated={supplierCreation.select}
+          onClose={supplierCreation.close}
+          onSessionEnded={onSessionEnded}
+        />
       </div>
     </Modal>
   );

@@ -254,6 +254,15 @@ export function purchaseSupplierOptions(
   return first && [first, ...rest];
 }
 
+export function withCreatedSupplier(
+  suppliers: readonly SupplierSummary[],
+  created: SupplierSummary | null,
+): readonly SupplierSummary[] {
+  return created && !suppliers.some((supplier) => supplier.id === created.id)
+    ? [...suppliers, created]
+    : suppliers;
+}
+
 export function purchasePackagingOptions(
   packagings: readonly PackagingSummary[],
   productId: string | null,

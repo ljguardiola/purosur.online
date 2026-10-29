@@ -338,6 +338,11 @@ export function useRefreshSupplierItemLinkChoices(): () => Promise<void> {
   return () => client.invalidateQueries({ queryKey: purchasingKeys.supplierItemLinkChoices });
 }
 
+export function useMarkPurchasingStale(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: purchasingKey, refetchType: "none" });
+}
+
 export function useRefreshPurchasing(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: purchasingKey });

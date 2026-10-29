@@ -7,12 +7,13 @@ import { defaultSupplierPriceListsScreenServices } from "./supplier-price-lists-
 const route = getRouteApi("/signed-in/orders-area/supplier-price-lists");
 
 export function SupplierPriceListsPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { services, session, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   useDocumentTitle("Listas de proveedores · Puro Sur");
   return (
     <SupplierPriceListsScreen
+      access={session}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onOpenReview={(listId) =>
