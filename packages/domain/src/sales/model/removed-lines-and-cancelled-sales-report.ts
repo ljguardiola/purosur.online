@@ -39,11 +39,11 @@ interface Quantities {
   amount: number;
 }
 
-export interface RemovedTally extends Quantities {
+interface RemovedTally extends Quantities {
   lines: number;
 }
 
-export interface CancelledTally extends Quantities {
+interface CancelledTally extends Quantities {
   sales: number;
 }
 
