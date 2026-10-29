@@ -42,6 +42,7 @@ export {
   isPackageCount,
   ONE_SALE_UNIT_QUANTITY,
 } from "./model/purchase-line.js";
+export type { PurchasedLine } from "./model/purchases-by-supplier-report.js";
 export {
   isSupplierContactTooLong,
   isSupplierNameTooLong,

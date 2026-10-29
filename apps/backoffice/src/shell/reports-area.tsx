@@ -12,6 +12,7 @@ import {
   PackageX,
   Receipt,
   Scale,
+  ShoppingCart,
   Undo2,
   Users,
   Wallet,
@@ -47,6 +48,7 @@ function ReportsArea() {
   const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
   const lossesByReasonShown = Boolean(matchRoute({ to: "/reports/losses-by-reason" }));
+  const purchasesReportShown = Boolean(matchRoute({ to: "/reports/purchases-by-supplier" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   const issuedFiscalDocumentsShown = Boolean(matchRoute({ to: "/reports/fiscal-documents" }));
   const returnsShown = Boolean(matchRoute({ to: "/reports/returns" }));
@@ -175,6 +177,15 @@ function ReportsArea() {
                     icon={<PackageX />}
                     search={lossesByReasonShown ? true : {}}
                     active={lossesByReasonShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/purchases-by-supplier"
+                    label="Compras por proveedor"
+                    icon={<ShoppingCart />}
+                    search={purchasesReportShown ? true : {}}
+                    active={purchasesReportShown}
                   />
                 </li>
                 <li>

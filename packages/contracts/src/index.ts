@@ -436,6 +436,14 @@ export type { PurchaseRegistrationBody } from "./purchasing/purchase-registratio
 export { purchaseRegistrationBodySchema } from "./purchasing/purchase-registration.js";
 export type { PurchaseSummary } from "./purchasing/purchase-summary.js";
 export { purchaseListSchema, purchaseSummarySchema } from "./purchasing/purchase-summary.js";
+export type {
+  PurchasesBySupplierBody,
+  PurchasesBySupplierQuery,
+} from "./purchasing/purchases-by-supplier.js";
+export {
+  purchasesBySupplierQuerySchema,
+  purchasesBySupplierSchema,
+} from "./purchasing/purchases-by-supplier.js";
 export type { SupplierCreationBody } from "./purchasing/supplier-creation.js";
 export { supplierCreationBodySchema } from "./purchasing/supplier-creation.js";
 export type { SupplierEditBody } from "./purchasing/supplier-edit.js";
