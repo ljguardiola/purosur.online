@@ -72,6 +72,45 @@ describe("mentionsNetContent", () => {
     expect(mentionsNetContent("Caja 12 u de 250 g", content(12, "UNIT"))).toBe(true);
   });
 
+  it("recognizes a size right after a comma", () => {
+    expect(mentionsNetContent("Granola,1kg", content(1, "KG"))).toBe(true);
+  });
+
+  it.each([
+    ["Granola x1kg", content(1, "KG")],
+    ["Granola x 1kg", content(1, "KG")],
+    ["Caja 12x250g", content(250, "G")],
+    ["Caja 12 x 250 g", content(250, "G")],
+  ])("recognizes the size after a multiplier in %s", (text, netContent) => {
+    expect(mentionsNetContent(text, netContent)).toBe(true);
+  });
+
+  it("does not recognize a size glued to a letter other than the multiplier", () => {
+    expect(mentionsNetContent("Granola abc1kg", content(1, "KG"))).toBe(false);
+  });
+
+  it("does not recognize either number of a fraction as the size", () => {
+    expect(netContentMentions("Granola 1/2 kg")).toEqual([]);
+  });
+
+  it.each([
+    ["Granola 1.000 g", content(1, "KG")],
+    ["Granola 10.000 g", content(10, "KG")],
+    ["Granola 1.000.000 g", content(1000, "KG")],
+    ["Granola 1.500 kg", content(1500, "KG")],
+    ["Granola 0.500 kg", content(500, "G")],
+    ["Granola 1.25 kg", content(1250, "G")],
+    ["Granola 1.5000 kg", content(1500, "G")],
+    ["Granola 1.50 kg", content(1500, "G")],
+  ])("reads the points of %s as es-AR writes them", (text, netContent) => {
+    expect(mentionsNetContent(text, netContent)).toBe(true);
+  });
+
+  it("does not read a number with both a thousands point and a decimal comma", () => {
+    expect(netContentMentions("Granola 1.000,5 g")).toEqual([]);
+    expect(netContentMentions("Granola 1,000.5 g")).toEqual([]);
+  });
+
   it("ignores accents and case", () => {
     expect(mentionsNetContent("ACEITE 1 LÍTRO", content(1, "L"))).toBe(true);
     expect(mentionsNetContent("ACEITE 1 LT", content(1, "L"))).toBe(true);
