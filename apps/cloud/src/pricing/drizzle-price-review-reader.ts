@@ -1,4 +1,4 @@
-import { foldedText, priceReviewAt, type SaleUnit } from "@purosur/domain";
+import { priceReviewAt, type SaleUnit } from "@purosur/domain";
 import type {
   PriceReviewCategory,
   PriceReviewReader,
@@ -8,6 +8,7 @@ import type {
 } from "@purosur/domain/pricing/use-cases";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { containsText } from "../platform/contains-pattern.js";
 import {
   branchSettings,
   categories,
@@ -147,8 +148,12 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       filtered = filtered.filter((row) => wanted.has(row.id));
     }
     if (query.search) {
-      const needle = foldedText(query.search);
-      filtered = filtered.filter((row) => foldedText(row.name).includes(needle));
+      const matching = await this.db
+        .select({ id: products.id })
+        .from(products)
+        .where(containsText(products.name, query.search));
+      const matchingIds = new Set(matching.map((row) => row.id));
+      filtered = filtered.filter((row) => matchingIds.has(row.id));
     }
     if (query.review === "pending") {
       filtered = filtered.filter((row) => row.pending);
