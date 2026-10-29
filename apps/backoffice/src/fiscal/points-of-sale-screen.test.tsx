@@ -228,8 +228,8 @@ test("Editar opens the register's modal with its number and fiscal address", asy
   const dialog = screen.getByRole("dialog", { name: "Caja 1" });
   await expect.element(dialog.getByRole("textbox", { name: /^Punto de venta/ })).toHaveValue("12");
   await expect
-    .element(dialog.getByRole("button", { name: /Domicilio fiscal/ }))
-    .toHaveTextContent("Depósito Central");
+    .element(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }))
+    .toHaveValue("Depósito Central");
 });
 
 test("Editar CAEA opens the register's offline point of sale modal, and saving reads the lists again and announces it", async () => {

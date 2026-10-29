@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
+  applyMigrations,
+  extensionsCreatedBy,
   isRouteTestFile,
   judgeRun,
   listFiles,
@@ -11,6 +15,7 @@ import {
   replaceMigrations,
   runCli,
   selectRouteTests,
+  writeVitestConfig,
 } from "./previous-release-contract.mjs";
 
 test("selects the cloud's route test files, whatever aspect they are divided by", () => {
@@ -101,6 +106,121 @@ test("replaces the previous release's migrations with exactly the new release's"
       "new journal",
     );
   });
+});
+
+test("names every Postgres extension the migrations create, once each", () => {
+  withTempDir((dir) => {
+    writeTree(dir, {
+      "0001_tables.sql": 'CREATE TABLE "products" ("id" uuid PRIMARY KEY);',
+      "0002_search.sql": "CREATE EXTENSION IF NOT EXISTS unaccent;",
+      "0003_ids.sql":
+        'create extension "uuid-ossp";\n--> statement-breakpoint\nCREATE EXTENSION pg_trgm;',
+      "0004_again.sql": "CREATE EXTENSION IF NOT EXISTS unaccent;",
+      "meta/_journal.json": '{"note": "CREATE EXTENSION not_a_migration"}',
+    });
+
+    assert.deepEqual(extensionsCreatedBy(dir), ["pg_trgm", "unaccent", "uuid-ossp"]);
+  });
+});
+
+test("names no extension when no migration creates one", () => {
+  withTempDir((dir) => {
+    writeTree(dir, { "0001_tables.sql": 'CREATE TABLE "products" ("id" uuid PRIMARY KEY);' });
+
+    assert.deepEqual(extensionsCreatedBy(dir), []);
+  });
+});
+
+test("writes a Vitest config that keeps the previous release's own config and adds the results reporter", () => {
+  withTempDir((dir) => {
+    const path = writeVitestConfig({ previousDir: dir, reporter: "/current/results-reporter.mjs" });
+
+    assert.equal(path, join(dir, "vitest.previous-release.config.mts"));
+    assert.equal(
+      readFileSync(path, "utf8"),
+      [
+        'import { mergeConfig } from "vitest/config";',
+        'import previousRelease from "./vitest.config.ts";',
+        "",
+        'export default mergeConfig(previousRelease, { test: { reporters: ["/current/results-reporter.mjs"] } });',
+        "",
+      ].join("\n"),
+    );
+  });
+});
+
+const CLOUD_DIR = fileURLToPath(new URL("../../apps/cloud", import.meta.url));
+
+function writeMigrationsFolder(dir, migrations) {
+  const entries = Object.keys(migrations).map((tag, idx) => ({
+    idx,
+    version: "7",
+    when: 1_700_000_000_000 + idx,
+    tag,
+    breakpoints: true,
+  }));
+  writeTree(dir, {
+    "meta/_journal.json": JSON.stringify({ version: "7", dialect: "postgresql", entries }),
+    ...Object.fromEntries(Object.entries(migrations).map(([tag, sql]) => [`${tag}.sql`, sql])),
+  });
+}
+
+test("applies the migrations to a fresh database with the release's own PGlite and Drizzle", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "previous-release-contract-"));
+  try {
+    writeMigrationsFolder(dir, {
+      "0000_products": 'CREATE TABLE "products" ("id" integer PRIMARY KEY);',
+      "0001_names": 'ALTER TABLE "products" ADD COLUMN "name" text;',
+    });
+
+    await applyMigrations({ cloudDir: CLOUD_DIR, migrationsFolder: dir });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a migration that fails rejects with the error Postgres gave as its cause", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "previous-release-contract-"));
+  try {
+    writeMigrationsFolder(dir, {
+      "0000_products": 'CREATE TABLE "products" ("id" integer PRIMARY KEY);',
+      "0001_missing": 'ALTER TABLE "suppliers" ADD COLUMN "name" text;',
+    });
+
+    await assert.rejects(
+      applyMigrations({ cloudDir: CLOUD_DIR, migrationsFolder: dir }),
+      (error) => {
+        assert.match(error.message, /ALTER TABLE "suppliers"/);
+        assert.match(error.cause?.message ?? "", /relation "suppliers" does not exist/);
+        return true;
+      },
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the migrate command gives the database the extensions the migrations create", () => {
+  const dir = mkdtempSync(join(tmpdir(), "previous-release-contract-"));
+  try {
+    mkdirSync(join(dir, "apps/cloud"), { recursive: true });
+    symlinkSync(join(CLOUD_DIR, "node_modules"), join(dir, "apps/cloud/node_modules"), "dir");
+    writeMigrationsFolder(join(dir, "apps/cloud/migrations"), {
+      "0000_search":
+        "CREATE EXTENSION IF NOT EXISTS unaccent;\n--> statement-breakpoint\nSELECT unaccent('Balsámico');",
+    });
+
+    const run = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL("./previous-release-contract.mjs", import.meta.url)), "migrate"],
+      { encoding: "utf8", env: { ...process.env, PREVIOUS_DIR: dir } },
+    );
+
+    assert.equal(run.status, 0, run.stderr);
+    assert.match(run.stdout, /the migrations apply/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 const SECOND_CREDIT_NOTE =
@@ -305,8 +425,8 @@ test("a failed run without results stops the promote even with declared breaks",
   assert.match(verdict.lines.join("\n"), /no results/);
 });
 
-function fakeCli({ argv, env = {}, files = [], runResults }) {
-  const calls = { swaps: [], logs: [], errors: [], resultsRead: [] };
+function fakeCli({ argv, env = {}, files = [], runResults, migrationError }) {
+  const calls = { swaps: [], migrations: [], configs: [], logs: [], errors: [], resultsRead: [] };
   return {
     calls,
     deps: {
@@ -318,6 +438,16 @@ function fakeCli({ argv, env = {}, files = [], runResults }) {
         return runResults;
       },
       replaceMigrations: (arguments_) => calls.swaps.push(arguments_),
+      applyMigrations: async (arguments_) => {
+        calls.migrations.push(arguments_);
+        if (migrationError) {
+          throw migrationError;
+        }
+      },
+      writeVitestConfig: (arguments_) => {
+        calls.configs.push(arguments_);
+        return `${arguments_.previousDir}/vitest.previous-release.config.mts`;
+      },
       log: (message) => calls.logs.push(message),
       logError: (message) => calls.errors.push(message),
     },
@@ -348,6 +478,44 @@ test("the swap-migrations command gives the previous release the new migrations"
 
   assert.equal(await runCli(deps), 0);
   assert.deepEqual(calls.swaps, [{ previousDir: "/previous", currentDir: "/current" }]);
+});
+
+test("the migrate command applies the previous release's migrations with its own cloud's packages", async () => {
+  const { deps, calls } = fakeCli({ argv: ["migrate"] });
+
+  assert.equal(await runCli(deps), 0);
+  assert.deepEqual(calls.migrations, [
+    { cloudDir: "/previous/apps/cloud", migrationsFolder: "/previous/apps/cloud/migrations" },
+  ]);
+  assert.deepEqual(calls.errors, []);
+});
+
+test("the migrate command stops the promote on a failed migration, naming the error and its cause", async () => {
+  const { deps, calls } = fakeCli({
+    argv: ["migrate"],
+    migrationError: new Error('Failed query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp";', {
+      cause: new Error('extension "uuid-ossp" is not available'),
+    }),
+  });
+
+  assert.equal(await runCli(deps), 1);
+  const errors = calls.errors.join("\n");
+  assert.match(errors, /stops the promote/);
+  assert.match(errors, /Failed query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp";/);
+  assert.match(errors, /extension "uuid-ossp" is not available/);
+});
+
+test("the write-vitest-config command prints the config it wrote for the previous release", async () => {
+  const { deps, calls } = fakeCli({
+    argv: ["write-vitest-config"],
+    env: { RESULTS_REPORTER: "/current/results-reporter.mjs" },
+  });
+
+  assert.equal(await runCli(deps), 0);
+  assert.deepEqual(calls.configs, [
+    { previousDir: "/previous", reporter: "/current/results-reporter.mjs" },
+  ]);
+  assert.deepEqual(calls.logs, ["/previous/vitest.previous-release.config.mts"]);
 });
 
 test("the check-declared command prints each declared break", async () => {
@@ -419,6 +587,9 @@ test("the commands fail without their inputs", async () => {
     [[], {}],
     [["list"], { PREVIOUS_DIR: "" }],
     [["swap-migrations"], { CURRENT_DIR: "" }],
+    [["migrate"], { PREVIOUS_DIR: "" }],
+    [["write-vitest-config"], {}],
+    [["write-vitest-config"], { PREVIOUS_DIR: "", RESULTS_REPORTER: "/reporter.mjs" }],
     [["judge"], { TESTS_OUTCOME: "failure" }],
     [["judge"], { RESULTS_FILE: "/results.json" }],
     [["judge"], { RESULTS_FILE: "/results.json", TESTS_OUTCOME: "failure", DECLARED_BREAKS: "[" }],

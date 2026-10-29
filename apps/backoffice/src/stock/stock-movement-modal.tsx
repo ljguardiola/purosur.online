@@ -298,7 +298,7 @@ export function StockMovementModal({
                 <div className="flex-1">
                   <loss.form.AppField name="productId">
                     {(field) => (
-                      <field.Select
+                      <field.ComboBox
                         label="Producto"
                         placeholder="Elegí un producto"
                         options={options}
@@ -348,7 +348,7 @@ export function StockMovementModal({
                 <div className="flex-1">
                   <adjustment.form.AppField name="productId">
                     {(field) => (
-                      <field.Select
+                      <field.ComboBox
                         label="Producto"
                         placeholder="Elegí un producto"
                         options={options}

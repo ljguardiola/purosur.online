@@ -7,6 +7,8 @@ import type {
   PackagingSummary,
   PurchaseChoices,
   PurchaseSummary,
+  PurchasesBySupplierBody,
+  PurchasesBySupplierQuery,
   SupplierItemLinkChoices,
   SupplierItemLinkProposal,
   SupplierPriceComparison,
@@ -26,6 +28,7 @@ import type {
 } from "./freights-api";
 import type { fetchPackagings } from "./packagings-api";
 import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
+import type { fetchPurchasesReport } from "./purchases-report-api";
 import type {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
@@ -62,6 +65,10 @@ export const purchasingKeys = {
   supplierPriceComparison: [...purchasingKey, "supplier-price-comparison"] as const,
 };
 
+export function purchasesReportKey(query: PurchasesBySupplierQuery) {
+  return [...purchasingKey, "purchases-report", query.from ?? "", query.to ?? ""] as const;
+}
+
 const SUPPLIER_PRICE_LIST_READING_REFRESH_MS = 5_000;
 
 function useCloudQueryWhileReading<T>(
@@ -89,6 +96,21 @@ export function useSuppliersQuery(params: {
     queryKey: purchasingKeys.suppliers,
     read: params.fetchSuppliers,
     enabled: params.enabled ?? true,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePurchasesReportQuery(params: {
+  query: PurchasesBySupplierQuery;
+  fetchPurchasesReport: typeof fetchPurchasesReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PurchasesBySupplierBody>({
+    queryKey: purchasesReportKey(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchPurchasesReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

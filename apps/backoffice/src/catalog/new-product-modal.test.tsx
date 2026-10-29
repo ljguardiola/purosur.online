@@ -90,8 +90,8 @@ test("creates a product with a net content", async () => {
   const { dialog } = await renderModal(services, { onCreated });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Pasta de maní 380 g");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(radioLabel(dialog, "Por peso"));
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "1,5");
   await userEvent.click(dialog.getByRole("button", { name: "g Unidad" }));
@@ -135,8 +135,8 @@ test("rejects an invalid net content quantity, without calling the API", async (
   const { dialog } = await renderModal(services);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(radioLabel(dialog, "Por unidad"));
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "0");
   await scanCode(scanInputOf(dialog), "12345");
@@ -286,7 +286,7 @@ test("shows the generic failure notice on create when the cloud refuses a field 
 test("opens the create modal with no category pre-chosen and the product sold by the unit", async () => {
   const { dialog } = await renderModal(createServices());
 
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await expect.element(dialog.getByRole("radio", { name: "Por unidad" })).toBeChecked();
   await expect.element(dialog.getByRole("radio", { name: "Por peso" })).not.toBeChecked();
 });
@@ -484,8 +484,8 @@ test("generates an internal code, adds it to the list, and saves the product wit
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
   const { dialog } = await renderModal(services);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Ensalada de fruta 300 g");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(radioLabel(dialog, "Por peso"));
 
   await userEvent.click(generateButtonOf(dialog));
@@ -608,7 +608,7 @@ const dulcor: BrandSummary = {
 };
 
 function brandSelect(dialog: Locator) {
-  return dialog.getByRole("button", { name: /Marca/ });
+  return dialog.getByRole("combobox", { name: /^Marca/ });
 }
 
 async function fillNewProduct(dialog: Locator) {
@@ -616,8 +616,8 @@ async function fillNewProduct(dialog: Locator) {
     dialog.getByRole("textbox", { name: /^Nombre/ }),
     "Dátiles sin carozo 250 g",
   );
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(radioLabel(dialog, "Por unidad"));
   await scanCode(scanInputOf(dialog), "111");
 }
@@ -634,10 +634,10 @@ test("a new product starts with no brand, offering only the active brands by nam
     brands: [granuz, litoral, cabriola],
   });
 
-  await expect.element(brandSelect(dialog)).toHaveTextContent("Sin marca");
+  await expect.element(brandSelect(dialog)).toHaveValue("Sin marca");
   await userEvent.click(brandSelect(dialog));
 
-  const options = dialog.getByRole("option").all();
+  const options = page.getByRole("option").all();
   expect(options.map((option) => option.element().textContent)).toEqual([
     "Sin marca",
     "Cabriola",
@@ -664,7 +664,7 @@ test("creates a product with the brand chosen", async () => {
 
   await fillNewProduct(dialog);
   await userEvent.click(brandSelect(dialog));
-  await userEvent.click(dialog.getByRole("option", { name: "Granuz" }));
+  await userEvent.click(page.getByRole("option", { name: "Granuz" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
@@ -688,7 +688,7 @@ test("creates a brand in a modal stacked over the product form, then selects it 
   expect(services.createBrand).toHaveBeenCalledWith({ name: "Dulcor" });
   await expect.poll(() => screen.getByRole("dialog", { name: "Nueva marca" }).query()).toBeNull();
   const productForm = screen.getByRole("dialog", { name: "Nuevo producto" });
-  await expect.element(brandSelect(productForm)).toHaveTextContent("Dulcor");
+  await expect.element(brandSelect(productForm)).toHaveValue("Dulcor");
   await expect
     .element(productForm.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Dátiles sin carozo 250 g");
@@ -724,7 +724,7 @@ test("a brand name already taken shows the error in the stacked modal and keeps 
   await expect
     .element(productForm.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Dátiles sin carozo 250 g");
-  await expect.element(brandSelect(productForm)).toHaveTextContent("Sin marca");
+  await expect.element(brandSelect(productForm)).toHaveValue("Sin marca");
 });
 
 test("a failed brand creation shows the error notice in the stacked modal, keeping the name typed", async () => {
@@ -747,7 +747,7 @@ test("shows on the brand field that the brand chosen was deactivated meanwhile",
   const { dialog } = await renderModal(services, { brands: [granuz] });
   await fillNewProduct(dialog);
   await userEvent.click(brandSelect(dialog));
-  await userEvent.click(dialog.getByRole("option", { name: "Granuz" }));
+  await userEvent.click(page.getByRole("option", { name: "Granuz" }));
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 

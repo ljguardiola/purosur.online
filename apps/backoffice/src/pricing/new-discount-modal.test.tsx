@@ -228,22 +228,22 @@ test("switching what it applies to changes the picker's label, options and place
 
   await userEvent.click(radioLabel(dialog, "Categoría"));
 
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
   expect(
-    dialog
+    page
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Almacén", "Almacén › Yerbas"]);
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén › Yerbas" }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén › Yerbas" }));
 
   await userEvent.click(radioLabel(dialog, "Distintivo"));
 
-  await expect.element(dialog.getByRole("button", { name: /^Elegí un distintivo/ })).toBeVisible();
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí un distintivo/ }));
+  await expect.element(dialog.getByRole("combobox", { name: /^Distintivo/ })).toBeVisible();
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Distintivo/ }));
   expect(
-    dialog
+    page
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
@@ -647,4 +647,30 @@ test("has no accessibility violations with buy-N-pay-M chosen and its messages s
   await expect.element(dialog.getByText("Ingresá una cantidad entera de 2 o más.")).toBeVisible();
 
   await expectNoAccessibilityViolations(dialog.element());
+});
+
+test("typing in the category or tag target offers only the matching ones", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await userEvent.click(radioLabel(dialog, "Categoría"));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Categoría/ }), "yerb");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Almacén › Yerbas"]);
+  await userEvent.click(page.getByRole("option", { name: "Almacén › Yerbas" }));
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Categoría/ }))
+    .toHaveValue("Almacén › Yerbas");
+
+  await userEvent.click(radioLabel(dialog, "Distintivo"));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Distintivo/ }), "veg");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Vegano"]);
 });

@@ -53,6 +53,7 @@ export function ReportRegisterFilter({
     <ListFilter
       name="register"
       label="Caja:"
+      searchable
       options={registerOptions}
       value={registerOffered ? value : "ALL"}
       onChange={onChange}

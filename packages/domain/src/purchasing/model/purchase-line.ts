@@ -1,4 +1,4 @@
-import { isValidCashAmount } from "../../shared/index.js";
+import { type Fraction, isValidCashAmount } from "../../shared/index.js";
 import { MAX_STOCK_QUANTITY, STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
 
 // A line loaded by quantity is paid per sale unit, so its quantity per package is one unit or one kilo.
@@ -14,4 +14,33 @@ export function isCostPaid(cents: number): boolean {
 
 export function packagedQuantity(packages: number, quantityPerPackage: number): number {
   return packages * quantityPerPackage;
+}
+
+export interface PurchaseLineCost {
+  costPaidCents: number;
+  quantity: number;
+  quantityPerPackage: number;
+}
+
+export function lineValue({
+  costPaidCents,
+  quantity,
+  quantityPerPackage,
+}: PurchaseLineCost): Fraction {
+  return {
+    numerator: BigInt(costPaidCents) * BigInt(quantity),
+    denominator: BigInt(quantityPerPackage),
+  };
+}
+
+function greatestCommonDivisor(a: bigint, b: bigint): bigint {
+  return b === 0n ? a : greatestCommonDivisor(b, a % b);
+}
+
+export function commonDenominator(values: readonly Fraction[]): bigint {
+  return values.reduce(
+    (multiple, { denominator }) =>
+      (multiple / greatestCommonDivisor(multiple, denominator)) * denominator,
+    1n,
+  );
 }

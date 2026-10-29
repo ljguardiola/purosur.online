@@ -171,7 +171,7 @@ test("filters the loaded refunds by the register that took them, offering only t
   const screen = await renderScreen(services, () => {}, { onFiltersChange });
   await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
 
-  await screen.getByRole("button", { name: /Caja/ }).click();
+  await screen.getByRole("combobox", { name: /^Caja/ }).click();
   const options = screen
     .getByRole("option")
     .all()
@@ -198,7 +198,9 @@ test("opens on the register the address carries", async () => {
 
   await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
   expect(screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
-  await expect.element(screen.getByRole("button", { name: /Caja del frente/ })).toBeVisible();
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja/ }))
+    .toHaveValue("Caja del frente");
 });
 
 test("shows every refund and reports every register when the address carries a register the list has none for", async () => {
@@ -216,7 +218,7 @@ test("shows every refund and reports every register when the address carries a r
 
   await expect.element(screen.getByText("$ 3.400,00", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: /Caja.*Todas/ })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Caja/ })).toHaveValue("Todas");
   await expect.poll(() => onFiltersChange.mock.lastCall).toEqual([{ register: "all" }]);
 });
 
@@ -546,4 +548,23 @@ test("a refusal of the confirmation keeps the question open and refreshes nothin
 
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   await expect.poll(() => vi.mocked(services.fetchPendingRefunds).mock.calls.length).toBe(2);
+});
+
+test("typing in the register filter offers only the matching registers", async () => {
+  const services = createMercadoPagoRefundsServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsOfTwoMercadoPagoRegisters,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /^Caja/ }), "entr");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent?.trim()),
+  ).toEqual(["Caja de la entrada"]);
 });

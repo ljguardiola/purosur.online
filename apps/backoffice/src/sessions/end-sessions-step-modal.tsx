@@ -151,7 +151,7 @@ export function EndSessionsStepModal({
           {options !== undefined && (
             <form.AppField name="accountId">
               {(field) => (
-                <field.Select
+                <field.ComboBox
                   label="Cuenta sospechada"
                   placeholder="Elegí una cuenta"
                   options={options}

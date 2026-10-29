@@ -1,7 +1,7 @@
 import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { drinks, groceries, jams, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import type { CategoryReload } from "./catalog-queries";
@@ -43,8 +43,8 @@ test("preselects Ninguna for a top-level category", async () => {
   const dialog = screen.getByRole("dialog");
 
   await expect
-    .element(dialog.getByRole("button", { name: /Categoría superior/ }))
-    .toHaveTextContent("Ninguna (categoría de primer nivel)");
+    .element(dialog.getByRole("combobox", { name: /Categoría superior/ }))
+    .toHaveValue("Ninguna (categoría de primer nivel)");
 });
 
 test("the parent select excludes the category itself and its own descendants", async () => {
@@ -54,14 +54,12 @@ test("the parent select excludes the category itself and its own descendants", a
   });
   const dialog = screen.getByRole("dialog");
 
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
 
-  await expect.element(dialog.getByRole("option", { name: "Almacén" })).toBeVisible();
-  await expect.element(dialog.getByRole("option", { name: "Bebidas" })).toBeVisible();
-  expect(dialog.getByRole("option", { name: "Almacén › Untables" }).query()).toBeNull();
-  expect(
-    dialog.getByRole("option", { name: "Almacén › Untables › Mermeladas" }).query(),
-  ).toBeNull();
+  await expect.element(page.getByRole("option", { name: "Almacén" })).toBeVisible();
+  await expect.element(page.getByRole("option", { name: "Bebidas" })).toBeVisible();
+  expect(page.getByRole("option", { name: "Almacén › Untables" }).query()).toBeNull();
+  expect(page.getByRole("option", { name: "Almacén › Untables › Mermeladas" }).query()).toBeNull();
 });
 
 test("rejects a name longer than 100 characters, without calling the API", async () => {
@@ -105,8 +103,8 @@ test("shows the parent-has-products error, naming the chosen parent", async () =
   const screen = await renderModal({ target: drinks, categories: [groceries, drinks], edit });
   const dialog = screen.getByRole("dialog");
 
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect
@@ -123,8 +121,8 @@ test("shows the move-not-allowed error, naming the category and the chosen desti
   const screen = await renderModal({ target: drinks, categories: [groceries, drinks], edit });
   const dialog = screen.getByRole("dialog");
 
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect
@@ -234,8 +232,8 @@ test("a stale-version reload discards the typed name and saves again over the re
 
   expect(reload).toHaveBeenCalledWith("ca7e0000-0000-4000-8000-000000000004");
   await expect
-    .element(dialog.getByRole("button", { name: /Categoría superior/ }))
-    .toHaveTextContent("Almacén");
+    .element(dialog.getByRole("combobox", { name: /Categoría superior/ }))
+    .toHaveValue("Almacén");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
     .toHaveValue("Bebidas");
@@ -273,4 +271,21 @@ test("a stale-version reload also retitles the dialog with the fresh name", asyn
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect.element(dialog.getByRole("heading", { name: "Bebidas frías" })).toBeVisible();
+});
+
+test("typing in the parent category offers only the matching categories", async () => {
+  const screen = await renderModal({
+    target: jams,
+    categories: [groceries, spreads, jams, drinks],
+  });
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Categoría superior/ }), "beb");
+
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Bebidas"]);
 });

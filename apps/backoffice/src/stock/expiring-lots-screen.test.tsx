@@ -253,3 +253,17 @@ test("ends the session when the cloud says it is over", async () => {
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
+
+test("typing in the category filter offers only the matching categories", async () => {
+  const screen = await renderScreen(listed());
+  await expect.element(screen.getByText("Yogur natural")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Categoría/ }), "lác");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Lácteos"]);
+});

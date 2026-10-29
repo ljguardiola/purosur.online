@@ -1,6 +1,6 @@
 import type { ListedProduct } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { radioLabel } from "../platform/test-support/radio-label";
 import { almonds, honey } from "./test-support/products";
 import {
@@ -53,8 +53,8 @@ test("creates a product and shows it in the list", async () => {
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Pasta de maní 380 g");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(radioLabel(dialog, "Por peso"));
   await userEvent.fill(
     dialog.getByRole("textbox", { name: "Escanear otro código" }),
@@ -93,8 +93,8 @@ test("a product created while only inactive products are listed stays out of the
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Pasta de maní 380 g");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(radioLabel(dialog, "Por unidad"));
   await userEvent.fill(
     dialog.getByRole("textbox", { name: "Escanear otro código" }),

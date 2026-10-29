@@ -260,7 +260,7 @@ export function EditRegisterPointOfSaleModal({
             </form.AppField>
             {options ? (
               <form.AppField name="fiscalAddressId">
-                {(field) => <field.Select label="Domicilio fiscal" options={options} required />}
+                {(field) => <field.ComboBox label="Domicilio fiscal" options={options} required />}
               </form.AppField>
             ) : (
               <InlineNotice

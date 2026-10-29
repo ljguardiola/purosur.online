@@ -231,7 +231,7 @@ export function UploadSupplierPriceListModal({
         ) : (
           <form.AppField name="supplierId">
             {(field) => (
-              <field.Select
+              <field.ComboBox
                 label="Proveedor"
                 placeholder="Elegí un proveedor"
                 options={supplierOptions}

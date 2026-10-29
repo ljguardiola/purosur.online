@@ -1,8 +1,8 @@
 import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
-import { groceries, spreads } from "../platform/test-support/categories";
+import { page, userEvent } from "vitest/browser";
+import { drinks, groceries, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import type { createCategory } from "./categories-api";
 import { NewCategoryModal } from "./new-category-modal";
@@ -81,15 +81,15 @@ test("opens with a parent select offering every category by its path label", asy
 
   await expect.element(dialog.getByRole("heading", { name: "Nueva categoría" })).toBeVisible();
   await expect
-    .element(dialog.getByRole("button", { name: /Categoría superior/ }))
-    .toHaveTextContent("Ninguna (categoría de primer nivel)");
+    .element(dialog.getByRole("combobox", { name: /Categoría superior/ }))
+    .toHaveValue("Ninguna (categoría de primer nivel)");
   await expect
     .element(dialog.getByText("Opcional. Vacío para una categoría de primer nivel."))
     .toBeVisible();
 
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await expect.element(dialog.getByRole("option", { name: "Almacén" })).toBeVisible();
-  await expect.element(dialog.getByRole("option", { name: "Almacén › Untables" })).toBeVisible();
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await expect.element(page.getByRole("option", { name: "Almacén" })).toBeVisible();
+  await expect.element(page.getByRole("option", { name: "Almacén › Untables" })).toBeVisible();
 });
 
 test("creates a subcategory under the chosen parent", async () => {
@@ -99,8 +99,8 @@ test("creates a subcategory under the chosen parent", async () => {
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect.poll(() => create.mock.calls.length).toBe(1);
@@ -117,8 +117,8 @@ test("shows the parent-has-products error, naming the chosen parent", async () =
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect
@@ -136,8 +136,8 @@ test("shows the name-taken-under-parent error, naming the entered name and the p
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect
@@ -165,8 +165,8 @@ test("shows a field error under the parent select when the chosen parent has van
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect
@@ -202,4 +202,27 @@ test("shows the generic failure notice when the cloud refuses a field the form d
 
   await expect.element(dialog.getByText("No se pudo crear la categoría")).toBeVisible();
   expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
+});
+
+test("typing in the parent category offers only the matching categories, and choosing one creates under it", async () => {
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ categories: [groceries, drinks], create });
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    "Gaseosas",
+  );
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Categoría superior/ }), "beb");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Bebidas"]);
+  await userEvent.click(page.getByRole("option", { name: "Bebidas" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.poll(() => create.mock.calls.length).toBe(1);
+  expect(create).toHaveBeenCalledWith({ name: "Gaseosas", parentId: drinks.id });
 });

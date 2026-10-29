@@ -556,6 +556,7 @@ export function PricesListScreen({
           <ListFilter
             name="category"
             label="Categoría:"
+            searchable
             options={categoryFilterOptions}
             value={categoryFilter}
             onChange={(value) => {

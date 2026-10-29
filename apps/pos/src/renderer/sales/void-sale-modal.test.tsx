@@ -400,8 +400,8 @@ describe("VoidSaleModal", () => {
       await authorizeAs(screen, "Sofía", "1234");
 
       await expect
-        .element(screen.getByRole("button", { name: /Persona que autoriza/ }))
-        .toHaveTextContent("Sofía");
+        .element(screen.getByRole("combobox", { name: /Persona que autoriza/ }))
+        .toHaveValue("Sofía");
       await expect.element(screen.getByText(/Autoriza: /)).not.toBeInTheDocument();
     });
 

@@ -79,7 +79,7 @@ test("the category filter offers the categories the prices list brings and narro
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("combobox", { name: /^Categoría:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Almacén" }));
 
   await expect
@@ -110,7 +110,7 @@ test("the category filter lists the categories alphabetically by name", async ()
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("combobox", { name: /^Categoría:/ }));
 
   await expect
     .poll(() =>
@@ -146,7 +146,9 @@ test("opens with the filters it is given, asking for them in its first request",
     search: "arroz",
   });
   await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue(" arroz ");
-  await expect.element(screen.getByRole("button", { name: "Categoría: Almacén" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Categoría:/ }))
+    .toHaveValue("Almacén");
   await expect.element(screen.getByRole("button", { name: "Revisión: Todos" })).toBeVisible();
 });
 
@@ -169,7 +171,7 @@ test("falls back to every category when the category it is given is not one the 
     onFiltersChange,
   });
 
-  await expect.element(screen.getByRole("button", { name: "Categoría: Todas" })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Categoría:/ })).toHaveValue("Todas");
   await expect
     .poll(() => vi.mocked(services.fetchPrices).mock.lastCall?.[0])
     .toEqual({
@@ -255,11 +257,13 @@ test("a chosen category keeps its name in the filter while the list it narrows f
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("combobox", { name: /^Categoría:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Almacén" }));
   await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
 
-  await expect.element(screen.getByRole("button", { name: "Categoría: Almacén" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Categoría:/ }))
+    .toHaveValue("Almacén");
 });
 
 test("retrying a list narrowed by a chosen category loads it again from its placeholder, keeping the category's name", async () => {
@@ -281,7 +285,7 @@ test("retrying a list narrowed by a chosen category loads it again from its plac
   );
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("combobox", { name: /^Categoría:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Almacén" }));
   await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
   vi.mocked(services.fetchPrices).mockReturnValueOnce(retry.promise);
@@ -291,7 +295,9 @@ test("retrying a list narrowed by a chosen category loads it again from its plac
   await expect.element(screen.getByText("No pudimos abrir los precios")).not.toBeInTheDocument();
   await expect.element(screen.getByText("Arroz")).not.toBeInTheDocument();
   await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
-  await expect.element(screen.getByRole("button", { name: "Categoría: Almacén" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Categoría:/ }))
+    .toHaveValue("Almacén");
   retry.resolve({
     kind: "ok",
     value: {
@@ -303,4 +309,33 @@ test("retrying a list narrowed by a chosen category loads it again from its plac
     },
   });
   await expect.element(screen.getByText("Arroz")).toBeVisible();
+});
+
+test("typing in the category filter offers only the matching categories", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [
+        { id: "category-3", name: "Verdulería" },
+        groceries,
+        { id: "category-2", name: "Bebidas" },
+      ],
+    },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Categoría/ }), "verd");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Verdulería"]);
 });

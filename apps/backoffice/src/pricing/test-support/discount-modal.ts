@@ -22,9 +22,15 @@ export function dateSegments(dialog: Dialog, label: "Desde" | "Hasta") {
     .map((segment) => segment.element().textContent);
 }
 
+const TARGET_LABELS: Record<string, string> = {
+  "Elegí una categoría": "Categoría",
+  "Elegí un distintivo": "Distintivo",
+};
+
 export async function chooseTarget(dialog: Dialog, placeholder: string, option: string) {
-  await userEvent.click(dialog.getByRole("button", { name: new RegExp(`^${placeholder}`) }));
-  await userEvent.click(dialog.getByRole("option", { name: option }));
+  const label = TARGET_LABELS[placeholder];
+  await userEvent.click(dialog.getByRole("combobox", { name: new RegExp(`^${label}`) }));
+  await userEvent.click(page.getByRole("option", { name: option }));
 }
 
 export function productPicker(dialog: Dialog) {

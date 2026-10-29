@@ -1,9 +1,12 @@
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { findPackageJSON, registerHooks } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const LOG_PREFIX = "previous-release-contract";
 const CLOUD_SOURCE = "apps/cloud/src";
-const MIGRATIONS = "apps/cloud/migrations";
+const CLOUD = "apps/cloud";
+const MIGRATIONS = `${CLOUD}/migrations`;
 
 // A cloud route test names the route file it exercises (`<name>-route.test.ts`, or
 // `<name>-routes.test.ts` for a file holding several), optionally divided by aspect
@@ -28,6 +31,148 @@ export function listFiles(dir) {
 export function replaceMigrations({ previousDir, currentDir }) {
   rmSync(join(previousDir, MIGRATIONS), { recursive: true });
   cpSync(join(currentDir, MIGRATIONS), join(previousDir, MIGRATIONS), { recursive: true });
+}
+
+function importFrom(dir, packageName, subpath) {
+  const packageJson = findPackageJSON(packageName, pathToFileURL(join(dir, "package.json")));
+  const { exports } = JSON.parse(readFileSync(packageJson, "utf8"));
+  return import(pathToFileURL(join(dirname(packageJson), exports[subpath].import.default)).href);
+}
+
+// Vitest reports no error thrown by a global setup to its reporters, so the previous release's
+// test databases are migrated here first, with its own packages, for a failure to name its cause.
+export async function applyMigrations({ cloudDir, migrationsFolder }) {
+  loadPgliteExtensions(extensionsCreatedBy(migrationsFolder));
+  const { drizzle } = await importFrom(cloudDir, "drizzle-orm", "./pglite");
+  const { migrate } = await importFrom(cloudDir, "drizzle-orm", "./pglite/migrator");
+  const database = drizzle();
+  try {
+    await migrate(database, { migrationsFolder });
+  } finally {
+    await database.$client.close();
+  }
+}
+
+function describeFailure(error) {
+  const lines = [];
+  for (let cause = error; cause !== undefined; cause = cause.cause) {
+    lines.push(cause instanceof Error ? cause.message : String(cause));
+  }
+  return lines.join("\ncaused by: ");
+}
+
+// Vitest's --reporter replaces the reporters a config declares, and the previous release's own
+// reporters may be what its sequencer needs, so the results reporter is added to them instead.
+const VITEST_CONFIG = "vitest.previous-release.config.mts";
+
+export function writeVitestConfig({ previousDir, reporter }) {
+  const path = join(previousDir, VITEST_CONFIG);
+  writeFileSync(
+    path,
+    [
+      'import { mergeConfig } from "vitest/config";',
+      'import previousRelease from "./vitest.config.ts";',
+      "",
+      `export default mergeConfig(previousRelease, { test: { reporters: [${JSON.stringify(reporter)}] } });`,
+      "",
+    ].join("\n"),
+  );
+  return path;
+}
+
+const CREATE_EXTENSION_RE = /\bcreate\s+extension\s+(?:if\s+not\s+exists\s+)?"?([\w-]+)"?/gi;
+
+export function extensionsCreatedBy(migrationsDir) {
+  const names = new Set();
+  for (const file of listFiles(migrationsDir).filter((path) => path.endsWith(".sql"))) {
+    for (const [, name] of readFileSync(join(migrationsDir, file), "utf8").matchAll(
+      CREATE_EXTENSION_RE,
+    )) {
+      names.add(name);
+    }
+  }
+  return [...names].sort();
+}
+
+const PGLITE_ENTRY_RE = /\/@electric-sql\/pglite\/dist\/index\.js$/;
+const WITH_EXTENSIONS = "previous-release-pglite:";
+
+// PGlite names each contrib module after its extension with every "-" written as "_"
+// (`uuid-ossp` ships as `contrib/uuid_ossp.js`).
+function contribUrl(name, pgliteUrl) {
+  const url = new URL(`./contrib/${name.replaceAll("-", "_")}.js`, pgliteUrl);
+  if (!existsSync(fileURLToPath(url))) {
+    throw new Error(
+      `previous-release-pglite-extensions: PGlite ships no "${name}" extension, which the new release's migrations create`,
+    );
+  }
+  return url.href;
+}
+
+function pgliteWithExtensions(pgliteUrl, extensions) {
+  const entry = JSON.stringify(pgliteUrl);
+  const imports = extensions.map(
+    (name, at) => `import * as extension${at} from ${JSON.stringify(contribUrl(name, pgliteUrl))};`,
+  );
+  const required = extensions.map(
+    (name, at) =>
+      `${JSON.stringify(name)}: Object.values(extension${at}).find((value) => value?.name === ${JSON.stringify(name)})`,
+  );
+  return `
+import * as pglite from ${entry};
+${imports.join("\n")}
+export * from ${entry};
+
+const required = { ${required.join(", ")} };
+
+function withRequired(options = {}) {
+  return { ...options, extensions: { ...required, ...options.extensions } };
+}
+
+export class PGlite extends pglite.PGlite {
+  constructor(dataDirOrOptions, options) {
+    if (typeof dataDirOrOptions === "string") {
+      super(dataDirOrOptions, withRequired(options));
+    } else {
+      super(withRequired(dataDirOrOptions), options);
+    }
+  }
+
+  static async create(dataDirOrOptions, options) {
+    const database = new PGlite(dataDirOrOptions, options);
+    await database.waitReady;
+    return database;
+  }
+}
+`;
+}
+
+// PGlite loads only the extensions passed to its constructor, and the previous release's test
+// databases were written before the new release's migrations created these, so every PGlite
+// imported after this call gets them.
+export function loadPgliteExtensions(extensions) {
+  if (extensions.length === 0) {
+    return;
+  }
+  registerHooks({
+    resolve(specifier, context, nextResolve) {
+      const resolved = nextResolve(specifier, context);
+      if (PGLITE_ENTRY_RE.test(resolved.url) && !context.parentURL?.startsWith(WITH_EXTENSIONS)) {
+        return { url: `${WITH_EXTENSIONS}${resolved.url}`, format: "module", shortCircuit: true };
+      }
+      return resolved;
+    },
+    load(url, context, nextLoad) {
+      if (url.startsWith(WITH_EXTENSIONS)) {
+        return {
+          format: "module",
+          source: pgliteWithExtensions(url.slice(WITH_EXTENSIONS.length), extensions),
+          shortCircuit: true,
+        };
+      }
+      return nextLoad(url, context);
+    },
+  });
 }
 
 // A test is named as Vitest prints it: its file, its describe blocks and its own name, joined by " > ".
@@ -96,11 +241,20 @@ export async function runCli({
   env = process.env,
   listFiles: listFilesIn = listFiles,
   replaceMigrations: replaceMigrationsIn = replaceMigrations,
+  applyMigrations: applyMigrationsIn = applyMigrations,
+  writeVitestConfig: writeVitestConfigIn = writeVitestConfig,
   readResults: readResultsIn = readResults,
   log = console.log,
   logError = console.error,
 } = {}) {
-  const { PREVIOUS_DIR, CURRENT_DIR, DECLARED_BREAKS, RESULTS_FILE, TESTS_OUTCOME } = env;
+  const {
+    PREVIOUS_DIR,
+    CURRENT_DIR,
+    DECLARED_BREAKS,
+    RESULTS_FILE,
+    RESULTS_REPORTER,
+    TESTS_OUTCOME,
+  } = env;
   const [command] = argv;
 
   if (command === "list") {
@@ -124,6 +278,33 @@ export async function runCli({
       return 1;
     }
     replaceMigrationsIn({ previousDir: PREVIOUS_DIR, currentDir: CURRENT_DIR });
+    return 0;
+  }
+  if (command === "migrate") {
+    if (!PREVIOUS_DIR) {
+      logError(`${LOG_PREFIX}: PREVIOUS_DIR is required`);
+      return 1;
+    }
+    try {
+      await applyMigrationsIn({
+        cloudDir: join(PREVIOUS_DIR, CLOUD),
+        migrationsFolder: join(PREVIOUS_DIR, MIGRATIONS),
+      });
+    } catch (error) {
+      logError(
+        `${LOG_PREFIX}: applying the migrations to the previous release's test databases failed, which stops the promote: ${describeFailure(error)}`,
+      );
+      return 1;
+    }
+    log("the migrations apply to the previous release's test databases");
+    return 0;
+  }
+  if (command === "write-vitest-config") {
+    if (!PREVIOUS_DIR || !RESULTS_REPORTER) {
+      logError(`${LOG_PREFIX}: PREVIOUS_DIR and RESULTS_REPORTER are required`);
+      return 1;
+    }
+    log(writeVitestConfigIn({ previousDir: PREVIOUS_DIR, reporter: RESULTS_REPORTER }));
     return 0;
   }
   if (command === "check-declared") {
@@ -166,7 +347,7 @@ export async function runCli({
     return 0;
   }
   logError(
-    `${LOG_PREFIX}: the command must be "list", "swap-migrations", "check-declared" or "judge"`,
+    `${LOG_PREFIX}: the command must be "list", "swap-migrations", "migrate", "write-vitest-config", "check-declared" or "judge"`,
   );
   return 1;
 }

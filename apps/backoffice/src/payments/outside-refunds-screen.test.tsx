@@ -182,7 +182,7 @@ test("filters the loaded refunds by the register that took them, offering every 
   const screen = await loadedWithPoint(services, { onFiltersChange });
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
 
-  await screen.getByRole("button", { name: /Caja/ }).click();
+  await screen.getByRole("combobox", { name: /^Caja/ }).click();
   const options = screen
     .getByRole("option")
     .all()
@@ -204,7 +204,9 @@ test("opens on the register the address carries", async () => {
 
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
   expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
-  await expect.element(screen.getByRole("button", { name: /Caja del frente/ })).toBeVisible();
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja/ }))
+    .toHaveValue("Caja del frente");
 });
 
 test("shows every refund and reports every register when the address carries a register the list has none for", async () => {
@@ -222,7 +224,7 @@ test("shows every refund and reports every register when the address carries a r
 
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: /Caja.*Todas/ })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Caja/ })).toHaveValue("Todas");
   await expect
     .poll(() => onFiltersChange.mock.lastCall)
     .toEqual([{ register: "all", method: "all" }]);
@@ -237,7 +239,7 @@ test("offers only the registers of the refunds made outside the system", async (
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 
-  await screen.getByRole("button", { name: /Caja/ }).click();
+  await screen.getByRole("combobox", { name: /^Caja/ }).click();
 
   const options = screen
     .getByRole("option")
@@ -571,4 +573,18 @@ test("cancel closes the question and the refund stays listed", async () => {
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
   expect(services.markRefundDone).not.toHaveBeenCalled();
+});
+
+test("typing in the register filter offers only the matching registers", async () => {
+  const screen = await loadedWithPoint(createOutsideRefundsServices());
+  await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /^Caja/ }), "fren");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent?.trim()),
+  ).toEqual(["Caja del frente"]);
 });

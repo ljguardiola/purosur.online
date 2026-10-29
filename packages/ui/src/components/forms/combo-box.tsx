@@ -1,9 +1,8 @@
-import { Check, ChevronDown, ChevronUp, Search } from "lucide-react";
-import { useContext, useState } from "react";
+import { Check } from "lucide-react";
+import { useState } from "react";
 import {
   Button as AriaButton,
   ComboBox as AriaComboBox,
-  ComboBoxStateContext as AriaComboBoxStateContext,
   Input as AriaInput,
   Label as AriaLabel,
   ListBox as AriaListBox,
@@ -12,7 +11,6 @@ import {
   Popover as AriaPopover,
   Text as AriaText,
   Virtualizer as AriaVirtualizer,
-  useFilter,
 } from "react-aria-components";
 import { Tag } from "../data-display/tag";
 import { type FieldErrorProps, fieldError } from "./field-error";
@@ -34,7 +32,8 @@ import {
   menuPopoverStyle,
   menuSurfaceClassName,
 } from "./field-styles";
-import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
+import type { NarrowedOption, OptionalOptionChoiceProps } from "./option";
+import { NoResults, SelectCaret, useTypeToNarrow } from "./type-to-narrow";
 
 export type ComboBoxOption<V extends string> = NarrowedOption<
   V,
@@ -52,10 +51,7 @@ export type ComboBoxProps<V extends string> = FieldErrorProps &
     placeholder?: string;
     disabled?: boolean;
     required?: boolean;
-    variant?: "select" | "search";
   };
-
-const NO_RESULTS_TEXT = "Sin resultados";
 
 const wrapperClassName = `${fieldWrapperClassName} ${fieldWrapperGapClassName.backoffice}`;
 
@@ -100,18 +96,6 @@ function readListMetrics(): ListMetrics {
   };
 }
 
-function Chevron({ variant }: { variant: "select" | "search" }) {
-  const state = useContext(AriaComboBoxStateContext);
-  if (variant === "search") {
-    return <Search aria-hidden="true" className={chevronClassName} />;
-  }
-  return state?.isOpen ? (
-    <ChevronUp aria-hidden="true" className={chevronClassName} />
-  ) : (
-    <ChevronDown aria-hidden="true" className={chevronClassName} />
-  );
-}
-
 export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const {
     label,
@@ -122,28 +106,19 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
     placeholder,
     disabled = false,
     required = false,
-    variant = "select",
   } = props;
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
-  const { contains } = useFilter({ sensitivity: "base" });
-  const chosen = options.find((option) => option.value === value);
-  const [typed, setTyped] = useState<string | null>(null);
-  const [shownValue, setShownValue] = useState(value);
   const [listMetrics, setListMetrics] = useState<ListMetrics | null>(null);
-  if (value !== shownValue) {
-    setShownValue(value);
-    setTyped(null);
-  }
-  const inputValue = typed ?? chosen?.label ?? "";
-
-  const visibleOptions =
-    typed === null
-      ? options
-      : options.filter((option) =>
-          [option.label, option.description ?? "", ...(option.searchKeywords ?? [])].some((text) =>
-            contains(text, typed),
-          ),
-        );
+  const { chosen, comboBoxProps } = useTypeToNarrow({
+    options,
+    value,
+    onChange,
+    matchTexts: (option) => [
+      option.label,
+      option.description ?? "",
+      ...(option.searchKeywords ?? []),
+    ],
+  });
 
   const hasDescriptions = options.some((option) => option.description !== undefined);
   const listLayoutOptions =
@@ -159,28 +134,12 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
 
   return (
     <AriaComboBox
-      items={visibleOptions}
-      selectedKey={value}
-      // With the input text controlled too, react-aria hands every commit and revert (Escape, Enter
-      // with nothing highlighted, leaving the field) back here. It reports no key when the chosen
-      // option is outside the narrowed list it holds, so the chosen value stands.
-      onSelectionChange={(key) => {
-        const picked = isOptionValue(key, options) ? key : value;
-        setTyped(null);
-        if (picked !== null && picked !== value) {
-          onChange(picked);
-        }
-      }}
-      inputValue={inputValue}
-      // Showing the chosen option's own label is not a search: the whole list stays available.
-      onInputChange={(text) => setTyped(text === chosen?.label ? null : text)}
+      {...comboBoxProps}
       onOpenChange={(isOpen) => {
         if (isOpen) {
           setListMetrics(readListMetrics());
         }
       }}
-      menuTrigger="focus"
-      allowsEmptyCollection
       isDisabled={disabled}
       isRequired={required}
       isInvalid={invalid}
@@ -201,7 +160,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
           </Tag>
         ) : null}
         <AriaButton className={chevronButtonClassName}>
-          <Chevron variant={variant} />
+          <SelectCaret className={chevronClassName} />
         </AriaButton>
       </div>
       {errorMessage !== undefined ? (
@@ -234,12 +193,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
         className={popoverClassName}
       >
         <AriaVirtualizer layout={AriaListLayout} layoutOptions={listLayoutOptions}>
-          <AriaListBox
-            className={listBoxClassName}
-            renderEmptyState={() => (
-              <div className="px-3 py-2 text-detail text-text-subtle">{NO_RESULTS_TEXT}</div>
-            )}
-          >
+          <AriaListBox className={listBoxClassName} renderEmptyState={() => <NoResults />}>
             {(option: ComboBoxOption<V>) => (
               <AriaListBoxItem
                 id={option.value}
