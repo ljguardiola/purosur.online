@@ -399,6 +399,14 @@ export type { PriceMargin } from "./pricing/price-margin.js";
 export { priceMarginQuerySchema, priceMarginSchema } from "./pricing/price-margin.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type {
+  PricesPastReviewDeadlineReportBody,
+  PricesPastReviewDeadlineReportQuery,
+} from "./pricing/prices-past-review-deadline-report.js";
+export {
+  pricesPastReviewDeadlineReportQuerySchema,
+  pricesPastReviewDeadlineReportSchema,
+} from "./pricing/prices-past-review-deadline-report.js";
 export type { ExactFraction } from "./purchasing/exact-fraction.js";
 export { exactFractionSchema } from "./purchasing/exact-fraction.js";
 export type { FreightBody } from "./purchasing/freight-body.js";
