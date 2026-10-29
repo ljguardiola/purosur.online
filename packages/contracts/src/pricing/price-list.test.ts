@@ -8,6 +8,8 @@ const priced = {
   name: "Arroz",
   categoryId: "category-1",
   categoryName: "Almacén",
+  brandName: "Molinos",
+  netContent: { quantity: 1, unit: "KG" },
   saleUnit: "KG",
   currentPrice: { id: "price-1", unitPrice: 750000, validFrom: at },
   secondsSinceReview: 0,
@@ -56,6 +58,24 @@ describe("priceCategorySchema", () => {
 });
 
 describe("priceProductSchema", () => {
+  it("accepts a product with no brand and no net content", () => {
+    const plain = { ...priced, brandName: null, netContent: null };
+
+    expect(priceProductSchema.safeParse(plain).data).toEqual(plain);
+  });
+
+  it.each(["brandName", "netContent"])("requires %s", (field) => {
+    const { [field as keyof typeof priced]: _omitted, ...rest } = priced;
+
+    expect(priceProductSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("refuses a net content with an unknown unit", () => {
+    expect(
+      priceProductSchema.safeParse({ ...priced, netContent: { quantity: 1, unit: "OZ" } }).success,
+    ).toBe(false);
+  });
+
   it("accepts a product with no cost reference", () => {
     expect(priceProductSchema.safeParse({ ...priced, costReference: null }).data).toEqual({
       ...priced,

@@ -5,7 +5,7 @@ import {
   DeactivateProductModal,
   type DeactivateProductModalServices,
 } from "./deactivate-product-modal";
-import { honey } from "./test-support/products";
+import { almondOil, honey, vitora } from "./test-support/products";
 
 function createServices(
   overrides: Partial<DeactivateProductModalServices> = {},
@@ -28,6 +28,7 @@ async function renderModal(
     <main>
       <DeactivateProductModal
         target={honey}
+        brands={[]}
         onClose={() => {}}
         onDeactivated={() => {}}
         onVanished={onVanished}
@@ -112,4 +113,24 @@ test("tells when the product no longer exists, and updating the list reports it"
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   expect(onVanished).toHaveBeenCalledTimes(1);
+});
+
+test("titles the modal with the product's name, brand and net content", async () => {
+  const screen = await render(
+    <main>
+      <DeactivateProductModal
+        target={almondOil}
+        brands={[vitora]}
+        onClose={() => {}}
+        onDeactivated={() => {}}
+        onVanished={() => {}}
+        onSessionEnded={() => {}}
+        services={createServices()}
+      />
+    </main>,
+  );
+
+  await expect
+    .element(screen.getByRole("dialog", { name: "¿Desactivar Aceite de Almendras Vitora 30 ml?" }))
+    .toBeVisible();
 });

@@ -1,9 +1,10 @@
-import type { ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, ProductSummary } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { Ban, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { productDescription } from "./product-description";
 import type { deactivateProduct } from "./products-api";
 
 export type DeactivateProductModalServices = {
@@ -12,6 +13,7 @@ export type DeactivateProductModalServices = {
 
 type DeactivateProductModalProps = {
   target: ProductSummary | null;
+  brands: BrandSummary[];
   onClose: () => void;
   onDeactivated: () => void;
   onVanished: () => void;
@@ -27,6 +29,7 @@ type DeactivateNotice =
 
 export function DeactivateProductModal({
   target,
+  brands,
   onClose,
   onDeactivated,
   onVanished,
@@ -40,9 +43,11 @@ export function DeactivateProductModal({
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const describe = useEffectEvent((product: ProductSummary) => productDescription(product, brands));
+
   useEffect(() => {
     if (open && target) {
-      setTitle(`¿Desactivar ${target.name}?`);
+      setTitle(`¿Desactivar ${describe(target)}?`);
       setNotice(null);
       setSubmitting(false);
     }

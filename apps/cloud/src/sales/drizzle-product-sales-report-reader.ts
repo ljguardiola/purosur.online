@@ -6,7 +6,8 @@ import {
 import type { ProductSalesReportReader, SoldLinesQuery } from "@purosur/domain/sales/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { products, saleLines, sales } from "../platform/db/schema.js";
+import { netContentRow } from "../catalog/net-content-row.js";
+import { brands, products, saleLines, sales } from "../platform/db/schema.js";
 import { storedWeightSource } from "../platform/db/stored-weight-source.js";
 
 const saleDay = sql<string>`to_char(${sales.completedAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
@@ -34,6 +35,9 @@ export class DrizzleProductSalesReportReader<TQueryResult extends PgQueryResultH
       .select({
         id: saleLines.productId,
         name: sql<string>`coalesce(${products.name}, max(${saleLines.productName}))`,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         weightSource: saleLines.weightSource,
         quantity: sql<number>`sum(${saleLines.quantity})`.mapWith(Number),
         amount: sql<number>`sum(${saleLines.lineTotal})`.mapWith(Number),
@@ -41,11 +45,21 @@ export class DrizzleProductSalesReportReader<TQueryResult extends PgQueryResultH
       .from(saleLines)
       .innerJoin(sales, eq(sales.id, saleLines.saleId))
       .leftJoin(products, eq(products.id, saleLines.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(this.completedSalesOf(query))
-      .groupBy(saleLines.productId, products.name, saleLines.weightSource);
-    return rows.map(({ id, name, weightSource, quantity, amount }) => ({
+      .groupBy(
+        saleLines.productId,
+        products.name,
+        brands.name,
+        products.netContentQuantity,
+        products.netContentUnit,
+        saleLines.weightSource,
+      );
+    return rows.map(({ id, name, weightSource, quantity, amount, ...product }) => ({
       id,
       path: [name],
+      brandName: product.brandName,
+      netContent: netContentRow(product),
       weightSource: storedWeightSource(weightSource),
       quantity,
       amount,
@@ -71,6 +85,8 @@ export class DrizzleProductSalesReportReader<TQueryResult extends PgQueryResultH
     return rows.map(({ id, path: names, weightSource, quantity, amount }) => ({
       id,
       path: names ?? [],
+      brandName: null,
+      netContent: null,
       weightSource: storedWeightSource(weightSource),
       quantity,
       amount,

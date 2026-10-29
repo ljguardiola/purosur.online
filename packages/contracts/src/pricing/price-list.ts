@@ -1,5 +1,6 @@
 import { SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
+import { netContentSchema } from "../shared/index.js";
 
 const priceRowSchema = z.object({
   id: z.string(),
@@ -20,6 +21,8 @@ export const priceProductSchema = z.object({
   name: z.string(),
   categoryId: z.string(),
   categoryName: z.string(),
+  brandName: z.string().nullable(),
+  netContent: netContentSchema.nullable(),
   saleUnit: z.enum(SALE_UNITS),
   currentPrice: priceRowSchema.nullable(),
   secondsSinceReview: z.int().nonnegative().nullable(),

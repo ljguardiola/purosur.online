@@ -8,9 +8,11 @@ import type {
 } from "@purosur/domain/pricing/use-cases";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { netContentRow } from "../catalog/net-content-row.js";
 import { containsText } from "../platform/contains-pattern.js";
 import {
   branchSettings,
+  brands,
   categories,
   priceReviewPostponements,
   priceReviews,
@@ -81,10 +83,14 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
         name: products.name,
         categoryId: products.categoryId,
         categoryName: categories.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         saleUnit: products.saleUnit,
       })
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(products.active, true));
 
     const currentPriceByProductId = await newestPricesOfList(
@@ -123,6 +129,8 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       name: row.name,
       categoryId: row.categoryId,
       categoryName: row.categoryName,
+      brandName: row.brandName,
+      netContent: netContentRow(row),
       saleUnit: row.saleUnit as SaleUnit,
       currentPrice: currentPriceByProductId.get(row.id) ?? null,
       ...priceReviewAt(

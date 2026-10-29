@@ -5,7 +5,7 @@ import {
   ReactivateProductModal,
   type ReactivateProductModalServices,
 } from "./reactivate-product-modal";
-import { retiredHoney } from "./test-support/products";
+import { almondOil, retiredHoney, vitora } from "./test-support/products";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -23,6 +23,7 @@ async function renderModal(
     <main>
       <ReactivateProductModal
         target={retiredHoney}
+        brands={[]}
         onClose={onClose}
         onReactivated={onReactivated}
         onSessionEnded={onSessionEnded}
@@ -164,4 +165,23 @@ test("ends the session when the change finds no open session", async () => {
   await confirm(dialog);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("titles the modal with the product's name, brand and net content", async () => {
+  const screen = await render(
+    <main>
+      <ReactivateProductModal
+        target={{ ...almondOil, active: false }}
+        brands={[vitora]}
+        onClose={() => {}}
+        onReactivated={() => {}}
+        onSessionEnded={() => {}}
+        services={{ reactivateProduct: vi.fn() }}
+      />
+    </main>,
+  );
+
+  await expect
+    .element(screen.getByRole("dialog", { name: "¿Reactivar Aceite de Almendras Vitora 30 ml?" }))
+    .toBeVisible();
 });

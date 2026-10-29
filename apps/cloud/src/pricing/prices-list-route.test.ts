@@ -232,6 +232,8 @@ describe("GET /prices", () => {
           name: "Arroz",
           categoryId,
           categoryName: "Almacén",
+          brandName: null,
+          netContent: null,
           saleUnit: "UNIT",
           currentPrice: { id: priceId, unitPrice: 500, validFrom: reviewedAt.toISOString() },
           secondsSinceReview: 3 * 86_400,

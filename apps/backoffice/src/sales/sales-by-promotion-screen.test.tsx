@@ -141,7 +141,9 @@ test("leaves the weekdays out when the promotion runs every day", async () => {
   const screen = await renderScreen(createServices());
 
   const table = screen.getByRole("table");
-  await expect.element(table.getByText("Producto · Azúcar 1 kg · Lleve 3, pague 2")).toBeVisible();
+  await expect
+    .element(table.getByText("Producto · Azúcar Ledesma 1 kg · Lleve 3, pague 2"))
+    .toBeVisible();
   expect(table.getByText(/Todos los días/).query()).toBeNull();
 });
 

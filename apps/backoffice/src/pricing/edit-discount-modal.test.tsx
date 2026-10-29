@@ -160,7 +160,7 @@ test("shows a buy-N-pay-M promotion with its product and quantities filled in", 
 
   await expect.element(dialog.getByRole("radio", { name: "Lleve N, pague M" })).toBeChecked();
   await expect.element(dialog.getByText("Producto y grupo")).toBeVisible();
-  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg");
+  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg Hoja Alta 1 kg");
   await expect.element(dialog.getByRole("textbox", { name: /^Lleve/ })).toHaveValue("3");
   await expect.element(dialog.getByRole("textbox", { name: /^Pague/ })).toHaveValue("2");
   expect(dialog.getByRole("textbox", { name: /^Descuento/ }).query()).toBeNull();
@@ -251,6 +251,54 @@ test("names on the picker the product sold by weight when switching its promotio
   expect(
     dialog.getByText("Este producto se vende por peso: Lleve N, pague M no se le aplica.").query(),
   ).toBeNull();
+});
+
+test("names the product sold by weight with its brand and net content when the picker data has them", async () => {
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({
+    kind: "product_sold_by_weight",
+    productName: "Almendras peladas",
+  });
+  const targets = {
+    ...discountTargets,
+    products: [
+      yerbaProduct,
+      {
+        ...almondsProduct,
+        brandName: "Cabriola",
+        netContent: { quantity: 250, unit: "G" as const },
+      },
+    ],
+  };
+  const { dialog } = await renderModal(services, { target: almondsThreeForTwo, targets });
+
+  await userEvent.click(dialog.getByText("Se aplica en la caja"));
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(productPicker(dialog))
+    .toHaveAccessibleDescription(
+      '"Almendras peladas Cabriola 250 g" se vende por peso: esta promoción solo aplica a productos por unidad.',
+    );
+});
+
+test("names the product sold by weight with the name the cloud answers when the picker data lacks it", async () => {
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({
+    kind: "product_sold_by_weight",
+    productName: "Almendras peladas",
+  });
+  const targets = { ...discountTargets, products: [yerbaProduct] };
+  const { dialog } = await renderModal(services, { target: almondsThreeForTwo, targets });
+
+  await userEvent.click(dialog.getByText("Se aplica en la caja"));
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(productPicker(dialog))
+    .toHaveAccessibleDescription(
+      '"Almendras peladas" se vende por peso: esta promoción solo aplica a productos por unidad.',
+    );
 });
 
 test("switching the promotion off is sent with the rest of the form", async () => {
@@ -360,7 +408,13 @@ test("does not offer the choice of what a percentage applies to when the cloud a
 test("an inactive current product still shows as the chosen value, marked inactive", async () => {
   const onRetired = {
     ...yerbaOff,
-    target: { kind: "PRODUCT" as const, id: retiredProduct.id, name: "Café en grano" },
+    target: {
+      kind: "PRODUCT" as const,
+      id: retiredProduct.id,
+      name: "Café en grano",
+      brandName: null,
+      netContent: null,
+    },
   };
   const { dialog } = await renderModal(createServices(), { target: onRetired });
 
@@ -373,10 +427,32 @@ test("an inactive current product still shows as the chosen value, marked inacti
     .toBeVisible();
 });
 
+test("an inactive current product shows as the chosen value with its name, brand and net content", async () => {
+  const onRetired = {
+    ...yerbaOff,
+    target: {
+      kind: "PRODUCT" as const,
+      id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000199",
+      name: "Aceite de Almendras",
+      brandName: "Vitora",
+      netContent: { quantity: 30, unit: "ML" as const },
+    },
+  };
+  const { dialog } = await renderModal(createServices(), { target: onRetired });
+
+  await expect.element(productPicker(dialog)).toHaveValue("Aceite de Almendras Vitora 30 ml");
+});
+
 test("an inactive current tag still shows as the chosen value, marked inactive", async () => {
   const onRetired = {
     ...sinTaccWinter,
-    target: { kind: "TAG" as const, id: retiredTag.id, name: "Sin colorantes" },
+    target: {
+      kind: "TAG" as const,
+      id: retiredTag.id,
+      name: "Sin colorantes",
+      brandName: null,
+      netContent: null,
+    },
   };
   const { dialog } = await renderModal(createServices(), { target: onRetired });
 
@@ -392,7 +468,13 @@ test("an inactive current target saves as is when nothing about it changes", asy
   vi.mocked(services.editDiscount).mockResolvedValue({ kind: "ok", discount: yerbaOff });
   const onRetired = {
     ...yerbaOff,
-    target: { kind: "PRODUCT" as const, id: retiredProduct.id, name: "Café en grano" },
+    target: {
+      kind: "PRODUCT" as const,
+      id: retiredProduct.id,
+      name: "Café en grano",
+      brandName: null,
+      netContent: null,
+    },
   };
   const { dialog } = await renderModal(services, { target: onRetired });
 
@@ -405,7 +487,13 @@ test("an inactive current target saves as is when nothing about it changes", asy
 test("turning a percentage promotion on a product sold by weight into buy-N-pay-M does not offer that product", async () => {
   const onAlmonds = {
     ...yerbaOff,
-    target: { kind: "PRODUCT" as const, id: almondsProduct.id, name: almondsProduct.name },
+    target: {
+      kind: "PRODUCT" as const,
+      id: almondsProduct.id,
+      name: almondsProduct.name,
+      brandName: null,
+      netContent: null,
+    },
   };
   const { dialog } = await renderModal(createServices(), { target: onAlmonds });
 
