@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import {
+  commonDenominator,
   isCostPaid,
   isPackageCount,
   lineValue,
@@ -67,5 +68,22 @@ describe("lineValue", () => {
     expect(
       equalFractions(lineValue(cost(333, 2500, 1000)), { numerator: 1665n, denominator: 2n }),
     ).toBe(true);
+  });
+});
+
+describe("commonDenominator", () => {
+  function over(...denominators: bigint[]) {
+    return denominators.map((denominator) => ({ numerator: 1n, denominator }));
+  }
+
+  it("is the least multiple every denominator divides", () => {
+    expect(commonDenominator(over(4n, 6n))).toBe(12n);
+    expect(commonDenominator(over(1000n, 1000n, 1000n))).toBe(1000n);
+    expect(commonDenominator(over(12_000n, 1000n, 25_000n))).toBe(300_000n);
+    expect(commonDenominator(over(3n, 7n))).toBe(21n);
+  });
+
+  it("is one for no fractions", () => {
+    expect(commonDenominator([])).toBe(1n);
   });
 });
