@@ -330,11 +330,11 @@ test("shows the name-too-long error on create, without calling the API", async (
   expect(services.createProduct).not.toHaveBeenCalled();
 });
 
-test("shows no category selector when there are no categories yet, and still blocks creating without one", async () => {
+test("keeps the category selector when there are no categories yet, and still blocks creating without one", async () => {
   const services = createServices();
   const { dialog } = await renderModal(services, { categories: [] });
 
-  expect(dialog.getByRole("button", { name: /Categoría/ }).query()).toBeNull();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
   await userEvent.click(radioLabel(dialog, "Por unidad"));
   await scanCode(scanInputOf(dialog), "12345");
