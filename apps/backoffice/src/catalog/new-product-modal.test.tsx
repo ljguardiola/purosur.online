@@ -1,8 +1,9 @@
-import type { BrandSummary, CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import type { CreatedProduct } from "../platform/creation-parts";
 import type { GenerateInternalBarcodeOutcome } from "../platform/internal-barcodes-api";
 import { radioLabel } from "../platform/test-support/radio-label";
 import { render } from "../shell/test-support/render-with-router";
@@ -31,7 +32,7 @@ type ModalOptions = {
   categories?: CategorySummary[];
   brands?: BrandSummary[];
   onClose?: () => void;
-  onCreated?: (product: ProductSummary) => void;
+  onCreated?: (product: CreatedProduct) => void;
   initialName?: string;
   onSessionEnded?: () => void;
 };
@@ -114,7 +115,7 @@ test("creates a product with a net content", async () => {
     netContent: { quantity: 1.5, unit: "KG" },
   });
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
-  expect(onCreated).toHaveBeenCalledWith(honey);
+  expect(onCreated).toHaveBeenCalledWith({ ...honey, brandName: null });
 });
 
 test("opens with the given name already typed in the description", async () => {
@@ -670,10 +671,14 @@ test("creates a product with no brand", async () => {
   expect(services.createProduct).toHaveBeenCalledWith(expect.objectContaining({ brandId: null }));
 });
 
-test("creates a product with the brand chosen", async () => {
+test("creates a product with the brand chosen and hands it back with the brand's name", async () => {
   const services = createServices();
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
-  const { dialog } = await renderModal(services, { brands: [granuz] });
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "ok",
+    product: { ...honey, brandId: granuz.id },
+  });
+  const onCreated = vi.fn();
+  const { dialog } = await renderModal(services, { brands: [granuz], onCreated });
 
   await fillNewProduct(dialog);
   await userEvent.click(brandSelect(dialog));
@@ -684,13 +689,22 @@ test("creates a product with the brand chosen", async () => {
   expect(services.createProduct).toHaveBeenCalledWith(
     expect.objectContaining({ brandId: "b7a4d000-0000-4000-8000-000000000001" }),
   );
+  await expect.poll(() => onCreated.mock.calls.length).toBe(1);
+  expect(onCreated).toHaveBeenCalledWith({ ...honey, brandId: granuz.id, brandName: "Granuz" });
 });
 
 test("creates a brand in a modal stacked over the product form, then selects it without losing what was typed", async () => {
   const services = createServices();
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
-  const { screen, dialog: productDialog } = await renderModal(services, { brands: [granuz] });
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "ok",
+    product: { ...honey, brandId: dulcor.id },
+  });
+  const onCreated = vi.fn();
+  const { screen, dialog: productDialog } = await renderModal(services, {
+    brands: [granuz],
+    onCreated,
+  });
   await fillNewProduct(productDialog);
 
   const brandDialog = await openStackedNewBrandModal(productDialog);
@@ -718,6 +732,8 @@ test("creates a brand in a modal stacked over the product form, then selects it 
     tagIds: [],
     netContent: null,
   });
+  await expect.poll(() => onCreated.mock.calls.length).toBe(1);
+  expect(onCreated).toHaveBeenCalledWith({ ...honey, brandId: dulcor.id, brandName: "Dulcor" });
 });
 
 test("a brand name already taken shows the error in the stacked modal and keeps the product form", async () => {
