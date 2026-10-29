@@ -9,11 +9,15 @@ import {
 const REGISTER = "register-1";
 const BRANCH = "branch-a";
 const PRICE_LIST = "price-list-a";
+const CURRENT_READER = "1.0.1385";
 
 describe("what a register may pull", () => {
   it("is its branch's settings, first cash session, users, stock movements, refund completions, price list and prices, its own register, points of sale, point terminal, QR point of sale and offline number blocks, the zone rules, and everything shared by every branch", () => {
     expect(
-      pullAudienceOf({ registerId: REGISTER, locationId: BRANCH, priceListId: PRICE_LIST }),
+      pullAudienceOf(
+        { registerId: REGISTER, locationId: BRANCH, priceListId: PRICE_LIST },
+        CURRENT_READER,
+      ),
     ).toEqual({
       branch_settings: { kind: "row", id: BRANCH },
       branch_first_cash_session: { kind: "row", id: BRANCH },
@@ -43,11 +47,10 @@ describe("what a register may pull", () => {
   });
 
   it("holds no price list and no price while its branch sells with no price list", () => {
-    const audience = pullAudienceOf({
-      registerId: REGISTER,
-      locationId: BRANCH,
-      priceListId: null,
-    });
+    const audience = pullAudienceOf(
+      { registerId: REGISTER, locationId: BRANCH, priceListId: null },
+      CURRENT_READER,
+    );
 
     expect(audience.price_list).toEqual({ kind: "none" });
     expect(audience.price).toEqual({ kind: "none" });
@@ -58,10 +61,10 @@ describe("what a register may pull of one entity", () => {
   const register = { registerId: REGISTER, locationId: BRANCH, priceListId: PRICE_LIST };
 
   it("is the register's reach of that entity and nothing of every other", () => {
-    const whole = pullAudienceOf(register);
+    const whole = pullAudienceOf(register, CURRENT_READER);
 
     for (const entity of PULLED_ENTITIES) {
-      const audience = pullAudienceOfEntity(register, entity);
+      const audience = pullAudienceOfEntity(register, entity, CURRENT_READER);
 
       for (const other of PULLED_ENTITIES) {
         expect(audience[other]).toEqual(other === entity ? whole[other] : { kind: "none" });
@@ -70,12 +73,64 @@ describe("what a register may pull of one entity", () => {
   });
 
   it("is nothing at all of an entity the register has no reach of", () => {
-    const audience = pullAudienceOfEntity({ ...register, priceListId: null }, "price");
+    const audience = pullAudienceOfEntity({ ...register, priceListId: null }, "price", CURRENT_READER);
 
     expect(Object.values(audience)).toEqual(PULLED_ENTITIES.map(() => ({ kind: "none" })));
   });
 
   it("lists every entity the register may pull once", () => {
-    expect([...PULLED_ENTITIES].sort()).toEqual(Object.keys(pullAudienceOf(register)).sort());
+    expect([...PULLED_ENTITIES].sort()).toEqual(Object.keys(pullAudienceOf(register, CURRENT_READER)).sort());
+  });
+});
+
+describe("what a register of an older version may pull", () => {
+  const register = { registerId: REGISTER, locationId: BRANCH, priceListId: PRICE_LIST };
+
+  it.each([null, "unknown", "0.0.1271", "1.0.0"])(
+    "holds no brand and no zone rules, and no return or assembly void, when its version is %j",
+    (version) => {
+      const audience = pullAudienceOf(register, version);
+
+      expect(audience.brand).toEqual({ kind: "none" });
+      expect(audience.zone_rules).toEqual({ kind: "none" });
+      expect(audience.stock_movement).toEqual({
+        kind: "rows_of_branch_except_stock_movement_kinds",
+        locationId: BRANCH,
+        kinds: ["return", "assembly_void"],
+      });
+    },
+  );
+
+  it("holds every other entity as a current register does", () => {
+    const current = pullAudienceOf(register, CURRENT_READER);
+    const older = pullAudienceOf(register, "1.0.0");
+
+    for (const entity of PULLED_ENTITIES) {
+      if (entity !== "brand" && entity !== "zone_rules" && entity !== "stock_movement") {
+        expect(older[entity]).toEqual(current[entity]);
+      }
+    }
+  });
+
+  it("holds only the kinds of stock movement its version cannot read out of its branch's stock movements", () => {
+    expect(pullAudienceOf(register, "1.0.1300").stock_movement).toEqual({
+      kind: "rows_of_branch_except_stock_movement_kinds",
+      locationId: BRANCH,
+      kinds: ["assembly_void"],
+    });
+  });
+
+  it("is nothing at all of an entity its version cannot read", () => {
+    const audience = pullAudienceOfEntity(register, "brand", "1.0.0");
+
+    expect(Object.values(audience)).toEqual(PULLED_ENTITIES.map(() => ({ kind: "none" })));
+  });
+
+  it("is a branch's stock movements except the unreadable kinds when asked for that entity alone", () => {
+    expect(pullAudienceOfEntity(register, "stock_movement", "1.0.0").stock_movement).toEqual({
+      kind: "rows_of_branch_except_stock_movement_kinds",
+      locationId: BRANCH,
+      kinds: ["return", "assembly_void"],
+    });
   });
 });
