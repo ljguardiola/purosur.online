@@ -37,18 +37,23 @@ export function productLinkCandidates<
   const textWords = foldedWords(text);
   const mentions = netContentMentions(text);
   return products
-    .map((product) => ({
-      product,
-      score:
-        matchingWords(product.name, textWords) +
-        (product.brandName === null ? 0 : matchingWords(product.brandName, textWords)) +
-        (product.netContent !== null && isNetContentMentioned(mentions, product.netContent)
-          ? 1
-          : 0),
-    }))
+    .map((product) => {
+      const nameScore = matchingWords(product.name, textWords);
+      return {
+        product,
+        byName: nameScore > 0,
+        score:
+          nameScore +
+          (product.brandName === null ? 0 : matchingWords(product.brandName, textWords)) +
+          (product.netContent !== null && isNetContentMentioned(mentions, product.netContent)
+            ? 1
+            : 0),
+      };
+    })
     .filter(({ score }) => score > 0)
     .sort(
       (a, b) =>
+        Number(b.byName) - Number(a.byName) ||
         b.score - a.score ||
         compareSpanishText(a.product.name, b.product.name) ||
         compareSpanishText(a.product.id, b.product.id),
