@@ -26,6 +26,7 @@ const LOCKED_SESSION: CashSessionState = { ...OPEN_SESSION, locked: true };
 
 type Condition = RegisterStatus["conditions"][number];
 
+const SINCE = "2026-10-29T09:30:00.000-03:00";
 const SALES_DENIED_TITLE = "La caja no puede vender";
 const OFFLINE_CODE = { kind: "offline_code", notice: true } as const;
 const SOLD_LATER = { kind: "deferring", notice: true } as const;
@@ -147,7 +148,9 @@ describe("RegisterStatusBar", () => {
   it("shows no condition's text until the notices pill is pressed", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+        conditions: [
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
+        ],
       }),
     });
 
@@ -159,8 +162,8 @@ describe("RegisterStatusBar", () => {
     const screen = await renderBar({
       status: loaded({
         conditions: [
-          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
-          { kind: "register_silent", level: "critical" },
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
+          { kind: "register_silent", level: "critical", since: SINCE },
         ],
       }),
     });
@@ -171,7 +174,9 @@ describe("RegisterStatusBar", () => {
   it("opens a panel of notices with each condition's title, what it means and what to do", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+        conditions: [
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
+        ],
       }),
     });
 
@@ -190,7 +195,14 @@ describe("RegisterStatusBar", () => {
   it("tells why the register can't sell with the reason the core answers", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "sales_denied", reason: "local_database_damaged", level: "critical" }],
+        conditions: [
+          {
+            kind: "sales_denied",
+            reason: "local_database_damaged",
+            level: "critical",
+            since: SINCE,
+          },
+        ],
       }),
     });
 
@@ -208,7 +220,7 @@ describe("RegisterStatusBar", () => {
 
   it("tells a clock that is off in the panel, and that selling goes on", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "clock_drift", level: "critical" }] }),
+      status: loaded({ conditions: [{ kind: "clock_drift", level: "critical", since: SINCE }] }),
     });
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
@@ -222,8 +234,8 @@ describe("RegisterStatusBar", () => {
     const screen = await renderBar({
       status: loaded({
         conditions: [
-          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
-          { kind: "register_silent", level: "critical" },
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
+          { kind: "register_silent", level: "critical", since: SINCE },
         ],
       }),
     });
@@ -236,9 +248,39 @@ describe("RegisterStatusBar", () => {
     expect(text.indexOf(SALES_DENIED_TITLE)).toBeLessThan(text.indexOf(SILENT_TITLE));
   });
 
+  it("tells since when each condition holds, in the day and time it started", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: [
+          { kind: "clock_drift", level: "critical", since: SINCE },
+          { kind: "wal_oversized", level: "warning", since: "2026-10-28T18:05:00.000-03:00" },
+        ],
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "2 avisos" }));
+
+    const text = screen.getByRole("dialog").element().textContent;
+    expect(text).toContain("Desde 29/10/2026 · 09:30");
+    expect(text).toContain("Desde 28/10/2026 · 18:05");
+  });
+
+  it("tells no start for the contingency and backup ticket notices", async () => {
+    const screen = await renderBar({
+      status: loaded({ contingency: OFFLINE_CODE }),
+      backupTickets: loadedTickets({ missing_key: 1 }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /avisos?$/ }));
+
+    expect(screen.getByRole("dialog").element().textContent).not.toContain("Desde");
+  });
+
   it("closes the panel with its close button", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "register_silent", level: "critical" }] }),
+      status: loaded({
+        conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
+      }),
     });
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
@@ -249,7 +291,9 @@ describe("RegisterStatusBar", () => {
 
   it("closes the panel with Escape", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "register_silent", level: "critical" }] }),
+      status: loaded({
+        conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
+      }),
     });
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
@@ -262,8 +306,8 @@ describe("RegisterStatusBar", () => {
     const screen = await renderBar({
       status: loaded({
         conditions: [
-          { kind: "register_silent", level: "critical" },
-          { kind: "serial_device_missing", level: "warning" },
+          { kind: "register_silent", level: "critical", since: SINCE },
+          { kind: "serial_device_missing", level: "warning", since: SINCE },
         ],
       }),
     });
@@ -274,7 +318,9 @@ describe("RegisterStatusBar", () => {
 
   it("shows the pill in the warning tone when no condition is critical", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "serial_device_missing", level: "warning" }] }),
+      status: loaded({
+        conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
+      }),
     });
 
     const pill = screen.getByRole("button", { name: "1 aviso" }).element();
@@ -283,19 +329,45 @@ describe("RegisterStatusBar", () => {
 
   it.each<[Condition, "error-soft" | "warning-soft", string]>([
     [
-      { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+      { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
       "error-soft",
       "lucide-ban",
     ],
-    [{ kind: "installation_revoked", level: "critical" }, "error-soft", "lucide-shield-off"],
-    [{ kind: "fiscal_emission_stopped", level: "critical" }, "error-soft", "lucide-receipt"],
-    [{ kind: "clock_drift", level: "critical" }, "error-soft", "lucide-clock"],
-    [{ kind: "register_silent", level: "critical" }, "error-soft", "lucide-cloud-off"],
-    [{ kind: "serial_device_missing", level: "warning" }, "warning-soft", "lucide-scan-barcode"],
-    [{ kind: "disk_space_low", level: "warning" }, "warning-soft", "lucide-hard-drive"],
-    [{ kind: "wal_oversized", level: "warning" }, "warning-soft", "lucide-database"],
     [
-      { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" },
+      { kind: "installation_revoked", level: "critical", since: SINCE },
+      "error-soft",
+      "lucide-shield-off",
+    ],
+    [
+      { kind: "fiscal_emission_stopped", level: "critical", since: SINCE },
+      "error-soft",
+      "lucide-receipt",
+    ],
+    [{ kind: "clock_drift", level: "critical", since: SINCE }, "error-soft", "lucide-clock"],
+    [
+      { kind: "register_silent", level: "critical", since: SINCE },
+      "error-soft",
+      "lucide-cloud-off",
+    ],
+    [
+      { kind: "serial_device_missing", level: "warning", since: SINCE },
+      "warning-soft",
+      "lucide-scan-barcode",
+    ],
+    [
+      { kind: "disk_space_low", level: "warning", since: SINCE },
+      "warning-soft",
+      "lucide-hard-drive",
+    ],
+    [{ kind: "wal_oversized", level: "warning", since: SINCE }, "warning-soft", "lucide-database"],
+    [
+      {
+        kind: "sales_denied",
+        reason: "disk_full",
+        disk_free_ratio: 0.03,
+        level: "critical",
+        since: SINCE,
+      },
       "error-soft",
       "lucide-ban",
     ],
@@ -305,6 +377,7 @@ describe("RegisterStatusBar", () => {
         reason: "disk_space_short_at_startup",
         required_free_bytes: 3_000_000_000,
         level: "critical",
+        since: SINCE,
       },
       "error-soft",
       "lucide-ban",
@@ -327,7 +400,7 @@ describe("RegisterStatusBar", () => {
   it("shows a notice even when the cloud can't be reached", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "register_silent", level: "critical" }],
+        conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
         cloud: "unreachable",
       }),
     });
@@ -356,7 +429,7 @@ describe("RegisterStatusBar", () => {
   it("shows the missing scale or reader notice with what to do", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "serial_device_missing", level: "warning" }],
+        conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
         serial_devices: { scale: "not_detected", reader: "matching" },
       }),
     });
@@ -378,7 +451,7 @@ describe("RegisterStatusBar", () => {
   it("shows the stopped fiscal emission notice with its title, what it means and what to do, with no connection to the cloud", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "fiscal_emission_stopped", level: "critical" }],
+        conditions: [{ kind: "fiscal_emission_stopped", level: "critical", since: SINCE }],
         cloud: "unreachable",
       }),
     });
@@ -395,7 +468,7 @@ describe("RegisterStatusBar", () => {
   it("has no accessibility violations with a device not detected", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "serial_device_missing", level: "warning" }],
+        conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
         serial_devices: { scale: "not_detected", reader: "not_registered" },
       }),
     });
@@ -421,8 +494,8 @@ describe("RegisterStatusBar", () => {
       cashSession: OPEN_SESSION,
       status: loaded({
         conditions: [
-          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
-          { kind: "register_silent", level: "critical" },
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
+          { kind: "register_silent", level: "critical", since: SINCE },
         ],
         cloud: "unreachable",
       }),
@@ -467,7 +540,7 @@ describe("RegisterStatusBar", () => {
     const screen = await renderBar({
       status: loaded({
         contingency: OFFLINE_CODE,
-        conditions: [{ kind: "serial_device_missing", level: "warning" }],
+        conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
       }),
     });
 
@@ -526,7 +599,7 @@ describe("RegisterStatusBar", () => {
       const screen = await renderBar({
         status: loaded({
           contingency: OFFLINE_CODE,
-          conditions: [{ kind: "serial_device_missing", level: "warning" }],
+          conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
         }),
         backupTickets: loadedTickets({ to_print: 1, missing_key: 1 }),
       });

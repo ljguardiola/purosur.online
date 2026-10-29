@@ -25,7 +25,12 @@ describe("SaleScreen while the battery is critical", () => {
   it("tells that new sales can't be opened and that the sale underway can be charged", async () => {
     const { screen } = await renderScreen({
       registerStatus: statusHolding([
-        { kind: "sales_denied", reason: "battery_critical", level: "critical" },
+        {
+          kind: "sales_denied",
+          reason: "battery_critical",
+          level: "critical",
+          since: "2026-10-29T09:30:00.000-03:00",
+        },
       ]),
     });
 
@@ -41,8 +46,18 @@ describe("SaleScreen while the battery is critical", () => {
   });
 
   it.each<RegisterStatus["conditions"][number]>([
-    { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
-    { kind: "sales_denied", reason: "local_database_damaged", level: "critical" },
+    {
+      kind: "sales_denied",
+      reason: "event_history_broken",
+      level: "critical",
+      since: "2026-10-29T09:30:00.000-03:00",
+    },
+    {
+      kind: "sales_denied",
+      reason: "local_database_damaged",
+      level: "critical",
+      since: "2026-10-29T09:30:00.000-03:00",
+    },
   ])("shows no battery notice for the condition %j", async (condition) => {
     const { screen } = await renderScreen({ registerStatus: statusHolding([condition]) });
 
