@@ -958,6 +958,7 @@ export {
   argentinaCalendarDay,
   argentinaInstant,
   FIXED_ARGENTINA_ZONE_RULES,
+  foldedText,
   isCalendarDay,
   isoWeekdayOf,
   isReportPeriodAsked,

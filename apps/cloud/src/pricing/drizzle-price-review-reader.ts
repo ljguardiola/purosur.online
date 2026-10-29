@@ -1,4 +1,4 @@
-import { priceReviewAt, type SaleUnit } from "@purosur/domain";
+import { foldedText, priceReviewAt, type SaleUnit } from "@purosur/domain";
 import type {
   PriceReviewCategory,
   PriceReviewReader,
@@ -147,8 +147,8 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       filtered = filtered.filter((row) => wanted.has(row.id));
     }
     if (query.search) {
-      const needle = query.search.toLowerCase();
-      filtered = filtered.filter((row) => row.name.toLowerCase().includes(needle));
+      const needle = foldedText(query.search);
+      filtered = filtered.filter((row) => foldedText(row.name).includes(needle));
     }
     if (query.review === "pending") {
       filtered = filtered.filter((row) => row.pending);
