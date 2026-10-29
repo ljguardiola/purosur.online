@@ -4,12 +4,14 @@ import {
 } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { cancelSale } from "./cancel-sale.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
   FixedClock,
+  SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
@@ -64,6 +66,52 @@ const APPROVED_PAYMENT: SalePayment = {
   state: "APPROVED",
   occurredAt: new Date("2026-09-30T12:20:00.000Z"),
 };
+const YERBA_LINE_RECORD = {
+  id: "line-1",
+  product_id: "yerba",
+  product_name: "Yerba 1 kg",
+  weight_source: null,
+  manual_adjustment: null,
+  quantity: 3,
+  list_unit_price: 2500,
+  price_list_id: "list-1",
+  promotion_id: "ten",
+  discount_amount: 750,
+  promotions: [
+    { discount_id: "ten", kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null },
+  ],
+  sale_discount_share: 0,
+  line_total: 6750,
+};
+
+function cancelledEvent(overrides: Record<string, unknown> = {}) {
+  return {
+    event_id: "id-1",
+    aggregate_type: "Sale",
+    aggregate_id: "sale-1",
+    event_type: "sale_cancelled",
+    schema_version: 9,
+    payload: {
+      id: "sale-1",
+      register_id: "register-1",
+      device_id: "device-1",
+      session_id: "session-1",
+      actor_id: "cashier",
+      authorized_by: null,
+      occurred_at: NOW.toISOString(),
+      total: 6750,
+      sale_discount: null,
+      lines: [YERBA_LINE_RECORD],
+      payments: [],
+      refunds: [],
+      cash_movements: [],
+      ...overrides,
+    },
+    occurred_at: NOW.toISOString(),
+    actor_id: "cashier",
+  };
+}
+
 const COMPLETED_SALE: SaleWithLines = {
   ...OPEN_SALE,
   id: "sale-0",
@@ -82,21 +130,139 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 
 function cancel(store: FakeSaleLedger, actorId = "cashier") {
   return cancelSale(
-    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
+    {
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+      ids: new SequentialIds(),
+    },
     { actorId },
   );
 }
 
 describe("cancelSale", () => {
-  it("discards the open sale with its lines and records nothing about it", () => {
+  it("discards the open sale with its lines and records only that it was cancelled", () => {
     const store = ledger();
     const before = structuredClone(store.state);
 
     const outcome = cancel(store);
 
     expect(outcome).toEqual({ kind: "cancelled" });
-    expect(store.state).toEqual({ ...before, sales: [] });
+    expect(store.state).toEqual({ ...before, sales: [], outbox: [cancelledEvent()] });
     expect(store.transactions).toBe(1);
+  });
+
+  it("records the lines with the share of the sale discount they carried", () => {
+    const store = ledger({
+      sales: [
+        {
+          ...OPEN_SALE,
+          saleDiscount: TEN_PERCENT_SALE_DISCOUNT,
+          lines: [YERBA_LINE, { ...YERBA_LINE, id: "line-2", lineTotal: 3250 }],
+        },
+      ],
+    });
+
+    cancel(store);
+
+    expect(store.state.outbox).toEqual([
+      cancelledEvent({
+        total: 9000,
+        sale_discount: {
+          kind: "PERCENT",
+          value: 10,
+          amount: 1000,
+          reason: TEN_PERCENT_SALE_DISCOUNT.reason,
+          authorized_by: TEN_PERCENT_SALE_DISCOUNT.authorizedBy,
+        },
+        lines: [
+          { ...YERBA_LINE_RECORD, sale_discount_share: 675, line_total: 6075 },
+          { ...YERBA_LINE_RECORD, id: "line-2", sale_discount_share: 325, line_total: 2925 },
+        ],
+      }),
+    ]);
+  });
+
+  it("records the cancelled sale with the cash movements it already had", () => {
+    const store = ledger({
+      movements: [
+        {
+          id: "movement-1",
+          sessionId: "session-1",
+          type: "SALE",
+          amount: 100,
+          actorId: "cashier",
+          occurredAt: NOW,
+          ref: { type: "sale", id: "sale-1" },
+        },
+        {
+          id: "movement-0",
+          sessionId: "session-1",
+          type: "SALE",
+          amount: 100,
+          actorId: "cashier",
+          occurredAt: NOW,
+          ref: { type: "sale", id: "sale-0" },
+        },
+      ],
+    });
+
+    cancel(store);
+
+    expect(store.state.outbox).toEqual([
+      cancelledEvent({
+        cash_movements: [
+          {
+            id: "movement-1",
+            type: "SALE",
+            amount: 100,
+            ref_type: "sale",
+            ref_id: "sale-1",
+            actor_id: "cashier",
+            occurred_at: NOW.toISOString(),
+          },
+        ],
+      }),
+    ]);
+  });
+
+  it("records the cancellation under the actor who cancels, not the one who opened the sale", () => {
+    const store = ledger({
+      accesses: { cashier: CASHIER, former: CASHIER },
+      sales: [{ ...OPEN_SALE, actorId: "former" }],
+    });
+
+    cancel(store);
+
+    expect(store.state.outbox).toEqual([
+      expect.objectContaining({
+        actor_id: "cashier",
+        payload: expect.objectContaining({ actor_id: "former" }),
+      }),
+    ]);
+  });
+
+  it("answers that it is unavailable while the outbox is not ready, leaving everything as it was", () => {
+    const store = ledger({ outboxReady: false });
+    const before = structuredClone(store.state);
+
+    expect(cancel(store)).toEqual({ kind: "unavailable" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("answers the refusals of the sale before the outbox is looked at", () => {
+    const store = ledger({ outboxReady: false, payments: [APPROVED_PAYMENT] });
+
+    expect(cancel(store)).toEqual({ kind: "has_approved_payment" });
+  });
+
+  it("leaves the sale open and records nothing when appending the event fails", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+    store.failOn = "appendOutboxEvent";
+
+    expect(() => cancel(store)).toThrow("appendOutboxEvent failed");
+    expect(store.state).toEqual(before);
   });
 
   it("keeps the sales already completed", () => {
@@ -220,6 +386,17 @@ describe("cancelSale with a QR charge", () => {
     expect(cancel(store)).toEqual({ kind: "cancelled" });
     expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
     expect(store.state.pendingMercadoPagoPayments).toEqual([pending]);
-    expect(store.state.outbox).toEqual([]);
+    expect(store.state.outbox).toEqual([cancelledEvent()]);
+  });
+
+  it("answers that it is unavailable while the outbox is not ready, keeping the sale open", () => {
+    const store = ledger({
+      outboxReady: false,
+      pendingMercadoPagoPayments: [pendingQrEndingAt(new Date(NOW.getTime() - 1))],
+    });
+    const before = structuredClone(store.state);
+
+    expect(cancel(store)).toEqual({ kind: "unavailable" });
+    expect(store.state).toEqual(before);
   });
 });

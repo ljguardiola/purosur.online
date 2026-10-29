@@ -291,7 +291,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 8,
+          schema_version: 9,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -568,7 +568,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 8,
+        schema_version: 9,
         payload: {
           payments: [{ id: "payment-5", method: "STANDALONE_TERMINAL", state: "APPROVED" }],
           refunds: [
@@ -630,7 +630,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 8,
+        schema_version: 9,
         payload: {
           payments: [{ id: "payment-3", method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [
@@ -692,7 +692,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 8,
+        schema_version: 9,
         payload: {
           payments: [
             {

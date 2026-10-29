@@ -2057,6 +2057,28 @@ describe("removing a line", () => {
     });
   });
 
+  it("records the removed line as an event", async () => {
+    const lineId = await sellTwoYerbas();
+
+    await removeSaleLineFor(deps(), lineId);
+
+    expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
+      { event_type: "sale_line_removed", schema_version: 1 },
+    ]);
+  });
+
+  it("answers unavailable, removing nothing, when the register holds no outbox chain key", async () => {
+    const lineId = await sellTwoYerbas();
+
+    expect(
+      await removeSaleLineFor(deps({ readOutboxChainKey: async () => undefined }), lineId),
+    ).toEqual({
+      kind: "unavailable",
+    });
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([{ id: lineId }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  });
+
   it("answers the domain's refusal of a line the sale does not have", async () => {
     await sellTwoYerbas();
 
@@ -2091,13 +2113,15 @@ describe("removing a line", () => {
 });
 
 describe("cancelling the sale", () => {
-  it("cancels it, leaving neither the sale nor an event behind", async () => {
+  it("cancels it, leaving no sale behind but the event that it was cancelled", async () => {
     await sellTwoYerbas();
 
     expect(await cancelSaleFor(deps())).toEqual({ kind: "cancelled" });
 
     expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
-    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+    expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
+      { event_type: "sale_cancelled", schema_version: 9 },
+    ]);
   });
 
   it("lets the next scan start a new sale", async () => {
@@ -2142,13 +2166,14 @@ describe("cancelling the sale", () => {
     expect(await cancelSaleFor(deps())).toEqual({ kind: "no_open_session" });
   });
 
-  it("cancels it even when the register has no outbox key yet", async () => {
+  it("answers unavailable, cancelling nothing, when the register holds no outbox chain key", async () => {
     await sellTwoYerbas();
 
     expect(await cancelSaleFor(deps({ readOutboxChainKey: async () => undefined }))).toEqual({
-      kind: "cancelled",
+      kind: "unavailable",
     });
-    expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 });
 
