@@ -1,5 +1,6 @@
 import { type Fraction, roundHalfUp } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
+import { lineValue } from "./purchase-line.js";
 
 export interface FreightLine {
   id: string;
@@ -16,13 +17,6 @@ export interface FreightShare {
 export interface FreightToDistribute {
   amountCents: number;
   lines: readonly FreightLine[];
-}
-
-export function lineValue({ costPaidCents, quantity, quantityPerPackage }: FreightLine): Fraction {
-  return {
-    numerator: BigInt(costPaidCents) * BigInt(quantity),
-    denominator: BigInt(quantityPerPackage),
-  };
 }
 
 export function hasDistributableValue(lines: readonly FreightLine[]): boolean {

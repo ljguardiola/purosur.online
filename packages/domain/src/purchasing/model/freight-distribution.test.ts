@@ -6,7 +6,6 @@ import {
   type FreightLine,
   freightPerUnit,
   hasDistributableValue,
-  lineValue,
   purchaseValueCents,
 } from "./freight-distribution.js";
 
@@ -49,29 +48,6 @@ function exactShare(amount: number, lines: FreightLine[], index: number) {
 function shareOf(result: { lineId: string; cents: number }[], id: string): number {
   return (result.find(({ lineId }) => lineId === id) as { cents: number }).cents;
 }
-
-describe("lineValue", () => {
-  it("is the cost paid per package times the packages bought, which is the quantity over the package size", () => {
-    expect(
-      equalFractions(lineValue(line("a", 1000, 12_000, 12_000)), {
-        numerator: 1000n,
-        denominator: 1n,
-      }),
-    ).toBe(true);
-    expect(
-      equalFractions(lineValue(line("a", 1000, 24_000, 12_000)), {
-        numerator: 2000n,
-        denominator: 1n,
-      }),
-    ).toBe(true);
-  });
-
-  it("keeps the fraction of a cent of a line loaded by quantity", () => {
-    expect(
-      equalFractions(lineValue(line("a", 333, 2500, 1000)), { numerator: 1665n, denominator: 2n }),
-    ).toBe(true);
-  });
-});
 
 describe("hasDistributableValue", () => {
   it("is true when some line is worth something", () => {
