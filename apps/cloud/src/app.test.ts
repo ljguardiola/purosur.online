@@ -1141,11 +1141,6 @@ describe("wiring the users routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    const pastDeadline = await app.inject({
-      method: "GET",
-      url: "/api/reports/prices-past-review-deadline",
-    });
-
     expect(list.statusCode).toBe(404);
     expect(read.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
@@ -1607,6 +1602,11 @@ describe("wiring the prices routes", () => {
       method: "POST",
       url: "/api/prices/00000000-0000-0000-0000-000000000000/confirmations",
       headers: { origin: "https://staging.purosur.online" },
+    });
+
+    const pastDeadline = await app.inject({
+      method: "GET",
+      url: "/api/reports/prices-past-review-deadline",
     });
 
     expect(list.statusCode).toBe(404);
