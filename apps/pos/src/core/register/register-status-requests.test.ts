@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   argentinaInstant,
+  type BatteryReading,
   type BatteryReport,
   type CriticalBatteryAction,
   type DetectedSerialDevice,
@@ -36,6 +37,7 @@ import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
 import { stopOpeningNewSales } from "../sync/sqlite-local-installation";
+import { type BatteryWatch, createBatteryWatch } from "./battery-watch";
 import { registerStatusFor } from "./register-status-requests";
 import { createSerialDeviceWatch, type SerialDeviceWatch } from "./serial-device-watch";
 
@@ -134,6 +136,7 @@ function status(
     storage: () => storage,
     localDatabaseDamaged: () => localDatabaseDamaged,
     battery: () => battery,
+    onBatteryCountedOnlySinceStart: () => false,
     newSalesStoppedByBattery: () => newSalesStoppedByBattery,
     criticalBatteryAction: () => criticalBatteryAction,
     onConditionStartsNotRecorded: () => undefined,
@@ -174,6 +177,7 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     storage: () => ROOMY_STORAGE,
     localDatabaseDamaged: () => false,
     battery: () => undefined,
+    onBatteryCountedOnlySinceStart: () => false,
     newSalesStoppedByBattery: () => false,
     criticalBatteryAction: () => ({ kind: "unreadable" }),
     onConditionStartsNotRecorded: () => undefined,
@@ -685,6 +689,7 @@ describe("since when the register's conditions hold", () => {
       storage: () => storage,
       localDatabaseDamaged: () => false,
       battery: () => undefined,
+      onBatteryCountedOnlySinceStart: () => false,
       newSalesStoppedByBattery: () => false,
       criticalBatteryAction: () => ({ kind: "unreadable" }),
       onConditionStartsNotRecorded,
@@ -760,6 +765,72 @@ describe("since when the register's conditions hold", () => {
       { kind: "wal_oversized", level: "warning", since: NOW_SINCE },
     ]);
     expect(failures).toEqual([expect.objectContaining({ message: "database or disk is full" })]);
+  });
+
+  it("keeps the instant on battery across a restart of the register that finds it still on battery", async () => {
+    const ON_BATTERY: BatteryReading = { kind: "present", chargePercent: 70, onBattery: true };
+    const world = { now: NOW };
+    function startedWatch() {
+      const scheduled: (() => Promise<void>)[] = [];
+      const watch = createBatteryWatch({
+        reader: { read: async () => ON_BATTERY },
+        intervalMs: MINUTE_MS,
+        scheduleNext: (run) => {
+          scheduled.push(run);
+          return () => undefined;
+        },
+        clock: { now: () => world.now },
+      });
+      async function readAfter(minutes: number): Promise<void> {
+        world.now = new Date(world.now.getTime() + minutes * MINUTE_MS);
+        await scheduled.at(-1)?.();
+      }
+      return { watch, readAfter };
+    }
+    function sinceOnBattery(target: LocalDatabase, watch: BatteryWatch) {
+      return registerStatusFor({
+        zoneRules: fixedZoneRulesSource(),
+        database: target,
+        cloud: () => "unknown",
+        now: () => world.now,
+        signedInPerson,
+        serialDevices: () => ({ kind: "listed", standings: NO_DEVICES, registered: {} }),
+        storage: () => ROOMY_STORAGE,
+        localDatabaseDamaged: () => false,
+        battery: watch.report,
+        onBatteryCountedOnlySinceStart: watch.onBatteryCountedOnlySinceStart,
+        newSalesStoppedByBattery: () => false,
+        criticalBatteryAction: () => ({ kind: "read", action: "shut_down" }),
+        onConditionStartsNotRecorded: () => undefined,
+      }).then(
+        ({ conditions }) => conditions.find((condition) => condition.kind === "on_battery")?.since,
+      );
+    }
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-on-battery-start-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const before = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      const first = startedWatch();
+      await first.watch.start();
+      await first.readAfter(10);
+      expect(await sinceOnBattery(before, first.watch)).toBe("2026-10-05T12:10:00.000-03:00");
+      before.close();
+
+      world.now = new Date(world.now.getTime() + 10 * MINUTE_MS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        const second = startedWatch();
+        await second.watch.start();
+        expect(await sinceOnBattery(after, second.watch)).toBeUndefined();
+
+        await second.readAfter(10);
+        expect(await sinceOnBattery(after, second.watch)).toBe("2026-10-05T12:10:00.000-03:00");
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 
   it("keeps the instant across a restart of the register", async () => {

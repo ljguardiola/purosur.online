@@ -59,6 +59,7 @@ function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[
     storage: HEALTHY_STORAGE,
     localDatabaseDamaged: false,
     battery: undefined,
+    onBatteryCountedOnlySinceStart: false,
     newSalesStoppedByBattery: false,
     criticalBatteryAction: { kind: "unreadable" },
     clockOffsetMs: null,
@@ -561,6 +562,7 @@ describe("registerOwnConditionsNotYetKnown", () => {
     storage: HEALTHY_STORAGE,
     localDatabaseDamaged: false,
     battery: onMainsAt(80),
+    onBatteryCountedOnlySinceStart: false,
     newSalesStoppedByBattery: false,
     criticalBatteryAction: { kind: "read", action: "shut_down" },
     clockOffsetMs: null,
@@ -647,6 +649,27 @@ describe("registerOwnConditionsNotYetKnown", () => {
     expect(notYetKnown({ battery: undefined, localDatabaseDamaged: true })).toEqual(
       withoutCriticalBattery,
     );
+  });
+
+  it("names on_battery while the register has been on battery since it started for less than the condition's minutes", () => {
+    expect(
+      notYetKnown({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual(["on_battery"]);
+  });
+
+  it("knows on_battery once the register was seen off battery since it started, or once it holds", () => {
+    expect(
+      notYetKnown({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: false }),
+    ).toEqual([]);
+    expect(
+      notYetKnown({ battery: onBatteryAt(80, 10), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(notYetKnown({ battery: onMainsAt(80), onBatteryCountedOnlySinceStart: true })).toEqual(
+      [],
+    );
+    expect(
+      notYetKnown({ battery: { present: false }, onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
   });
 
   it("names the missing serial device until the serial devices are listed", () => {
