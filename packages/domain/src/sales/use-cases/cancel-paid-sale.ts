@@ -70,6 +70,20 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     }
     const planned = plannedRefunds(payments);
     if (planned.length === 0) {
+      if (!tx.outboxReady()) {
+        return { kind: "unavailable" };
+      }
+      tx.appendOutboxEvent(
+        saleCancelledEvent(ids.next(), {
+          sale,
+          payments,
+          refunds: [],
+          movements: tx.saleCashMovements(sale.id),
+          actorId,
+          authorizedBy,
+          occurredAt: now,
+        }),
+      );
       if (pendingMercadoPagoPayments.length > 0) {
         tx.recordCancelledSale(sale.id, now, undefined);
       } else {
