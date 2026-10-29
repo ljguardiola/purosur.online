@@ -3,10 +3,10 @@ import type {
   ChangeLogTransaction,
   PullAudience,
   PulledEntity,
-  PullingRegister,
+  PullingInstallation,
   PullReach,
 } from "@purosur/domain/sync/use-cases";
-import { and, asc, eq, gt, inArray, max, or, type SQL } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, max, or, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { readBranchSettings } from "../branch/drizzle-branch-settings-reader.js";
 import {
@@ -15,6 +15,7 @@ import {
   deviceState,
   registerInstallations,
   registers,
+  stockMovements,
 } from "../platform/db/schema.js";
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
 import {
@@ -75,16 +76,18 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       });
   }
 
-  async pullingRegister(deviceId: string): Promise<PullingRegister> {
+  async pullingRegister(deviceId: string): Promise<PullingInstallation> {
     const [register] = await this.tx
       .select({
         registerId: registers.id,
         locationId: registers.locationId,
         priceListId: branchSettings.priceListId,
+        recordedAppVersion: deviceState.appVersion,
       })
       .from(registerInstallations)
       .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
       .leftJoin(branchSettings, eq(branchSettings.locationId, registers.locationId))
+      .leftJoin(deviceState, eq(deviceState.deviceId, registerInstallations.id))
       .where(eq(registerInstallations.id, deviceId));
     if (!register) {
       throw new Error("an authenticated installation has no register");
@@ -361,9 +364,12 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     since: number,
     limit: number,
   ): Promise<LoggedRow[]> {
-    const reached = Object.entries(audience).map(([entity, reach]) =>
-      inReach(entity as LoggedEntity, reach),
-    );
+    const reached = Object.entries(audience)
+      .map(([entity, reach]) => inReach(entity as LoggedEntity, reach))
+      .filter((condition) => condition !== undefined);
+    if (reached.length === 0) {
+      return [];
+    }
     const rows = await this.tx
       .select({
         changeSeq: changes.changeSeq,
@@ -414,6 +420,12 @@ function inReach(entity: LoggedEntity, reach: PullReach): SQL | undefined {
       return and(ofEntity, eq(changes.entityId, reach.id));
     case "rows_of_branch":
       return and(ofEntity, eq(changes.locationId, reach.locationId));
+    case "rows_of_branch_except_stock_movement_kinds":
+      return and(
+        ofEntity,
+        eq(changes.locationId, reach.locationId),
+        sql`not exists (select 1 from ${stockMovements} where ${stockMovements.id} = ${changes.entityId} and ${inArray(stockMovements.kind, [...reach.kinds])})`,
+      );
     case "rows_of_price_list":
       return and(ofEntity, eq(changes.priceListId, reach.priceListId));
     case "rows_of_register":
