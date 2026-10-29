@@ -135,12 +135,12 @@ describe("GET /reports/purchases-by-supplier", () => {
         {
           supplier_id: supplierId,
           name: "Distribuidora Sur",
-          months: [{ month: "2026-10", purchases: 1, amount: 2_000 }],
+          months: [{ month: "2026-10", purchases: 1, amount: 4_000 }],
           purchases: 1,
-          amount: 2_000,
+          amount: 4_000,
         },
       ],
-      totals: { suppliers: 1, purchases: 1, amount: 2_000 },
+      totals: { suppliers: 1, purchases: 1, amount: 4_000 },
     });
   });
 
@@ -176,6 +176,6 @@ describe("GET /reports/purchases-by-supplier", () => {
 
     expect(registered.statusCode).toBe(201);
     expect(before.json().totals).toEqual({ suppliers: 0, purchases: 0, amount: 0 });
-    expect(after.json().totals).toEqual({ suppliers: 1, purchases: 1, amount: 900 });
+    expect(after.json().totals).toEqual({ suppliers: 1, purchases: 1, amount: 2_700 });
   });
 });
