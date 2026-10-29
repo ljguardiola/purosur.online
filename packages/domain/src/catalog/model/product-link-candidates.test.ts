@@ -191,6 +191,29 @@ describe("productLinkCandidates", () => {
     expect(candidates).toHaveLength(PRODUCT_LINK_CANDIDATE_LIMIT);
   });
 
+  it("ranks a product matching one name word ahead of products matching more brand words", () => {
+    const brandOnly = Array.from({ length: PRODUCT_LINK_CANDIDATE_LIMIT }, (_, index) =>
+      product(`a${index}`, `Aceite ${index}`, "Kos Natural", { quantity: 1, unit: "KG" }),
+    );
+    const byName = product("z", "Zapallo");
+
+    const candidates = productLinkCandidates([...brandOnly, byName], "kos natural 1 kg zapallo");
+
+    expect(candidates[0]).toEqual(byName);
+    expect(candidates).toHaveLength(PRODUCT_LINK_CANDIDATE_LIMIT);
+  });
+
+  it("ranks products matching by name by how many words they match in all", () => {
+    const products = [
+      product("1", "Granola Berries", "Otra", { quantity: 500, unit: "G" }),
+      product("2", "Granola", "Kos", { quantity: 1, unit: "KG" }),
+    ];
+
+    expect(
+      productLinkCandidates(products, "granola berries 1 kg kos").map(({ id }) => id),
+    ).toEqual(["2", "1"]);
+  });
+
   it("never answers more than the limit nor a product with no word in common", () => {
     fc.assert(
       fc.property(
