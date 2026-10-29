@@ -168,7 +168,7 @@ describe("removeSaleLine", () => {
     expect(store.transactions).toBe(1);
   });
 
-  it("records the line removed as it stood, whoever opened the sale", () => {
+  it("records the line under the actor who removes it, not the one who opened the sale", () => {
     const store = ledger({
       accesses: { cashier: CASHIER },
       sales: [{ ...OPEN_SALE, actorId: "former" }],
@@ -176,12 +176,7 @@ describe("removeSaleLine", () => {
 
     remove(store, "line-1");
 
-    expect(store.state.outbox).toEqual([
-      {
-        ...removedEvent(YERBA_LINE_RECORD),
-        payload: { ...removedEvent(YERBA_LINE_RECORD).payload, actor_id: "former" },
-      },
-    ]);
+    expect(store.state.outbox).toEqual([removedEvent(YERBA_LINE_RECORD)]);
   });
 
   it("records a line sold by weight with where its weight came from", () => {
