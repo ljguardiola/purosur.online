@@ -1,7 +1,7 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { EditLotCostModal, type EditLotCostModalProps } from "./edit-lot-cost-modal";
 import {
@@ -273,6 +273,18 @@ test("starts on the cheapest price when the lot's cost equals none, and saves an
   await expect
     .poll(() => vi.mocked(props.services.setLotReferenceCost).mock.lastCall)
     .toEqual([initialLotAlmonds.lotId, { supplierItemId: supplierPriceBeta.supplierItemId }]);
+});
+
+test("typing part of a supplier's name offers only that supplier's prices", async () => {
+  const screen = await renderModal(createProps({ lot: lotWithPrices }));
+
+  await userEvent.fill(screen.getByRole("combobox", { name: PRICE_LIST }), "bet");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg"]);
 });
 
 test("fits six loaded prices in the modal and offers every one", async () => {
