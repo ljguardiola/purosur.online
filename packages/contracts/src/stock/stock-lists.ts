@@ -11,6 +11,7 @@ import {
   STOCK_PERIOD_DAYS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { netContentSchema } from "../shared/index.js";
 
 export type { StockPeriodDays } from "@purosur/domain";
 
@@ -25,6 +26,8 @@ export type StockPeriod = z.output<typeof stockPeriodSchema>;
 const stockProductSchema = z.object({
   id: z.string(),
   name: z.string(),
+  brandName: z.string().nullable(),
+  netContent: netContentSchema.nullable(),
   categoryId: z.string(),
   categoryName: z.string(),
   saleUnit: z.enum(SALE_UNITS),
@@ -97,6 +100,8 @@ const stockCountSchema = z.object({
   id: z.string(),
   productId: z.string(),
   productName: z.string(),
+  brandName: z.string().nullable(),
+  netContent: netContentSchema.nullable(),
   categoryId: z.string(),
   categoryName: z.string(),
   saleUnit: z.enum(SALE_UNITS),
@@ -117,6 +122,8 @@ const stockMovementSchema = z.object({
   id: z.string(),
   productId: z.string(),
   productName: z.string(),
+  brandName: z.string().nullable(),
+  netContent: netContentSchema.nullable(),
   categoryName: z.string(),
   saleUnit: z.enum(SALE_UNITS),
   kind: z.enum(MANUAL_STOCK_MOVEMENT_KINDS),

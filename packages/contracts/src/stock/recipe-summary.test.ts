@@ -103,18 +103,22 @@ describe("recipeSummarySchema", () => {
     expect(recipeSummarySchema.safeParse({ ...mix, lastBatch }).success).toBe(false);
   });
 
-  it.each(["componentProductId", "name", "brandName", "netContent", "saleUnit", "quantityPerOutputUnit"])(
-    "rejects a component without %s",
-    (key) => {
-      const [first] = mix.components;
-      expect(
-        recipeSummarySchema.safeParse({
-          ...mix,
-          components: [{ ...first, [key]: undefined }],
-        }).success,
-      ).toBe(false);
-    },
-  );
+  it.each([
+    "componentProductId",
+    "name",
+    "brandName",
+    "netContent",
+    "saleUnit",
+    "quantityPerOutputUnit",
+  ])("rejects a component without %s", (key) => {
+    const [first] = mix.components;
+    expect(
+      recipeSummarySchema.safeParse({
+        ...mix,
+        components: [{ ...first, [key]: undefined }],
+      }).success,
+    ).toBe(false);
+  });
 
   it("rejects a sale unit other than the unit or the kilo", () => {
     expect(recipeSummarySchema.safeParse({ ...mix, saleUnit: "LITER" }).success).toBe(false);

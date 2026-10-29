@@ -98,9 +98,9 @@ describe("initialInventoryLotListSchema", () => {
     ["no brand name", { brandName: undefined }],
     ["no net content", { netContent: undefined }],
   ])("refuses a lot with %s", (_case, override) => {
-    expect(initialInventoryLotListSchema.safeParse({ lots: [{ ...LOT, ...override }] }).success).toBe(
-      false,
-    );
+    expect(
+      initialInventoryLotListSchema.safeParse({ lots: [{ ...LOT, ...override }] }).success,
+    ).toBe(false);
   });
 
   it.each([

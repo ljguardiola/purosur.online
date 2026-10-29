@@ -1,6 +1,6 @@
 import { isCalendarDay, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
+import { netContentSchema, recordIdSchema } from "../shared/index.js";
 
 export const currentStockReportQuerySchema = z.object({
   category_id: recordIdSchema().optional(),
@@ -21,6 +21,8 @@ const currentStockLotSchema = z.object({
 const currentStockProductSchema = z.object({
   id: z.string(),
   name: z.string(),
+  brand_name: z.string().nullable(),
+  net_content: netContentSchema.nullable(),
   category_id: z.string(),
   category_name: z.string(),
   sale_unit: z.enum(SALE_UNITS),

@@ -1,6 +1,6 @@
 import { isReportPeriodAsked, RECORDED_LOSS_REASONS, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
-import { answeredRangeSchema } from "../shared/index.js";
+import { answeredRangeSchema, netContentSchema } from "../shared/index.js";
 
 export const lossesByReasonReportQuerySchema = z
   .object({
@@ -14,6 +14,8 @@ export type LossesByReasonReportQuery = z.output<typeof lossesByReasonReportQuer
 const lostProductSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
+  brand_name: z.string().nullable(),
+  net_content: netContentSchema.nullable(),
   sale_unit: z.enum(SALE_UNITS),
   quantity: z.int().positive(),
   loss_count: z.int().min(1),

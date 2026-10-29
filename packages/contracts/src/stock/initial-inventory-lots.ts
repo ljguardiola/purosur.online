@@ -28,6 +28,8 @@ export const initialInventoryLotListSchema = z.object({
       lotId: z.string(),
       productId: z.string(),
       productName: z.string(),
+      brandName: z.string().nullable(),
+      netContent: netContentSchema.nullable(),
       categoryName: z.string(),
       saleUnit: z.enum(SALE_UNITS),
       expiresOn: z.string().refine(isCalendarDay).nullable(),
