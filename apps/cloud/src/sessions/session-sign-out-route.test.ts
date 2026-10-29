@@ -1,5 +1,4 @@
 import {
-  BACKOFFICE_REQUEST_WINDOW_MS,
   BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
   SESSION_IDLE_TIMEOUT_MS,
 } from "@purosur/domain";
@@ -186,30 +185,36 @@ describe("DELETE /sessions/current", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, leaving the session unrevoked", async () => {
+  it("signs out an open session whose backoffice request limit is exhausted", async () => {
     const rawSessionId = await insertSession();
     await exhaustSessionRateLimit(db, rawSessionId, NOON);
 
     const response = await deleteCurrentSession(rawSessionId);
 
-    expect(response.statusCode).toBe(429);
-    expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBe(String(BACKOFFICE_REQUEST_WINDOW_MS / 1000));
+    expect(response.statusCode).toBe(200);
+    expect(String(response.headers["set-cookie"])).toContain(`${SESSION_COOKIE_NAME}=;`);
     const [row] = await db
       .select()
       .from(sessions)
       .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
-    expect(row?.revokedAt).toBeNull();
+    expect(row?.revokedAt?.getTime()).toBe(NOON.getTime());
   });
 
-  it("rejects a sign-out under an open session once its source address is over its limit", async () => {
+  it("signs out an open session, uncounted, while its source address is over its limit", async () => {
     await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, NOON);
     const rawSessionId = await insertSession();
 
     const response = await deleteCurrentSession(rawSessionId);
 
-    expect(response.statusCode).toBe(429);
-    expect(response.headers["retry-after"]).toBe(String(BACKOFFICE_REQUEST_WINDOW_MS / 1000));
+    expect(response.statusCode).toBe(200);
+    const [row] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
+    expect(row?.revokedAt?.getTime()).toBe(NOON.getTime());
+    expect(await db.select().from(backofficeRateLimitAttempts)).toHaveLength(
+      BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
+    );
   });
 
   it("answers a sign-out with no open session as before, uncounted, while its source address is over its limit", async () => {
