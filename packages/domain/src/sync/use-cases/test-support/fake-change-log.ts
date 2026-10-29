@@ -4,6 +4,7 @@ import type {
   PullingRegister,
   PullReach,
 } from "../../model/pull-audience.js";
+import type { StockMovementKind } from "../../../stock/index.js";
 import type { ChangeLog, ChangeLogTransaction, PulledChange } from "../sync-ports.js";
 
 export interface FakeLoggedChange extends PulledChange {
@@ -12,6 +13,11 @@ export interface FakeLoggedChange extends PulledChange {
   locationId?: string;
   priceListId?: string;
   registerId?: string;
+  stockMovementKind?: StockMovementKind;
+}
+
+export interface FakeInstalledRegister extends PullingRegister {
+  recordedAppVersion?: string | null;
 }
 
 interface FakeObservedPull {
@@ -33,6 +39,11 @@ function reaches(reach: PullReach, change: FakeLoggedChange): boolean {
       return change.entityId === reach.id;
     case "rows_of_branch":
       return change.locationId === reach.locationId;
+    case "rows_of_branch_except_stock_movement_kinds":
+      return (
+        change.locationId === reach.locationId &&
+        (change.stockMovementKind === undefined || !reach.kinds.includes(change.stockMovementKind))
+      );
     case "rows_of_price_list":
       return change.priceListId === reach.priceListId;
     case "rows_of_register":
@@ -47,11 +58,11 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
   readRequests: { audience: PullAudience; since: number; limit: number }[] = [];
   failReading = false;
   operations: string[] = [];
-  private readonly installedRegisters: Readonly<Record<string, PullingRegister>>;
+  private readonly installedRegisters: Readonly<Record<string, FakeInstalledRegister>>;
 
   constructor(
     changes: FakeLoggedChange[] = [],
-    installedRegisters: Readonly<Record<string, PullingRegister>> = {},
+    installedRegisters: Readonly<Record<string, FakeInstalledRegister>> = {},
   ) {
     this.state = { changes, observedPulls: [] };
     this.installedRegisters = installedRegisters;
@@ -74,7 +85,7 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
         if (register === undefined) {
           throw new Error("the device is installed in no register");
         }
-        return register;
+        return { recordedAppVersion: null, ...register };
       },
       changesAfter: async (audience, since, limit) => {
         this.operations.push("changesAfter");
