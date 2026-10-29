@@ -12,6 +12,7 @@ import {
   replaceMigrations,
   runCli,
   selectRouteTests,
+  writeVitestConfig,
 } from "./previous-release-contract.mjs";
 
 test("selects the cloud's route test files, whatever aspect they are divided by", () => {
@@ -124,6 +125,24 @@ test("names no extension when no migration creates one", () => {
     writeTree(dir, { "0001_tables.sql": 'CREATE TABLE "products" ("id" uuid PRIMARY KEY);' });
 
     assert.deepEqual(extensionsCreatedBy(dir), []);
+  });
+});
+
+test("writes a Vitest config that keeps the previous release's own config and adds the results reporter", () => {
+  withTempDir((dir) => {
+    const path = writeVitestConfig({ previousDir: dir, reporter: "/current/results-reporter.mjs" });
+
+    assert.equal(path, join(dir, "vitest.previous-release.config.mts"));
+    assert.equal(
+      readFileSync(path, "utf8"),
+      [
+        'import { mergeConfig } from "vitest/config";',
+        'import previousRelease from "./vitest.config.ts";',
+        "",
+        'export default mergeConfig(previousRelease, { test: { reporters: ["/current/results-reporter.mjs"] } });',
+        "",
+      ].join("\n"),
+    );
   });
 });
 
@@ -330,7 +349,7 @@ test("a failed run without results stops the promote even with declared breaks",
 });
 
 function fakeCli({ argv, env = {}, files = [], runResults }) {
-  const calls = { swaps: [], logs: [], errors: [], resultsRead: [] };
+  const calls = { swaps: [], configs: [], logs: [], errors: [], resultsRead: [] };
   return {
     calls,
     deps: {
@@ -342,6 +361,10 @@ function fakeCli({ argv, env = {}, files = [], runResults }) {
         return runResults;
       },
       replaceMigrations: (arguments_) => calls.swaps.push(arguments_),
+      writeVitestConfig: (arguments_) => {
+        calls.configs.push(arguments_);
+        return `${arguments_.previousDir}/vitest.previous-release.config.mts`;
+      },
       log: (message) => calls.logs.push(message),
       logError: (message) => calls.errors.push(message),
     },
@@ -372,6 +395,19 @@ test("the swap-migrations command gives the previous release the new migrations"
 
   assert.equal(await runCli(deps), 0);
   assert.deepEqual(calls.swaps, [{ previousDir: "/previous", currentDir: "/current" }]);
+});
+
+test("the write-vitest-config command prints the config it wrote for the previous release", async () => {
+  const { deps, calls } = fakeCli({
+    argv: ["write-vitest-config"],
+    env: { RESULTS_REPORTER: "/current/results-reporter.mjs" },
+  });
+
+  assert.equal(await runCli(deps), 0);
+  assert.deepEqual(calls.configs, [
+    { previousDir: "/previous", reporter: "/current/results-reporter.mjs" },
+  ]);
+  assert.deepEqual(calls.logs, ["/previous/vitest.previous-release.config.mts"]);
 });
 
 test("the check-declared command prints each declared break", async () => {
@@ -443,6 +479,8 @@ test("the commands fail without their inputs", async () => {
     [[], {}],
     [["list"], { PREVIOUS_DIR: "" }],
     [["swap-migrations"], { CURRENT_DIR: "" }],
+    [["write-vitest-config"], {}],
+    [["write-vitest-config"], { PREVIOUS_DIR: "", RESULTS_REPORTER: "/reporter.mjs" }],
     [["judge"], { TESTS_OUTCOME: "failure" }],
     [["judge"], { RESULTS_FILE: "/results.json" }],
     [["judge"], { RESULTS_FILE: "/results.json", TESTS_OUTCOME: "failure", DECLARED_BREAKS: "[" }],
