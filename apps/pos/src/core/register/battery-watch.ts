@@ -3,6 +3,7 @@ import {
   batteryConditionsOf,
   batteryReportOf,
   batteryReportStanding,
+  nextOnBatteryCountedOnlySinceStart,
   nextOnBatterySince,
 } from "@purosur/domain";
 import type { BatteryReader } from "./battery-reader";
@@ -19,6 +20,7 @@ export interface BatteryWatchDeps {
 export interface BatteryWatch {
   start(): Promise<void>;
   report(): BatteryReport | undefined;
+  onBatteryCountedOnlySinceStart(): boolean;
 }
 
 function conditionsKey(report: BatteryReport | undefined): string {
@@ -28,6 +30,7 @@ function conditionsKey(report: BatteryReport | undefined): string {
 export function createBatteryWatch(deps: BatteryWatchDeps): BatteryWatch {
   let latest: BatteryReading | undefined;
   let onBatterySince: Date | undefined;
+  let onBatteryCountedOnlySinceStart = true;
   let failing = false;
   let announced = conditionsKey(undefined);
 
@@ -45,6 +48,10 @@ export function createBatteryWatch(deps: BatteryWatchDeps): BatteryWatch {
     }
     latest = reading;
     onBatterySince = nextOnBatterySince(onBatterySince, reading, deps.clock.now());
+    onBatteryCountedOnlySinceStart = nextOnBatteryCountedOnlySinceStart(
+      onBatteryCountedOnlySinceStart,
+      reading,
+    );
     announceChange();
   }
 
@@ -70,5 +77,6 @@ export function createBatteryWatch(deps: BatteryWatchDeps): BatteryWatch {
   return {
     start: read,
     report: currentReport,
+    onBatteryCountedOnlySinceStart: () => onBatteryCountedOnlySinceStart,
   };
 }

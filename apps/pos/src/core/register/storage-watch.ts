@@ -49,6 +49,7 @@ export function createStorageWatch(deps: StorageWatchDeps): StorageWatch {
       diskStanding: currentDiskStanding(),
       diskFreeRatio: readSinceDiskFullByWrite ? latest?.disk_free_ratio : undefined,
       walOversized: latest !== undefined && walOversized(latest.wal_size_bytes),
+      measured: latest !== undefined,
     };
   }
 

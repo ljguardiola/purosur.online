@@ -190,6 +190,19 @@ jobs:
         working-directory: ${{ runner.temp }}/previous
         run: pnpm install --frozen-lockfile
 
+      - name: Apply the new migrations to the previous release's test databases
+        if: env.PREVIOUS_TAG != ''
+        env:
+          PREVIOUS_DIR: ${{ runner.temp }}/previous
+        run: node .github/scripts/previous-release-contract.mjs migrate
+
+      - name: Add the results reporter to the previous release's Vitest config
+        if: env.PREVIOUS_TAG != ''
+        env:
+          PREVIOUS_DIR: ${{ runner.temp }}/previous
+          RESULTS_REPORTER: ${{ github.workspace }}/.github/scripts/previous-release-contract-reporter.mjs
+        run: node .github/scripts/previous-release-contract.mjs write-vitest-config
+
       # The judge step below decides whether its failures stop the promote.
       - name: Run the previous release's route tests
         id: route-tests
@@ -198,10 +211,11 @@ jobs:
         working-directory: ${{ runner.temp }}/previous
         env:
           RESULTS_FILE: ${{ runner.temp }}/route-test-results.json
-          RESULTS_REPORTER: ${{ github.workspace }}/.github/scripts/previous-release-contract-reporter.mjs
+          MIGRATIONS_DIR: ${{ github.workspace }}/apps/cloud/migrations
+          NODE_OPTIONS: --import=${{ github.workspace }}/.github/scripts/previous-release-pglite-extensions.mjs
         run: >-
           xargs -a "$RUNNER_TEMP/route-tests.txt"
-          pnpm exec vitest run --project node --reporter=default --reporter="$RESULTS_REPORTER"
+          pnpm exec vitest run --config vitest.previous-release.config.mts --project node
 
       - name: Allow only the declared breaks to fail
         if: env.PREVIOUS_TAG != ''

@@ -128,6 +128,19 @@ describe("watching the register's battery", () => {
     expect(watch.report()).toMatchObject({ on_battery_minutes: 2 });
   });
 
+  it("counts the time on battery only since it started until a read finds the register off battery", async () => {
+    const { watch, advance } = setup(ON_BATTERY);
+    await watch.start();
+    await advance(1, { kind: "unreadable" });
+    await advance(1, ON_BATTERY);
+    expect(watch.onBatteryCountedOnlySinceStart()).toBe(true);
+
+    await advance(1, ON_MAINS);
+    await advance(1, ON_BATTERY);
+
+    expect(watch.onBatteryCountedOnlySinceStart()).toBe(false);
+  });
+
   it("reports nothing while the battery cannot be read, not that it has none", async () => {
     const { watch } = setup({ kind: "unreadable" });
 

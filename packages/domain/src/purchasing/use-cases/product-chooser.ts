@@ -1,6 +1,10 @@
+import type { NetContentUnit } from "../../catalog/index.js";
+
 export interface ProductChoiceCandidate {
   id: string;
   name: string;
+  brandName: string | null;
+  netContent: { quantity: number; unit: NetContentUnit } | null;
 }
 
 export type ProductChoice =
@@ -8,7 +12,7 @@ export type ProductChoice =
   | { kind: "none" }
   | { kind: "unavailable" };
 
-// What the AI service receives is the item's text and the candidates' names: no supplier, branch
+// What the AI service receives is the item's text and the candidates' names, brands and net contents: no supplier, branch
 // or person.
 export interface ProductChooser {
   choose(

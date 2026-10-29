@@ -6,7 +6,10 @@ import { alertKindPolicy } from "./alert-kind-policy.js";
 import {
   batteryConditionsOf,
   REGISTER_OWN_CONDITIONS,
+  registerOwnConditionIdentity,
   registerOwnConditions,
+  registerOwnConditionsHeldIfAlreadyStarted,
+  registerOwnConditionsNotYetKnown,
 } from "./register-own-conditions.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -20,6 +23,7 @@ const HEALTHY_STORAGE: StorageStanding = {
   diskStanding: "enough",
   diskFreeRatio: 0.4,
   walOversized: false,
+  measured: true,
 };
 
 function onBatteryAt(chargePercent: number, onBatteryMinutes = 0): BatteryReport {
@@ -44,23 +48,30 @@ function minutesBefore(instant: Date, minutes: number): Date {
   return new Date(instant.getTime() - minutes * MINUTE_MS);
 }
 
-function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[0]> = {}) {
-  return registerOwnConditions({
-    salesStop: { stopped: false },
-    latestPreEmissionGate: { kind: "passed" },
-    lastAcceptedPushAt: minutesBefore(NOW, 1),
-    hours: HOURS,
-    now: NOW,
-    rules: FIXED_ARGENTINA_ZONE_RULES,
-    serialDevices: { scale: MATCHING, reader: MATCHING },
-    storage: HEALTHY_STORAGE,
-    localDatabaseDamaged: false,
-    battery: undefined,
-    newSalesStoppedByBattery: false,
-    criticalBatteryAction: { kind: "unreadable" },
-    clockOffsetMs: null,
-    ...overrides,
-  });
+function conditions(
+  overrides: Partial<Parameters<typeof registerOwnConditions>[0]> = {},
+  alreadyStarted: ReadonlySet<string> = new Set(),
+) {
+  return registerOwnConditions(
+    {
+      salesStop: { stopped: false },
+      latestPreEmissionGate: { kind: "passed" },
+      lastAcceptedPushAt: minutesBefore(NOW, 1),
+      hours: HOURS,
+      now: NOW,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
+      serialDevices: { scale: MATCHING, reader: MATCHING },
+      storage: HEALTHY_STORAGE,
+      localDatabaseDamaged: false,
+      battery: undefined,
+      onBatteryCountedOnlySinceStart: false,
+      newSalesStoppedByBattery: false,
+      criticalBatteryAction: { kind: "unreadable" },
+      clockOffsetMs: null,
+      ...overrides,
+    },
+    alreadyStarted,
+  );
 }
 
 describe("REGISTER_OWN_CONDITIONS", () => {
@@ -364,6 +375,7 @@ describe("registerOwnConditions", () => {
           diskStanding: "full",
           diskFreeRatio: 0.03,
           walOversized: false,
+          measured: true,
         },
       }),
     ).toEqual([
@@ -469,6 +481,33 @@ describe("registerOwnConditions for the battery", () => {
     expect(conditions({ battery: onMainsAt(80) })).toEqual([]);
   });
 
+  it("holds on_battery before 10 whole minutes when it had already started and the register has been on battery since it started", () => {
+    expect(
+      conditions(
+        { battery: onBatteryAt(80, 0), onBatteryCountedOnlySinceStart: true },
+        new Set(["on_battery"]),
+      ),
+    ).toEqual([{ kind: "on_battery", threshold_minutes: 10, level: "critical" }]);
+  });
+
+  it("does not hold on_battery before 10 whole minutes when it had not already started, or when the register was seen off battery since it started", () => {
+    expect(
+      conditions({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      conditions(
+        { battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: false },
+        new Set(["on_battery"]),
+      ),
+    ).toEqual([]);
+    expect(
+      conditions(
+        { battery: onMainsAt(80), onBatteryCountedOnlySinceStart: true },
+        new Set(["on_battery"]),
+      ),
+    ).toEqual([]);
+  });
+
   it("holds battery_missing as a warning when the register reports no battery", () => {
     expect(conditions({ battery: { present: false } })).toEqual([
       { kind: "battery_missing", level: "warning" },
@@ -526,5 +565,220 @@ describe("batteryConditionsOf", () => {
 
     expect(batteryConditionsOf(undefined)).toEqual(none);
     expect(batteryConditionsOf(onMainsAt(3))).toEqual(none);
+  });
+});
+
+describe("registerOwnConditionIdentity", () => {
+  it("names a condition by its kind", () => {
+    expect(registerOwnConditionIdentity({ kind: "clock_drift" })).toBe("clock_drift");
+    expect(registerOwnConditionIdentity({ kind: "battery_low" })).toBe("battery_low");
+  });
+
+  it("names a sales denial by its kind and its reason, so each reason holds on its own", () => {
+    expect(registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_full" })).toBe(
+      "sales_denied:disk_full",
+    );
+    expect(
+      registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_space_short_at_startup" }),
+    ).not.toBe(registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_full" }));
+  });
+});
+
+describe("registerOwnConditionsNotYetKnown", () => {
+  const EVERY_SOURCE_READ = {
+    salesStop: { stopped: false },
+    latestPreEmissionGate: { kind: "passed" },
+    lastAcceptedPushAt: minutesBefore(NOW, 1),
+    hours: HOURS,
+    now: NOW,
+    rules: FIXED_ARGENTINA_ZONE_RULES,
+    serialDevices: { scale: MATCHING, reader: MATCHING },
+    storage: HEALTHY_STORAGE,
+    localDatabaseDamaged: false,
+    battery: onMainsAt(80),
+    onBatteryCountedOnlySinceStart: false,
+    newSalesStoppedByBattery: false,
+    criticalBatteryAction: { kind: "read", action: "shut_down" },
+    clockOffsetMs: null,
+  } satisfies Parameters<typeof registerOwnConditionsNotYetKnown>[0];
+
+  function notYetKnown(
+    overrides: Partial<Parameters<typeof registerOwnConditionsNotYetKnown>[0]> = {},
+  ) {
+    return registerOwnConditionsNotYetKnown({ ...EVERY_SOURCE_READ, ...overrides });
+  }
+
+  const UNMEASURED_STORAGE: StorageStanding = {
+    startupShortOf: null,
+    diskStanding: "enough",
+    diskFreeRatio: undefined,
+    walOversized: false,
+    measured: false,
+  };
+
+  it("names none once every source of the conditions has been read", () => {
+    expect(notYetKnown()).toEqual([]);
+  });
+
+  it("names the full disk's sales denial, the low disk and the oversized WAL until the disk is measured", () => {
+    expect(notYetKnown({ storage: UNMEASURED_STORAGE })).toEqual([
+      "sales_denied:disk_full",
+      "disk_space_low",
+      "wal_oversized",
+    ]);
+  });
+
+  it("knows a full disk cannot deny sales while another reason denies them or the installation is revoked", () => {
+    const withoutFullDisk = ["disk_space_low", "wal_oversized"];
+
+    expect(
+      notYetKnown({
+        storage: UNMEASURED_STORAGE,
+        salesStop: { stopped: true, reason: "event_history_broken" },
+      }),
+    ).toEqual(withoutFullDisk);
+    expect(
+      notYetKnown({
+        storage: UNMEASURED_STORAGE,
+        salesStop: { stopped: true, reason: "installation_revoked" },
+      }),
+    ).toEqual(withoutFullDisk);
+    expect(notYetKnown({ storage: UNMEASURED_STORAGE, localDatabaseDamaged: true })).toEqual(
+      withoutFullDisk,
+    );
+    expect(notYetKnown({ storage: UNMEASURED_STORAGE, newSalesStoppedByBattery: true })).toEqual(
+      withoutFullDisk,
+    );
+    expect(
+      notYetKnown({
+        storage: { ...UNMEASURED_STORAGE, startupShortOf: { requiredFreeBytes: 5_000_000_000 } },
+      }),
+    ).toEqual(withoutFullDisk);
+  });
+
+  it("names the critical battery's sales denial and the battery conditions until the battery is read", () => {
+    expect(notYetKnown({ battery: undefined })).toEqual([
+      "sales_denied:battery_critical",
+      "battery_low",
+      "on_battery",
+      "battery_missing",
+    ]);
+  });
+
+  it("knows a critical battery cannot deny sales while a stop or a damaged database denies them first", () => {
+    const withoutCriticalBattery = ["battery_low", "on_battery", "battery_missing"];
+
+    expect(
+      notYetKnown({
+        battery: undefined,
+        salesStop: { stopped: true, reason: "event_history_broken" },
+      }),
+    ).toEqual(withoutCriticalBattery);
+    expect(
+      notYetKnown({
+        battery: undefined,
+        salesStop: { stopped: true, reason: "installation_revoked" },
+      }),
+    ).toEqual(withoutCriticalBattery);
+    expect(notYetKnown({ battery: undefined, localDatabaseDamaged: true })).toEqual(
+      withoutCriticalBattery,
+    );
+  });
+
+  it("knows on_battery once the battery is read, however long the register has been on battery since it started", () => {
+    expect(
+      notYetKnown({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      notYetKnown({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: false }),
+    ).toEqual([]);
+    expect(
+      notYetKnown({ battery: onBatteryAt(80, 10), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(notYetKnown({ battery: onMainsAt(80), onBatteryCountedOnlySinceStart: true })).toEqual(
+      [],
+    );
+    expect(
+      notYetKnown({ battery: { present: false }, onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+  });
+
+  it("names the missing serial device until the serial devices are listed", () => {
+    expect(notYetKnown({ serialDevices: null })).toEqual(["serial_device_missing"]);
+  });
+
+  it("names the critical-battery action until Windows' action is read", () => {
+    expect(notYetKnown({ criticalBatteryAction: { kind: "unreadable" } })).toEqual([
+      "critical_battery_action_not_shutdown",
+    ]);
+  });
+
+  it("names every unread source's conditions in catalog order", () => {
+    expect(
+      notYetKnown({
+        storage: UNMEASURED_STORAGE,
+        battery: undefined,
+        serialDevices: null,
+        criticalBatteryAction: { kind: "unreadable" },
+      }),
+    ).toEqual([
+      "sales_denied:disk_full",
+      "sales_denied:battery_critical",
+      "serial_device_missing",
+      "disk_space_low",
+      "wal_oversized",
+      "battery_low",
+      "on_battery",
+      "battery_missing",
+      "critical_battery_action_not_shutdown",
+    ]);
+  });
+});
+
+describe("registerOwnConditionsHeldIfAlreadyStarted", () => {
+  function heldIfAlreadyStarted(
+    overrides: Partial<Parameters<typeof registerOwnConditionsHeldIfAlreadyStarted>[0]>,
+  ) {
+    return registerOwnConditionsHeldIfAlreadyStarted({
+      salesStop: { stopped: false },
+      latestPreEmissionGate: { kind: "passed" },
+      lastAcceptedPushAt: minutesBefore(NOW, 1),
+      hours: HOURS,
+      now: NOW,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
+      serialDevices: { scale: MATCHING, reader: MATCHING },
+      storage: HEALTHY_STORAGE,
+      localDatabaseDamaged: false,
+      battery: onMainsAt(80),
+      onBatteryCountedOnlySinceStart: false,
+      newSalesStoppedByBattery: false,
+      criticalBatteryAction: { kind: "read", action: "shut_down" },
+      clockOffsetMs: null,
+      ...overrides,
+    });
+  }
+
+  it("names on_battery while the register has been on battery since it started for less than the condition's minutes", () => {
+    expect(
+      heldIfAlreadyStarted({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual(["on_battery"]);
+  });
+
+  it("names none once the register was seen off battery since it started, once on_battery holds by its minutes, or while the register is not on battery", () => {
+    expect(
+      heldIfAlreadyStarted({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: false }),
+    ).toEqual([]);
+    expect(
+      heldIfAlreadyStarted({ battery: onBatteryAt(80, 10), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      heldIfAlreadyStarted({ battery: onMainsAt(80), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      heldIfAlreadyStarted({ battery: { present: false }, onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      heldIfAlreadyStarted({ battery: undefined, onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
   });
 });

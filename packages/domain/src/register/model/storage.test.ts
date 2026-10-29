@@ -131,6 +131,7 @@ describe("storageSalesStopOf", () => {
     diskStanding: "enough",
     diskFreeRatio: 0.4,
     walOversized: false,
+    measured: true,
   };
 
   it("stops nothing while the disk has room", () => {

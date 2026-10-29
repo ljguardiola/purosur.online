@@ -35,6 +35,7 @@ export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
     saleUnit?: SaleUnit;
     active?: boolean;
     brandName?: string;
+    brandId?: string;
     netContent?: { quantity: number; unit: NetContentUnit };
   },
 ): Promise<{ id: string; version: number }> {
@@ -54,11 +55,11 @@ export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
     .values({
       name: input.name,
       categoryId: category.id,
-      brandId: brand?.id,
-      netContentQuantity: input.netContent?.quantity,
-      netContentUnit: input.netContent?.unit,
       saleUnit: input.saleUnit ?? "UNIT",
       active: input.active ?? true,
+      brandId: brand?.id ?? input.brandId ?? null,
+      netContentQuantity: input.netContent?.quantity ?? null,
+      netContentUnit: input.netContent?.unit ?? null,
     })
     .returning({ id: products.id, version: products.version });
   if (!product) {

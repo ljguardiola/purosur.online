@@ -5,7 +5,26 @@ import type {
 } from "@purosur/domain/purchasing/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { productBarcodes, products, supplierPriceListRows } from "../platform/db/schema.js";
+import { netContentRow } from "../catalog/net-content-row.js";
+import { brands, productBarcodes, products, supplierPriceListRows } from "../platform/db/schema.js";
+
+const PRODUCT_COLUMNS = {
+  id: products.id,
+  name: products.name,
+  brandName: brands.name,
+  netContentQuantity: products.netContentQuantity,
+  netContentUnit: products.netContentUnit,
+};
+
+function proposalProduct(row: {
+  id: string;
+  name: string;
+  brandName: string | null;
+  netContentQuantity: number | null;
+  netContentUnit: string | null;
+}): ProposalProduct {
+  return { id: row.id, name: row.name, brandName: row.brandName, netContent: netContentRow(row) };
+}
 
 export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryResultHKT>
   implements SupplierItemLinkProposalReader
@@ -28,11 +47,12 @@ export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryR
     return row;
   }
 
-  activeProductsWithBarcode(barcode: string): Promise<ProposalProduct[]> {
-    return this.db
-      .selectDistinct({ id: products.id, name: products.name })
+  async activeProductsWithBarcode(barcode: string): Promise<ProposalProduct[]> {
+    const rows = await this.db
+      .selectDistinct({ ...PRODUCT_COLUMNS })
       .from(products)
       .innerJoin(productBarcodes, eq(productBarcodes.productId, products.id))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
         and(
           eq(products.active, true),
@@ -40,12 +60,15 @@ export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryR
           eq(productBarcodes.code, barcode),
         ),
       );
+    return rows.map(proposalProduct);
   }
 
-  activeProducts(): Promise<ProposalProduct[]> {
-    return this.db
-      .select({ id: products.id, name: products.name })
+  async activeProducts(): Promise<ProposalProduct[]> {
+    const rows = await this.db
+      .select({ ...PRODUCT_COLUMNS })
       .from(products)
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(products.active, true));
+    return rows.map(proposalProduct);
   }
 }

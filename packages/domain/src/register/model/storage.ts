@@ -58,6 +58,7 @@ export interface StorageStanding {
   diskStanding: DiskStanding;
   diskFreeRatio: number | undefined;
   walOversized: boolean;
+  measured: boolean;
 }
 
 export type StorageSalesStop =

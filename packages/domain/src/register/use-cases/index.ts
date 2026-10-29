@@ -166,6 +166,11 @@ export type {
   RevokeLostRegisterPorts,
 } from "./lost-register-revocation-ports.js";
 export type {
+  ObserveRegisterOwnConditionsInput,
+  ObserveRegisterOwnConditionsOutcome,
+} from "./observe-register-own-conditions.js";
+export { observeRegisterOwnConditions } from "./observe-register-own-conditions.js";
+export type {
   OpenCashSessionGrant,
   OpenCashSessionInput,
   OpenCashSessionOutcome,
@@ -222,6 +227,11 @@ export type {
   RecordSnapshotUploadedPorts,
 } from "./record-snapshot-uploaded.js";
 export { recordSnapshotUploaded } from "./record-snapshot-uploaded.js";
+export type {
+  ObserveRegisterOwnConditionsPorts,
+  RegisterConditionStartStore,
+  RegisterConditionStartStoreTransaction,
+} from "./register-condition-start-ports.js";
 export type {
   RegisterSerialDevicesInput,
   RegisterSerialDevicesOutcome,

@@ -940,6 +940,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1053,6 +1054,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1161,6 +1163,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1268,6 +1271,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1404,6 +1408,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1530,6 +1535,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1660,6 +1666,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1798,6 +1805,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1903,6 +1911,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -8897,6 +8906,89 @@ describe("the brands migration", () => {
 
       expect(() => insert(1)).not.toThrow();
       expect(() => insert(2)).toThrow(/CHECK/);
+    } finally {
+      database.close();
+    }
+  });
+});
+
+describe("the register condition starts migration", () => {
+  const MIGRATION = "0091_register_condition_starts";
+  const STOPPED_AT = "2026-10-20T13:00:00.000Z";
+
+  function startsAfterMigratingWith(salesStop: {
+    installation_revoked_at: string | null;
+    sales_stopped_reason: string | null;
+  }) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(`INSERT INTO brands (id, name, active, version) VALUES ('b1', 'Vitora', 1, 1)`);
+      before
+        .prepare(
+          "UPDATE sync_state SET installation_revoked_at = @installation_revoked_at, sales_stopped_reason = @sales_stopped_reason",
+        )
+        .run(salesStop);
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        expect(after.prepare("SELECT id FROM brands").all()).toEqual([{ id: "b1" }]);
+        return after.prepare("SELECT condition, since FROM register_condition_starts").all();
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("starts with no condition start on a register still opening new sales", () => {
+    expect(
+      startsAfterMigratingWith({ installation_revoked_at: null, sales_stopped_reason: null }),
+    ).toEqual([]);
+  });
+
+  it("starts a revoked installation at the instant the register recorded the revocation", () => {
+    expect(
+      startsAfterMigratingWith({
+        installation_revoked_at: STOPPED_AT,
+        sales_stopped_reason: "installation_revoked",
+      }),
+    ).toEqual([{ condition: "installation_revoked", since: STOPPED_AT }]);
+  });
+
+  it("starts the sales denial of a broken event history at the instant the register stopped selling", () => {
+    expect(
+      startsAfterMigratingWith({
+        installation_revoked_at: STOPPED_AT,
+        sales_stopped_reason: "event_history_broken",
+      }),
+    ).toEqual([{ condition: "sales_denied:event_history_broken", since: STOPPED_AT }]);
+  });
+
+  it("starts no condition for a stop recorded without a reason", () => {
+    expect(
+      startsAfterMigratingWith({ installation_revoked_at: STOPPED_AT, sales_stopped_reason: null }),
+    ).toEqual([]);
+  });
+
+  it("refuses a second start for the same condition and a start without an instant", () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    try {
+      const insert = (condition: string, since: string | null) =>
+        database
+          .prepare("INSERT INTO register_condition_starts (condition, since) VALUES (?, ?)")
+          .run(condition, since);
+
+      expect(() => insert("clock_drift", "2026-10-29T09:30:00.000-03:00")).not.toThrow();
+      expect(() => insert("clock_drift", "2026-10-29T10:30:00.000-03:00")).toThrow(
+        /UNIQUE|PRIMARY/,
+      );
+      expect(() => insert("wal_oversized", null)).toThrow(/NOT NULL/);
     } finally {
       database.close();
     }

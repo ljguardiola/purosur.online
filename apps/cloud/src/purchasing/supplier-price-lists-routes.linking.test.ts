@@ -2,6 +2,7 @@ import type { ProductChoice } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
 import { auditLog, supplierPriceListRows } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -353,7 +354,7 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
     expect(response.json()).toEqual({
       kind: "proposed",
       by: "barcode",
-      product: { id: productId, name: "Yerba 1 kg" },
+      product: { id: productId, name: "Yerba 1 kg", brandName: null, netContent: null },
     });
   });
 
@@ -368,7 +369,41 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
     expect(response.json()).toEqual({
       kind: "proposed",
       by: "ai",
-      product: { id: productId, name: "Yerba Suave 1 kg" },
+      product: { id: productId, name: "Yerba Suave 1 kg", brandName: null, netContent: null },
+    });
+  });
+
+  it("proposes the product of the item's brand among same-name products", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow(
+      {},
+      { description: "Granola berries 1kg - Kos" },
+    );
+    const kos = await insertBrand(db, { name: "Kos" });
+    const other = await insertBrand(db, { name: "Otra" });
+    await insertProduct(db, {
+      name: "Granola Berries",
+      brandId: other.id,
+      netContent: { quantity: 500, unit: "G" },
+    });
+    const { id: productId } = await insertProduct(db, {
+      name: "Granola Berries",
+      brandId: kos.id,
+      netContent: { quantity: 1, unit: "KG" },
+    });
+    await appChoosing({ kind: "chosen", productId });
+
+    const response = await proposal(headers, listId, rowId);
+
+    expect(response.json()).toEqual({
+      kind: "proposed",
+      by: "ai",
+      product: {
+        id: productId,
+        name: "Granola Berries",
+        brandName: "Kos",
+        netContent: { quantity: 1, unit: "KG" },
+      },
     });
   });
 
@@ -530,11 +565,40 @@ describe("GET /supplier-price-lists/link-choices", () => {
           id: yerba.id,
           name: "Yerba 1 kg",
           saleUnit: "UNIT",
+          brandName: null,
+          netContent: null,
           packagings: [{ id: caja, name: "Caja x 10", quantityPerPackage: 10_000 }],
         },
-        { id: harina.id, name: "Harina", saleUnit: "KG", packagings: [] },
+        {
+          id: harina.id,
+          name: "Harina",
+          saleUnit: "KG",
+          brandName: null,
+          netContent: null,
+          packagings: [],
+        },
       ]),
     );
+  });
+
+  it("names each product's brand and gives its net content", async () => {
+    const { headers } = await manager();
+    const kos = await insertBrand(db, { name: "Kos" });
+    const granola = await insertProduct(db, {
+      name: "Granola Berries",
+      brandId: kos.id,
+      netContent: { quantity: 1, unit: "KG" },
+    });
+
+    const response = await choices(headers);
+
+    expect(response.json().products).toEqual([
+      expect.objectContaining({
+        id: granola.id,
+        brandName: "Kos",
+        netContent: { quantity: 1, unit: "KG" },
+      }),
+    ]);
   });
 
   it("answers the VAT rates an item may carry and the one preselected", async () => {

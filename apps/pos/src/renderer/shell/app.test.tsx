@@ -2163,7 +2163,15 @@ describe("App", () => {
       ...answering.core,
       async registerStatus() {
         return {
-          conditions: completed ? [{ kind: "fiscal_emission_stopped", level: "critical" }] : [],
+          conditions: completed
+            ? [
+                {
+                  kind: "fiscal_emission_stopped",
+                  level: "critical",
+                  since: "2026-10-29T09:30:00.000-03:00",
+                },
+              ]
+            : [],
           cloud: "unreachable",
           serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: false,
