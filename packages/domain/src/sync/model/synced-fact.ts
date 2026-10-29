@@ -17,6 +17,7 @@ import type { ReturnedSale } from "../../returns/index.js";
 import {
   type CancelledSale,
   type CompletedSale,
+  type RemovedSaleLine,
   type SalePrintState,
   type SaleReprint,
   stockMovementsMatchLines,
@@ -28,6 +29,7 @@ import type { InvariantBreak } from "./event-invariant-breaks.js";
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
   | { kind: "sale_cancelled"; sale: CancelledSale }
+  | { kind: "sale_line_removed"; removal: RemovedSaleLine }
   | { kind: "sale_voided"; sale: VoidedSale; creditNote: CreditNoteToIssue | null }
   | { kind: "sale_returned"; saleReturn: ReturnedSale; creditNote: CreditNoteToIssue | null }
   | { kind: "sale_print_state_changed"; printState: SalePrintState }
@@ -66,6 +68,9 @@ export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
     fact.kind === "sale_voided"
   ) {
     return [{ aggregateType: "CashSession", aggregateId: fact.sale.sessionId }];
+  }
+  if (fact.kind === "sale_line_removed") {
+    return [{ aggregateType: "CashSession", aggregateId: fact.removal.sessionId }];
   }
   if (fact.kind === "sale_returned") {
     return [

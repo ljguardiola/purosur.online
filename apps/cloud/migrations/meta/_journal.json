@@ -1009,6 +1009,13 @@
       "when": 1793238561835,
       "tag": "0150_search_without_accents",
       "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1793288041657,
+      "tag": "0151_removed_sale_lines",
+      "breakpoints": true
     }
   ]
 }

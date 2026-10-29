@@ -52,6 +52,7 @@ import {
 } from "../register/drizzle-applied-cash-sessions.js";
 import { recordAppliedReturn } from "../returns/drizzle-applied-returns.js";
 import { saleReturnHistory } from "../returns/drizzle-sale-return-history.js";
+import { recordAppliedRemovedSaleLine } from "../sales/drizzle-applied-removed-sale-lines.js";
 import {
   recordAppliedPrintState,
   recordAppliedReprint,
@@ -186,6 +187,14 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return recordAppliedSale(this.tx, await this.originOf(event), fact, this.now());
       case "sale_cancelled":
         return recordAppliedCancelledSale(
+          this.tx,
+          await this.originOf(event),
+          fact,
+          event.eventId,
+          this.now(),
+        );
+      case "sale_line_removed":
+        return recordAppliedRemovedSaleLine(
           this.tx,
           await this.originOf(event),
           fact,

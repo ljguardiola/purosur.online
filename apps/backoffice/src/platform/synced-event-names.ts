@@ -7,6 +7,7 @@ type SyncedEventType = SyncedEventPayloadKey extends `${infer EventType}@${strin
 const EVENT_TYPE_NAMES: Readonly<Record<SyncedEventType, string>> = {
   sale_completed: "venta",
   sale_cancelled: "venta cancelada",
+  sale_line_removed: "línea de venta quitada",
   sale_voided: "venta anulada",
   sale_returned: "devolución",
   sale_print_state_changed: "impresión del ticket",

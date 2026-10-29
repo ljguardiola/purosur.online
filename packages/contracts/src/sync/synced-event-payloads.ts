@@ -465,6 +465,21 @@ const saleCancelledV8Schema = saleCancelledV7Schema.extend({
   payments: z.array(paymentWithPointCardTypeSchema).min(1),
 });
 
+const saleCancelledV9Schema = saleCancelledV8Schema.extend({
+  payments: z.array(paymentWithPointCardTypeSchema),
+  refunds: z.array(saleRefundWithMercadoPagoSchema),
+});
+
+const saleLineRemovedV1Schema = z.object({
+  sale_id: text,
+  register_id: text,
+  device_id: text,
+  session_id: text,
+  actor_id: text,
+  occurred_at: instant,
+  line: discountedSaleLineSchema,
+});
+
 const returnedStockMovementSchema = z.object({
   id: text,
   sale_line_id: text,
@@ -727,6 +742,8 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@6": saleCancelledV6Schema,
   "sale_cancelled@7": saleCancelledV7Schema,
   "sale_cancelled@8": saleCancelledV8Schema,
+  "sale_cancelled@9": saleCancelledV9Schema,
+  "sale_line_removed@1": saleLineRemovedV1Schema,
   "sale_voided@1": saleVoidedV1Schema,
   "sale_voided@2": saleVoidedV2Schema,
   "sale_voided@3": saleVoidedV3Schema,

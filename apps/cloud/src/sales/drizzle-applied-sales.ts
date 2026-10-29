@@ -79,10 +79,12 @@ async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
       })),
     );
   }
-  await tx
-    .insert(salePayments)
-    .values(payments.map((payment) => ({ ...payment, saleId: sale.id })));
-  if ("refunds" in sale) {
+  if (payments.length > 0) {
+    await tx
+      .insert(salePayments)
+      .values(payments.map((payment) => ({ ...payment, saleId: sale.id })));
+  }
+  if ("refunds" in sale && sale.refunds.length > 0) {
     await tx.insert(paymentRefunds).values(
       sale.refunds.map((refund) => ({
         ...refund,
