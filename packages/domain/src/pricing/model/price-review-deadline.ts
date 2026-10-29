@@ -45,9 +45,6 @@ export function pricesPastDeadlinePeriodOf(
   if (from !== undefined && to !== undefined) {
     return { from, to };
   }
-  const days = pastDeadlineDays.filter((day) => day !== null);
-  return {
-    from: days.reduce((earliest, day) => (day < earliest ? day : earliest), today),
-    to: today,
-  };
+  const [earliest = today] = [today, ...pastDeadlineDays.filter((day) => day !== null)].sort();
+  return { from: earliest, to: today };
 }
