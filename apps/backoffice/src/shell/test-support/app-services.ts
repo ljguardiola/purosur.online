@@ -202,6 +202,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       createPackaging: vi.fn(),
       createProductFromSupplierItem: vi.fn(),
       fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchProductCreationBrands: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchProductCreationTags: vi.fn().mockReturnValue(new Promise(() => {})),
+      createBrand: vi.fn(),
+      createTag: vi.fn(),
       generateInternalBarcode: vi.fn(),
       confirmSupplierPriceList: vi.fn(),
       discardSupplierPriceList: vi.fn(),
@@ -230,6 +234,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     salesByCashierScreen: {
       fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    handTypedWeightsScreen: {
+      fetchHandTypedWeights: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     salesByPromotionScreen: {
       fetchSalesByPromotion: vi.fn().mockReturnValue(new Promise(() => {})),

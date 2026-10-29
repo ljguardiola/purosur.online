@@ -1,57 +1,17 @@
-import {
-  isNetContentUnit,
-  isProductNameTooLong,
-  isValidNetContentQuantity,
-  NET_CONTENT_QUANTITY_MAX,
-  NET_CONTENT_QUANTITY_MAX_DECIMALS,
-  type NetContentUnit,
-  newProductBarcodeListProblem,
-  PRODUCT_NAME_MAX_LENGTH,
-  SALE_UNITS,
-} from "@purosur/domain";
+import { newProductBarcodeListProblem, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
-import { barcodeListSchema, recordIdSchema } from "../shared/index.js";
-import { optionalBrandIdSchema } from "./product-brand-id.js";
-import { optionalTagIdsSchema } from "./product-tag-ids.js";
+import {
+  barcodeListSchema,
+  checkNetContentQuantity,
+  NET_CONTENT_QUANTITY_CHECK_OPTIONS,
+  optionalBrandIdSchema,
+  optionalTagIdsSchema,
+  productNameSchema,
+  productNetContentSchema,
+  recordIdSchema,
+} from "../shared/index.js";
 
-const NAME_EMPTY_MESSAGE = "name must not be empty";
-const NET_CONTENT_MESSAGE =
-  "netContent must be an object with a quantity and a listed unit, or absent/null";
-
-const NET_CONTENT_QUANTITY_MESSAGE = `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`;
-
-export const netContentQuantitySchema = z
-  .number()
-  .refine(isValidNetContentQuantity, NET_CONTENT_QUANTITY_MESSAGE)
-  .meta({
-    maxValue: NET_CONTENT_QUANTITY_MAX,
-    maxDecimals: NET_CONTENT_QUANTITY_MAX_DECIMALS,
-  });
-
-const productNameSchema = z
-  .string({ error: NAME_EMPTY_MESSAGE })
-  .trim()
-  .min(1, NAME_EMPTY_MESSAGE)
-  .refine(
-    (name) => !isProductNameTooLong(name),
-    `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
-  )
-  .meta({ maxLength: PRODUCT_NAME_MAX_LENGTH });
-
-const netContentSchema = z
-  .object(
-    {
-      // z.number refuses Infinity, which JSON.parse yields for an out-of-range literal such as
-      // 1e400; accepting any number lets the quantity rule report it under netContentQuantity.
-      quantity: z.custom<number>((quantity) => typeof quantity === "number", {
-        error: NET_CONTENT_MESSAGE,
-      }),
-      unit: z.custom<NetContentUnit>(isNetContentUnit, { error: NET_CONTENT_MESSAGE }),
-    },
-    { error: NET_CONTENT_MESSAGE },
-  )
-  .nullish()
-  .transform((netContent) => netContent ?? null);
+export { netContentQuantitySchema } from "../shared/index.js";
 
 export function productBodySchema(barcodes: ReturnType<typeof barcodeListSchema>) {
   return z
@@ -62,27 +22,9 @@ export function productBodySchema(barcodes: ReturnType<typeof barcodeListSchema>
       saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
       barcodes,
       tagIds: optionalTagIdsSchema,
-      netContent: netContentSchema,
+      netContent: productNetContentSchema,
     })
-    .superRefine(
-      (product, context) => {
-        if (
-          product.netContent &&
-          !netContentQuantitySchema.safeParse(product.netContent.quantity).success
-        ) {
-          context.addIssue({
-            code: "custom",
-            path: ["netContentQuantity"],
-            message: NET_CONTENT_QUANTITY_MESSAGE,
-          });
-        }
-      },
-      {
-        // zod records a body that is not an object with no path, and keeps checking it.
-        when: ({ issues }) =>
-          issues.every((issue) => issue.path !== undefined && issue.path[0] !== "netContent"),
-      },
-    );
+    .superRefine(checkNetContentQuantity, NET_CONTENT_QUANTITY_CHECK_OPTIONS);
 }
 
 export const productCreationBodySchema = productBodySchema(

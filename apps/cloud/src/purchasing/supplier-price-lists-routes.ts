@@ -1,4 +1,5 @@
 import {
+  brandListSchema,
   categoryListSchema,
   supplierItemLinkChoicesSchema,
   supplierItemLinkProposalSchema,
@@ -16,11 +17,13 @@ import {
   supplierPriceListUploadedSchema,
   supplierPriceListUploadQuerySchema,
   supplierPriceListWebPageBodySchema,
+  tagListSchema,
 } from "@purosur/contracts";
 import {
   PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR,
   SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
 } from "@purosur/domain";
+import { listBrands, listTags } from "@purosur/domain/catalog/use-cases";
 import type {
   CreateProductFromSupplierItemOutcome,
   LinkSupplierPriceListRowOutcome,
@@ -50,8 +53,12 @@ import { DrizzleCatalogListReader } from "../catalog/drizzle-catalog-list-reader
 import { DrizzleInternalBarcodeStore } from "../catalog/drizzle-internal-barcode-store.js";
 import { allocateInternalBarcodeHandler } from "../catalog/internal-barcode-route.js";
 import {
+  BRAND_INACTIVE_RESPONSE,
+  BRAND_NOT_FOUND_FAILURE,
   CATEGORY_NOT_FOUND_FAILURE,
   CATEGORY_NOT_LEAF_RESPONSE,
+  TAG_INACTIVE_RESPONSE,
+  TAG_NOT_FOUND_FAILURE,
 } from "../catalog/product-creation-route.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
@@ -220,9 +227,9 @@ const PRESENTATION_MISSING_RESPONSE = {
   details: [{ field: "packagingName" }],
 } as const;
 
-const LIST_TEXT_TOO_LONG = {
-  name_too_long: "the item's description is longer than a product's name may be",
-  presentation_too_long: "the item's presentation is longer than a presentation's name may be",
+const PRESENTATION_TOO_LONG_RESPONSE = {
+  code: "presentation_too_long",
+  message: "the item's presentation is longer than a presentation's name may be",
 } as const;
 
 async function answerProductCreation(
@@ -247,9 +254,8 @@ async function answerProductCreation(
     case "presentation_missing":
       await reply.code(400).send(PRESENTATION_MISSING_RESPONSE);
       return;
-    case "name_too_long":
     case "presentation_too_long":
-      await reply.code(409).send({ code: outcome.kind, message: LIST_TEXT_TOO_LONG[outcome.kind] });
+      await reply.code(409).send(PRESENTATION_TOO_LONG_RESPONSE);
       return;
     case "vat_rate_missing":
     case "vat_rate_invalid":
@@ -264,6 +270,26 @@ async function answerProductCreation(
       return;
     case "category_not_leaf":
       await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
+      return;
+    case "brand_not_found":
+      await reply.code(400).send({
+        code: "validation_failed",
+        message: BRAND_NOT_FOUND_FAILURE.message,
+        details: [{ field: BRAND_NOT_FOUND_FAILURE.field }],
+      });
+      return;
+    case "brand_inactive":
+      await reply.code(409).send(BRAND_INACTIVE_RESPONSE);
+      return;
+    case "tag_not_found":
+      await reply.code(400).send({
+        code: "validation_failed",
+        message: TAG_NOT_FOUND_FAILURE.message,
+        details: [{ field: TAG_NOT_FOUND_FAILURE.field }],
+      });
+      return;
+    case "tag_inactive":
+      await reply.code(409).send({ ...TAG_INACTIVE_RESPONSE, tagId: outcome.tagId });
       return;
     case "barcode_taken":
       await reply.code(409).send({ code: "barcode_taken", codes: outcome.codes });
@@ -382,6 +408,15 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   app.get("/supplier-price-lists/product-categories", readGuard, async (_request, reply) => {
     const rows = await catalog.categories();
     await reply.code(200).send(categoryListSchema.parse(rows));
+  });
+
+  app.get("/supplier-price-lists/product-brands", readGuard, async (_request, reply) => {
+    const rows = await listBrands({ catalog });
+    await reply.code(200).send(brandListSchema.parse(rows));
+  });
+
+  app.get("/supplier-price-lists/product-tags", readGuard, async (_request, reply) => {
+    await reply.code(200).send(tagListSchema.parse(await listTags({ catalog })));
   });
 
   app.post(

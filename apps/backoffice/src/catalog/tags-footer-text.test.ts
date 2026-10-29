@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
+import { sinColorantes, sinTacc, vegano } from "../platform/test-support/tags";
 import { tagsFooterText } from "./tags-footer-text";
-import { sinColorantes, sinTacc, vegano } from "./test-support/tags";
 
 test("counts the tags and the tagged products, with no inactive part when every tag is active", () => {
   expect(tagsFooterText([sinTacc, vegano], 2)).toBe("2 distintivos · 2 productos");

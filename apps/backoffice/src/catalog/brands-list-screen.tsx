@@ -32,12 +32,13 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { brandNameMessage } from "../platform/brand-name";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { BRAND_NAME_TAKEN, NewBrandModal } from "../platform/new-brand-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { brandNameMessage } from "./brand-name";
 import type { ChangeBrandActivationOutcome, editBrand } from "./brands-api";
 import type { BrandsListScreenServices } from "./brands-list-services";
 import {
@@ -46,7 +47,6 @@ import {
   useRefreshCatalog,
   useReloadBrand,
 } from "./catalog-queries";
-import { BRAND_NAME_TAKEN, NewBrandModal } from "./new-brand-modal";
 import type { BrandsListFilters } from "./routes";
 
 export type BrandsListScreenProps = {

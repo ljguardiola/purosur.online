@@ -1368,6 +1368,8 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/link-choices" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/product-categories" }),
+      app.inject({ method: "GET", url: "/api/supplier-price-lists/product-brands" }),
+      app.inject({ method: "GET", url: "/api/supplier-price-lists/product-tags" }),
       app.inject({
         method: "POST",
         url: "/api/supplier-price-lists/internal-barcodes",
@@ -1423,7 +1425,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(34).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(36).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1437,7 +1439,7 @@ describe("wiring the purchasing routes", () => {
       },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(34).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(36).fill(401));
   });
 });
 
@@ -1647,6 +1649,7 @@ describe("wiring the sales report routes", () => {
     { method: "GET", url: "/api/reports/sales-by-day" },
     { method: "GET", url: "/api/reports/sales-by-product-and-category" },
     { method: "GET", url: "/api/reports/sales-by-cashier" },
+    { method: "GET", url: "/api/reports/hand-typed-weights" },
     { method: "GET", url: "/api/reports/sales-by-promotion" },
     { method: "GET", url: "/api/reports/manual-discounts" },
     { method: "GET", url: "/api/reports/average-ticket" },
@@ -2825,6 +2828,16 @@ describe("the route access inventory", () => {
         access: capabilityAccess("supplier_price_lists"),
       },
       {
+        method: "GET",
+        url: "/api/supplier-price-lists/product-brands",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/product-tags",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
         method: "POST",
         url: "/api/supplier-price-lists/internal-barcodes",
         access: capabilityAccess("supplier_price_lists"),
@@ -3155,6 +3168,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/sales-by-cashier",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/hand-typed-weights",
         access: capabilityAccess("reports_area"),
       },
       {

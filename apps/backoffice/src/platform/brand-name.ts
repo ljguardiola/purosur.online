@@ -1,5 +1,5 @@
 import { brandCreationBodySchema } from "@purosur/contracts";
-import { schemaLimit } from "../platform/schema-limit";
+import { schemaLimit } from "./schema-limit";
 
 const nameSchema = brandCreationBodySchema.shape.name;
 

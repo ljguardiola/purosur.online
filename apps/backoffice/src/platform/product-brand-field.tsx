@@ -2,7 +2,6 @@ import type { BrandSummary } from "@purosur/contracts";
 import { Button, type Option, type Options, sortedItems, textOrder } from "@purosur/ui";
 import { Plus } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 import { NO_BRAND } from "./product-form";
 
 const NO_BRAND_OPTION: Option<string> = { value: NO_BRAND, label: "Sin marca" };
@@ -43,7 +42,12 @@ export function withCreatedBrand(
     : brands;
 }
 
-type StackedBrandCreation = {
+export type CatalogRefresh = {
+  markStale: () => Promise<void>;
+  refresh: () => Promise<void>;
+};
+
+export type StackedBrandCreation = {
   open: boolean;
   created: BrandSummary | null;
   start: () => void;
@@ -58,9 +62,8 @@ type StackedBrandCreation = {
 // creates is kept here and the catalog is only read again once the form closes.
 export function useStackedBrandCreation(
   chooseBrand: (brandId: string) => void,
+  catalog: CatalogRefresh,
 ): StackedBrandCreation {
-  const markCatalogStale = useMarkCatalogStale();
-  const refreshCatalog = useRefreshCatalog();
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<BrandSummary | null>(null);
   return {
@@ -76,11 +79,11 @@ export function useStackedBrandCreation(
       setCreated(brand);
       chooseBrand(brand.id);
       setOpen(false);
-      void markCatalogStale();
+      void catalog.markStale();
     },
     finish: () => {
       if (created) {
-        void refreshCatalog();
+        void catalog.refresh();
       }
     },
   };

@@ -1,7 +1,7 @@
 import { type BrandSummary, brandCreationBodySchema } from "@purosur/contracts";
 import { Factory } from "lucide-react";
+import type { createBrand } from "./brand-creation-api";
 import { brandNameMessage } from "./brand-name";
-import type { createBrand } from "./brands-api";
 import { NameCreationModal, type NameCreationOutcome } from "./name-creation-modal";
 
 export const BRAND_NAME_TAKEN = "Ya existe una marca con este nombre.";

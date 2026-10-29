@@ -15,41 +15,33 @@ import {
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  BarcodeChips,
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
   useGenerateInternalBarcode,
 } from "../platform/barcode-chips";
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
+import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions } from "../platform/category-path";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
-import { retryAfterDetail } from "../platform/retry-after-detail";
-import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
-import type { createBrand } from "./brands-api";
-import { NewBrandModal } from "./new-brand-modal";
-import { NewTagModal } from "./new-tag-modal";
+import { NewBrandModal } from "../platform/new-brand-modal";
+import { NewTagModal } from "../platform/new-tag-modal";
+import { useStackedBrandCreation } from "../platform/product-brand-field";
+import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields";
 import {
-  BrandFieldWithCreation,
-  brandFieldHelp,
-  brandOptions,
-  useStackedBrandCreation,
-  withCreatedBrand,
-} from "./product-brand-field";
-import {
-  categoryNameOf,
   EMPTY_PRODUCT_FORM,
-  NET_CONTENT_UNIT_OPTIONS,
   PRODUCT_BRAND_INACTIVE_ERROR,
-  PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_FIELDS,
   PRODUCT_MESSAGES,
   productRequestFrom,
   tagInactiveError,
-} from "./product-form";
-import { TagsField, useStackedTagCreation, withCreatedTags } from "./product-tags-field";
+} from "../platform/product-form";
+import { useStackedTagCreation } from "../platform/product-tags-field";
+import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
+import type { createTag } from "../platform/tag-creation-api";
+import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import { categoryNameOf, PRODUCT_CATEGORY_NOT_LEAF_ERROR } from "./product-form";
 import type { createProduct } from "./products-api";
-import type { createTag } from "./tags-api";
 
 export type NewProductModalServices = {
   createProduct: typeof createProduct;
@@ -159,11 +151,16 @@ export function NewProductModal({
     PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   );
 
-  const brandCreation = useStackedBrandCreation((brandId) =>
-    form.setFieldValue("brandId", brandId),
+  const markCatalogStale = useMarkCatalogStale();
+  const refreshCatalog = useRefreshCatalog();
+  const catalog = { markStale: markCatalogStale, refresh: refreshCatalog };
+  const brandCreation = useStackedBrandCreation(
+    (brandId) => form.setFieldValue("brandId", brandId),
+    catalog,
   );
-  const tagCreation = useStackedTagCreation((tagId) =>
-    form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+  const tagCreation = useStackedTagCreation(
+    (tagId) => form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+    catalog,
   );
   const closeForm = () => {
     brandCreation.finish();
@@ -239,71 +236,31 @@ export function NewProductModal({
             description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
-        <form.AppField name="name">
-          {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
-        </form.AppField>
-        <form.AppField name="categoryId">
-          {(field) =>
-            categoryOptions ? (
-              <field.Select
-                label="Categoría"
-                placeholder="Elegí una categoría"
-                options={categoryOptions}
-                required
-              />
-            ) : (
-              <FieldGroup label="Categoría" required>
-                <SharedFieldError>{() => null}</SharedFieldError>
-              </FieldGroup>
-            )
-          }
-        </form.AppField>
-        <form.AppField name="brandId">
-          {(field) => {
-            const offered = withCreatedBrand(brands, brandCreation.created);
-            return (
-              <BrandFieldWithCreation
-                disabled={submitting}
-                onCreateBrand={brandCreation.start}
-                select={
-                  <field.Select
-                    label="Marca"
-                    options={brandOptions(offered, null)}
-                    {...brandFieldHelp(offered, field.state.value)}
-                  />
+        <ProductFields
+          form={form}
+          fields={PRODUCT_GROUP_FIELDS}
+          categories={
+            categoryOptions
+              ? { state: "loaded", options: categoryOptions }
+              : {
+                  state: "unavailable",
+                  placeholder: (
+                    <form.AppField name="categoryId">
+                      {() => (
+                        <FieldGroup label="Categoría" required>
+                          <SharedFieldError>{() => null}</SharedFieldError>
+                        </FieldGroup>
+                      )}
+                    </form.AppField>
+                  ),
                 }
-              />
-            );
-          }}
-        </form.AppField>
-        <form.AppField name="netContent">
-          {(field) => (
-            <field.QuantityUnitField
-              label="Contenido neto"
-              options={NET_CONTENT_UNIT_OPTIONS}
-              unitLabel="Unidad"
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="tagIds">
-          {() => (
-            <TagsField
-              tags={withCreatedTags(tags, tagCreation.created)}
-              onCreateTag={tagCreation.start}
-              disabled={submitting}
-            />
-          )}
-        </form.AppField>
-        <FieldGroup label="Unidad de venta" required>
-          <form.AppField name="saleUnit">
-            {(field) => (
-              <field.OptionCardGroup label="Unidad de venta" options={SALE_UNIT_OPTIONS} required />
-            )}
-          </form.AppField>
-        </FieldGroup>
-        <form.AppField name="barcodes">
-          {() => <BarcodeChips chips={chips} generation={generate.generation} />}
-        </form.AppField>
+          }
+          brands={{ state: "loaded", items: brands, creation: brandCreation }}
+          tags={{ state: "loaded", items: tags, creation: tagCreation }}
+          chips={chips}
+          generation={generate.generation}
+          disabled={submitting}
+        />
         <NewBrandModal
           open={brandCreation.open}
           context="Marcas"
