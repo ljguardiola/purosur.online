@@ -120,6 +120,42 @@ describe("the renderer requests that leave a contingency backup ticket", () => {
     ]);
   });
 
+  it("tickets cancelling a sale that had an approved payment, offline", async () => {
+    const { ticketedRequests, recorded } = setup({
+      cancelPaidSale: async () => ({
+        kind: "cancelled",
+        refunds: [
+          {
+            payment_id: "payment-1",
+            method: "CASH",
+            amount: 100,
+            state: "APPROVED",
+            sent_by_cloud: false,
+          },
+        ],
+        authorized_by: null,
+      }),
+    });
+
+    await ticketedRequests.cancelPaidSale?.({ saleId: "sale-1", authorization: undefined });
+
+    expect(recorded).toEqual([{ operation: "paid_sale_cancellation", subjectId: "sale-1" }]);
+  });
+
+  it("leaves no ticket when cancelling a sale that had no approved payment, offline", async () => {
+    const { ticketedRequests, recorded } = setup({
+      cancelPaidSale: async () => ({
+        kind: "cancelled",
+        refunds: [],
+        authorized_by: null,
+      }),
+    });
+
+    await ticketedRequests.cancelPaidSale?.({ saleId: "sale-1", authorization: undefined });
+
+    expect(recorded).toEqual([]);
+  });
+
   it("tickets a completed return with the return it recorded", async () => {
     const { ticketedRequests, recorded } = setup();
 
