@@ -228,22 +228,22 @@ test("switching what it applies to changes the picker's label, options and place
 
   await userEvent.click(radioLabel(dialog, "Categoría"));
 
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
   expect(
-    dialog
+    page
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Almacén", "Almacén › Yerbas"]);
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén › Yerbas" }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén › Yerbas" }));
 
   await userEvent.click(radioLabel(dialog, "Distintivo"));
 
-  await expect.element(dialog.getByRole("button", { name: /^Elegí un distintivo/ })).toBeVisible();
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí un distintivo/ }));
+  await expect.element(dialog.getByRole("combobox", { name: /^Distintivo/ })).toBeVisible();
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Distintivo/ }));
   expect(
-    dialog
+    page
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),

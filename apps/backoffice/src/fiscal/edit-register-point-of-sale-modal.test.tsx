@@ -110,7 +110,7 @@ async function chooseFiscalAddress(
   dialog: Locator,
   name: string,
 ) {
-  await userEvent.click(dialog.getByRole("button", { name: /Domicilio fiscal/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }));
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
@@ -120,8 +120,8 @@ test("names the register under a Punto de venta eyebrow and prefills the number 
   await expect.element(dialog.getByText("Punto de venta", { exact: true }).first()).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Punto de venta/ })).toHaveValue("12");
   await expect
-    .element(dialog.getByRole("button", { name: /Domicilio fiscal/ }))
-    .toHaveTextContent("Depósito Central");
+    .element(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }))
+    .toHaveValue("Depósito Central");
   await expect
     .element(
       dialog

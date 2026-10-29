@@ -92,7 +92,9 @@ test("shows the header with the promotion's name, and its values filled in", asy
     .element(dialog.getByRole("radio", { name: "Porcentaje de descuento" }))
     .toBeChecked();
   await expect.element(dialog.getByRole("radio", { name: "Distintivo" })).toBeChecked();
-  await expect.element(dialog.getByRole("button", { name: /Sin TACC/ })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Distintivo/ }))
+    .toHaveValue("Sin TACC");
   await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toHaveValue("20");
   expect(dateSegments(dialog, "Desde")).toEqual(["1", "12", "2026"]);
   expect(dateSegments(dialog, "Hasta")).toEqual(["28", "2", "2027"]);
@@ -315,7 +317,7 @@ test("changing what it applies to clears the target until another one is chosen"
   const { dialog } = await renderModal(services);
 
   await userEvent.click(radioLabel(dialog, "Categoría"));
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Elegí una categoría.")).toBeVisible();
   expect(services.editDiscount).not.toHaveBeenCalled();
@@ -378,10 +380,10 @@ test("an inactive current tag still shows as the chosen value, marked inactive",
   };
   const { dialog } = await renderModal(createServices(), { target: onRetired });
 
-  await userEvent.click(dialog.getByRole("button", { name: /Sin colorantes/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Distintivo/ }));
 
   await expect
-    .element(dialog.getByRole("option", { name: /Sin colorantes/ }).getByText("Inactivo"))
+    .element(page.getByRole("option", { name: /Sin colorantes/ }).getByText("Inactivo"))
     .toBeVisible();
 });
 

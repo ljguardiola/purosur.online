@@ -2,7 +2,7 @@ import type { SupplierPriceListReview } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -985,8 +985,8 @@ test("says the product was created, and reads the list again", async () => {
   );
   const dialog = screen.getByRole("dialog");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Contiene/ }), "10");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén › Frutos secos" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén › Frutos secos" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
   await expect.element(screen.getByText("Producto creado")).toBeVisible();
@@ -1011,7 +1011,7 @@ async function openCreateProductModal(access: Parameters<typeof screenElement>[1
     screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
   );
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
   return dialog;
 }
 

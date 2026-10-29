@@ -158,7 +158,7 @@ export function NewCategoryModal({
         </form.AppField>
         <form.AppField name="parentValue">
           {(field) => (
-            <field.Select
+            <field.ComboBox
               label="Categoría superior"
               options={parentOptions}
               description={CATEGORY_PARENT_HELPER_TEXT}

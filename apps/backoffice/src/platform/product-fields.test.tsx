@@ -133,8 +133,8 @@ test("offers the name, the category, the brand, the net content, the tags, the s
 
   const inOrder = [
     fields.getByRole("textbox", { name: /^Nombre/ }),
-    fields.getByRole("button", { name: /^Elegí una categoría/ }),
-    fields.getByRole("button", { name: /Marca/ }),
+    fields.getByRole("combobox", { name: /^Categoría/ }),
+    fields.getByRole("combobox", { name: /^Marca/ }),
     fields.getByRole("textbox", { name: "Contenido neto" }),
     fields.getByRole("group", { name: "Distintivos" }),
     fields.getByRole("radio", { name: "Por unidad" }),
@@ -160,15 +160,15 @@ test("shows the placeholder given in place of each list that is not available", 
   await expect.element(fields.getByText("Categorías sin cargar")).toBeVisible();
   await expect.element(fields.getByText("Marcas sin cargar")).toBeVisible();
   await expect.element(fields.getByText("Distintivos sin cargar")).toBeVisible();
-  expect(fields.getByRole("button", { name: /^Elegí una categoría/ }).query()).toBeNull();
-  expect(fields.getByRole("button", { name: /Marca/ }).query()).toBeNull();
+  expect(fields.getByRole("combobox", { name: /^Categoría/ }).query()).toBeNull();
+  expect(fields.getByRole("combobox", { name: /^Marca/ }).query()).toBeNull();
   expect(fields.getByRole("group", { name: "Distintivos" }).query()).toBeNull();
   await expect.element(fields.getByRole("textbox", { name: /^Nombre/ })).toBeVisible();
 });
 
 test("offers no way to create a brand or a tag when no creation is given", async () => {
   const fields = await renderFields();
-  await expect.element(fields.getByRole("button", { name: /Marca/ })).toBeVisible();
+  await expect.element(fields.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
   expect(fields.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
   await userEvent.click(fields.getByRole("button", { name: "Agregar distintivo" }));
@@ -206,7 +206,7 @@ test("offers the active brands and tags, and the brand and tag just created thou
     },
   });
 
-  await userEvent.click(fields.getByRole("button", { name: /Marca/ }));
+  await userEvent.click(fields.getByRole("combobox", { name: /^Marca/ }));
   await expect.element(page.getByRole("option", { name: "Granuz" })).toBeVisible();
   expect(
     page

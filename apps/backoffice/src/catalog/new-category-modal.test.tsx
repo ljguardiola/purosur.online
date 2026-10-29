@@ -81,15 +81,15 @@ test("opens with a parent select offering every category by its path label", asy
 
   await expect.element(dialog.getByRole("heading", { name: "Nueva categoría" })).toBeVisible();
   await expect
-    .element(dialog.getByRole("button", { name: /Categoría superior/ }))
-    .toHaveTextContent("Ninguna (categoría de primer nivel)");
+    .element(dialog.getByRole("combobox", { name: /Categoría superior/ }))
+    .toHaveValue("Ninguna (categoría de primer nivel)");
   await expect
     .element(dialog.getByText("Opcional. Vacío para una categoría de primer nivel."))
     .toBeVisible();
 
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await expect.element(dialog.getByRole("option", { name: "Almacén" })).toBeVisible();
-  await expect.element(dialog.getByRole("option", { name: "Almacén › Untables" })).toBeVisible();
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await expect.element(page.getByRole("option", { name: "Almacén" })).toBeVisible();
+  await expect.element(page.getByRole("option", { name: "Almacén › Untables" })).toBeVisible();
 });
 
 test("creates a subcategory under the chosen parent", async () => {
@@ -99,8 +99,8 @@ test("creates a subcategory under the chosen parent", async () => {
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect.poll(() => create.mock.calls.length).toBe(1);
@@ -117,8 +117,8 @@ test("shows the parent-has-products error, naming the chosen parent", async () =
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect
@@ -136,8 +136,8 @@ test("shows the name-taken-under-parent error, naming the entered name and the p
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect
@@ -165,8 +165,8 @@ test("shows a field error under the parent select when the chosen parent has van
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect

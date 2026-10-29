@@ -68,7 +68,7 @@ type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
 
 async function chooseSupplier(screen: ModalScreen, name: string) {
   const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("button", { name: /Proveedor/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Proveedor/ }));
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
@@ -113,7 +113,7 @@ test("only accepts a PDF file", async () => {
 test("offers the active suppliers by name", async () => {
   const screen = await renderModal();
 
-  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: /Proveedor/ }));
+  await userEvent.click(screen.getByRole("dialog").getByRole("combobox", { name: /Proveedor/ }));
 
   await expect
     .poll(() =>
@@ -129,8 +129,8 @@ test("opens with the supplier it is given chosen", async () => {
   const screen = await renderModal({ initialSupplierId: granos.id });
 
   await expect
-    .element(screen.getByRole("dialog").getByRole("button", { name: /Proveedor/ }))
-    .toHaveTextContent("Granos del Valle");
+    .element(screen.getByRole("dialog").getByRole("combobox", { name: /Proveedor/ }))
+    .toHaveValue("Granos del Valle");
 });
 
 test("shows the chosen file with its size, and lets the person choose another", async () => {

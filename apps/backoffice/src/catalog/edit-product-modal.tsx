@@ -349,7 +349,7 @@ export function EditProductModal({
           <form.AppField name="categoryId">
             {(field) =>
               categoryOptions ? (
-                <field.Select label="Categoría" options={categoryOptions} required />
+                <field.ComboBox label="Categoría" options={categoryOptions} required />
               ) : (
                 <FieldGroup label="Categoría" required>
                   <SharedFieldError>{() => null}</SharedFieldError>
@@ -365,7 +365,7 @@ export function EditProductModal({
                   disabled={busy}
                   onCreateBrand={brandCreation.start}
                   select={
-                    <field.Select
+                    <field.ComboBox
                       label="Marca"
                       options={brandOptions(offered, keptBrandId)}
                       {...brandFieldHelp(offered, field.state.value)}

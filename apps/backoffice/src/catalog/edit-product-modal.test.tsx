@@ -508,7 +508,7 @@ const dulcor: BrandSummary = {
 };
 
 function brandSelect(dialog: Locator) {
-  return dialog.getByRole("button", { name: /Marca/ });
+  return dialog.getByRole("combobox", { name: /^Marca/ });
 }
 
 test("editing a product whose brand was deactivated shows it and keeps it on save", async () => {
@@ -517,15 +517,13 @@ test("editing a product whose brand was deactivated shows it and keeps it on sav
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   const { dialog } = await renderModal(miel, services, { brands: [granuz, litoral] });
 
-  await expect
-    .element(dialog.getByRole("button", { name: "Yerba del Litoral Inactiva Marca" }))
-    .toBeVisible();
+  await expect.element(brandSelect(dialog)).toHaveValue("Yerba del Litoral");
   await expect
     .element(dialog.getByText("Marca dada de baja. No se ofrece para productos nuevos."))
     .toBeVisible();
   await userEvent.click(brandSelect(dialog));
   await expect
-    .element(dialog.getByRole("option", { name: "Yerba del Litoral Inactiva" }))
+    .element(page.getByRole("option", { name: "Yerba del Litoral Inactiva" }))
     .toBeVisible();
   await userEvent.keyboard("{Escape}");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -542,15 +540,15 @@ test("a product with an active brand is not offered the deactivated ones, and ca
   const miel: ProductSummary = { ...honey, brandId: granuz.id };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   const { dialog } = await renderModal(miel, services, { brands: [granuz, litoral] });
-  await expect.element(dialog.getByRole("button", { name: "Granuz Marca" })).toBeVisible();
+  await expect.element(brandSelect(dialog)).toHaveValue("Granuz");
   expect(
     dialog.getByText("Marca dada de baja. No se ofrece para productos nuevos.").query(),
   ).toBeNull();
 
   await userEvent.click(brandSelect(dialog));
-  await expect.element(dialog.getByRole("option", { name: "Granuz" })).toBeVisible();
-  expect(dialog.getByRole("option", { name: /Yerba del Litoral/ }).query()).toBeNull();
-  await userEvent.click(dialog.getByRole("option", { name: "Sin marca" }));
+  await expect.element(page.getByRole("option", { name: "Granuz" })).toBeVisible();
+  expect(page.getByRole("option", { name: /Yerba del Litoral/ }).query()).toBeNull();
+  await userEvent.click(page.getByRole("option", { name: "Sin marca" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
@@ -574,7 +572,7 @@ test("the brand just created is selected even before the brands are read again",
   await expect.poll(() => page.getByRole("dialog", { name: "Nueva marca" }).query()).toBeNull();
   await expect
     .element(brandSelect(page.getByRole("dialog", { name: honey.name })))
-    .toHaveTextContent("Dulcor");
+    .toHaveValue("Dulcor");
 });
 
 function addTagButton(dialog: Locator) {

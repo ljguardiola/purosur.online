@@ -10,7 +10,6 @@ import {
   EmptyState,
   InlineNotice,
   SegmentedControl,
-  Select,
   SharedFieldError,
   TextField,
   useFieldContext,
@@ -175,8 +174,7 @@ function PurchaseLineFields({
           <div className="flex items-start gap-4">
             <div className="min-w-0 flex-1">
               {firstPackaging ? (
-                <Select
-                  name={`lines.${line.id}.packagingId`}
+                <ComboBox
                   label="Presentación"
                   placeholder="Elegí una presentación"
                   options={[firstPackaging, ...otherPackagings]}

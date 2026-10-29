@@ -238,7 +238,7 @@ export function EditUserModal({
           ) : (
             roleSelectOptions && (
               <form.AppField name="roleId">
-                {(field) => <field.Select label="Rol" options={roleSelectOptions} required />}
+                {(field) => <field.ComboBox label="Rol" options={roleSelectOptions} required />}
               </form.AppField>
             )
           )}
