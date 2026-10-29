@@ -193,7 +193,7 @@ describe("productLinkCandidates", () => {
 
   it("ranks a product matching one name word ahead of products matching more brand words", () => {
     const brandOnly = Array.from({ length: PRODUCT_LINK_CANDIDATE_LIMIT }, (_, index) =>
-      product(`a${index}`, `Aceite ${index}`, "Kos Natural", { quantity: 1, unit: "KG" }),
+      product(`a${index}`, "Aceite", "Kos Natural", { quantity: 1, unit: "KG" }),
     );
     const byName = product("z", "Zapallo");
 
