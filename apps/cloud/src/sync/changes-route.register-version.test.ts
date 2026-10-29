@@ -46,7 +46,7 @@ async function installationWithTheChangesOfEveryKind(recordedVersion?: string) {
       .values({ deviceId: installation.deviceId, appVersion: recordedVersion });
   }
   const { productId, actorId } = await insertStockMovementOwners(db, installation.locationId);
-  const brandId = await insertLoggedBrand(db, "La Serenisima");
+  const brandId = await insertLoggedBrand(db, "Granuz");
   const saleId = await insertLoggedStockMovement(testDatabase, {
     kind: "sale",
     locationId: installation.locationId,
@@ -94,14 +94,6 @@ describe("GET /changes for a register whose version it may not read", () => {
 
   it("holds back the brands and the returns from a register declaring a version that cannot read them, keeping the sale", async () => {
     const { deviceToken, saleId } = await installationWithTheChangesOfEveryKind();
-
-    const pulled = await pulledAs(deviceToken, { version: OLD_VERSION });
-
-    expect(pulled.map(({ entity_id }) => entity_id)).toEqual([saleId]);
-  });
-
-  it("trusts the declared version over the recorded one", async () => {
-    const { deviceToken, saleId } = await installationWithTheChangesOfEveryKind(CURRENT_VERSION);
 
     const pulled = await pulledAs(deviceToken, { version: OLD_VERSION });
 

@@ -2,7 +2,11 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { STOCK_MOVEMENT_KINDS } from "../../stock/index.js";
 import { PULLED_ENTITIES } from "./pull-audience.js";
-import { readsPulledEntity, unreadableStockMovementKinds } from "./pull-readers.js";
+import {
+  readerVersionOf,
+  readsPulledEntity,
+  unreadableStockMovementKinds,
+} from "./pull-readers.js";
 import { versionAtLeast } from "./register-version.js";
 
 const LATER_ADDED_ENTITIES = ["brand", "zone_rules"] as const;
@@ -17,7 +21,7 @@ describe("the entities a register version reads", () => {
     ["brand", "1.0.1364", true],
     ["zone_rules", "1.0.1298", false],
     ["zone_rules", "1.0.1299", true],
-  ] as const)("reads %s from %s on: %s at %s", (entity, version, reads) => {
+  ] as const)("%s at %s is read: %s", (entity, version, reads) => {
     expect(readsPulledEntity(version, entity)).toBe(reads);
   });
 
@@ -90,5 +94,20 @@ describe("the stock movement kinds a register version cannot read", () => {
         }
       }),
     );
+  });
+});
+
+describe("the version a register is read as", () => {
+  it("is the version it declares, whether older or newer than the one recorded", () => {
+    expect(readerVersionOf("0.0.1271", "1.0.1385")).toBe("0.0.1271");
+    expect(readerVersionOf("1.0.1385", "0.0.1271")).toBe("1.0.1385");
+  });
+
+  it("is the version recorded for it when it declares none", () => {
+    expect(readerVersionOf(undefined, "1.0.1300")).toBe("1.0.1300");
+  });
+
+  it("is none, the oldest reader, when it declares none and none is recorded", () => {
+    expect(readerVersionOf(undefined, null)).toBeNull();
   });
 });

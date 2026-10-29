@@ -139,9 +139,9 @@ describe("resending the changes of one entity", () => {
     });
 
     it("gives the stock movements of the kinds its recorded version reads when it declares none", async () => {
-      const page = await resend(fakeChangeLog([sale, returned], "1.0.0"), 0, "stock_movement");
+      const page = await resend(fakeChangeLog([sale, returned], "1.0.1300"), 0, "stock_movement");
 
-      expect(page).toEqual({ changes: [sale], cursor: 2, hasMore: false });
+      expect(page).toEqual({ changes: [sale, returned], cursor: 3, hasMore: false });
     });
 
     it("trusts the declared version over the recorded one", async () => {
