@@ -93,6 +93,7 @@ import {
   registerSnapshotRetentionFreezes,
   registers,
   rejectedDocumentRemedies,
+  removedSaleLines,
   returnLines,
   rolePermissions,
   roles,
@@ -458,6 +459,20 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       priceListId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e23",
       discountAmount: 0,
       lineTotal: 2400,
+    });
+    await db.insert(removedSaleLines).values({
+      id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e2a",
+      saleId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e2b",
+      ...origin,
+      sessionId,
+      actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      productId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e22",
+      productName: "Azucar",
+      quantity: 1,
+      lineTotal: 2400,
+      removedAt: new Date("2026-01-05T12:05:00.000Z"),
+      appliedAt: new Date("2026-01-05T12:11:00.000Z"),
+      originEventId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e2c",
     });
     await db.insert(salePayments).values({
       id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e24",

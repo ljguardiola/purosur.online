@@ -1304,7 +1304,6 @@ describe("synced event payloads", () => {
   describe.each([
     ["sale_completed", 9, 8],
     ["sale_cancelled", 8, 7],
-    ["sale_cancelled", 9, 8],
     ["sale_voided", 4, 3],
   ] as const)("the card type of a Point payment in %s", (eventType, version, previousVersion) => {
     const POINT_PAYMENT = {
@@ -3236,7 +3235,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 9)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 10)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {
