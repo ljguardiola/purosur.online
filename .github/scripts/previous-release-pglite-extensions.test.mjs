@@ -63,6 +63,23 @@ test("every PGlite database the previous release opens loads the extensions the 
   });
 });
 
+test("loads an extension whose PGlite module is named apart from its SQL name", () => {
+  const run = runWithPreload({
+    migrations: { "0152_ids.sql": 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' },
+    script: `
+      const { PGlite } = await import(process.argv[2]);
+      const database = new PGlite();
+      await database.exec('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
+      const { rows } = await database.query("select uuid_generate_v4()::text as id");
+      await database.close();
+      console.log(rows[0].id);
+    `,
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/m);
+});
+
 test("an extension PGlite does not ship still fails the run, naming the extension", () => {
   const run = runWithPreload({
     migrations: { "0151_unknown.sql": "CREATE EXTENSION IF NOT EXISTS not_a_real_extension;" },
