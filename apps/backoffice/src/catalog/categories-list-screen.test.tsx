@@ -390,7 +390,10 @@ test("creates a top-level category and shows it in the list", async () => {
   vi.mocked(services.fetchCategories)
     .mockResolvedValueOnce({ kind: "ok", value: [groceries] })
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory, drinks] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createCategory).mockResolvedValue({
+    kind: "ok",
+    category: { id: "category-9", name: "Limpieza", version: 1, parentId: null },
+  });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
   const dialog = await openNewCategoryModal(screen);

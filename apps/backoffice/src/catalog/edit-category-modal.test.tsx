@@ -5,19 +5,21 @@ import { page, userEvent } from "vitest/browser";
 import { drinks, groceries, jams, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import type { CategoryReload } from "./catalog-queries";
-import type { editCategory } from "./categories-api";
+import type { createCategory, editCategory } from "./categories-api";
 import { EditCategoryModal } from "./edit-category-modal";
 
 function renderModal({
   target,
   categories,
   edit = vi.fn<typeof editCategory>(),
+  create = vi.fn<typeof createCategory>(),
   reload = vi.fn<(id: string) => Promise<CategoryReload>>(),
   onSaved = () => {},
 }: {
   target: CategorySummary;
   categories: CategorySummary[];
   edit?: typeof editCategory;
+  create?: typeof createCategory;
   reload?: (id: string) => Promise<CategoryReload>;
   onSaved?: () => void;
 }) {
@@ -31,6 +33,7 @@ function renderModal({
           onSessionEnded={() => {}}
           reload={reload}
           editCategory={edit}
+          createCategory={create}
           categories={categories}
         />
       </main>
@@ -288,4 +291,26 @@ test("typing in the parent category offers only the matching categories", async 
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Bebidas"]);
+});
+
+test("typing a parent category that does not exist offers to create it, then selects it keeping the name typed", async () => {
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok", category: drinks });
+  const screen = await renderModal({ target: spreads, categories: [groceries, spreads], create });
+  const dialog = screen.getByRole("dialog", { name: "Untables" });
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Categoría superior/ }), "Bebidas");
+  await userEvent.click(page.getByRole("option", { name: "Crear categoría «Bebidas»" }));
+  const stacked = page.getByRole("dialog", { name: "Nueva categoría" });
+  await expect
+    .element(stacked.getByRole("textbox", { name: /^Nombre de la categoría/ }))
+    .toHaveValue("Bebidas");
+  await userEvent.click(stacked.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.poll(() => create.mock.calls.length).toBe(1);
+  await expect
+    .element(dialog.getByRole("combobox", { name: /Categoría superior/ }))
+    .toHaveValue("Bebidas");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
+    .toHaveValue("Untables");
 });

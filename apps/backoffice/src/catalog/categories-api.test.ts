@@ -74,7 +74,7 @@ test("createCategory posts the name and parentId and returns ok on 201", async (
 
   const outcome = await createCategory({ name: "Semillas", parentId: null });
 
-  expect(outcome).toEqual({ kind: "ok" });
+  expect(outcome).toEqual({ kind: "ok", category: seeds });
   expect(fetch).toHaveBeenCalledWith("/api/categories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -93,7 +93,7 @@ test("createCategory posts a chosen parentId as a subcategory", async () => {
 
   const outcome = await createCategory({ name: "Untables", parentId: "category-2" });
 
-  expect(outcome).toEqual({ kind: "ok" });
+  expect(outcome).toEqual({ kind: "ok", category: spreads });
   expect(fetch).toHaveBeenCalledWith("/api/categories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -368,10 +368,10 @@ test("fetchCategories returns failed when a listed category does not have the ex
   expect(await fetchCategories()).toEqual({ kind: "failed" });
 });
 
-test("createCategory returns ok on 201 whatever the body says, since the category is already created", async () => {
+test("createCategory returns failed on a 201 whose body is not a category", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "category-1" }));
 
-  expect(await createCategory({ name: "Semillas", parentId: null })).toEqual({ kind: "ok" });
+  expect(await createCategory({ name: "Semillas", parentId: null })).toEqual({ kind: "failed" });
 });
 
 test("editCategory returns ok on 200 whatever the body says, since the change is already applied", async () => {

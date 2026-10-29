@@ -10,17 +10,20 @@ import { NewCategoryModal } from "./new-category-modal";
 function renderModal({
   categories,
   create = vi.fn<typeof createCategory>(),
+  initialName,
   onCreated = () => {},
 }: {
   categories: CategorySummary[];
   create?: typeof createCategory;
-  onCreated?: () => void;
+  initialName?: string;
+  onCreated?: (category: CategorySummary) => void;
 }) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
         <NewCategoryModal
           open
+          {...(initialName === undefined ? {} : { initialName })}
           onClose={() => {}}
           onCreated={onCreated}
           onSessionEnded={() => {}}
@@ -50,7 +53,7 @@ test("rejects a name longer than 100 characters, without calling the API", async
 });
 
 test("sends the typed name trimmed", async () => {
-  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok" });
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok", category: spreads });
   const screen = await renderModal({ categories: [], create });
   const dialog = screen.getByRole("dialog");
 
@@ -93,7 +96,7 @@ test("opens with a parent select offering every category by its path label", asy
 });
 
 test("creates a subcategory under the chosen parent", async () => {
-  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok" });
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok", category: spreads });
   const onCreated = vi.fn();
   const screen = await renderModal({ categories: [groceries], create, onCreated });
   const dialog = screen.getByRole("dialog");
@@ -205,7 +208,7 @@ test("shows the generic failure notice when the cloud refuses a field the form d
 });
 
 test("typing in the parent category offers only the matching categories, and choosing one creates under it", async () => {
-  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok" });
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok", category: spreads });
   const screen = await renderModal({ categories: [groceries, drinks], create });
   const dialog = screen.getByRole("dialog");
 
@@ -225,4 +228,52 @@ test("typing in the parent category offers only the matching categories, and cho
 
   await expect.poll(() => create.mock.calls.length).toBe(1);
   expect(create).toHaveBeenCalledWith({ name: "Gaseosas", parentId: drinks.id });
+});
+
+test("opens with the initial name already in the name field, still editable", async () => {
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok", category: spreads });
+  const screen = await renderModal({ categories: [], create, initialName: "Fiambres" });
+  const dialog = screen.getByRole("dialog");
+  const name = dialog.getByRole("textbox", { name: /^Nombre de la categoría/ });
+
+  await expect.element(name).toHaveValue("Fiambres");
+  await userEvent.fill(name, "Fiambres y quesos");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.poll(() => create.mock.calls.length).toBe(1);
+  expect(create).toHaveBeenCalledWith({ name: "Fiambres y quesos", parentId: null });
+});
+
+test("hands the created category over", async () => {
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok", category: spreads });
+  const onCreated = vi.fn();
+  const screen = await renderModal({ categories: [], create, initialName: "Untables", onCreated });
+
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.poll(() => onCreated.mock.calls).toEqual([[spreads]]);
+});
+
+test("typing a parent category that does not exist offers to create it in a modal stacked over this one, then selects it keeping the name typed", async () => {
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok", category: drinks });
+  const screen = await renderModal({ categories: [groceries], create });
+  const dialog = screen.getByRole("dialog", { name: "Nueva categoría" });
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Gaseosas");
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Categoría superior/ }), "Bebidas");
+  await userEvent.click(page.getByRole("option", { name: "Crear categoría «Bebidas»" }));
+  const stacked = page.getByRole("dialog", { name: "Nueva categoría" }).last();
+  await expect
+    .element(stacked.getByRole("textbox", { name: /^Nombre de la categoría/ }))
+    .toHaveValue("Bebidas");
+  await userEvent.click(stacked.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.poll(() => create.mock.calls.length).toBe(1);
+  expect(create).toHaveBeenCalledWith({ name: "Bebidas", parentId: null });
+  await expect
+    .element(dialog.getByRole("combobox", { name: /Categoría superior/ }))
+    .toHaveValue("Bebidas");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
+    .toHaveValue("Gaseosas");
 });

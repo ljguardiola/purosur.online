@@ -5,10 +5,11 @@ import { useStackedCreation } from "./stacked-creation";
 type Record = { id: string; name: string };
 const serenisima: Record = { id: "r-1", name: "Serenísima" };
 
-function setup() {
+async function setup() {
   const choose = vi.fn();
   const catalog = { markStale: vi.fn().mockResolvedValue(undefined), refresh: vi.fn() };
-  return { choose, catalog, ...renderHook(() => useStackedCreation<Record>(choose, catalog)) };
+  const hook = await renderHook(() => useStackedCreation<Record>(choose, catalog));
+  return { choose, catalog, ...hook };
 }
 
 test("starts closed with no record created and no name", async () => {

@@ -177,16 +177,28 @@ test("shows the placeholder given in place of each list that is not available", 
   await expect.element(fields.getByRole("textbox", { name: /^Nombre/ })).toBeVisible();
 });
 
-test("offers no way to create a brand, a category or a tag when no creation is given", async () => {
+test("offers no way to create a brand when no creation is given", async () => {
   const fields = await renderFields();
-  await expect.element(fields.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
-  expect(fields.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
   await userEvent.fill(fields.getByRole("combobox", { name: /^Marca/ }), "Serenísima");
+
   expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
+  expect(fields.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+});
+
+test("offers no way to create a category when no creation is given", async () => {
+  const fields = await renderFields();
+
   await userEvent.fill(fields.getByRole("combobox", { name: /^Categoría/ }), "Fiambres");
+
   expect(page.getByRole("option", { name: /^Crear categoría/ }).query()).toBeNull();
+});
+
+test("offers no way to create a tag when no creation is given", async () => {
+  const fields = await renderFields();
+
   await userEvent.click(fields.getByRole("button", { name: "Agregar distintivo" }));
+
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
   expect(page.getByRole("menuitem", { name: "Crear distintivo…" }).query()).toBeNull();
 });
@@ -279,6 +291,7 @@ test("typing in the category offers only the matching categories, and choosing o
         { value: BEBIDAS, label: "Bebidas" },
         { value: LACTEOS, label: "Lácteos" },
       ],
+      creation: null,
     },
   });
 
