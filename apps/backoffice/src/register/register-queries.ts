@@ -1,4 +1,5 @@
 import type {
+  CashMovementsBody,
   CashSessionClosesBody,
   ReportQuery,
   ReportRegisterListBody,
@@ -8,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchCashMovements } from "./cash-movements-api";
 import type { fetchCashSessionCloses } from "./cash-session-closes-api";
 import type {
   fetchRegisterCoverage,
@@ -31,6 +33,14 @@ export const registerKeys = {
   coverage: [...registerKey, "coverage"] as const,
   syncStatus: [...registerKey, "sync-status"] as const,
   reportRegisters: [...registerKey, "report-registers"] as const,
+  cashMovements: (query: ReportQuery) =>
+    [
+      ...registerKey,
+      "cash-movements",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
+    ] as const,
   cashSessionCloses: (query: ReportQuery) =>
     [
       ...registerKey,
@@ -91,6 +101,21 @@ export function useReportRegistersQuery(params: {
   return useCloudQuery<ReportRegisterListBody>({
     queryKey: registerKeys.reportRegisters,
     read: params.fetchReportRegisters,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useCashMovementsQuery(params: {
+  query: ReportQuery;
+  fetchCashMovements: typeof fetchCashMovements;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<CashMovementsBody>({
+    queryKey: registerKeys.cashMovements(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchCashMovements(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

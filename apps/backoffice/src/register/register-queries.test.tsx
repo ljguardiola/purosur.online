@@ -89,3 +89,24 @@ test("invalidating the register key marks the cash session closes stale", async 
 
   expect(client.getQueryState(registerKeys.cashSessionCloses({}))?.isInvalidated).toBe(true);
 });
+
+test.each([
+  { part: "start", changed: { from: "2026-10-02" } },
+  { part: "end", changed: { to: "2026-10-08" } },
+  { part: "register", changed: { register_id: "register-2" } },
+])("a report differing only in its $part has its own cash movements key", ({ changed }) => {
+  const query = { from: "2026-10-01", to: "2026-10-07", register_id: "register-1" };
+
+  expect(registerKeys.cashMovements({ ...query, ...changed })).not.toEqual(
+    registerKeys.cashMovements(query),
+  );
+});
+
+test("invalidating the register key marks the cash movements stale", async () => {
+  const client = new QueryClient();
+  client.setQueryData(registerKeys.cashMovements({}), {});
+
+  await client.invalidateQueries({ queryKey: registerKey, refetchType: "none" });
+
+  expect(client.getQueryState(registerKeys.cashMovements({}))?.isInvalidated).toBe(true);
+});

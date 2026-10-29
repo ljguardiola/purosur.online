@@ -682,6 +682,7 @@ export type {
   RegisterOperationAccess,
   RegisterService,
   RegisterVersion,
+  ReportedCashMovement,
   RestorationEvidence,
   RestorationStanding,
   SerialDeviceIdentity,
