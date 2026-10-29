@@ -717,3 +717,171 @@ describe("DrizzlePriceReviewReader's price history", () => {
     expect(rows).toBe(1);
   });
 });
+
+describe("DrizzlePriceReviewReader's review histories", () => {
+  async function histories(locationId?: string) {
+    return new DrizzlePriceReviewReader(db).priceReviewHistories(
+      locationId ?? (await seededLocationId(db)),
+    );
+  }
+
+  it("answers the branch's own unreviewed-price window", async () => {
+    await setReviewWindow(45);
+
+    expect((await histories()).reviewWindowDays).toBe(45);
+  });
+
+  it("refuses a branch with no settings", async () => {
+    await expect(histories("00000000-0000-4000-8000-0000000000aa")).rejects.toThrow(
+      "branch settings missing for location 00000000-0000-4000-8000-0000000000aa",
+    );
+  });
+
+  it("answers each active product with its catalog fields, newest price and newest review", async () => {
+    const userId = await insertUser();
+    const priceListId = await seededPriceListId(db);
+    const categoryId = await insertCategory("Lácteos");
+    const brandId = await insertBrand(db, "Vitora");
+    const [cheese] = await db
+      .insert(products)
+      .values({
+        name: "Queso cremoso",
+        categoryId,
+        brandId,
+        saleUnit: "KG",
+        netContentQuantity: 250,
+        netContentUnit: "G",
+      })
+      .returning({ id: products.id });
+    const cheeseId = cheese?.id as string;
+    await insertPrice(cheeseId, priceListId, 1000, new Date(NOON.getTime() - 9 * DAY_MS));
+    const newestPriceId = await insertPrice(cheeseId, priceListId, 1200, NOON);
+    const reviewedAt = new Date(NOON.getTime() - 3 * DAY_MS);
+    await insertReview(
+      cheeseId,
+      priceListId,
+      newestPriceId,
+      userId,
+      new Date(reviewedAt.getTime() - DAY_MS),
+    );
+    await insertReview(cheeseId, priceListId, newestPriceId, userId, reviewedAt);
+
+    const result = await histories();
+
+    expect(result.products).toEqual([
+      {
+        id: cheeseId,
+        name: "Queso cremoso",
+        categoryId,
+        categoryName: "Lácteos",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
+        saleUnit: "KG",
+        currentPrice: { id: newestPriceId, unitPrice: 1200, validFrom: NOON },
+        lastReviewedAt: reviewedAt,
+        earliestPostponedAt: null,
+      },
+    ]);
+  });
+
+  it("answers a product never priced or reviewed with no price, review or postponement", async () => {
+    const productId = await insertProduct("Arroz", await insertCategory("Almacén"));
+
+    expect((await histories()).products).toMatchObject([
+      {
+        id: productId,
+        brandName: null,
+        netContent: null,
+        currentPrice: null,
+        lastReviewedAt: null,
+        earliestPostponedAt: null,
+      },
+    ]);
+  });
+
+  it("answers the earliest postponement still open on the branch's price list", async () => {
+    const userId = await insertUser();
+    const priceListId = await seededPriceListId(db);
+    const categoryId = await insertCategory("Almacén");
+    const productId = await insertProduct("Arroz", categoryId);
+    const priceId = await insertPrice(productId, priceListId, 500, NOON);
+    await insertReview(
+      productId,
+      priceListId,
+      priceId,
+      userId,
+      new Date(NOON.getTime() - 20 * DAY_MS),
+    );
+    const [review] = await db.select({ id: priceReviews.id }).from(priceReviews);
+    const [otherPriceList] = await db
+      .insert(priceLists)
+      .values({ name: "Lista mayorista" })
+      .returning({ id: priceLists.id });
+    const open = (daysAgo: number) => new Date(NOON.getTime() - daysAgo * DAY_MS);
+    await insertPriceReviewPostponement(db, {
+      productId,
+      actorId: userId,
+      postponedAt: open(15),
+      resolvedByReviewId: review?.id as string,
+    });
+    await insertPriceReviewPostponement(db, {
+      productId,
+      actorId: userId,
+      postponedAt: open(12),
+      priceListId: otherPriceList?.id as string,
+    });
+    await insertPriceReviewPostponement(db, { productId, actorId: userId, postponedAt: open(5) });
+    await insertPriceReviewPostponement(db, { productId, actorId: userId, postponedAt: open(8) });
+
+    expect((await histories()).products).toMatchObject([{ earliestPostponedAt: open(8) }]);
+  });
+
+  it("answers the products and reviews of the price list of the branch it is asked about", async () => {
+    const userId = await insertUser();
+    const categoryId = await insertCategory("Almacén");
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    const [otherPriceList] = await db
+      .insert(priceLists)
+      .values({ name: "Lista mayorista" })
+      .returning({ id: priceLists.id });
+    if (!otherLocation || !otherPriceList) {
+      throw new Error("test setup: seeding the other branch returned no row");
+    }
+    await db
+      .insert(branchSettings)
+      .values({ locationId: otherLocation.id, priceListId: otherPriceList.id });
+    const productId = await insertProduct("Arroz", categoryId);
+    const ownPriceId = await insertPrice(productId, await seededPriceListId(db), 111, NOON);
+    await insertReview(productId, await seededPriceListId(db), ownPriceId, userId, NOON);
+    const priceId = await insertPrice(productId, otherPriceList.id, 999, NOON);
+    const reviewedAt = new Date(NOON.getTime() - 2 * DAY_MS);
+    await insertReview(productId, otherPriceList.id, priceId, userId, reviewedAt);
+
+    const result = await histories(otherLocation.id);
+
+    expect(result.products).toMatchObject([
+      { id: productId, currentPrice: { id: priceId, unitPrice: 999 }, lastReviewedAt: reviewedAt },
+    ]);
+  });
+
+  it("leaves out a deactivated product", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const active = await insertProduct("Arroz", categoryId);
+    const inactive = await insertProduct("Porotos", categoryId);
+    await db.update(products).set({ active: false }).where(eq(products.id, inactive));
+
+    expect((await histories()).products.map(({ id }) => id)).toEqual([active]);
+  });
+
+  it("reflects a review recorded after the previous read at once", async () => {
+    const userId = await insertUser();
+    const priceListId = await seededPriceListId(db);
+    const productId = await insertProduct("Arroz", await insertCategory("Almacén"));
+    const priceId = await insertPrice(productId, priceListId, 500, NOON);
+
+    expect((await histories()).products).toMatchObject([{ lastReviewedAt: null }]);
+    await insertReview(productId, priceListId, priceId, userId, NOON);
+
+    expect((await histories()).products).toMatchObject([{ lastReviewedAt: NOON }]);
+  });
+});
