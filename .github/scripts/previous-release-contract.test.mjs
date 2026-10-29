@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
+  extensionsCreatedBy,
   isRouteTestFile,
   judgeRun,
   listFiles,
@@ -100,6 +101,29 @@ test("replaces the previous release's migrations with exactly the new release's"
       readFileSync(join(previous, "apps/cloud/migrations/meta/_journal.json"), "utf8"),
       "new journal",
     );
+  });
+});
+
+test("names every Postgres extension the migrations create, once each", () => {
+  withTempDir((dir) => {
+    writeTree(dir, {
+      "0001_tables.sql": 'CREATE TABLE "products" ("id" uuid PRIMARY KEY);',
+      "0002_search.sql": "CREATE EXTENSION IF NOT EXISTS unaccent;",
+      "0003_ids.sql":
+        'create extension "uuid-ossp";\n--> statement-breakpoint\nCREATE EXTENSION pg_trgm;',
+      "0004_again.sql": "CREATE EXTENSION IF NOT EXISTS unaccent;",
+      "meta/_journal.json": '{"note": "CREATE EXTENSION not_a_migration"}',
+    });
+
+    assert.deepEqual(extensionsCreatedBy(dir), ["pg_trgm", "unaccent", "uuid-ossp"]);
+  });
+});
+
+test("names no extension when no migration creates one", () => {
+  withTempDir((dir) => {
+    writeTree(dir, { "0001_tables.sql": 'CREATE TABLE "products" ("id" uuid PRIMARY KEY);' });
+
+    assert.deepEqual(extensionsCreatedBy(dir), []);
   });
 });
 
