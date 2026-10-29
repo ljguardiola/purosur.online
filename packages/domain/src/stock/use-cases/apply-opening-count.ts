@@ -1,4 +1,5 @@
 import { lotOfOpeningCount } from "../model/lot.js";
+import { proposedReferenceCost } from "../model/lot-reference-cost.js";
 import { isMovementQuantity } from "../model/stock-quantity.js";
 import { recordLotReceipt } from "./record-lot-receipt.js";
 import type { StockStoreTransaction } from "./stock-store.js";
@@ -48,7 +49,13 @@ export async function applyOpeningCount(
       actorId: input.actorId,
       supersededByCountId: coveringCount?.movementId ?? null,
     },
-    () => tx.recordInitialCountLot(lotOfOpeningCount({ ...input, movementId: input.movementId })),
+    async () =>
+      tx.recordInitialCountLot(
+        lotOfOpeningCount({
+          ...input,
+          cost: proposedReferenceCost(await tx.loadedSupplierPrices(input.productId)),
+        }),
+      ),
   );
   return { kind: "recorded", lotId };
 }

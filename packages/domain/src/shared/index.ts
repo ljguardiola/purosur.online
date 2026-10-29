@@ -12,6 +12,7 @@ export {
   shiftCalendarDay,
 } from "./calendar-day.js";
 export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./cash-amount.js";
+export { cheapestOffer } from "./cheapest-offer.js";
 export type { Clock } from "./clock.js";
 export { codePointLength } from "./code-point-length.js";
 export { foldedText } from "./folded-text.js";
@@ -31,7 +32,7 @@ export { REPLENISHMENT_FAILURE_KINDS } from "./replenishment-failure-kind.js";
 export type { ReportPeriod } from "./report-period.js";
 export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 export type { Fraction } from "./rounding.js";
-export { roundHalfUp } from "./rounding.js";
+export { compareFractions, roundHalfUp } from "./rounding.js";
 export type {
   SalesDeniedReason,
   SalesDeniedReport,

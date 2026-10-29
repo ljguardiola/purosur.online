@@ -2,6 +2,7 @@ import type { SaleUnit } from "@purosur/domain";
 import type {
   CountedLot,
   CoveringCount,
+  LoadedSupplierPrice,
   LockProductStockResult,
   LotAllocation,
   NewInitialCountLot,
@@ -26,6 +27,7 @@ import {
   stockMovements,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+import { loadedSupplierPricesOf } from "./loaded-supplier-prices.js";
 import {
   appliedDeltaAfter,
   earliestCountAtOrAfter,
@@ -139,10 +141,19 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return recorded.id;
   }
 
-  async recordInitialCountLot(lot: NewInitialCountLot): Promise<string> {
+  async loadedSupplierPrices(productId: string): Promise<LoadedSupplierPrice[]> {
+    return (await loadedSupplierPricesOf(this.tx, [productId])).get(productId) ?? [];
+  }
+
+  async recordInitialCountLot({ cost, ...lot }: NewInitialCountLot): Promise<string> {
     const [recorded] = await this.tx
       .insert(lots)
-      .values({ ...lot, costIncomplete: true })
+      .values({
+        ...lot,
+        costIncomplete: cost === null,
+        costTotalCents: cost?.totalCents ?? null,
+        costQuantity: cost?.quantity ?? null,
+      })
       .returning({ id: lots.id });
     if (!recorded) {
       throw new Error("inserting the initial count lot returned no row");
