@@ -1,5 +1,6 @@
-import { compareSpanishText, type Fraction, roundHalfUp } from "../../shared/index.js";
-import { lineValue, type PurchaseLineCost } from "./purchase-line.js";
+import { compareSpanishText } from "../../shared/index.js";
+import { purchaseValueCents } from "./freight-distribution.js";
+import type { PurchaseLineCost } from "./purchase-line.js";
 
 export interface PurchasedLine extends PurchaseLineCost {
   purchaseId: string;
@@ -29,34 +30,18 @@ export interface PurchasesBySupplier {
 
 interface Tally {
   purchaseIds: Set<string>;
-  value: Fraction;
-}
-
-function greatestCommonDivisor(a: bigint, b: bigint): bigint {
-  return b === 0n ? a : greatestCommonDivisor(b, a % b);
-}
-
-function addedTo({ value }: Tally, line: PurchasedLine): Fraction {
-  const added = lineValue(line);
-  const numerator = value.numerator * added.denominator + added.numerator * value.denominator;
-  const denominator = value.denominator * added.denominator;
-  const divisor = greatestCommonDivisor(numerator, denominator);
-  return { numerator: numerator / divisor, denominator: denominator / divisor };
+  lines: PurchasedLine[];
 }
 
 function tallied(tally: Tally | undefined, line: PurchasedLine): Tally {
-  const current = tally ?? {
-    purchaseIds: new Set<string>(),
-    value: { numerator: 0n, denominator: 1n },
-  };
-  return {
-    purchaseIds: current.purchaseIds.add(line.purchaseId),
-    value: addedTo(current, line),
-  };
+  const current = tally ?? { purchaseIds: new Set<string>(), lines: [] };
+  current.purchaseIds.add(line.purchaseId);
+  current.lines.push(line);
+  return current;
 }
 
-function amountOf({ value }: Tally): number {
-  return roundHalfUp(value);
+function amountOf({ lines }: Tally): number {
+  return purchaseValueCents(lines);
 }
 
 interface SupplierTally extends Tally {
