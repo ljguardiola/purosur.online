@@ -1841,7 +1841,7 @@ describe("the lines of the sale being changed", () => {
       ...before,
       sale_lines: 1,
       sale_line_promotions: 0,
-      outbox: before.outbox + 1,
+      outbox: 1,
     });
   });
 
@@ -1873,7 +1873,7 @@ describe("the lines of the sale being changed", () => {
     );
 
     expect(outcome).toEqual({ kind: "cancelled" });
-    expect(rowsPerTable()).toEqual({ ...before, outbox: before.outbox + 1 });
+    expect(rowsPerTable()).toEqual({ ...before, outbox: 1 });
     expect(database.prepare("SELECT event_type, aggregate_id FROM outbox").all()).toEqual([
       { event_type: "sale_cancelled", aggregate_id: "id-1" },
     ]);
