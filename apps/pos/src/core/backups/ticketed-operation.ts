@@ -19,6 +19,10 @@ export interface TicketedOperations {
       args: Parameters<NonNullable<THandler>>,
       outcome: Awaited<ReturnType<NonNullable<THandler>>>,
     ) => string | null,
+    needsTicket?: (
+      args: Parameters<NonNullable<THandler>>,
+      outcome: Awaited<ReturnType<NonNullable<THandler>>>,
+    ) => boolean,
   ): THandler;
   ticketedNow<TArgs extends unknown[], TOutcome>(
     operation: ContingencyBackupOperation,
@@ -123,12 +127,14 @@ export function createTicketedOperations({
   }
 
   return {
-    ticketed(operation, handler, subjectOf) {
+    ticketed(operation, handler, subjectOf, needsTicket) {
       if (handler === undefined) return handler;
       const ticketedHandler = async (...args: Parameters<NonNullable<typeof handler>>) => {
         const before = read();
         const outcome = await handler(...args);
-        if (before === undefined) return outcome;
+        if (before === undefined || needsTicket?.(args, outcome as never) === false) {
+          return outcome;
+        }
         await recordAround(
           operation,
           () => subjectOf?.(args, outcome as never) ?? null,
