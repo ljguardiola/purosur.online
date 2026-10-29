@@ -93,6 +93,16 @@ export function batteryConditionsOf(
   };
 }
 
+export function registerOwnConditionIdentity(
+  condition:
+    | { kind: Exclude<RegisterOwnCondition, "sales_denied"> }
+    | { kind: "sales_denied"; reason: string },
+): string {
+  return condition.kind === "sales_denied"
+    ? `${condition.kind}:${condition.reason}`
+    : condition.kind;
+}
+
 type HeldRegisterOwnCondition = DetectedRegisterOwnCondition & { level: AlertLevel };
 
 const LEVELS_OF_CONDITIONS_THAT_ARE_NOT_ALERTS = {

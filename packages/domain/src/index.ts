@@ -66,6 +66,7 @@ export {
   registerClockDriftObservation,
   registerFiscalEmissionObservation,
   registerFortnightScope,
+  registerOwnConditionIdentity,
   registerOwnConditions,
   registerReplenishmentObservation,
   registerSalesDeniedObservation,

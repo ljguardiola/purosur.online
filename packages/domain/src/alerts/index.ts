@@ -93,5 +93,6 @@ export type { RegisterOwnCondition } from "./model/register-own-conditions.js";
 export {
   batteryConditionsOf,
   REGISTER_OWN_CONDITIONS,
+  registerOwnConditionIdentity,
   registerOwnConditions,
 } from "./model/register-own-conditions.js";
