@@ -111,6 +111,10 @@ export type {
 } from "./propose-supplier-item-link.js";
 export { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
 export type {
+  PurchasesReportQuery,
+  PurchasesReportReader,
+} from "./purchases-report-reader.js";
+export type {
   PackagingListing,
   PurchaseLineListing,
   PurchaseListing,
@@ -140,6 +144,11 @@ export type { ReactivatePackagingOutcome } from "./reactivate-packaging.js";
 export { reactivatePackaging } from "./reactivate-packaging.js";
 export type { ReactivateSupplierOutcome } from "./reactivate-supplier.js";
 export { reactivateSupplier } from "./reactivate-supplier.js";
+export type {
+  PurchasesBySupplierReport,
+  ReadPurchasesBySupplierInput,
+} from "./read-purchases-by-supplier.js";
+export { readPurchasesBySupplier } from "./read-purchases-by-supplier.js";
 export type {
   ReadSupplierPriceListInput,
   ReadSupplierPriceListOutcome,

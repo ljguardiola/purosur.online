@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
+import { unaccent } from "@electric-sql/pglite/contrib/unaccent";
 import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi } from "vitest";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
@@ -165,7 +166,10 @@ async function snapshotPathWithMarkerRole(): Promise<string> {
 
 async function clusterDumpPathWithMarkerTable(): Promise<string> {
   const runClusterDumpPath = inject("testDatabaseClusterDumpPath");
-  const client = new PGlite({ loadDataDir: new Blob([await readFile(runClusterDumpPath)]) });
+  const client = new PGlite({
+    loadDataDir: new Blob([await readFile(runClusterDumpPath)]),
+    extensions: { unaccent },
+  });
   onTestFinished(() => client.close());
   await client.query('create table "cluster_dump_marker" ("id" integer primary key)');
   await client.query('insert into "cluster_dump_marker" ("id") values (1)');

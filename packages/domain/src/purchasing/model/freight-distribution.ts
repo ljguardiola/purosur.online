@@ -1,5 +1,6 @@
 import { type Fraction, roundHalfUp } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
+import { commonDenominator, lineValue, type PurchaseLineCost } from "./purchase-line.js";
 
 export interface FreightLine {
   id: string;
@@ -18,27 +19,23 @@ export interface FreightToDistribute {
   lines: readonly FreightLine[];
 }
 
-export function lineValue({ costPaidCents, quantity, quantityPerPackage }: FreightLine): Fraction {
-  return {
-    numerator: BigInt(costPaidCents) * BigInt(quantity),
-    denominator: BigInt(quantityPerPackage),
-  };
-}
-
 export function hasDistributableValue(lines: readonly FreightLine[]): boolean {
   return lines.some((line) => lineValue(line).numerator > 0n);
 }
 
-function scaledWeights(lines: readonly FreightLine[]): { weights: bigint[]; denominator: bigint } {
+function scaledWeights(lines: readonly PurchaseLineCost[]): {
+  weights: bigint[];
+  denominator: bigint;
+} {
   const values = lines.map(lineValue);
-  const denominator = values.reduce((product, value) => product * value.denominator, 1n);
+  const denominator = commonDenominator(values);
   return {
     weights: values.map((value) => value.numerator * (denominator / value.denominator)),
     denominator,
   };
 }
 
-export function purchaseValueCents(lines: readonly FreightLine[]): number {
+export function purchaseValueCents(lines: readonly PurchaseLineCost[]): number {
   const { weights, denominator } = scaledWeights(lines);
   return roundHalfUp({ numerator: weights.reduce((sum, weight) => sum + weight, 0n), denominator });
 }

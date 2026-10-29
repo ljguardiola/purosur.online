@@ -1002,6 +1002,13 @@
       "when": 1793222879764,
       "tag": "0149_brand_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 143,
+      "version": "7",
+      "when": 1793238561835,
+      "tag": "0150_search_without_accents",
+      "breakpoints": true
     }
   ]
 }

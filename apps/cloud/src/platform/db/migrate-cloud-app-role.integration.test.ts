@@ -43,6 +43,12 @@ describe("the cloud_app role runMigrations creates", () => {
     await expect(cloudApp`select 1 as one`).resolves.toEqual([{ one: 1 }]);
   });
 
+  it("ignores accents with unaccent, which it can call", async () => {
+    await expect(
+      cloudApp`select unaccent('Balsámico') ilike '%balsamico%' as matches`,
+    ).resolves.toEqual([{ matches: true }]);
+  });
+
   it("inserts and reads its own audit_log rows", async () => {
     const entityId = randomUUID();
     await cloudApp`insert into audit_log (entity, entity_id) values ('cloud_app_role_test', ${entityId})`;

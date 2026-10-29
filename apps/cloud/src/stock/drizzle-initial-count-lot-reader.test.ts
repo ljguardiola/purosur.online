@@ -128,6 +128,21 @@ describe("DrizzleInitialCountLotReader", () => {
     expect(rows).toEqual([]);
   });
 
+  it("finds the lots of a product by its name whatever the accents and the case", async () => {
+    const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
+    const { productId } = await insertProduct(db, { name: "Aceto Balsámico Clásico" });
+    const lot = await insertInitialCountLot(db, { productId, locationId, actorId });
+    const { productId: otherProductId } = await insertProduct(db, { name: "Almendras peladas" });
+    await insertInitialCountLot(db, { productId: otherProductId, locationId, actorId });
+    const reader = new DrizzleInitialCountLotReader(db);
+    const lotIds = async (productName: string) =>
+      (await reader.initialCountLots({ locationId, costIncomplete: undefined, productName })).map(
+        (row) => row.lotId,
+      );
+
+    expect(await lotIds("balsamico CLASICO")).toEqual([lot.lotId]);
+  });
+
   it("keeps the lots whose cost is incomplete or known, as asked", async () => {
     const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
     const { productId } = await insertProduct(db);

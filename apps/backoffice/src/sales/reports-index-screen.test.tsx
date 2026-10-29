@@ -178,3 +178,19 @@ test("lists the losses by reason report as a link to it", async () => {
     .element(screen.getByRole("link", { name: "Mermas por motivo" }))
     .toHaveAttribute("href", "/reports/losses-by-reason");
 });
+
+test("groups the purchases reports in a card titled Compras", async () => {
+  const screen = await renderScreen();
+
+  const purchases = screen.getByRole("region", { name: "Compras" });
+  await expect.element(purchases).toBeVisible();
+  expect(purchases.getByRole("link").elements()).toHaveLength(1);
+});
+
+test("lists the purchases by supplier report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Compras por proveedor" }))
+    .toHaveAttribute("href", "/reports/purchases-by-supplier");
+});
