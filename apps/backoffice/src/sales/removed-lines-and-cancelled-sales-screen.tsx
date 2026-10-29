@@ -52,48 +52,48 @@ const OPENED_TIME_ZONE = schemaText(
 const UNIDENTIFIED = "Sin identificar";
 const REPORT_NAME = "el reporte de líneas quitadas y ventas canceladas";
 
-const figureColumns = [
-  dataColumn({
-    id: "removed-lines",
-    header: "Líneas quitadas",
-    align: "end",
-    render: (row: FigureRow) => formatNumber(row.removed.lines),
-  }),
-  dataColumn({
-    id: "removed-quantity",
-    header: "Cantidad quitada",
-    align: "end",
-    render: (row: FigureRow) => soldQuantityText(row.removed),
-  }),
-  dataColumn({
-    id: "removed-amount",
-    header: "Importe quitado",
-    align: "end",
-    render: (row: FigureRow) => (
-      <TableCellText strong>{formatCents(row.removed.amount)}</TableCellText>
-    ),
-  }),
-  dataColumn({
-    id: "cancelled-sales",
-    header: "Ventas canceladas",
-    align: "end",
-    render: (row: FigureRow) => formatNumber(row.cancelled.sales),
-  }),
-  dataColumn({
-    id: "cancelled-quantity",
-    header: "Cantidad cancelada",
-    align: "end",
-    render: (row: FigureRow) => soldQuantityText(row.cancelled),
-  }),
-  dataColumn({
-    id: "cancelled-amount",
-    header: "Importe cancelado",
-    align: "end",
-    render: (row: FigureRow) => (
-      <TableCellText strong>{formatCents(row.cancelled.amount)}</TableCellText>
-    ),
-  }),
-] as const;
+function figureColumns<Row extends FigureRow>() {
+  return [
+    dataColumn({
+      id: "removed-lines",
+      header: "Líneas quitadas",
+      align: "end",
+      render: (row: Row) => formatNumber(row.removed.lines),
+    }),
+    dataColumn({
+      id: "removed-quantity",
+      header: "Cantidad quitada",
+      align: "end",
+      render: (row: Row) => soldQuantityText(row.removed),
+    }),
+    dataColumn({
+      id: "removed-amount",
+      header: "Importe quitado",
+      align: "end",
+      render: (row: Row) => <TableCellText strong>{formatCents(row.removed.amount)}</TableCellText>,
+    }),
+    dataColumn({
+      id: "cancelled-sales",
+      header: "Ventas canceladas",
+      align: "end",
+      render: (row: Row) => formatNumber(row.cancelled.sales),
+    }),
+    dataColumn({
+      id: "cancelled-quantity",
+      header: "Cantidad cancelada",
+      align: "end",
+      render: (row: Row) => soldQuantityText(row.cancelled),
+    }),
+    dataColumn({
+      id: "cancelled-amount",
+      header: "Importe cancelado",
+      align: "end",
+      render: (row: Row) => (
+        <TableCellText strong>{formatCents(row.cancelled.amount)}</TableCellText>
+      ),
+    }),
+  ] as const;
+}
 
 const cashierColumns = [
   dataColumn({
@@ -101,7 +101,7 @@ const cashierColumns = [
     header: "Cajero",
     render: (row: CashierRow) => row.name ?? UNIDENTIFIED,
   }),
-  ...figureColumns,
+  ...figureColumns<CashierRow>(),
 ] as const;
 
 const sessionColumns = [
@@ -118,7 +118,7 @@ const sessionColumns = [
       return <TableCellText description={time}>{date}</TableCellText>;
     },
   }),
-  ...figureColumns,
+  ...figureColumns<SessionRow>(),
 ] as const;
 
 export function RemovedLinesAndCancelledSalesScreen({
