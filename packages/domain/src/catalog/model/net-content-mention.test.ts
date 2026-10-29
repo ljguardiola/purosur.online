@@ -48,6 +48,13 @@ describe("mentionsNetContent", () => {
     expect(mentionsNetContent("Huevos 12 u", content(12, "G"))).toBe(false);
   });
 
+  it.each<NetContentUnit>(["G", "KG", "ML", "L", "UNIT"])(
+    "does not recognize a bare quantity as %s",
+    (unit) => {
+      expect(mentionsNetContent("Producto 250", content(250, unit))).toBe(false);
+    },
+  );
+
   it("does not recognize a quantity with no unit or a unit with no quantity", () => {
     expect(mentionsNetContent("Granola 1", content(1, "KG"))).toBe(false);
     expect(mentionsNetContent("Granola kg", content(1, "KG"))).toBe(false);
