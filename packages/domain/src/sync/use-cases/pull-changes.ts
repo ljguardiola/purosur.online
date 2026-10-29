@@ -1,8 +1,8 @@
 import { fortnightContaining } from "../../fiscal/index.js";
 import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 import { pullAudienceOf } from "../model/pull-audience.js";
-import { readerVersionOf } from "../model/pull-readers.js";
 import { PULL_PAGE_READ_LIMIT, pullPageOf } from "../model/pull-page.js";
+import { readerVersionOf } from "../model/pull-readers.js";
 import type {
   OfflineAuthorizationCodeRequests,
   PulledChange,
@@ -46,7 +46,10 @@ export async function pullChanges<TChange extends PulledChange>(
   return changeLog.transaction(async (tx) => {
     await tx.recordObservedPull(input.deviceId, input.since, now);
     const register = await tx.pullingRegister(input.deviceId);
-    const audience = pullAudienceOf(register, readerVersionOf(input.declaredVersion, register.recordedAppVersion));
+    const audience = pullAudienceOf(
+      register,
+      readerVersionOf(input.declaredVersion, register.recordedAppVersion),
+    );
     const changes = await tx.changesAfter(audience, input.since, PULL_PAGE_READ_LIMIT);
     return pullPageOf(input.since, changes);
   });

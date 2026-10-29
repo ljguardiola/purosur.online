@@ -1,4 +1,4 @@
-import { STOCK_MOVEMENT_KINDS, type StockMovementKind } from "../../stock/index.js";
+import type { StockMovementKind } from "../../stock/index.js";
 import { versionAtLeast } from "./register-version.js";
 
 const ENTITY_READABLE_SINCE: Readonly<Record<string, string>> = {
@@ -6,9 +6,7 @@ const ENTITY_READABLE_SINCE: Readonly<Record<string, string>> = {
   zone_rules: "1.0.1299",
 };
 
-const STOCK_MOVEMENT_KIND_READABLE_SINCE: Readonly<
-  Partial<Record<StockMovementKind, string>>
-> = {
+const STOCK_MOVEMENT_KIND_READABLE_SINCE: Readonly<Partial<Record<StockMovementKind, string>>> = {
   return: "1.0.1284",
   assembly_void: "1.0.1322",
 };
@@ -22,7 +20,7 @@ export function readsPulledEntity(readerVersion: string | null, entity: string):
 }
 
 export function unreadableStockMovementKinds(readerVersion: string | null): StockMovementKind[] {
-  return STOCK_MOVEMENT_KINDS.filter(
+  return (Object.keys(STOCK_MOVEMENT_KIND_READABLE_SINCE) as StockMovementKind[]).filter(
     (kind) => !readsSince(readerVersion, STOCK_MOVEMENT_KIND_READABLE_SINCE[kind]),
   );
 }

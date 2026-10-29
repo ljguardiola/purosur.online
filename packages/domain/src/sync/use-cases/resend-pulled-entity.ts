@@ -1,6 +1,6 @@
 import { pullAudienceOfEntity } from "../model/pull-audience.js";
-import { readerVersionOf } from "../model/pull-readers.js";
 import { PULL_PAGE_READ_LIMIT, pullPageOf } from "../model/pull-page.js";
+import { readerVersionOf } from "../model/pull-readers.js";
 import type { PulledChange, PulledEntity, PullPage, ResendPorts } from "./sync-ports.js";
 
 export interface ResendPulledEntityInput {

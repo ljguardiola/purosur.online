@@ -10,14 +10,7 @@ import type {
 import type { PulledChange, PullPage } from "../model/pull-page.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 
-export type {
-  PullAudience,
-  PulledChange,
-  PulledEntity,
-  PullingRegister,
-  PullPage,
-  PullReach,
-};
+export type { PullAudience, PulledChange, PulledEntity, PullingRegister, PullPage, PullReach };
 
 export interface ChangeLog<TChange extends PulledChange> {
   transaction<TOutcome>(
