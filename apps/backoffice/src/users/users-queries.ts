@@ -82,6 +82,11 @@ export function useReloadUser(params: {
   };
 }
 
+export function useMarkUsersStale(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: usersKey, refetchType: "none" });
+}
+
 export function useRefreshUsers(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: usersKey });

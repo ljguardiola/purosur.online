@@ -34,30 +34,35 @@ import { useAuthorization } from "../platform/authorization-modal";
 import type { BranchUser, BranchUserRole } from "../platform/branch-users-api";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import type { RoleCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
+import type { RoleSummary } from "../platform/roles-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { useStackedCreation } from "../platform/stacked-creation";
 import type { CloudData } from "../platform/use-cloud-query";
 import {
   type BackofficeAccess,
   canManageUsers,
   canReactivateUser,
+  canSeeRolesArea,
 } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { roleOptions } from "./role-display";
+import { roleOptions, withCreatedRole } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
 import { userEmailMessage } from "./user-email-message";
 import type { CreateUserOutcome, createUser } from "./users-api";
 import type { UsersListScreenServices } from "./users-list-services";
-import { useRefreshUsers, useRolesQuery, useUsersQuery } from "./users-queries";
+import { useMarkUsersStale, useRefreshUsers, useRolesQuery, useUsersQuery } from "./users-queries";
 
 export type UsersListScreenProps = {
+  roleCreationModal: RoleCreationModal;
   filters: UsersListFilters;
   onFiltersChange: (filters: UsersListFilters) => void;
   access: BackofficeAccess;
@@ -87,6 +92,7 @@ type FormNotice =
 type NewUserModalProps = {
   open: boolean;
   roles: BranchUserRole[];
+  roleCreationModal?: RoleCreationModal | undefined;
   onClose: () => void;
   onCreated: () => void;
   onReactivate: (target: { id: string }) => void;
@@ -100,6 +106,7 @@ type NewUserModalProps = {
 function NewUserModal({
   open,
   roles,
+  roleCreationModal: RoleCreation,
   onClose,
   onCreated,
   onReactivate,
@@ -178,8 +185,22 @@ function NewUserModal({
   });
   const conflict = deactivatedConflict?.email === values.email ? deactivatedConflict : null;
 
+  const markUsersStale = useMarkUsersStale();
+  const refreshUsers = useRefreshUsers();
+  const roleCreation = useStackedCreation<RoleSummary>(
+    (role) => form.setFieldValue("roleId", role.id),
+    { markStale: markUsersStale, refresh: refreshUsers },
+  );
+  const offeredRoles = withCreatedRole(roles, roleCreation.created);
+  const offeredOptions = offeredRoles.length > 0 ? roleOptions(offeredRoles) : undefined;
+  const closeForm = () => {
+    roleCreation.finish();
+    onClose();
+  };
+
   const startNewUser = useEffectEvent(() => {
     reset({ firstName: "", email: "", roleId: options?.[0].value ?? "" });
+    roleCreation.reset();
     setNotice(null);
     setDeactivatedConflict(null);
   });
@@ -196,7 +217,7 @@ function NewUserModal({
         open={open}
         onOpenChange={(open) => {
           if (!open) {
-            onClose();
+            closeForm();
           }
         }}
         width="standard"
@@ -212,7 +233,7 @@ function NewUserModal({
               size="large"
               icon={<X />}
               disabled={submitting}
-              onPress={onClose}
+              onPress={closeForm}
             >
               Cancelar
             </Button>
@@ -257,9 +278,18 @@ function NewUserModal({
           <form.AppField name="firstName">
             {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
           </form.AppField>
-          {options ? (
+          {offeredOptions ? (
             <form.AppField name="roleId">
-              {(field) => <field.ComboBox label="Rol" options={options} required />}
+              {(field) => (
+                <field.ComboBox
+                  label="Rol"
+                  options={offeredOptions}
+                  required
+                  {...(RoleCreation
+                    ? { creation: { recordKind: "rol", onCreate: roleCreation.start } }
+                    : {})}
+                />
+              )}
             </form.AppField>
           ) : null}
           <form.AppField name="email">
@@ -277,6 +307,15 @@ function NewUserModal({
           ) : null}
         </div>
       </Modal>
+      {RoleCreation ? (
+        <RoleCreation
+          open={roleCreation.open}
+          initialName={roleCreation.initialName}
+          onCreated={roleCreation.select}
+          onClose={roleCreation.close}
+          onSessionEnded={onSessionEnded}
+        />
+      ) : null}
       {modal}
     </>
   );
@@ -324,6 +363,7 @@ function UsersListView({
   filters,
   onFiltersChange,
   access,
+  roleCreationModal,
   onSessionEnded,
   endEverySessionSection: EndEverySessionSection,
   services,
@@ -486,6 +526,7 @@ function UsersListView({
       <NewUserModal
         open={modalOpen}
         roles={roles}
+        {...(canSeeRolesArea(access) ? { roleCreationModal } : {})}
         onClose={() => setModalOpen(false)}
         onCreated={() => {
           setModalOpen(false);

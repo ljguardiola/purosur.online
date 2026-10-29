@@ -6,18 +6,21 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { BranchUser, BranchUserRole } from "../platform/branch-users-api";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import type { RoleCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
+import type { RoleSummary } from "../platform/roles-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import { roleOptions } from "./role-display";
+import { useStackedCreation } from "../platform/stacked-creation";
+import { roleOptions, withCreatedRole } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import { userEmailMessage } from "./user-email-message";
 import type { EditUserOutcome, editUser } from "./users-api";
-import type { UserRead } from "./users-queries";
+import { type UserRead, useMarkUsersStale, useRefreshUsers } from "./users-queries";
 
 const EMAIL_MESSAGE = userEmailMessage(userEditBodySchema.shape.email);
 
@@ -38,6 +41,7 @@ type EditUserModalProps = {
   open: boolean;
   user: BranchUser;
   roles: BranchUserRole[];
+  roleCreationModal?: RoleCreationModal | undefined;
   onClose: () => void;
   onSaved: () => void;
   onSessionEnded: () => void;
@@ -49,6 +53,7 @@ export function EditUserModal({
   open,
   user,
   roles,
+  roleCreationModal: RoleCreation,
   onClose,
   onSaved,
   onSessionEnded,
@@ -118,9 +123,21 @@ export function EditUserModal({
     },
   });
 
+  const markUsersStale = useMarkUsersStale();
+  const refreshUsers = useRefreshUsers();
+  const roleCreation = useStackedCreation<RoleSummary>(
+    (role) => form.setFieldValue("roleId", role.id),
+    { markStale: markUsersStale, refresh: refreshUsers },
+  );
+  const closeForm = () => {
+    roleCreation.finish();
+    onClose();
+  };
+
   const showUser = useEffectEvent(() => {
     const { email, role, version } = user;
     reset({ email, roleId: role.id, version });
+    roleCreation.reset();
     setNotice(null);
     setReloading(false);
   });
@@ -131,7 +148,8 @@ export function EditUserModal({
     }
   }, [open]);
 
-  const roleSelectOptions = roles.length > 0 ? roleOptions(roles) : undefined;
+  const offeredRoles = withCreatedRole(roles, roleCreation.created);
+  const roleSelectOptions = offeredRoles.length > 0 ? roleOptions(offeredRoles) : undefined;
 
   async function handleReload() {
     setReloading(true);
@@ -150,7 +168,7 @@ export function EditUserModal({
         open={open}
         onOpenChange={(open) => {
           if (!open) {
-            onClose();
+            closeForm();
           }
         }}
         width="standard"
@@ -166,7 +184,7 @@ export function EditUserModal({
               size="large"
               icon={<X />}
               disabled={submitting}
-              onPress={onClose}
+              onPress={closeForm}
             >
               Cancelar
             </Button>
@@ -238,7 +256,16 @@ export function EditUserModal({
           ) : (
             roleSelectOptions && (
               <form.AppField name="roleId">
-                {(field) => <field.ComboBox label="Rol" options={roleSelectOptions} required />}
+                {(field) => (
+                  <field.ComboBox
+                    label="Rol"
+                    options={roleSelectOptions}
+                    required
+                    {...(RoleCreation
+                      ? { creation: { recordKind: "rol", onCreate: roleCreation.start } }
+                      : {})}
+                  />
+                )}
               </form.AppField>
             )
           )}
@@ -247,6 +274,15 @@ export function EditUserModal({
           </form.AppField>
         </div>
       </Modal>
+      {RoleCreation ? (
+        <RoleCreation
+          open={roleCreation.open}
+          initialName={roleCreation.initialName}
+          onCreated={roleCreation.select}
+          onClose={roleCreation.close}
+          onSessionEnded={onSessionEnded}
+        />
+      ) : null}
       {modal}
     </>
   );
