@@ -190,6 +190,12 @@ jobs:
         working-directory: ${{ runner.temp }}/previous
         run: pnpm install --frozen-lockfile
 
+      - name: Apply the new migrations to the previous release's test databases
+        if: env.PREVIOUS_TAG != ''
+        env:
+          PREVIOUS_DIR: ${{ runner.temp }}/previous
+        run: node .github/scripts/previous-release-contract.mjs migrate
+
       - name: Add the results reporter to the previous release's Vitest config
         if: env.PREVIOUS_TAG != ''
         env:
