@@ -9,16 +9,10 @@ export function recipeComponentCountText(count: number): string {
 }
 
 export function recipeComponentNamesText(
-  components: readonly RecipeSummary["components"][number][],
+  components: readonly Parameters<typeof formatProductDescription>[0][],
 ): string {
   const names = namesList.format(
-    components.map((component) =>
-      formatProductDescription({
-        name: component.name,
-        brandName: component.brandName,
-        netContent: component.netContent,
-      }),
-    ),
+    components.map((component) => formatProductDescription(component)),
   );
   return `${names.charAt(0).toUpperCase()}${names.slice(1)}`;
 }
