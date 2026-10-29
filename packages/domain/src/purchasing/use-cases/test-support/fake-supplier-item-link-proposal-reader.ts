@@ -6,7 +6,17 @@ import type {
 
 export interface FakeProposalData {
   rows?: (ProposalRow & { listId: string; id: string })[];
-  products?: (ProposalProduct & { barcodes?: string[] })[];
+  products?: (Pick<ProposalProduct, "id" | "name"> &
+    Partial<Pick<ProposalProduct, "brandName" | "netContent">> & { barcodes?: string[] })[];
+}
+
+function proposalProduct({
+  id,
+  name,
+  brandName,
+  netContent,
+}: Required<FakeProposalData>["products"][number]): ProposalProduct {
+  return { id, name, brandName: brandName ?? null, netContent: netContent ?? null };
 }
 
 export class FakeSupplierItemLinkProposalReader implements SupplierItemLinkProposalReader {
@@ -33,11 +43,11 @@ export class FakeSupplierItemLinkProposalReader implements SupplierItemLinkPropo
     this.barcodeLookups.push(barcode);
     return this.data.products
       .filter((product) => product.barcodes?.includes(barcode))
-      .map(({ id, name }) => ({ id, name }));
+      .map(proposalProduct);
   }
 
   async activeProducts(): Promise<ProposalProduct[]> {
     this.activeProductReads += 1;
-    return this.data.products.map(({ id, name }) => ({ id, name }));
+    return this.data.products.map(proposalProduct);
   }
 }

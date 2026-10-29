@@ -11,6 +11,7 @@ import {
   Modal,
   useRequestForm,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import {
   Check,
   ExternalLink,
@@ -228,10 +229,14 @@ export function LinkSupplierItemModal({
       <InlineNotice
         tone="info"
         icon={<ScanBarcode />}
-        title={`Propuesto por código de barras: ${product.name}`}
+        title={`Propuesto por código de barras: ${formatProductDescription(product)}`}
       />
     ) : (
-      <InlineNotice tone="info" icon={<Sparkles />} title={`Propuesto por IA: ${product.name}`} />
+      <InlineNotice
+        tone="info"
+        icon={<Sparkles />}
+        title={`Propuesto por IA: ${formatProductDescription(product)}`}
+      />
     );
   }
 

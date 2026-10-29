@@ -33,8 +33,18 @@ function chooserAnswering(respond: (request: RecordedRequest) => Response | Prom
 
 const ITEM = { description: "Yerba mate suave 1 kg", presentation: "Caja x 10" };
 const CANDIDATES = [
-  { id: "7f1c2a40-0000-4000-8000-000000000001", name: "Yerba Suave 1 kg" },
-  { id: "7f1c2a40-0000-4000-8000-000000000002", name: "Yerba Compuesta 500 g" },
+  {
+    id: "7f1c2a40-0000-4000-8000-000000000001",
+    name: "Yerba Suave",
+    brandName: "Piragüé",
+    netContent: { quantity: 1, unit: "KG" } as const,
+  },
+  {
+    id: "7f1c2a40-0000-4000-8000-000000000002",
+    name: "Yerba Compuesta",
+    brandName: null,
+    netContent: null,
+  },
 ];
 
 describe("the request the chooser sends", () => {
@@ -70,6 +80,28 @@ describe("the request the chooser sends", () => {
       expect(text).toContain(candidate.name);
     }
     expect(body).not.toHaveProperty("tools");
+  });
+
+  it("sends each candidate's id, name, brand name and net content, and nothing else of it", async () => {
+    const { chooser, requests } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
+    const extra = { ...(CANDIDATES[0] as (typeof CANDIDATES)[number]), barcode: "7790000000011" };
+
+    await chooser.choose(ITEM, [extra]);
+
+    const messages = (requests[0] as RecordedRequest).body["messages"] as {
+      content: { text: string }[];
+    }[];
+    expect(JSON.parse(messages[0]?.content[0]?.text ?? "")).toEqual({
+      item: ITEM,
+      candidates: [CANDIDATES[0]],
+    });
+  });
+
+  it("tells the model that the candidates carry a name, a brand and a net content", async () => {
+    const { body } = await sentRequest();
+
+    const system = body["system"] as { text: string }[];
+    expect(system[0]?.text).toMatch(/name, brand and net content/i);
   });
 
   it("sends nothing but the model, the limits, the instructions, the format and the fallback", async () => {

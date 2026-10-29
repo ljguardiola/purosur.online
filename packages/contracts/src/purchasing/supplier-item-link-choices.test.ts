@@ -7,9 +7,18 @@ const choices = {
       id: "p-1",
       name: "Yerba Piragüé",
       saleUnit: "UNIT",
+      brandName: "Piragüé",
+      netContent: { quantity: 1, unit: "KG" },
       packagings: [{ id: "pk-1", name: "Caja x 10", quantityPerPackage: 10_000 }],
     },
-    { id: "p-2", name: "Harina", saleUnit: "KG", packagings: [] },
+    {
+      id: "p-2",
+      name: "Harina",
+      saleUnit: "KG",
+      brandName: null,
+      netContent: null,
+      packagings: [],
+    },
   ],
   vatRates: { offered: [2100, 1050], default: 2100 },
 };
@@ -39,6 +48,23 @@ describe("supplierItemLinkChoicesSchema", () => {
     expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [bare] }).success).toBe(
       false,
     );
+  });
+
+  it.each(["brandName", "netContent"])("refuses a product without its %s", (field) => {
+    const { [field]: _missing, ...bare } = choices.products[0] as Record<string, unknown>;
+
+    expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [bare] }).success).toBe(
+      false,
+    );
+  });
+
+  it("refuses a net content with a unit the catalog does not know", () => {
+    const unknown = {
+      ...choices,
+      products: [{ ...choices.products[0], netContent: { quantity: 1, unit: "OZ" } }],
+    };
+
+    expect(supplierItemLinkChoicesSchema.safeParse(unknown).success).toBe(false);
   });
 
   it("refuses a packaging whose quantity is not a whole number", () => {

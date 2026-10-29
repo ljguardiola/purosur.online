@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSupplierItemLinkProposalReader } from "./drizzle-supplier-item-link-proposal-reader.js";
@@ -75,7 +76,21 @@ describe("the active products carrying a barcode", () => {
     await insertBarcode(db, { productId: other, code: "7790000000028" });
 
     expect(await reader().activeProductsWithBarcode("7790000000011")).toEqual([
-      { id, name: "Yerba 1 kg" },
+      { id, name: "Yerba 1 kg", brandName: null, netContent: null },
+    ]);
+  });
+
+  it("answers the brand's name and the net content of each product", async () => {
+    const kos = await insertBrand(db, { name: "Kos" });
+    const { id } = await insertProduct(db, {
+      name: "Granola Berries",
+      brandId: kos.id,
+      netContent: { quantity: 1, unit: "KG" },
+    });
+    await insertBarcode(db, { productId: id, code: "7790000000011" });
+
+    expect(await reader().activeProductsWithBarcode("7790000000011")).toEqual([
+      { id, name: "Granola Berries", brandName: "Kos", netContent: { quantity: 1, unit: "KG" } },
     ]);
   });
 
@@ -96,16 +111,28 @@ describe("the active products carrying a barcode", () => {
     await insertBarcode(db, { productId: id, code: "7790000000028", position: 1 });
 
     expect(await reader().activeProductsWithBarcode("7790000000028")).toEqual([
-      { id, name: "Yerba 1 kg" },
+      { id, name: "Yerba 1 kg", brandName: null, netContent: null },
     ]);
   });
 });
 
 describe("the active products", () => {
-  it("answers the active products with their name", async () => {
-    const { id } = await insertProduct(db, { name: "Yerba 1 kg" });
+  it("answers the active products with their name, brand name and net content", async () => {
+    const kos = await insertBrand(db, { name: "Kos" });
+    const { id } = await insertProduct(db, {
+      name: "Granola Berries",
+      brandId: kos.id,
+      netContent: { quantity: 500, unit: "G" },
+    });
+    const { id: plain } = await insertProduct(db, { name: "Yerba 1 kg" });
     await insertProduct(db, { name: "Producto retirado", active: false });
 
-    expect(await reader().activeProducts()).toEqual([{ id, name: "Yerba 1 kg" }]);
+    expect(await reader().activeProducts()).toEqual(
+      expect.arrayContaining([
+        { id, name: "Granola Berries", brandName: "Kos", netContent: { quantity: 500, unit: "G" } },
+        { id: plain, name: "Yerba 1 kg", brandName: null, netContent: null },
+      ]),
+    );
+    expect(await reader().activeProducts()).toHaveLength(2);
   });
 });

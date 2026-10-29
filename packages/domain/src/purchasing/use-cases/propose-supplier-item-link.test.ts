@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
 import { FakeProductChooser } from "./test-support/fake-product-chooser.js";
-import { FakeSupplierItemLinkProposalReader } from "./test-support/fake-supplier-item-link-proposal-reader.js";
+import {
+  type FakeProposalData,
+  FakeSupplierItemLinkProposalReader,
+} from "./test-support/fake-supplier-item-link-proposal-reader.js";
 
 const YERBA = { id: "product-1", name: "Yerba Piragüé 1 kg", barcodes: ["7790001000012"] };
 const AZUCAR = { id: "product-2", name: "Azúcar Cañaral 1 kg" };
 
 function setup(
   row: { description?: string; presentation?: string | null; barcode?: string | null } = {},
-  products = [YERBA, AZUCAR],
+  products: NonNullable<FakeProposalData["products"]> = [YERBA, AZUCAR],
 ) {
   const reader = new FakeSupplierItemLinkProposalReader({
     rows: [
@@ -54,7 +57,7 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "barcode",
-        product: { id: "product-1", name: "Yerba Piragüé 1 kg" },
+        product: { id: "product-1", name: "Yerba Piragüé 1 kg", brandName: null, netContent: null },
       });
       expect(reader.barcodeLookups).toEqual(["7790001000012"]);
       expect(chooser.asked).toEqual([]);
@@ -75,7 +78,7 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "ai",
-        product: { id: "product-1", name: "Yerba Piragüé 1 kg" },
+        product: { id: "product-1", name: "Yerba Piragüé 1 kg", brandName: null, netContent: null },
       });
     });
 
@@ -87,7 +90,12 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "ai",
-        product: { id: "product-3", name: "Yerba Piragüé 500 g" },
+        product: {
+          id: "product-3",
+          name: "Yerba Piragüé 500 g",
+          brandName: null,
+          netContent: null,
+        },
       });
     });
   });
@@ -102,7 +110,9 @@ describe("proposeSupplierItemLink", () => {
       expect(chooser.asked).toEqual([
         {
           item: { description: "YERBA PIRAGUE 1KG", presentation: "Caja x 10" },
-          candidates: [{ id: "product-1", name: "Yerba Piragüé 1 kg" }],
+          candidates: [
+            { id: "product-1", name: "Yerba Piragüé 1 kg", brandName: null, netContent: null },
+          ],
         },
       ]);
     });
@@ -114,7 +124,12 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "ai",
-        product: { id: "product-2", name: "Azúcar Cañaral 1 kg" },
+        product: {
+          id: "product-2",
+          name: "Azúcar Cañaral 1 kg",
+          brandName: null,
+          netContent: null,
+        },
       });
     });
 
@@ -151,6 +166,82 @@ describe("proposeSupplierItemLink", () => {
       chooser.answer = new Error("network down");
 
       expect(await proposeSupplierItemLink(ports, input)).toEqual({ kind: "unavailable" });
+    });
+
+    it("gives the model each candidate's name, brand and net content", async () => {
+      const { chooser, ports } = setup({ description: "Granola" }, [
+        {
+          id: "p-kos",
+          name: "Granola Berries",
+          brandName: "Kos",
+          netContent: { quantity: 1, unit: "KG" },
+        },
+      ]);
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(chooser.asked[0]?.candidates).toEqual([
+        {
+          id: "p-kos",
+          name: "Granola Berries",
+          brandName: "Kos",
+          netContent: { quantity: 1, unit: "KG" },
+        },
+      ]);
+    });
+
+    describe("telling same-name products apart", () => {
+      const GRANOLA_KOS = {
+        id: "p-kos",
+        name: "Granola Berries",
+        brandName: "Kos",
+        netContent: { quantity: 1, unit: "KG" },
+      } as const;
+      const GRANOLA_OTHER = {
+        id: "p-other",
+        name: "Granola Berries",
+        brandName: "Otra",
+        netContent: { quantity: 500, unit: "G" },
+      } as const;
+      const item = { description: "Granola berries 1kg - Kos", presentation: null };
+
+      it("proposes the product of the item's brand and size among same-name products", async () => {
+        const { chooser, ports } = setup(item, [GRANOLA_OTHER, GRANOLA_KOS]);
+        chooser.answer = { kind: "chosen", productId: "p-kos" };
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual({
+          kind: "proposed",
+          by: "ai",
+          product: GRANOLA_KOS,
+        });
+        expect(chooser.asked[0]?.candidates.map(({ id }) => id)).toEqual(["p-kos", "p-other"]);
+      });
+
+      it("proposes nothing when only other brands carry the name and the model is not certain", async () => {
+        const { chooser, ports } = setup(item, [GRANOLA_OTHER]);
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual({ kind: "none" });
+        expect(chooser.asked).toHaveLength(1);
+      });
+    });
+
+    it("finds a candidate by a size written only in the presentation", async () => {
+      const { chooser, ports } = setup({ description: "Aceite", presentation: "Botella 1 L" }, [
+        { id: "p-oil", name: "Girasol", netContent: { quantity: 1, unit: "L" } },
+      ]);
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(chooser.asked[0]?.candidates.map(({ id }) => id)).toEqual(["p-oil"]);
+    });
+
+    it("does not read a null presentation as text", async () => {
+      const { chooser, ports } = setup({ description: "Aceite", presentation: null }, [
+        { id: "p-null", name: "Null" },
+      ]);
+
+      expect(await proposeSupplierItemLink(ports, input)).toEqual({ kind: "none" });
+      expect(chooser.asked).toEqual([]);
     });
 
     it("passes at most the best twenty candidates", async () => {

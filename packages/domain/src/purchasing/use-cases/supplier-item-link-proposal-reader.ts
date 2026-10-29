@@ -1,3 +1,5 @@
+import type { NetContentUnit } from "../../catalog/index.js";
+
 export interface ProposalRow {
   description: string;
   presentation: string | null;
@@ -7,6 +9,8 @@ export interface ProposalRow {
 export interface ProposalProduct {
   id: string;
   name: string;
+  brandName: string | null;
+  netContent: { quantity: number; unit: NetContentUnit } | null;
 }
 
 export interface SupplierItemLinkProposalReader {

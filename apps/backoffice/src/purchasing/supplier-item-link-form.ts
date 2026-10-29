@@ -4,6 +4,7 @@ import type {
   SupplierPriceListRowLinkBody,
 } from "@purosur/contracts";
 import { formatPercent, sortedItems, textOrder } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import type { SupplierPriceListRow } from "./supplier-price-lists-api";
 
@@ -72,9 +73,12 @@ export function supplierItemLinkRequestFrom(
   };
 }
 
-const productOrder = textOrder(
-  (product: SupplierItemLinkChoices["products"][number]) => product.name,
-);
+type LinkProduct = SupplierItemLinkChoices["products"][number];
+
+const byName = textOrder((product: LinkProduct) => product.name);
+const byDescription = textOrder(formatProductDescription);
+
+const productOrder = (a: LinkProduct, b: LinkProduct) => byName(a, b) || byDescription(a, b);
 
 type Options<Option> = [Option, ...Option[]] | undefined;
 
@@ -84,7 +88,7 @@ export function linkProductOptions(
   const [first, ...rest] = sortedItems(choices.products, {
     order: productOrder,
     direction: "ascending",
-  }).map((product) => ({ value: product.id, label: product.name }));
+  }).map((product) => ({ value: product.id, label: formatProductDescription(product) }));
   return first && [first, ...rest];
 }
 

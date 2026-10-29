@@ -1,8 +1,14 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import type { NetContentUnit } from "./product.js";
 import { PRODUCT_LINK_CANDIDATE_LIMIT, productLinkCandidates } from "./product-link-candidates.js";
 
-const product = (id: string, name: string) => ({ id, name });
+const product = (
+  id: string,
+  name: string,
+  brandName: string | null = null,
+  netContent: { quantity: number; unit: NetContentUnit } | null = null,
+) => ({ id, name, brandName, netContent });
 
 describe("productLinkCandidates", () => {
   it("proposes the products whose name words appear in the text", () => {
@@ -115,6 +121,97 @@ describe("productLinkCandidates", () => {
     expect(productLinkCandidates(products, "yerba pirague", 1)).toEqual([
       product("2", "Yerba Piragüé"),
     ]);
+  });
+
+  it("proposes a product whose brand name appears in the text", () => {
+    const products = [product("1", "Granola", "Kos"), product("2", "Granola", "Otra")];
+
+    expect(productLinkCandidates(products, "granola kos").map(({ id }) => id)).toEqual(["1", "2"]);
+  });
+
+  it("proposes a product matching only by its brand", () => {
+    expect(productLinkCandidates([product("1", "Aceite", "Kos")], "granola kos")).toHaveLength(1);
+  });
+
+  it("proposes a product matching only by its net content", () => {
+    const products = [product("1", "Aceite", null, { quantity: 1, unit: "KG" })];
+
+    expect(productLinkCandidates(products, "granola 1kg")).toHaveLength(1);
+  });
+
+  it("matches the brand words as it matches the name words", () => {
+    expect(productLinkCandidates([product("1", "Aceite", "Mermelada")], "merm")).toHaveLength(1);
+    expect(productLinkCandidates([product("1", "Aceite", "Mermelada")], "me")).toEqual([]);
+  });
+
+  it("counts a word shared by the name and the brand in each", () => {
+    const products = [product("1", "Kos", "Kos"), product("2", "Kos")];
+
+    expect(productLinkCandidates(products, "kos").map(({ id }) => id)).toEqual(["1", "2"]);
+  });
+
+  it("counts a net content mention as one match", () => {
+    const products = [
+      product("1", "Granola", null, { quantity: 500, unit: "G" }),
+      product("2", "Granola", null, { quantity: 1, unit: "KG" }),
+    ];
+
+    expect(productLinkCandidates(products, "granola 1000 g").map(({ id }) => id)).toEqual([
+      "2",
+      "1",
+    ]);
+  });
+
+  it("does not count a net content of another size", () => {
+    const products = [product("1", "Aceite", null, { quantity: 500, unit: "G" })];
+
+    expect(productLinkCandidates(products, "granola 1kg")).toEqual([]);
+  });
+
+  it("puts the product of the issue's item, by brand and size, first", () => {
+    const products = [
+      product("1", "Granola Berries", "Otra", { quantity: 500, unit: "G" }),
+      product("2", "Granola Berries", "Kos", { quantity: 1, unit: "KG" }),
+    ];
+
+    expect(
+      productLinkCandidates(products, "Granola berries 1kg - Kos").map(({ id }) => id),
+    ).toEqual(["2", "1"]);
+  });
+
+  it("ranks a product matching by name ahead of products matching only by brand", () => {
+    const brandOnly = Array.from({ length: PRODUCT_LINK_CANDIDATE_LIMIT }, (_, index) =>
+      product(`a${index}`, `Aceite ${index}`, "Kos"),
+    );
+    const byName = product("z", "Zapallo Cocido");
+
+    const candidates = productLinkCandidates([...brandOnly, byName], "kos zapallo cocido");
+
+    expect(candidates[0]).toEqual(byName);
+    expect(candidates).toHaveLength(PRODUCT_LINK_CANDIDATE_LIMIT);
+  });
+
+  it("ranks a product matching one name word ahead of products matching more brand words", () => {
+    const brandOnly = Array.from({ length: PRODUCT_LINK_CANDIDATE_LIMIT }, (_, index) =>
+      product(`a${index}`, "Aceite", "Kos Natural", { quantity: 1, unit: "KG" }),
+    );
+    const byName = product("z", "Zapallo");
+
+    const candidates = productLinkCandidates([...brandOnly, byName], "kos natural 1 kg zapallo");
+
+    expect(candidates[0]).toEqual(byName);
+    expect(candidates).toHaveLength(PRODUCT_LINK_CANDIDATE_LIMIT);
+  });
+
+  it("ranks products matching by name by how many words they match in all", () => {
+    const products = [
+      product("1", "Granola Berries", "Otra", { quantity: 500, unit: "G" }),
+      product("2", "Granola", "Kos", { quantity: 1, unit: "KG" }),
+    ];
+
+    expect(productLinkCandidates(products, "granola berries 1 kg kos").map(({ id }) => id)).toEqual(
+      ["2", "1"],
+    );
   });
 
   it("never answers more than the limit nor a product with no word in common", () => {
