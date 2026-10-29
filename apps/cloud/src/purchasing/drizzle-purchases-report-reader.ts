@@ -1,3 +1,4 @@
+import type { PurchasedLine } from "@purosur/domain";
 import type {
   PurchasesReportQuery,
   PurchasesReportReader,
@@ -15,10 +16,7 @@ export class DrizzlePurchasesReportReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  purchasedLines({
-    locationId,
-    range,
-  }: PurchasesReportQuery): ReturnType<PurchasesReportReader["purchasedLines"]> {
+  purchasedLines({ locationId, range }: PurchasesReportQuery): Promise<PurchasedLine[]> {
     return this.db
       .select({
         purchaseId: purchases.id,
