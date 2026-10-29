@@ -44,7 +44,7 @@ test("creates a product and shows it in the list", async () => {
     version: 1,
     currentUnitPrice: null,
   };
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   vi.mocked(services.fetchProducts)
     .mockResolvedValueOnce({ kind: "ok", value: [] })
     .mockResolvedValueOnce({ kind: "ok", value: [created, honey] });
@@ -85,7 +85,7 @@ test("a product created while only inactive products are listed stays out of the
   const services = createServices();
   const inactiveAlmonds: ListedProduct = { ...almonds, active: false };
   mockLoaded(services, [inactiveAlmonds]);
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
   await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));

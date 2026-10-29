@@ -16,12 +16,37 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("createRole posts the name and permissions and returns ok on 201", async () => {
+const depositRole = {
+  id: "role-1",
+  name: "Depósito",
+  is_administrator: false,
+  permissions: ["view_stock_balances"],
+  user_count: 0,
+  may_edit: true,
+};
+
+test("createRole fails when the created role is not the shape the cloud promises", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, {}));
+
+  expect(await createRole({ name: "Depósito", permissions: [] })).toEqual({ kind: "failed" });
+});
+
+test("createRole posts the name and permissions and returns ok on 201", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, depositRole));
 
   const outcome = await createRole({ name: "Depósito", permissions: ["view_stock_balances"] });
 
-  expect(outcome).toEqual({ kind: "ok" });
+  expect(outcome).toEqual({
+    kind: "ok",
+    role: {
+      id: "role-1",
+      name: "Depósito",
+      isAdministrator: false,
+      permissionKeys: ["view_stock_balances"],
+      userCount: 0,
+      mayEdit: true,
+    },
+  });
   expect(fetch).toHaveBeenCalledWith(
     "/api/roles",
     expect.objectContaining({

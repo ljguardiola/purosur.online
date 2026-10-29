@@ -4,7 +4,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
-import { driedFruits, groceries } from "./test-support/products";
+import { driedFruits, groceries, honey } from "./test-support/products";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -77,7 +77,7 @@ test("typing part of an existing category offers it and no creation entry", asyn
 test("saving the stacked category selects it and keeps the rest of the product form as typed", async () => {
   const services = createServices();
   vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", category: coldCuts });
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const dialog = await renderModal(services);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Jamón cocido");
   await userEvent.fill(categorySelect(dialog), "Fiambres");

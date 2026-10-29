@@ -7,7 +7,7 @@ import { organico, sinColorantes, sinTacc, vegano } from "../platform/test-suppo
 import { render } from "../shell/test-support/render-with-router";
 import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
 import { fillNewProductFieldsExceptBarcodes, scanInputOf } from "./test-support/product-form";
-import { driedFruits, groceries } from "./test-support/products";
+import { driedFruits, groceries, honey } from "./test-support/products";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -95,7 +95,7 @@ test("a new product starts with no tags and offers the active ones by name, then
 
 test("creates a product with exactly the tags chosen, and a removed one is not sent", async () => {
   const services = createServices();
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const { dialog } = await renderModal(services, [sinTacc, vegano, organico]);
   await fillNewProduct(dialog);
 
@@ -114,7 +114,7 @@ test("creates a product with exactly the tags chosen, and a removed one is not s
 test("creates a tag in a modal stacked over the product form, appends it as a chip without losing what was typed", async () => {
   const services = createServices();
   vi.mocked(services.createTag).mockResolvedValue({ kind: "ok", tag: organico });
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const { screen, dialog: productDialog } = await renderModal(services, [sinTacc]);
   await fillNewProduct(productDialog);
   await chooseTag(productDialog, "Sin TACC");
@@ -150,7 +150,7 @@ test("keeps every tag created from the stacked modal as a chip, each removable a
   vi.mocked(services.createTag)
     .mockResolvedValueOnce({ kind: "ok", tag: organico })
     .mockResolvedValueOnce({ kind: "ok", tag: vegano });
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const { screen, dialog: productDialog } = await renderModal(services, [sinTacc]);
   await fillNewProduct(productDialog);
 

@@ -361,7 +361,7 @@ test("saving a role reads the roles again from the server, keeping the shown row
   vi.mocked(services.fetchRoles)
     .mockResolvedValueOnce({ kind: "ok", value: [administrator, stock] })
     .mockReturnValueOnce(refresh.promise);
-  vi.mocked(services.roleEditorModal.createRole).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.roleEditorModal.createRole).mockResolvedValue({ kind: "ok", role: stock });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 roles")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Duplicar el rol Depósito" }));

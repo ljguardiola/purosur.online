@@ -112,12 +112,18 @@ test("createProduct posts the fields and returns ok on 201", async () => {
 
   const outcome = await createProduct(createInput);
 
-  expect(outcome).toEqual({ kind: "ok" });
+  expect(outcome).toEqual({ kind: "ok", product: honey });
   expect(fetch).toHaveBeenCalledWith("/api/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(createInput),
   });
+});
+
+test("createProduct fails when the created product is not the shape the cloud promises", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "product-1" }));
+
+  expect(await createProduct(createInput)).toEqual({ kind: "failed" });
 });
 
 test("createProduct posts a given net content", async () => {
@@ -127,7 +133,7 @@ test("createProduct posts a given net content", async () => {
 
   const outcome = await createProduct(withNetContent);
 
-  expect(outcome).toEqual({ kind: "ok" });
+  expect(outcome).toEqual({ kind: "ok", product: created });
   expect(fetch).toHaveBeenCalledWith("/api/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
