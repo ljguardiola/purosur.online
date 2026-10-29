@@ -20,6 +20,7 @@ describe("what a register may pull", () => {
       category: { kind: "every_row" },
       product: { kind: "every_row" },
       tag: { kind: "every_row" },
+      brand: { kind: "every_row" },
       price_list: { kind: "row", id: PRICE_LIST },
       price: { kind: "rows_of_price_list", priceListId: PRICE_LIST },
       user: { kind: "rows_of_branch", locationId: BRANCH },

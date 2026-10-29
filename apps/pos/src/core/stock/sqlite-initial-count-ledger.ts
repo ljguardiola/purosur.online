@@ -5,6 +5,12 @@ import type {
   InitialCountMovement,
   InitialCountTransaction,
 } from "@purosur/domain/stock/use-cases";
+import {
+  JOIN_PRODUCT_BRAND,
+  SHOWN_PRODUCT_COLUMNS,
+  type ShownProductColumns,
+  shownProductName,
+} from "../catalog/sqlite-shown-product-name";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   readActiveProductByBarcode,
@@ -15,10 +21,9 @@ import type { SignInStore } from "../sessions/sqlite-sign-in-store";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { addToStockBalance } from "./sqlite-stock-ledger";
 
-interface LineRow {
+interface LineRow extends ShownProductColumns {
   movement_id: string;
   product_id: string;
-  product_name: string;
   sale_unit: string;
   counted: number;
   expires_on: string | null;
@@ -27,7 +32,7 @@ interface LineRow {
 }
 
 const LINES = `SELECT stock_movements.id AS movement_id, stock_movements.product_id AS product_id,
-         products.name AS product_name, products.sale_unit AS sale_unit,
+         ${SHOWN_PRODUCT_COLUMNS}, products.sale_unit AS sale_unit,
          stock_movements.delta AS counted, stock_movements.expires_on AS expires_on,
          stock_movements.occurred_at AS confirmed_at,
          EXISTS (
@@ -37,13 +42,14 @@ const LINES = `SELECT stock_movements.id AS movement_id, stock_movements.product
          ) AS withdrawn
        FROM stock_movements
        JOIN products ON products.id = stock_movements.product_id
+       ${JOIN_PRODUCT_BRAND}
        WHERE stock_movements.kind = 'opening_count'`;
 
 function toLine(row: LineRow): InitialCountLine {
   return {
     movementId: row.movement_id,
     productId: row.product_id,
-    productName: row.product_name,
+    productName: shownProductName(row),
     saleUnit: row.sale_unit as InitialCountLine["saleUnit"],
     counted: row.counted,
     expiresOn: row.expires_on,

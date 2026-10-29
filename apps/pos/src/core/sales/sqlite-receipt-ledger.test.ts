@@ -504,6 +504,21 @@ describe("a receipt ledger's lines", () => {
 
     expect(source.lines.map(({ saleUnit }) => saleUnit)).toEqual(["KG", "UNIT"]);
   });
+
+  it("are read with the name each was sold under, whatever brand and net content the product carries now", () => {
+    insertSaleWithEverything();
+    database.exec(
+      `INSERT INTO brands (id, name, active, version) VALUES ('b1', 'Vitora', 1, 1);
+       UPDATE products SET brand_id = 'b1', net_content_quantity = 30, net_content_unit = 'ML';`,
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source.lines.map(({ productName }) => productName)).toEqual([
+      "Yerba a granel",
+      "Alfajor",
+    ]);
+  });
 });
 
 describe("a receipt ledger's adjusted lines", () => {

@@ -92,6 +92,12 @@ const tagChangeSchema = z.object({
   row: z.object({ name: z.string(), active: z.boolean(), version: z.int() }),
 });
 
+const brandChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("brand"),
+  row: z.object({ name: z.string(), active: z.boolean(), version: z.int() }),
+});
+
 const priceListChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("price_list"),
@@ -349,6 +355,7 @@ export const changesPageSchema = z.object({
         categoryChangeSchema,
         productChangeSchema,
         tagChangeSchema,
+        brandChangeSchema,
         priceListChangeSchema,
         priceChangeSchema,
         userChangeSchema,
