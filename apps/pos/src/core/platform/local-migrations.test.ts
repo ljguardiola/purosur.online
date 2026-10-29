@@ -941,6 +941,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1055,6 +1056,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1164,6 +1166,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1272,6 +1275,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1409,6 +1413,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1536,6 +1541,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1667,6 +1673,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1806,6 +1813,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1912,6 +1920,7 @@ describe("the register's local migrations", () => {
         "0089_credit_note_reprints",
         "0090_brands",
         "0091_register_condition_starts",
+        "0092_redeliver_held_back_pulled_tables",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -8992,5 +9001,55 @@ describe("the register condition starts migration", () => {
     } finally {
       database.close();
     }
+  });
+});
+
+describe("the held back pulled tables migration", () => {
+  const MIGRATION = "0092_redeliver_held_back_pulled_tables";
+
+  function redeliveriesAfterMigratingWith(declaredBefore: string) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec("DELETE FROM pulled_table_redeliveries");
+      before.exec(declaredBefore);
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        return after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all();
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("declares the brands, the zone rules and the stock movements for redelivery from the first change", () => {
+    expect(redeliveriesAfterMigratingWith("SELECT 1")).toEqual([
+      { table_name: "brands", cursor: 0 },
+      { table_name: "stock_movements", cursor: 0 },
+      { table_name: "zone_rules", cursor: 0 },
+    ]);
+  });
+
+  it("sends back to the first change a redelivery already declared and partly done, leaving the others as they are", () => {
+    expect(
+      redeliveriesAfterMigratingWith(
+        `INSERT INTO pulled_table_redeliveries (table_name, cursor)
+         VALUES ('stock_movements', 40), ('brands', 12), ('register_point_of_sale', 7)`,
+      ),
+    ).toEqual([
+      { table_name: "brands", cursor: 0 },
+      { table_name: "register_point_of_sale", cursor: 7 },
+      { table_name: "stock_movements", cursor: 0 },
+      { table_name: "zone_rules", cursor: 0 },
+    ]);
   });
 });

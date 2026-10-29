@@ -190,6 +190,24 @@ describe("a pull from the cloud", () => {
     expect(replica.branchSettings(LOCATION_ID)).toMatchObject({ version: 3 });
   });
 
+  it("states the version of the register on every request of the pull, redeliveries included", async () => {
+    const { database, replica } = replicaWaitingForPointOfSaleRedelivery();
+    const { getFromCloud, requests } = cloudAnswering(page([1], false), pointOfSalePage([2], 9));
+
+    await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud,
+      appVersion: "1.0.1385",
+    });
+
+    expect(requests.map(({ headers }) => headers["purosur-register-version"])).toEqual([
+      "1.0.1385",
+      "1.0.1385",
+    ]);
+    database.close();
+  });
+
   it("stops where it got to when the cloud can't be reached, keeping what it already saved", async () => {
     const replica = freshReplica();
     const { getFromCloud } = cloudAnswering(page([1, 2], true), { kind: "unreachable" });
