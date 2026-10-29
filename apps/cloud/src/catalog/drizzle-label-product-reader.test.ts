@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { NetContentUnit } from "@purosur/domain";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { brands, categories, productBarcodes, products } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleLabelProductReader } from "./drizzle-label-product-reader.js";
