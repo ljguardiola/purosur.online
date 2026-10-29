@@ -709,6 +709,23 @@ test("typing in the category of an edit offers only the matching categories, and
   );
 });
 
+test("typing a brand that does not exist offers to create it, opening the brand modal with the typed name", async () => {
+  const { dialog } = await renderModal(honey, createServices(), { brands: [granuz] });
+
+  await userEvent.fill(brandSelect(dialog), "Dulcor");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Dulcor»" }));
+
+  const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
+  await expect.element(brandDialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Dulcor");
+});
+
+test("has no separate button to create a brand beside the brand selector", async () => {
+  const { dialog } = await renderModal(honey, createServices(), { brands: [granuz] });
+
+  await expect.element(brandSelect(dialog)).toBeVisible();
+  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+});
+
 test("typing in the brand of an edit offers only the matching brands", async () => {
   const { dialog } = await renderModal(honey, createServices(), { brands: [granuz, dulcor] });
 
