@@ -744,7 +744,6 @@ test("names each product row and its label buttons by the product's name, brand 
 
   const dialog = await openPrintLabelsModal(screen);
 
-  await expect.element(dialog.getByText("Aceite de Almendras Vitora 30 ml").first()).toBeVisible();
   await expect
     .element(
       dialog.getByRole("button", {
@@ -759,6 +758,12 @@ test("names each product row and its label buttons by the product's name, brand 
       }),
     )
     .toBeVisible();
+  const preview = dialog.getByRole("group", { name: "Vista previa de la etiqueta" }).element();
+  const rowNames = dialog
+    .getByText("Aceite de Almendras Vitora 30 ml", { exact: true })
+    .elements()
+    .filter((element) => !preview.contains(element));
+  expect(rowNames).toHaveLength(1);
 });
 
 test("previews the label with the product's name, brand and net content", async () => {
