@@ -136,6 +136,61 @@ test("domain-is-pure flags a type-only import of an npm package", async (t) => {
   assert.equal(violations[0].to, "zod");
 });
 
+test("formatting-is-pure flags everything outside packages/formatting/src and allows what stays inside it", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/formatting/src/formatters.ts": [
+      'import { readFileSync } from "node:fs";',
+      'import { Button } from "@purosur/ui";',
+      'import { isNetContent } from "../../domain/src/index";',
+      'import installed from "installed-npm-lib";',
+      'import unresolved from "unresolved-npm-lib";',
+      "export function formatNothing() {",
+      "  return [readFileSync, Button, isNetContent, installed, unresolved];",
+      "}",
+    ].join("\n"),
+    "packages/formatting/src/numbers.ts": "export function formatNumber() {}\n",
+    "packages/domain/src/index.ts": "export function isNetContent() {}\n",
+    "packages/ui/src/index.ts": "export const Button = {};\n",
+    "tsconfig.json": JSON.stringify({
+      compilerOptions: {
+        baseUrl: ".",
+        paths: {
+          "@purosur/ui": ["./packages/ui/src/index.ts"],
+        },
+      },
+    }),
+  });
+  await installPnpmPackage(root, "installed-npm-lib");
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const violationTargets = violationsFor(report, "formatting-is-pure").map(
+    (violation) => violation.to,
+  );
+
+  assert.equal(violationTargets.length, 5);
+  assert.equal(violationTargets.includes("fs"), true);
+  assert.equal(violationTargets.includes("packages/ui/src/index.ts"), true);
+  assert.equal(violationTargets.includes("packages/domain/src/index.ts"), true);
+  assert.equal(violationTargets.includes("unresolved-npm-lib"), true);
+  assert.equal(
+    violationTargets.some((to) => to.endsWith("node_modules/installed-npm-lib/index.js")),
+    true,
+  );
+
+  await writeFixtureFile(
+    root,
+    "packages/formatting/src/formatters.ts",
+    [
+      'import { formatNumber } from "./numbers";',
+      "export function formatNothing() {",
+      "  return [formatNumber];",
+      "}",
+    ].join("\n"),
+  );
+  const controlReport = await cruiseFixture(root, ["packages"]);
+  assert.equal(violationsFor(controlReport, "formatting-is-pure").length, 0);
+});
+
 test("a test file importing a forbidden module breaks no rule", async (t) => {
   const root = await makeFixture(t, {
     "packages/domain/src/sales/model/order.test.ts": [
