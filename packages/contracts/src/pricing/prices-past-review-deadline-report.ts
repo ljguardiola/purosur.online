@@ -20,7 +20,7 @@ export type PricesPastReviewDeadlineReportQuery = z.output<
 >;
 
 const calendarDaySchema = z.string().refine(isCalendarDay);
-const instantSchema = z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE });
+const INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const priceAwaitingReviewSchema = z.object({
   product: z.object({
@@ -35,10 +35,10 @@ const priceAwaitingReviewSchema = z.object({
   current_price: z
     .object({
       unit_price_cents: z.int(),
-      valid_from: instantSchema,
+      valid_from: z.iso.datetime().meta(INSTANT),
     })
     .nullable(),
-  last_reviewed_at: instantSchema.nullable(),
+  last_reviewed_at: z.iso.datetime().nullable().meta(INSTANT),
   past_deadline_on: calendarDaySchema.nullable(),
   reason: z.enum(PRICE_REVIEW_PENDING_REASONS),
 });

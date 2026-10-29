@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   pricesPastReviewDeadlineReportQuerySchema,
@@ -131,5 +132,14 @@ describe("pricesPastReviewDeadlineReportSchema", () => {
     expect(pricesPastReviewDeadlineReportSchema.safeParse({ ...report, ...change }).success).toBe(
       false,
     );
+  });
+
+  it("marks the instants it shows as read in Argentina's time zone", () => {
+    const priceShape = pricesPastReviewDeadlineReportSchema.shape.prices.element.shape;
+
+    expect(priceShape.last_reviewed_at.meta()).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
+    expect(priceShape.current_price.unwrap().shape.valid_from.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
