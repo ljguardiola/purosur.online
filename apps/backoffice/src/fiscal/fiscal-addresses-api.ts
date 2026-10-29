@@ -3,6 +3,7 @@ import {
   type FiscalAddressCreationBody,
   type FiscalAddressEditBody,
   fiscalAddressListSchema,
+  fiscalAddressSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -24,7 +25,7 @@ export type FiscalAddress = {
 export type FetchFiscalAddressesOutcome = CloudReadOutcome<FiscalAddress[]>;
 
 export type CreateFiscalAddressOutcome =
-  | { kind: "ok" }
+  | { kind: "ok"; fiscalAddress: FiscalAddress }
   | { kind: "validation_failed"; field: string }
   | { kind: "name_taken" }
   | WriteFailure;
@@ -62,7 +63,10 @@ export async function createFiscalAddress(
     return { kind: "failed" };
   }
   if (response.ok) {
-    return { kind: "ok" };
+    const parsed = fiscalAddressSchema.safeParse(await response.json().catch(() => undefined));
+    return parsed.success
+      ? { kind: "ok", fiscalAddress: fiscalAddressFromWire(parsed.data) }
+      : { kind: "failed" };
   }
   if (response.status === 400) {
     return validationFailure(response);

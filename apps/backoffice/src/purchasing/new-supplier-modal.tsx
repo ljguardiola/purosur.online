@@ -1,7 +1,7 @@
 import { type SupplierSummary, supplierCreationBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -20,6 +20,7 @@ export type NewSupplierModalServices = {
 
 type NewSupplierModalProps = {
   open: boolean;
+  initialName?: string;
   services: NewSupplierModalServices;
   onCreated: (supplier: SupplierSummary) => void;
   onClose: () => void;
@@ -30,6 +31,7 @@ type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSecon
 
 export function NewSupplierModal({
   open,
+  initialName = "",
   services,
   onCreated,
   onClose,
@@ -76,12 +78,14 @@ export function NewSupplierModal({
     },
   });
 
+  const seedName = useEffectEvent(() => reset({ ...EMPTY_SUPPLIER_FORM, name: initialName }));
+
   useEffect(() => {
     if (open) {
-      reset();
+      seedName();
       setNotice(null);
     }
-  }, [open, reset]);
+  }, [open]);
 
   return (
     <Modal

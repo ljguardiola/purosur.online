@@ -2,7 +2,7 @@ import { type PackagingSummary, packagingCreationBodySchema } from "@purosur/con
 import type { SaleUnit } from "@purosur/domain";
 import { Button, EmptyState, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Package, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { quantityFieldKind } from "../platform/stock-quantity";
@@ -30,6 +30,7 @@ type NewPackagingModalProps = {
   open: boolean;
   products: PackagingProduct[];
   productId?: string;
+  initialName?: string;
   context?: string;
   services: NewPackagingModalServices;
   onCreated: (packaging: PackagingSummary) => void;
@@ -43,6 +44,7 @@ export function NewPackagingModal({
   open,
   products,
   productId,
+  initialName = "",
   context = "Stock · Presentaciones de compra",
   services,
   onCreated,
@@ -102,12 +104,16 @@ export function NewPackagingModal({
     },
   });
 
+  const seed = useEffectEvent(() =>
+    reset({ ...EMPTY_PACKAGING_FORM, productId: productId ?? null, name: initialName }),
+  );
+
   useEffect(() => {
     if (open) {
-      reset({ ...EMPTY_PACKAGING_FORM, productId: productId ?? null });
+      seed();
       setNotice(null);
     }
-  }, [open, productId, reset]);
+  }, [open]);
 
   const options = packagingProductOptions(products);
 
