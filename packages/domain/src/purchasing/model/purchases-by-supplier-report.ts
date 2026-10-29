@@ -9,13 +9,13 @@ export interface PurchasedLine extends PurchaseLineCost {
   purchasedOn: string;
 }
 
-export interface SupplierMonthPurchases {
+interface SupplierMonthPurchases {
   month: string;
   purchases: number;
   amount: number;
 }
 
-export interface SupplierPurchases {
+interface SupplierPurchases {
   supplierId: string;
   name: string;
   months: SupplierMonthPurchases[];
