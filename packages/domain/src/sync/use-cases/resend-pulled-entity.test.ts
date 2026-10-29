@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { PulledEntity } from "./sync-ports.js";
 import { pullAudienceOfEntity } from "../model/pull-audience.js";
 import { resendPulledEntity } from "./resend-pulled-entity.js";
+import type { PulledEntity } from "./sync-ports.js";
 import { FakeChangeLog, type FakeLoggedChange } from "./test-support/fake-change-log.js";
 
 const DEVICE = "device-1";

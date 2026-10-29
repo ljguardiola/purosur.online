@@ -1,10 +1,10 @@
+import type { StockMovementKind } from "../../../stock/index.js";
 import type {
   PullAudience,
   PulledEntity,
   PullingRegister,
   PullReach,
 } from "../../model/pull-audience.js";
-import type { StockMovementKind } from "../../../stock/index.js";
 import type { ChangeLog, ChangeLogTransaction, PulledChange } from "../sync-ports.js";
 
 export interface FakeLoggedChange extends PulledChange {

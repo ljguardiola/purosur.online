@@ -2,8 +2,8 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { STOCK_MOVEMENT_KINDS } from "../../stock/index.js";
 import { PULLED_ENTITIES } from "./pull-audience.js";
-import { versionAtLeast } from "./register-version.js";
 import { readsPulledEntity, unreadableStockMovementKinds } from "./pull-readers.js";
+import { versionAtLeast } from "./register-version.js";
 
 const LATER_ADDED_ENTITIES = ["brand", "zone_rules"] as const;
 const LATER_ADDED_KINDS = ["return", "assembly_void"] as const;

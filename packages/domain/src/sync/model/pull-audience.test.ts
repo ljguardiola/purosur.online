@@ -73,13 +73,19 @@ describe("what a register may pull of one entity", () => {
   });
 
   it("is nothing at all of an entity the register has no reach of", () => {
-    const audience = pullAudienceOfEntity({ ...register, priceListId: null }, "price", CURRENT_READER);
+    const audience = pullAudienceOfEntity(
+      { ...register, priceListId: null },
+      "price",
+      CURRENT_READER,
+    );
 
     expect(Object.values(audience)).toEqual(PULLED_ENTITIES.map(() => ({ kind: "none" })));
   });
 
   it("lists every entity the register may pull once", () => {
-    expect([...PULLED_ENTITIES].sort()).toEqual(Object.keys(pullAudienceOf(register, CURRENT_READER)).sort());
+    expect([...PULLED_ENTITIES].sort()).toEqual(
+      Object.keys(pullAudienceOf(register, CURRENT_READER)).sort(),
+    );
   });
 });
 
