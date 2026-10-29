@@ -547,3 +547,22 @@ test("a refusal of the confirmation keeps the question open and refreshes nothin
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   await expect.poll(() => vi.mocked(services.fetchPendingRefunds).mock.calls.length).toBe(2);
 });
+
+test("typing in the register filter offers only the matching registers", async () => {
+  const services = createMercadoPagoRefundsServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsOfTwoMercadoPagoRegisters,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /^Caja/ }), "entr");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent?.trim()),
+  ).toEqual(["Caja de la entrada"]);
+});

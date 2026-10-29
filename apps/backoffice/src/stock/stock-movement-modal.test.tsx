@@ -472,3 +472,15 @@ test("disables registering and cancelling while the request is in flight", async
   finish({ kind: "failed" });
   await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeEnabled();
 });
+
+test("typing in the product offers only the matching products, and choosing one selects it", async () => {
+  const { screen, dialog } = await renderForm(createServices());
+
+  const product = dialog.getByRole("combobox", { name: /Producto/ });
+  await userEvent.fill(product, "almen");
+
+  await expect.element(screen.getByRole("option", { name: /Almendras peladas/ })).toBeVisible();
+  expect(screen.getByRole("option").all()).toHaveLength(1);
+  await userEvent.click(screen.getByRole("option", { name: /Almendras peladas/ }));
+  await expect.element(product).toHaveValue("Almendras peladas");
+});

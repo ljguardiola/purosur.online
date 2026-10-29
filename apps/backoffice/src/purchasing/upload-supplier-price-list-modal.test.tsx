@@ -523,3 +523,21 @@ test("ends the session when loading a page finds no open session", async () => {
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
+
+test("typing in the supplier offers only the matching suppliers, and choosing one selects it", async () => {
+  const screen = await renderModal();
+  const supplier = screen.getByRole("dialog").getByRole("combobox", { name: /Proveedor/ });
+
+  await userEvent.fill(supplier, "gran");
+
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("option")
+        .all()
+        .map((option) => option.element().textContent),
+    )
+    .toEqual(["Granos del Valle"]);
+  await userEvent.click(screen.getByRole("option", { name: "Granos del Valle" }));
+  await expect.element(supplier).toHaveValue("Granos del Valle");
+});

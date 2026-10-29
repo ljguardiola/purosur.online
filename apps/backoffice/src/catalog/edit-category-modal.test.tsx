@@ -1,7 +1,7 @@
 import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { drinks, groceries, jams, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import type { CategoryReload } from "./catalog-queries";
@@ -273,4 +273,21 @@ test("a stale-version reload also retitles the dialog with the fresh name", asyn
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect.element(dialog.getByRole("heading", { name: "Bebidas frías" })).toBeVisible();
+});
+
+test("typing in the parent category offers only the matching categories", async () => {
+  const screen = await renderModal({
+    target: jams,
+    categories: [groceries, spreads, jams, drinks],
+  });
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Categoría superior/ }), "beb");
+
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Bebidas"]);
 });

@@ -354,3 +354,16 @@ test("has no accessibility violations once loaded", async () => {
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("typing in the category filter offers only the matching categories", async () => {
+  const screen = await loaded(createServices(), PRICE_COMPARISON);
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Categoría/ }), "frut");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Frutos secos"]);
+});

@@ -449,3 +449,17 @@ test("has no accessibility violations once loaded and with each modal open", asy
   await expect.element(screen.getByRole("dialog", { name: "Cambiar las reglas" })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });
+
+test("typing in the register filter offers only the matching registers", async () => {
+  const screen = await renderScreen(servicesWithBackups());
+  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /^Caja:/ }), "2");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent?.trim()),
+  ).toEqual(["Caja 2"]);
+});

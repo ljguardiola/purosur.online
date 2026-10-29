@@ -1,8 +1,8 @@
 import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
-import { groceries, spreads } from "../platform/test-support/categories";
+import { page, userEvent } from "vitest/browser";
+import { drinks, groceries, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import type { createCategory } from "./categories-api";
 import { NewCategoryModal } from "./new-category-modal";
@@ -202,4 +202,27 @@ test("shows the generic failure notice when the cloud refuses a field the form d
 
   await expect.element(dialog.getByText("No se pudo crear la categoría")).toBeVisible();
   expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
+});
+
+test("typing in the parent category offers only the matching categories, and choosing one creates under it", async () => {
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ categories: [groceries, drinks], create });
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    "Gaseosas",
+  );
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Categoría superior/ }), "beb");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Bebidas"]);
+  await userEvent.click(page.getByRole("option", { name: "Bebidas" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.poll(() => create.mock.calls.length).toBe(1);
+  expect(create).toHaveBeenCalledWith({ name: "Gaseosas", parentId: drinks.id });
 });

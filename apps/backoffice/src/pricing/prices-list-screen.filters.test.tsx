@@ -304,3 +304,32 @@ test("retrying a list narrowed by a chosen category loads it again from its plac
   });
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 });
+
+test("typing in the category filter offers only the matching categories", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [
+        { id: "category-3", name: "Verdulería" },
+        groceries,
+        { id: "category-2", name: "Bebidas" },
+      ],
+    },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Categoría/ }), "verd");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Verdulería"]);
+});

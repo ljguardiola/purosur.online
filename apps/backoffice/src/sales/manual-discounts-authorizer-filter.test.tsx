@@ -111,3 +111,16 @@ test("goes back to everyone when it is given a person who authorized nothing in 
 
   await expect.poll(() => onChange.mock.lastCall?.[0]).toBe("ALL");
 });
+
+test("typing in the authorizer filter offers only the matching people", async () => {
+  const screen = await renderFilter({ authorizers: manualDiscountsReport.authorizers });
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Autorizante:/ }), "bet");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent?.trim()),
+  ).toEqual(["Beto"]);
+});

@@ -124,3 +124,16 @@ test("ends the session when the cloud says it is over", async () => {
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
+
+test("typing in the register filter offers only the matching registers", async () => {
+  const screen = await renderFilter(createServices());
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Caja:/ }), "fond");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent?.trim()),
+  ).toEqual(["Caja del fondo"]);
+});

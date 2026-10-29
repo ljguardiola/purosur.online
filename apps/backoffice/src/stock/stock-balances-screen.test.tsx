@@ -361,3 +361,18 @@ test.each([
     await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ sortBy });
   },
 );
+
+test("typing in the category filter offers only the matching categories", async () => {
+  const screen = await renderScreen(listed());
+  const table = screen.getByRole("table", { name: "Saldos" });
+  await expect.element(table.getByText("Almendras peladas")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Categoría/ }), "alm");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Almacén"]);
+});

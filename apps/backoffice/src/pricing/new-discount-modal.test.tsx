@@ -648,3 +648,29 @@ test("has no accessibility violations with buy-N-pay-M chosen and its messages s
 
   await expectNoAccessibilityViolations(dialog.element());
 });
+
+test("typing in the category or tag target offers only the matching ones", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await userEvent.click(radioLabel(dialog, "Categoría"));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Categoría/ }), "yerb");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Almacén › Yerbas"]);
+  await userEvent.click(page.getByRole("option", { name: "Almacén › Yerbas" }));
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Categoría/ }))
+    .toHaveValue("Almacén › Yerbas");
+
+  await userEvent.click(radioLabel(dialog, "Distintivo"));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Distintivo/ }), "veg");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Vegano"]);
+});

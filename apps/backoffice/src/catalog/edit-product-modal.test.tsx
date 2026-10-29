@@ -684,3 +684,34 @@ test("shows on the tags field that a tag chosen was deactivated meanwhile", asyn
     .element(dialog.getByText('"Vegano" se dio de baja. Quitalo para guardar.'))
     .toBeVisible();
 });
+
+function offeredOptions() {
+  return page
+    .getByRole("option")
+    .all()
+    .map((option) => option.element().textContent);
+}
+
+test("typing in the category of an edit offers only the matching categories, and choosing one saves it", async () => {
+  const services = createServices();
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal(honey, services);
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Categoría/ }), "fru");
+  expect(offeredOptions()).toEqual(["Frutos secos"]);
+  await userEvent.click(page.getByRole("option", { name: "Frutos secos" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith(
+    honey.id,
+    expect.objectContaining({ categoryId: driedFruits.id }),
+  );
+});
+
+test("typing in the brand of an edit offers only the matching brands", async () => {
+  const { dialog } = await renderModal(honey, createServices(), { brands: [granuz, dulcor] });
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "dul");
+  expect(offeredOptions()).toEqual(["Dulcor"]);
+});

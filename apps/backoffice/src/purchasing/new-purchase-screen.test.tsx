@@ -685,3 +685,20 @@ test("has no accessibility violations once loaded", async () => {
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("typing in the packaging of a line offers only the matching packagings", async () => {
+  const screen = await opened();
+  await chooseFromComboBox(screen, screen, /^Proveedor/, "Distribuidora Andina");
+  const group = line(screen, 1);
+  await chooseFromComboBox(screen, group, /^Producto/, "Miel pura de abeja 1 kg");
+  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
+
+  await userEvent.fill(group.getByRole("combobox", { name: /Presentación/ }), "x 12");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Caja x 12 (12 u)"]);
+});

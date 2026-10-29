@@ -550,3 +550,19 @@ test("does not report its filters again when the route hands it a new callback",
 
   expect(onFiltersChange).toHaveBeenCalledTimes(1);
 });
+
+test("typing in the category filter offers only the matching categories", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey], [groceries, driedFruits]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Categoría/ }), "frut");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Frutos secos"]);
+});

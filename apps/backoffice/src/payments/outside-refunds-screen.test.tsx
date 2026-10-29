@@ -572,3 +572,17 @@ test("cancel closes the question and the refund stays listed", async () => {
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
   expect(services.markRefundDone).not.toHaveBeenCalled();
 });
+
+test("typing in the register filter offers only the matching registers", async () => {
+  const screen = await loadedWithPoint(createOutsideRefundsServices());
+  await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /^Caja/ }), "fren");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent?.trim()),
+  ).toEqual(["Caja del frente"]);
+});

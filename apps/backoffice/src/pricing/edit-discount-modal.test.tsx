@@ -609,3 +609,17 @@ test("has no accessibility violations on a buy-N-pay-M promotion", async () => {
 
   await expectNoAccessibilityViolations(dialog.element());
 });
+
+test("typing in the category target offers only the matching categories", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await userEvent.click(radioLabel(dialog, "Categoría"));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Categoría/ }), "yerb");
+
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Almacén › Yerbas"]);
+});

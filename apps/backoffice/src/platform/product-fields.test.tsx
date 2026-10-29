@@ -220,3 +220,58 @@ test("offers the active brands and tags, and the brand and tag just created thou
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
   expect(page.getByRole("menuitem", { name: "Sin colorantes" }).query()).toBeNull();
 });
+
+const ALMACEN = "c4700000-0000-4000-8000-000000000011";
+const BEBIDAS = "c4700000-0000-4000-8000-000000000012";
+const LACTEOS = "c4700000-0000-4000-8000-000000000013";
+
+test("typing in the category offers only the matching categories, and choosing one selects it", async () => {
+  const fields = await renderFields({
+    categories: {
+      state: "loaded",
+      options: [
+        { value: ALMACEN, label: "Almacén" },
+        { value: BEBIDAS, label: "Bebidas" },
+        { value: LACTEOS, label: "Lácteos" },
+      ],
+    },
+  });
+
+  const category = fields.getByRole("combobox", { name: /^Categoría/ });
+  await userEvent.fill(category, "lác");
+
+  const offered = page
+    .getByRole("option")
+    .all()
+    .map((option) => option.element().textContent);
+  expect(offered).toEqual(["Lácteos"]);
+
+  await userEvent.click(page.getByRole("option", { name: "Lácteos" }));
+  await expect.element(category).toHaveValue("Lácteos");
+});
+
+test("typing in the brand offers only the brands that match, and Sin marca only when it matches", async () => {
+  const fields = await renderFields();
+  const brand = fields.getByRole("combobox", { name: /^Marca/ });
+
+  await userEvent.fill(brand, "gran");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Granuz"]);
+
+  await userEvent.fill(brand, "sin m");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Sin marca"]);
+
+  await userEvent.click(page.getByRole("option", { name: "Sin marca" }));
+  await userEvent.fill(brand, "gran");
+  await userEvent.click(page.getByRole("option", { name: "Granuz" }));
+  await expect.element(brand).toHaveValue("Granuz");
+});

@@ -1095,3 +1095,16 @@ test("offers the reader's list, without Nuevo usuario, to whoever lacks manage_u
   await expect.element(screen.getByRole("button", { name: "Ver a Martina Gómez" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
 });
+
+test("typing in the Rol of a new user offers only the matching roles", async () => {
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderUsersList(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+
+  const dialog = await openNewUserModal(screen);
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Rol/ }), "adm");
+
+  await expect.element(dialog.getByRole("option", { name: "Administrador" })).toBeVisible();
+  expect(dialog.getByRole("option").all()).toHaveLength(1);
+});

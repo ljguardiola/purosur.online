@@ -142,6 +142,18 @@ describe("an action guarded by another person's PIN", () => {
       await expect.element(screen.getByRole("option", { name: "Sofía" })).toBeVisible();
     });
 
+    it("narrows the authorizers by what is typed, and choosing one picks that person", async () => {
+      const screen = await renderForm({});
+      const picker = screen.getByRole("combobox", { name: /Persona que autoriza/ });
+
+      await userEvent.fill(picker, "gra");
+
+      await expect.element(screen.getByRole("option", { name: "Grace" })).toBeVisible();
+      expect(screen.getByRole("option", { name: "Sofía" }).query()).toBeNull();
+      await userEvent.click(screen.getByRole("option", { name: "Grace" }));
+      await expect.element(picker).toHaveValue("Grace");
+    });
+
     it("cannot submit until someone is picked and a PIN is typed", async () => {
       const screen = await renderForm({});
       const submitButton = screen.getByRole("button", { name: "Cargar" });

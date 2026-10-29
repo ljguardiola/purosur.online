@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { CompromiseResponse } from "./compromise-response-api";
 import { EndSessionsStepModal } from "./end-sessions-step-modal";
@@ -254,4 +254,19 @@ test("cancelling closes it without running the step", async () => {
 
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(services.endSessionsAndRemovePasskeys).not.toHaveBeenCalled();
+});
+
+test("typing in the suspected account offers only the matching accounts, and choosing one selects it", async () => {
+  const { dialog } = await renderModal(servicesWithAccounts());
+
+  const account = dialog.getByRole("combobox", { name: /Cuenta sospechada/ });
+  await userEvent.fill(account, "beto");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Beto Ruiz · beto@example.com"]);
+  await userEvent.click(page.getByRole("option", { name: "Beto Ruiz · beto@example.com" }));
+  await expect.element(account).toHaveValue("Beto Ruiz · beto@example.com");
 });

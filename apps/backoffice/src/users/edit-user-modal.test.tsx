@@ -527,3 +527,19 @@ test("disables Recargar and Guardar while the reload is pending", async () => {
   await expect.element(dialog.getByRole("button", { name: "Recargar" })).toBeDisabled();
   await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
 });
+
+test("typing in the Rol offers only the matching roles, and choosing one selects it", async () => {
+  const services = createServices();
+  const { screen, dialog } = await renderModal(services);
+
+  const role = dialog.getByRole("combobox", { name: /^Rol/ });
+  await userEvent.fill(role, "cajer");
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Cajero"]);
+  await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
+  await expect.element(role).toHaveValue("Cajero");
+});
