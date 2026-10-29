@@ -24,7 +24,7 @@ export const PRODUCT_GROUP_FIELDS = {
 
 function creationEntry(
   recordKind: string,
-  creation: StackedCreation<unknown> | null,
+  creation: { start: (typedName: string) => void } | null,
 ): { creation?: { recordKind: string; onCreate: (typedText: string) => void } } {
   return creation === null ? {} : { creation: { recordKind, onCreate: creation.start } };
 }

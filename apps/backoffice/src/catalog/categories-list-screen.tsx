@@ -179,6 +179,7 @@ export function CategoriesListScreen({
           onSessionEnded={onSessionEnded}
           reload={reloadCategory}
           editCategory={editCategory}
+          createCategory={createCategory}
           categories={data.value}
         />
       ) : null}
