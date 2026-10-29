@@ -30,6 +30,7 @@ const DISCOUNTED_SALE: OpenSale = {
 const THREE_YERBAS: OpenSale = {
   ...SALE_OF_YERBA,
   lines: [{ ...YERBA, quantity: 3, line_total: 714_000 }],
+  gross_subtotal: 714_000,
   subtotal: 714_000,
   total: 714_000,
   pending: 714_000,

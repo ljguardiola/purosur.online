@@ -1514,7 +1514,9 @@ describe("the register's router", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 238_000,
           subtotal: 238_000,
+          promotion_savings: 0,
         }),
       },
       "/session",
@@ -2226,7 +2228,9 @@ describe("the register's router", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 238_000,
           subtotal: 238_000,
+          promotion_savings: 0,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -2285,7 +2289,9 @@ describe("the register's router", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 238_000,
           subtotal: 238_000,
+          promotion_savings: 0,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
@@ -3041,7 +3047,9 @@ describe("the register's status bar", () => {
       sale_discount_authorization_required: false,
       sale_discount_refusal: null,
       sale_discount: null,
+      gross_subtotal: 238_000,
       subtotal: 238_000,
+      promotion_savings: 0,
     }),
   };
 
@@ -3167,7 +3175,9 @@ describe("the charge route's Mercado Pago QR", () => {
       sale_discount_authorization_required: false,
       sale_discount_refusal: null,
       sale_discount: null,
+      gross_subtotal: 238_000,
       subtotal: 238_000,
+      promotion_savings: 0,
     }),
   };
 

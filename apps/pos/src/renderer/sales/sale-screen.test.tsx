@@ -232,7 +232,42 @@ describe("SaleScreen", () => {
       const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
       await expect.element(panel.getByText("$ 6.260,00").first()).toBeVisible();
       await expect.element(panel.getByText("2 líneas")).toBeVisible();
+      await expect.element(panel.getByText("Ahorro en promociones")).not.toBeInTheDocument();
       await expect.element(screen.getByText("La venta está vacía")).not.toBeInTheDocument();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("shows in the payment panel the sale at list price and what its promotions saved, apart from a manual discount", async () => {
+      const promoted = {
+        ...YERBA,
+        discount_amount: 47_600,
+        promotion: { kind: "PERCENT_OFF", percent: 10 } as const,
+        line_total: 428_400,
+      };
+      const discounted = {
+        ...ALFAJOR,
+        discount_amount: 10_000,
+        manual_adjustment: { kind: "AMOUNT", value: 10_000 } as const,
+        line_total: 140_000,
+      };
+      const { screen } = await renderScreen({
+        currentSale: async () => ({
+          ...SALE_OF_YERBA_AND_ALFAJOR,
+          lines: [promoted, discounted],
+          gross_subtotal: 626_000,
+          subtotal: 568_400,
+          promotion_savings: 47_600,
+          total: 568_400,
+          pending: 568_400,
+        }),
+      });
+
+      const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+      await expect.element(panel.getByText("2 líneas")).toBeVisible();
+      await expect.element(panel.getByText("$ 6.260,00")).toBeVisible();
+      await expect.element(panel.getByText("Ahorro en promociones")).toBeVisible();
+      await expect.element(panel.getByText("− $ 476,00")).toBeVisible();
+      await expect.element(panel.getByText("$ 5.684,00")).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
     });
 
@@ -260,7 +295,9 @@ describe("SaleScreen", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 626_000,
           subtotal: 578_400,
+          promotion_savings: 47_600,
         }),
       });
 
@@ -298,7 +335,9 @@ describe("SaleScreen", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 476_000,
           subtotal: 428_400,
+          promotion_savings: 47_600,
         }),
       });
       const reference = await render(<Tag tone="success">Referencia</Tag>);
@@ -338,7 +377,9 @@ describe("SaleScreen", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 300_000,
           subtotal: 300_000,
+          promotion_savings: 0,
         }),
       });
 
@@ -388,7 +429,9 @@ describe("SaleScreen", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: "zero_total",
           sale_discount: null,
+          gross_subtotal: 0,
           subtotal: 0,
+          promotion_savings: 0,
         }),
       });
 
@@ -620,7 +663,9 @@ describe("SaleScreen", () => {
         sale_discount_authorization_required: false,
         sale_discount_refusal: null,
         sale_discount: null,
+        gross_subtotal: 776_000,
         subtotal: 776_000,
+        promotion_savings: 0,
       };
       const scanProduct = vi.fn(
         async (): Promise<ScanProductOutcome> => ({

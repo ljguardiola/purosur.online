@@ -51,7 +51,9 @@ const sale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  gross_subtotal: 3000,
   subtotal: 3000,
+  promotion_savings: 0,
   sale_discount: null,
   sale_discount_refusal: null,
   mercado_pago_charge_in_progress: null,
@@ -881,6 +883,12 @@ describe("a sale's discount on its total", () => {
     ["refusal of a discount on the total", { ...sale, sale_discount_refusal: undefined }],
     ["a subtotal that is negative", { ...sale, subtotal: -1 }],
     ["a subtotal that is fractional", { ...sale, subtotal: 1.5 }],
+    ["subtotal at list price", { ...sale, gross_subtotal: undefined }],
+    ["a subtotal at list price that is negative", { ...sale, gross_subtotal: -1 }],
+    ["a subtotal at list price that is fractional", { ...sale, gross_subtotal: 1.5 }],
+    ["promotion savings", { ...sale, promotion_savings: undefined }],
+    ["promotion savings that are negative", { ...sale, promotion_savings: -1 }],
+    ["promotion savings that are fractional", { ...sale, promotion_savings: 1.5 }],
   ])("rejects a sale without its %s", (_field, value) => {
     expect(saleSchema.safeParse(value).success).toBe(false);
   });
