@@ -1,6 +1,7 @@
 import type { DiscountTargets } from "@purosur/contracts";
 import type { DiscountTargetKind } from "@purosur/domain";
 import { Button } from "@purosur/ui";
+import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -193,3 +194,71 @@ test.each([
     expect(choose).not.toHaveBeenCalled();
   },
 );
+
+function hostOf(fetchDiscountTargets: DiscountTargetCreationServices["fetchDiscountTargets"]) {
+  return (
+    <CreationHost
+      services={{ fetchDiscountTargets, createTag: vi.fn() }}
+      withParts
+      choose={vi.fn()}
+      onSessionEnded={vi.fn()}
+    />
+  );
+}
+
+test("what one form reads again after a creation is not shown by another form open beside it", async () => {
+  const fetchDiscountTargets = listing(targetsWithCreatedProduct("Fideos nuevos", ["PERCENT_OFF"]));
+  const screen = await render(
+    <>
+      <section aria-label="Primer formulario">{hostOf(fetchDiscountTargets)}</section>
+      <section aria-label="Segundo formulario">{hostOf(fetchDiscountTargets)}</section>
+    </>,
+  );
+  const first = screen.getByRole("region", { name: "Primer formulario" });
+
+  await userEvent.click(first.getByRole("button", { name: "Crear el producto tipeado" }));
+  await userEvent.click(
+    page
+      .getByRole("dialog", { name: "Nuevo producto" })
+      .getByRole("button", { name: "Guardar lo creado" }),
+  );
+
+  await expect.element(first.getByText(/^Productos: .*Fideos nuevos$/)).toBeVisible();
+  await expect
+    .element(
+      screen
+        .getByRole("region", { name: "Segundo formulario" })
+        .getByText("Productos: Yerba Hoja Alta 1 kg, Almendras peladas"),
+    )
+    .toBeVisible();
+});
+
+function RemountingHost({
+  fetchDiscountTargets,
+}: {
+  fetchDiscountTargets: DiscountTargetCreationServices["fetchDiscountTargets"];
+}) {
+  const [shown, setShown] = useState(true);
+  return (
+    <>
+      <Button variant="secondary" onPress={() => setShown(!shown)}>
+        {shown ? "Cerrar la pantalla" : "Volver a la pantalla"}
+      </Button>
+      {shown ? hostOf(fetchDiscountTargets) : null}
+    </>
+  );
+}
+
+test("a form shown again after leaving the screen starts from the targets it is given, not from what it read again before", async () => {
+  const fetchDiscountTargets = listing(targetsWithCreatedProduct("Fideos nuevos", ["PERCENT_OFF"]));
+  const screen = await render(<RemountingHost fetchDiscountTargets={fetchDiscountTargets} />);
+  await createFideos(screen);
+  await expect.element(screen.getByText(/^Productos: .*Fideos nuevos$/)).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la pantalla" }));
+  await userEvent.click(screen.getByRole("button", { name: "Volver a la pantalla" }));
+
+  await expect
+    .element(screen.getByText("Productos: Yerba Hoja Alta 1 kg, Almendras peladas"))
+    .toBeVisible();
+});
