@@ -424,8 +424,10 @@ describe("a register migrated past a column its pulled rows lack", () => {
       const { getFromCloud, requests } = cloudAnswering(
         { kind: "ok", body: { changes: [], cursor: 9, has_more: false } },
         page([], false),
+        page([], false),
         offlinePointOfSalePage([], null),
         pointOfSalePage([6], 12),
+        page([], false),
         page([], false),
       );
 
@@ -439,9 +441,11 @@ describe("a register migrated past a column its pulled rows lack", () => {
       expect(requests.map((request) => request.path)).toEqual([
         "/api/changes?since=9",
         "/api/changes?since=0&entity=branch_first_cash_session",
+        "/api/changes?since=0&entity=brand",
         "/api/changes?since=0&entity=register_offline_point_of_sale",
         "/api/changes?since=0&entity=register_point_of_sale",
         "/api/changes?since=0&entity=stock_movement",
+        "/api/changes?since=0&entity=zone_rules",
       ]);
       expect(heldCount(database)).toEqual({ count: 12 });
       expect(database.prepare("SELECT * FROM pulled_table_redeliveries").all()).toEqual([]);
@@ -477,8 +481,10 @@ describe("a register migrated past the offline point of sale's tax authority cou
       const { getFromCloud, requests } = cloudAnswering(
         { kind: "ok", body: { changes: [], cursor: 9, has_more: false } },
         page([], false),
+        page([], false),
         offlinePointOfSalePage([7], 40),
         pointOfSalePage([], null),
+        page([], false),
         page([], false),
       );
 
@@ -492,9 +498,11 @@ describe("a register migrated past the offline point of sale's tax authority cou
       expect(requests.map((request) => request.path)).toEqual([
         "/api/changes?since=9",
         "/api/changes?since=0&entity=branch_first_cash_session",
+        "/api/changes?since=0&entity=brand",
         "/api/changes?since=0&entity=register_offline_point_of_sale",
         "/api/changes?since=0&entity=register_point_of_sale",
         "/api/changes?since=0&entity=stock_movement",
+        "/api/changes?since=0&entity=zone_rules",
       ]);
       expect(
         database

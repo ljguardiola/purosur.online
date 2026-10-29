@@ -3725,9 +3725,11 @@ describe("the register's local migrations", () => {
           .all(),
       ).toEqual([
         { table_name: "branch_first_cash_sessions", cursor: 0 },
+        { table_name: "brands", cursor: 0 },
         { table_name: "register_offline_point_of_sale", cursor: 0 },
         { table_name: "register_point_of_sale", cursor: 0 },
         { table_name: "stock_movements", cursor: 0 },
+        { table_name: "zone_rules", cursor: 0 },
       ]);
       expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
         { pull_cursor: 9 },
