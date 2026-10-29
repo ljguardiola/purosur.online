@@ -12,6 +12,7 @@ export {
   isValidFreightMeans,
   MIN_FREIGHT_PURCHASES,
 } from "./model/freight.js";
+export type { RegisteredFreight } from "./model/freight-by-period-report.js";
 export type {
   FreightLine,
   FreightToDistribute,

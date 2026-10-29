@@ -37,6 +37,7 @@ export function ReportsIndexScreen({ returnsShown }: { returnsShown: boolean }) 
       </LinkListCard>
       <LinkListCard title="Compras" icon={<ShoppingCart />}>
         <ReportRow to="/reports/purchases-by-supplier" label="Compras por proveedor" />
+        <ReportRow to="/reports/freight-by-period" label="Flete por período" />
       </LinkListCard>
       <LinkListCard title="Precios" icon={<Tag />}>
         <ReportRow to="/reports/prices-past-review-deadline" label="Precios sin revisar" />

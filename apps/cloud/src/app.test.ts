@@ -2822,6 +2822,11 @@ describe("the route access inventory", () => {
         url: "/api/reports/purchases-by-supplier",
         access: capabilityAccess("reports_area"),
       },
+      {
+        method: "GET",
+        url: "/api/reports/freight-by-period",
+        access: capabilityAccess("reports_area"),
+      },
       { method: "GET", url: "/api/freights", access: capabilityAccess("freights") },
       {
         method: "GET",

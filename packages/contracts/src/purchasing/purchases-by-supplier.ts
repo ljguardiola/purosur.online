@@ -1,6 +1,7 @@
 import { isReportPeriodAsked } from "@purosur/domain";
 import { z } from "zod";
 import { answeredRangeSchema, recordIdSchema } from "../shared/index.js";
+import { reportMonthSchema } from "./report-month.js";
 
 export const purchasesBySupplierQuerySchema = z
   .object({
@@ -12,7 +13,7 @@ export const purchasesBySupplierQuerySchema = z
 export type PurchasesBySupplierQuery = z.output<typeof purchasesBySupplierQuerySchema>;
 
 const monthSchema = z.object({
-  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  month: reportMonthSchema,
   purchases: z.int().min(1),
   amount: z.int().nonnegative(),
 });

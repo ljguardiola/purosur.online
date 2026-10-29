@@ -580,6 +580,7 @@ export type {
   FreightPeriodDays,
   PurchasedLine,
   ReceiptType,
+  RegisteredFreight,
   SupplierItemKey,
   SupplierItemVatRate,
   SupplierOfferUnpricedReason,

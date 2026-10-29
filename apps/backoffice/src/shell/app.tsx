@@ -32,6 +32,7 @@ import { createQueryClient } from "../platform/query-client";
 import type { DiscountsListScreenServices } from "../pricing/discounts-list-services";
 import type { PricesListScreenServices } from "../pricing/prices-list-services";
 import type { PricesPastReviewDeadlineReportScreenServices } from "../pricing/prices-past-review-deadline-report-services";
+import type { FreightReportScreenServices } from "../purchasing/freight-report-services";
 import type { FreightsListScreenServices } from "../purchasing/freights-list-services";
 import type { NewPurchaseScreenServices } from "../purchasing/new-purchase-services";
 import type { PackagingsListScreenServices } from "../purchasing/packagings-list-services";
@@ -144,6 +145,7 @@ export type AppServices = {
   packagingsListScreen: PackagingsListScreenServices;
   purchasesListScreen: PurchasesListScreenServices;
   purchasesReportScreen: PurchasesReportScreenServices;
+  freightReportScreen: FreightReportScreenServices;
   freightsListScreen: FreightsListScreenServices;
   supplierPriceListsScreen: SupplierPriceListsScreenServices;
   supplierPriceListReviewScreen: SupplierPriceListReviewScreenServices;
