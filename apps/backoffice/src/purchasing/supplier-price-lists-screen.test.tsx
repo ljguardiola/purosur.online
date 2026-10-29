@@ -593,6 +593,20 @@ test("has no accessibility violations once loaded, and with the upload modal ope
 
 async function openUploadAndTypeUnknownSupplier(access: BackofficeAccess) {
   const services = createServices();
+  vi.mocked(services.fetchSuppliers).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: READ_LIST.supplier.id,
+        name: "Distribuidora Andina",
+        cuit: null,
+        contact: null,
+        note: null,
+        active: true,
+        version: 1,
+      },
+    ],
+  });
   const screen = await loaded(services, [], { access });
   await userEvent.click(screen.getByRole("button", { name: "Cargar una lista" }));
   await userEvent.fill(

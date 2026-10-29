@@ -127,8 +127,8 @@ test("typing a packaging that does not exist offers to create it for the line's 
     .element(packagingDialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Caja x 6");
   await expect
-    .element(packagingDialog.getByRole("combobox", { name: /^Producto/ }))
-    .toHaveValue(expect.stringContaining("Miel pura de abeja 1 kg"));
+    .element(packagingDialog.getByText("Producto: Miel pura de abeja 1 kg"))
+    .toBeVisible();
 });
 
 test("saving the stacked packaging selects it in that line", async () => {

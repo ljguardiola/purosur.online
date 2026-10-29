@@ -2,8 +2,8 @@ import { purchaseRegistrationBodySchema } from "@purosur/contracts";
 import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
+import { render } from "../shell/test-support/render-with-router";
 import {
   emptyPurchaseForm,
   PURCHASE_FIELDS,
