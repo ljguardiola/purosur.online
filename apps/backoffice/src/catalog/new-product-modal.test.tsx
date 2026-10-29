@@ -820,7 +820,8 @@ test("Ctrl+Enter pressed in the stacked brand modal creates the brand and not th
   await fillNewProduct(dialog);
   await userEvent.fill(brandSelect(dialog), "Serenísima");
   await userEvent.click(page.getByRole("option", { name: "Crear marca «Serenísima»" }));
-  await expect.element(page.getByRole("dialog", { name: "Nueva marca" })).toBeVisible();
+  const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
+  await userEvent.click(brandDialog.getByRole("textbox", { name: /^Nombre/ }));
 
   await userEvent.keyboard("{Control>}{Enter}{/Control}");
 

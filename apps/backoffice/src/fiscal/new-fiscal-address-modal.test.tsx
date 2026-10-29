@@ -133,7 +133,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
     value: { challenge: "session-auth" } as never,
   });
   vi.mocked(services.startAuthentication).mockResolvedValue({ id: "existing-cred" } as never);
-  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok", fiscalAddress: depot });
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.createFiscalAddress).mockResolvedValueOnce({
     kind: "ok",
     fiscalAddress: depot,

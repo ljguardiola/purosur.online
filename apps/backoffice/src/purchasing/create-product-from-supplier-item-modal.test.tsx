@@ -387,11 +387,12 @@ test("offers no way to create a brand or a tag to a session that may not manage 
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
-  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
-  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
   await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
   expect(page.getByRole("menuitem", { name: "Crear distintivo…" }).query()).toBeNull();
+  await userEvent.keyboard("{Escape}");
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
 });
 
 test("says the brands are loading and creating waits for them", async () => {
