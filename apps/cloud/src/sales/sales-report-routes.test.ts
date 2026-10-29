@@ -838,7 +838,7 @@ describe("GET /reports/sales-by-promotion", () => {
           name: "Finde",
           terms: {
             benefit: { kind: "PERCENT_OFF", percent: 15 },
-            target: { kind: "CATEGORY", name: "Almacén" },
+            target: { kind: "CATEGORY", name: "Almacén", brandName: null, netContent: null },
             weekdays: [6, 7],
           },
           lines: 2,

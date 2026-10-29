@@ -145,7 +145,7 @@ export const promotionDiscountsReport: SalesByPromotionBody = {
       name: "Finde de yerbas",
       terms: {
         benefit: { kind: "PERCENT_OFF", percent: 15 },
-        target: { kind: "CATEGORY", name: "Almacén › Yerbas" },
+        target: { kind: "CATEGORY", name: "Almacén › Yerbas", brandName: null, netContent: null },
         weekdays: [6, 7],
       },
       lines: 30,
@@ -158,7 +158,12 @@ export const promotionDiscountsReport: SalesByPromotionBody = {
       name: "Tres por dos",
       terms: {
         benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
-        target: { kind: "PRODUCT", name: "Azúcar 1 kg" },
+        target: {
+          kind: "PRODUCT",
+          name: "Azúcar",
+          brandName: "Ledesma",
+          netContent: { quantity: 1, unit: "KG" },
+        },
         weekdays: [],
       },
       lines: 50,
@@ -191,7 +196,7 @@ export const singleLinePromotionReport: SalesByPromotionBody = {
       name: "Finde de yerbas",
       terms: {
         benefit: { kind: "PERCENT_OFF", percent: 15 },
-        target: { kind: "CATEGORY", name: "Almacén › Yerbas" },
+        target: { kind: "CATEGORY", name: "Almacén › Yerbas", brandName: null, netContent: null },
         weekdays: [1, 2, 3, 4, 5, 6, 7],
       },
       lines: 1,
