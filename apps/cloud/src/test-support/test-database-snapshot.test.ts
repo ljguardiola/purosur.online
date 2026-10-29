@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
+import { unaccent } from "@electric-sql/pglite/contrib/unaccent";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { provideTestDatabaseSnapshot } from "./test-database-snapshot.js";
 
@@ -30,7 +31,10 @@ async function tablesInSnapshot(snapshotPath: string | undefined): Promise<strin
   if (!snapshotPath) {
     throw new Error("no snapshot was provided");
   }
-  const client = new PGlite({ loadDataDir: new Blob([await readFile(snapshotPath)]) });
+  const client = new PGlite({
+    loadDataDir: new Blob([await readFile(snapshotPath)]),
+    extensions: { unaccent },
+  });
   try {
     const { rows } = await client.query<{ tablename: string }>(
       "select tablename from pg_tables where schemaname = 'public' order by tablename",

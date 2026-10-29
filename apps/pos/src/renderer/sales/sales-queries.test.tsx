@@ -68,7 +68,9 @@ const SALE: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 238_000,
   subtotal: 238_000,
+  promotion_savings: 0,
 };
 
 function CurrentSaleProbe({

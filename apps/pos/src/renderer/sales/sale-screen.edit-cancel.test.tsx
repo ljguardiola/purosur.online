@@ -32,7 +32,9 @@ const SALE_OF_THREE_YERBAS: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 714_000,
   subtotal: 714_000,
+  promotion_savings: 0,
 };
 const SALE_OF_ONE_YERBA: OpenSale = {
   id: "sale-1",
@@ -50,7 +52,9 @@ const SALE_OF_ONE_YERBA: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 238_000,
   subtotal: 238_000,
+  promotion_savings: 0,
 };
 const SALE_OF_ALFAJOR: OpenSale = {
   id: "sale-1",
@@ -68,7 +72,9 @@ const SALE_OF_ALFAJOR: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 150_000,
   subtotal: 150_000,
+  promotion_savings: 0,
 };
 const EMPTY_SALE: OpenSale = {
   id: "sale-1",
@@ -86,7 +92,9 @@ const EMPTY_SALE: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: "empty_sale",
   sale_discount: null,
+  gross_subtotal: 0,
   subtotal: 0,
+  promotion_savings: 0,
 };
 
 const RAISE_YERBA = "Subir la cantidad de Yerba mate 1 kg";

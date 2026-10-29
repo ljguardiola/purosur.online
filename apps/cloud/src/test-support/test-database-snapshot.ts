@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { unaccent } from "@electric-sql/pglite/contrib/unaccent";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { MIGRATIONS_FOLDER } from "../platform/db/migrations-folder.js";
@@ -11,7 +12,10 @@ export async function migrateFreshDatabase(
   migrationsFolder: string,
   clusterDumpPath: string,
 ): Promise<PGlite> {
-  const client = new PGlite({ loadDataDir: new Blob([await readFile(clusterDumpPath)]) });
+  const client = new PGlite({
+    loadDataDir: new Blob([await readFile(clusterDumpPath)]),
+    extensions: { unaccent },
+  });
   try {
     await migrate(drizzle(client), { migrationsFolder });
     return client;
@@ -31,7 +35,7 @@ export interface SnapshotConsumer {
 }
 
 async function writeEmptyClusterDump(clusterDumpPath: string): Promise<void> {
-  const client = new PGlite();
+  const client = new PGlite({ extensions: { unaccent } });
   try {
     const dump = await client.dumpDataDir("none");
     await writeFile(clusterDumpPath, Buffer.from(await dump.arrayBuffer()));

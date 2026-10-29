@@ -15,6 +15,7 @@ import {
   StatusIndicator,
   Table,
   TableCellText,
+  textContains,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
@@ -60,11 +61,11 @@ function levelLabel(level: AlertLevel): string {
 }
 
 function kindsMatching(text: string): string[] {
-  const query = text.toLowerCase();
   return DESCRIBED_ALERT_KINDS.filter((kind) =>
-    `${alertKindLabel(kind)} ${alertKindDescription(kind)} ${localAlertTitle(kind) ?? ""}`
-      .toLowerCase()
-      .includes(query),
+    textContains(
+      `${alertKindLabel(kind)} ${alertKindDescription(kind)} ${localAlertTitle(kind) ?? ""}`,
+      text,
+    ),
   );
 }
 

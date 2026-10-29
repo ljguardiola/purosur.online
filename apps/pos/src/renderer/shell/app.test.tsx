@@ -2029,7 +2029,9 @@ describe("App", () => {
             sale_discount_authorization_required: false,
             sale_discount_refusal: null,
             sale_discount: null,
+            gross_subtotal: 238_000,
             subtotal: 238_000,
+            promotion_savings: 0,
           };
         },
       },
@@ -2081,7 +2083,9 @@ describe("App", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 238_000,
           subtotal: 238_000,
+          promotion_savings: 0,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -2143,7 +2147,9 @@ describe("App", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 238_000,
           subtotal: 238_000,
+          promotion_savings: 0,
           mercado_pago_charge_in_progress: null,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
@@ -2269,7 +2275,9 @@ describe("App", () => {
                 sale_discount_authorization_required: false,
                 sale_discount_refusal: null,
                 sale_discount: null,
+                gross_subtotal: 238_000,
                 subtotal: 238_000,
+                promotion_savings: 0,
               })
             : new Promise(() => {});
         },
@@ -2340,7 +2348,9 @@ describe("App", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 238_000,
           subtotal: 238_000,
+          promotion_savings: 0,
         }),
         chargeSaleByTransfer: async (saleId, amount) => {
           charges.push([saleId, amount]);
@@ -2400,7 +2410,9 @@ describe("App", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 238_000,
           subtotal: 238_000,
+          promotion_savings: 0,
         }),
         chargeSaleOnStandaloneTerminal: async (saleId, amount) => {
           charges.push([saleId, amount]);
@@ -2462,7 +2474,9 @@ describe("App", () => {
                 sale_discount_authorization_required: false,
                 sale_discount_refusal: null,
                 sale_discount: null,
+                gross_subtotal: 238_000,
                 subtotal: 238_000,
+                promotion_savings: 0,
               })
             : new Promise(() => {});
         },
@@ -2527,7 +2541,9 @@ describe("App", () => {
           sale_discount_authorization_required: false,
           sale_discount_refusal: null,
           sale_discount: null,
+          gross_subtotal: 238_000,
           subtotal: 238_000,
+          promotion_savings: 0,
         }),
         paymentMethodAvailability: async () => {
           availabilityReads += 1;
@@ -2587,7 +2603,9 @@ describe("App", () => {
                 sale_discount_authorization_required: false,
                 sale_discount_refusal: null,
                 sale_discount: null,
+                gross_subtotal: 238_000,
                 subtotal: 238_000,
+                promotion_savings: 0,
               })
             : new Promise(() => {});
         },
@@ -2665,7 +2683,9 @@ describe("App", () => {
                 sale_discount_authorization_required: false,
                 sale_discount_refusal: null,
                 sale_discount: null,
+                gross_subtotal: 238_000,
                 subtotal: 238_000,
+                promotion_savings: 0,
               })
             : new Promise(() => {});
         },
@@ -3697,7 +3717,9 @@ describe("App", () => {
             sale_discount_authorization_required: false,
             sale_discount_refusal: null,
             sale_discount: null,
+            gross_subtotal: 238_000,
             subtotal: 238_000,
+            promotion_savings: 0,
           }),
           cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
           chargeSaleInCash: async (saleId, tendered) => ({

@@ -11,7 +11,8 @@ function renderPanel(props: Partial<PaymentPanelProps> = {}) {
     <PaymentPanel
       saleStatus="loaded"
       lineCount={2}
-      subtotal={500_000}
+      grossSubtotal={500_000}
+      promotionSavings={0}
       saleDiscount={null}
       total={476_000}
       paid={0}
@@ -70,11 +71,39 @@ describe("PaymentPanel", () => {
       .not.toBeInTheDocument();
   });
 
-  it("counts the lines with the amount of the sale before the discount on the total", async () => {
+  it("counts the lines with the amount of the sale at list price", async () => {
+    const screen = await renderPanel({ grossSubtotal: 520_000, promotionSavings: 20_000 });
+
+    await expect.element(screen.getByText("2 líneas")).toBeVisible();
+    await expect.element(screen.getByText("$ 5.200,00")).toBeVisible();
+  });
+
+  it("shows what the promotions saved, leaving the total to charge as it is", async () => {
+    const screen = await renderPanel({ grossSubtotal: 520_000, promotionSavings: 20_000 });
+
+    await expect.element(screen.getByText("Ahorro en promociones")).toBeVisible();
+    await expect.element(screen.getByText("− $ 200,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.760,00").first()).toBeVisible();
+  });
+
+  it("shows no promotion savings row while no promotion saves anything", async () => {
     const screen = await renderPanel();
 
     await expect.element(screen.getByText("2 líneas")).toBeVisible();
-    await expect.element(screen.getByText("$ 5.000,00")).toBeVisible();
+    await expect.element(screen.getByText("Ahorro en promociones")).not.toBeInTheDocument();
+  });
+
+  it("draws the promotion savings like a summary row of a saving", async () => {
+    const screen = await renderPanel({ grossSubtotal: 520_000, promotionSavings: 20_000 });
+    const reference = await render(<SummaryRow label="Referencia" value="− $ 2,00" saving />);
+
+    expectDrawnLike(
+      screen.getByText("− $ 200,00", { exact: true }).element(),
+      reference.getByText("− $ 2,00", { exact: true }).element(),
+      ["color", "fontSize", "fontWeight"],
+      "promotion savings",
+    );
+    await reference.unmount();
   });
 
   it("says the discount on the total is not applied while the sale has none", async () => {

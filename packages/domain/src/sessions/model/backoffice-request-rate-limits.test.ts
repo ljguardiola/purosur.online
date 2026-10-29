@@ -9,10 +9,10 @@ import {
 const NOW = new Date("2026-10-02T12:00:00.000Z");
 
 describe("backoffice request rate limits", () => {
-  it("accepts 600 requests per session and 1800 per source address each hour", () => {
+  it("accepts 6000 requests per session and 12000 per source address each hour", () => {
     expect(BACKOFFICE_REQUEST_WINDOW_MS).toBe(60 * 60 * 1000);
-    expect(BACKOFFICE_SESSION_REQUEST_LIMIT).toBe(600);
-    expect(BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT).toBe(1800);
+    expect(BACKOFFICE_SESSION_REQUEST_LIMIT).toBe(6000);
+    expect(BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT).toBe(12000);
   });
 });
 

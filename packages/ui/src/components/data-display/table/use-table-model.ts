@@ -1,4 +1,5 @@
 import { functionalUpdate, type Row, type RowData, useTable } from "@tanstack/react-table";
+import { textContains } from "../../../messages/text-search";
 import { itemTree } from "../../../ordering/item-tree";
 import { tableModelFeatures } from "./table-features";
 import { PAGE_SIZE } from "./table-paging";
@@ -48,7 +49,7 @@ function rowFilterOf<T>(
   search: TableModelSearch<T> | undefined,
   filter: ((item: T) => boolean) | undefined,
 ): RowFilter<T> | undefined {
-  const query = search?.text.trim().toLowerCase() ?? "";
+  const query = search?.text.trim() ?? "";
   if (query === "" && filter === undefined) {
     return undefined;
   }
@@ -65,8 +66,7 @@ function passesRowFilter<T extends RowData>(
 ): boolean {
   const item = row.original;
   const matchesSearch =
-    search === undefined ||
-    search.in(item).some((text) => text.toLowerCase().includes(search.query));
+    search === undefined || search.in(item).some((text) => textContains(text, search.query));
   return matchesSearch && (filter === undefined || filter(item));
 }
 

@@ -12,7 +12,6 @@ import { readRecordIds } from "../platform/record-id-params.js";
 import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import {
   type BackofficeSessionCheckOptions,
-  checkBackofficeSession,
   type OpenSession,
   peekOpenSession,
   requireOpenSession,
@@ -22,7 +21,8 @@ import { readSessionCookie } from "./session-cookie.js";
 
 /**
  * `open_session` counts as use of the session (touches `last_seen_at`); `open_session_peek` does
- * not. `session_cookie` accepts an already-ended session, so sign-out still works.
+ * not. `session_cookie` accepts an already-ended session and is never refused by the backoffice
+ * request limit, so sign-out always works.
  */
 export type RouteAccess =
   | { level: "public" }
@@ -213,21 +213,16 @@ async function enforceDeclaredAccess(
       .send(releaseCheck ? RELEASE_CHECK_REJECTED_RESPONSE : OFFSITE_DUMP_CHECK_REJECTED_RESPONSE);
     return reply;
   }
-  if (!sessionSource) {
-    throw new Error(`${request.method} ${request.routeOptions.url} has no session source`);
-  }
-
   if (access.level === "session_cookie") {
     const rawSessionId = readSessionCookie(request.headers.cookie);
     if (!rawSessionId) {
       return refuse(reply, 401);
     }
-    const check = await sessionSource.check(checkBackofficeSession, request, reply);
-    if (check.state === "rate_limited") {
-      return reply;
-    }
     resolvedSessionCookies.set(request, rawSessionId);
     return undefined;
+  }
+  if (!sessionSource) {
+    throw new Error(`${request.method} ${request.routeOptions.url} has no session source`);
   }
 
   const session = await sessionSource.check(
@@ -284,6 +279,7 @@ export function registerRouteAccess(app: FastifyInstance): void {
       access.level !== "public" &&
       access.level !== "release_check" &&
       access.level !== "offsite_dump_check" &&
+      access.level !== "session_cookie" &&
       !routeOptions.config?.sessionSource
     ) {
       throw new Error(

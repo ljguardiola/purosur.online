@@ -1275,3 +1275,22 @@ test("searches a quiet register's alert by its fixed title", async () => {
       },
     ]);
 });
+
+test("searches an alert by its title typed without accents", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar una alerta"), "no esta sincronizando");
+
+  await expect
+    .poll(() => vi.mocked(services.fetchAlerts).mock.calls)
+    .toContainEqual([
+      {
+        open: true,
+        page: 1,
+        search: { text: "no esta sincronizando", kinds: ["register_silent"] },
+      },
+    ]);
+});

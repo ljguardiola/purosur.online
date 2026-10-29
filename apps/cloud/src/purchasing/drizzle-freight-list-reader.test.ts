@@ -162,6 +162,26 @@ describe("DrizzleFreightListReader.freights", () => {
       expect(listed[0]?.purchases).toHaveLength(2);
     });
 
+    it("finds a freight whatever the accents in what is typed or stored", async () => {
+      const { purchaseId } = await purchase();
+      const byDescription = await freight([purchaseId], { description: "Flete de Yerbás" });
+      const byCarrier = await freight([purchaseId], {
+        means: { kind: "carrier", name: "Transportes Patagónicos" },
+      });
+      const supplied = await purchase({ supplierName: "Distribuidora Peña" });
+      const bySupplier = await freight([supplied.purchaseId]);
+      await freight([purchaseId], { description: "Viaje" });
+
+      const search = async (text: string) =>
+        (await reader().freights({ locationId, from: "2026-01-01", search: text })).map(
+          ({ id }) => id,
+        );
+
+      expect(await search("yerbas")).toEqual([byDescription]);
+      expect(await search("patagonicos")).toEqual([byCarrier]);
+      expect(await search("pena")).toEqual([bySupplier]);
+    });
+
     it("reads the search as text, never as a pattern", async () => {
       const { purchaseId } = await purchase();
       await freight([purchaseId], { description: "Flete 100 por ciento" });

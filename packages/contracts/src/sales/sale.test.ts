@@ -51,7 +51,9 @@ const sale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  gross_subtotal: 3000,
   subtotal: 3000,
+  promotion_savings: 0,
   sale_discount: null,
   sale_discount_refusal: null,
   mercado_pago_charge_in_progress: null,
@@ -342,6 +344,17 @@ describe("saleSchema", () => {
       { ...sale, charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 0 } },
     ],
   ])("rejects a sale with %s", (_case, value) => {
+    expect(saleSchema.safeParse(value).success).toBe(false);
+  });
+
+  it.each([
+    ["without its subtotal at list price", { ...sale, gross_subtotal: undefined }],
+    ["whose subtotal at list price is negative", { ...sale, gross_subtotal: -1 }],
+    ["whose subtotal at list price is fractional", { ...sale, gross_subtotal: 1.5 }],
+    ["without its promotion savings", { ...sale, promotion_savings: undefined }],
+    ["whose promotion savings are negative", { ...sale, promotion_savings: -1 }],
+    ["whose promotion savings are fractional", { ...sale, promotion_savings: 1.5 }],
+  ])("rejects a sale %s", (_case, value) => {
     expect(saleSchema.safeParse(value).success).toBe(false);
   });
 });

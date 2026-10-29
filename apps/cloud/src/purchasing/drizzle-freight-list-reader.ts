@@ -6,9 +6,9 @@ import type {
   FreightPurchaseListing,
   LinkablePurchaseListing,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, asc, desc, eq, exists, gte, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gte, inArray, or, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { containsPattern } from "../platform/contains-pattern.js";
+import { containsText } from "../platform/contains-pattern.js";
 import {
   freightPurchases,
   freights,
@@ -44,7 +44,7 @@ export class DrizzleFreightListReader<TQueryResult extends PgQueryResultHKT>
         and(
           eq(freights.locationId, locationId),
           gte(freights.freightOn, from),
-          search === undefined ? undefined : this.matches(containsPattern(search)),
+          search === undefined ? undefined : this.matches(search),
         ),
       )
       .orderBy(desc(freights.freightOn), desc(freights.recordedAt), desc(freights.id));
@@ -118,17 +118,19 @@ export class DrizzleFreightListReader<TQueryResult extends PgQueryResultHKT>
     );
   }
 
-  private matches(pattern: string): SQL | undefined {
+  private matches(search: string): SQL | undefined {
     return or(
-      ilike(freights.description, pattern),
-      ilike(freights.carrierName, pattern),
+      containsText(freights.description, search),
+      containsText(freights.carrierName, search),
       exists(
         this.db
           .select({ purchaseId: freightPurchases.purchaseId })
           .from(freightPurchases)
           .innerJoin(purchases, eq(purchases.id, freightPurchases.purchaseId))
           .innerJoin(suppliers, eq(suppliers.id, purchases.supplierId))
-          .where(and(eq(freightPurchases.freightId, freights.id), ilike(suppliers.name, pattern))),
+          .where(
+            and(eq(freightPurchases.freightId, freights.id), containsText(suppliers.name, search)),
+          ),
       ),
     );
   }

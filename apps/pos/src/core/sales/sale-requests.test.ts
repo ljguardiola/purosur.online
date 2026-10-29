@@ -287,7 +287,9 @@ describe("scanning a product on the register", () => {
         cancel_authorization_required: true,
         adjust_authorization_required: true,
         sale_discount_authorization_required: true,
+        gross_subtotal: 3000,
         subtotal: 3000,
+        promotion_savings: 0,
         sale_discount: null,
         sale_discount_refusal: null,
       },
@@ -310,7 +312,7 @@ describe("scanning a product on the register", () => {
       { discount_amount: 1500, line_total: 3000 },
     ],
   ])(
-    "answers the promotion a line was charged with: %s",
+    "answers the promotion a line was charged with and what it saved the sale: %s",
     async (_case, columns, scans, promotion, charged) => {
       database
         .prepare(
@@ -326,9 +328,10 @@ describe("scanning a product on the register", () => {
         outcome = await scanProductFor(deps(), "111");
       }
 
-      expect(outcome.kind === "added" && outcome.sale.lines[0]).toMatchObject({
-        promotion,
-        ...charged,
+      expect(outcome.kind === "added" && outcome.sale).toMatchObject({
+        lines: [{ promotion, ...charged }],
+        gross_subtotal: charged.line_total + charged.discount_amount,
+        promotion_savings: charged.discount_amount,
       });
     },
   );
@@ -510,7 +513,9 @@ describe("adding a searched product on the register", () => {
         cancel_authorization_required: true,
         adjust_authorization_required: true,
         sale_discount_authorization_required: true,
+        gross_subtotal: 1500,
         subtotal: 1500,
+        promotion_savings: 0,
         sale_discount: null,
         sale_discount_refusal: null,
       },
@@ -612,7 +617,9 @@ describe("adding a product sold by weight on the register", () => {
         cancel_authorization_required: true,
         adjust_authorization_required: true,
         sale_discount_authorization_required: true,
+        gross_subtotal: 11250,
         subtotal: 11250,
+        promotion_savings: 0,
         sale_discount: null,
         sale_discount_refusal: null,
       },
@@ -941,7 +948,9 @@ describe("the sale in progress", () => {
       cancel_authorization_required: true,
       adjust_authorization_required: true,
       sale_discount_authorization_required: true,
+      gross_subtotal: 3000,
       subtotal: 3000,
+      promotion_savings: 0,
       sale_discount: null,
       sale_discount_refusal: null,
     });
@@ -2039,7 +2048,9 @@ describe("removing a line", () => {
         cancel_authorization_required: true,
         adjust_authorization_required: true,
         sale_discount_authorization_required: true,
+        gross_subtotal: 0,
         subtotal: 0,
+        promotion_savings: 0,
         sale_discount: null,
         sale_discount_refusal: "empty_sale",
       },
