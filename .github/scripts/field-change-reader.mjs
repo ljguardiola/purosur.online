@@ -11,10 +11,7 @@ const SCRIPT = ".github/scripts/field-change-reader.mjs";
 const RELEASE_TAG_RE = /^pos-v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const RUN_NUMBER_RE = /^[1-9]\d*$/;
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const READERS_DIR = join(
-  REPO_ROOT,
-  "packages/contracts/src/sync/test-support/field-change-readers",
-);
+const READERS_DIR = join(REPO_ROOT, "packages/contracts/test-support/field-change-readers");
 const SOURCES_AT_TAG = [
   "packages/domain/package.json",
   "packages/domain/src",

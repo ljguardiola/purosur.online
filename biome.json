@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!packages/contracts/src/sync/test-support/field-change-readers"]
+    "includes": ["**", "!packages/contracts/test-support/field-change-readers"]
   },
   "formatter": {
     "enabled": true,

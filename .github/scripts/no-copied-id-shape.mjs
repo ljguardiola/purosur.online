@@ -9,7 +9,6 @@ const SCANNED_PACKAGES = ["apps/cloud", "packages/contracts"];
 const SCANNED_SOURCES = SCANNED_PACKAGES.map(
   (scanned) => `${scanned}/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`,
 );
-const FIELD_CHANGE_READERS = "packages/contracts/src/sync/test-support/field-change-readers/**";
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const COMPILER_OPTIONS_FROM = "apps/cloud/tsconfig.json";
 const ZOD_PACKAGE_FILE = /\/node_modules\/zod\//;
@@ -391,7 +390,7 @@ export function findIdShapeCopies(sources, root = REPO_ROOT) {
 }
 
 export function findScannedFiles(cwd = REPO_ROOT) {
-  return globSync(SCANNED_SOURCES, { cwd, exclude: [FIELD_CHANGE_READERS] }).sort();
+  return globSync(SCANNED_SOURCES, { cwd }).sort();
 }
 
 export function checkFiles(
