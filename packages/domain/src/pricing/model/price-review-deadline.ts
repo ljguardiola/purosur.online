@@ -1,8 +1,10 @@
-import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
+import { argentinaCalendarDay, type ReportPeriod, type ZoneRules } from "../../shared/index.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type PriceReviewPendingReason = "overdue" | "postponed" | "never_reviewed";
+export const PRICE_REVIEW_PENDING_REASONS = ["overdue", "postponed", "never_reviewed"] as const;
+
+export type PriceReviewPendingReason = (typeof PRICE_REVIEW_PENDING_REASONS)[number];
 
 export interface PriceReviewDeadlineHistory {
   lastReviewedAt: Date | null;
@@ -33,4 +35,19 @@ export function priceReviewDeadlineOf(
   return postponedOn <= overdueOn
     ? { reason: "postponed", pastDeadlineOn: postponedOn }
     : { reason: "overdue", pastDeadlineOn: overdueOn };
+}
+
+export function pricesPastDeadlinePeriodOf(
+  { from, to }: { from?: string; to?: string },
+  pastDeadlineDays: readonly (string | null)[],
+  today: string,
+): ReportPeriod {
+  if (from !== undefined && to !== undefined) {
+    return { from, to };
+  }
+  const days = pastDeadlineDays.filter((day) => day !== null);
+  return {
+    from: days.reduce((earliest, day) => (day < earliest ? day : earliest), today),
+    to: today,
+  };
 }

@@ -40,3 +40,12 @@ export { discountedAmount, lineAmount } from "./model/discounted-amount.js";
 export { MAX_UNIT_PRICE_CENTS } from "./model/price.js";
 export type { PriceReviewPostponement } from "./model/price-review.js";
 export { priceReviewAt } from "./model/price-review.js";
+export type {
+  PriceReviewDeadline,
+  PriceReviewDeadlineHistory,
+  PriceReviewPendingReason,
+} from "./model/price-review-deadline.js";
+export {
+  priceReviewDeadlineOf,
+  pricesPastDeadlinePeriodOf,
+} from "./model/price-review-deadline.js";

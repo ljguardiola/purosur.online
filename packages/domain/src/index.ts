@@ -543,6 +543,7 @@ export type {
   DiscountStatus,
   DiscountTarget,
   DiscountTargetKind,
+  PriceReviewPendingReason,
   PriceReviewPostponement,
   ProductTagLink,
   TargetedProduct,
@@ -571,6 +572,7 @@ export {
   isValidDiscountWeekdays,
   MAX_UNIT_PRICE_CENTS,
   newestPrice,
+  PRICE_REVIEW_PENDING_REASONS,
   priceReviewAt,
 } from "./pricing/index.js";
 export type {

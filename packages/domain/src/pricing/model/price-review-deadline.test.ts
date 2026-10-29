@@ -123,7 +123,11 @@ describe("pricesPastDeadlinePeriodOf", () => {
 
   it("answers the period from the earliest day among the prices up to today when none is asked", () => {
     expect(
-      pricesPastDeadlinePeriodOf({}, ["2026-02-10", null, "2026-01-05", "2026-02-01"], "2026-03-01"),
+      pricesPastDeadlinePeriodOf(
+        {},
+        ["2026-02-10", null, "2026-01-05", "2026-02-01"],
+        "2026-03-01",
+      ),
     ).toEqual({ from: "2026-01-05", to: "2026-03-01" });
   });
 
@@ -139,9 +143,9 @@ describe("pricesPastDeadlinePeriodOf", () => {
   });
 
   it("ignores a lone bound, which the request refuses", () => {
-    expect(pricesPastDeadlinePeriodOf({ from: "2026-02-01" }, ["2026-01-05"], "2026-03-01")).toEqual(
-      { from: "2026-01-05", to: "2026-03-01" },
-    );
+    expect(
+      pricesPastDeadlinePeriodOf({ from: "2026-02-01" }, ["2026-01-05"], "2026-03-01"),
+    ).toEqual({ from: "2026-01-05", to: "2026-03-01" });
     expect(pricesPastDeadlinePeriodOf({ to: "2026-02-01" }, ["2026-01-05"], "2026-03-01")).toEqual({
       from: "2026-01-05",
       to: "2026-03-01",
