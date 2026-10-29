@@ -45,14 +45,27 @@ export type ComboBoxOption<V extends string> = NarrowedOption<
   searchKeywords?: readonly string[];
 };
 
+type ComboBoxCreation = { recordKind: string; onCreate: (typedText: string) => void };
+
+type ComboBoxChoice<V extends string> = Omit<
+  OptionalOptionChoiceProps<V, ComboBoxOption<V>>,
+  "options"
+> &
+  (
+    | {
+        options: OptionalOptionChoiceProps<V, ComboBoxOption<V>>["options"];
+        creation?: ComboBoxCreation;
+      }
+    | { options: readonly ComboBoxOption<V>[]; creation: ComboBoxCreation }
+  );
+
 export type ComboBoxProps<V extends string> = FieldErrorProps &
-  OptionalOptionChoiceProps<V, ComboBoxOption<V>> & {
+  ComboBoxChoice<V> & {
     label: string;
     description?: string;
     placeholder?: string;
     disabled?: boolean;
     required?: boolean;
-    creation?: { recordKind: string; onCreate: (typedText: string) => void };
   };
 
 const CREATE_ENTRY_KEY = "\u0000create";
