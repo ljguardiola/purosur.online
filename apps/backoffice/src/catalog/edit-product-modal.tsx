@@ -19,6 +19,7 @@ import { BarcodeChips, useBarcodeChips } from "../platform/barcode-chips";
 import { barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
+import { creatableChoice } from "../platform/creatable-options";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
 import { brandFieldHelp, brandOptions, withCreatedBrand } from "../platform/product-brand-field";
@@ -227,7 +228,10 @@ export function EditProductModal({
   ]);
 
   const offeredCategories = [...withCreatedCategory(categories, categoryCreation.created)];
-  const categoryOptions = categorySelectOptions(offeredCategories);
+  const categoryChoice = creatableChoice(categorySelectOptions(offeredCategories), {
+    recordKind: "categoría",
+    onCreate: categoryCreation.start,
+  });
 
   async function handleReload() {
     if (!target) {
@@ -364,13 +368,8 @@ export function EditProductModal({
           </form.AppField>
           <form.AppField name="categoryId">
             {(field) =>
-              categoryOptions ? (
-                <field.ComboBox
-                  label="Categoría"
-                  options={categoryOptions}
-                  required
-                  creation={{ recordKind: "categoría", onCreate: categoryCreation.start }}
-                />
+              categoryChoice ? (
+                <field.ComboBox label="Categoría" required {...categoryChoice} />
               ) : (
                 <FieldGroup label="Categoría" required>
                   <SharedFieldError>{() => null}</SharedFieldError>

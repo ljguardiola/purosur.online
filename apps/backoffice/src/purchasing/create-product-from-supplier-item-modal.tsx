@@ -25,6 +25,7 @@ import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import { creatableChoice } from "../platform/creatable-options";
 import type { CategoryCreationModal } from "../platform/creation-parts";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
@@ -251,9 +252,16 @@ export function CreateProductFromSupplierItemModal({
     }
   }, [target, vatRates, form]);
 
-  const categoryOptions =
+  const categoryChoice =
     categories.status === "loaded"
-      ? categorySelectOptions([...withCreatedCategory(categories.value, categoryCreation.created)])
+      ? creatableChoice(
+          categorySelectOptions([
+            ...withCreatedCategory(categories.value, categoryCreation.created),
+          ]),
+          mayCreateBrandsAndTags
+            ? { recordKind: "categoría", onCreate: categoryCreation.start }
+            : undefined,
+        )
       : undefined;
   const productData = combineCloudData(combineCloudData(categories, brands), tags);
   const dataStatus = list.requiresVatRate
@@ -361,12 +369,8 @@ export function CreateProductFromSupplierItemModal({
             form={form}
             fields={PRODUCT_GROUP_FIELDS}
             categories={
-              categoryOptions
-                ? {
-                    state: "loaded",
-                    options: categoryOptions,
-                    creation: mayCreateBrandsAndTags ? categoryCreation : null,
-                  }
+              categoryChoice
+                ? { state: "loaded", choice: categoryChoice }
                 : { state: "unavailable", placeholder: categoryPlaceholder() }
             }
             brands={

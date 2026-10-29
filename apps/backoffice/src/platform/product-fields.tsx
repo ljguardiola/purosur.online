@@ -1,7 +1,8 @@
-import type { BrandSummary, CategorySummary, TagSummary } from "@purosur/contracts";
-import { FieldGroup, type Option, type Options, withFieldGroup } from "@purosur/ui";
+import type { BrandSummary, TagSummary } from "@purosur/contracts";
+import { FieldGroup, type Option, withFieldGroup } from "@purosur/ui";
 import type { ReactNode } from "react";
 import { BarcodeChips } from "./barcode-chips";
+import type { CreatableChoice } from "./creatable-options";
 import { brandFieldHelp, brandOptions, withCreatedBrand } from "./product-brand-field";
 import { EMPTY_PRODUCT_FORM, NET_CONTENT_UNIT_OPTIONS } from "./product-form";
 import { type StackedTagCreation, TagsField, withCreatedTags } from "./product-tags-field";
@@ -31,11 +32,7 @@ function creationEntry(
 
 type ProductFieldsProps = {
   categories:
-    | {
-        state: "loaded";
-        options: Options<Option<string>>;
-        creation: StackedCreation<CategorySummary> | null;
-      }
+    | { state: "loaded"; choice: CreatableChoice<Option<string>> }
     | { state: "unavailable"; placeholder: ReactNode };
   brands: Choices<BrandSummary, StackedCreation<BrandSummary>>;
   tags: Choices<TagSummary, StackedTagCreation>;
@@ -61,9 +58,8 @@ export const ProductFields = withFieldGroup({
               <field.ComboBox
                 label="Categoría"
                 placeholder="Elegí una categoría"
-                options={categories.options}
                 required
-                {...creationEntry("categoría", categories.creation)}
+                {...categories.choice}
               />
             )}
           </group.AppField>

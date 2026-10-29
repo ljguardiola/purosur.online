@@ -22,6 +22,7 @@ import {
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
+import { creatableChoice } from "../platform/creatable-options";
 import type { CreatedProduct } from "../platform/creation-parts";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
@@ -205,7 +206,10 @@ export function NewProductModal({
   ]);
 
   const offeredCategories = [...withCreatedCategory(categories, categoryCreation.created)];
-  const categoryOptions = categorySelectOptions(offeredCategories);
+  const categoryChoice = creatableChoice(categorySelectOptions(offeredCategories), {
+    recordKind: "categoría",
+    onCreate: categoryCreation.start,
+  });
 
   return (
     <Modal
@@ -266,8 +270,8 @@ export function NewProductModal({
           form={form}
           fields={PRODUCT_GROUP_FIELDS}
           categories={
-            categoryOptions
-              ? { state: "loaded", options: categoryOptions, creation: categoryCreation }
+            categoryChoice
+              ? { state: "loaded", choice: categoryChoice }
               : {
                   state: "unavailable",
                   placeholder: (

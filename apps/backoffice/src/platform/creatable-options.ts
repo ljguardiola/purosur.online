@@ -2,7 +2,7 @@ import type { Options } from "@purosur/ui";
 
 export type OptionCreation = { recordKind: string; onCreate: (typedText: string) => void };
 
-type CreatableChoice<Option> =
+export type CreatableChoice<Option> =
   | { options: Options<Option>; creation?: OptionCreation }
   | { options: readonly []; creation: OptionCreation };
 
