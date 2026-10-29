@@ -183,9 +183,9 @@ describe("productLinkCandidates", () => {
     const brandOnly = Array.from({ length: PRODUCT_LINK_CANDIDATE_LIMIT }, (_, index) =>
       product(`a${index}`, `Aceite ${index}`, "Kos"),
     );
-    const byName = product("z", "Zapallo", null);
+    const byName = product("z", "Zapallo Cocido");
 
-    const candidates = productLinkCandidates([...brandOnly, byName], "kos zapallo kos");
+    const candidates = productLinkCandidates([...brandOnly, byName], "kos zapallo cocido");
 
     expect(candidates[0]).toEqual(byName);
     expect(candidates).toHaveLength(PRODUCT_LINK_CANDIDATE_LIMIT);
