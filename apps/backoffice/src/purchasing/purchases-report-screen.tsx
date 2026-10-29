@@ -13,14 +13,14 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { ReportFilters } from "../shell/report-filters";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
-import type { PurchasesReportFilters } from "./purchases-report-filters";
-import { purchasesReportMonthText } from "./purchases-report-month-text";
 import type { PurchasesReportScreenServices } from "./purchases-report-services";
 import { usePurchasesReportQuery } from "./purchasing-queries";
+import { reportMonthText } from "./report-month-text";
+import type { ReportPeriodFilters } from "./report-period-filters";
 
 export type PurchasesReportScreenProps = {
-  filters: PurchasesReportFilters;
-  onFiltersChange: (filters: PurchasesReportFilters) => void;
+  filters: ReportPeriodFilters;
+  onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
   services: PurchasesReportScreenServices;
 };
@@ -70,7 +70,7 @@ function rowsOf(report: PurchasesBySupplierBody | undefined): PurchasesRow[] {
     ...supplier.months.map((month) => ({
       id: `${supplier.supplier_id}:${month.month}`,
       parentId: supplier.supplier_id,
-      label: purchasesReportMonthText(month.month),
+      label: reportMonthText(month.month),
       purchases: month.purchases,
       amount: month.amount,
     })),

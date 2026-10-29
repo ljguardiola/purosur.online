@@ -14,13 +14,13 @@ import { ReportFilters } from "../shell/report-filters";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { FreightReportScreenServices } from "./freight-report-services";
-import type { PurchasesReportFilters } from "./purchases-report-filters";
-import { purchasesReportMonthText } from "./purchases-report-month-text";
 import { useFreightReportQuery } from "./purchasing-queries";
+import { reportMonthText } from "./report-month-text";
+import type { ReportPeriodFilters } from "./report-period-filters";
 
 export type FreightReportScreenProps = {
-  filters: PurchasesReportFilters;
-  onFiltersChange: (filters: PurchasesReportFilters) => void;
+  filters: ReportPeriodFilters;
+  onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
   services: FreightReportScreenServices;
 };
@@ -33,7 +33,7 @@ const freightColumns = [
   dataColumn({
     id: "month",
     header: "Mes",
-    render: (row: FreightRow) => purchasesReportMonthText(row.month),
+    render: (row: FreightRow) => reportMonthText(row.month),
   }),
   dataColumn({
     id: "freights",

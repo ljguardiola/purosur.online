@@ -7,7 +7,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
 import { FreightReportScreen } from "./freight-report-screen";
 import type { FreightReportScreenServices } from "./freight-report-services";
-import { type PurchasesReportFilters, purchasesReportFilters } from "./purchases-report-filters";
+import { type ReportPeriodFilters, reportPeriodFilters } from "./report-period-filters";
 import { emptyFreightReport, quarterFreightReport } from "./test-support/freight-report-fixtures";
 
 beforeEach(async () => {
@@ -21,14 +21,14 @@ function createServices(): FreightReportScreenServices {
 }
 
 type Handlers = {
-  filters?: PurchasesReportFilters;
-  onFiltersChange?: (filters: PurchasesReportFilters) => void;
+  filters?: ReportPeriodFilters;
+  onFiltersChange?: (filters: ReportPeriodFilters) => void;
   onSessionEnded?: () => void;
 };
 
 function ControlledScreen({
   services,
-  filters: initial = purchasesReportFilters.parse({}),
+  filters: initial = reportPeriodFilters.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
 }: Handlers & { services: FreightReportScreenServices }) {
@@ -138,7 +138,7 @@ test("asks the cloud for the range the URL names", async () => {
   const services = createServices();
 
   await renderScreen(services, {
-    filters: purchasesReportFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    filters: reportPeriodFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
   });
 
   await expect
@@ -207,7 +207,7 @@ test("says there is no freight in the chosen period as a filtered result", async
   });
 
   const screen = await renderScreen(services, {
-    filters: purchasesReportFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    filters: reportPeriodFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
   });
 
   const empty = freightTable(screen).getByText("No hay fletes en este período");
