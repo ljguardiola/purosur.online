@@ -8902,3 +8902,47 @@ describe("the brands migration", () => {
     }
   });
 });
+
+describe("the register condition starts migration", () => {
+  const MIGRATION = "0091_register_condition_starts";
+
+  it("starts with no condition start on a register that already holds data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(`INSERT INTO brands (id, name, active, version) VALUES ('b1', 'Vitora', 1, 1)`);
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        expect(after.prepare("SELECT id FROM brands").all()).toEqual([{ id: "b1" }]);
+        expect(after.prepare("SELECT condition FROM register_condition_starts").all()).toEqual([]);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a second start for the same condition and a start without an instant", () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    try {
+      const insert = (condition: string, since: string | null) =>
+        database
+          .prepare("INSERT INTO register_condition_starts (condition, since) VALUES (?, ?)")
+          .run(condition, since);
+
+      expect(() => insert("clock_drift", "2026-10-29T09:30:00.000-03:00")).not.toThrow();
+      expect(() => insert("clock_drift", "2026-10-29T10:30:00.000-03:00")).toThrow(
+        /UNIQUE|PRIMARY/,
+      );
+      expect(() => insert("wal_oversized", null)).toThrow(/NOT NULL/);
+    } finally {
+      database.close();
+    }
+  });
+});
