@@ -10,6 +10,7 @@ import {
   products,
   users,
 } from "../platform/db/schema.js";
+import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
@@ -236,6 +237,34 @@ describe("DrizzlePriceReviewReader", () => {
     await db.update(categories).set({ parentId: second }).where(eq(categories.id, first));
 
     expect((await pricesUnderReview()).categories.map((category) => category.id)).toEqual([leaf]);
+  });
+
+  it("answers each product's brand name and net content, null when it has none", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brand = await insertBrand(db, { name: "Vitora" });
+    const [described] = await db
+      .insert(products)
+      .values({
+        name: "Aceite de Almendras",
+        categoryId,
+        saleUnit: "UNIT",
+        brandId: brand.id,
+        netContentQuantity: 30,
+        netContentUnit: "ML",
+      })
+      .returning({ id: products.id });
+    const plainId = await insertProduct("Pan casero", categoryId);
+
+    const result = await pricesUnderReview();
+
+    expect(result.products.find((product) => product.id === described?.id)).toMatchObject({
+      brandName: "Vitora",
+      netContent: { quantity: 30, unit: "ML" },
+    });
+    expect(result.products.find((product) => product.id === plainId)).toMatchObject({
+      brandName: null,
+      netContent: null,
+    });
   });
 
   it("lists a never-priced product ahead of every reviewed one, as having no price", async () => {
