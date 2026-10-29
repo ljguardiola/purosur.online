@@ -15,6 +15,7 @@ import {
 import {
   BOLSA_DE_PASAS,
   CAJA_DE_PASAS,
+  GRANOLA_LINK_CHOICES,
   LINK_CHOICES,
   NO_PROPOSAL,
   PASAS_ID,
@@ -140,6 +141,18 @@ describe("linkProductOptions", () => {
       { value: "90d00000-0000-4000-8000-000000000003", label: "Almendras peladas" },
       { value: "90d00000-0000-4000-8000-000000000022", label: "Miel pura de abeja 1 kg" },
       { value: PASAS_ID, label: "Pasas de uva" },
+    ]);
+  });
+
+  it("names each product with its brand and net content, so same-name products read differently", () => {
+    const [other, kos] = GRANOLA_LINK_CHOICES.products as [
+      (typeof GRANOLA_LINK_CHOICES.products)[number],
+      (typeof GRANOLA_LINK_CHOICES.products)[number],
+    ];
+
+    expect(linkProductOptions(GRANOLA_LINK_CHOICES)).toEqual([
+      { value: kos.id, label: "Granola Berries Kos 1 kg" },
+      { value: other.id, label: "Granola Berries Naturalia 500 g" },
     ]);
   });
 

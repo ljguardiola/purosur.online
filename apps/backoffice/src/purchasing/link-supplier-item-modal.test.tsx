@@ -11,11 +11,13 @@ import {
 import {
   BOLSA_DE_PASAS,
   CAJA_DE_PASAS,
+  GRANOLA_LINK_CHOICES,
   LINK_CHOICES,
   NO_PROPOSAL,
   PASAS_ID,
   PROPOSED_BY_AI,
   PROPOSED_BY_BARCODE,
+  PROPOSED_GRANOLA_KOS,
   UNAVAILABLE_PROPOSAL,
 } from "./test-support/supplier-item-links";
 import { ALMOND_LINK, EXTRACTED_ROWS, READ_LIST } from "./test-support/supplier-price-lists";
@@ -281,11 +283,54 @@ test("does not choose a proposed product the person already chose another over",
     .toHaveValue("Almendras peladas");
 });
 
+test("names each product with its name, brand and net content when typing to search", async () => {
+  const services = createServices({
+    fetchSupplierItemLinkChoices: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: GRANOLA_LINK_CHOICES }),
+  });
+  const screen = await renderModal({ services });
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }), "granola");
+
+  await expect
+    .element(screen.getByRole("option", { name: "Granola Berries Kos 1 kg" }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("option", { name: "Granola Berries Naturalia 500 g" }))
+    .toBeVisible();
+});
+
+test("names the proposed product with its brand and net content", async () => {
+  const services = createServices({
+    fetchSupplierItemLinkChoices: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: GRANOLA_LINK_CHOICES }),
+    fetchSupplierItemLinkProposal: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: PROPOSED_GRANOLA_KOS }),
+  });
+  const screen = await renderModal({ services });
+  const dialog = screen.getByRole("dialog");
+
+  await expect
+    .element(dialog.getByText("Propuesto por IA: Granola Berries Kos 1 kg").first())
+    .toBeVisible();
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
+    .toHaveValue("Granola Berries Kos 1 kg");
+});
+
 test("does not choose a proposed product the catalog no longer offers", async () => {
   const services = createServices({
     fetchSupplierItemLinkProposal: vi.fn().mockResolvedValue({
       kind: "ok",
-      value: { kind: "proposed", by: "ai", product: { id: "gone", name: "Descontinuado" } },
+      value: {
+        kind: "proposed",
+        by: "ai",
+        product: { id: "gone", name: "Descontinuado", brandName: null, netContent: null },
+      },
     }),
   });
   const screen = await renderModal({ services });
