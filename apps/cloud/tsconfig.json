@@ -10,7 +10,11 @@
     // default location next to this file.
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
-  "references": [{ "path": "../../packages/domain" }, { "path": "../../packages/contracts" }],
+  "references": [
+    { "path": "../../packages/domain" },
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/formatting" }
+  ],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "src/**/test-support/**"]
 }
