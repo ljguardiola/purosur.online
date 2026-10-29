@@ -190,7 +190,7 @@ test("creates from the typed text by click without choosing a value, and shows t
   expect(onCreate).toHaveBeenCalledExactlyOnceWith("zzz");
   expect(onPick).not.toHaveBeenCalled();
   await expect.poll(() => inputElement(screen).value).toBe("Café molido");
-  expect(input(screen).element().getAttribute("aria-expanded")).toBe("false");
+  await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
 });
 
 test("creates from the typed text by keyboard without choosing a value", async () => {

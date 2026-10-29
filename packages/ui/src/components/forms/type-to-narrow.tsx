@@ -71,7 +71,12 @@ export function useTypeToNarrow<V extends string, O extends NarrowableOption<V>>
     allowsEmptyCollection: true,
   } as const;
 
-  return { chosen, comboBoxProps };
+  const dropTypedText = () => {
+    setTyped(null);
+    setReplacingText(true);
+  };
+
+  return { chosen, typed, dropTypedText, comboBoxProps };
 }
 
 export function SelectCaret({ className }: { className: string }) {

@@ -1,8 +1,9 @@
 import { Check } from "lucide-react";
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   Button as AriaButton,
   ComboBox as AriaComboBox,
+  ComboBoxStateContext as AriaComboBoxStateContext,
   Input as AriaInput,
   Label as AriaLabel,
   ListBox as AriaListBox,
@@ -51,7 +52,10 @@ export type ComboBoxProps<V extends string> = FieldErrorProps &
     placeholder?: string;
     disabled?: boolean;
     required?: boolean;
+    creation?: { recordKind: string; onCreate: (typedText: string) => void };
   };
+
+const CREATE_ENTRY_KEY = "\u0000create";
 
 const wrapperClassName = `${fieldWrapperClassName} ${fieldWrapperGapClassName.backoffice}`;
 
@@ -96,6 +100,18 @@ function readListMetrics(): ListMetrics {
   };
 }
 
+// Choosing the creation entry leaves the chosen value as it was, so react-aria has no selection
+// change to close the list on.
+function CloseListWhenCreated({ createdCount }: { createdCount: number }) {
+  const state = useContext(AriaComboBoxStateContext);
+  useEffect(() => {
+    if (createdCount > 0) {
+      state?.close();
+    }
+  }, [createdCount, state]);
+  return null;
+}
+
 export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const {
     label,
@@ -106,10 +122,12 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
     placeholder,
     disabled = false,
     required = false,
+    creation,
   } = props;
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
+  const [createdCount, setCreatedCount] = useState(0);
   const [listMetrics, setListMetrics] = useState<ListMetrics | null>(null);
-  const { chosen, comboBoxProps } = useTypeToNarrow({
+  const { chosen, typed, dropTypedText, comboBoxProps } = useTypeToNarrow({
     options,
     value,
     onChange,
@@ -120,7 +138,15 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
     ],
   });
 
-  const hasDescriptions = options.some((option) => option.description !== undefined);
+  const typedText = typed?.trim() ?? "";
+  const offersCreation =
+    creation !== undefined && typedText !== "" && comboBoxProps.items.length === 0;
+  const createLabel = offersCreation ? `Crear ${creation.recordKind} «${typedText}»` : null;
+  const items: readonly ComboBoxOption<string>[] =
+    createLabel !== null ? [{ value: CREATE_ENTRY_KEY, label: createLabel }] : comboBoxProps.items;
+
+  const hasDescriptions =
+    !offersCreation && options.some((option) => option.description !== undefined);
   const listLayoutOptions =
     listMetrics === null
       ? {}
@@ -135,6 +161,15 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   return (
     <AriaComboBox
       {...comboBoxProps}
+      items={items}
+      onSelectionChange={(key) => {
+        comboBoxProps.onSelectionChange(key);
+        if (key === CREATE_ENTRY_KEY && offersCreation) {
+          dropTypedText();
+          setCreatedCount(createdCount + 1);
+          creation.onCreate(typedText);
+        }
+      }}
       onOpenChange={(isOpen) => {
         if (isOpen) {
           setListMetrics(readListMetrics());
@@ -147,6 +182,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       {...(errorMessageId !== undefined ? { "aria-describedby": errorMessageId } : {})}
       className={wrapperClassName}
     >
+      <CloseListWhenCreated createdCount={createdCount} />
       <AriaLabel className={required ? requiredLabelClassName : baseLabelClassName}>
         {label}
       </AriaLabel>
@@ -194,7 +230,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       >
         <AriaVirtualizer layout={AriaListLayout} layoutOptions={listLayoutOptions}>
           <AriaListBox className={listBoxClassName} renderEmptyState={() => <NoResults />}>
-            {(option: ComboBoxOption<V>) => (
+            {(option: ComboBoxOption<string>) => (
               <AriaListBoxItem
                 id={option.value}
                 textValue={option.label}
