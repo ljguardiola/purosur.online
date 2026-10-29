@@ -4,7 +4,6 @@ import {
   ButtonLink,
   EmptyState,
   formatCents,
-  formatProductDescription,
   type Icon,
   InlineNotice,
   LoadFailure,
@@ -12,6 +11,7 @@ import {
   Modal,
   useRequestForm,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import {
   Check,
   ExternalLink,

@@ -3,7 +3,8 @@ import type {
   SupplierItemLinkProposal,
   SupplierPriceListRowLinkBody,
 } from "@purosur/contracts";
-import { formatPercent, formatProductDescription, sortedItems, textOrder } from "@purosur/ui";
+import { formatPercent, sortedItems, textOrder } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import type { SupplierPriceListRow } from "./supplier-price-lists-api";
 
