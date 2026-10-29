@@ -67,7 +67,9 @@ export const SALE_OF_ONE_LINE: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 476_000,
   subtotal: 476_000,
+  promotion_savings: 0,
 };
 export const SALE_OF_TWO_LINES: OpenSale = {
   id: "sale-1",
@@ -85,7 +87,9 @@ export const SALE_OF_TWO_LINES: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 626_000,
   subtotal: 626_000,
+  promotion_savings: 0,
 };
 const COMPLETED: ChargeSaleInCashOutcome = {
   kind: "completed",

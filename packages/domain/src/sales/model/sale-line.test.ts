@@ -6,10 +6,12 @@ import type { LinePromotion } from "./sale.js";
 import {
   addUnitToLine,
   grossLineTotal,
+  grossSaleSubtotal,
   manualAdjustmentRefusal,
   mayBeSaleLineQuantity,
   newSaleLine,
   newWeighedSaleLine,
+  promotionSavings,
   saleTotal,
   saleUnitOfWeightSource,
   soldLineStockDelta,
@@ -633,5 +635,66 @@ describe("changing the weight of a line with a manual adjustment", () => {
     expect(withWeight(withManualAdjustment(base, PRICE_OVERRIDE), 2000, "MANUAL")).toEqual(
       expect.objectContaining({ manualAdjustment: PRICE_OVERRIDE, lineTotal: 4000 }),
     );
+  });
+});
+
+describe("grossSaleSubtotal", () => {
+  it("is zero for a sale without lines", () => {
+    expect(grossSaleSubtotal([])).toBe(0);
+  });
+
+  it("adds every line at its list price, before promotions, manual discounts and price overrides", () => {
+    const promoted = withQuantity(newSaleLine("line-1", PRODUCT, PRICE, [THREE_FOR_TWO]), 3);
+    const discounted = withManualAdjustment(
+      newSaleLine("line-2", PRODUCT, PRICE, []),
+      PERCENT_DISCOUNT,
+    );
+    const overridden = withManualAdjustment(
+      newSaleLine("line-3", PRODUCT, PRICE, []),
+      PRICE_OVERRIDE,
+    );
+
+    expect(grossSaleSubtotal([promoted, discounted, overridden])).toBe(12_500);
+  });
+
+  it("adds a weighed line at its list price for the weight sold", () => {
+    const weighed = newWeighedSaleLine(
+      "line-1",
+      PRODUCT,
+      { priceListId: "list-1", unitPrice: 1999 },
+      [TEN_PERCENT],
+      1500,
+      "SCALE",
+    );
+
+    expect(grossSaleSubtotal([weighed])).toBe(2999);
+  });
+});
+
+describe("promotionSavings", () => {
+  it("is zero for a sale without lines", () => {
+    expect(promotionSavings([])).toBe(0);
+  });
+
+  it("adds what the applied promotions take off, leaving out manual discounts and price overrides", () => {
+    const promoted = withQuantity(newSaleLine("line-1", PRODUCT, PRICE, [THREE_FOR_TWO]), 3);
+    const tenPercent = newSaleLine("line-2", PRODUCT, PRICE, [TEN_PERCENT]);
+    const discounted = withManualAdjustment(
+      newSaleLine("line-3", PRODUCT, PRICE, [TEN_PERCENT]),
+      AMOUNT_DISCOUNT,
+    );
+    const overridden = withManualAdjustment(
+      newSaleLine("line-4", PRODUCT, PRICE, [TEN_PERCENT]),
+      PRICE_OVERRIDE,
+    );
+
+    expect(promotionSavings([promoted, tenPercent, discounted, overridden])).toBe(2750);
+  });
+
+  it("is zero when no promotion applies", () => {
+    const plain = newSaleLine("line-1", PRODUCT, PRICE, []);
+    const notReached = newSaleLine("line-2", PRODUCT, PRICE, [THREE_FOR_TWO]);
+
+    expect(promotionSavings([plain, notReached])).toBe(0);
   });
 });

@@ -74,7 +74,13 @@ export {
   saleStandingOf,
 } from "./model/sale-history.js";
 export type { ListPrice, SoldProduct } from "./model/sale-line.js";
-export { mayBeSaleLineQuantity, saleTotal, saleUnitOfWeightSource } from "./model/sale-line.js";
+export {
+  grossSaleSubtotal,
+  mayBeSaleLineQuantity,
+  promotionSavings,
+  saleTotal,
+  saleUnitOfWeightSource,
+} from "./model/sale-line.js";
 export { UNPRINTED_SALE_STANDINGS } from "./model/sale-print-standing.js";
 export { SALE_VOID_REFUSALS } from "./model/sale-void.js";
 export type { SalesOfCashier, SoldByCashier } from "./model/sales-by-cashier.js";

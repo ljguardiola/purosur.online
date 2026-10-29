@@ -97,7 +97,9 @@ const mercadoPagoChargeInProgressFields = {
 export const saleSchema = z.object({
   id: z.string(),
   lines: z.array(saleLineSchema),
+  gross_subtotal: cents,
   subtotal: cents,
+  promotion_savings: cents,
   sale_discount: appliedSaleDiscountSchema.nullable(),
   total: cents,
   paid: cents,

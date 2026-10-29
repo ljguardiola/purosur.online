@@ -17,7 +17,8 @@ import { saleDiscountLabel } from "./sale-discount-text";
 export type PaymentPanelProps = {
   saleStatus: LoadStatus;
   lineCount: number;
-  subtotal: number;
+  grossSubtotal: number;
+  promotionSavings: number;
   saleDiscount: OpenSale["sale_discount"];
   total: number;
   paid: number;
@@ -51,7 +52,8 @@ function refusalNotice(refusal: NonNullable<OpenSale["charge_refusal"]>): ReactN
 export function PaymentPanel({
   saleStatus,
   lineCount,
-  subtotal,
+  grossSubtotal,
+  promotionSavings,
   saleDiscount,
   total,
   paid,
@@ -89,7 +91,16 @@ export function PaymentPanel({
       {saleStatus === "loaded" ? (
         <SummaryRowGroup
           rows={[
-            { label: `${lineCount} ${lines}`, value: formatCents(subtotal) },
+            { label: `${lineCount} ${lines}`, value: formatCents(grossSubtotal) },
+            ...(promotionSavings > 0
+              ? [
+                  {
+                    label: "Ahorro en promociones",
+                    value: `− ${formatCents(promotionSavings)}`,
+                    saving: true,
+                  },
+                ]
+              : []),
             saleDiscount === null
               ? { label: "Descuento sobre el total", value: "Sin aplicar" }
               : {

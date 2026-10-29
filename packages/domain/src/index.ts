@@ -871,6 +871,7 @@ export type {
 export {
   amountToCharge,
   appliedSaleDiscountAmount,
+  grossSaleSubtotal,
   isDeferralPending,
   manualAdjustmentReason,
   mayBeManualDiscountAmount,
@@ -885,6 +886,7 @@ export {
   openSaleStanding,
   PENDING_DEFERRED_SALE_RECORD,
   PRINTED_DOCUMENTS,
+  promotionSavings,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
   receiptContent,
   receiptPrintStanding,

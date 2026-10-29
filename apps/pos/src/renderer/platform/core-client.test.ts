@@ -1363,7 +1363,9 @@ describe("createCoreClient", () => {
       sale_discount_authorization_required: false,
       sale_discount_refusal: null,
       sale_discount: null,
+      gross_subtotal: 4_760,
       subtotal: 4_760,
+      promotion_savings: 0,
     },
     {
       id: "sale-2",
@@ -1395,7 +1397,9 @@ describe("createCoreClient", () => {
       sale_discount_authorization_required: false,
       sale_discount_refusal: null,
       sale_discount: null,
+      gross_subtotal: 1_000_000_000,
       subtotal: 1_000_000_000,
+      promotion_savings: 0,
     },
   ])(
     "asks the core for the sale in progress of the person and resolves with it: %j",

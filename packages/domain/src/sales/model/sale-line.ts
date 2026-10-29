@@ -150,3 +150,18 @@ function priced(
 export function saleTotal(lines: readonly Pick<SaleLine, "lineTotal">[]): number {
   return lines.reduce((total, line) => total + line.lineTotal, 0);
 }
+
+export function grossSaleSubtotal(
+  lines: readonly Pick<SaleLine, "quantity" | "saleUnit" | "listUnitPrice">[],
+): number {
+  return lines.reduce((subtotal, line) => subtotal + grossLineTotal(line), 0);
+}
+
+export function promotionSavings(
+  lines: readonly Pick<SaleLine, "promotionId" | "discountAmount">[],
+): number {
+  return lines.reduce(
+    (savings, line) => savings + (line.promotionId === null ? 0 : line.discountAmount),
+    0,
+  );
+}
