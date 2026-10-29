@@ -1,9 +1,10 @@
-import type { ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, ProductSummary } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { productDescription } from "./product-description";
 import { reactivationBarcodeTakenError } from "./product-form";
 import type { reactivateProduct } from "./products-api";
 
@@ -13,6 +14,7 @@ export type ReactivateProductModalServices = {
 
 type ReactivateProductModalProps = {
   target: ProductSummary | null;
+  brands: BrandSummary[];
   onClose: () => void;
   onReactivated: () => void;
   onSessionEnded: () => void;
@@ -28,6 +30,7 @@ type ReactivateNotice =
 
 export function ReactivateProductModal({
   target,
+  brands,
   onClose,
   onReactivated,
   onSessionEnded,
@@ -40,9 +43,11 @@ export function ReactivateProductModal({
   const [notice, setNotice] = useState<ReactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const describe = useEffectEvent((product: ProductSummary) => productDescription(product, brands));
+
   useEffect(() => {
     if (open && target) {
-      setTitle(`¿Reactivar ${target.name}?`);
+      setTitle(`¿Reactivar ${describe(target)}?`);
       setNotice(null);
       setSubmitting(false);
     }

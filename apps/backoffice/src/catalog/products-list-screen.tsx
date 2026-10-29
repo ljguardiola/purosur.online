@@ -473,6 +473,7 @@ export function ProductsListScreen({
       ) : null}
       <DeactivateProductModal
         target={deactivateTarget}
+        brands={brands}
         onClose={() => setDeactivateTarget(null)}
         onDeactivated={closeDeactivationAndRefresh}
         onVanished={closeDeactivationAndRefresh}
@@ -481,6 +482,7 @@ export function ProductsListScreen({
       />
       <ReactivateProductModal
         target={reactivateTarget}
+        brands={brands}
         onClose={() => setReactivateTarget(null)}
         onReactivated={closeReactivationAndRefresh}
         onSessionEnded={onSessionEnded}
@@ -491,6 +493,7 @@ export function ProductsListScreen({
         onClose={() => setPrintModalOpen(false)}
         onSessionEnded={onSessionEnded}
         products={products}
+        brands={brands}
         onReload={refreshCatalog}
         services={services}
       />

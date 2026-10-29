@@ -14,7 +14,7 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { BarcodeChips, useBarcodeChips } from "../platform/barcode-chips";
 import { barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
@@ -40,6 +40,7 @@ import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { createTag } from "../platform/tag-creation-api";
 import { type ProductReload, useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import { productDescription } from "./product-description";
 import {
   categoryNameOf,
   editedProductBarcodeProblemMessage,
@@ -198,10 +199,12 @@ export function EditProductModal({
     onClose();
   };
 
+  const describe = useEffectEvent((product: ProductSummary) => productDescription(product, brands));
+
   useEffect(() => {
     if (open && target) {
       reset(productFormValues(target));
-      setTitle(target.name);
+      setTitle(describe(target));
       setKeptBrandId(target.brandId);
       chips.reset();
       setNotice(null);
@@ -221,7 +224,7 @@ export function EditProductModal({
     const outcome = await reload(target.id);
     if (outcome.kind === "found") {
       reset(productFormValues(outcome.product));
-      setTitle(outcome.product.name);
+      setTitle(productDescription(outcome.product, brands));
       setKeptBrandId(outcome.product.brandId);
       chips.reset();
       setNotice(null);
