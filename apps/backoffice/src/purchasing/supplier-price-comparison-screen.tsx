@@ -13,6 +13,7 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { Scale, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -76,7 +77,7 @@ const columns = [
     render: (row: OfferRow) =>
       row.first ? (
         <div className="flex flex-col">
-          <span>{row.product.name}</span>
+          <span>{formatProductDescription(row.product)}</span>
           <span className="text-detail text-text-subtle">{row.product.categoryName}</span>
         </div>
       ) : null,
@@ -171,7 +172,7 @@ export function SupplierPriceComparisonScreen({
   const table = useTableModel({
     items: rowsOf(products),
     id: (row) => row.id,
-    search: { text: search, in: (row) => [row.product.name] },
+    search: { text: search, in: (row) => [formatProductDescription(row.product)] },
     filter: (row) => shownCategory === ALL_CATEGORIES || row.product.categoryName === shownCategory,
     columns,
   });

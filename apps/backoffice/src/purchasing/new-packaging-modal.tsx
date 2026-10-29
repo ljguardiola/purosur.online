@@ -1,8 +1,4 @@
-import {
-  type PackagingList,
-  type PackagingSummary,
-  packagingCreationBodySchema,
-} from "@purosur/contracts";
+import { type PackagingSummary, packagingCreationBodySchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { Button, EmptyState, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Package, ShieldX, TriangleAlert, X } from "lucide-react";
@@ -16,8 +12,10 @@ import {
   PACKAGING_NAME_TAKEN,
   PACKAGING_PRODUCT_NOT_FOUND,
   PACKAGING_PRODUCT_REQUIRED,
+  type PackagingProduct,
   packagingCreationRequestFrom,
   packagingNameMessage,
+  packagingProductLabel,
   packagingProductOptions,
   packagingQuantityMessage,
 } from "./packaging-form";
@@ -30,7 +28,7 @@ export type NewPackagingModalServices = {
 
 type NewPackagingModalProps = {
   open: boolean;
-  products: PackagingList["products"];
+  products: PackagingProduct[];
   productId?: string;
   context?: string;
   services: NewPackagingModalServices;
@@ -171,7 +169,7 @@ export function NewPackagingModal({
         {options ? (
           <>
             {given ? (
-              <p className="text-body text-text-subtle">Producto: {given.name}</p>
+              <p className="text-body text-text-subtle">Producto: {packagingProductLabel(given)}</p>
             ) : (
               <form.AppField name="productId">
                 {(field) => (

@@ -5,6 +5,7 @@ import {
   compareSpanishText,
   type Fraction,
 } from "../../shared/index.js";
+import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import type { SupplierOfferUnpricedReason } from "../model/supplier-item.js";
 import { supplierOfferPrice } from "../model/supplier-offer.js";
 import type {
@@ -32,7 +33,7 @@ export interface UnpricedOffer {
   reason: SupplierOfferUnpricedReason;
 }
 
-export interface ComparedProduct {
+export interface ComparedProduct extends ProductBrandAndNetContent {
   id: string;
   name: string;
   categoryName: string;

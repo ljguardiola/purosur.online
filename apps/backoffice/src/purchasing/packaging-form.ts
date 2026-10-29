@@ -7,6 +7,7 @@ import {
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { sortedItems, textOrder } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import {
   formatStockQuantityInput,
@@ -66,15 +67,32 @@ export function packagingQuantityMessage(
     : quantityMessage(saleUnit);
 }
 
-const productNameOrder = textOrder((product: PackagingList["products"][number]) => product.name);
+type ChoosableProduct = PackagingList["products"][number];
+
+export type PackagingProduct = Pick<ChoosableProduct, "id" | "name" | "saleUnit"> &
+  Partial<Pick<ChoosableProduct, "brandName" | "netContent">>;
+
+const productNameOrder = textOrder((product: PackagingProduct) => product.name);
+
+export function packagingProductLabel(product: PackagingProduct): string {
+  return formatProductDescription({ brandName: null, netContent: null, ...product });
+}
+
+export function packagingProductDescription({
+  productName,
+  brandName,
+  netContent,
+}: Pick<PackagingSummary, "productName" | "brandName" | "netContent">): string {
+  return formatProductDescription({ name: productName, brandName, netContent });
+}
 
 export function packagingProductOptions(
-  products: PackagingList["products"],
+  products: readonly PackagingProduct[],
 ): [{ value: string; label: string }, ...{ value: string; label: string }[]] | undefined {
   const [first, ...rest] = sortedItems(products, {
     order: productNameOrder,
     direction: "ascending",
-  }).map((product) => ({ value: product.id, label: product.name }));
+  }).map((product) => ({ value: product.id, label: packagingProductLabel(product) }));
   return first && [first, ...rest];
 }
 

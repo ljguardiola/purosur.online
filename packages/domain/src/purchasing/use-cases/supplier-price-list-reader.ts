@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import type {
   SupplierPriceListReadFailure,
   SupplierPriceListState,
@@ -23,7 +24,7 @@ export interface SupplierPriceListListing {
 }
 
 export interface SupplierPriceListReviewRowLink {
-  product: { id: string; name: string; saleUnit: SaleUnit };
+  product: ProductBrandAndNetContent & { id: string; name: string; saleUnit: SaleUnit };
   packaging: {
     id: string;
     name: string;

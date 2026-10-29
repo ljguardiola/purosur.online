@@ -1,15 +1,16 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import type { ReceiptType } from "../model/purchase.js";
 import type { Packaging, Supplier } from "./purchasing-store.js";
 
-export interface PackagingListing extends Packaging {
+export interface PackagingListing extends Packaging, ProductBrandAndNetContent {
   productName: string;
   productSaleUnit: SaleUnit;
 }
 
 export interface PurchaseLineListing {
   id: string;
-  product: { id: string; name: string; saleUnit: SaleUnit };
+  product: ProductBrandAndNetContent & { id: string; name: string; saleUnit: SaleUnit };
   packaging: { id: string; name: string } | null;
   packages: number | null;
   quantity: number;

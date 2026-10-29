@@ -12,6 +12,7 @@ import {
   packagingEditRequestFrom,
   packagingFormValuesOf,
   packagingNameMessage,
+  packagingProductDescription,
   packagingQuantityMessage,
 } from "./packaging-form";
 import type { editPackaging } from "./packagings-api";
@@ -217,7 +218,7 @@ export function EditPackagingModal({
           <TextField
             kind="plain-text"
             label="Producto"
-            value={(loaded ?? target).productName}
+            value={packagingProductDescription(loaded ?? target)}
             onChange={() => {}}
             readOnly
             readOnlyReason="Una presentación pertenece siempre al mismo producto."

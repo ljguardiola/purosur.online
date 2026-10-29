@@ -22,6 +22,7 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { DeactivatePackagingModal } from "./deactivate-packaging-modal";
 import { EditPackagingModal } from "./edit-packaging-modal";
 import { NewPackagingModal } from "./new-packaging-modal";
+import { packagingProductDescription } from "./packaging-form";
 import type { PackagingsListScreenServices } from "./packagings-list-services";
 import { usePackagingsQuery, useRefreshPurchasing, useReloadPackaging } from "./purchasing-queries";
 import { ReactivatePackagingModal } from "./reactivate-packaging-modal";
@@ -103,7 +104,7 @@ export function PackagingsListScreen({
       id: "product",
       header: "Producto",
       sort: { order: productOrder, firstDirection: "ascending" },
-      render: (item: PackagingSummary) => item.productName,
+      render: packagingProductDescription,
     }),
     dataColumn({
       id: "packaging",
@@ -154,7 +155,10 @@ export function PackagingsListScreen({
   const table = useTableModel({
     items: packagings,
     id: (packaging) => packaging.id,
-    search: { text: search, in: (packaging) => [packaging.productName, packaging.name] },
+    search: {
+      text: search,
+      in: (packaging) => [packagingProductDescription(packaging), packaging.name],
+    },
     filter: (packaging) => showsStatus(packaging, statusFilter),
     columns,
     sort,

@@ -1,6 +1,7 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 
-export interface ComparableProduct {
+export interface ComparableProduct extends ProductBrandAndNetContent {
   id: string;
   name: string;
   categoryName: string;
