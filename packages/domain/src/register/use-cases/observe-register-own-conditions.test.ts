@@ -11,49 +11,49 @@ function observe(store: FakeRegisterConditionStartStore, held: readonly string[]
 }
 
 describe("observeRegisterOwnConditions", () => {
-  it("starts a condition held for the first time at the current instant", async () => {
+  it("starts a condition held for the first time at the current instant", () => {
     const store = new FakeRegisterConditionStartStore();
 
-    expect(await observe(store, ["clock_drift"])).toEqual({
+    expect(observe(store, ["clock_drift"])).toEqual({
       kind: "observed",
       starts: new Map([["clock_drift", NOW]]),
     });
     expect(store.starts).toEqual(new Map([["clock_drift", NOW]]));
   });
 
-  it("keeps the start of a condition that was already held", async () => {
+  it("keeps the start of a condition that was already held", () => {
     const store = new FakeRegisterConditionStartStore();
     store.starts = new Map([["clock_drift", EARLIER]]);
 
-    expect(await observe(store, ["clock_drift"])).toEqual({
+    expect(observe(store, ["clock_drift"])).toEqual({
       kind: "observed",
       starts: new Map([["clock_drift", EARLIER]]),
     });
     expect(store.starts).toEqual(new Map([["clock_drift", EARLIER]]));
   });
 
-  it("drops a condition that is no longer held, so holding again starts anew", async () => {
+  it("drops a condition that is no longer held, so holding again starts anew", () => {
     const store = new FakeRegisterConditionStartStore();
     store.starts = new Map([["clock_drift", EARLIER]]);
     const later = new Date("2026-10-14T17:00:00.000Z");
 
-    await observe(store, []);
+    observe(store, []);
     expect(store.starts).toEqual(new Map());
 
-    expect(await observe(store, ["clock_drift"], later)).toEqual({
+    expect(observe(store, ["clock_drift"], later)).toEqual({
       kind: "observed",
       starts: new Map([["clock_drift", later]]),
     });
   });
 
-  it("answers only the starts of the held conditions, mixing kept and new ones", async () => {
+  it("answers only the starts of the held conditions, mixing kept and new ones", () => {
     const store = new FakeRegisterConditionStartStore();
     store.starts = new Map([
       ["clock_drift", EARLIER],
       ["wal_oversized", EARLIER],
     ]);
 
-    expect(await observe(store, ["clock_drift", "disk_space_low"])).toEqual({
+    expect(observe(store, ["clock_drift", "disk_space_low"])).toEqual({
       kind: "observed",
       starts: new Map([
         ["clock_drift", EARLIER],
@@ -68,22 +68,20 @@ describe("observeRegisterOwnConditions", () => {
     );
   });
 
-  it("reads the stored starts and replaces them in one transaction, in that order", async () => {
+  it("reads the stored starts and replaces them in one transaction, in that order", () => {
     const store = new FakeRegisterConditionStartStore();
 
-    await observe(store, ["clock_drift"]);
+    observe(store, ["clock_drift"]);
 
     expect(store.operationOrder).toEqual(["lockConditionStarts", "replaceConditionStarts"]);
   });
 
-  it("leaves the stored starts as they were when the replacement fails", async () => {
+  it("leaves the stored starts as they were when the replacement fails", () => {
     const store = new FakeRegisterConditionStartStore();
     store.starts = new Map([["clock_drift", EARLIER]]);
     store.failingReplace = true;
 
-    await expect(observe(store, ["disk_space_low"])).rejects.toThrow(
-      "replaceConditionStarts failed",
-    );
+    expect(() => observe(store, ["disk_space_low"])).toThrow("replaceConditionStarts failed");
 
     expect(store.starts).toEqual(new Map([["clock_drift", EARLIER]]));
   });

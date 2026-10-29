@@ -10,12 +10,12 @@ class FakeRegisterConditionStartTransaction implements RegisterConditionStartSto
     this.store = store;
   }
 
-  async lockConditionStarts(): Promise<ReadonlyMap<string, Date>> {
+  lockConditionStarts(): ReadonlyMap<string, Date> {
     this.store.operationOrder.push("lockConditionStarts");
     return new Map(this.store.starts);
   }
 
-  async replaceConditionStarts(starts: ReadonlyMap<string, Date>): Promise<void> {
+  replaceConditionStarts(starts: ReadonlyMap<string, Date>): void {
     this.store.operationOrder.push("replaceConditionStarts");
     this.store.starts = new Map(starts);
     if (this.store.failingReplace) {
@@ -29,12 +29,12 @@ export class FakeRegisterConditionStartStore implements RegisterConditionStartSt
   failingReplace = false;
   operationOrder: string[] = [];
 
-  async transaction<TOutcome>(
+  transaction<TOutcome>(
     work: (tx: RegisterConditionStartStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     const before = new Map(this.starts);
     try {
-      return await work(new FakeRegisterConditionStartTransaction(this));
+      return work(new FakeRegisterConditionStartTransaction(this));
     } catch (error) {
       this.starts = before;
       throw error;
