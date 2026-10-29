@@ -1,6 +1,7 @@
-import type { SaleUnit } from "@purosur/domain";
+import type { NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  brands,
   categories,
   locations,
   productBarcodes,
@@ -29,7 +30,13 @@ export async function insertActor<TQueryResult extends PgQueryResultHKT>(
 
 export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  input: { name: string; saleUnit?: SaleUnit; active?: boolean },
+  input: {
+    name: string;
+    saleUnit?: SaleUnit;
+    active?: boolean;
+    brandName?: string;
+    netContent?: { quantity: number; unit: NetContentUnit };
+  },
 ): Promise<{ id: string; version: number }> {
   const [category] = await db
     .insert(categories)
@@ -38,11 +45,18 @@ export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
   }
+  const [brand] =
+    input.brandName === undefined
+      ? []
+      : await db.insert(brands).values({ name: input.brandName }).returning({ id: brands.id });
   const [product] = await db
     .insert(products)
     .values({
       name: input.name,
       categoryId: category.id,
+      brandId: brand?.id,
+      netContentQuantity: input.netContent?.quantity,
+      netContentUnit: input.netContent?.unit,
       saleUnit: input.saleUnit ?? "UNIT",
       active: input.active ?? true,
     })

@@ -69,8 +69,12 @@ const extractedListWithRow = (
   row?: Parameters<typeof sharedExtractedListWithRow>[2],
 ) => sharedExtractedListWithRow(db, list, row);
 
-async function productWithPackaging(actorId: string, name = "Yerba 1 kg") {
-  const { id: productId } = await insertProduct(db, { name });
+async function productWithPackaging(
+  actorId: string,
+  name = "Yerba 1 kg",
+  description: { brandName?: string; netContent?: { quantity: number; unit: "G" | "KG" } } = {},
+) {
+  const { id: productId } = await insertProduct(db, { name, ...description });
   const packagingId = await insertPackaging(db, {
     productId,
     actorId,
@@ -431,7 +435,10 @@ describe("GET /supplier-price-lists/:id with linked rows", () => {
       { pricesIncludeVat: true },
       { priceCents: 1_000, barcode: "7790000000011" },
     );
-    const { productId, packagingId } = await productWithPackaging(actorId);
+    const { productId, packagingId } = await productWithPackaging(actorId, "Yerba", {
+      brandName: "Piragüé",
+      netContent: { quantity: 1, unit: "KG" },
+    });
     await db
       .update(supplierPriceListRows)
       .set({ productId, packagingId })
@@ -450,7 +457,13 @@ describe("GET /supplier-price-lists/:id with linked rows", () => {
           id: rowId,
           barcode: "7790000000011",
           link: {
-            product: { id: productId, name: "Yerba 1 kg", saleUnit: "UNIT" },
+            product: {
+              id: productId,
+              name: "Yerba",
+              brandName: "Piragüé",
+              netContent: { quantity: 1, unit: "KG" },
+              saleUnit: "UNIT",
+            },
             packaging: {
               id: packagingId,
               name: "Caja x 10",

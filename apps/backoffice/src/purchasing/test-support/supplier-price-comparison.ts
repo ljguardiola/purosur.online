@@ -5,6 +5,8 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
     {
       id: "90d00000-0000-4000-8000-000000000041",
       name: "Almendras peladas",
+      brandName: null,
+      netContent: null,
       categoryName: "Frutos secos",
       saleUnit: "KG",
       offers: [
@@ -32,6 +34,8 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
     {
       id: "90d00000-0000-4000-8000-000000000042",
       name: "Miel pura de abeja 1 kg",
+      brandName: null,
+      netContent: null,
       categoryName: "Almacén",
       saleUnit: "UNIT",
       offers: [
@@ -50,6 +54,8 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
     {
       id: "90d00000-0000-4000-8000-000000000043",
       name: "Galletas de avena integrales",
+      brandName: null,
+      netContent: null,
       categoryName: "Almacén",
       saleUnit: "UNIT",
       offers: [],

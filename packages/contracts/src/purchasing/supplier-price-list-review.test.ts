@@ -10,7 +10,13 @@ const row = {
   page: 3,
   barcode: "7790001000012",
   link: {
-    product: { id: "p-1", name: "Yerba Piragüé", saleUnit: "UNIT" },
+    product: {
+      id: "p-1",
+      name: "Yerba Piragüé",
+      brandName: "Piragüé",
+      netContent: { quantity: 1, unit: "KG" },
+      saleUnit: "UNIT",
+    },
     packaging: { id: "pk-1", name: "Caja x 10", quantityPerPackage: 10_000, buyable: true },
     vatRate: 1050,
   },
@@ -243,6 +249,34 @@ describe("supplierPriceListReviewSchema", () => {
     };
 
     expect(supplierPriceListReviewSchema.safeParse(linked).success).toBe(false);
+  });
+
+  it("accepts a linked product without a brand or a net content", () => {
+    const linked = {
+      ...review,
+      rows: [
+        {
+          ...row,
+          link: {
+            ...row.link,
+            product: { ...row.link.product, brandName: null, netContent: null },
+          },
+        },
+      ],
+    };
+
+    expect(supplierPriceListReviewSchema.safeParse(linked).data).toEqual(linked);
+  });
+
+  it.each(["brandName", "netContent"])("requires a linked product's %s", (field) => {
+    const { [field as keyof typeof row.link.product]: _omitted, ...product } = row.link.product;
+
+    expect(
+      supplierPriceListReviewSchema.safeParse({
+        ...review,
+        rows: [{ ...row, link: { ...row.link, product } }],
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts a link without a VAT rate", () => {

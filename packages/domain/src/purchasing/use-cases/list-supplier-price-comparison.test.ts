@@ -4,7 +4,9 @@ import { FakeSupplierPriceComparisonReader } from "./test-support/fake-supplier-
 
 const YERBA = {
   id: "product-1",
-  name: "Yerba Piragüé 1 kg",
+  name: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 1, unit: "KG" as const },
   categoryName: "Almacén",
   saleUnit: "UNIT" as const,
 };

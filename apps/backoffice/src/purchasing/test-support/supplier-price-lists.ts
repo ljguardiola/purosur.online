@@ -160,6 +160,8 @@ export const ALMOND_LINK: NonNullable<ReviewRow["link"]> = {
   product: {
     id: "90d00000-0000-4000-8000-000000000003",
     name: "Almendras peladas",
+    brandName: null,
+    netContent: null,
     saleUnit: "KG",
   },
   packaging: {
@@ -231,6 +233,8 @@ export const LINKED_ROW: ReviewRow = {
     product: {
       id: "90d00000-0000-4000-8000-000000000051",
       name: "Castañas de cajú",
+      brandName: null,
+      netContent: null,
       saleUnit: "KG",
     },
     packaging: {

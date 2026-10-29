@@ -55,7 +55,11 @@ async function storedPurchase(fields: Partial<typeof purchases.$inferInsert> = {
 
 describe("DrizzlePurchasingListReader purchases", () => {
   it("lists a purchase with the supplier's, products' and packagings' names, one entry per line", async () => {
-    const yerba = await insertProduct(db, { name: "Yerba" });
+    const yerba = await insertProduct(db, {
+      name: "Yerba",
+      brandName: "Piragüé",
+      netContent: { quantity: 500, unit: "G" },
+    });
     const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
     const [packaging] = await db
       .insert(productPackagings)
@@ -110,7 +114,13 @@ describe("DrizzlePurchasingListReader purchases", () => {
     expect(listed[0]?.lines).toHaveLength(2);
     expect(listed[0]?.lines).toContainEqual({
       id: expect.any(String),
-      product: { id: yerba.id, name: "Yerba", saleUnit: "UNIT" },
+      product: {
+        id: yerba.id,
+        name: "Yerba",
+        brandName: "Piragüé",
+        netContent: { quantity: 500, unit: "G" },
+        saleUnit: "UNIT",
+      },
       packaging: { id: packaging?.id, name: "Caja x 12" },
       packages: 2,
       quantity: 24_000,
@@ -121,7 +131,7 @@ describe("DrizzlePurchasingListReader purchases", () => {
     });
     expect(listed[0]?.lines).toContainEqual({
       id: expect.any(String),
-      product: { id: harina.id, name: "Harina", saleUnit: "KG" },
+      product: { id: harina.id, name: "Harina", brandName: null, netContent: null, saleUnit: "KG" },
       packaging: null,
       packages: null,
       quantity: 2_500,

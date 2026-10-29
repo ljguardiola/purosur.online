@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { findPackagingListing } from "./find-packaging-listing.js";
 import { FakePurchasingListReader } from "./test-support/fake-purchasing-list-reader.js";
 
-const YERBA = { id: "p-unit", name: "Yerba", saleUnit: "UNIT", active: true } as const;
+const YERBA = {
+  id: "p-unit",
+  name: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 500, unit: "G" },
+  saleUnit: "UNIT",
+  active: true,
+} as const;
 const CAJA = {
   id: "k-1",
   productId: "p-unit",
@@ -21,6 +28,8 @@ describe("findPackagingListing", () => {
     expect(await findPackagingListing(reader, "k-1")).toEqual({
       ...CAJA,
       productName: "Yerba",
+      brandName: "Piragüé",
+      netContent: { quantity: 500, unit: "G" },
       productSaleUnit: "UNIT",
       saleUnitChanged: false,
     });
@@ -33,6 +42,8 @@ describe("findPackagingListing", () => {
     expect(await findPackagingListing(reader, "k-1")).toEqual({
       ...bolsa,
       productName: "Yerba",
+      brandName: "Piragüé",
+      netContent: { quantity: 500, unit: "G" },
       productSaleUnit: "UNIT",
       saleUnitChanged: true,
     });

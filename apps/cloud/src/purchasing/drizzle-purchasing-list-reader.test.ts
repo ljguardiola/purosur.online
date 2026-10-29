@@ -62,7 +62,12 @@ describe("DrizzlePurchasingListReader", () => {
   });
 
   it("lists every packaging with the sale unit it is stated in and its product's name and current sale unit, those of a deactivated product included", async () => {
-    const arroz = await insertProduct(db, { name: "Arroz", saleUnit: "UNIT" });
+    const arroz = await insertProduct(db, {
+      name: "Arroz",
+      saleUnit: "UNIT",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+    });
     const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG", active: false });
     await db.insert(productPackagings).values([
       {
@@ -83,6 +88,8 @@ describe("DrizzlePurchasingListReader", () => {
         id: expect.any(String),
         productId: harina.id,
         productName: "Harina",
+        brandName: null,
+        netContent: null,
         productSaleUnit: "KG",
         saleUnit: "UNIT",
         name: "Bolsa",
@@ -94,6 +101,8 @@ describe("DrizzlePurchasingListReader", () => {
         id: expect.any(String),
         productId: arroz.id,
         productName: "Arroz",
+        brandName: "Vitora",
+        netContent: { quantity: 500, unit: "G" },
         productSaleUnit: "UNIT",
         saleUnit: "UNIT",
         name: "Caja",
@@ -105,7 +114,11 @@ describe("DrizzlePurchasingListReader", () => {
   });
 
   it("finds one packaging with its product's name and current sale unit, and none that does not exist", async () => {
-    const arroz = await insertProduct(db, { name: "Arroz" });
+    const arroz = await insertProduct(db, {
+      name: "Arroz",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+    });
     const [caja] = await db
       .insert(productPackagings)
       .values([
@@ -125,6 +138,8 @@ describe("DrizzlePurchasingListReader", () => {
       id: caja?.id,
       name: "Caja",
       productName: "Arroz",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
       productSaleUnit: "UNIT",
       saleUnit: "KG",
     });
