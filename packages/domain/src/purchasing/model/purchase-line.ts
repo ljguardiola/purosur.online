@@ -32,3 +32,15 @@ export function lineValue({
     denominator: BigInt(quantityPerPackage),
   };
 }
+
+function greatestCommonDivisor(a: bigint, b: bigint): bigint {
+  return b === 0n ? a : greatestCommonDivisor(b, a % b);
+}
+
+export function commonDenominator(values: readonly Fraction[]): bigint {
+  return values.reduce(
+    (multiple, { denominator }) =>
+      (multiple / greatestCommonDivisor(multiple, denominator)) * denominator,
+    1n,
+  );
+}

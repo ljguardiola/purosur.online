@@ -1,6 +1,6 @@
 import { type Fraction, roundHalfUp } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
-import { lineValue, type PurchaseLineCost } from "./purchase-line.js";
+import { commonDenominator, lineValue, type PurchaseLineCost } from "./purchase-line.js";
 
 export interface FreightLine {
   id: string;
@@ -28,7 +28,7 @@ function scaledWeights(lines: readonly PurchaseLineCost[]): {
   denominator: bigint;
 } {
   const values = lines.map(lineValue);
-  const denominator = values.reduce((product, value) => product * value.denominator, 1n);
+  const denominator = commonDenominator(values);
   return {
     weights: values.map((value) => value.numerator * (denominator / value.denominator)),
     denominator,
