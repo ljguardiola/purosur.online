@@ -57,6 +57,8 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
       };
     case "tag":
       return { ...base, entity, row: { name: "Sin TACC", active: true, version: 1 } };
+    case "brand":
+      return { ...base, entity, row: { name: "Vitora", active: true, version: 1 } };
     case "price_list":
       return { ...base, entity, row: { name: "Minorista", version: 1 } };
     case "price":

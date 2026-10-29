@@ -5,6 +5,7 @@ import { lots } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleLotCostStore } from "./drizzle-lot-cost-store.js";
 import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
+import { insertLoadedSupplierPrice } from "./test-support/loaded-supplier-price-fixtures.js";
 import {
   insertInitialCountLot,
   insertPurchasedLot,
@@ -68,11 +69,11 @@ describe("DrizzleLotCostStore.lockLot", () => {
     }));
 
     expect(locked).toEqual({
-      initial: { origin: "initial_count", withdrawn: false, remaining: 6_000 },
-      withdrawn: { origin: "initial_count", withdrawn: true, remaining: -250 },
-      purchased: { origin: "purchase", withdrawn: false, remaining: 10_000 },
-      technical: { origin: "technical", withdrawn: false, remaining: 0 },
-      assembled: { origin: "assembly_batch", withdrawn: false, remaining: 14_000 },
+      initial: { productId, origin: "initial_count", withdrawn: false, remaining: 6_000 },
+      withdrawn: { productId, origin: "initial_count", withdrawn: true, remaining: -250 },
+      purchased: { productId, origin: "purchase", withdrawn: false, remaining: 10_000 },
+      technical: { productId, origin: "technical", withdrawn: false, remaining: 0 },
+      assembled: { productId, origin: "assembly_batch", withdrawn: false, remaining: 14_000 },
     });
   });
 
@@ -98,7 +99,7 @@ describe("DrizzleLotCostStore.setReferenceCost", () => {
 
     const outcome = await setLotReferenceCost(
       { store: new DrizzleLotCostStore(db) },
-      { locationId, lotId, unitCostCents: 3_500 },
+      { locationId, lotId, choice: { kind: "typed", unitCostCents: 3_500 } },
     );
 
     expect(outcome).toEqual({ kind: "set" });
@@ -116,11 +117,29 @@ describe("DrizzleLotCostStore.setReferenceCost", () => {
 
     const outcome = await setLotReferenceCost(
       { store: new DrizzleLotCostStore(db) },
-      { locationId, lotId, unitCostCents: 3_500 },
+      { locationId, lotId, choice: { kind: "typed", unitCostCents: 3_500 } },
     );
 
     expect(outcome).toEqual({ kind: "not_an_initial_count_lot" });
     const [lot] = await db.select().from(lots).where(eq(lots.id, lotId));
     expect(lot).toMatchObject({ costTotalCents: 5_000, costQuantity: 1_000 });
+  });
+});
+
+describe("DrizzleLotCostStore.loadedSupplierPrices", () => {
+  it("answers the prices loaded for the product asked, and none of other products", async () => {
+    const { actorId, productId } = await seeded();
+    const { productId: otherProductId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    const { supplierItemId } = await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId,
+      priceCents: 1_000,
+    });
+    await insertLoadedSupplierPrice(db, { productId: otherProductId, actorId, priceCents: 1 });
+    const store = new DrizzleLotCostStore(db);
+
+    const prices = await store.transaction((tx) => tx.loadedSupplierPrices(productId));
+
+    expect(prices.map((price) => price.supplierItemId)).toEqual([supplierItemId]);
   });
 });

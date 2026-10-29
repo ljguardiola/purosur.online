@@ -1,12 +1,16 @@
 import {
+  createBrand,
   createCategory,
   createProduct,
   createTag,
+  deactivateBrand,
   deactivateProduct,
   deactivateTag,
+  editBrand,
   editCategory,
   editProduct,
   editTag,
+  reactivateBrand,
   reactivateProduct,
   reactivateTag,
 } from "@purosur/domain/catalog/use-cases";
@@ -57,7 +61,11 @@ async function loggedChanges() {
     .from(changes)
     .orderBy(asc(changes.changeSeq));
   return rows.filter(
-    (row) => row.entity === "category" || row.entity === "product" || row.entity === "tag",
+    (row) =>
+      row.entity === "category" ||
+      row.entity === "product" ||
+      row.entity === "tag" ||
+      row.entity === "brand",
   );
 }
 
@@ -216,6 +224,38 @@ describe("the catalog changes a pull hands to the registers", () => {
       [2, 3, 4].map((version) => ({
         entity: "tag",
         entityId: created.tag.id,
+        version,
+        op: "update",
+        priceListId: null,
+      })),
+    );
+  });
+
+  it("logs a created brand as an insert of its first version", async () => {
+    const outcome = await createBrand(store(), { name: "Vitora" });
+    if (outcome.kind !== "created") {
+      throw new Error("test setup: the brand was not created");
+    }
+
+    expect(await loggedChanges()).toEqual([
+      { entity: "brand", entityId: outcome.brand.id, version: 1, op: "insert", priceListId: null },
+    ]);
+  });
+
+  it("logs a renamed, deactivated and reactivated brand each as an update of its next version", async () => {
+    const created = await createBrand(store(), { name: "Vitora" });
+    if (created.kind !== "created") {
+      throw new Error("test setup: the brand was not created");
+    }
+
+    await editBrand(store(), { id: created.brand.id, name: "Granuz", version: 1 });
+    await deactivateBrand(store(), created.brand.id);
+    await reactivateBrand(store(), created.brand.id);
+
+    expect((await loggedChanges()).slice(1)).toEqual(
+      [2, 3, 4].map((version) => ({
+        entity: "brand",
+        entityId: created.brand.id,
         version,
         op: "update",
         priceListId: null,

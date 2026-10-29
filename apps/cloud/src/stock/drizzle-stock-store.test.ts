@@ -30,6 +30,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
+import { insertLoadedSupplierPrice } from "./test-support/loaded-supplier-price-fixtures.js";
 import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
 
 const COUNTED_AT = new Date("2026-09-15T21:32:00.000Z");
@@ -893,6 +894,24 @@ describe("DrizzleStockStore initial count", () => {
     ]);
     expect(await db.select().from(stockMovements)).toEqual([
       expect.objectContaining({ id: MOVEMENT_ID, kind: "opening_count", delta: 6_000 }),
+    ]);
+  });
+
+  it("costs the lot at the price loaded for the product, kept exact", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    await insertLoadedSupplierPrice(db, {
+      productId,
+      actorId,
+      priceCents: 1_000,
+      quantityPerPackage: 3_000,
+    });
+
+    await count(new DrizzleStockStore(db), { productId, locationId, actorId });
+
+    expect(await db.select().from(lots)).toEqual([
+      expect.objectContaining({ costIncomplete: false, costTotalCents: 1, costQuantity: 3 }),
     ]);
   });
 

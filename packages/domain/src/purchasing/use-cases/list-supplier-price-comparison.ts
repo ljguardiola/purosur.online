@@ -1,12 +1,12 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import { compareSpanishText, type Fraction } from "../../shared/index.js";
-import { mayBuyByPackaging } from "../model/packaging.js";
 import {
   cheapestOffer,
   compareFractions,
-  pricePerSaleUnit,
-  type SupplierOfferUnpricedReason,
-} from "../model/supplier-item.js";
+  compareSpanishText,
+  type Fraction,
+} from "../../shared/index.js";
+import type { SupplierOfferUnpricedReason } from "../model/supplier-item.js";
+import { supplierOfferPrice } from "../model/supplier-offer.js";
 import type {
   ComparableProduct,
   SupplierOffer,
@@ -54,23 +54,15 @@ function pricedOrUnpriced(
     priceCents: offer.priceCents,
     listDate: offer.listDate,
   };
-  if (!mayBuyByPackaging(offer.packaging, product.saleUnit)) {
-    return { kind: "unpriced", offer: { ...shown, reason: "packaging_not_buyable" } };
-  }
-  const perSaleUnit = pricePerSaleUnit({
-    priceCents: offer.priceCents,
-    pricesIncludeVat: offer.pricesIncludeVat,
-    vatRate: offer.vatRate,
-    quantityPerPackage: offer.packaging.quantityPerPackage,
-  });
-  return perSaleUnit === null
-    ? { kind: "unpriced", offer: { ...shown, reason: "vat_rate_missing" } }
+  const price = supplierOfferPrice(offer, product.saleUnit);
+  return price.kind === "unpriced"
+    ? { kind: "unpriced", offer: { ...shown, reason: price.reason } }
     : {
         kind: "priced",
         offer: {
           ...shown,
           quantityPerPackage: offer.packaging.quantityPerPackage,
-          pricePerSaleUnit: perSaleUnit,
+          pricePerSaleUnit: price.pricePerSaleUnit,
         },
       };
 }

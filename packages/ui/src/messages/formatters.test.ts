@@ -15,11 +15,13 @@ import {
   formatInvoiceNumber,
   formatMonthAndYear,
   formatMonthName,
+  formatNetContent,
   formatNumber,
   formatOperationNumber,
   formatPercent,
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
+  formatProductDescription,
   formatShortCode,
   formatSignedCents,
   formatTimeAgo,
@@ -423,5 +425,51 @@ describe("formatPricePerSaleUnit", () => {
 describe("formatShortCode", () => {
   it("groups the consultation code in two blocks of four characters", () => {
     expect(formatShortCode("7KQ4M2P9")).toBe("7KQ4-M2P9");
+  });
+});
+
+describe("formatNetContent", () => {
+  it.each([
+    [{ quantity: 1, unit: "KG" }, "1 kg"],
+    [{ quantity: 500, unit: "G" }, "500 g"],
+    [{ quantity: 1.5, unit: "L" }, "1,5 l"],
+    [{ quantity: 750, unit: "ML" }, "750 ml"],
+    [{ quantity: 6, unit: "UNIT" }, "6 u"],
+  ] as const)("writes %j as %s", (netContent, expected) => {
+    expect(formatNetContent(netContent)).toBe(expected);
+  });
+});
+
+describe("formatProductDescription", () => {
+  it("follows the name with the brand's name and the net content", () => {
+    expect(
+      formatProductDescription({
+        name: "Aceite de Almendras",
+        brandName: "Vitora",
+        netContent: { quantity: 30, unit: "ML" },
+      }),
+    ).toBe("Aceite de Almendras Vitora 30 ml");
+  });
+
+  it("shows the name alone for a product with neither brand nor net content", () => {
+    expect(
+      formatProductDescription({ name: "Pan casero", brandName: null, netContent: null }),
+    ).toBe("Pan casero");
+  });
+
+  it("follows the name with the brand alone when the product has no net content", () => {
+    expect(
+      formatProductDescription({ name: "Yerba", brandName: "Del Sur", netContent: null }),
+    ).toBe("Yerba Del Sur");
+  });
+
+  it("follows the name with the net content alone when the product has no brand", () => {
+    expect(
+      formatProductDescription({
+        name: "Harina",
+        brandName: null,
+        netContent: { quantity: 1, unit: "KG" },
+      }),
+    ).toBe("Harina 1 kg");
   });
 });

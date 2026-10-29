@@ -19,6 +19,7 @@ import {
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
 import {
   readBranchFirstCashSessions,
+  readBrands,
   readBuyerIdentificationThresholds,
   readBuyerTaxStatusSets,
   readCategories,
@@ -106,6 +107,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const categoryRows = await readCategories(this.tx, idsOf(logged, "category"));
     const productRows = await readProducts(this.tx, idsOf(logged, "product"));
     const tagRows = await readTags(this.tx, idsOf(logged, "tag"));
+    const brandRows = await readBrands(this.tx, idsOf(logged, "brand"));
     const priceListRows = await readPriceLists(this.tx, idsOf(logged, "price_list"));
     const priceRows = await readPrices(this.tx, idsOf(logged, "price"));
     const userRows = await readUsers(this.tx, idsOf(logged, "user"));
@@ -195,6 +197,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             entity,
             entityId,
             row: requiredRow(firstCashSessionRows.get(entityId), entity),
+          });
+          break;
+        case "brand":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(brandRows.get(entityId), entity),
           });
           break;
         case "price_list":
