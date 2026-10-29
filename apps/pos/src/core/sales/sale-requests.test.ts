@@ -3327,7 +3327,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 8 },
+      { event_type: "sale_cancelled", schema_version: 9 },
     ]);
   });
 
@@ -3357,7 +3357,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 8 },
+      { event_type: "sale_cancelled", schema_version: 9 },
     ]);
   });
 
@@ -3393,7 +3393,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 8 },
+      { event_type: "sale_cancelled", schema_version: 9 },
     ]);
   });
 
