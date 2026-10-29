@@ -134,27 +134,6 @@ export const SUPPLIER_OFFER_UNPRICED_REASONS = [
 
 export type SupplierOfferUnpricedReason = (typeof SUPPLIER_OFFER_UNPRICED_REASONS)[number];
 
-export function compareFractions(a: Fraction, b: Fraction): number {
-  const difference = a.numerator * b.denominator - b.numerator * a.denominator;
-  return difference > 0n ? 1 : difference < 0n ? -1 : 0;
-}
-
-// The earliest offer wins a tie.
-export function cheapestOffer<T extends { pricePerSaleUnit: Fraction }>(
-  offers: readonly T[],
-): T | undefined {
-  let cheapest: T | undefined;
-  for (const offer of offers) {
-    if (
-      cheapest === undefined ||
-      compareFractions(offer.pricePerSaleUnit, cheapest.pricePerSaleUnit) < 0
-    ) {
-      cheapest = offer;
-    }
-  }
-  return cheapest;
-}
-
 export const SUPPLIER_PRICE_LIST_ROW_STATUSES = [
   "new",
   "linked",

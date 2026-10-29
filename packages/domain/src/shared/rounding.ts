@@ -11,3 +11,8 @@ export function roundHalfUp({ numerator, denominator }: Fraction): number {
   // its floor.
   return Number(doubled % divisor < 0n ? quotient - 1n : quotient);
 }
+
+export function compareFractions(a: Fraction, b: Fraction): number {
+  const difference = a.numerator * b.denominator - b.numerator * a.denominator;
+  return difference > 0n ? 1 : difference < 0n ? -1 : 0;
+}

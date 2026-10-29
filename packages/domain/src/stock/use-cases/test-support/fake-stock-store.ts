@@ -3,6 +3,7 @@ import type { Clock } from "../../../shared/index.js";
 import type { BatchLotMovement } from "../../model/assembly-batch.js";
 import type { NewBatchLot, NewInitialCountLot, NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
+import type { LoadedSupplierPrice } from "../../model/lot-reference-cost.js";
 import { isLotCostIncomplete, type LotCost } from "../../model/lot-value.js";
 import type {
   AssemblyBatchStore,
@@ -300,10 +301,10 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
       remaining: 0,
       purchaseLineId: null,
       quantityReceived: lot.quantityReceived,
-      costTotalCents: null,
-      costQuantity: null,
+      costTotalCents: (lot.cost ?? null)?.totalCents ?? null,
+      costQuantity: (lot.cost ?? null)?.quantity ?? null,
       lotNumber: null,
-      costComplete: false,
+      costComplete: (lot.cost ?? null) !== null,
       originMovementId: lot.originMovementId,
       assemblyBatchId: null,
       withdrawn: false,
@@ -438,6 +439,11 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
       });
   }
 
+  async loadedSupplierPrices(productId: string): Promise<LoadedSupplierPrice[]> {
+    this.store.operationOrder.push("loadedSupplierPrices");
+    return (this.store.supplierPrices.get(productId) ?? []).map((price) => ({ ...price }));
+  }
+
   async openingCountLot(
     locationId: string,
     movementId: string,
@@ -515,6 +521,11 @@ export class FakeStockStore implements StockStore, AssemblyBatchStore {
   failingWrites = new Set<WriteOperation>();
   operationOrder: string[] = [];
   lockedProducts: string[] = [];
+  supplierPrices = new Map<string, LoadedSupplierPrice[]>();
+
+  seedSupplierPrices(productId: string, prices: LoadedSupplierPrice[]): void {
+    this.supplierPrices.set(productId, prices);
+  }
 
   seedProduct(product: FakeStockProduct): void {
     this.state.products.push({ ...product });

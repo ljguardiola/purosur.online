@@ -11,6 +11,7 @@ import {
   initialLotHoney,
   initialLotTeaWithoutCost,
   initialLotWithdrawnStillHeld,
+  supplierPriceAlfa,
 } from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
@@ -276,4 +277,37 @@ test("reads the lots again when the lot being edited no longer exists", async ()
 
   await expect.element(dialog.getByText("Este lote ya no existe").first()).toBeVisible();
   await expect.poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.calls.length).toBe(2);
+});
+
+test("reads the lots again when a typed cost is refused for loaded prices, so the lot reopens on them", async () => {
+  const services = createServices([initialLotAlmonds]);
+  vi.mocked(services.fetchInitialInventoryLots).mockResolvedValueOnce({
+    kind: "ok",
+    value: { lots: [initialLotAlmonds] },
+  });
+  vi.mocked(services.fetchInitialInventoryLots).mockResolvedValue({
+    kind: "ok",
+    value: {
+      lots: [{ ...initialLotAlmonds, supplierPrices: [{ ...supplierPriceAlfa, current: true }] }],
+    },
+  });
+  vi.mocked(services.setLotReferenceCost).mockResolvedValue({
+    kind: "cost_chosen_from_supplier_prices",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  const dialog = await openEdit(screen, "Almendras peladas");
+
+  await userEvent.fill(dialog.getByLabelText("Costo de referencia por kg"), "100");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
+  await expect
+    .element(dialog.getByText("Este producto ya tiene precios de proveedores"))
+    .toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.calls.length).toBe(2);
+  const reopened = await openEdit(screen, "Almendras peladas");
+
+  await expect
+    .element(reopened.getByRole("button", { name: /Lista de proveedor/ }))
+    .toHaveTextContent("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kgLa más barata");
 });

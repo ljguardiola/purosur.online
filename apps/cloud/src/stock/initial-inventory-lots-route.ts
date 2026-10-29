@@ -32,6 +32,15 @@ const NOT_AN_INITIAL_COUNT_LOT_RESPONSE = {
   message: "only a lot of the initial count takes a reference cost",
 } as const;
 
+const COST_CHOSEN_FROM_SUPPLIER_PRICES_RESPONSE = {
+  code: "cost_chosen_from_supplier_prices",
+  message: "the product has loaded supplier prices, so its cost is chosen among them",
+} as const;
+const SUPPLIER_PRICE_NOT_FOUND_RESPONSE = {
+  code: "supplier_price_not_found",
+  message: "the supplier item has no loaded price for the lot's product",
+} as const;
+
 export function registerInitialInventoryLotsRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: StockRouteOptions<TQueryResult>,
@@ -79,7 +88,10 @@ export function registerInitialInventoryLotsRoutes<TQueryResult extends PgQueryR
       {
         locationId: openSessionOf(request).locationId,
         lotId: ids.lotId,
-        unitCostCents: body.unitCostCents,
+        choice:
+          "unitCostCents" in body
+            ? { kind: "typed", unitCostCents: body.unitCostCents }
+            : { kind: "supplier_price", supplierItemId: body.supplierItemId },
       },
     );
 
@@ -102,6 +114,12 @@ export function registerInitialInventoryLotsRoutes<TQueryResult extends PgQueryR
         return;
       case "not_an_initial_count_lot":
         await reply.code(409).send(NOT_AN_INITIAL_COUNT_LOT_RESPONSE);
+        return;
+      case "cost_chosen_from_supplier_prices":
+        await reply.code(409).send(COST_CHOSEN_FROM_SUPPLIER_PRICES_RESPONSE);
+        return;
+      case "supplier_price_not_found":
+        await reply.code(409).send(SUPPLIER_PRICE_NOT_FOUND_RESPONSE);
         return;
     }
   });

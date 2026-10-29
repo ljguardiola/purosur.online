@@ -1,11 +1,20 @@
 import { initialCountLotTakesCost } from "../model/initial-count.js";
-import { isReferenceUnitCost, referenceCostOf } from "../model/lot-reference-cost.js";
+import {
+  isReferenceUnitCost,
+  referenceCostOf,
+  referenceCostOfPrice,
+  selectableSupplierPrices,
+} from "../model/lot-reference-cost.js";
 import type { LotCostStore } from "./lot-cost-store.js";
+
+export type LotCostChoice =
+  | { kind: "typed"; unitCostCents: number }
+  | { kind: "supplier_price"; supplierItemId: string };
 
 export interface SetLotReferenceCostInput {
   locationId: string;
   lotId: string;
-  unitCostCents: number;
+  choice: LotCostChoice;
 }
 
 export type SetLotReferenceCostOutcome =
@@ -13,17 +22,19 @@ export type SetLotReferenceCostOutcome =
   | { kind: "not_found" }
   | { kind: "not_an_initial_count_lot" }
   | { kind: "lot_withdrawn" }
+  | { kind: "cost_chosen_from_supplier_prices" }
+  | { kind: "supplier_price_not_found" }
   | { kind: "set" };
 
 export async function setLotReferenceCost(
   { store }: { store: LotCostStore },
-  input: SetLotReferenceCostInput,
+  { locationId, lotId, choice }: SetLotReferenceCostInput,
 ): Promise<SetLotReferenceCostOutcome> {
-  if (!isReferenceUnitCost(input.unitCostCents)) {
+  if (choice.kind === "typed" && !isReferenceUnitCost(choice.unitCostCents)) {
     return { kind: "invalid_cost" };
   }
   return store.transaction<SetLotReferenceCostOutcome>(async (tx) => {
-    const lot = await tx.lockLot(input.locationId, input.lotId);
+    const lot = await tx.lockLot(locationId, lotId);
     if (lot === undefined) {
       return { kind: "not_found" };
     }
@@ -33,7 +44,20 @@ export async function setLotReferenceCost(
     if (!initialCountLotTakesCost(lot)) {
       return { kind: "lot_withdrawn" };
     }
-    await tx.setReferenceCost(input.lotId, referenceCostOf(input.unitCostCents));
+    const prices = selectableSupplierPrices(await tx.loadedSupplierPrices(lot.productId));
+    if (choice.kind === "typed") {
+      if (prices.length > 0) {
+        return { kind: "cost_chosen_from_supplier_prices" };
+      }
+      await tx.setReferenceCost(lotId, referenceCostOf(choice.unitCostCents));
+      return { kind: "set" };
+    }
+    const price = prices.find(({ supplierItemId }) => supplierItemId === choice.supplierItemId);
+    const cost = price && referenceCostOfPrice(price.pricePerSaleUnit);
+    if (cost === undefined || cost === null) {
+      return { kind: "supplier_price_not_found" };
+    }
+    await tx.setReferenceCost(lotId, cost);
     return { kind: "set" };
   });
 }

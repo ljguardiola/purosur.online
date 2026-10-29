@@ -7,10 +7,12 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import {
   type CostFormValues,
+  costFormValuesOf,
   costMessage,
   costRequestFrom,
-  EMPTY_COST_FORM,
   referenceCostLabel,
+  supplierPriceMessage,
+  supplierPriceOptions,
 } from "./initial-inventory-cost-form";
 import type { SetLotReferenceCostOutcome, setLotReferenceCost } from "./stock-api";
 
@@ -26,14 +28,16 @@ export type EditLotCostModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
   onSaved: (lot: InitialInventoryLot) => void;
-  onGone: (lot: InitialInventoryLot) => void;
+  onOutdated: (lot: InitialInventoryLot) => void;
 };
 
 type Notice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "gone" }
-  | { kind: "notInitialCount" };
+  | { kind: "notInitialCount" }
+  | { kind: "pricesLoaded" }
+  | { kind: "priceGone" };
 
 export function EditLotCostModal({
   lot,
@@ -41,15 +45,15 @@ export function EditLotCostModal({
   onClose,
   onSessionEnded,
   onSaved,
-  onGone,
+  onOutdated,
 }: EditLotCostModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<Notice | null>(null);
   const { form, submit, submitting } = useRequestForm({
-    defaultValues: EMPTY_COST_FORM,
+    defaultValues: costFormValuesOf(lot),
     request: { schema: lotReferenceCostBodySchema, from: costRequestFrom },
-    fields: { unitCostCents: "cost" },
-    messages: { cost: costMessage },
+    fields: { unitCostCents: "cost", supplierItemId: "supplierItemId" },
+    messages: { cost: costMessage, supplierItemId: supplierPriceMessage },
     onSubmit: async (request, submission) => {
       setNotice(null);
       try {
@@ -72,9 +76,15 @@ export function EditLotCostModal({
       sendToMyAccount();
     } else if (outcome.kind === "not_found" || outcome.kind === "lot_withdrawn") {
       setNotice({ kind: "gone" });
-      onGone(lot);
+      onOutdated(lot);
     } else if (outcome.kind === "not_an_initial_count_lot") {
       setNotice({ kind: "notInitialCount" });
+    } else if (outcome.kind === "cost_chosen_from_supplier_prices") {
+      setNotice({ kind: "pricesLoaded" });
+      onOutdated(lot);
+    } else if (outcome.kind === "supplier_price_not_found") {
+      setNotice({ kind: "priceGone" });
+      onOutdated(lot);
     } else if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind !== "validation_failed" || !showWireFieldError(outcome.field)) {
@@ -82,7 +92,16 @@ export function EditLotCostModal({
     }
   }
 
-  const saveDisabled = submitting || notice?.kind === "gone" || notice?.kind === "notInitialCount";
+  const saveDisabled =
+    submitting ||
+    notice?.kind === "gone" ||
+    notice?.kind === "notInitialCount" ||
+    notice?.kind === "pricesLoaded" ||
+    notice?.kind === "priceGone";
+  const [firstPrice, ...otherPrices] = supplierPriceOptions(lot);
+  const lotDescription = lot.withdrawn
+    ? `Lote de una línea retirada de la puesta en marcha, con ${formatStockQuantity(lot.remaining, lot.saleUnit)} en stock.`
+    : `Lote contado en la puesta en marcha: ${formatStockQuantity(lot.counted, lot.saleUnit)}.`;
 
   return (
     <Modal
@@ -150,22 +169,47 @@ export function EditLotCostModal({
             description="Solo los lotes del inventario inicial admiten un costo de referencia."
           />
         )}
-        <form.AppField name="cost">
-          {(field) => (
-            <field.TextField
-              kind="price"
-              label={referenceCostLabel(lot.saleUnit)}
-              prefix="$"
-              inputMode="decimal"
-              description={
-                lot.withdrawn
-                  ? `Lote de una línea retirada de la puesta en marcha, con ${formatStockQuantity(lot.remaining, lot.saleUnit)} en stock.`
-                  : `Lote contado en la puesta en marcha: ${formatStockQuantity(lot.counted, lot.saleUnit)}.`
-              }
-              required
-            />
-          )}
-        </form.AppField>
+        {notice?.kind === "pricesLoaded" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="Este producto ya tiene precios de proveedores"
+            description="Cerrá y volvé a abrir el lote para elegir uno."
+          />
+        )}
+        {notice?.kind === "priceGone" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="Ese precio ya no está disponible"
+            description="Cerrá y volvé a abrir el lote para ver los precios cargados."
+          />
+        )}
+        {firstPrice !== undefined ? (
+          <form.AppField name="supplierItemId">
+            {(field) => (
+              <field.Select
+                label="Lista de proveedor"
+                options={[firstPrice, ...otherPrices]}
+                description={lotDescription}
+                required
+              />
+            )}
+          </form.AppField>
+        ) : (
+          <form.AppField name="cost">
+            {(field) => (
+              <field.TextField
+                kind="price"
+                label={referenceCostLabel(lot.saleUnit)}
+                prefix="$"
+                inputMode="decimal"
+                description={lotDescription}
+                required
+              />
+            )}
+          </form.AppField>
+        )}
       </div>
     </Modal>
   );

@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { roundHalfUp } from "./rounding.js";
+import { compareFractions, roundHalfUp } from "./rounding.js";
 
 const LARGE_PRICE_CENTS = 2_147_483_647;
 
@@ -54,6 +54,35 @@ describe("roundHalfUp", () => {
           expect(2n * (rounded * denominator - numerator)).toBeLessThanOrEqual(denominator);
         },
       ),
+    );
+  });
+});
+
+describe("compareFractions", () => {
+  it("orders fractions by value whatever their reduction", () => {
+    expect(
+      compareFractions({ numerator: 1n, denominator: 3n }, { numerator: 1n, denominator: 2n }),
+    ).toBeLessThan(0);
+    expect(
+      compareFractions({ numerator: 2n, denominator: 3n }, { numerator: 1n, denominator: 2n }),
+    ).toBeGreaterThan(0);
+    expect(
+      compareFractions({ numerator: 2n, denominator: 4n }, { numerator: 1n, denominator: 2n }),
+    ).toBe(0);
+  });
+
+  it("agrees with the sign of the difference of the values for any two fractions", () => {
+    const fraction = fc.record({
+      numerator: fc.bigInt({ min: 0n, max: 10n ** 12n }),
+      denominator: fc.bigInt({ min: 1n, max: 10n ** 12n }),
+    });
+    fc.assert(
+      fc.property(fraction, fraction, (a, b) => {
+        const difference = a.numerator * b.denominator - b.numerator * a.denominator;
+        expect(Math.sign(compareFractions(a, b))).toBe(
+          difference > 0n ? 1 : difference < 0n ? -1 : 0,
+        );
+      }),
     );
   });
 });
