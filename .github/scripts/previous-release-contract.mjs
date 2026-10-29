@@ -1,4 +1,4 @@
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const LOG_PREFIX = "previous-release-contract";
@@ -28,6 +28,25 @@ export function listFiles(dir) {
 export function replaceMigrations({ previousDir, currentDir }) {
   rmSync(join(previousDir, MIGRATIONS), { recursive: true });
   cpSync(join(currentDir, MIGRATIONS), join(previousDir, MIGRATIONS), { recursive: true });
+}
+
+// Vitest's --reporter replaces the reporters a config declares, and the previous release's own
+// reporters may be what its sequencer needs, so the results reporter is added to them instead.
+const VITEST_CONFIG = "vitest.previous-release.config.mts";
+
+export function writeVitestConfig({ previousDir, reporter }) {
+  const path = join(previousDir, VITEST_CONFIG);
+  writeFileSync(
+    path,
+    [
+      'import { mergeConfig } from "vitest/config";',
+      'import previousRelease from "./vitest.config.ts";',
+      "",
+      `export default mergeConfig(previousRelease, { test: { reporters: [${JSON.stringify(reporter)}] } });`,
+      "",
+    ].join("\n"),
+  );
+  return path;
 }
 
 const CREATE_EXTENSION_RE = /\bcreate\s+extension\s+(?:if\s+not\s+exists\s+)?"?([\w-]+)"?/gi;
@@ -110,11 +129,19 @@ export async function runCli({
   env = process.env,
   listFiles: listFilesIn = listFiles,
   replaceMigrations: replaceMigrationsIn = replaceMigrations,
+  writeVitestConfig: writeVitestConfigIn = writeVitestConfig,
   readResults: readResultsIn = readResults,
   log = console.log,
   logError = console.error,
 } = {}) {
-  const { PREVIOUS_DIR, CURRENT_DIR, DECLARED_BREAKS, RESULTS_FILE, TESTS_OUTCOME } = env;
+  const {
+    PREVIOUS_DIR,
+    CURRENT_DIR,
+    DECLARED_BREAKS,
+    RESULTS_FILE,
+    RESULTS_REPORTER,
+    TESTS_OUTCOME,
+  } = env;
   const [command] = argv;
 
   if (command === "list") {
@@ -138,6 +165,14 @@ export async function runCli({
       return 1;
     }
     replaceMigrationsIn({ previousDir: PREVIOUS_DIR, currentDir: CURRENT_DIR });
+    return 0;
+  }
+  if (command === "write-vitest-config") {
+    if (!PREVIOUS_DIR || !RESULTS_REPORTER) {
+      logError(`${LOG_PREFIX}: PREVIOUS_DIR and RESULTS_REPORTER are required`);
+      return 1;
+    }
+    log(writeVitestConfigIn({ previousDir: PREVIOUS_DIR, reporter: RESULTS_REPORTER }));
     return 0;
   }
   if (command === "check-declared") {
@@ -180,7 +215,7 @@ export async function runCli({
     return 0;
   }
   logError(
-    `${LOG_PREFIX}: the command must be "list", "swap-migrations", "check-declared" or "judge"`,
+    `${LOG_PREFIX}: the command must be "list", "swap-migrations", "write-vitest-config", "check-declared" or "judge"`,
   );
   return 1;
 }
