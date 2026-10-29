@@ -87,7 +87,12 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({
         kind: "proposed",
         by: "ai",
-        product: { id: "product-3", name: "Yerba Piragüé 500 g" },
+        product: {
+          id: "product-3",
+          name: "Yerba Piragüé 500 g",
+          brandName: null,
+          netContent: null,
+        },
       });
     });
   });
