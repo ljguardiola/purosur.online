@@ -767,70 +767,126 @@ describe("since when the register's conditions hold", () => {
     expect(failures).toEqual([expect.objectContaining({ message: "database or disk is full" })]);
   });
 
-  it("keeps the instant on battery across a restart of the register that finds it still on battery", async () => {
-    const ON_BATTERY: BatteryReading = { kind: "present", chargePercent: 70, onBattery: true };
-    const world = { now: NOW };
-    function startedWatch() {
-      const scheduled: (() => Promise<void>)[] = [];
-      const watch = createBatteryWatch({
-        reader: { read: async () => ON_BATTERY },
-        intervalMs: MINUTE_MS,
-        scheduleNext: (run) => {
-          scheduled.push(run);
-          return () => undefined;
-        },
-        clock: { now: () => world.now },
-      });
-      async function readAfter(minutes: number): Promise<void> {
-        world.now = new Date(world.now.getTime() + minutes * MINUTE_MS);
-        await scheduled.at(-1)?.();
-      }
-      return { watch, readAfter };
+  const ON_BATTERY_READING: BatteryReading = {
+    kind: "present",
+    chargePercent: 70,
+    onBattery: true,
+  };
+  const ON_MAINS_READING: BatteryReading = {
+    kind: "present",
+    chargePercent: 70,
+    onBattery: false,
+  };
+
+  interface BatteryWorld {
+    now: Date;
+    reading: BatteryReading;
+  }
+
+  function startedWatchReading(world: BatteryWorld) {
+    const scheduled: (() => Promise<void>)[] = [];
+    const watch = createBatteryWatch({
+      reader: { read: async () => world.reading },
+      intervalMs: MINUTE_MS,
+      scheduleNext: (run) => {
+        scheduled.push(run);
+        return () => undefined;
+      },
+      clock: { now: () => world.now },
+    });
+    async function readAfter(minutes: number): Promise<void> {
+      world.now = new Date(world.now.getTime() + minutes * MINUTE_MS);
+      await scheduled.at(-1)?.();
     }
-    function sinceOnBattery(target: LocalDatabase, watch: BatteryWatch) {
-      return registerStatusFor({
-        zoneRules: fixedZoneRulesSource(),
-        database: target,
-        cloud: () => "unknown",
-        now: () => world.now,
-        signedInPerson,
-        serialDevices: () => ({ kind: "listed", standings: NO_DEVICES, registered: {} }),
-        storage: () => ROOMY_STORAGE,
-        localDatabaseDamaged: () => false,
-        battery: watch.report,
-        onBatteryCountedOnlySinceStart: watch.onBatteryCountedOnlySinceStart,
-        newSalesStoppedByBattery: () => false,
-        criticalBatteryAction: () => ({ kind: "read", action: "shut_down" }),
-        onConditionStartsNotRecorded: () => undefined,
-      }).then(
-        ({ conditions }) => conditions.find((condition) => condition.kind === "on_battery")?.since,
-      );
-    }
+    return { watch, readAfter };
+  }
+
+  function sinceOnBatteryReadBy(target: LocalDatabase, watch: BatteryWatch, world: BatteryWorld) {
+    return registerStatusFor({
+      zoneRules: fixedZoneRulesSource(),
+      database: target,
+      cloud: () => "unknown",
+      now: () => world.now,
+      signedInPerson,
+      serialDevices: () => ({ kind: "listed", standings: NO_DEVICES, registered: {} }),
+      storage: () => ROOMY_STORAGE,
+      localDatabaseDamaged: () => false,
+      battery: watch.report,
+      onBatteryCountedOnlySinceStart: watch.onBatteryCountedOnlySinceStart,
+      newSalesStoppedByBattery: () => false,
+      criticalBatteryAction: () => ({ kind: "read", action: "shut_down" }),
+      onConditionStartsNotRecorded: () => undefined,
+    }).then(
+      ({ conditions }) => conditions.find((condition) => condition.kind === "on_battery")?.since,
+    );
+  }
+
+  async function restartedAfterTenMinutesOnBattery(
+    world: BatteryWorld,
+    readingAtRestart: BatteryReading,
+    afterRestart: (
+      database: LocalDatabase,
+      watch: ReturnType<typeof startedWatchReading>,
+    ) => Promise<void>,
+  ): Promise<void> {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-on-battery-start-"));
     try {
       const path = join(folder, "register.sqlite");
       const before = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
-      const first = startedWatch();
+      const first = startedWatchReading(world);
       await first.watch.start();
       await first.readAfter(10);
-      expect(await sinceOnBattery(before, first.watch)).toBe("2026-10-05T12:10:00.000-03:00");
+      expect(await sinceOnBatteryReadBy(before, first.watch, world)).toBe(
+        "2026-10-05T12:10:00.000-03:00",
+      );
       before.close();
 
       world.now = new Date(world.now.getTime() + 10 * MINUTE_MS);
+      world.reading = readingAtRestart;
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
       try {
-        const second = startedWatch();
+        const second = startedWatchReading(world);
         await second.watch.start();
-        expect(await sinceOnBattery(after, second.watch)).toBeUndefined();
-
-        await second.readAfter(10);
-        expect(await sinceOnBattery(after, second.watch)).toBe("2026-10-05T12:10:00.000-03:00");
+        await afterRestart(after, second);
       } finally {
         after.close();
       }
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  }
+
+  it("keeps the instant on battery across a restart of the register that finds it still on battery", async () => {
+    const world = { now: NOW, reading: ON_BATTERY_READING };
+
+    await restartedAfterTenMinutesOnBattery(world, ON_BATTERY_READING, async (after, second) => {
+      expect(await sinceOnBatteryReadBy(after, second.watch, world)).toBe(
+        "2026-10-05T12:10:00.000-03:00",
+      );
+
+      await second.readAfter(10);
+      expect(await sinceOnBatteryReadBy(after, second.watch, world)).toBe(
+        "2026-10-05T12:10:00.000-03:00",
+      );
+    });
+  });
+
+  it("answers a new instant on battery after a restart of the register that finds it on mains power", async () => {
+    const world = { now: NOW, reading: ON_BATTERY_READING };
+
+    await restartedAfterTenMinutesOnBattery(world, ON_MAINS_READING, async (after, second) => {
+      expect(await sinceOnBatteryReadBy(after, second.watch, world)).toBeUndefined();
+
+      world.reading = ON_BATTERY_READING;
+      await second.readAfter(1);
+      await second.readAfter(9);
+      expect(await sinceOnBatteryReadBy(after, second.watch, world)).toBeUndefined();
+
+      await second.readAfter(1);
+      expect(await sinceOnBatteryReadBy(after, second.watch, world)).toBe(
+        "2026-10-05T12:31:00.000-03:00",
+      );
+    });
   });
 
   it("keeps the instant across a restart of the register", async () => {

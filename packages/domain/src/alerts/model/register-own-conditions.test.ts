@@ -8,6 +8,7 @@ import {
   REGISTER_OWN_CONDITIONS,
   registerOwnConditionIdentity,
   registerOwnConditions,
+  registerOwnConditionsHeldIfAlreadyStarted,
   registerOwnConditionsNotYetKnown,
 } from "./register-own-conditions.js";
 
@@ -47,24 +48,30 @@ function minutesBefore(instant: Date, minutes: number): Date {
   return new Date(instant.getTime() - minutes * MINUTE_MS);
 }
 
-function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[0]> = {}) {
-  return registerOwnConditions({
-    salesStop: { stopped: false },
-    latestPreEmissionGate: { kind: "passed" },
-    lastAcceptedPushAt: minutesBefore(NOW, 1),
-    hours: HOURS,
-    now: NOW,
-    rules: FIXED_ARGENTINA_ZONE_RULES,
-    serialDevices: { scale: MATCHING, reader: MATCHING },
-    storage: HEALTHY_STORAGE,
-    localDatabaseDamaged: false,
-    battery: undefined,
-    onBatteryCountedOnlySinceStart: false,
-    newSalesStoppedByBattery: false,
-    criticalBatteryAction: { kind: "unreadable" },
-    clockOffsetMs: null,
-    ...overrides,
-  });
+function conditions(
+  overrides: Partial<Parameters<typeof registerOwnConditions>[0]> = {},
+  alreadyStarted: ReadonlySet<string> = new Set(),
+) {
+  return registerOwnConditions(
+    {
+      salesStop: { stopped: false },
+      latestPreEmissionGate: { kind: "passed" },
+      lastAcceptedPushAt: minutesBefore(NOW, 1),
+      hours: HOURS,
+      now: NOW,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
+      serialDevices: { scale: MATCHING, reader: MATCHING },
+      storage: HEALTHY_STORAGE,
+      localDatabaseDamaged: false,
+      battery: undefined,
+      onBatteryCountedOnlySinceStart: false,
+      newSalesStoppedByBattery: false,
+      criticalBatteryAction: { kind: "unreadable" },
+      clockOffsetMs: null,
+      ...overrides,
+    },
+    alreadyStarted,
+  );
 }
 
 describe("REGISTER_OWN_CONDITIONS", () => {
@@ -474,6 +481,33 @@ describe("registerOwnConditions for the battery", () => {
     expect(conditions({ battery: onMainsAt(80) })).toEqual([]);
   });
 
+  it("holds on_battery before 10 whole minutes when it had already started and the register has been on battery since it started", () => {
+    expect(
+      conditions(
+        { battery: onBatteryAt(80, 0), onBatteryCountedOnlySinceStart: true },
+        new Set(["on_battery"]),
+      ),
+    ).toEqual([{ kind: "on_battery", threshold_minutes: 10, level: "critical" }]);
+  });
+
+  it("does not hold on_battery before 10 whole minutes when it had not already started, or when the register was seen off battery since it started", () => {
+    expect(
+      conditions({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      conditions(
+        { battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: false },
+        new Set(["on_battery"]),
+      ),
+    ).toEqual([]);
+    expect(
+      conditions(
+        { battery: onMainsAt(80), onBatteryCountedOnlySinceStart: true },
+        new Set(["on_battery"]),
+      ),
+    ).toEqual([]);
+  });
+
   it("holds battery_missing as a warning when the register reports no battery", () => {
     expect(conditions({ battery: { present: false } })).toEqual([
       { kind: "battery_missing", level: "warning" },
@@ -651,13 +685,10 @@ describe("registerOwnConditionsNotYetKnown", () => {
     );
   });
 
-  it("names on_battery while the register has been on battery since it started for less than the condition's minutes", () => {
+  it("knows on_battery once the battery is read, however long the register has been on battery since it started", () => {
     expect(
       notYetKnown({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: true }),
-    ).toEqual(["on_battery"]);
-  });
-
-  it("knows on_battery once the register was seen off battery since it started, or once it holds", () => {
+    ).toEqual([]);
     expect(
       notYetKnown({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: false }),
     ).toEqual([]);
@@ -701,5 +732,53 @@ describe("registerOwnConditionsNotYetKnown", () => {
       "battery_missing",
       "critical_battery_action_not_shutdown",
     ]);
+  });
+});
+
+describe("registerOwnConditionsHeldIfAlreadyStarted", () => {
+  function heldIfAlreadyStarted(
+    overrides: Partial<Parameters<typeof registerOwnConditionsHeldIfAlreadyStarted>[0]>,
+  ) {
+    return registerOwnConditionsHeldIfAlreadyStarted({
+      salesStop: { stopped: false },
+      latestPreEmissionGate: { kind: "passed" },
+      lastAcceptedPushAt: minutesBefore(NOW, 1),
+      hours: HOURS,
+      now: NOW,
+      rules: FIXED_ARGENTINA_ZONE_RULES,
+      serialDevices: { scale: MATCHING, reader: MATCHING },
+      storage: HEALTHY_STORAGE,
+      localDatabaseDamaged: false,
+      battery: onMainsAt(80),
+      onBatteryCountedOnlySinceStart: false,
+      newSalesStoppedByBattery: false,
+      criticalBatteryAction: { kind: "read", action: "shut_down" },
+      clockOffsetMs: null,
+      ...overrides,
+    });
+  }
+
+  it("names on_battery while the register has been on battery since it started for less than the condition's minutes", () => {
+    expect(
+      heldIfAlreadyStarted({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual(["on_battery"]);
+  });
+
+  it("names none once the register was seen off battery since it started, once on_battery holds by its minutes, or while the register is not on battery", () => {
+    expect(
+      heldIfAlreadyStarted({ battery: onBatteryAt(80, 9), onBatteryCountedOnlySinceStart: false }),
+    ).toEqual([]);
+    expect(
+      heldIfAlreadyStarted({ battery: onBatteryAt(80, 10), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      heldIfAlreadyStarted({ battery: onMainsAt(80), onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      heldIfAlreadyStarted({ battery: { present: false }, onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
+    expect(
+      heldIfAlreadyStarted({ battery: undefined, onBatteryCountedOnlySinceStart: true }),
+    ).toEqual([]);
   });
 });

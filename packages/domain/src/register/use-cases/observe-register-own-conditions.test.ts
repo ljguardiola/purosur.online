@@ -11,8 +11,12 @@ function observe(
   held: readonly string[],
   at = NOW,
   notYetKnown: readonly string[] = [],
+  heldIfAlreadyStarted: readonly string[] = [],
 ) {
-  return observeRegisterOwnConditions({ store, clock: new FixedClock(at) }, { held, notYetKnown });
+  return observeRegisterOwnConditions(
+    { store, clock: new FixedClock(at) },
+    { held, heldIfAlreadyStarted, notYetKnown },
+  );
 }
 
 describe("observeRegisterOwnConditions", () => {
@@ -121,6 +125,36 @@ describe("observeRegisterOwnConditions", () => {
     );
   });
 
+  it("answers and keeps the stored start of a condition that holds only if it already started", () => {
+    const store = new FakeRegisterConditionStartStore();
+    store.starts = new Map([["on_battery", EARLIER]]);
+
+    expect(observe(store, ["clock_drift"], NOW, [], ["on_battery"])).toEqual({
+      kind: "observed",
+      starts: new Map([
+        ["clock_drift", NOW],
+        ["on_battery", EARLIER],
+      ]),
+    });
+    expect(store.starts).toEqual(
+      new Map([
+        ["on_battery", EARLIER],
+        ["clock_drift", NOW],
+      ]),
+    );
+  });
+
+  it("neither answers nor starts a condition that holds only if it already started when it has no stored start", () => {
+    const store = new FakeRegisterConditionStartStore();
+
+    expect(observe(store, [], NOW, [], ["on_battery"])).toEqual({
+      kind: "observed",
+      starts: new Map(),
+    });
+    expect(store.starts).toEqual(new Map());
+    expect(store.operationOrder).toEqual(["lockConditionStarts"]);
+  });
+
   it("writes nothing when the held conditions are those already stored", () => {
     const store = new FakeRegisterConditionStartStore();
     store.starts = new Map([
@@ -145,26 +179,38 @@ describe("observeRegisterOwnConditions", () => {
 
   it("answers the stored and new starts, and the failure, when they cannot be recorded", () => {
     const store = new FakeRegisterConditionStartStore();
-    store.starts = new Map([["clock_drift", EARLIER]]);
+    store.starts = new Map([
+      ["clock_drift", EARLIER],
+      ["on_battery", EARLIER],
+    ]);
     store.failingReplace = true;
 
-    expect(observe(store, ["clock_drift", "disk_space_low"])).toEqual({
+    expect(observe(store, ["clock_drift", "disk_space_low"], NOW, [], ["on_battery"])).toEqual({
       kind: "starts_not_recorded",
       starts: new Map([
         ["clock_drift", EARLIER],
         ["disk_space_low", NOW],
+        ["on_battery", EARLIER],
       ]),
       failure: new Error("replaceConditionStarts failed"),
     });
-    expect(store.starts).toEqual(new Map([["clock_drift", EARLIER]]));
+    expect(store.starts).toEqual(
+      new Map([
+        ["clock_drift", EARLIER],
+        ["on_battery", EARLIER],
+      ]),
+    );
   });
 
   it("answers every held condition from the current instant, and the failure, when the stored starts cannot be read", () => {
     const store = new FakeRegisterConditionStartStore();
-    store.starts = new Map([["clock_drift", EARLIER]]);
+    store.starts = new Map([
+      ["clock_drift", EARLIER],
+      ["on_battery", EARLIER],
+    ]);
     store.failingLock = true;
 
-    expect(observe(store, ["clock_drift", "disk_space_low"])).toEqual({
+    expect(observe(store, ["clock_drift", "disk_space_low"], NOW, [], ["on_battery"])).toEqual({
       kind: "starts_not_recorded",
       starts: new Map([
         ["clock_drift", NOW],
@@ -172,6 +218,11 @@ describe("observeRegisterOwnConditions", () => {
       ]),
       failure: new Error("lockConditionStarts failed"),
     });
-    expect(store.starts).toEqual(new Map([["clock_drift", EARLIER]]));
+    expect(store.starts).toEqual(
+      new Map([
+        ["clock_drift", EARLIER],
+        ["on_battery", EARLIER],
+      ]),
+    );
   });
 });
