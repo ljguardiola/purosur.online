@@ -1,8 +1,11 @@
 import { vi } from "vitest";
 import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
 import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner";
+import { CategoryCreationModal } from "../../catalog/category-creation-modal";
+import { ProductCreationModal } from "../../catalog/product-creation-modal";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
+import { RoleCreationModal } from "../../permissions/role-creation-modal";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import { ARGENTINA_ZONE_RULES } from "../../platform/test-support/zone-rules";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
@@ -276,6 +279,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     reportFiltersRegisterFilter: ReportRegisterFilter,
+    categoryCreationModal: CategoryCreationModal,
+    productCreationModal: ProductCreationModal,
+    roleCreationModal: RoleCreationModal,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
