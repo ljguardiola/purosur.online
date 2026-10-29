@@ -290,6 +290,17 @@ function listedTargets(kind: DiscountTargetKind, sources: TargetLists): readonly
   return kind === "CATEGORY" ? sources.categories : sources.tags;
 }
 
+export function offersTarget(
+  kind: DiscountTargetKind,
+  benefitKind: DiscountBenefit["kind"],
+  sources: DiscountTargets,
+  id: string,
+): boolean {
+  return listedTargets(kind, eligibleTargets(benefitKind, sources)).some(
+    (target) => target.id === id,
+  );
+}
+
 export function keptTarget(
   sources: DiscountTargets,
   current: Pick<DiscountSummary, "benefit" | "target"> | undefined,

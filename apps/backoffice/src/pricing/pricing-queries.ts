@@ -143,6 +143,11 @@ export function useRefreshDiscounts(): () => Promise<void> {
   return () => client.invalidateQueries({ queryKey: pricingKey });
 }
 
+export function useMarkDiscountTargetsStale(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: discountTargetsKey, refetchType: "none" });
+}
+
 export type DiscountReload =
   | { kind: "found"; discount: DiscountSummary }
   | { kind: "not_found" }

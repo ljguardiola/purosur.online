@@ -20,7 +20,9 @@ import { BadgePercent, Check, Pencil, Plus, Search, SearchX } from "lucide-react
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import type { CategoryCreationModal, ProductCreationModal } from "../platform/creation-parts";
 import { discountBenefitText, discountTargetLine } from "../platform/discount-terms-text";
+import { type BackofficeAccess, canManageProductsAndCategories } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
@@ -42,6 +44,9 @@ import {
 import type { DiscountsListFilters } from "./routes";
 
 export type DiscountsListScreenProps = {
+  access: BackofficeAccess;
+  productCreationModal: ProductCreationModal;
+  categoryCreationModal: CategoryCreationModal;
   filters: DiscountsListFilters;
   onFiltersChange: (filters: DiscountsListFilters) => void;
   onSessionEnded: () => void;
@@ -123,6 +128,9 @@ function showsStatus(status: DiscountStatus, statusFilter: DiscountStatusFilter)
 }
 
 export function DiscountsListScreen({
+  access,
+  productCreationModal,
+  categoryCreationModal,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -150,6 +158,9 @@ export function DiscountsListScreen({
     column: filters.sortBy,
     direction: filters.sort,
   });
+  const targetCreation = canManageProductsAndCategories(access)
+    ? { productCreationModal, categoryCreationModal }
+    : undefined;
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
@@ -340,6 +351,7 @@ export function DiscountsListScreen({
         <EditDiscountModal
           target={editTarget}
           targets={targets}
+          creation={targetCreation}
           services={services}
           reload={reloadDiscount}
           onSaved={(saved) => {
@@ -357,6 +369,7 @@ export function DiscountsListScreen({
       <NewDiscountModal
         open={newModalOpen}
         targets={targets}
+        creation={targetCreation}
         services={services}
         onCreated={(created) => {
           setNewModalOpen(false);
