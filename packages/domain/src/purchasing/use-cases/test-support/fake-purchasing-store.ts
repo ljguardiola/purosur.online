@@ -1,4 +1,4 @@
-import type { NetContentUnit, SaleUnit } from "../../../catalog/index.js";
+import type { ProductNetContent, SaleUnit } from "../../../catalog/index.js";
 import type { PriceReviewPostponement } from "../../../pricing/index.js";
 import type { PurchaseReceipt } from "../../../stock/index.js";
 import type {
@@ -33,8 +33,8 @@ interface FakePackagingRow extends Packaging {
 export interface FakeProductRow {
   id: string;
   name: string;
-  brandName?: string;
-  netContent?: { quantity: number; unit: NetContentUnit };
+  brandName?: string | null;
+  netContent?: ProductNetContent | null;
   saleUnit: SaleUnit;
   active: boolean;
 }
