@@ -164,7 +164,7 @@ test("orders products of the same name by their whole description, then by packa
     ...cajaDeAceite,
     id: "9ac00000-0000-4000-8000-000000000006",
     productId: "90d00000-0000-4000-8000-000000000006",
-    netContent: { quantity: 60, unit: "ML" as const },
+    netContent: { quantity: 100, unit: "ML" as const },
     name: "Caja x 12",
     quantityPerPackage: 12_000,
   };
@@ -175,7 +175,7 @@ test("orders products of the same name by their whole description, then by packa
     .toEqual([
       "Aceite de Almendras Vitora 30 mlCaja x 2424 uActiva",
       "Aceite de Almendras Vitora 30 mlDisplay x 66 uActiva",
-      "Aceite de Almendras Vitora 60 mlCaja x 1212 uActiva",
+      "Aceite de Almendras Vitora 100 mlCaja x 1212 uActiva",
     ]);
 });
 

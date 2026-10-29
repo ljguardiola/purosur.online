@@ -228,13 +228,13 @@ test("orders counts of products with the same name by their whole description", 
   const largeAlmondOilCount = {
     ...almondOilCount,
     id: "count-5",
-    netContent: { quantity: 60, unit: "ML" as const },
+    netContent: { quantity: 100, unit: "ML" as const },
   };
-  const descriptions = ["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 60 ml"];
+  const descriptions = ["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"];
   const screen = await renderScreen(createServices([largeAlmondOilCount, almondOilCount]), {
     filters: stockCountsFilters.parse({ sortBy: "product", sort: "ascending" }),
   });
-  await expect.element(screen.getByText("Aceite de Almendras Vitora 60 ml")).toBeVisible();
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 100 ml")).toBeVisible();
 
   expect(
     screen
