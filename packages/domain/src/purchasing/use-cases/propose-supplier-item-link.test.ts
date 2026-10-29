@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
 import { FakeProductChooser } from "./test-support/fake-product-chooser.js";
-import { FakeSupplierItemLinkProposalReader } from "./test-support/fake-supplier-item-link-proposal-reader.js";
+import {
+  type FakeProposalData,
+  FakeSupplierItemLinkProposalReader,
+} from "./test-support/fake-supplier-item-link-proposal-reader.js";
 
 const YERBA = { id: "product-1", name: "Yerba Piragüé 1 kg", barcodes: ["7790001000012"] };
 const AZUCAR = { id: "product-2", name: "Azúcar Cañaral 1 kg" };
 
 function setup(
   row: { description?: string; presentation?: string | null; barcode?: string | null } = {},
-  products = [YERBA, AZUCAR],
+  products: NonNullable<FakeProposalData["products"]> = [YERBA, AZUCAR],
 ) {
   const reader = new FakeSupplierItemLinkProposalReader({
     rows: [
