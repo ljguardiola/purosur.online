@@ -23,10 +23,12 @@ export class CloudPullFeed
 {
   private readonly get: GetFromCloud;
   private readonly deviceToken: string;
+  private readonly appVersion: string | undefined;
 
-  constructor(get: GetFromCloud, deviceToken: string) {
+  constructor(get: GetFromCloud, deviceToken: string, appVersion?: string) {
     this.get = get;
     this.deviceToken = deviceToken;
+    this.appVersion = appVersion;
   }
 
   pageAfter(since: number): Promise<Answer> {
@@ -40,6 +42,7 @@ export class CloudPullFeed
   private async read(path: string): Promise<Answer> {
     const response = await this.get(path, {
       authorization: `Bearer ${this.deviceToken}`,
+      ...(this.appVersion === undefined ? {} : { "purosur-register-version": this.appVersion }),
     });
     if (response.kind !== "ok") {
       return { kind: "failed", failure: failureOf(response) };
