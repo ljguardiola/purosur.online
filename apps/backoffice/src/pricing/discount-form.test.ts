@@ -407,7 +407,7 @@ describe("targetOptions", () => {
 
     const options = targetOptions("PRODUCT", { ...nothing, products: [branded, measured] });
 
-    expect(options?.map((option) => option.label)).toEqual(["Arroz Grano Fino", "Arroz 500 g"]);
+    expect(options?.map((option) => option.label)).toEqual(["Arroz 500 g", "Arroz Grano Fino"]);
   });
 
   test("orders two presentations of one name by their net content", () => {

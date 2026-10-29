@@ -426,10 +426,10 @@ test("orders recipes of products with the same name by their whole description",
     netContent: { quantity: 100, unit: "G" as const },
   };
   const descriptions = [
-    "Bálsamo de caléndula Herbaria 100 g",
     "Bálsamo de caléndula Herbaria 50 g",
+    "Bálsamo de caléndula Herbaria 100 g",
   ];
-  const screen = await loaded(createServices(), [balsamo, largeBalsamo]);
+  const screen = await loaded(createServices(), [largeBalsamo, balsamo]);
 
   await expect
     .poll(() =>

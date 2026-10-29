@@ -12,6 +12,7 @@ import {
 import type { DiscountBenefit, DiscountTargetKind } from "@purosur/domain";
 import {
   type ComboBoxOption,
+  numericTextOrder,
   type Option,
   type Options,
   sortedItems,
@@ -232,6 +233,10 @@ type CurrentTarget = {
 };
 type KeptTarget = CurrentTarget & { status: string };
 
+const productOrder = numericTextOrder(
+  (product: { name: string; brandName: string | null; netContent: NetContent | null }) =>
+    formatProductDescription(product),
+);
 const nameOrder = textOrder((named: { name: string }) => named.name);
 
 type TargetLists = Omit<DiscountTargets, "targetKindsByBenefit">;
@@ -255,7 +260,7 @@ function offeredTargets(kind: DiscountTargetKind, sources: TargetLists): ComboBo
     }));
   }
   if (kind === "PRODUCT") {
-    return sortedItems(sources.products, { order: nameOrder, direction: "ascending" }).map(
+    return sortedItems(sources.products, { order: productOrder, direction: "ascending" }).map(
       productOption,
     );
   }

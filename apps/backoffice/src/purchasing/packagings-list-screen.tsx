@@ -5,6 +5,7 @@ import {
   dataColumn,
   type ItemOrder,
   ListFilter,
+  numericTextOrder,
   SearchField,
   StatusIndicator,
   Table,
@@ -46,7 +47,7 @@ const PACKAGING_STATUS_EMPTY_TITLE = {
   all: "Sin resultados",
 } satisfies Record<PackagingStatusFilter, string>;
 
-const productDescriptionOrder = textOrder(packagingProductDescription);
+const productDescriptionOrder = numericTextOrder(packagingProductDescription);
 const packagingNameOrder = textOrder((packaging: PackagingSummary) => packaging.name);
 
 const productOrder: ItemOrder<PackagingSummary> = (a, b) =>

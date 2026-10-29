@@ -6,9 +6,9 @@ import {
   IconButton,
   InlineNotice,
   Modal,
+  numericTextOrder,
   plural,
   sortedItems,
-  textOrder,
 } from "@purosur/ui";
 import { Download, Minus, Package, Plus, Printer, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -43,14 +43,19 @@ function withOneMore(counts: LabelCounts, productId: string): LabelCounts {
 
 type LabelableProduct = { product: ProductSummary; code: string; modules: string };
 
-function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
+function labelableProducts(
+  products: ProductSummary[],
+  brands: readonly BrandSummary[],
+): LabelableProduct[] {
   const labelable = products.flatMap((product) =>
     product.labelCode === null || product.labelModules === null
       ? []
       : [{ product, code: product.labelCode, modules: product.labelModules }],
   );
   return sortedItems(labelable, {
-    order: textOrder((labelableProduct) => labelableProduct.product.name),
+    order: numericTextOrder((labelableProduct: LabelableProduct) =>
+      productDescription(labelableProduct.product, brands),
+    ),
     direction: "ascending",
   });
 }
@@ -104,7 +109,7 @@ export function PrintLabelsModal({
     }
   }, [open]);
 
-  const rows = labelableProducts(products);
+  const rows = labelableProducts(products, brands);
   const total = rows.reduce((sum, row) => sum + countOf(counts, row.product.id), 0);
   const previewRow = rows.find((row) => countOf(counts, row.product.id) > 0) ?? rows[0];
   const busy = printing || reloading;

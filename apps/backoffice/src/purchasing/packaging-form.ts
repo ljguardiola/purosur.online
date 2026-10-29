@@ -6,7 +6,7 @@ import {
   packagingCreationBodySchema,
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { sortedItems, textOrder } from "@purosur/ui";
+import { numericTextOrder, sortedItems } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import {
@@ -74,17 +74,17 @@ export type PackagingProduct = Pick<
   "id" | "name" | "saleUnit" | "brandName" | "netContent"
 >;
 
-const productNameOrder = textOrder((product: PackagingProduct) => product.name);
-
 export function packagingProductLabel(product: PackagingProduct): string {
   return formatProductDescription(product);
 }
+
+const productOrder = numericTextOrder(packagingProductLabel);
 
 export function packagingProductOptions(
   products: readonly PackagingProduct[],
 ): [{ value: string; label: string }, ...{ value: string; label: string }[]] | undefined {
   const [first, ...rest] = sortedItems(products, {
-    order: productNameOrder,
+    order: productOrder,
     direction: "ascending",
   }).map((product) => ({ value: product.id, label: packagingProductLabel(product) }));
   return first && [first, ...rest];

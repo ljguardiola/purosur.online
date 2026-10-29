@@ -5,13 +5,13 @@ import {
   FloatingNotification,
   type ItemOrder,
   ListFilter,
+  numericTextOrder,
   plural,
   SearchField,
   Table,
   TableCellText,
   type TableSort,
   Tag,
-  textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
@@ -60,7 +60,7 @@ function countedWay(count: StockCount): string {
 
 type CountSortColumn = StockCountsFilters["sortBy"];
 
-const productOrder = textOrder((count: StockCount) =>
+const productOrder = numericTextOrder((count: StockCount) =>
   formatProductDescription({
     name: count.productName,
     brandName: count.brandName,
