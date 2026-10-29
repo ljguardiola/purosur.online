@@ -10,8 +10,8 @@ import {
   fetchSalesByPromotion,
   fetchSalesReport,
 } from "./sales-report-api";
-import { removedLinesAndCancelledSalesReport } from "./test-support/removed-lines-and-cancelled-sales-fixtures";
 import { handTypedWeightsReport } from "./test-support/hand-typed-weights-fixtures";
+import { removedLinesAndCancelledSalesReport } from "./test-support/removed-lines-and-cancelled-sales-fixtures";
 import {
   ANA_USER_ID,
   averageTicketReport,

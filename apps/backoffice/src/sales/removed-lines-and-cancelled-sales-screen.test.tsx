@@ -249,7 +249,7 @@ test("shows placeholders while the report loads", async () => {
   ]) {
     await expect.element(screen.getByRole("table", { name })).toHaveAttribute("aria-busy", "true");
   }
-  await expect.element(screen.getByText("Importe quitado", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Importe quitado", { exact: true }).first()).toBeVisible();
   expect(screen.getByText("$ 15.900,00").query()).toBeNull();
 });
 

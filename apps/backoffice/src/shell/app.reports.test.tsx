@@ -10,8 +10,8 @@ import {
 import { weekCashMovementsReport } from "../register/test-support/cash-movements-fixtures";
 import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
 import { returnsReport } from "../returns/test-support/returns-fixtures";
-import { removedLinesAndCancelledSalesReport } from "../sales/test-support/removed-lines-and-cancelled-sales-fixtures";
 import { handTypedWeightsReport } from "../sales/test-support/hand-typed-weights-fixtures";
+import { removedLinesAndCancelledSalesReport } from "../sales/test-support/removed-lines-and-cancelled-sales-fixtures";
 import {
   ANA_USER_ID,
   averageTicketReport,
