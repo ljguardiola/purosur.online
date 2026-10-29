@@ -51,11 +51,10 @@ function compareAwaitingReview(a: PriceAwaitingReview, b: PriceAwaitingReview): 
     if (b.pastDeadlineOn === null) {
       return 1;
     }
-    return a.pastDeadlineOn < b.pastDeadlineOn ? -1 : 1;
+    return a.pastDeadlineOn.localeCompare(b.pastDeadlineOn);
   }
   return (
-    compareSpanishText(a.product.name, b.product.name) ||
-    (a.product.id < b.product.id ? -1 : a.product.id > b.product.id ? 1 : 0)
+    compareSpanishText(a.product.name, b.product.name) || a.product.id.localeCompare(b.product.id)
   );
 }
 
