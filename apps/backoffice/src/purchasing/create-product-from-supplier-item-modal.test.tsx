@@ -63,7 +63,7 @@ function renderModal({
   services = createServices(),
   list = LIST,
   target = nutRow,
-  mayCreateBrandsAndTags = true,
+  mayCreateCatalogRecords = true,
   onCreated = () => {},
   onOutdated = () => {},
   onClose = () => {},
@@ -72,7 +72,7 @@ function renderModal({
   services?: CreateProductFromSupplierItemModalServices;
   list?: Parameters<typeof CreateProductFromSupplierItemModal>[0]["list"];
   target?: typeof nutRow | null;
-  mayCreateBrandsAndTags?: boolean;
+  mayCreateCatalogRecords?: boolean;
   onCreated?: () => void;
   onOutdated?: () => void;
   onClose?: () => void;
@@ -84,7 +84,7 @@ function renderModal({
         <CreateProductFromSupplierItemModal
           list={list}
           target={target}
-          mayCreateBrandsAndTags={mayCreateBrandsAndTags}
+          mayCreateCatalogRecords={mayCreateCatalogRecords}
           categoryCreationModal={StubCategoryCreationModal}
           services={services}
           onCreated={onCreated}
@@ -309,7 +309,7 @@ test("offers only the active brands, and the active tags, by name", async () => 
         },
       }),
     }),
-    mayCreateBrandsAndTags: false,
+    mayCreateCatalogRecords: false,
   });
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
@@ -385,7 +385,7 @@ test("creating a brand leaves the brands and the tags unread while the form is o
 });
 
 test("offers no way to create a brand or a tag to a session that may not manage the catalog", async () => {
-  const screen = await renderModal({ mayCreateBrandsAndTags: false });
+  const screen = await renderModal({ mayCreateCatalogRecords: false });
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
@@ -612,7 +612,7 @@ test("says there are no categories to choose from, without sending the person to
   const services = createServices({
     fetchProductCreationCategories: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
   });
-  const screen = await renderModal({ services, mayCreateBrandsAndTags: false });
+  const screen = await renderModal({ services, mayCreateCatalogRecords: false });
   const dialog = dialogOf(screen);
 
   await expect.element(dialog.getByText("No hay categorías para elegir")).toBeVisible();

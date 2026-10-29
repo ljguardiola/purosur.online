@@ -3,8 +3,10 @@ import { page, userEvent } from "vitest/browser";
 import type { RoleSummary } from "../platform/roles-api";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import { render } from "../shell/test-support/render-with-router";
-import { RoleCreationModal } from "./role-creation-modal";
-import type { RoleEditorModalServices } from "./role-editor-modal";
+import {
+  CreateRoleFromSelectorModal,
+  type CreateRoleFromSelectorModalServices,
+} from "./create-role-from-selector-modal";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -19,7 +21,7 @@ const storeRole: RoleSummary = {
   mayEdit: true,
 };
 
-function createServices(): RoleEditorModalServices {
+function createServices(): CreateRoleFromSelectorModalServices {
   return {
     fetchRole: vi.fn(),
     fetchPermissionCatalog: vi
@@ -34,12 +36,12 @@ function createServices(): RoleEditorModalServices {
 }
 
 function renderPart(
-  services: RoleEditorModalServices,
+  services: CreateRoleFromSelectorModalServices,
   options: { open?: boolean; onCreated?: (role: RoleSummary) => void } = {},
 ) {
   return render(
     <main>
-      <RoleCreationModal
+      <CreateRoleFromSelectorModal
         open={options.open ?? true}
         initialName="Depósito"
         onCreated={options.onCreated ?? (() => {})}

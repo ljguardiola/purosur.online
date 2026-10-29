@@ -46,11 +46,11 @@ function StubCreationModal({
   );
 }
 
-export function createdCategoryNamed(name: string): CategorySummary {
+function createdCategoryNamed(name: string): CategorySummary {
   return { id: "created-category", name, version: 1, parentId: null };
 }
 
-export function createdProductNamed(name: string): CreatedProduct {
+function createdProductNamed(name: string): CreatedProduct {
   return {
     id: "created-product",
     name,
@@ -69,7 +69,7 @@ export function createdProductNamed(name: string): CreatedProduct {
   };
 }
 
-export function createdRoleNamed(name: string): RoleSummary {
+function createdRoleNamed(name: string): RoleSummary {
   return {
     id: "created-role",
     name,

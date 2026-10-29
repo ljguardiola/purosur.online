@@ -6,10 +6,14 @@ import {
   StubCategoryCreationModal,
   StubProductCreationModal,
 } from "../platform/test-support/creation-parts";
+import { radioLabel } from "../platform/test-support/radio-label";
 import { render } from "../shell/test-support/render-with-router";
 import { EditDiscountModal, type EditDiscountModalServices } from "./edit-discount-modal";
 import { productPicker } from "./test-support/discount-modal";
-import { targetsWithCreatedProduct } from "./test-support/discount-target-creation";
+import {
+  targetsWithCreatedCategory,
+  targetsWithCreatedProduct,
+} from "./test-support/discount-target-creation";
 import { discountTargets, yerbaOff } from "./test-support/discounts";
 
 beforeEach(async () => {
@@ -25,7 +29,11 @@ function createServices(fetched: DiscountTargets): EditDiscountModalServices {
   };
 }
 
-async function opened(services: EditDiscountModalServices, withCreation = true) {
+async function opened(
+  services: EditDiscountModalServices,
+  withCreation = true,
+  targets: DiscountTargets = discountTargets,
+) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <main>
@@ -35,7 +43,7 @@ async function opened(services: EditDiscountModalServices, withCreation = true) 
           onSaved={() => {}}
           onSessionEnded={() => {}}
           reload={() => Promise.resolve({ kind: "list_failed" })}
-          targets={discountTargets}
+          targets={targets}
           services={services}
           {...(withCreation
             ? {
@@ -92,6 +100,27 @@ test("leaves the product empty and says so when the cloud does not list it for t
     )
     .toBeVisible();
   await expect.element(productPicker(dialog)).toHaveValue("");
+});
+
+test("with no category to choose yet, the selector offers creating one and selects it once listed", async () => {
+  const { screen, dialog } = await opened(
+    createServices(targetsWithCreatedCategory("Fiambres")),
+    true,
+    { ...discountTargets, categories: [] },
+  );
+  await userEvent.click(radioLabel(dialog, "Categoría"));
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Categoría/ }), "Fiambres");
+  await userEvent.click(page.getByRole("option", { name: "Crear categoría «Fiambres»" }));
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Nueva categoría" })
+      .getByRole("button", { name: "Guardar lo creado" }),
+  );
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Categoría/ }))
+    .toHaveValue("Fiambres");
 });
 
 test("offers no creation when the modal is given no way to create", async () => {

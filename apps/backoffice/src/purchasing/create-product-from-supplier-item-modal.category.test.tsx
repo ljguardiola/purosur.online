@@ -49,7 +49,7 @@ function createServices(): CreateProductFromSupplierItemModalServices {
 }
 
 async function opened(
-  mayCreateBrandsAndTags: boolean,
+  mayCreateCatalogRecords: boolean,
   services: CreateProductFromSupplierItemModalServices = createServices(),
 ) {
   const screen = await render(
@@ -58,7 +58,7 @@ async function opened(
         <CreateProductFromSupplierItemModal
           list={LIST}
           target={nutRow}
-          mayCreateBrandsAndTags={mayCreateBrandsAndTags}
+          mayCreateCatalogRecords={mayCreateCatalogRecords}
           categoryCreationModal={StubCategoryCreationModal}
           services={services}
           onCreated={() => {}}

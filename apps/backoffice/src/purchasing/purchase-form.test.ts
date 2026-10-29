@@ -18,6 +18,7 @@ import {
   purchaseRegistrationRequestFrom,
   purchaseSupplierOptions,
   RECEIPT_TYPE_OPTIONS,
+  withCreatedSupplier,
 } from "./purchase-form";
 import {
   bolsaDeAlmendras,
@@ -394,5 +395,19 @@ describe("priceReviewProductIds", () => {
 
   it("lists nothing when no line is chosen", () => {
     expect(priceReviewProductIds([line({ productId: "product-a" })])).toEqual([]);
+  });
+});
+
+describe("withCreatedSupplier", () => {
+  it("adds the supplier just created after the listed ones", () => {
+    expect(withCreatedSupplier([andina, granos], cerealera)).toEqual([andina, granos, cerealera]);
+  });
+
+  it("keeps the list as it is once it already lists the supplier just created", () => {
+    expect(withCreatedSupplier([andina, cerealera], cerealera)).toEqual([andina, cerealera]);
+  });
+
+  it("keeps the list as it is when no supplier was created", () => {
+    expect(withCreatedSupplier([andina, granos], null)).toEqual([andina, granos]);
   });
 });

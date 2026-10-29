@@ -9,6 +9,7 @@ import {
   categorySelectOptions,
   leafCategories,
   selfAndDescendantIds,
+  withCreatedCategory,
 } from "./category-path";
 
 const groceries: CategoryNode = { id: "almacen", name: "Almacén", parentId: null };
@@ -111,5 +112,19 @@ describe("categoryMessage", () => {
 
   it("asks to review a chosen category", () => {
     expect(categoryMessage({ categoryId: "category-1" })).toBe("Revisá la categoría.");
+  });
+});
+
+describe("withCreatedCategory", () => {
+  it("adds the category just created after the listed ones", () => {
+    expect(withCreatedCategory([groceries, drinks], spreads)).toEqual([groceries, drinks, spreads]);
+  });
+
+  it("keeps the list as it is once it already lists the category just created", () => {
+    expect(withCreatedCategory([groceries, spreads], spreads)).toEqual([groceries, spreads]);
+  });
+
+  it("keeps the list as it is when no category was created", () => {
+    expect(withCreatedCategory([groceries, drinks], null)).toEqual([groceries, drinks]);
   });
 });

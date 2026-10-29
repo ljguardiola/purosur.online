@@ -4,8 +4,10 @@ import { page, userEvent } from "vitest/browser";
 import { radioLabel } from "../platform/test-support/radio-label";
 import { tagList } from "../platform/test-support/tags";
 import { render } from "../shell/test-support/render-with-router";
-import { ProductCreationModal } from "./product-creation-modal";
-import type { ProductCreationModalServices } from "./product-creation-modal-services";
+import {
+  CreateProductFromSelectorModal,
+  type CreateProductFromSelectorModalServices,
+} from "./create-product-from-selector-modal";
 import { scanInputOf } from "./test-support/product-form";
 import { driedFruits, groceries, honey } from "./test-support/products";
 
@@ -17,7 +19,7 @@ const granuz = {
   productCount: 42,
 };
 
-function createServices(): ProductCreationModalServices {
+function createServices(): CreateProductFromSelectorModalServices {
   return {
     fetchCategories: vi.fn().mockResolvedValue({ kind: "ok", value: [groceries, driedFruits] }),
     fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [granuz] }),
@@ -33,13 +35,13 @@ function createServices(): ProductCreationModalServices {
 }
 
 function renderPart(
-  services: ProductCreationModalServices,
+  services: CreateProductFromSelectorModalServices,
   options: { open?: boolean; onCreated?: (created: unknown) => void } = {},
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <ProductCreationModal
+        <CreateProductFromSelectorModal
           open={options.open ?? true}
           initialName="Pasta de maní"
           onCreated={options.onCreated ?? (() => {})}
@@ -91,4 +93,34 @@ test("hands back the product it created with the name of its brand", async () =>
 
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
   expect(onCreated).toHaveBeenCalledWith({ ...honey, brandId: granuz.id, brandName: "Granuz" });
+});
+
+test("while the catalog loads, opens the new product frame with its loading placeholder and creating disabled", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBrands).mockReturnValue(new Promise(() => {}));
+  const screen = await renderPart(services);
+
+  const dialog = screen.getByRole("dialog", { name: "Nuevo producto" });
+  await expect.element(dialog.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeDisabled();
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeEnabled();
+});
+
+test("a catalog that fails to load shows the failure instead of the form, and Reintentar opens it with the typed description", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchTags)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: tagList([]) });
+  const screen = await renderPart(services);
+
+  const dialog = screen.getByRole("dialog", { name: "Nuevo producto" });
+  await expect.element(dialog.getByText("No pudimos abrir el catálogo")).toBeVisible();
+  expect(dialog.getByRole("textbox", { name: /^Nombre/ }).query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeDisabled();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Pasta de maní");
 });

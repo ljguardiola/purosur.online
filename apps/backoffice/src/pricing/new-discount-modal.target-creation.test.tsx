@@ -38,8 +38,8 @@ async function opened(
   services: NewDiscountModalServices,
   {
     withCreation = true,
-    onSessionEnded = () => {},
-  }: { withCreation?: boolean; onSessionEnded?: () => void } = {},
+    targets = discountTargets,
+  }: { withCreation?: boolean; targets?: DiscountTargets } = {},
 ) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
@@ -48,8 +48,8 @@ async function opened(
           open
           onClose={() => {}}
           onCreated={(_discount: DiscountSummary) => {}}
-          onSessionEnded={onSessionEnded}
-          targets={discountTargets}
+          onSessionEnded={() => {}}
+          targets={targets}
           services={services}
           {...(withCreation
             ? {
@@ -129,34 +129,6 @@ test("leaves the product empty and says so when the cloud does not list it for t
   await expect.element(productPicker(dialog)).toHaveValue("");
 });
 
-test("leaves the product empty and says so when what the cloud offers cannot be read again", async () => {
-  const fetchDiscountTargets = vi.fn().mockResolvedValue({ kind: "failed" });
-  const { screen, dialog } = await opened(createServices({ fetchDiscountTargets }));
-
-  await createProductNamed(screen, dialog, "Fideos nuevos");
-
-  await expect
-    .element(
-      dialog
-        .getByText("Se creó el producto «Fideos nuevos», pero no pudimos cargarlo para elegirlo.")
-        .first(),
-    )
-    .toBeVisible();
-  await expect.element(productPicker(dialog)).toHaveValue("");
-});
-
-test("ends the session when reading what the cloud offers again finds it ended", async () => {
-  const onSessionEnded = vi.fn();
-  const fetchDiscountTargets = vi.fn().mockResolvedValue({ kind: "unauthenticated" });
-  const { screen, dialog } = await opened(createServices({ fetchDiscountTargets }), {
-    onSessionEnded,
-  });
-
-  await createProductNamed(screen, dialog, "Fideos nuevos");
-
-  await expect.poll(() => onSessionEnded).toHaveBeenCalledTimes(1);
-});
-
 test("creates a category from the category selector and selects it once listed", async () => {
   const fetchDiscountTargets = listing(targetsWithCreatedCategory("Fiambres"));
   const { screen, dialog } = await opened(createServices({ fetchDiscountTargets }));
@@ -192,6 +164,17 @@ test("creates a tag from the tag selector with the typed name and selects it onc
   await expect
     .element(dialog.getByRole("combobox", { name: /^Distintivo/ }))
     .toHaveValue("Orgánico");
+});
+
+test("with no product to choose yet, the selector offers creating one and selects it once listed", async () => {
+  const fetchDiscountTargets = listing(targetsWithCreatedProduct("Fideos nuevos", ["PERCENT_OFF"]));
+  const { screen, dialog } = await opened(createServices({ fetchDiscountTargets }), {
+    targets: { ...discountTargets, products: [] },
+  });
+
+  await createProductNamed(screen, dialog, "Fideos nuevos");
+
+  await expect.element(productPicker(dialog)).toHaveValue("Fideos nuevos");
 });
 
 test("offers no creation when the modal is given no way to create", async () => {

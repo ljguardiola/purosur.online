@@ -333,14 +333,6 @@ test("shows a stale-version notice, and Recargar reads the data again so the sec
   });
 });
 
-test("without fiscal addresses it says to load one first and cannot save", async () => {
-  const services = createServices();
-  const { dialog } = await renderModal({ fiscalAddresses: [], services });
-
-  await expect.element(dialog.getByText("Todavía no hay domicilios fiscales")).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
-});
-
 test("typing in the fiscal address offers only the matching addresses", async () => {
   const { dialog } = await renderModal();
 
@@ -375,6 +367,19 @@ async function createFiscalAddressFromSelector(
   await userEvent.fill(stacked.getByRole("textbox", { name: /^Dirección/ }), "Calle Ficticia 9");
   await userEvent.click(stacked.getByRole("button", { name: "Crear el domicilio fiscal" }));
 }
+
+test("without fiscal addresses the selector offers only creating one and saving waits for it", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal({ fiscalAddresses: [], services });
+  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+
+  await createFiscalAddressFromSelector(dialog, services);
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }))
+    .toHaveValue("Local Sur");
+  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeEnabled();
+});
 
 test("typing a fiscal address that does not exist offers to create it, then selects it keeping the number typed", async () => {
   const services = createServices();
