@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   argentinaInstant,
   type BatteryReport,
@@ -37,6 +40,7 @@ import { registerStatusFor } from "./register-status-requests";
 import { createSerialDeviceWatch, type SerialDeviceWatch } from "./serial-device-watch";
 
 const NOW = new Date(argentinaInstant("2026-10-05", "12:00", FIXED_ARGENTINA_ZONE_RULES));
+const NOW_SINCE = "2026-10-05T12:00:00.000-03:00";
 const MINUTE_MS = 60 * 1000;
 const SCALE = { vendorId: "1a86", productId: "7523" };
 
@@ -228,7 +232,13 @@ describe("the register's status", () => {
     expect(
       (await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(15))).conditions,
     ).toEqual([
-      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
+      {
+        kind: "battery_low",
+        charge_percent: 15,
+        critical_percent: 10,
+        level: "warning",
+        since: NOW_SINCE,
+      },
     ]);
   });
 
@@ -246,8 +256,14 @@ describe("the register's status", () => {
         )
       ).conditions,
     ).toEqual([
-      { kind: "sales_denied", reason: "battery_critical", level: "critical" },
-      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
+      { kind: "sales_denied", reason: "battery_critical", level: "critical", since: NOW_SINCE },
+      {
+        kind: "battery_low",
+        charge_percent: 15,
+        critical_percent: 10,
+        level: "warning",
+        since: NOW_SINCE,
+      },
     ]);
   });
 
@@ -266,13 +282,18 @@ describe("the register's status", () => {
     stopOpeningNewSales(database, "event_history_broken", NOW);
 
     expect((await status()).conditions).toEqual([
-      { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+      { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: NOW_SINCE },
     ]);
   });
 
   it("holds sales_denied for a local database found damaged while the register keeps running", async () => {
     expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, true)).conditions).toEqual([
-      { kind: "sales_denied", reason: "local_database_damaged", level: "critical" },
+      {
+        kind: "sales_denied",
+        reason: "local_database_damaged",
+        level: "critical",
+        since: NOW_SINCE,
+      },
     ]);
   });
 
@@ -280,7 +301,7 @@ describe("the register's status", () => {
     recordGateOutcome("sale-1", 10, false);
 
     expect(await status("unreachable")).toMatchObject({
-      conditions: [{ kind: "fiscal_emission_stopped", level: "critical" }],
+      conditions: [{ kind: "fiscal_emission_stopped", level: "critical", since: NOW_SINCE }],
       cloud: "unreachable",
     });
   });
@@ -308,7 +329,9 @@ describe("the register's status", () => {
   it("holds clock_drift while the latest health check measured a drifted clock", async () => {
     await recordClockOffset(1, 75_000);
 
-    expect((await status()).conditions).toEqual([{ kind: "clock_drift", level: "critical" }]);
+    expect((await status()).conditions).toEqual([
+      { kind: "clock_drift", level: "critical", since: NOW_SINCE },
+    ]);
   });
 
   it("holds only installation_revoked once the cloud revoked the installation, with the cloud unreachable", async () => {
@@ -317,7 +340,7 @@ describe("the register's status", () => {
     stopOpeningNewSales(database, "installation_revoked", NOW);
 
     expect(await status("unreachable")).toEqual({
-      conditions: [{ kind: "installation_revoked", level: "critical" }],
+      conditions: [{ kind: "installation_revoked", level: "critical", since: NOW_SINCE }],
       cloud: "unreachable",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
@@ -329,7 +352,9 @@ describe("the register's status", () => {
     holdBranchHours(mondayHours("09:00", "18:00"));
     await acceptedMinutesAgo(30);
 
-    expect((await status()).conditions).toEqual([{ kind: "register_silent", level: "critical" }]);
+    expect((await status()).conditions).toEqual([
+      { kind: "register_silent", level: "critical", since: NOW_SINCE },
+    ]);
   });
 
   it("holds no register_silent while the last accepted push is recent", async () => {
@@ -358,8 +383,8 @@ describe("the register's status", () => {
     stopOpeningNewSales(database, "event_history_broken", NOW);
 
     expect((await status()).conditions).toEqual([
-      { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
-      { kind: "register_silent", level: "critical" },
+      { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: NOW_SINCE },
+      { kind: "register_silent", level: "critical", since: NOW_SINCE },
     ]);
   });
 
@@ -397,7 +422,7 @@ describe("the register's status", () => {
           reader: { kind: "mismatched" },
         })
       ).conditions,
-    ).toEqual([{ kind: "serial_device_missing", level: "warning" }]);
+    ).toEqual([{ kind: "serial_device_missing", level: "warning", since: NOW_SINCE }]);
   });
 
   it("holds no serial_device_missing while every registered device is found", async () => {
@@ -417,7 +442,14 @@ describe("the register's status", () => {
     void watch.start();
 
     expect(await statusWatchedBy(watch)).toEqual({
-      conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+      conditions: [
+        {
+          kind: "sales_denied",
+          reason: "event_history_broken",
+          level: "critical",
+          since: NOW_SINCE,
+        },
+      ],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
       serial_devices_setup_offered: false,
@@ -433,7 +465,14 @@ describe("the register's status", () => {
     await watch.start();
 
     expect(await statusWatchedBy(watch)).toEqual({
-      conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+      conditions: [
+        {
+          kind: "sales_denied",
+          reason: "event_history_broken",
+          level: "critical",
+          since: NOW_SINCE,
+        },
+      ],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
       serial_devices_setup_offered: false,
@@ -454,7 +493,14 @@ describe("the register's status", () => {
     await watch.start();
 
     expect(await statusWatchedBy(watch)).toEqual({
-      conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+      conditions: [
+        {
+          kind: "sales_denied",
+          reason: "event_history_broken",
+          level: "critical",
+          since: NOW_SINCE,
+        },
+      ],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "unknown" },
       serial_devices_setup_offered: false,
@@ -514,7 +560,13 @@ describe("the register's storage conditions on its status", () => {
     });
 
     expect(conditions).toEqual([
-      { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" },
+      {
+        kind: "sales_denied",
+        reason: "disk_full",
+        disk_free_ratio: 0.03,
+        level: "critical",
+        since: NOW_SINCE,
+      },
     ]);
   });
 });
@@ -608,5 +660,75 @@ describe("the register's fiscal mode on its status", () => {
         )
       ).contingency,
     ).toEqual({ kind: "offline_code", notice: false });
+  });
+});
+
+describe("since when the register's conditions hold", () => {
+  const WAL_OVERSIZED: StorageStanding = { ...ROOMY_STORAGE, walOversized: true };
+
+  function sinceOfWalCondition(
+    target: LocalDatabase,
+    at: Date,
+    storage: StorageStanding,
+  ): Promise<string | undefined> {
+    return registerStatusFor({
+      zoneRules: fixedZoneRulesSource(),
+      database: target,
+      cloud: () => "unknown",
+      now: () => at,
+      signedInPerson,
+      serialDevices: () => ({ kind: "listed", standings: NO_DEVICES, registered: {} }),
+      storage: () => storage,
+      localDatabaseDamaged: () => false,
+      battery: () => undefined,
+      newSalesStoppedByBattery: () => false,
+      criticalBatteryAction: () => ({ kind: "unreadable" }),
+    }).then(
+      ({ conditions }) => conditions.find((condition) => condition.kind === "wal_oversized")?.since,
+    );
+  }
+
+  const HOUR_MS = 60 * MINUTE_MS;
+
+  it("answers the instant the register first saw the condition, in Argentina time", async () => {
+    expect(await sinceOfWalCondition(database, NOW, WAL_OVERSIZED)).toBe(NOW_SINCE);
+  });
+
+  it("keeps the first instant while the condition keeps holding", async () => {
+    await sinceOfWalCondition(database, NOW, WAL_OVERSIZED);
+
+    expect(
+      await sinceOfWalCondition(database, new Date(NOW.getTime() + HOUR_MS), WAL_OVERSIZED),
+    ).toBe(NOW_SINCE);
+  });
+
+  it("answers a new instant when the condition stops holding and holds again", async () => {
+    await sinceOfWalCondition(database, NOW, WAL_OVERSIZED);
+    await sinceOfWalCondition(database, new Date(NOW.getTime() + HOUR_MS), ROOMY_STORAGE);
+
+    expect(
+      await sinceOfWalCondition(database, new Date(NOW.getTime() + 2 * HOUR_MS), WAL_OVERSIZED),
+    ).toBe("2026-10-05T14:00:00.000-03:00");
+  });
+
+  it("keeps the instant across a restart of the register", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-condition-starts-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const before = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      await sinceOfWalCondition(before, NOW, WAL_OVERSIZED);
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        expect(
+          await sinceOfWalCondition(after, new Date(NOW.getTime() + HOUR_MS), WAL_OVERSIZED),
+        ).toBe(NOW_SINCE);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });
