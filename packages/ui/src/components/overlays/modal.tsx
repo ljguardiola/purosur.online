@@ -69,7 +69,12 @@ function hasContent(node: ReactNode): boolean {
   );
 }
 
-function isCtrlEnter(event: KeyboardEvent): boolean {
+type CtrlEnterEvent = Pick<
+  KeyboardEvent,
+  "key" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey" | "preventDefault" | "stopPropagation"
+>;
+
+function isCtrlEnter(event: CtrlEnterEvent): boolean {
   return (
     event.key === "Enter" && event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey
   );
@@ -95,7 +100,7 @@ export function Modal(props: ModalProps) {
   // body leaves the header's and footer's own buttons out. A field's list is portaled outside the
   // panel and a stacked modal is mounted after the one below it, so the modal that sends is the last
   // one open in the document, not the closest panel.
-  function sendWithCtrlEnter(event: KeyboardEvent) {
+  function sendWithCtrlEnter(event: CtrlEnterEvent) {
     const ownFooter = footerRef.current;
     const openFooters = document.querySelectorAll("[data-modal-footer]");
     if (
@@ -108,6 +113,21 @@ export function Modal(props: ModalProps) {
     event.preventDefault();
     event.stopPropagation();
     ownFooter.querySelector<HTMLElement>('[data-variant="primary"]')?.click();
+  }
+
+  // The dialog itself holds the focus until a field is chosen, and a key pressed there reaches none
+  // of the regions above.
+  function listenToCtrlEnterOnDialog(dialog: HTMLElement | null) {
+    if (dialog === null) {
+      return;
+    }
+    const listener = (event: globalThis.KeyboardEvent) => {
+      if (event.target === dialog) {
+        sendWithCtrlEnter(event);
+      }
+    };
+    dialog.addEventListener("keydown", listener);
+    return () => dialog.removeEventListener("keydown", listener);
   }
 
   return (
@@ -127,7 +147,10 @@ export function Modal(props: ModalProps) {
           widthClassName[width],
         ].join(" ")}
       >
-        <AriaDialog className="flex min-h-0 flex-1 flex-col outline-none">
+        <AriaDialog
+          ref={listenToCtrlEnterOnDialog}
+          className="flex min-h-0 flex-1 flex-col outline-none"
+        >
           {props.headerLayout === "centered" ? (
             <div
               className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6"
