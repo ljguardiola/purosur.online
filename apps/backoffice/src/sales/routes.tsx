@@ -74,6 +74,18 @@ export const averageTicketRoute = createRoute({
   component: lazyScreen(() => import("./average-ticket-page"), "AverageTicketPage"),
 });
 
+export const removedLinesAndCancelledSalesRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/removed-lines-and-cancelled-sales",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportFiltersSearch,
+  search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
+  component: lazyScreen(
+    () => import("./removed-lines-and-cancelled-sales-page"),
+    "RemovedLinesAndCancelledSalesPage",
+  ),
+});
+
 export const handTypedWeightsRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
   path: "reports/hand-typed-weights",

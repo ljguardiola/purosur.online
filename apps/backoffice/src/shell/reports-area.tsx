@@ -2,6 +2,7 @@ import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
   BadgePercent,
+  Ban,
   Calculator,
   CalendarClock,
   ChartColumn,
@@ -43,6 +44,9 @@ function ReportsArea() {
   );
   const salesByCashierShown = Boolean(matchRoute({ to: "/reports/sales-by-cashier" }));
   const handTypedWeightsShown = Boolean(matchRoute({ to: "/reports/hand-typed-weights" }));
+  const removedLinesAndCancelledSalesShown = Boolean(
+    matchRoute({ to: "/reports/removed-lines-and-cancelled-sales" }),
+  );
   const salesByPromotionShown = Boolean(matchRoute({ to: "/reports/sales-by-promotion" }));
   const manualDiscountsShown = Boolean(matchRoute({ to: "/reports/manual-discounts" }));
   const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
@@ -141,6 +145,15 @@ function ReportsArea() {
                     icon={<Scale />}
                     search={handTypedWeightsShown ? true : {}}
                     active={handTypedWeightsShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/removed-lines-and-cancelled-sales"
+                    label="Líneas quitadas y ventas canceladas"
+                    icon={<Ban />}
+                    search={removedLinesAndCancelledSalesShown ? true : {}}
+                    active={removedLinesAndCancelledSalesShown}
                   />
                 </li>
                 <li>

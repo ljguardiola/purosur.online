@@ -50,6 +50,7 @@ import type { ReturnsReportScreenServices } from "../returns/returns-report-serv
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { HandTypedWeightsScreenServices } from "../sales/hand-typed-weights-services";
 import type { ManualDiscountsScreenServices } from "../sales/manual-discounts-services";
+import type { RemovedLinesAndCancelledSalesScreenServices } from "../sales/removed-lines-and-cancelled-sales-services";
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
@@ -116,6 +117,7 @@ export type AppServices = {
   salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
   salesByCashierScreen: SalesByCashierScreenServices;
   handTypedWeightsScreen: HandTypedWeightsScreenServices;
+  removedLinesAndCancelledSalesScreen: RemovedLinesAndCancelledSalesScreenServices;
   salesByPromotionScreen: SalesByPromotionScreenServices;
   manualDiscountsScreen: ManualDiscountsScreenServices;
   returnsReportScreen: ReturnsReportScreenServices;
