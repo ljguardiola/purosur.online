@@ -418,7 +418,9 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
         zoneRules: fixedZoneRulesSource(),
         database,
         gate: deps(new FakeOrders()).gate,
+        readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
         now: () => CHARGE_NOW,
+        ids: countingIds("cancel"),
         restoration: restorationOf(database),
       }),
     ).toEqual({
