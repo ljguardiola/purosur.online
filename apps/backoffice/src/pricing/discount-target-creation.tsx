@@ -3,19 +3,23 @@ import type { DiscountBenefit, DiscountTargetKind } from "@purosur/domain";
 import { InlineNotice } from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { OptionCreation } from "../platform/creatable-options";
 import type {
   CategoryCreationModal,
   CreatedProduct,
   ProductCreationModal,
 } from "../platform/creation-parts";
 import { NewTagModal } from "../platform/new-tag-modal";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { offersTarget } from "./discount-form";
 import type { fetchDiscountTargets } from "./discounts-api";
-import { useMarkDiscountTargetsStale, useRefreshDiscounts } from "./pricing-queries";
+import {
+  useDiscountTargetsReread,
+  useMarkDiscountTargetsStale,
+  useRefreshDiscounts,
+} from "./pricing-queries";
 
 export type DiscountTargetCreationServices = {
   fetchDiscountTargets: typeof fetchDiscountTargets;
@@ -64,16 +68,24 @@ export function useDiscountTargetCreation({
   choose,
   onSessionEnded,
 }: Params) {
-  const sendToMyAccount = useSendToMyAccount();
-  const [reread, setReread] = useState<DiscountTargets | null>(null);
+  const currentOpening = useRef(0);
+  const [opening, setOpening] = useState(0);
+  const { reread, readAgain } = useDiscountTargetsReread({
+    opening,
+    fetchDiscountTargets: services.fetchDiscountTargets,
+    onSessionEnded,
+  });
   const [notice, setNotice] = useState<string | null>(null);
   const catalog = { markStale: useMarkDiscountTargetsStale(), refresh: useRefreshDiscounts() };
 
   async function settle(kind: DiscountTargetKind, created: { id: string; name: string }) {
+    const settlingOpening = currentOpening.current;
     setNotice(null);
-    const outcome = await services.fetchDiscountTargets();
+    const outcome = await readAgain();
+    if (settlingOpening !== currentOpening.current) {
+      return;
+    }
     if (outcome.kind === "ok") {
-      setReread(outcome.value);
       if (offersTarget(kind, benefitKind(), outcome.value, created.id)) {
         choose(created.id);
         return;
@@ -82,12 +94,7 @@ export function useDiscountTargetCreation({
       setNotice(notOfferedText(kind, created.name));
       return;
     }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+    if (outcome.kind === "unauthenticated" || outcome.kind === "forbidden") {
       return;
     }
     choose(null);
@@ -141,16 +148,17 @@ export function useDiscountTargetCreation({
     ) : null;
 
   return {
-    sources: reread ?? targets,
+    sources: reread.status === "loaded" ? reread.value : targets,
     notice,
     modals,
-    creationOf: (kind: DiscountTargetKind) =>
-      parts ? { creation: { recordKind: RECORD_KINDS[kind], onCreate: starts[kind] } } : {},
+    creationOf: (kind: DiscountTargetKind): OptionCreation | undefined =>
+      parts ? { recordKind: RECORD_KINDS[kind], onCreate: starts[kind] } : undefined,
     reset: () => {
       product.reset();
       category.reset();
       tag.reset();
-      setReread(null);
+      currentOpening.current += 1;
+      setOpening(currentOpening.current);
       setNotice(null);
     },
     finish: () => {

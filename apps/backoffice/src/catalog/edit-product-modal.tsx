@@ -5,14 +5,7 @@ import {
   productEditBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
-import {
-  Button,
-  FieldGroup,
-  InlineNotice,
-  Modal,
-  SharedFieldError,
-  useRequestForm,
-} from "@purosur/ui";
+import { Button, FieldGroup, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { BarcodeChips, useBarcodeChips } from "../platform/barcode-chips";
@@ -367,15 +360,7 @@ export function EditProductModal({
             {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
           </form.AppField>
           <form.AppField name="categoryId">
-            {(field) =>
-              categoryChoice ? (
-                <field.ComboBox label="Categoría" required {...categoryChoice} />
-              ) : (
-                <FieldGroup label="Categoría" required>
-                  <SharedFieldError>{() => null}</SharedFieldError>
-                </FieldGroup>
-              )
-            }
+            {(field) => <field.ComboBox label="Categoría" required {...categoryChoice} />}
           </form.AppField>
           <form.AppField name="brandId">
             {(field) => {

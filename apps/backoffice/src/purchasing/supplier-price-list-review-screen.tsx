@@ -490,7 +490,7 @@ export function SupplierPriceListReviewScreen({
           <CreateProductFromSupplierItemModal
             list={list}
             target={createTarget}
-            mayCreateBrandsAndTags={canManageProductsAndCategories(access)}
+            mayCreateCatalogRecords={canManageProductsAndCategories(access)}
             categoryCreationModal={categoryCreationModal}
             services={services}
             onCreated={() => refreshAfter("productCreated")}

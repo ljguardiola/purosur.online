@@ -2,18 +2,20 @@ import type { CreationModalProps } from "../platform/creation-parts";
 import type { RoleSummary } from "../platform/roles-api";
 import { RoleEditorModal, type RoleEditorModalServices } from "./role-editor-modal";
 
-export type RoleCreationModalProps = CreationModalProps<RoleSummary> & {
-  services?: RoleEditorModalServices | undefined;
+export type CreateRoleFromSelectorModalServices = RoleEditorModalServices;
+
+export type CreateRoleFromSelectorModalProps = CreationModalProps<RoleSummary> & {
+  services?: CreateRoleFromSelectorModalServices | undefined;
 };
 
-export function RoleCreationModal({
+export function CreateRoleFromSelectorModal({
   open,
   initialName,
   onCreated,
   onClose,
   onSessionEnded,
   services,
-}: RoleCreationModalProps) {
+}: CreateRoleFromSelectorModalProps) {
   return open ? (
     <RoleEditorModal
       request={{ kind: "new", initialName }}

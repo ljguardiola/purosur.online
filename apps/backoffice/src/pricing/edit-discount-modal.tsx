@@ -14,6 +14,7 @@ import {
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Info, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
 import { DISCOUNT_TARGET_KIND_LABELS } from "../platform/discount-terms-text";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -200,18 +201,18 @@ export function EditDiscountModal({
     keptTarget(targetCreation.sources, loaded ?? undefined),
   );
   const help = soldByWeightHelp(values, targetCreation.sources);
+  const targetChoice = creatableChoice(options, targetCreation.creationOf(values.targetKind));
   const targetField = (
     <form.AppField name="targetId">
       {(field) =>
-        options ? (
+        targetChoice ? (
           <field.ComboBox
             key={values.targetKind}
             label={targetKindLabel}
             placeholder={targetPlaceholder(values.targetKind)}
-            options={options}
             {...(help !== undefined ? { description: help } : {})}
             required
-            {...targetCreation.creationOf(values.targetKind)}
+            {...targetChoice}
           />
         ) : (
           <FieldGroup label={targetKindLabel} required>

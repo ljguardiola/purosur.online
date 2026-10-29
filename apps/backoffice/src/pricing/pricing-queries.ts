@@ -11,7 +11,7 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
 import type { FetchPricesInput, fetchPriceMargin, fetchPrices } from "./prices-api";
 import type { fetchPricesPastReviewDeadlineReport } from "./prices-past-review-deadline-report-api";
@@ -36,6 +36,9 @@ export const discountsKey = [...pricingKey, "discounts"] as const;
 const DISCOUNT_STATUS_REFRESH_MS = 60_000;
 
 export const discountTargetsKey = [...discountsKey, "targets"] as const;
+
+const discountTargetsRereadKey = (opening: number) =>
+  [...discountsKey, "targets-reread", opening] as const;
 
 export function usePricesQuery(params: {
   input: FetchPricesInput;
@@ -166,6 +169,30 @@ export function useRefreshDiscounts(): () => Promise<void> {
 export function useMarkDiscountTargetsStale(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: discountTargetsKey, refetchType: "none" });
+}
+
+export function useDiscountTargetsReread(params: {
+  opening: number;
+  fetchDiscountTargets: typeof fetchDiscountTargets;
+  onSessionEnded: () => void;
+}): {
+  reread: CloudData<DiscountTargets>;
+  readAgain: () => Promise<CloudReadOutcome<DiscountTargets>>;
+} {
+  const client = useQueryClient();
+  const sendToMyAccount = useSendToMyAccount();
+  const queryKey = discountTargetsRereadKey(params.opening);
+  const reread = useCloudQuery<DiscountTargets>({
+    queryKey,
+    enabled: false,
+    read: params.fetchDiscountTargets,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+  return {
+    reread,
+    readAgain: () => fetchCloudQuery(client, { queryKey, read: params.fetchDiscountTargets }),
+  };
 }
 
 export type DiscountReload =

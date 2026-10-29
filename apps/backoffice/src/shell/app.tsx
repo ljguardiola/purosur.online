@@ -216,16 +216,16 @@ const defaultRouteServices: RouteServices = {
     "ReportRegisterFilter",
   ),
   categoryCreationModal: lazyScreen(
-    () => import("../catalog/category-creation-modal"),
-    "CategoryCreationModal",
+    () => import("../catalog/create-category-from-selector-modal"),
+    "CreateCategoryFromSelectorModal",
   ),
   productCreationModal: lazyScreen(
-    () => import("../catalog/product-creation-modal"),
-    "ProductCreationModal",
+    () => import("../catalog/create-product-from-selector-modal"),
+    "CreateProductFromSelectorModal",
   ),
   roleCreationModal: lazyScreen(
-    () => import("../permissions/role-creation-modal"),
-    "RoleCreationModal",
+    () => import("../permissions/create-role-from-selector-modal"),
+    "CreateRoleFromSelectorModal",
   ),
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,

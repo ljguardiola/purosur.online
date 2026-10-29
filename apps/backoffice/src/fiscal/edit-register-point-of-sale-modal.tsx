@@ -14,6 +14,7 @@ import { Check, Info, Landmark, RotateCcw, ShieldX, TriangleAlert, X } from "luc
 import { useEffect, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { creatableChoice } from "../platform/creatable-options";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
@@ -176,6 +177,10 @@ export function EditRegisterPointOfSaleModal({
       ]
     : fiscalAddresses;
   const options = fiscalAddressOptions(offered);
+  const fiscalAddressChoice = creatableChoice(options, {
+    recordKind: "domicilio fiscal",
+    onCreate: fiscalAddressCreation.start,
+  });
 
   useEffect(() => {
     if (target === null) {
@@ -293,28 +298,11 @@ export function EditRegisterPointOfSaleModal({
             <form.AppField name="pointOfSaleNumber">
               {(field) => <field.TextField kind="plain-text" label="Punto de venta" required />}
             </form.AppField>
-            {options ? (
-              <form.AppField name="fiscalAddressId">
-                {(field) => (
-                  <field.ComboBox
-                    label="Domicilio fiscal"
-                    options={options}
-                    required
-                    creation={{
-                      recordKind: "domicilio fiscal",
-                      onCreate: fiscalAddressCreation.start,
-                    }}
-                  />
-                )}
-              </form.AppField>
-            ) : (
-              <InlineNotice
-                tone="warning"
-                icon={<TriangleAlert />}
-                title="Todavía no hay domicilios fiscales"
-                description="Creá uno para poder elegirlo acá."
-              />
-            )}
+            <form.AppField name="fiscalAddressId">
+              {(field) => (
+                <field.ComboBox label="Domicilio fiscal" required {...fiscalAddressChoice} />
+              )}
+            </form.AppField>
             <InlineNotice
               tone="warning"
               icon={<Info />}

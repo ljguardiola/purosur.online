@@ -8,6 +8,14 @@ export type CreatableChoice<Option> =
 
 export function creatableChoice<Option>(
   options: Options<Option> | undefined,
+  creation: OptionCreation,
+): CreatableChoice<Option>;
+export function creatableChoice<Option>(
+  options: Options<Option> | undefined,
+  creation: OptionCreation | undefined,
+): CreatableChoice<Option> | undefined;
+export function creatableChoice<Option>(
+  options: Options<Option> | undefined,
   creation: OptionCreation | undefined,
 ): CreatableChoice<Option> | undefined {
   if (options) {

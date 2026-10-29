@@ -4,14 +4,7 @@ import {
   productCreationBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
-import {
-  Button,
-  FieldGroup,
-  InlineNotice,
-  Modal,
-  SharedFieldError,
-  useRequestForm,
-} from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -269,22 +262,7 @@ export function NewProductModal({
         <ProductFields
           form={form}
           fields={PRODUCT_GROUP_FIELDS}
-          categories={
-            categoryChoice
-              ? { state: "loaded", choice: categoryChoice }
-              : {
-                  state: "unavailable",
-                  placeholder: (
-                    <form.AppField name="categoryId">
-                      {() => (
-                        <FieldGroup label="Categoría" required>
-                          <SharedFieldError>{() => null}</SharedFieldError>
-                        </FieldGroup>
-                      )}
-                    </form.AppField>
-                  ),
-                }
-          }
+          categories={{ state: "loaded", choice: categoryChoice }}
           brands={{ state: "loaded", items: brands, creation: brandCreation }}
           tags={{ state: "loaded", items: tags, creation: tagCreation }}
           chips={chips}

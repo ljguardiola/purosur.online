@@ -85,7 +85,7 @@ export type CreateProductFromSupplierItemModalServices = {
 type CreateProductFromSupplierItemModalProps = {
   list: Pick<SupplierPriceListReviewList, "id" | "version" | "requiresVatRate" | "supplier">;
   target: SupplierPriceListRow | null;
-  mayCreateBrandsAndTags: boolean;
+  mayCreateCatalogRecords: boolean;
   categoryCreationModal: CategoryCreationModal;
   services: CreateProductFromSupplierItemModalServices;
   onCreated: () => void;
@@ -101,7 +101,7 @@ function FieldHeading({ children }: { children: string }) {
 export function CreateProductFromSupplierItemModal({
   list,
   target,
-  mayCreateBrandsAndTags,
+  mayCreateCatalogRecords,
   categoryCreationModal: CategoryCreation,
   services,
   onCreated,
@@ -258,7 +258,7 @@ export function CreateProductFromSupplierItemModal({
           categorySelectOptions([
             ...withCreatedCategory(categories.value, categoryCreation.created),
           ]),
-          mayCreateBrandsAndTags
+          mayCreateCatalogRecords
             ? { recordKind: "categoría", onCreate: categoryCreation.start }
             : undefined,
         )
@@ -378,7 +378,7 @@ export function CreateProductFromSupplierItemModal({
                 ? {
                     state: "loaded",
                     items: brands.value,
-                    creation: mayCreateBrandsAndTags ? brandCreation : null,
+                    creation: mayCreateCatalogRecords ? brandCreation : null,
                   }
                 : { state: "unavailable", placeholder: statusPlaceholder(brands, "las marcas") }
             }
@@ -387,7 +387,7 @@ export function CreateProductFromSupplierItemModal({
                 ? {
                     state: "loaded",
                     items: tags.value.tags,
-                    creation: mayCreateBrandsAndTags ? tagCreation : null,
+                    creation: mayCreateCatalogRecords ? tagCreation : null,
                   }
                 : {
                     state: "unavailable",
@@ -436,7 +436,7 @@ export function CreateProductFromSupplierItemModal({
               </div>
             )
           ) : null}
-          {mayCreateBrandsAndTags ? (
+          {mayCreateCatalogRecords ? (
             <>
               <NewBrandModal
                 open={brandCreation.open}
