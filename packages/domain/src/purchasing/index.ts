@@ -66,7 +66,6 @@ export {
   sameSupplierItemKey,
   supplierItemKey,
 } from "./model/supplier-item.js";
-export type { SupplierOfferPrice } from "./model/supplier-offer.js";
 export { supplierOfferPrice } from "./model/supplier-offer.js";
 export type {
   SupplierPriceListContentKind,
