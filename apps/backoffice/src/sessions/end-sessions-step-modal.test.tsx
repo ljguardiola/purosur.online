@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { CompromiseResponse } from "./compromise-response-api";
 import { EndSessionsStepModal } from "./end-sessions-step-modal";
@@ -61,7 +61,7 @@ async function renderModal(services: ReturnType<typeof createServices>, handlers
 type Rendered = Awaited<ReturnType<typeof renderModal>>;
 
 async function chooseAccount({ screen, dialog }: Rendered, name: string) {
-  await userEvent.click(dialog.getByRole("button", { name: /Cuenta sospechada/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Cuenta sospechada/ }));
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
@@ -103,7 +103,7 @@ test("does not read the accounts while it is closed", async () => {
 test("offers only the accounts whose passkeys the cloud answers may be removed", async () => {
   const rendered = await renderModal(servicesWithAccounts());
 
-  await userEvent.click(rendered.dialog.getByRole("button", { name: /Cuenta sospechada/ }));
+  await userEvent.click(rendered.dialog.getByRole("combobox", { name: /Cuenta sospechada/ }));
 
   await expect
     .element(rendered.screen.getByRole("option", { name: "Ana Pérez · ana@example.com" }))
@@ -140,7 +140,7 @@ test("offers to read the accounts again when they fail to load", async () => {
 
   await expect.poll(() => vi.mocked(services.fetchUsers).mock.calls.length).toBe(2);
   await expect
-    .element(rendered.dialog.getByRole("button", { name: /Cuenta sospechada/ }))
+    .element(rendered.dialog.getByRole("combobox", { name: /Cuenta sospechada/ }))
     .toBeVisible();
 });
 
@@ -254,4 +254,19 @@ test("cancelling closes it without running the step", async () => {
 
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(services.endSessionsAndRemovePasskeys).not.toHaveBeenCalled();
+});
+
+test("typing in the suspected account offers only the matching accounts, and choosing one selects it", async () => {
+  const { dialog } = await renderModal(servicesWithAccounts());
+
+  const account = dialog.getByRole("combobox", { name: /Cuenta sospechada/ });
+  await userEvent.fill(account, "beto");
+  expect(
+    page
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Beto Ruiz · beto@example.com"]);
+  await userEvent.click(page.getByRole("option", { name: "Beto Ruiz · beto@example.com" }));
+  await expect.element(account).toHaveValue("Beto Ruiz · beto@example.com");
 });

@@ -1,7 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import type { BranchUser } from "../platform/branch-users-api";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -352,7 +352,7 @@ test("opens the create modal preselecting the only role, and cancel closes it wi
   const dialog = await openNewUserModal(screen);
 
   await expect.element(dialog.getByRole("heading", { name: "Nuevo usuario" })).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: /^Administrador Rol/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Rol/ })).toHaveValue("Administrador");
   expect(dialog.getByText("Se pide tu passkey para confirmar.").query()).toBeNull();
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
@@ -404,8 +404,8 @@ test("offers a role held by no users yet in the create-user selector", async () 
 
   const dialog = await openNewUserModal(screen);
 
-  await userEvent.click(dialog.getByRole("button", { name: /^Administrador Rol/ }));
-  await expect.element(dialog.getByRole("option", { name: "Depósito" })).toBeVisible();
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Rol/ }));
+  await expect.element(page.getByRole("option", { name: "Depósito" })).toBeVisible();
 });
 
 test("creates a user directly, without the authorization modal, when the session already has one", async () => {
@@ -630,7 +630,7 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
 
   await screen.rerender(usersListScreenElement(services, () => {}));
 
-  await expect.element(dialog.getByRole("button", { name: /^Administrador Rol/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Rol/ })).toHaveValue("Administrador");
   expect(services.fetchUsers).toHaveBeenCalledTimes(1);
 
   vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
@@ -1094,4 +1094,17 @@ test("offers the reader's list, without Nuevo usuario, to whoever lacks manage_u
 
   await expect.element(screen.getByRole("button", { name: "Ver a Martina Gómez" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
+});
+
+test("typing in the Rol of a new user offers only the matching roles", async () => {
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderUsersList(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+
+  const dialog = await openNewUserModal(screen);
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Rol/ }), "adm");
+
+  await expect.element(page.getByRole("option", { name: "Administrador" })).toBeVisible();
+  expect(page.getByRole("option").all()).toHaveLength(1);
 });

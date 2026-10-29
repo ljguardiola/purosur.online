@@ -44,6 +44,7 @@ export function ManualDiscountsAuthorizerFilter({
     <ListFilter
       name="authorizedBy"
       label="Autorizante:"
+      searchable
       options={options}
       value={authorizerOffered ? value : "ALL"}
       onChange={onChange}

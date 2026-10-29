@@ -284,6 +284,7 @@ export function ExpiringLotsScreen({
           <ListFilter
             name="category"
             label="Categoría:"
+            searchable
             options={categoryOptions}
             value={categoryIsOffered ? category : "ALL"}
             onChange={setCategory}

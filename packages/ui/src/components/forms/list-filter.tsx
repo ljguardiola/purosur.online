@@ -1,5 +1,5 @@
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useId, useRef } from "react";
 import {
   Button as AriaButton,
   ComboBox as AriaComboBox,
@@ -10,10 +10,10 @@ import {
   Popover as AriaPopover,
   Select as AriaSelect,
   SelectValue as AriaSelectValue,
-  useFilter,
 } from "react-aria-components";
 import { fieldTriggerHoverClassName } from "./field-styles";
 import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
+import { NoResults, SelectCaret, useTypeToNarrow } from "./type-to-narrow";
 
 export type ListFilterProps<V extends string> = OptionChoiceProps<V, NarrowedOption<V>> & {
   name: string;
@@ -41,8 +41,6 @@ function lastOptionPerValue<O extends { value: string }>(options: readonly O[]):
   return [...new Map(options.map((option) => [option.value, option])).values()];
 }
 
-const NO_RESULTS_TEXT = "Sin resultados";
-
 const searchableBoxClassName =
   "flex h-control-xl w-fit max-w-full items-center gap-2 rounded-lg border-2 bg-surface px-3 " +
   "hover:not-focus-within:bg-surface-subtle has-focus-visible:focus-ring";
@@ -54,39 +52,12 @@ function SearchableListFilter<V extends string>({
   value,
   onChange,
 }: Omit<ListFilterProps<V>, "searchable">) {
-  const { contains } = useFilter({ sensitivity: "base" });
   const boxRef = useRef<HTMLDivElement>(null);
   const uniqueOptions = lastOptionPerValue(options);
-  const chosen = uniqueOptions.find((option) => option.value === value);
-  const [typed, setTyped] = useState<string | null>(null);
-  const [shownValue, setShownValue] = useState(value);
-  if (value !== shownValue) {
-    setShownValue(value);
-    setTyped(null);
-  }
-  const visibleOptions =
-    typed === null
-      ? uniqueOptions
-      : uniqueOptions.filter((option) => contains(option.label, typed));
+  const { comboBoxProps } = useTypeToNarrow({ options: uniqueOptions, value, onChange });
 
   return (
-    <AriaComboBox
-      name={name}
-      className="min-w-0"
-      items={visibleOptions}
-      selectedKey={value}
-      onSelectionChange={(key) => {
-        const picked = isOptionValue(key, uniqueOptions) ? key : value;
-        setTyped(null);
-        if (picked !== value) {
-          onChange(picked);
-        }
-      }}
-      inputValue={typed ?? chosen?.label ?? ""}
-      onInputChange={(text) => setTyped(text === chosen?.label ? null : text)}
-      menuTrigger="focus"
-      allowsEmptyCollection
-    >
+    <AriaComboBox name={name} className="min-w-0" {...comboBoxProps}>
       {({ isOpen }) => (
         <>
           <div
@@ -98,20 +69,11 @@ function SearchableListFilter<V extends string>({
             <AriaLabel className="shrink truncate text-detail text-text-subtle">{label}</AriaLabel>{" "}
             <AriaInput className="min-w-7 shrink-9999 field-sizing-content truncate bg-transparent text-right text-body font-bold text-text outline-none" />
             <AriaButton excludeFromTabOrder className="flex shrink-0 cursor-pointer outline-none">
-              {isOpen ? (
-                <ChevronUp aria-hidden="true" className="size-icon-sm text-text-subtle" />
-              ) : (
-                <ChevronDown aria-hidden="true" className="size-icon-sm text-text-subtle" />
-              )}
+              <SelectCaret className="size-icon-sm text-text-subtle" />
             </AriaButton>
           </div>
           <AriaPopover triggerRef={boxRef} offset={4} className={popoverClassName}>
-            <AriaListBox
-              className="flex flex-col gap-1"
-              renderEmptyState={() => (
-                <div className="px-3 py-2 text-detail text-text-subtle">{NO_RESULTS_TEXT}</div>
-              )}
-            >
+            <AriaListBox className="flex flex-col gap-1" renderEmptyState={() => <NoResults />}>
               {(option: NarrowedOption<V>) => (
                 <AriaListBoxItem
                   id={option.value}

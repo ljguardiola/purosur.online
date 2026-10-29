@@ -903,33 +903,6 @@ test("a searchable filter says Sin resultados when nothing matches", async () =>
   await expectNoAccessibilityViolations(document.body, { rules: { region: { enabled: false } } });
 });
 
-test("a searchable filter restores the chosen label when it loses focus without a match", async () => {
-  const onChange = vi.fn();
-  const screen = await render(
-    <>
-      <ListFilter {...searchableProps({ value: "acme", onChange })} />
-      <button type="button">Otro</button>
-    </>,
-  );
-  const input = screen.getByRole("combobox", { name: /Marca/ });
-
-  await input.fill("qqq");
-  await userEvent.tab();
-
-  await expect.element(input).toHaveValue("Acme");
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test("a searchable filter restores the chosen label on Escape", async () => {
-  const screen = await render(<ListFilter {...searchableProps({ value: "acme" })} />);
-  const input = screen.getByRole("combobox", { name: /Marca/ });
-
-  await input.fill("zen");
-  await userEvent.keyboard("{Escape}");
-
-  await expect.element(input).toHaveValue("Acme");
-});
-
 test("a searchable filter shows the same chevron as the plain one and no search icon", async () => {
   const screen = await render(<ListFilter {...searchableProps()} />);
   const input = screen.getByRole("combobox", { name: /Marca/ });

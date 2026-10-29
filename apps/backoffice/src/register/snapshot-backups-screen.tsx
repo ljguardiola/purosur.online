@@ -220,6 +220,7 @@ export function SnapshotBackupsScreen({
                 <ListFilter
                   name="register"
                   label="Caja:"
+                  searchable
                   options={[firstOption, ...otherOptions]}
                   value={chosen?.id ?? firstOption.value}
                   onChange={(register) => onFiltersChange({ register })}

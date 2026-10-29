@@ -116,21 +116,13 @@ export function NewDiscountModal({
     <form.AppField name="targetId">
       {(field) =>
         options ? (
-          values.targetKind === "PRODUCT" ? (
-            <field.ComboBox
-              label={targetKindLabel}
-              placeholder={targetPlaceholder(values.targetKind)}
-              options={options}
-              required
-            />
-          ) : (
-            <field.Select
-              label={targetKindLabel}
-              placeholder={targetPlaceholder(values.targetKind)}
-              options={options}
-              required
-            />
-          )
+          <field.ComboBox
+            key={values.targetKind}
+            label={targetKindLabel}
+            placeholder={targetPlaceholder(values.targetKind)}
+            options={options}
+            required
+          />
         ) : (
           <FieldGroup label={targetKindLabel} required>
             <SharedFieldError>{() => null}</SharedFieldError>

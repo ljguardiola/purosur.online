@@ -215,6 +215,10 @@ test("asks the cloud for the first page with no filter when the URL has none", a
 
 test("asks the cloud for every filter the URL carries", async () => {
   const services = createServices();
+  vi.mocked(services.fetchIssuedFiscalDocuments).mockResolvedValue({
+    kind: "ok",
+    value: { ...issuedFiscalDocuments, total: 3 * issuedFiscalDocuments.page_size },
+  });
 
   await renderScreen(services, {
     filters: issuedFiscalDocumentsFilters.parse({
@@ -277,7 +281,7 @@ test("asks the cloud again for the register chosen in the filters", async () => 
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
 
   await expect

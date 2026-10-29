@@ -47,7 +47,7 @@ test("reads the first register's backups when the URL names none", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("button", { name: /^Caja: Caja 1/ })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("Caja 1");
   await expect
     .element(screen.getByRole("table", { name: "Últimas generaciones de Caja 1" }))
     .toBeVisible();
@@ -142,7 +142,7 @@ test("shows the backups of the register the URL names", async () => {
 
   const screen = await renderScreen(services, { register: "register-2" });
 
-  await expect.element(screen.getByRole("button", { name: /^Caja: Caja 2/ })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("Caja 2");
   await expect
     .element(screen.getByRole("table", { name: "Últimas generaciones de Caja 2" }))
     .toBeVisible();
@@ -154,7 +154,7 @@ test("choosing a register reports it so the URL carries it", async () => {
   const onRegisterChange = vi.fn();
   const screen = await renderScreen(servicesWithBackups(), { onRegisterChange });
 
-  await userEvent.click(screen.getByRole("button", { name: /^Caja:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /^Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja 2" }));
 
   expect(onRegisterChange).toHaveBeenCalledWith("register-2");
@@ -166,7 +166,7 @@ test("goes back to the first register when the URL names one the cloud does not 
 
   const screen = await renderScreen(services, { register: "register-9", onRegisterChange });
 
-  await expect.element(screen.getByRole("button", { name: /^Caja: Caja 1/ })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("Caja 1");
   await expect.poll(() => onRegisterChange.mock.calls).toEqual([[""]]);
   expect(services.fetchSnapshotBackups).not.toHaveBeenCalledWith("register-9");
 });
@@ -226,7 +226,7 @@ test("shows loading placeholders while a register's backups load", async () => {
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
-  await expect.element(screen.getByRole("button", { name: /^Caja: Caja 1/ })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("Caja 1");
   read.resolve({ kind: "ok", value: backups });
   await expect.element(screen.getByText("Verificada")).toBeVisible();
 });
@@ -448,4 +448,18 @@ test("has no accessibility violations once loaded and with each modal open", asy
   await userEvent.click(screen.getByRole("button", { name: "Cambiar las reglas" }));
   await expect.element(screen.getByRole("dialog", { name: "Cambiar las reglas" })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("typing in the register filter offers only the matching registers", async () => {
+  const screen = await renderScreen(servicesWithBackups());
+  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /^Caja:/ }), "2");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent?.trim()),
+  ).toEqual(["Caja 2"]);
 });

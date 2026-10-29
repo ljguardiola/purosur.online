@@ -2,7 +2,7 @@ import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { drinks, groceries, jams, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import { CategoriesListScreen } from "./categories-list-screen";
@@ -426,8 +426,8 @@ test("the row action opens the edit modal preselecting the category's current pa
     .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
     .toHaveValue("Untables");
   await expect
-    .element(dialog.getByRole("button", { name: /Categoría superior/ }))
-    .toHaveTextContent("Almacén");
+    .element(dialog.getByRole("combobox", { name: /Categoría superior/ }))
+    .toHaveValue("Almacén");
 });
 
 test("moves a category to a new parent and shows its updated path in the list", async () => {
@@ -446,8 +446,8 @@ test("moves a category to a new parent and shows its updated path in the list", 
   await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Bebidas" }));
   const dialog = screen.getByRole("dialog");
 
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Categoría superior/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editCategory).mock.calls.length).toBe(1);
@@ -521,8 +521,8 @@ test("a stale-version reload on edit refreshes the categories too, so a parent t
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect
-    .element(dialog.getByRole("button", { name: /Categoría superior/ }))
-    .toHaveTextContent("Frescos");
+    .element(dialog.getByRole("combobox", { name: /Categoría superior/ }))
+    .toHaveValue("Frescos");
   await expect.element(screen.getByRole("cell", { name: "Frescos › Bebidas" })).toBeVisible();
 
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "name_taken" });

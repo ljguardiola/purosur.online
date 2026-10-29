@@ -243,6 +243,7 @@ export function StockBalancesScreen({
         <ListFilter
           name="category"
           label="Categoría:"
+          searchable
           options={categoryOptions}
           value={categoryIsOffered ? category : "ALL"}
           onChange={setCategory}

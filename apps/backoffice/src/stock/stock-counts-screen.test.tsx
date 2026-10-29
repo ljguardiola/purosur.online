@@ -377,3 +377,17 @@ test("registers a count for a user who may not view balances, showing no expecte
     .toBeInTheDocument();
   expect(services.fetchExpectedBalance).not.toHaveBeenCalled();
 });
+
+test("typing in the category filter offers only the matching categories", async () => {
+  const screen = await renderScreen(createServices());
+  await expect.element(screen.getByRole("table", { name: "Recuentos" })).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Categoría/ }), "frut");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Frutos secos"]);
+});

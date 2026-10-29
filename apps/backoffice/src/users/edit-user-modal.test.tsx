@@ -110,9 +110,7 @@ test("opens with Correo prefilled, with no advance notice about a passkey, and C
   await expect
     .element(dialog.getByRole("textbox", { name: /^Correo/ }))
     .toHaveValue("lucia.perez@example.com");
-  await expect
-    .element(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }))
-    .toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Rol/ })).toBeVisible();
   expect(
     dialog
       .getByText("Al guardar, el navegador te pide usar tu passkey para confirmar el cambio.")
@@ -129,12 +127,12 @@ test("lists every role and lets picking a different one change the Rol selector'
   const services = createServices();
   const { screen, dialog } = await renderModal(services);
 
-  await userEvent.click(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Rol/ }));
   await expect.element(screen.getByRole("option", { name: "Administrador" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Cajero" })).toBeVisible();
   await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
 
-  await expect.element(dialog.getByRole("button", { name: /^Cajero Rol/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Rol/ })).toHaveValue("Cajero");
 });
 
 test("saves the newly picked role together with the email", async () => {
@@ -143,7 +141,7 @@ test("saves the newly picked role together with the email", async () => {
   const { screen, dialog } = await renderModal(services, { onSaved });
   vi.mocked(services.editUser).mockResolvedValue({ kind: "ok" });
 
-  await userEvent.click(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Rol/ }));
   await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
@@ -215,7 +213,7 @@ test("shows a last_administrator notice with a reload action when the server sti
   const { screen, dialog } = await renderModal(services);
   vi.mocked(services.editUser).mockResolvedValue({ kind: "last_administrator" });
 
-  await userEvent.click(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Rol/ }));
   await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
@@ -526,4 +524,20 @@ test("disables Recargar and Guardar while the reload is pending", async () => {
 
   await expect.element(dialog.getByRole("button", { name: "Recargar" })).toBeDisabled();
   await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+});
+
+test("typing in the Rol offers only the matching roles, and choosing one selects it", async () => {
+  const services = createServices();
+  const { screen, dialog } = await renderModal(services);
+
+  const role = dialog.getByRole("combobox", { name: /^Rol/ });
+  await userEvent.fill(role, "cajer");
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Cajero"]);
+  await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
+  await expect.element(role).toHaveValue("Cajero");
 });

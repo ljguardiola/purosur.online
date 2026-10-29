@@ -74,7 +74,7 @@ test("the category filter narrows the list", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("combobox", { name: /^Categoría:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Frutos secos" }));
 
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
@@ -124,7 +124,7 @@ test("the category filter offers only leaf categories, labeled by their full pat
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("combobox", { name: /^Categoría:/ }));
 
   await expect
     .poll(() =>
@@ -455,8 +455,8 @@ test("opens with the filters and ordering it is given", async () => {
     .element(screen.getByPlaceholder("Buscar por nombre o código de barras"))
     .toHaveValue("peladas");
   await expect
-    .element(screen.getByRole("button", { name: "Categoría: Frutos secos" }))
-    .toBeVisible();
+    .element(screen.getByRole("combobox", { name: /^Categoría:/ }))
+    .toHaveValue("Frutos secos");
   await expect.element(screen.getByRole("button", { name: "Unidad: Por peso" })).toBeVisible();
   expect(screen.getByText("Miel peladas").query()).toBeNull();
   const names = screen
@@ -481,7 +481,7 @@ test("falls back to every category when the category it is given is not one the 
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Categoría: Todas" })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Categoría:/ })).toHaveValue("Todas");
   expect(onFiltersChange).toHaveBeenLastCalledWith(productsListFilters.parse({}));
 });
 
@@ -549,4 +549,20 @@ test("does not report its filters again when the route hands it a new callback",
   );
 
   expect(onFiltersChange).toHaveBeenCalledTimes(1);
+});
+
+test("typing in the category filter offers only the matching categories", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey], [groceries, driedFruits]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Categoría/ }), "frut");
+
+  expect(
+    screen
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Frutos secos"]);
 });

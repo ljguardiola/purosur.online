@@ -102,8 +102,8 @@ function dialogOf(screen: ModalScreen) {
 }
 
 async function chooseCategory(dialog: Locator) {
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén › Frutos secos" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
+  await userEvent.click(page.getByRole("option", { name: "Almacén › Frutos secos" }));
 }
 
 async function fillTheRest(dialog: Locator, quantity = "10") {
@@ -113,7 +113,7 @@ async function fillTheRest(dialog: Locator, quantity = "10") {
 
 async function create(screen: ModalScreen) {
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await fillTheRest(dialog);
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
   return dialog;
@@ -145,7 +145,7 @@ test("offers the product's fields, the name filled from the item's description, 
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Nuez mariposa extra light x 10 kg");
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
   const lastProductField = dialog.getByRole("button", { name: "Generar código interno" }).element();
   const quantity = dialog.getByRole("textbox", { name: /^Contiene/ }).element();
@@ -187,7 +187,7 @@ test("asks for the barcode and the category, without claiming the barcode the li
   await expect
     .element(dialog.getByRole("button", { name: "Generar código interno" }))
     .toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 });
 
 test("creates the product with what was filled in and tells the screen", async () => {
@@ -217,14 +217,14 @@ test("creates the product with the name changed, the brand chosen and the net co
   const services = createServices();
   const screen = await renderModal({ services });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Aceite de almendras");
-  await userEvent.click(dialog.getByRole("button", { name: /Marca/ }));
-  await userEvent.click(dialog.getByRole("option", { name: CREATION_BRAND.name }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Marca/ }));
+  await userEvent.click(page.getByRole("option", { name: CREATION_BRAND.name }));
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "125");
   await userEvent.click(dialog.getByRole("button", { name: "g Unidad" }));
-  await userEvent.click(dialog.getByRole("option", { name: "ml" }));
+  await userEvent.click(page.getByRole("option", { name: "ml" }));
   await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
   await userEvent.click(page.getByRole("menuitem", { name: "Sin TACC" }));
   await fillTheRest(dialog);
@@ -249,7 +249,7 @@ test("does not create the product with the name cleared, and shows the message a
   const services = createServices();
   const screen = await renderModal({ services });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 
   await userEvent.clear(dialog.getByRole("textbox", { name: /^Nombre/ }));
   await fillTheRest(dialog);
@@ -263,7 +263,7 @@ test("shows the same net content message as a new product for a quantity that is
   const services = createServices();
   const screen = await renderModal({ services });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "0");
   await fillTheRest(dialog);
@@ -310,11 +310,11 @@ test("offers only the active brands, and the active tags, by name", async () => 
     mayCreateBrandsAndTags: false,
   });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
-  await userEvent.click(dialog.getByRole("button", { name: /Marca/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Marca/ }));
 
-  const options = dialog.getByRole("option").all();
+  const options = page.getByRole("option").all();
   expect(options.map((option) => option.element().textContent)).toEqual(["Sin marca", "Dulcor"]);
   await userEvent.keyboard("{Escape}");
   await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
@@ -341,7 +341,7 @@ test("offers to create a brand and a tag to a session that may manage the catalo
 
   expect(services.createBrand).toHaveBeenCalledWith({ name: "Cabriola" });
   await expect.poll(() => page.getByRole("dialog", { name: "Nueva marca" }).query()).toBeNull();
-  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toHaveTextContent("Cabriola");
+  await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toHaveValue("Cabriola");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Aceite de almendras");
@@ -383,7 +383,7 @@ test("creating a brand leaves the brands and the tags unread while the form is o
 test("offers no way to create a brand or a tag to a session that may not manage the catalog", async () => {
   const screen = await renderModal({ mayCreateBrandsAndTags: false });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
   expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
   await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
@@ -399,7 +399,7 @@ test("says the brands are loading and creating waits for them", async () => {
   const dialog = dialogOf(screen);
 
   await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeDisabled();
-  expect(dialog.getByRole("button", { name: /Marca/ }).query()).toBeNull();
+  expect(dialog.getByRole("combobox", { name: /^Marca/ }).query()).toBeNull();
 });
 
 test("says the brands could not be opened, and reading them again recovers", async () => {
@@ -415,7 +415,7 @@ test("says the brands could not be opened, and reading them again recovers", asy
   await expect.element(dialog.getByText("No pudimos abrir las marcas")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 });
 
 test("says the tags are loading and creating waits for them", async () => {
@@ -491,7 +491,7 @@ test("creates the product with the presentation typed for an item whose list sta
   const services = createServices();
   const screen = await renderModal({ services, target: pasasRow });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 
   await userEvent.fill(
     dialog.getByRole("textbox", { name: /^Presentación de compra/ }),
@@ -518,7 +518,7 @@ test("lets the person sell by weight, and then the quantity is in kilos", async 
   const services = createServices();
   const screen = await renderModal({ services });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 
   await userEvent.click(radioLabel(dialog, "Por peso"));
   await expect.element(dialog.getByText("kg", { exact: true }).last()).toBeVisible();
@@ -539,7 +539,7 @@ test("does not create the product without a category, a barcode or a quantity, a
   const services = createServices();
   const screen = await renderModal({ services, target: pasasRow });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
@@ -558,7 +558,7 @@ test("generates an internal barcode for the product", async () => {
   });
   const screen = await renderModal({ services, target: pasasRow });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 
   await userEvent.click(dialog.getByRole("button", { name: "Generar código interno" }));
 
@@ -569,12 +569,10 @@ test("only offers the categories without subcategories, with their full path", a
   const screen = await renderModal();
   const dialog = dialogOf(screen);
 
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
 
-  await expect
-    .element(dialog.getByRole("option", { name: "Almacén › Frutos secos" }))
-    .toBeVisible();
-  expect(dialog.getByRole("option", { name: "Almacén", exact: true }).query()).toBeNull();
+  await expect.element(page.getByRole("option", { name: "Almacén › Frutos secos" })).toBeVisible();
+  expect(page.getByRole("option", { name: "Almacén", exact: true }).query()).toBeNull();
 });
 
 test("says the categories are loading and creating waits for them", async () => {
@@ -585,7 +583,7 @@ test("says the categories are loading and creating waits for them", async () => 
   const dialog = dialogOf(screen);
 
   await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeDisabled();
-  expect(dialog.getByRole("button", { name: /^Elegí una categoría/ }).query()).toBeNull();
+  expect(dialog.getByRole("combobox", { name: /^Categoría/ }).query()).toBeNull();
 });
 
 test("says the categories could not be opened, and reading them again recovers", async () => {
@@ -601,7 +599,7 @@ test("says the categories could not be opened, and reading them again recovers",
   await expect.element(dialog.getByText("No pudimos abrir las categorías")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 });
 
 test("says there are no categories to choose from, without sending the person to a screen", async () => {
@@ -629,7 +627,7 @@ test("does not ask for the VAT rate when the list's prices carry it", async () =
   const services = createServices();
   const screen = await renderModal({ services });
   await expect
-    .element(dialogOf(screen).getByRole("button", { name: /^Elegí una categoría/ }))
+    .element(dialogOf(screen).getByRole("combobox", { name: /^Categoría/ }))
     .toBeVisible();
 
   expect(screen.getByText("IVA del ítem").query()).toBeNull();
@@ -819,7 +817,7 @@ test("cancel closes the modal without calling the cloud", async () => {
 test("has no accessibility violations", async () => {
   const screen = await renderModal({ list: { ...LIST, requiresVatRate: true } });
   await expect
-    .element(dialogOf(screen).getByRole("button", { name: /^Elegí una categoría/ }))
+    .element(dialogOf(screen).getByRole("combobox", { name: /^Categoría/ }))
     .toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);

@@ -308,6 +308,7 @@ test("reads the lots again when a typed cost is refused for loaded prices, so th
   const reopened = await openEdit(screen, "Almendras peladas");
 
   await expect
-    .element(reopened.getByRole("button", { name: /Lista de proveedor/ }))
-    .toHaveTextContent("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kgLa más barata");
+    .element(reopened.getByRole("combobox", { name: /Lista de proveedor/ }))
+    .toHaveValue("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kg");
+  await expect.element(reopened.getByText("La más barata")).toBeVisible();
 });

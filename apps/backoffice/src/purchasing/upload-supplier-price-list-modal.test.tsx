@@ -68,7 +68,7 @@ type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
 
 async function chooseSupplier(screen: ModalScreen, name: string) {
   const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("button", { name: /Proveedor/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Proveedor/ }));
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
@@ -113,7 +113,7 @@ test("only accepts a PDF file", async () => {
 test("offers the active suppliers by name", async () => {
   const screen = await renderModal();
 
-  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: /Proveedor/ }));
+  await userEvent.click(screen.getByRole("dialog").getByRole("combobox", { name: /Proveedor/ }));
 
   await expect
     .poll(() =>
@@ -129,8 +129,8 @@ test("opens with the supplier it is given chosen", async () => {
   const screen = await renderModal({ initialSupplierId: granos.id });
 
   await expect
-    .element(screen.getByRole("dialog").getByRole("button", { name: /Proveedor/ }))
-    .toHaveTextContent("Granos del Valle");
+    .element(screen.getByRole("dialog").getByRole("combobox", { name: /Proveedor/ }))
+    .toHaveValue("Granos del Valle");
 });
 
 test("shows the chosen file with its size, and lets the person choose another", async () => {
@@ -522,4 +522,22 @@ test("ends the session when loading a page finds no open session", async () => {
   await submitWebPage(screen);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("typing in the supplier offers only the matching suppliers, and choosing one selects it", async () => {
+  const screen = await renderModal();
+  const supplier = screen.getByRole("dialog").getByRole("combobox", { name: /Proveedor/ });
+
+  await userEvent.fill(supplier, "gran");
+
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("option")
+        .all()
+        .map((option) => option.element().textContent),
+    )
+    .toEqual(["Granos del Valle"]);
+  await userEvent.click(screen.getByRole("option", { name: "Granos del Valle" }));
+  await expect.element(supplier).toHaveValue("Granos del Valle");
 });

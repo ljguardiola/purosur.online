@@ -398,7 +398,7 @@ test("an error notice leaves when the category filter changes", async () => {
   const screen = await showRowConfirmFailure(services);
   vi.mocked(services.fetchPrices).mockReturnValue(new Promise(() => {}));
 
-  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("combobox", { name: /^Categoría:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Almacén" }));
 
   await expect

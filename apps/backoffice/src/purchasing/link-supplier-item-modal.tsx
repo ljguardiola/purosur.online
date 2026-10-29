@@ -260,7 +260,6 @@ export function LinkSupplierItemModal({
         >
           {(field) => (
             <field.ComboBox
-              variant="search"
               label="Producto del catálogo"
               placeholder="Buscar un producto"
               options={productOptions}

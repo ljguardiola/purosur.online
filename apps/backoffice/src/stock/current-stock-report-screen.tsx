@@ -229,6 +229,7 @@ export function CurrentStockReportScreen({
         <ListFilter
           name="category"
           label="Categoría:"
+          searchable
           options={categoryOptions}
           value={categoryIsOffered ? filters.category : ALL_CATEGORIES}
           onChange={(category) => onFiltersChange({ ...filters, category })}

@@ -259,7 +259,7 @@ function NewUserModal({
           </form.AppField>
           {options ? (
             <form.AppField name="roleId">
-              {(field) => <field.Select label="Rol" options={options} required />}
+              {(field) => <field.ComboBox label="Rol" options={options} required />}
             </form.AppField>
           ) : null}
           <form.AppField name="email">

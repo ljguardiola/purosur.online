@@ -195,7 +195,7 @@ test("Editar opens the edit modal offering the roles the screen read, and Cancel
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
 
-  await userEvent.click(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Rol/ }));
   await expect.element(screen.getByRole("option", { name: "Administrador" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Cajero" })).toBeVisible();
   await userEvent.keyboard("{Escape}");

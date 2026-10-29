@@ -273,8 +273,8 @@ test("loading a failed list again opens the upload with its supplier chosen", as
 
   await expect.element(screen.getByRole("heading", { name: "Cargar una lista" })).toBeVisible();
   await expect
-    .element(screen.getByRole("dialog").getByRole("button", { name: /Proveedor/ }))
-    .toHaveTextContent("Molinos San Javier");
+    .element(screen.getByRole("dialog").getByRole("combobox", { name: /Proveedor/ }))
+    .toHaveValue("Molinos San Javier");
 });
 
 test("uploading a list closes the modal, reads the lists again and says it was loaded", async () => {
@@ -302,7 +302,7 @@ test("uploading a list closes the modal, reads the lists again and says it was l
 
   await userEvent.click(screen.getByRole("button", { name: "Cargar una lista" }));
   const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("button", { name: /Proveedor/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /Proveedor/ }));
   await userEvent.click(screen.getByRole("option", { name: "Distribuidora Andina" }));
   await userEvent.upload(
     dialog.getByLabelText("Archivo", { exact: true }),

@@ -125,6 +125,7 @@ export function MercadoPagoRefundsScreen({
           <ListFilter
             name="register"
             label="Caja"
+            searchable
             options={registerOptions}
             value={register.shown}
             onChange={register.setChoice}

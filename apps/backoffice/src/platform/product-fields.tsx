@@ -52,7 +52,7 @@ export const ProductFields = withFieldGroup({
         ) : (
           <group.AppField name="categoryId">
             {(field) => (
-              <field.Select
+              <field.ComboBox
                 label="Categoría"
                 placeholder="Elegí una categoría"
                 options={categories.options}
@@ -68,7 +68,7 @@ export const ProductFields = withFieldGroup({
             {(field) => {
               const offered = withCreatedBrand(brands.items, brands.creation?.created ?? null);
               const select = (
-                <field.Select
+                <field.ComboBox
                   label="Marca"
                   options={brandOptions(offered, null)}
                   {...brandFieldHelp(offered, field.state.value)}
