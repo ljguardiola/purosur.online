@@ -1,7 +1,10 @@
 import { readdirSync } from "node:fs";
 import { z } from "zod";
 
-const FIELD_CHANGE_READERS_DIR = new URL("./field-change-readers/", import.meta.url);
+const FIELD_CHANGE_READERS_DIR = new URL(
+  "../../../test-support/field-change-readers/",
+  import.meta.url,
+);
 
 const readerModuleShape = z.object({ changesPageSchema: z.instanceof(z.ZodType) });
 

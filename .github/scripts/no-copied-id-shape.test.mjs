@@ -468,18 +468,6 @@ test("scans every cloud and contracts source file, tests and the shared shape's 
   );
 });
 
-test("leaves out the change-page readers generated from the register releases in the field", () => {
-  const scanned = findScannedFiles(repoRoot);
-
-  assert.ok(scanned.includes("packages/contracts/src/sync/test-support/field-change-readers.ts"));
-  assert.deepEqual(
-    scanned.filter((path) =>
-      path.startsWith("packages/contracts/src/sync/test-support/field-change-readers/"),
-    ),
-    [],
-  );
-});
-
 test("no cloud or contracts file outside the shared shape's file holds a copy of the id shape", () => {
   const readFile = (path) => readFileSync(join(repoRoot, path), "utf8");
 
