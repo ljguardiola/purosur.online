@@ -153,6 +153,7 @@ export type {
   PullAudience,
   PulledChange,
   PulledEntity,
+  PullingInstallation,
   PullingRegister,
   PullPage,
   PullPorts,

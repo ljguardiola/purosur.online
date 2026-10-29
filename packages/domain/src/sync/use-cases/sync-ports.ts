@@ -10,7 +10,14 @@ import type {
 import type { PulledChange, PullPage } from "../model/pull-page.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 
-export type { PullAudience, PulledChange, PulledEntity, PullingRegister, PullPage, PullReach };
+export type {
+  PullAudience,
+  PulledChange,
+  PulledEntity,
+  PullingRegister,
+  PullPage,
+  PullReach,
+};
 
 export interface ChangeLog<TChange extends PulledChange> {
   transaction<TOutcome>(
@@ -18,9 +25,13 @@ export interface ChangeLog<TChange extends PulledChange> {
   ): Promise<TOutcome>;
 }
 
+export interface PullingInstallation extends PullingRegister {
+  recordedAppVersion: string | null;
+}
+
 export interface ChangeLogTransaction<TChange extends PulledChange> {
   recordObservedPull(deviceId: string, since: number, at: Date): Promise<void>;
-  pullingRegister(deviceId: string): Promise<PullingRegister>;
+  pullingRegister(deviceId: string): Promise<PullingInstallation>;
   changesAfter(audience: PullAudience, since: number, limit: number): Promise<TChange[]>;
 }
 

@@ -191,7 +191,7 @@ describe("pulling changes", () => {
     it("holds back what the recorded version cannot read when the register declares none", async () => {
       const page = await pull(fakeChangeLog(everything, "1.0.1300"), 0);
 
-      expect(page).toEqual({ changes: [brand, zoneRules, sale, returned], cursor: 4, hasMore: false });
+      expect(page).toEqual({ changes: [zoneRules, sale, returned], cursor: 4, hasMore: false });
     });
 
     it("trusts the declared version over the recorded one, whichever is newer", async () => {
