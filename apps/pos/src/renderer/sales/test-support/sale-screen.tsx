@@ -87,7 +87,9 @@ export const SALE_OF_QUESO: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 1_562_500,
   subtotal: 1_562_500,
+  promotion_savings: 0,
 };
 export const SALE_OF_YERBA: OpenSale = {
   id: "sale-1",
@@ -105,7 +107,9 @@ export const SALE_OF_YERBA: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 476_000,
   subtotal: 476_000,
+  promotion_savings: 0,
 };
 export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   id: "sale-1",
@@ -123,7 +127,9 @@ export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   sale_discount_authorization_required: false,
   sale_discount_refusal: null,
   sale_discount: null,
+  gross_subtotal: 626_000,
   subtotal: 626_000,
+  promotion_savings: 0,
 };
 
 export type Overrides = Partial<SaleScreenProps> & { registerName?: string | null };

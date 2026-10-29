@@ -56,9 +56,9 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
 
 const RATE_LIMITED_RESPONSE_CODE = "rate_limited";
 
-export type BackofficeSessionCheck = SessionLookup | { state: "rate_limited" };
+type BackofficeSessionCheck = SessionLookup | { state: "rate_limited" };
 
-export async function checkBackofficeSession<TQueryResult extends PgQueryResultHKT>(
+async function checkBackofficeSession<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   reply: FastifyReply,
   options: BackofficeSessionCheckOptions<TQueryResult>,

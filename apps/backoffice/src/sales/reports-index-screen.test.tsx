@@ -93,14 +93,14 @@ test("groups the cash reports in a card titled Caja", async () => {
 
   const cash = screen.getByRole("region", { name: "Caja" });
   await expect.element(cash).toBeVisible();
-  expect(cash.getByRole("link").elements()).toHaveLength(2);
+  expect(cash.getByRole("link").elements()).toHaveLength(3);
 });
 
 test("lists the returns report as a link to it in the Caja card when it is shown", async () => {
   const screen = await renderScreen({ returnsShown: true });
 
   const cash = screen.getByRole("region", { name: "Caja" });
-  expect(cash.getByRole("link").elements()).toHaveLength(3);
+  expect(cash.getByRole("link").elements()).toHaveLength(4);
   await expect
     .element(cash.getByRole("link", { name: "Devoluciones" }))
     .toHaveAttribute("href", "/reports/returns");
@@ -137,6 +137,14 @@ test("lists the cash session closes report as a link to it", async () => {
   await expect
     .element(screen.getByRole("link", { name: "Cierres de sesión" }))
     .toHaveAttribute("href", "/reports/cash-session-closes");
+});
+
+test("lists the cash movements report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Movimientos de caja" }))
+    .toHaveAttribute("href", "/reports/cash-movements");
 });
 
 test("groups the stock reports in a card titled Stock", async () => {

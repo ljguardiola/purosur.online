@@ -30,6 +30,7 @@ export {
   cashMovementReason,
   isValidCashMovementAmount,
 } from "./model/cash-movement-kind.js";
+export type { ReportedCashMovement } from "./model/cash-movements-report.js";
 export type {
   CashMovement,
   CashMovementType,

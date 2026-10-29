@@ -71,6 +71,10 @@ export type {
   RegisterIdentity,
 } from "./cash-ledger.js";
 export type {
+  CashMovementsQuery,
+  CashMovementsReportReader,
+} from "./cash-movements-report-reader.js";
+export type {
   CashSessionClosesQuery,
   CashSessionClosesReportReader,
 } from "./cash-session-closes-report-reader.js";
@@ -175,6 +179,8 @@ export type {
 export { pruneSnapshotGenerationsOnDisk } from "./prune-snapshot-generations-on-disk.js";
 export type { PublishZoneRulesInput, PublishZoneRulesOutcome } from "./publish-zone-rules.js";
 export { publishZoneRules } from "./publish-zone-rules.js";
+export type { CashMovementsReport, ReadCashMovementsInput } from "./read-cash-movements.js";
+export { readCashMovements } from "./read-cash-movements.js";
 export type {
   CashSessionClosesReport,
   ReadCashSessionClosesInput,

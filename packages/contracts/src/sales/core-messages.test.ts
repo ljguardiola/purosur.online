@@ -313,7 +313,9 @@ describe("sale answers", () => {
     cancel_authorization_required: false,
     adjust_authorization_required: false,
     sale_discount_authorization_required: false,
+    gross_subtotal: 3000,
     subtotal: 3000,
+    promotion_savings: 0,
     sale_discount: null,
     sale_discount_refusal: null,
   };
@@ -1025,7 +1027,9 @@ describe("sale line answers", () => {
     cancel_authorization_required: false,
     adjust_authorization_required: false,
     sale_discount_authorization_required: false,
+    gross_subtotal: 3000,
     subtotal: 3000,
+    promotion_savings: 0,
     sale_discount: null,
     sale_discount_refusal: null,
   };

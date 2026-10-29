@@ -2013,7 +2013,9 @@ describe("answerRendererRequest", () => {
       adjust_authorization_required: false,
       sale_discount_authorization_required: false,
       sale_discount_refusal: null,
+      gross_subtotal: 1500,
       subtotal: 1500,
+      promotion_savings: 0,
       sale_discount: null,
     };
     const { deps: withSale, saleLookups } = deps(true, { currentSale: async () => sale });

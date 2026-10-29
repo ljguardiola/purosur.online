@@ -759,7 +759,8 @@ export function SaleScreen({
       <PaymentPanel
         saleStatus={current.status}
         lineCount={sale?.lines.length ?? 0}
-        subtotal={sale?.subtotal ?? 0}
+        grossSubtotal={sale?.gross_subtotal ?? 0}
+        promotionSavings={sale?.promotion_savings ?? 0}
         saleDiscount={sale?.sale_discount ?? null}
         total={sale?.total ?? 0}
         paid={sale?.paid ?? 0}
