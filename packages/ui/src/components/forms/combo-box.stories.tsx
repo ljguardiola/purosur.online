@@ -143,6 +143,11 @@ export const CreationOffered: Story = {
   play: playTyping("Serenísima"),
 };
 
+export const EmptyWithCreation: Story = {
+  args: { options: [], creation: { recordKind: "producto", onCreate: () => {} } },
+  play: playClickExpandsTrigger(input),
+};
+
 export const WithDescriptions: Story = {
   args: { options: optionsWithDescriptions, value: "yerba" },
   play: playClickExpandsTrigger(input),

@@ -148,6 +148,58 @@ test("offers creating a record with the typed text when nothing matches", async 
   await expect.poll(() => optionTexts(screen)).toEqual(["Crear marca «Serenísima»"]);
 });
 
+test("offers creating a record from the typed text when there are no options at all", async () => {
+  const screen = await render(
+    <ComboBox
+      label="Producto"
+      options={[]}
+      value={null}
+      onChange={() => {}}
+      creation={{ recordKind: "producto", onCreate: () => {} }}
+    />,
+  );
+
+  await input(screen).fill("Yerba mate");
+
+  await expect.poll(() => optionTexts(screen)).toEqual(["Crear producto «Yerba mate»"]);
+});
+
+test("creates from the typed text when there are no options, without choosing a value", async () => {
+  const onCreate = vi.fn();
+  const onChange = vi.fn();
+  const screen = await render(
+    <ComboBox
+      label="Producto"
+      options={[]}
+      value={null}
+      onChange={onChange}
+      creation={{ recordKind: "producto", onCreate }}
+    />,
+  );
+  await input(screen).fill("Yerba mate");
+
+  activate(screen.getByRole("option", { name: "Crear producto «Yerba mate»" }).element());
+
+  expect(onCreate).toHaveBeenCalledExactlyOnceWith("Yerba mate");
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("tells the person nothing matches when it has no options and nothing is typed", async () => {
+  const screen = await render(
+    <ComboBox
+      label="Producto"
+      options={[]}
+      value={null}
+      onChange={() => {}}
+      creation={{ recordKind: "producto", onCreate: () => {} }}
+    />,
+  );
+
+  await input(screen).click();
+
+  expect(optionTexts(screen)).toEqual(["Sin resultados"]);
+});
+
 test("offers no creation while an option matches the typed text", async () => {
   const screen = await render(
     <ComboBox {...baseProps({ creation: { recordKind: "marca", onCreate: () => {} } })} />,
@@ -505,6 +557,22 @@ test("does not accept a field without a label, options, a value or an onChange h
     label: string;
     options: typeof options;
     value: ProductId;
+  }>().not.toExtend<ComboBoxProps<ProductId>>();
+});
+
+test("accepts an empty list of options only together with a way to create one", () => {
+  expectTypeOf<{
+    label: string;
+    options: readonly [];
+    value: ProductId | null;
+    onChange: (value: ProductId) => void;
+    creation: { recordKind: string; onCreate: (typedText: string) => void };
+  }>().toExtend<ComboBoxProps<ProductId>>();
+  expectTypeOf<{
+    label: string;
+    options: readonly [];
+    value: ProductId | null;
+    onChange: (value: ProductId) => void;
   }>().not.toExtend<ComboBoxProps<ProductId>>();
 });
 
