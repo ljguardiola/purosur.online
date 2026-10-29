@@ -110,12 +110,6 @@ export function Modal(props: ModalProps) {
     ownFooter.querySelector<HTMLElement>('[data-variant="primary"]')?.click();
   }
 
-  function sendWithCtrlEnterFromDialog(event: KeyboardEvent) {
-    if ((event.target as Element).getAttribute("role") === "dialog") {
-      sendWithCtrlEnter(event);
-    }
-  }
-
   return (
     <AriaModalOverlay
       isOpen={open}
@@ -133,83 +127,78 @@ export function Modal(props: ModalProps) {
           widthClassName[width],
         ].join(" ")}
       >
-        <div
-          className="flex min-h-0 flex-1 flex-col"
-          onKeyDownCapture={sendWithCtrlEnterFromDialog}
-        >
-          <AriaDialog className="flex min-h-0 flex-1 flex-col outline-none">
-            {props.headerLayout === "centered" ? (
-              <div
-                className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6"
-                onKeyDownCapture={sendWithCtrlEnter}
+        <AriaDialog className="flex min-h-0 flex-1 flex-col outline-none">
+          {props.headerLayout === "centered" ? (
+            <div
+              className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6"
+              onKeyDownCapture={sendWithCtrlEnter}
+            >
+              <span
+                aria-hidden="true"
+                className={[
+                  "flex size-14 shrink-0 items-center justify-center rounded-full",
+                  toneClassName[tone].surface,
+                ].join(" ")}
               >
+                <span className={iconSlotClassName["3xl"]}>{icon}</span>
+              </span>
+              <AriaHeading
+                slot="title"
+                className={["text-center text-title", toneClassName[tone].strongText].join(" ")}
+              >
+                {title}
+              </AriaHeading>
+              {children}
+            </div>
+          ) : (
+            <>
+              <div className="flex shrink-0 items-center gap-4 border-b border-border pt-4 pr-4 pb-4 pl-6">
                 <span
                   aria-hidden="true"
                   className={[
-                    "flex size-14 shrink-0 items-center justify-center rounded-full",
+                    "flex size-12 shrink-0 items-center justify-center rounded-xl",
                     toneClassName[tone].surface,
                   ].join(" ")}
                 >
-                  <span className={iconSlotClassName["3xl"]}>{icon}</span>
+                  <span className={iconSlotClassName.xl}>{icon}</span>
                 </span>
-                <AriaHeading
-                  slot="title"
-                  className={["text-center text-title", toneClassName[tone].strongText].join(" ")}
-                >
-                  {title}
-                </AriaHeading>
-                {children}
-              </div>
-            ) : (
-              <>
-                <div className="flex shrink-0 items-center gap-4 border-b border-border pt-4 pr-4 pb-4 pl-6">
-                  <span
-                    aria-hidden="true"
-                    className={[
-                      "flex size-12 shrink-0 items-center justify-center rounded-xl",
-                      toneClassName[tone].surface,
-                    ].join(" ")}
+                <div className="flex flex-1 flex-col gap-1">
+                  {context ? <Eyebrow text={context} tone={contextTone} /> : null}
+                  <AriaHeading
+                    slot="title"
+                    className={["text-title", toneClassName[tone].strongText].join(" ")}
                   >
-                    <span className={iconSlotClassName.xl}>{icon}</span>
-                  </span>
-                  <div className="flex flex-1 flex-col gap-1">
-                    {context ? <Eyebrow text={context} tone={contextTone} /> : null}
-                    <AriaHeading
-                      slot="title"
-                      className={["text-title", toneClassName[tone].strongText].join(" ")}
-                    >
-                      {title}
-                    </AriaHeading>
-                  </div>
-                  {props.closable ? <CloseButton onPress={() => onOpenChange(false)} /> : null}
+                    {title}
+                  </AriaHeading>
                 </div>
-                {hasContent(children) && (
-                  <div
-                    className={[
-                      "min-h-0 flex-1 overflow-y-auto",
-                      // A column, so a caller's own regions can size themselves against it and
-                      // scroll independently; without it, a percentage height inside resolves to
-                      // auto and scrolls the whole body as one block.
-                      bodyPadding === "none" ? "flex flex-col" : "p-6",
-                    ].join(" ")}
-                    onKeyDownCapture={sendWithCtrlEnter}
-                  >
-                    {children}
-                  </div>
-                )}
-              </>
-            )}
-            {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
-                square corners over the panel's rounded ones. */}
-            <div
-              ref={footerRef}
-              data-modal-footer
-              className="flex shrink-0 items-center gap-3 rounded-b-xl border-t border-border bg-surface-subtle py-4 px-6"
-            >
-              {footer}
-            </div>
-          </AriaDialog>
-        </div>
+                {props.closable ? <CloseButton onPress={() => onOpenChange(false)} /> : null}
+              </div>
+              {hasContent(children) && (
+                <div
+                  className={[
+                    "min-h-0 flex-1 overflow-y-auto",
+                    // A column, so a caller's own regions can size themselves against it and
+                    // scroll independently; without it, a percentage height inside resolves to
+                    // auto and scrolls the whole body as one block.
+                    bodyPadding === "none" ? "flex flex-col" : "p-6",
+                  ].join(" ")}
+                  onKeyDownCapture={sendWithCtrlEnter}
+                >
+                  {children}
+                </div>
+              )}
+            </>
+          )}
+          {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
+              square corners over the panel's rounded ones. */}
+          <div
+            ref={footerRef}
+            data-modal-footer
+            className="flex shrink-0 items-center gap-3 rounded-b-xl border-t border-border bg-surface-subtle py-4 px-6"
+          >
+            {footer}
+          </div>
+        </AriaDialog>
       </AriaModal>
     </AriaModalOverlay>
   );
