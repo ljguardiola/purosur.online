@@ -133,6 +133,7 @@ interface RegisterOwnStanding {
   storage: StorageStanding;
   localDatabaseDamaged: boolean;
   battery: BatteryReport | undefined;
+  onBatteryCountedOnlySinceStart: boolean;
   newSalesStoppedByBattery: boolean;
   criticalBatteryAction: CriticalBatteryAction;
   clockOffsetMs: number | null;
@@ -201,6 +202,7 @@ export function registerOwnConditionsNotYetKnown({
   storage,
   localDatabaseDamaged,
   battery,
+  onBatteryCountedOnlySinceStart,
   newSalesStoppedByBattery,
   criticalBatteryAction,
 }: RegisterOwnStanding): string[] {
@@ -218,6 +220,11 @@ export function registerOwnConditionsNotYetKnown({
   );
   const unmeasuredStorage = !storage.measured;
   const unreadBattery = battery === undefined;
+  const onBatteryForUnknownTime =
+    onBatteryCountedOnlySinceStart &&
+    battery?.present === true &&
+    battery.on_battery &&
+    !isOnBatteryTooLong(battery);
   const notYetKnown: [string, boolean][] = [
     [
       registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_full" }),
@@ -231,7 +238,7 @@ export function registerOwnConditionsNotYetKnown({
     ["disk_space_low", unmeasuredStorage],
     ["wal_oversized", unmeasuredStorage],
     ["battery_low", unreadBattery],
-    ["on_battery", unreadBattery],
+    ["on_battery", unreadBattery || onBatteryForUnknownTime],
     ["battery_missing", unreadBattery],
     ["critical_battery_action_not_shutdown", criticalBatteryAction.kind === "unreadable"],
   ];

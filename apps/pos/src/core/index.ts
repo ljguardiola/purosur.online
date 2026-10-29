@@ -942,6 +942,7 @@ const registerStatusDeps: RegisterStatusDeps | undefined =
         storage: storageWatch.standing,
         localDatabaseDamaged,
         battery: () => batteryWatch.report(),
+        onBatteryCountedOnlySinceStart: () => batteryWatch.onBatteryCountedOnlySinceStart(),
         newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
         criticalBatteryAction: () => criticalBatteryAction,
         onConditionStartsNotRecorded: (failure) =>

@@ -753,6 +753,7 @@ export {
   lastSuccessfulSyncOfRegister,
   latestKeyVersion,
   mayAuthorize,
+  nextOnBatteryCountedOnlySinceStart,
   nextOnBatterySince,
   nextOperationNumber,
   normalizeEnrollmentCode,

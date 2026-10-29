@@ -8,6 +8,7 @@ export {
   CRITICAL_BATTERY_PUSH_LIMIT_MS,
   CRITICAL_BATTERY_SALE_RECHECK_MS,
   isOnBatteryTooLong,
+  nextOnBatteryCountedOnlySinceStart,
   nextOnBatterySince,
   ON_BATTERY_CONDITION_MINUTES,
 } from "./model/battery.js";

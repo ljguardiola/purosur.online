@@ -58,6 +58,15 @@ export function nextOnBatterySince(
   return undefined;
 }
 
+export function nextOnBatteryCountedOnlySinceStart(
+  previous: boolean,
+  reading: BatteryReading,
+): boolean {
+  return (
+    previous && (reading.kind === "unreadable" || (reading.kind === "present" && reading.onBattery))
+  );
+}
+
 export function batteryReportOf(
   reading: BatteryReading,
   onBatterySince: Date | undefined,

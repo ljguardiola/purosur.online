@@ -38,6 +38,7 @@ export interface RegisterStatusDeps {
   storage: () => StorageStanding;
   localDatabaseDamaged: () => boolean;
   battery: () => BatteryReport | undefined;
+  onBatteryCountedOnlySinceStart: () => boolean;
   newSalesStoppedByBattery: () => boolean;
   criticalBatteryAction: () => CriticalBatteryAction;
   onConditionStartsNotRecorded: (failure: unknown) => void;
@@ -51,6 +52,7 @@ export function observedOwnConditionsOf({
   storage,
   localDatabaseDamaged,
   battery,
+  onBatteryCountedOnlySinceStart,
   newSalesStoppedByBattery,
   criticalBatteryAction,
   onConditionStartsNotRecorded,
@@ -68,6 +70,7 @@ export function observedOwnConditionsOf({
     storage: storage(),
     localDatabaseDamaged: localDatabaseDamaged(),
     battery: battery(),
+    onBatteryCountedOnlySinceStart: onBatteryCountedOnlySinceStart(),
     newSalesStoppedByBattery: newSalesStoppedByBattery(),
     criticalBatteryAction: criticalBatteryAction(),
     clockOffsetMs: readLatestClockOffsetMs(database),
