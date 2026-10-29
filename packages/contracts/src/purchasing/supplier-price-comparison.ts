@@ -1,5 +1,6 @@
 import { SALE_UNITS, SUPPLIER_OFFER_UNPRICED_REASONS } from "@purosur/domain";
 import { z } from "zod";
+import { netContentSchema } from "../shared/index.js";
 import { exactFractionSchema } from "./exact-fraction.js";
 
 const supplierOfferSchema = z.object({
@@ -25,6 +26,8 @@ export const supplierPriceComparisonSchema = z.object({
     z.object({
       id: z.string(),
       name: z.string(),
+      brandName: z.string().nullable(),
+      netContent: netContentSchema.nullable(),
       categoryName: z.string(),
       saleUnit: z.enum(SALE_UNITS),
       offers: z.array(supplierOfferSchema),

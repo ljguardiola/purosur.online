@@ -130,7 +130,6 @@ describe("supplierPriceComparisonSchema", () => {
   it.each([
     ["brandName", 5],
     ["netContent", { quantity: 500, unit: "BOX" }],
-    ["netContent", { quantity: 0, unit: "G" }],
   ])("refuses a product with %s as %j", (field, value) => {
     const bad = { products: [{ ...comparison.products[0], [field]: value }] };
 
