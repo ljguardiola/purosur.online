@@ -69,13 +69,15 @@ export function packagingQuantityMessage(
 
 type ChoosableProduct = PackagingList["products"][number];
 
-export type PackagingProduct = Pick<ChoosableProduct, "id" | "name" | "saleUnit"> &
-  Partial<Pick<ChoosableProduct, "brandName" | "netContent">>;
+export type PackagingProduct = Pick<
+  ChoosableProduct,
+  "id" | "name" | "saleUnit" | "brandName" | "netContent"
+>;
 
 const productNameOrder = textOrder((product: PackagingProduct) => product.name);
 
 export function packagingProductLabel(product: PackagingProduct): string {
-  return formatProductDescription({ brandName: null, netContent: null, ...product });
+  return formatProductDescription(product);
 }
 
 export function packagingProductOptions(
