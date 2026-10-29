@@ -1,34 +1,12 @@
 import type { SaleUnit, SearchableProduct } from "@purosur/domain";
 import type { SellableProduct } from "@purosur/domain/sales/use-cases";
-import { formatProductDescription, type NetContent } from "@purosur/ui/formatters";
+import {
+  JOIN_PRODUCT_BRAND,
+  SHOWN_PRODUCT_COLUMNS,
+  type ShownProductColumns,
+  shownProductName,
+} from "../catalog/sqlite-shown-product-name";
 import type { LocalDatabase } from "../platform/local-database";
-
-export interface ShownProductColumns {
-  name: string;
-  brand_name: string | null;
-  net_content_quantity: number | null;
-  net_content_unit: string | null;
-}
-
-export const SHOWN_PRODUCT_COLUMNS = `products.name AS name, brands.name AS brand_name,
-  products.net_content_quantity AS net_content_quantity,
-  products.net_content_unit AS net_content_unit`;
-
-export const JOIN_PRODUCT_BRAND = "LEFT JOIN brands ON brands.id = products.brand_id";
-
-export function shownProductName(row: ShownProductColumns): string {
-  return formatProductDescription({
-    name: row.name,
-    brandName: row.brand_name,
-    netContent:
-      row.net_content_quantity === null || row.net_content_unit === null
-        ? null
-        : {
-            quantity: row.net_content_quantity,
-            unit: row.net_content_unit as NetContent["unit"],
-          },
-  });
-}
 
 type SellableRow = ShownProductColumns & { id: string; sale_unit: string };
 

@@ -6,9 +6,9 @@ import {
 } from "@purosur/contracts";
 import type { NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { Option, Options } from "@purosur/ui";
+import { NET_CONTENT_UNIT_LABELS } from "@purosur/ui/formatters";
 import { type BarcodeListValue, barcodeListMessage, barcodesWithScan } from "./barcode-list";
 import { categoryMessage } from "./category-path";
-import { NET_CONTENT_UNIT_LABELS } from "./net-content";
 import { NET_CONTENT_QUANTITY_INVALID, parseNetContentQuantity } from "./net-content-quantity";
 import { schemaLimit } from "./schema-limit";
 

@@ -5,15 +5,17 @@ import type {
   InitialCountMovement,
   InitialCountTransaction,
 } from "@purosur/domain/stock/use-cases";
-import type { LocalDatabase } from "../platform/local-database";
 import {
   JOIN_PRODUCT_BRAND,
-  readActiveProductByBarcode,
-  readActiveProductById,
-  readSearchableProducts,
   SHOWN_PRODUCT_COLUMNS,
   type ShownProductColumns,
   shownProductName,
+} from "../catalog/sqlite-shown-product-name";
+import type { LocalDatabase } from "../platform/local-database";
+import {
+  readActiveProductByBarcode,
+  readActiveProductById,
+  readSearchableProducts,
 } from "../sales/sqlite-sellable-products";
 import type { SignInStore } from "../sessions/sqlite-sign-in-store";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";

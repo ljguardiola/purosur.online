@@ -39,10 +39,10 @@ function addProduct(id: string, options: ProductOptions = {}): void {
     );
 }
 
-function addBrand(id: string, name: string, options: { active?: boolean } = {}) {
+function addBrand(id: string, name: string) {
   database
-    .prepare("INSERT INTO brands (id, name, active, version) VALUES (?, ?, ?, 1)")
-    .run(id, name, options.active === false ? 0 : 1);
+    .prepare("INSERT INTO brands (id, name, active, version) VALUES (?, ?, 1, 1)")
+    .run(id, name);
 }
 
 function addBarcode(productId: string, code: string, active = true, position = 1): void {
@@ -233,38 +233,5 @@ describe("the name a sellable product is shown with", () => {
     });
 
     expect(shownNames()).toEqual(everywhere("Aceite de Almendras Vitora 30 ml"));
-  });
-
-  it("is the product's name alone when it has neither brand nor net content", () => {
-    addProduct("p1", { name: "Pan casero" });
-
-    expect(shownNames()).toEqual(everywhere("Pan casero"));
-  });
-
-  it("still carries the name of a deactivated brand", () => {
-    addBrand("b1", "Vitora", { active: false });
-    addProduct("p1", { name: "Aceite de Almendras", brandId: "b1" });
-
-    expect(shownNames()).toEqual(everywhere("Aceite de Almendras Vitora"));
-  });
-
-  it("carries the brand's current name once the brand is renamed", () => {
-    addBrand("b1", "Vitora");
-    addProduct("p1", { name: "Aceite de Almendras", brandId: "b1" });
-    database
-      .prepare("UPDATE brands SET name = 'Vitora Natural', version = 2 WHERE id = 'b1'")
-      .run();
-
-    expect(shownNames()).toEqual(everywhere("Aceite de Almendras Vitora Natural"));
-  });
-
-  it("leaves out a brand the register has not received", () => {
-    addProduct("p1", {
-      name: "Aceite de Almendras",
-      brandId: "b1",
-      netContent: { quantity: 30, unit: "ML" },
-    });
-
-    expect(shownNames()).toEqual(everywhere("Aceite de Almendras 30 ml"));
   });
 });
