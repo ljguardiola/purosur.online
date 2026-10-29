@@ -84,12 +84,18 @@ test("fetchFiscalAddresses returns failed when the network call throws", async (
 test("createFiscalAddress POSTs the name and the street address", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, wireRow));
 
-  expect(await createFiscalAddress(creation)).toEqual({ kind: "ok" });
+  expect(await createFiscalAddress(creation)).toEqual({ kind: "ok", fiscalAddress });
   expect(fetch).toHaveBeenCalledWith("/api/fiscal-addresses", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(creation),
   });
+});
+
+test("createFiscalAddress returns failed on a 201 whose body is not a fiscal address", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "7c9e6679" }));
+
+  expect(await createFiscalAddress(creation)).toEqual({ kind: "failed" });
 });
 
 test("createFiscalAddress returns name_taken on 409", async () => {
