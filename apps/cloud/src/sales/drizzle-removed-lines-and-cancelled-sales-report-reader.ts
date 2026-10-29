@@ -1,5 +1,6 @@
 import {
   ARGENTINA_TIME_ZONE,
+  CANCELLED_SALES_REPORT_SALE_STATE,
   type CancelledSaleFacts,
   type RemovalFacts,
   type RemovedLinesGroup,
@@ -20,8 +21,6 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { storedWeightSource } from "../platform/db/stored-weight-source.js";
-
-const CANCELLED_SALE_STATE = "CANCELLED";
 
 const dayOf = (moment: SQLWrapper) =>
   sql<string>`to_char(${moment} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
@@ -91,7 +90,7 @@ export class DrizzleRemovedLinesAndCancelledSalesReportReader<TQueryResult exten
     const cancellationDay = dayOf(sales.cancelledAt);
     const inRange = and(
       eq(sales.locationId, locationId),
-      eq(sales.state, CANCELLED_SALE_STATE),
+      eq(sales.state, CANCELLED_SALES_REPORT_SALE_STATE),
       registerId === undefined ? undefined : eq(sales.registerId, registerId),
       sql`${cancellationDay} >= ${range.from}`,
       sql`${cancellationDay} <= ${range.to}`,

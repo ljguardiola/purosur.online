@@ -93,6 +93,10 @@ export function needsContingencyBackupTicket({
   return range.lastDeviceSeq >= range.firstDeviceSeq && modesAround.some(isConnectivityGap);
 }
 
+export function paidSaleCancellationLeavesBackupTicket(refunds: readonly unknown[]): boolean {
+  return refunds.length > 0;
+}
+
 export function contingencyBackupTicketStanding(
   ticket: ContingencyBackupTicketRecord,
   acknowledgedThroughSeq: number,

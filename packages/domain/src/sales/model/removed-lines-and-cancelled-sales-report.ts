@@ -1,7 +1,10 @@
 import { cancelledBeforeCharge } from "./cancelled-before-charge.js";
 import { codeUnitOrder, nameOrder } from "./report-order.js";
+import type { SaleState } from "./sale.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
+
+export const CANCELLED_SALES_REPORT_SALE_STATE = "CANCELLED" satisfies SaleState;
 
 interface SessionAndCashier {
   sessionId: string;

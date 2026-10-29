@@ -68,8 +68,8 @@ export function removeSaleLine(
     const occurredAt = clock.now().toISOString();
     tx.appendOutboxEvent({
       event_id: ids.next(),
-      aggregate_type: "Sale",
-      aggregate_id: sale.id,
+      aggregate_type: "SaleLine",
+      aggregate_id: line.id,
       event_type: "sale_line_removed",
       schema_version: 1,
       payload: {
