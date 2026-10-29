@@ -25,7 +25,6 @@ import { categorySelectOptions } from "../platform/category-path";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
-import { useStackedBrandCreation } from "../platform/product-brand-field";
 import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields";
 import {
   EMPTY_PRODUCT_FORM,
@@ -38,6 +37,7 @@ import {
 import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 import { categoryNameOf, PRODUCT_CATEGORY_NOT_LEAF_ERROR } from "./product-form";
@@ -154,8 +154,8 @@ export function NewProductModal({
   const markCatalogStale = useMarkCatalogStale();
   const refreshCatalog = useRefreshCatalog();
   const catalog = { markStale: markCatalogStale, refresh: refreshCatalog };
-  const brandCreation = useStackedBrandCreation(
-    (brandId) => form.setFieldValue("brandId", brandId),
+  const brandCreation = useStackedCreation<BrandSummary>(
+    (brand) => form.setFieldValue("brandId", brand.id),
     catalog,
   );
   const tagCreation = useStackedTagCreation(
@@ -241,7 +241,7 @@ export function NewProductModal({
           fields={PRODUCT_GROUP_FIELDS}
           categories={
             categoryOptions
-              ? { state: "loaded", options: categoryOptions }
+              ? { state: "loaded", options: categoryOptions, creation: null }
               : {
                   state: "unavailable",
                   placeholder: (
@@ -263,6 +263,7 @@ export function NewProductModal({
         />
         <NewBrandModal
           open={brandCreation.open}
+          initialName={brandCreation.initialName}
           context="Marcas"
           createBrand={createBrand}
           onCreated={brandCreation.select}

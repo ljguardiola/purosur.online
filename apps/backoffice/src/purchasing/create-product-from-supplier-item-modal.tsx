@@ -1,4 +1,7 @@
-import { supplierPriceListRowProductCreationBodySchema } from "@purosur/contracts";
+import {
+  type BrandSummary,
+  supplierPriceListRowProductCreationBodySchema,
+} from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -24,12 +27,12 @@ import { combineCloudData } from "../platform/combine-cloud-data";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
-import { useStackedBrandCreation } from "../platform/product-brand-field";
 import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields";
 import { PRODUCT_BRAND_INACTIVE_ERROR, tagInactiveError } from "../platform/product-form";
 import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { quantityFieldKind } from "../platform/stock-quantity";
 import type { createTag } from "../platform/tag-creation-api";
 import type { CloudData } from "../platform/use-cloud-query";
@@ -193,8 +196,8 @@ export function CreateProductFromSupplierItemModal({
   );
 
   const catalog = useProductCreationChoicesRefresh();
-  const brandCreation = useStackedBrandCreation(
-    (brandId) => form.setFieldValue("brandId", brandId),
+  const brandCreation = useStackedCreation<BrandSummary>(
+    (brand) => form.setFieldValue("brandId", brand.id),
     catalog,
   );
   const tagCreation = useStackedTagCreation(
@@ -346,7 +349,7 @@ export function CreateProductFromSupplierItemModal({
             fields={PRODUCT_GROUP_FIELDS}
             categories={
               categoryOptions
-                ? { state: "loaded", options: categoryOptions }
+                ? { state: "loaded", options: categoryOptions, creation: null }
                 : { state: "unavailable", placeholder: categoryPlaceholder() }
             }
             brands={
@@ -416,6 +419,7 @@ export function CreateProductFromSupplierItemModal({
             <>
               <NewBrandModal
                 open={brandCreation.open}
+                initialName={brandCreation.initialName}
                 context="Marcas"
                 createBrand={services.createBrand}
                 onCreated={brandCreation.select}

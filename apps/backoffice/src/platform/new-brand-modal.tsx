@@ -15,6 +15,7 @@ const NEW_BRAND_TEXTS = {
 
 type NewBrandModalProps = {
   open: boolean;
+  initialName?: string;
   context: string;
   createBrand: typeof createBrand;
   onCreated: (brand: BrandSummary) => void;

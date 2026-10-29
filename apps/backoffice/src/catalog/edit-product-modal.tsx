@@ -21,13 +21,7 @@ import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions } from "../platform/category-path";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
-import {
-  BrandFieldWithCreation,
-  brandFieldHelp,
-  brandOptions,
-  useStackedBrandCreation,
-  withCreatedBrand,
-} from "../platform/product-brand-field";
+import { brandFieldHelp, brandOptions, withCreatedBrand } from "../platform/product-brand-field";
 import {
   EMPTY_PRODUCT_FORM,
   NET_CONTENT_UNIT_OPTIONS,
@@ -38,6 +32,7 @@ import { TagsField, useStackedTagCreation, withCreatedTags } from "../platform/p
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { type ProductReload, useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 import { productDescription } from "./product-description";
@@ -185,8 +180,8 @@ export function EditProductModal({
   const markCatalogStale = useMarkCatalogStale();
   const refreshCatalog = useRefreshCatalog();
   const catalog = { markStale: markCatalogStale, refresh: refreshCatalog };
-  const brandCreation = useStackedBrandCreation(
-    (brandId) => form.setFieldValue("brandId", brandId),
+  const brandCreation = useStackedCreation<BrandSummary>(
+    (brand) => form.setFieldValue("brandId", brand.id),
     catalog,
   );
   const tagCreation = useStackedTagCreation(
@@ -364,16 +359,11 @@ export function EditProductModal({
             {(field) => {
               const offered = withCreatedBrand(brands, brandCreation.created);
               return (
-                <BrandFieldWithCreation
-                  disabled={busy}
-                  onCreateBrand={brandCreation.start}
-                  select={
-                    <field.ComboBox
-                      label="Marca"
-                      options={brandOptions(offered, keptBrandId)}
-                      {...brandFieldHelp(offered, field.state.value)}
-                    />
-                  }
+                <field.ComboBox
+                  label="Marca"
+                  options={brandOptions(offered, keptBrandId)}
+                  {...brandFieldHelp(offered, field.state.value)}
+                  creation={{ recordKind: "marca", onCreate: brandCreation.start }}
                 />
               );
             }}
@@ -410,6 +400,7 @@ export function EditProductModal({
           <form.AppField name="barcodes">{() => <BarcodeChips chips={chips} />}</form.AppField>
           <NewBrandModal
             open={brandCreation.open}
+            initialName={brandCreation.initialName}
             context="Marcas"
             createBrand={createBrand}
             onCreated={brandCreation.select}

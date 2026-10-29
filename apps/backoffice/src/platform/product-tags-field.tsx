@@ -9,7 +9,7 @@ import {
   useFieldContext,
 } from "@purosur/ui";
 import { useState } from "react";
-import type { CatalogRefresh } from "./product-brand-field";
+import type { CatalogRefresh } from "./stacked-creation";
 
 const INACTIVE_TAG_STATUS = "Inactivo";
 

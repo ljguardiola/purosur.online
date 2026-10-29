@@ -1,7 +1,7 @@
 import { Button, type Icon, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { StandardSchemaV1 } from "@tanstack/react-form";
 import { Check, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { retryAfterDetail } from "./retry-after-detail";
 import { useSendToMyAccount } from "./send-to-my-account";
 
@@ -23,6 +23,7 @@ type NameCreationTexts = {
 
 export type NameCreationModalProps<Created> = {
   open: boolean;
+  initialName?: string;
   context: string;
   icon: Icon;
   texts: NameCreationTexts;
@@ -40,6 +41,7 @@ type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSecon
 // mounted with everything typed in it while this one is on top.
 export function NameCreationModal<Created>({
   open,
+  initialName = "",
   context,
   icon,
   texts,
@@ -87,12 +89,14 @@ export function NameCreationModal<Created>({
     },
   });
 
+  const seedName = useEffectEvent(() => reset({ name: initialName }));
+
   useEffect(() => {
     if (open) {
-      reset();
+      seedName();
       setNotice(null);
     }
-  }, [open, reset]);
+  }, [open]);
 
   return (
     <Modal
