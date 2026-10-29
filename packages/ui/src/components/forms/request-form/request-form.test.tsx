@@ -592,13 +592,7 @@ test("a select submits the option that was chosen", async () => {
   expect(onSubmit).toHaveBeenCalledWith("stock");
 });
 
-function ComboBoxProbe({
-  onSubmit,
-  variant,
-}: {
-  onSubmit: (role: string) => Promise<void>;
-  variant?: "select" | "search";
-}) {
+function ComboBoxProbe({ onSubmit }: { onSubmit: (role: string) => Promise<void> }) {
   const { form, submit } = useRequestForm({
     defaultValues: { role: null as string | null },
     request: {
@@ -613,12 +607,7 @@ function ComboBoxProbe({
     <>
       <form.AppField name="role">
         {(field) => (
-          <field.ComboBox
-            label="Rol"
-            options={ROLE_OPTIONS}
-            required
-            variant={variant ?? "select"}
-          />
+          <field.ComboBox label="Rol" options={ROLE_OPTIONS} required />
         )}
       </form.AppField>
       <button type="button" onClick={() => void submit()}>
@@ -651,15 +640,6 @@ test("a combo box submits the option that was chosen", async () => {
 
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
   expect(onSubmit).toHaveBeenCalledWith("stock");
-});
-
-test("a combo box in the search form shows a magnifier instead of a chevron", async () => {
-  const screen = await render(
-    <ComboBoxProbe onSubmit={() => Promise.resolve()} variant="search" />,
-  );
-
-  const icon = screen.getByRole("button", { name: /Rol/ }).element().querySelector("svg");
-  expect(icon?.classList.contains("lucide-search")).toBe(true);
 });
 
 function DirtyProbe() {

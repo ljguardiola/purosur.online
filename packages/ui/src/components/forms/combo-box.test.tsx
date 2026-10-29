@@ -340,36 +340,19 @@ test("points its chevron down while the list is closed and up while it is open",
   expect(chevron()?.classList.contains("lucide-chevron-up")).toBe(true);
 });
 
-test("draws a magnifier where the chevron sits when it is the search form, and never a chevron", async () => {
-  const screen = await render(<ComboBox {...baseProps({ variant: "search" })} />);
+test("shows the select caret and never a search icon, closed or open", async () => {
+  const screen = await render(<ComboBox {...baseProps()} />);
   const button = screen.getByRole("button", { name: /Producto/ }).element();
-  const icon = button.querySelector("svg") as SVGElement;
 
-  expect(icon.classList.contains("lucide-search")).toBe(true);
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
-  expect(icon.getBoundingClientRect().width).toBe(18);
+  expect(button.querySelector(".lucide-chevron-down")).not.toBeNull();
+  expect(button.querySelector(".lucide-search")).toBeNull();
 
   await userEvent.tab();
   await expect.element(screen.getByRole("listbox")).toBeVisible();
 
-  expect(button.querySelector("svg")?.classList.contains("lucide-search")).toBe(true);
-  expect(button.querySelector(".lucide-chevron-up, .lucide-chevron-down")).toBeNull();
+  expect(button.querySelector(".lucide-chevron-up")).not.toBeNull();
+  expect(button.querySelector(".lucide-search")).toBeNull();
   await expectNoAccessibilityViolations(screen.container);
-});
-
-test("opens from the magnifier button and narrows and picks as the select form does", async () => {
-  const onPick = vi.fn();
-  const screen = await render(<Harness variant="search" onPick={onPick} />);
-
-  await screen.getByRole("button", { name: /Producto/ }).click();
-  await expect.element(screen.getByRole("listbox")).toBeVisible();
-
-  await userEvent.fill(input(screen), "caf");
-  expect(optionTexts(screen)).toEqual(["Café molido"]);
-
-  await userEvent.keyboard("{ArrowDown}{Enter}");
-  expect(onPick).toHaveBeenCalledWith("cafe");
-  expect(inputElement(screen).value).toBe("Café molido");
 });
 
 test("only puts a small window of a long list in the page, and still finds an option far down it", async () => {
@@ -594,14 +577,8 @@ test("does not accept both its own error message and a shared one", () => {
   }>().not.toExtend<ComboBoxProps<ProductId>>();
 });
 
-test("does not accept a form other than select or search", () => {
-  expectTypeOf<{
-    label: string;
-    options: typeof options;
-    value: ProductId;
-    onChange: (value: ProductId) => void;
-    variant: "outlined";
-  }>().not.toExtend<ComboBoxProps<ProductId>>();
+test("has no search look to choose", () => {
+  expectTypeOf<ComboBoxProps<ProductId>>().not.toHaveProperty("variant");
 });
 
 test("does not accept search keywords that are not text", () => {
