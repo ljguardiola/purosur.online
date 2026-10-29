@@ -705,6 +705,7 @@ const syncSchedule = createSyncSchedule({
                   cloudClient === undefined
                     ? undefined
                     : (path, headers) => getFromCloud(cloudClient, path, headers),
+                appVersion: appVersionFromCoreArguments(process.argv),
               });
               const warning = pullWarningOf(attempt);
               if (warning !== undefined) {

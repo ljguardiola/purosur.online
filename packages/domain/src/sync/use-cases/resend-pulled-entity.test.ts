@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { pullAudienceOfEntity } from "../model/pull-audience.js";
 import { resendPulledEntity } from "./resend-pulled-entity.js";
+import type { PulledEntity } from "./sync-ports.js";
 import { FakeChangeLog, type FakeLoggedChange } from "./test-support/fake-change-log.js";
 
 const DEVICE = "device-1";
@@ -26,15 +27,20 @@ const laterOwnPointOfSale: FakeLoggedChange = {
   entityId: "register-1",
 };
 
-function fakeChangeLog(changes: FakeLoggedChange[]): FakeChangeLog {
-  return new FakeChangeLog(changes, { [DEVICE]: INSTALLED_REGISTER });
+function fakeChangeLog(
+  changes: FakeLoggedChange[],
+  recordedAppVersion: string | null = null,
+): FakeChangeLog {
+  return new FakeChangeLog(changes, { [DEVICE]: { ...INSTALLED_REGISTER, recordedAppVersion } });
 }
 
-function resend(changeLog: FakeChangeLog, since: number) {
-  return resendPulledEntity(
-    { changeLog },
-    { deviceId: DEVICE, since, entity: "register_point_of_sale" },
-  );
+function resend(
+  changeLog: FakeChangeLog,
+  since: number,
+  entity: PulledEntity = "register_point_of_sale",
+  declaredVersion?: string,
+) {
+  return resendPulledEntity({ changeLog }, { deviceId: DEVICE, since, entity, declaredVersion });
 }
 
 describe("resending the changes of one entity", () => {
@@ -63,7 +69,7 @@ describe("resending the changes of one entity", () => {
 
     expect(changeLog.readRequests).toEqual([
       {
-        audience: pullAudienceOfEntity(INSTALLED_REGISTER, "register_point_of_sale"),
+        audience: pullAudienceOfEntity(INSTALLED_REGISTER, "register_point_of_sale", null),
         since: 0,
         limit: 501,
       },
@@ -101,5 +107,58 @@ describe("resending the changes of one entity", () => {
 
     expect(changeLog.state.observedPulls).toEqual([]);
     expect(changeLog.operations).toEqual(["transaction", "pullingRegister", "changesAfter"]);
+  });
+
+  describe("for a register version that cannot read some changes", () => {
+    const brand: FakeLoggedChange = { changeSeq: 1, entity: "brand", entityId: "brand-1" };
+    const sale: FakeLoggedChange = {
+      changeSeq: 2,
+      entity: "stock_movement",
+      entityId: "movement-1",
+      locationId: "branch-a",
+      stockMovementKind: "sale",
+    };
+    const returned: FakeLoggedChange = {
+      changeSeq: 3,
+      entity: "stock_movement",
+      entityId: "movement-2",
+      locationId: "branch-a",
+      stockMovementKind: "return",
+    };
+
+    it("gives nothing of an entity its declared version cannot read", async () => {
+      const page = await resend(fakeChangeLog([brand]), 0, "brand", "0.0.1271");
+
+      expect(page).toEqual({ changes: [], cursor: 0, hasMore: false });
+    });
+
+    it("gives the entity once its declared version reads it", async () => {
+      const page = await resend(fakeChangeLog([brand]), 0, "brand", "1.0.1385");
+
+      expect(page.changes).toEqual([brand]);
+    });
+
+    it("gives the stock movements of the kinds its recorded version reads when it declares none", async () => {
+      const page = await resend(fakeChangeLog([sale, returned], "1.0.1300"), 0, "stock_movement");
+
+      expect(page).toEqual({ changes: [sale, returned], cursor: 3, hasMore: false });
+    });
+
+    it("trusts the declared version over the recorded one", async () => {
+      const page = await resend(
+        fakeChangeLog([sale, returned], "1.0.0"),
+        0,
+        "stock_movement",
+        "1.0.1385",
+      );
+
+      expect(page.changes).toEqual([sale, returned]);
+    });
+
+    it("reads as the oldest version when the register declares none and none is recorded", async () => {
+      const page = await resend(fakeChangeLog([brand, sale, returned]), 0, "stock_movement");
+
+      expect(page.changes).toEqual([sale]);
+    });
   });
 });

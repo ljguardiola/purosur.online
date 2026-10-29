@@ -94,9 +94,11 @@ describe("the redeliveries a register is waiting for", () => {
 
     expect(await new SqliteLocalReplica(migrated).pendingRedeliveries()).toEqual([
       { entity: "branch_first_cash_session", cursor: 0 },
+      { entity: "brand", cursor: 0 },
       { entity: "register_offline_point_of_sale", cursor: 0 },
       { entity: "register_point_of_sale", cursor: 0 },
       { entity: "stock_movement", cursor: 0 },
+      { entity: "zone_rules", cursor: 0 },
     ]);
     migrated.close();
   });

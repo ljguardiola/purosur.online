@@ -59,7 +59,11 @@ import { DrizzleUserStore } from "../users/drizzle-user-store.js";
 import { logChange } from "./change-log.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 import { insertRequestsUpToLimit } from "./test-support/admitted-requests.js";
-import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
+import {
+  buildChangesRouteApp,
+  CURRENT_REGISTER_VERSION,
+  pulledPage,
+} from "./test-support/changes-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 
@@ -1317,7 +1321,7 @@ describe("the change log read for a register whose row is gone", () => {
 
     const pulled = await new DrizzleChangeLog(db).transaction((tx) =>
       tx.changesAfter(
-        pullAudienceOf({ registerId, locationId, priceListId: null }),
+        pullAudienceOf({ registerId, locationId, priceListId: null }, CURRENT_REGISTER_VERSION),
         SEEDED_CHANGES,
         500,
       ),

@@ -16,6 +16,7 @@ function usersInReach(reach: PullReach): SQL | undefined {
       return eq(users.locationId, reach.locationId);
     case "none":
       return sql`false`;
+    case "rows_of_branch_except_stock_movement_kinds":
     case "rows_of_price_list":
     case "rows_of_register":
       throw new Error(`users are not reached by ${reach.kind}`);
@@ -47,7 +48,7 @@ export class DrizzleRegisterBranchUsers<TQueryResult extends PgQueryResultHKT>
     const reached = await this.db
       .select({ id: users.id })
       .from(users)
-      .where(usersInReach(pullAudienceOf(register).user));
+      .where(usersInReach(pullAudienceOf(register, null).user));
     const rows = await readUsers(
       this.db,
       reached.map(({ id }) => id),
