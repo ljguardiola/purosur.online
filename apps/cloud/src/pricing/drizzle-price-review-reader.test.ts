@@ -331,6 +331,16 @@ describe("DrizzlePriceReviewReader", () => {
     expect(ids(await pricesUnderReview({ search: "arr" }))).toEqual([riceId]);
   });
 
+  it("searches by name whatever the accents and the case", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const vinegarId = await insertProduct("Aceto Balsámico Clásico", categoryId);
+    const riceId = await insertProduct("Arroz Yamaní", categoryId);
+
+    expect(ids(await pricesUnderReview({ search: "BALSAMICO clasico" }))).toEqual([vinegarId]);
+    expect(ids(await pricesUnderReview({ search: "yamani" }))).toEqual([riceId]);
+    expect(ids(await pricesUnderReview({ search: "yamaní" }))).toEqual([riceId]);
+  });
+
   it("applies a category filter as given, listing nothing when no product's category is that value", async () => {
     const categoryId = await insertCategory("Almacén");
     await insertProduct("Arroz", categoryId);

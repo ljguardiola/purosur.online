@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { unaccent } from "@electric-sql/pglite/contrib/unaccent";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { inject } from "vitest";
 import { MIGRATIONS_FOLDER } from "../platform/db/migrations-folder.js";
@@ -106,7 +107,10 @@ export async function buildTestDatabase({
 } = {}): Promise<TestDatabase> {
   const usableSnapshotPath = migrationsFolder === MIGRATIONS_FOLDER ? snapshotPath : undefined;
   const client = usableSnapshotPath
-    ? new PGlite({ loadDataDir: new Blob([await readFile(usableSnapshotPath)]) })
+    ? new PGlite({
+        loadDataDir: new Blob([await readFile(usableSnapshotPath)]),
+        extensions: { unaccent },
+      })
     : await migrateFreshDatabase(migrationsFolder, clusterDumpPath);
   const db = drizzle(client);
   let migrationSeedRows: Map<string, Record<string, unknown>[]>;

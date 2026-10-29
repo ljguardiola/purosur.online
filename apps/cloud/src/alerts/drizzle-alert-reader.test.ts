@@ -354,6 +354,33 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
+  it("finds alerts by a user's or register's name and an open source address whatever the accents", async () => {
+    const userId = await insertUser("Lucía Pérez");
+    const [register] = await db
+      .insert(registers)
+      .values({ locationId: ownLocationId, name: "Caja Número Dos" })
+      .returning({ id: registers.id });
+    if (!register) {
+      throw new Error("test setup: inserting the register returned no row");
+    }
+    const byUser = await insertAlert({ kind: "user_email_changed", scope: userId });
+    const byRegister = await insertAlert({ kind: "register_enrolled", scope: register.id });
+    const byAddress = await insertAlert({
+      kind: "backoffice_sign_in_lockout",
+      scope: "máquina-central",
+    });
+    const reader = new DrizzleAlertReader(db);
+    const alertIds = async (text: string) =>
+      (
+        await reader.listVisibleAlerts(ALL, { search: { text, kindsWithMatchingTitle: [] } }, 1)
+      ).alerts.map((a) => a.id);
+
+    expect(await alertIds("lucia")).toEqual([byUser]);
+    expect(await alertIds("numero")).toEqual([byRegister]);
+    expect(await alertIds("maquina")).toEqual([byAddress]);
+    expect(await alertIds("número")).toEqual([byRegister]);
+  });
+
   it("finds a sync device's alert by the name of its installation's register", async () => {
     const named = await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja Lucía" });
     const other = await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja 2" });
