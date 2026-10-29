@@ -826,6 +826,7 @@ export {
   withUncountedReturns,
 } from "./returns/index.js";
 export type {
+  CancelledSaleFacts,
   CreditNoteReceiptContent,
   DeferredSaleFacts,
   DeferredSaleInvoice,
@@ -848,6 +849,8 @@ export type {
   ReceiptPrintObservation,
   ReceiptPrintStanding,
   ReceiptSource,
+  RemovalFacts,
+  RemovedLinesGroup,
   Sale,
   SaleComprobante,
   SaleDiscount,

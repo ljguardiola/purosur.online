@@ -161,6 +161,11 @@ export type {
   ReadManualDiscountsInput,
 } from "./read-manual-discounts.js";
 export { readManualDiscounts } from "./read-manual-discounts.js";
+export type {
+  ReadRemovedLinesAndCancelledSalesInput,
+  RemovedLinesAndCancelledSalesReport,
+} from "./read-removed-lines-and-cancelled-sales.js";
+export { readRemovedLinesAndCancelledSales } from "./read-removed-lines-and-cancelled-sales.js";
 export type { ReadSaleComprobantePorts } from "./read-sale-comprobante.js";
 export { readSaleComprobante } from "./read-sale-comprobante.js";
 export type {
@@ -238,6 +243,10 @@ export type {
   RemoveSaleLinePorts,
 } from "./remove-sale-line.js";
 export { removeSaleLine } from "./remove-sale-line.js";
+export type {
+  RemovedLinesAndCancelledSalesQuery,
+  RemovedLinesAndCancelledSalesReportReader,
+} from "./removed-lines-and-cancelled-sales-report-reader.js";
 export type {
   PendingQrPaymentReplacementRefusal,
   ReplacePendingQrPaymentInput,
