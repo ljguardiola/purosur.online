@@ -34,7 +34,7 @@ const report = {
         target: {
           kind: "PRODUCT",
           name: "Azúcar",
-          brandName: "Ledesma",
+          brandName: "Cabriola",
           netContent: { quantity: 1, unit: "KG" },
         },
         weekdays: [],

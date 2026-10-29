@@ -368,6 +368,19 @@ describe("DrizzlePriceReviewReader", () => {
     expect(ids(await pricesUnderReview({ search: "SMORREBROD clasico" }))).toEqual([breadId]);
   });
 
+  it("searches the product's name followed by its brand's name", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brand = await insertBrand(db, { name: "Vitora" });
+    const [branded] = await db
+      .insert(products)
+      .values({ name: "Aceite de Almendras", categoryId, saleUnit: "UNIT", brandId: brand.id })
+      .returning({ id: products.id });
+    await insertProduct("Aceite de Oliva", categoryId);
+
+    expect(ids(await pricesUnderReview({ search: "vitora" }))).toEqual([branded?.id]);
+    expect(ids(await pricesUnderReview({ search: "almendras VITORA" }))).toEqual([branded?.id]);
+  });
+
   it("applies a category filter as given, listing nothing when no product's category is that value", async () => {
     const categoryId = await insertCategory("Almacén");
     await insertProduct("Arroz", categoryId);

@@ -152,6 +152,33 @@ test("lists packagings by product name, and the header reverses the order", asyn
     .toEqual(["Miel ", "Avena"]);
 });
 
+test("orders products of the same name by their whole description, then by packaging name", async () => {
+  const services = createServices();
+  const displayDeAceite = {
+    ...cajaDeAceite,
+    id: "9ac00000-0000-4000-8000-000000000005",
+    name: "Display x 6",
+    quantityPerPackage: 6_000,
+  };
+  const cajaDeAceiteGrande = {
+    ...cajaDeAceite,
+    id: "9ac00000-0000-4000-8000-000000000006",
+    productId: "90d00000-0000-4000-8000-000000000006",
+    netContent: { quantity: 60, unit: "ML" as const },
+    name: "Caja x 12",
+    quantityPerPackage: 12_000,
+  };
+  const screen = await loaded(services, [cajaDeAceiteGrande, displayDeAceite, cajaDeAceite]);
+
+  await expect
+    .poll(() => rowTexts(screen))
+    .toEqual([
+      "Aceite de Almendras Vitora 30 mlCaja x 2424 uActiva",
+      "Aceite de Almendras Vitora 30 mlDisplay x 66 uActiva",
+      "Aceite de Almendras Vitora 60 mlCaja x 1212 uActiva",
+    ]);
+});
+
 test("the search field filters by product or packaging name, case-insensitively", async () => {
   const services = createServices();
   const screen = await loaded(services, [cajaDeMiel, bolsaDeAvena]);

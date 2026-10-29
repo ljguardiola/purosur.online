@@ -419,6 +419,27 @@ test("lists the recipes in the product order the filters name", async () => {
     .toEqual(["Mix ", "Caja"]);
 });
 
+test("orders recipes of products with the same name by their whole description", async () => {
+  const largeBalsamo = {
+    ...balsamo,
+    productId: "a0000000-0000-4000-8000-000000000015",
+    netContent: { quantity: 100, unit: "G" as const },
+  };
+  const descriptions = [
+    "Bálsamo de caléndula Herbaria 100 g",
+    "Bálsamo de caléndula Herbaria 50 g",
+  ];
+  const screen = await loaded(createServices(), [balsamo, largeBalsamo]);
+
+  await expect
+    .poll(() =>
+      rowTexts(screen).map((text) =>
+        descriptions.find((description) => text.startsWith(description)),
+      ),
+    )
+    .toEqual(descriptions);
+});
+
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixDeFrutosSecos, cajaDeInfusiones]);
@@ -494,5 +515,36 @@ test("the created recipe is confirmed with its product's brand and net content",
 
   await expect
     .element(screen.getByText("La receta de Crema nutritiva Vitora 200 g ya está lista."))
+    .toBeVisible();
+});
+
+test("the replaced recipe is confirmed with its product's brand and net content", async () => {
+  const services = createServices();
+  const changed: RecipeSummary = {
+    ...balsamo,
+    version: 2,
+    components: balsamo.components.map((component) => ({
+      ...component,
+      quantityPerOutputUnit: 1000,
+    })),
+  };
+  vi.mocked(services.saveRecipe).mockResolvedValue({ kind: "ok", recipe: changed });
+  const screen = await loaded(services, [balsamo]);
+
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Editar la receta de Bálsamo de caléndula Herbaria 50 g",
+    }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: "Cantidad de Aceite de Almendras Vitora 30 ml" }),
+    "1",
+  );
+  vi.mocked(services.fetchRecipes).mockResolvedValue({ kind: "ok", value: recipeList([changed]) });
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar la receta" }));
+
+  await expect
+    .element(screen.getByText("Se reemplazó la receta de Bálsamo de caléndula Herbaria 50 g."))
     .toBeVisible();
 });

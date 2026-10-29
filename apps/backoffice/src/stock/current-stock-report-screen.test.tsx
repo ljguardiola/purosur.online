@@ -166,6 +166,29 @@ test("opens on the order the URL asks for and reports a new one", async () => {
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ sortBy: "balance" });
 });
 
+test("orders products of the same name by their whole description", async () => {
+  const largeAlmondOilProduct = {
+    ...almondOilProduct,
+    id: "77777777-7777-4777-8777-777777777776",
+    net_content: { quantity: 60, unit: "ML" as const },
+  };
+  const descriptions = ["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 60 ml"];
+  const screen = await renderScreen(
+    listed(currentStockReport([largeAlmondOilProduct, almondOilProduct])),
+    { initial: currentStockReportFilters.parse({ sortBy: "product", sort: "ascending" }) },
+  );
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 60 ml")).toBeVisible();
+
+  expect(
+    screen
+      .getByRole("table", TABLE)
+      .getByRole("row")
+      .elements()
+      .map((row) => descriptions.find((description) => row.textContent?.includes(description)))
+      .filter((description) => description !== undefined),
+  ).toEqual(descriptions);
+});
+
 test("shows the lots of a product", async () => {
   const screen = await renderScreen(listed());
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();

@@ -33,7 +33,7 @@ describe("discountSummarySchema", () => {
         kind: "PRODUCT",
         id: "product-1",
         name: "Alfajor",
-        brandName: "Jorgito",
+        brandName: "Herbaria",
         netContent: { quantity: 60, unit: "G" },
       },
     };

@@ -8,7 +8,7 @@ const priced = {
   name: "Arroz",
   categoryId: "category-1",
   categoryName: "Almacén",
-  brandName: "Molinos",
+  brandName: "Granuz",
   netContent: { quantity: 1, unit: "KG" },
   saleUnit: "KG",
   currentPrice: { id: "price-1", unitPrice: 750000, validFrom: at },
