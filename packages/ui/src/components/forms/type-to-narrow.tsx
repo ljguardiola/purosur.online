@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   ComboBoxStateContext as AriaComboBoxStateContext,
   type Key,
@@ -32,10 +32,17 @@ export function useTypeToNarrow<V extends string, O extends NarrowableOption<V>>
   const chosen = options.find((option) => option.value === value);
   const [typed, setTyped] = useState<string | null>(null);
   const [shownValue, setShownValue] = useState(value);
+  const [replacingText, setReplacingText] = useState(false);
   if (value !== shownValue) {
     setShownValue(value);
     setTyped(null);
+    setReplacingText(true);
   }
+  useEffect(() => {
+    if (replacingText) {
+      setReplacingText(false);
+    }
+  }, [replacingText]);
 
   const items =
     typed === null
@@ -58,7 +65,9 @@ export function useTypeToNarrow<V extends string, O extends NarrowableOption<V>>
     inputValue: typed ?? chosen?.label ?? "",
     // Showing the chosen option's own label is not a search: the whole list stays available.
     onInputChange: (text: string) => setTyped(text === chosen?.label ? null : text),
-    menuTrigger: "focus",
+    // react-aria opens the list when the text changes while the field is focused. Only typing may
+    // do that: the text swapped for a new value is not the person asking for the list.
+    menuTrigger: replacingText ? "manual" : "focus",
     allowsEmptyCollection: true,
   } as const;
 
