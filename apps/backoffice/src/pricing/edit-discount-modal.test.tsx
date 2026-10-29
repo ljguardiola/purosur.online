@@ -360,7 +360,13 @@ test("does not offer the choice of what a percentage applies to when the cloud a
 test("an inactive current product still shows as the chosen value, marked inactive", async () => {
   const onRetired = {
     ...yerbaOff,
-    target: { kind: "PRODUCT" as const, id: retiredProduct.id, name: "Café en grano" },
+    target: {
+      kind: "PRODUCT" as const,
+      id: retiredProduct.id,
+      name: "Café en grano",
+      brandName: null,
+      netContent: null,
+    },
   };
   const { dialog } = await renderModal(createServices(), { target: onRetired });
 
@@ -373,10 +379,32 @@ test("an inactive current product still shows as the chosen value, marked inacti
     .toBeVisible();
 });
 
+test("an inactive current product shows as the chosen value with its name, brand and net content", async () => {
+  const onRetired = {
+    ...yerbaOff,
+    target: {
+      kind: "PRODUCT" as const,
+      id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000199",
+      name: "Aceite de Almendras",
+      brandName: "Vitora",
+      netContent: { quantity: 30, unit: "ML" as const },
+    },
+  };
+  const { dialog } = await renderModal(createServices(), { target: onRetired });
+
+  await expect.element(productPicker(dialog)).toHaveValue("Aceite de Almendras Vitora 30 ml");
+});
+
 test("an inactive current tag still shows as the chosen value, marked inactive", async () => {
   const onRetired = {
     ...sinTaccWinter,
-    target: { kind: "TAG" as const, id: retiredTag.id, name: "Sin colorantes" },
+    target: {
+      kind: "TAG" as const,
+      id: retiredTag.id,
+      name: "Sin colorantes",
+      brandName: null,
+      netContent: null,
+    },
   };
   const { dialog } = await renderModal(createServices(), { target: onRetired });
 
@@ -392,7 +420,13 @@ test("an inactive current target saves as is when nothing about it changes", asy
   vi.mocked(services.editDiscount).mockResolvedValue({ kind: "ok", discount: yerbaOff });
   const onRetired = {
     ...yerbaOff,
-    target: { kind: "PRODUCT" as const, id: retiredProduct.id, name: "Café en grano" },
+    target: {
+      kind: "PRODUCT" as const,
+      id: retiredProduct.id,
+      name: "Café en grano",
+      brandName: null,
+      netContent: null,
+    },
   };
   const { dialog } = await renderModal(services, { target: onRetired });
 
@@ -405,7 +439,13 @@ test("an inactive current target saves as is when nothing about it changes", asy
 test("turning a percentage promotion on a product sold by weight into buy-N-pay-M does not offer that product", async () => {
   const onAlmonds = {
     ...yerbaOff,
-    target: { kind: "PRODUCT" as const, id: almondsProduct.id, name: almondsProduct.name },
+    target: {
+      kind: "PRODUCT" as const,
+      id: almondsProduct.id,
+      name: almondsProduct.name,
+      brandName: null,
+      netContent: null,
+    },
   };
   const { dialog } = await renderModal(createServices(), { target: onAlmonds });
 

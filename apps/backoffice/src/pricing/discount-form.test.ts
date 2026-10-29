@@ -342,6 +342,14 @@ describe("targetOptions", () => {
     barcodes: [],
     benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
   } satisfies DiscountTargets["products"][number];
+  const noBrand = { brandName: null, netContent: null } as const;
+  const retiredOil = {
+    kind: "PRODUCT",
+    id: "gone",
+    name: "Aceite de Almendras",
+    brandName: "Vitora",
+    netContent: { quantity: 30, unit: "ML" },
+  } as const;
   const sinTacc = {
     id: "tag-1",
     name: "Sin TACC",
@@ -367,7 +375,7 @@ describe("targetOptions", () => {
     ]);
   });
 
-  test("describes a product by its brand and net content, and lets its barcodes be searched", () => {
+  test("labels a product with its name, brand and net content, and lets its barcodes be searched", () => {
     const yerba = {
       id: "product-4",
       name: "Yerba mate",
@@ -383,14 +391,13 @@ describe("targetOptions", () => {
     expect(options).toEqual([
       {
         value: "product-4",
-        label: "Yerba mate",
-        description: "Hoja Alta · 1 kg",
+        label: "Yerba mate Hoja Alta 1 kg",
         searchKeywords: ["7790001", "7790002"],
       },
     ]);
   });
 
-  test("describes a product by its brand alone or by its net content alone", () => {
+  test("labels a product with its brand alone or with its net content alone", () => {
     const branded = { ...rice, id: "product-5", brandName: "Grano Fino" };
     const measured = {
       ...rice,
@@ -400,19 +407,21 @@ describe("targetOptions", () => {
 
     const options = targetOptions("PRODUCT", { ...nothing, products: [branded, measured] });
 
-    expect(options?.map((option) => option.description)).toEqual(["Grano Fino", "500 g"]);
+    expect(options?.map((option) => option.label)).toEqual(["Arroz Grano Fino", "Arroz 500 g"]);
   });
 
-  test("tells two products with the same name apart by their descriptions", () => {
+  test("tells two products with the same name apart by their labels", () => {
     const kilo = { ...rice, id: "product-7", name: "Yerba mate", brandName: "Hoja Alta" };
     const half = { ...rice, id: "product-8", name: "Yerba mate", brandName: "Monte Güirá" };
 
     const options = targetOptions("PRODUCT", { ...nothing, products: [kilo, half] });
 
-    expect(options?.map((option) => [option.label, option.description])).toEqual([
-      ["Yerba mate", "Hoja Alta"],
-      ["Yerba mate", "Monte Güirá"],
+    expect(options?.map((option) => option.label)).toEqual([
+      "Yerba mate Hoja Alta",
+      "Yerba mate Monte Güirá",
     ]);
+
+    expect(options?.some((option) => "description" in option)).toBe(false);
   });
 
   test("offers every category with its path, parents before their children", () => {
@@ -448,11 +457,11 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "PRODUCT",
       { ...nothing, products: [honey] },
-      { kind: "PRODUCT", id: "gone", name: "Aceite", status: "Inactivo" },
+      { ...retiredOil, status: "Inactivo" },
     );
 
     expect(options).toEqual([
-      { value: "gone", label: "Aceite", status: "Inactivo" },
+      { value: "gone", label: "Aceite de Almendras Vitora 30 ml", status: "Inactivo" },
       { value: "product-1", label: "Miel pura de abeja 1 kg", searchKeywords: [] },
     ]);
   });
@@ -461,7 +470,7 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "TAG",
       { ...nothing, tags: [sinTacc] },
-      { kind: "TAG", id: "tag-3", name: "Sin colorantes", status: "Inactivo" },
+      { kind: "TAG", id: "tag-3", name: "Sin colorantes", ...noBrand, status: "Inactivo" },
     );
 
     expect(options).toEqual([
@@ -474,7 +483,7 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "PRODUCT",
       { ...nothing, products: [rice] },
-      { kind: "PRODUCT", id: "almonds", name: "Almendras", status: "Por peso" },
+      { kind: "PRODUCT", id: "almonds", name: "Almendras", ...noBrand, status: "Por peso" },
     );
 
     expect(options).toEqual([
@@ -487,7 +496,7 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "TAG",
       { ...nothing, tags: [sinTacc] },
-      { kind: "PRODUCT", id: "gone", name: "Aceite", status: "Inactivo" },
+      { ...retiredOil, status: "Inactivo" },
     );
 
     expect(options).toEqual([{ value: "tag-1", label: "Sin TACC" }]);
@@ -497,7 +506,7 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "PRODUCT",
       { ...nothing, products: [honey] },
-      { kind: "PRODUCT", id: honey.id, name: honey.name, status: "Inactivo" },
+      { kind: "PRODUCT", id: honey.id, name: honey.name, ...noBrand, status: "Inactivo" },
     );
 
     expect(options).toEqual([
@@ -518,12 +527,20 @@ describe("what a target accepts", () => {
     expect(
       keptTarget(targets, {
         benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
-        target: { kind: "PRODUCT", id: percentOffOnly.id, name: percentOffOnly.name },
+        target: {
+          kind: "PRODUCT",
+          id: percentOffOnly.id,
+          name: percentOffOnly.name,
+          brandName: percentOffOnly.brandName,
+          netContent: percentOffOnly.netContent,
+        },
       }),
     ).toEqual({
       kind: "PRODUCT",
       id: percentOffOnly.id,
       name: percentOffOnly.name,
+      brandName: percentOffOnly.brandName,
+      netContent: percentOffOnly.netContent,
       status: "Por peso",
     });
   });
@@ -561,9 +578,21 @@ describe("eligibleTargets", () => {
 
 describe("keptTarget", () => {
   const threeForTwoBenefit = { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } as const;
-  const retired = { kind: "PRODUCT", id: "gone", name: "Aceite" } as const;
-  const almonds = { kind: "PRODUCT", id: almondsProduct.id, name: almondsProduct.name } as const;
-  const yerba = { kind: "PRODUCT", id: yerbaProduct.id, name: yerbaProduct.name } as const;
+  const noBrand = { brandName: null, netContent: null } as const;
+  const retired = { kind: "PRODUCT", id: "gone", name: "Aceite", ...noBrand } as const;
+  const almonds = {
+    kind: "PRODUCT",
+    id: almondsProduct.id,
+    name: almondsProduct.name,
+    ...noBrand,
+  } as const;
+  const yerba = {
+    kind: "PRODUCT",
+    id: yerbaProduct.id,
+    name: yerbaProduct.name,
+    brandName: yerbaProduct.brandName,
+    netContent: yerbaProduct.netContent,
+  } as const;
 
   test("keeps a current target missing from the targets of its kind, marked inactive", () => {
     expect(keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: retired })).toEqual({
@@ -595,7 +624,12 @@ describe("keptTarget", () => {
   });
 
   test("looks for the current target only among the targets of its kind", () => {
-    const productNamedLikeTag = { kind: "TAG", id: almondsProduct.id, name: "Aceite" } as const;
+    const productNamedLikeTag = {
+      kind: "TAG",
+      id: almondsProduct.id,
+      name: "Aceite",
+      ...noBrand,
+    } as const;
 
     expect(
       keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: productNamedLikeTag }),

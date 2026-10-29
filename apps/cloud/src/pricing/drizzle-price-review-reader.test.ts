@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
 import {
   branchSettings,
   categories,
@@ -10,7 +11,6 @@ import {
   products,
   users,
 } from "../platform/db/schema.js";
-import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";

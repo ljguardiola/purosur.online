@@ -5,7 +5,13 @@ const summary = {
   id: "discount-1",
   name: "Verano",
   benefit: { kind: "PERCENT_OFF", percent: 15 },
-  target: { kind: "CATEGORY", id: "category-1", name: "Lácteos" },
+  target: {
+    kind: "CATEGORY",
+    id: "category-1",
+    name: "Lácteos",
+    brandName: null,
+    netContent: null,
+  },
   validFrom: "2026-12-01",
   validTo: "2027-02-28",
   weekdays: [6, 7],
@@ -23,7 +29,13 @@ describe("discountSummarySchema", () => {
     const buyNPayM = {
       ...summary,
       benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
-      target: { kind: "PRODUCT", id: "product-1", name: "Alfajor" },
+      target: {
+        kind: "PRODUCT",
+        id: "product-1",
+        name: "Alfajor",
+        brandName: "Jorgito",
+        netContent: { quantity: 60, unit: "G" },
+      },
     };
     expect(discountSummarySchema.safeParse(buyNPayM).data).toEqual(buyNPayM);
   });
@@ -43,6 +55,14 @@ describe("discountSummarySchema", () => {
 
   it.each([
     ["a target without its name", { ...summary, target: { kind: "TAG", id: "tag-1" } }],
+    [
+      "a target without its brand name",
+      { ...summary, target: { kind: "TAG", id: "tag-1", name: "Vegano", netContent: null } },
+    ],
+    [
+      "a target without its net content",
+      { ...summary, target: { kind: "TAG", id: "tag-1", name: "Vegano", brandName: null } },
+    ],
     ["an unknown target kind", { ...summary, target: { ...summary.target, kind: "BRAND" } }],
     ["an unknown benefit kind", { ...summary, benefit: { kind: "BUY_ONE", percent: 1 } }],
     [

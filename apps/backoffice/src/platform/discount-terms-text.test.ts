@@ -20,12 +20,28 @@ describe("discountBenefitText", () => {
 });
 
 describe("discountTargetLine", () => {
+  const noBrand = { brandName: null, netContent: null } as const;
+
   test.each([
-    [{ kind: "PRODUCT", name: "Yerba Hoja Alta 1 kg" }, "Producto · Yerba Hoja Alta 1 kg"],
-    [{ kind: "CATEGORY", name: "Almacén › Yerbas" }, "Categoría · Almacén › Yerbas"],
-    [{ kind: "TAG", name: "Sin TACC" }, "Distintivo · Sin TACC"],
+    [
+      { kind: "PRODUCT", name: "Yerba Hoja Alta 1 kg", ...noBrand },
+      "Producto · Yerba Hoja Alta 1 kg",
+    ],
+    [{ kind: "CATEGORY", name: "Almacén › Yerbas", ...noBrand }, "Categoría · Almacén › Yerbas"],
+    [{ kind: "TAG", name: "Sin TACC", ...noBrand }, "Distintivo · Sin TACC"],
   ] as const)("names the kind of %j before the target", (target, line) => {
     expect(discountTargetLine(target)).toBe(line);
+  });
+
+  test("names a product by its name, brand and net content", () => {
+    expect(
+      discountTargetLine({
+        kind: "PRODUCT",
+        name: "Aceite de Almendras",
+        brandName: "Vitora",
+        netContent: { quantity: 30, unit: "ML" },
+      }),
+    ).toBe("Producto · Aceite de Almendras Vitora 30 ml");
   });
 });
 
