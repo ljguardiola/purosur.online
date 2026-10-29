@@ -86,9 +86,9 @@ test("leaves the product empty and says so when the cloud does not list it for t
 
   await expect
     .element(
-      dialog.getByText(
-        "Se creó el producto «Fideos nuevos», pero no puede recibir este beneficio.",
-      ),
+      dialog
+        .getByText("Se creó el producto «Fideos nuevos», pero no puede recibir este beneficio.")
+        .first(),
     )
     .toBeVisible();
   await expect.element(productPicker(dialog)).toHaveValue("");
