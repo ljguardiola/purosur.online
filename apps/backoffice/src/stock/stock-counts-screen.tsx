@@ -19,9 +19,14 @@ import { deepEqual } from "@tanstack/react-router";
 import { Check, ClipboardCheck, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { ProductCreationModal } from "../platform/creation-parts";
 import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
 import { AreaTopBar } from "../shell/area-top-bar";
-import { type BackofficeAccess, canSeeStockBalances } from "../shell/backoffice-access";
+import {
+  type BackofficeAccess,
+  canManageProductsAndCategories,
+  canSeeStockBalances,
+} from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { countMomentNow } from "./count-moment";
 import { NewCountModal } from "./new-count-modal";
@@ -39,6 +44,7 @@ import { categoryFilterOptions } from "./stock-screen-parts";
 
 export type StockCountsScreenProps = {
   access: BackofficeAccess;
+  productCreationModal: ProductCreationModal;
   filters: StockCountsFilters;
   onFiltersChange: (filters: StockCountsFilters) => void;
   onSessionEnded: () => void;
@@ -179,6 +185,7 @@ function registeredNotice(product: StockProduct, result: StockCountResult, shows
 
 export function StockCountsScreen({
   access,
+  productCreationModal,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -345,6 +352,7 @@ export function StockCountsScreen({
         <NewCountModal
           startMoment={newCount}
           showsBalance={showsBalance}
+          {...(canManageProductsAndCategories(access) ? { productCreationModal } : {})}
           services={services}
           onClose={() => setNewCount(null)}
           onSessionEnded={onSessionEnded}

@@ -19,7 +19,10 @@ import { ArrowDownUp, Check, Info, Minus, Package, PackageX, Plus } from "lucide
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import { withCreatedProducts } from "../platform/created-products";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import {
   directedQuantity,
   parseStockQuantity,
@@ -42,6 +45,7 @@ import {
 import { StockMovementNotice } from "./stock-movement-notice";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
 import {
+  useMarkStockStale,
   useRefreshStock,
   useStockMovementReasonsQuery,
   useStockProductsQuery,
@@ -70,6 +74,7 @@ const DIRECTION_OPTIONS = [
 export type StockMovementModalProps = {
   title: string;
   kinds: readonly [MovementKind, ...MovementKind[]];
+  productCreationModal?: ProductCreationModal | undefined;
   services: StockMovementsScreenServices;
   onClose: () => void;
   onSessionEnded: () => void;
@@ -81,6 +86,7 @@ export function StockMovementModal({
   title,
   kinds,
   showsBalance,
+  productCreationModal: ProductCreation,
   services,
   onClose,
   onSessionEnded,
@@ -99,8 +105,10 @@ export function StockMovementModal({
     onSessionEnded,
   });
   const data = combineCloudData(products, reasons);
-  const [listed, listedReasons] =
+  const [createdProducts, setCreatedProducts] = useState<CreatedProduct[]>([]);
+  const [storedProducts, listedReasons] =
     data.status === "loaded" ? [data.value[0].products, data.value[1].reasons] : [[], []];
+  const listed = withCreatedProducts(storedProducts, createdProducts);
   const productOf = (productId: string | null) =>
     listed.find((product) => product.id === productId);
   const unitOf = (productId: string | null): SaleUnit => productOf(productId)?.saleUnit ?? "UNIT";
@@ -220,6 +228,21 @@ export function StockMovementModal({
     },
   });
 
+  const markStockStale = useMarkStockStale();
+  const stock = { markStale: markStockStale, refresh: refreshStock };
+  const lossProductCreation = useStackedCreation<CreatedProduct>((product) => {
+    setCreatedProducts([...createdProducts, product]);
+    loss.form.setFieldValue("productId", product.id);
+  }, stock);
+  const adjustmentProductCreation = useStackedCreation<CreatedProduct>((product) => {
+    setCreatedProducts([...createdProducts, product]);
+    adjustment.form.setFieldValue("productId", product.id);
+  }, stock);
+  const closeForm = () => {
+    lossProductCreation.finish();
+    adjustmentProductCreation.finish();
+    onClose();
+  };
   const submitting = loss.submitting || adjustment.submitting;
   const options = productOptions(listed);
   const lossProduct = productOf(loss.values.productId);
@@ -235,7 +258,7 @@ export function StockMovementModal({
       open
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="wide"
@@ -246,7 +269,7 @@ export function StockMovementModal({
       closable={!submitting}
       footer={
         <>
-          <Button variant="secondary" size="large" disabled={submitting} onPress={onClose}>
+          <Button variant="secondary" size="large" disabled={submitting} onPress={closeForm}>
             Cancelar
           </Button>
           <Button
@@ -303,6 +326,14 @@ export function StockMovementModal({
                         placeholder="Elegí un producto"
                         options={options}
                         required
+                        {...(ProductCreation
+                          ? {
+                              creation: {
+                                recordKind: "producto",
+                                onCreate: lossProductCreation.start,
+                              },
+                            }
+                          : {})}
                       />
                     )}
                   </loss.form.AppField>
@@ -353,6 +384,14 @@ export function StockMovementModal({
                         placeholder="Elegí un producto"
                         options={options}
                         required
+                        {...(ProductCreation
+                          ? {
+                              creation: {
+                                recordKind: "producto",
+                                onCreate: adjustmentProductCreation.start,
+                              },
+                            }
+                          : {})}
                       />
                     )}
                   </adjustment.form.AppField>
@@ -405,6 +444,24 @@ export function StockMovementModal({
               ) : null}
             </>
           )}
+          {ProductCreation ? (
+            <>
+              <ProductCreation
+                open={lossProductCreation.open}
+                initialName={lossProductCreation.initialName}
+                onCreated={lossProductCreation.select}
+                onClose={lossProductCreation.close}
+                onSessionEnded={onSessionEnded}
+              />
+              <ProductCreation
+                open={adjustmentProductCreation.open}
+                initialName={adjustmentProductCreation.initialName}
+                onCreated={adjustmentProductCreation.select}
+                onClose={adjustmentProductCreation.close}
+                onSessionEnded={onSessionEnded}
+              />
+            </>
+          ) : null}
         </div>
       ) : null}
     </Modal>

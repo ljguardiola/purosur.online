@@ -24,8 +24,11 @@ import {
 import { Check, ClipboardCheck, Layers, Package, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { withCreatedProducts } from "../platform/created-products";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { parseStockQuantity, quantityFieldKind, quantityMessage } from "../platform/stock-quantity";
 import type { CloudData } from "../platform/use-cloud-query";
 import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
@@ -44,6 +47,7 @@ import { productOptions } from "./stock-movement-form";
 import {
   useCountZoneRulesQuery,
   useExpectedBalanceQuery,
+  useMarkStockStale,
   useRefreshStock,
   useStockProductsQuery,
 } from "./stock-queries";
@@ -99,6 +103,7 @@ function CountMomentField() {
 export type NewCountModalProps = {
   startMoment: CountStart;
   showsBalance: boolean;
+  productCreationModal?: ProductCreationModal | undefined;
   services: StockCountsScreenServices;
   onClose: () => void;
   onSessionEnded: () => void;
@@ -108,6 +113,7 @@ export type NewCountModalProps = {
 export function NewCountModal({
   startMoment,
   showsBalance,
+  productCreationModal: ProductCreation,
   services,
   onClose,
   onSessionEnded,
@@ -134,7 +140,11 @@ export function NewCountModal({
         ? cloudLoadFailure(zoneRules, "las reglas horarias")
         : undefined;
   const loading = products.status === "loading" || zoneRules.status === "loading";
-  const listed = products.status === "loaded" ? products.value.products : [];
+  const [createdProducts, setCreatedProducts] = useState<CreatedProduct[]>([]);
+  const listed = withCreatedProducts(
+    products.status === "loaded" ? products.value.products : [],
+    createdProducts,
+  );
   const productOf = (productId: string | null) =>
     listed.find((product) => product.id === productId);
 
@@ -179,6 +189,19 @@ export function NewCountModal({
       }
     },
   });
+
+  const markStockStale = useMarkStockStale();
+  const productCreation = useStackedCreation<CreatedProduct>(
+    (product) => {
+      setCreatedProducts([...createdProducts, product]);
+      form.setFieldValue("productId", product.id);
+    },
+    { markStale: markStockStale, refresh: refreshStock },
+  );
+  const closeForm = () => {
+    productCreation.finish();
+    onClose();
+  };
 
   function handleOutcome(
     product: StockProduct,
@@ -233,7 +256,7 @@ export function NewCountModal({
       open
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -249,7 +272,7 @@ export function NewCountModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -311,6 +334,9 @@ export function NewCountModal({
                 placeholder="Buscá un producto"
                 options={options}
                 required
+                {...(ProductCreation
+                  ? { creation: { recordKind: "producto", onCreate: productCreation.start } }
+                  : {})}
               />
             )}
           </form.AppField>
@@ -380,6 +406,15 @@ export function NewCountModal({
               ) : null}
             </div>
           )}
+          {ProductCreation ? (
+            <ProductCreation
+              open={productCreation.open}
+              initialName={productCreation.initialName}
+              onCreated={productCreation.select}
+              onClose={productCreation.close}
+              onSessionEnded={onSessionEnded}
+            />
+          ) : null}
         </div>
       ) : null}
     </Modal>

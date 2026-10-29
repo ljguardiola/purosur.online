@@ -7,12 +7,14 @@ import { defaultRecipesListScreenServices } from "./recipes-list-services";
 const route = getRouteApi("/signed-in/stock-area/recipes");
 
 export function RecipesListPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { services, session, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   useDocumentTitle("Recetas · Puro Sur");
   return (
     <RecipesListScreen
+      access={session}
+      productCreationModal={services.productCreationModal}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}

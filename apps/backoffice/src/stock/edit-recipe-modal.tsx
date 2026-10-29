@@ -4,12 +4,16 @@ import { Button, Modal, useRequestForm } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Pencil, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { withCreatedProducts } from "../platform/created-products";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { RecipeComponentsField } from "./recipe-components-field";
 import {
   EMPTY_RECIPE_FORM,
   RECIPE_FIELDS,
   RECIPE_NO_COMPONENTS,
+  recipeComponentOf,
   recipeComponentsHeading,
   recipeComponentsMessage,
   recipeFormValuesOf,
@@ -18,7 +22,7 @@ import {
 } from "./recipe-form";
 import { RecipeSaveNotice } from "./recipe-save-notice";
 import type { saveRecipe } from "./recipes-api";
-import { useRefreshStock } from "./stock-queries";
+import { useMarkStockStale, useRefreshStock } from "./stock-queries";
 
 export type EditRecipeModalServices = {
   saveRecipe: typeof saveRecipe;
@@ -27,6 +31,7 @@ export type EditRecipeModalServices = {
 type EditRecipeModalProps = {
   target: RecipeSummary | null;
   products: RecipeList["products"];
+  productCreationModal?: ProductCreationModal | undefined;
   services: EditRecipeModalServices;
   onSaved: (recipe: RecipeSummary) => void;
   onClose: () => void;
@@ -35,7 +40,8 @@ type EditRecipeModalProps = {
 
 export function EditRecipeModal({
   target,
-  products,
+  products: storedProducts,
+  productCreationModal: ProductCreation,
   services,
   onSaved,
   onClose,
@@ -104,21 +110,40 @@ export function EditRecipeModal({
     },
   });
 
+  const markStockStale = useMarkStockStale();
+  const componentCreation = useStackedCreation<CreatedProduct>(
+    (product) =>
+      form.setFieldValue("components", [
+        ...form.state.values.components,
+        recipeComponentOf(product),
+      ]),
+    { markStale: markStockStale, refresh: refreshStock },
+  );
+  const products = withCreatedProducts(
+    storedProducts,
+    componentCreation.created ? [componentCreation.created] : [],
+  );
+  const closeForm = () => {
+    componentCreation.finish();
+    onClose();
+  };
+
   useEffect(() => {
     if (target) {
       reset(recipeFormValuesOf(target));
       setShown(target);
       setNotice(null);
       setRefusals({});
+      componentCreation.reset();
     }
-  }, [target, reset]);
+  }, [target, reset, componentCreation.reset]);
 
   return (
     <Modal
       open={target !== null}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -142,7 +167,7 @@ export function EditRecipeModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -172,6 +197,7 @@ export function EditRecipeModal({
                 assembledProductId={target.productId}
                 refusals={refusals}
                 onComponentsChange={() => setRefusals({})}
+                onCreateProduct={ProductCreation ? componentCreation.start : undefined}
               />
             )}
           </form.AppField>
@@ -179,6 +205,15 @@ export function EditRecipeModal({
             Es una plantilla: al registrar una tanda se proponen estas cantidades y se registra lo
             que realmente se usó.
           </p>
+          {ProductCreation ? (
+            <ProductCreation
+              open={componentCreation.open}
+              initialName={componentCreation.initialName}
+              onCreated={componentCreation.select}
+              onClose={componentCreation.close}
+              onSessionEnded={onSessionEnded}
+            />
+          ) : null}
         </div>
       ) : null}
     </Modal>

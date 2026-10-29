@@ -58,6 +58,15 @@ function optionsOf(products: readonly RecipeList["products"][number][]): Product
   }));
 }
 
+export function recipeComponentOf(product: RecipeList["products"][number]): RecipeComponentValues {
+  return {
+    productId: product.id,
+    name: formatProductDescription(product),
+    saleUnit: product.saleUnit,
+    quantity: "",
+  };
+}
+
 export function recipeProductOptions(
   products: RecipeList["products"],
   recipes: readonly RecipeSummary[],

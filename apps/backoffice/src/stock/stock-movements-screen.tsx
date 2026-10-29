@@ -16,9 +16,14 @@ import { deepEqual } from "@tanstack/react-router";
 import { ArrowDownUp, Check, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { ProductCreationModal } from "../platform/creation-parts";
 import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
 import { AreaTopBar } from "../shell/area-top-bar";
-import { type BackofficeAccess, canSeeStockBalances } from "../shell/backoffice-access";
+import {
+  type BackofficeAccess,
+  canManageProductsAndCategories,
+  canSeeStockBalances,
+} from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import type { StockMovementsFilters } from "./routes";
 import { type MovementKind, REASONS_OF_KIND } from "./stock-movement-form";
@@ -36,6 +41,7 @@ import { REASON_LABELS } from "./stock-reason-labels";
 
 export type StockMovementsScreenProps = {
   access: BackofficeAccess;
+  productCreationModal: ProductCreationModal;
   filters: StockMovementsFilters;
   onFiltersChange: (filters: StockMovementsFilters) => void;
   onSessionEnded: () => void;
@@ -139,6 +145,7 @@ function actionLabel(kinds: readonly MovementKind[]): string {
 
 export function StockMovementsScreen({
   access,
+  productCreationModal,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -297,6 +304,7 @@ export function StockMovementsScreen({
           title={actionLabel(kinds)}
           kinds={[firstKind, ...kinds.slice(1)]}
           showsBalance={showsBalance}
+          {...(canManageProductsAndCategories(access) ? { productCreationModal } : {})}
           services={services}
           onClose={() => setModalOpen(false)}
           onSessionEnded={onSessionEnded}

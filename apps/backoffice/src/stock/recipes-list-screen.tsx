@@ -16,7 +16,9 @@ import { deepEqual } from "@tanstack/react-router";
 import { BookOpen, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { ProductCreationModal } from "../platform/creation-parts";
 import { AreaTopBar } from "../shell/area-top-bar";
+import { type BackofficeAccess, canManageProductsAndCategories } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { BATCH_COST_INCOMPLETE, batchDayText, batchUnitCostText } from "./assembly-batch-text";
 import { EditRecipeModal } from "./edit-recipe-modal";
@@ -32,6 +34,8 @@ import type { RecipesListFilters } from "./routes";
 import { useRecipesQuery, useRefreshStock } from "./stock-queries";
 
 export type RecipesListScreenProps = {
+  access: BackofficeAccess;
+  productCreationModal: ProductCreationModal;
   filters: RecipesListFilters;
   onFiltersChange: (filters: RecipesListFilters) => void;
   onSessionEnded: () => void;
@@ -69,12 +73,15 @@ function LastBatchCell({ recipe }: { recipe: RecipeSummary }) {
 }
 
 export function RecipesListScreen({
+  access,
+  productCreationModal,
   filters,
   onFiltersChange,
   onSessionEnded,
   services,
 }: RecipesListScreenProps) {
   const data = useRecipesQuery({ fetchRecipes: services.fetchRecipes, onSessionEnded });
+  const creation = canManageProductsAndCategories(access) ? { productCreationModal } : {};
   const refreshStock = useRefreshStock();
   const [search, setSearch] = useState(filters.search);
   const [sort, setSort] = useState<TableSort<"product">>({
@@ -228,6 +235,7 @@ export function RecipesListScreen({
         open={newModalOpen}
         products={products}
         recipes={recipes}
+        {...creation}
         services={services}
         onSaved={(recipe) => {
           setNewModalOpen(false);
@@ -243,6 +251,7 @@ export function RecipesListScreen({
         <EditRecipeModal
           target={editTarget}
           products={products}
+          {...creation}
           services={services}
           onSaved={(recipe) => {
             setEditTarget(null);
