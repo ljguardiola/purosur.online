@@ -311,7 +311,7 @@ export function PrintLabelsModal({
               >
                 <div className="flex w-36 shrink-0 flex-col items-center gap-2 rounded-sm border border-border p-3">
                   <span className="line-clamp-2 text-center text-caption font-bold text-text">
-                    {previewRow.product.name}
+                    {productDescription(previewRow.product, brands)}
                   </span>
                   <LabelPreviewBars modules={previewRow.modules} />
                   <span className="font-mono text-caption text-text">
