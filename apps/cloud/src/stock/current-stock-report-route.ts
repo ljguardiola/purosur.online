@@ -45,6 +45,8 @@ export function registerCurrentStockReportRoute<TQueryResult extends PgQueryResu
           products: report.products.map((product) => ({
             id: product.id,
             name: product.name,
+            brand_name: product.brandName,
+            net_content: product.netContent,
             category_id: product.categoryId,
             category_name: product.categoryName,
             sale_unit: product.saleUnit,

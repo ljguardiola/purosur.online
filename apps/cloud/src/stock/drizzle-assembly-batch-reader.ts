@@ -9,7 +9,8 @@ import type {
 } from "@purosur/domain/stock/use-cases";
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { assemblyBatches, lots, products } from "../platform/db/schema.js";
+import { netContentRow } from "../catalog/net-content-row.js";
+import { assemblyBatches, brands, lots, products } from "../platform/db/schema.js";
 import { batchLotMovements } from "./assembly-batch-lot-movements.js";
 
 export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
@@ -27,6 +28,9 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
         id: assemblyBatches.id,
         productId: assemblyBatches.productId,
         productName: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         saleUnit: products.saleUnit,
         assembledAt: assemblyBatches.assembledAt,
         output: assemblyBatches.outputQty,
@@ -38,6 +42,7 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(assemblyBatches)
       .innerJoin(products, eq(products.id, assemblyBatches.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .innerJoin(lots, eq(lots.assemblyBatchId, assemblyBatches.id))
       .where(
         and(
@@ -50,18 +55,21 @@ export class DrizzleAssemblyBatchReader<TQueryResult extends PgQueryResultHKT>
       this.db,
       rows.map((row) => row.id),
     );
-    return rows.map(({ costTotalCents, costQuantity, saleUnit, ...row }) => ({
-      ...row,
-      lotMovements: lotMovements.get(row.id) ?? [],
-      saleUnit: saleUnit as SaleUnit,
-      unitCostCents: lotUnitCostCents({
-        cost:
-          costTotalCents === null || costQuantity === null
-            ? null
-            : { totalCents: costTotalCents, quantity: costQuantity },
-        costIncomplete: row.costIncomplete,
+    return rows.map(
+      ({ costTotalCents, costQuantity, saleUnit, netContentQuantity, netContentUnit, ...row }) => ({
+        ...row,
+        netContent: netContentRow({ netContentQuantity, netContentUnit }),
+        lotMovements: lotMovements.get(row.id) ?? [],
+        saleUnit: saleUnit as SaleUnit,
+        unitCostCents: lotUnitCostCents({
+          cost:
+            costTotalCents === null || costQuantity === null
+              ? null
+              : { totalCents: costTotalCents, quantity: costQuantity },
+          costIncomplete: row.costIncomplete,
+        }),
       }),
-    }));
+    );
   }
 
   async productLots(key: ProductStockKey): Promise<PreviewLot[]> {

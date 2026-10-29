@@ -4,6 +4,7 @@ import {
   currentStockSummary,
   holdsCurrentStock,
 } from "../model/current-stock-summary.js";
+import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import type { CurrentStockReader } from "./current-stock-reader.js";
 import { readStockBalances, type StockBalanceView } from "./read-stock-balances.js";
 
@@ -22,7 +23,7 @@ export interface CurrentStockLot {
   valueCents: number | null;
 }
 
-export interface CurrentStockProduct {
+export interface CurrentStockProduct extends ProductBrandAndNetContent {
   id: string;
   name: string;
   categoryId: string;
@@ -48,6 +49,8 @@ function productOf(balance: StockBalanceView): CurrentStockProduct {
   return {
     id: balance.id,
     name: balance.name,
+    brandName: balance.brandName,
+    netContent: balance.netContent,
     categoryId: balance.categoryId,
     categoryName: balance.categoryName,
     saleUnit: balance.saleUnit,

@@ -1,11 +1,12 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { StockLot } from "../model/lot-allocation.js";
 import type { LotCost } from "../model/lot-value.js";
+import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import type { ManualStockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, RecordedLossReason } from "../model/stock-movement-reason.js";
 import type { ProductStockKey } from "./stock-store.js";
 
-export interface StockProduct {
+export interface StockProduct extends ProductBrandAndNetContent {
   id: string;
   name: string;
   categoryId: string;
@@ -43,7 +44,7 @@ export interface LedgerAtMoment {
   lotAllocationsAfter: ReadonlyMap<string, number>;
 }
 
-export interface RecordedStockCount {
+export interface RecordedStockCount extends ProductBrandAndNetContent {
   id: string;
   productId: string;
   productName: string;
@@ -58,7 +59,7 @@ export interface RecordedStockCount {
   lotCount: number | null;
 }
 
-export interface RecordedStockMovement {
+export interface RecordedStockMovement extends ProductBrandAndNetContent {
   id: string;
   productId: string;
   productName: string;

@@ -60,7 +60,13 @@ export function registerRecipesRoutes<TQueryResult extends PgQueryResultHKT>(
     await reply.code(200).send(
       recipeListSchema.parse({
         recipes: recipes.map(recipeSummary),
-        products: usableProducts.map(({ id, name, saleUnit }) => ({ id, name, saleUnit })),
+        products: usableProducts.map(({ id, name, brandName, netContent, saleUnit }) => ({
+          id,
+          name,
+          brandName,
+          netContent,
+          saleUnit,
+        })),
       }),
     );
   });

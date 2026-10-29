@@ -11,6 +11,7 @@ import {
   selectableSupplierPrices,
 } from "../model/lot-reference-cost.js";
 import { knownLotCost, lotValueCents } from "../model/lot-value.js";
+import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import { lotUnitCostCents, unitCostCents } from "../model/unit-cost.js";
 import type { InitialCountLotReader, InitialCountLotRow } from "./initial-count-lot-reader.js";
 
@@ -20,7 +21,7 @@ export interface ReadInitialCountLotsInput {
   productName?: string;
 }
 
-export interface InitialCountLotView {
+export interface InitialCountLotView extends ProductBrandAndNetContent {
   lotId: string;
   productId: string;
   productName: string;
@@ -95,6 +96,8 @@ export async function readInitialCountLots(
       lotId: row.lotId,
       productId: row.productId,
       productName: row.productName,
+      brandName: row.brandName,
+      netContent: row.netContent,
       categoryName: row.categoryName,
       saleUnit: row.saleUnit,
       expiresOn: row.expiresOn,

@@ -6,7 +6,7 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
+import { netContentSchema, recordIdSchema } from "../shared/index.js";
 
 export const initialInventoryLotsQuerySchema = z
   .object({

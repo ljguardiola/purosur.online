@@ -1,14 +1,15 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import { compareSpanishText } from "../../shared/index.js";
+import type { ProductBrandAndNetContent } from "./product-brand-and-net-content.js";
 import { RECORDED_LOSS_REASONS, type RecordedLossReason } from "./stock-movement-reason.js";
 
 export interface LossRecord {
   reason: RecordedLossReason;
-  product: { id: string; name: string; saleUnit: SaleUnit };
+  product: ProductBrandAndNetContent & { id: string; name: string; saleUnit: SaleUnit };
   quantity: number;
 }
 
-export interface LostProduct {
+export interface LostProduct extends ProductBrandAndNetContent {
   id: string;
   name: string;
   saleUnit: SaleUnit;
@@ -35,8 +36,16 @@ export function lossesByReason(records: readonly LossRecord[]): ReasonLosses[] {
         continue;
       }
       lossCount += 1;
-      const { id, name, saleUnit } = record.product;
-      const lost = products.get(id) ?? { id, name, saleUnit, quantity: 0, lossCount: 0 };
+      const { id, name, brandName, netContent, saleUnit } = record.product;
+      const lost = products.get(id) ?? {
+        id,
+        name,
+        brandName,
+        netContent,
+        saleUnit,
+        quantity: 0,
+        lossCount: 0,
+      };
       lost.quantity += record.quantity;
       lost.lossCount += 1;
       products.set(id, lost);

@@ -1,8 +1,9 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { LoadedSupplierPrice } from "../model/lot-reference-cost.js";
 import type { LotCost } from "../model/lot-value.js";
+import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 
-export interface InitialCountLotRow {
+export interface InitialCountLotRow extends ProductBrandAndNetContent {
   lotId: string;
   productId: string;
   productName: string;
