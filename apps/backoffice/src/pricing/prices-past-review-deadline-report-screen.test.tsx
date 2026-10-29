@@ -140,7 +140,7 @@ test("says a price postponed in a purchase was postponed", async () => {
 
 test("lists the prices in the order the cloud answers them", async () => {
   const screen = await renderScreen(
-    listed(pricesPastReviewDeadlineReport([neverReviewedOil, postponedBread, overdueCheese])),
+    listed(pricesPastReviewDeadlineReport([postponedBread, overdueCheese, neverReviewedOil])),
   );
   await expect.element(screen.getByText("Pan lactal")).toBeVisible();
 
@@ -154,7 +154,7 @@ test("lists the prices in the order the cloud answers them", async () => {
       ),
     )
     .filter((name) => name !== undefined);
-  expect(names).toEqual(["Aceite de Almendras", "Pan lactal", "Queso cremoso"]);
+  expect(names).toEqual(["Pan lactal", "Queso cremoso", "Aceite de Almendras"]);
 });
 
 test("shows the period the cloud answered while the URL names none", async () => {
@@ -254,7 +254,7 @@ test("shows a failed load with a retry that loads the report again, and no figur
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("No pudimos abrir los precios sin revisar")).toBeVisible();
-  expect(screen.getByText("2 precios").query()).toBeNull();
+  expect(screen.getByText("Precios", { exact: true }).query()).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
@@ -271,4 +271,13 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded).toHaveBeenCalled();
+});
+
+test("navigates to Mi cuenta when the report request comes back forbidden", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPricesPastReviewDeadlineReport).mockResolvedValue({ kind: "forbidden" });
+
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });

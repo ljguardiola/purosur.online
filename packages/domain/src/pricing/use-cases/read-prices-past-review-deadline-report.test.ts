@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   FakeZoneRulesSource,
   fixedOffsetZoneRules,
 } from "../../shared/test-support/fake-zone-rules-source.js";
-import { FixedClock } from "../../stock/use-cases/test-support/fake-stock-store.js";
-import type { ProductPriceReviewHistory } from "./price-review-reader.js";
+import type { PriceReviewReader, ProductPriceReviewHistory } from "./price-review-reader.js";
 import { readPricesPastReviewDeadlineReport } from "./read-prices-past-review-deadline-report.js";
 import { fakePriceReviewReader } from "./test-support/fake-price-review-reader.js";
+import { FixedClock } from "./test-support/fake-pricing-store.js";
 
 const NOON = new Date("2026-03-10T15:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -237,5 +237,11 @@ describe("readPricesPastReviewDeadlineReport", () => {
     );
 
     expect(report.prices).toMatchObject([{ pastDeadlineOn: "2026-01-16" }]);
+  });
+
+  it("needs a reader that reads each priced product's review history", () => {
+    expectTypeOf<Pick<PriceReviewReader, "pricesUnderReview">>().not.toExtend<
+      Parameters<typeof readPricesPastReviewDeadlineReport>[0]["reviews"]
+    >();
   });
 });
