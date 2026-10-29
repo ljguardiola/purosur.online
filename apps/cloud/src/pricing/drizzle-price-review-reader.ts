@@ -1,12 +1,13 @@
 import { priceReviewAt, type SaleUnit } from "@purosur/domain";
 import type {
   PriceReviewCategory,
+  PriceReviewHistories,
   PriceReviewReader,
   PricesUnderReview,
   PricesUnderReviewQuery,
   PriceUnderReview,
 } from "@purosur/domain/pricing/use-cases";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, min } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import { productNameWithBrand } from "../catalog/product-name-with-brand.js";
@@ -66,19 +67,65 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async pricesUnderReview(query: PricesUnderReviewQuery): Promise<PricesUnderReview> {
+  async priceReviewHistories(locationId: string): Promise<PriceReviewHistories> {
+    const settings = await this.branchSettingsOf(locationId);
+    const productRows = await this.activeProductRows();
+    const currentPriceByProductId = await newestPricesOfList(
+      this.db,
+      settings.priceListId,
+      "active-products",
+    );
+    const lastReviewedAtByProductId = await this.lastReviewedAtByProductId(settings.priceListId);
+    const postponedRows = await this.db
+      .select({
+        productId: priceReviewPostponements.productId,
+        earliestPostponedAt: min(priceReviewPostponements.postponedAt),
+      })
+      .from(priceReviewPostponements)
+      .where(
+        and(
+          eq(priceReviewPostponements.priceListId, settings.priceListId),
+          isNull(priceReviewPostponements.resolvedByReviewId),
+        ),
+      )
+      .groupBy(priceReviewPostponements.productId);
+    const earliestPostponedAtByProductId = new Map(
+      postponedRows.map((row) => [row.productId, row.earliestPostponedAt]),
+    );
+
+    return {
+      reviewWindowDays: settings.unreviewedPriceAlertDays,
+      products: productRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        categoryId: row.categoryId,
+        categoryName: row.categoryName,
+        brandName: row.brandName,
+        netContent: netContentRow(row),
+        saleUnit: row.saleUnit as SaleUnit,
+        currentPrice: currentPriceByProductId.get(row.id) ?? null,
+        lastReviewedAt: lastReviewedAtByProductId.get(row.id) ?? null,
+        earliestPostponedAt: earliestPostponedAtByProductId.get(row.id) ?? null,
+      })),
+    };
+  }
+
+  private async branchSettingsOf(locationId: string) {
     const [settings] = await this.db
       .select({
         priceListId: branchSettings.priceListId,
         unreviewedPriceAlertDays: branchSettings.unreviewedPriceAlertDays,
       })
       .from(branchSettings)
-      .where(eq(branchSettings.locationId, query.locationId));
+      .where(eq(branchSettings.locationId, locationId));
     if (!settings) {
-      throw new Error(`branch settings missing for location ${query.locationId}`);
+      throw new Error(`branch settings missing for location ${locationId}`);
     }
+    return settings;
+  }
 
-    const productRows = await this.db
+  private activeProductRows() {
+    return this.db
       .select({
         id: products.id,
         name: products.name,
@@ -93,21 +140,29 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       .innerJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(products.active, true));
+  }
 
-    const currentPriceByProductId = await newestPricesOfList(
-      this.db,
-      settings.priceListId,
-      "active-products",
-    );
-
+  private async lastReviewedAtByProductId(priceListId: string): Promise<Map<string, Date>> {
     const latestReviewRows = await this.db
       .selectDistinctOn([priceReviews.productId], {
         productId: priceReviews.productId,
         reviewedAt: priceReviews.reviewedAt,
       })
       .from(priceReviews)
-      .where(eq(priceReviews.priceListId, settings.priceListId))
+      .where(eq(priceReviews.priceListId, priceListId))
       .orderBy(priceReviews.productId, desc(priceReviews.reviewedAt));
+    return new Map(latestReviewRows.map((row) => [row.productId, row.reviewedAt]));
+  }
+
+  async pricesUnderReview(query: PricesUnderReviewQuery): Promise<PricesUnderReview> {
+    const settings = await this.branchSettingsOf(query.locationId);
+    const productRows = await this.activeProductRows();
+
+    const currentPriceByProductId = await newestPricesOfList(
+      this.db,
+      settings.priceListId,
+      "active-products",
+    );
 
     const postponedRows = await this.db
       .selectDistinct({ productId: priceReviewPostponements.productId })
@@ -119,9 +174,7 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
         ),
       );
 
-    const lastReviewedAtByProductId = new Map<string, Date>(
-      latestReviewRows.map((row) => [row.productId, row.reviewedAt]),
-    );
+    const lastReviewedAtByProductId = await this.lastReviewedAtByProductId(settings.priceListId);
 
     const postponedProductIds = new Set(postponedRows.map((row) => row.productId));
 
