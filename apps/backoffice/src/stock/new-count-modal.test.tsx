@@ -143,10 +143,12 @@ test("finds the product to count by typing part of its name, and registers the s
 test("draws the select caret and no magnifier in the product selector, and a cross on Cancelar", async () => {
   const { dialog } = await renderModal(createServices());
 
-  const search = dialog.getByRole("button", { name: /Producto/ }).element();
+  const productSelector = dialog.getByRole("button", { name: /Producto/ }).element();
   const cancel = dialog.getByRole("button", { name: "Cancelar" }).element();
-  expect(search.querySelector("svg")?.classList.contains("lucide-chevron-down")).toBe(true);
-  expect(search.querySelector(".lucide-search")).toBeNull();
+  expect(productSelector.querySelector("svg")?.classList.contains("lucide-chevron-down")).toBe(
+    true,
+  );
+  expect(productSelector.querySelector(".lucide-search")).toBeNull();
   expect(cancel.querySelector("svg")?.classList.contains("lucide-x")).toBe(true);
 });
 

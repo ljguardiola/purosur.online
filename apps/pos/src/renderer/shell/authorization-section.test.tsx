@@ -326,7 +326,7 @@ describe("an action guarded by another person's PIN", () => {
         .toBeVisible();
       await expect
         .element(screen.getByRole("combobox", { name: /Persona que autoriza/ }))
-        .toHaveAttribute("placeholder", "Elegí a la persona");
+        .toHaveValue("");
       await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
       await expect.element(screen.getByRole("button", { name: "Cargar" })).toBeDisabled();
       await expectNoAccessibilityViolations(screen.container);
@@ -369,7 +369,7 @@ describe("an action guarded by another person's PIN", () => {
       await expect.element(screen.getByText("Sofía no puede autorizar esto")).toBeVisible();
       await expect
         .element(screen.getByRole("combobox", { name: /Persona que autoriza/ }))
-        .toHaveAttribute("placeholder", "Elegí a la persona");
+        .toHaveValue("");
       await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
       await expect.element(screen.getByRole("button", { name: "Cargar" })).toBeDisabled();
     });

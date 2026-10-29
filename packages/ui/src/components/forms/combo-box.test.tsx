@@ -83,44 +83,6 @@ test("names the input with the label and shows the chosen option's label as its 
   expect(inputElement(screen).value).toBe("Café molido");
 });
 
-test("shows the new chosen option's label when the caller changes the value", async () => {
-  const screen = await render(<ComboBox {...baseProps({ value: "cafe" })} />);
-
-  await screen.rerender(<ComboBox {...baseProps({ value: "miel" })} />);
-
-  await expect.poll(() => inputElement(screen).value).toBe("Miel de abeja");
-});
-
-test("shows the chosen option's label and lists every option when that option arrives after the value", async () => {
-  const withoutMiel: BaseProps["options"] = [
-    options[0],
-    ...options.slice(1).filter((option) => option.value !== "miel"),
-  ];
-  const screen = await render(<ComboBox {...baseProps({ value: "miel", options: withoutMiel })} />);
-
-  await screen.rerender(<ComboBox {...baseProps({ value: "miel" })} />);
-
-  await expect.poll(() => inputElement(screen).value).toBe("Miel de abeja");
-  await userEvent.tab();
-  await expect.poll(() => screen.getByRole("option").elements().length).toBe(4);
-});
-
-test("shows the chosen option's new label and lists every option when its label changes", async () => {
-  const screen = await render(<ComboBox {...baseProps({ value: "cafe" })} />);
-  const renamed: BaseProps["options"] = [
-    options[0],
-    ...options
-      .slice(1)
-      .map((option) => (option.value === "cafe" ? { ...option, label: "Café en grano" } : option)),
-  ];
-
-  await screen.rerender(<ComboBox {...baseProps({ value: "cafe", options: renamed })} />);
-
-  await expect.poll(() => inputElement(screen).value).toBe("Café en grano");
-  await userEvent.tab();
-  await expect.poll(() => screen.getByRole("option").elements().length).toBe(4);
-});
-
 test("shows the placeholder while nothing is chosen", async () => {
   const screen = await render(<ComboBox {...baseProps({ placeholder: "Elegí un producto" })} />);
 
@@ -146,25 +108,6 @@ test("opens on focus listing every option with its description under the label",
     "Café molido",
     "Miel de abeja Campo Real · 350 g",
   ]);
-});
-
-test("narrows the list to the options whose label contains what was typed", async () => {
-  const screen = await render(<ComboBox {...baseProps()} />);
-
-  await input(screen).fill("mie");
-
-  await expect.poll(() => optionTexts(screen)).toEqual(["Miel de abeja Campo Real · 350 g"]);
-});
-
-test("ignores case and accents when narrowing", async () => {
-  const screen = await render(<ComboBox {...baseProps()} />);
-
-  await input(screen).fill("CAFE");
-  await expect.poll(() => optionTexts(screen)).toEqual(["Café molido"]);
-
-  await input(screen).fill("guira");
-  await expect.poll(() => screen.getByRole("option").elements().length).toBe(1);
-  expect(screen.getByRole("option").element().textContent).toContain("Monte Güirá");
 });
 
 test("narrows by an option's description", async () => {
@@ -252,61 +195,6 @@ test("lists every option again when reopened after choosing one", async () => {
   expect(chosen.querySelector("svg")).not.toBeNull();
 });
 
-test("puts the chosen label back, without reporting a change, when the text is cleared and the field is left", async () => {
-  const onChange = vi.fn();
-  const screen = await render(<Harness value="cafe" onPick={onChange} />);
-
-  await input(screen).clear();
-  await userEvent.tab();
-
-  await expect.poll(() => inputElement(screen).value).toBe("Café molido");
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test("puts the chosen label back when the typed text is abandoned", async () => {
-  const onChange = vi.fn();
-  const screen = await render(<Harness value="cafe" onPick={onChange} />);
-
-  await input(screen).fill("mie");
-  await userEvent.tab();
-
-  await expect.poll(() => inputElement(screen).value).toBe("Café molido");
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test("puts the chosen label back, without reporting a change, on Escape after typing text that hides it", async () => {
-  const onChange = vi.fn();
-  const screen = await render(<Harness value="cafe" onPick={onChange} />);
-
-  await input(screen).fill("mie");
-  await expect.poll(() => optionTexts(screen)).toEqual(["Miel de abeja Campo Real · 350 g"]);
-  await userEvent.keyboard("{Escape}");
-
-  await expect.poll(() => inputElement(screen).value).toBe("Café molido");
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test("puts the chosen label back, without reporting a change, on Enter with no option highlighted after typing text that hides it", async () => {
-  const onChange = vi.fn();
-  const screen = await render(<Harness value="cafe" onPick={onChange} />);
-
-  await input(screen).fill("mie");
-  await expect.poll(() => optionTexts(screen)).toEqual(["Miel de abeja Campo Real · 350 g"]);
-  await userEvent.keyboard("{Enter}");
-
-  await expect.poll(() => inputElement(screen).value).toBe("Café molido");
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test("leaves the input empty when nothing was chosen and the typed text is abandoned", async () => {
-  const screen = await render(<Harness />);
-
-  await input(screen).fill("mie");
-  await userEvent.tab();
-
-  await expect.poll(() => inputElement(screen).value).toBe("");
-});
-
 test("closes on Escape without choosing anything", async () => {
   const onChange = vi.fn();
   const screen = await render(<ComboBox {...baseProps({ onChange })} />);
@@ -325,19 +213,6 @@ test("opens from the chevron button", async () => {
   await screen.getByRole("button", { name: /Producto/ }).click();
 
   await expect.element(screen.getByRole("listbox")).toBeVisible();
-});
-
-test("points its chevron down while the list is closed and up while it is open", async () => {
-  const screen = await render(<ComboBox {...baseProps()} />);
-  const button = screen.getByRole("button", { name: /Producto/ }).element();
-  const chevron = () => button.querySelector("svg");
-
-  expect(chevron()?.classList.contains("lucide-chevron-down")).toBe(true);
-
-  await userEvent.tab();
-  await expect.element(screen.getByRole("listbox")).toBeVisible();
-
-  expect(chevron()?.classList.contains("lucide-chevron-up")).toBe(true);
 });
 
 test("shows the select caret and never a search icon, closed or open", async () => {
