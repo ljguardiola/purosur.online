@@ -744,9 +744,7 @@ test("names each product row and its label buttons by the product's name, brand 
 
   const dialog = await openPrintLabelsModal(screen);
 
-  await expect
-    .element(dialog.getByText("Aceite de Almendras Vitora 30 ml").first())
-    .toBeVisible();
+  await expect.element(dialog.getByText("Aceite de Almendras Vitora 30 ml").first()).toBeVisible();
   await expect
     .element(
       dialog.getByRole("button", {
