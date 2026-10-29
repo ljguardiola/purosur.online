@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import type { BranchUser } from "../platform/branch-users-api";
+import { StubRoleCreationModal } from "../platform/test-support/creation-parts";
+import { accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import {
   ADMINISTRATOR_ACCESS,
@@ -104,6 +106,7 @@ test("keeps the loaded screen and an open edit modal with its typed email when t
         userId="user-1"
         signedInUserId="admin-1"
         access={ADMINISTRATOR_ACCESS}
+        roleCreationModal={StubRoleCreationModal}
         credentialSections={CredentialSectionsStub}
         services={services}
         onSessionEnded={() => {}}
@@ -169,6 +172,7 @@ test("a refresh of the user in the background does not overwrite what is typed i
         userId="user-1"
         signedInUserId="admin-1"
         access={ADMINISTRATOR_ACCESS}
+        roleCreationModal={StubRoleCreationModal}
         credentialSections={CredentialSectionsStub}
         services={services}
         onSessionEnded={() => {}}
@@ -218,3 +222,23 @@ test("ends the session when the edit modal's change finds it closed", async () =
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
+
+test.each([
+  ["a session that manages roles", ADMINISTRATOR_ACCESS, true],
+  ["a session that only manages users", accessWith("users_area", "manage_users"), false],
+])(
+  "offers creating a role from the edit modal's role selector to %s only if allowed",
+  async (_name, access, offered) => {
+    const services = createServices();
+    vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+    const screen = await renderScreen(services, () => {}, "user-1", "admin-1", access);
+    await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+    const dialog = await openEditModal(screen);
+
+    await userEvent.fill(dialog.getByRole("combobox", { name: /^Rol/ }), "Cajero de tarde");
+
+    const entry = page.getByRole("option", { name: "Crear rol «Cajero de tarde»" });
+    await expect.element(offered ? entry : page.getByText("Sin resultados")).toBeVisible();
+    expect(entry.query() !== null).toBe(offered);
+  },
+);
