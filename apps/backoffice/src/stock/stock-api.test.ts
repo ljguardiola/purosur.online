@@ -37,6 +37,8 @@ const balances = {
     {
       id: PRODUCT_ID,
       name: "Almendras peladas",
+      brandName: null,
+      netContent: null,
       categoryId: "category-1",
       categoryName: "Frutos secos",
       saleUnit: "KG",
@@ -134,6 +136,8 @@ test("fetchExpectedBalance asks for the product's balance at the moment", async 
   const level = {
     id: PRODUCT_ID,
     name: "Almendras peladas",
+    brandName: null,
+    netContent: null,
     categoryId: "category-1",
     categoryName: "Frutos secos",
     saleUnit: "KG",
@@ -264,6 +268,8 @@ test("fetchStockProducts reads the products a movement can be registered for", a
       {
         id: PRODUCT_ID,
         name: "Almendras peladas",
+        brandName: null,
+        netContent: null,
         categoryId: "category-1",
         categoryName: "Frutos secos",
         saleUnit: "KG",
@@ -283,6 +289,8 @@ const initialLots = {
       lotId: "lot-1",
       productId: PRODUCT_ID,
       productName: "Almendras peladas",
+      brandName: null,
+      netContent: null,
       categoryName: "Frutos secos",
       saleUnit: "KG",
       expiresOn: "2026-12-01",
@@ -419,6 +427,8 @@ const expiringLots = {
       product: {
         id: PRODUCT_ID,
         name: "Semillas de chía",
+        brandName: null,
+        netContent: null,
         categoryId: "category-1",
         categoryName: "Semillas",
         saleUnit: "KG",
