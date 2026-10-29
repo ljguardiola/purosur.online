@@ -91,7 +91,8 @@ describe("lossesByReason", () => {
   });
 
   it("orders the products by name in Spanish, then by id", () => {
-    const named = (id: string, name: string) => loss({ product: { id, name, saleUnit: "UNIT" } });
+    const named = (id: string, name: string) =>
+      loss({ product: { id, name, brandName: null, netContent: null, saleUnit: "UNIT" } });
 
     const [group] = lossesByReason([
       named("b", "Zapallo"),
@@ -106,8 +107,12 @@ describe("lossesByReason", () => {
 
   it("breaks a tie between products of one name by their id in Spanish order, whatever its case", () => {
     const [group] = lossesByReason([
-      loss({ product: { id: "B", name: "Arroz", saleUnit: "UNIT" } }),
-      loss({ product: { id: "a", name: "Arroz", saleUnit: "UNIT" } }),
+      loss({
+        product: { id: "B", name: "Arroz", brandName: null, netContent: null, saleUnit: "UNIT" },
+      }),
+      loss({
+        product: { id: "a", name: "Arroz", brandName: null, netContent: null, saleUnit: "UNIT" },
+      }),
     ]);
 
     expect(group?.products.map(({ id }) => id)).toEqual(["a", "B"]);

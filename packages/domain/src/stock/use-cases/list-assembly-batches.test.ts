@@ -8,6 +8,8 @@ function batch(id: string, assembledAt: string): ReadAssemblyBatch {
     id,
     productId: "mix",
     productName: "Mix de frutos secos",
+    brandName: null,
+    netContent: null,
     saleUnit: "KG",
     assembledAt: new Date(assembledAt),
     output: 14_000,

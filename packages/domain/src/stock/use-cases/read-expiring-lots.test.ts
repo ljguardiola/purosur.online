@@ -17,6 +17,8 @@ const NOON = new Date("2026-10-13T15:00:00.000Z");
 const CHEESE: ExpiringLotProduct = {
   id: "product-cheese",
   name: "Queso cremoso",
+  brandName: null,
+  netContent: null,
   categoryId: "category-dairy",
   categoryName: "Lácteos",
   saleUnit: "KG",
@@ -24,6 +26,8 @@ const CHEESE: ExpiringLotProduct = {
 const BREAD: ExpiringLotProduct = {
   id: "product-bread",
   name: "Pan lactal",
+  brandName: null,
+  netContent: null,
   categoryId: "category-bakery",
   categoryName: "Panificados",
   saleUnit: "UNIT",

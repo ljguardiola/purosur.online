@@ -6,12 +6,16 @@ import { FakeRecipeListReader } from "./test-support/fake-recipe-list-reader.js"
 const NUTS = {
   componentProductId: "nuts",
   name: "Nueces",
+  brandName: null,
+  netContent: null,
   saleUnit: "KG",
   quantityPerOutputUnit: 600,
 } as const;
 const BAG = {
   componentProductId: "bag",
   name: "Bolsa",
+  brandName: null,
+  netContent: null,
   saleUnit: "UNIT",
   quantityPerOutputUnit: 1_000,
 } as const;
@@ -19,6 +23,8 @@ const BAG = {
 const MIX: RecipeListing = {
   productId: "mix",
   productName: "Mix de frutos secos",
+  brandName: null,
+  netContent: null,
   categoryName: "Mezclas",
   saleUnit: "KG",
   version: 2,
