@@ -90,6 +90,8 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
       };
     case "tag":
       return { change_seq, entity: change.entity, entity_id, row: change.row };
+    case "brand":
+      return { change_seq, entity: change.entity, entity_id, row: change.row };
     case "price_list":
       return { change_seq, entity: change.entity, entity_id, row: change.row };
     case "price":

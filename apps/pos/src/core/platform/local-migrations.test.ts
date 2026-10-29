@@ -939,6 +939,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1051,6 +1052,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1158,6 +1160,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1264,6 +1267,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1399,6 +1403,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1524,6 +1529,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1653,6 +1659,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1790,6 +1797,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1894,6 +1902,7 @@ describe("the register's local migrations", () => {
         "0087_voided_assembly_batches",
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
+        "0090_brands",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -8845,5 +8854,51 @@ describe("the credit note reprints migration", () => {
           .run(),
       ).toThrow(/CHECK/);
     });
+  });
+});
+
+describe("the brands migration", () => {
+  const MIGRATION = "0090_brands";
+
+  it("keeps every product the register holds with its brand, and starts with no brands until the next pull", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO products (id, name, category_id, sale_unit, active, version, removed, brand_id)
+         VALUES ('p1', 'Aceite de Almendras', 'c', 'UNIT', 1, 1, 0, 'b1')`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        expect(after.prepare("SELECT id, brand_id FROM products").all()).toEqual([
+          { id: "p1", brand_id: "b1" },
+        ]);
+        expect(after.prepare("SELECT id FROM brands").all()).toEqual([]);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a brand whose active flag is neither 0 nor 1", () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    try {
+      const insert = (active: number) =>
+        database
+          .prepare("INSERT INTO brands (id, name, active, version) VALUES (?, 'Vitora', ?, 1)")
+          .run(`b-${active}`, active);
+
+      expect(() => insert(1)).not.toThrow();
+      expect(() => insert(2)).toThrow(/CHECK/);
+    } finally {
+      database.close();
+    }
   });
 });

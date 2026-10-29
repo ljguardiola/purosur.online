@@ -243,6 +243,9 @@ export class SqliteLocalReplica
         case "tag":
           catalog.tag(change);
           break;
+        case "brand":
+          catalog.brand(change);
+          break;
         case "price_list":
           catalog.priceList(change);
           break;
@@ -431,6 +434,15 @@ export class SqliteLocalReplica
       )
       .get(id);
     return record && { ...record, active: record.active === 1, removed: record.removed === 1 };
+  }
+
+  brand(id: string) {
+    const record = this.database
+      .prepare<[string], { name: string; active: number; version: number }>(
+        "SELECT name, active, version FROM brands WHERE id = ?",
+      )
+      .get(id);
+    return record && { ...record, active: record.active === 1 };
   }
 
   priceList(id: string) {
