@@ -3,6 +3,7 @@ import {
   answeredRangeSchema,
   discountBenefitSchema,
   discountTargetSchema,
+  netContentSchema,
 } from "../shared/index.js";
 
 const count = z.int().nonnegative();
@@ -17,7 +18,12 @@ export const salesByPromotionSchema = z.object({
       terms: z
         .object({
           benefit: discountBenefitSchema,
-          target: z.object({ kind: discountTargetSchema.shape.kind, name: z.string() }),
+          target: z.object({
+            kind: discountTargetSchema.shape.kind,
+            name: z.string(),
+            brandName: z.string().nullable(),
+            netContent: netContentSchema.nullable(),
+          }),
           weekdays: z.array(z.int()),
         })
         .nullable(),

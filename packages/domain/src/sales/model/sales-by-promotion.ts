@@ -1,3 +1,4 @@
+import type { NetContentUnit } from "../../catalog/index.js";
 import type { DiscountBenefit, DiscountTargetKind } from "../../pricing/index.js";
 import { codeUnitOrder, nameOrder } from "./report-order.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
@@ -5,7 +6,12 @@ import type { WeightSource } from "./weight-source.js";
 
 export interface PromotionTerms {
   benefit: DiscountBenefit;
-  target: { kind: DiscountTargetKind; name: string };
+  target: {
+    kind: DiscountTargetKind;
+    name: string;
+    brandName: string | null;
+    netContent: { quantity: number; unit: NetContentUnit } | null;
+  };
   weekdays: readonly number[];
 }
 
