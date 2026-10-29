@@ -246,3 +246,16 @@ test("points the caret down while the list is closed and up while it is open", a
 
   expect(caret()?.classList.contains("lucide-chevron-up")).toBe(true);
 });
+
+test("stays closed when the caller clears the chosen value while the field is focused", async () => {
+  const screen = await render(<Picker value="pera" />);
+  await userEvent.tab();
+  await userEvent.keyboard("{Escape}");
+  await expect.poll(() => optionTexts(screen)).toEqual([]);
+
+  await screen.rerender(<Picker value={null} />);
+
+  await expect.element(input(screen)).toHaveValue("");
+  await expect.element(input(screen)).toHaveFocus();
+  expect(optionTexts(screen)).toEqual([]);
+});

@@ -63,9 +63,7 @@ async function renderForm(options: {
 }
 
 async function pick(screen: Screen, firstName: string) {
-  if (screen.getByRole("listbox").query() === null) {
-    await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-  }
+  await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
   await userEvent.click(screen.getByRole("option", { name: firstName }));
 }
 
