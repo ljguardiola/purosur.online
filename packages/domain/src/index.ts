@@ -579,6 +579,7 @@ export type {
   FreightMeans,
   FreightPeriodDays,
   PurchasedLine,
+  RegisteredFreight,
   ReceiptType,
   SupplierItemKey,
   SupplierItemVatRate,
