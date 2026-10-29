@@ -3,8 +3,23 @@ import { DEFAULT_SUPPLIER_ITEM_VAT_RATE, SUPPLIER_ITEM_VAT_RATES } from "../mode
 import { listSupplierItemLinkChoices } from "./list-supplier-item-link-choices.js";
 import { FakePurchasingListReader } from "./test-support/fake-purchasing-list-reader.js";
 
-const YERBA = { id: "p-unit", name: "Yerba", saleUnit: "UNIT", active: true } as const;
-const HARINA = { id: "p-kg", name: "Harina", saleUnit: "KG", active: true } as const;
+const YERBA = {
+  id: "p-unit",
+  name: "Yerba",
+  saleUnit: "UNIT",
+  active: true,
+  brandId: null,
+  netContent: null,
+} as const;
+const HARINA = {
+  id: "p-kg",
+  name: "Harina",
+  saleUnit: "KG",
+  active: true,
+  brandId: null,
+  netContent: null,
+} as const;
+const BRANDS = [{ id: "b-kos", name: "Kos" }];
 
 function packaging(overrides: {
   id: string;
@@ -35,11 +50,13 @@ describe("listSupplierItemLinkChoices", () => {
       ],
     });
 
-    expect((await listSupplierItemLinkChoices(reader, [YERBA, HARINA])).products).toEqual([
+    expect((await listSupplierItemLinkChoices(reader, [YERBA, HARINA], BRANDS)).products).toEqual([
       {
         id: "p-unit",
         name: "Yerba",
         saleUnit: "UNIT",
+        brandName: null,
+        netContent: null,
         packagings: [
           { id: "k-1", name: "Caja x 12", quantityPerPackage: 12_000 },
           { id: "k-2", name: "Caja x 24", quantityPerPackage: 24_000 },
@@ -49,6 +66,8 @@ describe("listSupplierItemLinkChoices", () => {
         id: "p-kg",
         name: "Harina",
         saleUnit: "KG",
+        brandName: null,
+        netContent: null,
         packagings: [{ id: "k-3", name: "Bolsa", quantityPerPackage: 12_000 }],
       },
     ]);
@@ -66,7 +85,7 @@ describe("listSupplierItemLinkChoices", () => {
 
     const {
       products: [yerba],
-    } = await listSupplierItemLinkChoices(reader, [YERBA]);
+    } = await listSupplierItemLinkChoices(reader, [YERBA], BRANDS);
 
     expect(yerba?.packagings.map((choice) => choice.id)).toEqual(["k-1"]);
   });
@@ -74,13 +93,20 @@ describe("listSupplierItemLinkChoices", () => {
   it("offers a product that has no packaging yet, so one can be added", async () => {
     const reader = new FakePurchasingListReader({ products: [HARINA] });
 
-    expect((await listSupplierItemLinkChoices(reader, [HARINA])).products).toEqual([
-      { id: "p-kg", name: "Harina", saleUnit: "KG", packagings: [] },
+    expect((await listSupplierItemLinkChoices(reader, [HARINA], BRANDS)).products).toEqual([
+      {
+        id: "p-kg",
+        name: "Harina",
+        saleUnit: "KG",
+        brandName: null,
+        netContent: null,
+        packagings: [],
+      },
     ]);
   });
 
   it("offers a product only the packagings of its own", async () => {
-    const otherUnit = { id: "p-other", name: "Azúcar", saleUnit: "UNIT", active: true } as const;
+    const otherUnit = { ...YERBA, id: "p-other", name: "Azúcar" } as const;
     const reader = new FakePurchasingListReader({
       products: [YERBA, otherUnit],
       packagings: [packaging({ id: "k-1", name: "Caja x 12", productId: "p-other" })],
@@ -88,7 +114,7 @@ describe("listSupplierItemLinkChoices", () => {
 
     const {
       products: [yerba, azucar],
-    } = await listSupplierItemLinkChoices(reader, [YERBA, otherUnit]);
+    } = await listSupplierItemLinkChoices(reader, [YERBA, otherUnit], BRANDS);
 
     expect(yerba?.packagings).toEqual([]);
     expect(azucar?.packagings.map((choice) => choice.id)).toEqual(["k-1"]);
@@ -100,13 +126,43 @@ describe("listSupplierItemLinkChoices", () => {
       packagings: [packaging({ id: "k-1", name: "Caja x 12" })],
     });
 
-    const { products } = await listSupplierItemLinkChoices(reader, [HARINA]);
+    const { products } = await listSupplierItemLinkChoices(reader, [HARINA], BRANDS);
 
     expect(products.map((choice) => choice.id)).toEqual(["p-kg"]);
   });
 
+  it("names each product's brand and gives its net content", async () => {
+    const granola = {
+      ...YERBA,
+      brandId: "b-kos",
+      netContent: { quantity: 1, unit: "KG" },
+    } as const;
+    const reader = new FakePurchasingListReader({ products: [granola] });
+
+    const {
+      products: [choice],
+    } = await listSupplierItemLinkChoices(reader, [granola], BRANDS);
+
+    expect(choice).toMatchObject({ brandName: "Kos", netContent: { quantity: 1, unit: "KG" } });
+  });
+
+  it("leaves the brand name empty when the brand is not among the brands given", async () => {
+    const orphan = { ...YERBA, brandId: "b-gone" } as const;
+    const reader = new FakePurchasingListReader({ products: [orphan] });
+
+    const {
+      products: [choice],
+    } = await listSupplierItemLinkChoices(reader, [orphan], BRANDS);
+
+    expect(choice?.brandName).toBeNull();
+  });
+
   it("offers the VAT rates an item may carry and the one preselected", async () => {
-    const { vatRates } = await listSupplierItemLinkChoices(new FakePurchasingListReader({}), []);
+    const { vatRates } = await listSupplierItemLinkChoices(
+      new FakePurchasingListReader({}),
+      [],
+      BRANDS,
+    );
 
     expect(vatRates).toEqual({
       offered: [...SUPPLIER_ITEM_VAT_RATES],
