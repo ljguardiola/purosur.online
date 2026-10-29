@@ -3025,6 +3025,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/prices-past-review-deadline",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/prices/:productId/margin",
         access: capabilityAccess("prices_area"),
       },
@@ -3037,11 +3042,6 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/prices/:productId/confirmations",
         access: capabilityAccess("prices_area"),
-      },
-      {
-        method: "GET",
-        url: "/api/reports/prices-past-review-deadline",
-        access: capabilityAccess("reports_area"),
       },
       {
         method: "GET",
