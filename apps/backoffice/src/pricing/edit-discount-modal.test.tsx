@@ -253,6 +253,54 @@ test("names on the picker the product sold by weight when switching its promotio
   ).toBeNull();
 });
 
+test("names the product sold by weight with its brand and net content when the picker data has them", async () => {
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({
+    kind: "product_sold_by_weight",
+    productName: "Almendras peladas",
+  });
+  const targets = {
+    ...discountTargets,
+    products: [
+      yerbaProduct,
+      {
+        ...almondsProduct,
+        brandName: "Cabriola",
+        netContent: { quantity: 250, unit: "G" as const },
+      },
+    ],
+  };
+  const { dialog } = await renderModal(services, { target: almondsThreeForTwo, targets });
+
+  await userEvent.click(dialog.getByText("Se aplica en la caja"));
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(productPicker(dialog))
+    .toHaveAccessibleDescription(
+      '"Almendras peladas Cabriola 250 g" se vende por peso: esta promoción solo aplica a productos por unidad.',
+    );
+});
+
+test("names the product sold by weight with the name the cloud answers when the picker data lacks it", async () => {
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({
+    kind: "product_sold_by_weight",
+    productName: "Almendras peladas",
+  });
+  const targets = { ...discountTargets, products: [yerbaProduct] };
+  const { dialog } = await renderModal(services, { target: almondsThreeForTwo, targets });
+
+  await userEvent.click(dialog.getByText("Se aplica en la caja"));
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(productPicker(dialog))
+    .toHaveAccessibleDescription(
+      '"Almendras peladas" se vende por peso: esta promoción solo aplica a productos por unidad.',
+    );
+});
+
 test("switching the promotion off is sent with the rest of the form", async () => {
   const services = createServices();
   vi.mocked(services.editDiscount).mockResolvedValue({ kind: "ok", discount: yerbaOff });
