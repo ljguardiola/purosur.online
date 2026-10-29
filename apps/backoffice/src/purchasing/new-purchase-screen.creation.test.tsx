@@ -314,6 +314,6 @@ test("a product with no active packagings shows the notice to a person who canno
   await userEvent.click(group.getByText("Presentación", { exact: true }).last());
 
   await expect
-    .element(group.getByText("Este producto no tiene presentaciones activas"))
+    .element(group.getByText("Este producto no tiene presentaciones activas").first())
     .toBeVisible();
 });
