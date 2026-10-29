@@ -1,14 +1,12 @@
 import type { Clock } from "../../shared/index.js";
 
 export interface RegisterConditionStartStoreTransaction {
-  lockConditionStarts(): Promise<ReadonlyMap<string, Date>>;
-  replaceConditionStarts(starts: ReadonlyMap<string, Date>): Promise<void>;
+  lockConditionStarts(): ReadonlyMap<string, Date>;
+  replaceConditionStarts(starts: ReadonlyMap<string, Date>): void;
 }
 
 export interface RegisterConditionStartStore {
-  transaction<TOutcome>(
-    work: (tx: RegisterConditionStartStoreTransaction) => Promise<TOutcome>,
-  ): Promise<TOutcome>;
+  transaction<TOutcome>(work: (tx: RegisterConditionStartStoreTransaction) => TOutcome): TOutcome;
 }
 
 export interface ObserveRegisterOwnConditionsPorts {

@@ -9,15 +9,15 @@ export type ObserveRegisterOwnConditionsOutcome = {
   starts: ReadonlyMap<string, Date>;
 };
 
-export async function observeRegisterOwnConditions(
+export function observeRegisterOwnConditions(
   { store, clock }: ObserveRegisterOwnConditionsPorts,
   { held }: ObserveRegisterOwnConditionsInput,
-): Promise<ObserveRegisterOwnConditionsOutcome> {
+): ObserveRegisterOwnConditionsOutcome {
   const now = clock.now();
-  return store.transaction<ObserveRegisterOwnConditionsOutcome>(async (tx) => {
-    const stored = await tx.lockConditionStarts();
+  return store.transaction<ObserveRegisterOwnConditionsOutcome>((tx) => {
+    const stored = tx.lockConditionStarts();
     const starts = new Map(held.map((condition) => [condition, stored.get(condition) ?? now]));
-    await tx.replaceConditionStarts(starts);
+    tx.replaceConditionStarts(starts);
     return { kind: "observed", starts };
   });
 }
