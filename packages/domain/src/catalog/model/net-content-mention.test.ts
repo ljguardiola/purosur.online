@@ -1,7 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { mentionsNetContent } from "./net-content-mention.js";
+import { isNetContentMentioned, netContentMentions } from "./net-content-mention.js";
 import type { NetContentUnit } from "./product.js";
+
+const mentionsNetContent = (text: string, netContent: { quantity: number; unit: NetContentUnit }) =>
+  isNetContentMentioned(netContentMentions(text), netContent);
 
 const content = (quantity: number, unit: NetContentUnit) => ({ quantity, unit });
 

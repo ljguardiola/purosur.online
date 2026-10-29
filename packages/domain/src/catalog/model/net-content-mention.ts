@@ -11,6 +11,11 @@ const UNIT_SPELLINGS: Record<NetContentUnit, readonly string[]> = {
 
 type Measure = "mass" | "volume" | "count";
 
+export interface NetContentMention {
+  measure: Measure;
+  thousandths: number;
+}
+
 const SCALE = 1000;
 
 const BASE: Record<NetContentUnit, { measure: Measure; factor: number }> = {
@@ -21,33 +26,34 @@ const BASE: Record<NetContentUnit, { measure: Measure; factor: number }> = {
   UNIT: { measure: "count", factor: 1 },
 };
 
-const unitOfSpelling = new Map<string, NetContentUnit>(
-  Object.entries(UNIT_SPELLINGS).flatMap(([unit, spellings]) =>
-    spellings.map((spelling): [string, NetContentUnit] => [spelling, unit as NetContentUnit]),
-  ),
+const SPELLING_PATTERNS = Object.entries(UNIT_SPELLINGS).flatMap(([unit, spellings]) =>
+  spellings.map((spelling) => ({
+    unit: unit as NetContentUnit,
+    pattern: new RegExp(
+      `(?<![\\p{L}\\p{N}.])(\\d+(?:\\.\\d+)?)\\s*${spelling}(?![\\p{L}\\p{N}])`,
+      "gu",
+    ),
+  })),
 );
 
-const MENTION = /(?<![\p{L}\p{N}.,])(\d+(?:[.,]\d+)?)\s*(\p{L}+)(?![\p{L}\p{N}])/gu;
-
-function baseThousandths(
-  quantity: number,
-  unit: NetContentUnit,
-): { measure: Measure; amount: number } {
+function inBase(quantity: number, unit: NetContentUnit): NetContentMention {
   const { measure, factor } = BASE[unit];
-  return { measure, amount: Math.round(quantity * SCALE) * factor };
+  return { measure, thousandths: Math.round(quantity * SCALE) * factor };
 }
 
-export function mentionsNetContent(
-  text: string,
+export function netContentMentions(text: string): NetContentMention[] {
+  const folded = foldedText(text).replace(/(\d),(\d)/g, "$1.$2");
+  return SPELLING_PATTERNS.flatMap(({ unit, pattern }) =>
+    [...folded.matchAll(pattern)].map(([, digits]) => inBase(Number(digits), unit)),
+  );
+}
+
+export function isNetContentMentioned(
+  mentions: readonly NetContentMention[],
   netContent: { quantity: number; unit: NetContentUnit },
 ): boolean {
-  const wanted = baseThousandths(netContent.quantity, netContent.unit);
-  return [...foldedText(text).matchAll(MENTION)].some(([, digits, spelling]) => {
-    const unit = unitOfSpelling.get(spelling ?? "");
-    if (unit === undefined || digits === undefined) {
-      return false;
-    }
-    const mentioned = baseThousandths(Number(digits.replace(",", ".")), unit);
-    return mentioned.measure === wanted.measure && mentioned.amount === wanted.amount;
-  });
+  const wanted = inBase(netContent.quantity, netContent.unit);
+  return mentions.some(
+    ({ measure, thousandths }) => measure === wanted.measure && thousandths === wanted.thousandths,
+  );
 }
