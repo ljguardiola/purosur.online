@@ -346,6 +346,17 @@ describe("saleSchema", () => {
   ])("rejects a sale with %s", (_case, value) => {
     expect(saleSchema.safeParse(value).success).toBe(false);
   });
+
+  it.each([
+    ["without its subtotal at list price", { ...sale, gross_subtotal: undefined }],
+    ["whose subtotal at list price is negative", { ...sale, gross_subtotal: -1 }],
+    ["whose subtotal at list price is fractional", { ...sale, gross_subtotal: 1.5 }],
+    ["without its promotion savings", { ...sale, promotion_savings: undefined }],
+    ["whose promotion savings are negative", { ...sale, promotion_savings: -1 }],
+    ["whose promotion savings are fractional", { ...sale, promotion_savings: 1.5 }],
+  ])("rejects a sale %s", (_case, value) => {
+    expect(saleSchema.safeParse(value).success).toBe(false);
+  });
 });
 
 describe("a sale line's manual adjustment", () => {
@@ -883,12 +894,6 @@ describe("a sale's discount on its total", () => {
     ["refusal of a discount on the total", { ...sale, sale_discount_refusal: undefined }],
     ["a subtotal that is negative", { ...sale, subtotal: -1 }],
     ["a subtotal that is fractional", { ...sale, subtotal: 1.5 }],
-    ["subtotal at list price", { ...sale, gross_subtotal: undefined }],
-    ["a subtotal at list price that is negative", { ...sale, gross_subtotal: -1 }],
-    ["a subtotal at list price that is fractional", { ...sale, gross_subtotal: 1.5 }],
-    ["promotion savings", { ...sale, promotion_savings: undefined }],
-    ["promotion savings that are negative", { ...sale, promotion_savings: -1 }],
-    ["promotion savings that are fractional", { ...sale, promotion_savings: 1.5 }],
   ])("rejects a sale without its %s", (_field, value) => {
     expect(saleSchema.safeParse(value).success).toBe(false);
   });
