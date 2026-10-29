@@ -1,8 +1,11 @@
 import { type LabelRequestEntry, productLabelCode } from "../model/label-request.js";
+import type { CatalogNetContent } from "./catalog-store.js";
 import type { LabelProductReader } from "./label-product-reader.js";
 
 export interface LabelSheetItem {
   name: string;
+  brandName: string | null;
+  netContent: CatalogNetContent | null;
   code: string;
   count: number;
 }
@@ -29,7 +32,13 @@ export async function prepareLabelSheet(
     if (code === null) {
       return { kind: "product_without_internal_barcode", productId: label.productId };
     }
-    items.push({ name: product.name, code, count: label.count });
+    items.push({
+      name: product.name,
+      brandName: product.brandName,
+      netContent: product.netContent,
+      code,
+      count: label.count,
+    });
   }
   return { kind: "ready", items };
 }

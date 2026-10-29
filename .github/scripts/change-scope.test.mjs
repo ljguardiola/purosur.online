@@ -132,6 +132,7 @@ test("does not treat .claude/settings.json or the hook as documentation-only", (
 for (const path of [
   "packages/ui/src/button.tsx",
   "packages/ui/.storybook/main.ts",
+  "packages/formatting/src/formatters.ts",
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",

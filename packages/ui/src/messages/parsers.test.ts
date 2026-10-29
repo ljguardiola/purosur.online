@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { formatAmountInput, formatWeightInput } from "./formatters";
 import { parseAmountCents, parseEsArNumber, parseWeightThousandths } from "./parsers";
 
 const MAX_POSTGRES_INTEGER = 2_147_483_647;
@@ -162,5 +163,25 @@ describe("parseWeightThousandths", () => {
   it("reads zero as the zero it spells, leaving the range to the caller", () => {
     expect(parseWeightThousandths("0")).toBe(0);
     expect(parseWeightThousandths("0,000")).toBe(0);
+  });
+});
+
+describe("parseAmountCents of formatAmountInput", () => {
+  it("reads back as the cents it was written from", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 99_999_999_999_900 }), (cents) => {
+        expect(parseAmountCents(formatAmountInput(cents))).toBe(cents);
+      }),
+    );
+  });
+});
+
+describe("parseWeightThousandths of formatWeightInput", () => {
+  it("reads back as the thousandths it was written from", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 99_999_999_999_999 }), (thousandths) => {
+        expect(parseWeightThousandths(formatWeightInput(thousandths))).toBe(thousandths);
+      }),
+    );
   });
 });

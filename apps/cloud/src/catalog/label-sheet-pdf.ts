@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import type { LabelSheetItem } from "@purosur/domain/catalog/use-cases";
 import PDFDocument from "pdfkit";
 import {
   BAR_HEIGHT_MM,
@@ -22,7 +23,6 @@ import {
 import {
   LABEL_HEIGHT_MM,
   LABEL_WIDTH_MM,
-  type LabelSheetItem,
   layoutLabelSheet,
   type PositionedLabel,
 } from "./label-sheet-layout.js";

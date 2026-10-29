@@ -184,7 +184,7 @@ function firstBarY(pdf: Buffer): number {
 describe("renderLabelSheetPdf", () => {
   it("compresses every stream it writes", async () => {
     const pdf = await renderLabelSheetPdf(
-      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      [{ name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 1 }],
       CREATED_AT,
     );
     const streams = [...pdfObjectsWithInflatedStreams(pdf).values()].filter(
@@ -200,6 +200,8 @@ describe("renderLabelSheetPdf", () => {
   it("keeps the largest allowed request, 2400 labels over 100 sheets, under 2 MB", async () => {
     const items = Array.from({ length: 100 }, (_, index) => ({
       name: `Harina de almendras integral orgánica sin gluten ${index}`,
+      brandName: null,
+      netContent: null,
       code: "2000000000015",
       count: LABELS_PER_PAGE,
     }));
@@ -212,7 +214,7 @@ describe("renderLabelSheetPdf", () => {
 
   it("dates the document with the creation time it is given", async () => {
     const pdf = await renderLabelSheetPdf(
-      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      [{ name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 1 }],
       new Date("2026-01-05T12:00:00.000Z"),
     );
 
@@ -221,7 +223,7 @@ describe("renderLabelSheetPdf", () => {
 
   it("produces a valid PDF document", async () => {
     const pdf = await renderLabelSheetPdf(
-      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      [{ name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 1 }],
       CREATED_AT,
     );
 
@@ -230,7 +232,15 @@ describe("renderLabelSheetPdf", () => {
 
   it("renders one page per 24 labels, product by product", async () => {
     const pdf = await renderLabelSheetPdf(
-      [{ name: "Maceta", code: "2000000000015", count: LABELS_PER_PAGE + 1 }],
+      [
+        {
+          name: "Maceta",
+          brandName: null,
+          netContent: null,
+          code: "2000000000015",
+          count: LABELS_PER_PAGE + 1,
+        },
+      ],
       CREATED_AT,
     );
 
@@ -240,8 +250,20 @@ describe("renderLabelSheetPdf", () => {
   it("renders each product's name and its barcode's human-readable digits", async () => {
     const pdf = await renderLabelSheetPdf(
       [
-        { name: "Almendras peladas", code: "2000000000015", count: 1 },
-        { name: "Nueces mariposa", code: "2912345678906", count: 1 },
+        {
+          name: "Almendras peladas",
+          brandName: null,
+          netContent: null,
+          code: "2000000000015",
+          count: 1,
+        },
+        {
+          name: "Nueces mariposa",
+          brandName: null,
+          netContent: null,
+          code: "2912345678906",
+          count: 1,
+        },
       ],
       CREATED_AT,
     );
@@ -258,8 +280,14 @@ describe("renderLabelSheetPdf", () => {
   it("renders Spanish accented names", async () => {
     const pdf = await renderLabelSheetPdf(
       [
-        { name: "Semillas de chía", code: "2000000000015", count: 1 },
-        { name: "Ñandú", code: "2000000000022", count: 1 },
+        {
+          name: "Semillas de chía",
+          brandName: null,
+          netContent: null,
+          code: "2000000000015",
+          count: 1,
+        },
+        { name: "Ñandú", brandName: null, netContent: null, code: "2000000000022", count: 1 },
       ],
       CREATED_AT,
     );
@@ -272,7 +300,13 @@ describe("renderLabelSheetPdf", () => {
   it("renders letters and symbols outside Latin-1 as real glyphs of an embedded bold font", async () => {
     const names = ["Omega Ω 3", "Kőrösi", "Мёд", "≈ 1 kg"];
     const pdf = await renderLabelSheetPdf(
-      names.map((name) => ({ name, code: "2000000000015", count: 1 })),
+      names.map((name) => ({
+        name,
+        brandName: null,
+        netContent: null,
+        code: "2000000000015",
+        count: 1,
+      })),
       CREATED_AT,
     );
     const nameRuns = renderedTextRuns(pdf).filter((run) => names.includes(run.text));
@@ -287,7 +321,7 @@ describe("renderLabelSheetPdf", () => {
 
   it("renders the human-readable digits in a bold monospace font, matching the proof's weight", async () => {
     const pdf = await renderLabelSheetPdf(
-      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      [{ name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 1 }],
       CREATED_AT,
     );
     const content = pdf.toString("latin1");
@@ -298,13 +332,15 @@ describe("renderLabelSheetPdf", () => {
 
   it("centers the whole content group, so a 2-line name pushes its barcode lower than a 1-line name's", async () => {
     const oneLinePdf = await renderLabelSheetPdf(
-      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      [{ name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 1 }],
       CREATED_AT,
     );
     const twoLinePdf = await renderLabelSheetPdf(
       [
         {
           name: "Harina de almendras integral orgánica sin gluten y sin azúcar añadido",
+          brandName: null,
+          netContent: null,
           code: "2000000000015",
           count: 1,
         },
@@ -320,6 +356,8 @@ describe("renderLabelSheetPdf", () => {
       [
         {
           name: "Harina de almendras integral orgánica sin gluten",
+          brandName: null,
+          netContent: null,
           code: "2000000000015",
           count: 1,
         },
@@ -338,6 +376,8 @@ describe("renderLabelSheetPdf", () => {
       [
         {
           name: "Harina de almendras integral orgánica sin gluten y sin azúcar añadido nunca jamás",
+          brandName: null,
+          netContent: null,
           code: "2000000000015",
           count: 1,
         },
@@ -351,6 +391,30 @@ describe("renderLabelSheetPdf", () => {
     expect(nameLines[1]).toContain("…");
   });
 
+  it("fits a description too long for two lines the way a long name is fitted, keeping its barcode inside the label's padded box", async () => {
+    const pdf = await renderLabelSheetPdf(
+      [
+        {
+          name: "Harina de almendras integral orgánica sin gluten",
+          brandName: "Molinos Australes del Valle",
+          netContent: { quantity: 1, unit: "KG" },
+          code: "2000000000015",
+          count: 1,
+        },
+      ],
+      CREATED_AT,
+    );
+    const nameLines = renderedTexts(pdf).filter((text) => /[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}/.test(text));
+    const paddedBottomPt = (LABEL_HEIGHT_MM - PADDING_TOP_BOTTOM_MM) * PT_PER_MM;
+
+    expect(nameLines).toHaveLength(2);
+    expect(nameLines[0]).not.toContain("…");
+    expect(nameLines[1]).toContain("…");
+    for (const bar of barRectangles(pdf)) {
+      expect(bar.yPt + bar.heightPt).toBeLessThanOrEqual(paddedBottomPt);
+    }
+  });
+
   it.each([
     ["a 1-line", "Ñandú Ávila"],
     ["a 2-line", "Ñandú Ávila Émile Óleo Úrsula Íñigo Ángel"],
@@ -358,7 +422,7 @@ describe("renderLabelSheetPdf", () => {
     "keeps %s name's accented capitals and the barcode inside the label's padded box",
     async (_, name) => {
       const pdf = await renderLabelSheetPdf(
-        [{ name, code: "2000000000015", count: 1 }],
+        [{ name, brandName: null, netContent: null, code: "2000000000015", count: 1 }],
         CREATED_AT,
       );
       const runs = renderedTextRuns(pdf);

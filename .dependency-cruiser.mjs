@@ -22,6 +22,15 @@ export default {
       to: { pathNot: "^packages/domain/src/" },
     },
     {
+      name: "formatting-is-pure",
+      comment:
+        "packages/formatting/src imports nothing outside packages/formatting/src: the cloud " +
+        "ships it, so it pulls in no npm package, Node builtin or other workspace package.",
+      severity: "error",
+      from: { path: "^packages/formatting/src/" },
+      to: { pathNot: "^packages/formatting/src/" },
+    },
+    {
       name: "apps-to-packages-only",
       comment:
         "Nothing under packages/ may import from apps/; dependencies flow from apps " +

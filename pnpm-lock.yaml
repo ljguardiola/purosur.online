@@ -185,6 +185,9 @@ importers:
       '@purosur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@purosur/formatting':
+        specifier: workspace:*
+        version: link:../../packages/formatting
       '@sentry/node':
         specifier: ^11.8.0
         version: 11.8.0(@babel/core@7.29.7(supports-color@10.2.2))(rollup@4.63.4)
@@ -371,6 +374,8 @@ importers:
 
   packages/domain: {}
 
+  packages/formatting: {}
+
   packages/ui:
     dependencies:
       '@fontsource-variable/atkinson-hyperlegible-next':
@@ -379,6 +384,9 @@ importers:
       '@internationalized/date':
         specifier: ^3.12.4
         version: 3.12.4
+      '@purosur/formatting':
+        specifier: workspace:*
+        version: link:../formatting
       '@tanstack/react-form':
         specifier: ^1.33.5
         version: 1.33.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

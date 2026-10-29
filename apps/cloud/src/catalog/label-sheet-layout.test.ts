@@ -12,7 +12,9 @@ describe("layoutLabelSheet", () => {
   });
 
   it("places a single label at the sheet's top-left corner", () => {
-    const pages = layoutLabelSheet([{ name: "Maceta", code: "2000000000015", count: 1 }]);
+    const pages = layoutLabelSheet([
+      { name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 1 },
+    ]);
 
     expect(pages).toHaveLength(1);
     expect(pages[0]?.labels).toHaveLength(1);
@@ -28,8 +30,8 @@ describe("layoutLabelSheet", () => {
 
   it("fills product by product, repeating each product its requested count", () => {
     const pages = layoutLabelSheet([
-      { name: "Almendras", code: "2000000000015", count: 2 },
-      { name: "Nueces", code: "2000000000022", count: 1 },
+      { name: "Almendras", brandName: null, netContent: null, code: "2000000000015", count: 2 },
+      { name: "Nueces", brandName: null, netContent: null, code: "2000000000022", count: 1 },
     ]);
 
     expect(pages[0]?.labels.map((label) => label.name)).toEqual([
@@ -39,8 +41,28 @@ describe("layoutLabelSheet", () => {
     ]);
   });
 
+  it("names each label by its product's name, brand and net content", () => {
+    const pages = layoutLabelSheet([
+      {
+        name: "Aceite de Almendras",
+        brandName: "Vitora",
+        netContent: { quantity: 30, unit: "ML" },
+        code: "2000000000015",
+        count: 1,
+      },
+      { name: "Pan casero", brandName: null, netContent: null, code: "2000000000022", count: 1 },
+    ]);
+
+    expect(pages[0]?.labels.map((label) => label.name)).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
+      "Pan casero",
+    ]);
+  });
+
   it("tiles labels left to right, top to bottom, at their column/row position", () => {
-    const pages = layoutLabelSheet([{ name: "Maceta", code: "2000000000015", count: 4 }]);
+    const pages = layoutLabelSheet([
+      { name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 4 },
+    ]);
     const labels = pages[0]?.labels ?? [];
 
     expect(labels.map((label) => [label.xMm, label.yMm])).toEqual([
@@ -52,7 +74,9 @@ describe("layoutLabelSheet", () => {
   });
 
   it("fills a full sheet of 24 labels on one page, spilling the 25th onto a second page", () => {
-    const pages = layoutLabelSheet([{ name: "Maceta", code: "2000000000015", count: 25 }]);
+    const pages = layoutLabelSheet([
+      { name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 25 },
+    ]);
 
     expect(pages).toHaveLength(2);
     expect(pages[0]?.labels).toHaveLength(LABELS_PER_PAGE);
@@ -62,7 +86,13 @@ describe("layoutLabelSheet", () => {
 
   it("draws a cut line only between two adjacent labels, never at the sheet's edge", () => {
     const pages = layoutLabelSheet([
-      { name: "Maceta", code: "2000000000015", count: LABELS_PER_PAGE },
+      {
+        name: "Maceta",
+        brandName: null,
+        netContent: null,
+        code: "2000000000015",
+        count: LABELS_PER_PAGE,
+      },
     ]);
     const labels = pages[0]?.labels ?? [];
 
@@ -72,7 +102,9 @@ describe("layoutLabelSheet", () => {
   });
 
   it("never draws a cut line toward a slot with no label on a partial last page", () => {
-    const pages = layoutLabelSheet([{ name: "Maceta", code: "2000000000015", count: 25 }]);
+    const pages = layoutLabelSheet([
+      { name: "Maceta", brandName: null, netContent: null, code: "2000000000015", count: 25 },
+    ]);
     const onlyLabelOnSecondPage = pages[1]?.labels[0];
 
     expect(onlyLabelOnSecondPage).toMatchObject({ cutRight: false, cutBottom: false });

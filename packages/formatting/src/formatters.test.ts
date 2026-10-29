@@ -1,4 +1,3 @@
-import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   formatAmountInput,
@@ -32,7 +31,6 @@ import {
   parsePointOfSaleNumber,
   plural,
 } from "./formatters";
-import { parseAmountCents, parseWeightThousandths } from "./parsers";
 
 describe("plural", () => {
   it("selects the form Argentine Spanish plural rules choose", () => {
@@ -133,14 +131,6 @@ describe("formatAmountInput", () => {
     expect(formatAmountInput(5)).toBe("0,05");
     expect(formatAmountInput(0)).toBe("0,00");
     expect(formatAmountInput(2_147_483_647)).toBe("21.474.836,47");
-  });
-
-  it("reads back as the cents it was written from", () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 0, max: 99_999_999_999_900 }), (cents) => {
-        expect(parseAmountCents(formatAmountInput(cents))).toBe(cents);
-      }),
-    );
   });
 });
 
@@ -374,14 +364,6 @@ describe("formatWeightInput", () => {
     expect(formatWeightInput(1250)).toBe("1,250");
     expect(formatWeightInput(500)).toBe("0,500");
     expect(formatWeightInput(1_234_567)).toBe("1.234,567");
-  });
-
-  it("reads back as the thousandths it was written from", () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 0, max: 99_999_999_999_999 }), (thousandths) => {
-        expect(parseWeightThousandths(formatWeightInput(thousandths))).toBe(thousandths);
-      }),
-    );
   });
 });
 

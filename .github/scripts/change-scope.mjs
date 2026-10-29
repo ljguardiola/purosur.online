@@ -52,7 +52,7 @@ export function decideTestsScope(changedPaths) {
   return { testsNeeded: false, reason: "no changed path is read by the test shards" };
 }
 
-const CATALOG_INPUT_ROOTS = ["packages/ui/"];
+const CATALOG_INPUT_ROOTS = ["packages/ui/", "packages/formatting/"];
 
 const CATALOG_INPUT_FILES = new Set([
   "package.json",
