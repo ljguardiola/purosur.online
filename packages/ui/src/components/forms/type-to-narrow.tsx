@@ -18,11 +18,15 @@ type UseTypeToNarrowArgs<V extends string, O extends NarrowableOption<V>> = {
   matchTexts?: (option: O) => readonly string[];
 };
 
+function labelOnly(option: NarrowableOption<string>): readonly string[] {
+  return [option.label];
+}
+
 export function useTypeToNarrow<V extends string, O extends NarrowableOption<V>>({
   options,
   value,
   onChange,
-  matchTexts = (option) => [option.label],
+  matchTexts = labelOnly,
 }: UseTypeToNarrowArgs<V, O>) {
   const { contains } = useFilter({ sensitivity: "base" });
   const chosen = options.find((option) => option.value === value);
