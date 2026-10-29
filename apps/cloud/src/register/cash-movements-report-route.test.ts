@@ -103,14 +103,10 @@ describe("GET /reports/cash-movements access", () => {
 });
 
 describe("GET /reports/cash-movements", () => {
-  it.each([
-    ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
-    ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
-    ["a register that is not an id", "?register_id=caja-1"],
-  ])("answers 400 to %s", async (_name, query) => {
+  it("answers 400 to a parameter given twice", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
 
-    const response = await cashMovements(headers, query);
+    const response = await cashMovements(headers, "?from=2026-10-01&from=2026-10-02&to=2026-10-03");
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });

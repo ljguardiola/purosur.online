@@ -1,4 +1,9 @@
-import { ARGENTINA_TIME_ZONE, CASH_MOVEMENT_KINDS } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  CASH_MOVEMENT_KINDS,
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  MAX_CASH_AMOUNT_CENTS,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { cashMovementsSchema } from "./cash-movements.js";
 
@@ -53,6 +58,21 @@ describe("cashMovementsSchema", () => {
     expect(cashMovementsSchema.parse(body)).toEqual(body);
   });
 
+  it("accepts the largest cash movement with the longest reason", () => {
+    const body = {
+      ...report,
+      movements: [
+        {
+          ...movement,
+          reason: "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH),
+          amount: MAX_CASH_AMOUNT_CENTS,
+        },
+      ],
+    };
+
+    expect(cashMovementsSchema.parse(body)).toEqual(body);
+  });
+
   it("declares the zone the instants are shown in", () => {
     const { shape } = cashMovementsSchema.shape.movements.element;
 
@@ -86,9 +106,16 @@ describe("cashMovementsSchema", () => {
     ["a movement of a kind that is not reported", withMovement({ kind: "SALE" })],
     ["a movement without a reason", withMovement({ reason: undefined })],
     ["a movement with an empty reason", withMovement({ reason: "" })],
+    ["a movement with a blank reason", withMovement({ reason: "   " })],
+    ["a movement with an untrimmed reason", withMovement({ reason: " Compra de hielo " })],
+    [
+      "a movement with a reason too long",
+      withMovement({ reason: "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1) }),
+    ],
     ["a movement of zero", withMovement({ amount: 0 })],
     ["a negative movement", withMovement({ amount: -1 })],
     ["a movement with decimals", withMovement({ amount: 1.5 })],
+    ["a movement above a cash amount", withMovement({ amount: MAX_CASH_AMOUNT_CENTS + 1 })],
     ["a session that is not a record id", withMovement({ session_id: "sesion-1" })],
     ["a movement without a register name", withMovement({ register_name: undefined })],
     [
