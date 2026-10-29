@@ -91,11 +91,7 @@ beforeEach(async () => {
     { config: { access: OPEN_SESSION_PEEK_ACCESS, sessionSource } },
     answerWithSession,
   );
-  app.get(
-    "/test-only/session-cookie",
-    { config: { access: SESSION_COOKIE_ACCESS, sessionSource } },
-    answer,
-  );
+  app.get("/test-only/session-cookie", { config: { access: SESSION_COOKIE_ACCESS } }, answer);
   app.get(
     "/test-only/own-record/:recordId",
     {

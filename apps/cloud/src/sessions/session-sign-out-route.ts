@@ -3,12 +3,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzleSessionStore } from "./drizzle-session-store.js";
-import {
-  registerRouteAccess,
-  routeSessionSource,
-  SESSION_COOKIE_ACCESS,
-  sessionCookieOf,
-} from "./route-access.js";
+import { registerRouteAccess, SESSION_COOKIE_ACCESS, sessionCookieOf } from "./route-access.js";
 import { clearSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
 
@@ -24,13 +19,12 @@ export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHK
 ): void {
   const { now } = options;
   registerRouteAccess(app);
-  const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.delete(
     "/sessions/current",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: SESSION_COOKIE_ACCESS, sessionSource },
+      config: { access: SESSION_COOKIE_ACCESS },
     },
     async (request, reply) => {
       const rawSessionId = sessionCookieOf(request);
