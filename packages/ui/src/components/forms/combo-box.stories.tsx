@@ -135,6 +135,14 @@ export const NoResults: Story = {
   play: playTyping("zzz"),
 };
 
+export const CreationOffered: Story = {
+  args: {
+    options: optionsWithDescriptions,
+    creation: { recordKind: "marca", onCreate: () => {} },
+  },
+  play: playTyping("Serenísima"),
+};
+
 export const WithDescriptions: Story = {
   args: { options: optionsWithDescriptions, value: "yerba" },
   play: playClickExpandsTrigger(input),

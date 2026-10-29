@@ -640,6 +640,40 @@ test("a combo box submits the option that was chosen", async () => {
   expect(onSubmit).toHaveBeenCalledWith("stock");
 });
 
+test("a combo box offers creating a record through the bound field", async () => {
+  const onCreate = vi.fn();
+  function Probe() {
+    const { form } = useRequestForm({
+      defaultValues: { role: null as string | null },
+      request: {
+        schema: z.object({ role: z.string() }),
+        from: ({ role }) => ({ role: role ?? "" }),
+      },
+      fields: { role: "role" },
+      messages: { role: "Elegí un rol." },
+      onSubmit: () => Promise.resolve(),
+    });
+    return (
+      <form.AppField name="role">
+        {(field) => (
+          <field.ComboBox
+            label="Rol"
+            options={ROLE_OPTIONS}
+            creation={{ recordKind: "rol", onCreate }}
+          />
+        )}
+      </form.AppField>
+    );
+  }
+  const screen = await render(<Probe />);
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Rol/ }), "zzz");
+  await expect.element(screen.getByRole("option", { name: "Crear rol «zzz»" })).toBeVisible();
+  await userEvent.keyboard("{ArrowDown}{Enter}");
+
+  expect(onCreate).toHaveBeenCalledExactlyOnceWith("zzz");
+});
+
 function DirtyProbe() {
   const { form, dirty, reset } = useRequestForm({
     defaultValues: { name: "Ana" },

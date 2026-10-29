@@ -138,6 +138,77 @@ test("tells the person nothing matches when the typed text matches no option", a
   expect(optionTexts(screen)).toEqual(["Sin resultados"]);
 });
 
+test("offers creating a record with the typed text when nothing matches", async () => {
+  const screen = await render(
+    <ComboBox {...baseProps({ creation: { recordKind: "marca", onCreate: () => {} } })} />,
+  );
+
+  await input(screen).fill("  Serenísima ");
+
+  await expect.poll(() => optionTexts(screen)).toEqual(["Crear marca «Serenísima»"]);
+});
+
+test("offers no creation while an option matches the typed text", async () => {
+  const screen = await render(
+    <ComboBox {...baseProps({ creation: { recordKind: "marca", onCreate: () => {} } })} />,
+  );
+
+  await input(screen).fill("café");
+
+  await expect.poll(() => optionTexts(screen)).toEqual(["Café molido"]);
+});
+
+test("offers no creation without the creation prop", async () => {
+  const screen = await render(<ComboBox {...baseProps()} />);
+
+  await input(screen).fill("zzz");
+
+  await expect.poll(() => optionTexts(screen)).toEqual(["Sin resultados"]);
+});
+
+test("offers no creation for blank typed text", async () => {
+  const screen = await render(
+    <ComboBox {...baseProps({ creation: { recordKind: "marca", onCreate: () => {} } })} />,
+  );
+
+  await input(screen).fill("   ");
+
+  await expect.poll(() => optionTexts(screen)).toEqual(["Sin resultados"]);
+});
+
+test("creates from the typed text by click without choosing a value, and shows the chosen label again", async () => {
+  const onCreate = vi.fn();
+  const onPick = vi.fn();
+  const screen = await render(
+    <Harness value="cafe" onPick={onPick} creation={{ recordKind: "marca", onCreate }} />,
+  );
+
+  await input(screen).fill(" zzz ");
+  await expect.element(screen.getByRole("option", { name: "Crear marca «zzz»" })).toBeVisible();
+  activate(screen.getByRole("option").element());
+
+  expect(onCreate).toHaveBeenCalledExactlyOnceWith("zzz");
+  expect(onPick).not.toHaveBeenCalled();
+  await expect.poll(() => inputElement(screen).value).toBe("Café molido");
+  expect(input(screen).element().getAttribute("aria-expanded")).toBe("false");
+});
+
+test("creates from the typed text by keyboard without choosing a value", async () => {
+  const onCreate = vi.fn();
+  const onPick = vi.fn();
+  const screen = await render(
+    <Harness value="cafe" onPick={onPick} creation={{ recordKind: "marca", onCreate }} />,
+  );
+
+  await input(screen).fill("zzz");
+  await expect.element(screen.getByRole("option", { name: "Crear marca «zzz»" })).toBeVisible();
+  await userEvent.keyboard("{ArrowDown}{Enter}");
+
+  expect(onCreate).toHaveBeenCalledExactlyOnceWith("zzz");
+  expect(onPick).not.toHaveBeenCalled();
+  await expect.poll(() => inputElement(screen).value).toBe("Café molido");
+});
+
 test("gives the caller the clicked option's value, shows its label and closes the list", async () => {
   const onChange = vi.fn();
   const screen = await render(<Harness onPick={onChange} />);
