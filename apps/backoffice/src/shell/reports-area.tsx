@@ -15,6 +15,7 @@ import {
   Scale,
   ShoppingCart,
   TagX,
+  Truck,
   Undo2,
   Users,
   Wallet,
@@ -56,6 +57,7 @@ function ReportsArea() {
   const pricesPastReviewDeadlineShown = Boolean(
     matchRoute({ to: "/reports/prices-past-review-deadline" }),
   );
+  const freightReportShown = Boolean(matchRoute({ to: "/reports/freight-by-period" }));
   const purchasesReportShown = Boolean(matchRoute({ to: "/reports/purchases-by-supplier" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   const issuedFiscalDocumentsShown = Boolean(matchRoute({ to: "/reports/fiscal-documents" }));
@@ -212,6 +214,15 @@ function ReportsArea() {
                     icon={<ShoppingCart />}
                     search={purchasesReportShown ? true : {}}
                     active={purchasesReportShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/freight-by-period"
+                    label="Flete por período"
+                    icon={<Truck />}
+                    search={freightReportShown ? true : {}}
+                    active={freightReportShown}
                   />
                 </li>
                 <li>

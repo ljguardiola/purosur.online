@@ -3,13 +3,14 @@ import type { ReactNode } from "react";
 import { expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
 import {
+  freightReportKey,
   purchasesReportKey,
   purchasingKey,
   purchasingKeys,
   useProductCreationChoicesRefresh,
 } from "./purchasing-queries";
 
-test("invalidating the purchasing key marks the suppliers, the packagings, the purchases, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each proposal, the link choices, the categories a created product is filed under and the price comparison and each purchases report stale", async () => {
+test("invalidating the purchasing key marks the suppliers, the packagings, the purchases, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each proposal, the link choices, the categories a created product is filed under and the price comparison, each purchases report and each freight report stale", async () => {
   const client = new QueryClient();
   const keys = [
     purchasingKeys.suppliers,
@@ -25,6 +26,7 @@ test("invalidating the purchasing key marks the suppliers, the packagings, the p
     purchasingKeys.productCreationCategories,
     purchasingKeys.supplierPriceComparison,
     purchasesReportKey({ from: "2026-10-01", to: "2026-10-07" }),
+    freightReportKey({ from: "2026-10-01", to: "2026-10-07" }),
   ];
   for (const key of keys) {
     client.setQueryData(key, []);
@@ -51,6 +53,21 @@ test.each([
   const query = { from: "2026-10-01", to: "2026-10-07" };
 
   expect(purchasesReportKey({ ...query, ...changed })).not.toEqual(purchasesReportKey(query));
+});
+
+test.each([
+  { part: "start", changed: { from: "2026-10-02" } },
+  { part: "end", changed: { to: "2026-10-08" } },
+])("a freight report differing only in its $part has its own key", ({ changed }) => {
+  const query = { from: "2026-10-01", to: "2026-10-07" };
+
+  expect(freightReportKey({ ...query, ...changed })).not.toEqual(freightReportKey(query));
+});
+
+test("a freight report and a purchases report of the same range have their own keys", () => {
+  const query = { from: "2026-10-01", to: "2026-10-07" };
+
+  expect(freightReportKey(query)).not.toEqual(purchasesReportKey(query));
 });
 
 async function watchedChoices() {

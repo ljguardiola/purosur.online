@@ -5,9 +5,9 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
-import { type PurchasesReportFilters, purchasesReportFilters } from "./purchases-report-filters";
 import { PurchasesReportScreen } from "./purchases-report-screen";
 import type { PurchasesReportScreenServices } from "./purchases-report-services";
+import { type ReportPeriodFilters, reportPeriodFilters } from "./report-period-filters";
 import {
   emptyPurchasesReport,
   quarterPurchasesReport,
@@ -24,14 +24,14 @@ function createServices(): PurchasesReportScreenServices {
 }
 
 type Handlers = {
-  filters?: PurchasesReportFilters;
-  onFiltersChange?: (filters: PurchasesReportFilters) => void;
+  filters?: ReportPeriodFilters;
+  onFiltersChange?: (filters: ReportPeriodFilters) => void;
   onSessionEnded?: () => void;
 };
 
 function ControlledScreen({
   services,
-  filters: initial = purchasesReportFilters.parse({}),
+  filters: initial = reportPeriodFilters.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
 }: Handlers & { services: PurchasesReportScreenServices }) {
@@ -164,7 +164,7 @@ test("asks the cloud for the range the URL names", async () => {
   const services = createServices();
 
   await renderScreen(services, {
-    filters: purchasesReportFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    filters: reportPeriodFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
   });
 
   await expect
@@ -233,7 +233,7 @@ test("says there are no purchases in the chosen period as a filtered result", as
   });
 
   const screen = await renderScreen(services, {
-    filters: purchasesReportFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    filters: reportPeriodFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
   });
 
   const empty = purchasesTable(screen).getByText("No hay compras en este período");

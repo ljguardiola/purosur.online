@@ -1,6 +1,7 @@
 import { compareSpanishText } from "../../shared/index.js";
 import { purchaseValueCents } from "./freight-distribution.js";
 import type { PurchaseLineCost } from "./purchase-line.js";
+import { reportMonthOf } from "./report-month.js";
 
 export interface PurchasedLine extends PurchaseLineCost {
   purchaseId: string;
@@ -53,7 +54,7 @@ export function purchasesBySupplier(lines: readonly PurchasedLine[]): PurchasesB
   const bySupplier = new Map<string, SupplierTally>();
   let everything: Tally | undefined;
   for (const line of lines) {
-    const month = line.purchasedOn.slice(0, 7);
+    const month = reportMonthOf(line.purchasedOn);
     const supplier = bySupplier.get(line.supplierId);
     bySupplier.set(line.supplierId, {
       ...tallied(supplier, line),

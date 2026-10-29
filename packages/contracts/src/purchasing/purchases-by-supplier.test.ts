@@ -76,12 +76,6 @@ describe("purchasesBySupplierSchema", () => {
     expect(purchasesBySupplierSchema.safeParse(free).success).toBe(true);
   });
 
-  it.each(["2026-01", "2026-12", "1999-09"])("accepts the month %s", (name) => {
-    const body = { ...report, suppliers: [{ ...supplier, months: [{ ...month, month: name }] }] };
-
-    expect(purchasesBySupplierSchema.safeParse(body).success).toBe(true);
-  });
-
   const withTotals = (change: object) => ({ totals: { ...report.totals, ...change } });
   const withSupplier = (change: object) => ({ suppliers: [{ ...supplier, ...change }] });
   const withMonth = (change: object) => withSupplier({ months: [{ ...month, ...change }] });
@@ -105,12 +99,6 @@ describe("purchasesBySupplierSchema", () => {
     ["a supplier with decimals in its amount", withSupplier({ amount: 1.5 })],
     ["a supplier without months", withSupplier({ months: undefined })],
     ["a month that is not a month", withMonth({ month: "octubre" })],
-    ["a month with a day", withMonth({ month: "2026-10-06" })],
-    ["a month number of zero", withMonth({ month: "2026-00" })],
-    ["a month number above twelve", withMonth({ month: "2026-13" })],
-    ["a month with a two digit year", withMonth({ month: "26-10" })],
-    ["a month with trailing text", withMonth({ month: "2026-10x" })],
-    ["a month with leading text", withMonth({ month: "x2026-10" })],
     ["a month without purchases", withMonth({ purchases: 0 })],
     ["a month with decimals in its purchases", withMonth({ purchases: 1.5 })],
     ["a month with a negative amount", withMonth({ amount: -1 })],

@@ -1,6 +1,8 @@
 import type {
   BrandSummary,
   CategorySummary,
+  FreightByPeriodBody,
+  FreightByPeriodQuery,
   FreightList,
   LinkablePurchaseList,
   PackagingList,
@@ -20,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchFreightReport } from "./freight-report-api";
 import type {
   FetchFreightsInput,
   FetchLinkablePurchasesInput,
@@ -69,6 +72,10 @@ export function purchasesReportKey(query: PurchasesBySupplierQuery) {
   return [...purchasingKey, "purchases-report", query.from ?? "", query.to ?? ""] as const;
 }
 
+export function freightReportKey(query: FreightByPeriodQuery) {
+  return [...purchasingKey, "freight-report", query.from ?? "", query.to ?? ""] as const;
+}
+
 const SUPPLIER_PRICE_LIST_READING_REFRESH_MS = 5_000;
 
 function useCloudQueryWhileReading<T>(
@@ -111,6 +118,21 @@ export function usePurchasesReportQuery(params: {
     queryKey: purchasesReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchPurchasesReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useFreightReportQuery(params: {
+  query: FreightByPeriodQuery;
+  fetchFreightReport: typeof fetchFreightReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<FreightByPeriodBody>({
+    queryKey: freightReportKey(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchFreightReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

@@ -15,7 +15,7 @@ import { ordersAreaRoute } from "../shell/orders-area";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
-import { purchasesReportFilters } from "./purchases-report-filters";
+import { reportPeriodFilters } from "./report-period-filters";
 import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import {
   supplierPriceListReviewFilters,
@@ -119,11 +119,20 @@ export const supplierPriceComparisonRoute = createRoute({
   ),
 });
 
+export const freightReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/freight-by-period",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportPeriodFilters,
+  search: { middlewares: [stripSearchParams(reportPeriodFilters.parse({}))] },
+  component: lazyScreen(() => import("./freight-report-page"), "FreightReportPage"),
+});
+
 export const purchasesReportRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
   path: "reports/purchases-by-supplier",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
-  validateSearch: purchasesReportFilters,
-  search: { middlewares: [stripSearchParams(purchasesReportFilters.parse({}))] },
+  validateSearch: reportPeriodFilters,
+  search: { middlewares: [stripSearchParams(reportPeriodFilters.parse({}))] },
   component: lazyScreen(() => import("./purchases-report-page"), "PurchasesReportPage"),
 });

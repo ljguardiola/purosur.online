@@ -192,7 +192,7 @@ test("groups the purchases reports in a card titled Compras", async () => {
 
   const purchases = screen.getByRole("region", { name: "Compras" });
   await expect.element(purchases).toBeVisible();
-  expect(purchases.getByRole("link").elements()).toHaveLength(1);
+  expect(purchases.getByRole("link").elements()).toHaveLength(2);
 });
 
 test("lists the purchases by supplier report as a link to it", async () => {
@@ -212,4 +212,12 @@ test("groups the price reports in a card titled Precios", async () => {
   await expect
     .element(prices.getByRole("link", { name: "Precios sin revisar" }))
     .toHaveAttribute("href", "/reports/prices-past-review-deadline");
+});
+
+test("lists the freight by period report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Flete por período" }))
+    .toHaveAttribute("href", "/reports/freight-by-period");
 });
