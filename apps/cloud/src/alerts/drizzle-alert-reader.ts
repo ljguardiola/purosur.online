@@ -17,9 +17,9 @@ import type {
   OpenAlertCounts,
   OpenAlertsOverview,
 } from "@purosur/domain/alerts/use-cases";
-import { and, asc, count, desc, eq, ilike, inArray, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { containsPattern } from "../platform/contains-pattern.js";
+import { containsText } from "../platform/contains-pattern.js";
 import {
   alertDeliveries,
   alerts,
@@ -226,20 +226,19 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
   }
 
   private searchCondition(search: AlertSearch): SQL | undefined {
-    const pattern = containsPattern(search.text);
     const matchingUserIds = this.db
       .select({ id: sql<string>`${users.id}::text` })
       .from(users)
-      .where(ilike(users.firstName, pattern));
+      .where(containsText(users.firstName, search.text));
     const matchingRegisterIds = this.db
       .select({ id: sql<string>`${registers.id}::text` })
       .from(registers)
-      .where(ilike(registers.name, pattern));
+      .where(containsText(registers.name, search.text));
     const matchingInstallationIds = this.db
       .select({ id: sql<string>`${registerInstallations.id}::text` })
       .from(registerInstallations)
       .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
-      .where(ilike(registers.name, pattern));
+      .where(containsText(registers.name, search.text));
     return or(
       search.kindsWithMatchingTitle.length > 0
         ? inArray(alerts.kind, [...search.kindsWithMatchingTitle])
@@ -266,7 +265,7 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       and(
         inArray(alerts.kind, alertKindsWithScope("sourceAddress")),
         openAlertCondition(),
-        ilike(alerts.scope, pattern),
+        containsText(alerts.scope, search.text),
       ),
     );
   }

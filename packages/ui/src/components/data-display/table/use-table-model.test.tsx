@@ -89,6 +89,18 @@ describe("rows", () => {
     ).toEqual(["MANZANA", "Banana"]);
   });
 
+  it("keeps the items whose texts contain the search, ignoring accents", async () => {
+    const items = [
+      fruit("1", "Aceto Balsámico Clasico"),
+      fruit("2", "Balsamico"),
+      fruit("3", "Pera"),
+    ];
+
+    expect(
+      await shown({ items, search: { text: "balsámico", in: (item) => [item.name] } }),
+    ).toEqual(["Aceto Balsámico Clasico", "Balsamico"]);
+  });
+
   it("matches the search against any of an item's texts", async () => {
     const items = [fruit("1", "Manzana", ["779", "123"]), fruit("2", "Pera", ["456"])];
 

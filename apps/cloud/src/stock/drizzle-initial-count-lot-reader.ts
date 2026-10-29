@@ -4,9 +4,9 @@ import type {
   InitialCountLotRow,
   InitialCountLotsQuery,
 } from "@purosur/domain/stock/use-cases";
-import { and, eq, ilike, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { containsPattern } from "../platform/contains-pattern.js";
+import { containsText } from "../platform/contains-pattern.js";
 import { categories, lots, products } from "../platform/db/schema.js";
 import { loadedSupplierPricesOf } from "./loaded-supplier-prices.js";
 
@@ -47,7 +47,7 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
             : eq(lots.costIncomplete, query.costIncomplete),
           query.productName === undefined
             ? undefined
-            : ilike(products.name, containsPattern(query.productName)),
+            : containsText(products.name, query.productName),
         ),
       );
     const pricesByProduct = await loadedSupplierPricesOf(this.db, [

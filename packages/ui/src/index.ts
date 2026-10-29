@@ -239,5 +239,6 @@ export {
   formatSignedTenthsOfPercent,
   formatTenthsOfPercent,
 } from "./messages/tenths-of-percent";
+export { textContains } from "./messages/text-search";
 export type { ItemOrder, ItemsSort } from "./ordering/item-ordering";
 export { sortedItems, textOrder } from "./ordering/item-ordering";
