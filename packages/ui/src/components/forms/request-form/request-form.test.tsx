@@ -606,9 +606,7 @@ function ComboBoxProbe({ onSubmit }: { onSubmit: (role: string) => Promise<void>
   return (
     <>
       <form.AppField name="role">
-        {(field) => (
-          <field.ComboBox label="Rol" options={ROLE_OPTIONS} required />
-        )}
+        {(field) => <field.ComboBox label="Rol" options={ROLE_OPTIONS} required />}
       </form.AppField>
       <button type="button" onClick={() => void submit()}>
         Enviar

@@ -140,12 +140,13 @@ test("finds the product to count by typing part of its name, and registers the s
     .toEqual({ productId: tea.id, counted: 16_000, occurredAt: "2026-09-15T21:40:30.000Z" });
 });
 
-test("draws a magnifier in the product search and a cross on Cancelar", async () => {
+test("draws the select caret and no magnifier in the product selector, and a cross on Cancelar", async () => {
   const { dialog } = await renderModal(createServices());
 
   const search = dialog.getByRole("button", { name: /Producto/ }).element();
   const cancel = dialog.getByRole("button", { name: "Cancelar" }).element();
-  expect(search.querySelector("svg")?.classList.contains("lucide-search")).toBe(true);
+  expect(search.querySelector("svg")?.classList.contains("lucide-chevron-down")).toBe(true);
+  expect(search.querySelector(".lucide-search")).toBeNull();
   expect(cancel.querySelector("svg")?.classList.contains("lucide-x")).toBe(true);
 });
 

@@ -310,7 +310,6 @@ export function NewCountModal({
                 label="Producto"
                 placeholder="Buscá un producto"
                 options={options}
-                variant="search"
                 required
               />
             )}
