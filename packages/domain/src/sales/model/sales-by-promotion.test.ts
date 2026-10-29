@@ -7,7 +7,7 @@ import {
 
 const terms = {
   benefit: { kind: "PERCENT_OFF", percent: 10 },
-  target: { kind: "CATEGORY", name: "Almacén" },
+  target: { kind: "CATEGORY", name: "Almacén", brandName: null, netContent: null },
   weekdays: [6, 7],
 } as const;
 

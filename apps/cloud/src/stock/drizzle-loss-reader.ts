@@ -2,7 +2,8 @@ import { ARGENTINA_TIME_ZONE, RECORDED_LOSS_REASONS, type SaleUnit } from "@puro
 import type { LossQuery, LossReader, LossRecord } from "@purosur/domain/stock/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { products, stockMovements } from "../platform/db/schema.js";
+import { netContentRow } from "../catalog/net-content-row.js";
+import { brands, products, stockMovements } from "../platform/db/schema.js";
 
 const lossDay = sql<string>`to_char(${stockMovements.occurredAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
@@ -30,10 +31,14 @@ export class DrizzleLossReader<TQueryResult extends PgQueryResultHKT> implements
             delta: stockMovements.delta,
             productId: products.id,
             productName: products.name,
+            brandName: brands.name,
+            netContentQuantity: products.netContentQuantity,
+            netContentUnit: products.netContentUnit,
             saleUnit: products.saleUnit,
           })
           .from(stockMovements)
           .innerJoin(products, eq(products.id, stockMovements.productId))
+          .leftJoin(brands, eq(brands.id, products.brandId))
           .where(
             and(
               eq(stockMovements.locationId, locationId),
@@ -44,7 +49,13 @@ export class DrizzleLossReader<TQueryResult extends PgQueryResultHKT> implements
           );
         return rows.map((row) => ({
           reason: knownReason(row.reason),
-          product: { id: row.productId, name: row.productName, saleUnit: row.saleUnit as SaleUnit },
+          product: {
+            id: row.productId,
+            name: row.productName,
+            brandName: row.brandName,
+            netContent: netContentRow(row),
+            saleUnit: row.saleUnit as SaleUnit,
+          },
           quantity: -row.delta,
         }));
       },

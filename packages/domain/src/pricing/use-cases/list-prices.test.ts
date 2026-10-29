@@ -16,6 +16,8 @@ function product(id: string, unitPrice: number | null): PriceUnderReview {
     name: `Product ${id}`,
     categoryId: "category-1",
     categoryName: "Almacén",
+    brandName: null,
+    netContent: null,
     saleUnit: "UNIT",
     currentPrice:
       unitPrice === null

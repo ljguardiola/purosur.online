@@ -1,5 +1,6 @@
 import { SALE_UNITS, SUPPLIER_PRICE_LIST_ROW_STATUSES } from "@purosur/domain";
 import { z } from "zod";
+import { netContentSchema } from "../shared/index.js";
 import { exactFractionSchema } from "./exact-fraction.js";
 import { supplierPriceListSummarySchema } from "./supplier-price-list-summary.js";
 
@@ -13,7 +14,13 @@ const supplierPriceListRowSchema = z.object({
   barcode: z.string().nullable(),
   link: z
     .object({
-      product: z.object({ id: z.string(), name: z.string(), saleUnit: z.enum(SALE_UNITS) }),
+      product: z.object({
+        id: z.string(),
+        name: z.string(),
+        brandName: z.string().nullable(),
+        netContent: netContentSchema.nullable(),
+        saleUnit: z.enum(SALE_UNITS),
+      }),
       packaging: z.object({
         id: z.string(),
         name: z.string(),

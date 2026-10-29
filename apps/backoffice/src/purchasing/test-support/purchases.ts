@@ -15,6 +15,8 @@ export const compraDeMiel: PurchaseSummary = {
       product: {
         id: "90d00000-0000-4000-8000-000000000001",
         name: "Miel pura de abeja 1 kg",
+        brandName: null,
+        netContent: null,
         saleUnit: "UNIT",
       },
       packaging: { id: "9ac00000-0000-4000-8000-000000000001", name: "Caja x 12" },
@@ -43,6 +45,8 @@ export const compraDeAvena: PurchaseSummary = {
       product: {
         id: "90d00000-0000-4000-8000-000000000002",
         name: "Avena arrollada",
+        brandName: null,
+        netContent: null,
         saleUnit: "KG",
       },
       packaging: null,
@@ -65,3 +69,21 @@ export function purchaseChoicesFrom(suppliers: SupplierSummary[]): PurchaseChoic
     today: "2026-09-16",
   };
 }
+
+export const compraDeAceite: PurchaseSummary = {
+  ...compraDeAvena,
+  id: "c0a00000-0000-4000-8000-000000000003",
+  lines: [
+    {
+      ...(compraDeAvena.lines[0] as PurchaseSummary["lines"][number]),
+      id: "c0b00000-0000-4000-8000-000000000003",
+      product: {
+        id: "90d00000-0000-4000-8000-000000000004",
+        name: "Aceite de Almendras",
+        brandName: "Vitora",
+        netContent: { quantity: 30, unit: "ML" },
+        saleUnit: "UNIT",
+      },
+    },
+  ],
+};

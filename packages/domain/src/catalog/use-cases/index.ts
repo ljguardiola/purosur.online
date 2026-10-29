@@ -4,6 +4,7 @@ export type { AllocateInternalBarcodeOutcome } from "./allocate-internal-barcode
 export { allocateInternalBarcode } from "./allocate-internal-barcode.js";
 export type {
   CatalogBrandSummary,
+  CatalogListProduct,
   CatalogListReader,
   CatalogTagSummary,
 } from "./catalog-list-reader.js";

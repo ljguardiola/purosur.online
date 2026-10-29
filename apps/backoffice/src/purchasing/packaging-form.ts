@@ -6,7 +6,8 @@ import {
   packagingCreationBodySchema,
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { sortedItems, textOrder } from "@purosur/ui";
+import { numericTextOrder, sortedItems } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import {
   formatStockQuantityInput,
@@ -66,15 +67,26 @@ export function packagingQuantityMessage(
     : quantityMessage(saleUnit);
 }
 
-const productNameOrder = textOrder((product: PackagingList["products"][number]) => product.name);
+type ChoosableProduct = PackagingList["products"][number];
+
+export type PackagingProduct = Pick<
+  ChoosableProduct,
+  "id" | "name" | "saleUnit" | "brandName" | "netContent"
+>;
+
+export function packagingProductLabel(product: PackagingProduct): string {
+  return formatProductDescription(product);
+}
+
+const productOrder = numericTextOrder(packagingProductLabel);
 
 export function packagingProductOptions(
-  products: PackagingList["products"],
+  products: readonly PackagingProduct[],
 ): [{ value: string; label: string }, ...{ value: string; label: string }[]] | undefined {
   const [first, ...rest] = sortedItems(products, {
-    order: productNameOrder,
+    order: productOrder,
     direction: "ascending",
-  }).map((product) => ({ value: product.id, label: product.name }));
+  }).map((product) => ({ value: product.id, label: packagingProductLabel(product) }));
   return first && [first, ...rest];
 }
 

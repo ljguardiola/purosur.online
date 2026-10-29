@@ -9,6 +9,7 @@ import {
   TextField,
   useFieldContext,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { quantityFieldKind } from "../platform/stock-quantity";
@@ -47,7 +48,12 @@ export function RecipeComponentsField({
       onComponentsChange();
       field.handleChange([
         ...components,
-        { productId, name: product.name, saleUnit: product.saleUnit, quantity: "" },
+        {
+          productId,
+          name: formatProductDescription(product),
+          saleUnit: product.saleUnit,
+          quantity: "",
+        },
       ]);
     }
     setAdding(false);

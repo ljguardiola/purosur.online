@@ -7,8 +7,10 @@ import type {
 } from "@purosur/domain/stock/use-cases";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { netContentRow } from "../catalog/net-content-row.js";
 import {
   assemblyBatches,
+  brands,
   categories,
   lots,
   products,
@@ -42,6 +44,9 @@ export class DrizzleRecipeListReader<TQueryResult extends PgQueryResultHKT>
       .select({
         productId: recipes.productId,
         productName: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         categoryName: categories.name,
         saleUnit: products.saleUnit,
         version: recipes.version,
@@ -49,13 +54,15 @@ export class DrizzleRecipeListReader<TQueryResult extends PgQueryResultHKT>
       .from(recipes)
       .innerJoin(products, eq(recipes.productId, products.id))
       .innerJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(productId === undefined ? undefined : eq(recipes.productId, productId))
       .orderBy(asc(products.name), asc(products.id));
     const productIds = rows.map((row) => row.productId);
     const components = await this.componentsOf(productIds);
     const lastBatches = await this.lastBatchesOf(productIds, locationId);
-    return rows.map((row) => ({
+    return rows.map(({ netContentQuantity, netContentUnit, ...row }) => ({
       ...row,
+      netContent: netContentRow({ netContentQuantity, netContentUnit }),
       saleUnit: row.saleUnit as SaleUnit,
       lastBatch: lastBatches.get(row.productId) ?? null,
       components: components.get(row.productId) ?? [],
@@ -118,17 +125,25 @@ export class DrizzleRecipeListReader<TQueryResult extends PgQueryResultHKT>
         recipeProductId: recipeComponents.productId,
         componentProductId: recipeComponents.componentProductId,
         name: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         saleUnit: products.saleUnit,
         quantityPerOutputUnit: recipeComponents.quantityPerOutputUnit,
       })
       .from(recipeComponents)
       .innerJoin(products, eq(recipeComponents.componentProductId, products.id))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(inArray(recipeComponents.productId, [...productIds]))
       .orderBy(asc(recipeComponents.productId), asc(recipeComponents.position));
-    for (const { recipeProductId, ...component } of rows) {
+    for (const { recipeProductId, netContentQuantity, netContentUnit, ...component } of rows) {
       byRecipe.set(recipeProductId, [
         ...(byRecipe.get(recipeProductId) ?? []),
-        { ...component, saleUnit: component.saleUnit as SaleUnit },
+        {
+          ...component,
+          netContent: netContentRow({ netContentQuantity, netContentUnit }),
+          saleUnit: component.saleUnit as SaleUnit,
+        },
       ]);
     }
     return byRecipe;

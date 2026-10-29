@@ -93,7 +93,13 @@ export function registerPackagingsRoutes<TQueryResult extends PgQueryResultHKT>(
     await reply.code(200).send(
       packagingListSchema.parse({
         packagings,
-        products: products.map(({ id, name, saleUnit }) => ({ id, name, saleUnit })),
+        products: products.map(({ id, name, brandName, netContent, saleUnit }) => ({
+          id,
+          name,
+          brandName,
+          netContent,
+          saleUnit,
+        })),
       }),
     );
   });

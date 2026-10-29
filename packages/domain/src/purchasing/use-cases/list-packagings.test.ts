@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { listPackagings } from "./list-packagings.js";
 import { FakePurchasingListReader } from "./test-support/fake-purchasing-list-reader.js";
 
-const YERBA = { id: "p-unit", name: "Yerba", saleUnit: "UNIT", active: true } as const;
+const YERBA = {
+  id: "p-unit",
+  name: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 500, unit: "G" },
+  saleUnit: "UNIT",
+  active: true,
+} as const;
 const HARINA = { id: "p-kg", name: "Harina", saleUnit: "KG", active: true } as const;
 const RETIRED = { id: "p-old", name: "Antiguo", saleUnit: "UNIT", active: false } as const;
 
@@ -33,8 +40,22 @@ describe("listPackagings", () => {
     });
 
     expect(await listPackagings(reader)).toEqual([
-      { ...bolsa, productName: "Harina", productSaleUnit: "KG", saleUnitChanged: false },
-      { ...CAJA, productName: "Yerba", productSaleUnit: "UNIT", saleUnitChanged: false },
+      {
+        ...bolsa,
+        productName: "Harina",
+        brandName: null,
+        netContent: null,
+        productSaleUnit: "KG",
+        saleUnitChanged: false,
+      },
+      {
+        ...CAJA,
+        productName: "Yerba",
+        brandName: "Piragüé",
+        netContent: { quantity: 500, unit: "G" },
+        productSaleUnit: "UNIT",
+        saleUnitChanged: false,
+      },
     ]);
   });
 
@@ -43,7 +64,14 @@ describe("listPackagings", () => {
     const reader = new FakePurchasingListReader({ packagings: [bolsa], products: [YERBA] });
 
     expect(await listPackagings(reader)).toEqual([
-      { ...bolsa, productName: "Yerba", productSaleUnit: "UNIT", saleUnitChanged: true },
+      {
+        ...bolsa,
+        productName: "Yerba",
+        brandName: "Piragüé",
+        netContent: { quantity: 500, unit: "G" },
+        productSaleUnit: "UNIT",
+        saleUnitChanged: true,
+      },
     ]);
   });
 
@@ -52,7 +80,14 @@ describe("listPackagings", () => {
     const reader = new FakePurchasingListReader({ packagings: [old], products: [RETIRED] });
 
     expect(await listPackagings(reader)).toEqual([
-      { ...old, productName: "Antiguo", productSaleUnit: "UNIT", saleUnitChanged: false },
+      {
+        ...old,
+        productName: "Antiguo",
+        brandName: null,
+        netContent: null,
+        productSaleUnit: "UNIT",
+        saleUnitChanged: false,
+      },
     ]);
   });
 

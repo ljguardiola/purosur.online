@@ -23,8 +23,10 @@ import type {
 } from "@purosur/domain/stock/use-cases";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { netContentRow } from "../catalog/net-content-row.js";
 import {
   assemblyBatches,
+  brands,
   categories,
   lots,
   products,
@@ -42,10 +44,19 @@ const stockProductColumns = {
   id: products.id,
   name: products.name,
   categoryId: products.categoryId,
+  brandName: brands.name,
+  netContentQuantity: products.netContentQuantity,
+  netContentUnit: products.netContentUnit,
   categoryName: categories.name,
   saleUnit: products.saleUnit,
   active: products.active,
 };
+
+function withNetContent<
+  TRow extends { netContentQuantity: number | null; netContentUnit: string | null },
+>({ netContentQuantity, netContentUnit, ...row }: TRow) {
+  return { ...row, netContent: netContentRow({ netContentQuantity, netContentUnit }) };
+}
 
 async function currentBalance<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -92,8 +103,9 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       .select(stockProductColumns)
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(products.id, productId));
-    return product && { ...product, saleUnit: product.saleUnit as SaleUnit };
+    return product && { ...withNetContent(product), saleUnit: product.saleUnit as SaleUnit };
   }
 
   ledgerAt(key: ProductStockKey, at: Date): Promise<LedgerAtMoment> {
@@ -113,8 +125,9 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       .select(stockProductColumns)
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .orderBy(asc(products.name), asc(products.id));
-    return rows.map((row) => ({ ...row, saleUnit: row.saleUnit as SaleUnit }));
+    return rows.map((row) => ({ ...withNetContent(row), saleUnit: row.saleUnit as SaleUnit }));
   }
 
   async stockLevels(locationId: string): Promise<StockLevel[]> {
@@ -130,6 +143,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .leftJoin(
         stockBalances,
         and(eq(stockBalances.productId, products.id), eq(stockBalances.locationId, locationId)),
@@ -140,7 +154,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       lotsByProduct.set(productId, [...(lotsByProduct.get(productId) ?? []), lot]);
     }
     return rows.map((row) => ({
-      ...row,
+      ...withNetContent(row),
       saleUnit: row.saleUnit as SaleUnit,
       lots: lotsByProduct.get(row.id) ?? [],
     }));
@@ -188,6 +202,9 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
         id: stockMovements.id,
         productId: stockMovements.productId,
         productName: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         categoryId: products.categoryId,
         categoryName: categories.name,
         saleUnit: products.saleUnit,
@@ -205,6 +222,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       .innerJoin(stockCounts, eq(stockCounts.movementId, stockMovements.id))
       .innerJoin(products, eq(products.id, stockMovements.productId))
       .innerJoin(categories, eq(categories.id, products.categoryId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
         and(
           eq(stockMovements.locationId, query.locationId),
@@ -213,7 +231,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       )
       .orderBy(desc(stockMovements.occurredAt), desc(stockMovements.id));
     return rows.map(({ supersededByCountId, lotCount, ...row }) => ({
-      ...row,
+      ...withNetContent(row),
       saleUnit: row.saleUnit as SaleUnit,
       superseded: supersededByCountId !== null,
       lotCount: lotCount === 0 ? null : lotCount,
@@ -226,6 +244,9 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
         id: stockMovements.id,
         productId: stockMovements.productId,
         productName: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         categoryName: categories.name,
         saleUnit: products.saleUnit,
         kind: stockMovements.kind,
@@ -237,6 +258,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       .from(stockMovements)
       .innerJoin(products, eq(products.id, stockMovements.productId))
       .innerJoin(categories, eq(categories.id, products.categoryId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
         and(
           eq(stockMovements.locationId, query.locationId),
@@ -246,7 +268,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       )
       .orderBy(desc(stockMovements.occurredAt), desc(stockMovements.id));
     return rows.map(({ supersededByCountId, ...row }) => ({
-      ...row,
+      ...withNetContent(row),
       saleUnit: row.saleUnit as SaleUnit,
       kind: row.kind as ManualStockMovementKind,
       reason: row.reason as LossReason | AdjustmentReason,

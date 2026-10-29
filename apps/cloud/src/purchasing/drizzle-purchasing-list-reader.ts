@@ -8,7 +8,9 @@ import type {
 } from "@purosur/domain/purchasing/use-cases";
 import { asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { netContentRow } from "../catalog/net-content-row.js";
 import {
+  brands,
   productPackagings,
   products,
   purchaseLines,
@@ -20,6 +22,9 @@ const packagingColumns = {
   id: productPackagings.id,
   productId: productPackagings.productId,
   productName: products.name,
+  brandName: brands.name,
+  netContentQuantity: products.netContentQuantity,
+  netContentUnit: products.netContentUnit,
   productSaleUnit: products.saleUnit,
   name: productPackagings.name,
   quantityPerPackage: productPackagings.quantityPerPackage,
@@ -28,14 +33,19 @@ const packagingColumns = {
   version: productPackagings.version,
 };
 
-function toListing(
-  row: Omit<PackagingListing, "saleUnit" | "productSaleUnit"> & {
-    saleUnit: string;
-    productSaleUnit: string;
-  },
-): PackagingListing {
+function toListing({
+  netContentQuantity,
+  netContentUnit,
+  ...row
+}: Omit<PackagingListing, "saleUnit" | "productSaleUnit" | "netContent"> & {
+  saleUnit: string;
+  productSaleUnit: string;
+  netContentQuantity: number | null;
+  netContentUnit: string | null;
+}): PackagingListing {
   return {
     ...row,
+    netContent: netContentRow({ netContentQuantity, netContentUnit }),
     saleUnit: row.saleUnit as SaleUnit,
     productSaleUnit: row.productSaleUnit as SaleUnit,
   };
@@ -70,6 +80,7 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
       .select(packagingColumns)
       .from(productPackagings)
       .innerJoin(products, eq(products.id, productPackagings.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .orderBy(asc(productPackagings.name));
     return rows.map(toListing);
   }
@@ -79,6 +90,7 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
       .select(packagingColumns)
       .from(productPackagings)
       .innerJoin(products, eq(products.id, productPackagings.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(productPackagings.id, packagingId));
     return row ? toListing(row) : undefined;
   }
@@ -118,6 +130,9 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
         purchaseId: purchaseLines.purchaseId,
         productId: products.id,
         productName: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         productSaleUnit: products.saleUnit,
         packagingId: productPackagings.id,
         packagingName: productPackagings.name,
@@ -130,6 +145,7 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(purchaseLines)
       .innerJoin(products, eq(products.id, purchaseLines.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .leftJoin(productPackagings, eq(productPackagings.id, purchaseLines.packagingId))
       .where(
         inArray(
@@ -146,6 +162,11 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
         product: {
           id: row.productId,
           name: row.productName,
+          brandName: row.brandName,
+          netContent: netContentRow({
+            netContentQuantity: row.netContentQuantity,
+            netContentUnit: row.netContentUnit,
+          }),
           saleUnit: row.productSaleUnit as SaleUnit,
         },
         packaging:

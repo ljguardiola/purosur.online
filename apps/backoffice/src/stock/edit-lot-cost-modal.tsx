@@ -1,5 +1,6 @@
 import { type InitialInventoryLotList, lotReferenceCostBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, type RequestSubmission, useRequestForm } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Pencil, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -115,7 +116,11 @@ export function EditLotCostModal({
       tone="info"
       icon={<Pencil />}
       context="Stock · Inventario inicial"
-      title={lot.productName}
+      title={formatProductDescription({
+        name: lot.productName,
+        brandName: lot.brandName,
+        netContent: lot.netContent,
+      })}
       closable={!submitting}
       footer={
         <>

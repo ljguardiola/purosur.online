@@ -86,6 +86,8 @@ describe("GET /inventory-items", () => {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
     });
 
     const oats = await insertProduct(db, { name: "Avena", active: false });
@@ -97,6 +99,8 @@ describe("GET /inventory-items", () => {
         {
           id: almonds.productId,
           name: "Almendras peladas",
+          brandName: "Vitora",
+          netContent: { quantity: 250, unit: "G" },
           categoryId: almonds.categoryId,
           categoryName: "Frutos secos",
           saleUnit: "KG",
@@ -105,6 +109,8 @@ describe("GET /inventory-items", () => {
         {
           id: oats.productId,
           name: "Avena",
+          brandName: null,
+          netContent: null,
           categoryId: oats.categoryId,
           categoryName: "Almacén",
           saleUnit: "UNIT",

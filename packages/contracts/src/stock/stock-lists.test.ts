@@ -41,6 +41,8 @@ const summary = { productCount: 3, valueCents: 60_750, withoutCostCount: 2 };
 const balance = {
   id: "product-1",
   name: "Almendras peladas",
+  brandName: "Vitora",
+  netContent: { quantity: 250, unit: "G" },
   categoryId: "category-1",
   categoryName: "Frutos secos",
   saleUnit: "KG",
@@ -59,6 +61,8 @@ const count = {
   id: "movement-1",
   productId: "product-1",
   productName: "Almendras peladas",
+  brandName: "Vitora",
+  netContent: { quantity: 250, unit: "G" },
   categoryId: "category-1",
   categoryName: "Frutos secos",
   saleUnit: "KG",
@@ -74,6 +78,8 @@ const movement = {
   id: "movement-2",
   productId: "product-1",
   productName: "Miel pura de abeja 1 kg",
+  brandName: "Vitora",
+  netContent: { quantity: 250, unit: "G" },
   categoryName: "Almacén",
   saleUnit: "UNIT",
   kind: "loss",
@@ -119,6 +125,9 @@ describe("stockBalanceListSchema", () => {
     ["balance", "12150"],
     ["saleUnit", "LITRE"],
     ["name", null],
+    ["brandName", undefined],
+    ["netContent", undefined],
+    ["netContent", { quantity: 1, unit: "GALLON" }],
     ["active", undefined],
     ["active", "false"],
   ])("refuses %s as %j", (field, value) => {
@@ -302,6 +311,8 @@ describe("stockCountListSchema", () => {
     ["counted", -1],
     ["lotCount", undefined],
     ["lotCount", 1.5],
+    ["brandName", undefined],
+    ["netContent", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(stockCountListSchema.safeParse({ counts: [{ ...count, [field]: value }] }).success).toBe(
       false,
@@ -321,6 +332,12 @@ describe("stockMovementListSchema", () => {
     expect(stockMovementListSchema.safeParse(list).data).toEqual(list);
   });
 
+  it("accepts a product without brand or net content", () => {
+    const list = { movements: [{ ...movement, brandName: null, netContent: null }] };
+
+    expect(stockMovementListSchema.safeParse(list).data).toEqual(list);
+  });
+
   it("accepts a loss for the expiry the system assigned", () => {
     const list = { movements: [{ ...movement, reason: "expired" }] };
 
@@ -332,6 +349,8 @@ describe("stockMovementListSchema", () => {
     ["reason", "whatever"],
     ["delta", "1"],
     ["superseded", "no"],
+    ["brandName", undefined],
+    ["netContent", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(
       stockMovementListSchema.safeParse({ movements: [{ ...movement, [field]: value }] }).success,
@@ -343,6 +362,8 @@ describe("stockProductListSchema", () => {
   const product = {
     id: "product-1",
     name: "Almendras peladas",
+    brandName: "Vitora",
+    netContent: { quantity: 250, unit: "G" },
     categoryId: "category-1",
     categoryName: "Frutos secos",
     saleUnit: "KG",
@@ -364,6 +385,8 @@ describe("stockProductListSchema", () => {
   it.each([
     ["saleUnit", "LITRE"],
     ["name", null],
+    ["brandName", undefined],
+    ["netContent", undefined],
     ["active", undefined],
     ["active", "true"],
   ])("refuses %s as %j", (field, value) => {

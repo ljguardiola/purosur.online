@@ -3,7 +3,13 @@ import { purchaseListSchema, purchaseSummarySchema } from "./purchase-summary.js
 
 const packagedLine = {
   id: "line-1",
-  product: { id: "p-1", name: "Yerba", saleUnit: "UNIT" },
+  product: {
+    id: "p-1",
+    name: "Yerba",
+    brandName: "Piragüé",
+    netContent: { quantity: 500, unit: "G" },
+    saleUnit: "UNIT",
+  },
   packaging: { id: "k-1", name: "Caja x 12" },
   packages: 2,
   quantity: 24_000,
@@ -15,7 +21,7 @@ const packagedLine = {
 };
 const quantityLine = {
   id: "line-2",
-  product: { id: "p-2", name: "Harina", saleUnit: "KG" },
+  product: { id: "p-2", name: "Harina", brandName: null, netContent: null, saleUnit: "KG" },
   packaging: null,
   packages: null,
   quantity: 2_500,
@@ -108,7 +114,10 @@ describe("purchaseSummarySchema", () => {
 
   it.each([
     ["id", 1],
-    ["product", { id: "p-1", name: "Yerba", saleUnit: "LITER" }],
+    ["product", { ...packagedLine.product, saleUnit: "LITER" }],
+    ["product", { ...packagedLine.product, brandName: undefined }],
+    ["product", { ...packagedLine.product, netContent: undefined }],
+    ["product", { ...packagedLine.product, netContent: { quantity: 500, unit: "BOX" } }],
     ["packaging", { id: "k-1" }],
     ["packages", 1.5],
     ["quantity", 1.5],

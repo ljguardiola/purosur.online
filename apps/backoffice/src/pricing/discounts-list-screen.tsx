@@ -14,6 +14,7 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { BadgePercent, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -228,7 +229,10 @@ export function DiscountsListScreen({
   const table = useTableModel({
     items: discounts,
     id: (discount) => discount.id,
-    search: { text: search, in: (discount) => [discount.name, discount.target.name] },
+    search: {
+      text: search,
+      in: (discount) => [discount.name, formatProductDescription(discount.target)],
+    },
     filter: (discount) =>
       (kindFilter === "ALL" || discount.benefit.kind === kindFilter) &&
       showsStatus(discount.status, statusFilter),

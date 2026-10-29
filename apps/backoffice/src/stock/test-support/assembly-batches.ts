@@ -4,12 +4,22 @@ import type {
   AssemblyBatchPreview,
   RecipeSummary,
 } from "@purosur/contracts";
-import { almendras, cajaDeInfusiones, mani, mixDeFrutosSecos, nueces, pasas } from "./recipes";
+import {
+  almendras,
+  balsamo,
+  cajaDeInfusiones,
+  mani,
+  mixDeFrutosSecos,
+  nueces,
+  pasas,
+} from "./recipes";
 
 export const mixBatch: AssemblyBatch = {
   id: "b0000000-0000-4000-8000-000000000001",
   productId: mixDeFrutosSecos.productId,
   productName: mixDeFrutosSecos.productName,
+  brandName: null,
+  netContent: null,
   saleUnit: "KG",
   assembledAt: "2026-09-15T13:30:00.000Z",
   output: 4_950,
@@ -23,6 +33,8 @@ export const infusionsBatch: AssemblyBatch = {
   id: "b0000000-0000-4000-8000-000000000002",
   productId: cajaDeInfusiones.productId,
   productName: cajaDeInfusiones.productName,
+  brandName: null,
+  netContent: null,
   saleUnit: "UNIT",
   assembledAt: "2026-09-10T15:05:00.000Z",
   output: 12_000,
@@ -36,6 +48,8 @@ export const voidedBatch: AssemblyBatch = {
   id: "b0000000-0000-4000-8000-000000000003",
   productId: mixDeFrutosSecos.productId,
   productName: mixDeFrutosSecos.productName,
+  brandName: null,
+  netContent: null,
   saleUnit: "KG",
   assembledAt: "2026-09-12T14:00:00.000Z",
   output: 2_000,
@@ -43,6 +57,21 @@ export const voidedBatch: AssemblyBatch = {
   costIncomplete: false,
   expiresOn: "2026-10-30",
   status: "voided",
+};
+
+export const balsamoBatch: AssemblyBatch = {
+  id: "b0000000-0000-4000-8000-000000000004",
+  productId: balsamo.productId,
+  productName: balsamo.productName,
+  brandName: balsamo.brandName,
+  netContent: balsamo.netContent,
+  saleUnit: "UNIT",
+  assembledAt: "2026-09-14T12:00:00.000Z",
+  output: 5_000,
+  unitCostCents: 120_000,
+  costIncomplete: false,
+  expiresOn: null,
+  status: "voidable",
 };
 
 export function assemblyBatchList(

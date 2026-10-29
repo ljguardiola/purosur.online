@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  insertBrand,
   insertProductWithTags,
   insertTag,
 } from "../catalog/test-support/catalog-route-fixtures.js";
@@ -33,7 +34,13 @@ describe("DrizzleDiscountReader", () => {
   it("reads every discount by name, active or not, each with the name of its target", async () => {
     const category = await insertCategory(db, "Infusiones");
     const tag = await insertTag(db, { name: "Sin TACC" });
-    const product = await insertProductWithTags(db, { name: "Yerba mate", tagIds: [] });
+    const hojaAlta = await insertBrand(db, { name: "Hoja Alta" });
+    const product = await insertProductWithTags(db, {
+      name: "Yerba mate",
+      tagIds: [],
+      brandId: hojaAlta.id,
+      netContent: { quantity: 1, unit: "KG" },
+    });
     const onCategory = await insertDiscount(db, {
       now: NOW,
       name: "Martes de infusiones",
@@ -63,7 +70,13 @@ describe("DrizzleDiscountReader", () => {
         id: onCategory.id,
         name: "Martes de infusiones",
         benefit: { kind: "PERCENT_OFF", percent: 10 },
-        target: { kind: "CATEGORY", id: category, name: "Infusiones" },
+        target: {
+          kind: "CATEGORY",
+          id: category,
+          name: "Infusiones",
+          brandName: null,
+          netContent: null,
+        },
         validFrom: "2026-09-16",
         validTo: "2026-10-16",
         weekdays: [2],
@@ -74,7 +87,7 @@ describe("DrizzleDiscountReader", () => {
         id: onTag.id,
         name: "Semana sin TACC",
         benefit: { kind: "PERCENT_OFF", percent: 20 },
-        target: { kind: "TAG", id: tag.id, name: "Sin TACC" },
+        target: { kind: "TAG", id: tag.id, name: "Sin TACC", brandName: null, netContent: null },
         validFrom: "2026-11-01",
         validTo: "2026-11-07",
         weekdays: [],
@@ -85,7 +98,13 @@ describe("DrizzleDiscountReader", () => {
         id: onProduct.id,
         name: "Yerba en oferta",
         benefit: { kind: "PERCENT_OFF", percent: 5 },
-        target: { kind: "PRODUCT", id: product.id, name: "Yerba mate" },
+        target: {
+          kind: "PRODUCT",
+          id: product.id,
+          name: "Yerba mate",
+          brandName: "Hoja Alta",
+          netContent: { quantity: 1, unit: "KG" },
+        },
         validFrom: "2026-09-16",
         validTo: "2026-10-16",
         weekdays: [],
@@ -130,7 +149,13 @@ describe("DrizzleDiscountReader", () => {
     expect(await new DrizzleDiscountReader(db).discount(wanted.id)).toMatchObject({
       id: wanted.id,
       name: "Elegida",
-      target: { kind: "CATEGORY", id: category, name: "Infusiones" },
+      target: {
+        kind: "CATEGORY",
+        id: category,
+        name: "Infusiones",
+        brandName: null,
+        netContent: null,
+      },
     });
   });
 

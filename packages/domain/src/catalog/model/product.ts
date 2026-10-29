@@ -85,6 +85,16 @@ export type SaleUnit = (typeof SALE_UNITS)[number];
 
 export type NetContentUnit = "G" | "KG" | "ML" | "L" | "UNIT";
 
+export interface ProductNetContent {
+  quantity: number;
+  unit: NetContentUnit;
+}
+
+export interface ProductBrandAndNetContent {
+  brandName: string | null;
+  netContent: ProductNetContent | null;
+}
+
 export const NET_CONTENT_UNITS: readonly NetContentUnit[] = ["G", "KG", "ML", "L", "UNIT"];
 
 export function isNetContentUnit(value: unknown): value is NetContentUnit {

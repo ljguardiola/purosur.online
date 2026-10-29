@@ -14,6 +14,11 @@ export function textOrder<T>(text: (item: T) => string): ItemOrder<T> {
   return (a, b) => collator.compare(text(a), text(b));
 }
 
+export function numericTextOrder<T>(text: (item: T) => string): ItemOrder<T> {
+  const collator = new Intl.Collator("es-AR", { numeric: true });
+  return (a, b) => collator.compare(text(a), text(b));
+}
+
 function inTreeOrder<T>(
   items: readonly T[],
   order: ItemOrder<T>,

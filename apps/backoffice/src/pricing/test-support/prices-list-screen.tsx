@@ -29,6 +29,8 @@ export const withoutPrice: PriceProduct = {
   name: "Fideos",
   categoryId: "category-1",
   categoryName: "Almacén",
+  brandName: null,
+  netContent: null,
   saleUnit: "UNIT",
   currentPrice: null,
   secondsSinceReview: null,
@@ -41,6 +43,8 @@ export const rice: PriceProduct = {
   name: "Arroz",
   categoryId: "category-1",
   categoryName: "Almacén",
+  brandName: null,
+  netContent: null,
   saleUnit: "KG",
   currentPrice: {
     id: "00000000-0000-4000-8000-000000000001",
@@ -67,6 +71,15 @@ export const yerbaMate: PriceProduct = {
     unitPrice: 300000,
     validFrom: "2026-08-16T12:00:00.000Z",
   },
+};
+
+export const almondOil: PriceProduct = {
+  ...rice,
+  id: "product-4",
+  name: "Aceite de Almendras",
+  brandName: "Vitora",
+  netContent: { quantity: 30, unit: "ML" },
+  saleUnit: "UNIT",
 };
 
 export function screenElement(

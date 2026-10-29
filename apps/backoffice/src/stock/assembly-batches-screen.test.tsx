@@ -2,7 +2,12 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { assemblyBatchesFilters } from "./routes";
-import { assemblyBatchList, infusionsBatch, mixBatch } from "./test-support/assembly-batches";
+import {
+  assemblyBatchList,
+  balsamoBatch,
+  infusionsBatch,
+  mixBatch,
+} from "./test-support/assembly-batches";
 import {
   createServices,
   deferred,
@@ -11,7 +16,7 @@ import {
   rowTexts,
   type Screen,
 } from "./test-support/assembly-batches-screen";
-import { almendras, mixDeFrutosSecos } from "./test-support/recipes";
+import { aceiteDeAlmendras, almendras, balsamo, mixDeFrutosSecos } from "./test-support/recipes";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -296,3 +301,62 @@ function registeredBatch() {
     expiresOn: mixBatch.expiresOn,
   };
 }
+
+test("shows each batch's product with its brand and net content", async () => {
+  const screen = await loaded(createServices(), [balsamoBatch]);
+
+  await expect.element(screen.getByText("Bálsamo de caléndula Herbaria 50 g")).toBeVisible();
+});
+
+test("the search field also finds a batch by the brand shown with its product", async () => {
+  const screen = await loaded(createServices(), [mixBatch, balsamoBatch]);
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar un producto armado"), "herbaria");
+
+  await expect.poll(() => rowTexts(screen).map((text) => text.slice(15, 22))).toEqual(["Bálsamo"]);
+});
+
+test("confirms a registered batch naming its product by its brand and net content", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAssemblyBatchPreview).mockResolvedValue({
+    kind: "ok",
+    value: {
+      proposal: {
+        used: [{ componentProductId: aceiteDeAlmendras.id, quantity: 2_500 }],
+        output: 5_000,
+      },
+      lot: null,
+    },
+  });
+  vi.mocked(services.registerAssemblyBatch).mockResolvedValue({
+    kind: "ok",
+    batch: {
+      id: balsamoBatch.id,
+      productId: balsamoBatch.productId,
+      assembledAt: balsamoBatch.assembledAt,
+      output: balsamoBatch.output,
+      unitCostCents: balsamoBatch.unitCostCents,
+      costIncomplete: balsamoBatch.costIncomplete,
+      expiresOn: balsamoBatch.expiresOn,
+    },
+  });
+  const screen = await loaded(services, [], {}, [balsamo]);
+
+  await userEvent.click(screen.getByRole("button", { name: "Nueva tanda" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Producto armado/ }));
+  (
+    screen
+      .getByRole("option", { name: "Bálsamo de caléndula Herbaria 50 g" })
+      .element() as HTMLElement
+  ).click();
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Tamaño de la tanda/ }), "5");
+  await expect
+    .element(dialog.getByRole("textbox", { name: "Usado de Aceite de Almendras Vitora 30 ml" }))
+    .not.toHaveValue("");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la tanda" }));
+
+  await expect
+    .element(screen.getByText("Se registró una tanda de Bálsamo de caléndula Herbaria 50 g."))
+    .toBeVisible();
+});

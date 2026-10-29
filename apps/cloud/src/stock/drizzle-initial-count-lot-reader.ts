@@ -6,8 +6,10 @@ import type {
 } from "@purosur/domain/stock/use-cases";
 import { and, eq, isNotNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { netContentRow } from "../catalog/net-content-row.js";
+import { productNameWithBrand } from "../catalog/product-name-with-brand.js";
 import { containsText } from "../platform/contains-pattern.js";
-import { categories, lots, products } from "../platform/db/schema.js";
+import { brands, categories, lots, products } from "../platform/db/schema.js";
 import { loadedSupplierPricesOf } from "./loaded-supplier-prices.js";
 
 export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
@@ -25,6 +27,9 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
         lotId: lots.id,
         productId: products.id,
         productName: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         categoryName: categories.name,
         saleUnit: products.saleUnit,
         expiresOn: lots.expiresOn,
@@ -38,6 +43,7 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
       .from(lots)
       .innerJoin(products, eq(products.id, lots.productId))
       .innerJoin(categories, eq(categories.id, products.categoryId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
         and(
           eq(lots.locationId, query.locationId),
@@ -47,20 +53,23 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
             : eq(lots.costIncomplete, query.costIncomplete),
           query.productName === undefined
             ? undefined
-            : containsText(products.name, query.productName),
+            : containsText(productNameWithBrand(), query.productName),
         ),
       );
     const pricesByProduct = await loadedSupplierPricesOf(this.db, [
       ...new Set(rows.map((row) => row.productId)),
     ]);
-    return rows.map(({ costTotalCents, costQuantity, saleUnit, ...row }) => ({
-      ...row,
-      supplierPrices: pricesByProduct.get(row.productId) ?? [],
-      saleUnit: saleUnit as SaleUnit,
-      cost:
-        costTotalCents === null || costQuantity === null
-          ? null
-          : { totalCents: costTotalCents, quantity: costQuantity },
-    }));
+    return rows.map(
+      ({ costTotalCents, costQuantity, saleUnit, netContentQuantity, netContentUnit, ...row }) => ({
+        ...row,
+        netContent: netContentRow({ netContentQuantity, netContentUnit }),
+        supplierPrices: pricesByProduct.get(row.productId) ?? [],
+        saleUnit: saleUnit as SaleUnit,
+        cost:
+          costTotalCents === null || costQuantity === null
+            ? null
+            : { totalCents: costTotalCents, quantity: costQuantity },
+      }),
+    );
   }
 }

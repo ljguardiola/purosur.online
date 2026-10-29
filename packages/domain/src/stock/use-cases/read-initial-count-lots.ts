@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import { cheapestOffer, compareSpanishText } from "../../shared/index.js";
 import {
   type InitialCountCostFilter,
@@ -20,7 +20,7 @@ export interface ReadInitialCountLotsInput {
   productName?: string;
 }
 
-export interface InitialCountLotView {
+export interface InitialCountLotView extends ProductBrandAndNetContent {
   lotId: string;
   productId: string;
   productName: string;
@@ -95,6 +95,8 @@ export async function readInitialCountLots(
       lotId: row.lotId,
       productId: row.productId,
       productName: row.productName,
+      brandName: row.brandName,
+      netContent: row.netContent,
       categoryName: row.categoryName,
       saleUnit: row.saleUnit,
       expiresOn: row.expiresOn,

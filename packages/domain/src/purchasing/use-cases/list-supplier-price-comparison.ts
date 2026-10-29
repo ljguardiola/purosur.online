@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import {
   cheapestOffer,
   compareFractions,
@@ -32,7 +32,7 @@ export interface UnpricedOffer {
   reason: SupplierOfferUnpricedReason;
 }
 
-export interface ComparedProduct {
+export interface ComparedProduct extends ProductBrandAndNetContent {
   id: string;
   name: string;
   categoryName: string;

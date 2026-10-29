@@ -45,10 +45,29 @@ export async function insertCategoryNamed(
   return category.id;
 }
 
-export async function insertProductIn(db: Db, categoryId: string, name: string): Promise<string> {
+export async function insertProductIn(
+  db: Db,
+  categoryId: string,
+  name: string,
+  description: {
+    brandId?: string;
+    netContent?: { quantity: number; unit: "G" | "KG" | "ML" | "L" | "UNIT" };
+  } = {},
+): Promise<string> {
   const [product] = await db
     .insert(products)
-    .values({ name, categoryId, saleUnit: "UNIT" })
+    .values({
+      name,
+      categoryId,
+      saleUnit: "UNIT",
+      ...(description.brandId === undefined ? {} : { brandId: description.brandId }),
+      ...(description.netContent === undefined
+        ? {}
+        : {
+            netContentQuantity: description.netContent.quantity,
+            netContentUnit: description.netContent.unit,
+          }),
+    })
     .returning({ id: products.id });
   if (!product) {
     throw new Error("test setup: seeding the product returned no row");

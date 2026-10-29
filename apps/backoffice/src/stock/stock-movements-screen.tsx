@@ -11,6 +11,7 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { ArrowDownUp, Check, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -66,7 +67,13 @@ const columns = [
     id: "product",
     header: "Producto",
     render: (movement: StockMovement) => (
-      <TableCellText description={movement.categoryName}>{movement.productName}</TableCellText>
+      <TableCellText description={movement.categoryName}>
+        {formatProductDescription({
+          name: movement.productName,
+          brandName: movement.brandName,
+          netContent: movement.netContent,
+        })}
+      </TableCellText>
     ),
   }),
   dataColumn({
@@ -105,20 +112,21 @@ function registeredNotice(
   delta: number,
   showsBalance: boolean,
 ) {
+  const name = formatProductDescription(product);
   const balance = formatStockQuantity(result.balance, product.saleUnit);
   if (result.superseded) {
     return {
       title: "El movimiento no cambió el saldo",
       description: showsBalance
-        ? `Hay un recuento posterior de ${product.name}: el saldo sigue en ${balance}.`
-        : `Hay un recuento posterior de ${product.name}.`,
+        ? `Hay un recuento posterior de ${name}: el saldo sigue en ${balance}.`
+        : `Hay un recuento posterior de ${name}.`,
     };
   }
   return {
     title: "Saldo actualizado",
     description: showsBalance
-      ? `${product.name} queda en ${balance}.`
-      : `${product.name}: ${formatStockChange(delta, product.saleUnit)}.`,
+      ? `${name} queda en ${balance}.`
+      : `${name}: ${formatStockChange(delta, product.saleUnit)}.`,
   };
 }
 
@@ -183,7 +191,16 @@ export function StockMovementsScreen({
   const table = useTableModel({
     items: movements,
     id: (movement) => movement.id,
-    search: { text: search, in: (movement) => [movement.productName] },
+    search: {
+      text: search,
+      in: (movement) => [
+        formatProductDescription({
+          name: movement.productName,
+          brandName: movement.brandName,
+          netContent: movement.netContent,
+        }),
+      ],
+    },
     filter: (movement) => reason === "ALL" || movement.reason === reason,
     columns,
   });

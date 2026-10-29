@@ -825,6 +825,8 @@ test("creates a packaging for the chosen product, reads the choices again and ch
     id: "9ac00000-0000-4000-8000-000000000099",
     productId: PASAS_ID,
     productName: "Pasas de uva",
+    brandName: null,
+    netContent: null,
     productSaleUnit: "KG",
     saleUnit: "KG",
     saleUnitChanged: false,

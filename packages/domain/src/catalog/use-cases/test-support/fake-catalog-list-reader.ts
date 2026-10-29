@@ -1,24 +1,20 @@
 import type { ProductActivityScope } from "../../model/product-activity.js";
 import type {
   CatalogBrandSummary,
+  CatalogListProduct,
   CatalogListReader,
   CatalogTagSummary,
 } from "../catalog-list-reader.js";
-import type {
-  CatalogBrand,
-  CatalogCategory,
-  CatalogProduct,
-  CatalogTag,
-} from "../catalog-store.js";
+import type { CatalogBrand, CatalogCategory, CatalogTag } from "../catalog-store.js";
 
 export interface FakeCatalogListData {
-  products?: CatalogProduct[];
+  products?: CatalogListProduct[];
   categories?: CatalogCategory[];
   brands?: CatalogBrand[];
   tags?: CatalogTag[];
 }
 
-function inScope(product: CatalogProduct, scope: ProductActivityScope): boolean {
+function inScope(product: CatalogListProduct, scope: ProductActivityScope): boolean {
   switch (scope) {
     case "active":
       return product.active;
@@ -45,7 +41,7 @@ export class FakeCatalogListReader implements CatalogListReader {
     };
   }
 
-  async products(scope: ProductActivityScope): Promise<CatalogProduct[]> {
+  async products(scope: ProductActivityScope): Promise<CatalogListProduct[]> {
     return this.data.products.filter((product) => inScope(product, scope)).sort(byName);
   }
 

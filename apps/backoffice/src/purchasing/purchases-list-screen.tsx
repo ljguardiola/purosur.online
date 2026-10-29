@@ -8,6 +8,7 @@ import {
   Table,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, Plus, ShoppingCart } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -98,7 +99,7 @@ const columns = [
   dataColumn({
     id: "product",
     header: "Producto",
-    render: (row: PurchaseRow) => ofLine(row, (line) => line.product.name),
+    render: (row: PurchaseRow) => ofLine(row, (line) => formatProductDescription(line.product)),
   }),
   dataColumn({
     id: "quantity",

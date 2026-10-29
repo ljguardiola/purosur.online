@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { insertTag } from "../catalog/test-support/catalog-route-fixtures.js";
+import { insertBrand, insertTag } from "../catalog/test-support/catalog-route-fixtures.js";
 import { registers } from "../platform/db/schema.js";
 import { insertDiscount } from "../pricing/test-support/discount-route-fixtures.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -51,9 +51,12 @@ async function aRegister(name = "Caja 1", locationId?: string) {
   return insertEnrolledInstallation(db, { now: NOW, existingRegisterId: register.id });
 }
 
-async function aProduct(name = "Yerba 1 kg") {
+async function aProduct(
+  name = "Yerba 1 kg",
+  description: Parameters<typeof insertProductIn>[3] = {},
+) {
   const categoryId = await insertCategoryNamed(db, "Almacén");
-  return { categoryId, productId: await insertProductIn(db, categoryId, name) };
+  return { categoryId, productId: await insertProductIn(db, categoryId, name, description) };
 }
 
 async function sell(deviceId: string, lines: ReturnType<typeof aSoldLine>[], completedAt = MOMENT) {
@@ -69,6 +72,49 @@ const byPromotion = <T extends { promotionId: string }>(rows: T[]) =>
   [...rows].sort((a, b) => (a.promotionId < b.promotionId ? -1 : 1));
 
 describe("DrizzlePromotionSalesReportReader.completedSalesByPromotion", () => {
+  it("names a product target with its brand and net content, null when it has none", async () => {
+    const { deviceId, locationId } = await aRegister();
+    const brand = await insertBrand(db, { name: "Vitora" });
+    const categoryId = await insertCategoryNamed(db, "Almacén");
+    const oilId = await insertProductIn(db, categoryId, "Aceite de Almendras", {
+      brandId: brand.id,
+      netContent: { quantity: 30, unit: "ML" },
+    });
+    const breadId = await insertProductIn(db, categoryId, "Pan casero");
+    const onOil = await insertDiscount(db, {
+      now: NOW,
+      name: "Aceite al 10",
+      productId: oilId,
+      percent: 10,
+    });
+    const onBread = await insertDiscount(db, {
+      now: NOW,
+      name: "Pan al 5",
+      productId: breadId,
+      percent: 5,
+    });
+    await sell(deviceId, [
+      withPromotion(aSoldLine(oilId, "Aceite de Almendras", 1, 1_000), onOil.id, 100),
+      withPromotion(aSoldLine(breadId, "Pan casero", 1, 1_000), onBread.id, 50),
+    ]);
+
+    const rows = await reader().completedSalesByPromotion({
+      locationId,
+      range: wholeOctober,
+      registerId: undefined,
+    });
+
+    expect(Object.fromEntries(rows.map((row) => [row.name, row.terms?.target]))).toEqual({
+      "Aceite al 10": {
+        kind: "PRODUCT",
+        name: "Aceite de Almendras",
+        brandName: "Vitora",
+        netContent: { quantity: 30, unit: "ML" },
+      },
+      "Pan al 5": { kind: "PRODUCT", name: "Pan casero", brandName: null, netContent: null },
+    });
+  });
+
   it("counts the lines, quantity and discount of each promotion with its current terms", async () => {
     const { deviceId, locationId } = await aRegister();
     const { productId, categoryId } = await aProduct();
@@ -109,7 +155,7 @@ describe("DrizzlePromotionSalesReportReader.completedSalesByPromotion", () => {
           name: "Finde de almacén",
           terms: {
             benefit: { kind: "PERCENT_OFF", percent: 15 },
-            target: { kind: "CATEGORY", name: "Almacén" },
+            target: { kind: "CATEGORY", name: "Almacén", brandName: null, netContent: null },
             weekdays: [6, 7],
           },
           weightSource: null,
@@ -122,7 +168,7 @@ describe("DrizzlePromotionSalesReportReader.completedSalesByPromotion", () => {
           name: "Tres por dos",
           terms: {
             benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
-            target: { kind: "PRODUCT", name: "Yerba 1 kg" },
+            target: { kind: "PRODUCT", name: "Yerba 1 kg", brandName: null, netContent: null },
             weekdays: [],
           },
           weightSource: null,
@@ -149,7 +195,12 @@ describe("DrizzlePromotionSalesReportReader.completedSalesByPromotion", () => {
       registerId: undefined,
     });
 
-    expect(rows[0]?.terms?.target).toEqual({ kind: "TAG", name: "Sin TACC" });
+    expect(rows[0]?.terms?.target).toEqual({
+      kind: "TAG",
+      name: "Sin TACC",
+      brandName: null,
+      netContent: null,
+    });
   });
 
   it("keeps the lines sold by weight apart from the lines sold by unit", async () => {

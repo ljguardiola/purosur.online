@@ -14,7 +14,13 @@ import {
   usedText,
 } from "./assembly-batch-form";
 import { mixPreview } from "./test-support/assembly-batches";
-import { almendras, mixDeFrutosSecos, nueces } from "./test-support/recipes";
+import {
+  aceiteDeAlmendras,
+  almendras,
+  balsamo,
+  mixDeFrutosSecos,
+  nueces,
+} from "./test-support/recipes";
 
 const proposal = mixPreview.proposal;
 const recipe = mixDeFrutosSecos;
@@ -236,6 +242,16 @@ describe("messages", () => {
     expect(batchUsedMessage({ ...chosen, used: { [nueces.id]: "x" } }, recipe, proposal)).toBe(
       `Nueces: ${KG_MESSAGE.charAt(0).toLowerCase()}${KG_MESSAGE.slice(1)}`,
     );
+  });
+
+  it("names a component by its brand and net content", () => {
+    expect(
+      batchUsedMessage(
+        { ...chosen, productId: balsamo.productId, used: { [aceiteDeAlmendras.id]: "" } },
+        balsamo,
+        proposal,
+      ),
+    ).toBe("Aceite de Almendras Vitora 30 ml: ingresá la cantidad usada.");
   });
 
   it("asks to review what was used when every quantity reads but the request is refused", () => {

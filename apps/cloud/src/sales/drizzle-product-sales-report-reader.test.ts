@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
 import { products, registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
@@ -75,8 +76,24 @@ describe("DrizzleProductSalesReportReader.completedSalesByProduct", () => {
     });
 
     expect(byFirstPathName(rows)).toEqual([
-      { id: oil, path: ["Aceite 900 ml"], weightSource: null, quantity: 1, amount: 3_000 },
-      { id: sugar, path: ["Azúcar 1 kg"], weightSource: null, quantity: 5, amount: 12_000 },
+      {
+        id: oil,
+        path: ["Aceite 900 ml"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 1,
+        amount: 3_000,
+      },
+      {
+        id: sugar,
+        path: ["Azúcar 1 kg"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 5,
+        amount: 12_000,
+      },
     ]);
   });
 
@@ -100,11 +117,61 @@ describe("DrizzleProductSalesReportReader.completedSalesByProduct", () => {
     expect(rows).toHaveLength(3);
     expect(rows).toEqual(
       expect.arrayContaining([
-        { id: cheese, path: ["Queso"], weightSource: null, quantity: 2, amount: 2_000 },
-        { id: cheese, path: ["Queso"], weightSource: "SCALE", quantity: 1_500, amount: 10_500 },
-        { id: cheese, path: ["Queso"], weightSource: "MANUAL", quantity: 300, amount: 1_800 },
+        {
+          id: cheese,
+          path: ["Queso"],
+          brandName: null,
+          netContent: null,
+          weightSource: null,
+          quantity: 2,
+          amount: 2_000,
+        },
+        {
+          id: cheese,
+          path: ["Queso"],
+          brandName: null,
+          netContent: null,
+          weightSource: "SCALE",
+          quantity: 1_500,
+          amount: 10_500,
+        },
+        {
+          id: cheese,
+          path: ["Queso"],
+          brandName: null,
+          netContent: null,
+          weightSource: "MANUAL",
+          quantity: 300,
+          amount: 1_800,
+        },
       ]),
     );
+  });
+
+  it("answers a product's current brand name and net content, null when it has none", async () => {
+    const { deviceId, locationId } = await aRegister();
+    const brand = await insertBrand(db, { name: "Vitora" });
+    const categoryId = await insertCategoryNamed(db, "Almacén");
+    const oil = await insertProductIn(db, categoryId, "Aceite de Almendras", {
+      brandId: brand.id,
+      netContent: { quantity: 30, unit: "ML" },
+    });
+    const bread = await insertProductIn(db, categoryId, "Pan casero");
+    await sold(deviceId, [
+      aSoldLine(oil, "Aceite de Almendras", 1, 3_000),
+      aSoldLine(bread, "Pan casero", 1, 800),
+    ]);
+
+    const rows = await reader().completedSalesByProduct({
+      locationId,
+      range: wholeOctober,
+      registerId: undefined,
+    });
+
+    expect(byFirstPathName(rows).map((row) => [row.path, row.brandName, row.netContent])).toEqual([
+      [["Aceite de Almendras"], "Vitora", { quantity: 30, unit: "ML" }],
+      [["Pan casero"], null, null],
+    ]);
   });
 
   it("names a product by its current name, not the one it had when it was sold", async () => {
@@ -135,7 +202,15 @@ describe("DrizzleProductSalesReportReader.completedSalesByProduct", () => {
     });
 
     expect(rows).toEqual([
-      { id: unknown, path: ["Producto retirado"], weightSource: null, quantity: 1, amount: 500 },
+      {
+        id: unknown,
+        path: ["Producto retirado"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 1,
+        amount: 500,
+      },
     ]);
   });
 
@@ -158,7 +233,15 @@ describe("DrizzleProductSalesReportReader.completedSalesByProduct", () => {
     });
 
     expect(rows).toEqual([
-      { id: product, path: ["Sal"], weightSource: null, quantity: 1, amount: 800 },
+      {
+        id: product,
+        path: ["Sal"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 1,
+        amount: 800,
+      },
     ]);
   });
 
@@ -179,7 +262,15 @@ describe("DrizzleProductSalesReportReader.completedSalesByProduct", () => {
     });
 
     expect(rows).toEqual([
-      { id: product, path: ["Sal"], weightSource: null, quantity: 2, amount: 320 },
+      {
+        id: product,
+        path: ["Sal"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 2,
+        amount: 320,
+      },
     ]);
   });
 
@@ -198,7 +289,15 @@ describe("DrizzleProductSalesReportReader.completedSalesByProduct", () => {
     });
 
     expect(rows).toEqual([
-      { id: product, path: ["Sal"], weightSource: null, quantity: 4, amount: 250 },
+      {
+        id: product,
+        path: ["Sal"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 4,
+        amount: 250,
+      },
     ]);
   });
 
@@ -223,7 +322,15 @@ describe("DrizzleProductSalesReportReader.completedSalesByProduct", () => {
     });
 
     expect(ofTheBranch).toEqual([
-      { id: product, path: ["Sal"], weightSource: null, quantity: 1, amount: 1_000 },
+      {
+        id: product,
+        path: ["Sal"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 1,
+        amount: 1_000,
+      },
     ]);
     expect(ofAnotherBranchsRegister).toEqual([]);
   });
@@ -263,11 +370,29 @@ describe("DrizzleProductSalesReportReader.completedSalesByCategory", () => {
     });
 
     expect(byFirstPathName(rows)).toEqual([
-      { id: grocery, path: ["Almacén"], weightSource: null, quantity: 3, amount: 3_000 },
-      { id: sweets, path: ["Almacén", "Dulces"], weightSource: null, quantity: 1, amount: 5_000 },
+      {
+        id: grocery,
+        path: ["Almacén"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 3,
+        amount: 3_000,
+      },
+      {
+        id: sweets,
+        path: ["Almacén", "Dulces"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 1,
+        amount: 5_000,
+      },
       {
         id: jams,
         path: ["Almacén", "Dulces", "Mermeladas"],
+        brandName: null,
+        netContent: null,
         weightSource: null,
         quantity: 2,
         amount: 4_000,
@@ -295,9 +420,33 @@ describe("DrizzleProductSalesReportReader.completedSalesByCategory", () => {
     expect(rows).toHaveLength(3);
     expect(rows).toEqual(
       expect.arrayContaining([
-        { id: category, path: ["Fiambres"], weightSource: "SCALE", quantity: 1_000, amount: 8_000 },
-        { id: category, path: ["Fiambres"], weightSource: "MANUAL", quantity: 500, amount: 5_000 },
-        { id: category, path: ["Fiambres"], weightSource: null, quantity: 2, amount: 2_000 },
+        {
+          id: category,
+          path: ["Fiambres"],
+          brandName: null,
+          netContent: null,
+          weightSource: "SCALE",
+          quantity: 1_000,
+          amount: 8_000,
+        },
+        {
+          id: category,
+          path: ["Fiambres"],
+          brandName: null,
+          netContent: null,
+          weightSource: "MANUAL",
+          quantity: 500,
+          amount: 5_000,
+        },
+        {
+          id: category,
+          path: ["Fiambres"],
+          brandName: null,
+          netContent: null,
+          weightSource: null,
+          quantity: 2,
+          amount: 2_000,
+        },
       ]),
     );
   });
@@ -317,7 +466,15 @@ describe("DrizzleProductSalesReportReader.completedSalesByCategory", () => {
     });
 
     expect(rows).toEqual([
-      { id: now, path: ["Limpieza"], weightSource: null, quantity: 2, amount: 1_600 },
+      {
+        id: now,
+        path: ["Limpieza"],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 2,
+        amount: 1_600,
+      },
     ]);
   });
 
@@ -334,7 +491,17 @@ describe("DrizzleProductSalesReportReader.completedSalesByCategory", () => {
       registerId: undefined,
     });
 
-    expect(rows).toEqual([{ id: null, path: [], weightSource: null, quantity: 3, amount: 1_200 }]);
+    expect(rows).toEqual([
+      {
+        id: null,
+        path: [],
+        brandName: null,
+        netContent: null,
+        weightSource: null,
+        quantity: 3,
+        amount: 1_200,
+      },
+    ]);
   });
 
   it("leaves out cancelled sales, other branches, other registers and other days", async () => {

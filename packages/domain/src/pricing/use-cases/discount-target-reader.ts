@@ -1,4 +1,4 @@
-import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
+import type { ProductNetContent, SaleUnit } from "../../catalog/index.js";
 
 export interface ProductTargetCandidate {
   id: string;
@@ -6,7 +6,7 @@ export interface ProductTargetCandidate {
   active: boolean;
   saleUnit: SaleUnit;
   brandName: string | null;
-  netContent: { quantity: number; unit: NetContentUnit } | null;
+  netContent: ProductNetContent | null;
   barcodes: string[];
 }
 

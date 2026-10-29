@@ -5,7 +5,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { PrintLabelsModal, type PrintLabelsModalServices } from "./print-labels-modal";
-import { almonds, honey } from "./test-support/products";
+import { almondOil, almonds, honey, vitora } from "./test-support/products";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -27,6 +27,12 @@ const almondsWithInternalBarcode: ProductSummary = {
   labelCode: "2000000000022",
   labelModules:
     "10100011010001101010011101001110001101010011101010111001011100101110010111001011011001101100101",
+};
+const almondOilWithInternalBarcode: ProductSummary = {
+  ...almondOil,
+  barcodes: ["2000000000015"],
+  labelCode: "2000000000015",
+  labelModules: honeyWithInternalBarcode.labelModules,
 };
 const withoutInternalBarcode: ProductSummary = {
   ...honey,
@@ -62,6 +68,7 @@ function Harness({ products: loaded, reload, onSessionEnded, services }: Harness
         onClose={() => setOpen(false)}
         onSessionEnded={onSessionEnded}
         products={products}
+        brands={[vitora]}
         onReload={async () => setProducts(await reload())}
         services={services}
       />
@@ -221,6 +228,31 @@ test("lists the products alphabetically by name", async () => {
     .toEqual([
       `Sumar una etiqueta a ${almondsWithInternalBarcode.name}`,
       `Sumar una etiqueta a ${honeyWithInternalBarcode.name}`,
+    ]);
+});
+
+test("lists two presentations of one name by their net content", async () => {
+  const largerAlmondOil: ProductSummary = {
+    ...almondOilWithInternalBarcode,
+    id: "00000023-0000-4000-8000-000000000000",
+    netContent: { quantity: 100, unit: "ML" },
+  };
+  const screen = await renderModal(createServices(), {
+    products: [largerAlmondOil, almondOilWithInternalBarcode],
+  });
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect
+    .poll(() =>
+      dialog
+        .getByRole("button", { name: /^Sumar una etiqueta a / })
+        .all()
+        .map((button) => button.element().getAttribute("aria-label")),
+    )
+    .toEqual([
+      "Sumar una etiqueta a Aceite de Almendras Vitora 30 ml",
+      "Sumar una etiqueta a Aceite de Almendras Vitora 100 ml",
     ]);
 });
 
@@ -703,4 +735,37 @@ test("has no accessibility violations with the print labels modal open, loaded a
     .element(emptyDialog.getByText("No hay productos activos con código interno"))
     .toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("names each product row and its label buttons by the product's name, brand and net content", async () => {
+  const screen = await renderModal(createServices(), {
+    products: [almondOilWithInternalBarcode, honeyWithInternalBarcode],
+  });
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect.element(dialog.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+  await expect
+    .element(
+      dialog.getByRole("button", {
+        name: "Sumar una etiqueta a Aceite de Almendras Vitora 30 ml",
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByRole("button", {
+        name: "Restar una etiqueta de Aceite de Almendras Vitora 30 ml",
+      }),
+    )
+    .toBeVisible();
+});
+
+test("keeps the label preview on the product's name alone", async () => {
+  const screen = await renderModal(createServices(), { products: [almondOilWithInternalBarcode] });
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  const preview = dialog.getByRole("group", { name: "Vista previa de la etiqueta" });
+  await expect.element(preview.getByText("Aceite de Almendras", { exact: true })).toBeVisible();
 });

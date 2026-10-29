@@ -6,7 +6,8 @@ import {
   stockLossBodySchema,
 } from "@purosur/contracts";
 import type { AdjustmentReason, LossReason, StockDirection } from "@purosur/domain";
-import { sortedItems, textOrder } from "@purosur/ui";
+import { numericTextOrder, sortedItems } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
 
 export type MovementKind = StockMovement["kind"];
@@ -16,7 +17,7 @@ export const REASONS_OF_KIND = {
   adjustment: stockAdjustmentBodySchema.shape.reason.options,
 } satisfies Record<MovementKind, readonly StockMovement["reason"][]>;
 
-const productNameOrder = textOrder((product: StockProduct) => product.name);
+const productOrder = numericTextOrder((product: StockProduct) => formatProductDescription(product));
 
 const DEACTIVATED_STATUS = "Desactivado";
 
@@ -26,11 +27,11 @@ export function productOptions(
   products: readonly StockProduct[],
 ): [ProductOption, ...ProductOption[]] | undefined {
   const [first, ...rest] = sortedItems(products, {
-    order: productNameOrder,
+    order: productOrder,
     direction: "ascending",
   }).map((product) => ({
     value: product.id,
-    label: product.name,
+    label: formatProductDescription(product),
     ...(product.active ? {} : { status: DEACTIVATED_STATUS }),
   }));
   return first && [first, ...rest];

@@ -1,5 +1,5 @@
 import { PACKAGING_NAME_MAX_LENGTH } from "@purosur/domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   packagingCreationRequestFrom,
   packagingEditRequestFrom,
@@ -8,7 +8,12 @@ import {
   packagingProductOptions,
   packagingQuantityMessage,
 } from "./packaging-form";
-import { bolsaDeAvena, cajaDeMiel, packagableProducts } from "./test-support/packagings";
+import {
+  aceiteDeAlmendras,
+  bolsaDeAvena,
+  cajaDeMiel,
+  packagableProducts,
+} from "./test-support/packagings";
 
 const values = { productId: null, name: "", quantity: "", version: 1 };
 
@@ -48,11 +53,40 @@ describe("packagingQuantityMessage", () => {
 });
 
 describe("packagingProductOptions", () => {
+  it("takes only products that carry their brand name and net content", () => {
+    expectTypeOf<{ id: string; name: string; saleUnit: "UNIT" }[]>().not.toExtend<
+      Parameters<typeof packagingProductOptions>[0]
+    >();
+  });
+
   it("offers the products by name, or none when there is none", () => {
     expect(
       packagingProductOptions([...packagableProducts].reverse())?.map((option) => option.label),
     ).toEqual(["Almendras peladas", "Avena arrollada", "Miel pura de abeja 1 kg"]);
     expect(packagingProductOptions([])).toBeUndefined();
+  });
+
+  it("describes each product with its brand name and net content", () => {
+    expect(
+      packagingProductOptions([aceiteDeAlmendras, ...packagableProducts])?.map(
+        (option) => option.label,
+      ),
+    ).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
+      "Almendras peladas",
+      "Avena arrollada",
+      "Miel pura de abeja 1 kg",
+    ]);
+  });
+});
+
+describe("packagingProductOptions order", () => {
+  it("orders two presentations of one name by their net content", () => {
+    const larger = { ...aceiteDeAlmendras, netContent: { quantity: 100, unit: "ML" } } as const;
+
+    expect(
+      packagingProductOptions([larger, aceiteDeAlmendras])?.map((option) => option.label),
+    ).toEqual(["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"]);
   });
 });
 

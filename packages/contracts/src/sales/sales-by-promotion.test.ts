@@ -9,7 +9,7 @@ const report = {
       name: "Finde de yerba",
       terms: {
         benefit: { kind: "PERCENT_OFF", percent: 15 },
-        target: { kind: "CATEGORY", name: "Almacén › Yerbas" },
+        target: { kind: "CATEGORY", name: "Almacén › Yerbas", brandName: null, netContent: null },
         weekdays: [6, 7],
       },
       lines: 3,
@@ -31,7 +31,12 @@ const report = {
       name: "Tres por dos",
       terms: {
         benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
-        target: { kind: "PRODUCT", name: "Azúcar 1 kg" },
+        target: {
+          kind: "PRODUCT",
+          name: "Azúcar",
+          brandName: "Cabriola",
+          netContent: { quantity: 1, unit: "KG" },
+        },
         weekdays: [],
       },
       lines: 1,
@@ -103,7 +108,10 @@ describe("salesByPromotionSchema", () => {
         rows: [
           {
             ...report.rows[0],
-            terms: { ...report.rows[0]?.terms, target: { kind: "BRAND", name: "X" } },
+            terms: {
+              ...report.rows[0]?.terms,
+              target: { kind: "BRAND", name: "X", brandName: null, netContent: null },
+            },
           },
         ],
       },
@@ -115,6 +123,34 @@ describe("salesByPromotionSchema", () => {
           {
             ...report.rows[0],
             terms: { ...report.rows[0]?.terms, target: { kind: "TAG" } },
+          },
+        ],
+      },
+    ],
+    [
+      "terms with a target without its brand name",
+      {
+        rows: [
+          {
+            ...report.rows[0],
+            terms: {
+              ...report.rows[0]?.terms,
+              target: { kind: "PRODUCT", name: "Azúcar", netContent: null },
+            },
+          },
+        ],
+      },
+    ],
+    [
+      "terms with a target without its net content",
+      {
+        rows: [
+          {
+            ...report.rows[0],
+            terms: {
+              ...report.rows[0]?.terms,
+              target: { kind: "PRODUCT", name: "Azúcar", brandName: null },
+            },
           },
         ],
       },

@@ -12,6 +12,8 @@ const lot = {
   product: {
     id: "product-1",
     name: "Queso cremoso",
+    brandName: "Vitora",
+    netContent: { quantity: 250, unit: "G" },
     categoryId: "category-1",
     categoryName: "Lácteos",
     saleUnit: "KG",
@@ -62,6 +64,8 @@ describe("expiringLotListSchema", () => {
   it.each([
     ["saleUnit", "LITRE"],
     ["name", null],
+    ["brandName", undefined],
+    ["netContent", undefined],
     ["categoryName", undefined],
   ])("refuses a product with %s as %j", (field, value) => {
     expect(

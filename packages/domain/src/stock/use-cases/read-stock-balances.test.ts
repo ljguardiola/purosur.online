@@ -7,6 +7,8 @@ function level(id: string, overrides: Partial<StockLevel> = {}): StockLevel {
   return {
     id,
     name: `Producto ${id}`,
+    brandName: null,
+    netContent: null,
     categoryId: "category-1",
     categoryName: "Almacén",
     saleUnit: "KG",

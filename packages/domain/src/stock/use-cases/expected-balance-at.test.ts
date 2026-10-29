@@ -6,6 +6,8 @@ import { FakeStockLedgerReader } from "./test-support/fake-stock-ledger-reader.j
 const honey: StockProduct = {
   id: "product-1",
   name: "Miel pura de abeja 1 kg",
+  brandName: null,
+  netContent: null,
   categoryId: "category-1",
   categoryName: "Almacén",
   saleUnit: "UNIT",

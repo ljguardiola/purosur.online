@@ -8,6 +8,7 @@ import {
   type RequestSubmission,
   useRequestForm,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -127,7 +128,7 @@ export function PriceChangeModal({
   useEffect(() => {
     if (target) {
       setCurrent(target);
-      setTitle(target.name);
+      setTitle(formatProductDescription(target));
       reset({ amount: "", expectedCurrentPriceId: target.currentPrice?.id ?? null });
       setNotice(null);
       setPreviousNotice(previousProductNotice);

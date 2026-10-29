@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { answeredRangeSchema, recordIdSchema, reportQuerySchema } from "../shared/index.js";
+import {
+  answeredRangeSchema,
+  netContentSchema,
+  recordIdSchema,
+  reportQuerySchema,
+} from "../shared/index.js";
 import { salesReportGroupSchema } from "./sales-report-group.js";
 
 const count = z.int().nonnegative();
@@ -16,6 +21,8 @@ export const salesByProductAndCategorySchema = z.object({
     z.object({
       id: recordIdSchema().nullable(),
       path: z.array(z.string()),
+      brandName: z.string().nullable(),
+      netContent: netContentSchema.nullable(),
       units: count,
       thousandths: count,
       amount: cents,

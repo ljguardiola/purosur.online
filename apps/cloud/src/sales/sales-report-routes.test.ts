@@ -324,8 +324,24 @@ describe("GET /reports/sales-by-product-and-category", () => {
       range: { from: "2026-10-07", to: "2026-10-07" },
       group: "product",
       rows: [
-        { id: cheese, path: ["Dulce de leche"], units: 0, thousandths: 1_500, amount: 9_000 },
-        { id: sugar, path: ["Azúcar"], units: 3, thousandths: 0, amount: 7_200 },
+        {
+          id: cheese,
+          path: ["Dulce de leche"],
+          brandName: null,
+          netContent: null,
+          units: 0,
+          thousandths: 1_500,
+          amount: 9_000,
+        },
+        {
+          id: sugar,
+          path: ["Azúcar"],
+          brandName: null,
+          netContent: null,
+          units: 3,
+          thousandths: 0,
+          amount: 7_200,
+        },
       ],
       totals: { units: 3, thousandths: 1_500, amount: 16_200 },
     });
@@ -333,8 +349,24 @@ describe("GET /reports/sales-by-product-and-category", () => {
       range: { from: "2026-10-07", to: "2026-10-07" },
       group: "category",
       rows: [
-        { id: sweets, path: ["Almacén", "Dulces"], units: 0, thousandths: 1_500, amount: 9_000 },
-        { id: grocery, path: ["Almacén"], units: 3, thousandths: 0, amount: 7_200 },
+        {
+          id: sweets,
+          path: ["Almacén", "Dulces"],
+          brandName: null,
+          netContent: null,
+          units: 0,
+          thousandths: 1_500,
+          amount: 9_000,
+        },
+        {
+          id: grocery,
+          path: ["Almacén"],
+          brandName: null,
+          netContent: null,
+          units: 3,
+          thousandths: 0,
+          amount: 7_200,
+        },
       ],
       totals: { units: 3, thousandths: 1_500, amount: 16_200 },
     });
@@ -1004,7 +1036,7 @@ describe("GET /reports/sales-by-promotion", () => {
           name: "Finde",
           terms: {
             benefit: { kind: "PERCENT_OFF", percent: 15 },
-            target: { kind: "CATEGORY", name: "Almacén" },
+            target: { kind: "CATEGORY", name: "Almacén", brandName: null, netContent: null },
             weekdays: [6, 7],
           },
           lines: 2,

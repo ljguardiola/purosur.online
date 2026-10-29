@@ -7,6 +7,8 @@ function level(id: string, overrides: Partial<StockLevel> = {}): StockLevel {
   return {
     id,
     name: `Producto ${id}`,
+    brandName: null,
+    netContent: null,
     categoryId: "category-1",
     categoryName: "Almacén",
     saleUnit: "KG",
@@ -95,6 +97,8 @@ describe("readCurrentStockReport", () => {
   it("lists the product's identity, balance and lots only", async () => {
     const { products } = await read([
       level("p1", {
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         balance: 4_000,
         lots: [purchasedLot("l1", { lotNumber: "L-77", expiresOn: "2027-03-01" })],
       }),
@@ -104,6 +108,8 @@ describe("readCurrentStockReport", () => {
       {
         id: "p1",
         name: "Producto p1",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         categoryId: "category-1",
         categoryName: "Almacén",
         saleUnit: "KG",

@@ -2,6 +2,7 @@ import type { PermissionKey, StockMovementKind } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  brands,
   categories,
   locations,
   products,
@@ -88,6 +89,18 @@ export async function signedInWith(
   };
 }
 
+async function brandIdNamed(db: Db, name: string): Promise<string> {
+  const [existing] = await db.select({ id: brands.id }).from(brands).where(eq(brands.name, name));
+  if (existing) {
+    return existing.id;
+  }
+  const [brand] = await db.insert(brands).values({ name }).returning({ id: brands.id });
+  if (!brand) {
+    throw new Error("test setup: seeding the brand returned no row");
+  }
+  return brand.id;
+}
+
 export async function insertProduct(
   db: Db,
   overrides: {
@@ -95,6 +108,8 @@ export async function insertProduct(
     categoryName?: string;
     saleUnit?: "UNIT" | "KG";
     active?: boolean;
+    brandName?: string;
+    netContent?: { quantity: number; unit: "G" | "KG" | "ML" | "L" | "UNIT" };
   } = {},
 ): Promise<{ productId: string; categoryId: string }> {
   const categoryName = overrides.categoryName ?? "Almacén";
@@ -108,12 +123,17 @@ export async function insertProduct(
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
   }
+  const brandId =
+    overrides.brandName === undefined ? undefined : await brandIdNamed(db, overrides.brandName);
   const [product] = await db
     .insert(products)
     .values({
       name: overrides.name ?? "Miel pura de abeja 1 kg",
       categoryId: category.id,
+      brandId,
       saleUnit: overrides.saleUnit ?? "UNIT",
+      netContentQuantity: overrides.netContent?.quantity,
+      netContentUnit: overrides.netContent?.unit,
       active: overrides.active ?? true,
     })
     .returning({ id: products.id });

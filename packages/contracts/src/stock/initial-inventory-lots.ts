@@ -6,7 +6,7 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
+import { netContentSchema, recordIdSchema } from "../shared/index.js";
 
 export const initialInventoryLotsQuerySchema = z
   .object({
@@ -28,6 +28,8 @@ export const initialInventoryLotListSchema = z.object({
       lotId: z.string(),
       productId: z.string(),
       productName: z.string(),
+      brandName: z.string().nullable(),
+      netContent: netContentSchema.nullable(),
       categoryName: z.string(),
       saleUnit: z.enum(SALE_UNITS),
       expiresOn: z.string().refine(isCalendarDay).nullable(),

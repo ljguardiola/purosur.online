@@ -1,8 +1,13 @@
+import type { ProductNetContent } from "../../catalog/index.js";
 import type { DiscountFields } from "./discount-store.js";
 
 export interface StoredDiscount extends Omit<DiscountFields, "target"> {
   id: string;
-  target: DiscountFields["target"] & { name: string };
+  target: DiscountFields["target"] & {
+    name: string;
+    brandName: string | null;
+    netContent: ProductNetContent | null;
+  };
 }
 
 export interface DiscountReader {

@@ -10,7 +10,9 @@ import { type RecipesListFilters, recipesListFilters } from "./routes";
 import {
   almendras,
   avenaConPasas,
+  balsamo,
   cajaDeInfusiones,
+  cremaNutritiva,
   mixDeFrutosSecos,
   recipeList,
   teVerde,
@@ -417,6 +419,27 @@ test("lists the recipes in the product order the filters name", async () => {
     .toEqual(["Mix ", "Caja"]);
 });
 
+test("orders recipes of products with the same name by their whole description", async () => {
+  const largeBalsamo = {
+    ...balsamo,
+    productId: "a0000000-0000-4000-8000-000000000015",
+    netContent: { quantity: 100, unit: "G" as const },
+  };
+  const descriptions = [
+    "Bálsamo de caléndula Herbaria 50 g",
+    "Bálsamo de caléndula Herbaria 100 g",
+  ];
+  const screen = await loaded(createServices(), [largeBalsamo, balsamo]);
+
+  await expect
+    .poll(() =>
+      rowTexts(screen).map((text) =>
+        descriptions.find((description) => text.startsWith(description)),
+      ),
+    )
+    .toEqual(descriptions);
+});
+
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixDeFrutosSecos, cajaDeInfusiones]);
@@ -424,4 +447,104 @@ test("has no accessibility violations once loaded, and with the create modal ope
   await expectNoAccessibilityViolations(screen.container);
   await userEvent.click(screen.getByRole("button", { name: "Nueva receta" }));
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows each recipe's product and components with their brand and net content", async () => {
+  const screen = await loaded(createServices(), [balsamo]);
+
+  await expect.element(screen.getByText("Bálsamo de caléndula Herbaria 50 g")).toBeVisible();
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
+test("the search field also finds a recipe by the brand shown with its product", async () => {
+  const screen = await loaded(createServices(), [balsamo, cajaDeInfusiones]);
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar un producto armado"), "herbaria");
+
+  await expect.poll(() => rowTexts(screen).map((text) => text.slice(0, 7))).toEqual(["Bálsamo"]);
+});
+
+test("the edit action and its modal name the recipe's product by its brand and net content", async () => {
+  const screen = await loaded(createServices(), [balsamo]);
+
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Editar la receta de Bálsamo de caléndula Herbaria 50 g",
+    }),
+  );
+
+  await expect
+    .element(
+      screen
+        .getByRole("dialog")
+        .getByRole("heading", { name: "Bálsamo de caléndula Herbaria 50 g" }),
+    )
+    .toBeVisible();
+});
+
+test("the created recipe is confirmed with its product's brand and net content", async () => {
+  const services = createServices();
+  const created: RecipeSummary = {
+    ...balsamo,
+    productId: cremaNutritiva.id,
+    productName: cremaNutritiva.name,
+    brandName: cremaNutritiva.brandName,
+    netContent: cremaNutritiva.netContent,
+  };
+  vi.mocked(services.fetchRecipes)
+    .mockResolvedValueOnce({ kind: "ok", value: recipeList([cajaDeInfusiones]) })
+    .mockResolvedValueOnce({ kind: "ok", value: recipeList([cajaDeInfusiones, created]) });
+  vi.mocked(services.saveRecipe).mockResolvedValue({ kind: "ok", recipe: created });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja de infusiones")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Nueva receta" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Producto armado/ }));
+  await expect
+    .element(screen.getByRole("option", { name: "Crema nutritiva Vitora 200 g" }))
+    .toBeVisible();
+  (
+    screen.getByRole("option", { name: "Crema nutritiva Vitora 200 g" }).element() as HTMLElement
+  ).click();
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar un componente" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Componente/ }));
+  (screen.getByRole("option", { name: "Almendras" }).element() as HTMLElement).click();
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Cantidad de Almendras" }), "0,4");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la receta" }));
+
+  await expect
+    .element(screen.getByText("La receta de Crema nutritiva Vitora 200 g ya está lista."))
+    .toBeVisible();
+});
+
+test("the replaced recipe is confirmed with its product's brand and net content", async () => {
+  const services = createServices();
+  const changed: RecipeSummary = {
+    ...balsamo,
+    version: 2,
+    components: balsamo.components.map((component) => ({
+      ...component,
+      quantityPerOutputUnit: 1000,
+    })),
+  };
+  vi.mocked(services.saveRecipe).mockResolvedValue({ kind: "ok", recipe: changed });
+  const screen = await loaded(services, [balsamo]);
+
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Editar la receta de Bálsamo de caléndula Herbaria 50 g",
+    }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: "Cantidad de Aceite de Almendras Vitora 30 ml" }),
+    "1",
+  );
+  vi.mocked(services.fetchRecipes).mockResolvedValue({ kind: "ok", value: recipeList([changed]) });
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar la receta" }));
+
+  await expect
+    .element(screen.getByText("Se reemplazó la receta de Bálsamo de caléndula Herbaria 50 g."))
+    .toBeVisible();
 });

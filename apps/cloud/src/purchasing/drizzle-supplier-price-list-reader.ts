@@ -14,7 +14,9 @@ import type {
 } from "@purosur/domain/purchasing/use-cases";
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { netContentRow } from "../catalog/net-content-row.js";
 import {
+  brands,
   productPackagings,
   products,
   supplierItemPrices,
@@ -116,6 +118,9 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
         reviewed: supplierPriceListRows.reviewed,
         productId: products.id,
         productName: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         productSaleUnit: products.saleUnit,
         packagingId: productPackagings.id,
         packagingName: productPackagings.name,
@@ -126,6 +131,7 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
       })
       .from(supplierPriceListRows)
       .leftJoin(products, eq(products.id, supplierPriceListRows.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .leftJoin(productPackagings, eq(productPackagings.id, supplierPriceListRows.packagingId))
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
@@ -153,6 +159,11 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
                   product: {
                     id: row.productId,
                     name: row.productName as string,
+                    brandName: row.brandName,
+                    netContent: netContentRow({
+                      netContentQuantity: row.netContentQuantity,
+                      netContentUnit: row.netContentUnit,
+                    }),
                     saleUnit: row.productSaleUnit as SaleUnit,
                   },
                   packaging: {

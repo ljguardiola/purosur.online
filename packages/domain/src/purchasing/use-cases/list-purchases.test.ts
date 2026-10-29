@@ -7,7 +7,13 @@ const BRANCH = "branch-1";
 
 const LINE = {
   id: "line-1",
-  product: { id: "p-unit", name: "Yerba", saleUnit: "UNIT" as const },
+  product: {
+    id: "p-unit",
+    name: "Yerba",
+    brandName: "Piragüé",
+    netContent: { quantity: 500, unit: "G" as const },
+    saleUnit: "UNIT" as const,
+  },
   packaging: { id: "k-1", name: "Caja x 12" },
   packages: 2,
   quantity: 24_000,

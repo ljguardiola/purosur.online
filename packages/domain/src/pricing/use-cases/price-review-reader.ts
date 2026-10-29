@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductNetContent, SaleUnit } from "../../catalog/index.js";
 import type { PriceReview } from "../model/price-review.js";
 import type { CurrentPrice } from "./pricing-store.js";
 
@@ -18,6 +18,8 @@ export interface PriceUnderReview extends PriceReview {
   name: string;
   categoryId: string;
   categoryName: string;
+  brandName: string | null;
+  netContent: ProductNetContent | null;
   saleUnit: SaleUnit;
   currentPrice: CurrentPrice | null;
 }

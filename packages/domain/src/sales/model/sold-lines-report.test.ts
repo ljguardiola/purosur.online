@@ -4,6 +4,8 @@ import { salesOfGroups, soldTotals } from "./sold-lines-report.js";
 const unitLines = (id: string | null, path: string[], quantity: number, amount: number) => ({
   id,
   path,
+  brandName: null,
+  netContent: null,
   weightSource: null,
   quantity,
   amount,
@@ -15,12 +17,20 @@ const weighedLines = (
   quantity: number,
   amount: number,
   weightSource: "SCALE" | "MANUAL" = "SCALE",
-) => ({ id, path, weightSource, quantity, amount });
+) => ({ id, path, brandName: null, netContent: null, weightSource, quantity, amount });
 
 describe("salesOfGroups", () => {
   it("counts the quantity of a line without a weight source in units", () => {
     expect(salesOfGroups([unitLines("p1", ["Azúcar 1 kg"], 7, 14_000)])).toEqual([
-      { id: "p1", path: ["Azúcar 1 kg"], units: 7, thousandths: 0, amount: 14_000 },
+      {
+        id: "p1",
+        path: ["Azúcar 1 kg"],
+        brandName: null,
+        netContent: null,
+        units: 7,
+        thousandths: 0,
+        amount: 14_000,
+      },
     ]);
   });
 
@@ -28,10 +38,38 @@ describe("salesOfGroups", () => {
     "counts the quantity of a line weighed by %s in thousandths of a kilogram",
     (weightSource) => {
       expect(salesOfGroups([weighedLines("p2", ["Queso"], 1_250, 9_000, weightSource)])).toEqual([
-        { id: "p2", path: ["Queso"], units: 0, thousandths: 1_250, amount: 9_000 },
+        {
+          id: "p2",
+          path: ["Queso"],
+          brandName: null,
+          netContent: null,
+          units: 0,
+          thousandths: 1_250,
+          amount: 9_000,
+        },
       ]);
     },
   );
+
+  it("keeps the brand and the net content of the product a group stands for", () => {
+    const oil = {
+      ...unitLines("p3", ["Aceite de Almendras"], 2, 4_000),
+      brandName: "Vitora",
+      netContent: { quantity: 30, unit: "ML" as const },
+    };
+
+    expect(salesOfGroups([oil, { ...oil, quantity: 1, amount: 2_000 }])).toEqual([
+      {
+        id: "p3",
+        path: ["Aceite de Almendras"],
+        brandName: "Vitora",
+        netContent: { quantity: 30, unit: "ML" },
+        units: 3,
+        thousandths: 0,
+        amount: 6_000,
+      },
+    ]);
+  });
 
   it("adds the units, the weight and the amount of the rows of one group", () => {
     expect(
@@ -42,7 +80,15 @@ describe("salesOfGroups", () => {
         unitLines("c1", ["Almacén", "Dulces"], 2, 500),
       ]),
     ).toEqual([
-      { id: "c1", path: ["Almacén", "Dulces"], units: 5, thousandths: 750, amount: 6_500 },
+      {
+        id: "c1",
+        path: ["Almacén", "Dulces"],
+        brandName: null,
+        netContent: null,
+        units: 5,
+        thousandths: 750,
+        amount: 6_500,
+      },
     ]);
   });
 
@@ -54,8 +100,24 @@ describe("salesOfGroups", () => {
         weighedLines(null, [], 400, 200),
       ]),
     ).toEqual([
-      { id: "c1", path: ["Almacén"], units: 1, thousandths: 0, amount: 500 },
-      { id: null, path: [], units: 1, thousandths: 400, amount: 300 },
+      {
+        id: "c1",
+        path: ["Almacén"],
+        brandName: null,
+        netContent: null,
+        units: 1,
+        thousandths: 0,
+        amount: 500,
+      },
+      {
+        id: null,
+        path: [],
+        brandName: null,
+        netContent: null,
+        units: 1,
+        thousandths: 400,
+        amount: 300,
+      },
     ]);
   });
 
@@ -119,8 +181,24 @@ describe("soldTotals", () => {
   it("adds up the units, the weight and the amount of every group", () => {
     expect(
       soldTotals([
-        { id: "a", path: ["A"], units: 5, thousandths: 750, amount: 6_500 },
-        { id: "b", path: ["B"], units: 2, thousandths: 1_000, amount: 1_500 },
+        {
+          id: "a",
+          path: ["A"],
+          brandName: null,
+          netContent: null,
+          units: 5,
+          thousandths: 750,
+          amount: 6_500,
+        },
+        {
+          id: "b",
+          path: ["B"],
+          brandName: null,
+          netContent: null,
+          units: 2,
+          thousandths: 1_000,
+          amount: 1_500,
+        },
       ]),
     ).toEqual({ units: 7, thousandths: 1_750, amount: 8_000 });
   });

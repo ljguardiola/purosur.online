@@ -52,6 +52,28 @@ test("shows the product and the packaging an item is linked to, or that it is no
   await expect.element(notLinked.getByText("Sin vincular")).toBeVisible();
 });
 
+test("describes the linked product with its brand name and net content", async () => {
+  const link = LINKED_ROW.link as NonNullable<typeof LINKED_ROW.link>;
+  const screen = await render(
+    <RowLinkCell
+      row={{
+        ...LINKED_ROW,
+        link: {
+          ...link,
+          product: {
+            ...link.product,
+            name: "Aceite de Almendras",
+            brandName: "Vitora",
+            netContent: { quantity: 30, unit: "ML" },
+          },
+        },
+      }}
+    />,
+  );
+
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
 test("says the item may no longer be bought by the packaging it is linked to", async () => {
   const link = LINKED_ROW.link as NonNullable<typeof LINKED_ROW.link>;
   const notBuyable = await render(

@@ -167,7 +167,13 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
     await reply.code(200).send(
       purchaseChoicesSchema.parse({
         suppliers: choices.suppliers,
-        products: products.map(({ id, name, saleUnit }) => ({ id, name, saleUnit })),
+        products: products.map(({ id, name, brandName, netContent, saleUnit }) => ({
+          id,
+          name,
+          brandName,
+          netContent,
+          saleUnit,
+        })),
         packagings: choices.packagings,
         today: choices.today,
       }),

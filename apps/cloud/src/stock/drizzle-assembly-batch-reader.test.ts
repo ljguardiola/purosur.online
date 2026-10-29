@@ -36,7 +36,12 @@ beforeEach(async () => {
 
 async function seeded() {
   const { userId: actorId, locationId } = await signedInWith(db, [], NOW);
-  const mix = await insertProduct(db, { name: "Mix de frutos secos", saleUnit: "KG" });
+  const mix = await insertProduct(db, {
+    name: "Mix de frutos secos",
+    saleUnit: "KG",
+    brandName: "Vitora",
+    netContent: { quantity: 250, unit: "G" },
+  });
   const nuts = await insertProduct(db, { name: "Nueces", saleUnit: "KG" });
   return { actorId, locationId, mix: mix.productId, nuts: nuts.productId };
 }
@@ -65,6 +70,8 @@ describe("DrizzleAssemblyBatchReader.batches", () => {
       id: batchId,
       productId: mix,
       productName: "Mix de frutos secos",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
       saleUnit: "KG",
       assembledAt: new Date("2026-05-04T13:00:00.000Z"),
       output: 14_000,

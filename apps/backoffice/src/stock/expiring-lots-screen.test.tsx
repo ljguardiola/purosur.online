@@ -2,7 +2,11 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { expiringLotsFilters } from "./routes";
-import { chiaExpiredLot, expiringLotList } from "./test-support/expiring-lots-fixtures";
+import {
+  almondOilExpiredLot,
+  chiaExpiredLot,
+  expiringLotList,
+} from "./test-support/expiring-lots-fixtures";
 import {
   createServices,
   listed,
@@ -266,4 +270,20 @@ test("typing in the category filter offers only the matching categories", async 
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Lácteos"]);
+});
+
+test("shows each lot's product with its brand and net content", async () => {
+  const screen = await renderScreen(listed([almondOilExpiredLot]));
+
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
+test("finds a lot by the brand shown with its product", async () => {
+  const screen = await renderScreen(listed([chiaExpiredLot, almondOilExpiredLot]));
+  await expect.element(screen.getByText("Semillas de chía")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("searchbox"), "vitora");
+
+  await expect.element(screen.getByText("Semillas de chía")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
 });

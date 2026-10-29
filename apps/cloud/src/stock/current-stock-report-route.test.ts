@@ -122,6 +122,8 @@ describe("GET /reports/current-stock", () => {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
     });
     const cheaperLot = await insertPurchasedLot(db, {
       productId: almonds.productId,
@@ -150,6 +152,8 @@ describe("GET /reports/current-stock", () => {
         {
           id: almonds.productId,
           name: "Almendras peladas",
+          brand_name: "Vitora",
+          net_content: { quantity: 250, unit: "G" },
           category_id: almonds.categoryId,
           category_name: "Frutos secos",
           sale_unit: "KG",

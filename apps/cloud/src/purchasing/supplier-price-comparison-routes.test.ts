@@ -67,7 +67,11 @@ describe("GET /supplier-price-comparison", () => {
     const { headers } = await signedInWith(db, ["compare_prices_and_suggest_orders"], NOW);
     const actorId = await insertActor(db);
     const locationId = await seededLocationId(db);
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    const { id: productId } = await insertProduct(db, {
+      name: "Yerba 1 kg",
+      brandName: "Piragüé",
+      netContent: { quantity: 1, unit: "KG" },
+    });
     const offers = [
       { name: "Alfa", priceCents: 12_000, quantityPerPackage: 10_000 },
       { name: "Beta", priceCents: 5_000, quantityPerPackage: 3_000 },
@@ -103,7 +107,13 @@ describe("GET /supplier-price-comparison", () => {
 
     expect(response.statusCode).toBe(200);
     const [product] = response.json().products;
-    expect(product).toMatchObject({ id: productId, name: "Yerba 1 kg", saleUnit: "UNIT" });
+    expect(product).toMatchObject({
+      id: productId,
+      name: "Yerba 1 kg",
+      brandName: "Piragüé",
+      netContent: { quantity: 1, unit: "KG" },
+      saleUnit: "UNIT",
+    });
     expect(
       product.offers.map(
         (offer: { supplier: { name: string }; pricePerSaleUnit: unknown; cheapest: boolean }) => [
@@ -166,6 +176,8 @@ describe("GET /supplier-price-comparison", () => {
       {
         id: productId,
         name: "Yerba 1 kg",
+        brandName: null,
+        netContent: null,
         categoryName: expect.any(String),
         saleUnit: "UNIT",
         offers: [],

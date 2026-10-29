@@ -204,6 +204,22 @@ test("does not say a product priced only by an offer without a price per sale un
   expect(screen.getByText("Sin precio en ninguna lista cargada").query()).toBeNull();
 });
 
+test("describes the product with its brand name and net content", async () => {
+  const [almonds] = PRICE_COMPARISON.products;
+  const screen = await loaded(createServices(), {
+    products: [
+      {
+        ...(almonds as NonNullable<typeof almonds>),
+        name: "Aceite de Almendras",
+        brandName: "Vitora",
+        netContent: { quantity: 30, unit: "ML" },
+      },
+    ],
+  });
+
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
 test("counts the products shown", async () => {
   const screen = await loaded(createServices());
 
@@ -214,6 +230,27 @@ test("counts a single product in the singular", async () => {
   const screen = await loaded(createServices(), { products: [almonds] });
 
   await expect.element(screen.getByText("1 producto", { exact: true })).toBeVisible();
+});
+
+test("searches the products by their brand name and net content as well", async () => {
+  const [almonds, honey] = PRICE_COMPARISON.products;
+  const screen = await loaded(createServices(), {
+    products: [
+      {
+        ...(almonds as NonNullable<typeof almonds>),
+        name: "Aceite de Almendras",
+        brandName: "Vitora",
+        netContent: { quantity: 30, unit: "ML" },
+      },
+      honey as NonNullable<typeof honey>,
+    ],
+  });
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar un producto"), "almendras vitora 30");
+
+  await expect.poll(() => offerRows(screen)).toHaveLength(2);
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+  expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
 });
 
 test("searches the products by name and reports the search", async () => {
