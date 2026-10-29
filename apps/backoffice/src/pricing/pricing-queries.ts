@@ -5,12 +5,15 @@ import type {
   PriceList,
   PriceMargin,
   PriceProduct,
+  PricesPastReviewDeadlineReportBody,
+  PricesPastReviewDeadlineReportQuery,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
+import type { fetchPricesPastReviewDeadlineReport } from "./prices-past-review-deadline-report-api";
 import type { FetchPricesInput, fetchPriceMargin, fetchPrices } from "./prices-api";
 
 export const pricingKey = ["pricing"] as const;
@@ -22,6 +25,8 @@ export const pricesKeys = {
   reviewQueueOf: (productIds: readonly string[]) =>
     [...pricingKey, "review-queue", ...productIds] as const,
   reload: [...pricingKey, "reload"] as const,
+  pastReviewDeadlineReport: (query: PricesPastReviewDeadlineReportQuery) =>
+    [...pricingKey, "past-review-deadline-report", query.from ?? "", query.to ?? ""] as const,
   margin: (productId: string, unitPrice: number | null) =>
     [...pricingKey, "margin", productId, unitPrice] as const,
 };
@@ -104,6 +109,21 @@ export function useReloadPrice(params: {
     const product = listed.value.products.find((listedProduct) => listedProduct.id === id);
     return product ? { kind: "found", product } : { kind: "not_found" };
   };
+}
+
+export function usePricesPastReviewDeadlineReportQuery(params: {
+  query: PricesPastReviewDeadlineReportQuery;
+  fetchPricesPastReviewDeadlineReport: typeof fetchPricesPastReviewDeadlineReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PricesPastReviewDeadlineReportBody>({
+    queryKey: pricesKeys.pastReviewDeadlineReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchPricesPastReviewDeadlineReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
 }
 
 export function useRefreshPrices(): () => Promise<void> {
