@@ -940,6 +940,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1053,6 +1054,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1161,6 +1163,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1268,6 +1271,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1404,6 +1408,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1530,6 +1535,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1660,6 +1666,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1798,6 +1805,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1903,6 +1911,7 @@ describe("the register's local migrations", () => {
         "0088_contingency_backup_ticket_returns",
         "0089_credit_note_reprints",
         "0090_brands",
+        "0091_register_condition_starts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
