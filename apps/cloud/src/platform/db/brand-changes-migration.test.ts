@@ -10,7 +10,7 @@ describe("the brand changes migration applied over a database that already holds
   it("logs every existing brand once as an insert at its version, so a register pulling from the start receives it", async () => {
     const database = await databaseBeforeMigration("_brand_changes");
     await database.query(
-      "insert into brands (id, name, active, version) values ($1, 'Sancor', false, 3), ($2, 'La Serenísima', true, 1)",
+      "insert into brands (id, name, active, version) values ($1, 'Vitora', false, 3), ($2, 'Granuz', true, 1)",
       [BRAND_B, BRAND_A],
     );
     const { rows: before } = await database.query("select entity from changes");

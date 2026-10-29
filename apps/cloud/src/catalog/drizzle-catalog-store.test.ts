@@ -232,7 +232,7 @@ describe("the catalog changes a pull hands to the registers", () => {
   });
 
   it("logs a created brand as an insert of its first version", async () => {
-    const outcome = await createBrand(store(), { name: "La Serenísima" });
+    const outcome = await createBrand(store(), { name: "Vitora" });
     if (outcome.kind !== "created") {
       throw new Error("test setup: the brand was not created");
     }
@@ -243,12 +243,12 @@ describe("the catalog changes a pull hands to the registers", () => {
   });
 
   it("logs a renamed, deactivated and reactivated brand each as an update of its next version", async () => {
-    const created = await createBrand(store(), { name: "La Serenísima" });
+    const created = await createBrand(store(), { name: "Vitora" });
     if (created.kind !== "created") {
       throw new Error("test setup: the brand was not created");
     }
 
-    await editBrand(store(), { id: created.brand.id, name: "Sancor", version: 1 });
+    await editBrand(store(), { id: created.brand.id, name: "Granuz", version: 1 });
     await deactivateBrand(store(), created.brand.id);
     await reactivateBrand(store(), created.brand.id);
 

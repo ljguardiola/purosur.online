@@ -52,7 +52,7 @@ const productRow = {
 };
 
 const tagRow = { name: "Sin TACC", active: true, version: 1 };
-const brandRow = { name: "La Serenísima", active: true, version: 1 };
+const brandRow = { name: "Vitora", active: true, version: 1 };
 
 const priceListRow = { name: "Lista minorista", version: 1 };
 

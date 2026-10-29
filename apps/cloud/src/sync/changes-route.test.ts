@@ -576,7 +576,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
 
   it("gives a brand with its name, active flag and version, as it is now at every change of it", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
-    const created = await createBrand(catalogStore(), { name: "La Serenísima" });
+    const created = await createBrand(catalogStore(), { name: "Vitora" });
     if (created.kind !== "created") {
       throw new Error(`test setup: creating the brand ended as ${created.kind}`);
     }
@@ -584,7 +584,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
 
     const page = await pullSinceSeeded(deviceToken);
 
-    const row = { name: "La Serenísima", active: false, version: 2 };
+    const row = { name: "Vitora", active: false, version: 2 };
     expect(page.changes).toEqual([
       { change_seq: 5, entity: "brand", entity_id: created.brand.id, row },
       { change_seq: 6, entity: "brand", entity_id: created.brand.id, row },
