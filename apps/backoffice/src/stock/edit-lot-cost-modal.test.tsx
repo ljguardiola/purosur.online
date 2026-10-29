@@ -211,7 +211,7 @@ test("ends the session when saving finds it over", async () => {
 const PRICE_LIST = /Lista de proveedor/;
 
 async function choosePrice(screen: Awaited<ReturnType<typeof renderModal>>, name: RegExp) {
-  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: PRICE_LIST }));
+  await userEvent.click(screen.getByRole("dialog").getByRole("combobox", { name: PRICE_LIST }));
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
@@ -228,10 +228,10 @@ test("offers the loaded prices instead of a typed cost, each with its supplier, 
   const screen = await renderModal(createProps({ lot: lotWithPrices }));
 
   const dialog = screen.getByRole("dialog", { name: "Almendras peladas" });
-  await userEvent.click(dialog.getByRole("button", { name: PRICE_LIST }));
+  await userEvent.click(dialog.getByRole("combobox", { name: PRICE_LIST }));
   await expect
     .element(screen.getByRole("option", { name: /^Alfa/ }))
-    .toHaveTextContent("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kgLa más barata");
+    .toHaveTextContent("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kg La más barata");
   await expect
     .element(screen.getByRole("option", { name: /^Beta/ }))
     .toHaveTextContent("Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg");
@@ -245,8 +245,8 @@ test("starts on the price the lot's cost already equals and saves it as the supp
   const screen = await renderModal(props);
 
   await expect
-    .element(screen.getByRole("button", { name: PRICE_LIST }))
-    .toHaveTextContent("Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg");
+    .element(screen.getByRole("combobox", { name: PRICE_LIST }))
+    .toHaveValue("Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg");
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
   await expect
@@ -265,8 +265,9 @@ test("starts on the cheapest price when the lot's cost equals none, and saves an
   const screen = await renderModal(props);
 
   await expect
-    .element(screen.getByRole("button", { name: PRICE_LIST }))
-    .toHaveTextContent("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kgLa más barata");
+    .element(screen.getByRole("combobox", { name: PRICE_LIST }))
+    .toHaveValue("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kg");
+  await expect.element(screen.getByRole("dialog").getByText("La más barata")).toBeVisible();
   await choosePrice(screen, /^Beta/);
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
@@ -306,7 +307,7 @@ test("fits six loaded prices in the modal and offers every one", async () => {
       element.scrollWidth > element.clientWidth,
   );
   expect(overflowing).toEqual([]);
-  await userEvent.click(screen.getByRole("button", { name: PRICE_LIST }));
+  await userEvent.click(screen.getByRole("combobox", { name: PRICE_LIST }));
   expect(screen.getByRole("option").elements()).toHaveLength(6);
 });
 

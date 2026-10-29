@@ -188,7 +188,7 @@ export function EditLotCostModal({
         {firstPrice !== undefined ? (
           <form.AppField name="supplierItemId">
             {(field) => (
-              <field.Select
+              <field.ComboBox
                 label="Lista de proveedor"
                 options={[firstPrice, ...otherPrices]}
                 description={lotDescription}
