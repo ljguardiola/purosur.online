@@ -327,12 +327,9 @@ test.each([
       "Yerba mate",
     );
 
-    await expect
-      .element(screen.getByText("Sin resultados").or(screen.getByRole("option")))
-      .toBeVisible();
-    expect(
-      screen.getByRole("option", { name: "Crear producto «Yerba mate»" }).query() !== null,
-    ).toBe(offered);
+    const entry = screen.getByRole("option", { name: "Crear producto «Yerba mate»" });
+    await expect.element(offered ? entry : screen.getByText("Sin resultados")).toBeVisible();
+    expect(entry.query() !== null).toBe(offered);
   },
 );
 

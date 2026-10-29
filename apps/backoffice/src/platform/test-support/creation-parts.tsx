@@ -1,4 +1,6 @@
 import type { CategorySummary } from "@purosur/contracts";
+import { Button, Modal } from "@purosur/ui";
+import { Plus } from "lucide-react";
 import type { ReactElement } from "react";
 import type { CreatedProduct, CreationModalProps } from "../creation-parts";
 import type { RoleSummary } from "../roles-api";
@@ -15,15 +17,32 @@ function StubCreationModal({
   onClose: () => void;
 }): ReactElement {
   return (
-    <div role="dialog" aria-label={title}>
+    <Modal
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      width="standard"
+      tone="info"
+      icon={<Plus />}
+      context="Prueba"
+      title={title}
+      closable
+      footer={
+        <>
+          <Button variant="secondary" size="large" onPress={onClose}>
+            Cerrar lo creado
+          </Button>
+          <Button variant="primary" size="large" onPress={create}>
+            Guardar lo creado
+          </Button>
+        </>
+      }
+    >
       <p>{`Nombre tipeado: ${initialName}`}</p>
-      <button type="button" onClick={create}>
-        Guardar lo creado
-      </button>
-      <button type="button" onClick={onClose}>
-        Cerrar lo creado
-      </button>
-    </div>
+    </Modal>
   );
 }
 

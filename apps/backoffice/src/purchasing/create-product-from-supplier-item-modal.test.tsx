@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import { StubCategoryCreationModal } from "../platform/test-support/creation-parts";
 import { radioLabel } from "../platform/test-support/radio-label";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -84,6 +85,7 @@ function renderModal({
           list={list}
           target={target}
           mayCreateBrandsAndTags={mayCreateBrandsAndTags}
+          categoryCreationModal={StubCategoryCreationModal}
           services={services}
           onCreated={onCreated}
           onOutdated={onOutdated}
