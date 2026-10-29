@@ -52,7 +52,7 @@ export async function proposeSupplierItemLink(
 
   const candidates = productLinkCandidates(
     await reader.activeProducts(),
-    [row.description, row.presentation].filter((part) => part !== null).join(" "),
+    [row.description, row.presentation].join(" "),
   );
   if (candidates.length === 0) {
     return { kind: "none" };
