@@ -55,7 +55,11 @@ test("offers the report in the reports side column", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("link", { name: "Flete por período", includeHidden: false }).first())
+    .element(
+      screen
+        .getByRole("navigation", { name: "Reportes" })
+        .getByRole("link", { name: "Flete por período" }),
+    )
     .toBeVisible();
 });
 

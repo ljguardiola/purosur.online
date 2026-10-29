@@ -68,7 +68,6 @@ async function freightAt(input: {
     date: input.date,
     amountCents: input.amountCents,
   });
-  return purchaseId;
 }
 
 describe("GET /reports/freight-by-period access", () => {

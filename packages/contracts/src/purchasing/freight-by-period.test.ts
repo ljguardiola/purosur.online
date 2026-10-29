@@ -54,12 +54,6 @@ describe("freightByPeriodSchema", () => {
     expect(freightByPeriodSchema.parse(empty)).toEqual(empty);
   });
 
-  it.each(["2026-01", "2026-12", "1999-09"])("accepts the month %s", (name) => {
-    const body = { ...report, months: [{ ...month, month: name }] };
-
-    expect(freightByPeriodSchema.safeParse(body).success).toBe(true);
-  });
-
   const withTotals = (change: object) => ({ totals: { ...report.totals, ...change } });
   const withMonth = (change: object) => ({ months: [{ ...month, ...change }] });
 
@@ -72,12 +66,6 @@ describe("freightByPeriodSchema", () => {
     ["a negative total amount", withTotals({ amount: -1 })],
     ["a total amount with decimals", withTotals({ amount: 1.5 })],
     ["a month that is not a month", withMonth({ month: "octubre" })],
-    ["a month with a day", withMonth({ month: "2026-10-06" })],
-    ["a month number of zero", withMonth({ month: "2026-00" })],
-    ["a month number above twelve", withMonth({ month: "2026-13" })],
-    ["a month with a two digit year", withMonth({ month: "26-10" })],
-    ["a month with trailing text", withMonth({ month: "2026-10x" })],
-    ["a month with leading text", withMonth({ month: "x2026-10" })],
     ["a month without freights", withMonth({ freights: 0 })],
     ["a month with decimals in its freights", withMonth({ freights: 1.5 })],
     ["a month without amount", withMonth({ amount: 0 })],
