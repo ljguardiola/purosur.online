@@ -68,6 +68,7 @@ export {
   registerFortnightScope,
   registerOwnConditionIdentity,
   registerOwnConditions,
+  registerOwnConditionsNotYetKnown,
   registerReplenishmentObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,

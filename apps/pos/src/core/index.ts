@@ -944,6 +944,8 @@ const registerStatusDeps: RegisterStatusDeps | undefined =
         battery: () => batteryWatch.report(),
         newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
         criticalBatteryAction: () => criticalBatteryAction,
+        onConditionStartsNotRecorded: (failure) =>
+          reportFailure("recording since when the register's own conditions hold", failure),
       };
 const registerConditionWatch =
   registerStatusDeps === undefined
@@ -954,8 +956,7 @@ const registerConditionWatch =
         },
         intervalMs: REGISTER_CONDITION_OBSERVE_INTERVAL_MS,
         scheduleNext: (run, delayMs) => {
-          const timer = setTimeout(run, delayMs);
-          return () => clearTimeout(timer);
+          setTimeout(run, delayMs);
         },
         onFailure: (error) => reportFailure("observing the register's own conditions", error),
       });

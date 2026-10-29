@@ -9,6 +9,7 @@ import {
   registerOperationAccess,
   registerOwnConditionIdentity,
   registerOwnConditions,
+  registerOwnConditionsNotYetKnown,
   type StorageStanding,
   storageSalesStopOf,
 } from "@purosur/domain";
@@ -39,6 +40,7 @@ export interface RegisterStatusDeps {
   battery: () => BatteryReport | undefined;
   newSalesStoppedByBattery: () => boolean;
   criticalBatteryAction: () => CriticalBatteryAction;
+  onConditionStartsNotRecorded: (failure: unknown) => void;
 }
 
 export function observedOwnConditionsOf({
@@ -51,10 +53,11 @@ export function observedOwnConditionsOf({
   battery,
   newSalesStoppedByBattery,
   criticalBatteryAction,
+  onConditionStartsNotRecorded,
 }: RegisterStatusDeps): RegisterStatus["conditions"] {
   const reading = serialDevices();
   const rules = zoneRules.zoneRules();
-  const held = registerOwnConditions({
+  const standing = {
     salesStop: salesStopOf(database),
     latestPreEmissionGate: readLatestPreEmissionGateOutcome(database),
     lastAcceptedPushAt: new SqliteAcceptedPushLog(database).lastAcceptedPushAt(),
@@ -68,14 +71,24 @@ export function observedOwnConditionsOf({
     newSalesStoppedByBattery: newSalesStoppedByBattery(),
     criticalBatteryAction: criticalBatteryAction(),
     clockOffsetMs: readLatestClockOffsetMs(database),
-  });
-  const { starts } = observeRegisterOwnConditions(
+  };
+  const held = registerOwnConditions(standing);
+  const observation = observeRegisterOwnConditions(
     { store: new SqliteRegisterConditionStartStore(database, zoneRules), clock: { now } },
-    { held: held.map(registerOwnConditionIdentity) },
+    {
+      held: held.map(registerOwnConditionIdentity),
+      notYetKnown: registerOwnConditionsNotYetKnown(standing),
+    },
   );
+  if (observation.kind === "starts_not_recorded") {
+    onConditionStartsNotRecorded(observation.failure);
+  }
   return held.map((condition) => ({
     ...condition,
-    since: inArgentinaTime(starts.get(registerOwnConditionIdentity(condition)) ?? now(), rules),
+    since: inArgentinaTime(
+      observation.starts.get(registerOwnConditionIdentity(condition)) ?? now(),
+      rules,
+    ),
   }));
 }
 

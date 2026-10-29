@@ -194,3 +194,46 @@ export function registerOwnConditions({
     return detected === null ? [] : [{ ...detected, level: levelOf(condition) }];
   });
 }
+
+export function registerOwnConditionsNotYetKnown({
+  salesStop,
+  serialDevices,
+  storage,
+  localDatabaseDamaged,
+  battery,
+  newSalesStoppedByBattery,
+  criticalBatteryAction,
+}: RegisterOwnStanding): string[] {
+  const fullDiskDenial = salesDenialOf(
+    salesStop,
+    storageSalesStopOf({ ...storage, diskStanding: "full" }),
+    localDatabaseDamaged,
+    newSalesStoppedByBattery,
+  );
+  const criticalBatteryDenial = salesDenialOf(
+    salesStop,
+    storageSalesStopOf(storage),
+    localDatabaseDamaged,
+    true,
+  );
+  const unmeasuredStorage = !storage.measured;
+  const unreadBattery = battery === undefined;
+  const notYetKnown: [string, boolean][] = [
+    [
+      registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_full" }),
+      unmeasuredStorage && fullDiskDenial?.reason === "disk_full",
+    ],
+    [
+      registerOwnConditionIdentity({ kind: "sales_denied", reason: "battery_critical" }),
+      unreadBattery && criticalBatteryDenial?.reason === "battery_critical",
+    ],
+    ["serial_device_missing", serialDevices === null],
+    ["disk_space_low", unmeasuredStorage],
+    ["wal_oversized", unmeasuredStorage],
+    ["battery_low", unreadBattery],
+    ["on_battery", unreadBattery],
+    ["battery_missing", unreadBattery],
+    ["critical_battery_action_not_shutdown", criticalBatteryAction.kind === "unreadable"],
+  ];
+  return notYetKnown.flatMap(([identity, unknown]) => (unknown ? [identity] : []));
+}

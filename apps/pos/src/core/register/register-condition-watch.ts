@@ -1,7 +1,7 @@
 export interface RegisterConditionWatchDeps {
   observe: () => void;
   intervalMs: number;
-  scheduleNext: (run: () => void, delayMs: number) => () => void;
+  scheduleNext: (run: () => void, delayMs: number) => void;
   onFailure: (error: unknown) => void;
 }
 
