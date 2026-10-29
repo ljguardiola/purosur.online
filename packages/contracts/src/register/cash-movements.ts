@@ -1,4 +1,9 @@
-import { ARGENTINA_TIME_ZONE, CASH_MOVEMENT_KINDS } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  CASH_MOVEMENT_KINDS,
+  cashMovementReason,
+  isValidCashMovementAmount,
+} from "@purosur/domain";
 import { z } from "zod";
 import { answeredRangeSchema, recordIdSchema } from "../shared/index.js";
 
@@ -12,8 +17,8 @@ export const cashMovementsSchema = z.object({
       id: recordIdSchema(),
       occurred_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
       kind: z.enum(CASH_MOVEMENT_KINDS),
-      reason: z.string().min(1),
-      amount: z.int().positive(),
+      reason: z.string().refine((reason) => cashMovementReason(reason) === reason),
+      amount: z.int().refine(isValidCashMovementAmount),
       session_id: recordIdSchema(),
       register_name: z.string(),
       session_opened_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
