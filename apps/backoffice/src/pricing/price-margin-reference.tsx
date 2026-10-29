@@ -1,5 +1,5 @@
 import type { PriceProduct } from "@purosur/contracts";
-import { Card, FigureStat, formatCents, formatTenthsOfPercent, LoadFailure } from "@purosur/ui";
+import { formatCents, formatTenthsOfPercent, HighlightedFigure, LoadFailure } from "@purosur/ui";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { typedUnitPrice } from "./price-form";
@@ -20,19 +20,14 @@ export type PriceMarginReferenceProps = {
 type ShownMargin = { unitPrice: number; totalCostCents: number; marginTenthsOfPercent: number };
 
 function MarginFigure({ shown }: { shown: ShownMargin | null }) {
-  return (
-    <Card variant="subtle">
-      {shown === null ? (
-        <FigureStat label={MARGIN_LABEL} size="heading" value="—" />
-      ) : (
-        <FigureStat
-          label={MARGIN_LABEL}
-          size="heading"
-          detail={`${formatCents(shown.unitPrice)} − ${formatCents(shown.totalCostCents)} sobre el precio`}
-          value={formatTenthsOfPercent(shown.marginTenthsOfPercent)}
-        />
-      )}
-    </Card>
+  return shown === null ? (
+    <HighlightedFigure label={MARGIN_LABEL} value="—" />
+  ) : (
+    <HighlightedFigure
+      label={MARGIN_LABEL}
+      detail={`${formatCents(shown.unitPrice)} − ${formatCents(shown.totalCostCents)} sobre el precio`}
+      value={formatTenthsOfPercent(shown.marginTenthsOfPercent)}
+    />
   );
 }
 
@@ -85,11 +80,7 @@ export function PriceMarginReference({
     return <MarginFigure shown={null} />;
   }
   if (typed !== settled || margin.status === "loading") {
-    return (
-      <Card variant="subtle">
-        <FigureStat label={MARGIN_LABEL} size="heading" loading />
-      </Card>
-    );
+    return <HighlightedFigure label={MARGIN_LABEL} loading />;
   }
   if (margin.status === "failed") {
     return <LoadFailure {...cloudLoadFailure(margin, "el margen")} />;

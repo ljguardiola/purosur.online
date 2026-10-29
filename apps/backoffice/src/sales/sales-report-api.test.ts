@@ -2,12 +2,14 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   fetchAverageTicket,
+  fetchHandTypedWeights,
   fetchManualDiscounts,
   fetchSalesByCashier,
   fetchSalesByProductAndCategory,
   fetchSalesByPromotion,
   fetchSalesReport,
 } from "./sales-report-api";
+import { handTypedWeightsReport } from "./test-support/hand-typed-weights-fixtures";
 import {
   ANA_USER_ID,
   averageTicketReport,
@@ -250,4 +252,42 @@ test.each([
   vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
   expect(await fetchAverageTicket({})).toEqual({ kind });
+});
+
+test("fetchHandTypedWeights asks for no filter when no range and no register are chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, handTypedWeightsReport));
+
+  expect(await fetchHandTypedWeights({})).toEqual({ kind: "ok", value: handTypedWeightsReport });
+  expect(fetch).toHaveBeenCalledWith("/api/reports/hand-typed-weights");
+});
+
+test("fetchHandTypedWeights asks for the range and the register chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, handTypedWeightsReport));
+
+  await fetchHandTypedWeights({
+    from: "2026-10-01",
+    to: "2026-10-07",
+    register_id: FRONT_REGISTER_ID,
+  });
+
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/reports/hand-typed-weights?from=2026-10-01&to=2026-10-07&register_id=${FRONT_REGISTER_ID}`,
+  );
+});
+
+test("fetchHandTypedWeights treats a body that does not match the report as failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { ...handTypedWeightsReport, totals: { weighed_lines: 1 } }),
+  );
+
+  expect(await fetchHandTypedWeights({})).toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, "unauthenticated"],
+  [403, "forbidden"],
+])("fetchHandTypedWeights answers a %s as the cloud's outcome", async (status, kind) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchHandTypedWeights({})).toEqual({ kind });
 });

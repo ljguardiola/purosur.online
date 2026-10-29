@@ -1581,6 +1581,7 @@ export const saleReprints = pgTable(
       .notNull()
       .references(() => sales.id),
     document: text("document").notNull().default("sale_receipt"),
+    creditNoteId: uuid("credit_note_id"),
     orderNumber: integer("order_number").notNull(),
     requestedBy: text("requested_by").notNull(),
     authorizedBy: text("authorized_by"),
@@ -1589,7 +1590,13 @@ export const saleReprints = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.saleId, table.document, table.orderNumber] }),
+    unique("sale_reprints_once_per_order")
+      .on(table.saleId, table.document, table.creditNoteId, table.orderNumber)
+      .nullsNotDistinct(),
+    check(
+      "sale_reprints_credit_note_id_check",
+      sql`(${table.document} = 'credit_note') = (${table.creditNoteId} is not null)`,
+    ),
     check(
       "sale_reprints_document_check",
       sql`${table.document} in ('sale_receipt', 'credit_note', 'deferred_invoice')`,
@@ -2508,7 +2515,10 @@ export const offlineFiscalDocuments = pgTable(
     correctedNumber: integer("corrected_number"),
   },
   (table) => [
-    unique("offline_fiscal_documents_sale_document_key").on(table.saleId, table.documentType),
+    uniqueIndex("offline_fiscal_documents_one_invoice_per_sale")
+      .on(table.saleId)
+      .where(sql`${table.documentType} = ${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)}`),
+    uniqueIndex("offline_fiscal_documents_credit_note_key").on(table.creditNoteId),
     index("offline_fiscal_documents_corrected_voucher_idx")
       .on(table.correctedVoucherType, table.correctedPointOfSale, table.correctedNumber)
       .where(sql`${table.documentType} = ${sql.raw(`'${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)}`),

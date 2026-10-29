@@ -31,6 +31,12 @@ patchedDependencies:
   # test inside a describe block is skipped), and a test file that fails to import now reports no
   # tests at all (the runner takes that as a passing run). Remove once the runner handles both.
   "@stryker-mutator/vitest-runner@10.0.0": patches/@stryker-mutator__vitest-runner@10.0.0.patch
+  # The provider opens each browser runner page waiting, with no time limit, for its load event, and
+  # Vitest waits for every page it opened before ending the run: one page whose load never fires
+  # keeps a run whose files all finished open forever. The page is usable once its session connects,
+  # which Vitest already bounds with its own connect timeout, so the patch waits only for the
+  # navigation to commit. Remove once the provider no longer waits for the load event.
+  "@vitest/browser-playwright@5.0.5": patches/@vitest__browser-playwright@5.0.5.patch
   # graphile-worker records a finished or failed job's outcome without awaiting or catching it. A
   # connection dropped during that query is an unhandled rejection, which crashes the cloud when
   # Sentry is not initialized; the patch logs it as a fatal error through graphile-worker's logger

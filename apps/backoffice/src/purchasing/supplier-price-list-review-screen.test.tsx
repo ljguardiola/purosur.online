@@ -13,7 +13,12 @@ import {
   supplierPriceListReviewFilters,
 } from "./supplier-price-lists-filters";
 import { LINK_CHOICES, NO_PROPOSAL, PROPOSED_BY_BARCODE } from "./test-support/supplier-item-links";
-import { CREATION_CATEGORIES, PRODUCT_CREATED } from "./test-support/supplier-item-products";
+import {
+  CREATION_BRANDS,
+  CREATION_CATEGORIES,
+  CREATION_TAG_LIST,
+  PRODUCT_CREATED,
+} from "./test-support/supplier-item-products";
 import {
   DISCARDED_LIST,
   EVERY_REVIEW_ACTION,
@@ -51,6 +56,10 @@ function createServices(
     createPackaging: vi.fn(),
     createProductFromSupplierItem: vi.fn(),
     fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+    fetchProductCreationBrands: vi.fn().mockReturnValue(new Promise(() => {})),
+    fetchProductCreationTags: vi.fn().mockReturnValue(new Promise(() => {})),
+    createBrand: vi.fn(),
+    createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     confirmSupplierPriceList: vi.fn(),
     discardSupplierPriceList: vi.fn(),
@@ -944,7 +953,9 @@ test("opens the create product modal for the item, with the categories read for 
 
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByText("Crear producto desde la lista")).toBeVisible();
-  await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Nuez mariposa extra light x 10 kg");
   expect(services.fetchProductCreationCategories).toHaveBeenCalledTimes(1);
 });
 
@@ -953,6 +964,14 @@ test("says the product was created, and reads the list again", async () => {
   vi.mocked(services.fetchProductCreationCategories).mockResolvedValue({
     kind: "ok",
     value: CREATION_CATEGORIES,
+  });
+  vi.mocked(services.fetchProductCreationBrands).mockResolvedValue({
+    kind: "ok",
+    value: CREATION_BRANDS,
+  });
+  vi.mocked(services.fetchProductCreationTags).mockResolvedValue({
+    kind: "ok",
+    value: CREATION_TAG_LIST,
   });
   vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({
     kind: "ok",
@@ -975,6 +994,37 @@ test("says the product was created, and reads the list again", async () => {
   await expect
     .poll(() => vi.mocked(services.fetchSupplierPriceListReview).mock.calls.length)
     .toBeGreaterThan(readsBefore);
+});
+
+async function openCreateProductModal(access: Parameters<typeof screenElement>[1]) {
+  const services = createServices();
+  vi.mocked(services.fetchProductCreationBrands).mockResolvedValue({
+    kind: "ok",
+    value: CREATION_BRANDS,
+  });
+  vi.mocked(services.fetchProductCreationTags).mockResolvedValue({
+    kind: "ok",
+    value: CREATION_TAG_LIST,
+  });
+  const screen = await loaded(services, extracted, access);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("button", { name: /Marca/ })).toBeVisible();
+  return dialog;
+}
+
+test("offers to create a brand to a session that may manage products and categories", async () => {
+  const dialog = await openCreateProductModal({ access: ADMINISTRATOR_ACCESS });
+
+  await expect.element(dialog.getByRole("button", { name: "Nueva marca" })).toBeVisible();
+});
+
+test("offers no way to create a brand to a session that may only review supplier price lists", async () => {
+  const dialog = await openCreateProductModal({ access: accessWith("supplier_price_lists") });
+
+  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
 });
 
 test("moves from the link modal to the create product modal for the same item", async () => {
@@ -1000,7 +1050,9 @@ test("moves from the link modal to the create product modal for the same item", 
 
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByText("Crear producto desde la lista")).toBeVisible();
-  await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Nuez mariposa extra light x 10 kg");
   expect(screen.getByText("Pedidos · Vincular un ítem").query()).toBeNull();
 });
 

@@ -1,6 +1,12 @@
-import { categoryListSchema, internalBarcodeSchema } from "@purosur/contracts";
+import {
+  brandListSchema,
+  categoryListSchema,
+  internalBarcodeSchema,
+  tagListSchema,
+} from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { brands, tags } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
@@ -40,6 +46,12 @@ afterEach(async () => {
 const getCategories = (headers: Record<string, string> = {}) =>
   app.inject({ method: "GET", url: "/supplier-price-lists/product-categories", headers });
 
+const getBrands = (headers: Record<string, string> = {}) =>
+  app.inject({ method: "GET", url: "/supplier-price-lists/product-brands", headers });
+
+const getTags = (headers: Record<string, string> = {}) =>
+  app.inject({ method: "GET", url: "/supplier-price-lists/product-tags", headers });
+
 const postInternalBarcode = (headers: Record<string, string> = {}, payload: object = {}) =>
   app.inject({
     method: "POST",
@@ -71,6 +83,63 @@ describe("GET /supplier-price-lists/product-categories", () => {
     expect(response.statusCode).toBe(200);
     const listed = categoryListSchema.parse(response.json());
     expect(listed.map((category) => category.id)).toEqual([categoryId]);
+  });
+});
+
+describe("GET /supplier-price-lists/product-brands", () => {
+  it("answers 401 when no session cookie was sent", async () => {
+    expect((await getBrands()).statusCode).toBe(401);
+  });
+
+  it("answers 403 to a user without the permission to review supplier price lists", async () => {
+    const { headers } = await signedInWith(db, ["manage_products_and_categories"], NOW);
+
+    const response = await getBrands(headers);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("lists the brands, the deactivated ones included, to a user who may only review supplier price lists", async () => {
+    const [active] = await db.insert(brands).values({ name: "Dulcor" }).returning();
+    const [inactive] = await db
+      .insert(brands)
+      .values({ name: "Granuz", active: false })
+      .returning();
+    const { headers } = await signedInWith(db, ["manage_supplier_price_lists"], NOW);
+
+    const response = await getBrands(headers);
+
+    expect(response.statusCode).toBe(200);
+    const listed = brandListSchema.parse(response.json());
+    expect(listed.map((brand) => brand.id)).toEqual([active?.id, inactive?.id]);
+  });
+});
+
+describe("GET /supplier-price-lists/product-tags", () => {
+  it("answers 401 when no session cookie was sent", async () => {
+    expect((await getTags()).statusCode).toBe(401);
+  });
+
+  it("answers 403 to a user without the permission to review supplier price lists", async () => {
+    const { headers } = await signedInWith(db, ["manage_products_and_categories"], NOW);
+
+    const response = await getTags(headers);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("lists the tags, the deactivated ones included, to a user who may only review supplier price lists", async () => {
+    const [active] = await db.insert(tags).values({ name: "Orgánico" }).returning();
+    const [inactive] = await db.insert(tags).values({ name: "Vegano", active: false }).returning();
+    const { headers } = await signedInWith(db, ["manage_supplier_price_lists"], NOW);
+
+    const response = await getTags(headers);
+
+    expect(response.statusCode).toBe(200);
+    const listed = tagListSchema.parse(response.json());
+    expect(listed.tags.map((tag) => tag.id)).toEqual([active?.id, inactive?.id]);
   });
 });
 

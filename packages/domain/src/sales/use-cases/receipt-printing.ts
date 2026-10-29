@@ -166,8 +166,7 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
         tx.recordPrintAttempt(key, at);
       } else {
         tx.recordReprint(key, {
-          saleId: key.saleId,
-          document: key.document,
+          ...key,
           orderNumber: copy.orderNumber,
           requestedBy: grant.actorId,
           authorizedBy: grant.authorizedBy ?? null,
@@ -260,7 +259,7 @@ function printStateEvent(
 
 function reprintEvent(
   eventId: string,
-  { document, saleId }: PrintedDocumentKey,
+  key: PrintedDocumentKey,
   orderNumber: number,
   { actorId, authorizedBy }: ReceiptPrintGrant,
   reason: ReceiptReason,
@@ -269,12 +268,13 @@ function reprintEvent(
   return {
     event_id: eventId,
     aggregate_type: "Sale",
-    aggregate_id: saleId,
+    aggregate_id: key.saleId,
     event_type: "reprint_recorded",
-    schema_version: 2,
+    schema_version: 3,
     payload: {
-      sale_id: saleId,
-      document,
+      sale_id: key.saleId,
+      document: key.document,
+      ...(key.document === "credit_note" ? { credit_note_id: key.creditNoteId } : {}),
       order_number: orderNumber,
       requested_by: actorId,
       authorized_by: authorizedBy ?? null,

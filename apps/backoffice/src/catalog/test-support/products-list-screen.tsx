@@ -1,13 +1,19 @@
-import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "@purosur/contracts";
+import type {
+  BrandSummary,
+  CategorySummary,
+  ListedProduct,
+  ProductSummary,
+  TagSummary,
+} from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { tagList } from "../../platform/test-support/tags";
 import { render } from "../../shell/test-support/render-with-router";
 import { ProductsListScreen } from "../products-list-screen";
 import type { ProductsListScreenServices } from "../products-list-services";
 import { type ProductsListFilters, productsListFilters } from "../routes";
 import { driedFruits, groceries } from "./products";
-import { tagList } from "./tags";
 
 export function createServices(
   overrides: Partial<ProductsListScreenServices> = {},
@@ -34,7 +40,7 @@ export type ScreenLocator = ReturnType<Screen["getByRole"]>;
 
 export function mockLoaded(
   services: ProductsListScreenServices,
-  products: ProductSummary[],
+  products: ListedProduct[],
   categories: CategorySummary[] = [groceries, driedFruits],
   brands: BrandSummary[] = [],
   tags: TagSummary[] = [],

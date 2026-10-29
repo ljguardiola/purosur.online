@@ -12,6 +12,7 @@ import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../c
 import {
   fiscalConfigurationRoute,
   fiscalTasksRoute,
+  issuedFiscalDocumentsReportRoute,
   issuedFiscalDocumentsRoute,
   pointsOfSaleRoute,
 } from "../fiscal/routes";
@@ -42,6 +43,7 @@ import {
 import { returnsReportRoute } from "../returns/routes";
 import {
   averageTicketRoute,
+  handTypedWeightsRoute,
   manualDiscountsRoute,
   reportsIndexRoute,
   salesByCashierRoute,
@@ -137,6 +139,7 @@ const routeTree = rootRoute.addChildren([
       cashSessionClosesRoute,
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
+      handTypedWeightsRoute,
       averageTicketRoute,
       currentStockReportRoute,
       expiringLotsReportRoute,
@@ -144,6 +147,7 @@ const routeTree = rootRoute.addChildren([
       salesByPromotionRoute,
       manualDiscountsRoute,
       returnsReportRoute,
+      issuedFiscalDocumentsReportRoute,
     ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,

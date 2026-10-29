@@ -20,7 +20,7 @@ test("groups the sales reports in a card titled Ventas", async () => {
   await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   const sales = screen.getByRole("region", { name: "Ventas" });
   await expect.element(sales).toBeVisible();
-  expect(sales.getByRole("link").elements()).toHaveLength(7);
+  expect(sales.getByRole("link").elements()).toHaveLength(8);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -54,6 +54,14 @@ test("lists the sales by cashier report as a link to it", async () => {
   await expect
     .element(screen.getByRole("link", { name: "Ventas por cajero" }))
     .toHaveAttribute("href", "/reports/sales-by-cashier");
+});
+
+test("lists the weights typed by hand report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Pesos tipeados a mano" }))
+    .toHaveAttribute("href", "/reports/hand-typed-weights");
 });
 
 test("lists the discounts by promotion report as a link to it", async () => {
@@ -102,6 +110,17 @@ test("leaves the returns report out when it is not shown", async () => {
   const screen = await renderScreen();
 
   expect(screen.getByRole("link", { name: "Devoluciones" }).query()).toBeNull();
+});
+
+test("groups the fiscal reports in a card titled Fiscal", async () => {
+  const screen = await renderScreen();
+
+  const fiscal = screen.getByRole("region", { name: "Fiscal" });
+  await expect.element(fiscal).toBeVisible();
+  expect(fiscal.getByRole("link").elements()).toHaveLength(1);
+  await expect
+    .element(fiscal.getByRole("link", { name: "Comprobantes emitidos" }))
+    .toHaveAttribute("href", "/reports/fiscal-documents");
 });
 
 test("lists the payments confirmed by hand report as a link to it", async () => {

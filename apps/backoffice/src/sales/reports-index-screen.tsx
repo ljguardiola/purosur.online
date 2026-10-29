@@ -1,6 +1,6 @@
 import { LinkListCard, LinkListRow } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { ShoppingBag, Wallet, Warehouse } from "lucide-react";
+import { FileText, ShoppingBag, Wallet, Warehouse } from "lucide-react";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 
@@ -17,6 +17,7 @@ export function ReportsIndexScreen({ returnsShown }: { returnsShown: boolean }) 
           label="Ventas por producto y por categoría"
         />
         <ReportRow to="/reports/sales-by-cashier" label="Ventas por cajero" />
+        <ReportRow to="/reports/hand-typed-weights" label="Pesos tipeados a mano" />
         <ReportRow to="/reports/average-ticket" label="Ticket promedio" />
         <ReportRow to="/reports/sales-by-promotion" label="Descuentos por promoción" />
         <ReportRow to="/reports/manual-discounts" label="Descuentos manuales y sobre el total" />
@@ -25,6 +26,9 @@ export function ReportsIndexScreen({ returnsShown }: { returnsShown: boolean }) 
         <ReportRow to="/reports/hand-confirmed-payments" label="Pagos confirmados a mano" />
         <ReportRow to="/reports/cash-session-closes" label="Cierres de sesión" />
         {returnsShown ? <ReportRow to="/reports/returns" label="Devoluciones" /> : null}
+      </LinkListCard>
+      <LinkListCard title="Fiscal" icon={<FileText />}>
+        <ReportRow to="/reports/fiscal-documents" label="Comprobantes emitidos" />
       </LinkListCard>
       <LinkListCard title="Stock" icon={<Warehouse />}>
         <ReportRow to="/reports/current-stock" label="Stock actual valorizado" />

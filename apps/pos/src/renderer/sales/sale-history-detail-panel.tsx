@@ -18,13 +18,13 @@ import { CircleX, FileSearch, Lock, Printer, ReceiptText, TriangleAlert } from "
 import type { ReactNode } from "react";
 import { paidPaymentName } from "../platform/payment-method-names";
 import type { CoreData } from "../platform/use-core-query";
-import type { SaleDetail } from "../shell/sale-receipt-text";
+import type { SaleDetail, SaleDetailCreditNote } from "../shell/sale-receipt-text";
 import {
   comprobantePresentation,
   nonEmptyRows,
   receiptCopyPresentation,
 } from "../shell/sale-receipt-text";
-import { creditNoteRow } from "./credit-note-text";
+import { creditNotePrintButton, creditNoteRowOf } from "./credit-note-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
 import { useSaleHistoryDetailQuery } from "./sales-queries";
 import { voidRefusalReason } from "./void-sale-text";
@@ -45,7 +45,7 @@ function detailRows(sale: SaleDetail): SummaryRowProps[] {
       ? []
       : [{ label: "Código de consulta", value: formatShortCode(sale.short_code) }]),
     ...(sale.state === "voided" ? [{ label: "Estado", value: "Anulada" }] : []),
-    ...(sale.credit_note === null ? [] : [creditNoteRow(sale.credit_note)]),
+    ...sale.credit_notes.map(creditNoteRowOf),
     ...(sale.operation_number === null
       ? []
       : [{ label: "Operación", value: formatOperationNumber(sale.operation_number) }]),
@@ -61,8 +61,8 @@ type SaleActions = {
   onReprint: (sale: SaleDetail) => void;
   onPrintOriginal: (sale: SaleDetail) => void;
   onVoid: (sale: SaleDetail) => void;
-  onPrintCreditNote: (sale: SaleDetail) => void;
-  onReprintCreditNote: (sale: SaleDetail) => void;
+  onPrintCreditNote: (sale: SaleDetail, creditNote: SaleDetailCreditNote) => void;
+  onReprintCreditNote: (sale: SaleDetail, creditNote: SaleDetailCreditNote) => void;
   onReprintDeferredInvoice: (sale: SaleDetail) => void;
 };
 
@@ -79,9 +79,10 @@ function SaleFooter({
   const refusalReason =
     voidability.kind === "voidable" ? undefined : voidRefusalReason(voidability.refusal);
   const offersVoid = voidability.kind === "voidable" || refusalReason !== undefined;
-  const offersCreditNote =
-    sale.credit_note?.kind === "authorized" || sale.credit_note?.kind === "issued_offline";
-  const creditNoteIsDuplicate = sale.credit_note_next_copy?.kind === "duplicate";
+  const printableCreditNotes = sale.credit_notes.flatMap((creditNote) =>
+    creditNote.next_copy === null ? [] : [{ ...creditNote, next_copy: creditNote.next_copy }],
+  );
+  const offersCreditNote = printableCreditNotes.length > 0;
   const offersInvoiceDuplicate =
     sale.reprint.kind === "available" && sale.deferred_invoice_next_copy?.kind === "duplicate";
   if (
@@ -118,21 +119,22 @@ function SaleFooter({
           Reimprimir factura
         </Button>
       ) : null}
-      {offersCreditNote ? (
+      {printableCreditNotes.map((creditNote) => (
         <Button
+          key={creditNote.credit_note_id}
           variant="secondary"
           size="large"
           fullWidth
           icon={<Printer />}
           onPress={() =>
-            creditNoteIsDuplicate ? onReprintCreditNote(sale) : onPrintCreditNote(sale)
+            creditNote.next_copy.kind === "duplicate"
+              ? onReprintCreditNote(sale, creditNote)
+              : onPrintCreditNote(sale, creditNote)
           }
         >
-          {creditNoteIsDuplicate
-            ? receiptCopyPresentation({ kind: "duplicate" }).printButton
-            : "Imprimir nota de crédito"}
+          {creditNotePrintButton(creditNote, printableCreditNotes.length > 1)}
         </Button>
-      ) : null}
+      ))}
       {offersVoid ? (
         <Button
           variant="secondary"

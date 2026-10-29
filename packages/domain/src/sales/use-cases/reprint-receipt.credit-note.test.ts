@@ -89,6 +89,7 @@ describe("reprintReceipt of a credit note", () => {
         {
           document: "credit_note",
           saleId: "sale-1",
+          creditNoteId: "credit-note-1",
           orderNumber: 1,
           requestedBy: "cashier",
           authorizedBy: "supervisor",
@@ -103,10 +104,11 @@ describe("reprintReceipt of a credit note", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "reprint_recorded",
-          schema_version: 2,
+          schema_version: 3,
           payload: {
             sale_id: "sale-1",
             document: "credit_note",
+            credit_note_id: "credit-note-1",
             order_number: 1,
             requested_by: "cashier",
             authorized_by: "supervisor",
@@ -193,6 +195,38 @@ describe("reprintReceipt of a credit note", () => {
       const [sale] = rig.ledger.state.sales;
       expect(sale?.returnCreditNotes?.[0]?.reprints).toHaveLength(1);
       expect(sale?.creditNote?.reprints).toEqual([]);
+    });
+
+    it("names the credit note of the return in the reprint and in its event", async () => {
+      const rig = receiptRig([
+        {
+          ...creditedSale({ printAttemptedAt: FIRST_PRINT_AT, stored: STORED }),
+          returnCreditNotes: [
+            returnCreditNote(FICTIONAL_ISSUER, {
+              printAttemptedAt: FIRST_PRINT_AT,
+              stored: STORED,
+            }),
+          ],
+        },
+      ]);
+
+      const printing = reprintReceipt(
+        rig.ports,
+        { ...DUPLICATE_INPUT, creditNoteId: "credit-note-2" },
+        rig.watch,
+      );
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
+      await printing;
+
+      const [sale] = rig.ledger.state.sales;
+      expect(sale?.returnCreditNotes?.[0]?.reprints[0]).toMatchObject({
+        creditNoteId: "credit-note-2",
+      });
+      expect(rig.ledger.state.outbox[0]?.payload).toMatchObject({
+        document: "credit_note",
+        credit_note_id: "credit-note-2",
+      });
     });
   });
 

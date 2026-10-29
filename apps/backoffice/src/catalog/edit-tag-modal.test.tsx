@@ -2,10 +2,10 @@ import type { TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { organico, sinTacc } from "../platform/test-support/tags";
 import { render } from "../shell/test-support/render-with-router";
 import type { TagReload } from "./catalog-queries";
 import { EditTagModal, type EditTagModalServices } from "./edit-tag-modal";
-import { organico, sinTacc } from "./test-support/tags";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");

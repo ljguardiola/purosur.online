@@ -10,6 +10,7 @@ export type { ConfirmPriceInput, ConfirmPriceOutcome } from "./confirm-price.js"
 export { confirmPrice } from "./confirm-price.js";
 export type { CreateDiscountInput, CreateDiscountOutcome } from "./create-discount.js";
 export { createDiscount } from "./create-discount.js";
+export type { CurrentPriceReader } from "./current-price-reader.js";
 export type { DiscountReader, StoredDiscount } from "./discount-reader.js";
 export type {
   DiscountFields,

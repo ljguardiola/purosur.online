@@ -1,10 +1,4 @@
-import {
-  type BrandCreationBody,
-  type BrandEditBody,
-  type BrandSummary,
-  brandListSchema,
-  brandSummarySchema,
-} from "@purosur/contracts";
+import { type BrandEditBody, type BrandSummary, brandListSchema } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -16,12 +10,6 @@ type RequestRefusal =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-export type CreateBrandOutcome =
-  | { kind: "ok"; brand: BrandSummary }
-  | { kind: "validation_failed"; field: string }
-  | { kind: "name_taken" }
-  | RequestRefusal;
 
 export type EditBrandInput = { name: string; version: number };
 
@@ -45,10 +33,6 @@ function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
-}
-
-function postJson(path: string, body?: unknown): Promise<Response> {
-  return sendJson("POST", path, body);
 }
 
 async function readCode(response: Response): Promise<string | undefined> {
@@ -81,28 +65,6 @@ export async function fetchBrands(): Promise<FetchBrandsOutcome> {
   }
   const parsed = brandListSchema.safeParse(await response.json().catch(() => undefined));
   return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
-}
-
-export async function createBrand(input: { name: string }): Promise<CreateBrandOutcome> {
-  const requestBody: BrandCreationBody = { name: input.name };
-  let response: Response;
-  try {
-    response = await postJson("/api/brands", requestBody);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    const parsed = brandSummarySchema.safeParse(await response.json().catch(() => undefined));
-    return parsed.success ? { kind: "ok", brand: parsed.data } : { kind: "failed" };
-  }
-  if (response.status === 400) {
-    const field = await readValidationFailedField(response);
-    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
-  }
-  if (response.status === 409) {
-    return { kind: "name_taken" };
-  }
-  return refusal(response);
 }
 
 export async function editBrand(id: string, input: EditBrandInput): Promise<EditBrandOutcome> {

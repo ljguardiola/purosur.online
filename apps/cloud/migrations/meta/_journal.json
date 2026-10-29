@@ -981,6 +981,20 @@
       "when": 1793144354189,
       "tag": "0146_void_assembly_batches",
       "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1793210428675,
+      "tag": "0147_reprints_by_credit_note",
+      "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1793221879764,
+      "tag": "0148_offline_credit_notes_per_return",
+      "breakpoints": true
     }
   ]
 }

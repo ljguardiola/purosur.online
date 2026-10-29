@@ -1,3 +1,5 @@
+import { createBrand } from "../platform/brand-creation-api";
+import { createTag } from "../platform/tag-creation-api";
 import type { ConfirmSupplierPriceListModalServices } from "./confirm-supplier-price-list-modal";
 import type { CreateProductFromSupplierItemModalServices } from "./create-product-from-supplier-item-modal";
 import type { DiscardSupplierPriceListModalServices } from "./discard-supplier-price-list-modal";
@@ -11,7 +13,9 @@ import {
 } from "./supplier-item-links-api";
 import {
   createProductFromSupplierItem,
+  fetchProductCreationBrands,
   fetchProductCreationCategories,
+  fetchProductCreationTags,
   generateSupplierItemInternalBarcode,
 } from "./supplier-item-products-api";
 import {
@@ -45,6 +49,10 @@ export const defaultSupplierPriceListReviewScreenServices: SupplierPriceListRevi
   createPackaging,
   createProductFromSupplierItem,
   fetchProductCreationCategories,
+  fetchProductCreationBrands,
+  fetchProductCreationTags,
+  createBrand,
+  createTag,
   generateInternalBarcode: generateSupplierItemInternalBarcode,
   confirmSupplierPriceList,
   discardSupplierPriceList,

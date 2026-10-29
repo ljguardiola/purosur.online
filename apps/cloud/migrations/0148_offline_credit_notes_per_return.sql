@@ -1,0 +1,3 @@
+ALTER TABLE "offline_fiscal_documents" DROP CONSTRAINT "offline_fiscal_documents_sale_document_key";--> statement-breakpoint
+CREATE UNIQUE INDEX "offline_fiscal_documents_one_invoice_per_sale" ON "offline_fiscal_documents" USING btree ("sale_id") WHERE "offline_fiscal_documents"."document_type" = 'factura_c';--> statement-breakpoint
+CREATE UNIQUE INDEX "offline_fiscal_documents_credit_note_key" ON "offline_fiscal_documents" USING btree ("credit_note_id");

@@ -35,3 +35,22 @@ export function withUncountedReturns(
   }));
   return { ...facts, returned, payments };
 }
+
+export function withReturnsOfBranch(
+  heldHere: SaleForReturn,
+  knownToBranch: SaleForReturn,
+  countedReturnIds: readonly string[],
+  localReturns: readonly LocalReturnOfSale[],
+): SaleForReturn {
+  const branch = withUncountedReturns(knownToBranch, countedReturnIds, localReturns);
+  return {
+    ...heldHere,
+    returned: branch.returned,
+    payments: heldHere.payments.map((payment) => ({
+      ...payment,
+      refundedAmount:
+        branch.payments.find(({ id }) => id === payment.id)?.refundedAmount ??
+        payment.refundedAmount,
+    })),
+  };
+}

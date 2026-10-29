@@ -14,6 +14,7 @@ import {
 import { candidateImage, candidateManifest } from "./register-candidate.mjs";
 
 const SALES = "apps/pos/src/core/sales";
+const ESCPOS = "apps/pos/src/core/platform/escpos";
 const STAGING_SHA512 = createHash("sha512").update("staging installer").digest("base64");
 
 test("reports no device when no hardware adapter folder changed", () => {
@@ -22,7 +23,11 @@ test("reports no device when no hardware adapter folder changed", () => {
 });
 
 test("reports the device of each hardware adapter folder", () => {
-  assert.deepEqual(devicesChanged([`${SALES}/receipt-printer/pc850.ts`]), ["printer"]);
+  assert.deepEqual(devicesChanged([`${SALES}/receipt-printer/tcp-receipt-printer.ts`]), [
+    "printer",
+  ]);
+  assert.deepEqual(devicesChanged([`${ESCPOS}/escpos-writer.ts`]), ["printer"]);
+  assert.deepEqual(devicesChanged([`${ESCPOS}/pc850.ts`]), ["printer"]);
   assert.deepEqual(devicesChanged([`${SALES}/scale/systel-scale.ts`]), ["scale"]);
   assert.deepEqual(devicesChanged([`${SALES}/barcode-reader/barcode-reader-lines.ts`]), [
     "barcode reader",
@@ -43,7 +48,7 @@ test("lists each device once, in a fixed order", () => {
       `${SALES}/barcode-reader/serial-barcode-reader.ts`,
       `${SALES}/scale/systel-scale.ts`,
       `${SALES}/receipt-printer/tcp-receipt-printer.ts`,
-      `${SALES}/receipt-printer/pc850.ts`,
+      `${ESCPOS}/pc850.ts`,
     ]),
     ["printer", "scale", "barcode reader"],
   );
@@ -93,11 +98,11 @@ test("measures from the commit of the candidate production serves", async () => 
   await withRepo(async ({ commit, runGit }) => {
     commit("old", { [`${SALES}/scale/systel-scale.ts`]: "1" });
     const served = commit("served", { [`${SALES}/serial-link/open-serial-link.ts`]: "1" });
-    const sha = commit("new", { [`${SALES}/receipt-printer/pc850.ts`]: "1", "README.md": "x" });
+    const sha = commit("new", { [`${ESCPOS}/pc850.ts`]: "1", "README.md": "x" });
 
     assert.deepEqual(await changedPaths({ sha, baseline: served, runGit }), [
       "README.md",
-      `${SALES}/receipt-printer/pc850.ts`,
+      `${ESCPOS}/pc850.ts`,
     ]);
   });
 });
@@ -238,7 +243,7 @@ test("the CLI flags a device changed since production's register even when a lat
 
 test("the CLI covers the whole history when production serves no register yet", async () => {
   await withRepo(async ({ commit, runGit }) => {
-    commit("first", { [`${SALES}/receipt-printer/pc850.ts`]: "1" });
+    commit("first", { [`${ESCPOS}/pc850.ts`]: "1" });
     const sha = commit("second", { "README.md": "2" });
     const harness = cliHarness({ sha, runGit, served: undefined });
 
@@ -249,7 +254,7 @@ test("the CLI covers the whole history when production serves no register yet", 
 
 test("the CLI outputs no device when none changed since production's register", async () => {
   await withRepo(async ({ commit, runGit }) => {
-    commit("first", { [`${SALES}/receipt-printer/pc850.ts`]: "1" });
+    commit("first", { [`${ESCPOS}/pc850.ts`]: "1" });
     const served = commit("served", { "README.md": "1" });
     const sha = commit("released", { "README.md": "2" });
     const harness = cliHarness({

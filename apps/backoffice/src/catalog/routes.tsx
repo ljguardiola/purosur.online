@@ -8,6 +8,7 @@ import { refuseWithout } from "../shell/signed-in-route";
 export const productsListFilters = z.object({
   search: z.string().default("").catch(""),
   category: z.string().default("ALL").catch("ALL"),
+  brand: z.string().default("ALL").catch("ALL"),
   unit: z.enum(["ALL", "UNIT", "KG"]).default("ALL").catch("ALL"),
   status: z.enum(["active", "inactive", "all"]).default("active").catch("active"),
   sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
