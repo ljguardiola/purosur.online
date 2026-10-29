@@ -10,6 +10,7 @@ import {
 import { weekCashMovementsReport } from "../register/test-support/cash-movements-fixtures";
 import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
 import { returnsReport } from "../returns/test-support/returns-fixtures";
+import { removedLinesAndCancelledSalesReport } from "../sales/test-support/removed-lines-and-cancelled-sales-fixtures";
 import { handTypedWeightsReport } from "../sales/test-support/hand-typed-weights-fixtures";
 import {
   ANA_USER_ID,
@@ -40,6 +41,7 @@ opensOnlyScreens([
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/hand-typed-weights",
+  "/reports/removed-lines-and-cancelled-sales",
   "/reports/sales-by-promotion",
   "/reports/manual-discounts",
   "/reports/average-ticket",
@@ -92,6 +94,9 @@ function reportsServices(capabilities: Capability[]) {
     kind: "ok",
     value: handTypedWeightsReport,
   });
+  vi.mocked(
+    services.removedLinesAndCancelledSalesScreen.fetchRemovedLinesAndCancelledSales,
+  ).mockResolvedValue({ kind: "ok", value: removedLinesAndCancelledSalesReport });
   vi.mocked(services.salesByPromotionScreen.fetchSalesByPromotion).mockResolvedValue({
     kind: "ok",
     value: promotionDiscountsReport,
@@ -573,6 +578,42 @@ test("keeps the weights typed by hand report's filters after following its own s
   await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
 });
 
+test("opens the removed lines and cancelled sales report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(
+    screen.getByRole("main").getByRole("link", { name: "Líneas quitadas y ventas canceladas" }),
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Líneas quitadas y ventas canceladas", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/removed-lines-and-cancelled-sales");
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
+  expect(
+    services.removedLinesAndCancelledSalesScreen.fetchRemovedLinesAndCancelledSales,
+  ).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Líneas quitadas y ventas canceladas · Puro Sur");
+});
+
+test("keeps the removed lines and cancelled sales report's filters after following its own side column link", async () => {
+  const url = "/reports/removed-lines-and-cancelled-sales?from=2026-10-01&to=2026-10-07";
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Líneas quitadas y ventas canceladas" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
+
+  await userEvent.click(sectionLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+});
+
 test("opens the discounts by promotion report from the list and reads it from the cloud", async () => {
   const services = reportsServices(["reports_area"]);
   window.history.pushState(null, "", "/reports");
@@ -837,6 +878,7 @@ test.each([
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/hand-typed-weights",
+  "/reports/removed-lines-and-cancelled-sales",
   "/reports/sales-by-promotion",
   "/reports/manual-discounts",
   "/reports/average-ticket",
@@ -859,6 +901,9 @@ test.each([
   ).not.toHaveBeenCalled();
   expect(services.salesByCashierScreen.fetchSalesByCashier).not.toHaveBeenCalled();
   expect(services.handTypedWeightsScreen.fetchHandTypedWeights).not.toHaveBeenCalled();
+  expect(
+    services.removedLinesAndCancelledSalesScreen.fetchRemovedLinesAndCancelledSales,
+  ).not.toHaveBeenCalled();
   expect(services.salesByPromotionScreen.fetchSalesByPromotion).not.toHaveBeenCalled();
   expect(services.manualDiscountsScreen.fetchManualDiscounts).not.toHaveBeenCalled();
   expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();

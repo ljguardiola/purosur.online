@@ -4,11 +4,13 @@ import {
   fetchAverageTicket,
   fetchHandTypedWeights,
   fetchManualDiscounts,
+  fetchRemovedLinesAndCancelledSales,
   fetchSalesByCashier,
   fetchSalesByProductAndCategory,
   fetchSalesByPromotion,
   fetchSalesReport,
 } from "./sales-report-api";
+import { removedLinesAndCancelledSalesReport } from "./test-support/removed-lines-and-cancelled-sales-fixtures";
 import { handTypedWeightsReport } from "./test-support/hand-typed-weights-fixtures";
 import {
   ANA_USER_ID,
@@ -291,3 +293,47 @@ test.each([
 
   expect(await fetchHandTypedWeights({})).toEqual({ kind });
 });
+
+test("fetchRemovedLinesAndCancelledSales asks for no filter when no range and no register are chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, removedLinesAndCancelledSalesReport));
+
+  expect(await fetchRemovedLinesAndCancelledSales({})).toEqual({
+    kind: "ok",
+    value: removedLinesAndCancelledSalesReport,
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/reports/removed-lines-and-cancelled-sales");
+});
+
+test("fetchRemovedLinesAndCancelledSales asks for the range and the register chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, removedLinesAndCancelledSalesReport));
+
+  await fetchRemovedLinesAndCancelledSales({
+    from: "2026-10-01",
+    to: "2026-10-07",
+    register_id: FRONT_REGISTER_ID,
+  });
+
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/reports/removed-lines-and-cancelled-sales?from=2026-10-01&to=2026-10-07&register_id=${FRONT_REGISTER_ID}`,
+  );
+});
+
+test("fetchRemovedLinesAndCancelledSales treats a body that does not match the report as failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { ...removedLinesAndCancelledSalesReport, totals: { removed: 1 } }),
+  );
+
+  expect(await fetchRemovedLinesAndCancelledSales({})).toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, "unauthenticated"],
+  [403, "forbidden"],
+])(
+  "fetchRemovedLinesAndCancelledSales answers a %s as the cloud's outcome",
+  async (status, kind) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchRemovedLinesAndCancelledSales({})).toEqual({ kind });
+  },
+);

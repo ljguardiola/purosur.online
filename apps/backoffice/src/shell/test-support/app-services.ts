@@ -241,6 +241,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     handTypedWeightsScreen: {
       fetchHandTypedWeights: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    removedLinesAndCancelledSalesScreen: {
+      fetchRemovedLinesAndCancelledSales: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     salesByPromotionScreen: {
       fetchSalesByPromotion: vi.fn().mockReturnValue(new Promise(() => {})),
     },
