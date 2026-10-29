@@ -1,4 +1,6 @@
 import { compareSpanishText, foldedText } from "../../shared/index.js";
+import { mentionsNetContent } from "./net-content-mention.js";
+import type { NetContentUnit } from "./product.js";
 import { wordsOf } from "./text-words.js";
 
 export const PRODUCT_LINK_CANDIDATE_LIMIT = 20;
@@ -20,16 +22,26 @@ function appearsIn(productWord: string, textWords: readonly string[]): boolean {
   );
 }
 
-export function productLinkCandidates<T extends { id: string; name: string }>(
-  products: readonly T[],
-  text: string,
-  limit: number = PRODUCT_LINK_CANDIDATE_LIMIT,
-): T[] {
+function matchingWords(name: string | null, textWords: readonly string[]): Set<string> {
+  return new Set(foldedWords(name ?? "").filter((word) => appearsIn(word, textWords)));
+}
+
+export function productLinkCandidates<
+  T extends {
+    id: string;
+    name: string;
+    brandName: string | null;
+    netContent: { quantity: number; unit: NetContentUnit } | null;
+  },
+>(products: readonly T[], text: string, limit: number = PRODUCT_LINK_CANDIDATE_LIMIT): T[] {
   const textWords = foldedWords(text);
   return products
     .map((product) => ({
       product,
-      score: new Set(foldedWords(product.name).filter((word) => appearsIn(word, textWords))).size,
+      score:
+        matchingWords(product.name, textWords).size +
+        matchingWords(product.brandName, textWords).size +
+        (product.netContent !== null && mentionsNetContent(text, product.netContent) ? 1 : 0),
     }))
     .filter(({ score }) => score > 0)
     .sort(

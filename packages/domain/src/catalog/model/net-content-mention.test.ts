@@ -81,9 +81,9 @@ describe("mentionsNetContent", () => {
         (quantity, unit) => {
           const spellings = { G: "g", KG: "kg", ML: "ml", L: "l", UNIT: "u" } as const;
 
-          expect(mentionsNetContent(`x ${quantity}${spellings[unit]} y`, content(quantity, unit))).toBe(
-            true,
-          );
+          expect(
+            mentionsNetContent(`x ${quantity}${spellings[unit]} y`, content(quantity, unit)),
+          ).toBe(true);
         },
       ),
     );
