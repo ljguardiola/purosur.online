@@ -30,6 +30,20 @@ export function replaceMigrations({ previousDir, currentDir }) {
   cpSync(join(currentDir, MIGRATIONS), join(previousDir, MIGRATIONS), { recursive: true });
 }
 
+const CREATE_EXTENSION_RE = /\bcreate\s+extension\s+(?:if\s+not\s+exists\s+)?"?([\w-]+)"?/gi;
+
+export function extensionsCreatedBy(migrationsDir) {
+  const names = new Set();
+  for (const file of listFiles(migrationsDir).filter((path) => path.endsWith(".sql"))) {
+    for (const [, name] of readFileSync(join(migrationsDir, file), "utf8").matchAll(
+      CREATE_EXTENSION_RE,
+    )) {
+      names.add(name);
+    }
+  }
+  return [...names].sort();
+}
+
 // A test is named as Vitest prints it: its file, its describe blocks and its own name, joined by " > ".
 const TEST_IDENTITY_SEPARATOR = " > ";
 

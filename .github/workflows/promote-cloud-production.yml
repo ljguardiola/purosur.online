@@ -199,6 +199,8 @@ jobs:
         env:
           RESULTS_FILE: ${{ runner.temp }}/route-test-results.json
           RESULTS_REPORTER: ${{ github.workspace }}/.github/scripts/previous-release-contract-reporter.mjs
+          MIGRATIONS_DIR: ${{ github.workspace }}/apps/cloud/migrations
+          NODE_OPTIONS: --import=${{ github.workspace }}/.github/scripts/previous-release-pglite-extensions.mjs
         run: >-
           xargs -a "$RUNNER_TEMP/route-tests.txt"
           pnpm exec vitest run --project node --reporter=default --reporter="$RESULTS_REPORTER"
