@@ -30,7 +30,7 @@ const SPELLING_PATTERNS = Object.entries(UNIT_SPELLINGS).flatMap(([unit, spellin
   spellings.map((spelling) => ({
     unit: unit as NetContentUnit,
     pattern: new RegExp(
-      `(?<![\\p{L}\\p{N}.])(\\d+(?:\\.\\d+)?)\\s*${spelling}(?![\\p{L}\\p{N}])`,
+      `(?<![^\\P{L}x]|[\\p{N}./]|\\d,)(?:([1-9]\\d{0,2}(?:\\.\\d{3})+)|(\\d+(?:[.,]\\d+)?))\\s*${spelling}(?![\\p{L}\\p{N}])`,
       "gu",
     ),
   })),
@@ -41,10 +41,18 @@ function inBase(quantity: number, unit: NetContentUnit): NetContentMention {
   return { measure, thousandths: Math.round(quantity * SCALE) * factor };
 }
 
+function quantityOf(grouped: string | undefined, decimal: string | undefined): number {
+  return grouped === undefined
+    ? Number(decimal?.replace(",", "."))
+    : Number(grouped.replaceAll(".", ""));
+}
+
 export function netContentMentions(text: string): NetContentMention[] {
-  const folded = foldedText(text).replace(/(\d),(\d)/g, "$1.$2");
+  const folded = foldedText(text);
   return SPELLING_PATTERNS.flatMap(({ unit, pattern }) =>
-    [...folded.matchAll(pattern)].map(([, digits]) => inBase(Number(digits), unit)),
+    [...folded.matchAll(pattern)].map(([, grouped, decimal]) =>
+      inBase(quantityOf(grouped, decimal), unit),
+    ),
   );
 }
 
