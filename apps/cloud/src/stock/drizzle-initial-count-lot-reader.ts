@@ -8,6 +8,7 @@ import { and, eq, ilike, isNotNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { containsPattern } from "../platform/contains-pattern.js";
 import { categories, lots, products } from "../platform/db/schema.js";
+import { loadedSupplierPricesOf } from "./loaded-supplier-prices.js";
 
 export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
   implements InitialCountLotReader
@@ -49,8 +50,12 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
             : ilike(products.name, containsPattern(query.productName)),
         ),
       );
+    const pricesByProduct = await loadedSupplierPricesOf(this.db, [
+      ...new Set(rows.map((row) => row.productId)),
+    ]);
     return rows.map(({ costTotalCents, costQuantity, saleUnit, ...row }) => ({
       ...row,
+      supplierPrices: pricesByProduct.get(row.productId) ?? [],
       saleUnit: saleUnit as SaleUnit,
       cost:
         costTotalCents === null || costQuantity === null

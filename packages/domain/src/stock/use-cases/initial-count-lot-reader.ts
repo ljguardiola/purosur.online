@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { LoadedSupplierPrice } from "../model/lot-reference-cost.js";
 import type { LotCost } from "../model/lot-value.js";
 
 export interface InitialCountLotRow {
@@ -13,6 +14,7 @@ export interface InitialCountLotRow {
   remaining: number;
   costIncomplete: boolean;
   cost: LotCost | null;
+  supplierPrices: LoadedSupplierPrice[];
 }
 
 export interface InitialCountLotsQuery {

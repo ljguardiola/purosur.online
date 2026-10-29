@@ -292,6 +292,7 @@ const initialLots = {
       costIncomplete: false,
       unitCostCents: 1_018_000,
       valueCents: 4_479_200,
+      supplierPrices: [],
     },
   ],
 };
@@ -346,6 +347,17 @@ test("fetchInitialInventoryLots answers failed when the request cannot be sent",
   expect(await fetchInitialInventoryLots({})).toEqual({ kind: "failed" });
 });
 
+test("setLotReferenceCost puts the supplier item chosen for the lot", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(204));
+
+  expect(await setLotReferenceCost("lot-1", { supplierItemId: "item-1" })).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith("/api/initial-inventory-lots/lot-1/reference-cost", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ supplierItemId: "item-1" }),
+  });
+});
+
 test("setLotReferenceCost puts the cost of the lot and answers ok on 204", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(204));
 
@@ -361,6 +373,8 @@ test.each([
   [404, { code: "not_found" }, { kind: "not_found" }],
   [404, { code: "lot_withdrawn" }, { kind: "lot_withdrawn" }],
   [409, { code: "not_an_initial_count_lot" }, { kind: "not_an_initial_count_lot" }],
+  [409, { code: "cost_chosen_from_supplier_prices" }, { kind: "cost_chosen_from_supplier_prices" }],
+  [409, { code: "supplier_price_not_found" }, { kind: "supplier_price_not_found" }],
   [
     400,
     { code: "validation_failed", details: [{ field: "unitCostCents" }] },

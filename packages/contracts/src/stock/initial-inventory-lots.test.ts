@@ -19,6 +19,17 @@ const LOT = {
   costIncomplete: false,
   unitCostCents: 3_500,
   valueCents: 8_750,
+  supplierPrices: [],
+};
+
+const SUPPLIER_PRICE = {
+  supplierItemId: "33333333-3333-4333-8333-333333333333",
+  supplierName: "Distribuidora Sur",
+  packagingName: "Caja x 10",
+  listDate: "2026-03-01",
+  unitCostCents: 3_500,
+  cheapest: true,
+  current: false,
 };
 
 describe("initialInventoryLotsQuerySchema", () => {
@@ -72,6 +83,33 @@ describe("initialInventoryLotListSchema", () => {
     });
   });
 
+  it("accepts the loaded supplier prices of the lot's product", () => {
+    const lot = {
+      ...LOT,
+      supplierPrices: [SUPPLIER_PRICE, { ...SUPPLIER_PRICE, cheapest: false }],
+    };
+
+    expect(initialInventoryLotListSchema.parse({ lots: [lot] })).toEqual({ lots: [lot] });
+  });
+
+  it.each([
+    ["no supplier prices field", { supplierPrices: undefined }],
+    ["a fractional unit cost", { unitCostCents: 3_500.5 }],
+    ["a list date that is no calendar day", { listDate: "2026-02-30" }],
+    ["no cheapest mark", { cheapest: undefined }],
+    ["no current mark", { current: undefined }],
+    ["no supplier name", { supplierName: undefined }],
+    ["no packaging name", { packagingName: undefined }],
+    ["no supplier item", { supplierItemId: undefined }],
+  ])("refuses a lot with %s", (_case, override) => {
+    const supplierPrices =
+      "supplierPrices" in override ? undefined : [{ ...SUPPLIER_PRICE, ...override }];
+
+    expect(
+      initialInventoryLotListSchema.safeParse({ lots: [{ ...LOT, supplierPrices }] }).success,
+    ).toBe(false);
+  });
+
   it("accepts a lot that never expires", () => {
     const lot = { ...LOT, expiresOn: null };
 
@@ -115,10 +153,70 @@ describe("lotReferenceCostBodySchema", () => {
     });
   });
 
+  it.each([
+    ["not a number", "abc"],
+    ["not a number at all", Number.NaN],
+    ["missing", undefined],
+  ])("names the cost field when the cost is %s", (_case, unitCostCents) => {
+    const result = lotReferenceCostBodySchema.safeParse({ unitCostCents });
+
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["unitCostCents"],
+      message: "unitCostCents must be a positive whole number of cents",
+    });
+  });
+
   it("declares in its metadata the largest cost it accepts", () => {
-    const unitCostCents = lotReferenceCostBodySchema.shape.unitCostCents;
+    const [typedBody] = lotReferenceCostBodySchema.options;
+    const unitCostCents = typedBody.shape.unitCostCents;
 
     expect(unitCostCents.meta()).toMatchObject({ maxValue: MAX_CASH_AMOUNT_CENTS });
+  });
+
+  it("accepts the id of a supplier item whose loaded price is chosen as the cost", () => {
+    const supplierItemId = "33333333-3333-4333-8333-333333333333";
+
+    expect(lotReferenceCostBodySchema.parse({ supplierItemId })).toEqual({ supplierItemId });
+  });
+
+  it.each([
+    ["no id", ""],
+    ["something that is no id", "not-an-id"],
+    ["a number", 5],
+    ["nothing", null],
+  ])(
+    "refuses a supplier item given as %s on its own field, saying it must be a supplier item's id",
+    (_case, supplierItemId) => {
+      const result = lotReferenceCostBodySchema.safeParse({ supplierItemId });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.issues).toEqual([
+        expect.objectContaining({
+          path: ["supplierItemId"],
+          message: "supplierItemId must be a supplier item's id",
+        }),
+      ]);
+    },
+  );
+
+  it("reads a body naming a supplier item as that price's choice, whatever cost it also carries", () => {
+    const supplierItemId = "33333333-3333-4333-8333-333333333333";
+
+    expect(lotReferenceCostBodySchema.parse({ unitCostCents: 3_500, supplierItemId })).toEqual({
+      supplierItemId,
+    });
+  });
+
+  it.each([
+    ["nothing", null],
+    ["a number", 5],
+    ["a text", "x"],
+  ])("refuses a body that is %s, saying a supplier item's id is expected", (_case, body) => {
+    const result = lotReferenceCostBodySchema.safeParse(body);
+
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({ path: [], message: "supplierItemId must be a supplier item's id" }),
+    ]);
   });
 
   it("refuses a body with no cost or a cost that is no number, with the same message", () => {

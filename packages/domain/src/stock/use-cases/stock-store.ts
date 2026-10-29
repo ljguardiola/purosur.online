@@ -2,6 +2,7 @@ import type { SaleUnit } from "../../catalog/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { NewInitialCountLot, NewLot } from "../model/lot.js";
 import type { StockLot } from "../model/lot-allocation.js";
+import type { LoadedSupplierPrice } from "../model/lot-reference-cost.js";
 import type { StockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, RecordedLossReason } from "../model/stock-movement-reason.js";
 
@@ -81,6 +82,7 @@ export interface StockStoreTransaction {
   productLots(key: ProductStockKey): Promise<StockLot[]>;
   openTechnicalLot(key: ProductStockKey): Promise<string>;
   recordLot(lot: NewLot): Promise<string>;
+  loadedSupplierPrices(productId: string): Promise<LoadedSupplierPrice[]>;
   recordInitialCountLot(lot: NewInitialCountLot): Promise<string>;
   openingCountLot(locationId: string, movementId: string): Promise<OpeningCountLot | undefined>;
   markOpeningCountWithdrawn(lotId: string): Promise<void>;

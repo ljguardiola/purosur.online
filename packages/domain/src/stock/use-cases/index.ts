@@ -3,6 +3,7 @@ export type { BatchLotMovement } from "../model/assembly-batch.js";
 export type { LossRecord, LostProduct, ReasonLosses } from "../model/losses-by-reason.js";
 export type { NewBatchLot, NewInitialCountLot, NewLot } from "../model/lot.js";
 export type { StockLot } from "../model/lot-allocation.js";
+export type { LoadedSupplierPrice } from "../model/lot-reference-cost.js";
 export type { PurchaseReceipt } from "../model/stock-receipt.js";
 export type {
   ApplyOpeningCountInput,
@@ -113,6 +114,7 @@ export { readExpiringLotsReport } from "./read-expiring-lots-report.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {
+  InitialCountLotSupplierPrice,
   InitialCountLotView,
   ReadInitialCountLotsInput,
 } from "./read-initial-count-lots.js";
@@ -178,6 +180,7 @@ export type {
 } from "./save-recipe.js";
 export { saveRecipe } from "./save-recipe.js";
 export type {
+  LotCostChoice,
   SetLotReferenceCostInput,
   SetLotReferenceCostOutcome,
 } from "./set-lot-reference-cost.js";

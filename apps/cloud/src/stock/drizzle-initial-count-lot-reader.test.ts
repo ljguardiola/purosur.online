@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleInitialCountLotReader } from "./drizzle-initial-count-lot-reader.js";
+import { insertLoadedSupplierPrice } from "./test-support/loaded-supplier-price-fixtures.js";
 import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
   insertLocation,
@@ -78,6 +79,7 @@ describe("DrizzleInitialCountLotReader", () => {
           remaining: 1_000,
           costIncomplete: true,
           cost: null,
+          supplierPrices: [],
         },
         {
           lotId: known.lotId,
@@ -91,6 +93,7 @@ describe("DrizzleInitialCountLotReader", () => {
           remaining: 4_000,
           costIncomplete: false,
           cost: { totalCents: 3_500, quantity: 1_000 },
+          supplierPrices: [],
         },
         {
           lotId: withdrawn.lotId,
@@ -104,6 +107,7 @@ describe("DrizzleInitialCountLotReader", () => {
           remaining: 0,
           costIncomplete: true,
           cost: null,
+          supplierPrices: [],
         },
       ]),
     );
@@ -167,5 +171,31 @@ describe("DrizzleInitialCountLotReader", () => {
     expect(await lotIds("MATE")).toEqual([yerbaLot.lotId]);
     expect(await lotIds("%")).toEqual([percentLot.lotId]);
     expect(await lotIds("_")).toEqual([]);
+  });
+
+  it("gives each lot the prices loaded for its own product", async () => {
+    const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
+    const yerba = await insertProduct(db, { name: "Yerba mate 1 kg" });
+    const harina = await insertProduct(db, { name: "Harina 1 kg" });
+    const first = await insertInitialCountLot(db, { ...yerba, locationId, actorId });
+    const second = await insertInitialCountLot(db, { ...yerba, locationId, actorId });
+    const withoutPrices = await insertInitialCountLot(db, { ...harina, locationId, actorId });
+    const { supplierItemId } = await insertLoadedSupplierPrice(db, {
+      productId: yerba.productId,
+      actorId,
+      priceCents: 1_000,
+    });
+
+    const rows = await new DrizzleInitialCountLotReader(db).initialCountLots({
+      locationId,
+      costIncomplete: undefined,
+      productName: undefined,
+    });
+
+    const pricesOf = (lotId: string) =>
+      rows.find((row) => row.lotId === lotId)?.supplierPrices.map((price) => price.supplierItemId);
+    expect(pricesOf(first.lotId)).toEqual([supplierItemId]);
+    expect(pricesOf(second.lotId)).toEqual([supplierItemId]);
+    expect(pricesOf(withoutPrices.lotId)).toEqual([]);
   });
 });
