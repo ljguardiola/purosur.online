@@ -623,7 +623,8 @@ async function fillNewProduct(dialog: Locator) {
 }
 
 async function openStackedNewBrandModal(productDialog: Locator) {
-  await userEvent.click(productDialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(brandSelect(productDialog), "Dulcor");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Dulcor»" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
   await expect.element(brandDialog).toBeVisible();
   return brandDialog;
@@ -776,4 +777,55 @@ test("has no accessibility violations with the brand modal stacked over the prod
   await openStackedNewBrandModal(dialog);
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+const serenisima: BrandSummary = {
+  ...dulcor,
+  id: "b7a4d000-0000-4000-8000-000000000010",
+  name: "Serenísima",
+};
+
+test("typing a brand that does not exist offers to create it, opening the brand modal with the typed name", async () => {
+  const { dialog } = await renderModal(createServices(), { brands: [granuz] });
+
+  await userEvent.fill(brandSelect(dialog), "Serenísima");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Serenísima»" }));
+
+  const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
+  await expect
+    .element(brandDialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Serenísima");
+});
+
+test("typing part of an existing brand offers it and no creation entry", async () => {
+  const { dialog } = await renderModal(createServices(), { brands: [serenisima] });
+
+  await userEvent.fill(brandSelect(dialog), "seren");
+
+  await expect.element(page.getByRole("option", { name: "Serenísima" })).toBeVisible();
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
+});
+
+test("has no separate button to create a brand beside the brand selector", async () => {
+  const { dialog } = await renderModal(createServices(), { brands: [granuz] });
+  await expect.element(brandSelect(dialog)).toBeVisible();
+
+  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+});
+
+test("Ctrl+Enter pressed in the stacked brand modal creates the brand and not the product", async () => {
+  const services = createServices();
+  vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: serenisima });
+  const { dialog } = await renderModal(services, { brands: [granuz] });
+  await fillNewProduct(dialog);
+  await userEvent.fill(brandSelect(dialog), "Serenísima");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Serenísima»" }));
+  await expect.element(page.getByRole("dialog", { name: "Nueva marca" })).toBeVisible();
+
+  await userEvent.keyboard("{Control>}{Enter}{/Control}");
+
+  await expect.poll(() => vi.mocked(services.createBrand).mock.calls.length).toBe(1);
+  expect(services.createBrand).toHaveBeenCalledWith({ name: "Serenísima" });
+  await expect.element(brandSelect(dialog)).toHaveValue("Serenísima");
+  expect(services.createProduct).not.toHaveBeenCalled();
 });

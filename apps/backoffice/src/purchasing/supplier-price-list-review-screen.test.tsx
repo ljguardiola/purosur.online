@@ -1018,13 +1018,15 @@ async function openCreateProductModal(access: Parameters<typeof screenElement>[1
 test("offers to create a brand to a session that may manage products and categories", async () => {
   const dialog = await openCreateProductModal({ access: ADMINISTRATOR_ACCESS });
 
-  await expect.element(dialog.getByRole("button", { name: "Nueva marca" })).toBeVisible();
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  await expect.element(page.getByRole("option", { name: "Crear marca «Cabriola»" })).toBeVisible();
 });
 
 test("offers no way to create a brand to a session that may only review supplier price lists", async () => {
   const dialog = await openCreateProductModal({ access: accessWith("supplier_price_lists") });
 
-  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
 });
 
 test("moves from the link modal to the create product modal for the same item", async () => {

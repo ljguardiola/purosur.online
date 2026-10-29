@@ -563,7 +563,8 @@ test("the brand just created is selected even before the brands are read again",
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
   const { dialog } = await renderModal(honey, services, { brands: [granuz] });
 
-  await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(brandSelect(dialog), "Dulcor");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Dulcor»" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
   await expect.element(brandDialog).toBeVisible();
   await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Dulcor");

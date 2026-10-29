@@ -334,7 +334,8 @@ test("offers to create a brand and a tag to a session that may manage the catalo
   const dialog = dialogOf(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Aceite de almendras");
 
-  await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Cabriola»" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
   await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Cabriola");
   await userEvent.click(brandDialog.getByRole("button", { name: "Crear la marca" }));
@@ -363,7 +364,8 @@ test("creating a brand leaves the brands and the tags unread while the form is o
   const brandsReads = vi.mocked(services.fetchProductCreationBrands).mock.calls.length;
   const tagsReads = vi.mocked(services.fetchProductCreationTags).mock.calls.length;
 
-  await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Cabriola»" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
   await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Cabriola");
   await userEvent.click(brandDialog.getByRole("button", { name: "Crear la marca" }));
@@ -385,7 +387,8 @@ test("offers no way to create a brand or a tag to a session that may not manage 
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
-  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
   await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
   expect(page.getByRole("menuitem", { name: "Crear distintivo…" }).query()).toBeNull();

@@ -1,6 +1,6 @@
 import type { BrandSummary } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { honey } from "./test-support/products";
 import {
   createServices,
@@ -27,7 +27,8 @@ const dulcor: BrandSummary = {
 };
 
 async function openStackedNewBrandModal(screen: Screen, productDialog: ScreenLocator) {
-  await userEvent.click(productDialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(productDialog.getByRole("combobox", { name: /^Marca/ }), "Dulcor");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Dulcor»" }));
   const brandDialog = screen.getByRole("dialog", { name: "Nueva marca" });
   await expect.element(brandDialog).toBeVisible();
   return brandDialog;
