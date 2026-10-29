@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
 import { mayBuyByPackaging } from "../model/packaging.js";
 import {
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
@@ -11,6 +11,8 @@ export interface SupplierItemLinkChoice {
   id: string;
   name: string;
   saleUnit: SaleUnit;
+  brandName: string | null;
+  netContent: { quantity: number; unit: NetContentUnit } | null;
   packagings: { id: string; name: string; quantityPerPackage: number }[];
 }
 
@@ -21,13 +23,22 @@ export interface SupplierItemLinkChoices {
 
 export async function listSupplierItemLinkChoices(
   reader: PurchasingListReader,
-  products: { id: string; name: string; saleUnit: SaleUnit }[],
+  products: {
+    id: string;
+    name: string;
+    saleUnit: SaleUnit;
+    brandId: string | null;
+    netContent: { quantity: number; unit: NetContentUnit } | null;
+  }[],
+  brands: readonly { id: string; name: string }[],
 ): Promise<SupplierItemLinkChoices> {
   const packagings = await reader.packagings();
-  const choices = products.map(({ id, name, saleUnit }) => ({
+  const choices = products.map(({ id, name, saleUnit, brandId, netContent }) => ({
     id,
     name,
     saleUnit,
+    brandName: brands.find((brand) => brand.id === brandId)?.name ?? null,
+    netContent,
     packagings: packagings
       .filter((packaging) => packaging.productId === id && mayBuyByPackaging(packaging, saleUnit))
       .map(({ id: packagingId, name: packagingName, quantityPerPackage }) => ({
