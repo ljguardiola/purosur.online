@@ -18,7 +18,7 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function createServices(): LinkSupplierItemModalServices {
+function createServices(products = LINK_CHOICES.products): LinkSupplierItemModalServices {
   return {
     linkSupplierPriceListRow: vi.fn<LinkSupplierItemModalServices["linkSupplierPriceListRow"]>(),
     fetchSupplierItemLinkProposal: vi
@@ -26,12 +26,15 @@ function createServices(): LinkSupplierItemModalServices {
       .mockResolvedValue({ kind: "ok", value: NO_PROPOSAL }),
     fetchSupplierItemLinkChoices: vi
       .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
-      .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
+      .mockResolvedValue({ kind: "ok", value: { ...LINK_CHOICES, products } }),
     createPackaging: vi.fn<LinkSupplierItemModalServices["createPackaging"]>(),
   };
 }
 
-async function opened(productCreationModal?: ProductCreationModal) {
+async function opened(
+  productCreationModal?: ProductCreationModal,
+  products = LINK_CHOICES.products,
+) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <main>
@@ -42,7 +45,7 @@ async function opened(productCreationModal?: ProductCreationModal) {
           remembersOnConfirm
           onCreateProduct={null}
           {...(productCreationModal ? { productCreationModal } : {})}
-          services={createServices()}
+          services={createServices(products)}
           onLinked={() => {}}
           onOutdated={() => {}}
           onClose={() => {}}
@@ -53,7 +56,11 @@ async function opened(productCreationModal?: ProductCreationModal) {
   );
   const dialog = screen.getByRole("dialog", { name: nutRow.description });
   await expect
-    .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
+    .element(
+      products.length > 0 || productCreationModal
+        ? dialog.getByRole("combobox", { name: /^Producto del catálogo/ })
+        : dialog.getByText("No hay productos activos"),
+    )
     .toBeVisible();
   return { screen, dialog };
 }
@@ -111,4 +118,29 @@ test("offers no product creation when the modal is given no way to create one", 
 
   await expect.element(page.getByText("Sin resultados")).toBeVisible();
   expect(page.getByRole("option", { name: /^Crear producto/ }).query()).toBeNull();
+});
+
+test("with no products at all, still offers creating the first one and selects it once saved", async () => {
+  const { screen, dialog } = await opened(StubProductCreationModal, []);
+  await userEvent.fill(
+    dialog.getByRole("combobox", { name: /^Producto del catálogo/ }),
+    "Yerba mate",
+  );
+  await userEvent.click(page.getByRole("option", { name: "Crear producto «Yerba mate»" }));
+
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Nuevo producto" })
+      .getByRole("button", { name: "Guardar lo creado" }),
+  );
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
+    .toHaveValue("Yerba mate");
+});
+
+test("with no products at all and no way to create one, shows the empty state", async () => {
+  const { dialog } = await opened(undefined, []);
+
+  await expect.element(dialog.getByText("No hay productos activos")).toBeVisible();
 });

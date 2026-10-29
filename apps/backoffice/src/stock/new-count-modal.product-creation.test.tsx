@@ -15,12 +15,12 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(): StockCountsScreenServices {
+function createServices(products = [almonds, honey]): StockCountsScreenServices {
   return {
     fetchStockCounts: vi.fn(),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
-      value: { products: [almonds, honey].map(withoutBalance) },
+      value: { products: products.map(withoutBalance) },
     }),
     fetchExpectedBalance: vi.fn(),
     registerCount: vi.fn(),
@@ -31,14 +31,14 @@ function createServices(): StockCountsScreenServices {
   };
 }
 
-async function opened(productCreationModal?: ProductCreationModal) {
+async function opened(productCreationModal?: ProductCreationModal, products = [almonds, honey]) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <NewCountModal
         startMoment={countMomentNow(new Date("2026-09-15T21:40:30.000Z"))}
         showsBalance={false}
         {...(productCreationModal ? { productCreationModal } : {})}
-        services={createServices()}
+        services={createServices(products)}
         onClose={() => {}}
         onSessionEnded={() => {}}
         onRegistered={() => {}}
@@ -46,7 +46,13 @@ async function opened(productCreationModal?: ProductCreationModal) {
     </FieldSizeProvider>,
   );
   const dialog = screen.getByRole("dialog", { name: "Nuevo recuento" });
-  await expect.element(dialog.getByRole("combobox", { name: /Producto/ })).toBeVisible();
+  await expect
+    .element(
+      products.length > 0 || productCreationModal
+        ? dialog.getByRole("combobox", { name: /Producto/ })
+        : dialog.getByText("No hay productos activos"),
+    )
+    .toBeVisible();
   return { screen, dialog };
 }
 
@@ -93,4 +99,28 @@ test("offers no product creation when the modal is given no way to create one", 
 
   await expect.element(page.getByText("Sin resultados")).toBeVisible();
   expect(page.getByRole("option", { name: /^Crear producto/ }).query()).toBeNull();
+});
+
+test("with no products at all, still offers creating the first one and selects it once saved", async () => {
+  const { screen, dialog } = await opened(StubProductCreationModal, []);
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Producto/ }), "Yerba mate");
+  await userEvent.click(page.getByRole("option", { name: "Crear producto «Yerba mate»" }));
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Nuevo producto" })
+      .getByRole("button", { name: "Guardar lo creado" }),
+  );
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /Producto/ }))
+    .toHaveValue("Yerba mate");
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad contada/ })).toBeVisible();
+});
+
+test("with no products at all and no way to create one, shows the empty state", async () => {
+  const { dialog } = await opened(undefined, []);
+
+  await expect.element(dialog.getByText("No hay productos activos")).toBeVisible();
+  expect(dialog.getByRole("combobox", { name: /Producto/ }).query()).toBeNull();
 });

@@ -11,14 +11,17 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-async function opened(productCreationModal?: ProductCreationModal) {
+async function opened(
+  productCreationModal?: ProductCreationModal,
+  products: typeof recipeProducts = recipeProducts,
+) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <main>
         <NewRecipeModal
           open
-          products={recipeProducts}
-          recipes={[mixDeFrutosSecos]}
+          products={products}
+          recipes={products.length > 0 ? [mixDeFrutosSecos] : []}
           {...(productCreationModal ? { productCreationModal } : {})}
           services={{ saveRecipe: vi.fn() }}
           onSaved={() => {}}
@@ -29,7 +32,13 @@ async function opened(productCreationModal?: ProductCreationModal) {
     </FieldSizeProvider>,
   );
   const dialog = screen.getByRole("dialog", { name: "Nueva receta" });
-  await expect.element(dialog.getByRole("combobox", { name: /^Producto armado/ })).toBeVisible();
+  await expect
+    .element(
+      products.length > 0 || productCreationModal
+        ? dialog.getByRole("combobox", { name: /^Producto armado/ })
+        : dialog.getByText("No hay productos para armar"),
+    )
+    .toBeVisible();
   return { screen, dialog };
 }
 
@@ -74,4 +83,25 @@ test("offers no product creation when the modal is given no way to create one", 
 
   await expect.element(page.getByText("Sin resultados")).toBeVisible();
   expect(page.getByRole("option", { name: /^Crear producto/ }).query()).toBeNull();
+});
+
+test("with no products to assemble, still offers creating one and, once saved, a component can be created too", async () => {
+  const { screen, dialog } = await opened(StubProductCreationModal, []);
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto armado/ }), "Yerba mate");
+  await userEvent.click(page.getByRole("option", { name: "Crear producto «Yerba mate»" }));
+  await saveCreatedProduct(screen);
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Producto armado/ }))
+    .toHaveValue("Yerba mate");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar un componente" }));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Componente/ }), "Pasas");
+
+  await expect.element(page.getByRole("option", { name: "Crear producto «Pasas»" })).toBeVisible();
+});
+
+test("with no products to assemble and no way to create one, shows the empty state", async () => {
+  const { dialog } = await opened(undefined, []);
+
+  await expect.element(dialog.getByText("No hay productos para armar")).toBeVisible();
 });

@@ -22,11 +22,11 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function createServices(): UploadSupplierPriceListModalServices {
+function createServices(suppliers = [granos, andina]): UploadSupplierPriceListModalServices {
   return {
     fetchSuppliers: vi
       .fn<UploadSupplierPriceListModalServices["fetchSuppliers"]>()
-      .mockResolvedValue({ kind: "ok", value: [granos, andina] }),
+      .mockResolvedValue({ kind: "ok", value: suppliers }),
     uploadSupplierPriceList: vi.fn(),
     loadSupplierPriceListWebPage: vi.fn(),
     createSupplier: vi.fn(),
@@ -36,6 +36,7 @@ function createServices(): UploadSupplierPriceListModalServices {
 async function renderModal(
   services: UploadSupplierPriceListModalServices,
   mayCreateSupplier: boolean,
+  empty = false,
 ) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
@@ -53,7 +54,13 @@ async function renderModal(
     </FieldSizeProvider>,
   );
   const dialog = screen.getByRole("dialog", { name: "Cargar una lista" });
-  await expect.element(dialog.getByRole("combobox", { name: /^Proveedor/ })).toBeVisible();
+  await expect
+    .element(
+      empty && !mayCreateSupplier
+        ? dialog.getByText("No hay proveedores activos")
+        : dialog.getByRole("combobox", { name: /^Proveedor/ }),
+    )
+    .toBeVisible();
   return { screen, dialog };
 }
 
@@ -104,4 +111,30 @@ test("offers no supplier creation when the person cannot manage suppliers", asyn
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
   expect(screen.getByRole("option", { name: /^Crear proveedor/ }).query()).toBeNull();
+});
+
+test("with no suppliers at all, still offers creating the first one and selects it once saved", async () => {
+  const services = createServices([]);
+  vi.mocked(services.createSupplier).mockResolvedValue({ kind: "ok", supplier: distribuidoraSur });
+  const { screen, dialog } = await renderModal(services, true, true);
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Proveedor/ }), "Distribuidora Sur");
+  await userEvent.click(
+    screen.getByRole("option", { name: "Crear proveedor «Distribuidora Sur»" }),
+  );
+
+  await userEvent.click(
+    screen.getByRole("dialog", { name: "Nuevo proveedor" }).getByRole("button", {
+      name: "Crear el proveedor",
+    }),
+  );
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Proveedor/ }))
+    .toHaveValue("Distribuidora Sur");
+});
+
+test("with no suppliers at all and no way to create one, shows the empty state", async () => {
+  const { dialog } = await renderModal(createServices([]), false, true);
+
+  await expect.element(dialog.getByText("No hay proveedores activos")).toBeVisible();
 });

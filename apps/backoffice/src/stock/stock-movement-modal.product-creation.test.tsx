@@ -20,17 +20,17 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(): StockMovementsScreenServices {
+function createServices(products = [almonds, honey]): StockMovementsScreenServices {
   return {
     fetchStockMovements: vi.fn(),
     fetchStockMovementReasons: vi.fn().mockResolvedValue({ kind: "ok", value: movementReasons }),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
-      value: { products: [almonds, honey].map(withoutBalance) },
+      value: { products: products.map(withoutBalance) },
     }),
     fetchStockBalances: vi.fn().mockResolvedValue({
       kind: "ok",
-      value: stockBalanceList([almonds, honey]),
+      value: stockBalanceList(products),
     }),
     recordLoss: vi.fn(),
     recordAdjustment: vi.fn(),
@@ -39,7 +39,11 @@ function createServices(): StockMovementsScreenServices {
 
 const TITLE = "Cargar pérdida o ajuste";
 
-async function opened(kind: MovementKind, productCreationModal?: ProductCreationModal) {
+async function opened(
+  kind: MovementKind,
+  productCreationModal?: ProductCreationModal,
+  products = [almonds, honey],
+) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <StockMovementModal
@@ -47,7 +51,7 @@ async function opened(kind: MovementKind, productCreationModal?: ProductCreation
         kinds={[kind]}
         showsBalance={false}
         {...(productCreationModal ? { productCreationModal } : {})}
-        services={createServices()}
+        services={createServices(products)}
         onClose={() => {}}
         onSessionEnded={() => {}}
         onRegistered={() => {}}
@@ -55,7 +59,13 @@ async function opened(kind: MovementKind, productCreationModal?: ProductCreation
     </FieldSizeProvider>,
   );
   const dialog = screen.getByRole("dialog", { name: TITLE });
-  await expect.element(dialog.getByRole("combobox", { name: /Producto/ })).toBeVisible();
+  await expect
+    .element(
+      products.length > 0 || productCreationModal
+        ? dialog.getByRole("combobox", { name: /Producto/ })
+        : dialog.getByText("No hay productos activos"),
+    )
+    .toBeVisible();
   return { screen, dialog };
 }
 
@@ -100,3 +110,28 @@ test.each(["loss", "adjustment"] as const)(
     expect(page.getByRole("option", { name: /^Crear producto/ }).query()).toBeNull();
   },
 );
+
+test.each(["loss", "adjustment"] as const)(
+  "with no products at all, the %s form still offers creating the first one and selects it once saved",
+  async (kind) => {
+    const { screen, dialog } = await opened(kind, StubProductCreationModal, []);
+
+    await userEvent.fill(dialog.getByRole("combobox", { name: /Producto/ }), "Yerba mate");
+    await userEvent.click(page.getByRole("option", { name: "Crear producto «Yerba mate»" }));
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "Nuevo producto" })
+        .getByRole("button", { name: "Guardar lo creado" }),
+    );
+
+    await expect
+      .element(dialog.getByRole("combobox", { name: /Producto/ }))
+      .toHaveValue("Yerba mate");
+  },
+);
+
+test("with no products at all and no way to create one, shows the empty state", async () => {
+  const { dialog } = await opened("loss", undefined, []);
+
+  await expect.element(dialog.getByText("No hay productos activos")).toBeVisible();
+});

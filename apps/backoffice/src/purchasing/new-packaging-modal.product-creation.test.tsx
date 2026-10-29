@@ -11,13 +11,16 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function renderModal(productCreationModal?: ProductCreationModal) {
+function renderModal(
+  productCreationModal?: ProductCreationModal,
+  products: typeof packagableProducts = packagableProducts,
+) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
         <NewPackagingModal
           open
-          products={packagableProducts}
+          products={products}
           {...(productCreationModal ? { productCreationModal } : {})}
           services={{ createPackaging: vi.fn() }}
           onCreated={() => {}}
@@ -81,4 +84,33 @@ test("offers no product creation when the modal is given no way to create one", 
 
   await expect.element(page.getByText("Sin resultados")).toBeVisible();
   expect(page.getByRole("option", { name: /^Crear producto/ }).query()).toBeNull();
+});
+
+test("with no products at all, still offers creating the first one, selects it once saved and allows creating the packaging", async () => {
+  const screen = await renderModal(StubProductCreationModal, []);
+  const dialog = screen.getByRole("dialog", { name: "Nueva presentación" });
+  await expect.element(dialog.getByRole("combobox", { name: /^Producto/ })).toBeVisible();
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto/ }), "Yerba mate");
+  await userEvent.click(page.getByRole("option", { name: "Crear producto «Yerba mate»" }));
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Nuevo producto" })
+      .getByRole("button", { name: "Guardar lo creado" }),
+  );
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Producto/ }))
+    .toHaveValue("Yerba mate");
+  await expect.element(dialog.getByRole("button", { name: "Crear la presentación" })).toBeEnabled();
+});
+
+test("with no products at all and no way to create one, shows the empty state and cannot create", async () => {
+  const screen = await renderModal(undefined, []);
+  const dialog = screen.getByRole("dialog", { name: "Nueva presentación" });
+
+  await expect.element(dialog.getByText("No hay productos activos")).toBeVisible();
+  await expect
+    .element(dialog.getByRole("button", { name: "Crear la presentación" }))
+    .toBeDisabled();
 });
