@@ -7,6 +7,8 @@ import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../../test-support/device-token-
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
 import { type ChangesRouteOptions, registerChangesRoute } from "../changes-route.js";
 
+export const CURRENT_REGISTER_VERSION = "1.0.1385";
+
 export function buildChangesRouteApp<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   options: Omit<ChangesRouteOptions<TQueryResult>, "db" | "rotationKey" | "keysEncryptionKey">,
@@ -32,7 +34,10 @@ export async function pulledPage(
   const response = await app.inject({
     method: "GET",
     url: `/changes?${query}`,
-    headers: { authorization: `Bearer ${deviceToken}` },
+    headers: {
+      authorization: `Bearer ${deviceToken}`,
+      "purosur-register-version": CURRENT_REGISTER_VERSION,
+    },
   });
   expect(response.statusCode).toBe(200);
   return changesPageSchema.parse(response.json());

@@ -15,6 +15,9 @@
     "./sync/test-support": {
       "@purosur/source": "./src/sync/test-support/recorded-pushes.ts"
     },
+    "./sync/test-support/field-change-readers": {
+      "@purosur/source": "./src/sync/test-support/field-change-readers.ts"
+    },
     "./sync/test-support/unapplied-event": {
       "@purosur/source": "./src/sync/test-support/unapplied-event.ts"
     }
