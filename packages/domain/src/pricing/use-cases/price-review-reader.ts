@@ -37,6 +37,25 @@ export interface PricesUnderReview {
   reviewWindowDays: number;
 }
 
+export interface ProductPriceReviewHistory {
+  id: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  brandName: string | null;
+  netContent: ProductNetContent | null;
+  saleUnit: SaleUnit;
+  currentPrice: CurrentPrice | null;
+  lastReviewedAt: Date | null;
+  earliestPostponedAt: Date | null;
+}
+
+export interface PriceReviewHistories {
+  products: ProductPriceReviewHistory[];
+  reviewWindowDays: number;
+}
+
 export interface PriceReviewReader {
   pricesUnderReview(query: PricesUnderReviewQuery): Promise<PricesUnderReview>;
+  priceReviewHistories(locationId: string): Promise<PriceReviewHistories>;
 }

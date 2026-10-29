@@ -1,5 +1,6 @@
+import type { NetContentUnit } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { categories, productBarcodes, products } from "../platform/db/schema.js";
+import { brands, categories, productBarcodes, products } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleLabelProductReader } from "./drizzle-label-product-reader.js";
 
@@ -21,6 +22,8 @@ beforeEach(async () => {
 
 async function insertProduct(input: {
   name: string;
+  brandName?: string;
+  netContent?: { quantity: number; unit: NetContentUnit };
   active?: boolean;
   barcodes: string[];
 }): Promise<string> {
@@ -31,11 +34,18 @@ async function insertProduct(input: {
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
   }
+  const [brand] =
+    input.brandName === undefined
+      ? []
+      : await db.insert(brands).values({ name: input.brandName }).returning({ id: brands.id });
   const [product] = await db
     .insert(products)
     .values({
       name: input.name,
       categoryId: category.id,
+      brandId: brand?.id,
+      netContentQuantity: input.netContent?.quantity,
+      netContentUnit: input.netContent?.unit,
       saleUnit: "UNIT",
       active: input.active ?? true,
     })
@@ -57,9 +67,11 @@ async function insertProduct(input: {
 }
 
 describe("DrizzleLabelProductReader", () => {
-  it("answers each requested product with its name, whether it is active and its barcodes by position", async () => {
+  it("answers each requested product with its name, brand, net content, whether it is active and its barcodes by position", async () => {
     const honeyId = await insertProduct({
-      name: "Miel pura de abeja 1 kg",
+      name: "Miel pura de abeja",
+      brandName: "Colmenar",
+      netContent: { quantity: 1, unit: "KG" },
       barcodes: ["2000000000015", "7790001000011"],
     });
     const almondsId = await insertProduct({
@@ -78,11 +90,20 @@ describe("DrizzleLabelProductReader", () => {
       expect.arrayContaining([
         {
           id: honeyId,
-          name: "Miel pura de abeja 1 kg",
+          name: "Miel pura de abeja",
+          brandName: "Colmenar",
+          netContent: { quantity: 1, unit: "KG" },
           active: true,
           barcodes: ["2000000000015", "7790001000011"],
         },
-        { id: almondsId, name: "Almendras peladas", active: false, barcodes: [] },
+        {
+          id: almondsId,
+          name: "Almendras peladas",
+          brandName: null,
+          netContent: null,
+          active: false,
+          barcodes: [],
+        },
       ]),
     );
   });

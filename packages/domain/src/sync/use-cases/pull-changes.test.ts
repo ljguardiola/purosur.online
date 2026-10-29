@@ -28,8 +28,11 @@ function changesFor(locationId: string, firstSeq: number, count: number): FakeLo
   }));
 }
 
-function fakeChangeLog(changes: FakeLoggedChange[]): FakeChangeLog {
-  return new FakeChangeLog(changes, { [DEVICE]: INSTALLED_REGISTER });
+function fakeChangeLog(
+  changes: FakeLoggedChange[],
+  recordedAppVersion: string | null = null,
+): FakeChangeLog {
+  return new FakeChangeLog(changes, { [DEVICE]: { ...INSTALLED_REGISTER, recordedAppVersion } });
 }
 
 function pull(
@@ -39,10 +42,12 @@ function pull(
     now = NOW,
     offlineAuthorizationCodes = new FakeOfflineAuthorizationCodeRequests(),
     zoneRules,
+    declaredVersion,
   }: {
     now?: Date;
     offlineAuthorizationCodes?: FakeOfflineAuthorizationCodeRequests;
     zoneRules?: ZoneRules;
+    declaredVersion?: string;
   } = {},
 ) {
   return pullChanges(
@@ -52,7 +57,7 @@ function pull(
       clock: { now: () => now },
       zoneRules: new FakeZoneRulesSource(zoneRules),
     },
-    { deviceId: DEVICE, since },
+    { deviceId: DEVICE, since, declaredVersion },
   );
 }
 
@@ -110,7 +115,7 @@ describe("pulling changes", () => {
 
     expect(page).toEqual({ changes: changesFor(BRANCH, 1, 500), cursor: 500, hasMore: true });
     expect(changeLog.readRequests).toEqual([
-      { audience: pullAudienceOf(INSTALLED_REGISTER), since: 0, limit: 501 },
+      { audience: pullAudienceOf(INSTALLED_REGISTER, null), since: 0, limit: 501 },
     ]);
   });
 
@@ -119,7 +124,7 @@ describe("pulling changes", () => {
 
     await pull(changeLog, 0);
 
-    expect(changeLog.readRequests[0]?.audience).toEqual(pullAudienceOf(INSTALLED_REGISTER));
+    expect(changeLog.readRequests[0]?.audience).toEqual(pullAudienceOf(INSTALLED_REGISTER, null));
   });
 
   it("keeps the cursor when nothing is left", async () => {
@@ -143,6 +148,89 @@ describe("pulling changes", () => {
 
     await expect(pull(changeLog, 0)).rejects.toThrow("the change log could not be read");
     expect(changeLog.state.observedPulls).toEqual([]);
+  });
+
+  describe("for a register version that cannot read some changes", () => {
+    const brand: FakeLoggedChange = { changeSeq: 1, entity: "brand", entityId: "brand-1" };
+    const zoneRules: FakeLoggedChange = { changeSeq: 2, entity: "zone_rules", entityId: "zone" };
+    const sale: FakeLoggedChange = {
+      changeSeq: 3,
+      entity: "stock_movement",
+      entityId: "movement-1",
+      locationId: BRANCH,
+      stockMovementKind: "sale",
+    };
+    const returned: FakeLoggedChange = {
+      changeSeq: 4,
+      entity: "stock_movement",
+      entityId: "movement-2",
+      locationId: BRANCH,
+      stockMovementKind: "return",
+    };
+    const voidedAssembly: FakeLoggedChange = {
+      changeSeq: 5,
+      entity: "stock_movement",
+      entityId: "movement-3",
+      locationId: BRANCH,
+      stockMovementKind: "assembly_void",
+    };
+    const everything = [brand, zoneRules, sale, returned, voidedAssembly];
+
+    it("holds back what its declared version cannot read", async () => {
+      const page = await pull(fakeChangeLog(everything), 0, { declaredVersion: "0.0.1271" });
+
+      expect(page).toEqual({ changes: [sale], cursor: 3, hasMore: false });
+    });
+
+    it("gives everything to a declared version that reads it all", async () => {
+      const page = await pull(fakeChangeLog(everything), 0, { declaredVersion: "1.0.1385" });
+
+      expect(page.changes).toEqual(everything);
+    });
+
+    it("holds back what the recorded version cannot read when the register declares none", async () => {
+      const page = await pull(fakeChangeLog(everything, "1.0.1300"), 0);
+
+      expect(page).toEqual({ changes: [zoneRules, sale, returned], cursor: 4, hasMore: false });
+    });
+
+    it("trusts the declared version over the recorded one, whichever is newer", async () => {
+      const newerDeclared = await pull(fakeChangeLog(everything, "0.0.1271"), 0, {
+        declaredVersion: "1.0.1385",
+      });
+      const olderDeclared = await pull(fakeChangeLog(everything, "1.0.1385"), 0, {
+        declaredVersion: "0.0.1271",
+      });
+
+      expect(newerDeclared.changes).toEqual(everything);
+      expect(olderDeclared.changes).toEqual([sale]);
+    });
+
+    it("reads as the oldest version when the register declares none and none is recorded", async () => {
+      const page = await pull(fakeChangeLog(everything, null), 0);
+
+      expect(page.changes).toEqual([sale]);
+    });
+
+    it("counts only the changes it can read toward the page, so a full page of readable changes says more wait", async () => {
+      const readable = Array.from({ length: 501 }, (_, index) => ({
+        changeSeq: 1000 + index,
+        entity: "category" as const,
+        entityId: `category-${index}`,
+      }));
+      const changeLog = fakeChangeLog([...everything, ...readable]);
+
+      const page = await pull(changeLog, 0, { declaredVersion: "0.0.1271" });
+
+      expect(page.changes).toEqual([sale, ...readable.slice(0, 499)]);
+      expect(page).toMatchObject({ cursor: 1498, hasMore: true });
+    });
+
+    it("moves the cursor past nothing when only changes it cannot read wait, leaving them for after it updates", async () => {
+      const page = await pull(fakeChangeLog([brand, returned]), 0, { declaredVersion: "1.0.0" });
+
+      expect(page).toEqual({ changes: [], cursor: 0, hasMore: false });
+    });
   });
 
   describe("the current fortnight's offline authorization code", () => {

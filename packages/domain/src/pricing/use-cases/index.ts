@@ -47,10 +47,12 @@ export { listPrices } from "./list-prices.js";
 export type {
   PriceReviewCategory,
   PriceReviewFilter,
+  PriceReviewHistories,
   PriceReviewReader,
   PricesUnderReview,
   PricesUnderReviewQuery,
   PriceUnderReview,
+  ProductPriceReviewHistory,
 } from "./price-review-reader.js";
 export type {
   CurrentPrice,
@@ -74,5 +76,12 @@ export type {
   ReadPriceMarginPorts,
 } from "./read-price-margin.js";
 export { readPriceMargin } from "./read-price-margin.js";
+export type {
+  PriceAwaitingReview,
+  PriceAwaitingReviewProduct,
+  PricesPastReviewDeadlineReport,
+  ReadPricesPastReviewDeadlineReportInput,
+} from "./read-prices-past-review-deadline-report.js";
+export { readPricesPastReviewDeadlineReport } from "./read-prices-past-review-deadline-report.js";
 export type { SetPriceInput, SetPriceOutcome } from "./set-price.js";
 export { setPrice } from "./set-price.js";

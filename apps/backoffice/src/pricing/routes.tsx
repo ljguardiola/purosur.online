@@ -1,9 +1,11 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canManagePromotions, canSeePricesArea } from "../shell/backoffice-access";
+import { canManagePromotions, canSeePricesArea, canSeeReports } from "../shell/backoffice-access";
 import { catalogAreaRoute } from "../shell/catalog-area";
 import { lazyScreen } from "../shell/lazy-screen";
+import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
+import { pricesPastReviewDeadlineReportFilters } from "./prices-past-review-deadline-report-filters";
 
 export const pricesListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -42,4 +44,18 @@ export const discountsListRoute = createRoute({
   validateSearch: discountsListFilters,
   search: { middlewares: [stripSearchParams(discountsListFilters.parse({}))] },
   component: lazyScreen(() => import("./discounts-list-page"), "DiscountsListPage"),
+});
+
+export const pricesPastReviewDeadlineReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/prices-past-review-deadline",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: pricesPastReviewDeadlineReportFilters,
+  search: {
+    middlewares: [stripSearchParams(pricesPastReviewDeadlineReportFilters.parse({}))],
+  },
+  component: lazyScreen(
+    () => import("./prices-past-review-deadline-report-page"),
+    "PricesPastReviewDeadlineReportPage",
+  ),
 });

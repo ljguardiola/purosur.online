@@ -29,14 +29,23 @@ const change = {
   row: settingsRow,
 };
 
-function feedAnswering(response: CloudResponse) {
+function feedAnswering(response: CloudResponse, appVersion?: string) {
   const requests: { path: string; headers: Record<string, string> }[] = [];
-  const feed = new CloudPullFeed(async (path, headers) => {
-    requests.push({ path, headers });
-    return response;
-  }, "prefix.secret");
+  const feed = new CloudPullFeed(
+    async (path, headers) => {
+      requests.push({ path, headers });
+      return response;
+    },
+    "prefix.secret",
+    appVersion,
+  );
   return { feed, requests };
 }
+
+const EMPTY_PAGE: CloudResponse = {
+  kind: "ok",
+  body: { changes: [], cursor: 4, has_more: false },
+};
 
 describe("the cloud's pull, as the register reads it", () => {
   it("asks for the page after the cursor with the device token", async () => {
@@ -141,5 +150,45 @@ describe("the cloud's pull of one entity, as the register reads it", () => {
       kind: "failed",
       failure: { kind: "unreachable" },
     });
+  });
+});
+
+describe("the version the register states to the cloud's pull", () => {
+  it("is sent with the page after the cursor", async () => {
+    const { feed, requests } = feedAnswering(EMPTY_PAGE, "1.0.1385");
+
+    await feed.pageAfter(4);
+
+    expect(requests).toEqual([
+      {
+        path: "/api/changes?since=4",
+        headers: { authorization: "Bearer prefix.secret", "purosur-register-version": "1.0.1385" },
+      },
+    ]);
+  });
+
+  it("is sent with the page of one entity", async () => {
+    const { feed, requests } = feedAnswering(EMPTY_PAGE, "1.0.1385");
+
+    await feed.pageOfEntityAfter("brand", 4);
+
+    expect(requests).toEqual([
+      {
+        path: "/api/changes?since=4&entity=brand",
+        headers: { authorization: "Bearer prefix.secret", "purosur-register-version": "1.0.1385" },
+      },
+    ]);
+  });
+
+  it("is left out when the register does not know its version", async () => {
+    const { feed, requests } = feedAnswering(EMPTY_PAGE, undefined);
+
+    await feed.pageAfter(4);
+    await feed.pageOfEntityAfter("brand", 4);
+
+    expect(requests.map(({ headers }) => headers)).toEqual([
+      { authorization: "Bearer prefix.secret" },
+      { authorization: "Bearer prefix.secret" },
+    ]);
   });
 });

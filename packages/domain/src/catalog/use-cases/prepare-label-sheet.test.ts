@@ -8,19 +8,23 @@ const MANUFACTURER_CODE = "7790001000011";
 
 const honey = {
   id: "product-1",
-  name: "Miel pura de abeja 1 kg",
+  name: "Miel pura de abeja",
+  brandName: "Colmenar",
+  netContent: { quantity: 1, unit: "KG" as const },
   active: true,
   barcodes: [MANUFACTURER_CODE, INTERNAL_CODE],
 };
 const almonds = {
   id: "product-2",
   name: "Almendras peladas",
+  brandName: null,
+  netContent: null,
   active: true,
   barcodes: [OTHER_INTERNAL_CODE],
 };
 
 describe("prepareLabelSheet", () => {
-  it("gives each requested product's name, label code and count, in the requested order", async () => {
+  it("gives each requested product's name, brand, net content, label code and count, in the requested order", async () => {
     const reader = new FakeLabelProductReader([honey, almonds]);
 
     const outcome = await prepareLabelSheet(reader, [
@@ -31,8 +35,20 @@ describe("prepareLabelSheet", () => {
     expect(outcome).toEqual({
       kind: "ready",
       items: [
-        { name: "Almendras peladas", code: OTHER_INTERNAL_CODE, count: 3 },
-        { name: "Miel pura de abeja 1 kg", code: INTERNAL_CODE, count: 1 },
+        {
+          name: "Almendras peladas",
+          brandName: null,
+          netContent: null,
+          code: OTHER_INTERNAL_CODE,
+          count: 3,
+        },
+        {
+          name: "Miel pura de abeja",
+          brandName: "Colmenar",
+          netContent: { quantity: 1, unit: "KG" },
+          code: INTERNAL_CODE,
+          count: 1,
+        },
       ],
     });
   });

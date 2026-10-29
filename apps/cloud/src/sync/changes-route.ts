@@ -5,7 +5,7 @@ import {
   cloudError,
   cloudErrorStatus,
 } from "@purosur/contracts";
-import type { ZoneRulesSource } from "@purosur/domain";
+import { isWellFormedRegisterVersion, type ZoneRulesSource } from "@purosur/domain";
 import {
   admitInstallationRequest,
   type PullPage,
@@ -42,6 +42,12 @@ const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
   "the device token is not recognized",
 );
+
+const REGISTER_VERSION_HEADER = "purosur-register-version";
+
+function declaredRegisterVersion(header: string | string[] | undefined): string | undefined {
+  return typeof header === "string" && isWellFormedRegisterVersion(header) ? header : undefined;
+}
 
 function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number] {
   const { changeSeq: change_seq, entityId: entity_id } = change;
@@ -353,10 +359,16 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const { deviceId } = authentication.installation;
+      const declaredVersion = declaredRegisterVersion(request.headers[REGISTER_VERSION_HEADER]);
       const page =
         query.entity === undefined
-          ? await pullChanges(ports, { deviceId, since: query.since })
-          : await resendPulledEntity(ports, { deviceId, since: query.since, entity: query.entity });
+          ? await pullChanges(ports, { deviceId, since: query.since, declaredVersion })
+          : await resendPulledEntity(ports, {
+              deviceId,
+              since: query.since,
+              entity: query.entity,
+              declaredVersion,
+            });
       await reply.code(200).send(changesPageSchema.parse(toChangesPageWire(page)));
     });
   });

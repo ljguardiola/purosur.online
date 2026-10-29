@@ -22,6 +22,7 @@ export interface PullFromCloudDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
   replica: RegisterReplica | undefined;
   getFromCloud: GetFromCloud | undefined;
+  appVersion?: string | undefined;
 }
 
 export type PullAttempt =
@@ -44,7 +45,7 @@ export async function pullFromCloud(deps: PullFromCloudDeps): Promise<PullAttemp
     return { kind: "not_enrolled" };
   }
   deps.replica.adoptDevice({ deviceId: credentials.device_id, pepper: credentials.pepper });
-  const feed = new CloudPullFeed(deps.getFromCloud, credentials.device_token);
+  const feed = new CloudPullFeed(deps.getFromCloud, credentials.device_token, deps.appVersion);
   const caughtUp = await catchUpWithCloud({ replica: deps.replica, feed });
   if (caughtUp.kind !== "caught_up") {
     return caughtUp;

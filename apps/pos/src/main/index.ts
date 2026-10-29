@@ -14,6 +14,7 @@ import {
   utilityProcess,
 } from "electron";
 import { type ChannelSettings, coreArgumentsFor } from "../shared/channel";
+import { appVersionOf } from "./app-version";
 import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
@@ -151,7 +152,7 @@ function startRegister(settings: ChannelSettings): void {
 
     const coreArguments = coreArgumentsFor({
       ...settings,
-      appVersion: app.getVersion(),
+      appVersion: appVersionOf({ isPackaged: app.isPackaged, version: app.getVersion() }),
       localDataFolder: localDataFolderFor({
         platform: process.platform,
         localAppData: process.env["LOCALAPPDATA"],
