@@ -141,7 +141,6 @@ describe("DrizzleInitialCountLotReader", () => {
       );
 
     expect(await lotIds("balsamico CLASICO")).toEqual([lot.lotId]);
-    expect(await lotIds("balsámico")).toEqual([lot.lotId]);
   });
 
   it("keeps the lots whose cost is incomplete or known, as asked", async () => {

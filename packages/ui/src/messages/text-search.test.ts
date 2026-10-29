@@ -13,6 +13,11 @@ test("ignores letter case and the diaeresis and tilde", () => {
   expect(textContains("PINGÜINO DE ÑANDÚ", "pinguino de nandu")).toBe(true);
 });
 
+test("ignores every combining mark, beyond the common accents", () => {
+  expect(textContains("Ma\u1dc0te co\u1ab0cido", "mate cocido")).toBe(true);
+  expect(textContains("mate cocido", "ma\u1dc0te")).toBe(true);
+});
+
 test("does not find text that does not contain the query", () => {
   expect(textContains("Aceto Balsámico", "vinagre")).toBe(false);
 });

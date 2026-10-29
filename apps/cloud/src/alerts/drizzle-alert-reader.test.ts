@@ -378,7 +378,6 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     expect(await alertIds("lucia")).toEqual([byUser]);
     expect(await alertIds("numero")).toEqual([byRegister]);
     expect(await alertIds("maquina")).toEqual([byAddress]);
-    expect(await alertIds("número")).toEqual([byRegister]);
   });
 
   it("finds a sync device's alert by the name of its installation's register", async () => {

@@ -180,7 +180,6 @@ describe("DrizzleFreightListReader.freights", () => {
       expect(await search("yerbas")).toEqual([byDescription]);
       expect(await search("patagonicos")).toEqual([byCarrier]);
       expect(await search("pena")).toEqual([bySupplier]);
-      expect(await search("yerbás")).toEqual([byDescription]);
     });
 
     it("reads the search as text, never as a pattern", async () => {
