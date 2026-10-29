@@ -26,7 +26,10 @@ const options: [ComboBoxOption<ProductId>, ...ComboBoxOption<ProductId>[]] = [
   { value: "miel", label: "Miel de abeja", description: "Campo Real · 350 g" },
 ];
 
-type BaseProps = Omit<ComboBoxProps<ProductId>, keyof FieldErrorProps>;
+type BaseProps = Omit<ComboBoxProps<ProductId>, keyof FieldErrorProps | "options" | "creation"> & {
+  options: typeof options;
+  creation?: { recordKind: string; onCreate: (typedText: string) => void };
+};
 
 function baseProps(overrides: Partial<BaseProps> = {}): BaseProps {
   return {
