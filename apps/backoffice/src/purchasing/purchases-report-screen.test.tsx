@@ -3,9 +3,12 @@ import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { type ReportFilters, reportFiltersSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import {
+  type PurchasesReportFilters,
+  purchasesReportFilters,
+} from "./purchases-report-filters";
 import { PurchasesReportScreen } from "./purchases-report-screen";
 import type { PurchasesReportScreenServices } from "./purchases-report-services";
 import {
@@ -24,14 +27,14 @@ function createServices(): PurchasesReportScreenServices {
 }
 
 type Handlers = {
-  filters?: ReportFilters;
-  onFiltersChange?: (filters: ReportFilters) => void;
+  filters?: PurchasesReportFilters;
+  onFiltersChange?: (filters: PurchasesReportFilters) => void;
   onSessionEnded?: () => void;
 };
 
 function ControlledScreen({
   services,
-  filters: initial = reportFiltersSearch.parse({}),
+  filters: initial = purchasesReportFilters.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
 }: Handlers & { services: PurchasesReportScreenServices }) {
@@ -164,7 +167,7 @@ test("asks the cloud for the range the URL names", async () => {
   const services = createServices();
 
   await renderScreen(services, {
-    filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    filters: purchasesReportFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
   });
 
   await expect
