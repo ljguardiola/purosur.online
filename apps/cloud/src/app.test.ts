@@ -1604,10 +1604,16 @@ describe("wiring the prices routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
+    const pastDeadline = await app.inject({
+      method: "GET",
+      url: "/api/reports/prices-past-review-deadline",
+    });
+
     expect(list.statusCode).toBe(404);
     expect(margin.statusCode).toBe(404);
     expect(setPrice.statusCode).toBe(404);
     expect(confirmation.statusCode).toBe(404);
+    expect(pastDeadline.statusCode).toBe(404);
   });
 
   it("registers the prices routes when a prices option is given", async () => {
@@ -1637,10 +1643,16 @@ describe("wiring the prices routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
+    const pastDeadline = await app.inject({
+      method: "GET",
+      url: "/api/reports/prices-past-review-deadline",
+    });
+
     expect(list.statusCode).toBe(401);
     expect(margin.statusCode).toBe(401);
     expect(setPrice.statusCode).toBe(401);
     expect(confirmation.statusCode).toBe(401);
+    expect(pastDeadline.statusCode).toBe(401);
   });
 });
 
@@ -3010,6 +3022,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/prices",
         access: capabilityAccess("prices_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/prices-past-review-deadline",
+        access: capabilityAccess("reports_area"),
       },
       {
         method: "GET",

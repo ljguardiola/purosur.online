@@ -29,6 +29,8 @@ test("every pricing query is keyed under the pricing concept's root key", () => 
     pricesKeys.reviewQueueOf(["product-1"]),
     pricesKeys.reload,
     pricesKeys.margin("product-1", 820000),
+    pricesKeys.pastReviewDeadlineReport({}),
+    pricesKeys.pastReviewDeadlineReport({ from: "2026-12-01", to: "2026-12-31" }),
     discountsKey,
     discountTargetsKey,
   ];
@@ -87,4 +89,16 @@ test("a review queue limited to some products has its own key, apart from the wh
   ].map((key) => JSON.stringify(key));
 
   expect(new Set(hashes).size).toBe(hashes.length);
+});
+
+test("each period of the past-deadline report has its own key", () => {
+  const queries = [
+    {},
+    { from: "2026-12-01", to: "2026-12-31" },
+    { from: "2026-12-01", to: "2026-12-30" },
+  ];
+
+  const hashes = queries.map((query) => JSON.stringify(pricesKeys.pastReviewDeadlineReport(query)));
+
+  expect(new Set(hashes).size).toBe(queries.length);
 });

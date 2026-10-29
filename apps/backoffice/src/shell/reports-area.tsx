@@ -14,6 +14,7 @@ import {
   Receipt,
   Scale,
   ShoppingCart,
+  TagX,
   Undo2,
   Users,
   Wallet,
@@ -52,6 +53,9 @@ function ReportsArea() {
   const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
   const lossesByReasonShown = Boolean(matchRoute({ to: "/reports/losses-by-reason" }));
+  const pricesPastReviewDeadlineShown = Boolean(
+    matchRoute({ to: "/reports/prices-past-review-deadline" }),
+  );
   const purchasesReportShown = Boolean(matchRoute({ to: "/reports/purchases-by-supplier" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   const issuedFiscalDocumentsShown = Boolean(matchRoute({ to: "/reports/fiscal-documents" }));
@@ -190,6 +194,15 @@ function ReportsArea() {
                     icon={<PackageX />}
                     search={lossesByReasonShown ? true : {}}
                     active={lossesByReasonShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/prices-past-review-deadline"
+                    label="Precios sin revisar"
+                    icon={<TagX />}
+                    search={pricesPastReviewDeadlineShown ? true : {}}
+                    active={pricesPastReviewDeadlineShown}
                   />
                 </li>
                 <li>

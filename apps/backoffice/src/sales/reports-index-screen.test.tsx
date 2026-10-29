@@ -202,3 +202,14 @@ test("lists the purchases by supplier report as a link to it", async () => {
     .element(screen.getByRole("link", { name: "Compras por proveedor" }))
     .toHaveAttribute("href", "/reports/purchases-by-supplier");
 });
+
+test("groups the price reports in a card titled Precios", async () => {
+  const screen = await renderScreen();
+
+  const prices = screen.getByRole("region", { name: "Precios" });
+  await expect.element(prices).toBeVisible();
+  expect(prices.getByRole("link").elements()).toHaveLength(1);
+  await expect
+    .element(prices.getByRole("link", { name: "Precios sin revisar" }))
+    .toHaveAttribute("href", "/reports/prices-past-review-deadline");
+});

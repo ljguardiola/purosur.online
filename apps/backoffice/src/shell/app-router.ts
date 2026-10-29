@@ -24,7 +24,11 @@ import {
   salesByPaymentMethodRoute,
 } from "../payments/routes";
 import { rolesListRoute } from "../permissions/routes";
-import { discountsListRoute, pricesListRoute } from "../pricing/routes";
+import {
+  discountsListRoute,
+  pricesListRoute,
+  pricesPastReviewDeadlineReportRoute,
+} from "../pricing/routes";
 import {
   freightsListRoute,
   newPurchaseRoute,
@@ -149,6 +153,7 @@ const routeTree = rootRoute.addChildren([
       currentStockReportRoute,
       expiringLotsReportRoute,
       lossesByReasonReportRoute,
+      pricesPastReviewDeadlineReportRoute,
       purchasesReportRoute,
       salesByPromotionRoute,
       manualDiscountsRoute,
