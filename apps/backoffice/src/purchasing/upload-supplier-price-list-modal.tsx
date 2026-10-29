@@ -11,6 +11,7 @@ import {
 import { Check, FileText, Globe, Truck, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { creatableChoice } from "../platform/creatable-options";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { NewSupplierModal, type NewSupplierModalServices } from "./new-supplier-modal";
@@ -200,6 +201,10 @@ export function UploadSupplierPriceListModal({
           ),
         )
       : undefined;
+  const supplierChoice = creatableChoice(
+    supplierOptions,
+    mayCreateSupplier ? { recordKind: "proveedor", onCreate: supplierCreation.start } : undefined,
+  );
 
   return (
     <Modal
@@ -246,7 +251,7 @@ export function UploadSupplierPriceListModal({
           <LoadFailure {...cloudLoadFailure(suppliers, "los proveedores")} />
         ) : suppliers.status === "loading" ? (
           <LoadingPlaceholder variant="form" fields={1} />
-        ) : supplierOptions === undefined ? (
+        ) : supplierChoice === undefined ? (
           <EmptyState
             icon={<Truck />}
             title="No hay proveedores activos"
@@ -259,11 +264,8 @@ export function UploadSupplierPriceListModal({
               <field.ComboBox
                 label="Proveedor"
                 placeholder="Elegí un proveedor"
-                options={supplierOptions}
                 required
-                {...(mayCreateSupplier
-                  ? { creation: { recordKind: "proveedor", onCreate: supplierCreation.start } }
-                  : {})}
+                {...supplierChoice}
               />
             )}
           </form.AppField>

@@ -24,6 +24,7 @@ import {
 import { Check, ClipboardCheck, Layers, Package, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -230,7 +231,10 @@ export function NewCountModal({
 
   const product = productOf(values.productId);
   const at = occurredAtOf(values.moment);
-  const options = productOptions(listed);
+  const productChoice = creatableChoice(
+    productOptions(listed),
+    ProductCreation ? { recordKind: "producto", onCreate: productCreation.start } : undefined,
+  );
   const balance = useExpectedBalanceQuery({
     productId: product?.id ?? "",
     at: at ?? "",
@@ -294,7 +298,7 @@ export function NewCountModal({
         <LoadingPlaceholder variant="form" fields={3} />
       ) : null}
       {failedLoad === undefined ? null : <LoadFailure {...failedLoad} />}
-      {products.status === "loaded" && rules !== undefined && !options ? (
+      {products.status === "loaded" && rules !== undefined && !productChoice ? (
         <EmptyState
           icon={<Package />}
           title="No hay productos activos"
@@ -302,7 +306,7 @@ export function NewCountModal({
           variant="blank"
         />
       ) : null}
-      {products.status === "loaded" && rules !== undefined && options ? (
+      {products.status === "loaded" && rules !== undefined && productChoice ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
             <InlineNotice
@@ -332,11 +336,8 @@ export function NewCountModal({
               <field.ComboBox
                 label="Producto"
                 placeholder="Buscá un producto"
-                options={options}
                 required
-                {...(ProductCreation
-                  ? { creation: { recordKind: "producto", onCreate: productCreation.start } }
-                  : {})}
+                {...productChoice}
               />
             )}
           </form.AppField>

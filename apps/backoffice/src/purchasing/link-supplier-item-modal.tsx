@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -230,7 +231,10 @@ export function LinkSupplierItemModal({
   }, [target, proposedOffered, proposedId, form]);
 
   const products = offered ? offered.products.map(({ id, name }) => ({ id, name })) : [];
-  const productOptions = offered ? linkProductOptions(offered) : undefined;
+  const productChoice = creatableChoice(
+    offered ? linkProductOptions(offered) : undefined,
+    ProductCreation ? { recordKind: "producto", onCreate: productCreation.start } : undefined,
+  );
   const packagingOptions = offered ? linkPackagingOptions(offered, values.productId) : undefined;
   const chosenProduct = offered?.products.find((product) => product.id === values.productId);
   const pageLink =
@@ -287,7 +291,7 @@ export function LinkSupplierItemModal({
     if (choices.status === "failed") {
       return <LoadFailure {...cloudLoadFailure(choices, "los productos")} />;
     }
-    if (!productOptions) {
+    if (!productChoice) {
       return (
         <EmptyState
           icon={<Package />}
@@ -307,11 +311,8 @@ export function LinkSupplierItemModal({
             <field.ComboBox
               label="Producto del catálogo"
               placeholder="Buscar un producto"
-              options={productOptions}
               required
-              {...(ProductCreation
-                ? { creation: { recordKind: "producto", onCreate: productCreation.start } }
-                : {})}
+              {...productChoice}
             />
           )}
         </form.AppField>

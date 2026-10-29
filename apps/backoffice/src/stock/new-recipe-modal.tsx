@@ -3,6 +3,7 @@ import { recipeSaveBodySchema } from "@purosur/contracts";
 import { Button, EmptyState, Modal, useRequestForm } from "@purosur/ui";
 import { BookOpen, Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -146,7 +147,10 @@ export function NewRecipeModal({
     }
   }, [open, reset, assembledCreation.reset, componentCreation.reset]);
 
-  const options = recipeProductOptions(products, recipes);
+  const assembledChoice = creatableChoice(
+    recipeProductOptions(products, recipes),
+    ProductCreation ? { recordKind: "producto", onCreate: assembledCreation.start } : undefined,
+  );
   const assembledUnit = products.find((product) => product.id === values.productId)?.saleUnit;
 
   return (
@@ -179,7 +183,7 @@ export function NewRecipeModal({
             size="large"
             icon={<Check />}
             fullWidth
-            disabled={submitting || !options}
+            disabled={submitting || !assembledChoice}
             onPress={() => void submit()}
           >
             Crear la receta
@@ -189,18 +193,15 @@ export function NewRecipeModal({
     >
       <div className="flex flex-col gap-4">
         {notice ? <RecipeSaveNotice notice={notice} /> : null}
-        {options ? (
+        {assembledChoice ? (
           <>
             <form.AppField name="productId">
               {(field) => (
                 <field.ComboBox
                   label="Producto armado"
                   placeholder="Elegí un producto"
-                  options={options}
                   required
-                  {...(ProductCreation
-                    ? { creation: { recordKind: "producto", onCreate: assembledCreation.start } }
-                    : {})}
+                  {...assembledChoice}
                 />
               )}
             </form.AppField>

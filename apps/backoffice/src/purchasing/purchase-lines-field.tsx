@@ -16,6 +16,7 @@ import {
 } from "@purosur/ui";
 import { Package, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { quantityFieldKind } from "../platform/stock-quantity";
@@ -99,7 +100,7 @@ export function PurchaseLinesField({
     ),
   ];
 
-  if (!productOptions) {
+  if (!productOptions && !canManageProductsAndCategories(access)) {
     return (
       <EmptyState
         icon={<Package />}
@@ -206,7 +207,7 @@ type PurchaseLineFieldsProps = {
   line: PurchaseLineValues;
   offersPriceReview: boolean;
   number: number;
-  productOptions: NonNullable<ReturnType<typeof packagingProductOptions>>;
+  productOptions: ReturnType<typeof packagingProductOptions>;
   products: PurchaseProducts;
   packagings: readonly PackagingSummary[];
   refusal: string | undefined;
@@ -234,23 +235,32 @@ function PurchaseLineFields({
   const saleUnit = products.find((product) => product.id === line.productId)?.saleUnit ?? "UNIT";
   const packagingOptions = purchasePackagingOptions(packagings, line.productId);
   const [firstPackaging, ...otherPackagings] = packagingOptions;
+  const productChoice = creatableChoice(
+    productOptions,
+    onCreateProduct === null ? undefined : { recordKind: "producto", onCreate: onCreateProduct },
+  );
+  const packagingChoice = creatableChoice(
+    firstPackaging ? [firstPackaging, ...otherPackagings] : undefined,
+    onCreatePackaging === null
+      ? undefined
+      : { recordKind: "presentación", onCreate: onCreatePackaging },
+  );
 
   return (
     <fieldset aria-label={`Línea ${number}`} className="min-w-0">
       <Card variant="subtle">
         <div className="flex items-end gap-4">
           <div className="min-w-0 flex-1">
-            <ComboBox
-              label="Producto"
-              placeholder="Elegí un producto"
-              options={productOptions}
-              value={line.productId}
-              onChange={(productId) => onChange({ productId, packagingId: null })}
-              required
-              {...(onCreateProduct === null
-                ? {}
-                : { creation: { recordKind: "producto", onCreate: onCreateProduct } })}
-            />
+            {productChoice ? (
+              <ComboBox
+                label="Producto"
+                placeholder="Elegí un producto"
+                value={line.productId}
+                onChange={(productId) => onChange({ productId, packagingId: null })}
+                required
+                {...productChoice}
+              />
+            ) : null}
           </div>
           <SegmentedControl
             label="Cargar por"
@@ -265,17 +275,14 @@ function PurchaseLineFields({
         {line.loadedBy === "packaging" ? (
           <div className="flex items-start gap-4">
             <div className="min-w-0 flex-1">
-              {firstPackaging ? (
+              {packagingChoice ? (
                 <ComboBox
                   label="Presentación"
                   placeholder="Elegí una presentación"
-                  options={[firstPackaging, ...otherPackagings]}
                   value={line.packagingId}
                   onChange={(packagingId) => onChange({ packagingId })}
                   required
-                  {...(onCreatePackaging === null
-                    ? {}
-                    : { creation: { recordKind: "presentación", onCreate: onCreatePackaging } })}
+                  {...packagingChoice}
                 />
               ) : (
                 <InlineNotice

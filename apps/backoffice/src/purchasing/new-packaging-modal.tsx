@@ -3,6 +3,7 @@ import type { SaleUnit } from "@purosur/domain";
 import { Button, EmptyState, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Package, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -135,7 +136,10 @@ export function NewPackagingModal({
     }
   }, [open]);
 
-  const options = packagingProductOptions(offeredProducts);
+  const productChoice = creatableChoice(
+    packagingProductOptions(offeredProducts),
+    ProductCreation ? { recordKind: "producto", onCreate: productCreation.start } : undefined,
+  );
 
   return (
     <Modal
@@ -167,7 +171,7 @@ export function NewPackagingModal({
             size="large"
             icon={<Check />}
             fullWidth
-            disabled={submitting || !options}
+            disabled={submitting || !productChoice}
             onPress={() => void submit()}
           >
             Crear la presentación
@@ -192,7 +196,7 @@ export function NewPackagingModal({
             description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
-        {options ? (
+        {productChoice ? (
           <>
             {given ? (
               <p className="text-body text-text-subtle">Producto: {packagingProductLabel(given)}</p>
@@ -202,11 +206,8 @@ export function NewPackagingModal({
                   <field.ComboBox
                     label="Producto"
                     placeholder="Elegí un producto"
-                    options={options}
                     required
-                    {...(ProductCreation
-                      ? { creation: { recordKind: "producto", onCreate: productCreation.start } }
-                      : {})}
+                    {...productChoice}
                   />
                 )}
               </form.AppField>

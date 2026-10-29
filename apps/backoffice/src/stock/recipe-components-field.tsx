@@ -11,6 +11,7 @@ import {
 } from "@purosur/ui";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
 import { quantityFieldKind } from "../platform/stock-quantity";
 import {
   type RecipeComponentValues,
@@ -37,6 +38,10 @@ export function RecipeComponentsField({
   const components = field.state.value;
   const [adding, setAdding] = useState(false);
   const [first, ...rest] = recipeComponentOptions(products, assembledProductId, components);
+  const componentChoice = creatableChoice(
+    first ? [first, ...rest] : undefined,
+    onCreateProduct ? { recordKind: "producto", onCreate: onCreateProduct } : undefined,
+  );
 
   function change(productId: string, patch: Partial<RecipeComponentValues>) {
     onComponentsChange();
@@ -99,23 +104,20 @@ export function RecipeComponentsField({
               </Card>
             );
           })}
-          {adding && first ? (
+          {adding && componentChoice ? (
             <ComboBox
               label="Componente"
               placeholder="Buscá un producto"
-              options={[first, ...rest]}
               value={null}
               onChange={add}
-              {...(onCreateProduct
-                ? { creation: { recordKind: "producto", onCreate: onCreateProduct } }
-                : {})}
+              {...componentChoice}
             />
           ) : (
             <div>
               <Button
                 variant="text"
                 icon={<Plus />}
-                disabled={first === undefined}
+                disabled={componentChoice === undefined}
                 onPress={() => setAdding(true)}
               >
                 Agregar un componente

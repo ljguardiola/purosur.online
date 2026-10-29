@@ -17,6 +17,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
@@ -196,6 +197,12 @@ export function NewPurchaseScreen({
   const supplierOptions = purchaseSupplierOptions(
     withCreatedSupplier(suppliers, supplierCreation.created),
   );
+  const supplierChoice = creatableChoice(
+    supplierOptions,
+    canManageSuppliers(access)
+      ? { recordKind: "proveedor", onCreate: supplierCreation.start }
+      : undefined,
+  );
   const nothingToChoose = !supplierOptions || products.length === 0;
 
   return (
@@ -255,22 +262,14 @@ export function NewPurchaseScreen({
             <h2 className="text-text-accent text-subheading">Compra</h2>
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
-                {supplierOptions ? (
+                {supplierChoice ? (
                   <form.AppField name="supplierId">
                     {(field) => (
                       <field.ComboBox
                         label="Proveedor"
                         placeholder="Elegí un proveedor"
-                        options={supplierOptions}
                         required
-                        {...(canManageSuppliers(access)
-                          ? {
-                              creation: {
-                                recordKind: "proveedor",
-                                onCreate: supplierCreation.start,
-                              },
-                            }
-                          : {})}
+                        {...supplierChoice}
                       />
                     )}
                   </form.AppField>

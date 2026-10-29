@@ -19,6 +19,7 @@ import { ArrowDownUp, Check, Info, Minus, Package, PackageX, Plus } from "lucide
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -245,6 +246,16 @@ export function StockMovementModal({
   };
   const submitting = loss.submitting || adjustment.submitting;
   const options = productOptions(listed);
+  const lossChoice = creatableChoice(
+    options,
+    ProductCreation ? { recordKind: "producto", onCreate: lossProductCreation.start } : undefined,
+  );
+  const adjustmentChoice = creatableChoice(
+    options,
+    ProductCreation
+      ? { recordKind: "producto", onCreate: adjustmentProductCreation.start }
+      : undefined,
+  );
   const lossProduct = productOf(loss.values.productId);
   const lossQuantity = quantityOf(loss.values);
   const lossDirection = soleDirection(listedReasons, "loss", loss.values.reason);
@@ -290,7 +301,7 @@ export function StockMovementModal({
       {data.status === "failed" ? (
         <LoadFailure {...cloudLoadFailure(data, "los productos")} />
       ) : null}
-      {data.status === "loaded" && !options ? (
+      {data.status === "loaded" && !(lossChoice && adjustmentChoice) ? (
         <EmptyState
           icon={<Package />}
           title="No hay productos activos"
@@ -298,7 +309,7 @@ export function StockMovementModal({
           variant="blank"
         />
       ) : null}
-      {data.status === "loaded" && options ? (
+      {data.status === "loaded" && lossChoice && adjustmentChoice ? (
         <div className="flex flex-col gap-4">
           {notice ? <StockMovementNotice notice={notice} /> : null}
           {kinds.length > 1 ? (
@@ -324,16 +335,8 @@ export function StockMovementModal({
                       <field.ComboBox
                         label="Producto"
                         placeholder="Elegí un producto"
-                        options={options}
                         required
-                        {...(ProductCreation
-                          ? {
-                              creation: {
-                                recordKind: "producto",
-                                onCreate: lossProductCreation.start,
-                              },
-                            }
-                          : {})}
+                        {...lossChoice}
                       />
                     )}
                   </loss.form.AppField>
@@ -382,16 +385,8 @@ export function StockMovementModal({
                       <field.ComboBox
                         label="Producto"
                         placeholder="Elegí un producto"
-                        options={options}
                         required
-                        {...(ProductCreation
-                          ? {
-                              creation: {
-                                recordKind: "producto",
-                                onCreate: adjustmentProductCreation.start,
-                              },
-                            }
-                          : {})}
+                        {...adjustmentChoice}
                       />
                     )}
                   </adjustment.form.AppField>
