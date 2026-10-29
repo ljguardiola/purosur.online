@@ -1,5 +1,5 @@
 import { PACKAGING_NAME_MAX_LENGTH } from "@purosur/domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   packagingCreationRequestFrom,
   packagingEditRequestFrom,
@@ -53,6 +53,12 @@ describe("packagingQuantityMessage", () => {
 });
 
 describe("packagingProductOptions", () => {
+  it("takes only products that carry their brand name and net content", () => {
+    expectTypeOf<{ id: string; name: string; saleUnit: "UNIT" }[]>().not.toExtend<
+      Parameters<typeof packagingProductOptions>[0]
+    >();
+  });
+
   it("offers the products by name, or none when there is none", () => {
     expect(
       packagingProductOptions([...packagableProducts].reverse())?.map((option) => option.label),
