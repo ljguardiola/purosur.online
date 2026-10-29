@@ -1,6 +1,5 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import { compareSpanishText } from "../../shared/index.js";
-import type { ProductBrandAndNetContent } from "./product-brand-and-net-content.js";
 import { RECORDED_LOSS_REASONS, type RecordedLossReason } from "./stock-movement-reason.js";
 
 export interface LossRecord {

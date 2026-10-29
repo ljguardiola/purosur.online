@@ -1,5 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
-import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 
 export interface RecipeComponentListing extends ProductBrandAndNetContent {
   componentProductId: string;

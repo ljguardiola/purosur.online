@@ -1,5 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
-import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import type { ReceiptType } from "../model/purchase.js";
 import type { Packaging, Supplier } from "./purchasing-store.js";
 

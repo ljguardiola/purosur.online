@@ -22,6 +22,8 @@ export type {
   BarcodeListProblem,
   NetContentUnit,
   NewProductBarcodeListProblem,
+  ProductBrandAndNetContent,
+  ProductNetContent,
   SaleUnit,
 } from "./model/product.js";
 export {

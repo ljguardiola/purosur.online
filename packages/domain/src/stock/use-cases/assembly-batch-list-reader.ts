@@ -1,6 +1,5 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import type { AssemblyBatchStatus, BatchLotMovement } from "../model/assembly-batch.js";
-import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 
 export interface ReadAssemblyBatch extends ProductBrandAndNetContent {
   id: string;

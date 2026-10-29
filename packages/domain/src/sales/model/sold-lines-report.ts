@@ -1,14 +1,9 @@
-import type { NetContentUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent } from "../../catalog/index.js";
 import { codeUnitOrder } from "./report-order.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
-interface GroupProductIdentity {
-  brandName: string | null;
-  netContent: { quantity: number; unit: NetContentUnit } | null;
-}
-
-export interface SoldLinesOfGroup extends GroupProductIdentity {
+export interface SoldLinesOfGroup extends ProductBrandAndNetContent {
   id: string | null;
   path: readonly string[];
   weightSource: WeightSource | null;
@@ -22,7 +17,7 @@ export interface SoldTotals {
   amount: number;
 }
 
-export interface SalesOfGroup extends SoldTotals, GroupProductIdentity {
+export interface SalesOfGroup extends SoldTotals, ProductBrandAndNetContent {
   id: string | null;
   path: readonly string[];
 }

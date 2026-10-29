@@ -1,4 +1,4 @@
-import type { NetContentUnit } from "../../catalog/index.js";
+import type { ProductNetContent } from "../../catalog/index.js";
 import type { DiscountBenefit, DiscountTargetKind } from "../../pricing/index.js";
 import { codeUnitOrder, nameOrder } from "./report-order.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
@@ -10,7 +10,7 @@ export interface PromotionTerms {
     kind: DiscountTargetKind;
     name: string;
     brandName: string | null;
-    netContent: { quantity: number; unit: NetContentUnit } | null;
+    netContent: ProductNetContent | null;
   };
   weekdays: readonly number[];
 }

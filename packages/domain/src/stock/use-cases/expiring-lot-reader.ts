@@ -1,6 +1,5 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import type { LotCost } from "../model/lot-value.js";
-import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 
 export interface ExpiringLotProduct extends ProductBrandAndNetContent {
   id: string;

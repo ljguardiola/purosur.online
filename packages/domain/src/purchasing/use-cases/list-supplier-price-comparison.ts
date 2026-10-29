@@ -1,11 +1,10 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import {
   cheapestOffer,
   compareFractions,
   compareSpanishText,
   type Fraction,
 } from "../../shared/index.js";
-import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import type { SupplierOfferUnpricedReason } from "../model/supplier-item.js";
 import { supplierOfferPrice } from "../model/supplier-offer.js";
 import type {

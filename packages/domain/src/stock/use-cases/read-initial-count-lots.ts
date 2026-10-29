@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import { cheapestOffer, compareSpanishText } from "../../shared/index.js";
 import {
   type InitialCountCostFilter,
@@ -11,7 +11,6 @@ import {
   selectableSupplierPrices,
 } from "../model/lot-reference-cost.js";
 import { knownLotCost, lotValueCents } from "../model/lot-value.js";
-import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import { lotUnitCostCents, unitCostCents } from "../model/unit-cost.js";
 import type { InitialCountLotReader, InitialCountLotRow } from "./initial-count-lot-reader.js";
 

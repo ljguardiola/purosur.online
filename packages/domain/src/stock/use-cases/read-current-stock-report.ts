@@ -1,10 +1,9 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import {
   type CurrentStockSummary,
   currentStockSummary,
   holdsCurrentStock,
 } from "../model/current-stock-summary.js";
-import type { ProductBrandAndNetContent } from "../model/product-brand-and-net-content.js";
 import type { CurrentStockReader } from "./current-stock-reader.js";
 import { readStockBalances, type StockBalanceView } from "./read-stock-balances.js";
 
