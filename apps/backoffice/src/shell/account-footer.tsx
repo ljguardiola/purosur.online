@@ -1,7 +1,8 @@
 import { AreaNavButton, Button, InlineNotice, Modal } from "@purosur/ui";
 import { Link } from "@tanstack/react-router";
-import { LogOut, TriangleAlert, X } from "lucide-react";
+import { LogOut, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
+import { retryAfterDetail } from "../platform/retry-after-detail";
 import { signOut } from "../sessions/session-api";
 
 export type AccountFooterServices = {
@@ -20,25 +21,31 @@ const nameLinkClassName =
   "w-full rounded-sm px-1 text-center text-caption font-semibold leading-xs text-text-inverse-subtle outline-none " +
   "focus-visible:focus-ring-inverse";
 
+type Notice = { kind: "failed" } | { kind: "rate_limited"; retryAfterSeconds: number };
+
 export function AccountFooter({ displayName, onSignedOut, services }: AccountFooterProps) {
   const { signOut } = services ?? defaultAccountFooterServices;
   const [confirming, setConfirming] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   function openConfirm() {
-    setFailed(false);
+    setNotice(null);
     setConfirming(true);
   }
 
   async function handleConfirm() {
-    setFailed(false);
+    setNotice(null);
     setSigningOut(true);
     const outcome = await signOut();
     setSigningOut(false);
     // Stays put on anything but `ok`: the session and its cookie are still live otherwise.
+    if (outcome.kind === "rate_limited") {
+      setNotice({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+      return;
+    }
     if (outcome.kind !== "ok") {
-      setFailed(true);
+      setNotice({ kind: "failed" });
       return;
     }
     setConfirming(false);
@@ -84,7 +91,15 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
           </>
         }
       >
-        {failed ? (
+        {notice?.kind === "rate_limited" ? (
+          <InlineNotice
+            tone="error"
+            icon={<ShieldX />}
+            title="Demasiadas solicitudes"
+            description={retryAfterDetail(notice.retryAfterSeconds)}
+          />
+        ) : null}
+        {notice?.kind === "failed" ? (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}

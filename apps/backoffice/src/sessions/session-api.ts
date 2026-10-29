@@ -48,7 +48,10 @@ export type AuthenticateOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type SignOutOutcome = { kind: "ok" } | { kind: "failed" };
+export type SignOutOutcome =
+  | { kind: "ok" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
 
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
@@ -167,6 +170,9 @@ export async function signOut(): Promise<SignOutOutcome> {
   }
   if (response.ok || response.status === 401) {
     return { kind: "ok" };
+  }
+  if (response.status === 429) {
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
