@@ -9,6 +9,8 @@ function row(id: string, overrides: Record<string, unknown> = {}) {
     lotId: id,
     productId: `product-${id}`,
     productName: "Yerba 1 kg",
+    brandName: "Vitora" as string | null,
+    netContent: { quantity: 1, unit: "KG" } as { quantity: number; unit: "KG" } | null,
     categoryName: "Almacén",
     saleUnit: "UNIT" as const,
     expiresOn: "2027-01-31" as string | null,
@@ -43,6 +45,8 @@ describe("readInitialCountLots", () => {
         lotId: "l1",
         productId: "product-l1",
         productName: "Yerba 1 kg",
+        brandName: "Vitora",
+        netContent: { quantity: 1, unit: "KG" },
         categoryName: "Almacén",
         saleUnit: "UNIT",
         expiresOn: "2027-01-31",
@@ -55,6 +59,12 @@ describe("readInitialCountLots", () => {
         supplierPrices: [],
       },
     ]);
+  });
+
+  it("shows a product with no brand and no net content as such", async () => {
+    const { lots } = await read([row("l1", { brandName: null, netContent: null })]);
+
+    expect(lots[0]).toMatchObject({ brandName: null, netContent: null });
   });
 
   it("shows the typed cost per sale unit and values what was counted at it, rounding only the value", async () => {

@@ -5,7 +5,8 @@ import {
   recipeSaveBodySchema,
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { sortedItems, textOrder } from "@purosur/ui";
+import { numericTextOrder, sortedItems } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import {
   formatStockQuantityInput,
@@ -46,12 +47,15 @@ const RECIPE_COMPONENT_IS_PRODUCT =
 
 type ProductOption = { value: string; label: string };
 
-const productNameOrder = textOrder((product: RecipeList["products"][number]) => product.name);
+const productOrder = numericTextOrder((product: RecipeList["products"][number]) =>
+  formatProductDescription(product),
+);
 
 function optionsOf(products: readonly RecipeList["products"][number][]): ProductOption[] {
-  return sortedItems(products, { order: productNameOrder, direction: "ascending" }).map(
-    (product) => ({ value: product.id, label: product.name }),
-  );
+  return sortedItems(products, { order: productOrder, direction: "ascending" }).map((product) => ({
+    value: product.id,
+    label: formatProductDescription(product),
+  }));
 }
 
 export function recipeProductOptions(
@@ -132,7 +136,7 @@ export function recipeFormValuesOf(recipe: RecipeSummary): RecipeFormValues {
     productId: recipe.productId,
     components: recipe.components.map((component) => ({
       productId: component.componentProductId,
-      name: component.name,
+      name: formatProductDescription(component),
       saleUnit: component.saleUnit,
       quantity: formatStockQuantityInput(component.quantityPerOutputUnit, component.saleUnit),
     })),

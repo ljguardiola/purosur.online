@@ -1,6 +1,6 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 
-export interface RecipeComponentListing {
+export interface RecipeComponentListing extends ProductBrandAndNetContent {
   componentProductId: string;
   name: string;
   saleUnit: SaleUnit;
@@ -13,7 +13,7 @@ export interface RecipeLastBatch {
   assembledAt: Date;
 }
 
-export interface RecipeListing {
+export interface RecipeListing extends ProductBrandAndNetContent {
   productId: string;
   productName: string;
   categoryName: string;

@@ -43,17 +43,55 @@ describe("salesByProductAndCategorySchema", () => {
       {
         id: CATEGORY_ID,
         path: ["Almacén", "Dulces"],
+        brandName: null,
+        netContent: null,
         units: 12,
         thousandths: 1_500,
         amount: 36_000,
       },
-      { id: null, path: [], units: 1, thousandths: 0, amount: 500 },
+      {
+        id: null,
+        path: [],
+        brandName: null,
+        netContent: null,
+        units: 1,
+        thousandths: 0,
+        amount: 500,
+      },
     ],
     totals: { units: 13, thousandths: 1_500, amount: 36_500 },
   };
 
   it("accepts the rows of a range with their totals", () => {
     expect(salesByProductAndCategorySchema.parse(report)).toEqual(report);
+  });
+
+  it("accepts a product row with its brand name and net content", () => {
+    const product = {
+      ...report,
+      group: "product",
+      rows: [
+        {
+          id: CATEGORY_ID,
+          path: ["Aceite de Almendras"],
+          brandName: "Vitora",
+          netContent: { quantity: 30, unit: "ML" },
+          units: 1,
+          thousandths: 0,
+          amount: 500,
+        },
+      ],
+    };
+
+    expect(salesByProductAndCategorySchema.parse(product)).toEqual(product);
+  });
+
+  it.each(["brandName", "netContent"])("requires %s in a row", (field) => {
+    const { [field as "brandName"]: _omitted, ...row } = report.rows[0] as (typeof report.rows)[0];
+
+    expect(salesByProductAndCategorySchema.safeParse({ ...report, rows: [row] }).success).toBe(
+      false,
+    );
   });
 
   it("accepts a range without sales", () => {

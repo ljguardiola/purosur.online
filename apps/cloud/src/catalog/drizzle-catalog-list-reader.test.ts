@@ -66,6 +66,7 @@ async function insertProduct(input: {
   brandId?: string;
   tagIds?: string[];
   barcodes?: string[];
+  netContent?: { quantity: number; unit: string };
 }): Promise<string> {
   const [row] = await db
     .insert(products)
@@ -74,6 +75,8 @@ async function insertProduct(input: {
       categoryId: input.categoryId,
       brandId: input.brandId,
       saleUnit: "UNIT",
+      netContentQuantity: input.netContent?.quantity,
+      netContentUnit: input.netContent?.unit,
       active: input.active ?? true,
     })
     .returning({ id: products.id });
@@ -130,12 +133,30 @@ describe("DrizzleCatalogListReader", () => {
         categoryId,
         categoryName: "Almacén",
         brandId,
+        brandName: "Granuz",
         saleUnit: "UNIT",
         barcodes: ["111", "222"],
         tagIds: [organic, vegan],
         netContent: null,
         active: true,
         version: 1,
+      });
+    });
+
+    it("answers the net content of a product and no brand name when it has none", async () => {
+      const categoryId = await insertCategory("Almacén");
+      await insertProduct({
+        name: "Aceite",
+        categoryId,
+        netContent: { quantity: 500, unit: "ML" },
+      });
+
+      const [product] = await reader.products("active");
+
+      expect(product).toMatchObject({
+        brandId: null,
+        brandName: null,
+        netContent: { quantity: 500, unit: "ML" },
       });
     });
 

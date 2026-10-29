@@ -37,7 +37,15 @@ export class FakePurchasingListReader implements PurchasingListReader {
     return this.data.packagings.sort(byName).flatMap((packaging) => {
       const product = this.data.products.find((row) => row.id === packaging.productId);
       return product
-        ? [{ ...packaging, productName: product.name, productSaleUnit: product.saleUnit }]
+        ? [
+            {
+              ...packaging,
+              productName: product.name,
+              brandName: product.brandName ?? null,
+              netContent: product.netContent ?? null,
+              productSaleUnit: product.saleUnit,
+            },
+          ]
         : [];
     });
   }

@@ -3,6 +3,8 @@ import type { ExpiringLot, ExpiringLotList } from "@purosur/contracts";
 const chia = {
   id: "00000000-0000-4000-8000-0000000000c1",
   name: "Semillas de chía",
+  brandName: null,
+  netContent: null,
   categoryId: "category-seeds",
   categoryName: "Semillas",
   saleUnit: "KG",
@@ -11,14 +13,28 @@ const chia = {
 const oats = {
   id: "00000000-0000-4000-8000-0000000000c2",
   name: "Avena arrollada",
+  brandName: null,
+  netContent: null,
   categoryId: "category-cereals",
   categoryName: "Cereales",
   saleUnit: "KG",
 } as const;
 
+const almondOil = {
+  id: "00000000-0000-4000-8000-0000000000c4",
+  name: "Aceite de Almendras",
+  brandName: "Vitora",
+  netContent: { quantity: 30, unit: "ML" },
+  categoryId: "category-grocery",
+  categoryName: "Almacén",
+  saleUnit: "UNIT",
+} as const;
+
 const yogurt = {
   id: "00000000-0000-4000-8000-0000000000c3",
   name: "Yogur natural",
+  brandName: null,
+  netContent: null,
   categoryId: "category-dairy",
   categoryName: "Lácteos",
   saleUnit: "UNIT",
@@ -88,3 +104,14 @@ export function expiringLotList(
 ): ExpiringLotList {
   return { windowDays: 30, lots, summary };
 }
+
+export const almondOilExpiredLot: ExpiringLot = {
+  id: "00000000-0000-4000-8000-00000000e006",
+  lotNumber: null,
+  expiresOn: "2026-10-11",
+  remaining: 6_000,
+  valueCents: 900_000,
+  expired: true,
+  daysToExpiry: -2,
+  product: almondOil,
+};

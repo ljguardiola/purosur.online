@@ -134,6 +134,8 @@ describe("GET /reports/expiring-lots", () => {
       name: "Queso cremoso",
       categoryName: "Lácteos",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
     });
     const later = await insertPurchasedLot(db, {
       productId: cheese.productId,
@@ -182,6 +184,8 @@ describe("GET /reports/expiring-lots", () => {
           product: {
             id: cheese.productId,
             name: "Queso cremoso",
+            brand_name: "Vitora",
+            net_content: { quantity: 250, unit: "G" },
             category_id: cheese.categoryId,
             category_name: "Lácteos",
             sale_unit: "KG",

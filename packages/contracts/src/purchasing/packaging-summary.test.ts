@@ -5,6 +5,8 @@ const caja = {
   id: "k-1",
   productId: "p-1",
   productName: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 500, unit: "G" },
   productSaleUnit: "UNIT",
   saleUnit: "UNIT",
   saleUnitChanged: false,
@@ -17,6 +19,8 @@ const bolsa = {
   id: "k-2",
   productId: "p-2",
   productName: "Harina",
+  brandName: null,
+  netContent: null,
   productSaleUnit: "UNIT",
   saleUnit: "KG",
   saleUnitChanged: true,
@@ -25,7 +29,13 @@ const bolsa = {
   active: false,
   version: 4,
 };
-const product = { id: "p-1", name: "Yerba", saleUnit: "UNIT" };
+const product = {
+  id: "p-1",
+  name: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 500, unit: "G" },
+  saleUnit: "UNIT",
+};
 
 describe("packagingSummarySchema", () => {
   it("accepts a packaging stated in units and one stated in kilos, whatever its product is sold by now", () => {
@@ -41,6 +51,8 @@ describe("packagingSummarySchema", () => {
     "id",
     "productId",
     "productName",
+    "brandName",
+    "netContent",
     "productSaleUnit",
     "saleUnit",
     "saleUnitChanged",
@@ -58,6 +70,8 @@ describe("packagingSummarySchema", () => {
     ["id", 1],
     ["productId", null],
     ["productName", 1],
+    ["brandName", 1],
+    ["netContent", { quantity: 500, unit: "BOX" }],
     ["productSaleUnit", "LITER"],
     ["saleUnit", "LITER"],
     ["saleUnitChanged", "false"],
@@ -97,6 +111,7 @@ describe("packagingListSchema", () => {
     { products: [] },
     { packagings: [{ ...caja, saleUnit: "x" }], products: [] },
     { packagings: [], products: [{ id: "p", name: "n", saleUnit: "x" }] },
+    { packagings: [], products: [{ id: "p", name: "n", saleUnit: "UNIT" }] },
   ])("refuses %j as a list", (body) => {
     expect(packagingListSchema.safeParse(body).success).toBe(false);
   });

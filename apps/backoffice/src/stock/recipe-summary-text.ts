@@ -1,5 +1,6 @@
 import type { RecipeSummary } from "@purosur/contracts";
 import { formatNumber } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 
 const namesList = new Intl.ListFormat("es-AR", { type: "conjunction" });
 
@@ -7,8 +8,12 @@ export function recipeComponentCountText(count: number): string {
   return count === 1 ? "1 componente" : `${formatNumber(count)} componentes`;
 }
 
-export function recipeComponentNamesText(components: readonly { name: string }[]): string {
-  const names = namesList.format(components.map((component) => component.name));
+export function recipeComponentNamesText(
+  components: readonly Parameters<typeof formatProductDescription>[0][],
+): string {
+  const names = namesList.format(
+    components.map((component) => formatProductDescription(component)),
+  );
   return `${names.charAt(0).toUpperCase()}${names.slice(1)}`;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sortedItems, textOrder } from "./item-ordering";
+import { numericTextOrder, sortedItems, textOrder } from "./item-ordering";
 
 type Node = { id: string; name: string; parentId: string | null };
 
@@ -23,6 +23,19 @@ describe("textOrder", () => {
       "nuez",
       "ñandú",
       "Oliva",
+    ]);
+  });
+});
+
+describe("numericTextOrder", () => {
+  it("compares the numbers inside the texts by their value", () => {
+    const order = numericTextOrder((text: string) => text);
+
+    expect(["Aceite 100 ml", "Aceite 30 ml", "Aceite 5 ml", "árbol"].sort(order)).toEqual([
+      "Aceite 5 ml",
+      "Aceite 30 ml",
+      "Aceite 100 ml",
+      "árbol",
     ]);
   });
 });

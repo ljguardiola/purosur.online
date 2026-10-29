@@ -1,5 +1,6 @@
 import { ASSEMBLY_BATCH_STATUSES, isCalendarDay, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
+import { netContentSchema } from "../shared/index.js";
 import { recipeSummarySchema } from "./recipe-summary.js";
 
 const saleUnitSchema = z.enum(SALE_UNITS);
@@ -28,6 +29,8 @@ const assemblyBatchSchema = z.object({
   id: z.string(),
   productId: z.string(),
   productName: z.string(),
+  brandName: z.string().nullable(),
+  netContent: netContentSchema.nullable(),
   saleUnit: saleUnitSchema,
   assembledAt: moment,
   output: z.int(),

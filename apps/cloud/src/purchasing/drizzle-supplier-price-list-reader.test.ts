@@ -267,7 +267,12 @@ describe("what a review says about the link and the earlier price of each row", 
   });
 
   it("gives a linked row its product, packaging and VAT rate", async () => {
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg", saleUnit: "UNIT" });
+    const { id: productId } = await insertProduct(db, {
+      name: "Yerba",
+      saleUnit: "UNIT",
+      brandName: "Piragüé",
+      netContent: { quantity: 1, unit: "KG" },
+    });
     const packagingId = await insertPackaging(db, {
       productId,
       actorId,
@@ -279,7 +284,13 @@ describe("what a review says about the link and the earlier price of each row", 
     const review = await reader().review(listId);
 
     expect(review?.rows[0]?.link).toEqual({
-      product: { id: productId, name: "Yerba 1 kg", saleUnit: "UNIT" },
+      product: {
+        id: productId,
+        name: "Yerba",
+        brandName: "Piragüé",
+        netContent: { quantity: 1, unit: "KG" },
+        saleUnit: "UNIT",
+      },
       packaging: {
         id: packagingId,
         name: "Caja x 10",
@@ -288,6 +299,22 @@ describe("what a review says about the link and the earlier price of each row", 
         saleUnit: "UNIT",
       },
       vatRate: 1_050,
+    });
+  });
+
+  it("gives a linked product without a brand or a net content as having none", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
+    const packagingId = await insertPackaging(db, { productId, actorId });
+    const { listId } = await extractedList([{ productId, packagingId }]);
+
+    const review = await reader().review(listId);
+
+    expect(review?.rows[0]?.link?.product).toEqual({
+      id: productId,
+      name: "Harina",
+      brandName: null,
+      netContent: null,
+      saleUnit: "KG",
     });
   });
 

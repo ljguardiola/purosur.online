@@ -3,6 +3,7 @@ import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { LossesByReasonReportReasonSection } from "./losses-by-reason-report-reason-section";
 import {
+  almondOilReason,
   expiredReason,
   returnDiscardReason,
   spoiledReason,
@@ -57,4 +58,11 @@ test("marks its table busy while the report reads again", async () => {
   await expect
     .element(screen.getByRole("table", { name: "Productos perdidos por Mal estado" }))
     .toHaveAttribute("aria-busy", "true");
+});
+
+test("lists each product lost with its brand and net content", async () => {
+  const screen = await renderSection(almondOilReason);
+
+  const table = screen.getByRole("table");
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
 });

@@ -43,7 +43,26 @@ describe("the products to compare", () => {
     const [category] = await db.select({ name: categories.name }).from(categories);
 
     expect(await reader().activeProducts()).toEqual([
-      { id, name: "Harina", categoryName: category?.name, saleUnit: "KG" },
+      {
+        id,
+        name: "Harina",
+        brandName: null,
+        netContent: null,
+        categoryName: category?.name,
+        saleUnit: "KG",
+      },
+    ]);
+  });
+
+  it("answers each active product's brand name and net content", async () => {
+    const { id } = await insertProduct(db, {
+      name: "Aceite de Almendras",
+      brandName: "Vitora",
+      netContent: { quantity: 30, unit: "ML" },
+    });
+
+    expect(await reader().activeProducts()).toMatchObject([
+      { id, brandName: "Vitora", netContent: { quantity: 30, unit: "ML" } },
     ]);
   });
 });

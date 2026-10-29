@@ -18,7 +18,13 @@ const LIST = {
 };
 
 const LINKED = {
-  product: { id: "product-1", name: "Yerba Piragüé", saleUnit: "UNIT" as const },
+  product: {
+    id: "product-1",
+    name: "Yerba",
+    brandName: "Piragüé",
+    netContent: { quantity: 1, unit: "KG" as const },
+    saleUnit: "UNIT" as const,
+  },
   packaging: {
     id: "packaging-1",
     name: "Caja x 10",
@@ -277,7 +283,13 @@ describe("findSupplierPriceListReview", () => {
 
   describe("the status and price of each linked row", () => {
     const LINK = {
-      product: { id: "product-1", name: "Yerba Piragüé", saleUnit: "UNIT" as const },
+      product: {
+        id: "product-1",
+        name: "Yerba",
+        brandName: "Piragüé",
+        netContent: { quantity: 1, unit: "KG" as const },
+        saleUnit: "UNIT" as const,
+      },
       packaging: {
         id: "packaging-1",
         name: "Caja x 10",

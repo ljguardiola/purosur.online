@@ -2,8 +2,8 @@ import type { SaleUnit } from "@purosur/domain";
 import type {
   CatalogBrandSummary,
   CatalogCategory,
+  CatalogListProduct,
   CatalogListReader,
-  CatalogProduct,
   CatalogTagSummary,
   ProductActivityScope,
 } from "@purosur/domain/catalog/use-cases";
@@ -52,7 +52,7 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async products(scope: ProductActivityScope): Promise<CatalogProduct[]> {
+  async products(scope: ProductActivityScope): Promise<CatalogListProduct[]> {
     const rows = await this.db
       .select({
         id: products.id,
@@ -60,6 +60,7 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
         categoryId: products.categoryId,
         categoryName: categories.name,
         brandId: products.brandId,
+        brandName: brands.name,
         saleUnit: products.saleUnit,
         netContentQuantity: products.netContentQuantity,
         netContentUnit: products.netContentUnit,
@@ -68,6 +69,7 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(productActivityCondition(scope))
       .orderBy(asc(products.name));
 
@@ -81,6 +83,7 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
       categoryId: row.categoryId,
       categoryName: row.categoryName,
       brandId: row.brandId,
+      brandName: row.brandName,
       saleUnit: row.saleUnit as SaleUnit,
       barcodes: barcodes.get(row.id) ?? [],
       tagIds: tagIds.get(row.id) ?? [],

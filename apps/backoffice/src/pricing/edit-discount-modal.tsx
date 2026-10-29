@@ -11,6 +11,7 @@ import {
   SharedFieldError,
   useRequestForm,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Info, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DISCOUNT_TARGET_KIND_LABELS } from "../platform/discount-terms-text";
@@ -118,7 +119,17 @@ export function EditDiscountModal({
         return;
       }
       if (outcome.kind === "product_sold_by_weight") {
-        showFieldError("targetId", productSoldByWeightMessage(outcome.productName));
+        const described =
+          targets.products.find((product) => product.id === values.targetId) ??
+          (loaded?.target.kind === "PRODUCT" && loaded.target.id === values.targetId
+            ? loaded.target
+            : undefined);
+        showFieldError(
+          "targetId",
+          productSoldByWeightMessage(
+            described === undefined ? outcome.productName : formatProductDescription(described),
+          ),
+        );
         return;
       }
       if (outcome.kind === "rate_limited") {

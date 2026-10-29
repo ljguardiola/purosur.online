@@ -1,6 +1,7 @@
 import type { NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  brands,
   categories,
   locations,
   productBarcodes,
@@ -33,6 +34,7 @@ export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
     name: string;
     saleUnit?: SaleUnit;
     active?: boolean;
+    brandName?: string;
     brandId?: string;
     netContent?: { quantity: number; unit: NetContentUnit };
   },
@@ -44,6 +46,10 @@ export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
   }
+  const [brand] =
+    input.brandName === undefined
+      ? []
+      : await db.insert(brands).values({ name: input.brandName }).returning({ id: brands.id });
   const [product] = await db
     .insert(products)
     .values({
@@ -51,7 +57,7 @@ export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
       categoryId: category.id,
       saleUnit: input.saleUnit ?? "UNIT",
       active: input.active ?? true,
-      brandId: input.brandId ?? null,
+      brandId: brand?.id ?? input.brandId ?? null,
       netContentQuantity: input.netContent?.quantity ?? null,
       netContentUnit: input.netContent?.unit ?? null,
     })

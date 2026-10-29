@@ -4,6 +4,7 @@ import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { CurrentStockReportLots } from "./current-stock-report-lots";
 import {
+  almondOilProduct,
   almondsProduct,
   crackersProduct,
   teaProduct,
@@ -33,4 +34,12 @@ test("shows a lot without a known cost as without cost and without value", async
 
   await expect.element(screen.getByText("Sin costo")).toBeVisible();
   await expect.element(screen.getByText("—").first()).toBeVisible();
+});
+
+test("names the lots of a product by its brand and net content", async () => {
+  const screen = await render(<CurrentStockReportLots product={almondOilProduct} />);
+
+  await expect
+    .element(screen.getByRole("table", { name: "Lotes de Aceite de Almendras Vitora 30 ml" }))
+    .toBeVisible();
 });

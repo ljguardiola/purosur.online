@@ -34,6 +34,8 @@ describe("currentStockReportSchema", () => {
       {
         id: "product-1",
         name: "Harina",
+        brand_name: "Vitora",
+        net_content: { quantity: 1, unit: "KG" },
         category_id: CATEGORY_ID,
         category_name: "Almacén",
         sale_unit: "KG",
@@ -98,6 +100,8 @@ describe("currentStockReportSchema", () => {
 
   it.each([
     ["a sale unit that is not offered", { sale_unit: "LITRO" }],
+    ["a missing brand name", { brand_name: undefined }],
+    ["a missing net content", { net_content: undefined }],
     ["a balance with decimals", { balance: 1.5 }],
     ["a value with decimals", { value_cents: 10.5 }],
     [

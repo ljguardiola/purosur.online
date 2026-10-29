@@ -8,6 +8,7 @@ import {
   useFieldContext,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { formatStockQuantity, quantityFieldKind } from "../platform/stock-quantity";
 import { type AssemblyBatchProposal, usedText } from "./assembly-batch-form";
 
@@ -40,7 +41,7 @@ function UsedTable({
       id: "component",
       header: "Componente",
       render: (component: RecipeComponent) => (
-        <TableCellText strong>{component.name}</TableCellText>
+        <TableCellText strong>{formatProductDescription(component)}</TableCellText>
       ),
     }),
     dataColumn({
@@ -74,7 +75,7 @@ function UsedTable({
         return (
           <TextField
             {...quantityFieldKind(component.saleUnit)}
-            label={`Usado de ${component.name}`}
+            label={`Usado de ${formatProductDescription(component)}`}
             labelVisuallyHidden
             value={usedText({ used: typed }, component, proposal)}
             onChange={(value) => {

@@ -1,11 +1,14 @@
 import { SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
+import { netContentSchema } from "../shared/index.js";
 
 const saleUnitSchema = z.enum(SALE_UNITS);
 
 export const recipeSummarySchema = z.object({
   productId: z.string(),
   productName: z.string(),
+  brandName: z.string().nullable(),
+  netContent: netContentSchema.nullable(),
   categoryName: z.string(),
   saleUnit: saleUnitSchema,
   version: z.int(),
@@ -20,6 +23,8 @@ export const recipeSummarySchema = z.object({
     z.object({
       componentProductId: z.string(),
       name: z.string(),
+      brandName: z.string().nullable(),
+      netContent: netContentSchema.nullable(),
       saleUnit: saleUnitSchema,
       quantityPerOutputUnit: z.int(),
     }),
@@ -28,7 +33,15 @@ export const recipeSummarySchema = z.object({
 
 export const recipeListSchema = z.object({
   recipes: z.array(recipeSummarySchema),
-  products: z.array(z.object({ id: z.string(), name: z.string(), saleUnit: saleUnitSchema })),
+  products: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      brandName: z.string().nullable(),
+      netContent: netContentSchema.nullable(),
+      saleUnit: saleUnitSchema,
+    }),
+  ),
 });
 
 export type RecipeSummary = z.output<typeof recipeSummarySchema>;

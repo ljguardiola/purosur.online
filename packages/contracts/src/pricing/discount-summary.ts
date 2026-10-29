@@ -1,12 +1,17 @@
 import { DISCOUNT_STATUSES } from "@purosur/domain";
 import { z } from "zod";
-import { discountBenefitSchema, discountTargetSchema } from "../shared/index.js";
+import { discountBenefitSchema, discountTargetSchema, netContentSchema } from "../shared/index.js";
 
 export const discountSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
   benefit: discountBenefitSchema,
-  target: discountTargetSchema.extend({ id: z.string(), name: z.string() }),
+  target: discountTargetSchema.extend({
+    id: z.string(),
+    name: z.string(),
+    brandName: z.string().nullable(),
+    netContent: netContentSchema.nullable(),
+  }),
   validFrom: z.string(),
   validTo: z.string(),
   weekdays: z.array(z.int()),

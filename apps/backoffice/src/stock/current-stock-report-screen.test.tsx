@@ -11,6 +11,7 @@ import {
 import { CurrentStockReportScreen } from "./current-stock-report-screen";
 import type { CurrentStockReportScreenServices } from "./current-stock-report-services";
 import {
+  almondOilProduct,
   almondsProduct,
   crackersProduct,
   currentStockReport,
@@ -163,6 +164,29 @@ test("opens on the order the URL asks for and reports a new one", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Saldo" }));
 
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ sortBy: "balance" });
+});
+
+test("orders products of the same name by their whole description", async () => {
+  const largeAlmondOilProduct = {
+    ...almondOilProduct,
+    id: "77777777-7777-4777-8777-777777777776",
+    net_content: { quantity: 100, unit: "ML" as const },
+  };
+  const descriptions = ["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"];
+  const screen = await renderScreen(
+    listed(currentStockReport([largeAlmondOilProduct, almondOilProduct])),
+    { initial: currentStockReportFilters.parse({ sortBy: "product", sort: "ascending" }) },
+  );
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 100 ml")).toBeVisible();
+
+  expect(
+    screen
+      .getByRole("table", TABLE)
+      .getByRole("row")
+      .elements()
+      .map((row) => descriptions.find((description) => row.textContent?.includes(description)))
+      .filter((description) => description !== undefined),
+  ).toEqual(descriptions);
 });
 
 test("shows the lots of a product", async () => {
@@ -331,4 +355,18 @@ test("typing in the category filter offers only the matching categories", async 
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Frutos secos"]);
+});
+
+test("shows each product with its brand and net content, and names its lots by them", async () => {
+  const screen = await renderScreen(listed(currentStockReport([almondOilProduct])));
+  const table = screen.getByRole("table", TABLE);
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Ver los lotes de Aceite de Almendras Vitora 30 ml" }),
+  );
+
+  await expect
+    .element(screen.getByRole("table", { name: "Lotes de Aceite de Almendras Vitora 30 ml" }))
+    .toBeVisible();
 });

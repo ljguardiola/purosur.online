@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import {
   type CurrentStockSummary,
   currentStockSummary,
@@ -22,7 +22,7 @@ export interface CurrentStockLot {
   valueCents: number | null;
 }
 
-export interface CurrentStockProduct {
+export interface CurrentStockProduct extends ProductBrandAndNetContent {
   id: string;
   name: string;
   categoryId: string;
@@ -48,6 +48,8 @@ function productOf(balance: StockBalanceView): CurrentStockProduct {
   return {
     id: balance.id,
     name: balance.name,
+    brandName: balance.brandName,
+    netContent: balance.netContent,
     categoryId: balance.categoryId,
     categoryName: balance.categoryName,
     saleUnit: balance.saleUnit,

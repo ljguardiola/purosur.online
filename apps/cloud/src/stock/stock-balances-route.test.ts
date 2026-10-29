@@ -97,6 +97,8 @@ describe("GET /inventory-levels", () => {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
     });
     const lotId = await insertPurchasedLot(db, {
       productId: almonds.productId,
@@ -123,6 +125,8 @@ describe("GET /inventory-levels", () => {
         {
           id: almonds.productId,
           name: "Almendras peladas",
+          brandName: "Vitora",
+          netContent: { quantity: 250, unit: "G" },
           categoryId: almonds.categoryId,
           categoryName: "Frutos secos",
           saleUnit: "KG",

@@ -292,7 +292,7 @@ test("shows the products, their weighed units and the main product when grouped 
     .element(table.getByRole("row", { name: /Queso cremoso/ }).getByText("12,500 kg"))
     .toBeVisible();
   await expect
-    .element(table.getByRole("row", { name: /Yerba mate 1 kg/ }).getByText("80 u"))
+    .element(table.getByRole("row", { name: /Yerba mate Hoja Alta 1 kg/ }).getByText("80 u"))
     .toBeVisible();
   await expect.element(screen.getByText("Producto principal")).toBeVisible();
   await expect.element(screen.getByText("60 % del importe")).toBeVisible();

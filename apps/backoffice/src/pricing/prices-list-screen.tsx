@@ -15,6 +15,7 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import {
   BadgeCheck,
@@ -292,12 +293,12 @@ export function PricesListScreen({
       ? {
           tone: "success",
           title: "Precio confirmado",
-          description: `${product.name} sigue a ${amount}.`,
+          description: `${formatProductDescription(product)} sigue a ${amount}.`,
         }
       : {
           tone: "success",
           title: "Precio actualizado",
-          description: `${product.name} pasa a ${amount}.`,
+          description: `${formatProductDescription(product)} pasa a ${amount}.`,
         };
   }
 
@@ -305,7 +306,7 @@ export function PricesListScreen({
     return {
       tone: "error",
       title: "Producto desactivado",
-      description: `${product.name} ya no está en el catálogo.`,
+      description: `${formatProductDescription(product)} ya no está en el catálogo.`,
     };
   }
 
@@ -358,7 +359,7 @@ export function PricesListScreen({
   function rowConfirmFailedNotice(item: PriceProduct): ScreenNotice {
     return {
       tone: "error",
-      title: `No se pudo confirmar el precio de ${item.name}`,
+      title: `No se pudo confirmar el precio de ${formatProductDescription(item)}`,
       description: "Probá de nuevo.",
     };
   }
@@ -382,7 +383,7 @@ export function PricesListScreen({
       showScreenNotice({
         tone: "error",
         title: "El precio cambió recién",
-        description: `Revisá el precio actual de ${item.name}.`,
+        description: `Revisá el precio actual de ${formatProductDescription(item)}.`,
       });
       return;
     }
@@ -396,7 +397,7 @@ export function PricesListScreen({
       showScreenNotice({
         tone: "error",
         title: "No hay un precio para confirmar",
-        description: `${item.name} todavía no tiene precio.`,
+        description: `${formatProductDescription(item)} todavía no tiene precio.`,
       });
       return;
     }
@@ -430,7 +431,7 @@ export function PricesListScreen({
       header: "Producto",
       render: (item: PriceProduct) => (
         <div className="flex items-center gap-2">
-          <span>{item.name}</span>
+          <span>{formatProductDescription(item)}</span>
           {!item.currentPrice && (
             <Tag tone="neutral" icon={<Ban aria-hidden="true" />}>
               Sin precio
@@ -484,7 +485,7 @@ export function PricesListScreen({
             <Tooltip description="Confirmar sin cambios: cuenta como revisar el precio.">
               <IconButton
                 icon={<Check />}
-                aria-label={`Confirmar el precio de ${item.name} sin cambios`}
+                aria-label={`Confirmar el precio de ${formatProductDescription(item)} sin cambios`}
                 disabled={screenRequestInFlight}
                 onPress={() => void handleRowConfirm(item)}
               />
@@ -492,7 +493,7 @@ export function PricesListScreen({
           ) : null}
           <IconButton
             icon={<Pencil />}
-            aria-label={`Cambiar el precio de ${item.name}`}
+            aria-label={`Cambiar el precio de ${formatProductDescription(item)}`}
             disabled={screenRequestInFlight}
             onPress={() => {
               clearErrorNotice();

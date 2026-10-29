@@ -6,7 +6,8 @@ import type {
 } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { categories, products } from "../platform/db/schema.js";
+import { netContentRow } from "../catalog/net-content-row.js";
+import { brands, categories, products } from "../platform/db/schema.js";
 import { latestSupplierOffers } from "./latest-supplier-offers.js";
 
 export class DrizzleSupplierPriceComparisonReader<TQueryResult extends PgQueryResultHKT>
@@ -23,13 +24,21 @@ export class DrizzleSupplierPriceComparisonReader<TQueryResult extends PgQueryRe
       .select({
         id: products.id,
         name: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
         categoryName: categories.name,
         saleUnit: products.saleUnit,
       })
       .from(products)
       .innerJoin(categories, eq(categories.id, products.categoryId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(products.active, true));
-    return rows.map((row) => ({ ...row, saleUnit: row.saleUnit as SaleUnit }));
+    return rows.map(({ netContentQuantity, netContentUnit, ...row }) => ({
+      ...row,
+      netContent: netContentRow({ netContentQuantity, netContentUnit }),
+      saleUnit: row.saleUnit as SaleUnit,
+    }));
   }
 
   async offers(): Promise<SupplierOffer[]> {

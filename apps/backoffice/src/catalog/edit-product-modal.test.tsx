@@ -7,7 +7,7 @@ import { render } from "../shell/test-support/render-with-router";
 import type { ProductReload } from "./catalog-queries";
 import { EditProductModal, type EditProductModalServices } from "./edit-product-modal";
 import { scanInputOf } from "./test-support/product-form";
-import { driedFruits, groceries, honey } from "./test-support/products";
+import { almondOil, driedFruits, groceries, honey, vitora } from "./test-support/products";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.
@@ -712,4 +712,33 @@ test("typing in the brand of an edit offers only the matching brands", async () 
 
   await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "dul");
   expect(offeredOptions()).toEqual(["Dulcor"]);
+});
+
+test("titles the modal with the product's name, brand and net content", async () => {
+  const { dialog } = await renderModal(almondOil, createServices(), { brands: [vitora] });
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "Aceite de Almendras Vitora 30 ml" }))
+    .toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Aceite de Almendras");
+});
+
+test("retitles the modal with the fresh product's brand and net content after a reload", async () => {
+  const services = createServices();
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
+  const freshened: ProductSummary = { ...almondOil, netContent: { quantity: 60, unit: "ML" } };
+  const { dialog } = await renderModal(almondOil, services, {
+    brands: [vitora],
+    reload: found(freshened),
+  });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "Aceite de Almendras Vitora 60 ml" }))
+    .toBeVisible();
 });

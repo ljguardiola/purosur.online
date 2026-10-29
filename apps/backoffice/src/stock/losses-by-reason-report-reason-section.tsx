@@ -1,5 +1,6 @@
 import type { LossesByReasonReportBody } from "@purosur/contracts";
 import { dataColumn, formatNumber, Table, TableCellText, useTableModel } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { useId } from "react";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { lossCountText } from "./loss-count-text";
@@ -12,7 +13,15 @@ const columns = [
   dataColumn({
     id: "product",
     header: "Producto",
-    render: (product: LostProduct) => <TableCellText>{product.name}</TableCellText>,
+    render: (product: LostProduct) => (
+      <TableCellText>
+        {formatProductDescription({
+          name: product.name,
+          brandName: product.brand_name,
+          netContent: product.net_content,
+        })}
+      </TableCellText>
+    ),
   }),
   dataColumn({
     id: "quantity",

@@ -58,7 +58,12 @@ function withoutBatchesPermission() {
 }
 
 async function mixWithStock(actorId: string, locationId: string) {
-  const mix = await insertProduct(db, { name: "Mix de frutos secos", saleUnit: "KG" });
+  const mix = await insertProduct(db, {
+    name: "Mix de frutos secos",
+    saleUnit: "KG",
+    brandName: "Vitora",
+    netContent: { quantity: 250, unit: "G" },
+  });
   const nuts = await insertProduct(db, { name: "Nueces", saleUnit: "KG" });
   const bag = await insertProduct(db, { name: "Bolsa", saleUnit: "UNIT" });
   await saveRecipe(new DrizzleRecipeStore(db, () => NOW), {
@@ -156,6 +161,8 @@ describe("GET /assembly-batches", () => {
     ]);
     expect(listed.batches[0]).toMatchObject({
       productName: "Mix de frutos secos",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
       unitCostCents: 3_586,
     });
     expect(listed.recipes).toMatchObject([

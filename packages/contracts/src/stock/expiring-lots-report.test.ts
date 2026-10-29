@@ -52,6 +52,8 @@ describe("expiringLotsReportSchema", () => {
     product: {
       id: "product-1",
       name: "Queso cremoso",
+      brand_name: "Vitora",
+      net_content: { quantity: 250, unit: "G" },
       category_id: "category-1",
       category_name: "Lácteos",
       sale_unit: "KG",
@@ -88,6 +90,15 @@ describe("expiringLotsReportSchema", () => {
     expect(
       expiringLotsReportSchema.safeParse({ ...report, lots: [{ ...lot, ...change }] }).success,
     ).toBe(false);
+  });
+
+  it.each([
+    ["a missing brand name", { brand_name: undefined }],
+    ["a missing net content", { net_content: undefined }],
+  ])("refuses a lot with %s", (_name, change) => {
+    const lot = { ...report.lots[0], product: { ...report.lots[0]?.product, ...change } };
+
+    expect(expiringLotsReportSchema.safeParse({ ...report, lots: [lot] }).success).toBe(false);
   });
 
   it.each([

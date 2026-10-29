@@ -256,7 +256,10 @@ function listMovements(headers: Record<string, string>, query = "") {
 
 async function seedLossAndAdjustment(locationId: string, actorId: string) {
   const otherLocationId = await insertLocation(db);
-  const honey = await insertProduct(db);
+  const honey = await insertProduct(db, {
+    brandName: "Vitora",
+    netContent: { quantity: 1, unit: "KG" },
+  });
   const peanut = await insertProduct(db, { name: "Pasta de maní 380 g" });
   const loss = await insertMovement(db, {
     productId: honey.productId,
@@ -350,6 +353,8 @@ describe("GET /inventory-movements", () => {
           id: loss,
           productId: honey.productId,
           productName: "Miel pura de abeja 1 kg",
+          brandName: "Vitora",
+          netContent: { quantity: 1, unit: "KG" },
           categoryName: "Almacén",
           saleUnit: "UNIT",
           kind: "loss",
@@ -362,6 +367,8 @@ describe("GET /inventory-movements", () => {
           id: adjustment,
           productId: peanut.productId,
           productName: "Pasta de maní 380 g",
+          brandName: null,
+          netContent: null,
           categoryName: "Almacén",
           saleUnit: "UNIT",
           kind: "adjustment",

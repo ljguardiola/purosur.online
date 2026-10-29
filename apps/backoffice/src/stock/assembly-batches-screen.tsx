@@ -11,6 +11,7 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { Ban, Check, CookingPot, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -101,7 +102,13 @@ export function AssemblyBatchesScreen({
       header: "Producto armado",
       render: (batch: AssemblyBatch) => (
         <div className="flex items-center gap-2">
-          <TableCellText strong>{batch.productName}</TableCellText>
+          <TableCellText strong>
+            {formatProductDescription({
+              name: batch.productName,
+              brandName: batch.brandName,
+              netContent: batch.netContent,
+            })}
+          </TableCellText>
           {batch.status === "voided" ? <Tag tone="neutral">Anulada</Tag> : null}
         </div>
       ),
@@ -145,7 +152,7 @@ export function AssemblyBatchesScreen({
           batch.status === "voidable"
             ? {
                 icon: <Ban />,
-                "aria-label": `Anular tanda de ${batch.productName}`,
+                "aria-label": `Anular tanda de ${formatProductDescription({ name: batch.productName, brandName: batch.brandName, netContent: batch.netContent })}`,
                 onPress: () => setVoiding(batch),
               }
             : undefined,
@@ -156,7 +163,16 @@ export function AssemblyBatchesScreen({
   const table = useTableModel({
     items: batches,
     id: (batch) => batch.id,
-    search: { text: search, in: (batch) => [batch.productName] },
+    search: {
+      text: search,
+      in: (batch) => [
+        formatProductDescription({
+          name: batch.productName,
+          brandName: batch.brandName,
+          netContent: batch.netContent,
+        }),
+      ],
+    },
     columns,
   });
   const matchCount = table.getRowModel().rows.length;
@@ -236,7 +252,7 @@ export function AssemblyBatchesScreen({
             setNotice((previous) => ({
               id: (previous?.id ?? 0) + 1,
               title: "Tanda registrada",
-              description: `Se registró una tanda de ${recipe.productName}.`,
+              description: `Se registró una tanda de ${formatProductDescription({ name: recipe.productName, brandName: recipe.brandName, netContent: recipe.netContent })}.`,
             }));
             void refreshStock();
           }}
@@ -253,7 +269,7 @@ export function AssemblyBatchesScreen({
             setNotice((previous) => ({
               id: (previous?.id ?? 0) + 1,
               title: "Tanda anulada",
-              description: `Se anuló la tanda de ${voiding.productName}.`,
+              description: `Se anuló la tanda de ${formatProductDescription({ name: voiding.productName, brandName: voiding.brandName, netContent: voiding.netContent })}.`,
             }));
             void refreshStock();
           }}

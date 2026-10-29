@@ -9,7 +9,7 @@ const noRange = { from: undefined, to: undefined };
 
 const terms = {
   benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
-  target: { kind: "PRODUCT", name: "Yerba" },
+  target: { kind: "PRODUCT", name: "Yerba", brandName: null, netContent: null },
   weekdays: [],
 } as const;
 

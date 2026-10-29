@@ -10,8 +10,11 @@ import {
   recipeSaveRequestFrom,
 } from "./recipe-form";
 import {
+  aceiteDeAlmendras,
   almendras,
+  balsamo,
   cajaDeInfusiones,
+  cremaNutritiva,
   miel,
   mixDeFrutosSecos,
   nueces,
@@ -42,6 +45,56 @@ describe("recipeFormValuesOf", () => {
       ],
       version: 1,
     });
+  });
+});
+
+describe("recipeFormValuesOf names", () => {
+  it("names each component by its brand and net content", () => {
+    expect(recipeFormValuesOf(balsamo).components.map((c) => c.name)).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
+    ]);
+  });
+});
+
+describe("recipeProductOptions labels", () => {
+  it("offers each product by its name, brand and net content", () => {
+    expect(recipeProductOptions([cremaNutritiva, { ...almendras, saleUnit: "KG" }], [])).toEqual([
+      { value: almendras.id, label: "Almendras" },
+      { value: cremaNutritiva.id, label: "Crema nutritiva Vitora 200 g" },
+    ]);
+  });
+});
+
+describe("recipeComponentOptions labels", () => {
+  it("offers each component by its name, brand and net content", () => {
+    expect(recipeComponentOptions([{ ...aceiteDeAlmendras, saleUnit: "UNIT" }], null, [])).toEqual([
+      { value: aceiteDeAlmendras.id, label: "Aceite de Almendras Vitora 30 ml" },
+    ]);
+  });
+});
+
+describe("recipe product pickers", () => {
+  const largerAlmondOil = {
+    ...aceiteDeAlmendras,
+    id: "c0000000-0000-4000-8000-000000000099",
+    netContent: { quantity: 100, unit: "ML" },
+    saleUnit: "UNIT",
+  } as const;
+  const smallerAlmondOil = { ...aceiteDeAlmendras, saleUnit: "UNIT" } as const;
+  const labels = ["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"];
+
+  it("offers the products without a recipe by the description they show", () => {
+    expect(
+      recipeProductOptions([largerAlmondOil, smallerAlmondOil], [])?.map((option) => option.label),
+    ).toEqual(labels);
+  });
+
+  it("offers the components by the description they show", () => {
+    expect(
+      recipeComponentOptions([largerAlmondOil, smallerAlmondOil], null, []).map(
+        (option) => option.label,
+      ),
+    ).toEqual(labels);
   });
 });
 
@@ -146,9 +199,11 @@ describe("recipeProductOptions", () => {
         (option) => option.label,
       ),
     ).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
       "Almendras",
       "Avena con pasas",
       "Caja de regalo",
+      "Crema nutritiva Vitora 200 g",
       "Maní",
       "Miel pura 1 kg",
       "Nueces",
@@ -166,9 +221,11 @@ describe("recipeComponentOptions", () => {
         (option) => option.label,
       ),
     ).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
       "Avena con pasas",
       "Caja de infusiones",
       "Caja de regalo",
+      "Crema nutritiva Vitora 200 g",
       "Maní",
       "Miel pura 1 kg",
       "Nueces",

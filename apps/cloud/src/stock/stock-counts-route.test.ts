@@ -397,6 +397,8 @@ describe("GET /inventory-counts", () => {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
     });
     const honey = await insertProduct(db);
     const recent = await insertMovement(db, {
@@ -455,6 +457,8 @@ describe("GET /inventory-counts", () => {
           id: recent,
           productId: almonds.productId,
           productName: "Almendras peladas",
+          brandName: "Vitora",
+          netContent: { quantity: 250, unit: "G" },
           categoryId: almonds.categoryId,
           categoryName: "Frutos secos",
           saleUnit: "KG",
@@ -469,6 +473,8 @@ describe("GET /inventory-counts", () => {
           id: older,
           productId: honey.productId,
           productName: "Miel pura de abeja 1 kg",
+          brandName: null,
+          netContent: null,
           categoryId: honey.categoryId,
           categoryName: "Almacén",
           saleUnit: "UNIT",
@@ -560,6 +566,8 @@ describe("GET /inventory-levels/:productId", () => {
     expect(response.json()).toEqual({
       id: productId,
       name: "Almendras peladas",
+      brandName: null,
+      netContent: null,
       categoryId,
       categoryName: "Frutos secos",
       saleUnit: "KG",

@@ -7,6 +7,7 @@ import {
   formatSignedCents,
   type ItemOrder,
   ListFilter,
+  numericTextOrder,
   PercentBar,
   plural,
   Table,
@@ -14,6 +15,7 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { ChevronDown, ChevronUp, Package } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -38,6 +40,14 @@ export type CurrentStockReportScreenProps = {
 type Product = CurrentStockReportBody["products"][number];
 
 const NO_PRODUCTS: Product[] = [];
+
+const productDescriptionOrder = numericTextOrder((product: Product) =>
+  formatProductDescription({
+    name: product.name,
+    brandName: product.brand_name,
+    netContent: product.net_content,
+  }),
+);
 
 const ALL_CATEGORIES = "ALL";
 
@@ -145,11 +155,17 @@ export function CurrentStockReportScreen({
       id: "product",
       header: "Producto",
       sort: {
-        order: (a: Product, b: Product) => a.name.localeCompare(b.name, "es"),
+        order: productDescriptionOrder,
         firstDirection: "ascending",
       },
       render: (item: Product) => (
-        <TableCellText description={item.category_name}>{item.name}</TableCellText>
+        <TableCellText description={item.category_name}>
+          {formatProductDescription({
+            name: item.name,
+            brandName: item.brand_name,
+            netContent: item.net_content,
+          })}
+        </TableCellText>
       ),
     }),
     dataColumn({
@@ -199,12 +215,12 @@ export function CurrentStockReportScreen({
             : opened.includes(item.id)
               ? {
                   icon: <ChevronUp />,
-                  "aria-label": `Ocultar los lotes de ${item.name}`,
+                  "aria-label": `Ocultar los lotes de ${formatProductDescription({ name: item.name, brandName: item.brand_name, netContent: item.net_content })}`,
                   onPress: () => setOpened(opened.filter((id) => id !== item.id)),
                 }
               : {
                   icon: <ChevronDown />,
-                  "aria-label": `Ver los lotes de ${item.name}`,
+                  "aria-label": `Ver los lotes de ${formatProductDescription({ name: item.name, brandName: item.brand_name, netContent: item.net_content })}`,
                   onPress: () => setOpened([...opened, item.id]),
                 },
       ],

@@ -190,7 +190,11 @@ describe("POST /purchases", () => {
   it("registers the purchase at the session's branch and answers it with names and unit costs", async () => {
     const { headers, userId, locationId } = await buyer();
     const supplierId = await storedSupplier(userId);
-    const { productId } = await insertProduct(db, { name: "Yerba" });
+    const { productId } = await insertProduct(db, {
+      name: "Yerba",
+      brandName: "Piragüé",
+      netContent: { quantity: 500, unit: "G" },
+    });
     const packagingId = await storedPackaging(productId, userId);
 
     const response = await app.inject({
@@ -227,7 +231,13 @@ describe("POST /purchases", () => {
       lines: [
         {
           id: expect.any(String),
-          product: { id: productId, name: "Yerba", saleUnit: "UNIT" },
+          product: {
+            id: productId,
+            name: "Yerba",
+            brandName: "Piragüé",
+            netContent: { quantity: 500, unit: "G" },
+            saleUnit: "UNIT",
+          },
           packaging: { id: packagingId, name: "Caja x 12" },
           packages: 2,
           quantity: 24_000,
@@ -507,7 +517,11 @@ describe("GET /purchase-choices", () => {
     const { headers, userId } = await buyer();
     const supplierId = await storedSupplier(userId, { name: "Distribuidora Sur" });
     await storedSupplier(userId, { name: "Cerrada", active: false });
-    const { productId } = await insertProduct(db, { name: "Yerba" });
+    const { productId } = await insertProduct(db, {
+      name: "Yerba",
+      brandName: "Piragüé",
+      netContent: { quantity: 500, unit: "G" },
+    });
     await insertProduct(db, { name: "Antiguo", active: false });
     const packagingId = await storedPackaging(productId, userId, { name: "Caja x 12" });
     await storedPackaging(productId, userId, { name: "Vieja", active: false });
@@ -518,7 +532,18 @@ describe("GET /purchase-choices", () => {
     expect(response.statusCode).toBe(200);
     const choices = purchaseChoicesSchema.parse(response.json());
     expect(choices.suppliers.map((supplier) => supplier.id)).toEqual([supplierId]);
-    expect(choices.products).toEqual([{ id: productId, name: "Yerba", saleUnit: "UNIT" }]);
+    expect(choices.products).toEqual([
+      {
+        id: productId,
+        name: "Yerba",
+        brandName: "Piragüé",
+        netContent: { quantity: 500, unit: "G" },
+        saleUnit: "UNIT",
+      },
+    ]);
+    expect(choices.packagings).toMatchObject([
+      { brandName: "Piragüé", netContent: { quantity: 500, unit: "G" } },
+    ]);
     expect(choices.packagings.map((packaging) => packaging.id)).toEqual([packagingId]);
   });
 

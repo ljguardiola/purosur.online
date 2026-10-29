@@ -1,11 +1,18 @@
 import { RECEIPT_TYPES, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
+import { netContentSchema } from "../shared/index.js";
 
 const saleUnitSchema = z.enum(SALE_UNITS);
 
 const purchaseLineSummarySchema = z.object({
   id: z.string(),
-  product: z.object({ id: z.string(), name: z.string(), saleUnit: saleUnitSchema }),
+  product: z.object({
+    id: z.string(),
+    name: z.string(),
+    brandName: z.string().nullable(),
+    netContent: netContentSchema.nullable(),
+    saleUnit: saleUnitSchema,
+  }),
   packaging: z.object({ id: z.string(), name: z.string() }).nullable(),
   packages: z.int().nullable(),
   quantity: z.int(),

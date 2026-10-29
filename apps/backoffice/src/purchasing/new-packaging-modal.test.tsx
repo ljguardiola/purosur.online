@@ -4,7 +4,12 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewPackagingModal, type NewPackagingModalServices } from "./new-packaging-modal";
-import { bolsaDeAvena, cajaDeMiel, packagableProducts } from "./test-support/packagings";
+import {
+  aceiteDeAlmendras,
+  bolsaDeAvena,
+  cajaDeMiel,
+  packagableProducts,
+} from "./test-support/packagings";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -97,6 +102,18 @@ test("the quantity's unit follows the chosen product", async () => {
   await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto/ }), "");
   await chooseProduct(screen, "Avena arrollada");
   await expect.element(dialog.getByText("kg", { exact: true })).toBeVisible();
+});
+
+test("lists each product with its brand name and net content, and searches them", async () => {
+  const screen = await renderModal({ products: [...packagableProducts, aceiteDeAlmendras] });
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto/ }), "vitora");
+
+  await expect
+    .element(screen.getByRole("option", { name: "Aceite de Almendras Vitora 30 ml" }))
+    .toBeVisible();
+  expect(screen.getByRole("option", { name: "Avena arrollada" }).query()).toBeNull();
 });
 
 test("the product list is searched by typing", async () => {
@@ -305,6 +322,17 @@ test("for a given product, names it instead of asking for it, and the unit follo
   await expect.element(dialog.getByText("Producto: Avena arrollada")).toBeVisible();
   expect(dialog.getByRole("combobox").query()).toBeNull();
   await expect.element(dialog.getByText("kg", { exact: true })).toBeVisible();
+});
+
+test("for a given product, names it with its brand name and net content", async () => {
+  const screen = await renderModal({
+    products: [...packagableProducts, aceiteDeAlmendras],
+    productId: aceiteDeAlmendras.id,
+  });
+
+  await expect
+    .element(screen.getByRole("dialog").getByText("Producto: Aceite de Almendras Vitora 30 ml"))
+    .toBeVisible();
 });
 
 test("for a given product, creates the packaging of that product without asking for it", async () => {

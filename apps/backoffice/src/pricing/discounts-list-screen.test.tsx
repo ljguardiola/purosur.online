@@ -314,6 +314,27 @@ test("the search field matches the promotion name and the name of its target, ca
     .toEqual(["Aceite apagadoProducto · Aceite de girasol 900 ml"]);
 });
 
+test("names a product target by its name, brand and net content, and the search matches that description", async () => {
+  const onAlmondOil = {
+    ...switchedOffPromotion,
+    target: {
+      ...switchedOffPromotion.target,
+      name: "Aceite de Almendras",
+      brandName: "Vitora",
+      netContent: { quantity: 30, unit: "ML" as const },
+    },
+  };
+  const screen = await loaded(createServices(), [yerbaOff, onAlmondOil], {
+    filters: discountsListFilters.parse({ status: "all" }),
+  });
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar una promoción"), "vitora 30");
+
+  await expect
+    .poll(() => rowCells(screen).map((cells) => cells[0]))
+    .toEqual(["Aceite apagadoProducto · Aceite de Almendras Vitora 30 ml"]);
+});
+
 test("orders the promotions by name, and each sortable header orders them by its own column", async () => {
   const services = createServices();
   const screen = await loaded(services, everyPromotion, {

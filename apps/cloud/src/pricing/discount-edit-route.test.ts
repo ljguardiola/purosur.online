@@ -152,7 +152,7 @@ describe("PUT /discounts/:id", () => {
       id: discount.id,
       name: "Semana de las infusiones",
       benefit: { kind: "PERCENT_OFF", percent: 25 },
-      target: { kind: "TAG", id: tag.id, name: "Sin TACC" },
+      target: { kind: "TAG", id: tag.id, name: "Sin TACC", brandName: null, netContent: null },
       validFrom: "2026-11-01",
       validTo: "2026-11-30",
       weekdays: [6, 7],

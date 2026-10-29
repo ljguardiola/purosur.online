@@ -4,7 +4,13 @@ import { type LossRecord, lossesByReason } from "./losses-by-reason.js";
 function loss(overrides: Partial<LossRecord> = {}): LossRecord {
   return {
     reason: "spoiled",
-    product: { id: "p1", name: "Yerba", saleUnit: "UNIT" },
+    product: {
+      id: "p1",
+      name: "Yerba",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+      saleUnit: "UNIT",
+    },
     quantity: 1_000,
     ...overrides,
   };
@@ -19,7 +25,10 @@ describe("lossesByReason", () => {
     const records = [
       loss({ quantity: 1_000 }),
       loss({ quantity: 2_500 }),
-      loss({ product: { id: "p2", name: "Queso", saleUnit: "KG" }, quantity: 300 }),
+      loss({
+        product: { id: "p2", name: "Queso", brandName: null, netContent: null, saleUnit: "KG" },
+        quantity: 300,
+      }),
     ];
 
     expect(lossesByReason(records)).toEqual([
@@ -27,8 +36,24 @@ describe("lossesByReason", () => {
         reason: "spoiled",
         lossCount: 3,
         products: [
-          { id: "p2", name: "Queso", saleUnit: "KG", quantity: 300, lossCount: 1 },
-          { id: "p1", name: "Yerba", saleUnit: "UNIT", quantity: 3_500, lossCount: 2 },
+          {
+            id: "p2",
+            name: "Queso",
+            brandName: null,
+            netContent: null,
+            saleUnit: "KG",
+            quantity: 300,
+            lossCount: 1,
+          },
+          {
+            id: "p1",
+            name: "Yerba",
+            brandName: "Vitora",
+            netContent: { quantity: 500, unit: "G" },
+            saleUnit: "UNIT",
+            quantity: 3_500,
+            lossCount: 2,
+          },
         ],
       },
     ]);
@@ -66,7 +91,8 @@ describe("lossesByReason", () => {
   });
 
   it("orders the products by name in Spanish, then by id", () => {
-    const named = (id: string, name: string) => loss({ product: { id, name, saleUnit: "UNIT" } });
+    const named = (id: string, name: string) =>
+      loss({ product: { id, name, brandName: null, netContent: null, saleUnit: "UNIT" } });
 
     const [group] = lossesByReason([
       named("b", "Zapallo"),
@@ -81,8 +107,12 @@ describe("lossesByReason", () => {
 
   it("breaks a tie between products of one name by their id in Spanish order, whatever its case", () => {
     const [group] = lossesByReason([
-      loss({ product: { id: "B", name: "Arroz", saleUnit: "UNIT" } }),
-      loss({ product: { id: "a", name: "Arroz", saleUnit: "UNIT" } }),
+      loss({
+        product: { id: "B", name: "Arroz", brandName: null, netContent: null, saleUnit: "UNIT" },
+      }),
+      loss({
+        product: { id: "a", name: "Arroz", brandName: null, netContent: null, saleUnit: "UNIT" },
+      }),
     ]);
 
     expect(group?.products.map(({ id }) => id)).toEqual(["a", "B"]);

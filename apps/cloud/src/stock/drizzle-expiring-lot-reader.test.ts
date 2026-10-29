@@ -36,6 +36,8 @@ describe("DrizzleExpiringLotReader.lotsExpiringBy", () => {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
     });
     const onLastDay = await insertPurchasedLot(db, {
       productId,
@@ -59,6 +61,8 @@ describe("DrizzleExpiringLotReader.lotsExpiringBy", () => {
     const product = {
       id: productId,
       name: "Almendras peladas",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
       categoryId,
       categoryName: "Frutos secos",
       saleUnit: "KG",
@@ -79,6 +83,16 @@ describe("DrizzleExpiringLotReader.lotsExpiringBy", () => {
         expect.objectContaining({ id: expired, expiresOn: "2026-09-01", product }),
       ]),
     );
+  });
+
+  it("answers no brand name and no net content for a product without them", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    await insertPurchasedLot(db, { productId, locationId, actorId, expiresOn: "2026-11-01" });
+
+    const rows = await new DrizzleExpiringLotReader(db).lotsExpiringBy(locationId, "2026-11-12");
+
+    expect(rows[0]?.product).toMatchObject({ brandName: null, netContent: null });
   });
 
   it("answers the lots of the asked branch only", async () => {

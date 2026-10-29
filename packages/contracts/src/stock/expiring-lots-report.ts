@@ -1,5 +1,6 @@
 import { isCalendarDay, isReportPeriodAsked, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
+import { netContentSchema } from "../shared/index.js";
 
 export const expiringLotsReportQuerySchema = z
   .object({
@@ -23,6 +24,8 @@ const expiringLotsReportLotSchema = z.object({
   product: z.object({
     id: z.string(),
     name: z.string(),
+    brand_name: z.string().nullable(),
+    net_content: netContentSchema.nullable(),
     category_id: z.string(),
     category_name: z.string(),
     sale_unit: z.enum(SALE_UNITS),

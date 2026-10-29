@@ -14,6 +14,7 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { categoryPathText } from "../platform/category-path";
@@ -49,7 +50,13 @@ const GROUP_OPTIONS = [
 const NO_CATEGORY = "Sin categoría";
 
 function rowLabel(row: SoldRow): string {
-  return row.id === null && row.path.length === 0 ? NO_CATEGORY : categoryPathText(row.path);
+  return row.id === null && row.path.length === 0
+    ? NO_CATEGORY
+    : formatProductDescription({
+        name: categoryPathText(row.path),
+        brandName: row.brandName,
+        netContent: row.netContent,
+      });
 }
 
 const labelOrder = textOrder(rowLabel);

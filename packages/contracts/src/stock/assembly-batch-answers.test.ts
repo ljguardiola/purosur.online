@@ -12,6 +12,8 @@ const batch = {
   id: "b-1",
   productId: "p-1",
   productName: "Mix de frutos secos",
+  brandName: "Vitora",
+  netContent: { quantity: 250, unit: "G" },
   saleUnit: "KG",
   assembledAt: "2026-05-04T13:00:00.000Z",
   output: 14_000,
@@ -68,12 +70,21 @@ describe("assemblyBatchResultSchema", () => {
 const recipe = {
   productId: "p-1",
   productName: "Mix de frutos secos",
+  brandName: null,
+  netContent: null,
   categoryName: "Mezclas",
   saleUnit: "KG",
   version: 2,
   lastBatch: null,
   components: [
-    { componentProductId: "p-2", name: "Nueces", saleUnit: "KG", quantityPerOutputUnit: 600 },
+    {
+      componentProductId: "p-2",
+      name: "Nueces",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+      saleUnit: "KG",
+      quantityPerOutputUnit: 600,
+    },
   ],
 };
 
@@ -96,6 +107,8 @@ describe("assemblyBatchListSchema", () => {
     "id",
     "productId",
     "productName",
+    "brandName",
+    "netContent",
     "saleUnit",
     "assembledAt",
     "output",

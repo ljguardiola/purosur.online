@@ -13,7 +13,7 @@ const noRange = { from: undefined, to: undefined };
 function loss(overrides: Partial<LossRecord> = {}): LossRecord {
   return {
     reason: "spoiled",
-    product: { id: "p1", name: "Yerba", saleUnit: "UNIT" },
+    product: { id: "p1", name: "Yerba", brandName: null, netContent: null, saleUnit: "UNIT" },
     quantity: 2_000,
     ...overrides,
   };
@@ -72,12 +72,32 @@ describe("readLossesByReasonReport", () => {
       {
         reason: "spoiled",
         lossCount: 2,
-        products: [{ id: "p1", name: "Yerba", saleUnit: "UNIT", quantity: 3_000, lossCount: 2 }],
+        products: [
+          {
+            id: "p1",
+            name: "Yerba",
+            brandName: null,
+            netContent: null,
+            saleUnit: "UNIT",
+            quantity: 3_000,
+            lossCount: 2,
+          },
+        ],
       },
       {
         reason: "return_discard",
         lossCount: 1,
-        products: [{ id: "p1", name: "Yerba", saleUnit: "UNIT", quantity: 500, lossCount: 1 }],
+        products: [
+          {
+            id: "p1",
+            name: "Yerba",
+            brandName: null,
+            netContent: null,
+            saleUnit: "UNIT",
+            quantity: 500,
+            lossCount: 1,
+          },
+        ],
       },
     ]);
   });

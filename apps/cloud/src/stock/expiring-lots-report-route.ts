@@ -60,6 +60,8 @@ export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResu
             product: {
               id: lot.product.id,
               name: lot.product.name,
+              brand_name: lot.product.brandName,
+              net_content: lot.product.netContent,
               category_id: lot.product.categoryId,
               category_name: lot.product.categoryName,
               sale_unit: lot.product.saleUnit,

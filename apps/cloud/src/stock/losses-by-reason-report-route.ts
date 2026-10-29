@@ -49,6 +49,8 @@ export function registerLossesByReasonReportRoute<TQueryResult extends PgQueryRe
             products: group.products.map((product) => ({
               id: product.id,
               name: product.name,
+              brand_name: product.brandName,
+              net_content: product.netContent,
               sale_unit: product.saleUnit,
               quantity: product.quantity,
               loss_count: product.lossCount,

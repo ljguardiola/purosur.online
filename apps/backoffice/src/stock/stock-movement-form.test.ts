@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { productOptions, soleDirection } from "./stock-movement-form";
 import {
+  almondOil,
   almonds,
   honey,
   movementReasons,
@@ -39,6 +40,26 @@ describe("productOptions", () => {
       { value: oats.id, label: oats.name, status: "Desactivado" },
       { value: honey.id, label: honey.name },
     ]);
+  });
+
+  it("offers each product by its name, brand and net content", () => {
+    expect(productOptions([withoutBalance(almondOil)])).toEqual([
+      { value: almondOil.id, label: "Aceite de Almendras Vitora 30 ml" },
+    ]);
+  });
+
+  it("offers two presentations of one product's name, each by its own net content", () => {
+    const largerAlmondOil = {
+      ...almondOil,
+      id: "77777777-7777-4777-8777-777777777778",
+      netContent: { quantity: 100, unit: "ML" as const },
+    };
+
+    expect(
+      productOptions([withoutBalance(largerAlmondOil), withoutBalance(almondOil)])?.map(
+        (option) => option.label,
+      ),
+    ).toEqual(["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"]);
   });
 
   it("offers nothing when there are no products", () => {

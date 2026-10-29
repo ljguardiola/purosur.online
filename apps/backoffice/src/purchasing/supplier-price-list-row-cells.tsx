@@ -1,4 +1,5 @@
 import { formatCents, formatPricePerSaleUnit, Tag } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { supplierPriceListRowStatusOf } from "./supplier-price-list-row-status";
 import type { SupplierPriceListRow } from "./supplier-price-lists-api";
 
@@ -44,7 +45,7 @@ export function RowLinkCell({ row }: { row: SupplierPriceListRow }) {
   }
   return (
     <div className="flex flex-col">
-      <span>{row.link.product.name}</span>
+      <span>{formatProductDescription(row.link.product)}</span>
       <span className="text-detail text-text-subtle">{row.link.packaging.name}</span>
       {row.link.packaging.buyable ? null : (
         <span className="text-detail text-warning-strong">

@@ -22,6 +22,8 @@ const comparison = {
     {
       id: "p-1",
       name: "Yerba",
+      brandName: "Piragüé",
+      netContent: { quantity: 500, unit: "G" },
       categoryName: "Almacén",
       saleUnit: "UNIT",
       offers: [offer],
@@ -30,6 +32,8 @@ const comparison = {
     {
       id: "p-2",
       name: "Azúcar",
+      brandName: null,
+      netContent: null,
       categoryName: "Almacén",
       saleUnit: "KG",
       offers: [],
@@ -92,15 +96,21 @@ describe("supplierPriceComparisonSchema", () => {
     },
   );
 
-  it.each(["id", "name", "categoryName", "saleUnit", "offers", "unpricedOffers"])(
-    "requires %s in a product",
-    (field) => {
-      const { [field as keyof (typeof comparison.products)[0]]: _omitted, ...rest } =
-        comparison.products[0] ?? {};
+  it.each([
+    "id",
+    "name",
+    "brandName",
+    "netContent",
+    "categoryName",
+    "saleUnit",
+    "offers",
+    "unpricedOffers",
+  ])("requires %s in a product", (field) => {
+    const { [field as keyof (typeof comparison.products)[0]]: _omitted, ...rest } =
+      comparison.products[0] ?? {};
 
-      expect(supplierPriceComparisonSchema.safeParse({ products: [rest] }).success).toBe(false);
-    },
-  );
+    expect(supplierPriceComparisonSchema.safeParse({ products: [rest] }).success).toBe(false);
+  });
 
   it.each([
     ["priceCents", 1.5],
@@ -113,6 +123,15 @@ describe("supplierPriceComparisonSchema", () => {
     const bad = {
       products: [{ ...comparison.products[0], offers: [{ ...offer, [field]: value }] }],
     };
+
+    expect(supplierPriceComparisonSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it.each([
+    ["brandName", 5],
+    ["netContent", { quantity: 500, unit: "BOX" }],
+  ])("refuses a product with %s as %j", (field, value) => {
+    const bad = { products: [{ ...comparison.products[0], [field]: value }] };
 
     expect(supplierPriceComparisonSchema.safeParse(bad).success).toBe(false);
   });

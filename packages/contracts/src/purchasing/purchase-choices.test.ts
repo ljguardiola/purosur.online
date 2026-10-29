@@ -10,11 +10,19 @@ const supplier = {
   active: true,
   version: 1,
 };
-const product = { id: "p-1", name: "Yerba", saleUnit: "UNIT" };
+const product = {
+  id: "p-1",
+  name: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 500, unit: "G" },
+  saleUnit: "UNIT",
+};
 const packaging = {
   id: "k-1",
   productId: "p-1",
   productName: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 500, unit: "G" },
   productSaleUnit: "UNIT",
   saleUnit: "UNIT",
   saleUnitChanged: false,

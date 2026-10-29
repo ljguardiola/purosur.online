@@ -1,8 +1,9 @@
+import type { ProductBrandAndNetContent } from "../../catalog/index.js";
 import { codeUnitOrder } from "./report-order.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
-export interface SoldLinesOfGroup {
+export interface SoldLinesOfGroup extends ProductBrandAndNetContent {
   id: string | null;
   path: readonly string[];
   weightSource: WeightSource | null;
@@ -16,7 +17,7 @@ export interface SoldTotals {
   amount: number;
 }
 
-export interface SalesOfGroup extends SoldTotals {
+export interface SalesOfGroup extends SoldTotals, ProductBrandAndNetContent {
   id: string | null;
   path: readonly string[];
 }
@@ -37,6 +38,8 @@ export function salesOfGroups(rows: readonly SoldLinesOfGroup[]): SalesOfGroup[]
     const group = groups.get(row.id) ?? {
       id: row.id,
       path: row.path,
+      brandName: row.brandName,
+      netContent: row.netContent,
       units: 0,
       thousandths: 0,
       amount: 0,

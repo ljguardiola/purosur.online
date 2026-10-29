@@ -12,6 +12,7 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { CalendarClock } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
@@ -79,7 +80,15 @@ const columns = [
   dataColumn({
     id: "product",
     header: "Producto",
-    render: (lot: Lot) => <TableCellText>{lot.product.name}</TableCellText>,
+    render: (lot: Lot) => (
+      <TableCellText>
+        {formatProductDescription({
+          name: lot.product.name,
+          brandName: lot.product.brand_name,
+          netContent: lot.product.net_content,
+        })}
+      </TableCellText>
+    ),
   }),
   dataColumn({
     id: "category",

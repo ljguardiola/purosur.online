@@ -10,6 +10,7 @@ import { type PackagingsListFilters, packagingsListFilters } from "./routes";
 import {
   bolsaDeAlmendras,
   bolsaDeAvena,
+  cajaDeAceite,
   cajaDeMiel,
   packagingList,
 } from "./test-support/packagings";
@@ -110,6 +111,18 @@ test("shows the breadcrumb, the heading and each active packaging with its quant
     ]);
 });
 
+test("describes each packaging's product with its brand name and net content", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [cajaDeAceite, cajaDeMiel]);
+
+  await expect
+    .poll(() => rowTexts(screen))
+    .toEqual([
+      "Aceite de Almendras Vitora 30 mlCaja x 2424 uActiva",
+      "Miel pura de abeja 1 kgCaja x 1212 uActiva",
+    ]);
+});
+
 test("the state filter shows the inactive packagings, or every packaging", async () => {
   const services = createServices();
   const screen = await loaded(services, [cajaDeMiel, bolsaDeAlmendras]);
@@ -139,6 +152,33 @@ test("lists packagings by product name, and the header reverses the order", asyn
     .toEqual(["Miel ", "Avena"]);
 });
 
+test("orders products of the same name by their whole description, then by packaging name", async () => {
+  const services = createServices();
+  const displayDeAceite = {
+    ...cajaDeAceite,
+    id: "9ac00000-0000-4000-8000-000000000005",
+    name: "Display x 6",
+    quantityPerPackage: 6_000,
+  };
+  const cajaDeAceiteGrande = {
+    ...cajaDeAceite,
+    id: "9ac00000-0000-4000-8000-000000000006",
+    productId: "90d00000-0000-4000-8000-000000000006",
+    netContent: { quantity: 100, unit: "ML" as const },
+    name: "Caja x 12",
+    quantityPerPackage: 12_000,
+  };
+  const screen = await loaded(services, [cajaDeAceiteGrande, displayDeAceite, cajaDeAceite]);
+
+  await expect
+    .poll(() => rowTexts(screen))
+    .toEqual([
+      "Aceite de Almendras Vitora 30 mlCaja x 2424 uActiva",
+      "Aceite de Almendras Vitora 30 mlDisplay x 66 uActiva",
+      "Aceite de Almendras Vitora 100 mlCaja x 1212 uActiva",
+    ]);
+});
+
 test("the search field filters by product or packaging name, case-insensitively", async () => {
   const services = createServices();
   const screen = await loaded(services, [cajaDeMiel, bolsaDeAvena]);
@@ -149,6 +189,16 @@ test("the search field filters by product or packaging name, case-insensitively"
 
   await userEvent.fill(search, "bolsa");
   await expect.poll(() => rowTexts(screen).map((text) => text.slice(0, 5))).toEqual(["Avena"]);
+});
+
+test("the search field also finds a product by its brand name and net content", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [cajaDeAceite, cajaDeMiel]);
+  const search = screen.getByPlaceholder("Buscar una presentación");
+
+  await userEvent.fill(search, "almendras vitora 30");
+
+  await expect.poll(() => rowTexts(screen).map((text) => text.slice(0, 7))).toEqual(["Aceite "]);
 });
 
 test("shows the blank empty state when there are no packagings yet", async () => {

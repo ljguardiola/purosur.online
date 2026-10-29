@@ -7,11 +7,12 @@ import {
   LoadFailure,
   LoadingPlaceholder,
   Modal,
+  numericTextOrder,
   SummaryRowGroup,
   sortedItems,
-  textOrder,
   useRequestForm,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, CookingPot, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
@@ -62,7 +63,13 @@ type NewAssemblyBatchModalProps = {
   onSessionEnded: () => void;
 };
 
-const recipeNameOrder = textOrder((recipe: RecipeSummary) => recipe.productName);
+const recipeDescriptionOrder = numericTextOrder((recipe: RecipeSummary) =>
+  formatProductDescription({
+    name: recipe.productName,
+    brandName: recipe.brandName,
+    netContent: recipe.netContent,
+  }),
+);
 const NOT_YET = "—";
 
 export function NewAssemblyBatchModal({
@@ -138,7 +145,7 @@ export function NewAssemblyBatchModal({
             (candidate) => candidate.componentProductId === outcome.componentProductId,
           );
           if (component) {
-            setNotice({ kind: "componentGone", name: component.name });
+            setNotice({ kind: "componentGone", name: formatProductDescription(component) });
           } else {
             setNotice({ kind: "staleRecipe" });
           }
@@ -203,9 +210,17 @@ export function NewAssemblyBatchModal({
     setRefusals({});
     setOutputRefusal(undefined);
   };
-  const options = sortedItems(recipes, { order: recipeNameOrder, direction: "ascending" }).map(
-    (candidate) => ({ value: candidate.productId, label: candidate.productName }),
-  );
+  const options = sortedItems(recipes, {
+    order: recipeDescriptionOrder,
+    direction: "ascending",
+  }).map((candidate) => ({
+    value: candidate.productId,
+    label: formatProductDescription({
+      name: candidate.productName,
+      brandName: candidate.brandName,
+      netContent: candidate.netContent,
+    }),
+  }));
   const [firstOption, ...otherOptions] = options;
   const saleUnit = recipe?.saleUnit ?? "UNIT";
   const proposedOutput = proposal?.output;

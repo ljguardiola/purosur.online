@@ -1,4 +1,4 @@
-import { labelSheetBodySchema, type ProductSummary } from "@purosur/contracts";
+import { type BrandSummary, labelSheetBodySchema, type ProductSummary } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -6,15 +6,16 @@ import {
   IconButton,
   InlineNotice,
   Modal,
+  numericTextOrder,
   plural,
   sortedItems,
-  textOrder,
 } from "@purosur/ui";
 import { Download, Minus, Package, Plus, Printer, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
+import { productDescription } from "./product-description";
 import type { printLabels } from "./products-api";
 
 type LabelCounts = ReadonlyMap<string, number>;
@@ -42,14 +43,19 @@ function withOneMore(counts: LabelCounts, productId: string): LabelCounts {
 
 type LabelableProduct = { product: ProductSummary; code: string; modules: string };
 
-function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
+function labelableProducts(
+  products: ProductSummary[],
+  brands: readonly BrandSummary[],
+): LabelableProduct[] {
   const labelable = products.flatMap((product) =>
     product.labelCode === null || product.labelModules === null
       ? []
       : [{ product, code: product.labelCode, modules: product.labelModules }],
   );
   return sortedItems(labelable, {
-    order: textOrder((labelableProduct) => labelableProduct.product.name),
+    order: numericTextOrder((labelableProduct: LabelableProduct) =>
+      productDescription(labelableProduct.product, brands),
+    ),
     direction: "ascending",
   });
 }
@@ -71,6 +77,7 @@ type PrintLabelsModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
   products: ProductSummary[];
+  brands: BrandSummary[];
   onReload: () => Promise<void>;
   services: PrintLabelsModalServices;
 };
@@ -80,6 +87,7 @@ export function PrintLabelsModal({
   onClose,
   onSessionEnded,
   products,
+  brands,
   onReload,
   services,
 }: PrintLabelsModalProps) {
@@ -101,7 +109,7 @@ export function PrintLabelsModal({
     }
   }, [open]);
 
-  const rows = labelableProducts(products);
+  const rows = labelableProducts(products, brands);
   const total = rows.reduce((sum, row) => sum + countOf(counts, row.product.id), 0);
   const previewRow = rows.find((row) => countOf(counts, row.product.id) > 0) ?? rows[0];
   const busy = printing || reloading;
@@ -268,7 +276,9 @@ export function PrintLabelsModal({
                     className="flex items-center justify-between gap-3 rounded-lg bg-surface-subtle px-3 py-2"
                   >
                     <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-body font-bold text-text">{product.name}</span>
+                      <span className="truncate text-body font-bold text-text">
+                        {productDescription(product, brands)}
+                      </span>
                       <span className="truncate font-mono text-detail text-text-subtle">
                         {code}
                       </span>
@@ -276,14 +286,14 @@ export function PrintLabelsModal({
                     <div className="flex shrink-0 items-center gap-2">
                       <IconButton
                         icon={<Minus />}
-                        aria-label={`Restar una etiqueta de ${product.name}`}
+                        aria-label={`Restar una etiqueta de ${productDescription(product, brands)}`}
                         disabled={count === 0}
                         onPress={() => changeCount(product.id, -1)}
                       />
                       <span className="w-8 text-center font-mono text-body text-text">{count}</span>
                       <IconButton
                         icon={<Plus />}
-                        aria-label={`Sumar una etiqueta a ${product.name}`}
+                        aria-label={`Sumar una etiqueta a ${productDescription(product, brands)}`}
                         disabled={!acceptsCounts(withOneMore(counts, product.id))}
                         onPress={() => changeCount(product.id, 1)}
                       />

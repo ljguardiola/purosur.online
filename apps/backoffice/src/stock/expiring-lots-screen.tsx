@@ -11,6 +11,7 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { CalendarClock, Check, Search, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -84,7 +85,7 @@ function matchesExpiry(lot: ExpiringLot, filter: ExpiryFilter): boolean {
 }
 
 function lotName(lot: ExpiringLot): string {
-  return lot.lotNumber === null ? `de ${lot.product.name}` : lot.lotNumber;
+  return lot.lotNumber === null ? `de ${formatProductDescription(lot.product)}` : lot.lotNumber;
 }
 
 function summaryText({ valueCents, withoutCostCount }: ExpiringLotList["summary"], count: number) {
@@ -97,8 +98,8 @@ function summaryText({ valueCents, withoutCostCount }: ExpiringLotList["summary"
 
 function discardedNotice(lot: ExpiringLot, result: ExpiredLotDiscardResult) {
   const discarded = formatStockQuantity(result.quantity, lot.product.saleUnit);
-  const what =
-    lot.lotNumber === null ? lot.product.name : `${lot.lotNumber} de ${lot.product.name}`;
+  const product = formatProductDescription(lot.product);
+  const what = lot.lotNumber === null ? product : `${lot.lotNumber} de ${product}`;
   return {
     tone: "success" as const,
     title: "Lote dado de baja",
@@ -190,7 +191,9 @@ export function ExpiringLotsScreen({
       id: "product",
       header: "Producto",
       render: (lot: ExpiringLot) => (
-        <TableCellText description={lot.product.categoryName}>{lot.product.name}</TableCellText>
+        <TableCellText description={lot.product.categoryName}>
+          {formatProductDescription(lot.product)}
+        </TableCellText>
       ),
     }),
     dataColumn({
@@ -260,7 +263,7 @@ export function ExpiringLotsScreen({
   const table = useTableModel({
     items: lots,
     id: (lot) => lot.id,
-    search: { text: search, in: (lot) => [lot.product.name] },
+    search: { text: search, in: (lot) => [formatProductDescription(lot.product)] },
     filter: (lot) =>
       (category === "ALL" || lot.product.categoryId === category) && matchesExpiry(lot, expiry),
     columns,

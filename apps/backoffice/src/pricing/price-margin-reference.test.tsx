@@ -20,6 +20,8 @@ const rice: PriceProduct = {
   name: "Arroz",
   categoryId: "category-1",
   categoryName: "Almacén",
+  brandName: null,
+  netContent: null,
   saleUnit: "KG",
   currentPrice: null,
   secondsSinceReview: null,

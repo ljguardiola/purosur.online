@@ -9,6 +9,8 @@ import { type StockMovementsFilters, stockMovementsFilters } from "./routes";
 import { StockMovementsScreen } from "./stock-movements-screen";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
 import {
+  almondOil,
+  almondOilLoss,
   almonds,
   almondsAdjustment,
   almondsExpiredLoss,
@@ -345,3 +347,91 @@ test("offers the kinds the cloud says the user may record, whatever the capabili
   await expect.element(screen.getByRole("button", { name: "Cargar ajuste" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Cargar pérdida" }).query()).toBeNull();
 });
+
+test("shows a movement's product with its brand and net content", async () => {
+  const screen = await renderScreen(createServices([almondOilLoss]));
+
+  const table = screen.getByRole("table", { name: "Ajustes y pérdidas" });
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
+test("finds a movement by the brand shown with its product", async () => {
+  const screen = await renderScreen(createServices([honeyLoss, almondOilLoss]));
+  const table = screen.getByRole("table", { name: "Ajustes y pérdidas" });
+  await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("searchbox"), "vitora");
+
+  await expect.element(table.getByText("Miel pura de abeja 1 kg")).not.toBeInTheDocument();
+  await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+});
+
+test("offers and names the product by its brand and net content when registering a loss", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchStockProducts).mockResolvedValue({
+    kind: "ok",
+    value: { products: [almondOil].map(withoutBalance) },
+  });
+  vi.mocked(services.recordLoss).mockResolvedValue({
+    kind: "ok",
+    value: { balance: 5_000, superseded: false },
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openModal(screen);
+
+  await userEvent.click(cardLabel(screen, "Pérdida"));
+  await chooseProduct(screen, "Aceite de Almendras Vitora 30 ml");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
+  await userEvent.click(cardLabel(screen, "Rotura o derrame"));
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
+
+  await expect
+    .element(
+      screen
+        .getByRole("status")
+        .getByText("Saldo actualizado Aceite de Almendras Vitora 30 ml queda en 5 u."),
+    )
+    .toBeInTheDocument();
+});
+
+test.each([
+  {
+    access: BOTH,
+    button: "Cargar pérdida o ajuste",
+    result: { balance: 6_000, superseded: true },
+    notice:
+      "El movimiento no cambió el saldo Hay un recuento posterior de Aceite de Almendras Vitora 30 ml: el saldo sigue en 6 u.",
+  },
+  {
+    access: LOSSES_ONLY,
+    button: "Cargar pérdida",
+    result: { balance: 6_000, superseded: true },
+    notice:
+      "El movimiento no cambió el saldo Hay un recuento posterior de Aceite de Almendras Vitora 30 ml.",
+  },
+  {
+    access: LOSSES_ONLY,
+    button: "Cargar pérdida",
+    result: { balance: 5_000, superseded: false },
+    notice: "Saldo actualizado Aceite de Almendras Vitora 30 ml: − 1 u.",
+  },
+])(
+  "names the product of a loss by its brand and net content in the notice: $notice",
+  async ({ access, button, result, notice }) => {
+    const services = createServices();
+    vi.mocked(services.fetchStockProducts).mockResolvedValue({
+      kind: "ok",
+      value: { products: [almondOil].map(withoutBalance) },
+    });
+    vi.mocked(services.recordLoss).mockResolvedValue({ kind: "ok", value: result });
+    const screen = await renderScreen(services, { access });
+    const dialog = await openModal(screen, button);
+    await chooseProduct(screen, "Aceite de Almendras Vitora 30 ml");
+    await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
+    await userEvent.click(cardLabel(screen, "Robo"));
+
+    await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
+
+    await expect.element(screen.getByRole("status").getByText(notice)).toBeInTheDocument();
+  },
+);

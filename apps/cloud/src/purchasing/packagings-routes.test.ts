@@ -98,7 +98,12 @@ describe("GET /purchase-packagings", () => {
 
   it("lists the packagings with their product's name and current sale unit, and the active products to define one for", async () => {
     const { headers } = await manager();
-    const arroz = await insertProduct(db, { name: "Arroz", saleUnit: "UNIT" });
+    const arroz = await insertProduct(db, {
+      name: "Arroz",
+      saleUnit: "UNIT",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+    });
     const retired = await insertProduct(db, { name: "Retirado", active: false });
     await storedPackaging(retired.id, { name: "Bolsa", saleUnit: "KG", active: false });
     await storedPackaging(arroz.id);
@@ -112,6 +117,8 @@ describe("GET /purchase-packagings", () => {
           id: expect.any(String),
           productId: retired.id,
           productName: "Retirado",
+          brandName: null,
+          netContent: null,
           productSaleUnit: "UNIT",
           saleUnit: "KG",
           saleUnitChanged: true,
@@ -124,6 +131,8 @@ describe("GET /purchase-packagings", () => {
           id: expect.any(String),
           productId: arroz.id,
           productName: "Arroz",
+          brandName: "Vitora",
+          netContent: { quantity: 500, unit: "G" },
           productSaleUnit: "UNIT",
           saleUnit: "UNIT",
           saleUnitChanged: false,
@@ -133,7 +142,15 @@ describe("GET /purchase-packagings", () => {
           version: 1,
         },
       ],
-      products: [{ id: arroz.id, name: "Arroz", saleUnit: "UNIT" }],
+      products: [
+        {
+          id: arroz.id,
+          name: "Arroz",
+          brandName: "Vitora",
+          netContent: { quantity: 500, unit: "G" },
+          saleUnit: "UNIT",
+        },
+      ],
     });
   });
 });
@@ -191,7 +208,12 @@ describe("POST /purchase-packagings", () => {
 
   it("creates the packaging written by the signed-in user and answers it with its product's name and sale unit", async () => {
     const { headers, userId } = await manager();
-    const product = await insertProduct(db, { name: "Arroz", saleUnit: "KG" });
+    const product = await insertProduct(db, {
+      name: "Arroz",
+      saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -206,6 +228,8 @@ describe("POST /purchase-packagings", () => {
       id: expect.any(String),
       productId: product.id,
       productName: "Arroz",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
       productSaleUnit: "KG",
       saleUnit: "KG",
       saleUnitChanged: false,
@@ -304,7 +328,11 @@ describe("PUT /purchase-packagings/:id", () => {
 
   it("edits the packaging, answering it at its next version with its product's name and sale unit", async () => {
     const { headers } = await manager();
-    const product = await insertProduct(db, { name: "Arroz" });
+    const product = await insertProduct(db, {
+      name: "Arroz",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+    });
     const packaging = await storedPackaging(product.id);
 
     const response = await app.inject({
@@ -319,6 +347,8 @@ describe("PUT /purchase-packagings/:id", () => {
       id: packaging.id,
       productId: product.id,
       productName: "Arroz",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
       productSaleUnit: "UNIT",
       saleUnit: "UNIT",
       saleUnitChanged: false,

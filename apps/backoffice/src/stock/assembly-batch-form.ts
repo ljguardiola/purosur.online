@@ -6,6 +6,7 @@ import {
   type RecipeSummary,
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import {
   formatStockQuantityInput,
@@ -201,9 +202,10 @@ export function batchUsedMessage(
   if (wrong === undefined) {
     return "Revisá lo usado.";
   }
+  const name = formatProductDescription(wrong);
   return usedText(values, wrong, proposal).trim() === ""
-    ? `${wrong.name}: ingresá la cantidad usada.`
-    : `${wrong.name}: ${withLowercaseInitial(quantityMessage(wrong.saleUnit))}`;
+    ? `${name}: ingresá la cantidad usada.`
+    : `${name}: ${withLowercaseInitial(quantityMessage(wrong.saleUnit))}`;
 }
 
 export function batchOutputMessage(output: string, saleUnit: SaleUnit): string {

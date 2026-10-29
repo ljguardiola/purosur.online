@@ -5,15 +5,16 @@ import {
   formatSignedCents,
   type ItemOrder,
   ListFilter,
+  numericTextOrder,
   plural,
   SearchField,
   Table,
   TableCellText,
   type TableSort,
   Tag,
-  textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp, Package, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -43,7 +44,7 @@ const CORRECTION_NOTES = {
   purchase_or_count: "Sin lotes · se corrige con una compra o un recuento",
 } as const;
 
-const productOrder = textOrder((product: StockBalance) => product.name);
+const productOrder = numericTextOrder((product: StockBalance) => formatProductDescription(product));
 
 function numberOrder(value: (product: StockBalance) => number | null): ItemOrder<StockBalance> {
   return (a, b) => (value(a) ?? Number.NEGATIVE_INFINITY) - (value(b) ?? Number.NEGATIVE_INFINITY);
@@ -131,7 +132,7 @@ export function StockBalancesScreen({
             }
             descriptionTone={item.correction === null ? undefined : "error"}
           >
-            {item.name}
+            {formatProductDescription(item)}
           </TableCellText>
           {item.active ? null : <Tag tone="neutral">Desactivado</Tag>}
         </div>
@@ -191,12 +192,12 @@ export function StockBalancesScreen({
             : opened.includes(item.id)
               ? {
                   icon: <ChevronUp />,
-                  "aria-label": `Ocultar los lotes de ${item.name}`,
+                  "aria-label": `Ocultar los lotes de ${formatProductDescription(item)}`,
                   onPress: () => setOpened(opened.filter((id) => id !== item.id)),
                 }
               : {
                   icon: <ChevronDown />,
-                  "aria-label": `Ver los lotes de ${item.name}`,
+                  "aria-label": `Ver los lotes de ${formatProductDescription(item)}`,
                   onPress: () => setOpened([...opened, item.id]),
                 },
       ],
@@ -220,7 +221,7 @@ export function StockBalancesScreen({
   const table = useTableModel({
     items: products,
     id: (product) => product.id,
-    search: { text: search, in: (product) => [product.name] },
+    search: { text: search, in: (product) => [formatProductDescription(product)] },
     filter: (product) =>
       (category === "ALL" || product.categoryId === category) &&
       matchesBalance(product.balance, balance),

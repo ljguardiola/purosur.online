@@ -8,7 +8,7 @@ const stored: StoredDiscount = {
   id: "discount-1",
   name: "Verano",
   benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
-  target: { kind: "TAG", id: "tag-1", name: "Sin TACC" },
+  target: { kind: "TAG", id: "tag-1", name: "Sin TACC", brandName: null, netContent: null },
   validFrom: "2026-12-01",
   validTo: "2027-02-28",
   weekdays: [6, 2],

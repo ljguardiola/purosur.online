@@ -7,6 +7,7 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { batchDayText } from "./assembly-batch-text";
 import { formatStockUnitCost, formatStockValue } from "./stock-cost";
@@ -110,7 +111,11 @@ export function StockBalanceLots({ product }: { product: StockBalance }) {
       <Eyebrow
         text={product.lots.length > 1 ? "Lotes · se consume primero el que vence antes" : "Lotes"}
       />
-      <Table table={table} aria-label={`Lotes de ${product.name}`} variant="nested" />
+      <Table
+        table={table}
+        aria-label={`Lotes de ${formatProductDescription(product)}`}
+        variant="nested"
+      />
     </div>
   );
 }

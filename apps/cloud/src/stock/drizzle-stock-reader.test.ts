@@ -58,7 +58,22 @@ describe("DrizzleStockReader.product", () => {
       categoryId,
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      brandName: null,
+      netContent: null,
       active: true,
+    });
+  });
+
+  it("answers the brand name and the net content of a product", async () => {
+    const { productId } = await insertProduct(db, {
+      name: "Aceite de Almendras",
+      brandName: "Vitora",
+      netContent: { quantity: 30, unit: "ML" },
+    });
+
+    expect(await new DrizzleStockReader(db).product(productId)).toMatchObject({
+      brandName: "Vitora",
+      netContent: { quantity: 30, unit: "ML" },
     });
   });
 
@@ -197,7 +212,12 @@ describe("DrizzleStockReader.ledgerAt", () => {
 describe("DrizzleStockReader.products", () => {
   it("answers every product, active or not, by name, then by id", async () => {
     const nuts = await insertProduct(db, { name: "Nueces", categoryName: "Frutos secos" });
-    const honey = await insertProduct(db, { name: "Miel", saleUnit: "KG" });
+    const honey = await insertProduct(db, {
+      name: "Miel",
+      saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
+    });
     const sameName = await insertProduct(db, { name: "Miel" });
     const oats = await insertProduct(db, { name: "Avena", active: false });
 
@@ -218,9 +238,15 @@ describe("DrizzleStockReader.products", () => {
       categoryId: honey.categoryId,
       categoryName: "Almacén",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
       active: true,
     });
-    expect(products.find((product) => product.id === oats.productId)?.active).toBe(false);
+    expect(products.find((product) => product.id === oats.productId)).toMatchObject({
+      active: false,
+      brandName: null,
+      netContent: null,
+    });
   });
 });
 
@@ -237,7 +263,11 @@ describe("DrizzleStockReader.stockLevels", () => {
   it("answers each listed product with its balance at the location and whether it ever moved there, zero when it never did", async () => {
     const locationId = await insertLocation(db);
     const otherLocationId = await insertLocation(db);
-    const honey = await insertProduct(db, { name: "Miel" });
+    const honey = await insertProduct(db, {
+      name: "Miel",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
+    });
     const peanuts = await insertProduct(db, { name: "Maní" });
     const nuts = await insertProduct(db, { name: "Nueces", categoryName: "Frutos secos" });
     const oats = await insertProduct(db, { name: "Avena", active: false });
@@ -264,6 +294,8 @@ describe("DrizzleStockReader.stockLevels", () => {
         name: "Avena",
         categoryId: oats.categoryId,
         categoryName: "Almacén",
+        brandName: null,
+        netContent: null,
         saleUnit: "UNIT",
         active: false,
         hasMoved: true,
@@ -275,6 +307,8 @@ describe("DrizzleStockReader.stockLevels", () => {
         name: "Maní",
         categoryId: peanuts.categoryId,
         categoryName: "Almacén",
+        brandName: null,
+        netContent: null,
         saleUnit: "UNIT",
         active: true,
         hasMoved: true,
@@ -286,6 +320,8 @@ describe("DrizzleStockReader.stockLevels", () => {
         name: "Miel",
         categoryId: honey.categoryId,
         categoryName: "Almacén",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         saleUnit: "UNIT",
         active: true,
         hasMoved: true,
@@ -297,6 +333,8 @@ describe("DrizzleStockReader.stockLevels", () => {
         name: "Nueces",
         categoryId: nuts.categoryId,
         categoryName: "Frutos secos",
+        brandName: null,
+        netContent: null,
         saleUnit: "UNIT",
         active: true,
         hasMoved: false,
@@ -467,7 +505,11 @@ describe("DrizzleStockReader.counts", () => {
   it("answers the location's counts since the start, newest first, flagging superseded ones", async () => {
     const { actorId, locationId } = await seededActor();
     const otherLocationId = await insertLocation(db);
-    const { productId, categoryId } = await insertProduct(db, { saleUnit: "KG" });
+    const { productId, categoryId } = await insertProduct(db, {
+      saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
+    });
     const count = { productId, locationId, actorId, kind: "count" as const };
     const latest = await insertMovement(db, {
       ...count,
@@ -515,6 +557,8 @@ describe("DrizzleStockReader.counts", () => {
         id: byLot,
         productId,
         productName: "Miel pura de abeja 1 kg",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         categoryId,
         categoryName: "Almacén",
         saleUnit: "KG",
@@ -529,6 +573,8 @@ describe("DrizzleStockReader.counts", () => {
         id: latest,
         productId,
         productName: "Miel pura de abeja 1 kg",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         categoryId,
         categoryName: "Almacén",
         saleUnit: "KG",
@@ -543,6 +589,8 @@ describe("DrizzleStockReader.counts", () => {
         id: earlier,
         productId,
         productName: "Miel pura de abeja 1 kg",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         categoryId,
         categoryName: "Almacén",
         saleUnit: "KG",
@@ -580,7 +628,11 @@ describe("DrizzleStockReader.movements", () => {
   it("answers the location's movements of the asked kinds since the start, newest first", async () => {
     const { actorId, locationId } = await seededActor();
     const otherLocationId = await insertLocation(db);
-    const { productId } = await insertProduct(db, { saleUnit: "KG" });
+    const { productId } = await insertProduct(db, {
+      saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
+    });
     const movement = { productId, locationId, actorId };
     const count = await insertMovement(db, {
       ...movement,
@@ -631,6 +683,8 @@ describe("DrizzleStockReader.movements", () => {
         id: loss,
         productId,
         productName: "Miel pura de abeja 1 kg",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         categoryName: "Almacén",
         saleUnit: "KG",
         kind: "loss",
@@ -643,6 +697,8 @@ describe("DrizzleStockReader.movements", () => {
         id: adjustment,
         productId,
         productName: "Miel pura de abeja 1 kg",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         categoryName: "Almacén",
         saleUnit: "KG",
         kind: "adjustment",

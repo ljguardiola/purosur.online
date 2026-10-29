@@ -7,7 +7,14 @@ import { listPurchaseChoices } from "./list-purchase-choices.js";
 import { FakePurchasingListReader } from "./test-support/fake-purchasing-list-reader.js";
 
 const CLOCK = { now: () => new Date("2026-09-16T15:00:00.000Z") };
-const YERBA = { id: "p-unit", name: "Yerba", saleUnit: "UNIT", active: true } as const;
+const YERBA = {
+  id: "p-unit",
+  name: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 500, unit: "G" },
+  saleUnit: "UNIT",
+  active: true,
+} as const;
 const HARINA = { id: "p-kg", name: "Harina", saleUnit: "KG", active: true } as const;
 
 function supplier(id: string, name: string, active: boolean) {
@@ -55,7 +62,16 @@ describe("listPurchaseChoices", () => {
 
     expect(
       (await listPurchaseChoices(reader, CLOCK, new FakeZoneRulesSource())).packagings,
-    ).toEqual([{ ...caja, productName: "Yerba", productSaleUnit: "UNIT", saleUnitChanged: false }]);
+    ).toEqual([
+      {
+        ...caja,
+        productName: "Yerba",
+        brandName: "Piragüé",
+        netContent: { quantity: 500, unit: "G" },
+        productSaleUnit: "UNIT",
+        saleUnitChanged: false,
+      },
+    ]);
   });
 
   it("answers the day it is in Argentina as the day today's purchases are dated", async () => {
