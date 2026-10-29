@@ -5,6 +5,7 @@ import {
   registerRendererToCoreMessageSchema,
 } from "./core-messages.js";
 
+const SINCE = "2026-10-29T09:30:00.000-03:00";
 const REQUEST_ID = "7d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
 
 const OPEN_CASH_SESSION = {
@@ -1303,33 +1304,64 @@ describe("register status messages", () => {
 
   it.each([
     [[], "unknown"],
-    [[{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }], "reachable"],
-    [[{ kind: "sales_denied", reason: "local_database_damaged", level: "critical" }], "reachable"],
+    [
+      [{ kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE }],
+      "reachable",
+    ],
+    [
+      [{ kind: "sales_denied", reason: "local_database_damaged", level: "critical", since: SINCE }],
+      "reachable",
+    ],
     [
       [
-        { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
-        { kind: "register_silent", level: "critical" },
+        { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
+        { kind: "register_silent", level: "critical", since: SINCE },
       ],
       "unreachable",
     ],
-    [[{ kind: "installation_revoked", level: "critical" }], "unreachable"],
-    [[{ kind: "serial_device_missing", level: "warning" }], "reachable"],
-    [[{ kind: "fiscal_emission_stopped", level: "critical" }], "unreachable"],
-    [[{ kind: "clock_drift", level: "critical" }], "reachable"],
-    [[{ kind: "disk_space_low", level: "warning" }], "unreachable"],
-    [[{ kind: "wal_oversized", level: "warning" }], "unreachable"],
+    [[{ kind: "installation_revoked", level: "critical", since: SINCE }], "unreachable"],
+    [[{ kind: "serial_device_missing", level: "warning", since: SINCE }], "reachable"],
+    [[{ kind: "fiscal_emission_stopped", level: "critical", since: SINCE }], "unreachable"],
+    [[{ kind: "clock_drift", level: "critical", since: SINCE }], "reachable"],
+    [[{ kind: "disk_space_low", level: "warning", since: SINCE }], "unreachable"],
+    [[{ kind: "wal_oversized", level: "warning", since: SINCE }], "unreachable"],
     [
-      [{ kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" }],
+      [
+        {
+          kind: "battery_low",
+          charge_percent: 15,
+          critical_percent: 10,
+          level: "warning",
+          since: SINCE,
+        },
+      ],
       "reachable",
     ],
     [
-      [{ kind: "battery_low", charge_percent: 0, critical_percent: 10, level: "warning" }],
+      [
+        {
+          kind: "battery_low",
+          charge_percent: 0,
+          critical_percent: 10,
+          level: "warning",
+          since: SINCE,
+        },
+      ],
       "reachable",
     ],
-    [[{ kind: "on_battery", threshold_minutes: 10, level: "critical" }], "unreachable"],
-    [[{ kind: "battery_missing", level: "warning" }], "unreachable"],
-    [[{ kind: "critical_battery_action_not_shutdown", level: "warning" }], "unreachable"],
-    [[{ kind: "sales_denied", reason: "battery_critical", level: "critical" }], "reachable"],
+    [
+      [{ kind: "on_battery", threshold_minutes: 10, level: "critical", since: SINCE }],
+      "unreachable",
+    ],
+    [[{ kind: "battery_missing", level: "warning", since: SINCE }], "unreachable"],
+    [
+      [{ kind: "critical_battery_action_not_shutdown", level: "warning", since: SINCE }],
+      "unreachable",
+    ],
+    [
+      [{ kind: "sales_denied", reason: "battery_critical", level: "critical", since: SINCE }],
+      "reachable",
+    ],
     [
       [
         {
@@ -1337,15 +1369,27 @@ describe("register status messages", () => {
           reason: "disk_space_short_at_startup",
           required_free_bytes: 5_000_000_000,
           level: "critical",
+          since: SINCE,
         },
       ],
       "unreachable",
     ],
     [
-      [{ kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" }],
+      [
+        {
+          kind: "sales_denied",
+          reason: "disk_full",
+          disk_free_ratio: 0.03,
+          level: "critical",
+          since: SINCE,
+        },
+      ],
       "unreachable",
     ],
-    [[{ kind: "sales_denied", reason: "disk_full", level: "critical" }], "unreachable"],
+    [
+      [{ kind: "sales_denied", reason: "disk_full", level: "critical", since: SINCE }],
+      "unreachable",
+    ],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",
@@ -1353,6 +1397,60 @@ describe("register status messages", () => {
       status: {
         conditions,
         cloud,
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+        contingency: null,
+      },
+    };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["without its start", { kind: "clock_drift", level: "critical" }],
+    [
+      "with a start that has no offset",
+      { kind: "clock_drift", level: "critical", since: "2026-10-29T09:30:00" },
+    ],
+    [
+      "with a start that is not an instant",
+      { kind: "clock_drift", level: "critical", since: "yesterday" },
+    ],
+    [
+      "a sales denial without its start",
+      { kind: "sales_denied", reason: "disk_full", level: "critical" },
+    ],
+    [
+      "a low battery without its start",
+      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
+    ],
+    [
+      "a battery run without its start",
+      { kind: "on_battery", threshold_minutes: 10, level: "critical" },
+    ],
+  ])("rejects a condition %s", (_name, condition) => {
+    const message = {
+      type: "register-status",
+      request_id: REQUEST_ID,
+      status: {
+        conditions: [condition],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+        contingency: null,
+      },
+    };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts a condition whose start is in UTC", () => {
+    const message = {
+      type: "register-status",
+      request_id: REQUEST_ID,
+      status: {
+        conditions: [{ kind: "clock_drift", level: "critical", since: "2026-10-29T12:30:00.000Z" }],
+        cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
         contingency: null,
@@ -1409,7 +1507,7 @@ describe("register status messages", () => {
     [
       "a condition the register does not detect itself",
       {
-        conditions: [{ kind: "stock_low", level: "warning" }],
+        conditions: [{ kind: "stock_low", level: "warning", since: SINCE }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1429,7 +1527,7 @@ describe("register status messages", () => {
     [
       "a sales denial without its reason",
       {
-        conditions: [{ kind: "sales_denied", level: "critical" }],
+        conditions: [{ kind: "sales_denied", level: "critical", since: SINCE }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1439,7 +1537,9 @@ describe("register status messages", () => {
     [
       "a sales denial with a reason it does not know",
       {
-        conditions: [{ kind: "sales_denied", reason: "installation_revoked", level: "critical" }],
+        conditions: [
+          { kind: "sales_denied", reason: "installation_revoked", level: "critical", since: SINCE },
+        ],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1450,7 +1550,13 @@ describe("register status messages", () => {
       "a full disk with a free ratio above one",
       {
         conditions: [
-          { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 1.5, level: "critical" },
+          {
+            kind: "sales_denied",
+            reason: "disk_full",
+            disk_free_ratio: 1.5,
+            level: "critical",
+            since: SINCE,
+          },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1462,7 +1568,13 @@ describe("register status messages", () => {
       "a full disk with a negative free ratio",
       {
         conditions: [
-          { kind: "sales_denied", reason: "disk_full", disk_free_ratio: -0.1, level: "critical" },
+          {
+            kind: "sales_denied",
+            reason: "disk_full",
+            disk_free_ratio: -0.1,
+            level: "critical",
+            since: SINCE,
+          },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1480,6 +1592,7 @@ describe("register status messages", () => {
             disk_free_ratio: 0.03,
             required_free_bytes: 5,
             level: "critical",
+            since: SINCE,
           },
         ],
         cloud: "reachable",
@@ -1492,7 +1605,12 @@ describe("register status messages", () => {
       "a startup shortage without the space it requires",
       {
         conditions: [
-          { kind: "sales_denied", reason: "disk_space_short_at_startup", level: "critical" },
+          {
+            kind: "sales_denied",
+            reason: "disk_space_short_at_startup",
+            level: "critical",
+            since: SINCE,
+          },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1509,6 +1627,7 @@ describe("register status messages", () => {
             reason: "disk_space_short_at_startup",
             required_free_bytes: 1.5,
             level: "critical",
+            since: SINCE,
           },
         ],
         cloud: "reachable",
@@ -1526,6 +1645,7 @@ describe("register status messages", () => {
             reason: "disk_space_short_at_startup",
             required_free_bytes: -1,
             level: "critical",
+            since: SINCE,
           },
         ],
         cloud: "reachable",
@@ -1544,6 +1664,7 @@ describe("register status messages", () => {
             required_free_bytes: 5,
             disk_free_ratio: 0.03,
             level: "critical",
+            since: SINCE,
           },
         ],
         cloud: "reachable",
@@ -1555,7 +1676,7 @@ describe("register status messages", () => {
     [
       "a register on battery without the minutes the condition takes",
       {
-        conditions: [{ kind: "on_battery", level: "critical" }],
+        conditions: [{ kind: "on_battery", level: "critical", since: SINCE }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1565,7 +1686,9 @@ describe("register status messages", () => {
     [
       "a register on battery for a fraction of a minute",
       {
-        conditions: [{ kind: "on_battery", threshold_minutes: 9.5, level: "critical" }],
+        conditions: [
+          { kind: "on_battery", threshold_minutes: 9.5, level: "critical", since: SINCE },
+        ],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1575,7 +1698,7 @@ describe("register status messages", () => {
     [
       "a register on battery for no minutes",
       {
-        conditions: [{ kind: "on_battery", threshold_minutes: 0, level: "critical" }],
+        conditions: [{ kind: "on_battery", threshold_minutes: 0, level: "critical", since: SINCE }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1585,7 +1708,7 @@ describe("register status messages", () => {
     [
       "a low battery without its charge",
       {
-        conditions: [{ kind: "battery_low", level: "warning" }],
+        conditions: [{ kind: "battery_low", level: "warning", since: SINCE }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1596,7 +1719,13 @@ describe("register status messages", () => {
       "a low battery with a charge above 100",
       {
         conditions: [
-          { kind: "battery_low", charge_percent: 101, critical_percent: 10, level: "warning" },
+          {
+            kind: "battery_low",
+            charge_percent: 101,
+            critical_percent: 10,
+            level: "warning",
+            since: SINCE,
+          },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1608,7 +1737,13 @@ describe("register status messages", () => {
       "a low battery with a negative charge",
       {
         conditions: [
-          { kind: "battery_low", charge_percent: -1, critical_percent: 10, level: "warning" },
+          {
+            kind: "battery_low",
+            charge_percent: -1,
+            critical_percent: 10,
+            level: "warning",
+            since: SINCE,
+          },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1620,7 +1755,13 @@ describe("register status messages", () => {
       "a low battery with a fractional charge",
       {
         conditions: [
-          { kind: "battery_low", charge_percent: 15.5, critical_percent: 10, level: "warning" },
+          {
+            kind: "battery_low",
+            charge_percent: 15.5,
+            critical_percent: 10,
+            level: "warning",
+            since: SINCE,
+          },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1631,7 +1772,7 @@ describe("register status messages", () => {
     [
       "a low battery without the critical threshold",
       {
-        conditions: [{ kind: "battery_low", charge_percent: 15, level: "warning" }],
+        conditions: [{ kind: "battery_low", charge_percent: 15, level: "warning", since: SINCE }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1642,7 +1783,13 @@ describe("register status messages", () => {
       "a low battery with a fractional critical threshold",
       {
         conditions: [
-          { kind: "battery_low", charge_percent: 15, critical_percent: 9.5, level: "warning" },
+          {
+            kind: "battery_low",
+            charge_percent: 15,
+            critical_percent: 9.5,
+            level: "warning",
+            since: SINCE,
+          },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1654,7 +1801,13 @@ describe("register status messages", () => {
       "a low battery with a critical threshold above 100",
       {
         conditions: [
-          { kind: "battery_low", charge_percent: 15, critical_percent: 101, level: "warning" },
+          {
+            kind: "battery_low",
+            charge_percent: 15,
+            critical_percent: 101,
+            level: "warning",
+            since: SINCE,
+          },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1671,6 +1824,7 @@ describe("register status messages", () => {
             reason: "event_history_broken",
             disk_free_ratio: 0.03,
             level: "critical",
+            since: SINCE,
           },
         ],
         cloud: "reachable",
@@ -1702,7 +1856,7 @@ describe("register status messages", () => {
     [
       "a condition with a level it does not know",
       {
-        conditions: [{ kind: "register_silent", level: "urgent" }],
+        conditions: [{ kind: "register_silent", level: "urgent", since: SINCE }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -2022,7 +2176,7 @@ describe("serial device messages", () => {
         type: "register-status",
         request_id: REQUEST_ID,
         status: {
-          conditions: [{ kind: "serial_device_missing", level: "warning" }],
+          conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
           cloud: "reachable",
           serial_devices: { scale: kind, reader: "not_registered" },
           serial_devices_setup_offered: false,
