@@ -34,7 +34,12 @@ async function seededActor(): Promise<{ actorId: string; locationId: string }> {
 describe("DrizzleLossReader.lossesRecorded", () => {
   it("answers each loss of the branch with its reason, its product and the quantity lost as a positive amount", async () => {
     const { actorId, locationId } = await seededActor();
-    const { productId } = await insertProduct(db, { name: "Almendras peladas", saleUnit: "KG" });
+    const { productId } = await insertProduct(db, {
+      name: "Almendras peladas",
+      saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
+    });
     await insertMovement(db, {
       productId,
       locationId,
@@ -53,7 +58,13 @@ describe("DrizzleLossReader.lossesRecorded", () => {
     expect(losses).toEqual([
       {
         reason: "spoiled",
-        product: { id: productId, name: "Almendras peladas", saleUnit: "KG" },
+        product: {
+          id: productId,
+          name: "Almendras peladas",
+          brandName: "Vitora",
+          netContent: { quantity: 250, unit: "G" },
+          saleUnit: "KG",
+        },
         quantity: 1_500,
       },
     ]);

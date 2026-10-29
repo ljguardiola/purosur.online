@@ -69,8 +69,15 @@ async function assembledProducts() {
     name: "Mix de frutos secos",
     categoryName: "Mezclas",
     saleUnit: "KG",
+    brandName: "Vitora",
+    netContent: { quantity: 250, unit: "G" },
   });
-  const nuts = await insertProduct(db, { name: "Nueces", saleUnit: "KG" });
+  const nuts = await insertProduct(db, {
+    name: "Nueces",
+    saleUnit: "KG",
+    brandName: "Norte",
+    netContent: { quantity: 500, unit: "G" },
+  });
   const bag = await insertProduct(db, { name: "Bolsa", saleUnit: "UNIT" });
   return { mix: mix.productId, nuts: nuts.productId, bag: bag.productId };
 }
@@ -155,6 +162,8 @@ describe("GET /recipes", () => {
         {
           productId: mix,
           productName: "Mix de frutos secos",
+          brandName: "Vitora",
+          netContent: { quantity: 250, unit: "G" },
           categoryName: "Mezclas",
           saleUnit: "KG",
           version: 1,
@@ -163,12 +172,16 @@ describe("GET /recipes", () => {
             {
               componentProductId: bag,
               name: "Bolsa",
+              brandName: null,
+              netContent: null,
               saleUnit: "UNIT",
               quantityPerOutputUnit: 1_000,
             },
             {
               componentProductId: nuts,
               name: "Nueces",
+              brandName: "Norte",
+              netContent: { quantity: 500, unit: "G" },
               saleUnit: "KG",
               quantityPerOutputUnit: 600,
             },
@@ -176,9 +189,21 @@ describe("GET /recipes", () => {
         },
       ],
       products: [
-        { id: bag, name: "Bolsa", saleUnit: "UNIT" },
-        { id: mix, name: "Mix de frutos secos", saleUnit: "KG" },
-        { id: nuts, name: "Nueces", saleUnit: "KG" },
+        { id: bag, name: "Bolsa", brandName: null, netContent: null, saleUnit: "UNIT" },
+        {
+          id: mix,
+          name: "Mix de frutos secos",
+          brandName: "Vitora",
+          netContent: { quantity: 250, unit: "G" },
+          saleUnit: "KG",
+        },
+        {
+          id: nuts,
+          name: "Nueces",
+          brandName: "Norte",
+          netContent: { quantity: 500, unit: "G" },
+          saleUnit: "KG",
+        },
       ],
     });
   });
@@ -255,13 +280,29 @@ describe("PUT /recipes/:productId", () => {
     expect(response.json()).toEqual({
       productId: mix,
       productName: "Mix de frutos secos",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
       categoryName: "Mezclas",
       saleUnit: "KG",
       version: 1,
       lastBatch: null,
       components: [
-        { componentProductId: nuts, name: "Nueces", saleUnit: "KG", quantityPerOutputUnit: 600 },
-        { componentProductId: bag, name: "Bolsa", saleUnit: "UNIT", quantityPerOutputUnit: 1_000 },
+        {
+          componentProductId: nuts,
+          name: "Nueces",
+          brandName: "Norte",
+          netContent: { quantity: 500, unit: "G" },
+          saleUnit: "KG",
+          quantityPerOutputUnit: 600,
+        },
+        {
+          componentProductId: bag,
+          name: "Bolsa",
+          brandName: null,
+          netContent: null,
+          saleUnit: "UNIT",
+          quantityPerOutputUnit: 1_000,
+        },
       ],
     });
     expect(await db.select().from(recipes)).toEqual([

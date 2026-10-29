@@ -59,13 +59,20 @@ describe("DrizzleRecipeListReader", () => {
       name: "Mix de frutos secos",
       categoryName: "Mezclas",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
     });
     const granola = await insertProduct(db, {
       name: "Granola",
       categoryName: "Cereales",
       saleUnit: "UNIT",
     });
-    const nuts = await insertProduct(db, { name: "Nueces", saleUnit: "KG" });
+    const nuts = await insertProduct(db, {
+      name: "Nueces",
+      saleUnit: "KG",
+      brandName: "Norte",
+      netContent: { quantity: 500, unit: "G" },
+    });
     const bag = await insertProduct(db, { name: "Bolsa", saleUnit: "UNIT" });
     await save(mix.productId, [
       { id: bag.productId, quantity: 1_000 },
@@ -77,6 +84,8 @@ describe("DrizzleRecipeListReader", () => {
       {
         productId: granola.productId,
         productName: "Granola",
+        brandName: null,
+        netContent: null,
         categoryName: "Cereales",
         saleUnit: "UNIT",
         version: 1,
@@ -85,6 +94,8 @@ describe("DrizzleRecipeListReader", () => {
           {
             componentProductId: nuts.productId,
             name: "Nueces",
+            brandName: "Norte",
+            netContent: { quantity: 500, unit: "G" },
             saleUnit: "KG",
             quantityPerOutputUnit: 250,
           },
@@ -93,6 +104,8 @@ describe("DrizzleRecipeListReader", () => {
       {
         productId: mix.productId,
         productName: "Mix de frutos secos",
+        brandName: "Vitora",
+        netContent: { quantity: 250, unit: "G" },
         categoryName: "Mezclas",
         saleUnit: "KG",
         version: 1,
@@ -101,12 +114,16 @@ describe("DrizzleRecipeListReader", () => {
           {
             componentProductId: bag.productId,
             name: "Bolsa",
+            brandName: null,
+            netContent: null,
             saleUnit: "UNIT",
             quantityPerOutputUnit: 1_000,
           },
           {
             componentProductId: nuts.productId,
             name: "Nueces",
+            brandName: "Norte",
+            netContent: { quantity: 500, unit: "G" },
             saleUnit: "KG",
             quantityPerOutputUnit: 600,
           },

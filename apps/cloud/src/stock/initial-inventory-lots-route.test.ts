@@ -108,6 +108,8 @@ describe("GET /initial-inventory-lots", () => {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
     });
     const known = await insertInitialCountLot(db, {
       productId,
@@ -142,6 +144,8 @@ describe("GET /initial-inventory-lots", () => {
           lotId: known.lotId,
           productId,
           productName: "Almendras peladas",
+          brandName: "Vitora",
+          netContent: { quantity: 250, unit: "G" },
           categoryName: "Frutos secos",
           saleUnit: "KG",
           expiresOn: "2027-02-01",
@@ -157,6 +161,8 @@ describe("GET /initial-inventory-lots", () => {
           lotId: unknown.lotId,
           productId,
           productName: "Almendras peladas",
+          brandName: "Vitora",
+          netContent: { quantity: 250, unit: "G" },
           categoryName: "Frutos secos",
           saleUnit: "KG",
           expiresOn: null,

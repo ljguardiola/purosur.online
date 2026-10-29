@@ -4,7 +4,13 @@ import { type LossRecord, lossesByReason } from "./losses-by-reason.js";
 function loss(overrides: Partial<LossRecord> = {}): LossRecord {
   return {
     reason: "spoiled",
-    product: { id: "p1", name: "Yerba", saleUnit: "UNIT" },
+    product: {
+      id: "p1",
+      name: "Yerba",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+      saleUnit: "UNIT",
+    },
     quantity: 1_000,
     ...overrides,
   };
@@ -19,7 +25,10 @@ describe("lossesByReason", () => {
     const records = [
       loss({ quantity: 1_000 }),
       loss({ quantity: 2_500 }),
-      loss({ product: { id: "p2", name: "Queso", saleUnit: "KG" }, quantity: 300 }),
+      loss({
+        product: { id: "p2", name: "Queso", brandName: null, netContent: null, saleUnit: "KG" },
+        quantity: 300,
+      }),
     ];
 
     expect(lossesByReason(records)).toEqual([
@@ -27,8 +36,24 @@ describe("lossesByReason", () => {
         reason: "spoiled",
         lossCount: 3,
         products: [
-          { id: "p2", name: "Queso", saleUnit: "KG", quantity: 300, lossCount: 1 },
-          { id: "p1", name: "Yerba", saleUnit: "UNIT", quantity: 3_500, lossCount: 2 },
+          {
+            id: "p2",
+            name: "Queso",
+            brandName: null,
+            netContent: null,
+            saleUnit: "KG",
+            quantity: 300,
+            lossCount: 1,
+          },
+          {
+            id: "p1",
+            name: "Yerba",
+            brandName: "Vitora",
+            netContent: { quantity: 500, unit: "G" },
+            saleUnit: "UNIT",
+            quantity: 3_500,
+            lossCount: 2,
+          },
         ],
       },
     ]);

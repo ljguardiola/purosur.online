@@ -117,7 +117,12 @@ describe("GET /reports/losses-by-reason", () => {
   it("answers the losses of the session's branch grouped by reason, as the wire describes them", async () => {
     const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOW);
     const elsewhere = await insertLocation(db);
-    const { productId } = await insertProduct(db, { name: "Almendras peladas", saleUnit: "KG" });
+    const { productId } = await insertProduct(db, {
+      name: "Almendras peladas",
+      saleUnit: "KG",
+      brandName: "Vitora",
+      netContent: { quantity: 250, unit: "G" },
+    });
     const lose = (reason: string, delta: number, place = locationId) =>
       insertMovement(db, {
         productId,
@@ -145,6 +150,8 @@ describe("GET /reports/losses-by-reason", () => {
             {
               id: productId,
               name: "Almendras peladas",
+              brand_name: "Vitora",
+              net_content: { quantity: 250, unit: "G" },
               sale_unit: "KG",
               quantity: 2_000,
               loss_count: 2,
@@ -220,11 +227,31 @@ describe("GET /reports/losses-by-reason", () => {
     ).toEqual([
       [
         "theft",
-        [{ id: productId, name: "Yerba 1 kg", sale_unit: "UNIT", quantity: 1_000, loss_count: 1 }],
+        [
+          {
+            id: productId,
+            name: "Yerba 1 kg",
+            brand_name: null,
+            net_content: null,
+            sale_unit: "UNIT",
+            quantity: 1_000,
+            loss_count: 1,
+          },
+        ],
       ],
       [
         "return_discard",
-        [{ id: productId, name: "Yerba 1 kg", sale_unit: "UNIT", quantity: 2_000, loss_count: 1 }],
+        [
+          {
+            id: productId,
+            name: "Yerba 1 kg",
+            brand_name: null,
+            net_content: null,
+            sale_unit: "UNIT",
+            quantity: 2_000,
+            loss_count: 1,
+          },
+        ],
       ],
     ]);
   });

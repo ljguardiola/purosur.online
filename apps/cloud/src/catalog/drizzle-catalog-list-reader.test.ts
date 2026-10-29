@@ -145,7 +145,11 @@ describe("DrizzleCatalogListReader", () => {
 
     it("answers the net content of a product and no brand name when it has none", async () => {
       const categoryId = await insertCategory("Almacén");
-      await insertProduct({ name: "Aceite", categoryId, netContent: { quantity: 500, unit: "ML" } });
+      await insertProduct({
+        name: "Aceite",
+        categoryId,
+        netContent: { quantity: 500, unit: "ML" },
+      });
 
       const [product] = await reader.products("active");
 
