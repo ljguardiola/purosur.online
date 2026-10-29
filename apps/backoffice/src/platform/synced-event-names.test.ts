@@ -15,6 +15,10 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("sale_cancelled")).toBe("venta cancelada");
   });
 
+  test("names the removal of a line from a sale", () => {
+    expect(syncedEventTypeName("sale_line_removed")).toBe("línea de venta quitada");
+  });
+
   test("names the return of a sale's merchandise", () => {
     expect(syncedEventTypeName("sale_returned")).toBe("devolución");
   });
