@@ -106,6 +106,7 @@ export function OutsideRefundsScreen({
           <ListFilter
             name="register"
             label="Caja"
+            searchable
             options={registerOptions}
             value={register.shown}
             onChange={register.setChoice}

@@ -118,7 +118,9 @@ test("asks the cloud for the range and the register the URL names", async () => 
     register_id: BACK_REGISTER_ID,
   });
   expect(dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
-  await expect.element(screen.getByRole("button", { name: "Caja: Caja del fondo" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
 });
 
 test("shows placeholders while the report loads", async () => {
@@ -184,7 +186,7 @@ test("asks the cloud again for the register chosen", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("02/10/2026")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
 
   await expect
@@ -198,7 +200,7 @@ test("keeps the previous days in view, marked as updating, while another registe
   await expect.element(screen.getByText("02/10/2026")).toBeVisible();
   vi.mocked(services.fetchSalesReport).mockReturnValue(new Promise(() => {}));
 
-  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
 
   await expect
@@ -214,7 +216,7 @@ test("still reports the sales when the registers cannot be listed, offering only
   const screen = await renderScreen(createServices(), { registerServices });
 
   await expect.element(screen.getByText("02/10/2026")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Caja:/ }));
   await expect.element(screen.getByRole("option", { name: "Todas" })).toBeVisible();
   expect(screen.getByRole("option").elements()).toHaveLength(1);
 });

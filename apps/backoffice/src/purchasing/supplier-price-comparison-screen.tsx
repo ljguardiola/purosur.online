@@ -195,6 +195,7 @@ export function SupplierPriceComparisonScreen({
         <ListFilter
           name="category"
           label="Categoría:"
+          searchable
           options={[
             { value: ALL_CATEGORIES, label: "Todas" },
             ...categories.map((name) => ({ value: name, label: name })),

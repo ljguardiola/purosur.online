@@ -39,7 +39,7 @@ test("offers everyone and each person who authorized a discount by name, and rep
   const onChange = vi.fn();
   const screen = await renderFilter({ authorizers: manualDiscountsReport.authorizers, onChange });
 
-  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Autorizante:/ }));
   await expect.element(screen.getByRole("option", { name: "Ana" })).toBeVisible();
   const options = screen
     .getByRole("option")
@@ -61,7 +61,7 @@ test("orders the people by the name it shows, whatever order they come in", asyn
     ],
   });
 
-  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Autorizante:/ }));
   await expect.element(screen.getByRole("option", { name: "Beto" })).toBeVisible();
   const options = screen
     .getByRole("option")
@@ -77,13 +77,13 @@ test("shows the person it is given by name", async () => {
     authorizers: manualDiscountsReport.authorizers,
   });
 
-  await expect.element(screen.getByRole("button", { name: "Autorizante: Ana" })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Autorizante:/ })).toHaveValue("Ana");
 });
 
 test("offers only everyone when nobody authorized a discount", async () => {
   const screen = await renderFilter({ authorizers: [] });
 
-  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Autorizante:/ }));
 
   await expect.element(screen.getByRole("option", { name: "Todos" })).toBeVisible();
   expect(screen.getByRole("option").elements()).toHaveLength(1);
@@ -95,8 +95,8 @@ test("shows the person it is given, never everyone, until the people are known",
   const screen = await renderFilter({ value: BETO_USER_ID, authorizers: undefined, onChange });
 
   await expect
-    .element(screen.getByRole("button", { name: "Autorizante: El elegido" }))
-    .toBeVisible();
+    .element(screen.getByRole("combobox", { name: /^Autorizante:/ }))
+    .toHaveValue("El elegido");
   expect(onChange).not.toHaveBeenCalled();
 });
 

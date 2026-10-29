@@ -54,7 +54,7 @@ test("offers every register of the branch by name and reports the one chosen", a
   const onChange = vi.fn();
   const screen = await renderFilter(createServices(), { onChange });
 
-  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Caja:/ }));
   await expect.element(screen.getByRole("option", { name: "Caja principal" })).toBeVisible();
   const options = screen
     .getByRole("option")
@@ -70,7 +70,9 @@ test("offers every register of the branch by name and reports the one chosen", a
 test("shows the register it is given by its name", async () => {
   const screen = await renderFilter(createServices(), { value: BACK_REGISTER_ID });
 
-  await expect.element(screen.getByRole("button", { name: "Caja: Caja del fondo" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
 });
 
 test("offers only all the registers when the registers cannot be listed", async () => {
@@ -78,7 +80,7 @@ test("offers only all the registers when the registers cannot be listed", async 
   vi.mocked(services.fetchReportRegisters).mockResolvedValue({ kind: "failed" });
   const screen = await renderFilter(services);
 
-  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("combobox", { name: /Caja:/ }));
 
   await expect.element(screen.getByRole("option", { name: "Todas" })).toBeVisible();
   expect(screen.getByRole("option").elements()).toHaveLength(1);
@@ -91,7 +93,7 @@ test("keeps the register it is given when the registers cannot be listed", async
 
   const screen = await renderFilter(services, { value: BACK_REGISTER_ID, onChange });
 
-  await expect.element(screen.getByRole("button", { name: "Caja: La elegida" })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("La elegida");
   expect(onChange).not.toHaveBeenCalled();
 });
 
@@ -101,7 +103,7 @@ test("shows the register it is given, never every register, while the registers 
 
   const screen = await renderFilter(services, { value: BACK_REGISTER_ID });
 
-  await expect.element(screen.getByRole("button", { name: "Caja: La elegida" })).toBeVisible();
+  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("La elegida");
 });
 
 test("goes back to every register when it is given one the branch does not have", async () => {
