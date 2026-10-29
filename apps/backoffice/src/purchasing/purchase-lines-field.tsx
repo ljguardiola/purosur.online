@@ -67,6 +67,11 @@ export function PurchaseLinesField({
 }: PurchaseLinesFieldProps) {
   const field = useFieldContext<PurchaseLineValues[]>();
   const lines = field.state.value;
+  function change(id: number, patch: Partial<PurchaseLineValues>) {
+    onLinesChange();
+    field.handleChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
+  }
+
   const productOptions = packagingProductOptions(products);
   const markPurchasingStale = useMarkPurchasingStale();
   const refreshPurchasing = useRefreshPurchasing();
@@ -109,11 +114,6 @@ export function PurchaseLinesField({
         variant="blank"
       />
     );
-  }
-
-  function change(id: number, patch: Partial<PurchaseLineValues>) {
-    onLinesChange();
-    field.handleChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   }
 
   return (
