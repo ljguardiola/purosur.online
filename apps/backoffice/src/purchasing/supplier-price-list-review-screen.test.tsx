@@ -3,6 +3,10 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import {
+  StubCategoryCreationModal,
+  StubProductCreationModal,
+} from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -97,6 +101,8 @@ function screenElement(
         <SupplierPriceListReviewScreen
           listId={LIST_ID}
           access={access}
+          categoryCreationModal={StubCategoryCreationModal}
+          productCreationModal={StubProductCreationModal}
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
@@ -896,6 +902,37 @@ test.each([
   await expect.element(dialog.getByRole("radio", { name: "Caja de 10 kg" })).toBeVisible();
   expect(dialog.getByRole("button", { name: "Nueva presentación" }).query() !== null).toBe(offered);
 });
+
+test.each([
+  ["a session that manages products and categories", ADMINISTRATOR_ACCESS, true],
+  ["a session that may only link", accessWith("supplier_price_lists"), false],
+])(
+  "offers creating a product from the link modal's product selector to %s only if allowed",
+  async (_name, access, offered) => {
+    const services = createServices();
+    vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
+      kind: "ok",
+      value: LINK_CHOICES,
+    });
+    const screen = await loaded(services, extracted, { access });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
+    );
+    const dialog = screen.getByRole("dialog");
+
+    await userEvent.fill(
+      dialog.getByRole("combobox", { name: /Producto del catálogo/ }),
+      "Yerba mate",
+    );
+
+    await expect
+      .element(screen.getByText("Sin resultados").or(screen.getByRole("option")))
+      .toBeVisible();
+    expect(
+      screen.getByRole("option", { name: "Crear producto «Yerba mate»" }).query() !== null,
+    ).toBe(offered);
+  },
+);
 
 test("offers to create a product for each item the cloud says can have one", async () => {
   const screen = await loaded(createServices(), withEveryKindOfRow, {

@@ -2,6 +2,7 @@ import { purchaseRegistrationBodySchema } from "@purosur/contracts";
 import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -50,6 +51,8 @@ function Harness({ products = offeredProducts }: { products?: typeof offeredProd
               packagings={packagings}
               refusals={{}}
               onLinesChange={() => {}}
+              productCreationModal={StubProductCreationModal}
+              onProductCreated={() => {}}
               services={{ createPackaging: vi.fn() }}
               onSessionEnded={() => {}}
             />

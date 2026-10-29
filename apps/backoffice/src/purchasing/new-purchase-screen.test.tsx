@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -47,7 +48,12 @@ function screenFor(
   return (
     <FieldSizeProvider size="backoffice">
       <main>
-        <NewPurchaseScreen access={access} services={services} onSessionEnded={onSessionEnded} />
+        <NewPurchaseScreen
+          access={access}
+          productCreationModal={StubProductCreationModal}
+          services={services}
+          onSessionEnded={onSessionEnded}
+        />
       </main>
     </FieldSizeProvider>
   );

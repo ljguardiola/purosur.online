@@ -3,6 +3,7 @@ import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/t
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -46,7 +47,12 @@ async function opened(services: NewPurchaseScreenServices, access: BackofficeAcc
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <NewPurchaseScreen access={access} services={services} onSessionEnded={() => {}} />
+        <NewPurchaseScreen
+          access={access}
+          productCreationModal={StubProductCreationModal}
+          services={services}
+          onSessionEnded={() => {}}
+        />
       </main>
     </FieldSizeProvider>,
   );
@@ -162,4 +168,52 @@ test("offers no packaging creation to a person who cannot manage purchase packag
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
   expect(screen.getByRole("option", { name: /^Crear presentación/ }).query()).toBeNull();
+});
+
+async function typeProductOfFirstLine(screen: Screen, text: string) {
+  const group = screen.getByRole("group", { name: "Línea 1" });
+  await userEvent.fill(group.getByRole("combobox", { name: /^Producto/ }), text);
+  return group;
+}
+
+test("typing a product that does not exist offers to create it, opening the product form with the typed text", async () => {
+  const screen = await opened(createServices(), ADMINISTRATOR_ACCESS);
+
+  await typeProductOfFirstLine(screen, "Yerba mate");
+  await userEvent.click(screen.getByRole("option", { name: "Crear producto «Yerba mate»" }));
+
+  const productDialog = screen.getByRole("dialog", { name: "Nuevo producto" });
+  await expect.element(productDialog.getByText("Nombre tipeado: Yerba mate")).toBeVisible();
+});
+
+test("saving the stacked product selects it in that line and keeps the rest of the purchase as typed", async () => {
+  const screen = await opened(createServices(), ADMINISTRATOR_ACCESS);
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nota/ }), "Entrega de la tarde");
+  const group = await typeProductOfFirstLine(screen, "Yerba mate");
+  await userEvent.click(screen.getByRole("option", { name: "Crear producto «Yerba mate»" }));
+
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Nuevo producto" })
+      .getByRole("button", { name: "Guardar lo creado" }),
+  );
+
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: "Nuevo producto" }).query())
+    .toBeNull();
+  await expect
+    .element(group.getByRole("combobox", { name: /^Producto/ }))
+    .toHaveValue("Yerba mate");
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nota/ }))
+    .toHaveValue("Entrega de la tarde");
+});
+
+test("offers no product creation to a person who cannot manage products and categories", async () => {
+  const screen = await opened(createServices(), accessWith("purchases", "suppliers"));
+
+  await typeProductOfFirstLine(screen, "Yerba mate");
+
+  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  expect(screen.getByRole("option", { name: /^Crear producto/ }).query()).toBeNull();
 });

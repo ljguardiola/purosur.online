@@ -3,6 +3,9 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { StubProductCreationModal } from "../platform/test-support/creation-parts";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { PackagingsListScreen } from "./packagings-list-screen";
 import type { PackagingsListScreenServices } from "./packagings-list-services";
@@ -46,7 +49,9 @@ function screenElement(
   {
     filters = packagingsListFilters.parse({}),
     onFiltersChange = () => {},
+    access = ADMINISTRATOR_ACCESS,
   }: {
+    access?: BackofficeAccess;
     filters?: PackagingsListFilters;
     onFiltersChange?: (filters: PackagingsListFilters) => void;
   } = {},
@@ -55,6 +60,8 @@ function screenElement(
     <FieldSizeProvider size="backoffice">
       <main>
         <PackagingsListScreen
+          access={access}
+          productCreationModal={StubProductCreationModal}
           services={services}
           onSessionEnded={onSessionEnded}
           filters={filters}
@@ -299,6 +306,35 @@ test("the create action waits for the products it offers: disabled while loading
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
   await expect.element(screen.getByRole("button", { name: "Nueva presentación" })).toBeEnabled();
 });
+
+test.each([
+  ["a session that manages products and categories", ADMINISTRATOR_ACCESS, true],
+  ["a session that only manages purchase packagings", accessWith("purchase_packagings"), false],
+])(
+  "offers creating a product from the new packaging modal's product selector to %s only if allowed",
+  async (_name, access, offered) => {
+    const services = createServices();
+    vi.mocked(services.fetchPackagings).mockResolvedValue({
+      kind: "ok",
+      value: packagingList([bolsaDeAvena]),
+    });
+    const screen = await renderScreen(services, () => {}, { access });
+    await expect.element(screen.getByText("Bolsa de 25 kg")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Nueva presentación" }));
+
+    await userEvent.fill(
+      screen.getByRole("dialog").getByRole("combobox", { name: /^Producto/ }),
+      "Yerba mate",
+    );
+
+    await expect
+      .element(screen.getByText("Sin resultados").or(screen.getByRole("option")))
+      .toBeVisible();
+    expect(
+      screen.getByRole("option", { name: "Crear producto «Yerba mate»" }).query() !== null,
+    ).toBe(offered);
+  },
+);
 
 test("the create action opens the new packaging modal with the products it was read with, and the created packaging is listed", async () => {
   const services = createServices();
