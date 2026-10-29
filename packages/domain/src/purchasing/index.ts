@@ -12,6 +12,7 @@ export {
   isValidFreightMeans,
   MIN_FREIGHT_PURCHASES,
 } from "./model/freight.js";
+export type { RegisteredFreight } from "./model/freight-by-period-report.js";
 export type {
   FreightLine,
   FreightToDistribute,
@@ -42,7 +43,6 @@ export {
   isPackageCount,
   ONE_SALE_UNIT_QUANTITY,
 } from "./model/purchase-line.js";
-export type { RegisteredFreight } from "./model/freight-by-period-report.js";
 export type { PurchasedLine } from "./model/purchases-by-supplier-report.js";
 export {
   isSupplierContactTooLong,

@@ -47,6 +47,10 @@ export type {
   LinkablePurchaseListing,
 } from "./freight-list-reader.js";
 export type {
+  FreightReportQuery,
+  FreightReportReader,
+} from "./freight-report-reader.js";
+export type {
   Freight,
   FreightEdit,
   FreightPurchase,
@@ -110,10 +114,6 @@ export type {
   ProposeSupplierItemLinkPorts,
 } from "./propose-supplier-item-link.js";
 export { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
-export type {
-  FreightReportQuery,
-  FreightReportReader,
-} from "./freight-report-reader.js";
 export type {
   PurchasesReportQuery,
   PurchasesReportReader,

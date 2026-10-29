@@ -52,10 +52,7 @@ describe("freightByPeriod", () => {
   });
 
   it("does not change the freight it is given", () => {
-    const freights = [
-      aFreight({ freightOn: "2026-11-02" }),
-      aFreight({ freightOn: "2026-10-02" }),
-    ];
+    const freights = [aFreight({ freightOn: "2026-11-02" }), aFreight({ freightOn: "2026-10-02" })];
 
     freightByPeriod(freights);
 
