@@ -136,7 +136,13 @@ describe("POST /discounts", () => {
       id: stored?.id,
       name: "Martes de infusiones",
       benefit: { kind: "PERCENT_OFF", percent: 10 },
-      target: { kind: "CATEGORY", id: category, name: "Infusiones" },
+      target: {
+        kind: "CATEGORY",
+        id: category,
+        name: "Infusiones",
+        brandName: null,
+        netContent: null,
+      },
       validFrom: "2026-10-01",
       validTo: "2026-10-31",
       weekdays: [2, 4],
@@ -187,7 +193,13 @@ describe("POST /discounts", () => {
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({
       benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
-      target: { kind: "PRODUCT", id: product.id, name: "Alfajor" },
+      target: {
+        kind: "PRODUCT",
+        id: product.id,
+        name: "Alfajor",
+        brandName: null,
+        netContent: null,
+      },
     });
   });
 

@@ -195,7 +195,12 @@ describe("DrizzlePromotionSalesReportReader.completedSalesByPromotion", () => {
       registerId: undefined,
     });
 
-    expect(rows[0]?.terms?.target).toEqual({ kind: "TAG", name: "Sin TACC" });
+    expect(rows[0]?.terms?.target).toEqual({
+      kind: "TAG",
+      name: "Sin TACC",
+      brandName: null,
+      netContent: null,
+    });
   });
 
   it("keeps the lines sold by weight apart from the lines sold by unit", async () => {

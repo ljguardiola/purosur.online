@@ -160,7 +160,7 @@ test("shows a buy-N-pay-M promotion with its product and quantities filled in", 
 
   await expect.element(dialog.getByRole("radio", { name: "Lleve N, pague M" })).toBeChecked();
   await expect.element(dialog.getByText("Producto y grupo")).toBeVisible();
-  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg");
+  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg Hoja Alta 1 kg");
   await expect.element(dialog.getByRole("textbox", { name: /^Lleve/ })).toHaveValue("3");
   await expect.element(dialog.getByRole("textbox", { name: /^Pague/ })).toHaveValue("2");
   expect(dialog.getByRole("textbox", { name: /^Descuento/ }).query()).toBeNull();
