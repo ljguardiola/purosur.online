@@ -20,13 +20,12 @@ export interface LoadedSupplierPriceSeed {
   pricesIncludeVat?: boolean;
   vatRate?: number;
   listDate?: string;
-  confirmedAt?: Date;
 }
 
 export async function insertLoadedSupplierPrice<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   seed: LoadedSupplierPriceSeed,
-): Promise<{ supplierItemId: string; supplierId: string }> {
+): Promise<{ supplierItemId: string }> {
   const [location] = await db.select({ id: locations.id }).from(locations);
   if (!location) {
     throw new Error("test setup: no location seeded");
@@ -60,7 +59,6 @@ export async function insertLoadedSupplierPrice<TQueryResult extends PgQueryResu
     priceCents: seed.priceCents,
     pricesIncludeVat: seed.pricesIncludeVat ?? true,
     ...(seed.listDate === undefined ? {} : { listDate: seed.listDate }),
-    ...(seed.confirmedAt === undefined ? {} : { confirmedAt: seed.confirmedAt }),
   });
-  return { supplierItemId, supplierId };
+  return { supplierItemId };
 }
