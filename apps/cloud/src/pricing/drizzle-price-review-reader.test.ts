@@ -741,13 +741,13 @@ describe("DrizzlePriceReviewReader's review histories", () => {
     const userId = await insertUser();
     const priceListId = await seededPriceListId(db);
     const categoryId = await insertCategory("Lácteos");
-    const brandId = await insertBrand(db, "Vitora");
+    const brand = await insertBrand(db, { name: "Vitora" });
     const [cheese] = await db
       .insert(products)
       .values({
         name: "Queso cremoso",
         categoryId,
-        brandId,
+        brandId: brand.id,
         saleUnit: "KG",
         netContentQuantity: 250,
         netContentUnit: "G",
