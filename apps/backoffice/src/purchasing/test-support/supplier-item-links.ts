@@ -59,8 +59,8 @@ export const PROPOSED_BY_AI: SupplierItemLinkProposal = { ...PROPOSED_BY_BARCODE
 export const NO_PROPOSAL: SupplierItemLinkProposal = { kind: "none" };
 export const UNAVAILABLE_PROPOSAL: SupplierItemLinkProposal = { kind: "unavailable" };
 
-export const GRANOLA_KOS_ID = "90d00000-0000-4000-8000-000000000041";
-export const GRANOLA_OTHER_ID = "90d00000-0000-4000-8000-000000000042";
+const GRANOLA_KOS_ID = "90d00000-0000-4000-8000-000000000041";
+const GRANOLA_OTHER_ID = "90d00000-0000-4000-8000-000000000042";
 
 export const GRANOLA_LINK_CHOICES: SupplierItemLinkChoices = {
   ...LINK_CHOICES,
