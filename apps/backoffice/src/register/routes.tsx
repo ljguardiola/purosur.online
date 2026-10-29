@@ -37,3 +37,12 @@ export const cashSessionClosesRoute = createRoute({
   search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
   component: lazyScreen(() => import("./cash-session-closes-page"), "CashSessionClosesPage"),
 });
+
+export const cashMovementsRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/cash-movements",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportFiltersSearch,
+  search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
+  component: lazyScreen(() => import("./cash-movements-page"), "CashMovementsPage"),
+});

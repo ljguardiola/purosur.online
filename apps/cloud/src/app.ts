@@ -168,6 +168,7 @@ import {
   type BitlockerRecoveryKeyRouteOptions,
   registerBitlockerRecoveryKeyRoute,
 } from "./register/bitlocker-recovery-key-route.js";
+import { registerCashMovementsReportRoute } from "./register/cash-movements-report-route.js";
 import { registerCashSessionClosesReportRoute } from "./register/cash-session-closes-report-route.js";
 import {
   type CurrentZoneRulesRouteOptions,
@@ -750,6 +751,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegistersListRoute(api, { ...options.registers, now });
         registerReportRegistersRoute(api, { ...options.registers, now });
         registerCashSessionClosesReportRoute(api, { ...options.registers, now });
+        registerCashMovementsReportRoute(api, { ...options.registers, now });
         registerRegisterSyncStatusRoute(api, { ...options.registers, now });
         registerRegisterCreationRoute(api, { ...options.registers, now });
         registerRegisterCoverageRoute(api, { ...options.registers, now });
