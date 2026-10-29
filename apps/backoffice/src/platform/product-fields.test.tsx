@@ -85,8 +85,9 @@ function tagCreation(overrides: Partial<StackedTagCreation> = {}): StackedTagCre
 const LOADED: Choices = {
   categories: {
     state: "loaded",
-    options: [{ value: "c4700000-0000-4000-8000-000000000001", label: "Almacén › Yerbas" }],
-    creation: null,
+    choice: {
+      options: [{ value: "c4700000-0000-4000-8000-000000000001", label: "Almacén › Yerbas" }],
+    },
   },
   brands: { state: "loaded", items: [granuz, litoral], creation: null },
   tags: { state: "loaded", items: [sinTacc, sinColorantes], creation: null },
@@ -238,8 +239,10 @@ test("starts creating a category with the typed text from the entry the category
   const fields = await renderFields({
     categories: {
       state: "loaded",
-      options: [{ value: "c4700000-0000-4000-8000-000000000001", label: "Almacén › Yerbas" }],
-      creation: categories,
+      choice: {
+        options: [{ value: "c4700000-0000-4000-8000-000000000001", label: "Almacén › Yerbas" }],
+        creation: { recordKind: "categoría", onCreate: categories.start },
+      },
     },
   });
 
@@ -282,16 +285,35 @@ const ALMACEN = "c4700000-0000-4000-8000-000000000011";
 const BEBIDAS = "c4700000-0000-4000-8000-000000000012";
 const LACTEOS = "c4700000-0000-4000-8000-000000000013";
 
+test("keeps the category selector with only the creation entry when there are no categories to choose from", async () => {
+  const categories = stackedCreation<CategorySummary>();
+  const fields = await renderFields({
+    categories: {
+      state: "loaded",
+      choice: {
+        options: [],
+        creation: { recordKind: "categoría", onCreate: categories.start },
+      },
+    },
+  });
+
+  await userEvent.fill(fields.getByRole("combobox", { name: /^Categoría/ }), "Fiambres");
+  await userEvent.click(page.getByRole("option", { name: "Crear categoría «Fiambres»" }));
+
+  expect(categories.start).toHaveBeenCalledExactlyOnceWith("Fiambres");
+});
+
 test("typing in the category offers only the matching categories, and choosing one selects it", async () => {
   const fields = await renderFields({
     categories: {
       state: "loaded",
-      options: [
-        { value: ALMACEN, label: "Almacén" },
-        { value: BEBIDAS, label: "Bebidas" },
-        { value: LACTEOS, label: "Lácteos" },
-      ],
-      creation: null,
+      choice: {
+        options: [
+          { value: ALMACEN, label: "Almacén" },
+          { value: BEBIDAS, label: "Bebidas" },
+          { value: LACTEOS, label: "Lácteos" },
+        ],
+      },
     },
   });
 

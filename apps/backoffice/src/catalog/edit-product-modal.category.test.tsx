@@ -26,7 +26,10 @@ function createServices(): EditProductModalServices {
   };
 }
 
-async function renderModal(services: EditProductModalServices) {
+async function renderModal(
+  services: EditProductModalServices,
+  categories: CategorySummary[] = [groceries, driedFruits],
+) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <main>
@@ -36,7 +39,7 @@ async function renderModal(services: EditProductModalServices) {
           onSaved={() => {}}
           onSessionEnded={() => {}}
           reload={vi.fn()}
-          categories={[groceries, driedFruits]}
+          categories={categories}
           brands={[]}
           tags={[]}
           services={services}
@@ -81,4 +84,25 @@ test("saving the stacked category selects it and keeps the rest of the product f
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Miel de azahar");
+});
+
+test("with no categories yet, still offers creating the typed one and selects it once saved", async () => {
+  const services = createServices();
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", category: coldCuts });
+  const dialog = await renderModal(services, []);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Jamón cocido");
+
+  await userEvent.fill(categorySelect(dialog), "Fiambres");
+  await userEvent.click(page.getByRole("option", { name: "Crear categoría «Fiambres»" }));
+  await userEvent.click(
+    page
+      .getByRole("dialog", { name: "Nueva categoría" })
+      .getByRole("button", { name: "Crear la categoría" }),
+  );
+
+  await expect.poll(() => page.getByRole("dialog", { name: "Nueva categoría" }).query()).toBeNull();
+  await expect.element(categorySelect(dialog)).toHaveValue("Fiambres");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Jamón cocido");
 });

@@ -612,7 +612,7 @@ test("says there are no categories to choose from, without sending the person to
   const services = createServices({
     fetchProductCreationCategories: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
   });
-  const screen = await renderModal({ services });
+  const screen = await renderModal({ services, mayCreateBrandsAndTags: false });
   const dialog = dialogOf(screen);
 
   await expect.element(dialog.getByText("No hay categorías para elegir")).toBeVisible();

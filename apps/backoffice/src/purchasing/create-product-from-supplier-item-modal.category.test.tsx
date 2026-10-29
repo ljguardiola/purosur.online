@@ -48,7 +48,10 @@ function createServices(): CreateProductFromSupplierItemModalServices {
   };
 }
 
-async function opened(mayCreateBrandsAndTags: boolean) {
+async function opened(
+  mayCreateBrandsAndTags: boolean,
+  services: CreateProductFromSupplierItemModalServices = createServices(),
+) {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <main>
@@ -57,7 +60,7 @@ async function opened(mayCreateBrandsAndTags: boolean) {
           target={nutRow}
           mayCreateBrandsAndTags={mayCreateBrandsAndTags}
           categoryCreationModal={StubCategoryCreationModal}
-          services={createServices()}
+          services={services}
           onCreated={() => {}}
           onOutdated={() => {}}
           onClose={() => {}}
@@ -109,4 +112,22 @@ test("offers no category creation to a person who may not manage the catalog", a
 
   await expect.element(page.getByText("Sin resultados")).toBeVisible();
   expect(page.getByRole("option", { name: /^Crear categoría/ }).query()).toBeNull();
+});
+
+test("with no categories yet, still offers creating the typed one for a person who may manage the catalog", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchProductCreationCategories).mockResolvedValue({ kind: "ok", value: [] });
+  const { screen, dialog } = await opened(true, services);
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Categoría/ }), "Fiambres");
+  await userEvent.click(page.getByRole("option", { name: "Crear categoría «Fiambres»" }));
+  await userEvent.click(
+    screen.getByRole("dialog", { name: "Nueva categoría" }).getByRole("button", {
+      name: "Guardar lo creado",
+    }),
+  );
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Categoría/ }))
+    .toHaveValue("Fiambres");
 });
