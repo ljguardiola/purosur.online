@@ -174,9 +174,11 @@ describe("recipeProductOptions", () => {
         (option) => option.label,
       ),
     ).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
       "Almendras",
       "Avena con pasas",
       "Caja de regalo",
+      "Crema nutritiva Vitora 200 g",
       "Maní",
       "Miel pura 1 kg",
       "Nueces",
@@ -194,9 +196,11 @@ describe("recipeComponentOptions", () => {
         (option) => option.label,
       ),
     ).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
       "Avena con pasas",
       "Caja de infusiones",
       "Caja de regalo",
+      "Crema nutritiva Vitora 200 g",
       "Maní",
       "Miel pura 1 kg",
       "Nueces",

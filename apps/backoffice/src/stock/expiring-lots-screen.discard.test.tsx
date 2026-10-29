@@ -150,7 +150,10 @@ test("ends the session when the cloud says it is over while discarding", async (
 
 test("names the lot to discard and the lot discarded by its product's brand and net content", async () => {
   const services = servicesListing(expiringLotList([almondOilExpiredLot]), expiringLotList([]));
-  vi.mocked(services.discardExpiredLot).mockResolvedValue({ kind: "ok", value: DISCARDED });
+  vi.mocked(services.discardExpiredLot).mockResolvedValue({
+    kind: "ok",
+    value: { ...DISCARDED, quantity: 1_000 },
+  });
   const screen = await renderScreen(services);
 
   await userEvent.click(
@@ -158,8 +161,6 @@ test("names the lot to discard and the lot discarded by its product's brand and 
   );
 
   await expect
-    .element(
-      screen.getByText("Aceite de Almendras Vitora 30 ml: 1,200 kg como merma por vencimiento."),
-    )
+    .element(screen.getByText("Aceite de Almendras Vitora 30 ml: 1 u como merma por vencimiento."))
     .toBeVisible();
 });
