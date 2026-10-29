@@ -856,14 +856,26 @@ export async function removeSaleLineFor(
     database,
     gate,
     now,
+    ids,
     zoneRules,
     restoration,
-  }: Pick<SaleRequestDeps, "database" | "gate" | "now" | "zoneRules" | "restoration">,
+    readOutboxChainKey,
+  }: Pick<
+    OutboxSaleRequestDeps,
+    "database" | "gate" | "now" | "ids" | "zoneRules" | "restoration" | "readOutboxChainKey"
+  >,
   lineId: string,
 ): Promise<RemoveSaleLineOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
   const guarded = await asSeller({ database, gate }, (actorId) =>
     removeSaleLine(
-      { zoneRules, ledger: saleLedger(database), restoration, clock: { now } },
+      {
+        zoneRules,
+        ledger: saleLedger(database, outboxChainKey),
+        restoration,
+        clock: { now },
+        ids,
+      },
       { actorId, lineId },
     ),
   );
@@ -884,14 +896,17 @@ export async function cancelSaleFor({
   database,
   gate,
   now,
+  ids,
   restoration,
+  readOutboxChainKey,
 }: Pick<
-  SaleRequestDeps,
-  "database" | "gate" | "now" | "zoneRules" | "restoration"
+  OutboxSaleRequestDeps,
+  "database" | "gate" | "now" | "ids" | "zoneRules" | "restoration" | "readOutboxChainKey"
 >): Promise<CancelSaleOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     cancelSale(
-      { ledger: saleLedger(database), restoration, clock: { now } },
+      { ledger: saleLedger(database, outboxChainKey), restoration, clock: { now }, ids },
       { actorId: signedInUserId },
     ),
   );

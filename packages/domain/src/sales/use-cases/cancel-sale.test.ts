@@ -4,7 +4,6 @@ import {
 } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
-import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { cancelSale } from "./cancel-sale.js";
 import {
@@ -13,6 +12,7 @@ import {
   FixedClock,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
 

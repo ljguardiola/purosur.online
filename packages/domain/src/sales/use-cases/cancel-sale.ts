@@ -4,7 +4,8 @@ import {
 } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { RegisterRestoration } from "./register-restoration.js";
-import type { SaleLedger } from "./sale-ledger.js";
+import { saleCancelledEvent } from "./sale-cancelled-event.js";
+import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
 export interface CancelSaleInput {
@@ -15,6 +16,7 @@ export interface CancelSalePorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
+  ids: IdGenerator;
 }
 
 export type CancelSaleOutcome =
@@ -24,10 +26,11 @@ export type CancelSaleOutcome =
   | { kind: "no_open_sale" }
   | { kind: "has_approved_payment" }
   | { kind: "mercado_pago_charge_in_progress" }
+  | { kind: "unavailable" }
   | { kind: "cancelled" };
 
 export function cancelSale(
-  { ledger, restoration, clock }: CancelSalePorts,
+  { ledger, restoration, clock, ids }: CancelSalePorts,
   { actorId }: CancelSaleInput,
 ): CancelSaleOutcome {
   return ledger.transaction<CancelSaleOutcome>((tx) => {
@@ -49,6 +52,21 @@ export function cancelSale(
       return { kind: "mercado_pago_charge_in_progress" };
     }
 
+    if (!tx.outboxReady()) {
+      return { kind: "unavailable" };
+    }
+
+    tx.appendOutboxEvent(
+      saleCancelledEvent(ids.next(), {
+        sale,
+        payments: tx.salePayments(sale.id),
+        refunds: [],
+        movements: tx.saleCashMovements(sale.id),
+        actorId,
+        authorizedBy: undefined,
+        occurredAt: now,
+      }),
+    );
     if (pendingMercadoPagoPayments.length > 0) {
       tx.recordCancelledSale(sale.id, now, undefined);
     } else {
