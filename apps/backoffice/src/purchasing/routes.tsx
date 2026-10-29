@@ -15,8 +15,8 @@ import { ordersAreaRoute } from "../shell/orders-area";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
-import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import { purchasesReportFilters } from "./purchases-report-filters";
+import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import {
   supplierPriceListReviewFilters,
   supplierPriceListsFilters,

@@ -65,7 +65,11 @@ test("offers the report in the reports side column", async () => {
 
 test("keeps the period in the URL and asks the cloud for it", async () => {
   const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports/purchases-by-supplier?from=2026-09-01&to=2026-10-31");
+  window.history.pushState(
+    null,
+    "",
+    "/reports/purchases-by-supplier?from=2026-09-01&to=2026-10-31",
+  );
 
   await render(<App help={emptyHelp} services={services} />);
 
