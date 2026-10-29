@@ -14,6 +14,7 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { Check, ClipboardCheck, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -108,7 +109,11 @@ const columns = [
     sort: { order: productOrder, firstDirection: "ascending" },
     render: (count: StockCount) => (
       <TableCellText strong description={countedWay(count)}>
-        {count.productName}
+        {formatProductDescription({
+          name: count.productName,
+          brandName: count.brandName,
+          netContent: count.netContent,
+        })}
       </TableCellText>
     ),
   }),
@@ -142,28 +147,27 @@ const columns = [
 ] as const;
 
 function registeredNotice(product: StockProduct, result: StockCountResult, showsBalance: boolean) {
+  const name = formatProductDescription(product);
   const balance = formatStockQuantity(result.balance, product.saleUnit);
   if (result.superseded) {
     return {
       title: "El recuento no cambió el saldo",
       description: showsBalance
-        ? `Hay un recuento posterior de ${product.name}: el saldo sigue en ${balance}.`
-        : `Hay un recuento posterior de ${product.name}.`,
+        ? `Hay un recuento posterior de ${name}: el saldo sigue en ${balance}.`
+        : `Hay un recuento posterior de ${name}.`,
     };
   }
   if (result.delta === 0) {
     return {
       title: "Sin diferencia",
-      description: showsBalance
-        ? `${product.name} sigue en ${balance}.`
-        : `${product.name} sigue igual.`,
+      description: showsBalance ? `${name} sigue en ${balance}.` : `${name} sigue igual.`,
     };
   }
   return {
     title: "Saldo corregido",
     description: showsBalance
-      ? `${product.name} queda en ${balance}.`
-      : `${product.name}: ${formatStockChange(result.delta, product.saleUnit)}.`,
+      ? `${name} queda en ${balance}.`
+      : `${name}: ${formatStockChange(result.delta, product.saleUnit)}.`,
   };
 }
 
@@ -223,7 +227,16 @@ export function StockCountsScreen({
   const table = useTableModel({
     items: counts,
     id: (count) => count.id,
-    search: { text: search, in: (count) => [count.productName] },
+    search: {
+      text: search,
+      in: (count) => [
+        formatProductDescription({
+          name: count.productName,
+          brandName: count.brandName,
+          netContent: count.netContent,
+        }),
+      ],
+    },
     filter: (count) => category === "ALL" || count.categoryId === category,
     columns,
     sort,

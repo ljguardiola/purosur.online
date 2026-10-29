@@ -1,6 +1,7 @@
 import type { RecipeList, RecipeSummary } from "@purosur/contracts";
 import { recipeSaveBodySchema } from "@purosur/contracts";
 import { Button, Modal, useRequestForm } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Pencil, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -45,6 +46,7 @@ export function EditRecipeModal({
   const [notice, setNotice] = useState<RecipeSaveNotice | null>(null);
   const [refusals, setRefusals] = useState<Record<string, string>>({});
   const [shown, setShown] = useState<RecipeSummary | null>(null);
+  const titled = target ?? shown;
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_RECIPE_FORM,
     request: { schema: recipeSaveBodySchema, from: recipeSaveRequestFrom },
@@ -123,7 +125,15 @@ export function EditRecipeModal({
       tone="info"
       icon={<Pencil />}
       context="Stock · Recetas"
-      title={(target ?? shown)?.productName ?? ""}
+      title={
+        titled === null
+          ? ""
+          : formatProductDescription({
+              name: titled.productName,
+              brandName: titled.brandName,
+              netContent: titled.netContent,
+            })
+      }
       closable
       footer={
         <>

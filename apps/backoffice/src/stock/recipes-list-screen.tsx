@@ -11,6 +11,7 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { BookOpen, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -107,7 +108,11 @@ export function RecipesListScreen({
       sort: { order: productNameOrder, firstDirection: "ascending" },
       render: (item: RecipeSummary) => (
         <TableCellText strong description={recipeSubtitle(item)}>
-          {item.productName}
+          {formatProductDescription({
+            name: item.productName,
+            brandName: item.brandName,
+            netContent: item.netContent,
+          })}
         </TableCellText>
       ),
     }),
@@ -132,7 +137,7 @@ export function RecipesListScreen({
       actions: [
         (item: RecipeSummary) => ({
           icon: <Pencil />,
-          "aria-label": `Editar la receta de ${item.productName}`,
+          "aria-label": `Editar la receta de ${formatProductDescription({ name: item.productName, brandName: item.brandName, netContent: item.netContent })}`,
           onPress: () => setEditTarget(item),
         }),
       ],
@@ -142,7 +147,16 @@ export function RecipesListScreen({
   const table = useTableModel({
     items: recipes,
     id: (recipe) => recipe.productId,
-    search: { text: search, in: (recipe) => [recipe.productName] },
+    search: {
+      text: search,
+      in: (recipe) => [
+        formatProductDescription({
+          name: recipe.productName,
+          brandName: recipe.brandName,
+          netContent: recipe.netContent,
+        }),
+      ],
+    },
     columns,
     sort,
     onSortChange: setSort,
@@ -211,7 +225,10 @@ export function RecipesListScreen({
         services={services}
         onSaved={(recipe) => {
           setNewModalOpen(false);
-          saved("Receta creada", `La receta de ${recipe.productName} ya está lista.`);
+          saved(
+            "Receta creada",
+            `La receta de ${formatProductDescription({ name: recipe.productName, brandName: recipe.brandName, netContent: recipe.netContent })} ya está lista.`,
+          );
         }}
         onClose={() => setNewModalOpen(false)}
         onSessionEnded={onSessionEnded}
@@ -223,7 +240,10 @@ export function RecipesListScreen({
           services={services}
           onSaved={(recipe) => {
             setEditTarget(null);
-            saved("Receta guardada", `Se reemplazó la receta de ${recipe.productName}.`);
+            saved(
+              "Receta guardada",
+              `Se reemplazó la receta de ${formatProductDescription({ name: recipe.productName, brandName: recipe.brandName, netContent: recipe.netContent })}.`,
+            );
           }}
           onClose={() => setEditTarget(null)}
           onSessionEnded={onSessionEnded}

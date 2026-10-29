@@ -10,6 +10,7 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { Check, ClipboardList, Pencil, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -48,7 +49,11 @@ const columns = [
     header: "Producto",
     render: (lot: InitialInventoryLot) => (
       <TableCellText strong description={lot.categoryName}>
-        {lot.productName}
+        {formatProductDescription({
+          name: lot.productName,
+          brandName: lot.brandName,
+          netContent: lot.netContent,
+        })}
       </TableCellText>
     ),
   }),
@@ -157,7 +162,7 @@ export function InitialInventoryScreen({
     actions: [
       (lot: InitialInventoryLot) => ({
         icon: <Pencil />,
-        "aria-label": `Editar el costo de ${lot.productName}`,
+        "aria-label": `Editar el costo de ${formatProductDescription({ name: lot.productName, brandName: lot.brandName, netContent: lot.netContent })}`,
         onPress: () => {
           setNotice(null);
           setEditTarget(lot);
@@ -180,7 +185,7 @@ export function InitialInventoryScreen({
     setNotice({
       id: lastNoticeId.current,
       title: "Costo guardado",
-      description: `${lot.productName}.`,
+      description: `${formatProductDescription({ name: lot.productName, brandName: lot.brandName, netContent: lot.netContent })}.`,
     });
   }
 

@@ -7,6 +7,7 @@ import {
 } from "@purosur/contracts";
 import type { AdjustmentReason, LossReason, StockDirection } from "@purosur/domain";
 import { sortedItems, textOrder } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
 
 export type MovementKind = StockMovement["kind"];
@@ -30,7 +31,7 @@ export function productOptions(
     direction: "ascending",
   }).map((product) => ({
     value: product.id,
-    label: product.name,
+    label: formatProductDescription(product),
     ...(product.active ? {} : { status: DEACTIVATED_STATUS }),
   }));
   return first && [first, ...rest];

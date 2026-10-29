@@ -14,6 +14,7 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { ChevronDown, ChevronUp, Package } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -149,7 +150,13 @@ export function CurrentStockReportScreen({
         firstDirection: "ascending",
       },
       render: (item: Product) => (
-        <TableCellText description={item.category_name}>{item.name}</TableCellText>
+        <TableCellText description={item.category_name}>
+          {formatProductDescription({
+            name: item.name,
+            brandName: item.brand_name,
+            netContent: item.net_content,
+          })}
+        </TableCellText>
       ),
     }),
     dataColumn({
@@ -199,12 +206,12 @@ export function CurrentStockReportScreen({
             : opened.includes(item.id)
               ? {
                   icon: <ChevronUp />,
-                  "aria-label": `Ocultar los lotes de ${item.name}`,
+                  "aria-label": `Ocultar los lotes de ${formatProductDescription({ name: item.name, brandName: item.brand_name, netContent: item.net_content })}`,
                   onPress: () => setOpened(opened.filter((id) => id !== item.id)),
                 }
               : {
                   icon: <ChevronDown />,
-                  "aria-label": `Ver los lotes de ${item.name}`,
+                  "aria-label": `Ver los lotes de ${formatProductDescription({ name: item.name, brandName: item.brand_name, netContent: item.net_content })}`,
                   onPress: () => setOpened([...opened, item.id]),
                 },
       ],

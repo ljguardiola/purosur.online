@@ -12,6 +12,7 @@ import {
   textOrder,
   useRequestForm,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, CookingPot, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
@@ -138,7 +139,7 @@ export function NewAssemblyBatchModal({
             (candidate) => candidate.componentProductId === outcome.componentProductId,
           );
           if (component) {
-            setNotice({ kind: "componentGone", name: component.name });
+            setNotice({ kind: "componentGone", name: formatProductDescription(component) });
           } else {
             setNotice({ kind: "staleRecipe" });
           }
@@ -204,7 +205,14 @@ export function NewAssemblyBatchModal({
     setOutputRefusal(undefined);
   };
   const options = sortedItems(recipes, { order: recipeNameOrder, direction: "ascending" }).map(
-    (candidate) => ({ value: candidate.productId, label: candidate.productName }),
+    (candidate) => ({
+      value: candidate.productId,
+      label: formatProductDescription({
+        name: candidate.productName,
+        brandName: candidate.brandName,
+        netContent: candidate.netContent,
+      }),
+    }),
   );
   const [firstOption, ...otherOptions] = options;
   const saleUnit = recipe?.saleUnit ?? "UNIT";

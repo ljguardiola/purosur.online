@@ -1,5 +1,6 @@
 import type { AssemblyBatch, AssemblyBatchVoidRefusal } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { Ban, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -44,6 +45,11 @@ export function VoidAssemblyBatchModal({
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<VoidNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const product = formatProductDescription({
+    name: batch.productName,
+    brandName: batch.brandName,
+    netContent: batch.netContent,
+  });
 
   async function handleConfirm() {
     setNotice(null);
@@ -84,7 +90,7 @@ export function VoidAssemblyBatchModal({
       width="confirmation"
       tone="info"
       icon={<Ban />}
-      title={`¿Anular la tanda de ${batch.productName}?`}
+      title={`¿Anular la tanda de ${product}?`}
       closable={!submitting}
       footer={
         <>
@@ -125,7 +131,7 @@ export function VoidAssemblyBatchModal({
     >
       <div className="flex flex-col gap-4">
         <p className="text-body text-text">
-          {`Los componentes vuelven al stock, se descuentan ${formatStockQuantity(batch.output, batch.saleUnit)} de ${batch.productName} y el lote de la tanda queda en cero.`}
+          {`Los componentes vuelven al stock, se descuentan ${formatStockQuantity(batch.output, batch.saleUnit)} de ${product} y el lote de la tanda queda en cero.`}
         </p>
         {notice?.kind === "attemptFailed" && (
           <InlineNotice

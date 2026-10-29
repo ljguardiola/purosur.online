@@ -7,6 +7,7 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { formatStockUnitCost, formatStockValue } from "./stock-cost";
 
@@ -86,7 +87,11 @@ export function CurrentStockReportLots({ product }: { product: Product }) {
   return (
     <div className="flex flex-col gap-2">
       <Eyebrow text="Lotes" />
-      <Table table={table} aria-label={`Lotes de ${product.name}`} variant="nested" />
+      <Table
+        table={table}
+        aria-label={`Lotes de ${formatProductDescription({ name: product.name, brandName: product.brand_name, netContent: product.net_content })}`}
+        variant="nested"
+      />
     </div>
   );
 }

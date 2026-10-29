@@ -14,6 +14,7 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp, Package, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -131,7 +132,7 @@ export function StockBalancesScreen({
             }
             descriptionTone={item.correction === null ? undefined : "error"}
           >
-            {item.name}
+            {formatProductDescription(item)}
           </TableCellText>
           {item.active ? null : <Tag tone="neutral">Desactivado</Tag>}
         </div>
@@ -191,12 +192,12 @@ export function StockBalancesScreen({
             : opened.includes(item.id)
               ? {
                   icon: <ChevronUp />,
-                  "aria-label": `Ocultar los lotes de ${item.name}`,
+                  "aria-label": `Ocultar los lotes de ${formatProductDescription(item)}`,
                   onPress: () => setOpened(opened.filter((id) => id !== item.id)),
                 }
               : {
                   icon: <ChevronDown />,
-                  "aria-label": `Ver los lotes de ${item.name}`,
+                  "aria-label": `Ver los lotes de ${formatProductDescription(item)}`,
                   onPress: () => setOpened([...opened, item.id]),
                 },
       ],
@@ -220,7 +221,7 @@ export function StockBalancesScreen({
   const table = useTableModel({
     items: products,
     id: (product) => product.id,
-    search: { text: search, in: (product) => [product.name] },
+    search: { text: search, in: (product) => [formatProductDescription(product)] },
     filter: (product) =>
       (category === "ALL" || product.categoryId === category) &&
       matchesBalance(product.balance, balance),
