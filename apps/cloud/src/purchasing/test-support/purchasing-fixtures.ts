@@ -1,4 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
+import type { NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   categories,
@@ -29,7 +29,13 @@ export async function insertActor<TQueryResult extends PgQueryResultHKT>(
 
 export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  input: { name: string; saleUnit?: SaleUnit; active?: boolean },
+  input: {
+    name: string;
+    saleUnit?: SaleUnit;
+    active?: boolean;
+    brandId?: string;
+    netContent?: { quantity: number; unit: NetContentUnit };
+  },
 ): Promise<{ id: string; version: number }> {
   const [category] = await db
     .insert(categories)
@@ -45,6 +51,9 @@ export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
       categoryId: category.id,
       saleUnit: input.saleUnit ?? "UNIT",
       active: input.active ?? true,
+      brandId: input.brandId ?? null,
+      netContentQuantity: input.netContent?.quantity ?? null,
+      netContentUnit: input.netContent?.unit ?? null,
     })
     .returning({ id: products.id, version: products.version });
   if (!product) {
