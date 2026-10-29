@@ -8,6 +8,7 @@ import {
   REGISTER_OWN_CONDITIONS,
   registerOwnConditionIdentity,
   registerOwnConditions,
+  registerOwnConditionsNotYetKnown,
 } from "./register-own-conditions.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -21,6 +22,7 @@ const HEALTHY_STORAGE: StorageStanding = {
   diskStanding: "enough",
   diskFreeRatio: 0.4,
   walOversized: false,
+  measured: true,
 };
 
 function onBatteryAt(chargePercent: number, onBatteryMinutes = 0): BatteryReport {
@@ -365,6 +367,7 @@ describe("registerOwnConditions", () => {
           diskStanding: "full",
           diskFreeRatio: 0.03,
           walOversized: false,
+          measured: true,
         },
       }),
     ).toEqual([
@@ -543,5 +546,137 @@ describe("registerOwnConditionIdentity", () => {
     expect(
       registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_space_short_at_startup" }),
     ).not.toBe(registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_full" }));
+  });
+});
+
+describe("registerOwnConditionsNotYetKnown", () => {
+  const EVERY_SOURCE_READ = {
+    salesStop: { stopped: false },
+    latestPreEmissionGate: { kind: "passed" },
+    lastAcceptedPushAt: minutesBefore(NOW, 1),
+    hours: HOURS,
+    now: NOW,
+    rules: FIXED_ARGENTINA_ZONE_RULES,
+    serialDevices: { scale: MATCHING, reader: MATCHING },
+    storage: HEALTHY_STORAGE,
+    localDatabaseDamaged: false,
+    battery: onMainsAt(80),
+    newSalesStoppedByBattery: false,
+    criticalBatteryAction: { kind: "read", action: "shut_down" },
+    clockOffsetMs: null,
+  } satisfies Parameters<typeof registerOwnConditionsNotYetKnown>[0];
+
+  function notYetKnown(
+    overrides: Partial<Parameters<typeof registerOwnConditionsNotYetKnown>[0]> = {},
+  ) {
+    return registerOwnConditionsNotYetKnown({ ...EVERY_SOURCE_READ, ...overrides });
+  }
+
+  const UNMEASURED_STORAGE: StorageStanding = {
+    startupShortOf: null,
+    diskStanding: "enough",
+    diskFreeRatio: undefined,
+    walOversized: false,
+    measured: false,
+  };
+
+  it("names none once every source of the conditions has been read", () => {
+    expect(notYetKnown()).toEqual([]);
+  });
+
+  it("names the full disk's sales denial, the low disk and the oversized WAL until the disk is measured", () => {
+    expect(notYetKnown({ storage: UNMEASURED_STORAGE })).toEqual([
+      "sales_denied:disk_full",
+      "disk_space_low",
+      "wal_oversized",
+    ]);
+  });
+
+  it("knows a full disk cannot deny sales while another reason denies them or the installation is revoked", () => {
+    const withoutFullDisk = ["disk_space_low", "wal_oversized"];
+
+    expect(
+      notYetKnown({
+        storage: UNMEASURED_STORAGE,
+        salesStop: { stopped: true, reason: "event_history_broken" },
+      }),
+    ).toEqual(withoutFullDisk);
+    expect(
+      notYetKnown({
+        storage: UNMEASURED_STORAGE,
+        salesStop: { stopped: true, reason: "installation_revoked" },
+      }),
+    ).toEqual(withoutFullDisk);
+    expect(notYetKnown({ storage: UNMEASURED_STORAGE, localDatabaseDamaged: true })).toEqual(
+      withoutFullDisk,
+    );
+    expect(notYetKnown({ storage: UNMEASURED_STORAGE, newSalesStoppedByBattery: true })).toEqual(
+      withoutFullDisk,
+    );
+    expect(
+      notYetKnown({
+        storage: { ...UNMEASURED_STORAGE, startupShortOf: { requiredFreeBytes: 5_000_000_000 } },
+      }),
+    ).toEqual(withoutFullDisk);
+  });
+
+  it("names the critical battery's sales denial and the battery conditions until the battery is read", () => {
+    expect(notYetKnown({ battery: undefined })).toEqual([
+      "sales_denied:battery_critical",
+      "battery_low",
+      "on_battery",
+      "battery_missing",
+    ]);
+  });
+
+  it("knows a critical battery cannot deny sales while a stop or a damaged database denies them first", () => {
+    const withoutCriticalBattery = ["battery_low", "on_battery", "battery_missing"];
+
+    expect(
+      notYetKnown({
+        battery: undefined,
+        salesStop: { stopped: true, reason: "event_history_broken" },
+      }),
+    ).toEqual(withoutCriticalBattery);
+    expect(
+      notYetKnown({
+        battery: undefined,
+        salesStop: { stopped: true, reason: "installation_revoked" },
+      }),
+    ).toEqual(withoutCriticalBattery);
+    expect(notYetKnown({ battery: undefined, localDatabaseDamaged: true })).toEqual(
+      withoutCriticalBattery,
+    );
+  });
+
+  it("names the missing serial device until the serial devices are listed", () => {
+    expect(notYetKnown({ serialDevices: null })).toEqual(["serial_device_missing"]);
+  });
+
+  it("names the critical-battery action until Windows' action is read", () => {
+    expect(notYetKnown({ criticalBatteryAction: { kind: "unreadable" } })).toEqual([
+      "critical_battery_action_not_shutdown",
+    ]);
+  });
+
+  it("names every unread source's conditions in catalog order", () => {
+    expect(
+      notYetKnown({
+        storage: UNMEASURED_STORAGE,
+        battery: undefined,
+        serialDevices: null,
+        criticalBatteryAction: { kind: "unreadable" },
+      }),
+    ).toEqual([
+      "sales_denied:disk_full",
+      "sales_denied:battery_critical",
+      "serial_device_missing",
+      "disk_space_low",
+      "wal_oversized",
+      "battery_low",
+      "on_battery",
+      "battery_missing",
+      "critical_battery_action_not_shutdown",
+    ]);
   });
 });

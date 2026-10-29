@@ -112,6 +112,7 @@ const ROOMY_STORAGE: StorageStanding = {
   diskStanding: "enough",
   diskFreeRatio: 0.5,
   walOversized: false,
+  measured: true,
 };
 
 function status(
@@ -135,6 +136,7 @@ function status(
     battery: () => battery,
     newSalesStoppedByBattery: () => newSalesStoppedByBattery,
     criticalBatteryAction: () => criticalBatteryAction,
+    onConditionStartsNotRecorded: () => undefined,
   });
 }
 
@@ -174,6 +176,7 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     battery: () => undefined,
     newSalesStoppedByBattery: () => false,
     criticalBatteryAction: () => ({ kind: "unreadable" }),
+    onConditionStartsNotRecorded: () => undefined,
   });
 }
 
@@ -666,11 +669,12 @@ describe("the register's fiscal mode on its status", () => {
 describe("since when the register's conditions hold", () => {
   const WAL_OVERSIZED: StorageStanding = { ...ROOMY_STORAGE, walOversized: true };
 
-  function sinceOfWalCondition(
+  function conditionsAt(
     target: LocalDatabase,
     at: Date,
     storage: StorageStanding,
-  ): Promise<string | undefined> {
+    onConditionStartsNotRecorded: (failure: unknown) => void = () => undefined,
+  ) {
     return registerStatusFor({
       zoneRules: fixedZoneRulesSource(),
       database: target,
@@ -683,8 +687,17 @@ describe("since when the register's conditions hold", () => {
       battery: () => undefined,
       newSalesStoppedByBattery: () => false,
       criticalBatteryAction: () => ({ kind: "unreadable" }),
-    }).then(
-      ({ conditions }) => conditions.find((condition) => condition.kind === "wal_oversized")?.since,
+      onConditionStartsNotRecorded,
+    }).then(({ conditions }) => conditions);
+  }
+
+  function sinceOfWalCondition(
+    target: LocalDatabase,
+    at: Date,
+    storage: StorageStanding,
+  ): Promise<string | undefined> {
+    return conditionsAt(target, at, storage).then(
+      (conditions) => conditions.find((condition) => condition.kind === "wal_oversized")?.since,
     );
   }
 
@@ -709,6 +722,44 @@ describe("since when the register's conditions hold", () => {
     expect(
       await sinceOfWalCondition(database, new Date(NOW.getTime() + 2 * HOUR_MS), WAL_OVERSIZED),
     ).toBe("2026-10-05T14:00:00.000-03:00");
+  });
+
+  it("keeps the instant, without answering the condition, while the storage has not been measured since a restart", async () => {
+    const unmeasured: StorageStanding = {
+      startupShortOf: null,
+      diskStanding: "enough",
+      diskFreeRatio: undefined,
+      walOversized: false,
+      measured: false,
+    };
+    await sinceOfWalCondition(database, NOW, WAL_OVERSIZED);
+
+    expect(await conditionsAt(database, new Date(NOW.getTime() + HOUR_MS), unmeasured)).toEqual([]);
+    expect(
+      await sinceOfWalCondition(database, new Date(NOW.getTime() + 2 * HOUR_MS), WAL_OVERSIZED),
+    ).toBe(NOW_SINCE);
+  });
+
+  it("answers the conditions with their stored or current instants, and reports the failure, when the instants cannot be recorded", async () => {
+    await sinceOfWalCondition(database, NOW, WAL_OVERSIZED);
+    database.exec(`
+      CREATE TRIGGER refuse_condition_starts BEFORE INSERT ON register_condition_starts
+      BEGIN SELECT RAISE(ABORT, 'database or disk is full'); END;
+    `);
+    const failures: unknown[] = [];
+
+    expect(
+      await conditionsAt(
+        database,
+        new Date(NOW.getTime() + HOUR_MS),
+        { ...WAL_OVERSIZED, diskStanding: "low", diskFreeRatio: 0.08 },
+        (failure) => failures.push(failure),
+      ),
+    ).toEqual([
+      { kind: "disk_space_low", level: "warning", since: "2026-10-05T13:00:00.000-03:00" },
+      { kind: "wal_oversized", level: "warning", since: NOW_SINCE },
+    ]);
+    expect(failures).toEqual([expect.objectContaining({ message: "database or disk is full" })]);
   });
 
   it("keeps the instant across a restart of the register", async () => {

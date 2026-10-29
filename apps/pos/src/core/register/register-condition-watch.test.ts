@@ -12,7 +12,6 @@ function setup(observe: () => void = () => undefined) {
     intervalMs: INTERVAL_MS,
     scheduleNext: (run, delayMs) => {
       pending.push({ run, delayMs });
-      return () => undefined;
     },
     onFailure,
   });

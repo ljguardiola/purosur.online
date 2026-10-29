@@ -12,6 +12,9 @@ class FakeRegisterConditionStartTransaction implements RegisterConditionStartSto
 
   lockConditionStarts(): ReadonlyMap<string, Date> {
     this.store.operationOrder.push("lockConditionStarts");
+    if (this.store.failingLock) {
+      throw new Error("lockConditionStarts failed");
+    }
     return new Map(this.store.starts);
   }
 
@@ -27,6 +30,7 @@ class FakeRegisterConditionStartTransaction implements RegisterConditionStartSto
 export class FakeRegisterConditionStartStore implements RegisterConditionStartStore {
   starts = new Map<string, Date>();
   failingReplace = false;
+  failingLock = false;
   operationOrder: string[] = [];
 
   transaction<TOutcome>(work: (tx: RegisterConditionStartStoreTransaction) => TOutcome): TOutcome {

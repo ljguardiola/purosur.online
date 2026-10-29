@@ -60,7 +60,7 @@ function setup(options: { first?: StorageReading | Error } = {}) {
 }
 
 describe("watching the register's storage", () => {
-  it("holds a roomy disk and a small log before the first read has finished", () => {
+  it("holds a roomy disk and a small log, not yet measured, before the first read has finished", () => {
     const { watch } = setup();
 
     expect(watch.standing()).toEqual({
@@ -68,8 +68,19 @@ describe("watching the register's storage", () => {
       diskStanding: "enough",
       diskFreeRatio: undefined,
       walOversized: false,
+      measured: false,
     });
     expect(watch.stop()).toBeUndefined();
+  });
+
+  it("is measured once a read finishes, and not while every read fails", async () => {
+    const failing = setup({ first: new Error("disk unreadable") });
+    await failing.watch.start();
+    expect(failing.watch.standing().measured).toBe(false);
+
+    const { watch } = setup();
+    await watch.start();
+    expect(watch.standing().measured).toBe(true);
   });
 
   it("reads right away and schedules the next read after the interval", async () => {
