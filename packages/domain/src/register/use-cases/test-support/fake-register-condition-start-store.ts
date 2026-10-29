@@ -29,9 +29,7 @@ export class FakeRegisterConditionStartStore implements RegisterConditionStartSt
   failingReplace = false;
   operationOrder: string[] = [];
 
-  transaction<TOutcome>(
-    work: (tx: RegisterConditionStartStoreTransaction) => Promise<TOutcome>,
-  ): Promise<TOutcome> {
+  transaction<TOutcome>(work: (tx: RegisterConditionStartStoreTransaction) => TOutcome): TOutcome {
     const before = new Map(this.starts);
     try {
       return work(new FakeRegisterConditionStartTransaction(this));
