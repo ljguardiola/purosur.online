@@ -12,6 +12,7 @@ import {
   CRITICAL_BATTERY_SALE_RECHECK_MS,
   isOnBatteryTooLong,
   LOW_BATTERY_PERCENT,
+  nextOnBatteryCountedOnlySinceStart,
   nextOnBatterySince,
   ON_BATTERY_CONDITION_MINUTES,
 } from "./battery.js";
@@ -84,6 +85,23 @@ describe("nextOnBatterySince", () => {
 
   it("stays unset on mains power with no streak", () => {
     expect(nextOnBatterySince(undefined, onAc, at(5))).toBeUndefined();
+  });
+});
+
+describe("nextOnBatteryCountedOnlySinceStart", () => {
+  it("stays counted only since the start while every reading finds the register on battery or cannot read it", () => {
+    expect(nextOnBatteryCountedOnlySinceStart(true, onBattery)).toBe(true);
+    expect(nextOnBatteryCountedOnlySinceStart(true, { kind: "unreadable" })).toBe(true);
+  });
+
+  it("stops being counted only since the start once a reading finds the register off battery", () => {
+    expect(nextOnBatteryCountedOnlySinceStart(true, onAc)).toBe(false);
+    expect(nextOnBatteryCountedOnlySinceStart(true, { kind: "absent" })).toBe(false);
+  });
+
+  it("never returns to being counted only since the start", () => {
+    expect(nextOnBatteryCountedOnlySinceStart(false, onBattery)).toBe(false);
+    expect(nextOnBatteryCountedOnlySinceStart(false, { kind: "unreadable" })).toBe(false);
   });
 });
 

@@ -25,7 +25,13 @@ describe("SaleScreen while the disk is full", () => {
   it("tells that new sales can't be opened and that the sale underway can be charged", async () => {
     const { screen } = await renderScreen({
       registerStatus: statusHolding([
-        { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" },
+        {
+          kind: "sales_denied",
+          reason: "disk_full",
+          disk_free_ratio: 0.03,
+          level: "critical",
+          since: "2026-10-29T09:30:00.000-03:00",
+        },
       ]),
     });
 
@@ -41,13 +47,19 @@ describe("SaleScreen while the disk is full", () => {
   });
 
   it.each<RegisterStatus["conditions"][number]>([
-    { kind: "disk_space_low", level: "warning" },
-    { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+    { kind: "disk_space_low", level: "warning", since: "2026-10-29T09:30:00.000-03:00" },
+    {
+      kind: "sales_denied",
+      reason: "event_history_broken",
+      level: "critical",
+      since: "2026-10-29T09:30:00.000-03:00",
+    },
     {
       kind: "sales_denied",
       reason: "disk_space_short_at_startup",
       required_free_bytes: 3_000_000_000,
       level: "critical",
+      since: "2026-10-29T09:30:00.000-03:00",
     },
   ])("shows no disk-full notice for the condition %j", async (condition) => {
     const { screen } = await renderScreen({ registerStatus: statusHolding([condition]) });

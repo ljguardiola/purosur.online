@@ -3126,6 +3126,7 @@ describe("the register's status bar", () => {
             kind: "sales_denied" as const,
             reason: "event_history_broken" as const,
             level: "critical" as const,
+            since: "2026-10-29T09:30:00.000-03:00",
           },
         ],
         cloud: "unreachable" as const,

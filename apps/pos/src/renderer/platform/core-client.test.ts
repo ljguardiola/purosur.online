@@ -372,8 +372,13 @@ describe("createCoreClient", () => {
     client.connect(port);
     const status = {
       conditions: [
-        { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
-        { kind: "register_silent", level: "critical" },
+        {
+          kind: "sales_denied",
+          reason: "event_history_broken",
+          level: "critical",
+          since: "2026-10-29T09:30:00.000-03:00",
+        },
+        { kind: "register_silent", level: "critical", since: "2026-10-29T09:30:00.000-03:00" },
       ],
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_registered" },

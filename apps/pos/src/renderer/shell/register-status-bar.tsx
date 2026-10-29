@@ -2,6 +2,7 @@ import type { ContingencyBackupTicketsAnswer, RegisterStatus } from "@purosur/co
 import type { Icon } from "@purosur/ui";
 import {
   formatClockTime,
+  formatDayAndTime,
   LoadFailure,
   LoadingPlaceholder,
   localAlertText,
@@ -128,6 +129,7 @@ function NoticesPill({
             title={text.title}
             description={text.meaning}
             whatToDo={text.whatToDo}
+            time={`Desde ${formatDayAndTime(condition.since)}`}
           />
         );
       })}

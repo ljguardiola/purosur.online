@@ -118,8 +118,13 @@ import { createInstallationEnrollmentWatch } from "./register/installation-enrol
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
 import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
+import { createRegisterConditionWatch } from "./register/register-condition-watch";
 import { registerServiceOf } from "./register/register-service-of-database";
-import { registerStatusFor } from "./register/register-status-requests";
+import {
+  observedOwnConditionsOf,
+  type RegisterStatusDeps,
+  registerStatusFor,
+} from "./register/register-status-requests";
 import {
   orphanSweepReportOf,
   regularizeOrphanAuthorizationsStep,
@@ -269,6 +274,7 @@ const now = () => new Date();
 const LOCAL_DATABASE_FILE = "register.sqlite";
 const SNAPSHOTS_FOLDER = "snapshots";
 const SYNC_INTERVAL_MS = 30_000;
+const REGISTER_CONDITION_OBSERVE_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 const SERIAL_DEVICES_CHANGED_NOTICE: CoreToRendererMessage = { type: "serial-devices-changed" };
@@ -923,25 +929,42 @@ const returnRequestDeps = (
   reportFailure: (error) => reportFailure("settling the credit note of a return", error),
 });
 
+const registerStatusDeps: RegisterStatusDeps | undefined =
+  localDatabase === undefined || serialDeviceWatch === undefined || storageWatch === undefined
+    ? undefined
+    : {
+        zoneRules,
+        database: localDatabase,
+        cloud: () => cloudReachability,
+        now,
+        signedInPerson,
+        serialDevices: serialDeviceWatch.reading,
+        storage: storageWatch.standing,
+        localDatabaseDamaged,
+        battery: () => batteryWatch.report(),
+        onBatteryCountedOnlySinceStart: () => batteryWatch.onBatteryCountedOnlySinceStart(),
+        newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
+        criticalBatteryAction: () => criticalBatteryAction,
+        onConditionStartsNotRecorded: (failure) =>
+          reportFailure("recording since when the register's own conditions hold", failure),
+      };
+const registerConditionWatch =
+  registerStatusDeps === undefined
+    ? undefined
+    : createRegisterConditionWatch({
+        observe: () => {
+          observedOwnConditionsOf(registerStatusDeps);
+        },
+        intervalMs: REGISTER_CONDITION_OBSERVE_INTERVAL_MS,
+        scheduleNext: (run, delayMs) => {
+          setTimeout(run, delayMs);
+        },
+        onFailure: (error) => reportFailure("observing the register's own conditions", error),
+      });
+
 const rendererRequestDeps: RendererRequestDeps = {
   enrollmentStanding: readEnrollmentStanding,
-  registerStatus:
-    localDatabase === undefined || serialDeviceWatch === undefined || storageWatch === undefined
-      ? undefined
-      : () =>
-          registerStatusFor({
-            zoneRules,
-            database: localDatabase,
-            cloud: () => cloudReachability,
-            now,
-            signedInPerson,
-            serialDevices: serialDeviceWatch.reading,
-            storage: storageWatch.standing,
-            localDatabaseDamaged,
-            battery: () => batteryWatch.report(),
-            newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
-            criticalBatteryAction: () => criticalBatteryAction,
-          }),
+  registerStatus: registerStatusDeps && (() => registerStatusFor(registerStatusDeps)),
   restorationStanding:
     localDatabase === undefined
       ? undefined
@@ -1760,6 +1783,7 @@ void windowsCriticalBatteryActionReader({
     rendererConnection.tell(BATTERY_STANDING_CHANGED_NOTICE);
   });
 void storageWatch?.start();
+registerConditionWatch?.start();
 if (
   localDatabase !== undefined &&
   localDatabasePath !== undefined &&
