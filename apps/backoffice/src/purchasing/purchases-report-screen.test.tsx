@@ -120,33 +120,33 @@ test("shows under each supplier its months, written in Spanish, with their purch
   const screen = await renderScreen(createServices());
 
   const table = purchasesTable(screen);
-  const september = table.getByRole("row", { name: /Septiembre 2026/ });
+  const september = table.getByRole("row", { name: /septiembre de 2026/ });
   await expect.element(september.getByText("1", { exact: true })).toBeVisible();
   await expect.element(september.getByText("$ 450,00", { exact: true })).toBeVisible();
-  const october = table.getByRole("row", { name: /^Octubre 2026 2/ });
+  const october = table.getByRole("row", { name: /^octubre de 2026 2/ });
   await expect.element(october.getByText("$ 1.300,50", { exact: true })).toBeVisible();
 });
 
 test("lists the suppliers and their months in the order the cloud answered them", async () => {
   const screen = await renderScreen(createServices());
-  await expect.element(purchasesTable(screen).getByText("Septiembre 2026")).toBeVisible();
+  await expect.element(purchasesTable(screen).getByText("septiembre de 2026")).toBeVisible();
 
   const labels = purchasesTable(screen)
     .getByRole("row")
     .elements()
     .map(
       (row) =>
-        /Lácteos del Sur|Panificados Norte|Septiembre 2026|Octubre 2026/.exec(
+        /Lácteos del Sur|Panificados Norte|septiembre de 2026|octubre de 2026/.exec(
           row.textContent ?? "",
         )?.[0],
     )
     .filter((label) => label !== undefined);
   expect(labels).toEqual([
     "Lácteos del Sur",
-    "Septiembre 2026",
-    "Octubre 2026",
+    "septiembre de 2026",
+    "octubre de 2026",
     "Panificados Norte",
-    "Octubre 2026",
+    "octubre de 2026",
   ]);
 });
 
@@ -176,7 +176,7 @@ test("asks the cloud again for the range typed in the filters", async () => {
   const services = createServices();
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(services, { onFiltersChange });
-  await expect.element(screen.getByText("Octubre 2026").first()).toBeVisible();
+  await expect.element(screen.getByText("octubre de 2026").first()).toBeVisible();
 
   await typeDate(screen, "Desde", "01102026");
   await typeDate(screen, "Hasta", "07102026");
