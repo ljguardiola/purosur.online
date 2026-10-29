@@ -36,7 +36,12 @@ beforeEach(async () => {
 function createServices(
   overrides: Partial<NewDiscountModalServices> = {},
 ): NewDiscountModalServices {
-  return { createDiscount: vi.fn(), ...overrides };
+  return {
+    createDiscount: vi.fn(),
+    fetchDiscountTargets: vi.fn(),
+    createTag: vi.fn(),
+    ...overrides,
+  };
 }
 
 type ModalOptions = {

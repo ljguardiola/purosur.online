@@ -39,7 +39,12 @@ beforeEach(async () => {
 function createServices(
   overrides: Partial<EditDiscountModalServices> = {},
 ): EditDiscountModalServices {
-  return { editDiscount: vi.fn(), ...overrides };
+  return {
+    editDiscount: vi.fn(),
+    fetchDiscountTargets: vi.fn(),
+    createTag: vi.fn(),
+    ...overrides,
+  };
 }
 
 type ModalOptions = {

@@ -13,12 +13,14 @@ beforeEach(() => {
 function renderModal({
   createTag = vi.fn<NewTagModalServices["createTag"]>(),
   context = "Catálogo",
+  initialName,
   onCreated = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
 }: {
   createTag?: NewTagModalServices["createTag"];
   context?: string;
+  initialName?: string;
   onCreated?: (tag: TagSummary) => void;
   onClose?: () => void;
   onSessionEnded?: () => void;
@@ -29,6 +31,7 @@ function renderModal({
         <NewTagModal
           open
           context={context}
+          {...(initialName !== undefined ? { initialName } : {})}
           services={{ createTag }}
           onCreated={onCreated}
           onClose={onClose}
@@ -155,4 +158,12 @@ test("cancel closes the modal without calling the API", async () => {
 
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(createTag).not.toHaveBeenCalled();
+});
+
+test("opens with the name it is given already typed", async () => {
+  const screen = await renderModal({ initialName: "Orgánico" });
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Orgánico");
 });

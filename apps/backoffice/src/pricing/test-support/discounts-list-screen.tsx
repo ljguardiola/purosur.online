@@ -1,6 +1,12 @@
 import type { DiscountSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, vi } from "vitest";
+import {
+  StubCategoryCreationModal,
+  StubProductCreationModal,
+} from "../../platform/test-support/creation-parts";
+import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
 import { DiscountsListScreen } from "../discounts-list-screen";
 import type { DiscountsListScreenServices } from "../discounts-list-services";
@@ -17,6 +23,7 @@ export function createServices(
     fetchDiscountTargets: vi.fn().mockResolvedValue({ kind: "ok", value: discountTargets }),
     createDiscount: vi.fn(),
     editDiscount: vi.fn(),
+    createTag: vi.fn(),
     ...overrides,
   };
 }
@@ -30,6 +37,7 @@ export function deferred<T>() {
 }
 
 type ScreenOptions = {
+  access?: BackofficeAccess;
   filters?: DiscountsListFilters;
   onFiltersChange?: (filters: DiscountsListFilters) => void;
   onSessionEnded?: () => void;
@@ -38,6 +46,7 @@ type ScreenOptions = {
 function screenElement(
   services: DiscountsListScreenServices,
   {
+    access = ADMINISTRATOR_ACCESS,
     filters = discountsListFilters.parse({}),
     onFiltersChange = () => {},
     onSessionEnded = () => {},
@@ -48,6 +57,9 @@ function screenElement(
       <main>
         <DiscountsListScreen
           services={services}
+          access={access}
+          productCreationModal={StubProductCreationModal}
+          categoryCreationModal={StubCategoryCreationModal}
           onSessionEnded={onSessionEnded}
           filters={filters}
           onFiltersChange={onFiltersChange}

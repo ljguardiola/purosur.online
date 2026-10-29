@@ -19,6 +19,7 @@ import {
   EMPTY_DISCOUNT_FORM,
   eligibleTargets,
   keptTarget,
+  offersTarget,
   offersTargetKindChoice,
   productSoldByWeightMessage,
   soldByWeightHelp,
@@ -853,5 +854,20 @@ describe("discountEditRequestFrom", () => {
     const values = { ...discountFormValues(yerbaOff), active: false };
 
     expect(discountEditRequestFrom(values).active).toBe(false);
+  });
+});
+
+describe("offersTarget", () => {
+  test("is true when the target is listed for the benefit", () => {
+    expect(offersTarget("PRODUCT", "PERCENT_OFF", discountTargets, yerbaProduct.id)).toBe(true);
+    expect(offersTarget("CATEGORY", "PERCENT_OFF", discountTargets, almacenCategory.id)).toBe(true);
+  });
+
+  test("is false when the target is listed but not for the benefit", () => {
+    expect(offersTarget("PRODUCT", "BUY_N_PAY_M", discountTargets, almondsProduct.id)).toBe(false);
+  });
+
+  test("is false when the target is not listed in its kind", () => {
+    expect(offersTarget("TAG", "PERCENT_OFF", discountTargets, yerbaProduct.id)).toBe(false);
   });
 });
