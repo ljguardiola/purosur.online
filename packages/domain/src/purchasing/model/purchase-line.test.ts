@@ -8,16 +8,10 @@ import {
   ONE_SALE_UNIT_QUANTITY,
   packagedQuantity,
 } from "./purchase-line.js";
+import { equalFractions } from "./test-support/equal-fractions.js";
 
 function cost(costPaidCents: number, quantity: number, quantityPerPackage: number) {
   return { costPaidCents, quantity, quantityPerPackage };
-}
-
-function equalFractions(
-  left: { numerator: bigint; denominator: bigint },
-  right: { numerator: bigint; denominator: bigint },
-): boolean {
-  return left.numerator * right.denominator === right.numerator * left.denominator;
 }
 
 describe("isPackageCount", () => {

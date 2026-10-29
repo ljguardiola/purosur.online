@@ -3,25 +3,12 @@ import {
   FakeZoneRulesSource,
   fixedOffsetZoneRules,
 } from "../../shared/test-support/fake-zone-rules-source.js";
-import type { PurchasedLine } from "../model/purchases-by-supplier-report.js";
+import { aLine } from "../model/test-support/purchased-line.js";
 import { readPurchasesBySupplier } from "./read-purchases-by-supplier.js";
 import { FakePurchasesReportReader } from "./test-support/fake-purchases-report-reader.js";
 
 const clock = { now: () => new Date("2026-10-06T15:00:00.000Z") };
 const noRange = { from: undefined, to: undefined };
-
-function aLine(overrides: Partial<PurchasedLine> = {}): PurchasedLine {
-  return {
-    purchaseId: "purchase-1",
-    supplierId: "supplier-1",
-    supplierName: "Distribuidora Norte",
-    purchasedOn: "2026-10-06",
-    costPaidCents: 1_000,
-    quantity: 1_000,
-    quantityPerPackage: 1_000,
-    ...overrides,
-  };
-}
 
 describe("readPurchasesBySupplier", () => {
   it("reads the purchases of the asked range for the branch and groups them", async () => {

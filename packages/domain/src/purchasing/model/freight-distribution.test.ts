@@ -8,16 +8,10 @@ import {
   hasDistributableValue,
   purchaseValueCents,
 } from "./freight-distribution.js";
+import { equalFractions } from "./test-support/equal-fractions.js";
 
 function line(id: string, costPaidCents: number, quantity = 1000, quantityPerPackage = 1000) {
   return { id, costPaidCents, quantity, quantityPerPackage } satisfies FreightLine;
-}
-
-function equalFractions(
-  left: { numerator: bigint; denominator: bigint },
-  right: { numerator: bigint; denominator: bigint },
-): boolean {
-  return left.numerator * right.denominator === right.numerator * left.denominator;
 }
 
 const lineArbitrary = fc.record({

@@ -1,19 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { type PurchasedLine, purchasesBySupplier } from "./purchases-by-supplier-report.js";
-
-function aLine(overrides: Partial<PurchasedLine> = {}): PurchasedLine {
-  return {
-    purchaseId: "purchase-1",
-    supplierId: "supplier-1",
-    supplierName: "Distribuidora Norte",
-    purchasedOn: "2026-10-06",
-    costPaidCents: 1_000,
-    quantity: 1_000,
-    quantityPerPackage: 1_000,
-    ...overrides,
-  };
-}
+import { purchasesBySupplier } from "./purchases-by-supplier-report.js";
+import { aLine } from "./test-support/purchased-line.js";
 
 describe("purchasesBySupplier", () => {
   it("reports no suppliers and zero totals for no purchases", () => {

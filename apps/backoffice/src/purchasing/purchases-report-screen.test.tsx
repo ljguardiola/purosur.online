@@ -225,13 +225,31 @@ test("says there are no purchases in the period when there are none", async () =
   expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-accent"));
 });
 
-test("shows a failed load with a retry that loads the report again", async () => {
+test("says there are no purchases in the chosen period as a filtered result", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPurchasesReport).mockResolvedValue({
+    kind: "ok",
+    value: emptyPurchasesReport,
+  });
+
+  const screen = await renderScreen(services, {
+    filters: purchasesReportFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
+  });
+
+  const empty = purchasesTable(screen).getByText("No hay compras en este período");
+  await expect.element(empty).toBeVisible();
+  expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-subtle"));
+});
+
+test("shows a failed load with a retry that loads the report again, and no figures", async () => {
   const services = createServices();
   vi.mocked(services.fetchPurchasesReport)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({ kind: "ok", value: quarterPurchasesReport });
   const screen = await renderScreen(services);
 
+  await expect.element(screen.getByRole("button", { name: "Reintentar" }).first()).toBeVisible();
+  expect(screen.getByText("Total comprado", { exact: true }).query()).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
 
   await expect.element(screen.getByText("Lácteos del Sur")).toBeVisible();
@@ -246,4 +264,13 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("sends the person to Mi cuenta when the cloud refuses the report", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPurchasesReport).mockResolvedValue({ kind: "forbidden" });
+
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
