@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -68,7 +69,26 @@ const CHANGES = [
   "",
 ].join("\n");
 
-async function withReleaseRepo(run) {
+const ENTITY_CHANGES = [
+  'import { isUnit } from "@purosur/domain";',
+  'import { z } from "zod";',
+  'import { recordIdSchema } from "../shared/index.js";',
+  "",
+  "export const changesPageSchema = z.object({",
+  "  changes: z.array(",
+  '    z.discriminatedUnion("entity", [',
+  "      z.object({",
+  '        entity: z.literal("measure"),',
+  "        entity_id: recordIdSchema,",
+  "        unit: z.custom<string>(isUnit),",
+  "      }),",
+  "    ]),",
+  "  ),",
+  "});",
+  "",
+].join("\n");
+
+async function withReleaseRepo(run, { changes = CHANGES } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "field-change-reader-"));
   try {
     git(["init", "-q", "-b", "main"], dir);
@@ -94,7 +114,7 @@ async function withReleaseRepo(run) {
       "packages/contracts/src/shared/index.ts",
       'import { z } from "zod";\n\nexport const recordIdSchema = z.string().min(1);\n',
     );
-    writeTracked(dir, "packages/contracts/src/sync/changes.ts", CHANGES);
+    writeTracked(dir, "packages/contracts/src/sync/changes.ts", changes);
     commit(dir, "the release");
     git(["tag", "pos-v2.3.4"], dir);
     writeTracked(dir, "packages/domain/src/unit-list.ts", unitsModule(["G", "KG", "L"]));
@@ -106,6 +126,17 @@ async function withReleaseRepo(run) {
     await run({ dir, outDir });
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function copyGeneratorAndContracts(dir) {
+  cpSync(join(repoRoot, ".github/scripts"), join(dir, ".github/scripts"), { recursive: true });
+  cpSync(join(repoRoot, "packages/contracts"), join(dir, "packages/contracts"), {
+    recursive: true,
+    filter: (source) => !/[\\/](?:node_modules|dist)$/.test(source),
+  });
+  for (const packageDir of [".", "packages/contracts"]) {
+    symlinkSync(join(repoRoot, packageDir, "node_modules"), join(dir, packageDir, "node_modules"));
   }
 }
 
@@ -178,6 +209,30 @@ test("generating the reader of a tag again writes the same file", async () => {
 
     assert.equal(readFileSync(join(outDir, "2.3.77.js"), "utf8"), first);
   });
+});
+
+test("with no folder given, writes the reader where the contracts' field-change readers are loaded from", async () => {
+  await withReleaseRepo(
+    async ({ dir }) => {
+      copyGeneratorAndContracts(dir);
+      const { runCli: runCopiedCli } = await import(
+        pathToFileURL(join(dir, ".github/scripts/field-change-reader.mjs")).href
+      );
+      const { fieldChangeReaders } = await import(
+        pathToFileURL(join(dir, "packages/contracts/src/sync/test-support/field-change-readers.ts"))
+          .href
+      );
+
+      assert.equal(
+        await runCopiedCli({ argv: ["pos-v2.3.4", "77"], log: () => {}, logError: () => {} }),
+        0,
+      );
+
+      const reader = (await fieldChangeReaders()).find(({ version }) => version === "2.3.77");
+      assert.deepEqual(reader?.readableEntities, ["measure"]);
+    },
+    { changes: ENTITY_CHANGES },
+  );
 });
 
 for (const [argv, problem] of [
