@@ -2,7 +2,7 @@ import type { CashMovementsBody } from "@purosur/contracts";
 
 type MovementRow = CashMovementsBody["movements"][number];
 
-export const withdrawalFromFrontRegister: MovementRow = {
+const withdrawalFromFrontRegister: MovementRow = {
   id: "1b4e7a90-3c25-4d68-9f01-6a8c2e5d7b34",
   occurred_at: "2026-10-06T20:00:00.000Z",
   kind: "WITHDRAWAL",
@@ -13,7 +13,7 @@ export const withdrawalFromFrontRegister: MovementRow = {
   session_opened_at: "2026-10-06T11:00:00.000Z",
 };
 
-export const cashOutFromBackRegister: MovementRow = {
+const cashOutFromBackRegister: MovementRow = {
   id: "4d8a1c63-7e29-4b50-a3f7-0c5b9e2d6a18",
   occurred_at: "2026-10-06T14:30:00.000Z",
   kind: "CASH_OUT",
@@ -24,7 +24,7 @@ export const cashOutFromBackRegister: MovementRow = {
   session_opened_at: "2026-10-06T12:00:00.000Z",
 };
 
-export const cashInFromFrontRegister: MovementRow = {
+const cashInFromFrontRegister: MovementRow = {
   id: "7e2b5d38-1a94-4c06-8b73-9d0f3a6c4e51",
   occurred_at: "2026-10-05T21:15:00.000Z",
   kind: "CASH_IN",
