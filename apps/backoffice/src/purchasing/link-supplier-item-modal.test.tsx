@@ -637,6 +637,8 @@ test("starts with the product, packaging and rate an item is already linked with
         id: ALMOND_LINK.product.id,
         name: "Almendras peladas",
         saleUnit: "KG" as const,
+        brandName: null,
+        netContent: null,
         packagings: [ALMOND_LINK.packaging],
       },
     ],
