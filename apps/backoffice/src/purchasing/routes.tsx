@@ -119,6 +119,15 @@ export const supplierPriceComparisonRoute = createRoute({
   ),
 });
 
+export const freightReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/freight-by-period",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: purchasesReportFilters,
+  search: { middlewares: [stripSearchParams(purchasesReportFilters.parse({}))] },
+  component: lazyScreen(() => import("./freight-report-page"), "FreightReportPage"),
+});
+
 export const purchasesReportRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
   path: "reports/purchases-by-supplier",
