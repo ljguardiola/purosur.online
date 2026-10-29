@@ -85,22 +85,10 @@ class DrizzleSupplierItemProductStoreTransaction<TQueryResult extends PgQueryRes
   async createCatalogProduct(
     input: CreateCatalogProductInput,
   ): Promise<CreateCatalogProductOutcome> {
-    const outcome = await createProduct(new DrizzleCatalogStore(this.tx, this.pending), {
-      ...input,
-      brandId: null,
-      tagIds: [],
-      netContent: null,
-    });
-    switch (outcome.kind) {
-      case "created":
-        return { kind: "created", productId: outcome.product.id };
-      case "category_not_found":
-      case "category_not_leaf":
-      case "barcode_taken":
-        return outcome;
-      default:
-        throw new Error(`creating a product with no brand or tags ended as ${outcome.kind}`);
-    }
+    const outcome = await createProduct(new DrizzleCatalogStore(this.tx, this.pending), input);
+    return outcome.kind === "created"
+      ? { kind: "created", productId: outcome.product.id }
+      : outcome;
   }
 
   insertPackaging(fields: NewPackagingFields) {

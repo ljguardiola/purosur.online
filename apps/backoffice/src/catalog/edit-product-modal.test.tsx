@@ -2,12 +2,12 @@ import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import { organico, sinColorantes, sinTacc, vegano } from "../platform/test-support/tags";
 import { render } from "../shell/test-support/render-with-router";
 import type { ProductReload } from "./catalog-queries";
 import { EditProductModal, type EditProductModalServices } from "./edit-product-modal";
 import { scanInputOf } from "./test-support/product-form";
 import { driedFruits, groceries, honey } from "./test-support/products";
-import { organico, sinColorantes, sinTacc, vegano } from "./test-support/tags";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.

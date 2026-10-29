@@ -1,6 +1,6 @@
 import { repeatsATag } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
+import { recordIdSchema } from "./record-id.js";
 
 const INVALID_MESSAGE = "tagIds must be a list of existing tags' ids, [] for none";
 const MISSING_MESSAGE = "tagIds must be sent, [] for none";

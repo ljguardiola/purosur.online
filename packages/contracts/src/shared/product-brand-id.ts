@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
+import { recordIdSchema } from "./record-id.js";
 
 const INVALID_MESSAGE = "brandId must be an existing brand's id, or null for none";
 const MISSING_MESSAGE = "brandId must be sent, null for none";

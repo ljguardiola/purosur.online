@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { organico, sinTacc, tagList } from "../platform/test-support/tags";
 import { honey } from "./test-support/products";
 import {
   createServices,
@@ -7,7 +8,6 @@ import {
   openEditProductModal,
   renderScreen,
 } from "./test-support/products-list-screen";
-import { organico, sinTacc, tagList } from "./test-support/tags";
 
 test("creating a tag leaves the catalog unread while the product form is open, and reads it once the form closes", async () => {
   const services = createServices();

@@ -1,4 +1,4 @@
-import { isProductNameTooLong, type SaleUnit } from "../../catalog/index.js";
+import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
 import { isPackagingNameTooLong, isQuantityPerPackage } from "../model/packaging.js";
 import {
   mayCreateProductFromRow,
@@ -14,9 +14,13 @@ export interface CreateProductFromSupplierItemInput {
   listId: string;
   rowId: string;
   version: number;
+  name: string;
   saleUnit: SaleUnit;
   categoryId: string;
+  brandId: string | null;
   barcodes: string[];
+  tagIds: string[];
+  netContent: { quantity: number; unit: NetContentUnit } | null;
   // Names the presentation only for an item whose list states none.
   packagingName: string | null;
   quantityPerPackage: number;
@@ -31,7 +35,6 @@ export type CreateProductFromSupplierItemOutcome =
   | { kind: "stale_version" }
   | { kind: "already_linked" }
   | { kind: "presentation_missing" }
-  | { kind: "name_too_long" }
   | { kind: "presentation_too_long" }
   | { kind: "invalid_quantity" }
   | { kind: "vat_rate_missing" }
@@ -67,9 +70,6 @@ export function createProductFromSupplierItem(
     if (packagingName === null) {
       return { kind: "presentation_missing" };
     }
-    if (isProductNameTooLong(row.description)) {
-      return { kind: "name_too_long" };
-    }
     if (isPackagingNameTooLong(packagingName)) {
       return { kind: "presentation_too_long" };
     }
@@ -83,10 +83,13 @@ export function createProductFromSupplierItem(
     }
 
     const product = await tx.createCatalogProduct({
-      name: row.description,
+      name: input.name,
       categoryId: input.categoryId,
+      brandId: input.brandId,
       saleUnit: input.saleUnit,
       barcodes: input.barcodes,
+      tagIds: input.tagIds,
+      netContent: input.netContent,
     });
     if (product.kind !== "created") {
       return product;

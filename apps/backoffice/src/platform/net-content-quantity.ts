@@ -1,6 +1,6 @@
 import { netContentQuantitySchema } from "@purosur/contracts";
 import { formatNumber, parseEsArNumber } from "@purosur/ui";
-import { schemaLimit } from "../platform/schema-limit";
+import { schemaLimit } from "./schema-limit";
 
 const MAX_QUANTITY = schemaLimit(netContentQuantitySchema.meta()?.["maxValue"]);
 const MAX_DECIMALS = schemaLimit(netContentQuantitySchema.meta()?.["maxDecimals"]);

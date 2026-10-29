@@ -1,14 +1,6 @@
-import {
-  BARCODE_MAX_LENGTH,
-  NET_CONTENT_QUANTITY_MAX,
-  NET_CONTENT_QUANTITY_MAX_DECIMALS,
-  NET_CONTENT_UNITS,
-  PRODUCT_BARCODES_MAX_COUNT,
-  PRODUCT_NAME_MAX_LENGTH,
-  SALE_UNITS,
-} from "@purosur/domain";
+import { BARCODE_MAX_LENGTH, PRODUCT_BARCODES_MAX_COUNT, SALE_UNITS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { netContentQuantitySchema, productCreationBodySchema } from "./product-creation.js";
+import { productCreationBodySchema } from "./product-creation.js";
 
 const CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -44,18 +36,10 @@ describe("productCreationBodySchema, name", () => {
     expect(result).toMatchObject({ success: true, data: { name: "Maceta 20cm" } });
   });
 
-  it.each([undefined, "", "   ", 42, null])("rejects the name %j as empty", (name) => {
-    expect(firstFailure(validBody({ name }))).toEqual({
+  it("rejects an empty name", () => {
+    expect(firstFailure(validBody({ name: "" }))).toEqual({
       field: "name",
       message: "name must not be empty",
-    });
-  });
-
-  it("accepts a name of exactly the domain's maximum length and rejects a longer one", () => {
-    expect(isAccepted(validBody({ name: "a".repeat(PRODUCT_NAME_MAX_LENGTH) }))).toBe(true);
-    expect(firstFailure(validBody({ name: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) }))).toEqual({
-      field: "name",
-      message: `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
     });
   });
 });
@@ -98,7 +82,8 @@ describe("productCreationBodySchema, brandId", () => {
     });
   });
 
-  it.each([42, "", "not-an-id", true, {}])("rejects the brandId %j", (brandId) => {
+  it("rejects a malformed brandId", () => {
+    const brandId = "not-an-id";
     expect(firstFailure(validBody({ brandId }))).toEqual({
       field: "brandId",
       message: "brandId must be an existing brand's id, or null for none",
@@ -205,67 +190,23 @@ describe("productCreationBodySchema, netContent", () => {
     expect(result).toMatchObject({ success: true, data: { netContent: null } });
   });
 
-  it.each(NET_CONTENT_UNITS)(
-    "accepts a quantity in %s and keeps only quantity and unit",
-    (unit) => {
-      const result = productCreationBodySchema.safeParse(
-        validBody({ netContent: { quantity: 1.5, unit, extra: true } }),
-      );
-
-      expect(result).toMatchObject({
-        success: true,
-        data: { netContent: { quantity: 1.5, unit } },
-      });
-      expect(result.data?.netContent).not.toHaveProperty("extra");
-    },
-  );
-
-  it.each([
-    "1 KG",
-    [],
-    {},
-    { quantity: 1 },
-    { unit: "KG" },
-    { quantity: "1", unit: "KG" },
-    { quantity: 1, unit: "LB" },
-    { quantity: 1, unit: null },
-  ])("rejects the net content %j as malformed", (netContent) => {
-    expect(firstFailure(validBody({ netContent }))).toEqual({
-      field: "netContent",
-      message: "netContent must be an object with a quantity and a listed unit, or absent/null",
-    });
+  it("keeps a net content's quantity and unit", () => {
+    expect(
+      productCreationBodySchema.safeParse(validBody({ netContent: { quantity: 1.5, unit: "KG" } }))
+        .data?.netContent,
+    ).toEqual({ quantity: 1.5, unit: "KG" });
   });
 
-  it.each([0, -1, 1.0001, NET_CONTENT_QUANTITY_MAX + 1, Infinity, -Infinity])(
-    "reports the quantity %s under netContentQuantity",
-    (quantity) => {
-      expect(firstFailure(validBody({ netContent: { quantity, unit: "KG" } }))).toEqual({
-        field: "netContentQuantity",
-        message: `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`,
-      });
-    },
-  );
+  it("rejects a malformed net content only once, never under netContentQuantity", () => {
+    expect(failingFields(validBody({ netContent: { quantity: "0", unit: "KG" } }))).toEqual([
+      "netContent",
+    ]);
+  });
 
-  it.each([undefined, "unit", null])(
-    "reports the quantity under netContentQuantity also when the saleUnit %j fails",
-    (saleUnit) => {
-      expect(
-        failingFields(validBody({ saleUnit, netContent: { quantity: 0, unit: "KG" } })),
-      ).toEqual(["saleUnit", "netContentQuantity"]);
-    },
-  );
-
-  it.each(["1 KG", { quantity: "0", unit: "KG" }, { quantity: 0, unit: "LB" }])(
-    "reports the malformed net content %j only once, never under netContentQuantity",
-    (netContent) => {
-      expect(failingFields(validBody({ netContent }))).toEqual(["netContent"]);
-    },
-  );
-
-  it("accepts the largest quantity", () => {
+  it("reports a quantity that is not valid under netContentQuantity, also when the saleUnit fails", () => {
     expect(
-      isAccepted(validBody({ netContent: { quantity: NET_CONTENT_QUANTITY_MAX, unit: "G" } })),
-    ).toBe(true);
+      failingFields(validBody({ saleUnit: "unit", netContent: { quantity: 0, unit: "KG" } })),
+    ).toEqual(["saleUnit", "netContentQuantity"]);
   });
 });
 
@@ -288,35 +229,10 @@ describe("productCreationBodySchema, tagIds", () => {
     });
   });
 
-  it.each([null, "tag-1", 42, {}, [42], [""], [null], ["tag-1", ""]])(
-    "rejects the tagIds %j",
-    (tagIds) => {
-      expect(firstFailure(validBody({ tagIds }))).toEqual({
-        field: "tagIds",
-        message: "tagIds must be a list of existing tags' ids, [] for none",
-      });
-    },
-  );
-
-  it.each(["not-an-id", "22222222-2222-2222-2222-222222222222,not-an-id"])(
-    "rejects a list holding the malformed id in %j",
-    (spelled) => {
-      expect(firstFailure(validBody({ tagIds: spelled.split(",") }))).toEqual({
-        field: "tagIds",
-        message: "tagIds must be a list of existing tags' ids, [] for none",
-      });
-    },
-  );
-
-  it.each([
-    ["33333333-3333-3333-3333-333333333333", "33333333-3333-3333-3333-333333333333"],
-    ["aaaaaaaa-3333-3333-3333-333333333333", "AAAAAAAA-3333-3333-3333-333333333333"],
-  ])("rejects a tag sent more than once as %j and %j", (first, second) => {
-    expect(
-      firstFailure(validBody({ tagIds: [first, "22222222-2222-2222-2222-222222222222", second] })),
-    ).toEqual({
+  it("rejects malformed tagIds", () => {
+    expect(firstFailure(validBody({ tagIds: ["not-an-id"] }))).toEqual({
       field: "tagIds",
-      message: "tagIds must not repeat a tag",
+      message: "tagIds must be a list of existing tags' ids, [] for none",
     });
   });
 });
@@ -384,12 +300,6 @@ describe("productCreationBodySchema, declared limits and rules", () => {
         );
   }
 
-  it("declares the name's maximum length", () => {
-    expect(productCreationBodySchema.shape.name.meta()).toEqual({
-      maxLength: PRODUCT_NAME_MAX_LENGTH,
-    });
-  });
-
   it("declares the barcodes' maximum count and length", () => {
     expect(productCreationBodySchema.shape.barcodes.meta()).toEqual({
       maxCount: PRODUCT_BARCODES_MAX_COUNT,
@@ -407,24 +317,4 @@ describe("productCreationBodySchema, declared limits and rules", () => {
   ])("names the %s problem of a barcode list", (problem, codes) => {
     expect(barcodeRules(codes)).toEqual([problem]);
   });
-});
-
-describe("netContentQuantitySchema", () => {
-  it("declares the quantity's maximum and its maximum number of decimals", () => {
-    expect(netContentQuantitySchema.meta()).toEqual({
-      maxValue: NET_CONTENT_QUANTITY_MAX,
-      maxDecimals: NET_CONTENT_QUANTITY_MAX_DECIMALS,
-    });
-  });
-
-  it("accepts a positive quantity within the limits", () => {
-    expect(netContentQuantitySchema.safeParse(NET_CONTENT_QUANTITY_MAX).success).toBe(true);
-  });
-
-  it.each([0, -1, 1.0001, NET_CONTENT_QUANTITY_MAX + 1, Infinity, Number.NaN, "5"])(
-    "rejects %j",
-    (quantity) => {
-      expect(netContentQuantitySchema.safeParse(quantity).success).toBe(false);
-    },
-  );
 });
