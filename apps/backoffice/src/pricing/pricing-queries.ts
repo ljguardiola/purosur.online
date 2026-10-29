@@ -9,6 +9,7 @@ import type {
   PricesPastReviewDeadlineReportQuery,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
+import { useId } from "react";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
@@ -37,8 +38,8 @@ const DISCOUNT_STATUS_REFRESH_MS = 60_000;
 
 export const discountTargetsKey = [...discountsKey, "targets"] as const;
 
-const discountTargetsRereadKey = (opening: number) =>
-  [...discountsKey, "targets-reread", opening] as const;
+const discountTargetsRereadKey = (form: string, opening: number) =>
+  [...discountsKey, "targets-reread", form, opening] as const;
 
 export function usePricesQuery(params: {
   input: FetchPricesInput;
@@ -181,7 +182,7 @@ export function useDiscountTargetsReread(params: {
 } {
   const client = useQueryClient();
   const sendToMyAccount = useSendToMyAccount();
-  const queryKey = discountTargetsRereadKey(params.opening);
+  const queryKey = discountTargetsRereadKey(useId(), params.opening);
   const reread = useCloudQuery<DiscountTargets>({
     queryKey,
     enabled: false,
