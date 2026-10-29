@@ -29,6 +29,7 @@ function createServices(
       vi.fn<UploadSupplierPriceListModalServices["uploadSupplierPriceList"]>(),
     loadSupplierPriceListWebPage:
       vi.fn<UploadSupplierPriceListModalServices["loadSupplierPriceListWebPage"]>(),
+    createSupplier: vi.fn(),
     ...overrides,
   };
 }
@@ -54,6 +55,7 @@ function renderModal({
         <UploadSupplierPriceListModal
           open={open}
           initialSupplierId={initialSupplierId}
+          mayCreateSupplier={false}
           services={services}
           onUploaded={onUploaded}
           onClose={onClose}

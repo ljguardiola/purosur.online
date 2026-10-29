@@ -1,6 +1,6 @@
 import { purchaseRegistrationBodySchema } from "@purosur/contracts";
 import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
@@ -50,6 +50,8 @@ function Harness({ products = offeredProducts }: { products?: typeof offeredProd
               packagings={packagings}
               refusals={{}}
               onLinesChange={() => {}}
+              services={{ createPackaging: vi.fn() }}
+              onSessionEnded={() => {}}
             />
           )}
         </form.AppField>

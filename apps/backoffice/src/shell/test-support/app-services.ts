@@ -194,6 +194,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       loadSupplierPriceListWebPage: vi.fn(),
       refreshSupplierPriceList: vi.fn(),
       fetchSuppliers: vi.fn().mockReturnValue(new Promise(() => {})),
+      createSupplier: vi.fn(),
     },
     supplierPriceListReviewScreen: {
       fetchSupplierPriceListReview: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -220,6 +221,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       registerPurchase: vi.fn(),
+      createSupplier: vi.fn(),
+      createPackaging: vi.fn(),
     },
     salesByDayScreen: {
       fetchSalesReport: vi.fn().mockReturnValue(new Promise(() => {})),

@@ -25,6 +25,8 @@ function createServices(
   return {
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "ok", value: purchaseChoices }),
     registerPurchase: vi.fn(),
+    createSupplier: vi.fn(),
+    createPackaging: vi.fn(),
     ...overrides,
   };
 }
