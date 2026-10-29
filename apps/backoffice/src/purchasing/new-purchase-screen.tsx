@@ -17,6 +17,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { withCreatedProducts } from "../platform/created-products";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -55,6 +57,7 @@ import {
 
 export type NewPurchaseScreenProps = {
   access: BackofficeAccess;
+  productCreationModal: ProductCreationModal;
   onSessionEnded: () => void;
   services: NewPurchaseScreenServices;
 };
@@ -63,7 +66,12 @@ type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSecon
 
 const NO_CHOICES: Omit<PurchaseChoices, "today"> = { suppliers: [], products: [], packagings: [] };
 
-export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurchaseScreenProps) {
+export function NewPurchaseScreen({
+  access,
+  productCreationModal,
+  onSessionEnded,
+  services,
+}: NewPurchaseScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const navigate = useNavigate();
   const refreshPurchasing = useRefreshPurchasing();
@@ -73,7 +81,13 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
   });
   const [notice, setNotice] = useState<Notice | null>(null);
   const [lineRefusals, setLineRefusals] = useState<Record<number, string>>({});
-  const { suppliers, products, packagings } = data.status === "loaded" ? data.value : NO_CHOICES;
+  const [createdProducts, setCreatedProducts] = useState<CreatedProduct[]>([]);
+  const {
+    suppliers,
+    products: storedProducts,
+    packagings,
+  } = data.status === "loaded" ? data.value : NO_CHOICES;
+  const products = withCreatedProducts(storedProducts, createdProducts);
 
   const today = data.status === "loaded" ? data.value.today : null;
   const [datedOn, setDatedOn] = useState<string | null>(null);
@@ -305,6 +319,8 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
                 <PurchaseLinesField
                   access={access}
                   products={products}
+                  productCreationModal={productCreationModal}
+                  onProductCreated={(product) => setCreatedProducts([...createdProducts, product])}
                   packagings={packagings}
                   refusals={lineRefusals}
                   onLinesChange={() => setLineRefusals({})}

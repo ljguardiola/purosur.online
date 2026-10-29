@@ -309,12 +309,17 @@ export function useProductCreationChoicesRefresh() {
           queryKey: purchasingKeys.productCreationTags,
           refetchType: "none",
         }),
+        client.invalidateQueries({
+          queryKey: purchasingKeys.productCreationCategories,
+          refetchType: "none",
+        }),
       ]);
     },
     refresh: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: purchasingKeys.productCreationBrands }),
         client.invalidateQueries({ queryKey: purchasingKeys.productCreationTags }),
+        client.invalidateQueries({ queryKey: purchasingKeys.productCreationCategories }),
       ]);
     },
   };

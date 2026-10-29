@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { CategoryCreationModal, ProductCreationModal } from "../platform/creation-parts";
 import { formatDisplayDate } from "../platform/display-date";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { AreaTopBar } from "../shell/area-top-bar";
@@ -63,6 +64,8 @@ import type { SupplierPriceListReviewFilters } from "./supplier-price-lists-filt
 export type SupplierPriceListReviewScreenProps = {
   listId: string;
   access: BackofficeAccess;
+  categoryCreationModal: CategoryCreationModal;
+  productCreationModal: ProductCreationModal;
   filters: SupplierPriceListReviewFilters;
   onFiltersChange: (filters: SupplierPriceListReviewFilters) => void;
   onBack: () => void;
@@ -143,6 +146,8 @@ function footerText(
 export function SupplierPriceListReviewScreen({
   listId,
   access,
+  categoryCreationModal,
+  productCreationModal,
   filters,
   onFiltersChange,
   onBack,
@@ -464,6 +469,7 @@ export function SupplierPriceListReviewScreen({
             list={list}
             target={linkTarget}
             mayCreatePackaging={canManagePurchasePackagings(access)}
+            {...(canManageProductsAndCategories(access) ? { productCreationModal } : {})}
             remembersOnConfirm={actions?.confirm === true}
             onCreateProduct={
               mayCreateProducts
@@ -485,6 +491,7 @@ export function SupplierPriceListReviewScreen({
             list={list}
             target={createTarget}
             mayCreateBrandsAndTags={canManageProductsAndCategories(access)}
+            categoryCreationModal={categoryCreationModal}
             services={services}
             onCreated={() => refreshAfter("productCreated")}
             onOutdated={() => refreshAfter(null)}

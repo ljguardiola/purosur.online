@@ -1,5 +1,6 @@
 import {
   type BrandSummary,
+  type CategorySummary,
   supplierPriceListRowProductCreationBodySchema,
 } from "@purosur/contracts";
 import {
@@ -21,9 +22,10 @@ import {
 } from "../platform/barcode-chips";
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
-import { categorySelectOptions } from "../platform/category-path";
+import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import type { CategoryCreationModal } from "../platform/creation-parts";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
@@ -83,6 +85,7 @@ type CreateProductFromSupplierItemModalProps = {
   list: Pick<SupplierPriceListReviewList, "id" | "version" | "requiresVatRate" | "supplier">;
   target: SupplierPriceListRow | null;
   mayCreateBrandsAndTags: boolean;
+  categoryCreationModal: CategoryCreationModal;
   services: CreateProductFromSupplierItemModalServices;
   onCreated: () => void;
   onOutdated: () => void;
@@ -98,6 +101,7 @@ export function CreateProductFromSupplierItemModal({
   list,
   target,
   mayCreateBrandsAndTags,
+  categoryCreationModal: CategoryCreation,
   services,
   onCreated,
   onOutdated,
@@ -200,12 +204,17 @@ export function CreateProductFromSupplierItemModal({
     (brand) => form.setFieldValue("brandId", brand.id),
     catalog,
   );
+  const categoryCreation = useStackedCreation<CategorySummary>(
+    (category) => form.setFieldValue("categoryId", category.id),
+    catalog,
+  );
   const tagCreation = useStackedTagCreation(
     (tagId) => form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
     catalog,
   );
   const closeForm = () => {
     brandCreation.finish();
+    categoryCreation.finish();
     tagCreation.finish();
     onClose();
   };
@@ -219,6 +228,7 @@ export function CreateProductFromSupplierItemModal({
       setShown(target);
       setNotice(null);
       brandCreation.reset();
+      categoryCreation.reset();
       tagCreation.reset();
     }
   }, [
@@ -228,6 +238,7 @@ export function CreateProductFromSupplierItemModal({
     chips.reset,
     generate.reset,
     brandCreation.reset,
+    categoryCreation.reset,
     tagCreation.reset,
   ]);
 
@@ -241,7 +252,9 @@ export function CreateProductFromSupplierItemModal({
   }, [target, vatRates, form]);
 
   const categoryOptions =
-    categories.status === "loaded" ? categorySelectOptions(categories.value) : undefined;
+    categories.status === "loaded"
+      ? categorySelectOptions([...withCreatedCategory(categories.value, categoryCreation.created)])
+      : undefined;
   const productData = combineCloudData(combineCloudData(categories, brands), tags);
   const dataStatus = list.requiresVatRate
     ? combineCloudData(productData, choices).status
@@ -349,7 +362,11 @@ export function CreateProductFromSupplierItemModal({
             fields={PRODUCT_GROUP_FIELDS}
             categories={
               categoryOptions
-                ? { state: "loaded", options: categoryOptions, creation: null }
+                ? {
+                    state: "loaded",
+                    options: categoryOptions,
+                    creation: mayCreateBrandsAndTags ? categoryCreation : null,
+                  }
                 : { state: "unavailable", placeholder: categoryPlaceholder() }
             }
             brands={
@@ -424,6 +441,13 @@ export function CreateProductFromSupplierItemModal({
                 createBrand={services.createBrand}
                 onCreated={brandCreation.select}
                 onClose={brandCreation.close}
+                onSessionEnded={onSessionEnded}
+              />
+              <CategoryCreation
+                open={categoryCreation.open}
+                initialName={categoryCreation.initialName}
+                onCreated={categoryCreation.select}
+                onClose={categoryCreation.close}
                 onSessionEnded={onSessionEnded}
               />
               <NewTagModal

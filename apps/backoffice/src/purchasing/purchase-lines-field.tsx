@@ -16,10 +16,12 @@ import {
 } from "@purosur/ui";
 import { Package, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { quantityFieldKind } from "../platform/stock-quantity";
 import {
   type BackofficeAccess,
+  canManageProductsAndCategories,
   canManagePurchasePackagings,
   canSeePricesArea,
 } from "../shell/backoffice-access";
@@ -42,6 +44,8 @@ const LOADED_BY_OPTIONS = [
 type PurchaseLinesFieldProps = {
   access: BackofficeAccess;
   products: PurchaseProducts;
+  productCreationModal: ProductCreationModal;
+  onProductCreated: (product: CreatedProduct) => void;
   packagings: readonly PackagingSummary[];
   refusals: Readonly<Record<number, string>>;
   onLinesChange: () => void;
@@ -52,6 +56,8 @@ type PurchaseLinesFieldProps = {
 export function PurchaseLinesField({
   access,
   products,
+  productCreationModal: ProductCreation,
+  onProductCreated,
   packagings,
   refusals,
   onLinesChange,
@@ -65,6 +71,16 @@ export function PurchaseLinesField({
   const refreshPurchasing = useRefreshPurchasing();
   const [creatingFor, setCreatingFor] = useState<{ lineId: number; productId: string } | null>(
     null,
+  );
+  const [creatingProductFor, setCreatingProductFor] = useState<number | null>(null);
+  const productCreation = useStackedCreation<CreatedProduct>(
+    (product) => {
+      onProductCreated(product);
+      if (creatingProductFor !== null) {
+        change(creatingProductFor, { productId: product.id, packagingId: null });
+      }
+    },
+    { markStale: markPurchasingStale, refresh: refreshPurchasing },
   );
   const [createdPackagings, setCreatedPackagings] = useState<PackagingSummary[]>([]);
   const packagingCreation = useStackedCreation<PackagingSummary>(
@@ -119,6 +135,14 @@ export function PurchaseLinesField({
                 products={products}
                 packagings={offeredPackagings}
                 refusal={refusals[index]}
+                onCreateProduct={
+                  canManageProductsAndCategories(access)
+                    ? (typedName) => {
+                        setCreatingProductFor(line.id);
+                        productCreation.start(typedName);
+                      }
+                    : null
+                }
                 onCreatePackaging={
                   canManagePurchasePackagings(access) && productId !== null
                     ? (typedName) => {
@@ -148,6 +172,13 @@ export function PurchaseLinesField({
               Agregar línea
             </Button>
           </div>
+          <ProductCreation
+            open={productCreation.open}
+            initialName={productCreation.initialName}
+            onCreated={productCreation.select}
+            onClose={productCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
           <NewPackagingModal
             open={packagingCreation.open}
             products={[...products]}
@@ -179,6 +210,7 @@ type PurchaseLineFieldsProps = {
   products: PurchaseProducts;
   packagings: readonly PackagingSummary[];
   refusal: string | undefined;
+  onCreateProduct: ((typedName: string) => void) | null;
   onCreatePackaging: ((typedName: string) => void) | null;
   removable: boolean;
   onChange: (patch: Partial<PurchaseLineValues>) => void;
@@ -193,6 +225,7 @@ function PurchaseLineFields({
   products,
   packagings,
   refusal,
+  onCreateProduct,
   onCreatePackaging,
   removable,
   onChange,
@@ -214,6 +247,9 @@ function PurchaseLineFields({
               value={line.productId}
               onChange={(productId) => onChange({ productId, packagingId: null })}
               required
+              {...(onCreateProduct === null
+                ? {}
+                : { creation: { recordKind: "producto", onCreate: onCreateProduct } })}
             />
           </div>
           <SegmentedControl
