@@ -21,7 +21,7 @@ async function scriptsRunByWorkflows() {
   return [...scripts].sort();
 }
 
-const scriptsRunByOperators = ["apply-edge-rules.mjs"];
+const scriptsRunByOperators = ["apply-edge-rules.mjs", "field-change-reader.mjs"];
 
 const entryScripts = [...(await scriptsRunByWorkflows()), ...scriptsRunByOperators];
 

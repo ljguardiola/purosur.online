@@ -1,4 +1,7 @@
-import { fieldChangeReaders } from "@purosur/contracts/sync/test-support/field-change-readers";
+import {
+  type FieldChangeReader,
+  fieldChangeReaders,
+} from "@purosur/contracts/sync/test-support/field-change-readers";
 import { PULLED_ENTITIES, pullAudienceOf, STOCK_MOVEMENT_KINDS } from "@purosur/domain";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -9,7 +12,7 @@ import { buildChangesRouteApp } from "./test-support/changes-route.js";
 import { insertInstallationWithAChangeOfEveryPulledEntity } from "./test-support/pull-feed-rows.js";
 
 const NOW = new Date("2026-10-09T16:00:00.000Z");
-const FIELD_READERS = fieldChangeReaders();
+const FIELD_READERS = await fieldChangeReaders();
 const A_REGISTER = {
   registerId: "register-1",
   locationId: "branch-a",
@@ -75,38 +78,66 @@ const WHAT_EACH_RELEASE_CANNOT_READ = {
   "1.0.1385": { entities: [], kinds: [] },
 } as const;
 
+type ReceivedChange = { entity: string; entity_id: string; row?: { kind?: string } };
+
+async function pagesReadBy(reader: FieldChangeReader): Promise<ReceivedChange[]> {
+  const { deviceId, deviceToken } = await insertInstallationWithAChangeOfEveryPulledEntity(
+    testDatabase,
+    NOW,
+  );
+  await db.insert(deviceState).values({ deviceId, appVersion: reader.version });
+
+  const received: ReceivedChange[] = [];
+  let since = 0;
+  for (let pages = 0; pages < 10; pages += 1) {
+    const response = await app.inject({
+      method: "GET",
+      url: `/changes?since=${since}`,
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+    expect(response.statusCode).toBe(200);
+    const page = reader.changesPage.parse(response.json()) as {
+      changes: ReceivedChange[];
+      cursor: number;
+      has_more: boolean;
+    };
+    received.push(...page.changes);
+    since = page.cursor;
+    if (!page.has_more) {
+      break;
+    }
+  }
+  return received;
+}
+
+function readerOf(version: string): FieldChangeReader {
+  const reader = FIELD_READERS.find((candidate) => candidate.version === version);
+  if (reader === undefined) {
+    throw new Error(`test setup: no field reader for ${version}`);
+  }
+  return reader;
+}
+
+function changeOf(received: ReceivedChange[], entity: string): ReceivedChange {
+  const change = received.find((candidate) => candidate.entity === entity);
+  if (change === undefined) {
+    throw new Error(`test setup: no ${entity} change received`);
+  }
+  return change;
+}
+
+function pageOf(change: unknown): unknown {
+  return { changes: [change], cursor: 1, has_more: false };
+}
+
 describe("GET /changes read by the register releases in the field", () => {
   it.each(FIELD_READERS.map((reader) => [reader.version, reader] as const))(
     "gives %s pages it reads in full, with exactly the changes it can read",
     async (version, reader) => {
       const cannotRead =
         WHAT_EACH_RELEASE_CANNOT_READ[version as keyof typeof WHAT_EACH_RELEASE_CANNOT_READ];
-      const { deviceId, deviceToken } = await insertInstallationWithAChangeOfEveryPulledEntity(
-        testDatabase,
-        NOW,
-      );
-      await db.insert(deviceState).values({ deviceId, appVersion: reader.version });
 
-      const received: { entity: string; entity_id: string; row?: { kind?: string } }[] = [];
-      let since = 0;
-      for (let pages = 0; pages < 10; pages += 1) {
-        const response = await app.inject({
-          method: "GET",
-          url: `/changes?since=${since}`,
-          headers: { authorization: `Bearer ${deviceToken}` },
-        });
-        expect(response.statusCode).toBe(200);
-        const page = reader.changesPage.parse(response.json()) as {
-          changes: typeof received;
-          cursor: number;
-          has_more: boolean;
-        };
-        received.push(...page.changes);
-        since = page.cursor;
-        if (!page.has_more) {
-          break;
-        }
-      }
+      const received = await pagesReadBy(reader);
 
       const receivedKinds = received
         .filter(({ entity }) => entity === "stock_movement")
@@ -130,4 +161,22 @@ describe("GET /changes read by the register releases in the field", () => {
       );
     },
   );
+
+  it("the release in the field refuses a product whose net content unit it does not know", async () => {
+    const reader = readerOf("0.0.1271");
+    const product = changeOf(await pagesReadBy(reader), "product");
+    const weighing = (unit: string) => ({
+      ...product,
+      row: { ...product.row, net_content: { quantity: 500, unit } },
+    });
+
+    expect(reader.changesPage.safeParse(pageOf(weighing("G"))).success).toBe(true);
+    expect(reader.changesPage.safeParse(pageOf(weighing("furlong"))).success).toBe(false);
+  });
+
+  it("the release in the field refuses a brand, which the current release reads", async () => {
+    const brand = changeOf(await pagesReadBy(readerOf("1.0.1385")), "brand");
+
+    expect(readerOf("0.0.1271").changesPage.safeParse(pageOf(brand)).success).toBe(false);
+  });
 });

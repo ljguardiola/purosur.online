@@ -1,7 +1,9 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { z } from "zod";
 
-export const FIELD_CHANGE_READERS_DIR = new URL("./field-change-readers/", import.meta.url);
+const FIELD_CHANGE_READERS_DIR = new URL("./field-change-readers/", import.meta.url);
+
+const readerModuleShape = z.object({ changesPageSchema: z.instanceof(z.ZodType) });
 
 const readerSchemaShape = z.object({
   properties: z.object({
@@ -33,21 +35,29 @@ export interface FieldChangeReader {
   readableStockMovementKinds: string[];
 }
 
-export function fieldChangeReaders(): FieldChangeReader[] {
-  return readdirSync(FIELD_CHANGE_READERS_DIR)
-    .filter((name) => name.endsWith(".json"))
-    .sort()
-    .map((name) => {
-      const jsonSchema = JSON.parse(readFileSync(new URL(name, FIELD_CHANGE_READERS_DIR), "utf8"));
-      const changeShapes = readerSchemaShape.parse(jsonSchema).properties.changes.items.oneOf;
-      const stockMovement = changeShapes.find(
-        ({ properties }) => properties.entity.const === "stock_movement",
-      );
-      return {
-        version: name.slice(0, -".json".length),
-        changesPage: z.fromJSONSchema(jsonSchema),
-        readableEntities: changeShapes.map(({ properties }) => properties.entity.const),
-        readableStockMovementKinds: stockMovement?.properties.row?.properties.kind?.enum ?? [],
-      };
-    });
+async function readerOf(fileName: string): Promise<FieldChangeReader> {
+  const { changesPageSchema } = readerModuleShape.parse(
+    await import(new URL(fileName, FIELD_CHANGE_READERS_DIR).href),
+  );
+  const changeShapes = readerSchemaShape.parse(
+    z.toJSONSchema(changesPageSchema, { io: "input", unrepresentable: "any" }),
+  ).properties.changes.items.oneOf;
+  const stockMovement = changeShapes.find(
+    ({ properties }) => properties.entity.const === "stock_movement",
+  );
+  return {
+    version: fileName.slice(0, -".js".length),
+    changesPage: changesPageSchema,
+    readableEntities: changeShapes.map(({ properties }) => properties.entity.const),
+    readableStockMovementKinds: stockMovement?.properties.row?.properties.kind?.enum ?? [],
+  };
+}
+
+export function fieldChangeReaders(): Promise<FieldChangeReader[]> {
+  return Promise.all(
+    readdirSync(FIELD_CHANGE_READERS_DIR)
+      .filter((name) => name.endsWith(".js"))
+      .sort()
+      .map(readerOf),
+  );
 }
