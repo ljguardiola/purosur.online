@@ -343,6 +343,7 @@ export default {
       path: [
         `^(?!${REAL_POSTGRES_TEST}).*\\.test\\.(ts|tsx)$`,
         "^(apps|packages)/[^/]+/(dist|out)/",
+        "^packages/contracts/src/sync/test-support/field-change-readers/",
       ],
     },
     tsPreCompilationDeps: true,
