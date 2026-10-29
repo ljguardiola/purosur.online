@@ -6,6 +6,7 @@ import { alertKindPolicy } from "./alert-kind-policy.js";
 import {
   batteryConditionsOf,
   REGISTER_OWN_CONDITIONS,
+  registerOwnConditionIdentity,
   registerOwnConditions,
 } from "./register-own-conditions.js";
 
@@ -526,5 +527,21 @@ describe("batteryConditionsOf", () => {
 
     expect(batteryConditionsOf(undefined)).toEqual(none);
     expect(batteryConditionsOf(onMainsAt(3))).toEqual(none);
+  });
+});
+
+describe("registerOwnConditionIdentity", () => {
+  it("names a condition by its kind", () => {
+    expect(registerOwnConditionIdentity({ kind: "clock_drift" })).toBe("clock_drift");
+    expect(registerOwnConditionIdentity({ kind: "battery_low" })).toBe("battery_low");
+  });
+
+  it("names a sales denial by its kind and its reason, so each reason holds on its own", () => {
+    expect(registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_full" })).toBe(
+      "sales_denied:disk_full",
+    );
+    expect(
+      registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_space_short_at_startup" }),
+    ).not.toBe(registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_full" }));
   });
 });
