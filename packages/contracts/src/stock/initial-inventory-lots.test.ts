@@ -10,6 +10,8 @@ const LOT = {
   lotId: "11111111-1111-1111-1111-111111111111",
   productId: "22222222-2222-2222-2222-222222222222",
   productName: "Almendras peladas",
+  brandName: "Vitora",
+  netContent: { quantity: 250, unit: "G" },
   categoryName: "Frutos secos",
   saleUnit: "KG",
   expiresOn: "2027-02-01",
@@ -90,6 +92,15 @@ describe("initialInventoryLotListSchema", () => {
     };
 
     expect(initialInventoryLotListSchema.parse({ lots: [lot] })).toEqual({ lots: [lot] });
+  });
+
+  it.each([
+    ["no brand name", { brandName: undefined }],
+    ["no net content", { netContent: undefined }],
+  ])("refuses a lot with %s", (_case, override) => {
+    expect(initialInventoryLotListSchema.safeParse({ lots: [{ ...LOT, ...override }] }).success).toBe(
+      false,
+    );
   });
 
   it.each([

@@ -4,16 +4,38 @@ import { recipeListSchema, recipeSummarySchema } from "./recipe-summary.js";
 const mix = {
   productId: "p-1",
   productName: "Mix de frutos secos",
+  brandName: "Vitora",
+  netContent: { quantity: 250, unit: "G" },
   categoryName: "Mezclas",
   saleUnit: "KG",
   version: 2,
   lastBatch: null,
   components: [
-    { componentProductId: "p-2", name: "Nueces", saleUnit: "KG", quantityPerOutputUnit: 600 },
-    { componentProductId: "p-3", name: "Bolsa", saleUnit: "UNIT", quantityPerOutputUnit: 1_000 },
+    {
+      componentProductId: "p-2",
+      name: "Nueces",
+      brandName: "Vitora",
+      netContent: { quantity: 500, unit: "G" },
+      saleUnit: "KG",
+      quantityPerOutputUnit: 600,
+    },
+    {
+      componentProductId: "p-3",
+      name: "Bolsa",
+      brandName: null,
+      netContent: null,
+      saleUnit: "UNIT",
+      quantityPerOutputUnit: 1_000,
+    },
   ],
 };
-const product = { id: "p-2", name: "Nueces", saleUnit: "KG" };
+const product = {
+  id: "p-2",
+  name: "Nueces",
+  brandName: "Vitora",
+  netContent: { quantity: 500, unit: "G" },
+  saleUnit: "KG",
+};
 
 describe("recipeSummarySchema", () => {
   it("accepts a recipe with components of either sale unit and no batch yet", () => {
@@ -27,6 +49,8 @@ describe("recipeSummarySchema", () => {
   it.each([
     "productId",
     "productName",
+    "brandName",
+    "netContent",
     "categoryName",
     "saleUnit",
     "version",
@@ -79,7 +103,7 @@ describe("recipeSummarySchema", () => {
     expect(recipeSummarySchema.safeParse({ ...mix, lastBatch }).success).toBe(false);
   });
 
-  it.each(["componentProductId", "name", "saleUnit", "quantityPerOutputUnit"])(
+  it.each(["componentProductId", "name", "brandName", "netContent", "saleUnit", "quantityPerOutputUnit"])(
     "rejects a component without %s",
     (key) => {
       const [first] = mix.components;

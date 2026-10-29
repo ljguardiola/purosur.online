@@ -42,6 +42,8 @@ describe("lossesByReasonReportSchema", () => {
   const product = {
     id: "product-1",
     name: "Yerba",
+    brand_name: "Vitora",
+    net_content: { quantity: 500, unit: "G" },
     sale_unit: "UNIT",
     quantity: 3_000,
     loss_count: 2,
@@ -90,6 +92,8 @@ describe("lossesByReasonReportSchema", () => {
     ["a loss count with decimals", { loss_count: 1.5 }],
     ["a sale unit that is not offered", { sale_unit: "LITRO" }],
     ["a missing name", { name: undefined }],
+    ["a missing brand name", { brand_name: undefined }],
+    ["a missing net content", { net_content: undefined }],
   ])("refuses %s on a product", (_name, change) => {
     expect(
       lossesByReasonReportSchema.safeParse({
