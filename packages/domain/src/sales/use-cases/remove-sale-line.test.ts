@@ -8,6 +8,7 @@ import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
   FixedClock,
+  SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
@@ -98,13 +99,51 @@ function remove(store: FakeSaleLedger, lineId: string, actorId = "cashier") {
       ledger: store,
       restoration: store.restoration,
       clock: new FixedClock(NOW),
+      ids: new SequentialIds(),
     },
     { actorId, lineId },
   );
 }
 
+const YERBA_LINE_RECORD = {
+  id: "line-1",
+  product_id: "yerba",
+  product_name: "Yerba 1 kg",
+  weight_source: null,
+  manual_adjustment: null,
+  quantity: 3,
+  list_unit_price: 2500,
+  price_list_id: "list-1",
+  promotion_id: "ten",
+  discount_amount: 750,
+  promotions: [],
+  sale_discount_share: 0,
+  line_total: 6750,
+};
+
+function removedEvent(line: Record<string, unknown>, id = "line-1") {
+  return {
+    event_id: "id-1",
+    aggregate_type: "SaleLine",
+    aggregate_id: id,
+    event_type: "sale_line_removed",
+    schema_version: 1,
+    payload: {
+      sale_id: "sale-1",
+      register_id: "register-1",
+      device_id: "device-1",
+      session_id: "session-1",
+      actor_id: "cashier",
+      occurred_at: NOW.toISOString(),
+      line: { ...line, id },
+    },
+    occurred_at: NOW.toISOString(),
+    actor_id: "cashier",
+  };
+}
+
 describe("removeSaleLine", () => {
-  it("takes the line out of the sale and leaves no trace of it", () => {
+  it("takes the line out of the sale, recording only its sale_line_removed event", () => {
     const store = ledger();
     const before = structuredClone(store.state);
 
@@ -121,8 +160,135 @@ describe("removeSaleLine", () => {
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
     });
-    expect(store.state).toEqual({ ...before, sales: [{ ...OPEN_SALE, lines: [AZUCAR_LINE] }] });
+    expect(store.state).toEqual({
+      ...before,
+      sales: [{ ...OPEN_SALE, lines: [AZUCAR_LINE] }],
+      outbox: [removedEvent(YERBA_LINE_RECORD)],
+    });
     expect(store.transactions).toBe(1);
+  });
+
+  it("records the line under the actor who removes it, not the one who opened the sale", () => {
+    const store = ledger({
+      accesses: { cashier: CASHIER },
+      sales: [{ ...OPEN_SALE, actorId: "former" }],
+    });
+
+    remove(store, "line-1");
+
+    expect(store.state.outbox).toEqual([removedEvent(YERBA_LINE_RECORD)]);
+  });
+
+  it("records the removal as a fact of the removed line, not of the sale it was removed from", () => {
+    const store = ledger();
+
+    remove(store, "line-1");
+
+    expect(store.state.outbox).toEqual([
+      expect.objectContaining({ aggregate_type: "SaleLine", aggregate_id: "line-1" }),
+    ]);
+  });
+
+  it("records a line sold by weight with where its weight came from", () => {
+    const weighed = {
+      ...AZUCAR_LINE,
+      saleUnit: "KG" as const,
+      weightSource: "SCALE" as const,
+      quantity: 1250,
+    };
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [YERBA_LINE, weighed] }] });
+
+    remove(store, "line-2");
+
+    expect(store.state.outbox).toEqual([
+      removedEvent(
+        {
+          ...YERBA_LINE_RECORD,
+          product_id: "azucar",
+          product_name: "Azucar",
+          weight_source: "SCALE",
+          quantity: 1250,
+          list_unit_price: 1200,
+          promotion_id: null,
+          discount_amount: 0,
+          line_total: 1200,
+        },
+        "line-2",
+      ),
+    ]);
+  });
+
+  it("records a line with its manual adjustment and promotions", () => {
+    const adjusted = {
+      ...YERBA_LINE,
+      promotions: [
+        {
+          id: "ten",
+          name: "Diez por ciento",
+          benefit: { kind: "PERCENT_OFF" as const, percent: 10 },
+        },
+      ],
+      manualAdjustment: {
+        kind: "PERCENT" as const,
+        percent: 5,
+        reason: "Producto golpeado",
+        authorizedBy: "supervisor",
+      },
+    };
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [adjusted, AZUCAR_LINE] }] });
+
+    remove(store, "line-1");
+
+    expect(store.state.outbox).toEqual([
+      removedEvent({
+        ...YERBA_LINE_RECORD,
+        promotions: [
+          { discount_id: "ten", kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null },
+        ],
+        manual_adjustment: {
+          kind: "PERCENT",
+          value: 5,
+          reason: "Producto golpeado",
+          authorized_by: "supervisor",
+        },
+      }),
+    ]);
+  });
+
+  it("records one event per line removed", () => {
+    const store = ledger();
+
+    remove(store, "line-1");
+    remove(store, "line-2");
+
+    expect(store.state.outbox.map((event) => event.aggregate_id)).toEqual(["line-1", "line-2"]);
+    expect(store.state.outbox.map((event) => event.event_type)).toEqual([
+      "sale_line_removed",
+      "sale_line_removed",
+    ]);
+  });
+
+  it("answers that it is unavailable while the outbox is not ready, leaving everything as it was", () => {
+    const store = ledger({ outboxReady: false });
+    const before = structuredClone(store.state);
+
+    expect(remove(store, "line-1")).toEqual({ kind: "unavailable" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("answers the refusals of the sale before the outbox is looked at", () => {
+    const store = ledger({ outboxReady: false });
+
+    expect(remove(store, "line-9")).toEqual({ kind: "unknown_line" });
+  });
+
+  it("records nothing and keeps the line when appending the event fails", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+    store.failOn = "appendOutboxEvent";
+
+    expect(() => remove(store, "line-1")).toThrow("appendOutboxEvent failed");
+    expect(store.state).toEqual(before);
   });
 
   it("keeps the sale open when its last line goes", () => {
@@ -261,6 +427,7 @@ describe("removeSaleLine on a sale with a discount on the total", () => {
     const outcome = remove(store, "line-1");
 
     expect(store.state.sales[0]?.saleDiscount).toBeNull();
+    expect(store.state.outbox).toEqual([removedEvent(YERBA_LINE_RECORD)]);
     expect(outcome).toEqual(
       expect.objectContaining({
         kind: "removed",

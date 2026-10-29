@@ -1826,7 +1826,7 @@ describe("the lines of the sale being changed", () => {
     ]);
   });
 
-  it("deletes a removed line with its frozen promotions and keeps nothing about it", () => {
+  it("deletes a removed line with its frozen promotions, keeping only its outbox event", () => {
     scan("111");
     scan("111");
     scan("222");
@@ -1841,21 +1841,42 @@ describe("the lines of the sale being changed", () => {
       ...before,
       sale_lines: 1,
       sale_line_promotions: 0,
+      outbox: 1,
     });
   });
 
-  it("cancels the sale by deleting it with its lines and their promotions, appending no event", () => {
+  it("chains the removed line in a sale_line_removed event", () => {
+    scan("111");
+    scan("222");
+
+    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p1") });
+
+    const event = database.prepare("SELECT event_type, payload FROM outbox").get() as {
+      event_type: string;
+      payload: string;
+    };
+    expect(event.event_type).toBe("sale_line_removed");
+    expect(JSON.parse(event.payload)).toMatchObject({
+      sale_id: "id-1",
+      line: { product_id: "p1", quantity: 1 },
+    });
+  });
+
+  it("cancels the sale by deleting it with its lines and their promotions, appending only the sale_cancelled event", () => {
     const before = rowsPerTable();
     scan("111");
     scan("222");
 
     const outcome = cancelSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1" },
     );
 
     expect(outcome).toEqual({ kind: "cancelled" });
-    expect(rowsPerTable()).toEqual(before);
+    expect(rowsPerTable()).toEqual({ ...before, outbox: 1 });
+    expect(database.prepare("SELECT event_type, aggregate_id FROM outbox").all()).toEqual([
+      { event_type: "sale_cancelled", aggregate_id: "id-1" },
+    ]);
   });
 
   it("keeps the completed sales of the session when cancelling the open one", () => {
@@ -1864,7 +1885,7 @@ describe("the lines of the sale being changed", () => {
     scan("222");
 
     cancelSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1" },
     );
 
@@ -1993,10 +2014,9 @@ describe("the lines of the sale being changed", () => {
     });
 
     expect(outcome.kind).toBe("completed");
-    const event = database.prepare("SELECT event_type, payload FROM outbox").get() as {
-      event_type: string;
-      payload: string;
-    };
+    const event = database
+      .prepare("SELECT event_type, payload FROM outbox WHERE event_type = 'sale_completed'")
+      .get() as { event_type: string; payload: string };
     expect(event.event_type).toBe("sale_completed");
     const payload = JSON.parse(event.payload);
     expect(
@@ -2008,30 +2028,33 @@ describe("the lines of the sale being changed", () => {
   it("lets the next scan start a new open sale once the previous one is cancelled", () => {
     scan("111");
     cancelSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1" },
     );
 
     scan("111");
 
     expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
-      { id: "id-3", state: "OPEN" },
+      { id: "id-4", state: "OPEN" },
     ]);
   });
 
-  it("cancels the open sale even when the register has no outbox key", () => {
+  it("leaves the open sale as it was when the register has no outbox key", () => {
     const keyless = new SqliteSaleLedger(database, new SqliteSignInStore(database));
-    const before = rowsPerTable();
     scan("111");
+    const before = rowsPerTable();
 
     expect(
       cancelSale(
-        { ledger: keyless, restoration: restorationOf(database), clock: { now: () => NOW } },
+        {
+          ledger: keyless,
+          restoration: restorationOf(database),
+          clock: { now: () => NOW },
+          ids,
+        },
         { actorId: "u1" },
       ),
-    ).toEqual({
-      kind: "cancelled",
-    });
+    ).toEqual({ kind: "unavailable" });
     expect(rowsPerTable()).toEqual(before);
   });
 });

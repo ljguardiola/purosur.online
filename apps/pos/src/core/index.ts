@@ -1335,7 +1335,10 @@ const rendererRequestDeps: RendererRequestDeps = {
               database: localDatabase,
               restoration: restorationOf(localDatabase),
               gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now,
+              ids: uuidV7Ids,
             },
             lineId,
           ),
@@ -1348,7 +1351,10 @@ const rendererRequestDeps: RendererRequestDeps = {
             database: localDatabase,
             restoration: restorationOf(localDatabase),
             gate: actionGate,
+            readOutboxChainKey: async () =>
+              (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
             now,
+            ids: uuidV7Ids,
           }),
   cancelPaidSale:
     localDatabase === undefined || actionGate === undefined

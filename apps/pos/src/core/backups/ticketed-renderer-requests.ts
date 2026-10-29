@@ -1,3 +1,4 @@
+import { paidSaleCancellationLeavesBackupTicket } from "@purosur/domain";
 import { completedSaleId } from "../platform/completed-sale-id";
 import type { RendererRequestDeps } from "../renderer-requests";
 import type { TicketedOperations } from "./ticketed-operation";
@@ -53,7 +54,13 @@ export function ticketedRendererRequests<TRequests extends TicketableRendererReq
       requests.abandonMercadoPagoCharge,
       saleOfChargeRequest,
     ),
-    cancelPaidSale: ticketed("paid_sale_cancellation", requests.cancelPaidSale, saleOfRequest),
+    cancelPaidSale: ticketed(
+      "paid_sale_cancellation",
+      requests.cancelPaidSale,
+      saleOfRequest,
+      (_args, outcome) =>
+        outcome.kind !== "cancelled" || paidSaleCancellationLeavesBackupTicket(outcome.refunds),
+    ),
     voidSale: ticketed("sale_void", requests.voidSale, saleOfRequest),
     completeReturn: ticketed("return", requests.completeReturn, (_args, outcome) =>
       outcome.kind === "completed" ? outcome.return_id : null,

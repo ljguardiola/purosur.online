@@ -218,6 +218,33 @@ const LINE_RECORD = {
   line_total: 6750,
 };
 
+function unpaidCancellationEvent(actorId: string, authorizedBy: string | null) {
+  return {
+    event_id: "id-1",
+    aggregate_type: "Sale",
+    aggregate_id: "sale-1",
+    event_type: "sale_cancelled",
+    schema_version: 9,
+    payload: {
+      id: "sale-1",
+      register_id: "register-1",
+      device_id: "device-1",
+      session_id: "session-1",
+      actor_id: "cashier",
+      authorized_by: authorizedBy,
+      occurred_at: NOW.toISOString(),
+      total: 6750,
+      sale_discount: null,
+      lines: [LINE_RECORD],
+      payments: [],
+      refunds: [],
+      cash_movements: [],
+    },
+    occurred_at: NOW.toISOString(),
+    actor_id: actorId,
+  };
+}
+
 describe("cancelPaidSale", () => {
   describe("a sale partly paid in cash", () => {
     it("gives the cash back with a refund cash movement and records the cancelled sale with its refund", async () => {
@@ -291,7 +318,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 8,
+          schema_version: 9,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -492,15 +519,45 @@ describe("cancelPaidSale", () => {
   });
 
   describe("a sale without approved payments", () => {
-    it("discards it, recording nothing and sending no event", async () => {
+    it("discards it, recording only the sale_cancelled event", async () => {
       const store = ledger({ payments: [], movements: [] });
       const before = structuredClone(store.state);
 
       const outcome = await cancel(store);
 
       expect(outcome).toEqual({ kind: "cancelled", refunds: [], grant: OWN_GRANT });
-      expect(store.state).toEqual({ ...before, sales: [] });
+      expect(store.state).toEqual({
+        ...before,
+        sales: [],
+        outbox: [unpaidCancellationEvent("cashier", null)],
+      });
     });
+
+    it("records who authorized the cancellation in the event", async () => {
+      const store = ledger({ payments: [], movements: [] });
+
+      await cancel(store, AUTHORIZED_GRANT);
+
+      expect(store.state.outbox).toEqual([unpaidCancellationEvent("cashier", "supervisor")]);
+    });
+
+    it.each(["sale", "locked_register"] as const)(
+      "answers that it is unavailable from the %s while the outbox is not ready, leaving everything as it was",
+      async (from) => {
+        const store = ledger({ payments: [], movements: [], outboxReady: false });
+        const before = structuredClone(store.state);
+
+        const outcome = await cancel(
+          store,
+          from === "sale" ? OWN_GRANT : CLOSER_GRANT,
+          "sale-1",
+          from,
+        );
+
+        expect(outcome).toEqual({ kind: "unavailable" });
+        expect(store.state).toEqual(before);
+      },
+    );
   });
 
   describe("a sale partly paid on the standalone card terminal", () => {
@@ -560,7 +617,7 @@ describe("cancelPaidSale", () => {
       expect(store.state.movements.filter(({ type }) => type === "REFUND")).toEqual([]);
     });
 
-    it("tells the cloud with a version 8 event carrying the payment and its pending refund", async () => {
+    it("tells the cloud with a sale_cancelled event carrying the payment and its pending refund", async () => {
       const store = ledger({ payments: [STANDALONE_TERMINAL_PAYMENT] });
 
       await cancel(store);
@@ -568,7 +625,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 8,
+        schema_version: 9,
         payload: {
           payments: [{ id: "payment-5", method: "STANDALONE_TERMINAL", state: "APPROVED" }],
           refunds: [
@@ -622,7 +679,7 @@ describe("cancelPaidSale", () => {
       },
     );
 
-    it("tells the cloud with a version 8 event carrying the QR payment and its pending refund", async () => {
+    it("tells the cloud with a sale_cancelled event carrying the QR payment and its pending refund", async () => {
       const store = ledger({ payments: [QR_PAYMENT] });
 
       await cancel(store);
@@ -630,7 +687,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 8,
+        schema_version: 9,
         payload: {
           payments: [{ id: "payment-3", method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [
@@ -684,7 +741,7 @@ describe("cancelPaidSale", () => {
       },
     );
 
-    it("tells the cloud with a version 8 event carrying the terminal payment and its pending refund", async () => {
+    it("tells the cloud with a sale_cancelled event carrying the terminal payment and its pending refund", async () => {
       const store = ledger({ payments: [POINT_PAYMENT] });
 
       await cancel(store);
@@ -692,7 +749,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 8,
+        schema_version: 9,
         payload: {
           payments: [
             {
@@ -883,7 +940,7 @@ describe("cancelPaidSale", () => {
         grant: { actorId: "plain", authorizedBy: "plain" },
       });
       expect(store.state.sales).toEqual([]);
-      expect(store.state.outbox).toEqual([]);
+      expect(store.state.outbox).toEqual([unpaidCancellationEvent("plain", "plain")]);
     });
 
     it("answers that it is unavailable while the outbox is not ready, leaving everything as it was", async () => {
@@ -892,17 +949,6 @@ describe("cancelPaidSale", () => {
 
       expect(await cancelLocked(store)).toEqual({ kind: "unavailable" });
       expect(store.state).toEqual(before);
-    });
-
-    it("discards a sale without approved payments while the outbox is not ready", async () => {
-      const store = lockedLedger({ payments: [], movements: [], outboxReady: false });
-
-      expect(await cancelLocked(store)).toEqual({
-        kind: "cancelled",
-        refunds: [],
-        grant: CLOSER_GRANT,
-      });
-      expect(store.state.sales).toEqual([]);
     });
 
     it("refuses without an open cash session", async () => {
@@ -971,7 +1017,7 @@ describe("cancelPaidSale with a QR charge", () => {
     },
   );
 
-  it("keeps a sale without approved payments, cancelled now, after the wait, sending no event", async () => {
+  it("keeps a sale without approved payments, cancelled now, after the wait, with its sale_cancelled event", async () => {
     const pending = pendingQrEndingAt(new Date(NOW.getTime() - 1));
     const store = ledger({ payments: [], movements: [], pendingMercadoPagoPayments: [pending] });
 
@@ -980,6 +1026,6 @@ describe("cancelPaidSale with a QR charge", () => {
     expect(outcome).toEqual({ kind: "cancelled", refunds: [], grant: OWN_GRANT });
     expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
     expect(store.state.pendingMercadoPagoPayments).toEqual([pending]);
-    expect(store.state.outbox).toEqual([]);
+    expect(store.state.outbox).toEqual([unpaidCancellationEvent("cashier", null)]);
   });
 });

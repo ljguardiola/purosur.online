@@ -18,6 +18,10 @@ export function ReportsIndexScreen({ returnsShown }: { returnsShown: boolean }) 
         />
         <ReportRow to="/reports/sales-by-cashier" label="Ventas por cajero" />
         <ReportRow to="/reports/hand-typed-weights" label="Pesos tipeados a mano" />
+        <ReportRow
+          to="/reports/removed-lines-and-cancelled-sales"
+          label="Líneas quitadas y ventas canceladas"
+        />
         <ReportRow to="/reports/average-ticket" label="Ticket promedio" />
         <ReportRow to="/reports/sales-by-promotion" label="Descuentos por promoción" />
         <ReportRow to="/reports/manual-discounts" label="Descuentos manuales y sobre el total" />

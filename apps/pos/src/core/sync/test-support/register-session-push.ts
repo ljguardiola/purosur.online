@@ -43,11 +43,13 @@ import {
   adjustSaleLineFor,
   applySaleDiscountFor,
   cancelPaidSaleFor,
+  cancelSaleFor,
   changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   chargeSaleOnStandaloneTerminalFor,
   currentSaleFor,
+  removeSaleLineFor,
   scanProductFor,
 } from "../../sales/sale-requests";
 import { ControllableReceiptPrinter } from "../../sales/test-support/controllable-receipt-printer";
@@ -768,6 +770,22 @@ export async function withRegisterSession<TResult>(
       authorization: { user_id: GRACE, pin: PIN },
     });
     expectOutcome("cancel the sale paid by QR authorized by PIN", cancelledOnQr.kind, "cancelled");
+    nextStep();
+    const unpaidFirst = await scanProductFor(deps(), "7790001000011");
+    expectOutcome("scan a product to remove", unpaidFirst.kind, "added");
+    nextStep();
+    const unpaidSecond = await scanProductFor(deps(), "7790001000028");
+    if (unpaidSecond.kind !== "added") {
+      throw new Error(
+        `The register session's "scan another product to cancel" ended as "${unpaidSecond.kind}"`,
+      );
+    }
+    nextStep();
+    const removedLine = await removeSaleLineFor(deps(), unpaidSecond.sale.lines[1]?.id ?? "");
+    expectOutcome("remove a line of the sale", removedLine.kind, "removed");
+    nextStep();
+    const cancelledUnpaid = await cancelSaleFor(deps());
+    expectOutcome("cancel the sale without payments", cancelledUnpaid.kind, "cancelled");
     nextStep();
     const replacedScan = await scanProductFor(deps(), "7790001000028");
     if (replacedScan.kind !== "added") {

@@ -1662,6 +1662,44 @@ export const saleLines = pgTable(
   ],
 );
 
+// Names no foreign key to sales: a removal reaches the cloud before its sale, and its sale may never arrive.
+export const removedSaleLines = pgTable(
+  "removed_sale_lines",
+  {
+    id: uuid("id").primaryKey(),
+    saleId: uuid("sale_id").notNull(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => cashSessions.id),
+    actorId: text("actor_id").notNull(),
+    productId: uuid("product_id").notNull(),
+    productName: text("product_name").notNull(),
+    quantity: integer("quantity").notNull(),
+    weightSource: text("weight_source"),
+    lineTotal: bigint("line_total", { mode: "number" }).notNull(),
+    removedAt: timestamp("removed_at", { withTimezone: true }).notNull(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
+    originEventId: uuid("origin_event_id").notNull(),
+  },
+  (table) => [
+    index("removed_sale_lines_location_id_removed_at_idx").on(table.locationId, table.removedAt),
+    index("removed_sale_lines_register_id_removed_at_idx").on(table.registerId, table.removedAt),
+    check(
+      "removed_sale_lines_weight_source_check",
+      sql`${table.weightSource} IN ('SCALE', 'MANUAL')`,
+    ),
+  ],
+);
+
 // Append-only: how a register was paid is a fact of the sale; the cloud never rewrites or removes it.
 export const salePayments = pgTable(
   "sale_payments",

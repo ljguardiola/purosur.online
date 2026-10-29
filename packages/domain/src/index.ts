@@ -102,6 +102,7 @@ export {
   OFFSITE_DUMP_FAILURE_REASONS,
   OFFSITE_DUMP_REPORTED_FAILURE_REASONS,
   OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT,
+  paidSaleCancellationLeavesBackupTicket,
 } from "./backups/index.js";
 export type { BranchWeeklyHoursRange } from "./branch/index.js";
 export {
@@ -826,6 +827,7 @@ export {
   withUncountedReturns,
 } from "./returns/index.js";
 export type {
+  CancelledSaleFacts,
   CreditNoteReceiptContent,
   DeferredSaleFacts,
   DeferredSaleInvoice,
@@ -848,6 +850,8 @@ export type {
   ReceiptPrintObservation,
   ReceiptPrintStanding,
   ReceiptSource,
+  RemovalFacts,
+  RemovedLinesGroup,
   Sale,
   SaleComprobante,
   SaleDiscount,
@@ -876,6 +880,7 @@ export type {
 export {
   amountToCharge,
   appliedSaleDiscountAmount,
+  CANCELLED_SALES_REPORT_SALE_STATE,
   grossSaleSubtotal,
   isDeferralPending,
   manualAdjustmentReason,

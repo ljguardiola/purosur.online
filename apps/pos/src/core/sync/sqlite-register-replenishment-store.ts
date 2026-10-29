@@ -215,6 +215,8 @@ function applyFact(
     case "qr_payment_replaced":
       applyReplenishedSaleFact(database, fact, source);
       return "applied";
+    case "sale_line_removed":
+      return "applied";
     case "opening_count_recorded":
     case "opening_count_withdrawn":
       applyReplenishedOpeningCountFact(database, fact);

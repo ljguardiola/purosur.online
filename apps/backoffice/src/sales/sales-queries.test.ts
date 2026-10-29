@@ -10,6 +10,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
   client.setQueryData(salesKeys.productsAndCategories({ group: "category" }), []);
   client.setQueryData(salesKeys.cashiers({}), []);
   client.setQueryData(salesKeys.handTypedWeights({}), []);
+  client.setQueryData(salesKeys.removedLinesAndCancelledSales({}), []);
   client.setQueryData(salesKeys.promotions({}), []);
   client.setQueryData(salesKeys.manualDiscounts({}), []);
   client.setQueryData(salesKeys.averageTicket({}), []);
@@ -23,6 +24,9 @@ test("invalidating the sales key marks every sales read stale", async () => {
   ).toBe(true);
   expect(client.getQueryState(salesKeys.cashiers({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(salesKeys.handTypedWeights({}))?.isInvalidated).toBe(true);
+  expect(client.getQueryState(salesKeys.removedLinesAndCancelledSales({}))?.isInvalidated).toBe(
+    true,
+  );
   expect(client.getQueryState(salesKeys.promotions({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(salesKeys.manualDiscounts({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(salesKeys.averageTicket({}))?.isInvalidated).toBe(true);
@@ -113,6 +117,18 @@ test("each range and register has its own hand typed weights key", () => {
     salesKeys.handTypedWeights({ from: "2026-10-01", to: "2026-10-08" }),
     salesKeys.handTypedWeights({ register_id: FRONT_REGISTER_ID }),
     salesKeys.cashiers({ register_id: FRONT_REGISTER_ID }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+});
+
+test("each range and register has its own removed lines and cancelled sales key", () => {
+  const keys = [
+    salesKeys.removedLinesAndCancelledSales({}),
+    salesKeys.removedLinesAndCancelledSales({ from: "2026-10-01", to: "2026-10-07" }),
+    salesKeys.removedLinesAndCancelledSales({ from: "2026-10-01", to: "2026-10-08" }),
+    salesKeys.removedLinesAndCancelledSales({ register_id: FRONT_REGISTER_ID }),
+    salesKeys.handTypedWeights({ register_id: FRONT_REGISTER_ID }),
   ];
 
   expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);

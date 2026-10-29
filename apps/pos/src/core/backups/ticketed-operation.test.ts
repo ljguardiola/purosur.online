@@ -64,6 +64,38 @@ describe("an operation that leaves a ticket in a connectivity gap", () => {
     expect(log.at(-1)).toBe("kick");
   });
 
+  it("records no ticket when the outcome does not need one, though it appended events", async () => {
+    const { ticketing, recorded, log } = setup();
+    const operation = ticketing.ticketed(
+      "paid_sale_cancellation",
+      async (_request: { saleId: string }) => ({ kind: "cancelled", refunds: [] as string[] }),
+      (request) => request[0].saleId,
+      (_request, outcome) => outcome.refunds.length > 0,
+    );
+
+    const outcome = await operation?.({ saleId: "sale-1" });
+
+    expect(outcome).toEqual({ kind: "cancelled", refunds: [] });
+    expect(recorded).toEqual([]);
+    expect(log).not.toContain("record");
+  });
+
+  it("records the ticket when the outcome needs one", async () => {
+    const { ticketing, recorded } = setup();
+    const operation = ticketing.ticketed(
+      "paid_sale_cancellation",
+      async (_request: { saleId: string }) => ({ kind: "cancelled", refunds: ["refund-1"] }),
+      (request) => request[0].saleId,
+      (_request, outcome) => outcome.refunds.length > 0,
+    );
+
+    await operation?.({ saleId: "sale-1" });
+
+    expect(recorded).toEqual([
+      expect.objectContaining({ operation: "paid_sale_cancellation", subjectId: "sale-1" }),
+    ]);
+  });
+
   it("reads the last sequence number and the mode before the operation and again after it", async () => {
     const { ticketing, log } = setup();
     const operation = ticketing.ticketed("cash_movement", async () => {

@@ -16,7 +16,11 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSalesReportRoutes } from "./sales-report-routes.js";
-import { applyCompletedSale } from "./test-support/applied-sales.js";
+import {
+  applyCancelledSale,
+  applyCompletedSale,
+  applyRemovedSaleLine,
+} from "./test-support/applied-sales.js";
 import {
   aSoldLine,
   insertCategoryNamed,
@@ -741,6 +745,168 @@ describe("GET /reports/hand-typed-weights", () => {
     await applySyncedEventsTask(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW });
 
     const response = await handTypedWeights(headers);
+
+    expect(response.json().cashiers).toEqual([]);
+  });
+});
+
+function removedAndCancelled(headers: Record<string, string>, query = "") {
+  return app.inject({
+    method: "GET",
+    url: `/reports/removed-lines-and-cancelled-sales${query}`,
+    headers,
+  });
+}
+
+async function removeAndCancel(options: { approvedPayment?: boolean } = {}) {
+  await db
+    .insert(users)
+    .values({
+      id: USER,
+      firstName: "Ana",
+      email: "ana@example.com",
+      locationId: await seededLocationId(db),
+    })
+    .onConflictDoNothing();
+  const { deviceId, registerId } = await insertEnrolledInstallation(db, {
+    now: NOW,
+    registerName: "Caja 1",
+  });
+  const cancelled = await applyCancelledSale(db, {
+    deviceId,
+    cancelledAt: NOW,
+    total: 2_000,
+    overrides: {
+      lines: [aSoldLine(randomUUID(), "Yerba", 2, 2_000)],
+      ...(options.approvedPayment === true ? {} : { payments: [], refunds: [], cashMovements: [] }),
+    },
+  });
+  const removal = await applyRemovedSaleLine(db, {
+    deviceId,
+    removedAt: NOW,
+    inOpenSession: cancelled.sessionId,
+  });
+  return { registerId, removal, cancelled };
+}
+
+describe("GET /reports/removed-lines-and-cancelled-sales access", () => {
+  const request = removedAndCancelled;
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await request({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe("GET /reports/removed-lines-and-cancelled-sales", () => {
+  it.each([
+    ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
+    ["a register that is not an id", "?register_id=caja-1"],
+    ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
+  ])("answers 400 to %s", async (_name, query) => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await removedAndCancelled(headers, query);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("reports the current Argentina day when no range is asked", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await removedAndCancelled(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      cashiers: [],
+      sessions: [],
+      totals: {
+        removed: { lines: 0, units: 0, thousandths: 0, amount: 0 },
+        cancelled: { sales: 0, units: 0, thousandths: 0, amount: 0 },
+      },
+    });
+  });
+
+  it("answers the removed lines and the cancelled sales by cashier and by session", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    await removeAndCancel();
+
+    const response = await removedAndCancelled(headers);
+
+    const removed = { lines: 1, units: 2, thousandths: 0, amount: 4_800 };
+    const cancelled = { sales: 1, units: 2, thousandths: 0, amount: 2_000 };
+    const body = response.json();
+    expect(body.cashiers).toEqual([{ cashier_id: USER, name: "Ana", removed, cancelled }]);
+    expect(body.sessions).toEqual([
+      {
+        session_id: expect.any(String),
+        register_name: "Caja 1",
+        opened_at: "2026-10-07T15:00:00.000Z",
+        removed,
+        cancelled,
+      },
+    ]);
+    expect(body.totals).toEqual({ removed, cancelled });
+  });
+
+  it("leaves out a sale cancelled after a payment was approved", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    await removeAndCancel({ approvedPayment: true });
+
+    const response = await removedAndCancelled(headers);
+
+    expect(response.json().totals).toMatchObject({
+      removed: { lines: 1 },
+      cancelled: { sales: 0, amount: 0 },
+    });
+  });
+
+  it("filters by an asked register of the branch", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { registerId } = await removeAndCancel();
+
+    const ofTheRegister = await removedAndCancelled(headers, `?register_id=${registerId}`);
+    const ofAnotherRegister = await removedAndCancelled(headers, `?register_id=${randomUUID()}`);
+
+    expect(ofTheRegister.json().totals.removed.lines).toBe(1);
+    expect(ofAnotherRegister.json().totals.removed.lines).toBe(0);
+  });
+
+  it("reports the branch of the session and never another", async () => {
+    const otherLocationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["view_reports"], NOW, {
+      locationId: otherLocationId,
+    });
+    await removeAndCancel();
+
+    const response = await removedAndCancelled(headers);
 
     expect(response.json().cashiers).toEqual([]);
   });

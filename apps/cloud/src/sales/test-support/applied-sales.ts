@@ -6,9 +6,11 @@ import {
   aCancelledSale,
   aCashSessionOpenedFact,
   aCompletedSale,
+  aRemovedSaleLine,
   aVoidedSaleOf,
   type CancelledSale,
   type CompletedSale,
+  type RemovedSaleLine,
   type VoidedSale,
 } from "../../sync/test-support/synced-facts.js";
 
@@ -169,4 +171,52 @@ export async function applyVoidedSale<TQueryResult extends PgQueryResultHKT>(
     );
   });
   return voided;
+}
+
+export async function applyRemovedSaleLine<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  removal: {
+    deviceId: string;
+    removedAt: Date;
+    inOpenSession?: string;
+    overrides?: Partial<RemovedSaleLine>;
+  },
+): Promise<RemovedSaleLine> {
+  const { deviceId, removedAt, inOpenSession, overrides } = removal;
+  const application = new DrizzleEventApplication(
+    db,
+    () => removedAt,
+    async () => {},
+  );
+  const sessionId = inOpenSession ?? randomUUID();
+  const removed = aRemovedSaleLine({ removedAt, ...overrides, sessionId });
+  const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
+    unappliedEventOf(
+      {
+        event_id: randomUUID(),
+        device_seq: 1,
+        aggregate_type: aggregateType,
+        aggregate_id: aggregateId,
+        event_type: eventType,
+        schema_version: 1,
+        payload: {},
+        occurred_at: removedAt.toISOString(),
+        actor_id: removed.actorId,
+        chain_hmac: "hmac",
+      },
+      { deviceId },
+    );
+  await application.transaction(async (tx) => {
+    if (inOpenSession === undefined) {
+      await tx.record(
+        aCashSessionOpenedFact({ id: sessionId, openedAt: removedAt }),
+        eventOf("CashSession", sessionId, "cash_session_opened"),
+      );
+    }
+    await tx.record(
+      { kind: "sale_line_removed", removal: removed },
+      eventOf("SaleLine", removed.line.id, "sale_line_removed"),
+    );
+  });
+  return removed;
 }

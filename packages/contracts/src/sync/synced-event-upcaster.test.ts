@@ -2639,3 +2639,146 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 });
+
+describe("decoding a removed sale line and a cancelled sale without payments", () => {
+  const upcaster = syncedEventUpcaster;
+  const REMOVER = "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13";
+  const removedLine = {
+    ...saleLine,
+    weight_source: "MANUAL",
+    manual_adjustment: null,
+    sale_discount_share: 0,
+  };
+
+  it("reads a removed line as the removal of that line from its sale by the person who removed it", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_line_removed",
+          schema_version: 1,
+          occurred_at: "2026-10-06T11:18:00.000Z",
+          actor_id: REMOVER,
+          payload: {
+            sale_id: SALE,
+            register_id: saleFields.register_id,
+            device_id: saleFields.device_id,
+            session_id: SESSION,
+            actor_id: REMOVER,
+            occurred_at: "2026-10-06T11:18:00.000Z",
+            line: removedLine,
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "sale_line_removed",
+        removal: {
+          saleId: SALE,
+          sessionId: SESSION,
+          actorId: REMOVER,
+          removedAt: new Date("2026-10-06T11:18:00.000Z"),
+          line: {
+            id: saleLine.id,
+            productId: saleLine.product_id,
+            productName: "Azucar",
+            quantity: 2,
+            weightSource: "MANUAL",
+            lineTotal: 4800,
+          },
+        },
+      },
+    });
+  });
+
+  it("reads a removed line that was not weighed as having no weight source", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_line_removed",
+          schema_version: 1,
+          payload: {
+            sale_id: SALE,
+            register_id: saleFields.register_id,
+            device_id: saleFields.device_id,
+            session_id: SESSION,
+            actor_id: REMOVER,
+            occurred_at: "2026-10-06T11:18:00.000Z",
+            line: { ...removedLine, weight_source: null },
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: { removal: { line: { weightSource: null } } },
+    });
+  });
+
+  it("refuses a removed line that names no line", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_line_removed",
+          schema_version: 1,
+          payload: {
+            sale_id: SALE,
+            register_id: saleFields.register_id,
+            device_id: saleFields.device_id,
+            session_id: SESSION,
+            actor_id: REMOVER,
+            occurred_at: "2026-10-06T11:18:00.000Z",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({ kind: "unreadable", reason: expect.stringContaining("line") });
+  });
+
+  it("reads a cancelled sale that took no approved payment as a cancelled sale with none", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_cancelled",
+          schema_version: 9,
+          occurred_at: "2026-10-06T11:25:00.000Z",
+          payload: {
+            ...saleFields,
+            occurred_at: "2026-10-06T11:25:00.000Z",
+            authorized_by: null,
+            sale_discount: null,
+            lines: [removedLine],
+            payments: [],
+            refunds: [],
+            cash_movements: [],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "sale_cancelled",
+        sale: {
+          id: SALE,
+          sessionId: SESSION,
+          actorId: USER,
+          authorizedBy: null,
+          cancelledAt: new Date("2026-10-06T11:25:00.000Z"),
+          total: 4800,
+          saleDiscount: null,
+          saleDiscountAmount: 0,
+          lines: [{ ...decodedLine, weightSource: "MANUAL" }],
+          payments: [],
+          refunds: [],
+          cashMovements: [],
+        },
+      },
+    });
+  });
+});

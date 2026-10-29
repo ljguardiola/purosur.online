@@ -452,3 +452,23 @@ export function aReturnOf(
     ...overrides,
   };
 }
+
+export type RemovedSaleLine = FactOf<"sale_line_removed">["removal"];
+
+export function aRemovedSaleLine(overrides: Partial<RemovedSaleLine> = {}): RemovedSaleLine {
+  return {
+    saleId: randomUUID(),
+    sessionId: randomUUID(),
+    actorId: USER,
+    removedAt: new Date("2026-10-06T11:18:00.000Z"),
+    line: {
+      id: randomUUID(),
+      productId: "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+      productName: "Azucar",
+      quantity: 2,
+      weightSource: null,
+      lineTotal: 4800,
+    },
+    ...overrides,
+  };
+}

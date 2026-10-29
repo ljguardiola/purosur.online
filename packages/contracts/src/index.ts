@@ -721,6 +721,8 @@ export type { HandTypedWeightsBody } from "./sales/hand-typed-weights.js";
 export { handTypedWeightsSchema } from "./sales/hand-typed-weights.js";
 export type { ManualDiscountsBody, ManualDiscountsQuery } from "./sales/manual-discounts.js";
 export { manualDiscountsQuerySchema, manualDiscountsSchema } from "./sales/manual-discounts.js";
+export type { RemovedLinesAndCancelledSalesBody } from "./sales/removed-lines-and-cancelled-sales.js";
+export { removedLinesAndCancelledSalesSchema } from "./sales/removed-lines-and-cancelled-sales.js";
 export type {
   AddProductOutcome,
   AddWeighedProductOutcome,

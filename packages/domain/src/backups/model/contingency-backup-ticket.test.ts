@@ -10,6 +10,7 @@ import {
   contingencyBackupTicketsSummary,
   customerDocumentPrinted,
   needsContingencyBackupTicket,
+  paidSaleCancellationLeavesBackupTicket,
 } from "./contingency-backup-ticket.js";
 
 const REAL_TIME: FiscalEmissionMode = { kind: "real_time" };
@@ -111,6 +112,16 @@ describe("needsContingencyBackupTicket", () => {
         range: { firstDeviceSeq: 7, lastDeviceSeq: 7 },
       }),
     ).toBe(true);
+  });
+});
+
+describe("paidSaleCancellationLeavesBackupTicket", () => {
+  it("leaves a ticket for a cancellation that refunded an approved payment", () => {
+    expect(paidSaleCancellationLeavesBackupTicket([{ paymentId: "payment-1" }])).toBe(true);
+  });
+
+  it("leaves no ticket for a cancellation that refunded nothing, having no approved payment", () => {
+    expect(paidSaleCancellationLeavesBackupTicket([])).toBe(false);
   });
 });
 

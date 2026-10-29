@@ -226,6 +226,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@6",
       "sale_cancelled@7",
       "sale_cancelled@8",
+      "sale_cancelled@9",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
@@ -235,6 +236,7 @@ describe("synced event payloads", () => {
       "sale_completed@7",
       "sale_completed@8",
       "sale_completed@9",
+      "sale_line_removed@1",
       "sale_print_state_changed@1",
       "sale_print_state_changed@2",
       "sale_print_state_changed@3",
@@ -330,7 +332,8 @@ describe("synced event payloads", () => {
   it.each([
     ["an unknown event type", "sale_opened", 1],
     ["a sale_completed version nobody emitted", "sale_completed", 10],
-    ["a sale_cancelled version nobody emitted", "sale_cancelled", 9],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 10],
+    ["a sale_line_removed version nobody emitted", "sale_line_removed", 2],
     ["a sale_voided version nobody emitted", "sale_voided", 5],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
@@ -1151,6 +1154,74 @@ describe("synced event payloads", () => {
 
     it("refuses a QR payment in a cancelled sale", () => {
       expect(accepts("sale_cancelled", 1, { ...CANCELLED_SALE_V1, payments: [QR_PAYMENT] })).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("a cancelled sale in version 9", () => {
+    const unpaid = (): Payload => ({
+      ...recordedPayload("sale_cancelled", 9),
+      payments: [],
+      refunds: [],
+      cash_movements: [],
+    });
+
+    it("accepts a cancelled sale that took no approved payment", () => {
+      expect(accepts("sale_cancelled", 9, unpaid())).toBe(true);
+    });
+
+    it("accepts a cancelled sale with the payments and refunds of a paid one", () => {
+      expect(accepts("sale_cancelled", 9, recordedPayload("sale_cancelled", 9))).toBe(true);
+    });
+
+    it("refuses a cancelled sale that names no payments", () => {
+      const { payments: _payments, ...without } = unpaid();
+
+      expect(accepts("sale_cancelled", 9, without)).toBe(false);
+    });
+
+    it("refuses a cancelled sale that names no refunds", () => {
+      const { refunds: _refunds, ...without } = unpaid();
+
+      expect(accepts("sale_cancelled", 9, without)).toBe(false);
+    });
+
+    it("keeps refusing a cancelled sale without payments in version 8", () => {
+      expect(
+        accepts("sale_cancelled", 8, { ...recordedPayload("sale_cancelled", 8), payments: [] }),
+      ).toBe(false);
+      expect(
+        accepts("sale_cancelled", 8, { ...recordedPayload("sale_cancelled", 8), refunds: [] }),
+      ).toBe(false);
+    });
+  });
+
+  describe("a removed sale line", () => {
+    const removal = (): Payload => recordedPayload("sale_line_removed", 1);
+
+    it("accepts the removal the register records", () => {
+      expect(accepts("sale_line_removed", 1, removal())).toBe(true);
+    });
+
+    it.each([
+      "sale_id",
+      "register_id",
+      "device_id",
+      "session_id",
+      "actor_id",
+      "occurred_at",
+      "line",
+    ])("asks for the %s", (field) => {
+      expect(accepts("sale_line_removed", 1, { ...removal(), [field]: undefined })).toBe(false);
+    });
+
+    it("refuses a line that is not a sale line", () => {
+      expect(accepts("sale_line_removed", 1, { ...removal(), line: { id: "line-1" } })).toBe(false);
+    });
+
+    it("refuses a moment that is not an instant", () => {
+      expect(accepts("sale_line_removed", 1, { ...removal(), occurred_at: "yesterday" })).toBe(
         false,
       );
     });
@@ -3164,7 +3235,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 9)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 10)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {

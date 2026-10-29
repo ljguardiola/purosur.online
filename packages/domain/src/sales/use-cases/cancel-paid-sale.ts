@@ -1,16 +1,9 @@
-import type { SalePayment } from "../../payments/index.js";
-import { paymentRecord, plannedRefunds } from "../../payments/index.js";
+import { plannedRefunds } from "../../payments/index.js";
 import { registerOperationAccess } from "../../register/index.js";
-import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
+import type { Clock, OperationAuthority } from "../../shared/index.js";
 import { saleCancelRefusal } from "../model/open-sale-standing.js";
-import type { SaleWithLines } from "../model/sale.js";
-import { amountToCharge, settledLines } from "../model/sale-discount.js";
 import type { RegisterRestoration } from "./register-restoration.js";
-import {
-  saleCashMovementRecord,
-  saleDiscountRecord,
-  saleLineRecord,
-} from "./sale-event-records.js";
+import { saleCancelledEvent } from "./sale-cancelled-event.js";
 import type {
   IdGenerator,
   SaleCashMovement,
@@ -77,6 +70,20 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     }
     const planned = plannedRefunds(payments);
     if (planned.length === 0) {
+      if (!tx.outboxReady()) {
+        return { kind: "unavailable" };
+      }
+      tx.appendOutboxEvent(
+        saleCancelledEvent(ids.next(), {
+          sale,
+          payments,
+          refunds: [],
+          movements: tx.saleCashMovements(sale.id),
+          actorId,
+          authorizedBy,
+          occurredAt: now,
+        }),
+      );
       if (pendingMercadoPagoPayments.length > 0) {
         tx.recordCancelledSale(sale.id, now, undefined);
       } else {
@@ -108,7 +115,8 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
         payments,
         refunds,
         movements: tx.saleCashMovements(sale.id),
-        grant,
+        actorId,
+        authorizedBy,
         occurredAt,
       }),
     );
@@ -138,54 +146,5 @@ function refundMovement(
     occurredAt: refund.occurredAt,
     ref: { type: "sale", id: refund.saleId },
     ...(authorizedBy === undefined ? {} : { authorizedBy }),
-  };
-}
-
-interface Cancellation {
-  sale: SaleWithLines;
-  payments: readonly SalePayment[];
-  refunds: readonly SaleRefund[];
-  movements: readonly SaleCashMovement[];
-  grant: CancelPaidSaleGrant;
-  occurredAt: Date;
-}
-
-function saleCancelledEvent(
-  eventId: string,
-  { sale, payments, refunds, movements, grant, occurredAt }: Cancellation,
-): OutboxEventDraft {
-  const occurredAtIso = occurredAt.toISOString();
-  return {
-    event_id: eventId,
-    aggregate_type: "Sale",
-    aggregate_id: sale.id,
-    event_type: "sale_cancelled",
-    schema_version: 8,
-    payload: {
-      id: sale.id,
-      register_id: sale.registerId,
-      device_id: sale.deviceId,
-      session_id: sale.sessionId,
-      actor_id: sale.actorId,
-      authorized_by: grant.authorizedBy ?? null,
-      occurred_at: occurredAtIso,
-      total: amountToCharge(sale),
-      sale_discount: saleDiscountRecord(sale),
-      lines: settledLines(sale).map(saleLineRecord),
-      payments: payments.map(paymentRecord),
-      refunds: refunds.map((refund) => ({
-        id: refund.id,
-        kind: "REFUND",
-        parent_id: refund.paymentId,
-        method: refund.method,
-        provider: refund.provider,
-        amount: refund.amount,
-        state: refund.state,
-        occurred_at: occurredAtIso,
-      })),
-      cash_movements: movements.map(saleCashMovementRecord),
-    },
-    occurred_at: occurredAtIso,
-    actor_id: grant.actorId,
   };
 }
