@@ -80,6 +80,16 @@ describe("packagingProductOptions", () => {
   });
 });
 
+describe("packagingProductOptions order", () => {
+  it("orders two presentations of one name by their net content", () => {
+    const larger = { ...aceiteDeAlmendras, netContent: { quantity: 100, unit: "ML" } } as const;
+
+    expect(
+      packagingProductOptions([larger, aceiteDeAlmendras])?.map((option) => option.label),
+    ).toEqual(["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"]);
+  });
+});
+
 describe("packagingCreationRequestFrom", () => {
   it("sends the product, the trimmed name and the quantity typed in the product's unit as thousandths", () => {
     expect(

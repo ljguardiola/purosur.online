@@ -231,6 +231,31 @@ test("lists the products alphabetically by name", async () => {
     ]);
 });
 
+test("lists two presentations of one name by their net content", async () => {
+  const largerAlmondOil: ProductSummary = {
+    ...almondOilWithInternalBarcode,
+    id: "00000023-0000-4000-8000-000000000000",
+    netContent: { quantity: 100, unit: "ML" },
+  };
+  const screen = await renderModal(createServices(), {
+    products: [largerAlmondOil, almondOilWithInternalBarcode],
+  });
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect
+    .poll(() =>
+      dialog
+        .getByRole("button", { name: /^Sumar una etiqueta a / })
+        .all()
+        .map((button) => button.element().getAttribute("aria-label")),
+    )
+    .toEqual([
+      "Sumar una etiqueta a Aceite de Almendras Vitora 30 ml",
+      "Sumar una etiqueta a Aceite de Almendras Vitora 100 ml",
+    ]);
+});
+
 test("shows only the empty state when no product has an internal barcode", async () => {
   const services = createServices();
   const screen = await renderModal(services, { products: [withoutInternalBarcode] });

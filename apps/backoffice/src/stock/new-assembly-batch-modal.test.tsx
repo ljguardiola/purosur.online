@@ -166,6 +166,28 @@ test("offers the products that have a recipe, sorted by name", async () => {
     .toEqual(["Caja de infusiones", "Mix de frutos secos"]);
 });
 
+test("offers two presentations of one product's name, each by its own net content", async () => {
+  const largerBalsamo: RecipeSummary = {
+    ...balsamo,
+    productId: "a0000000-0000-4000-8000-000000000099",
+    netContent: { quantity: 100, unit: "G" },
+  };
+  const screen = await renderModal({ recipes: [largerBalsamo, balsamo] });
+
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("combobox", { name: /^Producto armado/ }),
+  );
+
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("option")
+        .all()
+        .map((option) => option.element().textContent),
+    )
+    .toEqual(["Bálsamo de caléndula Herbaria 50 g", "Bálsamo de caléndula Herbaria 100 g"]);
+});
+
 test("explains there is nothing to assemble when no product has a recipe", async () => {
   const screen = await renderModal({ recipes: [] });
 

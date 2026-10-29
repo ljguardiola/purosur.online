@@ -73,6 +73,31 @@ describe("recipeComponentOptions labels", () => {
   });
 });
 
+describe("recipe product pickers", () => {
+  const largerAlmondOil = {
+    ...aceiteDeAlmendras,
+    id: "c0000000-0000-4000-8000-000000000099",
+    netContent: { quantity: 100, unit: "ML" },
+    saleUnit: "UNIT",
+  } as const;
+  const smallerAlmondOil = { ...aceiteDeAlmendras, saleUnit: "UNIT" } as const;
+  const labels = ["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"];
+
+  it("offers the products without a recipe by the description they show", () => {
+    expect(
+      recipeProductOptions([largerAlmondOil, smallerAlmondOil], [])?.map((option) => option.label),
+    ).toEqual(labels);
+  });
+
+  it("offers the components by the description they show", () => {
+    expect(
+      recipeComponentOptions([largerAlmondOil, smallerAlmondOil], null, []).map(
+        (option) => option.label,
+      ),
+    ).toEqual(labels);
+  });
+});
+
 describe("recipeSaveRequestFrom", () => {
   it("sends each component's quantity typed in its own unit as thousandths, with the version", () => {
     expect(

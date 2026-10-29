@@ -410,6 +410,15 @@ describe("targetOptions", () => {
     expect(options?.map((option) => option.label)).toEqual(["Arroz Grano Fino", "Arroz 500 g"]);
   });
 
+  test("orders two presentations of one name by their net content", () => {
+    const small = { ...rice, id: "product-6", netContent: { quantity: 30, unit: "G" } } as const;
+    const large = { ...rice, id: "product-7", netContent: { quantity: 100, unit: "G" } } as const;
+
+    const options = targetOptions("PRODUCT", { ...nothing, products: [large, small] });
+
+    expect(options?.map((option) => option.label)).toEqual(["Arroz 30 g", "Arroz 100 g"]);
+  });
+
   test("tells two products with the same name apart by their labels", () => {
     const kilo = { ...rice, id: "product-7", name: "Yerba mate", brandName: "Hoja Alta" };
     const half = { ...rice, id: "product-8", name: "Yerba mate", brandName: "Monte Güirá" };

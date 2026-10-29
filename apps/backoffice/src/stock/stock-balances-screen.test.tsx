@@ -331,17 +331,17 @@ test("orders products of the same name by their whole description", async () => 
   const largeAlmondOil = {
     ...almondOil,
     id: "77777777-7777-4777-8777-777777777776",
-    netContent: { quantity: 60, unit: "ML" as const },
+    netContent: { quantity: 100, unit: "ML" as const },
   };
   const screen = await renderScreen(listed([largeAlmondOil, almondOil]));
-  await expect.element(screen.getByText("Aceite de Almendras Vitora 60 ml")).toBeVisible();
+  await expect.element(screen.getByText("Aceite de Almendras Vitora 100 ml")).toBeVisible();
 
   expect(
     shownProductNames(screen, [
       "Aceite de Almendras Vitora 30 ml",
-      "Aceite de Almendras Vitora 60 ml",
+      "Aceite de Almendras Vitora 100 ml",
     ]),
-  ).toEqual(["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 60 ml"]);
+  ).toEqual(["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"]);
 });
 
 test.each([

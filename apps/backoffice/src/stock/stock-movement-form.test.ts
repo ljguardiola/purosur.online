@@ -48,6 +48,20 @@ describe("productOptions", () => {
     ]);
   });
 
+  it("offers two presentations of one product's name, each by its own net content", () => {
+    const largerAlmondOil = {
+      ...almondOil,
+      id: "77777777-7777-4777-8777-777777777778",
+      netContent: { quantity: 100, unit: "ML" as const },
+    };
+
+    expect(
+      productOptions([withoutBalance(largerAlmondOil), withoutBalance(almondOil)])?.map(
+        (option) => option.label,
+      ),
+    ).toEqual(["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"]);
+  });
+
   it("offers nothing when there are no products", () => {
     expect(productOptions([])).toBeUndefined();
   });
