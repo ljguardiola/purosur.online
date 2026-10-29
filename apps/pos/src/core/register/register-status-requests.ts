@@ -9,6 +9,7 @@ import {
   registerOperationAccess,
   registerOwnConditionIdentity,
   registerOwnConditions,
+  registerOwnConditionsHeldIfAlreadyStarted,
   registerOwnConditionsNotYetKnown,
   type StorageStanding,
   storageSalesStopOf,
@@ -75,14 +76,15 @@ export function observedOwnConditionsOf({
     criticalBatteryAction: criticalBatteryAction(),
     clockOffsetMs: readLatestClockOffsetMs(database),
   };
-  const held = registerOwnConditions(standing);
   const observation = observeRegisterOwnConditions(
     { store: new SqliteRegisterConditionStartStore(database, zoneRules), clock: { now } },
     {
-      held: held.map(registerOwnConditionIdentity),
+      held: registerOwnConditions(standing, new Set()).map(registerOwnConditionIdentity),
+      heldIfAlreadyStarted: registerOwnConditionsHeldIfAlreadyStarted(standing),
       notYetKnown: registerOwnConditionsNotYetKnown(standing),
     },
   );
+  const held = registerOwnConditions(standing, new Set(observation.starts.keys()));
   if (observation.kind === "starts_not_recorded") {
     onConditionStartsNotRecorded(observation.failure);
   }

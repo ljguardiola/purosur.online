@@ -95,5 +95,6 @@ export {
   REGISTER_OWN_CONDITIONS,
   registerOwnConditionIdentity,
   registerOwnConditions,
+  registerOwnConditionsHeldIfAlreadyStarted,
   registerOwnConditionsNotYetKnown,
 } from "./model/register-own-conditions.js";

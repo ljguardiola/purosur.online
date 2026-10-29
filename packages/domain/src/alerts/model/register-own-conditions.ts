@@ -74,6 +74,11 @@ type HeldConditions<Kind extends RegisterOwnCondition> = {
   [Held in Kind]: Extract<DetectedRegisterOwnCondition, { kind: Held }> | null;
 };
 
+const ON_BATTERY_HELD = {
+  kind: "on_battery",
+  threshold_minutes: ON_BATTERY_CONDITION_MINUTES,
+} as const;
+
 export function batteryConditionsOf(
   battery: BatteryReport | undefined,
 ): HeldConditions<BatteryCondition> {
@@ -86,9 +91,7 @@ export function batteryConditionsOf(
             critical_percent: CRITICAL_BATTERY_PERCENT,
           }
         : null,
-    on_battery: isOnBatteryTooLong(battery)
-      ? { kind: "on_battery", threshold_minutes: ON_BATTERY_CONDITION_MINUTES }
-      : null,
+    on_battery: isOnBatteryTooLong(battery) ? ON_BATTERY_HELD : null,
     battery_missing: battery?.present === false ? { kind: "battery_missing" } : null,
   };
 }
@@ -139,21 +142,42 @@ interface RegisterOwnStanding {
   clockOffsetMs: number | null;
 }
 
-export function registerOwnConditions({
-  salesStop,
-  latestPreEmissionGate,
-  lastAcceptedPushAt,
-  hours,
-  now,
-  rules,
-  serialDevices,
-  storage,
-  localDatabaseDamaged,
+function isOnBatteryCountedOnlySinceStart({
   battery,
-  newSalesStoppedByBattery,
-  criticalBatteryAction,
-  clockOffsetMs,
-}: RegisterOwnStanding): HeldRegisterOwnCondition[] {
+  onBatteryCountedOnlySinceStart,
+}: Pick<RegisterOwnStanding, "battery" | "onBatteryCountedOnlySinceStart">): boolean {
+  return (
+    onBatteryCountedOnlySinceStart &&
+    battery?.present === true &&
+    battery.on_battery &&
+    !isOnBatteryTooLong(battery)
+  );
+}
+
+export function registerOwnConditionsHeldIfAlreadyStarted(standing: RegisterOwnStanding): string[] {
+  return isOnBatteryCountedOnlySinceStart(standing) ? ["on_battery"] : [];
+}
+
+export function registerOwnConditions(
+  standing: RegisterOwnStanding,
+  alreadyStarted: ReadonlySet<string>,
+): HeldRegisterOwnCondition[] {
+  const {
+    salesStop,
+    latestPreEmissionGate,
+    lastAcceptedPushAt,
+    hours,
+    now,
+    rules,
+    serialDevices,
+    storage,
+    localDatabaseDamaged,
+    battery,
+    newSalesStoppedByBattery,
+    criticalBatteryAction,
+    clockOffsetMs,
+  } = standing;
+  const batteryConditions = batteryConditionsOf(battery);
   const revoked = isInstallationRevoked(salesStop);
   const denial = salesDenialOf(
     salesStop,
@@ -185,7 +209,12 @@ export function registerOwnConditions({
         ? { kind: "disk_space_low" }
         : null,
     wal_oversized: storage.walOversized ? { kind: "wal_oversized" } : null,
-    ...batteryConditionsOf(battery),
+    ...batteryConditions,
+    on_battery:
+      batteryConditions.on_battery ??
+      (isOnBatteryCountedOnlySinceStart(standing) && alreadyStarted.has("on_battery")
+        ? ON_BATTERY_HELD
+        : null),
     critical_battery_action_not_shutdown: criticalBatteryActionShowsCondition(criticalBatteryAction)
       ? { kind: "critical_battery_action_not_shutdown" }
       : null,
@@ -202,7 +231,6 @@ export function registerOwnConditionsNotYetKnown({
   storage,
   localDatabaseDamaged,
   battery,
-  onBatteryCountedOnlySinceStart,
   newSalesStoppedByBattery,
   criticalBatteryAction,
 }: RegisterOwnStanding): string[] {
@@ -220,11 +248,6 @@ export function registerOwnConditionsNotYetKnown({
   );
   const unmeasuredStorage = !storage.measured;
   const unreadBattery = battery === undefined;
-  const onBatteryForUnknownTime =
-    onBatteryCountedOnlySinceStart &&
-    battery?.present === true &&
-    battery.on_battery &&
-    !isOnBatteryTooLong(battery);
   const notYetKnown: [string, boolean][] = [
     [
       registerOwnConditionIdentity({ kind: "sales_denied", reason: "disk_full" }),
@@ -238,7 +261,7 @@ export function registerOwnConditionsNotYetKnown({
     ["disk_space_low", unmeasuredStorage],
     ["wal_oversized", unmeasuredStorage],
     ["battery_low", unreadBattery],
-    ["on_battery", unreadBattery || onBatteryForUnknownTime],
+    ["on_battery", unreadBattery],
     ["battery_missing", unreadBattery],
     ["critical_battery_action_not_shutdown", criticalBatteryAction.kind === "unreadable"],
   ];

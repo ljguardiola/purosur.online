@@ -2,6 +2,7 @@ import type { ObserveRegisterOwnConditionsPorts } from "./register-condition-sta
 
 export interface ObserveRegisterOwnConditionsInput {
   held: readonly string[];
+  heldIfAlreadyStarted: readonly string[];
   notYetKnown: readonly string[];
 }
 
@@ -11,14 +12,20 @@ export type ObserveRegisterOwnConditionsOutcome =
 
 export function observeRegisterOwnConditions(
   { store, clock }: ObserveRegisterOwnConditionsPorts,
-  { held, notYetKnown }: ObserveRegisterOwnConditionsInput,
+  { held, heldIfAlreadyStarted, notYetKnown }: ObserveRegisterOwnConditionsInput,
 ): ObserveRegisterOwnConditionsOutcome {
   const now = clock.now();
   let starts: ReadonlyMap<string, Date> = new Map(held.map((condition) => [condition, now]));
   try {
     store.transaction((tx) => {
       const stored = tx.lockConditionStarts();
-      starts = new Map(held.map((condition) => [condition, stored.get(condition) ?? now]));
+      starts = new Map([
+        ...heldIfAlreadyStarted.flatMap((condition) => {
+          const start = stored.get(condition);
+          return start === undefined ? [] : [[condition, start] as const];
+        }),
+        ...held.map((condition) => [condition, stored.get(condition) ?? now] as const),
+      ]);
       const kept = new Map([
         ...[...stored].filter(([condition]) => notYetKnown.includes(condition)),
         ...starts,
