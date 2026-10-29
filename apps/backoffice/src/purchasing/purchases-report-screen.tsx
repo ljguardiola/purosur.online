@@ -11,19 +11,16 @@ import {
 import { ShoppingCart } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ReportFilters } from "../shell/report-filters";
-import {
-  type ReportFilters as ReportFiltersValue,
-  reportQueryOf,
-} from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import type { PurchasesReportFilters } from "./purchases-report-filters";
 import { purchasesReportMonthText } from "./purchases-report-month-text";
 import type { PurchasesReportScreenServices } from "./purchases-report-services";
 import { usePurchasesReportQuery } from "./purchasing-queries";
 
 export type PurchasesReportScreenProps = {
-  filters: ReportFiltersValue;
-  onFiltersChange: (filters: ReportFiltersValue) => void;
+  filters: PurchasesReportFilters;
+  onFiltersChange: (filters: PurchasesReportFilters) => void;
   onSessionEnded: () => void;
   services: PurchasesReportScreenServices;
 };
@@ -87,7 +84,7 @@ export function PurchasesReportScreen({
   services,
 }: PurchasesReportScreenProps) {
   const data = usePurchasesReportQuery({
-    query: reportQueryOf(filters),
+    query: filters.from === "" ? {} : { from: filters.from, to: filters.to },
     fetchPurchasesReport: services.fetchPurchasesReport,
     onSessionEnded,
   });
@@ -134,7 +131,7 @@ export function PurchasesReportScreen({
         empty={{
           icon: <ShoppingCart />,
           title: "No hay compras en este período",
-          variant: "blank",
+          variant: filters.from === "" ? "blank" : "filtered",
         }}
       />
     </ScreenLayout>
