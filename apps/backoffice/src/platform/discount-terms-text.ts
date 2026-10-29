@@ -1,5 +1,6 @@
 import type { DiscountBenefit, DiscountTargetKind } from "@purosur/domain";
 import { formatNumber } from "@purosur/ui";
+import { formatProductDescription, type NetContent } from "@purosur/ui/formatters";
 
 export const DISCOUNT_TARGET_KIND_LABELS = {
   PRODUCT: "Producto",
@@ -28,8 +29,13 @@ export function discountBenefitText(benefit: DiscountBenefit): string {
   }
 }
 
-export function discountTargetLine(target: { kind: DiscountTargetKind; name: string }): string {
-  return `${DISCOUNT_TARGET_KIND_LABELS[target.kind]} · ${target.name}`;
+export function discountTargetLine(target: {
+  kind: DiscountTargetKind;
+  name: string;
+  brandName: string | null;
+  netContent: NetContent | null;
+}): string {
+  return `${DISCOUNT_TARGET_KIND_LABELS[target.kind]} · ${formatProductDescription(target)}`;
 }
 
 export function weekdaysText(weekdays: readonly number[]): string {

@@ -17,7 +17,7 @@ import {
   sortedItems,
   textOrder,
 } from "@purosur/ui";
-import { formatNetContent } from "@purosur/ui/formatters";
+import { formatProductDescription, type NetContent } from "@purosur/ui/formatters";
 import { Package, Percent } from "lucide-react";
 import { createElement } from "react";
 import { categoriesInTreeOrder, categoryPathLabels } from "../platform/category-path";
@@ -223,7 +223,13 @@ export const WEEKDAY_OPTIONS = [
 const INACTIVE_TARGET_STATUS = "Inactivo";
 const SOLD_BY_WEIGHT_TARGET_STATUS = "Por peso";
 
-type CurrentTarget = { kind: DiscountTargetKind; id: string; name: string };
+type CurrentTarget = {
+  kind: DiscountTargetKind;
+  id: string;
+  name: string;
+  brandName: string | null;
+  netContent: NetContent | null;
+};
 type KeptTarget = CurrentTarget & { status: string };
 
 const nameOrder = textOrder((named: { name: string }) => named.name);
@@ -233,16 +239,9 @@ type TargetLists = Omit<DiscountTargets, "targetKindsByBenefit">;
 type ProductTarget = DiscountTargets["products"][number];
 
 function productOption(product: ProductTarget): ComboBoxOption<string> {
-  const description = [
-    product.brandName,
-    product.netContent === null ? null : formatNetContent(product.netContent),
-  ]
-    .filter((part) => part !== null)
-    .join(" · ");
   return {
     value: product.id,
-    label: product.name,
-    ...(description === "" ? {} : { description }),
+    label: formatProductDescription(product),
     searchKeywords: product.barcodes,
   };
 }
@@ -368,7 +367,7 @@ export function targetOptions(
     current !== undefined &&
     current.kind === kind &&
     !offered.some((option) => option.value === current.id)
-      ? [{ value: current.id, label: current.name, status: current.status }]
+      ? [{ value: current.id, label: formatProductDescription(current), status: current.status }]
       : [];
   const [first, ...rest] = [...keptCurrent, ...offered];
   return first === undefined ? undefined : [first, ...rest];
