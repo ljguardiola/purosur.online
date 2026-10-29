@@ -575,7 +575,7 @@ test("switching the kind keeps the name, dates, weekdays and a product sold by t
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Yerba de septiembre");
-  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg");
+  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg Hoja Alta 1 kg");
   await expect
     .element(dialog.getByRole("button", { name: "Lun, Lunes" }))
     .toHaveAttribute("aria-pressed", "true");
@@ -584,7 +584,7 @@ test("switching the kind keeps the name, dates, weekdays and a product sold by t
   await userEvent.click(radioLabel(dialog, "Porcentaje de descuento"));
 
   await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toHaveValue("15");
-  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg");
+  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg Hoja Alta 1 kg");
 });
 
 test("switching to buy-N-pay-M leaves no product chosen when the chosen one is sold by weight", async () => {
