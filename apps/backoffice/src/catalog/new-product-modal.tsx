@@ -1,7 +1,6 @@
 import {
   type BrandSummary,
   type CategorySummary,
-  type ProductSummary,
   productCreationBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
@@ -23,6 +22,7 @@ import {
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
+import type { CreatedProduct } from "../platform/creation-parts";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
@@ -58,7 +58,7 @@ type NewProductModalProps = {
   open: boolean;
   initialName?: string;
   onClose: () => void;
-  onCreated: (product: ProductSummary) => void;
+  onCreated: (product: CreatedProduct) => void;
   onSessionEnded: () => void;
   categories: CategorySummary[];
   brands: BrandSummary[];
@@ -98,7 +98,10 @@ export function NewProductModal({
       setNotice(null);
       const outcome = await createProduct(parsed);
       if (outcome.kind === "ok") {
-        onCreated(outcome.product);
+        const brand = [...brands, ...(brandCreation.created ? [brandCreation.created] : [])].find(
+          (candidate) => candidate.id === outcome.product.brandId,
+        );
+        onCreated({ ...outcome.product, brandName: brand?.name ?? null });
         return;
       }
       if (outcome.kind === "unauthenticated") {
