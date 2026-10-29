@@ -1,6 +1,10 @@
 import type { ProductActivityScope } from "../model/product-activity.js";
 import type { CatalogBrand, CatalogCategory, CatalogProduct, CatalogTag } from "./catalog-store.js";
 
+export interface CatalogListProduct extends CatalogProduct {
+  brandName: string | null;
+}
+
 export interface CatalogBrandSummary extends CatalogBrand {
   productCount: number;
 }
@@ -10,7 +14,7 @@ export interface CatalogTagSummary extends CatalogTag {
 }
 
 export interface CatalogListReader {
-  products(scope: ProductActivityScope): Promise<CatalogProduct[]>;
+  products(scope: ProductActivityScope): Promise<CatalogListProduct[]>;
   categories(): Promise<CatalogCategory[]>;
   brands(countedProducts: ProductActivityScope): Promise<CatalogBrandSummary[]>;
   brand(
