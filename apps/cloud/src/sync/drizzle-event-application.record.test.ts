@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { ManualAdjustment } from "@purosur/domain";
-import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
@@ -28,29 +26,7 @@ import {
 } from "./test-support/synced-facts.js";
 
 const system = eventApplicationUnderTest();
-
-async function record(fact: SyncedFact, overrides: Partial<UnappliedEvent>) {
-  const event = unappliedEventOf(
-    {
-      event_id: overrides.eventId ?? randomUUID(),
-      device_seq: 1,
-      aggregate_type: "Sale",
-      aggregate_id: randomUUID(),
-      event_type: "sale_completed",
-      schema_version: 2,
-      payload: {},
-      occurred_at: "2026-10-06T11:20:00.000Z",
-      actor_id: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
-      chain_hmac: "hmac",
-    },
-    overrides,
-  );
-  await system.application.transaction((tx) => tx.record(fact, event));
-}
-
-async function openSession(deviceId: string, sessionId: string) {
-  await record(aCashSessionOpenedFact({ id: sessionId }), { deviceId });
-}
+const { record, openSession } = system;
 
 describe("recording the cash sessions of applied events", () => {
   it("keeps an opened session with the location and register of the installation that pushed it", async () => {
@@ -888,6 +864,40 @@ describe("recording the cancelled sales of applied events", () => {
     expect((await system.db.select().from(paymentRefunds)).map((row) => row.id)).toEqual(
       other.refunds.map((otherRefund) => otherRefund.id),
     );
+  });
+});
+
+describe("recording a cancelled sale that took no approved payment", () => {
+  async function recordUnpaidCancelled() {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = await openSession(deviceId);
+    const cancelled = aCancelledSale({
+      sessionId,
+      authorizedBy: null,
+      payments: [],
+      refunds: [],
+      cashMovements: [],
+    });
+    await record({ kind: "sale_cancelled", sale: cancelled }, { deviceId });
+    return cancelled;
+  }
+
+  it("keeps the sale as cancelled with its lines", async () => {
+    const cancelled = await recordUnpaidCancelled();
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({ id: cancelled.id, state: "CANCELLED", total: 4800 });
+    expect((await system.db.select().from(saleLines)).map(({ id }) => id)).toEqual(
+      cancelled.lines.map(({ id }) => id),
+    );
+  });
+
+  it("records no payment, refund or cash movement", async () => {
+    await recordUnpaidCancelled();
+
+    expect(await system.db.select().from(salePayments)).toEqual([]);
+    expect(await system.db.select().from(paymentRefunds)).toEqual([]);
+    expect(await system.db.select().from(cashMovements)).toEqual([]);
   });
 });
 

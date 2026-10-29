@@ -1826,7 +1826,7 @@ describe("the lines of the sale being changed", () => {
     ]);
   });
 
-  it("deletes a removed line with its frozen promotions and keeps nothing about it", () => {
+  it("deletes a removed line with its frozen promotions, keeping only its outbox event", () => {
     scan("111");
     scan("111");
     scan("222");

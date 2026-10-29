@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CANCELLED_SALES_REPORT_SALE_STATE,
   type CancelledSaleFacts,
   type RemovedLinesGroup,
   tallyRemovals,
@@ -213,5 +214,11 @@ describe("tallyRemovals", () => {
       removed: { lines: 3, units: 3, thousandths: 0, amount: 250 },
       cancelled: { sales: 2, units: 2, thousandths: 0, amount: 100 },
     });
+  });
+});
+
+describe("the cancelled sales of the report", () => {
+  it("are the sales in the cancelled state and no other", () => {
+    expect(CANCELLED_SALES_REPORT_SALE_STATE).toBe("CANCELLED");
   });
 });

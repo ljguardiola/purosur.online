@@ -617,7 +617,7 @@ describe("cancelPaidSale", () => {
       expect(store.state.movements.filter(({ type }) => type === "REFUND")).toEqual([]);
     });
 
-    it("tells the cloud with a version 8 event carrying the payment and its pending refund", async () => {
+    it("tells the cloud with a sale_cancelled event carrying the payment and its pending refund", async () => {
       const store = ledger({ payments: [STANDALONE_TERMINAL_PAYMENT] });
 
       await cancel(store);
@@ -679,7 +679,7 @@ describe("cancelPaidSale", () => {
       },
     );
 
-    it("tells the cloud with a version 8 event carrying the QR payment and its pending refund", async () => {
+    it("tells the cloud with a sale_cancelled event carrying the QR payment and its pending refund", async () => {
       const store = ledger({ payments: [QR_PAYMENT] });
 
       await cancel(store);
@@ -741,7 +741,7 @@ describe("cancelPaidSale", () => {
       },
     );
 
-    it("tells the cloud with a version 8 event carrying the terminal payment and its pending refund", async () => {
+    it("tells the cloud with a sale_cancelled event carrying the terminal payment and its pending refund", async () => {
       const store = ledger({ payments: [POINT_PAYMENT] });
 
       await cancel(store);

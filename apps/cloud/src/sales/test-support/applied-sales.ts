@@ -215,7 +215,7 @@ export async function applyRemovedSaleLine<TQueryResult extends PgQueryResultHKT
     }
     await tx.record(
       { kind: "sale_line_removed", removal: removed },
-      eventOf("Sale", removed.saleId, "sale_line_removed"),
+      eventOf("SaleLine", removed.line.id, "sale_line_removed"),
     );
   });
   return removed;

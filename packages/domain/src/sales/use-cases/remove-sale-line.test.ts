@@ -124,8 +124,8 @@ const YERBA_LINE_RECORD = {
 function removedEvent(line: Record<string, unknown>, id = "line-1") {
   return {
     event_id: "id-1",
-    aggregate_type: "Sale",
-    aggregate_id: "sale-1",
+    aggregate_type: "SaleLine",
+    aggregate_id: id,
     event_type: "sale_line_removed",
     schema_version: 1,
     payload: {
@@ -143,7 +143,7 @@ function removedEvent(line: Record<string, unknown>, id = "line-1") {
 }
 
 describe("removeSaleLine", () => {
-  it("takes the line out of the sale and leaves no trace of it", () => {
+  it("takes the line out of the sale, recording only its sale_line_removed event", () => {
     const store = ledger();
     const before = structuredClone(store.state);
 
@@ -177,6 +177,16 @@ describe("removeSaleLine", () => {
     remove(store, "line-1");
 
     expect(store.state.outbox).toEqual([removedEvent(YERBA_LINE_RECORD)]);
+  });
+
+  it("records the removal as a fact of the removed line, not of the sale it was removed from", () => {
+    const store = ledger();
+
+    remove(store, "line-1");
+
+    expect(store.state.outbox).toEqual([
+      expect.objectContaining({ aggregate_type: "SaleLine", aggregate_id: "line-1" }),
+    ]);
   });
 
   it("records a line sold by weight with where its weight came from", () => {
@@ -251,7 +261,7 @@ describe("removeSaleLine", () => {
     remove(store, "line-1");
     remove(store, "line-2");
 
-    expect(store.state.outbox.map((event) => event.aggregate_id)).toEqual(["sale-1", "sale-1"]);
+    expect(store.state.outbox.map((event) => event.aggregate_id)).toEqual(["line-1", "line-2"]);
     expect(store.state.outbox.map((event) => event.event_type)).toEqual([
       "sale_line_removed",
       "sale_line_removed",
