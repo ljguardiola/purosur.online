@@ -963,6 +963,14 @@ describe("readSupplierPriceList recording of the AI calls", () => {
     expect(store.snapshot().aiCalls[0]?.costNanoUsd).toBeNull();
   });
 
+  it("does not write AI calls when none was reported", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    store.failingWrites.add("recordAiCalls");
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({ kind: "extracted", rowCount: 1 });
+  });
+
   it("records nothing for a store catalog, which makes no AI call", async () => {
     const { store, files, storeCatalogs, extractor, ports } = setup();
     store.seedList({
