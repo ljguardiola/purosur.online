@@ -14,7 +14,15 @@ function current(
   priceCents: number | null,
   overrides: Partial<RereadCurrentRow> = {},
 ): RereadCurrentRow {
-  return { id, description, code: null, presentation: null, priceCents, ...overrides };
+  return {
+    id,
+    description,
+    code: null,
+    presentation: null,
+    priceCents,
+    pagePriceCents: priceCents,
+    ...overrides,
+  };
 }
 
 function page(
@@ -57,6 +65,7 @@ describe("planReread", () => {
         code: "Y-1",
         presentation: "Caja",
         priceCents: 100,
+        pagePriceCents: 100,
         page: 3,
         barcode: "779",
       },
@@ -91,6 +100,86 @@ describe("planReread", () => {
     expect(plan.rows).toEqual([expect.objectContaining({ kind: "kept", rowId: "row-1" })]);
   });
 
+  it("keeps a price typed on a row the page still prints without one", () => {
+    const plan = planReread(
+      [current("row-1", "Yerba 1 kg", 500, { pagePriceCents: null })],
+      [],
+      [page("Yerba 1 kg", null)],
+    );
+
+    expect(plan.rows).toEqual([
+      expect.objectContaining({
+        kind: "kept",
+        rowId: "row-1",
+        priceCents: 500,
+        pagePriceCents: null,
+      }),
+    ]);
+  });
+
+  it("keeps a price typed over the one the page still prints", () => {
+    const plan = planReread(
+      [current("row-1", "Yerba 1 kg", 500, { pagePriceCents: 100 })],
+      [],
+      [page("Yerba 1 kg", 100)],
+    );
+
+    expect(plan.rows).toEqual([
+      expect.objectContaining({
+        kind: "kept",
+        rowId: "row-1",
+        priceCents: 500,
+        pagePriceCents: 100,
+      }),
+    ]);
+  });
+
+  it("reprices a row with a typed price when the page prints a new price for it", () => {
+    const plan = planReread(
+      [current("row-1", "Yerba 1 kg", 500, { pagePriceCents: null })],
+      [],
+      [page("Yerba 1 kg", 120)],
+    );
+
+    expect(plan.rows).toEqual([
+      expect.objectContaining({
+        kind: "repriced",
+        rowId: "row-1",
+        priceCents: 120,
+        pagePriceCents: 120,
+      }),
+    ]);
+  });
+
+  it("reprices a row with a typed price when the page starts printing it without one", () => {
+    const plan = planReread(
+      [current("row-1", "Yerba 1 kg", 500, { pagePriceCents: 100 })],
+      [],
+      [page("Yerba 1 kg", null)],
+    );
+
+    expect(plan.rows).toEqual([
+      expect.objectContaining({
+        kind: "repriced",
+        rowId: "row-1",
+        priceCents: null,
+        pagePriceCents: null,
+      }),
+    ]);
+  });
+
+  it("reprices a row whose typed price is the one the page now prints", () => {
+    const plan = planReread(
+      [current("row-1", "Yerba 1 kg", 120, { pagePriceCents: 100 })],
+      [],
+      [page("Yerba 1 kg", 120)],
+    );
+
+    expect(plan.rows).toEqual([
+      expect.objectContaining({ kind: "repriced", rowId: "row-1", priceCents: 120 }),
+    ]);
+  });
+
   it("adds a row for an item the list does not have, carrying the link it was given", () => {
     const plan = planReread([], [], [page("Yerba 1 kg", 100, { link: "remembered" })]);
 
@@ -101,6 +190,7 @@ describe("planReread", () => {
         code: null,
         presentation: null,
         priceCents: 100,
+        pagePriceCents: 100,
         page: null,
         barcode: null,
         link: "remembered",
@@ -264,14 +354,15 @@ describe("planReread", () => {
     });
   });
 
-  it("keeps every row and every removed item of a page printed again unchanged, in any order", () => {
+  it("keeps every row, with the price it holds, and every removed item of a page printed again unchanged, in any order", () => {
     const description = fc.constantFrom("a", "b", "c", "d");
     const price = fc.option(fc.integer({ min: 1, max: 3 }), { nil: null });
-    const item = fc.record({ description, price });
+    const row = fc.record({ description, price, pagePrice: price });
+    const removedItem = fc.record({ description, pagePrice: price });
     fc.assert(
       fc.property(
         fc
-          .tuple(fc.array(item, { maxLength: 8 }), fc.array(item, { maxLength: 8 }))
+          .tuple(fc.array(row, { maxLength: 8 }), fc.array(removedItem, { maxLength: 8 }))
           .chain(([currentRows, removedItems]) =>
             fc.tuple(
               fc.constant(currentRows),
@@ -283,15 +374,67 @@ describe("planReread", () => {
           ),
         ([currentRows, removedItems, pageRows]) => {
           const plan = planReread(
-            currentRows.map((row, index) => current(`row-${index}`, row.description, row.price)),
-            removedItems.map((removedItem) => removed(removedItem.description, removedItem.price)),
-            pageRows.map((row) => page(row.description, row.price)),
+            currentRows.map((row, index) =>
+              current(`row-${index}`, row.description, row.price, {
+                pagePriceCents: row.pagePrice,
+              }),
+            ),
+            removedItems.map((item) => removed(item.description, item.pagePrice)),
+            pageRows.map((row) => page(row.description, row.pagePrice)),
           );
 
-          expect(plan.rows.every((row) => row.kind === "kept")).toBe(true);
           expect(plan.rows).toHaveLength(currentRows.length);
+          for (const planned of plan.rows) {
+            expect(planned.kind).toBe("kept");
+            if (planned.kind === "kept") {
+              const before = currentRows[Number(planned.rowId.slice(4))];
+              expect(planned.priceCents).toBe(before?.price);
+              expect(planned.pagePriceCents).toBe(before?.pagePrice);
+            }
+          }
           expect(plan.droppedRowIds).toEqual([]);
           expect(plan.remainingRemovedItems).toHaveLength(removedItems.length);
+        },
+      ),
+    );
+  });
+
+  it("reprices every row whose item the page prints at a price other than last time's, at the page's price", () => {
+    const price = fc.option(fc.integer({ min: 1, max: 3 }), { nil: null });
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(
+          fc
+            .record({
+              description: fc.constantFrom("a", "b", "c", "d"),
+              price,
+              pagePrice: price,
+              newPagePrice: price,
+            })
+            .filter((row) => row.newPagePrice !== row.pagePrice),
+          { selector: (row) => row.description, maxLength: 4 },
+        ),
+        (currentRows) => {
+          const plan = planReread(
+            currentRows.map((row, index) =>
+              current(`row-${index}`, row.description, row.price, {
+                pagePriceCents: row.pagePrice,
+              }),
+            ),
+            [],
+            currentRows.map((row) => page(row.description, row.newPagePrice)),
+          );
+
+          expect(plan.rows).toEqual(
+            currentRows.map((row, index) =>
+              expect.objectContaining({
+                kind: "repriced",
+                rowId: `row-${index}`,
+                priceCents: row.newPagePrice,
+                pagePriceCents: row.newPagePrice,
+              }),
+            ),
+          );
         },
       ),
     );
@@ -302,12 +445,16 @@ describe("planReread", () => {
     const price = fc.option(fc.integer({ min: 1, max: 3 }), { nil: null });
     fc.assert(
       fc.property(
-        fc.array(fc.record({ description, price }), { maxLength: 8 }),
+        fc.array(fc.record({ description, price, pagePrice: price }), { maxLength: 8 }),
         fc.array(fc.record({ description, price }), { maxLength: 8 }),
         fc.array(fc.record({ description, price }), { maxLength: 8 }),
         (currentRows, removedItems, pageRows) => {
           const plan = planReread(
-            currentRows.map((row, index) => current(`row-${index}`, row.description, row.price)),
+            currentRows.map((row, index) =>
+              current(`row-${index}`, row.description, row.price, {
+                pagePriceCents: row.pagePrice,
+              }),
+            ),
             removedItems.map((item) => removed(item.description, item.price)),
             pageRows.map((row) => page(row.description, row.price)),
           );
@@ -324,7 +471,10 @@ describe("planReread", () => {
             if (row.kind === "kept" || row.kind === "repriced") {
               const before = currentRows[Number(row.rowId.slice(4))];
               expect(before?.description).toBe(row.description);
-              expect((before?.price === row.priceCents) === (row.kind === "kept")).toBe(true);
+              expect((before?.pagePrice === row.pagePriceCents) === (row.kind === "kept")).toBe(
+                true,
+              );
+              expect(row.priceCents).toBe(row.kind === "kept" ? before?.price : row.pagePriceCents);
             }
           }
         },

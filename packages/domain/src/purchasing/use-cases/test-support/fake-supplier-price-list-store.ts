@@ -81,6 +81,7 @@ interface FakeRemovedItem extends RemovedItem {
 
 export interface FakePriceListRow extends ProposedPriceListRow {
   id: string;
+  pagePriceCents: number | null;
   listId: string;
   position: number;
   editedBy: string | null;
@@ -362,6 +363,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
           code: planned.code,
           presentation: planned.presentation,
           priceCents: planned.priceCents,
+          pagePriceCents: planned.pagePriceCents,
           page: planned.page,
           barcode: planned.barcode,
           link: cloneLink(planned.link),
@@ -384,6 +386,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       row.code = planned.code;
       row.presentation = planned.presentation;
       row.priceCents = planned.priceCents;
+      row.pagePriceCents = planned.pagePriceCents;
       row.page = planned.page;
       row.barcode = planned.barcode;
       row.position = position;
@@ -412,6 +415,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     rows.forEach((row, position) => {
       this.state.rows.push({
         ...row,
+        pagePriceCents: row.priceCents,
         id: `row-${this.state.nextId++}`,
         listId,
         position,
@@ -458,6 +462,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
         code: row.code,
         presentation: row.presentation,
         priceCents: row.priceCents,
+        pagePriceCents: row.pagePriceCents,
         link: cloneLink(row.link),
         linkedByPerson: row.linkedByPerson,
       }));
@@ -587,7 +592,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       this.state.removedItems.push({
         listId,
         key: supplierItemKey(removed),
-        priceCents: removed.priceCents,
+        priceCents: removed.pagePriceCents,
       });
     }
     this.state.rows = this.state.rows.filter((row) => !(row.id === rowId && row.listId === listId));
@@ -757,6 +762,9 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
       reviewed: false,
       linkedByPerson: false,
       ...row,
+      pagePriceCents: [row.pagePriceCents, row.priceCents, 100].find(
+        (price) => price !== undefined,
+      ) as number | null,
     });
   }
 
