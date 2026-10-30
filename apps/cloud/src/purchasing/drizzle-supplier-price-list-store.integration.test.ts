@@ -306,7 +306,7 @@ describe("the web page of a list, read again", () => {
     async (_order, first, second) => {
       const listId = await webPageList();
       await insertPriceListRows(db, listId, [{ description: "Yerba 1 kg", code: "Y-01" }]);
-      const operations = {
+      const operations: Record<"refresh" | "confirm", () => Promise<unknown>> = {
         refresh: () => refresh(listId),
         confirm: () =>
           confirmSupplierPriceList(store(), {
