@@ -272,6 +272,7 @@ describe("inserting and locking a list", () => {
         pricesIncludeVat: false,
         sentAt: NOW,
         actorId,
+        reread: null,
         rowPrices: [500, null],
       },
     });

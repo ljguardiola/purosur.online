@@ -1,4 +1,5 @@
 import type {
+  SupplierItemKey,
   SupplierPriceListContentKind,
   SupplierPriceListReadFailure,
   SupplierPriceListState,
@@ -7,6 +8,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   supplierItemPrices,
   supplierItems,
+  supplierPriceListRemovedItems,
+  supplierPriceListRereads,
   supplierPriceListRows,
   supplierPriceLists,
   suppliers,
@@ -181,5 +184,56 @@ export async function insertSupplierItemPrice<TQueryResult extends PgQueryResult
     listDate: seed.listDate ?? "2026-03-01",
     pricesIncludeVat: seed.pricesIncludeVat ?? false,
     confirmedAt: seed.confirmedAt ?? new Date("2026-03-02T12:00:00.000Z"),
+  });
+}
+
+export interface RereadSeed {
+  listId: string;
+  locationId: string;
+  actorId: string;
+  state?: "READING" | "READ" | "READ_FAILED";
+  readFailure?: SupplierPriceListReadFailure | null;
+  contentKind?: SupplierPriceListContentKind;
+  requestedAt?: Date;
+  sentAt?: Date | null;
+  sentOn?: string | null;
+  finishedAt?: Date | null;
+}
+
+export async function insertReread<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  seed: RereadSeed,
+): Promise<string> {
+  const [reread] = await db
+    .insert(supplierPriceListRereads)
+    .values({
+      listId: seed.listId,
+      locationId: seed.locationId,
+      state: seed.state ?? "READING",
+      readFailure: seed.readFailure ?? null,
+      fileContentKind: seed.contentKind ?? "HTML",
+      fileByteSize: 1_000,
+      requestedAt: seed.requestedAt ?? new Date("2026-03-02T12:00:00.000Z"),
+      requestedBy: seed.actorId,
+      sentAt: seed.sentAt ?? null,
+      sentOn: seed.sentOn ?? null,
+      finishedAt: seed.finishedAt ?? null,
+    })
+    .returning({ id: supplierPriceListRereads.id });
+  if (!reread) {
+    throw new Error("test setup: seeding the reread returned no row");
+  }
+  return reread.id;
+}
+
+export async function insertRemovedItem<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  seed: { listId: string; key: SupplierItemKey; priceCents: number | null },
+): Promise<void> {
+  await db.insert(supplierPriceListRemovedItems).values({
+    listId: seed.listId,
+    keyKind: seed.key.kind,
+    keyValue: seed.key.value,
+    priceCents: seed.priceCents,
   });
 }

@@ -2,7 +2,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { supplierPriceLists } from "../platform/db/schema.js";
+import { supplierPriceListRereads, supplierPriceLists } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
@@ -14,7 +14,11 @@ import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.
 import { FakeSupplierPriceListWebPages } from "./test-support/fake-supplier-price-list-web-pages.js";
 import { InMemorySupplierPriceListFiles } from "./test-support/in-memory-supplier-price-list-files.js";
 import { insertActor } from "./test-support/purchasing-fixtures.js";
-import { insertPriceList, insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
+import {
+  insertPriceList,
+  insertReread,
+  insertSupplier,
+} from "./test-support/supplier-price-list-fixtures.js";
 
 const NOW = new Date("2026-09-16T15:00:00.000Z");
 const WEB_PAGE_URL = "https://distribuidora-sur.example/lista";
@@ -44,6 +48,8 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await sql`delete from supplier_price_list_removed_items`;
+  await sql`delete from supplier_price_list_rereads`;
   await sql`delete from supplier_price_list_rows`;
   await sql`delete from supplier_price_lists`;
   await sql`delete from graphile_worker._private_jobs`;
@@ -148,5 +154,58 @@ describe("POST /supplier-price-lists/:id/refresh on a real Postgres", () => {
     expect(lists.find((list) => list.id === listId)?.state).toBe("REVIEWED");
     expect(files.stored.get(refreshedId)?.contentKind).toBe("HTML");
     expect(await queuedReadings()).toEqual([{ payload: { listId: refreshedId } }]);
+  });
+
+  it("reads the stored address again into the same list when it is not confirmed, answering 202 with that list", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId: userId,
+      sourceUrl: WEB_PAGE_URL,
+      state: "EXTRACTED",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/supplier-price-lists/${listId}/refresh`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({ listId });
+    expect(webPages.urls).toEqual([WEB_PAGE_URL]);
+    expect(await db.select().from(supplierPriceLists)).toHaveLength(1);
+    const [reread] = await db.select().from(supplierPriceListRereads);
+    expect(reread).toMatchObject({
+      listId,
+      locationId,
+      requestedBy: userId,
+      state: "READING",
+      fileContentKind: "HTML",
+    });
+    expect(files.stored.get(reread?.id as string)?.contentKind).toBe("HTML");
+    expect(files.stored.has(listId)).toBe(false);
+    expect(await queuedReadings()).toEqual([{ payload: { listId } }]);
+  });
+
+  it("answers 409 already_reading to a second refresh of the same list", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId: userId,
+      sourceUrl: WEB_PAGE_URL,
+      state: "EXTRACTED",
+    });
+    await insertReread(db, { listId, locationId, actorId: userId });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/supplier-price-lists/${listId}/refresh`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "already_reading" });
+    expect(await queuedReadings()).toEqual([]);
   });
 });

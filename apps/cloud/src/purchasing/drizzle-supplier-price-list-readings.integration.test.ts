@@ -9,7 +9,11 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSupplierPriceListReadings } from "./drizzle-supplier-price-list-readings.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { insertActor } from "./test-support/purchasing-fixtures.js";
-import { insertPriceList, insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
+import {
+  insertPriceList,
+  insertReread,
+  insertSupplier,
+} from "./test-support/supplier-price-list-fixtures.js";
 
 const SENT_AT = new Date("2026-03-10T14:40:00.000Z");
 const LOCKED_AT = new Date("2026-03-10T14:39:58.000Z");
@@ -36,6 +40,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await sql`delete from supplier_price_list_rereads`;
   await sql`delete from supplier_price_list_rows`;
   await sql`delete from supplier_price_lists`;
   await sql`delete from graphile_worker._private_jobs`;
@@ -115,5 +120,63 @@ describe("DrizzleSupplierPriceListReadings", () => {
     }
 
     expect((await readings().listInProgress()).map((entry) => entry.listId)).toEqual([reading]);
+  });
+
+  it("lists the open reread of a list that is not being read for the first time, with the reread's own id and send instant", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+      sentAt: new Date("2026-03-10T10:00:00.000Z"),
+      sentOn: "2026-03-10",
+    });
+    const rereadId = await insertReread(db, {
+      listId,
+      locationId,
+      actorId,
+      sentAt: SENT_AT,
+      sentOn: "2026-03-10",
+    });
+    await queueReading(listId);
+    await lockReadingJob(listId, LOCKED_AT, "worker-of-a-stopped-cloud");
+
+    expect(await readings().listInProgress()).toEqual([
+      { listId, rereadId, sentAt: SENT_AT, readingStartedAt: LOCKED_AT },
+    ]);
+  });
+
+  it("answers no start for an open reread whose job is waiting in the queue", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+    const rereadId = await insertReread(db, { listId, locationId, actorId });
+    await queueReading(listId);
+
+    expect(await readings().listInProgress()).toEqual([
+      { listId, rereadId, sentAt: null, readingStartedAt: null },
+    ]);
+  });
+
+  it("does not list a reread that ended", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+    await insertReread(db, { listId, locationId, actorId, state: "READ" });
+    await insertReread(db, {
+      listId,
+      locationId,
+      actorId,
+      state: "READ_FAILED",
+      readFailure: "interrupted",
+    });
+
+    expect(await readings().listInProgress()).toEqual([]);
   });
 });
