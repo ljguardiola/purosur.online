@@ -576,10 +576,18 @@ export {
   priceReviewAt,
 } from "./pricing/index.js";
 export type {
+  AiAttemptUsage,
+  AiCallOutcome,
+  AiCallPurpose,
+  AiCost,
+  AiCostGrouping,
+  AiCostTotal,
   FreightMeans,
   FreightPeriodDays,
+  PricedAiCall,
   PurchasedLine,
   ReceiptType,
+  RecordedAiCall,
   RegisteredFreight,
   SupplierItemKey,
   SupplierItemVatRate,
@@ -592,6 +600,9 @@ export type {
   SupplierPriceListWebPageRefusal,
 } from "./purchasing/index.js";
 export {
+  AI_CALL_OUTCOMES,
+  AI_CALL_PURPOSES,
+  AI_COST_GROUPINGS,
   countsTowardDailyExtractionCap,
   DEFAULT_FREIGHT_PERIOD_DAYS,
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
