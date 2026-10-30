@@ -547,7 +547,15 @@ describe("completing a return", () => {
       kind: "completed",
       return_id: "id-1",
       refunded_total: 5000,
-      refunds: [{ payment_id: "pay-cash", method: "CASH", amount: 5000, state: "APPROVED" }],
+      refunds: [
+        {
+          payment_id: "pay-cash",
+          method: "CASH",
+          amount: 5000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
       authorized_by: null,
     });
     expect(
@@ -683,7 +691,15 @@ describe("completing a return", () => {
     expect(outcome).toMatchObject({
       kind: "completed",
       refunded_total: 5000,
-      refunds: [{ payment_id: "pay-transfer", method: "TRANSFER", amount: 5000, state: "PENDING" }],
+      refunds: [
+        {
+          payment_id: "pay-transfer",
+          method: "TRANSFER",
+          amount: 5000,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
+      ],
     });
     expect(
       database
@@ -691,6 +707,25 @@ describe("completing a return", () => {
         .all(),
     ).toEqual([{ payment_id: "pay-transfer", method: "TRANSFER", amount: 5000, state: "PENDING" }]);
     expect(count("cash_movements WHERE type = 'REFUND'")).toBe(0);
+  });
+
+  it("tells the screen a refund to a Mercado Pago payment is sent by the cloud", async () => {
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+         VALUES ('pay-qr', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 5000, 'APPROVED', ?, ?)`,
+      )
+      .run("2026-09-12T18:30:00.000Z", "2026-09-12T18:30:00.000Z");
+
+    const outcome = await completeReturnFor(
+      deps(),
+      completion({ refunds: [{ paymentId: "pay-qr", amount: 5000 }] }),
+    );
+
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      refunds: [{ payment_id: "pay-qr", method: "QR", state: "PENDING", sent_by_cloud: true }],
+    });
   });
 
   it("takes from the drawer only the cash part of a refund split with a payment that is not cash", async () => {

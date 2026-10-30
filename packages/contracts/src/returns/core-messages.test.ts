@@ -440,7 +440,15 @@ describe("the answer to completing a return", () => {
     kind: "completed",
     return_id: "return-1",
     refunded_total: 7000,
-    refunds: [{ payment_id: "pay-cash", method: "CASH", amount: 7000, state: "APPROVED" }],
+    refunds: [
+      {
+        payment_id: "pay-cash",
+        method: "CASH",
+        amount: 7000,
+        state: "APPROVED",
+        sent_by_cloud: false,
+      },
+    ],
     authorized_by: { user_id: "u2", first_name: "Ana" },
   };
 
@@ -471,6 +479,10 @@ describe("the answer to completing a return", () => {
     { ...completed, authorized_by: undefined },
     { ...completed, refunded_total: 10.5 },
     { ...completed, refunds: [{ ...completed.refunds[0], method: "CARD" }] },
+    {
+      ...completed,
+      refunds: [{ payment_id: "pay-cash", method: "CASH", amount: 7000, state: "APPROVED" }],
+    },
     { kind: "line_refused", refusal: LINE_REFUSALS[0] },
     { kind: "line_refused", sale_line_id: "line-1", refusal: { kind: "too_late" } },
     { kind: "refund_refused", refusal: { kind: "exceeds_payment", payment_id: "pay-1" } },
