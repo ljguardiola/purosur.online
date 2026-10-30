@@ -1,7 +1,5 @@
 import { relative } from "node:path";
 
-const NAMED_FILES = 10;
-
 function fileKey(projectName, moduleId) {
   return `${projectName}\0${moduleId}`;
 }
@@ -11,8 +9,10 @@ function plural(count, word) {
 }
 
 // Vitest can keep a run open after every one of its files reported, without saying what it waits
-// for. This names what is still open and, once every file reported, ends the run with the result
-// those files gave; a file that never reported never ends the run.
+// for, and a file can hang without ever reporting. This names what is still open and ends the run:
+// once every file reported, with the result those files gave; once a project with a running file,
+// or the whole run, makes no progress within the stall period, with a failure. A file is running
+// from the moment a worker starts it, so files waiting for a free worker never stall a project.
 export class HeldRunReporter {
   #graceMs;
   #stallMs;
@@ -20,10 +20,11 @@ export class HeldRunReporter {
   #exit;
   #vitest;
   #remaining = new Map();
+  #running = new Set();
   #finished = [];
-  #progressed = new Set();
-  #stalled = new Set();
-  #stallTimer;
+  #watching = false;
+  #projectStallTimers = new Map();
+  #runStallTimer;
   #graceTimer;
 
   constructor({
@@ -65,21 +66,38 @@ export class HeldRunReporter {
         { project: spec.project.name, moduleId: spec.moduleId },
       ]),
     );
+    this.#running.clear();
     this.#finished = [];
-    this.#progressed.clear();
-    this.#stalled.clear();
-    this.#stallTimer = setInterval(() => this.#reportStalledProjects(), this.#stallMs);
-    this.#stallTimer.unref?.();
+    this.#watching = true;
+    this.#armRunStallTimer();
+  }
+
+  onTestModuleQueued(testModule) {
+    if (!this.#watching) return;
+    const key = fileKey(testModule.project.name, testModule.moduleId);
+    if (!this.#remaining.has(key)) return;
+    this.#running.add(key);
+    this.#progressed(testModule.project.name);
+  }
+
+  onTestCaseResult(testCase) {
+    if (!this.#watching) return;
+    this.#progressed(testCase.project.name);
   }
 
   onTestModuleEnd(testModule) {
-    if (!this.#stallTimer) return;
+    if (!this.#watching) return;
     const project = testModule.project.name;
-    this.#remaining.delete(fileKey(project, testModule.moduleId));
+    const key = fileKey(project, testModule.moduleId);
+    this.#remaining.delete(key);
+    this.#running.delete(key);
     this.#finished.push(testModule);
-    this.#progressed.add(project);
-    this.#stalled.delete(project);
-    if (this.#remaining.size === 0 && !this.#graceTimer) {
+    if (this.#remaining.size > 0) {
+      this.#progressed(project);
+      return;
+    }
+    this.#stopStallTimers();
+    if (!this.#graceTimer) {
       this.#graceTimer = setTimeout(() => this.#endHeldRun(), this.#graceMs);
       this.#graceTimer.unref?.();
     }
@@ -89,42 +107,75 @@ export class HeldRunReporter {
     this.#stop();
   }
 
-  #stop() {
-    clearInterval(this.#stallTimer);
-    clearTimeout(this.#graceTimer);
-    this.#stallTimer = undefined;
-    this.#graceTimer = undefined;
+  #progressed(project) {
+    clearTimeout(this.#projectStallTimers.get(project));
+    const timer = setTimeout(() => this.#checkProjectStall(project), this.#stallMs);
+    timer.unref?.();
+    this.#projectStallTimers.set(project, timer);
+    this.#armRunStallTimer();
   }
 
-  #reportStalledProjects() {
+  #armRunStallTimer() {
+    clearTimeout(this.#runStallTimer);
+    this.#runStallTimer = setTimeout(
+      () =>
+        this.#endStalledRun(
+          `no test finished and no test file started in the last ${this.#stallMs / 1000}s`,
+        ),
+      this.#stallMs,
+    );
+    this.#runStallTimer.unref?.();
+  }
+
+  #checkProjectStall(project) {
+    this.#projectStallTimers.delete(project);
+    const running = [...this.#running].some((key) => this.#remaining.get(key)?.project === project);
+    if (!running) return;
+    this.#endStalledRun(
+      `no "${project}" test finished in the last ${this.#stallMs / 1000}s while one of its files ran`,
+    );
+  }
+
+  #stopStallTimers() {
+    for (const timer of this.#projectStallTimers.values()) clearTimeout(timer);
+    this.#projectStallTimers.clear();
+    clearTimeout(this.#runStallTimer);
+    this.#runStallTimer = undefined;
+  }
+
+  #stop() {
+    this.#stopStallTimers();
+    clearTimeout(this.#graceTimer);
+    this.#graceTimer = undefined;
+    this.#watching = false;
+  }
+
+  async #endStalledRun(reason) {
+    const remaining = [...this.#remaining.values()];
+    this.#stop();
+    this.#log(`held-run: ${reason}`);
     const remainingByProject = new Map();
-    for (const file of this.#remaining.values()) {
+    for (const file of remaining) {
       remainingByProject.set(file.project, [
         ...(remainingByProject.get(file.project) ?? []),
         file.moduleId,
       ]);
     }
     for (const [project, moduleIds] of remainingByProject) {
-      if (this.#progressed.has(project) || this.#stalled.has(project)) continue;
-      this.#stalled.add(project);
       this.#log(
-        `held-run: no "${project}" test file finished in the last ${this.#stallMs / 1000}s; ` +
-          `${moduleIds.length} still to report: ${this.#namedFiles(moduleIds)}` +
+        `held-run: ${plural(moduleIds.length, `"${project}" file`)} still to report: ` +
+          moduleIds.map((moduleId) => relative(this.#vitest.config.root, moduleId)).join(", ") +
           this.#openPages([project], "has")
             .map((line) => `; ${line}`)
             .join(""),
       );
     }
-    this.#progressed.clear();
-  }
-
-  #namedFiles(moduleIds) {
-    const named = moduleIds
-      .slice(0, NAMED_FILES)
-      .map((moduleId) => relative(this.#vitest.config.root, moduleId))
-      .join(", ");
-    const rest = moduleIds.length - NAMED_FILES;
-    return rest > 0 ? `${named} and ${rest} more` : named;
+    await this.#reportRunEnd("failed");
+    this.#log(
+      `held-run: ending with a failure (${this.#finished.length} files reported, ` +
+        `${remaining.length} still to report)`,
+    );
+    this.#exit(1);
   }
 
   #openPages(projectNames, verb) {
@@ -136,6 +187,15 @@ export class HeldRunReporter {
         ({ name, sessions }) =>
           `"${name}" ${verb} ${plural(sessions.size, "browser page")} open: ${[...sessions.keys()].join(", ")}`,
       );
+  }
+
+  async #reportRunEnd(state) {
+    const errors = this.#vitest.state.getUnhandledErrors();
+    await Promise.all(
+      this.#vitest.reporters
+        .filter((reporter) => reporter !== this)
+        .map((reporter) => reporter.onTestRunEnd?.(this.#finished, errors, state)),
+    );
   }
 
   async #endHeldRun() {
@@ -151,11 +211,7 @@ export class HeldRunReporter {
     const errors = this.#vitest.state.getUnhandledErrors();
     const failed = this.#finished.filter((testModule) => testModule.state() === "failed").length;
     const state = failed > 0 || errors.length > 0 ? "failed" : "passed";
-    await Promise.all(
-      this.#vitest.reporters
-        .filter((reporter) => reporter !== this)
-        .map((reporter) => reporter.onTestRunEnd?.(this.#finished, errors, state)),
-    );
+    await this.#reportRunEnd(state);
     this.#log(
       `held-run: ending with the tests' own result: ${state} ` +
         `(${this.#finished.length} files, ${failed} failed` +
