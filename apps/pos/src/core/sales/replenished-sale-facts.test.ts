@@ -556,6 +556,24 @@ describe("replenishing a completed sale into a restored register", () => {
     expect(sale()).toMatchObject({ operation_number: 1 });
   });
 
+  it("cancels another sale it holds in progress with a pending Mercado Pago charge, keeping the charge", () => {
+    openAbandonedSaleWithACharge("PENDING");
+
+    apply(completedSale());
+
+    expect(database.prepare("SELECT id, state, occurred_at FROM sales").all()).toEqual([
+      { id: "sale-abandoned", state: "CANCELLED", occurred_at: "2026-10-07T10:00:00.000Z" },
+      { id: "sale-1", state: "COMPLETED", occurred_at: "2026-10-07T10:00:00.000Z" },
+    ]);
+    expect(
+      database
+        .prepare(
+          "SELECT id, sale_id, state FROM payment_transactions WHERE id = 'charge-abandoned'",
+        )
+        .all(),
+    ).toEqual([{ id: "charge-abandoned", sale_id: "sale-abandoned", state: "PENDING" }]);
+  });
+
   describe("when the snapshot already holds the sale", () => {
     beforeEach(() => {
       addToStockBalance(database, "product-1", 10);
@@ -685,24 +703,6 @@ describe("replenishing a completed sale into a restored register", () => {
       expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
         { id: "sale-1", state: "COMPLETED" },
       ]);
-    });
-
-    it("cancels a sale it holds in progress with a pending Mercado Pago charge, keeping the charge", () => {
-      openAbandonedSaleWithACharge("PENDING");
-
-      apply(completedSale());
-
-      expect(database.prepare("SELECT id, state, occurred_at FROM sales").all()).toEqual([
-        { id: "sale-abandoned", state: "CANCELLED", occurred_at: "2026-10-07T10:00:00.000Z" },
-        { id: "sale-1", state: "COMPLETED", occurred_at: "2026-10-07T10:00:00.000Z" },
-      ]);
-      expect(
-        database
-          .prepare(
-            "SELECT id, sale_id, state FROM payment_transactions WHERE id = 'charge-abandoned'",
-          )
-          .all(),
-      ).toEqual([{ id: "charge-abandoned", sale_id: "sale-abandoned", state: "PENDING" }]);
     });
 
     it("does not take the sale's stock out of the balance twice when the cloud's copy of the movement is held", () => {
