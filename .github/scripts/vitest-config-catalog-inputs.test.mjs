@@ -312,8 +312,10 @@ test("refuses an undeclared module imported by the Storybook config the catalog 
       "vitest.config.ts": "export default {};\n",
       "packages/ui/.storybook/main.ts": 'import { helper } from "../../../tools/helper.mjs";\n',
       "packages/ui/.storybook/preview.tsx": 'import "../../../tools/preview-helper.mjs";\n',
+      "packages/ui/.storybook/manager.ts": 'import "../../../tools/manager-helper.mjs";\n',
       "tools/helper.mjs": "export const helper = 1;\n",
       "tools/preview-helper.mjs": "export {};\n",
+      "tools/manager-helper.mjs": "export {};\n",
     })) {
       mkdirSync(dirname(join(root, path)), { recursive: true });
       writeFileSync(join(root, path), source);
@@ -321,6 +323,7 @@ test("refuses an undeclared module imported by the Storybook config the catalog 
 
     assert.deepEqual(await checkRepository({ root, importConfig: async () => ({ default: {} }) }), [
       "tools/helper.mjs, imported at packages/ui/.storybook/main.ts:1, is not a catalog input in .github/scripts/change-scope.mjs",
+      "tools/manager-helper.mjs, imported at packages/ui/.storybook/manager.ts:1, is not a catalog input in .github/scripts/change-scope.mjs",
       "tools/preview-helper.mjs, imported at packages/ui/.storybook/preview.tsx:1, is not a catalog input in .github/scripts/change-scope.mjs",
     ]);
   } finally {
