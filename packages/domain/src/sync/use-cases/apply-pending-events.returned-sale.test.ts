@@ -228,7 +228,7 @@ describe("applying a returned sale with Mercado Pago refunds", () => {
     provider:
       method === "QR" ? "MERCADOPAGO_QR" : method === "POINT" ? "MERCADOPAGO_POINT" : "NONE",
     amount: 500,
-    state: method === "CASH" ? "APPROVED" : "PENDING",
+    state: method === "CASH" ? ("APPROVED" as const) : ("PENDING" as const),
     occurredAt: OCCURRED_AT,
   });
 
