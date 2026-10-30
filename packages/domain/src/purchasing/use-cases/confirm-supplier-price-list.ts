@@ -25,6 +25,7 @@ export interface ConfirmSupplierPriceListInput {
 export type ConfirmSupplierPriceListOutcome =
   | { kind: "not_found" }
   | { kind: "not_editable" }
+  | { kind: "rereading" }
   | { kind: "stale_version" }
   | { kind: "no_rows" }
   | { kind: "unpriced_rows" }
@@ -43,6 +44,9 @@ export function confirmSupplierPriceList(
     }
     if (!isSupplierPriceListUnderReview(locked.list.state)) {
       return { kind: "not_editable" };
+    }
+    if (locked.list.reread !== null) {
+      return { kind: "rereading" };
     }
     if (locked.list.version !== input.version) {
       return { kind: "stale_version" };
