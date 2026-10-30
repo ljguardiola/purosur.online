@@ -228,7 +228,6 @@ const LINE_REFUSALS = [
 const REFUND_REFUSALS = [
   { kind: "unknown_payment", payment_id: "pay-1" },
   { kind: "invalid_amount", payment_id: "pay-1" },
-  { kind: "not_cash", payment_id: "pay-1" },
   { kind: "exceeds_payment", payment_id: "pay-1", remaining: 200 },
   { kind: "total_mismatch", refundable_total: 7000, imputed: 6999 },
 ];
@@ -276,8 +275,8 @@ const FOUND = {
         amount: 6500,
         refunded_amount: 0,
         remaining: 6500,
-        eligible: false,
-        ineligible_reason: "not_cash",
+        eligible: true,
+        ineligible_reason: null,
       },
     ],
   },
@@ -352,6 +351,13 @@ describe("the answer to finding the sale to return", () => {
       sale: {
         ...FOUND.sale,
         payments: [{ ...FOUND.sale.payments[0], ineligible_reason: "too_old" }],
+      },
+    },
+    {
+      ...FOUND,
+      sale: {
+        ...FOUND.sale,
+        payments: [{ ...FOUND.sale.payments[1], eligible: false, ineligible_reason: "not_cash" }],
       },
     },
     {
@@ -442,6 +448,10 @@ describe("the answer to completing a return", () => {
     completed,
     { ...completed, authorized_by: null },
     { ...completed, refunds: [], refunded_total: 0 },
+    {
+      ...completed,
+      refunds: [{ payment_id: "pay-transfer", method: "TRANSFER", amount: 7000, state: "PENDING" }],
+    },
     { kind: "not_found" },
     { kind: "sale_not_returnable" },
     { kind: "no_open_session" },
@@ -465,6 +475,7 @@ describe("the answer to completing a return", () => {
     { kind: "line_refused", sale_line_id: "line-1", refusal: { kind: "too_late" } },
     { kind: "refund_refused", refusal: { kind: "exceeds_payment", payment_id: "pay-1" } },
     { kind: "refund_refused" },
+    { kind: "refund_refused", refusal: { kind: "not_cash", payment_id: "pay-1" } },
     { kind: "voided" },
   ])("rejects the outcome %j", (outcome) => {
     expect(

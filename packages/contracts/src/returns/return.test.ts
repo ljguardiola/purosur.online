@@ -8,8 +8,8 @@ const payment = {
   amount: 5000,
   refunded_amount: 0,
   remaining: 5000,
-  eligible: false,
-  ineligible_reason: "not_cash",
+  eligible: true,
+  ineligible_reason: null,
 };
 
 function found(paymentBody: Record<string, unknown>) {
@@ -46,6 +46,18 @@ describe("findSaleForReturnOutcomeSchema", () => {
   it("refuses a card type a Point does not charge", () => {
     expect(
       findSaleForReturnOutcomeSchema.safeParse(found({ ...payment, card_type: "PREPAID" })).success,
+    ).toBe(false);
+  });
+
+  it("accepts a payment that is not cash as one that can be chosen", () => {
+    expect(findSaleForReturnOutcomeSchema.safeParse(found(payment)).success).toBe(true);
+  });
+
+  it("refuses the reason a payment that is not cash used to be left out for", () => {
+    expect(
+      findSaleForReturnOutcomeSchema.safeParse(
+        found({ ...payment, eligible: false, ineligible_reason: "not_cash" }),
+      ).success,
     ).toBe(false);
   });
 });
