@@ -1309,7 +1309,6 @@ describe("the calls the extractor reports", () => {
       "completed",
       "completed",
       "completed",
-      "completed",
       "cut_short",
       "cut_short",
     ]);
