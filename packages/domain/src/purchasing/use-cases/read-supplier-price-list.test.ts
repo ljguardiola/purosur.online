@@ -999,6 +999,28 @@ describe("readSupplierPriceList recording of the AI calls", () => {
     },
   );
 
+  it("records the calls of a failed run when only some of the reported calls had an attempt", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [{ outcome: "failed", attempts: [] }, aUsage()];
+    store.failingWrites.add("recordExtraction");
+
+    await expect(readSupplierPriceList(ports, input)).rejects.toThrow("recordExtraction failed");
+
+    expect(store.snapshot().aiCalls).toHaveLength(1);
+  });
+
+  it("opens no transaction to record calls after a failed run when no call had an attempt", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [{ outcome: "failed", attempts: [] }];
+    store.failingWrites.add("recordExtraction");
+
+    await expect(readSupplierPriceList(ports, input)).rejects.toThrow("recordExtraction failed");
+
+    expect(store.transactionCount).toBe(3);
+  });
+
   it("records nothing more when the run fails before any call", async () => {
     const { store, extractor, ports } = setup();
     store.failingWrites.add("markSent");
