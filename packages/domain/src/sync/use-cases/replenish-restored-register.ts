@@ -4,7 +4,7 @@ import {
   type RestoredUnclearDeferral,
   rebuiltUnclearDeferral,
 } from "../../fiscal/index.js";
-import { replenishedSaleReceiptAttempt } from "../../sales/index.js";
+import { type PrintedDocumentKey, replenishedPrintAttempt } from "../../sales/index.js";
 import {
   heldReplenishmentFailure,
   type ReplenishmentFailure,
@@ -112,12 +112,13 @@ async function applyPage<TFailure>(
         continue;
       }
       if (fact.kind === "sale_completed") {
-        const attempt = replenishedSaleReceiptAttempt(
+        const key: PrintedDocumentKey = { document: "sale_receipt", saleId: fact.sale.id };
+        const attempt = replenishedPrintAttempt(
           fact.sale.completedAt,
-          await tx.saleReceiptAttemptedAt(fact.sale.id),
+          await tx.printAttemptedAt(key),
         );
         if (attempt !== null) {
-          await tx.recordSaleReceiptAttempt(fact.sale.id, attempt);
+          await tx.recordPrintAttempt(key, attempt);
         }
       }
       if (

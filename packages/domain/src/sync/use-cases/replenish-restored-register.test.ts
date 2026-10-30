@@ -29,6 +29,7 @@ import {
   FakeRegisterReplenishmentDecoder,
   FakeRegisterReplenishmentFeed,
   FakeRegisterReplenishmentStore,
+  heldPrintKey,
 } from "./test-support/fake-register-replenishment.js";
 import { anEvent, aSaleVoidedEvent } from "./test-support/fake-restored-register-replenishment.js";
 
@@ -355,7 +356,7 @@ describe("replenishRestoredRegister", () => {
       creditNoteAnswers: [],
       heldCreditNotes: [],
       rebuiltUnclearDeferrals: [],
-      saleReceipts: {},
+      prints: {},
     });
   });
 
@@ -1037,6 +1038,7 @@ describe("replenishRestoredRegister", () => {
   });
 
   describe("the original receipt of a completed sale", () => {
+    const SALE_RECEIPT_KEY = heldPrintKey({ document: "sale_receipt", saleId: "sale-1" });
     const COMPLETED_AT = new Date("2026-10-07T10:00:00.000Z");
     const SALE = anEvent("device-old", 53);
     const PRINT_STATE = anEvent("device-old", 54);
@@ -1066,8 +1068,8 @@ describe("replenishRestoredRegister", () => {
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({
-        "sale-1": { attemptedAt: COMPLETED_AT, printedAt: null },
+      expect(store.state.prints).toEqual({
+        [SALE_RECEIPT_KEY]: { attemptedAt: COMPLETED_AT, printedAt: null },
       });
     });
 
@@ -1077,8 +1079,8 @@ describe("replenishRestoredRegister", () => {
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({
-        "sale-1": {
+      expect(store.state.prints).toEqual({
+        [SALE_RECEIPT_KEY]: {
           attemptedAt: new Date("2026-10-07T10:01:00.000Z"),
           printedAt: new Date("2026-10-07T10:02:00.000Z"),
         },
@@ -1088,12 +1090,12 @@ describe("replenishRestoredRegister", () => {
     it("keeps an attempt the register already holds", async () => {
       const { feed, store, run } = aRegisterReplenishingASale();
       const held = { attemptedAt: new Date("2026-10-07T10:05:00.000Z"), printedAt: null };
-      store.state.saleReceipts["sale-1"] = held;
+      store.state.prints[SALE_RECEIPT_KEY] = held;
       feed.answers = [aPage([SALE])];
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({ "sale-1": held });
+      expect(store.state.prints).toEqual({ [SALE_RECEIPT_KEY]: held });
     });
 
     it("changes nothing when the sale is replenished again", async () => {
@@ -1105,8 +1107,8 @@ describe("replenishRestoredRegister", () => {
       await run();
       await run();
 
-      expect(store.state.saleReceipts).toEqual({
-        "sale-1": {
+      expect(store.state.prints).toEqual({
+        [SALE_RECEIPT_KEY]: {
           attemptedAt: new Date("2026-10-07T10:01:00.000Z"),
           printedAt: new Date("2026-10-07T10:02:00.000Z"),
         },
@@ -1120,7 +1122,7 @@ describe("replenishRestoredRegister", () => {
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({});
+      expect(store.state.prints).toEqual({});
     });
 
     it("is not counted for a cancelled sale", async () => {
@@ -1130,17 +1132,17 @@ describe("replenishRestoredRegister", () => {
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({});
+      expect(store.state.prints).toEqual({});
     });
 
     it("leaves nothing behind when recording it fails", async () => {
       const { feed, store, run } = aRegisterReplenishingASale();
-      store.failAt = { operation: "recordSaleReceiptAttempt" };
+      store.failAt = { operation: "recordPrintAttempt" };
       feed.answers = [aPage([SALE])];
 
       await expect(run()).rejects.toThrow("storage unavailable");
 
-      expect(store.state.saleReceipts).toEqual({});
+      expect(store.state.prints).toEqual({});
       expect(store.state.facts).toEqual([]);
       expect(store.state.appliedEventIds).toEqual([]);
     });

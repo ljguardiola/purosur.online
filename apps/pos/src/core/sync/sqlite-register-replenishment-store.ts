@@ -29,8 +29,8 @@ import { applyReplenishedCashFact } from "../register/replenished-cash-facts";
 import { applyReplenishedReturnFact } from "../returns/replenished-return-facts";
 import {
   applyReplenishedReceiptFact,
-  heldSaleReceiptAttempt,
-  holdSaleReceiptAttempt,
+  heldPrintAttempt,
+  holdPrintAttempt,
 } from "../sales/replenished-receipt-facts";
 import { applyReplenishedSaleFact } from "../sales/replenished-sale-facts";
 import { applyReplenishedSaleVoidFact } from "../sales/replenished-sale-void-facts";
@@ -195,11 +195,11 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
       async holdsDeferredSaleRecord(saleId) {
         return holdsDeferredSaleRecord(database, saleId);
       },
-      async saleReceiptAttemptedAt(saleId) {
-        return heldSaleReceiptAttempt(database, saleId);
+      async printAttemptedAt(key) {
+        return heldPrintAttempt(database, key);
       },
-      async recordSaleReceiptAttempt(saleId, at) {
-        holdSaleReceiptAttempt(database, saleId, at);
+      async recordPrintAttempt(key, at) {
+        holdPrintAttempt(database, key, at);
       },
       async recordEventApplied(eventId) {
         database.prepare("INSERT INTO replenished_events (event_id) VALUES (?)").run(eventId);

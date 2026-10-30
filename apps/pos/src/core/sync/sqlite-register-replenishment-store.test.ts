@@ -32,6 +32,7 @@ import {
 const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
 const SALT = encodePinHash(new Uint8Array(16).fill(1));
+const A_SALE_RECEIPT = { document: "sale_receipt", saleId: "sale-1" } as const;
 const SOURCE = { eventId: "event-1", deviceId: "device-old" };
 
 let database: LocalDatabase;
@@ -841,15 +842,15 @@ describe("the register's store for replenishing a restored register", () => {
     });
 
     it("is unknown while the receipt was never sent to the printer", async () => {
-      expect(await store.transaction((tx) => tx.saleReceiptAttemptedAt("sale-1"))).toBeNull();
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_SALE_RECEIPT))).toBeNull();
     });
 
     it("is the moment recorded, leaving the receipt unprinted", async () => {
       const at = new Date("2026-10-07T10:00:00.000Z");
 
-      await store.transaction((tx) => tx.recordSaleReceiptAttempt("sale-1", at));
+      await store.transaction((tx) => tx.recordPrintAttempt(A_SALE_RECEIPT, at));
 
-      expect(await store.transaction((tx) => tx.saleReceiptAttemptedAt("sale-1"))).toEqual(at);
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_SALE_RECEIPT))).toEqual(at);
       expect(
         database
           .prepare("SELECT print_attempted_at, printed_at FROM sales WHERE id = 'sale-1'")
