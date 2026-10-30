@@ -142,6 +142,7 @@ export const completeReturnOutcomeSchema = z.discriminatedUnion("kind", [
         method: z.enum(PAYMENT_METHODS),
         amount: cents,
         state: z.enum(PLANNED_REFUND_STATES),
+        sent_by_cloud: z.boolean(),
       }),
     ),
     authorized_by: authorizedBySchema.nullable(),

@@ -458,7 +458,15 @@ describe("the answer to completing a return", () => {
     { ...completed, refunds: [], refunded_total: 0 },
     {
       ...completed,
-      refunds: [{ payment_id: "pay-transfer", method: "TRANSFER", amount: 7000, state: "PENDING" }],
+      refunds: [
+        {
+          payment_id: "pay-transfer",
+          method: "TRANSFER",
+          amount: 7000,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
+      ],
     },
     { kind: "not_found" },
     { kind: "sale_not_returnable" },

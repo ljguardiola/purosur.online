@@ -982,7 +982,15 @@ describe("returning a sale another register rang up", () => {
       kind: "completed",
       return_id: "id-1",
       refunded_total: 2500,
-      refunds: [{ payment_id: "pay-elsewhere", method: "CASH", amount: 2500, state: "APPROVED" }],
+      refunds: [
+        {
+          payment_id: "pay-elsewhere",
+          method: "CASH",
+          amount: 2500,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
       authorized_by: null,
     });
     expect(askedTickets).toEqual([]);
