@@ -104,6 +104,15 @@ interface HeldCreditNote {
   event: ReplenishedEvent["event"];
 }
 
+interface HeldSaleReceipt {
+  attemptedAt: Date;
+  printedAt: Date | null;
+}
+
+function isLater(candidate: Date, held: Date | null | undefined): boolean {
+  return held === null || held === undefined || candidate.getTime() > held.getTime();
+}
+
 export interface ReplenishingRegisterState {
   predecessor: RegisterPredecessor | undefined;
   failure: ReplenishmentFailure | undefined;
@@ -113,6 +122,7 @@ export interface ReplenishingRegisterState {
   creditNoteAnswers: RecordedCreditNoteAnswer[];
   heldCreditNotes: HeldCreditNote[];
   rebuiltUnclearDeferrals: RebuiltUnclearDeferral[];
+  saleReceipts: Record<string, HeldSaleReceipt>;
 }
 
 export type FakeStoreOperation =
@@ -121,6 +131,7 @@ export type FakeStoreOperation =
   | "recordCreditNoteAnswer"
   | "holdCreditNoteToRequest"
   | "rebuildUnclearDeferredSale"
+  | "recordSaleReceiptAttempt"
   | "recordEventApplied"
   | "finish";
 
@@ -141,6 +152,7 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
       creditNoteAnswers: [],
       heldCreditNotes: [],
       rebuiltUnclearDeferrals: [],
+      saleReceipts: {},
     };
   }
 
@@ -195,6 +207,22 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
         ) {
           return "not_yet_applicable";
         }
+        if (
+          fact.kind === "sale_print_state_changed" &&
+          fact.printState.document === "sale_receipt"
+        ) {
+          const { saleId, printAttemptedAt, printedAt } = fact.printState;
+          const held = working.saleReceipts[saleId];
+          working.saleReceipts[saleId] = {
+            attemptedAt: isLater(printAttemptedAt, held?.attemptedAt)
+              ? printAttemptedAt
+              : (held?.attemptedAt ?? printAttemptedAt),
+            printedAt:
+              printedAt !== null && isLater(printedAt, held?.printedAt)
+                ? printedAt
+                : (held?.printedAt ?? null),
+          };
+        }
         working.facts.push({ fact, source });
         return "applied";
       },
@@ -231,6 +259,14 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
         return "applied";
       },
       holdsDeferredSaleRecord: async (saleId) => holdsDeferredSaleRecord(saleId),
+      saleReceiptAttemptedAt: async (saleId) => working.saleReceipts[saleId]?.attemptedAt ?? null,
+      recordSaleReceiptAttempt: async (saleId, at) => {
+        failIf("recordSaleReceiptAttempt");
+        working.saleReceipts[saleId] = {
+          attemptedAt: at,
+          printedAt: working.saleReceipts[saleId]?.printedAt ?? null,
+        };
+      },
       recordEventApplied: async (eventId) => {
         failIf("recordEventApplied", eventId);
         working.appliedEventIds.push(eventId);

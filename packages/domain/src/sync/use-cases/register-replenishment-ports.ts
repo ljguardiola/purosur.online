@@ -62,6 +62,9 @@ export interface RegisterReplenishmentTransaction {
   // Rebuilding a record the register already holds changes nothing and answers "applied".
   rebuildUnclearDeferredSale(rebuilt: RebuiltUnclearDeferral): Promise<ReplenishedEventApplication>;
   holdsDeferredSaleRecord(saleId: string): Promise<boolean>;
+  // Null while the register knows of no attempt to print the sale's receipt.
+  saleReceiptAttemptedAt(saleId: string): Promise<Date | null>;
+  recordSaleReceiptAttempt(saleId: string, at: Date): Promise<void>;
   recordEventApplied(eventId: string): Promise<void>;
 }
 

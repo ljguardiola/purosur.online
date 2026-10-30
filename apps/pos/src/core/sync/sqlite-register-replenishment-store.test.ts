@@ -835,6 +835,29 @@ describe("the register's store for replenishing a restored register", () => {
     });
   });
 
+  describe("the attempt of a sale's receipt", () => {
+    beforeEach(async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+    });
+
+    it("is unknown while the receipt was never sent to the printer", async () => {
+      expect(await store.transaction((tx) => tx.saleReceiptAttemptedAt("sale-1"))).toBeNull();
+    });
+
+    it("is the moment recorded, leaving the receipt unprinted", async () => {
+      const at = new Date("2026-10-07T10:00:00.000Z");
+
+      await store.transaction((tx) => tx.recordSaleReceiptAttempt("sale-1", at));
+
+      expect(await store.transaction((tx) => tx.saleReceiptAttemptedAt("sale-1"))).toEqual(at);
+      expect(
+        database
+          .prepare("SELECT print_attempted_at, printed_at FROM sales WHERE id = 'sale-1'")
+          .get(),
+      ).toEqual({ print_attempted_at: "2026-10-07T10:00:00.000Z", printed_at: null });
+    });
+  });
+
   describe("a transaction", () => {
     it("leaves nothing behind when it fails", async () => {
       await expect(

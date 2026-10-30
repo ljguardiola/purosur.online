@@ -17,6 +17,8 @@ import {
   A_CLOCK_CORRECTED_FACT,
   A_DEFERRED_SALE_RECORDED_FACT,
   A_GATE_FAILED_FACT,
+  aCancelledSaleFact,
+  aCompletedSaleFact,
   aReturnedSaleFact,
   aVoidedSaleFact,
 } from "../model/test-support/synced-facts.js";
@@ -353,6 +355,7 @@ describe("replenishRestoredRegister", () => {
       creditNoteAnswers: [],
       heldCreditNotes: [],
       rebuiltUnclearDeferrals: [],
+      saleReceipts: {},
     });
   });
 
@@ -1029,6 +1032,116 @@ describe("replenishRestoredRegister", () => {
       await expect(run()).rejects.toThrow("storage unavailable");
 
       expect(store.state.rebuiltUnclearDeferrals).toEqual([]);
+      expect(store.state.appliedEventIds).toEqual([]);
+    });
+  });
+
+  describe("the original receipt of a completed sale", () => {
+    const COMPLETED_AT = new Date("2026-10-07T10:00:00.000Z");
+    const SALE = anEvent("device-old", 53);
+    const PRINT_STATE = anEvent("device-old", 54);
+    const PRINTED: SyncedFact = {
+      kind: "sale_print_state_changed",
+      printState: {
+        saleId: "sale-1",
+        document: "sale_receipt",
+        printAttemptedAt: new Date("2026-10-07T10:01:00.000Z"),
+        printedAt: new Date("2026-10-07T10:02:00.000Z"),
+      },
+    };
+
+    function aRegisterReplenishingASale() {
+      const register = aRestoredRegister();
+      register.decoder.facts.set(
+        SALE.event.event_id,
+        aCompletedSaleFact({ id: "sale-1", completedAt: COMPLETED_AT }),
+      );
+      register.decoder.facts.set(PRINT_STATE.event.event_id, PRINTED);
+      return register;
+    }
+
+    it("counts as attempted when the sale completed, since the lost installation may have printed it", async () => {
+      const { feed, store, run } = aRegisterReplenishingASale();
+      feed.answers = [aPage([SALE])];
+
+      await run();
+
+      expect(store.state.saleReceipts).toEqual({
+        "sale-1": { attemptedAt: COMPLETED_AT, printedAt: null },
+      });
+    });
+
+    it("takes the print state replenished after the sale", async () => {
+      const { feed, store, run } = aRegisterReplenishingASale();
+      feed.answers = [aPage([SALE, PRINT_STATE])];
+
+      await run();
+
+      expect(store.state.saleReceipts).toEqual({
+        "sale-1": {
+          attemptedAt: new Date("2026-10-07T10:01:00.000Z"),
+          printedAt: new Date("2026-10-07T10:02:00.000Z"),
+        },
+      });
+    });
+
+    it("keeps an attempt the register already holds", async () => {
+      const { feed, store, run } = aRegisterReplenishingASale();
+      const held = { attemptedAt: new Date("2026-10-07T10:05:00.000Z"), printedAt: null };
+      store.state.saleReceipts["sale-1"] = held;
+      feed.answers = [aPage([SALE])];
+
+      await run();
+
+      expect(store.state.saleReceipts).toEqual({ "sale-1": held });
+    });
+
+    it("changes nothing when the sale is replenished again", async () => {
+      const { feed, store, run } = aRegisterReplenishingASale();
+      const pending = anEvent("device-old", 55);
+      store.notYetApplicable.add(pending.event.event_id);
+      feed.answers = [aPage([SALE, PRINT_STATE, pending]), aPage([SALE, PRINT_STATE, pending])];
+
+      await run();
+      await run();
+
+      expect(store.state.saleReceipts).toEqual({
+        "sale-1": {
+          attemptedAt: new Date("2026-10-07T10:01:00.000Z"),
+          printedAt: new Date("2026-10-07T10:02:00.000Z"),
+        },
+      });
+    });
+
+    it("is not counted while the sale cannot be applied yet", async () => {
+      const { feed, store, run } = aRegisterReplenishingASale();
+      store.notYetApplicable.add(SALE.event.event_id);
+      feed.answers = [aPage([SALE])];
+
+      await run();
+
+      expect(store.state.saleReceipts).toEqual({});
+    });
+
+    it("is not counted for a cancelled sale", async () => {
+      const { feed, store, decoder, run } = aRegisterReplenishingASale();
+      decoder.facts.set(SALE.event.event_id, aCancelledSaleFact({ id: "sale-1" }));
+      feed.answers = [aPage([SALE])];
+
+      await run();
+
+      expect(store.state.saleReceipts).toEqual({});
+    });
+
+    it("leaves nothing behind when recording it fails", async () => {
+      const { feed, store, run } = aRegisterReplenishingASale();
+      store.failAt = { operation: "recordSaleReceiptAttempt" };
+      feed.answers = [aPage([SALE])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state.saleReceipts).toEqual({});
+      expect(store.state.facts).toEqual([]);
       expect(store.state.appliedEventIds).toEqual([]);
     });
   });

@@ -49,6 +49,7 @@ export type {
 } from "./model/removed-lines-and-cancelled-sales-report.js";
 export { CANCELLED_SALES_REPORT_SALE_STATE } from "./model/removed-lines-and-cancelled-sales-report.js";
 export type { RemovedSaleLine } from "./model/removed-sale-line.js";
+export { replenishedSaleReceiptAttempt } from "./model/replenished-sale-receipt.js";
 export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./model/sale.js";
 export { SALE_STATES_AFTER_COMPLETION } from "./model/sale.js";
 export type {

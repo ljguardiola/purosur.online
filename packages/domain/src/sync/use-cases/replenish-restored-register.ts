@@ -4,6 +4,7 @@ import {
   type RestoredUnclearDeferral,
   rebuiltUnclearDeferral,
 } from "../../fiscal/index.js";
+import { replenishedSaleReceiptAttempt } from "../../sales/index.js";
 import {
   heldReplenishmentFailure,
   type ReplenishmentFailure,
@@ -109,6 +110,15 @@ async function applyPage<TFailure>(
       if (application === "not_yet_applicable") {
         unapplied += 1;
         continue;
+      }
+      if (fact.kind === "sale_completed") {
+        const attempt = replenishedSaleReceiptAttempt(
+          fact.sale.completedAt,
+          await tx.saleReceiptAttemptedAt(fact.sale.id),
+        );
+        if (attempt !== null) {
+          await tx.recordSaleReceiptAttempt(fact.sale.id, attempt);
+        }
       }
       if (
         fact.kind === "fiscal_gate_failed" &&
