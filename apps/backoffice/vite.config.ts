@@ -57,8 +57,13 @@ export default defineConfig(({ mode }) => {
                 includeDependenciesRecursively: false,
               },
               {
+                name: "formatting",
+                test: /[\\/]packages[\\/]formatting[\\/]src[\\/]/,
+                priority: 1,
+              },
+              {
                 name: "ui",
-                test: /[\\/]packages[\\/](?:ui|formatting)[\\/]src[\\/]/,
+                test: /[\\/]packages[\\/]ui[\\/]src[\\/]/,
                 priority: 1,
                 minShareCount: 4,
               },
