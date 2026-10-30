@@ -1,6 +1,8 @@
 import {
   countsTowardDailyExtractionCap,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
+  type RemovedItem,
+  type RereadPlan,
   type SaleUnit,
   type SupplierItemKey,
   type SupplierPriceListContentKind,
@@ -50,9 +52,6 @@ import {
   SUPPLIER_PRICE_LIST_READING_MAX_ATTEMPTS,
   SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER,
 } from "./supplier-price-list-reading-task-identifier.js";
-
-type RemovedItem = Awaited<ReturnType<SupplierPriceListStoreTransaction["removedItems"]>>[number];
-type RereadPlan = Parameters<SupplierPriceListStoreTransaction["recordReread"]>[4];
 
 const ROW_AUDIT_ENTITY = "supplier_price_list_row";
 
@@ -358,7 +357,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
     rereadId: string,
     listDate: string | null,
     pricesIncludeVat: boolean | null,
-    plan: RereadPlan,
+    plan: RereadPlan<SupplierItemLink>,
   ): Promise<void> {
     for (const batch of batchesOf(plan.droppedRowIds)) {
       await this.tx.delete(supplierPriceListRows).where(inArray(supplierPriceListRows.id, batch));

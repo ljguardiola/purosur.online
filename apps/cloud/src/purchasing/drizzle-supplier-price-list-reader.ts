@@ -21,6 +21,7 @@ import {
   products,
   supplierItemPrices,
   supplierItems,
+  supplierPriceListRereads,
   supplierPriceListRows,
   supplierPriceLists,
   suppliers,
@@ -28,6 +29,11 @@ import {
 
 const rowCount = sql<number>`(select count(*)::int from ${supplierPriceListRows} where ${supplierPriceListRows.listId} = ${supplierPriceLists.id})`;
 const unpricedRowCount = sql<number>`(select count(*)::int from ${supplierPriceListRows} where ${supplierPriceListRows.listId} = ${supplierPriceLists.id} and ${supplierPriceListRows.priceCents} is null)`;
+
+const rereading = sql<boolean>`exists (select 1 from ${supplierPriceListRereads} where ${supplierPriceListRereads.listId} = ${supplierPriceLists.id} and ${supplierPriceListRereads.state} = 'READING')`;
+const lastRereadFailure = sql<
+  string | null
+>`(select ${supplierPriceListRereads.readFailure} from ${supplierPriceListRereads} where ${supplierPriceListRereads.listId} = ${supplierPriceLists.id} order by ${supplierPriceListRereads.requestedAt} desc limit 1)`;
 
 const listingColumns = {
   id: supplierPriceLists.id,
@@ -40,6 +46,8 @@ const listingColumns = {
   unpricedRowCount,
   state: supplierPriceLists.state,
   readFailure: supplierPriceLists.readFailure,
+  rereading,
+  lastRereadFailure,
   uploadedAt: supplierPriceLists.uploadedAt,
   confirmedAt: supplierPriceLists.confirmedAt,
 };
@@ -55,6 +63,8 @@ function toListing(row: {
   unpricedRowCount: number;
   state: string;
   readFailure: string | null;
+  rereading: boolean;
+  lastRereadFailure: string | null;
   uploadedAt: Date;
   confirmedAt: Date | null;
 }): SupplierPriceListListing {
@@ -70,6 +80,8 @@ function toListing(row: {
     unpricedRowCount: row.unpricedRowCount,
     state: row.state as SupplierPriceListState,
     readFailure: row.readFailure as SupplierPriceListReadFailure | null,
+    rereading: row.rereading,
+    lastRereadFailure: row.lastRereadFailure as SupplierPriceListReadFailure | null,
     uploadedAt: row.uploadedAt,
     confirmedAt: row.confirmedAt,
   };

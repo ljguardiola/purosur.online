@@ -15,6 +15,8 @@ export const supplierPriceListSummarySchema = z.object({
   unpricedRowCount: z.int(),
   state: z.enum(SUPPLIER_PRICE_LIST_STATES),
   readFailure: z.enum(SUPPLIER_PRICE_LIST_READ_FAILURES).nullable(),
+  rereading: z.boolean(),
+  lastRereadFailure: z.enum(SUPPLIER_PRICE_LIST_READ_FAILURES).nullable(),
   uploadedAt: z.iso.datetime(),
   replaced: z.boolean(),
 });

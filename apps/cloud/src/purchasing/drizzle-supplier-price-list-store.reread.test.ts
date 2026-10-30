@@ -1,8 +1,5 @@
-import { supplierItemKey } from "@purosur/domain";
-import type {
-  SupplierItemLink,
-  SupplierPriceListStoreTransaction,
-} from "@purosur/domain/purchasing/use-cases";
+import { type RereadPlan, supplierItemKey } from "@purosur/domain";
+import type { SupplierItemLink } from "@purosur/domain/purchasing/use-cases";
 import { describe, expect, it } from "vitest";
 import {
   NOW,
@@ -15,8 +12,6 @@ import {
   insertRemovedItem,
   insertReread,
 } from "./test-support/supplier-price-list-fixtures.js";
-
-type RereadPlan = Parameters<SupplierPriceListStoreTransaction["recordReread"]>[4];
 
 const context = supplierPriceListStoreDatabase();
 
@@ -322,7 +317,7 @@ describe("recording a reread", () => {
   const record = (
     listId: string,
     rereadId: string,
-    plan: RereadPlan,
+    plan: RereadPlan<SupplierItemLink>,
     terms: { listDate: string | null; pricesIncludeVat: boolean | null } = {
       listDate: "2026-03-09",
       pricesIncludeVat: true,
