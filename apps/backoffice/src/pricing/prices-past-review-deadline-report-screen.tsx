@@ -13,17 +13,17 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { TagX } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ReportFilters } from "../shell/report-filters";
+import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { formatCentsWithUnit } from "./money";
 import { lastReviewedText } from "./prices-past-review-deadline-moments";
-import type { PricesPastReviewDeadlineReportFilters } from "./prices-past-review-deadline-report-filters";
 import type { PricesPastReviewDeadlineReportScreenServices } from "./prices-past-review-deadline-report-services";
 import { usePricesPastReviewDeadlineReportQuery } from "./pricing-queries";
 
 export type PricesPastReviewDeadlineReportScreenProps = {
-  filters: PricesPastReviewDeadlineReportFilters;
-  onFiltersChange: (filters: PricesPastReviewDeadlineReportFilters) => void;
+  filters: ReportPeriodFilters;
+  onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
   services: PricesPastReviewDeadlineReportScreenServices;
 };

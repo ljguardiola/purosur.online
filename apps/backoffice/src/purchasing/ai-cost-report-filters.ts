@@ -1,10 +1,10 @@
 import { aiCostByPeriodQuerySchema } from "@purosur/contracts";
 import { z } from "zod";
-import { reportPeriodFilters } from "./report-period-filters";
+import { reportPeriodSearch } from "../shell/report-filters-search";
 
 const grouping = aiCostByPeriodQuerySchema.shape.group_by;
 
-export const aiCostReportFilters = reportPeriodFilters.and(
+export const aiCostReportFilters = reportPeriodSearch.and(
   z.object({ group: grouping.default("supplier").catch("supplier") }),
 );
 

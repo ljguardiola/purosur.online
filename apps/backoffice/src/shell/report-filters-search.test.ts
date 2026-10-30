@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { reportFiltersSearch, reportQueryOf } from "./report-filters-search";
+import { reportFiltersSearch, reportPeriodSearch, reportQueryOf } from "./report-filters-search";
 import { FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 
 test("opens on no range and every register", () => {
@@ -54,4 +54,25 @@ test("asks for the range and the register chosen", () => {
     to: "2026-10-07",
     register_id: FRONT_REGISTER_ID,
   });
+});
+
+test("opens a period-only report on no period", () => {
+  expect(reportPeriodSearch.parse({})).toEqual({ from: "", to: "" });
+});
+
+test("keeps the period a URL names for a period-only report", () => {
+  const filters = { from: "2026-12-01", to: "2026-12-31" };
+
+  expect(reportPeriodSearch.parse(filters)).toEqual(filters);
+});
+
+test.each([
+  ["a period that is not text", { from: 3, to: false }],
+  ["no period at all", { from: undefined, to: undefined }],
+  ["a period that ends before it starts", { from: "2026-12-31", to: "2026-12-01" }],
+  ["a period with only its start", { from: "2026-12-01" }],
+  ["a period with only its end", { to: "2026-12-31" }],
+  ["a period whose bounds are not days", { from: "2026-02-30", to: "mañana" }],
+])("falls back to no period in a period-only report for %s", (_name, search) => {
+  expect(reportPeriodSearch.parse(search)).toEqual({ from: "", to: "" });
 });

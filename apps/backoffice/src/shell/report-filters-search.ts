@@ -27,6 +27,12 @@ export function withoutRefusedPeriod<Filters extends { from: string; to: string 
 
 export const reportFiltersSearch = z.object(reportFiltersFields).transform(withoutRefusedPeriod);
 
+export const reportPeriodSearch = z
+  .object({ from: reportFiltersFields.from, to: reportFiltersFields.to })
+  .transform(withoutRefusedPeriod);
+
+export type ReportPeriodFilters = z.output<typeof reportPeriodSearch>;
+
 export function reportQueryOf(filters: ReportFilters): ReportQuery {
   return {
     ...(filters.from === "" ? {} : { from: filters.from, to: filters.to }),
