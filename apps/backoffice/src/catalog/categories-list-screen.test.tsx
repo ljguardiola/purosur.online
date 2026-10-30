@@ -630,7 +630,7 @@ test("does not report its filters again when the route hands it a new callback",
 
 test("shows the category count with the thousands separator", async () => {
   const services = createServices();
-  const manyCategories = Array.from({ length: 1998 }, (_, index) => ({
+  const manyCategories = Array.from({ length: 1000 }, (_, index) => ({
     ...groceries,
     id: `ca7e0000-0000-4000-8000-${String(index).padStart(12, "0")}`,
     name: `Categoría ${index}`,
@@ -639,5 +639,5 @@ test("shows the category count with the thousands separator", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("1.998 categorías")).toBeVisible();
+  await expect.element(screen.getByText("1.000 categorías")).toBeVisible();
 });

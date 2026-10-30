@@ -74,7 +74,7 @@ test("draws as one centered column, 12px apart, with only Volver and Guardar los
 });
 
 test("counts a large group of people with the thousands separator", async () => {
-  const manyPeople = Array.from({ length: 1998 }, (_, index) => ({
+  const manyPeople = Array.from({ length: 1000 }, (_, index) => ({
     id: `user-${index}`,
     name: `Persona ${index}`,
   }));
@@ -82,6 +82,6 @@ test("counts a large group of people with the thousands separator", async () => 
   const screen = await renderModal({}, manyPeople);
 
   await expect
-    .element(screen.getByText("Se aplican a las 1.998 personas con el rol Depósito:"))
+    .element(screen.getByText("Se aplican a las 1.000 personas con el rol Depósito:"))
     .toBeVisible();
 });

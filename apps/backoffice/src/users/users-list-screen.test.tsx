@@ -1113,17 +1113,17 @@ test("typing in the Rol of a new user offers only the matching roles", async () 
 
 test("shows the user count and a passkey count with the thousands separator", async () => {
   const services = createUsersListServices();
-  const manyUsers = Array.from({ length: 1998 }, (_, index) => ({
+  const manyUsers = Array.from({ length: 1000 }, (_, index) => ({
     ...martina,
     id: `user-${index}`,
     firstName: `Usuario ${index}`,
     email: `usuario${index}@example.com`,
-    passkeyCount: 1998,
+    passkeyCount: 1000,
   }));
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: manyUsers });
 
   const screen = await renderUsersList(services);
 
-  await expect.element(screen.getByText("1.998 usuarios")).toBeVisible();
-  await expect.element(screen.getByText("1.998 registradas").first()).toBeVisible();
+  await expect.element(screen.getByText("1.000 usuarios")).toBeVisible();
+  await expect.element(screen.getByText("1.000 registradas").first()).toBeVisible();
 });

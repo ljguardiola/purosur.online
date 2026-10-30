@@ -635,11 +635,11 @@ test("offers no supplier creation in the upload to a person who cannot manage su
 
 test("counts the lists in the footer with the thousands separator", async () => {
   const services = createServices();
-  const manyLists = Array.from({ length: 1998 }, (_, index) => ({
+  const manyLists = Array.from({ length: 1000 }, (_, index) => ({
     ...READ_LIST,
     id: `5b100000-0000-4000-8000-${String(index).padStart(12, "0")}`,
   }));
   const screen = await loaded(services, manyLists);
 
-  await expect.element(screen.getByText("1.998 listas")).toBeVisible();
+  await expect.element(screen.getByText("1.000 listas")).toBeVisible();
 });

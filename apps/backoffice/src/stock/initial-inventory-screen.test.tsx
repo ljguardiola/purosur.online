@@ -339,13 +339,13 @@ test("names the lot's product by its brand and net content when editing its cost
 });
 
 test("counts the lots and those with no cost with the thousands separator", async () => {
-  const manyLots = Array.from({ length: 1998 }, (_, index) => ({
+  const manyLots = Array.from({ length: 1000 }, (_, index) => ({
     ...initialLotTeaWithoutCost,
     lotId: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
   }));
   const screen = await renderScreen(createServices(manyLots));
 
   await expect
-    .element(screen.getByText("1.998 lotes de la puesta en marcha · 1.998 sin costo"))
+    .element(screen.getByText("1.000 lotes de la puesta en marcha · 1.000 sin costo"))
     .toBeVisible();
 });

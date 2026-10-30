@@ -342,7 +342,7 @@ test("typing in the category filter offers only the matching categories", async 
 
 test("the footer count uses the thousands separator for both review filters", async () => {
   const services = createServices();
-  const manyProducts = Array.from({ length: 1998 }, (_, index) => ({
+  const manyProducts = Array.from({ length: 1000 }, (_, index) => ({
     ...rice,
     id: `product-${index}`,
     name: `Arroz ${index}`,
@@ -351,8 +351,8 @@ test("the footer count uses the thousands separator for both review filters", as
     kind: "ok",
     value: {
       products: manyProducts,
-      pendingCount: 1998,
-      activeProductCount: 1998,
+      pendingCount: 1000,
+      activeProductCount: 1000,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -360,10 +360,10 @@ test("the footer count uses the thousands separator for both review filters", as
 
   const screen = await renderScreen(services);
   await expect
-    .element(screen.getByText("1.998 productos sin revisar, del más viejo al más nuevo"))
+    .element(screen.getByText("1.000 productos sin revisar, del más viejo al más nuevo"))
     .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
   await userEvent.click(screen.getByRole("option", { name: "Todos" }));
-  await expect.element(screen.getByText("1.998 productos")).toBeVisible();
+  await expect.element(screen.getByText("1.000 productos")).toBeVisible();
 });

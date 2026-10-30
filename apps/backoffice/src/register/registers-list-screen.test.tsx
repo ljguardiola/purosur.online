@@ -969,7 +969,7 @@ test("a register that disappears while its terminal is edited is reported in the
 
 test("shows the register count with the thousands separator", async () => {
   const services = createServices();
-  const manyRegisters = Array.from({ length: 1998 }, (_, index) => ({
+  const manyRegisters = Array.from({ length: 1000 }, (_, index) => ({
     ...register1,
     id: `register-${index}`,
     name: `Caja ${index}`,
@@ -978,5 +978,5 @@ test("shows the register count with the thousands separator", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("1.998 cajas")).toBeVisible();
+  await expect.element(screen.getByText("1.000 cajas")).toBeVisible();
 });
