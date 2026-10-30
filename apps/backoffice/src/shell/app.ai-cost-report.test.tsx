@@ -84,7 +84,7 @@ test("keeps the period and the grouping in the URL and asks the cloud for them",
   window.history.pushState(
     null,
     "",
-    "/reports/ai-cost-by-period?from=2026-10-01&to=2026-10-31&group=day",
+    "/reports/ai-cost-by-period?from=2026-10-01&group=day&to=2026-10-31",
   );
 
   await render(<App help={emptyHelp} services={services} />);
@@ -92,7 +92,7 @@ test("keeps the period and the grouping in the URL and asks the cloud for them",
   await expect
     .poll(() => services.aiCostReportScreen.fetchAiCostReport)
     .toHaveBeenCalledWith({ from: "2026-10-01", to: "2026-10-31", group_by: "day" });
-  expect(window.location.search).toBe("?from=2026-10-01&to=2026-10-31&group=day");
+  expect(window.location.search).toBe("?from=2026-10-01&group=day&to=2026-10-31");
 });
 
 test("sends a user without the branch area to Mi cuenta", async () => {
