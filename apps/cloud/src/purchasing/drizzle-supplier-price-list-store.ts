@@ -10,6 +10,7 @@ import {
   sameSupplierItemKey,
 } from "@purosur/domain";
 import type {
+  AiCallRecord,
   FindPriceListSupplierResult,
   FindSupplierPriceListSourceResult,
   LockProductPackagingResult,
@@ -39,6 +40,7 @@ import {
   supplierPriceLists,
   suppliers,
 } from "../platform/db/schema.js";
+import { insertAiCallRecords } from "./drizzle-ai-call-records.js";
 import {
   SUPPLIER_PRICE_LIST_READING_MAX_ATTEMPTS,
   SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER,
@@ -205,9 +207,14 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         listDate: list.listDate,
         pricesIncludeVat: list.pricesIncludeVat,
         sentAt: list.sentAt,
+        actorId: list.uploadedBy,
         rowPrices: rows.map((row) => row.priceCents),
       },
     };
+  }
+
+  recordAiCalls(records: AiCallRecord[]): Promise<void> {
+    return insertAiCallRecords(this.tx, records);
   }
 
   async markSent(listId: string, sentAt: Date, sentOn: string): Promise<void> {
