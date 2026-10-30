@@ -1,4 +1,5 @@
 import type {
+  AiCostBody,
   BrandSummary,
   CategorySummary,
   FreightByPeriodBody,
@@ -43,6 +44,7 @@ import type {
 } from "./supplier-item-products-api";
 import type { fetchSupplierPriceComparison } from "./supplier-price-comparison-api";
 import type {
+  fetchSupplierPriceListAiCost,
   fetchSupplierPriceListReview,
   fetchSupplierPriceLists,
   SupplierPriceListReviewRead,
@@ -60,6 +62,7 @@ export const purchasingKeys = {
   linkablePurchases: [...purchasingKey, "linkable-purchases"] as const,
   supplierPriceLists: [...purchasingKey, "supplier-price-lists"] as const,
   supplierPriceListReview: [...purchasingKey, "supplier-price-list-review"] as const,
+  supplierPriceListAiCost: [...purchasingKey, "supplier-price-list-ai-cost"] as const,
   supplierItemLinkProposal: [...purchasingKey, "supplier-item-link-proposal"] as const,
   supplierItemLinkChoices: [...purchasingKey, "supplier-item-link-choices"] as const,
   productCreationCategories: [...purchasingKey, "product-creation-categories"] as const,
@@ -241,6 +244,21 @@ export function useSupplierPriceListReviewQuery(params: {
   );
 }
 
+export function useSupplierPriceListAiCostQuery(params: {
+  listId: string;
+  fetchSupplierPriceListAiCost: typeof fetchSupplierPriceListAiCost;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<AiCostBody>({
+    queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
+    keepPreviousData: true,
+    read: () => params.fetchSupplierPriceListAiCost(params.listId),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
 export function useSupplierItemLinkProposalQuery(params: {
   listId: string;
   rowId: string;
@@ -249,10 +267,17 @@ export function useSupplierItemLinkProposalQuery(params: {
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
+  const client = useQueryClient();
   return useCloudQuery<SupplierItemLinkProposal>({
     queryKey: [...purchasingKeys.supplierItemLinkProposal, params.listId, params.rowId],
     enabled: params.enabled,
-    read: () => params.fetchSupplierItemLinkProposal(params.listId, params.rowId),
+    read: async () => {
+      const outcome = await params.fetchSupplierItemLinkProposal(params.listId, params.rowId);
+      void client.invalidateQueries({
+        queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
+      });
+      return outcome;
+    },
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

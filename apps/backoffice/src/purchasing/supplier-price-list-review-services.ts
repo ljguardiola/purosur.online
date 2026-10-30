@@ -21,6 +21,7 @@ import {
 import {
   confirmSupplierPriceList,
   discardSupplierPriceList,
+  fetchSupplierPriceListAiCost,
   fetchSupplierPriceListReview,
   linkSupplierPriceListRow,
   markSupplierPriceListRowReviewed,
@@ -30,6 +31,7 @@ import {
 
 export type SupplierPriceListReviewScreenServices = {
   fetchSupplierPriceListReview: typeof fetchSupplierPriceListReview;
+  fetchSupplierPriceListAiCost: typeof fetchSupplierPriceListAiCost;
   markSupplierPriceListRowReviewed: typeof markSupplierPriceListRowReviewed;
 } & EditSupplierPriceListRowPriceModalServices &
   LinkSupplierItemModalServices &
@@ -40,6 +42,7 @@ export type SupplierPriceListReviewScreenServices = {
 
 export const defaultSupplierPriceListReviewScreenServices: SupplierPriceListReviewScreenServices = {
   fetchSupplierPriceListReview,
+  fetchSupplierPriceListAiCost,
   setSupplierPriceListRowPrice,
   removeSupplierPriceListRow,
   markSupplierPriceListRowReviewed,

@@ -1,4 +1,6 @@
 import {
+  type AiCostBody,
+  aiCostSchema,
   type SupplierPriceListConfirmationBody,
   type SupplierPriceListDiscardBody,
   type SupplierPriceListPageRefused,
@@ -127,6 +129,10 @@ async function validationFailed(
 
 export function fetchSupplierPriceLists(): Promise<FetchSupplierPriceListsOutcome> {
   return readCloudJson("/api/supplier-price-lists", supplierPriceListListSchema);
+}
+
+export function fetchSupplierPriceListAiCost(id: string): Promise<CloudReadOutcome<AiCostBody>> {
+  return readCloudJson(`/api/supplier-price-lists/${id}/ai-cost`, aiCostSchema);
 }
 
 export async function fetchSupplierPriceListReview(
