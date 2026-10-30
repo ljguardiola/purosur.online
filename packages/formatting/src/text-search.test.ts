@@ -9,6 +9,12 @@ test("drops every combining mark, beyond the common accents", () => {
   expect(foldedText("Ma᷀te co᪰cido")).toBe("mate cocido");
 });
 
+test("spells out the Latin letters with a stroke, a ligature or a sharp s as plain letters", () => {
+  expect(foldedText("Smørrebrød ÆBLE Œuvre Straße Łódź Đakovo Þór Ħal")).toBe(
+    "smorrebrod aeble oeuvre strasse lodz dakovo thor hal",
+  );
+});
+
 test("lowers the letter case", () => {
   expect(foldedText("ACEITE De Almendras")).toBe("aceite de almendras");
 });

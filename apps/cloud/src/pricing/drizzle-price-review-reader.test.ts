@@ -362,10 +362,10 @@ describe("DrizzlePriceReviewReader", () => {
 
   it("searches by name ignoring accents and case", async () => {
     const categoryId = await insertCategory("Almacén");
-    const vinegarId = await insertProduct("Aceto Balsámico Clásico", categoryId);
+    const breadId = await insertProduct("Smørrebrød Clásico", categoryId);
     await insertProduct("Arroz Yamaní", categoryId);
 
-    expect(ids(await pricesUnderReview({ search: "BALSAMICO clasico" }))).toEqual([vinegarId]);
+    expect(ids(await pricesUnderReview({ search: "SMORREBROD clasico" }))).toEqual([breadId]);
   });
 
   it("searches the product's name followed by its brand's name", async () => {
