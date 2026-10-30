@@ -423,7 +423,7 @@ describe("completeReturn", () => {
       });
 
       expect(outcome).toMatchObject({ kind: "completed", refundedTotal: 7000 });
-      expect(store.state.cashMovements).toEqual([{ ...REFUND_MOVEMENT, amount: 4000 }]);
+      expect(store.state.cashMovements).toEqual([{ ...REFUND_MOVEMENT, id: "id-4", amount: 4000 }]);
       expect(store.state.refunds).toEqual([
         { ...CASH_REFUND, amount: 4000 },
         {
@@ -441,7 +441,11 @@ describe("completeReturn", () => {
     });
 
     it("takes no cash out of the drawer when everything goes back through another payment", async () => {
-      const store = ledger();
+      const store = ledger({
+        sales: [
+          aSaleForReturn({ payments: [CASH_PAYMENT, { ...TRANSFER_PAYMENT, amount: 15_000 }] }),
+        ],
+      });
 
       const outcome = await complete(store, {
         refunds: [{ paymentId: "pay-transfer", amount: 7000 }],
@@ -469,7 +473,7 @@ describe("completeReturn", () => {
         const store = ledger({
           sales: [
             aSaleForReturn({
-              payments: [{ ...TRANSFER_PAYMENT, id: "pay-other", method, provider }],
+              payments: [{ ...TRANSFER_PAYMENT, id: "pay-other", method, provider, amount: 15_000 }],
             }),
           ],
         });
@@ -1013,7 +1017,7 @@ describe("completeReturn credit note", () => {
       expect(store.state.outbox).toHaveLength(1);
       expect(store.state.outbox[0]).toMatchObject({
         event_id: "id-8",
-        schema_version: 2,
+        schema_version: 3,
         payload: { credit_note: RETURN_CREDIT_NOTE_PAYLOAD },
       });
     });

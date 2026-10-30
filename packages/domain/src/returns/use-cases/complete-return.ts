@@ -188,12 +188,15 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
       tx.recordRefund(refund);
     }
     const cashMovements: ReturnCashMovement[] = [];
-    if (refundedTotal > 0) {
+    const refundedInCash = recordedRefunds
+      .filter(({ method }) => method === "CASH")
+      .reduce((sum, { amount }) => sum + amount, 0);
+    if (refundedInCash > 0) {
       const movement: ReturnCashMovement = {
         id: ids.next(),
         sessionId: session.id,
         type: "REFUND",
-        amount: refundedTotal,
+        amount: refundedInCash,
         actorId: grant.actorId,
         occurredAt,
         ref: { type: "return", id: returnId },
@@ -350,7 +353,7 @@ function saleReturnedEvent(
     aggregate_type: "Return",
     aggregate_id: record.id,
     event_type: SALE_RETURNED_EVENT_TYPE,
-    schema_version: 2,
+    schema_version: 3,
     payload,
     occurred_at: occurredAt,
     actor_id: record.actorId,
