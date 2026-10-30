@@ -1,6 +1,7 @@
 import type { TagProps } from "@purosur/ui";
 import { formatCents } from "@purosur/ui";
 import { paidPaymentName } from "../platform/payment-method-names";
+import { pendingRefundPresentation } from "../platform/pending-refund-text";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 
 type Voidability = SaleDetail["voidability"];
@@ -40,12 +41,5 @@ export function voidRefundPresentation(refund: VoidRefund): {
       pending: false,
     };
   }
-  return {
-    title,
-    description: refund.sent_by_cloud
-      ? "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo."
-      : "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
-    chip: { label: "Pendiente", tone: "info" },
-    pending: true,
-  };
+  return { title, ...pendingRefundPresentation(refund.sent_by_cloud), pending: true };
 }
