@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import {
   SUPPLIER_PRICE_LIST_STATES,
   type SupplierPriceListReadFailure,
@@ -21,7 +22,7 @@ const STORE_CATALOG = new Uint8Array([91, 123, 125, 93]);
 function setup(
   listFields: Parameters<FakeSupplierPriceListStore["seedList"]>[0] = { id: "list-1" },
 ) {
-  const context = readingContext();
+  const context = readingContext(new FakeZoneRulesSource());
   context.store.seedList(listFields);
   context.files.stored.set("list-1", PDF);
   return context;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SupplierPriceListReadFailure } from "../model/supplier-price-list.js";
 import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
@@ -40,7 +41,9 @@ function extracted(
 }
 
 function setup(listState: "EXTRACTED" | "READ_FAILED" | "DISCARDED" = "EXTRACTED") {
-  const { store, files, extractor, storeCatalogs, ports } = readingContext();
+  const { store, files, extractor, storeCatalogs, ports } = readingContext(
+    new FakeZoneRulesSource(),
+  );
   store.seedList({
     id: "list-1",
     sourceKind: "WEB_PAGE",

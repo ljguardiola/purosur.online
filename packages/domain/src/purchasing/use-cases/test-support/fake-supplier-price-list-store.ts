@@ -73,7 +73,7 @@ export interface FakeSupplierPriceListReread {
   sentOn: string | null;
 }
 
-export interface FakeRemovedItem extends RemovedItem {
+interface FakeRemovedItem extends RemovedItem {
   listId: string;
 }
 

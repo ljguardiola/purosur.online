@@ -1,4 +1,4 @@
-import { FakeZoneRulesSource } from "../../../shared/test-support/fake-zone-rules-source.js";
+import type { ZoneRulesSource } from "../../../shared/index.js";
 import type { AiCallUsage } from "../ai-call-usage.js";
 import { FakePriceListExtractor } from "./fake-price-list-extractor.js";
 import { FakeStoreCatalogs } from "./fake-store-catalogs.js";
@@ -11,7 +11,7 @@ export const HTML = new Uint8Array([60, 104, 116, 109, 108, 62]);
 
 export const readInput = { listId: "list-1", now: () => NOW, finalAttempt: false };
 
-export function readingContext() {
+export function readingContext(zoneRules: ZoneRulesSource) {
   const store = new FakeSupplierPriceListStore();
   store.seedSupplier({ id: "supplier-a", name: "Distribuidora Sur", active: true });
   const files = new FakeSupplierPriceListFiles();
@@ -22,7 +22,7 @@ export function readingContext() {
     files,
     extractor,
     storeCatalogs,
-    ports: { store, files, extractor, storeCatalogs, zoneRules: new FakeZoneRulesSource() },
+    ports: { store, files, extractor, storeCatalogs, zoneRules },
   };
 }
 
