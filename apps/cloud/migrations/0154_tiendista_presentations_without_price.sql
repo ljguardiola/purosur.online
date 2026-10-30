@@ -1,13 +1,5 @@
 CREATE TEMPORARY TABLE "tiendista_item_keys" AS
-SELECT
-  "keyed"."id",
-  "keyed"."new_key",
-  "keyed"."last_confirmed_at",
-  first_value("keyed"."id") OVER (
-    PARTITION BY "keyed"."supplier_id", "keyed"."new_key"
-    ORDER BY "keyed"."linked" DESC, "keyed"."last_confirmed_at" DESC NULLS LAST, "keyed"."id"
-  ) AS "winner_id"
-FROM (
+WITH "store" AS (
   SELECT
     "split"."id",
     "split"."supplier_id",
@@ -44,17 +36,39 @@ FROM (
           AND "list"."file_content_kind" = 'STORE_CATALOG'
       )
   ) "split"
-) "keyed";
---> statement-breakpoint
-DELETE FROM "tiendista_item_keys" "key"
-USING "supplier_items" "item", "supplier_items" "holder"
-WHERE "item"."id" = "key"."id"
-  AND "holder"."supplier_id" = "item"."supplier_id"
-  AND "holder"."key_kind" = 'description'
-  AND "holder"."key_value" = "key"."new_key"
-  AND NOT EXISTS (
-    SELECT 1 FROM "tiendista_item_keys" "other" WHERE "other"."id" = "holder"."id"
-  );
+), "keyed" AS (
+  SELECT "store"."id", "store"."supplier_id", "store"."linked", "store"."last_confirmed_at", "store"."new_key"
+  FROM "store"
+  UNION ALL
+  SELECT
+    "holder"."id",
+    "holder"."supplier_id",
+    "holder"."product_id" IS NOT NULL,
+    (
+      SELECT max("price"."confirmed_at")
+      FROM "supplier_item_prices" "price"
+      WHERE "price"."item_id" = "holder"."id"
+    ),
+    "holder"."key_value"
+  FROM "supplier_items" "holder"
+  WHERE "holder"."key_kind" = 'description'
+    AND EXISTS (
+      SELECT 1
+      FROM "store"
+      WHERE "store"."supplier_id" = "holder"."supplier_id"
+        AND "store"."new_key" = "holder"."key_value"
+    )
+    AND NOT EXISTS (SELECT 1 FROM "store" WHERE "store"."id" = "holder"."id")
+)
+SELECT
+  "keyed"."id",
+  "keyed"."new_key",
+  "keyed"."last_confirmed_at",
+  first_value("keyed"."id") OVER (
+    PARTITION BY "keyed"."supplier_id", "keyed"."new_key"
+    ORDER BY "keyed"."linked" DESC, "keyed"."last_confirmed_at" DESC NULLS LAST, "keyed"."id"
+  ) AS "winner_id"
+FROM "keyed";
 --> statement-breakpoint
 UPDATE "supplier_item_prices" "price"
 SET "item_id" = "moved"."winner_id"
