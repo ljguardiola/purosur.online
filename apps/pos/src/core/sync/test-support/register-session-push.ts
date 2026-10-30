@@ -940,6 +940,49 @@ export async function withRegisterSession<TResult>(
     });
     expectOutcome("return the sale authorized by PIN", returned.kind, "completed");
     nextStep();
+    const transferToReturn = await scanProductFor(deps(), "7790001000028");
+    if (transferToReturn.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to return against a transfer" ended as "${transferToReturn.kind}"`,
+      );
+    }
+    nextStep();
+    const returnTransfer = await chargeSaleByTransferFor(deps(), {
+      saleId: transferToReturn.sale.id,
+      amount: transferToReturn.sale.total,
+    });
+    expectOutcome("charge the sale to return by transfer", returnTransfer.kind, "completed");
+    nextStep();
+    const returnedToTransfer = await completeReturnFor(deps(), {
+      saleId: transferToReturn.sale.id,
+      ticketSource: "TYPED",
+      lines: [
+        {
+          saleLineId: transferToReturn.sale.lines[0]?.id ?? "",
+          quantity: 1,
+          reason: "change_of_mind",
+          disposition: "restock",
+        },
+      ],
+      refunds: [
+        {
+          paymentId:
+            database
+              .prepare<[string], { id: string }>(
+                "SELECT id FROM payment_transactions WHERE sale_id = ?",
+              )
+              .get(transferToReturn.sale.id)?.id ?? "",
+          amount: transferToReturn.sale.total,
+        },
+      ],
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome(
+      "return the sale paid by transfer to that payment",
+      returnedToTransfer.kind,
+      "completed",
+    );
+    nextStep();
     const onPoint = await scanProductFor(deps(), "7790001000028");
     if (onPoint.kind !== "added") {
       throw new Error(

@@ -242,6 +242,7 @@ describe("synced event payloads", () => {
       "sale_print_state_changed@3",
       "sale_returned@1",
       "sale_returned@2",
+      "sale_returned@3",
       "sale_voided@1",
       "sale_voided@2",
       "sale_voided@3",
