@@ -50,6 +50,9 @@ function rowOf(item: unknown): ExtractedPriceListRow | null {
     return null;
   }
   const entry: Record<string, unknown> = { ...item };
+  if (entry["agotado"] === true) {
+    return null;
+  }
   const name = nonBlankText(entry["nombre"]);
   if (name === null) {
     return null;
