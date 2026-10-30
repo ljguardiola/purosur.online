@@ -84,6 +84,23 @@ describe("priceInEffect", () => {
     ).toEqual(older);
   });
 
+  it("takes the latest price when a later table entry is older", () => {
+    const older = aPrice({ appliesFrom: new Date("2026-01-01T00:00:00Z") });
+    const newer = aPrice({
+      appliesFrom: new Date("2026-04-01T00:00:00Z"),
+      inputMicroUsdPerMillionTokens: 3_000_000,
+    });
+
+    expect(priceInEffect([newer, older], "model-a", AT)).toEqual(newer);
+  });
+
+  it("keeps the first of two prices that apply from the same instant", () => {
+    const first = aPrice({ inputMicroUsdPerMillionTokens: 3_000_000 });
+    const second = aPrice({ inputMicroUsdPerMillionTokens: 4_000_000 });
+
+    expect(priceInEffect([first, second], "model-a", AT)).toEqual(first);
+  });
+
   it("ignores the prices of other models when choosing the latest", () => {
     const other = aPrice({ model: "model-b", appliesFrom: new Date("2026-05-01T00:00:00Z") });
     const own = aPrice();
