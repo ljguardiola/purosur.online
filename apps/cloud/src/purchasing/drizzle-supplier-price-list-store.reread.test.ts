@@ -1,5 +1,8 @@
 import { supplierItemKey } from "@purosur/domain";
-import type { RereadPlan, SupplierItemLink } from "@purosur/domain/purchasing/use-cases";
+import type {
+  SupplierItemLink,
+  SupplierPriceListStoreTransaction,
+} from "@purosur/domain/purchasing/use-cases";
 import { describe, expect, it } from "vitest";
 import {
   NOW,
@@ -12,6 +15,8 @@ import {
   insertRemovedItem,
   insertReread,
 } from "./test-support/supplier-price-list-fixtures.js";
+
+type RereadPlan = Parameters<SupplierPriceListStoreTransaction["recordReread"]>[4];
 
 const context = supplierPriceListStoreDatabase();
 
@@ -296,8 +301,11 @@ describe("removing a row", () => {
 
 describe("recording a reread", () => {
   async function linkedProduct() {
-    const productId = await insertProduct(context.db, { name: "Yerba" });
-    const packagingId = await insertPackaging(context.db, { productId });
+    const { id: productId } = await insertProduct(context.db, { name: "Yerba" });
+    const packagingId = await insertPackaging(context.db, {
+      productId,
+      actorId: context.actorId,
+    });
     return { productId, packagingId, vatRate: 2100 } satisfies SupplierItemLink;
   }
 
@@ -314,7 +322,7 @@ describe("recording a reread", () => {
   const record = (
     listId: string,
     rereadId: string,
-    plan: RereadPlan<SupplierItemLink>,
+    plan: RereadPlan,
     terms: { listDate: string | null; pricesIncludeVat: boolean | null } = {
       listDate: "2026-03-09",
       pricesIncludeVat: true,

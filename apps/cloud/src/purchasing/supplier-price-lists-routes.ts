@@ -8,6 +8,7 @@ import {
   supplierPriceListDiscardBodySchema,
   supplierPriceListListSchema,
   supplierPriceListPageRefusedSchema,
+  supplierPriceListRereadStartedSchema,
   supplierPriceListReviewSchema,
   supplierPriceListRowLinkBodySchema,
   supplierPriceListRowPriceBodySchema,
@@ -104,6 +105,15 @@ const READING_UNAVAILABLE = {
 const NOT_A_WEB_PAGE = {
   code: "not_a_web_page",
   message: "this supplier price list was not read from a web page",
+} as const;
+
+const ALREADY_READING = {
+  code: "already_reading",
+  message: "this supplier price list is already being read",
+} as const;
+const REREADING = {
+  code: "rereading",
+  message: "this supplier price list is being read again",
 } as const;
 
 const CONFIRMATION_REFUSALS = {
@@ -674,6 +684,10 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
         .send({ code: outcome.kind, message: CONFIRMATION_REFUSALS[outcome.kind] });
       return;
     }
+    if (outcome.kind === "rereading") {
+      await reply.code(409).send(REREADING);
+      return;
+    }
     await refuseChange(reply, outcome);
   });
 
@@ -749,6 +763,14 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
         return;
       case "not_a_web_page":
         await reply.code(409).send(NOT_A_WEB_PAGE);
+        return;
+      case "already_reading":
+        await reply.code(409).send(ALREADY_READING);
+        return;
+      case "reread_started":
+        await reply
+          .code(202)
+          .send(supplierPriceListRereadStartedSchema.parse({ listId: outcome.listId }));
         return;
       default:
         await answerWebPageLoad(reply, outcome);

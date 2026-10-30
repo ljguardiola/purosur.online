@@ -8,6 +8,7 @@ import {
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
   sameSupplierItemKey,
+  supplierItemKey,
 } from "@purosur/domain";
 import type {
   AiCallRecord,
@@ -16,8 +17,10 @@ import type {
   LockProductPackagingResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
+  NewRereadFields,
   NewSupplierItemFields,
   NewSupplierPriceListFields,
+  OpenReread,
   ProposedPriceListRow,
   StoredPriceListRow,
   SupplierItem,
@@ -36,6 +39,8 @@ import {
   supplierItemPrices,
   supplierItems,
   supplierPriceListExtractionCaps,
+  supplierPriceListRemovedItems,
+  supplierPriceListRereads,
   supplierPriceListRows,
   supplierPriceLists,
   suppliers,
@@ -45,6 +50,9 @@ import {
   SUPPLIER_PRICE_LIST_READING_MAX_ATTEMPTS,
   SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER,
 } from "./supplier-price-list-reading-task-identifier.js";
+
+type RemovedItem = Awaited<ReturnType<SupplierPriceListStoreTransaction["removedItems"]>>[number];
+type RereadPlan = Parameters<SupplierPriceListStoreTransaction["recordReread"]>[4];
 
 const ROW_AUDIT_ENTITY = "supplier_price_list_row";
 
@@ -111,12 +119,22 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       .select({ state: supplierPriceLists.state, sentOn: supplierPriceLists.sentOn })
       .from(supplierPriceLists)
       .where(eq(supplierPriceLists.locationId, locationId));
-    return lists.filter((list) =>
-      countsTowardDailyExtractionCap(
-        { state: list.state as SupplierPriceListState, sentOn: list.sentOn },
-        day,
-      ),
-    ).length;
+    const rereads = await this.tx
+      .select({ state: supplierPriceListRereads.state, sentOn: supplierPriceListRereads.sentOn })
+      .from(supplierPriceListRereads)
+      .where(eq(supplierPriceListRereads.locationId, locationId));
+    const extractions = [
+      ...lists.map((list) => ({
+        state: list.state as SupplierPriceListState,
+        sentOn: list.sentOn,
+      })),
+      ...rereads.map((reread) => ({
+        state: (reread.state === "READING" ? "READING" : "EXTRACTED") as SupplierPriceListState,
+        sentOn: reread.sentOn,
+      })),
+    ];
+    return extractions.filter((extraction) => countsTowardDailyExtractionCap(extraction, day))
+      .length;
   }
 
   async findSupplier(supplierId: string): Promise<FindPriceListSupplierResult> {
@@ -195,6 +213,19 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       .from(supplierPriceListRows)
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
+    const [reread] = await this.tx
+      .select({
+        id: supplierPriceListRereads.id,
+        contentKind: supplierPriceListRereads.fileContentKind,
+        sentAt: supplierPriceListRereads.sentAt,
+      })
+      .from(supplierPriceListRereads)
+      .where(
+        and(
+          eq(supplierPriceListRereads.listId, listId),
+          eq(supplierPriceListRereads.state, "READING"),
+        ),
+      );
     return {
       kind: "locked",
       list: {
@@ -208,6 +239,12 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         pricesIncludeVat: list.pricesIncludeVat,
         sentAt: list.sentAt,
         actorId: list.uploadedBy,
+        reread: reread
+          ? ({
+              ...reread,
+              contentKind: reread.contentKind as SupplierPriceListContentKind,
+            } satisfies OpenReread)
+          : null,
         rowPrices: rows.map((row) => row.priceCents),
       },
     };
@@ -262,6 +299,142 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       .set({
         state: "READ_FAILED",
         readFailure: reason,
+        version: sql`${supplierPriceLists.version} + 1`,
+      })
+      .where(eq(supplierPriceLists.id, listId));
+  }
+
+  async startReread(fields: NewRereadFields): Promise<{ id: string }> {
+    const [reread] = await this.tx
+      .insert(supplierPriceListRereads)
+      .values({
+        listId: fields.listId,
+        locationId: fields.locationId,
+        state: "READING",
+        fileContentKind: fields.contentKind,
+        fileByteSize: fields.byteSize,
+        requestedAt: fields.requestedAt,
+        requestedBy: fields.actorId,
+      })
+      .returning({ id: supplierPriceListRereads.id });
+    if (!reread) {
+      throw new Error("inserting the reread returned no row");
+    }
+    return reread;
+  }
+
+  async markRereadSent(rereadId: string, sentAt: Date, sentOn: string): Promise<void> {
+    await this.tx
+      .update(supplierPriceListRereads)
+      .set({ sentAt, sentOn })
+      .where(eq(supplierPriceListRereads.id, rereadId));
+  }
+
+  async recordRereadFailure(rereadId: string, reason: SupplierPriceListReadFailure): Promise<void> {
+    await this.tx
+      .update(supplierPriceListRereads)
+      .set({ state: "READ_FAILED", readFailure: reason, finishedAt: this.now() })
+      .where(eq(supplierPriceListRereads.id, rereadId));
+  }
+
+  async removedItems(listId: string): Promise<RemovedItem[]> {
+    const items = await this.tx
+      .select({
+        keyKind: supplierPriceListRemovedItems.keyKind,
+        keyValue: supplierPriceListRemovedItems.keyValue,
+        priceCents: supplierPriceListRemovedItems.priceCents,
+      })
+      .from(supplierPriceListRemovedItems)
+      .where(eq(supplierPriceListRemovedItems.listId, listId))
+      .orderBy(asc(supplierPriceListRemovedItems.id));
+    return items.map((item) => ({
+      key: { kind: item.keyKind as SupplierItemKey["kind"], value: item.keyValue },
+      priceCents: item.priceCents,
+    }));
+  }
+
+  async recordReread(
+    listId: string,
+    rereadId: string,
+    listDate: string | null,
+    pricesIncludeVat: boolean | null,
+    plan: RereadPlan,
+  ): Promise<void> {
+    for (const batch of batchesOf(plan.droppedRowIds)) {
+      await this.tx.delete(supplierPriceListRows).where(inArray(supplierPriceListRows.id, batch));
+    }
+    // The positions are unique within a list, so the rows that stay leave the range the new
+    // positions come from before they move.
+    await this.tx
+      .update(supplierPriceListRows)
+      .set({ position: sql`-${supplierPriceListRows.position} - 1` })
+      .where(eq(supplierPriceListRows.listId, listId));
+    const positioned = plan.rows.map((row, position) => ({ row, position }));
+    const stored = positioned.flatMap(({ row, position }) =>
+      row.kind === "added" ? [] : [{ row, position }],
+    );
+    for (const batch of batchesOf(stored)) {
+      await this.tx.execute(sql`update ${supplierPriceListRows} as stored
+        set position = planned.position, description = planned.description,
+          supplier_code = planned.supplier_code, presentation = planned.presentation,
+          price_cents = planned.price_cents, page = planned.page, barcode = planned.barcode,
+          reviewed = case when planned.repriced then false else stored.reviewed end
+        from (values ${sql.join(
+          batch.map(
+            ({ row, position }) =>
+              sql`(${row.rowId}::uuid, ${position}::integer, ${row.description}::text, ${row.code}::text, ${row.presentation}::text, ${row.priceCents}::bigint, ${row.page}::integer, ${row.barcode}::text, ${row.kind === "repriced"}::boolean)`,
+          ),
+          sql`, `,
+        )}) as planned(id, position, description, supplier_code, presentation, price_cents, page, barcode, repriced)
+        where stored.id = planned.id and stored.list_id = ${listId}`);
+    }
+    const added = positioned.flatMap(({ row, position }) =>
+      row.kind === "added"
+        ? [
+            {
+              listId,
+              position,
+              description: row.description,
+              supplierCode: row.code,
+              presentation: row.presentation,
+              priceCents: row.priceCents,
+              page: row.page,
+              barcode: row.barcode,
+              ...linkColumns(row.link),
+            },
+          ]
+        : [],
+    );
+    for (const batch of batchesOf(added)) {
+      await this.tx.insert(supplierPriceListRows).values(batch);
+    }
+
+    await this.tx
+      .delete(supplierPriceListRemovedItems)
+      .where(eq(supplierPriceListRemovedItems.listId, listId));
+    for (const batch of batchesOf(plan.remainingRemovedItems)) {
+      await this.tx.insert(supplierPriceListRemovedItems).values(
+        batch.map((item) => ({
+          listId,
+          keyKind: item.key.kind,
+          keyValue: item.key.value,
+          priceCents: item.priceCents,
+        })),
+      );
+    }
+
+    await this.tx
+      .update(supplierPriceListRereads)
+      .set({ state: "READ", finishedAt: this.now() })
+      .where(eq(supplierPriceListRereads.id, rereadId));
+    await this.tx
+      .update(supplierPriceLists)
+      .set({
+        state: "EXTRACTED",
+        readFailure: null,
+        listDate,
+        pricesIncludeVat,
+        extractedAt: this.now(),
         version: sql`${supplierPriceLists.version} + 1`,
       })
       .where(eq(supplierPriceLists.id, listId));
@@ -514,6 +687,15 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         priceCents: supplierPriceListRows.priceCents,
         page: supplierPriceListRows.page,
       });
+    if (removed) {
+      const key = supplierItemKey(removed);
+      await this.tx.insert(supplierPriceListRemovedItems).values({
+        listId,
+        keyKind: key.kind,
+        keyValue: key.value,
+        priceCents: removed.priceCents,
+      });
+    }
     await this.advanceVersion(listId);
     await this.tx.insert(auditLog).values({
       entity: ROW_AUDIT_ENTITY,
