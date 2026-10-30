@@ -57,7 +57,7 @@ describe("ReturnScreen choosing what the customer returns", () => {
     expect(previewReturn).not.toHaveBeenCalled();
   });
 
-  it("shows how it is paid back: the cash payment, and the payments that are not refunded from the register with their reason", async () => {
+  it("shows how it is paid back: each payment, with an amount to refund by its own means", async () => {
     const { screen } = await renderScreen();
 
     await openReturn(screen);
@@ -66,15 +66,9 @@ describe("ReturnScreen choosing what the customer returns", () => {
     await expect.element(screen.getByText("Efectivo")).toBeVisible();
     await expect.element(screen.getByText("Pagó $ 15.000,00")).toBeVisible();
     await expect.element(screen.getByText("Transferencia")).toBeVisible();
-    const transfer = screen.getByRole("textbox", { name: "Reintegro por Transferencia" });
-    await expect.element(transfer).toHaveAttribute("readonly");
     await expect
-      .element(transfer)
-      .toHaveAccessibleDescription("Este medio todavía no se reintegra desde la caja");
-    await userEvent.hover(transfer);
-    await expect
-      .element(screen.getByRole("tooltip"))
-      .toHaveTextContent("Este medio todavía no se reintegra desde la caja");
+      .element(screen.getByRole("textbox", { name: "Reintegro por Transferencia" }))
+      .not.toHaveAttribute("readonly");
   });
 
   it("shows the refund loading while the core works it out", async () => {

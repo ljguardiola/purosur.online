@@ -73,6 +73,68 @@ describe("ReturnScreen completing the return", () => {
     );
   });
 
+  it("asks for the refund the cashier types in a payment that is not cash", async () => {
+    const { screen, completeReturn } = await renderScreen();
+    await decideOnePasta(screen);
+
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Reintegro por Efectivo" }),
+      "5.000,00",
+    );
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Reintegro por Transferencia" }),
+      "4.700,00",
+    );
+    await complete(screen);
+
+    expect(completeReturn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        refunds: [
+          { payment_id: "pay-cash", amount: 500_000 },
+          { payment_id: "pay-transfer", amount: 470_000 },
+        ],
+      }),
+    );
+  });
+
+  it("tells the cashier to hand over only the cash, and lists the refund that stays pending", async () => {
+    const { screen } = await renderScreen({
+      completeReturn: async () => ({
+        kind: "completed",
+        return_id: "return-1",
+        refunded_total: 970_000,
+        refunds: [
+          {
+            payment_id: "pay-cash",
+            method: "CASH",
+            amount: 500_000,
+            state: "APPROVED",
+            sent_by_cloud: false,
+          },
+          {
+            payment_id: "pay-transfer",
+            method: "TRANSFER",
+            amount: 470_000,
+            state: "PENDING",
+            sent_by_cloud: false,
+          },
+        ],
+        authorized_by: null,
+      }),
+    });
+    await decideOnePasta(screen);
+
+    await complete(screen);
+
+    await expect.element(screen.getByText("$ 5.000,00", { exact: true }).first()).toBeVisible();
+    await expect.element(screen.getByText("Transferencia · $ 4.700,00")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText("Queda un reembolso pendiente: una persona lo hace por fuera de la caja."),
+      )
+      .toBeVisible();
+  });
+
   it("refuses an amount typed badly in the payment, saying so on it", async () => {
     const { screen, completeReturn } = await renderScreen();
     await decideOnePasta(screen);

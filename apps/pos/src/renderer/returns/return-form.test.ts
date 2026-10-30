@@ -93,10 +93,18 @@ describe("a return draft", () => {
 
 describe("the refund shown for each payment", () => {
   it("puts all the refundable total in the first payment that can be refunded", () => {
-    expect(refundTextsFor([TRANSFER, OTHER_CASH, CASH], 1_393_500, {})).toEqual([
-      { payment: TRANSFER, text: "" },
+    const spent = { ...TRANSFER, eligible: false, ineligible_reason: "nothing_left" } as const;
+    expect(refundTextsFor([spent, OTHER_CASH, CASH], 1_393_500, {})).toEqual([
+      { payment: spent, text: "" },
       { payment: OTHER_CASH, text: "13.935,00" },
       { payment: CASH, text: "" },
+    ]);
+  });
+
+  it("puts it in a payment that is not cash when it is the first that can be refunded", () => {
+    expect(refundTextsFor([TRANSFER, CASH], 500_000, {}).map(({ text }) => text)).toEqual([
+      "5.000,00",
+      "",
     ]);
   });
 

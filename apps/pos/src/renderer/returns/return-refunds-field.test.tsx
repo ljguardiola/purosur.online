@@ -12,7 +12,7 @@ import {
   returnRequestSchema,
 } from "./return-form";
 import { ReturnRefundsField } from "./return-refunds-field";
-import { SALE, TRANSFER } from "./test-support/sale-for-return";
+import { CASH, SALE, TRANSFER } from "./test-support/sale-for-return";
 
 function RefundsForm({
   disabled = false,
@@ -81,14 +81,26 @@ describe("ReturnRefundsField", () => {
       .toBeInTheDocument();
   });
 
-  it("locks a payment that is not refunded from the register, saying why", async () => {
+  it("lets an amount be typed in a payment that is not cash", async () => {
     const screen = await renderField();
+    const transfer = screen.getByRole("textbox", { name: "Reintegro por Transferencia" });
+
+    await expect.element(transfer).not.toHaveAttribute("readonly");
+    await userEvent.fill(transfer, "1.000,00");
+    await expect.element(transfer).toHaveValue("1.000,00");
+  });
+
+  it("locks a payment with nothing left to give back, saying why", async () => {
+    const screen = await renderField(false, [
+      CASH,
+      { ...TRANSFER, eligible: false, ineligible_reason: "nothing_left" },
+    ]);
     const transfer = screen.getByRole("textbox", { name: "Reintegro por Transferencia" });
 
     await expect.element(transfer).toHaveAttribute("readonly");
     await expect
       .element(transfer)
-      .toHaveAccessibleDescription("Este medio todavía no se reintegra desde la caja");
+      .toHaveAccessibleDescription("Este pago ya se reintegró completo");
   });
 
   it("says on the payment that an amount typed badly is not one", async () => {

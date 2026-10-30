@@ -82,7 +82,15 @@ export async function renderScreen(overrides: Overrides = {}) {
         kind: "completed",
         return_id: "return-1",
         refunded_total: 970_000,
-        refunds: [{ payment_id: "pay-cash", method: "CASH", amount: 970_000, state: "APPROVED" }],
+        refunds: [
+          {
+            payment_id: "pay-cash",
+            method: "CASH",
+            amount: 970_000,
+            state: "APPROVED",
+            sent_by_cloud: false,
+          },
+        ],
         authorized_by: null,
       }),
     );
