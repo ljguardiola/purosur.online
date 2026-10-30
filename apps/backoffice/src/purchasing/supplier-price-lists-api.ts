@@ -14,6 +14,7 @@ import {
   supplierPriceListAiCostSchema,
   supplierPriceListListSchema,
   supplierPriceListPageRefusedSchema,
+  supplierPriceListRereadStartedSchema,
   supplierPriceListReviewSchema,
   supplierPriceListUploadedSchema,
 } from "@purosur/contracts";
@@ -65,6 +66,11 @@ export type ReadSupplierPriceListWebPageOutcome =
   | { kind: "reading_unavailable" }
   | RequestRefusal;
 
+export type RefreshSupplierPriceListOutcome =
+  | ReadSupplierPriceListWebPageOutcome
+  | { kind: "reread_started" }
+  | { kind: "already_reading" };
+
 type ReviewChangeRefusal =
   | { kind: "validation_failed"; field: string }
   | { kind: "not_found" }
@@ -87,6 +93,7 @@ export type ConfirmSupplierPriceListOutcome =
   | { kind: "unpriced_rows" }
   | { kind: "list_date_missing" }
   | { kind: "vat_missing" }
+  | { kind: "rereading" }
   | ReviewChangeRefusal;
 
 export type DiscardSupplierPriceListOutcome = { kind: "ok" } | ReviewChangeRefusal;
@@ -98,6 +105,7 @@ const CONFIRMATION_CONFLICTS = [
   "unpriced_rows",
   "list_date_missing",
   "vat_missing",
+  "rereading",
 ] as const;
 
 function refusal(response: Response): RequestRefusal {
@@ -208,16 +216,15 @@ export async function uploadSupplierPriceList(
   return refusal(response);
 }
 
-async function readWebPage(
-  path: string,
-  init: RequestInit,
-): Promise<ReadSupplierPriceListWebPageOutcome> {
-  let response: Response;
+async function sendWebPage(path: string, init: RequestInit): Promise<Response | undefined> {
   try {
-    response = await fetch(path, init);
+    return await fetch(path, init);
   } catch {
-    return { kind: "failed" };
+    return undefined;
   }
+}
+
+async function answerWebPage(response: Response): Promise<ReadSupplierPriceListWebPageOutcome> {
   if (response.ok) {
     const queued = supplierPriceListUploadedSchema.safeParse(
       await response.json().catch(() => undefined),
@@ -259,17 +266,35 @@ export function loadSupplierPriceListWebPage(
   input: SupplierPriceListWebPageBody,
 ): Promise<ReadSupplierPriceListWebPageOutcome> {
   const body: SupplierPriceListWebPageBody = { supplierId: input.supplierId, url: input.url };
-  return readWebPage("/api/supplier-price-lists/web-page", {
+  return sendWebPage("/api/supplier-price-lists/web-page", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
+  }).then((response) => (response === undefined ? { kind: "failed" } : answerWebPage(response)));
 }
 
-export function refreshSupplierPriceList(
+export async function refreshSupplierPriceList(
   listId: string,
-): Promise<ReadSupplierPriceListWebPageOutcome> {
-  return readWebPage(`/api/supplier-price-lists/${listId}/refresh`, { method: "POST" });
+): Promise<RefreshSupplierPriceListOutcome> {
+  const response = await sendWebPage(`/api/supplier-price-lists/${listId}/refresh`, {
+    method: "POST",
+  });
+  if (response === undefined) {
+    return { kind: "failed" };
+  }
+  if (response.status === 202) {
+    const started = supplierPriceListRereadStartedSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return started.success ? { kind: "reread_started" } : { kind: "failed" };
+  }
+  if (response.status === 409) {
+    const { code } = await readBody(response.clone());
+    if (code === "already_reading") {
+      return { kind: "already_reading" };
+    }
+  }
+  return answerWebPage(response);
 }
 
 async function changeReview<Conflict extends string>(

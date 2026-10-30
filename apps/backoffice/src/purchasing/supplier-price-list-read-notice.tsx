@@ -1,10 +1,12 @@
 import type { Icon, NoticeTone } from "@purosur/ui";
-import { ShieldX, TriangleAlert } from "lucide-react";
+import { Check, ShieldX, TriangleAlert } from "lucide-react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { webPageRefusalMessage } from "./supplier-price-list-web-page-refusal";
 import type { WebPageRefusalReason } from "./supplier-price-lists-api";
 
 export type ReadNotice =
+  | { kind: "rereadStarted" }
+  | { kind: "alreadyReading" }
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "dailyCapReached" }
@@ -30,6 +32,21 @@ function problem(title: string, description: string): ReadNoticeContent {
 
 export function readNoticeContent(notice: ReadNotice): ReadNoticeContent {
   switch (notice.kind) {
+    case "rereadStarted":
+      return {
+        tone: "success",
+        icon: <Check />,
+        title: "Actualizando la lista",
+        description:
+          "Se está leyendo la página de nuevo. Mientras tanto, la lista se puede revisar.",
+      };
+    case "alreadyReading":
+      return {
+        tone: "warning",
+        icon: <TriangleAlert />,
+        title: "La lista ya se está actualizando",
+        description: "Cuando termine, se ven los cambios.",
+      };
     case "dailyCapReached":
       return {
         tone: "warning",

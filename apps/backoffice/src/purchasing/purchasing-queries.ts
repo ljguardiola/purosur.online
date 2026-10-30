@@ -251,12 +251,14 @@ export function useSupplierPriceListsQuery(params: {
       onSessionEnded: params.onSessionEnded,
       onForbidden: sendToMyAccount,
     },
-    (lists) => lists.some((list) => list.state === "READING"),
+    (lists) => lists.some((list) => list.state === "READING" || list.rereading),
   );
 }
 
 function isListReading(read: SupplierPriceListReviewRead | undefined): boolean {
-  return read?.kind === "found" && read.review.list.state === "READING";
+  return (
+    read?.kind === "found" && (read.review.list.state === "READING" || read.review.list.rereading)
+  );
 }
 
 export function useSupplierPriceListReviewQuery(params: {

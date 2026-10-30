@@ -26,7 +26,7 @@ import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-q
 import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
 import { supplierPriceListOriginOf } from "./supplier-price-list-source";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
-import type { ReadSupplierPriceListWebPageOutcome } from "./supplier-price-lists-api";
+import type { RefreshSupplierPriceListOutcome } from "./supplier-price-lists-api";
 import type { SupplierPriceListsFilters } from "./supplier-price-lists-filters";
 import type { SupplierPriceListsScreenServices } from "./supplier-price-lists-services";
 import { UploadSupplierPriceListModal } from "./upload-supplier-price-list-modal";
@@ -62,8 +62,8 @@ function itemsOf(list: SupplierPriceListSummary): string {
 
 function readNoticeOf(
   outcome: Exclude<
-    ReadSupplierPriceListWebPageOutcome,
-    { kind: "ok" | "unauthenticated" | "forbidden" }
+    RefreshSupplierPriceListOutcome,
+    { kind: "ok" | "reread_started" | "already_reading" | "unauthenticated" | "forbidden" }
   >,
 ): ReadNotice {
   switch (outcome.kind) {
@@ -115,6 +115,14 @@ export function SupplierPriceListsScreen({
       switch (outcome.kind) {
         case "ok":
           setNotice("loaded");
+          void refreshPurchasing();
+          return;
+        case "reread_started":
+          setNotice({ kind: "rereadStarted" });
+          void refreshPurchasing();
+          return;
+        case "already_reading":
+          setNotice({ kind: "alreadyReading" });
           void refreshPurchasing();
           return;
         case "unauthenticated":
@@ -182,6 +190,11 @@ export function SupplierPriceListsScreen({
             {status.reason === undefined ? null : (
               <span className="text-detail text-text-subtle">{status.reason}</span>
             )}
+            {status.rereadFailure === undefined ? null : (
+              <span className="text-detail text-text-subtle">
+                {`No se pudo actualizar la lista. ${status.rereadFailure}`}
+              </span>
+            )}
           </div>
         );
       },
@@ -191,7 +204,7 @@ export function SupplierPriceListsScreen({
       header: "Acciones",
       actions: [
         (item: SupplierPriceListSummary) =>
-          item.source.kind === "WEB_PAGE" && item.state !== "READING"
+          item.source.kind === "WEB_PAGE" && item.state !== "READING" && !item.rereading
             ? {
                 icon: <RefreshCw />,
                 "aria-label": `Actualizar la lista de ${item.supplier.name}`,

@@ -19,6 +19,7 @@ export type SupplierPriceListChangeNotice =
   | { kind: "unpricedRows" }
   | { kind: "listDateMissing" }
   | { kind: "vatMissing" }
+  | { kind: "rereading" }
   | { kind: "packagingNotLinkable" }
   | { kind: "vatRateMissing" }
   | { kind: "alreadyLinked" }
@@ -64,6 +65,8 @@ export function supplierPriceListChangeNoticeOf(
       return { kind: "listDateMissing" };
     case "vat_missing":
       return { kind: "vatMissing" };
+    case "rereading":
+      return { kind: "rereading" };
     case "packaging_not_linkable":
       return { kind: "packagingNotLinkable" };
     case "vat_rate_missing":
@@ -155,6 +158,15 @@ export function SupplierPriceListChangeNotices({
           icon={<TriangleAlert />}
           title="La presentación de la lista es demasiado larga"
           description={`Tiene más de ${PRESENTATION_LIMIT} caracteres, el máximo de una presentación de compra. No se puede crear el producto desde esta lista.`}
+        />
+      );
+    case "rereading":
+      return (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title="La lista se está actualizando"
+          description="Cuando termine, se puede confirmar."
         />
       );
     case "noRows":
