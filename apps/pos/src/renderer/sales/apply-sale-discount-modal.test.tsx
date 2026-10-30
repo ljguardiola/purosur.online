@@ -642,4 +642,10 @@ describe("ApplySaleDiscountModal previewing the discount", () => {
 
     await expectNoAccessibilityViolations(document.body);
   });
+
+  it("counts the lines of the sale with the thousands separator", async () => {
+    const { screen } = await renderModal({ lineCount: 1998 });
+
+    await expect.element(screen.getByText("VENTA EN CURSO · 1.998 LÍNEAS")).toBeVisible();
+  });
 });

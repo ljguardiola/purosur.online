@@ -150,4 +150,10 @@ describe("SalesHistoryTable", () => {
       .element(screen.getByRole("table", { name: "Ventas" }).getByText("Anulada"))
       .toBeVisible();
   });
+
+  it("writes the sale counts of the page range with the thousands separator", async () => {
+    const { screen } = await renderTable({ history: loaded([ROW], 1998), page: 40 });
+
+    await expect.element(screen.getByText("1.951 a 1.998 de 1.998 ventas")).toBeVisible();
+  });
 });

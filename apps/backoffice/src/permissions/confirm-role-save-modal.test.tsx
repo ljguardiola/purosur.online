@@ -9,13 +9,16 @@ const assignedUsers = [
   { id: "user-zoe", name: "Zoe Almeida" },
 ];
 
-function renderModal(handlers: { onBack?: () => void; onConfirm?: () => void } = {}) {
+function renderModal(
+  handlers: { onBack?: () => void; onConfirm?: () => void } = {},
+  people = assignedUsers,
+) {
   return render(
     <main>
       <ConfirmRoleSaveModal
         open
         roleName="Depósito"
-        assignedUsers={assignedUsers}
+        assignedUsers={people}
         submitting={false}
         onBack={handlers.onBack ?? (() => {})}
         onConfirm={handlers.onConfirm ?? (() => {})}
@@ -68,4 +71,17 @@ test("draws as one centered column, 12px apart, with only Volver and Guardar los
 
   await expect.poll(() => onBack.mock.calls.length).toBe(1);
   expect(onConfirm).not.toHaveBeenCalled();
+});
+
+test("counts a large group of people with the thousands separator", async () => {
+  const manyPeople = Array.from({ length: 1998 }, (_, index) => ({
+    id: `user-${index}`,
+    name: `Persona ${index}`,
+  }));
+
+  const screen = await renderModal({}, manyPeople);
+
+  await expect
+    .element(screen.getByText("Se aplican a las 1.998 personas con el rol Depósito:"))
+    .toBeVisible();
 });

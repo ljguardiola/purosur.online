@@ -743,4 +743,12 @@ describe("SaleHistoryDetailPanel", () => {
       .element(screen.getByText("No tenés permiso para ver esta venta"))
       .not.toBeInTheDocument();
   });
+
+  it("counts the lines with the thousands separator", async () => {
+    const { screen } = await renderPanel({
+      read: async () => ({ kind: "found", detail: { ...FISCAL_SALE, line_count: 1998 } }),
+    });
+
+    await expect.element(screen.getByText("1.998 líneas", { exact: true })).toBeVisible();
+  });
 });

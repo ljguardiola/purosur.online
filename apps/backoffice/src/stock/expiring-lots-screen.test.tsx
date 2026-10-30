@@ -287,3 +287,16 @@ test("finds a lot by the brand shown with its product", async () => {
   await expect.element(screen.getByText("Semillas de chía")).not.toBeInTheDocument();
   await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
 });
+
+test("writes the lot counts with the thousands separator", async () => {
+  const manyLots = Array.from({ length: 1998 }, (_, index) => ({
+    ...chiaExpiredLot,
+    id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    valueCents: null,
+  }));
+  const screen = await renderScreen(listed(manyLots));
+
+  await expect
+    .element(screen.getByText(/^1\.998 lotes · valorizado .* · 1\.998 sin costo$/))
+    .toBeVisible();
+});

@@ -1294,3 +1294,14 @@ test("searches an alert by its title typed without accents", async () => {
       },
     ]);
 });
+
+test("shows the open and critical alert counts with the thousands separator", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([passkeyAlert, lockoutAlert], { openCount: 1998, openCriticalCount: 1500 }),
+  );
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("1.998 alertas abiertas · 1.500 críticas")).toBeVisible();
+});

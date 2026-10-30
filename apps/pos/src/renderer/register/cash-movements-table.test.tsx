@@ -280,4 +280,12 @@ describe("CashMovementsTable", () => {
 
     await expectNoAccessibilityViolations(screen.container);
   });
+
+  it("counts the movements with the thousands separator", async () => {
+    const screen = await renderTable(
+      Array.from({ length: 1998 }, (_, index) => movement({ id: `m${index}` })),
+    );
+
+    await expect.element(screen.getByText("1.998 movimientos")).toBeVisible();
+  });
 });

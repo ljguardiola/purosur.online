@@ -450,3 +450,20 @@ test("goes back to the first page when the grouping changes", async () => {
 
   await expect.element(screen.getByRole("table").getByText("Producto 01")).toBeVisible();
 });
+
+test.each([
+  ["product", "1.998 productos"],
+  ["category", "1.998 categorías"],
+] as const)("counts the rows grouped by %s with the thousands separator", async (group, text) => {
+  const services = createServices();
+  vi.mocked(services.fetchSalesByProductAndCategory).mockResolvedValue({
+    kind: "ok",
+    value: manyProductsReport(1998),
+  });
+
+  const screen = await renderScreen(services, {
+    filters: salesByProductAndCategoryFilters.parse({ group }),
+  });
+
+  await expect.element(screen.getByText(text)).toBeVisible();
+});

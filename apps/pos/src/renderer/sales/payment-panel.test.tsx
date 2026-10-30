@@ -196,4 +196,10 @@ describe("PaymentPanel", () => {
       .element(screen.getByRole("button", { name: "Aplicar descuento al total" }))
       .not.toBeInTheDocument();
   });
+
+  it("counts the lines with the thousands separator", async () => {
+    const screen = await renderPanel({ lineCount: 1998 });
+
+    await expect.element(screen.getByText("1.998 líneas")).toBeVisible();
+  });
 });

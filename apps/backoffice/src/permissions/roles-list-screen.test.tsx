@@ -441,3 +441,19 @@ test("the editor modal closes when the roles fail to load again, and never reope
   await expect.element(screen.getByText("2 roles")).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
 });
+
+test("shows the role count and a role's user count with the thousands separator", async () => {
+  const services = createServices();
+  const manyRoles = Array.from({ length: 1998 }, (_, index) => ({
+    ...cashier,
+    id: `role-${index}`,
+    name: `Rol ${index}`,
+    userCount: 1998,
+  }));
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: manyRoles });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("1.998 roles")).toBeVisible();
+  await expect.element(screen.getByText("1.998 usuarios").first()).toBeVisible();
+});
