@@ -125,7 +125,7 @@ describe("supplierPriceListReadingJobs against a real job queue", () => {
     });
   });
 
-  it("reads a kept store catalog into one row per product and presentation, without the AI service", async () => {
+  it("reads a kept store catalog into one row per product and presentation not sold out, without the AI service", async () => {
     const listId = await insertPriceList(db, {
       supplierId,
       locationId,
@@ -179,12 +179,6 @@ describe("supplierPriceListReadingJobs against a real job queue", () => {
         supplierCode: "103",
         presentation: "Pack x 12",
         priceCents: 3450000,
-      },
-      {
-        description: "Fideos tirabuzon La Pampita",
-        supplierCode: "104",
-        presentation: "Unidad",
-        priceCents: 125050,
       },
       {
         description: "Aceite de girasol Campo Verde",
