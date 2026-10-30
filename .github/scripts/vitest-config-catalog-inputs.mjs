@@ -8,7 +8,7 @@ const REPOSITORY_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const VITEST_CONFIG = "vitest.config.ts";
 const CATALOG_PROJECTS = ["catalog-visual", "catalog-build"];
 const STORYBOOK_CONFIG_DIR = "packages/ui/.storybook";
-const STORYBOOK_CONFIG_FILE = /^(main|preview)\.[cm]?[jt]sx?$/;
+const STORYBOOK_CONFIG_FILE = /^(main|manager|preview)\.[cm]?[jt]sx?$/;
 const RESOLVED_EXTENSIONS = [".ts", ".mts", ".tsx", ".js", ".mjs"];
 const SOURCE_FOR_EMITTED_EXTENSION = { ".js": [".ts", ".tsx"], ".mjs": [".mts"] };
 
