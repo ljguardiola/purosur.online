@@ -8,6 +8,7 @@ import {
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
 } from "../../model/supplier-price-list.js";
+import type { RemovedItem, RereadPlan } from "../../model/supplier-price-list-reread.js";
 import type { AiCallRecord } from "../ai-call-recording.js";
 import type {
   FindPriceListSupplierResult,
@@ -15,8 +16,10 @@ import type {
   LockProductPackagingResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
+  NewRereadFields,
   NewSupplierItemFields,
   NewSupplierPriceListFields,
+  OpenReread,
   ProposedPriceListRow,
   StoredPriceListRow,
   SupplierItem,
@@ -56,6 +59,24 @@ export interface FakeSupplierPriceListRow {
   discardedBy: string | null;
 }
 
+export interface FakeSupplierPriceListReread {
+  id: string;
+  listId: string;
+  locationId: string;
+  contentKind: SupplierPriceListContentKind;
+  byteSize: number;
+  requestedAt: Date;
+  requestedBy: string;
+  state: "READING" | "READ" | "READ_FAILED";
+  readFailure: SupplierPriceListReadFailure | null;
+  sentAt: Date | null;
+  sentOn: string | null;
+}
+
+export interface FakeRemovedItem extends RemovedItem {
+  listId: string;
+}
+
 export interface FakePriceListRow extends ProposedPriceListRow {
   id: string;
   listId: string;
@@ -86,6 +107,10 @@ export type FakeSupplierPriceListWrite =
   | "insertList"
   | "enqueueReading"
   | "markSent"
+  | "startReread"
+  | "markRereadSent"
+  | "recordRereadFailure"
+  | "recordReread"
   | "recordExtraction"
   | "recordReadFailure"
   | "recordAiCalls"
@@ -104,6 +129,8 @@ export interface FakeSupplierPriceListState {
   suppliers: FakePriceListSupplierRow[];
   lists: FakeSupplierPriceListRow[];
   rows: FakePriceListRow[];
+  rereads: FakeSupplierPriceListReread[];
+  removedItems: FakeRemovedItem[];
   readingQueue: string[];
   items: FakeSupplierItem[];
   itemPrices: SupplierItemPriceEntry[];
@@ -129,6 +156,12 @@ function cloneState(state: FakeSupplierPriceListState): FakeSupplierPriceListSta
       discardedAt: instant(row.discardedAt),
     })),
     rows: state.rows.map((row) => ({ ...row, link: cloneLink(row.link) })),
+    rereads: state.rereads.map((reread) => ({
+      ...reread,
+      requestedAt: new Date(reread.requestedAt),
+      sentAt: instant(reread.sentAt),
+    })),
+    removedItems: state.removedItems.map((item) => ({ ...item, key: { ...item.key } })),
     readingQueue: [...state.readingQueue],
     items: state.items.map((item) => ({
       ...item,
@@ -161,8 +194,10 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
   }
 
   async extractionsCountedOn(locationId: string, day: string): Promise<number> {
-    return this.state.lists.filter(
-      (list) => list.locationId === locationId && countsTowardDailyExtractionCap(list, day),
+    const extractions = [...this.state.lists, ...this.state.rereads];
+    return extractions.filter(
+      (extraction) =>
+        extraction.locationId === locationId && countsTowardDailyExtractionCap(extraction, day),
     ).length;
   }
 
@@ -241,6 +276,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
         listDate: list.listDate,
         pricesIncludeVat: list.pricesIncludeVat,
         sentAt: list.sentAt,
+        reread: this.openReread(listId),
         rowPrices: this.state.rows
           .filter((row) => row.listId === listId)
           .map((row) => row.priceCents),
@@ -253,6 +289,107 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     const list = this.listRow(listId);
     list.sentAt = sentAt;
     list.sentOn = sentOn;
+  }
+
+  async startReread(fields: NewRereadFields): Promise<{ id: string }> {
+    this.beforeWrite("startReread");
+    const id = `reread-${this.state.nextId++}`;
+    this.state.rereads.push({
+      id,
+      listId: fields.listId,
+      locationId: fields.locationId,
+      contentKind: fields.contentKind,
+      byteSize: fields.byteSize,
+      requestedAt: fields.requestedAt,
+      requestedBy: fields.actorId,
+      state: "READING",
+      readFailure: null,
+      sentAt: null,
+      sentOn: null,
+    });
+    return { id };
+  }
+
+  async markRereadSent(rereadId: string, sentAt: Date, sentOn: string): Promise<void> {
+    this.beforeWrite("markRereadSent");
+    const reread = this.rereadRow(rereadId);
+    reread.sentAt = sentAt;
+    reread.sentOn = sentOn;
+  }
+
+  async recordRereadFailure(rereadId: string, reason: SupplierPriceListReadFailure): Promise<void> {
+    this.beforeWrite("recordRereadFailure");
+    const reread = this.rereadRow(rereadId);
+    reread.state = "READ_FAILED";
+    reread.readFailure = reason;
+  }
+
+  async removedItems(listId: string): Promise<RemovedItem[]> {
+    return this.state.removedItems
+      .filter((item) => item.listId === listId)
+      .map((item) => ({ key: { ...item.key }, priceCents: item.priceCents }));
+  }
+
+  async recordReread(
+    listId: string,
+    rereadId: string,
+    listDate: string | null,
+    pricesIncludeVat: boolean | null,
+    plan: RereadPlan<SupplierItemLink>,
+  ): Promise<void> {
+    this.beforeWrite("recordReread");
+    this.rereadRow(rereadId).state = "READ";
+    const list = this.listRow(listId);
+    list.state = "EXTRACTED";
+    list.readFailure = null;
+    list.listDate = listDate;
+    list.pricesIncludeVat = pricesIncludeVat;
+    list.version += 1;
+
+    const dropped = new Set(plan.droppedRowIds);
+    this.state.rows = this.state.rows.filter(
+      (row) => !(row.listId === listId && dropped.has(row.id)),
+    );
+    plan.rows.forEach((planned, position) => {
+      if (planned.kind === "added") {
+        this.state.rows.push({
+          description: planned.description,
+          code: planned.code,
+          presentation: planned.presentation,
+          priceCents: planned.priceCents,
+          page: planned.page,
+          barcode: planned.barcode,
+          link: cloneLink(planned.link),
+          id: `row-${this.state.nextId++}`,
+          listId,
+          position,
+          editedBy: null,
+          reviewed: false,
+          linkedByPerson: false,
+        });
+        return;
+      }
+      const row = this.state.rows.find(
+        (other) => other.listId === listId && other.id === planned.rowId,
+      );
+      if (!row) {
+        throw new Error(`no row ${planned.rowId}`);
+      }
+      row.description = planned.description;
+      row.code = planned.code;
+      row.presentation = planned.presentation;
+      row.priceCents = planned.priceCents;
+      row.page = planned.page;
+      row.barcode = planned.barcode;
+      row.position = position;
+      if (planned.kind === "repriced") {
+        row.reviewed = false;
+      }
+    });
+    this.state.removedItems = [
+      ...this.state.removedItems.filter((item) => item.listId !== listId),
+      ...plan.remainingRemovedItems.map((item) => ({ ...item, listId })),
+    ];
   }
 
   async recordExtraction(
@@ -440,6 +577,14 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
 
   async removeRow(listId: string, rowId: string, _actorId: string): Promise<void> {
     this.beforeWrite("removeRow");
+    const removed = this.state.rows.find((row) => row.id === rowId && row.listId === listId);
+    if (removed) {
+      this.state.removedItems.push({
+        listId,
+        key: supplierItemKey(removed),
+        priceCents: removed.priceCents,
+      });
+    }
     this.state.rows = this.state.rows.filter((row) => !(row.id === rowId && row.listId === listId));
     this.listRow(listId).version += 1;
   }
@@ -478,6 +623,23 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     return list;
   }
 
+  private openReread(listId: string): OpenReread | null {
+    const reread = this.state.rereads.find(
+      (other) => other.listId === listId && other.state === "READING",
+    );
+    return reread
+      ? { id: reread.id, contentKind: reread.contentKind, sentAt: reread.sentAt }
+      : null;
+  }
+
+  private rereadRow(rereadId: string): FakeSupplierPriceListReread {
+    const reread = this.state.rereads.find((row) => row.id === rereadId);
+    if (!reread) {
+      throw new Error(`no reread ${rereadId}`);
+    }
+    return reread;
+  }
+
   private itemRow(itemId: string): FakeSupplierItem {
     const item = this.state.items.find((row) => row.id === itemId);
     if (!item) {
@@ -498,6 +660,8 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
     suppliers: [],
     lists: [],
     rows: [],
+    rereads: [],
+    removedItems: [],
     readingQueue: [],
     items: [],
     itemPrices: [],
@@ -548,6 +712,29 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
       discardedAt: null,
       discardedBy: null,
       ...list,
+    });
+  }
+
+  seedReread(reread: Partial<FakeSupplierPriceListReread> & { id: string; listId: string }): void {
+    this.state.rereads.push({
+      locationId: "branch-1",
+      contentKind: "HTML",
+      byteSize: 1_000,
+      requestedAt: new Date("2026-03-01T12:00:00Z"),
+      requestedBy: "person-1",
+      state: "READING",
+      readFailure: null,
+      sentAt: null,
+      sentOn: null,
+      ...reread,
+    });
+  }
+
+  seedRemovedItem(item: { listId: string; description: string; priceCents: number | null }): void {
+    this.state.removedItems.push({
+      listId: item.listId,
+      key: supplierItemKey({ code: null, description: item.description, presentation: null }),
+      priceCents: item.priceCents,
     });
   }
 
