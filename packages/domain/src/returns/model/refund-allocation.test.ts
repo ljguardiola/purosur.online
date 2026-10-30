@@ -36,18 +36,18 @@ describe("returnablePayments", () => {
   });
 
   it.each(["TRANSFER", "QR", "POINT", "STANDALONE_TERMINAL"] as const)(
-    "lists a %s payment without letting it be chosen, because only cash is refunded from the register",
+    "offers a %s payment with what it still has left to give back",
     (method) => {
-      expect(returnablePayments([payment({ method, provider: "X" })])).toEqual([
+      expect(returnablePayments([payment({ method, provider: "X", refundedAmount: 1000 })])).toEqual([
         {
           paymentId: "pay-1",
           method,
           amount: 5000,
-          refundedAmount: 0,
+          refundedAmount: 1000,
           cardType: null,
-          remaining: 5000,
-          eligible: false,
-          ineligibleReason: "not_cash",
+          remaining: 4000,
+          eligible: true,
+          ineligibleReason: null,
         },
       ]);
     },
@@ -77,10 +77,10 @@ describe("returnablePayments", () => {
     ]);
   });
 
-  it("says a payment that is not cash is not cash even when it has nothing left", () => {
+  it("lists a payment that is not cash with nothing left to give back as not chosen, saying so", () => {
     expect(
       returnablePayments([payment({ method: "TRANSFER", refundedAmount: 5000 })])[0],
-    ).toMatchObject({ eligible: false, ineligibleReason: "not_cash", remaining: 0 });
+    ).toMatchObject({ eligible: false, ineligibleReason: "nothing_left", remaining: 0 });
   });
 
   it("leaves out a payment that was never approved", () => {
@@ -158,10 +158,16 @@ describe("refundAllocationRefusal", () => {
     });
   });
 
-  it("refuses to refund a payment that was not made in cash", () => {
+  it("accepts a refund imputed to a payment that was not made in cash", () => {
     expect(
-      refundAllocationRefusal(PAYMENTS, [{ paymentId: "transfer-1", amount: 100 }], 100),
-    ).toEqual({ kind: "not_cash", paymentId: "transfer-1" });
+      refundAllocationRefusal(PAYMENTS, [{ paymentId: "transfer-1", amount: 3000 }], 3000),
+    ).toBeNull();
+  });
+
+  it("refuses more than a payment that was not made in cash still has left, saying how much", () => {
+    expect(
+      refundAllocationRefusal(PAYMENTS, [{ paymentId: "transfer-1", amount: 3001 }], 3001),
+    ).toEqual({ kind: "exceeds_payment", paymentId: "transfer-1", remaining: 3000 });
   });
 
   it("refuses more than the payment still has left, saying how much that is", () => {
@@ -211,7 +217,7 @@ describe("refundAllocationRefusal", () => {
     });
   });
 
-  it("answers an unknown payment before a payment that is not cash, and that before the amount", () => {
+  it("answers an unknown payment before the amount", () => {
     expect(
       refundAllocationRefusal(
         PAYMENTS,
@@ -222,16 +228,6 @@ describe("refundAllocationRefusal", () => {
         1,
       ),
     ).toEqual({ kind: "unknown_payment", paymentId: "cash-9" });
-    expect(
-      refundAllocationRefusal(
-        PAYMENTS,
-        [
-          { paymentId: "cash-1", amount: 99_999 },
-          { paymentId: "transfer-1", amount: 100 },
-        ],
-        1,
-      ),
-    ).toEqual({ kind: "not_cash", paymentId: "transfer-1" });
   });
 
   it("answers a payment that cannot give that much before a total that does not match", () => {

@@ -235,7 +235,7 @@ describe("completeReturn", () => {
           aggregate_type: "Return",
           aggregate_id: "id-1",
           event_type: "sale_returned",
-          schema_version: 2,
+          schema_version: 3,
           occurred_at: RETURNED_AT.toISOString(),
           actor_id: "cashier",
           payload: {
@@ -412,6 +412,85 @@ describe("completeReturn", () => {
       expect(store.state.cashMovements).toEqual([expect.objectContaining({ amount: 7000 })]);
     });
 
+    it("takes out of the drawer only what was refunded in cash when the rest goes to another payment", async () => {
+      const store = ledger();
+
+      const outcome = await complete(store, {
+        refunds: [
+          { paymentId: "pay-cash", amount: 4000 },
+          { paymentId: "pay-transfer", amount: 3000 },
+        ],
+      });
+
+      expect(outcome).toMatchObject({ kind: "completed", refundedTotal: 7000 });
+      expect(store.state.cashMovements).toEqual([{ ...REFUND_MOVEMENT, amount: 4000 }]);
+      expect(store.state.refunds).toEqual([
+        { ...CASH_REFUND, amount: 4000 },
+        {
+          id: "id-3",
+          returnId: "id-1",
+          saleId: "sale-1",
+          paymentId: "pay-transfer",
+          method: "TRANSFER",
+          provider: "NONE",
+          amount: 3000,
+          state: "PENDING",
+          occurredAt: RETURNED_AT,
+        },
+      ]);
+    });
+
+    it("takes no cash out of the drawer when everything goes back through another payment", async () => {
+      const store = ledger();
+
+      const outcome = await complete(store, {
+        refunds: [{ paymentId: "pay-transfer", amount: 7000 }],
+      });
+
+      expect(outcome).toMatchObject({
+        kind: "completed",
+        refundedTotal: 7000,
+        refunds: [expect.objectContaining({ paymentId: "pay-transfer", state: "PENDING" })],
+      });
+      expect(store.state.cashMovements).toEqual([]);
+      expect(store.state.refunds).toEqual([
+        expect.objectContaining({ paymentId: "pay-transfer", amount: 7000, state: "PENDING" }),
+      ]);
+      expect(store.state.outbox[0]?.payload).toMatchObject({ cash_movements: [] });
+    });
+
+    it.each([
+      ["QR", "MERCADOPAGO_QR"],
+      ["POINT", "MERCADOPAGO_POINT"],
+      ["STANDALONE_TERMINAL", "NONE"],
+    ] as const)(
+      "records a refund to a %s payment pending, with its method and provider, in the event",
+      async (method, provider) => {
+        const store = ledger({
+          sales: [
+            aSaleForReturn({
+              payments: [{ ...TRANSFER_PAYMENT, id: "pay-other", method, provider }],
+            }),
+          ],
+        });
+
+        await complete(store, { refunds: [{ paymentId: "pay-other", amount: 7000 }] });
+
+        expect(store.state.outbox[0]?.payload).toMatchObject({
+          refunds: [
+            {
+              kind: "REFUND",
+              parent_id: "pay-other",
+              method,
+              provider,
+              amount: 7000,
+              state: "PENDING",
+            },
+          ],
+        });
+      },
+    );
+
     it("makes one refund of a payment that was imputed twice", async () => {
       const store = ledger();
 
@@ -584,10 +663,19 @@ describe("completeReturn", () => {
         },
       ],
       [
-        "a refund to a payment that is not cash",
-        {},
+        "a refund above what a payment that is not cash has left",
+        {
+          sales: [
+            aSaleForReturn({
+              payments: [CASH_PAYMENT, { ...TRANSFER_PAYMENT, amount: 8000, refundedAmount: 2000 }],
+            }),
+          ],
+        },
         { refunds: [{ paymentId: "pay-transfer", amount: 7000 }] },
-        { kind: "refund_refused", refusal: { kind: "not_cash", paymentId: "pay-transfer" } },
+        {
+          kind: "refund_refused",
+          refusal: { kind: "exceeds_payment", paymentId: "pay-transfer", remaining: 6000 },
+        },
       ],
       [
         "a refund above what the payment has left",
