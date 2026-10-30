@@ -1,9 +1,9 @@
 import {
-  aiCostSchema,
   brandListSchema,
   categoryListSchema,
   supplierItemLinkChoicesSchema,
   supplierItemLinkProposalSchema,
+  supplierPriceListAiCostSchema,
   supplierPriceListConfirmationBodySchema,
   supplierPriceListDiscardBodySchema,
   supplierPriceListListSchema,
@@ -491,15 +491,17 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     if (!ids) {
       return;
     }
-    const outcome = await findSupplierPriceListAiCost(
-      { reader: aiCostReader },
-      { locationId: openSessionOf(request).locationId, listId: ids.id },
-    );
+    const outcome = await findSupplierPriceListAiCost({ reader: aiCostReader }, { listId: ids.id });
     if (outcome.kind === "not_found") {
       await reply.code(404).send(NOT_FOUND);
       return;
     }
-    await reply.code(200).send(aiCostSchema.parse(outcome.cost));
+    await reply.code(200).send(
+      supplierPriceListAiCostSchema.parse({
+        ...outcome.cost,
+        recordedFromStart: outcome.recordedFromStart,
+      }),
+    );
   });
 
   app.put("/supplier-price-lists/:id/rows/:rowId/price", writeGuard, async (request, reply) => {

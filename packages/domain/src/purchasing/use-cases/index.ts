@@ -229,7 +229,7 @@ export type {
 } from "./supplier-price-comparison-reader.js";
 export type { SupplierPriceListAiCallStore } from "./supplier-price-list-ai-call-store.js";
 export type {
-  SupplierPriceListAiCostQuery,
+  SupplierPriceListAiCalls,
   SupplierPriceListAiCostReader,
 } from "./supplier-price-list-ai-cost-reader.js";
 export type { SupplierPriceListFiles } from "./supplier-price-list-files.js";

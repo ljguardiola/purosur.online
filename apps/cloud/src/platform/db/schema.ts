@@ -3188,6 +3188,7 @@ export const supplierPriceLists = pgTable(
     discardedAt: timestamp("discarded_at", { withTimezone: true }),
     discardedBy: uuid("discarded_by").references(() => users.id),
     version: integer("version").notNull().default(1),
+    aiCallsRecordedFromStart: boolean("ai_calls_recorded_from_start").notNull().default(true),
   },
   (table) => [
     check(

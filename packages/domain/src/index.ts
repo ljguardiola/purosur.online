@@ -576,12 +576,6 @@ export {
   priceReviewAt,
 } from "./pricing/index.js";
 export type {
-  AiAttemptUsage,
-  AiCallOutcome,
-  AiCallPurpose,
-  AiCost,
-  AiCostGrouping,
-  AiCostTotal,
   FreightMeans,
   FreightPeriodDays,
   PricedAiCall,

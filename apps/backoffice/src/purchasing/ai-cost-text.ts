@@ -13,3 +13,6 @@ export function incompleteAiCostText(cost: {
   });
   return `Incompleto: ${formatNumber(cost.unpricedCalls)} ${calls}`;
 }
+
+export const EARLY_AI_USE_TEXT =
+  "Incompleto: parte del uso de IA de esta lista es anterior al registro de costos";

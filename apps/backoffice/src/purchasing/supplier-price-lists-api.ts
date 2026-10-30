@@ -1,6 +1,5 @@
 import {
-  type AiCostBody,
-  aiCostSchema,
+  type SupplierPriceListAiCostBody,
   type SupplierPriceListConfirmationBody,
   type SupplierPriceListDiscardBody,
   type SupplierPriceListPageRefused,
@@ -12,6 +11,7 @@ import {
   type SupplierPriceListSummary,
   type SupplierPriceListUploadQuery,
   type SupplierPriceListWebPageBody,
+  supplierPriceListAiCostSchema,
   supplierPriceListListSchema,
   supplierPriceListPageRefusedSchema,
   supplierPriceListReviewSchema,
@@ -131,8 +131,10 @@ export function fetchSupplierPriceLists(): Promise<FetchSupplierPriceListsOutcom
   return readCloudJson("/api/supplier-price-lists", supplierPriceListListSchema);
 }
 
-export function fetchSupplierPriceListAiCost(id: string): Promise<CloudReadOutcome<AiCostBody>> {
-  return readCloudJson(`/api/supplier-price-lists/${id}/ai-cost`, aiCostSchema);
+export function fetchSupplierPriceListAiCost(
+  id: string,
+): Promise<CloudReadOutcome<SupplierPriceListAiCostBody>> {
+  return readCloudJson(`/api/supplier-price-lists/${id}/ai-cost`, supplierPriceListAiCostSchema);
 }
 
 export async function fetchSupplierPriceListReview(

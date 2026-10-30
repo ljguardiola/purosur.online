@@ -5,7 +5,7 @@ export const AI_COST_GROUPINGS = ["day", "supplier", "person"] as const;
 
 export type AiCostGrouping = (typeof AI_COST_GROUPINGS)[number];
 
-export interface AiCostTotal {
+interface AiCostTotal {
   costNanoUsd: number;
   unpricedCalls: number;
 }

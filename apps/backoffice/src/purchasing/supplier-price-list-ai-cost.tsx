@@ -1,7 +1,7 @@
-import type { AiCostBody } from "@purosur/contracts";
+import type { SupplierPriceListAiCostBody } from "@purosur/contracts";
 import { Card, Eyebrow, FigureStat, formatUsd, LoadFailure } from "@purosur/ui";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { incompleteAiCostText } from "./ai-cost-text";
+import { EARLY_AI_USE_TEXT, incompleteAiCostText } from "./ai-cost-text";
 import { useSupplierPriceListAiCostQuery } from "./purchasing-queries";
 import type { SupplierPriceListReviewScreenServices } from "./supplier-price-list-review-services";
 
@@ -11,7 +11,7 @@ type Props = {
   onSessionEnded: () => void;
 };
 
-function figuresOf(cost: AiCostBody | undefined) {
+function figuresOf(cost: SupplierPriceListAiCostBody | undefined) {
   return [
     { label: "Lectura", total: cost?.reading },
     { label: "Propuestas de vínculo", total: cost?.proposals },
@@ -33,23 +33,28 @@ export function SupplierPriceListAiCost({ listId, services, onSessionEnded }: Pr
       {data.status === "failed" ? (
         <LoadFailure {...cloudLoadFailure(data, "el costo de IA")} />
       ) : (
-        <div className="grid grid-cols-3 gap-4">
-          {figuresOf(shown).map(({ label, total }) => {
-            if (total === undefined) {
-              return <FigureStat key={label} size="heading" label={label} loading />;
-            }
-            const detail = incompleteAiCostText(total);
-            return (
-              <FigureStat
-                key={label}
-                size="heading"
-                label={label}
-                value={formatUsd(total.costNanoUsd)}
-                {...(detail === undefined ? {} : { detail })}
-              />
-            );
-          })}
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            {figuresOf(shown).map(({ label, total }) => {
+              if (total === undefined) {
+                return <FigureStat key={label} size="heading" label={label} loading />;
+              }
+              const detail = incompleteAiCostText(total);
+              return (
+                <FigureStat
+                  key={label}
+                  size="heading"
+                  label={label}
+                  value={formatUsd(total.costNanoUsd)}
+                  {...(detail === undefined ? {} : { detail })}
+                />
+              );
+            })}
+          </div>
+          {shown?.recordedFromStart === false ? (
+            <p className="text-detail text-text-subtle">{EARLY_AI_USE_TEXT}</p>
+          ) : null}
+        </>
       )}
     </Card>
   );

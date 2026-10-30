@@ -1,5 +1,4 @@
 import type {
-  AiCostBody,
   AiCostByPeriodBody,
   AiCostByPeriodQuery,
   BrandSummary,
@@ -17,6 +16,7 @@ import type {
   SupplierItemLinkChoices,
   SupplierItemLinkProposal,
   SupplierPriceComparison,
+  SupplierPriceListAiCostBody,
   SupplierPriceListSummary,
   SupplierSummary,
   TagList,
@@ -255,20 +255,37 @@ export function useSupplierPriceListsQuery(params: {
   );
 }
 
+function isListReading(read: SupplierPriceListReviewRead | undefined): boolean {
+  return read?.kind === "found" && read.review.list.state === "READING";
+}
+
 export function useSupplierPriceListReviewQuery(params: {
   listId: string;
   fetchSupplierPriceListReview: typeof fetchSupplierPriceListReview;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
+  const client = useQueryClient();
+  const queryKey = [...purchasingKeys.supplierPriceListReview, params.listId];
   return useCloudQueryWhileReading<SupplierPriceListReviewRead>(
     {
-      queryKey: [...purchasingKeys.supplierPriceListReview, params.listId],
-      read: () => params.fetchSupplierPriceListReview(params.listId),
+      queryKey,
+      read: async () => {
+        const wasReading = isListReading(
+          client.getQueryData<SupplierPriceListReviewRead>(queryKey),
+        );
+        const outcome = await params.fetchSupplierPriceListReview(params.listId);
+        if (wasReading && outcome.kind === "ok" && !isListReading(outcome.value)) {
+          void client.invalidateQueries({
+            queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
+          });
+        }
+        return outcome;
+      },
       onSessionEnded: params.onSessionEnded,
       onForbidden: sendToMyAccount,
     },
-    (read) => read.kind === "found" && read.review.list.state === "READING",
+    isListReading,
   );
 }
 
@@ -278,7 +295,7 @@ export function useSupplierPriceListAiCostQuery(params: {
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<AiCostBody>({
+  return useCloudQuery<SupplierPriceListAiCostBody>({
     queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
     keepPreviousData: true,
     read: () => params.fetchSupplierPriceListAiCost(params.listId),

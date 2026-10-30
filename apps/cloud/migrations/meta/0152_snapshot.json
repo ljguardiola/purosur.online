@@ -11481,6 +11481,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "ai_calls_recorded_from_start": {
+          "name": "ai_calls_recorded_from_start",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         }
       },
       "indexes": {

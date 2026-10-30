@@ -11,4 +11,8 @@ export const aiCostSchema = z.object({
   total: aiCostTotalSchema,
 });
 
-export type AiCostBody = z.output<typeof aiCostSchema>;
+export const supplierPriceListAiCostSchema = aiCostSchema.extend({
+  recordedFromStart: z.boolean(),
+});
+
+export type SupplierPriceListAiCostBody = z.output<typeof supplierPriceListAiCostSchema>;
