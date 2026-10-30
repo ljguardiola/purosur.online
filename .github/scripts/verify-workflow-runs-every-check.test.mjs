@@ -252,8 +252,8 @@ function packageJson({
   verify = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",
   verifyStatic = VERIFY_STATIC_SCRIPT,
   staticParts = STATIC_PART_SCRIPTS,
-  verifyTests = "vitest run --project='!catalog-visual'",
-  verifyVisual = "vitest run --project=catalog-visual",
+  verifyTests = "vitest run --project='!catalog-visual' --project='!catalog-build'",
+  verifyVisual = "vitest run --project=catalog-visual --project=catalog-build",
 } = {}) {
   return JSON.stringify({
     scripts: {
@@ -1287,6 +1287,24 @@ test("flags a verify:visual script that is not exactly the expected composition"
   const violations = findVerifyWorkflowViolations(
     workflow(),
     packageJson({ verifyVisual: "vitest run --project=catalog-visual || true" }),
+  );
+
+  assertSingleViolation(violations, /"verify:visual" script/);
+});
+
+test("flags a verify:tests script that still runs the catalog build", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({ verifyTests: "vitest run --project='!catalog-visual'" }),
+  );
+
+  assertSingleViolation(violations, /"verify:tests" script/);
+});
+
+test("flags a verify:visual script that leaves out the catalog build", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({ verifyVisual: "vitest run --project=catalog-visual" }),
   );
 
   assertSingleViolation(violations, /"verify:visual" script/);
