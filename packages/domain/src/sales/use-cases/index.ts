@@ -96,6 +96,7 @@ export type {
   DeferredSaleLookup,
   DeferredSaleSearch,
 } from "./deferred-sale-lookup-ports.js";
+export { endUnpaidSale } from "./end-unpaid-sale.js";
 export type {
   FindDeferredSaleInput,
   FindDeferredSaleOutcome,

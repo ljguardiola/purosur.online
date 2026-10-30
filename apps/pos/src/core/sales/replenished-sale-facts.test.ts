@@ -105,6 +105,32 @@ function snapshotWithAnOpenSale(): void {
   });
 }
 
+function openAbandonedSaleWithACharge(state: "PENDING" | "DECLINED"): void {
+  insertOpenedSale(database, {
+    id: "sale-abandoned",
+    registerId: "register-new",
+    deviceId: "device-old",
+    sessionId: "session-1",
+    actorId: "cashier-1",
+    state: "OPEN",
+  });
+  insertPendingMercadoPagoPayment(database, {
+    id: "charge-abandoned",
+    saleId: "sale-abandoned",
+    kind: "SALE",
+    method: "POINT",
+    provider: "MERCADOPAGO_POINT",
+    cardType: null,
+    amount: 1500,
+    state: "PENDING",
+    occurredAt: new Date("2026-10-07T09:50:00.000Z"),
+    waitEndsAt: new Date("2026-10-07T09:53:00.000Z"),
+  });
+  database
+    .prepare("UPDATE payment_transactions SET state = ? WHERE id = 'charge-abandoned'")
+    .run(state);
+}
+
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   database.exec(
@@ -530,6 +556,24 @@ describe("replenishing a completed sale into a restored register", () => {
     expect(sale()).toMatchObject({ operation_number: 1 });
   });
 
+  it("cancels another sale it holds in progress with a pending Mercado Pago charge, keeping the charge", () => {
+    openAbandonedSaleWithACharge("PENDING");
+
+    apply(completedSale());
+
+    expect(database.prepare("SELECT id, state, occurred_at FROM sales").all()).toEqual([
+      { id: "sale-abandoned", state: "CANCELLED", occurred_at: "2026-10-07T10:00:00.000Z" },
+      { id: "sale-1", state: "COMPLETED", occurred_at: "2026-10-07T10:00:00.000Z" },
+    ]);
+    expect(
+      database
+        .prepare(
+          "SELECT id, sale_id, state FROM payment_transactions WHERE id = 'charge-abandoned'",
+        )
+        .all(),
+    ).toEqual([{ id: "charge-abandoned", sale_id: "sale-abandoned", state: "PENDING" }]);
+  });
+
   describe("when the snapshot already holds the sale", () => {
     beforeEach(() => {
       addToStockBalance(database, "product-1", 10);
@@ -715,6 +759,27 @@ describe("replenishing a cancelled sale into a restored register", () => {
     expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
       { id: "sale-1", state: "CANCELLED" },
     ]);
+  });
+
+  it("cancels a sale it holds in progress whose Mercado Pago charge ended unpaid, keeping the charge", () => {
+    openAbandonedSaleWithACharge("DECLINED");
+
+    apply(aCancelledSaleFact());
+
+    expect(
+      database
+        .prepare("SELECT id, state, occurred_at FROM sales WHERE id = 'sale-abandoned'")
+        .get(),
+    ).toEqual({
+      id: "sale-abandoned",
+      state: "CANCELLED",
+      occurred_at: "2026-10-07T10:05:00.000Z",
+    });
+    expect(
+      database
+        .prepare("SELECT id, state FROM payment_transactions WHERE sale_id = 'sale-abandoned'")
+        .all(),
+    ).toEqual([{ id: "charge-abandoned", state: "DECLINED" }]);
   });
 
   it("changes nothing for a sale it holds cancelled", () => {
