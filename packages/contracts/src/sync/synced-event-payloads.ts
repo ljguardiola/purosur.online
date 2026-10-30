@@ -569,6 +569,10 @@ const saleReturnedV2Schema = saleReturnedV1Schema.extend({
   credit_note: returnCreditNoteSchema.nullable(),
 });
 
+const saleReturnedV3Schema = saleReturnedV2Schema.extend({
+  refunds: z.array(saleRefundWithMercadoPagoSchema),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -750,6 +754,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_voided@4": saleVoidedV4Schema,
   "sale_returned@1": saleReturnedV1Schema,
   "sale_returned@2": saleReturnedV2Schema,
+  "sale_returned@3": saleReturnedV3Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

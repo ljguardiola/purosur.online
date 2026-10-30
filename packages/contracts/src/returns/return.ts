@@ -54,7 +54,6 @@ export type ReturnLineRefusalBody = z.infer<typeof returnLineRefusalSchema>;
 const refundAllocationRefusalSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unknown_payment"), payment_id: z.string() }),
   z.object({ kind: z.literal("invalid_amount"), payment_id: z.string() }),
-  z.object({ kind: z.literal("not_cash"), payment_id: z.string() }),
   z.object({ kind: z.literal("exceeds_payment"), payment_id: z.string(), remaining: cents }),
   z.object({ kind: z.literal("total_mismatch"), refundable_total: cents, imputed: z.int() }),
 ]);
@@ -93,7 +92,7 @@ const saleForReturnSchema = z.object({
       refunded_amount: cents,
       remaining: cents,
       eligible: z.boolean(),
-      ineligible_reason: z.enum(["not_cash", "nothing_left"]).nullable(),
+      ineligible_reason: z.enum(["nothing_left"]).nullable(),
     }),
   ),
 });

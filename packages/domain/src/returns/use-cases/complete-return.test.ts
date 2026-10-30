@@ -466,7 +466,7 @@ describe("completeReturn", () => {
     it.each([
       ["QR", "MERCADOPAGO_QR"],
       ["POINT", "MERCADOPAGO_POINT"],
-      ["STANDALONE_TERMINAL", "NONE"],
+      ["STANDALONE_TERMINAL", "EXTERNAL_TERMINAL"],
     ] as const)(
       "records a refund to a %s payment pending, with its method and provider, in the event",
       async (method, provider) => {

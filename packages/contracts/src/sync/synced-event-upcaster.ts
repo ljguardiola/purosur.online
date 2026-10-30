@@ -229,7 +229,10 @@ function voidedSale(payload: VoidedSalePayload): SyncedFact {
   };
 }
 
-type ReturnedSalePayload = SyncedEventPayloads["sale_returned@1" | "sale_returned@2"];
+type ReturnedSalePayload = SyncedEventPayloads[
+  | "sale_returned@1"
+  | "sale_returned@2"
+  | "sale_returned@3"];
 
 function returnedSaleCreditNote(payload: ReturnedSalePayload): CreditNoteToIssue | null {
   const creditNote = "credit_note" in payload ? payload.credit_note : null;
@@ -564,6 +567,7 @@ const FACT_OF: {
   "sale_voided@4": voidedSale,
   "sale_returned@1": returnedSale,
   "sale_returned@2": returnedSale,
+  "sale_returned@3": returnedSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

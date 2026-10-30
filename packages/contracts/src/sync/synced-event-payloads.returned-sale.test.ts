@@ -241,7 +241,7 @@ describe("sale_returned v3", () => {
 
   it.each([
     ["a transfer", { method: "TRANSFER", provider: "NONE" }],
-    ["a standalone terminal", { method: "STANDALONE_TERMINAL", provider: "NONE" }],
+    ["a standalone terminal", { method: "STANDALONE_TERMINAL", provider: "EXTERNAL_TERMINAL" }],
     ["a Mercado Pago QR", { method: "QR", provider: "MERCADOPAGO_QR" }],
     ["a Mercado Pago Point", { method: "POINT", provider: "MERCADOPAGO_POINT" }],
   ])("accepts a refund to %s that is still pending", (_case, change) => {
