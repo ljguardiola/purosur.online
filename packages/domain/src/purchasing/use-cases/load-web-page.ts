@@ -6,7 +6,10 @@ import type {
   SupplierPriceListStore,
   SupplierPriceListStoreTransaction,
 } from "./supplier-price-list-store.js";
-import type { SupplierPriceListWebPages } from "./supplier-price-list-web-pages.js";
+import type {
+  SupplierPriceListWebPageRead,
+  SupplierPriceListWebPages,
+} from "./supplier-price-list-web-pages.js";
 
 export interface LoadWebPagePorts {
   store: SupplierPriceListStore;
@@ -28,11 +31,9 @@ export type LoadWebPageOutcome =
   | { kind: "page_refused"; reason: SupplierPriceListWebPageRefusal }
   | { kind: "loaded"; listId: string };
 
-export type WebPageTarget<TStop> =
-  | { kind: "target"; supplierId: string; url: string }
-  | { kind: "stop"; outcome: TStop };
+export type WebPageRead = Extract<SupplierPriceListWebPageRead, { kind: "read" }>;
 
-async function admissionRefusal(
+export async function admissionRefusal(
   tx: SupplierPriceListStoreTransaction,
   supplierId: string,
   cap: number,
@@ -51,37 +52,43 @@ async function admissionRefusal(
   return dailyExtractionCapReached(counted, cap) ? { kind: "daily_cap_reached", cap } : null;
 }
 
-type Admitted<TStop> =
-  | { kind: "stop"; outcome: LoadWebPageOutcome | TStop }
-  | { kind: "admitted"; supplierId: string; url: string };
+export async function startWebPageList(
+  tx: SupplierPriceListStoreTransaction,
+  files: SupplierPriceListFiles,
+  request: LoadWebPageRequest,
+  target: { supplierId: string; url: string },
+  page: WebPageRead,
+): Promise<{ kind: "loaded"; listId: string }> {
+  const { id } = await tx.insertList({
+    supplierId: target.supplierId,
+    locationId: request.locationId,
+    sourceKind: "WEB_PAGE",
+    sourceUrl: target.url,
+    contentKind: page.contentKind,
+    byteSize: page.bytes.byteLength,
+    uploadedAt: request.now,
+    actorId: request.actorId,
+  });
+  await files.store(id, page.bytes, page.contentKind);
+  await tx.enqueueReading(id);
 
-export async function loadWebPage<TStop>(
+  return { kind: "loaded", listId: id };
+}
+
+export async function loadWebPage(
   { store, files, webPages, zoneRules }: LoadWebPagePorts,
   request: LoadWebPageRequest,
-  resolveTarget: (tx: SupplierPriceListStoreTransaction) => Promise<WebPageTarget<TStop>>,
-): Promise<LoadWebPageOutcome | TStop> {
-  const admitted = await store.transaction<Admitted<TStop>>(async (tx) => {
+  target: { supplierId: string; url: string },
+): Promise<LoadWebPageOutcome> {
+  const refusedBefore = await store.transaction(async (tx) => {
     const { cap } = await tx.lockBranchExtractionQuota(request.locationId);
-    const target = await resolveTarget(tx);
-    if (target.kind === "stop") {
-      return target;
-    }
-    const refusal = await admissionRefusal(
-      tx,
-      target.supplierId,
-      cap,
-      request,
-      zoneRules.zoneRules(),
-    );
-    return refusal === null
-      ? { kind: "admitted", supplierId: target.supplierId, url: target.url }
-      : { kind: "stop", outcome: refusal };
+    return admissionRefusal(tx, target.supplierId, cap, request, zoneRules.zoneRules());
   });
-  if (admitted.kind === "stop") {
-    return admitted.outcome;
+  if (refusedBefore !== null) {
+    return refusedBefore;
   }
 
-  const page = await webPages.read(admitted.url);
+  const page = await webPages.read(target.url);
   if (page.kind === "refused") {
     return { kind: "page_refused", reason: page.reason };
   }
@@ -90,28 +97,11 @@ export async function loadWebPage<TStop>(
     const { cap } = await tx.lockBranchExtractionQuota(request.locationId);
     const refusal = await admissionRefusal(
       tx,
-      admitted.supplierId,
+      target.supplierId,
       cap,
       request,
       zoneRules.zoneRules(),
     );
-    if (refusal !== null) {
-      return refusal;
-    }
-
-    const { id } = await tx.insertList({
-      supplierId: admitted.supplierId,
-      locationId: request.locationId,
-      sourceKind: "WEB_PAGE",
-      sourceUrl: admitted.url,
-      contentKind: page.contentKind,
-      byteSize: page.bytes.byteLength,
-      uploadedAt: request.now,
-      actorId: request.actorId,
-    });
-    await files.store(id, page.bytes, page.contentKind);
-    await tx.enqueueReading(id);
-
-    return { kind: "loaded", listId: id };
+    return refusal ?? startWebPageList(tx, files, request, target, page);
   });
 }

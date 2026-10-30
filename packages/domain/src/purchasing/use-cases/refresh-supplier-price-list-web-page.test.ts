@@ -93,7 +93,7 @@ describe("refreshSupplierPriceListWebPage", () => {
     });
   });
 
-  it("reads the page outside any transaction, taking the branch quota lock before each", async () => {
+  it("reads the page outside any transaction, taking the branch quota lock before the list's in each", async () => {
     const { store, webPages, ports } = setup();
     let openWhileReading = -1;
     webPages.onRead = async () => {
@@ -103,7 +103,12 @@ describe("refreshSupplierPriceListWebPage", () => {
     await refreshSupplierPriceListWebPage(ports, input());
 
     expect(openWhileReading).toBe(0);
-    expect(store.lockCallOrder).toEqual(["lockBranchExtractionQuota", "lockBranchExtractionQuota"]);
+    expect(store.lockCallOrder).toEqual([
+      "lockBranchExtractionQuota",
+      "lockList",
+      "lockBranchExtractionQuota",
+      "lockList",
+    ]);
   });
 
   it("answers not_found for a missing list without reading any page", async () => {
