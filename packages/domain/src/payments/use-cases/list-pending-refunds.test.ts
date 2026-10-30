@@ -19,8 +19,8 @@ const TRANSFER_REFUND: FakePendingRefund = {
   saleOccurredAt: new Date("2026-10-07T15:30:00.000Z"),
   coveredBy: [],
   providerOrderId: null,
-  cancelledBy: "cashier",
-  cancelledByName: "Lucia",
+  correctedBy: "cashier",
+  correctedByName: "Lucia",
   confirmedAt: null,
   sentAt: null,
   lastRefusalReason: null,
@@ -65,8 +65,8 @@ describe("listPendingRefunds", () => {
       id: "refund-3",
       method: "QR",
       origin: "late_payment",
-      cancelledBy: null,
-      cancelledByName: null,
+      correctedBy: null,
+      correctedByName: null,
     };
     const store = new FakeRefundStore([], [TRANSFER_REFUND, late]);
 
@@ -76,7 +76,7 @@ describe("listPendingRefunds", () => {
       ["refund-1", "sale_cancelled", false],
       ["refund-3", "late_payment", true],
     ]);
-    expect(refunds[1]).toMatchObject({ cancelledBy: null, cancelledByName: null });
+    expect(refunds[1]).toMatchObject({ correctedBy: null, correctedByName: null });
   });
 
   it("lists an unconfirmed late QR payment refund as one the cloud sends, still discardable", async () => {
