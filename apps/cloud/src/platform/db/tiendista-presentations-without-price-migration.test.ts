@@ -172,8 +172,11 @@ describe("the Tiendista presentations without price migration applied over a dat
   ])("keys the item %j %j as the store catalog reader keys it now", async (description, unit) => {
     const before = await databaseBefore();
     const supplierId = await before.supplier("Almacén del Sur");
-    await before.list(supplierId, STORE_CATALOG);
-    await before.item(supplierId, oldKey(description, unit));
+    const october = await before.list(supplierId, STORE_CATALOG, {
+      confirmedAt: "2026-10-01T12:00:00Z",
+    });
+    const itemId = await before.item(supplierId, oldKey(description, unit));
+    await before.price(itemId, october, 4200000, "2026-10-01T12:00:00Z");
 
     const migrated = await before.database.applyMigration();
 
@@ -255,24 +258,39 @@ describe("the Tiendista presentations without price migration applied over a dat
     ]);
   });
 
-  it("keeps an item that was never priced only when no priced item shares its new key", async () => {
+  it("merges the old keys of one item into the linked one most recently confirmed, even when an unlinked one was confirmed later", async () => {
     const before = await databaseBefore();
     const supplierId = await before.supplier("Almacén del Sur");
     const october = await before.list(supplierId, STORE_CATALOG, {
       confirmedAt: "2026-10-01T12:00:00Z",
     });
-    const pricedItem = await before.item(supplierId, oldKey("Comino molido", "5 kg ($8400 kg)"));
-    await before.item(
+    const november = await before.list(supplierId, STORE_CATALOG, {
+      confirmedAt: "2026-11-01T12:00:00Z",
+    });
+    const linked = await before.packaging("Bolsa 5 kg");
+    const linkedItem = await before.item(
       supplierId,
-      oldKey("Comino molido", "5 kg ($7900 kg)"),
-      await before.packaging("Bolsa 5 kg"),
+      oldKey("Comino molido", "5 kg ($8400 kg)"),
+      linked,
     );
-    await before.price(pricedItem, october, 4200000, "2026-10-01T12:00:00Z");
+    const unlinkedItem = await before.item(supplierId, oldKey("Comino molido", "5 kg ($7900 kg)"));
+    await before.price(linkedItem, october, 4200000, "2026-10-01T12:00:00Z");
+    await before.price(unlinkedItem, november, 3950000, "2026-11-01T12:00:00Z");
 
     const migrated = await before.database.applyMigration();
 
     expect(await itemsOf(migrated, supplierId)).toEqual([
-      expect.objectContaining({ id: pricedItem, product_id: null, packaging_id: null }),
+      {
+        id: linkedItem,
+        key_kind: "description",
+        key_value: "comino molido\n5 kg",
+        product_id: linked.productId,
+        packaging_id: linked.packagingId,
+      },
+    ]);
+    expect(await pricesOf(migrated, supplierId)).toEqual([
+      { item_id: linkedItem, list_id: october, price_cents: 4200000 },
+      { item_id: linkedItem, list_id: november, price_cents: 3950000 },
     ]);
   });
 
@@ -315,6 +333,72 @@ describe("the Tiendista presentations without price migration applied over a dat
     ]);
     expect(await itemsOf(migrated, storeSupplier)).toEqual([
       expect.objectContaining({ id: codeItem, key_value: "C-5 ($8400 kg)" }),
+    ]);
+  });
+
+  it("leaves an item only lists other than a store catalog priced as it is, beside the store catalog items it rekeys", async () => {
+    const before = await databaseBefore();
+    const supplierId = await before.supplier("Almacén del Sur");
+    const storeList = await before.list(supplierId, STORE_CATALOG, {
+      confirmedAt: "2026-10-01T12:00:00Z",
+    });
+    const pdfList = await before.list(supplierId, PDF, { confirmedAt: "2026-10-02T12:00:00Z" });
+    const pdfLink = await before.packaging("5 kg ($8400 kg)");
+    const pdfItem = await before.item(
+      supplierId,
+      oldKey("Comino molido", "5 kg ($8400 kg)"),
+      pdfLink,
+    );
+    const storeItem = await before.item(supplierId, oldKey("Comino molido", "x5u ($650 c/u)"));
+    await before.price(pdfItem, pdfList, 4200000, "2026-10-02T12:00:00Z");
+    await before.price(storeItem, storeList, 325000, "2026-10-01T12:00:00Z");
+
+    const migrated = await before.database.applyMigration();
+
+    expect(await itemsOf(migrated, supplierId)).toEqual([
+      {
+        id: pdfItem,
+        key_kind: "description",
+        key_value: "comino molido\n5 kg ($8400 kg)",
+        product_id: pdfLink.productId,
+        packaging_id: pdfLink.packagingId,
+      },
+      expect.objectContaining({ id: storeItem, key_value: "comino molido\nx5u" }),
+    ]);
+    expect(await pricesOf(migrated, supplierId)).toEqual([
+      { item_id: storeItem, list_id: storeList, price_cents: 325000 },
+      { item_id: pdfItem, list_id: pdfList, price_cents: 4200000 },
+    ]);
+  });
+
+  it("leaves the store catalog items whose key without price another list's item already holds as they are", async () => {
+    const before = await databaseBefore();
+    const supplierId = await before.supplier("Almacén del Sur");
+    const october = await before.list(supplierId, STORE_CATALOG, {
+      confirmedAt: "2026-10-01T12:00:00Z",
+    });
+    const november = await before.list(supplierId, STORE_CATALOG, {
+      confirmedAt: "2026-11-01T12:00:00Z",
+    });
+    const pdfList = await before.list(supplierId, PDF, { confirmedAt: "2026-10-02T12:00:00Z" });
+    const pdfItem = await before.item(supplierId, "comino molido\n5 kg");
+    const olderItem = await before.item(supplierId, oldKey("Comino molido", "5 kg ($8400 kg)"));
+    const newerItem = await before.item(supplierId, oldKey("Comino molido", "5 kg ($7900 kg)"));
+    await before.price(olderItem, october, 4200000, "2026-10-01T12:00:00Z");
+    await before.price(pdfItem, pdfList, 4100000, "2026-10-02T12:00:00Z");
+    await before.price(newerItem, november, 3950000, "2026-11-01T12:00:00Z");
+
+    const migrated = await before.database.applyMigration();
+
+    expect(await itemsOf(migrated, supplierId)).toEqual([
+      expect.objectContaining({ id: pdfItem, key_value: "comino molido\n5 kg" }),
+      expect.objectContaining({ id: newerItem, key_value: "comino molido\n5 kg ($7900 kg)" }),
+      expect.objectContaining({ id: olderItem, key_value: "comino molido\n5 kg ($8400 kg)" }),
+    ]);
+    expect(await pricesOf(migrated, supplierId)).toEqual([
+      { item_id: olderItem, list_id: october, price_cents: 4200000 },
+      { item_id: pdfItem, list_id: pdfList, price_cents: 4100000 },
+      { item_id: newerItem, list_id: november, price_cents: 3950000 },
     ]);
   });
 
