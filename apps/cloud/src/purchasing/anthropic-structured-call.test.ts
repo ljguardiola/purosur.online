@@ -323,11 +323,13 @@ describe("the usage it reports", () => {
 });
 
 describe("the prices of the models it may use", () => {
+  const WHEN_PRICES_WERE_CHECKED = new Date("2026-10-30T12:00:00.000Z");
+
   it.each([PURCHASING_AI_MODEL, "claude-sonnet-5"])(
-    "has a price in effect now for the adapter's model and its known fallback, %s",
+    "has a price in effect for the adapter's model and its known fallback, %s",
     (model) => {
       const price = AI_MODEL_PRICES.find(
-        (entry) => entry.model === model && entry.appliesFrom <= new Date(),
+        (entry) => entry.model === model && entry.appliesFrom <= WHEN_PRICES_WERE_CHECKED,
       );
 
       expect(price).toBeDefined();
