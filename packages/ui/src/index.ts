@@ -210,6 +210,7 @@ export {
   formatSignedCents,
   formatTimeAgo,
   formatTimeAgoInHours,
+  formatUsd,
   formatWeight,
   formatWeightInput,
   parseInvoiceNumber,
