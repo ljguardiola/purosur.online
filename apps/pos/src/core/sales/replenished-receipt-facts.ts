@@ -82,6 +82,18 @@ function isLater(candidate: Date, held: string | null): boolean {
   return held === null || candidate.getTime() > new Date(held).getTime();
 }
 
+export function heldSaleReceiptAttempt(database: LocalDatabase, saleId: string): Date | null {
+  const attempted = heldPrintingOf(database, {
+    document: "sale_receipt",
+    saleId,
+  })?.print_attempted_at;
+  return attempted === null || attempted === undefined ? null : new Date(attempted);
+}
+
+export function holdSaleReceiptAttempt(database: LocalDatabase, saleId: string, at: Date): void {
+  markPrintAttempted(database, { document: "sale_receipt", saleId }, at);
+}
+
 export function applyReplenishedReceiptFact(database: LocalDatabase, fact: ReceiptFact): void {
   if (fact.kind === "reprint_recorded") {
     const { reprint } = fact;
