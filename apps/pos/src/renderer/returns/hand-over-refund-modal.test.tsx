@@ -111,6 +111,19 @@ describe("HandOverRefundModal", () => {
     await expect.element(screen.getByText("Transferencia · $ 6.000,00")).toBeVisible();
   });
 
+  it("says no money goes back when the return refunds nothing", async () => {
+    const { screen } = await renderModal(0, []);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay dinero para devolver" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("DEVOLVÉ EN EFECTIVO")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("REEMBOLSOS PENDIENTES")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("El dinero vuelve por cada medio de pago"))
+      .not.toBeInTheDocument();
+  });
+
   it("lists each returned line with its quantity, what happens to it and its refund", async () => {
     const { screen } = await renderModal();
 
