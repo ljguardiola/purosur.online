@@ -64,3 +64,34 @@ describe("removeSupplierPriceListRow", () => {
     expect(store.snapshot().rows).toHaveLength(3);
   });
 });
+
+describe("removeSupplierPriceListRow remembering the removed item", () => {
+  it("remembers the item of the removed row, with its price, among the list's removed items", async () => {
+    const store = new FakeSupplierPriceListStore();
+    store.seedList({ id: "list-1", state: "EXTRACTED", version: 3 });
+    store.seedRow({ id: "row-1", listId: "list-1", description: "Yerba 1 kg", priceCents: 150 });
+    store.seedRow({
+      id: "row-2",
+      listId: "list-1",
+      description: "Azucar",
+      code: " A-1 ",
+      priceCents: null,
+    });
+
+    await removeSupplierPriceListRow(store, input);
+    await removeSupplierPriceListRow(store, { ...input, rowId: "row-2", version: 4 });
+
+    expect(store.snapshot().removedItems).toEqual([
+      { listId: "list-1", key: { kind: "description", value: "yerba 1 kg" }, priceCents: 150 },
+      { listId: "list-1", key: { kind: "code", value: "A-1" }, priceCents: null },
+    ]);
+  });
+
+  it("remembers nothing when the row is not removed", async () => {
+    const store = setup("DISCARDED");
+
+    await removeSupplierPriceListRow(store, input);
+
+    expect(store.snapshot().removedItems).toEqual([]);
+  });
+});
