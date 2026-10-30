@@ -1,4 +1,4 @@
-import { RETURN_REFUND_ORIGIN } from "@purosur/domain";
+import { RETURN_REFUND_ORIGIN, recordedRefundOfCorrection } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { cashMovements, paymentRefunds, returnLines, saleReturns } from "../platform/db/schema.js";
@@ -31,9 +31,11 @@ export async function recordAppliedReturn<TQueryResult extends PgQueryResultHKT>
   if (saleReturn.refunds.length > 0) {
     await tx.insert(paymentRefunds).values(
       saleReturn.refunds.map((refund) => ({
-        ...refund,
+        ...recordedRefundOfCorrection(refund, RETURN_REFUND_ORIGIN, {
+          actorId: saleReturn.actorId,
+          at: saleReturn.occurredAt,
+        }),
         saleId: saleReturn.saleId,
-        origin: RETURN_REFUND_ORIGIN,
         originEventId: eventId,
       })),
     );

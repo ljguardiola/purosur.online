@@ -134,6 +134,15 @@ const refundedAnswerSchema = z.object({
   }),
 });
 
+const paymentTransactionsSchema = z.object({
+  transactions: z.object({ payments: z.array(z.object({ id: z.string().min(1) })).min(1) }),
+});
+
+function firstPaymentTransactionId(body: unknown): string | null {
+  const parsed = paymentTransactionsSchema.safeParse(body);
+  return parsed.success ? (parsed.data.transactions.payments[0]?.id ?? null) : null;
+}
+
 const conflictAnswerSchema = z.object({ errors: z.array(z.object({ code: z.string() })).min(1) });
 const ERROR_CODE_SHAPE = /^[a-z][a-z0-9_]{0,63}$/;
 
@@ -340,13 +349,39 @@ export function createMercadoPagoOrdersClient(
         : notSearched(answer.status, answer.body);
     },
 
-    async refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer> {
-      const answer = await call(`/v1/orders/${encodeURIComponent(orderId)}/refund`, {
+    async refundOrder(
+      orderId: string,
+      idempotencyKey: string,
+      partialAmount: number | null = null,
+    ): Promise<MercadoPagoRefundAnswer> {
+      const headers = {
+        Authorization: `Bearer ${options.accessToken}`,
+        "X-Idempotency-Key": idempotencyKey,
+      };
+      const path = `/v1/orders/${encodeURIComponent(orderId)}`;
+      if (partialAmount === null) {
+        const answer = await call(`${path}/refund`, { method: "POST", headers });
+        return answer.kind === "unreachable"
+          ? notRefunded("unreachable", null)
+          : refundAnswerOf(answer.status, answer.body);
+      }
+      const reading = await call(path, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${options.accessToken}` },
+      });
+      if (reading.kind === "unreachable") {
+        return notRefunded("unreachable", null);
+      }
+      const transactionId = firstPaymentTransactionId(reading.body);
+      if (reading.status < 200 || reading.status >= 300 || transactionId === null) {
+        return notRefunded(reading.status, reading.body);
+      }
+      const answer = await call(`${path}/refund`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${options.accessToken}`,
-          "X-Idempotency-Key": idempotencyKey,
-        },
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactions: [{ id: transactionId, amount: pesosOfCents(partialAmount) }],
+        }),
       });
       return answer.kind === "unreachable"
         ? notRefunded("unreachable", null)
