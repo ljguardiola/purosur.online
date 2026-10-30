@@ -81,25 +81,22 @@ export async function askForStructuredAnswer(
   },
 ): Promise<StructuredAnswer> {
   const outputFormat = betaZodOutputFormat(request.format);
-  let stream: ReturnType<typeof client.beta.messages.stream> | undefined;
-  try {
-    stream = client.beta.messages.stream(
-      {
-        model: PURCHASING_AI_MODEL,
-        max_tokens: request.maxTokens,
-        system: [
-          { type: "text", text: request.systemPrompt, cache_control: { type: "ephemeral" } },
-        ],
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        output_config: {
-          effort: request.effort,
-          format: { type: outputFormat.type, schema: outputFormat.schema },
-        },
-        messages: [{ role: "user", content: request.content }],
+  const stream = client.beta.messages.stream(
+    {
+      model: PURCHASING_AI_MODEL,
+      max_tokens: request.maxTokens,
+      system: [{ type: "text", text: request.systemPrompt, cache_control: { type: "ephemeral" } }],
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: {
+        effort: request.effort,
+        format: { type: outputFormat.type, schema: outputFormat.schema },
       },
-      request.signal ? { signal: request.signal } : {},
-    );
+      messages: [{ role: "user", content: request.content }],
+    },
+    request.signal ? { signal: request.signal } : {},
+  );
+  try {
     const message = await stream.finalMessage();
     request.onCall(usageOf(message, true));
     if (message.stop_reason === "max_tokens") {
@@ -111,7 +108,7 @@ export async function askForStructuredAnswer(
     const answer = message.content.find((block) => block.type === "text");
     return answer ? { kind: "answered", text: answer.text } : { kind: "unreadable" };
   } catch (error) {
-    request.onCall(usageOf(stream?.currentMessage, false));
+    request.onCall(usageOf(stream.currentMessage, false));
     if (refusesTheRequest(error)) {
       return { kind: "unreadable" };
     }
