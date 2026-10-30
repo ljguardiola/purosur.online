@@ -649,6 +649,14 @@ describe("the rereads of a list", () => {
     expect((await listed(listId)).review.lastRereadFailure).toBeNull();
   });
 
+  it("takes the latest reread by the order they were requested in, whatever the clock said", async () => {
+    const listId = await extractedList();
+    await reread(listId, "2026-03-03T10:00:00.000Z", "READ_FAILED", "no_items_found");
+    await reread(listId, "2026-03-02T10:00:00.000Z", "READ");
+
+    expect((await listed(listId)).list.lastRereadFailure).toBeNull();
+  });
+
   it("answers no failure while a reread after the failed one is being read", async () => {
     const listId = await extractedList();
     await reread(listId, "2026-03-02T10:00:00.000Z", "READ_FAILED", "no_items_found");

@@ -62,6 +62,27 @@ describe("listSupplierPriceLists", () => {
     ]);
   });
 
+  it("answers no reread failure for a list that may no longer be read again", async () => {
+    const reader = new FakeSupplierPriceListReader({
+      lists: [
+        listing({
+          id: "confirmed",
+          state: "REVIEWED",
+          lastRereadFailure: "no_items_found",
+          confirmedAt: new Date("2026-03-02T10:00:00Z"),
+        }),
+        listing({ id: "discarded", state: "DISCARDED", lastRereadFailure: "interrupted" }),
+      ],
+    });
+
+    const lists = await listSupplierPriceLists(reader);
+
+    expect(lists.map((list) => [list.id, list.lastRereadFailure])).toEqual([
+      ["confirmed", null],
+      ["discarded", null],
+    ]);
+  });
+
   it("marks a confirmed list replaced once a newer one of the same supplier is confirmed", async () => {
     const reader = new FakeSupplierPriceListReader({
       lists: [

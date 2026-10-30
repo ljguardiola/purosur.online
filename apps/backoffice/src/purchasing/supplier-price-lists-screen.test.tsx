@@ -420,9 +420,7 @@ test("reading an unconfirmed list again says it is being updated and reads the l
 
   await expect
     .element(
-      screen.getByText(
-        "Se está leyendo la página de nuevo. Mientras tanto, la lista se puede revisar.",
-      ),
+      screen.getByText("Se está leyendo la página de nuevo. Cuando termine, se ven los cambios."),
     )
     .toBeVisible();
   expect(screen.getByText("Lista cargada").query()).toBeNull();

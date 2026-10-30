@@ -21,9 +21,7 @@ test("a list being read again says so and keeps its rows to review", async () =>
   await expect.element(screen.getByText("Actualizando la lista")).toBeVisible();
   await expect
     .element(
-      screen.getByText(
-        "La lista se está actualizando desde la página. No se puede confirmar hasta que termine.",
-      ),
+      screen.getByText("Se está leyendo la página de nuevo. Cuando termine, se ven los cambios."),
     )
     .toBeVisible();
   await expect.element(screen.getByText("Almendra pelada Nonpareil x 25 kg")).toBeVisible();

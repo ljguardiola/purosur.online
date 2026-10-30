@@ -26,7 +26,7 @@ test.each([
     { kind: "rereadStarted" },
     "success",
     "Actualizando la lista",
-    "Se está leyendo la página de nuevo. Mientras tanto, la lista se puede revisar.",
+    "Se está leyendo la página de nuevo. Cuando termine, se ven los cambios.",
   ],
   [
     { kind: "alreadyReading" },

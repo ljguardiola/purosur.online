@@ -134,7 +134,7 @@ describe("planReread", () => {
     expect(plan.rows.map((row) => row.kind)).toEqual(["kept", "added", "kept"]);
   });
 
-  it("matches rows with the same key in order of appearance", () => {
+  it("keeps the rows of a key printed at the same prices before repricing any of them", () => {
     const plan = planReread(
       [current("row-1", "Yerba 1 kg", 100), current("row-2", "Yerba 1 kg", 100)],
       [],
@@ -143,8 +143,39 @@ describe("planReread", () => {
 
     expect(plan.rows).toEqual([
       expect.objectContaining({ kind: "kept", rowId: "row-1" }),
-      expect.objectContaining({ kind: "repriced", rowId: "row-2", priceCents: 130 }),
-      expect.objectContaining({ kind: "added", priceCents: 100 }),
+      expect.objectContaining({ kind: "added", priceCents: 130 }),
+      expect.objectContaining({ kind: "kept", rowId: "row-2" }),
+    ]);
+  });
+
+  it("keeps the rows of a key whose printings changed order", () => {
+    const plan = planReread(
+      [current("row-1", "Yerba 1 kg", 100), current("row-2", "Yerba 1 kg", 200)],
+      [],
+      [page("Yerba 1 kg", 200), page("Yerba 1 kg", 100)],
+    );
+
+    expect(plan.rows).toEqual([
+      expect.objectContaining({ kind: "kept", rowId: "row-2" }),
+      expect.objectContaining({ kind: "kept", rowId: "row-1" }),
+    ]);
+  });
+
+  it("reprices the rows of a key in order of appearance once the same prices are kept", () => {
+    const plan = planReread(
+      [
+        current("row-1", "Yerba 1 kg", 100),
+        current("row-2", "Yerba 1 kg", 200),
+        current("row-3", "Yerba 1 kg", 300),
+      ],
+      [],
+      [page("Yerba 1 kg", 150), page("Yerba 1 kg", 200), page("Yerba 1 kg", 350)],
+    );
+
+    expect(plan.rows).toEqual([
+      expect.objectContaining({ kind: "repriced", rowId: "row-1", priceCents: 150 }),
+      expect.objectContaining({ kind: "kept", rowId: "row-2" }),
+      expect.objectContaining({ kind: "repriced", rowId: "row-3", priceCents: 350 }),
     ]);
   });
 
@@ -210,6 +241,17 @@ describe("planReread", () => {
       expect(plan.remainingRemovedItems).toEqual([removed("Yerba 1 kg", 100)]);
     });
 
+    it("keeps a removed item out of the list ahead of a row of the same key at another price", () => {
+      const plan = planReread(
+        [current("row-2", "Yerba 1 kg", 100)],
+        [removed("Yerba 1 kg", 200)],
+        [page("Yerba 1 kg", 200), page("Yerba 1 kg", 100)],
+      );
+
+      expect(plan.rows).toEqual([expect.objectContaining({ kind: "kept", rowId: "row-2" })]);
+      expect(plan.remainingRemovedItems).toEqual([removed("Yerba 1 kg", 200)]);
+    });
+
     it("holds each removed item to one printing", () => {
       const plan = planReread(
         [],
@@ -220,6 +262,39 @@ describe("planReread", () => {
       expect(plan.rows).toEqual([]);
       expect(plan.remainingRemovedItems).toEqual([removed("Yerba 1 kg", 100)]);
     });
+  });
+
+  it("keeps every row and every removed item of a page printed again unchanged, in any order", () => {
+    const description = fc.constantFrom("a", "b", "c", "d");
+    const price = fc.option(fc.integer({ min: 1, max: 3 }), { nil: null });
+    const item = fc.record({ description, price });
+    fc.assert(
+      fc.property(
+        fc
+          .tuple(fc.array(item, { maxLength: 8 }), fc.array(item, { maxLength: 8 }))
+          .chain(([currentRows, removedItems]) =>
+            fc.tuple(
+              fc.constant(currentRows),
+              fc.constant(removedItems),
+              fc.shuffledSubarray([...currentRows, ...removedItems], {
+                minLength: currentRows.length + removedItems.length,
+              }),
+            ),
+          ),
+        ([currentRows, removedItems, pageRows]) => {
+          const plan = planReread(
+            currentRows.map((row, index) => current(`row-${index}`, row.description, row.price)),
+            removedItems.map((removedItem) => removed(removedItem.description, removedItem.price)),
+            pageRows.map((row) => page(row.description, row.price)),
+          );
+
+          expect(plan.rows.every((row) => row.kind === "kept")).toBe(true);
+          expect(plan.rows).toHaveLength(currentRows.length);
+          expect(plan.droppedRowIds).toEqual([]);
+          expect(plan.remainingRemovedItems).toHaveLength(removedItems.length);
+        },
+      ),
+    );
   });
 
   it("accounts for every row of the page exactly once", () => {
