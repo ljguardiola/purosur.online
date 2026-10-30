@@ -106,6 +106,13 @@ describe("saleVoidedEventCreditNoteSchema", () => {
     });
   });
 
+  it.each([3, 4])(
+    "reads a void of version %i, the versions whose void asks for a credit note",
+    (schemaVersion) => {
+      expect(eventWith({ schema_version: schemaVersion }).data?.schema_version).toBe(schemaVersion);
+    },
+  );
+
   it.each([
     ["an event of another type", { event_type: "sale_completed" }],
     ["a void of an earlier version", { schema_version: 2 }],
@@ -169,6 +176,13 @@ describe("saleReturnedEventCreditNoteSchema", () => {
       true,
     );
   });
+
+  it.each([2, 3])(
+    "reads a return of version %i, the versions whose return asks for a credit note",
+    (schemaVersion) => {
+      expect(eventWith({ schema_version: schemaVersion }).data?.schema_version).toBe(schemaVersion);
+    },
+  );
 
   it.each([
     ["an event of another type", { event_type: "sale_voided" }],
