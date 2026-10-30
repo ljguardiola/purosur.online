@@ -91,6 +91,7 @@ export default defineConfig({
         node: 1000,
         "railway-iac": 1000,
         "backoffice-build": 1000,
+        "catalog-build": 1000,
         "register-build": 1000,
         "served-backoffice": 1000,
         "dependency-patches": 30000,
@@ -126,6 +127,13 @@ export default defineConfig({
         test: {
           name: "backoffice-build",
           include: ["apps/backoffice/*.test.ts"],
+          environment: "node",
+        },
+      },
+      {
+        test: {
+          name: "catalog-build",
+          include: ["packages/ui/.storybook/*.test.ts"],
           environment: "node",
         },
       },
