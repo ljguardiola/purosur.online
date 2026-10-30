@@ -2827,6 +2827,11 @@ describe("the route access inventory", () => {
         url: "/api/reports/freight-by-period",
         access: capabilityAccess("reports_area"),
       },
+      {
+        method: "GET",
+        url: "/api/reports/ai-cost-by-period",
+        access: capabilityAccess("branch_area"),
+      },
       { method: "GET", url: "/api/freights", access: capabilityAccess("freights") },
       {
         method: "GET",
@@ -2874,6 +2879,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/supplier-price-lists/:id/file",
         access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/:id/ai-cost",
+        access: capabilityAccess("branch_area"),
       },
       {
         method: "PUT",

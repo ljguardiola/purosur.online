@@ -3,7 +3,11 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
-import { auditLog, supplierPriceListRows } from "../platform/db/schema.js";
+import {
+  auditLog,
+  supplierPriceListAiCalls,
+  supplierPriceListRows,
+} from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
@@ -440,6 +444,56 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ kind: "unavailable" });
+  });
+
+  it("records the call of the model for the person who asked and for the list", async () => {
+    const { headers, userId } = await manager();
+    const { listId, rowId, supplierId } = await extractedListWithRow(
+      {},
+      { description: "Yerba suave 1 kg" },
+    );
+    await insertProduct(db, { name: "Yerba Suave 1 kg" });
+    await app.close();
+    app = Fastify();
+    registerSupplierPriceListsRoutes(app, {
+      zoneRules: fixedZoneRulesSource(),
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOW,
+      productChooser: {
+        choose: async (_item, _candidates, onCall) => {
+          onCall({
+            outcome: "completed",
+            attempts: [
+              {
+                model: "claude-sonnet-5-5",
+                inputTokens: 1_000,
+                outputTokens: 100,
+                cacheWriteTokens: 0,
+                cacheReadTokens: 0,
+              },
+            ],
+          });
+          return { kind: "none" };
+        },
+      },
+    });
+
+    await proposal(headers, listId, rowId);
+
+    expect(await db.select().from(supplierPriceListAiCalls)).toEqual([
+      expect.objectContaining({
+        purpose: "LINK_PROPOSAL",
+        listId,
+        rowId,
+        supplierId,
+        actorId: userId,
+        occurredAt: NOW,
+        occurredOn: "2026-09-16",
+        outcome: "completed",
+        costNanoUsd: 3_000_000,
+      }),
+    ]);
   });
 
   it("answers 404 for a list or a row that does not exist", async () => {

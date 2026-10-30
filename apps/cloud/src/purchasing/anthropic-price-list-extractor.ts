@@ -7,9 +7,9 @@ import {
   SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "@purosur/domain";
 import type {
+  OnAiCall,
   PriceListExtraction,
   PriceListExtractor,
-  OnAiCall,
   PriceListSource,
 } from "@purosur/domain/purchasing/use-cases";
 import { PDFDocument } from "pdf-lib";
