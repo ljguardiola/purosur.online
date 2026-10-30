@@ -140,7 +140,7 @@ export function saleVoidedEvent(
     aggregate_type: "sale",
     aggregate_id: saleId,
     event_type: "sale_voided",
-    schema_version: 3,
+    schema_version: 4,
     payload: {
       credit_note: {
         id: creditNote.id,
@@ -175,7 +175,7 @@ export function saleReturnedEvent(
     aggregate_type: "Return",
     aggregate_id: returnId,
     event_type: "sale_returned",
-    schema_version: 2,
+    schema_version: 3,
     payload: {
       id: returnId,
       sale_id: saleId,

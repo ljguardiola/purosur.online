@@ -104,7 +104,7 @@ test("shows the eyebrow, the heading and each refund made outside the system wit
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("heads the list by since when, why, how and how much, with no column for the register or the canceller", async () => {
+test("heads the list by since when, why, how and how much, with no column for the register or the person who made the correction", async () => {
   const services = createOutsideRefundsServices();
   const screen = await loaded(services);
 

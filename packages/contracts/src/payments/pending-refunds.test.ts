@@ -26,8 +26,8 @@ const refund: Record<string, unknown> = {
   sale_occurred_at: "2026-10-07T15:30:00.000Z",
   covered_by: [],
   provider_order_id: null,
-  cancelled_by: "u1",
-  cancelled_by_name: "Lucia",
+  corrected_by: "u1",
+  corrected_by_name: "Lucia",
   sent_by_cloud: false,
   delivery_stage: null,
   last_refusal_reason: null,
@@ -64,8 +64,8 @@ describe("pendingRefundsSchema", () => {
           origin: "late_payment",
           discardable: true,
           method: "QR",
-          cancelled_by: null,
-          cancelled_by_name: null,
+          corrected_by: null,
+          corrected_by_name: null,
         },
       ],
     };
@@ -89,8 +89,8 @@ describe("pendingRefundsSchema", () => {
     expect(pendingRefundsSchema.parse(list)).toEqual(list);
   });
 
-  it("accepts a refund whose canceller is not a known person", () => {
-    const list = { refunds: [{ ...refund, cancelled_by_name: null }] };
+  it("accepts a refund whose corrector is not a known person", () => {
+    const list = { refunds: [{ ...refund, corrected_by_name: null }] };
 
     expect(pendingRefundsSchema.parse(list)).toEqual(list);
   });
@@ -125,8 +125,8 @@ describe("pendingRefundsSchema", () => {
     ["a sale that is not a record id", { sale_id: "sale-1" }],
     ["a register that is not a record id", { register_id: "caja-1" }],
     ["a register name that is not text", { register_name: 1 }],
-    ["a canceller name that is not text", { cancelled_by_name: 1 }],
-    ["a canceller that is not text", { cancelled_by: 1 }],
+    ["a corrector name that is not text", { corrected_by_name: 1 }],
+    ["a corrector that is not text", { corrected_by: 1 }],
     ["an origin no refund has", { origin: "manual" }],
     ["a discardable flag that is not a boolean", { discardable: "yes" }],
     ["a method no payment has", { method: "CARD" }],
