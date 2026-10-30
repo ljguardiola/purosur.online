@@ -119,6 +119,40 @@ test("narrows to the options whose label contains what was typed, ignoring case 
   await expect.poll(() => optionTexts(screen)).toEqual(["Limón"]);
 });
 
+test("narrows to the options holding every word typed, apart and in any order", async () => {
+  const oils: readonly FruitOption[] = [
+    { value: "manzana", label: "Aceite de Almendras Vitora 60 ml" },
+    { value: "pera", label: "Aceite de Almendras Vitora 125 ml" },
+  ];
+  const screen = await render(<Picker value={null} options={oils} />);
+
+  await input(screen).fill("almendras 60 ml");
+  await expect.poll(() => optionTexts(screen)).toEqual(["Aceite de Almendras Vitora 60 ml"]);
+
+  await input(screen).fill("ML VITORA");
+  await expect
+    .poll(() => optionTexts(screen))
+    .toEqual(["Aceite de Almendras Vitora 60 ml", "Aceite de Almendras Vitora 125 ml"]);
+});
+
+test("lists every option while the typed text holds only spaces", async () => {
+  const screen = await render(<Picker value={null} />);
+
+  await input(screen).fill("   ");
+
+  await expect.poll(() => optionTexts(screen)).toEqual(["Manzana", "Pera", "Limón", "Ananá"]);
+});
+
+test("finds each typed word in any of the texts the caller names to match", async () => {
+  const screen = await render(
+    <Picker value={null} matchTexts={(option) => [option.label, option.code ?? ""]} />,
+  );
+
+  await input(screen).fill("p-200 pera");
+
+  await expect.poll(() => optionTexts(screen)).toEqual(["Pera"]);
+});
+
 test("matches only the label unless the caller names other texts to match", async () => {
   const byLabel = await render(<Picker value={null} />);
   await input(byLabel).fill("p-200");

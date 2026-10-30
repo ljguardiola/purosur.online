@@ -1,11 +1,35 @@
-import { searchArticles } from "@purosur/ui";
+import type { HelpBlock } from "@purosur/ui";
 import { describe, expect, it } from "vitest";
 import { help } from "./register-help";
 
 const titles = Object.values(help.articles).map((article) => article.title);
 
-function titlesFound(words: string): string[] {
-  return searchArticles(help.articles, words).map(([, article]) => article.title);
+function folded(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+function blockTexts(block: HelpBlock<string>): readonly string[] {
+  switch (block.kind) {
+    case "heading":
+    case "paragraph":
+    case "note":
+      return [block.text];
+    case "steps":
+      return block.items;
+    case "articleLink":
+      return [];
+  }
+}
+
+function titlesFound(phrase: string): string[] {
+  const foldedPhrase = folded(phrase);
+  return Object.values(help.articles)
+    .filter((article) =>
+      [article.title, ...article.body.flatMap(blockTexts)].some((text) =>
+        folded(text).includes(foldedPhrase),
+      ),
+    )
+    .map((article) => article.title);
 }
 
 const POINT_TERMINAL_TITLES = [
