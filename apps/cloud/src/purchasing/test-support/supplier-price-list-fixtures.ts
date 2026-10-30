@@ -91,6 +91,7 @@ export interface PriceListRowSeed {
   code?: string | null;
   presentation?: string | null;
   priceCents?: number | null;
+  pagePriceCents?: number | null;
   page?: number | null;
   barcode?: string | null;
   productId?: string | null;
@@ -117,6 +118,12 @@ export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>
           supplierCode: row.code ?? null,
           presentation: row.presentation ?? null,
           priceCents: row.priceCents === undefined ? 100 : row.priceCents,
+          pagePriceCents:
+            row.pagePriceCents === undefined
+              ? row.priceCents === undefined
+                ? 100
+                : row.priceCents
+              : row.pagePriceCents,
           page: row.page ?? null,
           barcode: row.barcode ?? null,
           productId: row.productId ?? null,
