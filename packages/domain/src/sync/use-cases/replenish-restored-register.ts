@@ -1,5 +1,6 @@
 import {
   isDeferralFinalWhenRecorded,
+  type RebuiltUnclearDeferral,
   type RestoredCreditNoteAnswer,
   type RestoredUnclearDeferral,
   rebuiltUnclearDeferral,
@@ -14,7 +15,6 @@ import type { SyncedFact } from "../model/synced-fact.js";
 import type {
   RegisterPredecessor,
   RegisterReplenishmentTransaction,
-  ReplenishedEventApplication,
   ReplenishmentPage,
   ReplenishmentRefusal,
   ReplenishRestoredRegisterPorts,
@@ -55,11 +55,15 @@ function decodedPage<TFailure>(
   return { kind: "decoded", events: decoded };
 }
 
+type UnclearDeferralRebuild =
+  | { application: "not_yet_applicable" }
+  | { application: "applied"; rebuilt: RebuiltUnclearDeferral };
+
 async function rebuildUnclearDeferral(
   tx: RegisterReplenishmentTransaction,
   { deferredSale, unclearDocument }: Extract<SyncedFact, { kind: "deferred_sale_recorded" }>,
   answers: readonly RestoredUnclearDeferral[],
-): Promise<ReplenishedEventApplication> {
+): Promise<UnclearDeferralRebuild> {
   const unclear =
     unclearDocument === null
       ? undefined
@@ -67,11 +71,12 @@ async function rebuildUnclearDeferral(
           ({ fiscalDocumentId }) => fiscalDocumentId === unclearDocument.fiscalDocumentId,
         );
   if (unclearDocument === null || unclear === undefined) {
-    return "not_yet_applicable";
+    return { application: "not_yet_applicable" };
   }
-  return tx.rebuildUnclearDeferredSale(
-    rebuiltUnclearDeferral(deferredSale, unclearDocument, unclear.answer),
-  );
+  const rebuilt = rebuiltUnclearDeferral(deferredSale, unclearDocument, unclear.answer);
+  return (await tx.rebuildUnclearDeferredSale(rebuilt)) === "applied"
+    ? { application: "applied", rebuilt }
+    : { application: "not_yet_applicable" };
 }
 
 async function holdReplenishedPrintAttempt(
@@ -110,10 +115,17 @@ async function applyPage<TFailure>(
         fact.kind === "deferred_sale_recorded" &&
         !isDeferralFinalWhenRecorded(fact.deferredSale.reason)
       ) {
-        const rebuilt = await rebuildUnclearDeferral(tx, fact, unclearDeferralAnswers);
-        if (rebuilt === "not_yet_applicable") {
+        const rebuild = await rebuildUnclearDeferral(tx, fact, unclearDeferralAnswers);
+        if (rebuild.application === "not_yet_applicable") {
           unapplied += 1;
           continue;
+        }
+        if (rebuild.rebuilt.authorizedDocument !== null) {
+          await holdReplenishedPrintAttempt(
+            tx,
+            { document: "deferred_invoice", saleId: fact.deferredSale.saleId },
+            rebuild.rebuilt.authorizedDocument.satisfiedAt,
+          );
         }
         await tx.recordEventApplied(event.event_id);
         continue;
@@ -122,6 +134,13 @@ async function applyPage<TFailure>(
       if (application === "not_yet_applicable") {
         unapplied += 1;
         continue;
+      }
+      if (fact.kind === "deferred_sale_satisfied") {
+        await holdReplenishedPrintAttempt(
+          tx,
+          { document: "deferred_invoice", saleId: fact.satisfaction.saleId },
+          fact.satisfaction.satisfiedAt,
+        );
       }
       if (fact.kind === "sale_completed") {
         await holdReplenishedPrintAttempt(
