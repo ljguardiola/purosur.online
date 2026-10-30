@@ -104,7 +104,7 @@ interface HeldCreditNote {
   event: ReplenishedEvent["event"];
 }
 
-export interface HeldSaleReceipt {
+interface HeldSaleReceipt {
   attemptedAt: Date;
   printedAt: Date | null;
 }
