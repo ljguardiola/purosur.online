@@ -164,7 +164,7 @@ export function deleteSaleLine(database: LocalDatabase, lineId: string): void {
   database.prepare("DELETE FROM sale_lines WHERE id = ?").run(lineId);
 }
 
-export function discardOpenSale(database: LocalDatabase, saleId: string): void {
+function discardOpenSale(database: LocalDatabase, saleId: string): void {
   database
     .prepare(
       "DELETE FROM sale_line_promotions WHERE line_id IN (SELECT id FROM sale_lines WHERE sale_id = ?)",
