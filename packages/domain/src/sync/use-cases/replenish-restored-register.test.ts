@@ -1147,6 +1147,144 @@ describe("replenishRestoredRegister", () => {
       expect(store.state.appliedEventIds).toEqual([]);
     });
   });
+  describe("the original of a restored credit note", () => {
+    const ISSUED_AT = new Date("2026-10-07T10:29:00.000Z");
+    const CREDIT_NOTE = aCreditNote("sale-1");
+    const KEY = heldPrintKey({
+      document: "credit_note",
+      saleId: "sale-1",
+      creditNoteId: CREDIT_NOTE.creditNoteId,
+    });
+    const VOIDED = aSaleVoidedEvent("device-old", 53, "sale-1");
+    const PRINT_STATE = anEvent("device-old", 54);
+    const PRINTED: SyncedFact = {
+      kind: "sale_print_state_changed",
+      printState: {
+        saleId: "sale-1",
+        document: "credit_note",
+        creditNoteId: CREDIT_NOTE.creditNoteId,
+        printAttemptedAt: new Date("2026-10-07T10:31:00.000Z"),
+        printedAt: new Date("2026-10-07T10:32:00.000Z"),
+      },
+    };
+
+    function aRegisterReplenishingAVoidedSale() {
+      const register = aRestoredRegister();
+      register.decoder.facts.set(VOIDED.event.event_id, aVoidedSaleOf(CREDIT_NOTE, "sale-1"));
+      register.decoder.facts.set(PRINT_STATE.event.event_id, PRINTED);
+      return register;
+    }
+
+    it("counts as attempted when the credit note was issued, since the lost installation may have printed it", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      feed.answers = [aPage([VOIDED], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: { attemptedAt: ISSUED_AT, printedAt: null } });
+    });
+
+    it("counts a credit note issued offline as attempted when it was issued", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      const offline: RestoredCreditNoteAnswer = {
+        creditNoteId: CREDIT_NOTE.creditNoteId,
+        answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+        answer: {
+          kind: "issued_offline",
+          pointOfSale: 31,
+          number: 4,
+          issuedOn: "2026-10-07",
+          issuedAt: ISSUED_AT,
+          offlineAuthorizationCode: "71234567890123",
+          fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        },
+      };
+      feed.answers = [aPage([VOIDED], null, [], [offline])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: { attemptedAt: ISSUED_AT, printedAt: null } });
+    });
+
+    it("takes the print state replenished after the credit note", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      feed.answers = [aPage([VOIDED, PRINT_STATE], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-07T10:31:00.000Z"),
+          printedAt: new Date("2026-10-07T10:32:00.000Z"),
+        },
+      });
+    });
+
+    it("keeps an attempt the register already holds", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      const held = { attemptedAt: new Date("2026-10-07T10:35:00.000Z"), printedAt: null };
+      store.state.prints[KEY] = held;
+      feed.answers = [aPage([VOIDED], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: held });
+    });
+
+    it("changes nothing when the page is replenished again", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      const pending = anEvent("device-old", 55);
+      store.notYetApplicable.add(pending.event.event_id);
+      const answers = [anAuthorizedAnswer(CREDIT_NOTE)];
+      feed.answers = [
+        aPage([VOIDED, PRINT_STATE, pending], null, [], answers),
+        aPage([VOIDED, PRINT_STATE, pending], null, [], answers),
+      ];
+
+      await run();
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-07T10:31:00.000Z"),
+          printedAt: new Date("2026-10-07T10:32:00.000Z"),
+        },
+      });
+    });
+
+    it.each([
+      { kind: "rejected" },
+      { kind: "regularization_required" },
+      { kind: "already_credited" },
+    ] as const)("is not counted for an answer that issued nothing: $kind", async (answer) => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      feed.answers = [aPage([VOIDED], null, [], [{ ...anAuthorizedAnswer(CREDIT_NOTE), answer }])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({});
+    });
+
+    it("is not counted for a credit note still held to request", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      feed.answers = [aPage([VOIDED], null, [CREDIT_NOTE.creditNoteId])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({});
+    });
+
+    it("leaves nothing behind when recording it fails", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      store.failAt = { operation: "recordPrintAttempt" };
+      feed.answers = [aPage([VOIDED], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state.prints).toEqual({});
+      expect(store.state.appliedEventIds).toEqual([]);
+    });
+  });
 });
 
 describe("the failure of a replenishment", () => {
