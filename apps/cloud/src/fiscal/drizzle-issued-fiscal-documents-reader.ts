@@ -74,7 +74,7 @@ function onlineReceipts() {
     fortnightStart: nullDay.as("fortnightStart"),
     fortnightEnd: nullDay.as("fortnightEnd"),
     contingency: sql<boolean>`false`.as("contingency"),
-    total: sql<number>`${fiscalRequests.total}`.as("total"),
+    total: sql<number>`${fiscalRequests.total}`.mapWith(Number).as("total"),
     correctedVoucherType: nullNumber.as("correctedVoucherType"),
     correctedPointOfSale: nullNumber.as("correctedPointOfSale"),
     correctedNumber: nullNumber.as("correctedNumber"),
@@ -114,7 +114,7 @@ function onlineCreditNotes() {
     fortnightStart: nullDay.as("fortnightStart"),
     fortnightEnd: nullDay.as("fortnightEnd"),
     contingency: sql<boolean>`false`.as("contingency"),
-    total: sql<number>`${creditNotes.total}`.as("total"),
+    total: sql<number>`${creditNotes.total}`.mapWith(Number).as("total"),
     correctedVoucherType: sql<number | null>`${creditNotes.associatedVoucherType}`.as(
       "correctedVoucherType",
     ),
@@ -158,7 +158,7 @@ function offlineDocuments() {
     fortnightStart: day(sql`${offlineFiscalDocuments.fortnightStart}`).as("fortnightStart"),
     fortnightEnd: day(sql`${offlineFiscalDocuments.fortnightEnd}`).as("fortnightEnd"),
     contingency: sql<boolean>`true`.as("contingency"),
-    total: sql<number>`${offlineFiscalDocuments.total}`.as("total"),
+    total: sql<number>`${offlineFiscalDocuments.total}`.mapWith(Number).as("total"),
     correctedVoucherType: sql<number | null>`${offlineFiscalDocuments.correctedVoucherType}`.as(
       "correctedVoucherType",
     ),
