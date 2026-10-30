@@ -921,6 +921,33 @@ describe("the register's store for replenishing a restored register", () => {
     });
   });
 
+  describe("the attempt of a deferred sale's invoice print", () => {
+    const A_DEFERRED_INVOICE = { document: "deferred_invoice", saleId: "sale-1" } as const;
+
+    beforeEach(async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+    });
+
+    it("is unknown while the invoice was never sent to the printer", async () => {
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_DEFERRED_INVOICE))).toBeNull();
+    });
+
+    it("is the moment recorded, leaving the invoice unprinted", async () => {
+      const at = new Date("2026-10-09T10:00:00.000Z");
+
+      await store.transaction((tx) => tx.recordPrintAttempt(A_DEFERRED_INVOICE, at));
+
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_DEFERRED_INVOICE))).toEqual(at);
+      expect(
+        database
+          .prepare("SELECT sale_id, print_attempted_at, printed_at FROM deferred_invoice_prints")
+          .all(),
+      ).toEqual([
+        { sale_id: "sale-1", print_attempted_at: "2026-10-09T10:00:00.000Z", printed_at: null },
+      ]);
+    });
+  });
+
   describe("a transaction", () => {
     it("leaves nothing behind when it fails", async () => {
       await expect(

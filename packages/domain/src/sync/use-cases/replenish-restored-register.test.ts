@@ -19,6 +19,7 @@ import {
   A_GATE_FAILED_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
+  aDeferredSaleSatisfiedFact,
   aReturnedSaleFact,
   aVoidedSaleFact,
 } from "../model/test-support/synced-facts.js";
@@ -1278,6 +1279,247 @@ describe("replenishRestoredRegister", () => {
       const { feed, store, run } = aRegisterReplenishingAVoidedSale();
       store.failAt = { operation: "recordPrintAttempt" };
       feed.answers = [aPage([VOIDED], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state.prints).toEqual({});
+      expect(store.state.appliedEventIds).toEqual([]);
+    });
+  });
+  describe("the original invoice of a restored deferred sale", () => {
+    const KEY = heldPrintKey({ document: "deferred_invoice", saleId: "sale-1" });
+    const RECORD = anEvent("device-old", 53);
+    const SATISFIED = anEvent("device-old", 54);
+    const PRINT_STATE = anEvent("device-old", 55);
+    const SATISFIED_AT = new Date("2026-10-09T10:00:00.000Z");
+    const PRINTED: SyncedFact = {
+      kind: "sale_print_state_changed",
+      printState: {
+        saleId: "sale-1",
+        document: "deferred_invoice",
+        printAttemptedAt: new Date("2026-10-09T10:01:00.000Z"),
+        printedAt: new Date("2026-10-09T10:02:00.000Z"),
+      },
+    };
+
+    function aRegisterReplenishingASatisfiedDeferral() {
+      const register = aRestoredRegister();
+      register.decoder.facts.set(RECORD.event.event_id, A_DEFERRED_SALE_RECORDED_FACT);
+      register.decoder.facts.set(
+        SATISFIED.event.event_id,
+        aDeferredSaleSatisfiedFact(A_FACTURA_C.issuer),
+      );
+      register.decoder.facts.set(PRINT_STATE.event.event_id, PRINTED);
+      return register;
+    }
+
+    it("counts as attempted when the sale was satisfied, since the lost installation may have printed it", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      feed.answers = [aPage([RECORD, SATISFIED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: { attemptedAt: SATISFIED_AT, printedAt: null } });
+    });
+
+    it("takes the print state replenished after the satisfaction", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      feed.answers = [aPage([RECORD, SATISFIED, PRINT_STATE])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-09T10:01:00.000Z"),
+          printedAt: new Date("2026-10-09T10:02:00.000Z"),
+        },
+      });
+    });
+
+    it("keeps an attempt the register already holds", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      const held = { attemptedAt: new Date("2026-10-09T10:05:00.000Z"), printedAt: null };
+      store.state.prints[KEY] = held;
+      feed.answers = [aPage([RECORD, SATISFIED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: held });
+    });
+
+    it("changes nothing when the page is replenished again", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      const pending = anEvent("device-old", 56);
+      store.notYetApplicable.add(pending.event.event_id);
+      feed.answers = [
+        aPage([RECORD, SATISFIED, PRINT_STATE, pending]),
+        aPage([RECORD, SATISFIED, PRINT_STATE, pending]),
+      ];
+
+      await run();
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-09T10:01:00.000Z"),
+          printedAt: new Date("2026-10-09T10:02:00.000Z"),
+        },
+      });
+    });
+
+    it("is not counted while the satisfaction cannot be applied yet", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      feed.answers = [aPage([SATISFIED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({});
+    });
+
+    it("leaves nothing behind when recording it fails", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      store.failAt = { operation: "recordPrintAttempt" };
+      feed.answers = [aPage([RECORD, SATISFIED])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state.prints).toEqual({});
+      expect(store.state.appliedEventIds).toEqual([]);
+    });
+  });
+
+  describe("the original invoice of a restored deferred sale of an unclear outcome", () => {
+    const KEY = heldPrintKey({ document: "deferred_invoice", saleId: "sale-2" });
+    const RECORD = anEvent("device-old", 53);
+    const PRINT_STATE = anEvent("device-old", 54);
+    const ANSWERED_AT = new Date("2026-10-08T15:00:00.000Z");
+    const PRINTED: SyncedFact = {
+      kind: "sale_print_state_changed",
+      printState: {
+        saleId: "sale-2",
+        document: "deferred_invoice",
+        printAttemptedAt: new Date("2026-10-08T15:01:00.000Z"),
+        printedAt: new Date("2026-10-08T15:02:00.000Z"),
+      },
+    };
+    const UNCLEAR_RECORD: SyncedFact = {
+      kind: "deferred_sale_recorded",
+      deferredSale: {
+        id: "deferred-of-sale-2",
+        saleId: "sale-2",
+        occurredAt: new Date("2026-10-07T11:00:00.000Z"),
+        total: 1200,
+        reason: "unclear_outcome",
+        shortCode: "CODE-sale-2",
+        routedAt: new Date("2026-10-07T11:00:01.000Z"),
+      },
+      unclearDocument: {
+        fiscalDocumentId: "document-of-sale-2",
+        pointOfSale: 7,
+        number: 42,
+        issuedOn: "2026-10-07",
+        document: A_FACTURA_C,
+        reservedAt: new Date("2026-10-07T10:59:58.000Z"),
+      },
+    };
+    const answerOf = (answer: RestoredUnclearDeferral["answer"]): RestoredUnclearDeferral => ({
+      fiscalDocumentId: "document-of-sale-2",
+      answer,
+    });
+    const AUTHORIZED = answerOf({
+      kind: "authorized",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-18",
+      answeredAt: ANSWERED_AT,
+    });
+
+    function aRegisterReplenishingAnUnclearDeferral() {
+      const register = aRestoredRegister();
+      register.decoder.facts.set(RECORD.event.event_id, UNCLEAR_RECORD);
+      register.decoder.facts.set(PRINT_STATE.event.event_id, PRINTED);
+      return register;
+    }
+
+    it("counts as attempted when the cloud authorized it, since the lost installation may have printed it", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      feed.answers = [aPage([RECORD], null, [], [], [], [AUTHORIZED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: { attemptedAt: ANSWERED_AT, printedAt: null } });
+    });
+
+    it("takes the print state replenished after the record", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      feed.answers = [aPage([RECORD, PRINT_STATE], null, [], [], [], [AUTHORIZED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-08T15:01:00.000Z"),
+          printedAt: new Date("2026-10-08T15:02:00.000Z"),
+        },
+      });
+    });
+
+    it("keeps an attempt the register already holds", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      const held = { attemptedAt: new Date("2026-10-08T15:05:00.000Z"), printedAt: null };
+      store.state.prints[KEY] = held;
+      feed.answers = [aPage([RECORD], null, [], [], [], [AUTHORIZED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: held });
+    });
+
+    it("changes nothing when the page is replenished again", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      const pending = anEvent("device-old", 56);
+      store.notYetApplicable.add(pending.event.event_id);
+      feed.answers = [
+        aPage([RECORD, PRINT_STATE, pending], null, [], [], [], [AUTHORIZED]),
+        aPage([RECORD, PRINT_STATE, pending], null, [], [], [], [AUTHORIZED]),
+      ];
+
+      await run();
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-08T15:01:00.000Z"),
+          printedAt: new Date("2026-10-08T15:02:00.000Z"),
+        },
+      });
+    });
+
+    it.each([{ kind: "unsettled" }, { kind: "rejected" }] as const)(
+      "is not counted for a record the cloud left $kind",
+      async (answer) => {
+        const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+        feed.answers = [aPage([RECORD], null, [], [], [], [answerOf(answer)])];
+
+        await run();
+
+        expect(store.state.prints).toEqual({});
+      },
+    );
+
+    it("is not counted while the sale is not held yet", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      store.salesNotYetHeld.add("sale-2");
+      feed.answers = [aPage([RECORD], null, [], [], [], [AUTHORIZED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({});
+    });
+
+    it("leaves nothing behind when recording it fails", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      store.failAt = { operation: "recordPrintAttempt" };
+      feed.answers = [aPage([RECORD], null, [], [], [], [AUTHORIZED])];
 
       await expect(run()).rejects.toThrow("storage unavailable");
 
