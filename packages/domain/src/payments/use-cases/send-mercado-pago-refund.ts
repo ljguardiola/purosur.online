@@ -4,6 +4,7 @@ import {
   INSUFFICIENT_BALANCE_REFUSAL,
   isProcessedByMercadoPago,
   orderToRefund,
+  partialAmountOfOrderRefund,
   progressOfRefundAnswer,
   refundIsBackedByItsCorrection,
   refundIsBackedByItsLatePayment,
@@ -132,7 +133,7 @@ async function sendAndRecord(
   attemptKey: string,
 ): Promise<MercadoPagoRefundAttempt> {
   const progress = progressOfRefundAnswer(
-    await mercadoPago.refundOrder(refund.orderId, attemptKey),
+    await mercadoPago.refundOrder(refund.orderId, attemptKey, partialAmountOfOrderRefund(refund)),
   );
   const now = clock.now();
   return store.transaction<MercadoPagoRefundAttempt>(async (tx) => {

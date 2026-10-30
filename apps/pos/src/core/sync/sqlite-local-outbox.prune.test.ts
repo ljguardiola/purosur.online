@@ -398,6 +398,7 @@ describe("forgetting the acknowledged events after a register session", () => {
       expect(session.prepare("SELECT state FROM sale_credit_notes ORDER BY state").all()).toEqual([
         { state: "AUTHORIZED" },
         { state: "AWAITING_INVOICE" },
+        { state: "AWAITING_INVOICE" },
         { state: "IN_PROGRESS" },
         { state: "ISSUED_OFFLINE" },
       ]);

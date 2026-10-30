@@ -99,7 +99,7 @@ describe("sale_returned v1", () => {
 
   it.each([
     ["version zero", 0],
-    ["a version nobody emitted", 3],
+    ["a version nobody emitted", 4],
   ])("has no schema for %s", (_case, schemaVersion) => {
     expect(syncedEventPayloadKey("sale_returned", schemaVersion)).toBeUndefined();
   });
@@ -218,5 +218,84 @@ describe("sale_returned v1", () => {
     it("accepts a loss with the reason the system gives the items thrown away", () => {
       expect(accepts(stock({ kind: "loss", reason: "return_discard", delta: -2000 }))).toBe(true);
     });
+  });
+});
+
+describe("sale_returned v3", () => {
+  const RETURNED_V3: Payload = { ...RETURNED, credit_note: null };
+  const refundsOf = (...refunds: Payload[]): Payload => ({
+    ...RETURNED_V3,
+    refunds: refunds.map((refund) => ({ ...(RETURNED["refunds"] as Payload[])[0], ...refund })),
+  });
+  const acceptsV3 = (payload: unknown) =>
+    syncedEventPayloadSchema("sale_returned@3").safeParse(payload).success;
+
+  it("is a version the cloud reads", () => {
+    expect(syncedEventPayloadKey("sale_returned", 3)).toBe("sale_returned@3");
+    expect(READABLE_EVENT_VERSIONS).toContain("sale_returned@3");
+  });
+
+  it("accepts a return refunded in cash, as a version 2 return was", () => {
+    expect(acceptsV3(RETURNED_V3)).toBe(true);
+  });
+
+  it.each([
+    ["a transfer", { method: "TRANSFER", provider: "NONE" }],
+    ["a standalone terminal", { method: "STANDALONE_TERMINAL", provider: "EXTERNAL_TERMINAL" }],
+    ["a Mercado Pago QR", { method: "QR", provider: "MERCADOPAGO_QR" }],
+    ["a Mercado Pago Point", { method: "POINT", provider: "MERCADOPAGO_POINT" }],
+  ])("accepts a refund to %s that is still pending", (_case, change) => {
+    expect(acceptsV3(refundsOf({ ...change, state: "PENDING" }))).toBe(true);
+  });
+
+  it("accepts a return split between cash and a payment that is not cash, with the cash movement of the cash part only", () => {
+    const split = refundsOf(
+      { amount: 4000 },
+      {
+        id: "0199b7a0-0000-7000-8000-000000000a0c",
+        method: "QR",
+        provider: "MERCADOPAGO_QR",
+        state: "PENDING",
+        amount: 3000,
+      },
+    );
+
+    expect(
+      acceptsV3({
+        ...split,
+        cash_movements: [{ ...(RETURNED["cash_movements"] as Payload[])[0], amount: 4000 }],
+      }),
+    ).toBe(true);
+  });
+
+  it("accepts a return refunded only to a payment that is not cash, with no cash movement", () => {
+    expect(
+      acceptsV3({
+        ...refundsOf({ method: "TRANSFER", provider: "NONE", state: "PENDING" }),
+        cash_movements: [],
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    ["a pending cash refund", { state: "PENDING" }],
+    ["an approved transfer refund", { method: "TRANSFER", provider: "NONE", state: "APPROVED" }],
+    ["an approved QR refund", { method: "QR", provider: "MERCADOPAGO_QR", state: "APPROVED" }],
+    ["a QR refund of another provider", { method: "QR", provider: "NONE", state: "PENDING" }],
+    [
+      "a Point refund of the QR provider",
+      { method: "POINT", provider: "MERCADOPAGO_QR", state: "PENDING" },
+    ],
+    ["a method nobody pays with", { method: "CARD", provider: "NONE", state: "PENDING" }],
+    ["a refund kind that is not a refund", { kind: "SALE" }],
+    ["a negative amount", { amount: -1 }],
+  ])("refuses %s", (_case, change) => {
+    expect(acceptsV3(refundsOf(change))).toBe(false);
+  });
+
+  it("still refuses what version 2 refused for lack of a field", () => {
+    const { credit_note: _removed, ...withoutCreditNote } = RETURNED_V3;
+
+    expect(acceptsV3(withoutCreditNote)).toBe(false);
   });
 });

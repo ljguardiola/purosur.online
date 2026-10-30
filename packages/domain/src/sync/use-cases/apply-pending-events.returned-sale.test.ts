@@ -218,3 +218,69 @@ describe("applying a returned sale", () => {
     });
   });
 });
+
+describe("applying a returned sale with Mercado Pago refunds", () => {
+  const OCCURRED_AT = new Date("2026-10-08T10:00:00.000Z");
+  const refundOf = (method: "CASH" | "TRANSFER" | "QR" | "POINT", id: string) => ({
+    id,
+    paymentId: `payment-${id}`,
+    method,
+    provider:
+      method === "QR" ? "MERCADOPAGO_QR" : method === "POINT" ? "MERCADOPAGO_POINT" : "NONE",
+    amount: 500,
+    state: method === "CASH" ? ("APPROVED" as const) : ("PENDING" as const),
+    occurredAt: OCCURRED_AT,
+  });
+
+  function applyRefunds(
+    fake: FakeEventApplication,
+    methods: ("CASH" | "TRANSFER" | "QR" | "POINT")[],
+  ) {
+    return apply(
+      fake,
+      aReturnedSaleFact({ refunds: methods.map((method, index) => refundOf(method, `r${index}`)) }),
+    );
+  }
+
+  it.each(["QR", "POINT"] as const)(
+    "asks for the refunds to be followed at once when a %s refund is recorded, after the stock",
+    async (method) => {
+      const fake = application(appliedSale(), appliedSession(), returnEvent());
+
+      await applyRefunds(fake, ["CASH", method]);
+
+      expect(fake.state.refundFollowRequests).toHaveLength(1);
+      expect(fake.state.writeOrder).toEqual([
+        "return history",
+        "record",
+        "return stock",
+        "refund follow",
+      ]);
+    },
+  );
+
+  it("asks once for a return with several Mercado Pago refunds", async () => {
+    const fake = application(appliedSale(), appliedSession(), returnEvent());
+
+    await applyRefunds(fake, ["QR", "POINT"]);
+
+    expect(fake.state.refundFollowRequests).toHaveLength(1);
+  });
+
+  it("asks for nothing when the return has no Mercado Pago refund", async () => {
+    const fake = application(appliedSale(), appliedSession(), returnEvent());
+
+    await applyRefunds(fake, ["CASH", "TRANSFER"]);
+
+    expect(fake.state.refundFollowRequests).toEqual([]);
+  });
+
+  it("asks for nothing when the return is not applied", async () => {
+    const fake = application(appliedSale(), appliedSession(), returnEvent());
+    fake.refuseStock.set("return-event", "product product-1 is not in the catalog");
+
+    await applyRefunds(fake, ["QR"]);
+
+    expect(fake.state.refundFollowRequests).toEqual([]);
+  });
+});

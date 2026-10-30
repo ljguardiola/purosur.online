@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, paymentRefunds } from "../platform/db/schema.js";
+import { auditLog, paymentRefunds, saleReturns } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyReturn } from "../returns/test-support/applied-returns.js";
 import { insertLocation, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
@@ -383,6 +385,50 @@ describe("DrizzleMercadoPagoRefundStore", () => {
       expect(
         await store().transaction((tx) => tx.appliedCorrectionOfEvent(pending.originEventId)),
       ).toEqual({ origin: "sale_voided", saleId: pending.saleId });
+    });
+
+    describe("of a return", () => {
+      async function returnWithItsEvent(applied: boolean) {
+        const { deviceId } = await insertEnrolledInstallation(db, { now: NOW });
+        const { saleReturn } = await applyReturn(db, {
+          deviceId,
+          soldAt: new Date("2026-10-07T10:00:00.000Z"),
+          returnedAt: NOW,
+        });
+        const [stored] = await db
+          .select({ originEventId: saleReturns.originEventId })
+          .from(saleReturns)
+          .where(eq(saleReturns.id, saleReturn.id));
+        const originEventId = stored?.originEventId as string;
+        await insertInboxEvent(db, deviceId, {
+          eventId: originEventId,
+          aggregateType: "Return",
+          aggregateId: saleReturn.id,
+          eventType: "sale_returned",
+          schemaVersion: 3,
+          ...(applied ? { appliedAt: NOW } : {}),
+        });
+        return { originEventId, saleId: saleReturn.saleId };
+      }
+
+      it("gives the sale an applied returning event returned a part of", async () => {
+        const { originEventId, saleId } = await returnWithItsEvent(true);
+
+        expect(
+          await store().transaction((tx) => tx.appliedCorrectionOfEvent(originEventId)),
+        ).toEqual({
+          origin: "return",
+          saleId,
+        });
+      });
+
+      it("gives nothing for a returning event the cloud has not applied", async () => {
+        const { originEventId } = await returnWithItsEvent(false);
+
+        expect(
+          await store().transaction((tx) => tx.appliedCorrectionOfEvent(originEventId)),
+        ).toBeNull();
+      });
     });
 
     it("gives nothing for an event the cloud does not hold", async () => {

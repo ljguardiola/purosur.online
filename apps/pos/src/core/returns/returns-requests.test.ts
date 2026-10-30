@@ -268,14 +268,14 @@ describe("finding the sale to return", () => {
         amount: 5500,
         refunded_amount: 0,
         remaining: 5500,
-        eligible: false,
-        ineligible_reason: "not_cash",
+        eligible: true,
+        ineligible_reason: null,
       },
     ]);
   });
 
   it.each(["DEBIT", "CREDIT"] as const)(
-    "answers the %s card type of a Point payment, listed as not refundable from the register",
+    "answers the %s card type of a Point payment, which can be chosen for a refund",
     async (cardType) => {
       database
         .prepare(
@@ -292,8 +292,8 @@ describe("finding the sale to return", () => {
       ).toMatchObject({
         method: "POINT",
         card_type: cardType,
-        eligible: false,
-        ineligible_reason: "not_cash",
+        eligible: true,
+        ineligible_reason: null,
       });
     },
   );
@@ -546,8 +546,16 @@ describe("completing a return", () => {
     expect(outcome).toEqual({
       kind: "completed",
       return_id: "id-1",
-      refunded_total: 5000,
-      refunds: [{ payment_id: "pay-cash", method: "CASH", amount: 5000, state: "APPROVED" }],
+      refunded_in_cash: 5000,
+      refunds: [
+        {
+          payment_id: "pay-cash",
+          method: "CASH",
+          amount: 5000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
       authorized_by: null,
     });
     expect(
@@ -656,6 +664,13 @@ describe("completing a return", () => {
       kind: "refund_refused",
       refusal: { kind: "total_mismatch", refundable_total: 5000, imputed: 4000 },
     });
+  });
+
+  it("refuses a refund above what a payment that is not cash has left, saying how much is left", async () => {
+    database
+      .prepare("UPDATE payment_transactions SET amount = 4000 WHERE id = 'pay-transfer'")
+      .run();
+
     expect(
       await completeReturnFor(
         deps(),
@@ -663,8 +678,70 @@ describe("completing a return", () => {
       ),
     ).toEqual({
       kind: "refund_refused",
-      refusal: { kind: "not_cash", payment_id: "pay-transfer" },
+      refusal: { kind: "exceeds_payment", payment_id: "pay-transfer", remaining: 4000 },
     });
+  });
+
+  it("completes a return refunded to a payment that is not cash, pending, taking no cash from the drawer", async () => {
+    const outcome = await completeReturnFor(
+      deps(),
+      completion({ refunds: [{ paymentId: "pay-transfer", amount: 5000 }] }),
+    );
+
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      refunded_in_cash: 0,
+      refunds: [
+        {
+          payment_id: "pay-transfer",
+          method: "TRANSFER",
+          amount: 5000,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
+      ],
+    });
+    expect(
+      database
+        .prepare("SELECT payment_id, method, amount, state FROM payment_refunds ORDER BY id")
+        .all(),
+    ).toEqual([{ payment_id: "pay-transfer", method: "TRANSFER", amount: 5000, state: "PENDING" }]);
+    expect(count("cash_movements WHERE type = 'REFUND'")).toBe(0);
+  });
+
+  it("tells the screen a refund to a Mercado Pago payment is sent by the cloud", async () => {
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+         VALUES ('pay-qr', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 5000, 'APPROVED', ?, ?)`,
+      )
+      .run("2026-09-12T18:30:00.000Z", "2026-09-12T18:30:00.000Z");
+
+    const outcome = await completeReturnFor(
+      deps(),
+      completion({ refunds: [{ paymentId: "pay-qr", amount: 5000 }] }),
+    );
+
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      refunds: [{ payment_id: "pay-qr", method: "QR", state: "PENDING", sent_by_cloud: true }],
+    });
+  });
+
+  it("takes from the drawer only the cash part of a refund split with a payment that is not cash", async () => {
+    await completeReturnFor(
+      deps(),
+      completion({
+        refunds: [
+          { paymentId: "pay-cash", amount: 3000 },
+          { paymentId: "pay-transfer", amount: 2000 },
+        ],
+      }),
+    );
+
+    expect(
+      database.prepare("SELECT amount FROM cash_movements WHERE type = 'REFUND'").all(),
+    ).toEqual([{ amount: 3000 }]);
   });
 
   it("is unavailable while the register has no outbox chain key, changing nothing", async () => {
@@ -744,12 +821,12 @@ describe("the credit note of a completed return", () => {
 
     const outcome = await completeReturnFor(deps(extra), completion());
 
-    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 5000 });
+    expect(outcome).toMatchObject({ kind: "completed", refunded_in_cash: 5000 });
     expect(steps).toEqual(["cloud"]);
     expect(calls).toMatchObject([
       {
         pointOfSale: 12,
-        saleEvent: { event_type: "sale_returned", schema_version: 2 },
+        saleEvent: { event_type: "sale_returned", schema_version: 3 },
         invoice: { voucher: { number: 41 }, buyerTaxStatusCode: expect.any(Number) },
       },
     ]);
@@ -904,8 +981,16 @@ describe("returning a sale another register rang up", () => {
     expect(outcome).toEqual({
       kind: "completed",
       return_id: "id-1",
-      refunded_total: 2500,
-      refunds: [{ payment_id: "pay-elsewhere", method: "CASH", amount: 2500, state: "APPROVED" }],
+      refunded_in_cash: 2500,
+      refunds: [
+        {
+          payment_id: "pay-elsewhere",
+          method: "CASH",
+          amount: 2500,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
       authorized_by: null,
     });
     expect(askedTickets).toEqual([]);
@@ -970,7 +1055,7 @@ describe("returning a sale another register rang up", () => {
       COMPLETION,
     );
 
-    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 2500 });
+    expect(outcome).toMatchObject({ kind: "completed", refunded_in_cash: 2500 });
     expect(calls).toMatchObject([
       { invoice: { voucher: { pointOfSale: 7, number: 501 }, buyerTaxStatusCode: 5 } },
     ]);
@@ -995,7 +1080,7 @@ describe("returning a sale another register rang up", () => {
 
     const outcome = await completeReturnFor(deps(), COMPLETION);
 
-    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 2500 });
+    expect(outcome).toMatchObject({ kind: "completed", refunded_in_cash: 2500 });
     expect(storedNotes()).toEqual([
       {
         sale_id: "sale-elsewhere",

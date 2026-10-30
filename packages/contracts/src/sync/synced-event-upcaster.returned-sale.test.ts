@@ -267,3 +267,54 @@ describe("decoding the credit note of a sale_returned event", () => {
     });
   });
 });
+
+describe("decoding the refunds of a version 3 sale_returned event", () => {
+  const QR_REFUND = {
+    id: "0199b7a0-0000-7000-8000-000000000a0c",
+    kind: "REFUND",
+    parent_id: PAYMENT,
+    method: "QR",
+    provider: "MERCADOPAGO_QR",
+    amount: 3000,
+    state: "PENDING",
+    occurred_at: AT,
+  };
+
+  it("reads a refund to a payment that is not cash with its method, provider and pending state", () => {
+    const decoded = syncedEventUpcaster.decode(
+      returned({ credit_note: null, refunds: [QR_REFUND], cash_movements: [] }, 3),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: {
+        kind: "sale_returned",
+        saleReturn: {
+          refunds: [
+            {
+              id: QR_REFUND.id,
+              paymentId: PAYMENT,
+              method: "QR",
+              provider: "MERCADOPAGO_QR",
+              amount: 3000,
+              state: "PENDING",
+              occurredAt: new Date(AT),
+            },
+          ],
+          cashMovements: [],
+        },
+      },
+    });
+  });
+
+  it("is unreadable when a refund to a QR payment is already approved", () => {
+    const decoded = syncedEventUpcaster.decode(
+      returned(
+        { credit_note: null, refunds: [{ ...QR_REFUND, state: "APPROVED" }], cash_movements: [] },
+        3,
+      ),
+    );
+
+    expect(decoded).toMatchObject({ kind: "unreadable" });
+  });
+});

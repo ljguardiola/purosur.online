@@ -228,7 +228,6 @@ const LINE_REFUSALS = [
 const REFUND_REFUSALS = [
   { kind: "unknown_payment", payment_id: "pay-1" },
   { kind: "invalid_amount", payment_id: "pay-1" },
-  { kind: "not_cash", payment_id: "pay-1" },
   { kind: "exceeds_payment", payment_id: "pay-1", remaining: 200 },
   { kind: "total_mismatch", refundable_total: 7000, imputed: 6999 },
 ];
@@ -276,8 +275,8 @@ const FOUND = {
         amount: 6500,
         refunded_amount: 0,
         remaining: 6500,
-        eligible: false,
-        ineligible_reason: "not_cash",
+        eligible: true,
+        ineligible_reason: null,
       },
     ],
   },
@@ -352,6 +351,13 @@ describe("the answer to finding the sale to return", () => {
       sale: {
         ...FOUND.sale,
         payments: [{ ...FOUND.sale.payments[0], ineligible_reason: "too_old" }],
+      },
+    },
+    {
+      ...FOUND,
+      sale: {
+        ...FOUND.sale,
+        payments: [{ ...FOUND.sale.payments[1], eligible: false, ineligible_reason: "not_cash" }],
       },
     },
     {
@@ -433,15 +439,36 @@ describe("the answer to completing a return", () => {
   const completed = {
     kind: "completed",
     return_id: "return-1",
-    refunded_total: 7000,
-    refunds: [{ payment_id: "pay-cash", method: "CASH", amount: 7000, state: "APPROVED" }],
+    refunded_in_cash: 7000,
+    refunds: [
+      {
+        payment_id: "pay-cash",
+        method: "CASH",
+        amount: 7000,
+        state: "APPROVED",
+        sent_by_cloud: false,
+      },
+    ],
     authorized_by: { user_id: "u2", first_name: "Ana" },
   };
 
   it.each([
     completed,
     { ...completed, authorized_by: null },
-    { ...completed, refunds: [], refunded_total: 0 },
+    { ...completed, refunds: [], refunded_in_cash: 0 },
+    {
+      ...completed,
+      refunded_in_cash: 0,
+      refunds: [
+        {
+          payment_id: "pay-transfer",
+          method: "TRANSFER",
+          amount: 7000,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
+      ],
+    },
     { kind: "not_found" },
     { kind: "sale_not_returnable" },
     { kind: "no_open_session" },
@@ -457,14 +484,20 @@ describe("the answer to completing a return", () => {
   });
 
   it.each([
-    { kind: "completed", refunded_total: 7000 },
+    { kind: "completed", refunded_in_cash: 7000 },
     { ...completed, authorized_by: undefined },
-    { ...completed, refunded_total: 10.5 },
+    { ...completed, refunded_in_cash: undefined },
+    { ...completed, refunded_in_cash: 10.5 },
     { ...completed, refunds: [{ ...completed.refunds[0], method: "CARD" }] },
+    {
+      ...completed,
+      refunds: [{ payment_id: "pay-cash", method: "CASH", amount: 7000, state: "APPROVED" }],
+    },
     { kind: "line_refused", refusal: LINE_REFUSALS[0] },
     { kind: "line_refused", sale_line_id: "line-1", refusal: { kind: "too_late" } },
     { kind: "refund_refused", refusal: { kind: "exceeds_payment", payment_id: "pay-1" } },
     { kind: "refund_refused" },
+    { kind: "refund_refused", refusal: { kind: "not_cash", payment_id: "pay-1" } },
     { kind: "voided" },
   ])("rejects the outcome %j", (outcome) => {
     expect(

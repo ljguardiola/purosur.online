@@ -20,7 +20,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly orderSearches: { externalReference: string; createdFrom: Date; createdTo: Date }[] = [];
   searching: MercadoPagoOrderSearch = { kind: "read", orders: [] };
   readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
-  readonly refundRequests: { orderId: string; idempotencyKey: string }[] = [];
+  readonly refundRequests: { orderId: string; idempotencyKey: string; amount?: number }[] = [];
   readonly refundReadings: string[] = [];
   refundAnswer: MercadoPagoRefundAnswer = {
     kind: "refunded",
@@ -116,9 +116,17 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     return this.cancellation;
   }
 
-  async refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer> {
+  async refundOrder(
+    orderId: string,
+    idempotencyKey: string,
+    partialAmount: number | null,
+  ): Promise<MercadoPagoRefundAnswer> {
     this.lanes.operations.push("refundOrder");
-    this.refundRequests.push({ orderId, idempotencyKey });
+    this.refundRequests.push(
+      partialAmount === null
+        ? { orderId, idempotencyKey }
+        : { orderId, idempotencyKey, amount: partialAmount },
+    );
     this.observeLane();
     return this.queuedRefundAnswers.shift() ?? this.refundAnswer;
   }

@@ -124,7 +124,11 @@ export interface MercadoPagoOrders {
     createdTo: Date,
   ): Promise<MercadoPagoOrderSearch>;
   cancelOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoOrderCancellation>;
-  refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer>;
+  refundOrder(
+    orderId: string,
+    idempotencyKey: string,
+    partialAmount: number | null,
+  ): Promise<MercadoPagoRefundAnswer>;
   readOrderRefunds(orderId: string): Promise<MercadoPagoOrderRefundsReading>;
 }
 

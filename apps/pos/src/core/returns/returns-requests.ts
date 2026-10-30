@@ -6,7 +6,13 @@ import type {
   FindSaleForReturnOutcome,
   PreviewReturnOutcome,
 } from "@purosur/contracts";
-import type { RefundAllocation, ReturnDraftLine, TicketSource } from "@purosur/domain";
+import {
+  isRefundSentByCloud,
+  RETURN_REFUND_ORIGIN,
+  type RefundAllocation,
+  type ReturnDraftLine,
+  type TicketSource,
+} from "@purosur/domain";
 import {
   type CloudCreditNotes,
   type ReturnCreditNoteToRequest,
@@ -208,12 +214,13 @@ export async function completeReturnFor(
       return {
         kind: "completed",
         return_id: outcome.returnId,
-        refunded_total: outcome.refundedTotal,
+        refunded_in_cash: outcome.refundedInCash,
         refunds: outcome.refunds.map(({ paymentId, method, amount, state }) => ({
           payment_id: paymentId,
           method,
           amount,
           state,
+          sent_by_cloud: isRefundSentByCloud({ method, origin: RETURN_REFUND_ORIGIN }),
         })),
         authorized_by: outcome.grant.authorizer,
       };

@@ -4,7 +4,6 @@ import {
   dispositionOutcomeText,
   findRefusalText,
   lineRefusalNotice,
-  paymentIneligibleText,
   quantityText,
   REASON_OPTIONS,
   refundRefusalText,
@@ -148,7 +147,6 @@ describe("the refusal of a refund", () => {
   it.each([
     [{ kind: "unknown_payment", payment_id: "p" }, "Ese pago no es de esta venta."],
     [{ kind: "invalid_amount", payment_id: "p" }, "Ingresá un importe mayor a 0 en cada pago."],
-    [{ kind: "not_cash", payment_id: "p" }, "Solo se puede reintegrar el pago en efectivo."],
     [
       { kind: "exceeds_payment", payment_id: "p", remaining: 150_000 },
       "El pago solo permite reintegrar $ 1.500,00.",
@@ -159,18 +157,6 @@ describe("the refusal of a refund", () => {
     ],
   ] as const)("is told as %j", (refusal, text) => {
     expect(refundRefusalText(refusal)).toBe(text);
-  });
-});
-
-describe("a payment that cannot be refunded", () => {
-  it("says a payment that is not cash is not refunded from the register", () => {
-    expect(paymentIneligibleText("not_cash")).toBe(
-      "Este medio todavía no se reintegra desde la caja",
-    );
-  });
-
-  it("says a payment already returned has nothing left", () => {
-    expect(paymentIneligibleText("nothing_left")).toBe("Este pago ya se reintegró completo");
   });
 });
 

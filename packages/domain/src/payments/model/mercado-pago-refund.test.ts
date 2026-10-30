@@ -11,8 +11,9 @@ import {
   MERCADO_PAGO_REFUND_STAGES,
   mercadoPagoRefundStage,
   orderToRefund,
+  partialAmountOfOrderRefund,
   progressOfRefundAnswer,
-  recordedRefundOfVoidedSale,
+  recordedRefundOfCorrection,
   refundIsBackedByItsCorrection,
   refundIsBackedByItsLatePayment,
 } from "./mercado-pago-refund.js";
@@ -30,6 +31,11 @@ describe("isRefundSentByCloud", () => {
     ["POINT", "sale_cancelled", true],
     ["TRANSFER", "sale_cancelled", false],
     ["CASH", "sale_cancelled", false],
+    ["QR", "return", true],
+    ["POINT", "return", true],
+    ["TRANSFER", "return", false],
+    ["STANDALONE_TERMINAL", "return", false],
+    ["CASH", "return", false],
   ])("answers %s of origin %s: %s", (method, origin, sent) => {
     expect(isRefundSentByCloud({ method, origin })).toBe(sent);
   });
@@ -44,6 +50,8 @@ describe("isRefundRefusedForGood", () => {
     ["QR", "late_payment"],
     ["QR", "sale_voided"],
     ["POINT", "sale_voided"],
+    ["QR", "return"],
+    ["POINT", "return"],
   ])(
     "is true for a confirmed %s refund of origin %s Mercado Pago refused for good",
     (method, origin) => {
@@ -133,8 +141,8 @@ describe("isRefundInCloudHands", () => {
   );
 });
 
-describe("recordedRefundOfVoidedSale", () => {
-  const voiding = { actorId: "cashier-1", voidedAt: new Date("2026-10-07T10:05:00.000Z") };
+describe("recordedRefundOfCorrection", () => {
+  const completion = { actorId: "cashier-1", at: new Date("2026-10-07T10:05:00.000Z") };
   const refund = (method: string) => ({
     id: "refund-1",
     paymentId: "payment-1",
@@ -143,29 +151,54 @@ describe("recordedRefundOfVoidedSale", () => {
     state: "PENDING",
   });
 
-  it.each(["QR", "POINT"])(
-    "records a %s refund confirmed by the cashier who voided the sale, when it was voided, on the payment it refunds",
-    (method) => {
-      expect(recordedRefundOfVoidedSale(refund(method), voiding)).toEqual({
+  it.each([
+    ["QR", "sale_voided"],
+    ["POINT", "sale_voided"],
+    ["QR", "return"],
+    ["POINT", "return"],
+  ] as const)(
+    "records a %s refund of origin %s confirmed by whoever completed the correction, when they did, on the payment it refunds",
+    (method, origin) => {
+      expect(recordedRefundOfCorrection(refund(method), origin, completion)).toEqual({
         ...refund(method),
-        origin: "sale_voided",
+        origin,
         paymentTransactionId: "payment-1",
         confirmedBy: "cashier-1",
-        confirmedAt: voiding.voidedAt,
+        confirmedAt: completion.at,
       });
     },
   );
 
-  it.each(["CASH", "TRANSFER", "STANDALONE_TERMINAL"])(
-    "records a %s refund unconfirmed and on no payment transaction",
-    (method) => {
-      expect(recordedRefundOfVoidedSale(refund(method), voiding)).toEqual({
+  it.each([
+    ["CASH", "sale_voided"],
+    ["TRANSFER", "sale_voided"],
+    ["STANDALONE_TERMINAL", "sale_voided"],
+    ["CASH", "return"],
+    ["TRANSFER", "return"],
+    ["STANDALONE_TERMINAL", "return"],
+  ] as const)(
+    "records a %s refund of origin %s unconfirmed and on no payment transaction",
+    (method, origin) => {
+      expect(recordedRefundOfCorrection(refund(method), origin, completion)).toEqual({
         ...refund(method),
-        origin: "sale_voided",
+        origin,
         paymentTransactionId: null,
         confirmedBy: null,
         confirmedAt: null,
       });
+    },
+  );
+});
+
+describe("partialAmountOfOrderRefund", () => {
+  it("is the refund's own amount for a return, which gives back part of the order", () => {
+    expect(partialAmountOfOrderRefund({ origin: "return", amount: 1000 })).toBe(1000);
+  });
+
+  it.each(["sale_voided", "sale_cancelled", "late_payment"])(
+    "is nothing for a refund of origin %s, which gives back the whole order",
+    (origin) => {
+      expect(partialAmountOfOrderRefund({ origin, amount: 1000 })).toBeNull();
     },
   );
 });
@@ -190,6 +223,24 @@ describe("refundIsBackedByItsCorrection", () => {
         { origin: "sale_voided", saleId: "sale-1" },
       ),
     ).toBe(true);
+  });
+
+  it("is backed when the event it came from is the return of the sale it refunds", () => {
+    expect(
+      refundIsBackedByItsCorrection(
+        { ...refund, origin: "return" },
+        { origin: "return", saleId: "sale-1" },
+      ),
+    ).toBe(true);
+  });
+
+  it("is not backed when a return's refund names a void", () => {
+    expect(
+      refundIsBackedByItsCorrection(
+        { ...refund, origin: "return" },
+        { origin: "sale_voided", saleId: "sale-1" },
+      ),
+    ).toBe(false);
   });
 
   it("is not backed when the event corrected another sale", () => {

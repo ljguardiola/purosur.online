@@ -16,7 +16,7 @@ export interface ReturnablePayment {
   cardType: PointCardType | null;
 }
 
-export type PaymentIneligibleReason = "not_cash" | "nothing_left";
+export type PaymentIneligibleReason = "nothing_left";
 
 export interface PaymentRefundability {
   paymentId: string;
@@ -37,7 +37,6 @@ export interface RefundAllocation {
 export type RefundAllocationRefusal =
   | { kind: "unknown_payment"; paymentId: string }
   | { kind: "invalid_amount"; paymentId: string }
-  | { kind: "not_cash"; paymentId: string }
   | { kind: "exceeds_payment"; paymentId: string; remaining: number }
   | { kind: "total_mismatch"; refundableTotal: number; imputed: number };
 
@@ -46,9 +45,6 @@ function approved(payments: readonly ReturnablePayment[]): ReturnablePayment[] {
 }
 
 function ineligibleReasonOf(payment: ReturnablePayment): PaymentIneligibleReason | null {
-  if (payment.method !== "CASH") {
-    return "not_cash";
-  }
   return refundableAmount(payment.amount, payment.refundedAmount) === 0 ? "nothing_left" : null;
 }
 
@@ -81,10 +77,6 @@ export function refundAllocationRefusal(
   const invalid = allocations.find(({ amount }) => !Number.isSafeInteger(amount) || amount <= 0);
   if (invalid !== undefined) {
     return { kind: "invalid_amount", paymentId: invalid.paymentId };
-  }
-  const notCash = allocations.find(({ paymentId }) => candidates.get(paymentId)?.method !== "CASH");
-  if (notCash !== undefined) {
-    return { kind: "not_cash", paymentId: notCash.paymentId };
   }
   const imputedTo = new Map<string, number>();
   for (const { paymentId, amount } of allocations) {

@@ -1,8 +1,9 @@
 import {
   isRefundSentByCloud,
   type ManualAdjustment,
-  recordedRefundOfVoidedSale,
+  recordedRefundOfCorrection,
   SALE_CANCELLED_REFUND_ORIGIN,
+  SALE_VOIDED_REFUND_ORIGIN,
   type SaleDiscount,
 } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
@@ -183,7 +184,10 @@ export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResult
   }
   await tx.insert(paymentRefunds).values(
     sale.refunds.map((refund) => ({
-      ...recordedRefundOfVoidedSale(refund, sale),
+      ...recordedRefundOfCorrection(refund, SALE_VOIDED_REFUND_ORIGIN, {
+        actorId: sale.actorId,
+        at: sale.voidedAt,
+      }),
       saleId: sale.id,
       originEventId: eventId,
     })),

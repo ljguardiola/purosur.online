@@ -70,8 +70,8 @@ export const TRANSFER: PaymentForReturn = {
   amount: 1_033_500,
   refunded_amount: 0,
   remaining: 1_033_500,
-  eligible: false,
-  ineligible_reason: "not_cash",
+  eligible: true,
+  ineligible_reason: null,
 };
 
 export const SALE: SaleForReturn = {

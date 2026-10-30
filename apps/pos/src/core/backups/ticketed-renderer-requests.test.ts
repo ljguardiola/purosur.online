@@ -49,7 +49,7 @@ function setup(overrides: Partial<TicketableRendererRequests> = {}) {
     completeReturn: async () => ({
       kind: "completed",
       return_id: "return-1",
-      refunded_total: 100,
+      refunded_in_cash: 0,
       refunds: [],
       authorized_by: null,
     }),

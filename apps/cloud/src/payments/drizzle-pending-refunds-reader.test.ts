@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { paymentRefunds, registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyReturn } from "../returns/test-support/applied-returns.js";
 import { applyCancelledSale, applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import { insertLocation, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
@@ -93,6 +94,65 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         occurredAt: voidedAt,
         saleOccurredAt: voidedAt,
         coveredBy: [],
+      }),
+    ]);
+  });
+
+  it("lists the pending refund of a return dated when the sale was rung up, naming who made the return", async () => {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, { now: NOW });
+    const { userId } = await signedInWith(db, [], NOW);
+    const soldAt = new Date("2026-10-06T12:00:00.000Z");
+    const returnedAt = new Date("2026-10-07T14:00:00.000Z");
+    const paymentId = randomUUID();
+    const { saleReturn } = await applyReturn(db, {
+      deviceId,
+      soldAt,
+      returnedAt,
+      sale: {
+        actorId: "the-cashier-who-sold",
+        payments: [
+          {
+            id: paymentId,
+            method: "TRANSFER",
+            provider: "NONE",
+            cardType: null,
+            amount: 5000,
+            tendered: null,
+            state: "APPROVED",
+            occurredAt: soldAt,
+            authorizedBy: null,
+            confirmedAt: null,
+          },
+        ],
+      },
+      saleReturn: {
+        actorId: userId,
+        refunds: [
+          {
+            id: randomUUID(),
+            paymentId,
+            method: "TRANSFER",
+            provider: "NONE",
+            amount: 2400,
+            state: "PENDING",
+            occurredAt: returnedAt,
+          },
+        ],
+        cashMovements: [],
+      },
+    });
+
+    const pending = await reader().pendingRefunds(locationId);
+
+    expect(pending).toEqual([
+      expect.objectContaining({
+        id: saleReturn.refunds[0]?.id,
+        origin: "return",
+        amount: 2400,
+        occurredAt: returnedAt,
+        saleOccurredAt: soldAt,
+        cancelledBy: userId,
+        cancelledByName: "Ada Lucero",
       }),
     ]);
   });

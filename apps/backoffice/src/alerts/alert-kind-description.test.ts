@@ -40,9 +40,9 @@ test("describes a payment Mercado Pago charged that has to be given back, whatev
   );
 });
 
-test("describes a cancelled sale with a pending refund", () => {
+test("describes a voiding or a return with a pending refund", () => {
   expect(alertKindDescription("refund_task")).toBe(
-    "Una venta anulada tiene un reembolso pendiente",
+    "Una anulación o devolución tiene un reembolso pendiente",
   );
 });
 

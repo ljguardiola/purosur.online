@@ -9,6 +9,7 @@ const SALE_MOMENT = "2026-09-16T12:37:00.000Z";
 const latePayment: Pick<
   Refund,
   | "origin"
+  | "occurred_at"
   | "sale_occurred_at"
   | "covered_by"
   | "provider_order_id"
@@ -16,6 +17,7 @@ const latePayment: Pick<
   | "cancelled_by_name"
 > = {
   origin: "late_payment",
+  occurred_at: SALE_MOMENT,
   sale_occurred_at: SALE_MOMENT,
   covered_by: ["TRANSFER"],
   provider_order_id: null,
@@ -25,6 +27,7 @@ const latePayment: Pick<
 
 const cancelledSale: typeof latePayment = {
   origin: "sale_cancelled",
+  occurred_at: SALE_MOMENT,
   sale_occurred_at: SALE_MOMENT,
   covered_by: [],
   provider_order_id: null,
@@ -91,5 +94,24 @@ test("tells a voided sale and who voided it", () => {
 test("tells a voided sale alone when nobody known is recorded as its voider", () => {
   expect(refundReason({ ...voidedSale, cancelled_by_name: null }).detail).toBe(
     "La venta del 16/09 09:37 se anuló",
+  );
+});
+
+const returnedSale: typeof latePayment = {
+  ...cancelledSale,
+  origin: "return",
+  occurred_at: "2026-09-18T13:15:00.000Z",
+};
+
+test("tells the return of a sale, when it was made and who made it", () => {
+  expect(refundReason(returnedSale)).toEqual({
+    title: "Devolución",
+    detail: "La venta del 16/09 09:37 tuvo una devolución el 18/09 10:15 · la hizo Lucía Pérez",
+  });
+});
+
+test("tells the return of a sale alone when nobody known is recorded as who made it", () => {
+  expect(refundReason({ ...returnedSale, cancelled_by_name: null }).detail).toBe(
+    "La venta del 16/09 09:37 tuvo una devolución el 18/09 10:15",
   );
 });

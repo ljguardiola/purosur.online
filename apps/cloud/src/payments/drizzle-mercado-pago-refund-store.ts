@@ -1,6 +1,7 @@
 import {
   PLANNED_REFUND_STATES,
   REFUND_PENDING_STATE,
+  RETURN_REFUND_ORIGIN,
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "@purosur/domain";
@@ -20,6 +21,7 @@ import {
   paymentTransactions,
   registers,
   salePayments,
+  saleReturns,
   sales,
 } from "../platform/db/schema.js";
 import { withPendingChanges } from "../sync/change-log.js";
@@ -27,6 +29,7 @@ import { DrizzleRefundStoreTransaction } from "./drizzle-refund-store.js";
 
 const SALE_CANCELLED_EVENT = "sale_cancelled";
 const SALE_VOIDED_EVENT = "sale_voided";
+const SALE_RETURNED_EVENT = "sale_returned";
 
 class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
   extends DrizzleRefundStoreTransaction<TQueryResult>
@@ -129,24 +132,34 @@ class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
 
   async appliedCorrectionOfEvent(originEventId: string): Promise<AppliedCorrection | null> {
     const [event] = await this.tx
-      .select({ saleId: inbox.aggregateId, eventType: inbox.eventType })
+      .select({
+        aggregateId: inbox.aggregateId,
+        eventType: inbox.eventType,
+        returnedSaleId: saleReturns.saleId,
+      })
       .from(inbox)
+      .leftJoin(saleReturns, eq(saleReturns.originEventId, inbox.eventId))
       .where(
         and(
           eq(inbox.eventId, originEventId),
-          inArray(inbox.eventType, [SALE_CANCELLED_EVENT, SALE_VOIDED_EVENT]),
+          inArray(inbox.eventType, [SALE_CANCELLED_EVENT, SALE_VOIDED_EVENT, SALE_RETURNED_EVENT]),
           isNotNull(inbox.appliedAt),
         ),
       );
     if (!event) {
       return null;
     }
+    if (event.eventType === SALE_RETURNED_EVENT) {
+      return event.returnedSaleId === null
+        ? null
+        : { origin: RETURN_REFUND_ORIGIN, saleId: event.returnedSaleId };
+    }
     return {
       origin:
         event.eventType === SALE_VOIDED_EVENT
           ? SALE_VOIDED_REFUND_ORIGIN
           : SALE_CANCELLED_REFUND_ORIGIN,
-      saleId: event.saleId,
+      saleId: event.aggregateId,
     };
   }
 

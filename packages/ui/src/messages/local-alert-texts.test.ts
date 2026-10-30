@@ -244,10 +244,11 @@ test("tells the refund owed for a second paid order of a sale's Point payment th
   });
 });
 
-test("gives the refund of a cancelled sale left pending its title, what it means and what to do", () => {
+test("gives a refund of a voided or cancelled sale or of a return left pending its title, what it means and what to do", () => {
   expect(localAlertText({ kind: "refund_task" })).toEqual({
     title: "Reembolso pendiente de confirmar",
-    meaning: "Hay un reembolso de una venta anulada o cancelada que todavía no se completó.",
+    meaning:
+      "Hay un reembolso de una venta anulada o cancelada, o de una devolución, que todavía no se completó.",
     whatToDo:
       "Si es de un pago con QR o Point, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
   });

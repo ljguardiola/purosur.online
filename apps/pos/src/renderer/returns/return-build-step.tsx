@@ -22,6 +22,7 @@ import {
 import { Check, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CompleteReturnInput } from "../platform/core-client";
+import { paidPaymentName } from "../platform/payment-method-names";
 import { AuthorizationSection } from "../shell/authorization-section";
 import type { AuthorizationState } from "../shell/use-authorization";
 import type { CompletedReturn } from "./hand-over-refund-modal";
@@ -152,7 +153,19 @@ export function ReturnBuildStep({
       case "completed":
         authorization.performed();
         onCompleted({
-          refundedTotal: outcome.refunded_total,
+          cashToHandOver: outcome.refunded_in_cash,
+          pendingRefunds: outcome.refunds
+            .filter(({ state }) => state === "PENDING")
+            .map((refund) => ({
+              id: refund.payment_id,
+              name: paidPaymentName(
+                refund.method,
+                sale.payments.find(({ payment_id }) => payment_id === refund.payment_id)
+                  ?.card_type ?? null,
+              ),
+              amount: refund.amount,
+              sentByCloud: refund.sent_by_cloud,
+            })),
           lines: previewed.lines.flatMap((line) => {
             const sold = lineOf(sale, line.sale_line_id);
             return sold === undefined || line.disposition === null

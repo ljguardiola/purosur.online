@@ -15,7 +15,7 @@ test("names a kind of the catalog by its title", () => {
   expect(alertKindLabel("fiscal_rejected")).toBe("Factura rechazada por ARCA");
   expect(alertKindLabel("offline_authorization_code_missing")).toBe("CAEA sin bajar a la caja");
   expect(alertKindLabel("late_payment_refund")).toBe("Reembolso pendiente por un pago tardío");
-  expect(alertKindLabel("refund_task")).toBe("Reembolso pendiente de una venta anulada");
+  expect(alertKindLabel("refund_task")).toBe("Reembolso pendiente de una anulación o devolución");
   expect(alertKindLabel("fiscal_unknown")).toBe("Resultado fiscal incierto");
   expect(alertKindLabel("fiscal_emission_stopped")).toBe("Emisión de facturas detenida");
   expect(alertKindLabel("outbox_chain_broken")).toBe("Cadena de eventos alterada");

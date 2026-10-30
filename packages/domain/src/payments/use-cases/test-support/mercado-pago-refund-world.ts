@@ -60,6 +60,19 @@ export function aRefundOfVoidedSale(
   });
 }
 
+export function aRefundOfReturn(
+  method: "QR" | "POINT",
+  overrides: Partial<FakeMercadoPagoStoredRefund> = {},
+): FakeMercadoPagoStoredRefund {
+  return aRefundOfVoidedSale(method, { origin: "return", amount: 1000, ...overrides });
+}
+
+export function returnRefundWorld(refunds: FakeMercadoPagoStoredRefund[]) {
+  const world = refundWorld(refunds);
+  world.store.appliedCorrections.set("event-1", { origin: "return", saleId: "sale-1" });
+  return world;
+}
+
 export function aQrRefundOfLatePayment(
   overrides: Partial<FakeMercadoPagoStoredRefund> = {},
 ): FakeMercadoPagoStoredRefund {

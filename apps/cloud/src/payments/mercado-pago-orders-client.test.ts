@@ -43,6 +43,11 @@ import {
   refundPeriodExceededError,
 } from "./test-support/mercado-pago-documented-orders.js";
 
+function createdOrderWithoutPayments(): Record<string, unknown> {
+  const order = createdOrder() as { transactions: Record<string, unknown> };
+  return { ...order, transactions: { ...order.transactions, payments: [] } };
+}
+
 const ACCESS_TOKEN = "APP_USR-fictional-access-token-0001";
 const EXTERNAL_POS_ID = "STORE01POS01";
 
@@ -924,7 +929,7 @@ describe("the Mercado Pago orders client", () => {
     it("posts the refund of the whole order, with no body, the idempotency key and the access token", async () => {
       const { client, fetch } = clientAnswering(answer(201, refundedOrder()));
 
-      await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY);
+      await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null);
 
       const { url, init } = sentRequest(fetch);
       expect(url).toBe(`https://api.mercadopago.com/v1/orders/${ORDER_ID}/refund`);
@@ -939,7 +944,7 @@ describe("the Mercado Pago orders client", () => {
     it("does not let an identifier change the path it is refunded at", async () => {
       const { client, fetch } = clientAnswering(answer(201, refundedOrder()));
 
-      await client.refundOrder("../payments/1?x=y", IDEMPOTENCY_KEY);
+      await client.refundOrder("../payments/1?x=y", IDEMPOTENCY_KEY, null);
 
       expect(sentRequest(fetch).url).toBe(
         "https://api.mercadopago.com/v1/orders/..%2Fpayments%2F1%3Fx%3Dy/refund",
@@ -949,7 +954,7 @@ describe("the Mercado Pago orders client", () => {
     it("answers the refund it accepted as still in process", async () => {
       const { client } = clientAnswering(answer(201, refundedOrder("24.50", "processing")));
 
-      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null)).toStrictEqual({
         kind: "refunded",
         providerRefundId: REFUND_ID,
         processed: false,
@@ -959,7 +964,7 @@ describe("the Mercado Pago orders client", () => {
     it("answers the refund it accepted as processed when Mercado Pago already shows it so", async () => {
       const { client } = clientAnswering(answer(201, refundedOrder("24.50", "processed")));
 
-      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null)).toStrictEqual({
         kind: "refunded",
         providerRefundId: REFUND_ID,
         processed: true,
@@ -969,7 +974,7 @@ describe("the Mercado Pago orders client", () => {
     it("answers that the balance is insufficient when Mercado Pago answers 428 insufficient_money_for_refund", async () => {
       const { client } = clientAnswering(answer(428, insufficientMoneyForRefundError()));
 
-      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null)).toStrictEqual({
         kind: "insufficient_balance",
       });
     });
@@ -977,7 +982,7 @@ describe("the Mercado Pago orders client", () => {
     it("answers that the order was already refunded when Mercado Pago answers 409 order_already_refunded", async () => {
       const { client } = clientAnswering(answer(409, orderAlreadyRefundedError()));
 
-      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null)).toStrictEqual({
         kind: "already_refunded",
       });
     });
@@ -997,7 +1002,7 @@ describe("the Mercado Pago orders client", () => {
       async (_case, status, error, reason) => {
         const { client } = clientAnswering(answer(status, error()));
 
-        expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+        expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null)).toStrictEqual({
           kind: "refused",
           reason,
         });
@@ -1007,7 +1012,7 @@ describe("the Mercado Pago orders client", () => {
     it("answers a refusal when Mercado Pago says the key was used for another request", async () => {
       const { client } = clientAnswering(answer(409, idempotencyKeyAlreadyUsedError()));
 
-      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null)).toStrictEqual({
         kind: "refused",
         reason: "idempotency_key_already_used",
       });
@@ -1032,7 +1037,7 @@ describe("the Mercado Pago orders client", () => {
     ])("is unavailable on %s, so the same request is repeated later", async (_case, failure) => {
       const { client } = clientAnswering(failure());
 
-      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null)).toStrictEqual({
         kind: "unavailable",
       });
     });
@@ -1045,7 +1050,7 @@ describe("the Mercado Pago orders client", () => {
     ])("logs nothing for %s", async (_case, response) => {
       const { client } = clientAnswering(response());
 
-      await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY);
+      await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null);
 
       expect(consoleCalls).toEqual([]);
     });
@@ -1053,7 +1058,7 @@ describe("the Mercado Pago orders client", () => {
     it("logs the status and code of what it could not tell, without the key or the body", async () => {
       const { client } = clientAnswering(answer(409, refundInProgressError()));
 
-      await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY);
+      await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null);
 
       expect(consoleCalls).toEqual([
         ["Mercado Pago did not refund the order", { status: 409, code: "refund_in_progress" }],
@@ -1075,10 +1080,94 @@ describe("the Mercado Pago orders client", () => {
         fetch,
       });
 
-      const refund = client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY);
+      const refund = client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, null);
       await vi.advanceTimersByTimeAsync(10_000);
 
       expect(await refund).toStrictEqual({ kind: "unavailable" });
+    });
+  });
+
+  describe("refunding part of an order", () => {
+    const IDEMPOTENCY_KEY = "7c1d3f64-2b5a-4f0e-9a38-5d2e8b1c4a90";
+    const PAYMENT_TRANSACTION_ID = "PAY01JQ4S4KY8HWQ6NA5PXB65B3D0";
+
+    it("reads the order for the payment transaction, then posts the amount to refund of that transaction", async () => {
+      const { client, fetch } = clientAnswering(
+        answer(200, paidOrder("50.00")),
+        answer(201, refundedOrder("24.50", "processing")),
+      );
+
+      await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, 2450);
+
+      expect(fetch).toHaveBeenCalledTimes(2);
+      const read = sentRequest(fetch, 0);
+      expect(read.url).toBe(`https://api.mercadopago.com/v1/orders/${ORDER_ID}`);
+      expect(read.init.method).toBe("GET");
+      const refund = sentRequest(fetch, 1);
+      expect(refund.url).toBe(`https://api.mercadopago.com/v1/orders/${ORDER_ID}/refund`);
+      expect(refund.init.method).toBe("POST");
+      expect(refund.init.headers).toEqual({
+        Authorization: `Bearer ${ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": IDEMPOTENCY_KEY,
+      });
+      expect(JSON.parse(refund.init.body as string)).toEqual({
+        transactions: [{ id: PAYMENT_TRANSACTION_ID, amount: "24.50" }],
+      });
+    });
+
+    it.each([
+      [5, "0.05"],
+      [100, "1.00"],
+      [123_456, "1234.56"],
+    ])("writes %i cents as %s pesos", async (cents, pesos) => {
+      const { client, fetch } = clientAnswering(
+        answer(200, paidOrder("5000.00")),
+        answer(201, refundedOrder(pesos)),
+      );
+
+      await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, cents);
+
+      expect(JSON.parse(sentRequest(fetch, 1).init.body as string)).toEqual({
+        transactions: [{ id: PAYMENT_TRANSACTION_ID, amount: pesos }],
+      });
+    });
+
+    it("answers the refund it accepted as still in process", async () => {
+      const { client } = clientAnswering(
+        answer(200, paidOrder()),
+        answer(201, refundedOrder("24.50", "processing")),
+      );
+
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, 2450)).toStrictEqual({
+        kind: "refunded",
+        providerRefundId: REFUND_ID,
+        processed: false,
+      });
+    });
+
+    it("answers that the balance is insufficient as a refund of the whole order does", async () => {
+      const { client } = clientAnswering(
+        answer(200, paidOrder()),
+        answer(428, insufficientMoneyForRefundError()),
+      );
+
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, 2450)).toStrictEqual({
+        kind: "insufficient_balance",
+      });
+    });
+
+    it.each([
+      ["the order cannot be read", () => answer(500, { message: "oops" })],
+      ["the order cannot be reached", () => new TypeError("fetch failed")],
+      ["the order has no payment transaction", () => answer(200, createdOrderWithoutPayments())],
+    ])("is unavailable and refunds nothing when %s", async (_case, reading) => {
+      const { client, fetch } = clientAnswering(reading());
+
+      expect(await client.refundOrder(ORDER_ID, IDEMPOTENCY_KEY, 2450)).toStrictEqual({
+        kind: "unavailable",
+      });
+      expect(fetch).toHaveBeenCalledTimes(1);
     });
   });
 
