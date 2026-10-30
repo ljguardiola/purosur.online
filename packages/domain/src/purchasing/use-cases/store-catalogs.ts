@@ -5,6 +5,6 @@ export type StoreCatalogReading =
   | { kind: "unreadable" };
 
 export interface StoreCatalogs {
-  // One row for every product and presentation the kept catalog holds, sold out ones included.
+  // One row for every product and presentation the kept catalog holds, leaving out those the store marks sold out.
   rows(catalog: Uint8Array): Promise<StoreCatalogReading>;
 }
