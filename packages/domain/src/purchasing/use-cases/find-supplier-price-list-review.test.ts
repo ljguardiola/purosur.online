@@ -11,6 +11,8 @@ const LIST = {
   unpricedRowCount: 1,
   state: "EXTRACTED" as const,
   readFailure: null,
+  rereading: false,
+  lastRereadFailure: null,
   uploadedAt: new Date("2026-03-01T12:00:00Z"),
   confirmedAt: null,
   version: 4,
@@ -122,6 +124,17 @@ describe("findSupplierPriceListReview", () => {
           pricePerSaleUnit: null,
         },
       ],
+    });
+  });
+
+  it("answers whether the list is being read again and why its latest reread failed", async () => {
+    const reader = new FakeSupplierPriceListReader({
+      lists: [{ ...LIST, rereading: true, lastRereadFailure: "interrupted" }],
+    });
+
+    expect(await findSupplierPriceListReview(reader, "list-1")).toMatchObject({
+      kind: "found",
+      list: { rereading: true, lastRereadFailure: "interrupted" },
     });
   });
 
