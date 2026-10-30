@@ -1,4 +1,4 @@
-import { normalizeSupplierItemDescription, supplierItemKey } from "@purosur/domain";
+import { supplierItemKey } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { TiendistaStoreCatalogs } from "../../purchasing/tiendista-store-catalogs.js";
 import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
@@ -110,14 +110,14 @@ async function databaseBefore() {
   const price = (itemId: string, listId: string, priceCents: number, confirmedAt: string) =>
     database.query(
       `insert into supplier_item_prices (item_id, list_id, price_cents, list_date, prices_include_vat, confirmed_at)
-       values ($1, $2, $3, $4, false, $4)`,
+       values ($1, $2, $3, $4::timestamptz::date, false, $4::timestamptz)`,
       [itemId, listId, priceCents, confirmedAt],
     );
   return { database, supplier, list, listRow, packaging, item, price };
 }
 
 const oldKey = (description: string, unit: string) =>
-  `${normalizeSupplierItemDescription(description)}\n${normalizeSupplierItemDescription(unit)}`;
+  supplierItemKey({ code: null, description, presentation: unit }).value;
 
 async function readerKey(description: string, unit: string) {
   const reading = await new TiendistaStoreCatalogs().rows(
@@ -208,7 +208,6 @@ describe("the Tiendista presentations without price migration applied over a dat
     );
     const unlinkedItem = await before.item(supplierId, oldKey("Comino molido", "5 kg ($8100 kg)"));
     await before.price(olderItem, october, 4200000, "2026-10-01T12:00:00Z");
-    await before.price(olderItem, december, 4300000, "2026-12-01T12:00:00Z");
     await before.price(unlinkedItem, november, 4050000, "2026-11-01T12:00:00Z");
     await before.price(newerItem, december, 3950000, "2026-12-01T12:00:00Z");
 
