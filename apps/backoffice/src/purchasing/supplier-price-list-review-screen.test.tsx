@@ -15,6 +15,7 @@ import {
   LIST_ID,
   loaded,
   renderScreen,
+  type screenElement,
 } from "./test-support/supplier-price-list-review-screen";
 import {
   DISCARDED_LIST,
