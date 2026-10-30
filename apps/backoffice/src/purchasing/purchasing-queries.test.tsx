@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
 import {
+  aiCostReportKey,
   freightReportKey,
   purchasesReportKey,
   purchasingKey,
@@ -10,7 +11,7 @@ import {
   useProductCreationChoicesRefresh,
 } from "./purchasing-queries";
 
-test("invalidating the purchasing key marks the suppliers, the packagings, the purchases, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each list's AI cost, each proposal, the link choices, the categories a created product is filed under and the price comparison, each purchases report and each freight report stale", async () => {
+test("invalidating the purchasing key marks the suppliers, the packagings, the purchases, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each list's AI cost, each proposal, the link choices, the categories a created product is filed under and the price comparison, each purchases report, each freight report and each AI cost report stale", async () => {
   const client = new QueryClient();
   const keys = [
     purchasingKeys.suppliers,
@@ -28,6 +29,7 @@ test("invalidating the purchasing key marks the suppliers, the packagings, the p
     purchasingKeys.supplierPriceComparison,
     purchasesReportKey({ from: "2026-10-01", to: "2026-10-07" }),
     freightReportKey({ from: "2026-10-01", to: "2026-10-07" }),
+    aiCostReportKey({ from: "2026-10-01", to: "2026-10-07", group_by: "supplier" }),
   ];
   for (const key of keys) {
     client.setQueryData(key, []);
@@ -69,6 +71,16 @@ test("a freight report and a purchases report of the same range have their own k
   const query = { from: "2026-10-01", to: "2026-10-07" };
 
   expect(freightReportKey(query)).not.toEqual(purchasesReportKey(query));
+});
+
+test.each([
+  { part: "start", changed: { from: "2026-10-02" } },
+  { part: "end", changed: { to: "2026-10-08" } },
+  { part: "grouping", changed: { group_by: "person" as const } },
+])("an AI cost report differing only in its $part has its own key", ({ changed }) => {
+  const query = { from: "2026-10-01", to: "2026-10-07", group_by: "supplier" as const };
+
+  expect(aiCostReportKey({ ...query, ...changed })).not.toEqual(aiCostReportKey(query));
 });
 
 async function watchedChoices() {

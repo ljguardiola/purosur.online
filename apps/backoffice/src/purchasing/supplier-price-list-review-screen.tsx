@@ -51,6 +51,7 @@ import { EditSupplierPriceListRowPriceModal } from "./edit-supplier-price-list-r
 import { LinkSupplierItemModal } from "./link-supplier-item-modal";
 import { useRefreshPurchasing, useSupplierPriceListReviewQuery } from "./purchasing-queries";
 import { RemoveSupplierPriceListRowModal } from "./remove-supplier-price-list-row-modal";
+import { SupplierPriceListAiCost } from "./supplier-price-list-ai-cost";
 import type { SupplierPriceListReviewScreenServices } from "./supplier-price-list-review-services";
 import {
   RowItemCell,
@@ -58,7 +59,6 @@ import {
   RowPriceCell,
   RowStatusCell,
 } from "./supplier-price-list-row-cells";
-import { SupplierPriceListAiCost } from "./supplier-price-list-ai-cost";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
 import type { SupplierPriceListReviewList, SupplierPriceListRow } from "./supplier-price-lists-api";
 import type { SupplierPriceListReviewFilters } from "./supplier-price-lists-filters";

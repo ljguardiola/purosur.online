@@ -4,11 +4,17 @@ import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { ReportsIndexScreen } from "./reports-index-screen";
 
-async function renderScreen({ returnsShown = false }: { returnsShown?: boolean } = {}) {
+async function renderScreen({
+  returnsShown = false,
+  aiCostShown = false,
+}: {
+  returnsShown?: boolean;
+  aiCostShown?: boolean;
+} = {}) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <ReportsIndexScreen returnsShown={returnsShown} />
+        <ReportsIndexScreen returnsShown={returnsShown} aiCostShown={aiCostShown} />
       </main>
     </FieldSizeProvider>,
   );
@@ -220,4 +226,22 @@ test("lists the freight by period report as a link to it", async () => {
   await expect
     .element(screen.getByRole("link", { name: "Flete por período" }))
     .toHaveAttribute("href", "/reports/freight-by-period");
+});
+
+test("lists the AI cost by period report under Compras when it is shown", async () => {
+  const screen = await renderScreen({ aiCostShown: true });
+
+  await expect
+    .element(
+      screen
+        .getByRole("region", { name: "Compras" })
+        .getByRole("link", { name: "Costo de IA por período" }),
+    )
+    .toHaveAttribute("href", "/reports/ai-cost-by-period");
+});
+
+test("leaves the AI cost by period report out when it is not shown", async () => {
+  const screen = await renderScreen();
+
+  expect(screen.getByRole("link", { name: "Costo de IA por período" }).query()).toBeNull();
 });
