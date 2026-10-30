@@ -109,6 +109,26 @@ describe("rows", () => {
     ).toEqual(["Manzana"]);
   });
 
+  it("keeps the items holding every word of the search, each word in any of their texts", async () => {
+    const items = [
+      fruit("1", "Aceite de Almendras Vitora 60 ml", ["779"]),
+      fruit("2", "Aceite de Almendras Vitora 125 ml", ["780"]),
+    ];
+
+    expect(
+      await shown({
+        items,
+        search: { text: "almendras 60 ml", in: (item) => [item.name, ...item.codes] },
+      }),
+    ).toEqual(["Aceite de Almendras Vitora 60 ml"]);
+    expect(
+      await shown({
+        items,
+        search: { text: "780 almendras", in: (item) => [item.name, ...item.codes] },
+      }),
+    ).toEqual(["Aceite de Almendras Vitora 125 ml"]);
+  });
+
   it("keeps every item when the search is blank", async () => {
     const items = [fruit("1", "Manzana"), fruit("2", "Pera")];
 

@@ -221,14 +221,15 @@ test("offers no creation without the creation prop", async () => {
   await expect.poll(() => optionTexts(screen)).toEqual(["Sin resultados"]);
 });
 
-test("offers no creation for blank typed text", async () => {
+test("offers no creation for blank typed text, listing every option instead", async () => {
   const screen = await render(
     <ComboBox {...baseProps({ creation: { recordKind: "marca", onCreate: () => {} } })} />,
   );
 
   await input(screen).fill("   ");
 
-  await expect.poll(() => optionTexts(screen)).toEqual(["Sin resultados"]);
+  await expect.poll(() => optionTexts(screen)).toHaveLength(options.length);
+  expect(screen.getByRole("option", { name: /Crear marca/ }).query()).toBeNull();
 });
 
 test("creates from the typed text by click without choosing a value, and shows the chosen label again", async () => {

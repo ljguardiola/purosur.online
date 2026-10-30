@@ -1,5 +1,5 @@
 import { functionalUpdate, type Row, type RowData, useTable } from "@tanstack/react-table";
-import { textContains } from "../../../messages/text-search";
+import { textsContainEveryWord } from "../../../messages/text-search";
 import { itemTree } from "../../../ordering/item-tree";
 import { tableModelFeatures } from "./table-features";
 import { PAGE_SIZE } from "./table-paging";
@@ -66,7 +66,7 @@ function passesRowFilter<T extends RowData>(
 ): boolean {
   const item = row.original;
   const matchesSearch =
-    search === undefined || search.in(item).some((text) => textContains(text, search.query));
+    search === undefined || textsContainEveryWord(search.in(item), search.query);
   return matchesSearch && (filter === undefined || filter(item));
 }
 

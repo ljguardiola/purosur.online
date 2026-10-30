@@ -1,5 +1,5 @@
 import type { HelpArticle, HelpBlock } from "./help";
-import { textContains } from "./text-search";
+import { textsContainEveryWord } from "./text-search";
 
 function blockText(block: HelpBlock<string>): readonly string[] {
   switch (block.kind) {
@@ -15,10 +15,7 @@ function blockText(block: HelpBlock<string>): readonly string[] {
 }
 
 export function articleMatchesQuery(article: HelpArticle<string, string>, query: string): boolean {
-  if (textContains(article.title, query)) {
-    return true;
-  }
-  return article.body.some((block) => blockText(block).some((text) => textContains(text, query)));
+  return textsContainEveryWord([article.title, ...article.body.flatMap(blockText)], query);
 }
 
 export function searchArticles<Articles extends Record<string, HelpArticle<string, string>>>(

@@ -25,6 +25,12 @@ test("matches on paragraph, heading, note and step text", () => {
   expect(articleMatchesQuery(intro, "cambiar esto")).toBe(true);
 });
 
+test("matches when every word of the query is in the article, apart, in any order or block", () => {
+  expect(articleMatchesQuery(intro, "caja catálogo")).toBe(true);
+  expect(articleMatchesQuery(intro, "primeros productos")).toBe(true);
+  expect(articleMatchesQuery(intro, "primeros factura")).toBe(false);
+});
+
 test("does not match unrelated text", () => {
   expect(articleMatchesQuery(intro, "facturación")).toBe(false);
 });
