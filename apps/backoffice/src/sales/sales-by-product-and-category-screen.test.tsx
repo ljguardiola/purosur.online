@@ -458,7 +458,7 @@ test.each([
   const services = createServices();
   vi.mocked(services.fetchSalesByProductAndCategory).mockResolvedValue({
     kind: "ok",
-    value: manyProductsReport(1998),
+    value: { ...manyProductsReport(1998), group },
   });
 
   const screen = await renderScreen(services, {
