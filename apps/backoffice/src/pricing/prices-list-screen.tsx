@@ -534,7 +534,7 @@ export function PricesListScreen({
                   : loaded
                     ? plural(pendingCount, {
                         one: "Revisar 1",
-                        other: `Revisar los ${pendingCount}`,
+                        other: `Revisar los ${formatNumber(pendingCount)}`,
                       })
                     : "Revisar"}
               </Button>
