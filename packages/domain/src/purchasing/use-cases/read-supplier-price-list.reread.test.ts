@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { SupplierPriceListReadFailure } from "../model/supplier-price-list.js";
-import type { AiCallUsage } from "./ai-call-usage.js";
 import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
-import { FakePriceListExtractor } from "./test-support/fake-price-list-extractor.js";
-import { FakeStoreCatalogs } from "./test-support/fake-store-catalogs.js";
-import { FakeSupplierPriceListFiles } from "./test-support/fake-supplier-price-list-files.js";
-import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
+import {
+  aUsage,
+  HTML,
+  readInput as input,
+  NOW,
+  readingContext,
+  SENT_ON,
+} from "./test-support/read-supplier-price-list.js";
 
-const NOW = new Date("2026-03-11T01:30:00Z");
-const SENT_ON = "2026-03-10";
 const FIRST_SENT_AT = new Date("2026-03-01T15:00:00Z");
-const HTML = new Uint8Array([60, 104, 116, 109, 108, 62]);
 const LINK = { productId: "product-1", packagingId: "packaging-1", vatRate: null };
 const OTHER_LINK = { productId: "product-2", packagingId: "packaging-2", vatRate: 2100 };
 
@@ -41,8 +40,7 @@ function extracted(
 }
 
 function setup(listState: "EXTRACTED" | "READ_FAILED" | "DISCARDED" = "EXTRACTED") {
-  const store = new FakeSupplierPriceListStore();
-  store.seedSupplier({ id: "supplier-a", name: "Distribuidora Sur", active: true });
+  const { store, files, extractor, storeCatalogs, ports } = readingContext();
   store.seedList({
     id: "list-1",
     sourceKind: "WEB_PAGE",
@@ -58,42 +56,16 @@ function setup(listState: "EXTRACTED" | "READ_FAILED" | "DISCARDED" = "EXTRACTED
     version: 5,
   });
   store.seedReread({ id: "reread-1", listId: "list-1", contentKind: "HTML" });
-  const files = new FakeSupplierPriceListFiles();
   files.stored.set("list-1", new Uint8Array([1]));
   files.contentKinds.set("list-1", "HTML");
   files.stored.set("reread-1", HTML);
   files.contentKinds.set("reread-1", "HTML");
-  const extractor = new FakePriceListExtractor();
-  const storeCatalogs = new FakeStoreCatalogs();
-  return {
-    store,
-    files,
-    extractor,
-    storeCatalogs,
-    ports: { store, files, extractor, storeCatalogs, zoneRules: new FakeZoneRulesSource() },
-  };
+  return { store, files, extractor, storeCatalogs, ports };
 }
-
-const input = { listId: "list-1", now: () => NOW, finalAttempt: false };
 
 function withoutRereads<T extends { rereads: unknown }>(state: T) {
   const { rereads: _rereads, ...rest } = state;
   return rest;
-}
-
-function aUsage(outcome: AiCallUsage["outcome"] = "completed"): AiCallUsage {
-  return {
-    outcome,
-    attempts: [
-      {
-        model: "claude-sonnet-5-5",
-        inputTokens: 1_000,
-        outputTokens: 100,
-        cacheWriteTokens: 0,
-        cacheReadTokens: 0,
-      },
-    ],
-  };
 }
 
 describe("readSupplierPriceList of a reread", () => {
@@ -503,7 +475,7 @@ describe("readSupplierPriceList of a reread", () => {
       async (answer) => {
         const { store, extractor, ports } = setup();
         extractor.answer = answer;
-        extractor.reportedCalls = [aUsage("failed")];
+        extractor.reportedCalls = [aUsage({}, "failed")];
 
         await readSupplierPriceList(ports, input);
 
