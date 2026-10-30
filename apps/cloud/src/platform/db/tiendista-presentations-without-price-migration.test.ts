@@ -371,34 +371,72 @@ describe("the Tiendista presentations without price migration applied over a dat
     ]);
   });
 
-  it("leaves the store catalog items whose key without price another list's item already holds as they are", async () => {
+  it("merges a store catalog item into the item another list already holds under its key without price, keeping the link and every price", async () => {
     const before = await databaseBefore();
     const supplierId = await before.supplier("Almacén del Sur");
     const october = await before.list(supplierId, STORE_CATALOG, {
       confirmedAt: "2026-10-01T12:00:00Z",
     });
-    const november = await before.list(supplierId, STORE_CATALOG, {
-      confirmedAt: "2026-11-01T12:00:00Z",
-    });
     const pdfList = await before.list(supplierId, PDF, { confirmedAt: "2026-10-02T12:00:00Z" });
+    const storeLink = await before.packaging("Bolsa 5 kg");
+    const storeItem = await before.item(
+      supplierId,
+      oldKey("Comino molido", "5 kg ($8400 kg)"),
+      storeLink,
+    );
     const pdfItem = await before.item(supplierId, "comino molido\n5 kg");
-    const olderItem = await before.item(supplierId, oldKey("Comino molido", "5 kg ($8400 kg)"));
-    const newerItem = await before.item(supplierId, oldKey("Comino molido", "5 kg ($7900 kg)"));
-    await before.price(olderItem, october, 4200000, "2026-10-01T12:00:00Z");
+    await before.price(storeItem, october, 4200000, "2026-10-01T12:00:00Z");
     await before.price(pdfItem, pdfList, 4100000, "2026-10-02T12:00:00Z");
-    await before.price(newerItem, november, 3950000, "2026-11-01T12:00:00Z");
 
     const migrated = await before.database.applyMigration();
 
     expect(await itemsOf(migrated, supplierId)).toEqual([
-      expect.objectContaining({ id: pdfItem, key_value: "comino molido\n5 kg" }),
-      expect.objectContaining({ id: newerItem, key_value: "comino molido\n5 kg ($7900 kg)" }),
-      expect.objectContaining({ id: olderItem, key_value: "comino molido\n5 kg ($8400 kg)" }),
+      {
+        id: storeItem,
+        key_kind: "description",
+        key_value: "comino molido\n5 kg",
+        product_id: storeLink.productId,
+        packaging_id: storeLink.packagingId,
+      },
     ]);
     expect(await pricesOf(migrated, supplierId)).toEqual([
-      { item_id: olderItem, list_id: october, price_cents: 4200000 },
+      { item_id: storeItem, list_id: october, price_cents: 4200000 },
+      { item_id: storeItem, list_id: pdfList, price_cents: 4100000 },
+    ]);
+  });
+
+  it("merges a store catalog item into the linked item another list holds under its key without price, when that list was confirmed later", async () => {
+    const before = await databaseBefore();
+    const supplierId = await before.supplier("Almacén del Sur");
+    const october = await before.list(supplierId, STORE_CATALOG, {
+      confirmedAt: "2026-10-01T12:00:00Z",
+    });
+    const pdfList = await before.list(supplierId, PDF, { confirmedAt: "2026-10-02T12:00:00Z" });
+    const storeLink = await before.packaging("5 kg ($8400 kg)");
+    const pdfLink = await before.packaging("Bolsa 5 kg");
+    const storeItem = await before.item(
+      supplierId,
+      oldKey("Comino molido", "5 kg ($8400 kg)"),
+      storeLink,
+    );
+    const pdfItem = await before.item(supplierId, "comino molido\n5 kg", pdfLink);
+    await before.price(storeItem, october, 4200000, "2026-10-01T12:00:00Z");
+    await before.price(pdfItem, pdfList, 4100000, "2026-10-02T12:00:00Z");
+
+    const migrated = await before.database.applyMigration();
+
+    expect(await itemsOf(migrated, supplierId)).toEqual([
+      {
+        id: pdfItem,
+        key_kind: "description",
+        key_value: "comino molido\n5 kg",
+        product_id: pdfLink.productId,
+        packaging_id: pdfLink.packagingId,
+      },
+    ]);
+    expect(await pricesOf(migrated, supplierId)).toEqual([
+      { item_id: pdfItem, list_id: october, price_cents: 4200000 },
       { item_id: pdfItem, list_id: pdfList, price_cents: 4100000 },
-      { item_id: newerItem, list_id: november, price_cents: 3950000 },
     ]);
   });
 
