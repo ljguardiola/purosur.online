@@ -7,6 +7,7 @@ import {
   creditNoteAnswerOf,
   creditNoteToIssuePayload,
   invoiceToCorrect,
+  restoredCreditNoteIssuedAt,
   restoredCreditNoteSettlement,
   type SaleInvoice,
   tiedToInvoice,
@@ -338,5 +339,45 @@ describe("restoredCreditNoteSettlement of a credit note the cloud holds as issue
 
   it("leaves the other settlements as they were when the cloud holds none", () => {
     expect(restoredCreditNoteSettlement(null, false, null)).toEqual({ kind: "never_requested" });
+  });
+});
+
+describe("restoredCreditNoteIssuedAt", () => {
+  const ISSUED_AT = new Date("2026-10-07T10:29:00.000Z");
+
+  it("is the moment an authorized credit note was issued", () => {
+    expect(
+      restoredCreditNoteIssuedAt({
+        kind: "authorized",
+        pointOfSale: 7,
+        number: 9,
+        issuedOn: "2026-10-07",
+        issuedAt: ISSUED_AT,
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-17",
+      }),
+    ).toEqual(ISSUED_AT);
+  });
+
+  it("is the moment a credit note issued offline was issued", () => {
+    expect(
+      restoredCreditNoteIssuedAt({
+        kind: "issued_offline",
+        pointOfSale: 31,
+        number: 4,
+        issuedOn: "2026-10-07",
+        issuedAt: ISSUED_AT,
+        offlineAuthorizationCode: "71234567890123",
+        fortnight: { start: "2026-10-01", end: "2026-10-15" },
+      }),
+    ).toEqual(ISSUED_AT);
+  });
+
+  it.each([
+    { kind: "rejected" },
+    { kind: "regularization_required" },
+    { kind: "already_credited" },
+  ] as const)("is unknown for an answer that issued nothing: $kind", (answer) => {
+    expect(restoredCreditNoteIssuedAt(answer)).toBeNull();
   });
 });

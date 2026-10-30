@@ -32,6 +32,7 @@ import {
 const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
 const SALT = encodePinHash(new Uint8Array(16).fill(1));
+const A_SALE_RECEIPT = { document: "sale_receipt", saleId: "sale-1" } as const;
 const SOURCE = { eventId: "event-1", deviceId: "device-old" };
 
 let database: LocalDatabase;
@@ -841,20 +842,109 @@ describe("the register's store for replenishing a restored register", () => {
     });
 
     it("is unknown while the receipt was never sent to the printer", async () => {
-      expect(await store.transaction((tx) => tx.saleReceiptAttemptedAt("sale-1"))).toBeNull();
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_SALE_RECEIPT))).toBeNull();
     });
 
     it("is the moment recorded, leaving the receipt unprinted", async () => {
       const at = new Date("2026-10-07T10:00:00.000Z");
 
-      await store.transaction((tx) => tx.recordSaleReceiptAttempt("sale-1", at));
+      await store.transaction((tx) => tx.recordPrintAttempt(A_SALE_RECEIPT, at));
 
-      expect(await store.transaction((tx) => tx.saleReceiptAttemptedAt("sale-1"))).toEqual(at);
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_SALE_RECEIPT))).toEqual(at);
       expect(
         database
           .prepare("SELECT print_attempted_at, printed_at FROM sales WHERE id = 'sale-1'")
           .get(),
       ).toEqual({ print_attempted_at: "2026-10-07T10:00:00.000Z", printed_at: null });
+    });
+  });
+
+  describe("the attempt of a credit note's print", () => {
+    const CREDIT_NOTE = {
+      creditNoteId: "note-1",
+      saleId: "sale-1",
+      total: 4800,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+      origin: { kind: "sale_void" },
+    } as const;
+    const A_CREDIT_NOTE = {
+      document: "credit_note",
+      saleId: "sale-1",
+      creditNoteId: "note-1",
+    } as const;
+
+    beforeEach(async () => {
+      await store.transaction(async (tx) => {
+        await tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE);
+        await tx.applyFact(
+          { ...aVoidedSaleFact({ id: "sale-1" }), creditNote: CREDIT_NOTE },
+          SOURCE,
+        );
+        await tx.recordCreditNoteAnswer(CREDIT_NOTE, {
+          creditNoteId: "note-1",
+          answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+          answer: {
+            kind: "authorized",
+            pointOfSale: 7,
+            number: 9,
+            issuedOn: "2026-10-07",
+            issuedAt: new Date("2026-10-07T10:29:00.000Z"),
+            authorizationCode: "74123456789012",
+            authorizationCodeDueOn: "2026-10-17",
+          },
+        });
+      });
+    });
+
+    it("is unknown while the credit note was never sent to the printer", async () => {
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_CREDIT_NOTE))).toBeNull();
+    });
+
+    it("is the moment recorded, leaving the credit note unprinted", async () => {
+      const at = new Date("2026-10-07T10:29:00.000Z");
+
+      await store.transaction((tx) => tx.recordPrintAttempt(A_CREDIT_NOTE, at));
+
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_CREDIT_NOTE))).toEqual(at);
+      expect(
+        database
+          .prepare("SELECT credit_note_id, print_attempted_at, printed_at FROM credit_note_prints")
+          .all(),
+      ).toEqual([
+        {
+          credit_note_id: "note-1",
+          print_attempted_at: "2026-10-07T10:29:00.000Z",
+          printed_at: null,
+        },
+      ]);
+    });
+  });
+
+  describe("the attempt of a deferred sale's invoice print", () => {
+    const A_DEFERRED_INVOICE = { document: "deferred_invoice", saleId: "sale-1" } as const;
+
+    beforeEach(async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+    });
+
+    it("is unknown while the invoice was never sent to the printer", async () => {
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_DEFERRED_INVOICE))).toBeNull();
+    });
+
+    it("is the moment recorded, leaving the invoice unprinted", async () => {
+      const at = new Date("2026-10-09T10:00:00.000Z");
+
+      await store.transaction((tx) => tx.recordPrintAttempt(A_DEFERRED_INVOICE, at));
+
+      expect(await store.transaction((tx) => tx.printAttemptedAt(A_DEFERRED_INVOICE))).toEqual(at);
+      expect(
+        database
+          .prepare("SELECT sale_id, print_attempted_at, printed_at FROM deferred_invoice_prints")
+          .all(),
+      ).toEqual([
+        { sale_id: "sale-1", print_attempted_at: "2026-10-09T10:00:00.000Z", printed_at: null },
+      ]);
     });
   });
 

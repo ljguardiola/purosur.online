@@ -314,6 +314,7 @@ export type {
 export {
   creditNoteToIssuePayload,
   invoiceToCorrect,
+  restoredCreditNoteIssuedAt,
 } from "./model/sale-credit-note.js";
 export type {
   CreditNoteRoutingInvoiceState,

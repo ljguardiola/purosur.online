@@ -4,6 +4,7 @@ import type {
   RestoredCreditNoteAnswer,
   RestoredUnclearDeferral,
 } from "../../../fiscal/index.js";
+import type { PrintedDocumentKey, SalePrintState } from "../../../sales/index.js";
 import type { ReplenishedUser } from "../../../users/index.js";
 import type { ReplenishmentFailure } from "../../model/replenishment-failure.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
@@ -104,9 +105,28 @@ interface HeldCreditNote {
   event: ReplenishedEvent["event"];
 }
 
-interface HeldSaleReceipt {
+interface HeldPrint {
   attemptedAt: Date;
   printedAt: Date | null;
+}
+
+export function heldPrintKey(key: PrintedDocumentKey): string {
+  return key.document === "credit_note"
+    ? `${key.document}:${key.saleId}:${key.creditNoteId}`
+    : `${key.document}:${key.saleId}`;
+}
+
+function printedDocumentKeyOf(printState: SalePrintState): PrintedDocumentKey | null {
+  if (printState.document !== "credit_note") {
+    return { document: printState.document, saleId: printState.saleId };
+  }
+  return printState.creditNoteId === null
+    ? null
+    : {
+        document: "credit_note",
+        saleId: printState.saleId,
+        creditNoteId: printState.creditNoteId,
+      };
 }
 
 function isLater(candidate: Date, held: Date | null | undefined): boolean {
@@ -122,7 +142,7 @@ export interface ReplenishingRegisterState {
   creditNoteAnswers: RecordedCreditNoteAnswer[];
   heldCreditNotes: HeldCreditNote[];
   rebuiltUnclearDeferrals: RebuiltUnclearDeferral[];
-  saleReceipts: Record<string, HeldSaleReceipt>;
+  prints: Record<string, HeldPrint>;
 }
 
 export type FakeStoreOperation =
@@ -131,7 +151,7 @@ export type FakeStoreOperation =
   | "recordCreditNoteAnswer"
   | "holdCreditNoteToRequest"
   | "rebuildUnclearDeferredSale"
-  | "recordSaleReceiptAttempt"
+  | "recordPrintAttempt"
   | "recordEventApplied"
   | "finish";
 
@@ -152,7 +172,7 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
       creditNoteAnswers: [],
       heldCreditNotes: [],
       rebuiltUnclearDeferrals: [],
-      saleReceipts: {},
+      prints: {},
     };
   }
 
@@ -207,21 +227,23 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
         ) {
           return "not_yet_applicable";
         }
-        if (
-          fact.kind === "sale_print_state_changed" &&
-          fact.printState.document === "sale_receipt"
-        ) {
-          const { saleId, printAttemptedAt, printedAt } = fact.printState;
-          const held = working.saleReceipts[saleId];
-          working.saleReceipts[saleId] = {
-            attemptedAt: isLater(printAttemptedAt, held?.attemptedAt)
-              ? printAttemptedAt
-              : (held?.attemptedAt ?? printAttemptedAt),
-            printedAt:
-              printedAt !== null && isLater(printedAt, held?.printedAt)
-                ? printedAt
-                : (held?.printedAt ?? null),
-          };
+        if (fact.kind === "sale_print_state_changed") {
+          const { printState } = fact;
+          const key = printedDocumentKeyOf(printState);
+          if (key !== null) {
+            const { printAttemptedAt, printedAt } = printState;
+            const id = heldPrintKey(key);
+            const held = working.prints[id];
+            working.prints[id] = {
+              attemptedAt: isLater(printAttemptedAt, held?.attemptedAt)
+                ? printAttemptedAt
+                : (held?.attemptedAt ?? printAttemptedAt),
+              printedAt:
+                printedAt !== null && isLater(printedAt, held?.printedAt)
+                  ? printedAt
+                  : (held?.printedAt ?? null),
+            };
+          }
         }
         working.facts.push({ fact, source });
         return "applied";
@@ -259,13 +281,11 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
         return "applied";
       },
       holdsDeferredSaleRecord: async (saleId) => holdsDeferredSaleRecord(saleId),
-      saleReceiptAttemptedAt: async (saleId) => working.saleReceipts[saleId]?.attemptedAt ?? null,
-      recordSaleReceiptAttempt: async (saleId, at) => {
-        failIf("recordSaleReceiptAttempt");
-        working.saleReceipts[saleId] = {
-          attemptedAt: at,
-          printedAt: working.saleReceipts[saleId]?.printedAt ?? null,
-        };
+      printAttemptedAt: async (key) => working.prints[heldPrintKey(key)]?.attemptedAt ?? null,
+      recordPrintAttempt: async (key, at) => {
+        failIf("recordPrintAttempt");
+        const id = heldPrintKey(key);
+        working.prints[id] = { attemptedAt: at, printedAt: working.prints[id]?.printedAt ?? null };
       },
       recordEventApplied: async (eventId) => {
         failIf("recordEventApplied", eventId);

@@ -5,6 +5,7 @@ import type {
   RestoredUnclearDeferral,
 } from "../../fiscal/index.js";
 import type { RegisterVersion } from "../../register/index.js";
+import type { PrintedDocumentKey } from "../../sales/index.js";
 import type { ReplenishedUser } from "../../users/index.js";
 import type { PushedEvent } from "../model/push-batch.js";
 import type { ReplenishmentFailure, ReplenishmentRefusal } from "../model/replenishment-failure.js";
@@ -62,9 +63,9 @@ export interface RegisterReplenishmentTransaction {
   // Rebuilding a record the register already holds changes nothing and answers "applied".
   rebuildUnclearDeferredSale(rebuilt: RebuiltUnclearDeferral): Promise<ReplenishedEventApplication>;
   holdsDeferredSaleRecord(saleId: string): Promise<boolean>;
-  // Null while the register knows of no attempt to print the sale's receipt.
-  saleReceiptAttemptedAt(saleId: string): Promise<Date | null>;
-  recordSaleReceiptAttempt(saleId: string, at: Date): Promise<void>;
+  // Null while the register knows of no attempt to print the document.
+  printAttemptedAt(key: PrintedDocumentKey): Promise<Date | null>;
+  recordPrintAttempt(key: PrintedDocumentKey, at: Date): Promise<void>;
   recordEventApplied(eventId: string): Promise<void>;
 }
 
