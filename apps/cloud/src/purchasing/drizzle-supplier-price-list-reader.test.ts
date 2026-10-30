@@ -6,6 +6,7 @@ import { insertActor, insertPackaging, insertProduct } from "./test-support/purc
 import {
   insertPriceList,
   insertPriceListRows,
+  insertReread,
   insertSupplier,
   insertSupplierItem,
   insertSupplierItemPrice,
@@ -103,6 +104,8 @@ describe("listing the supplier price lists", () => {
         unpricedRowCount: 2,
         state: "REVIEWED",
         readFailure: null,
+        rereading: false,
+        lastRereadFailure: null,
         uploadedAt,
         confirmedAt,
       },
@@ -115,6 +118,8 @@ describe("listing the supplier price lists", () => {
         unpricedRowCount: 0,
         state: "READ_FAILED",
         readFailure: "no_items_found",
+        rereading: false,
+        lastRereadFailure: null,
         uploadedAt: new Date("2026-03-01T10:00:00.000Z"),
         confirmedAt: null,
       },
@@ -564,5 +569,99 @@ describe("the file name of a list", () => {
 
   it("answers nothing for a list that does not exist", async () => {
     expect(await reader().fileName("00000000-0000-4000-8000-000000000000")).toBeUndefined();
+  });
+});
+
+describe("the rereads of a list", () => {
+  const reread = (
+    listId: string,
+    requestedAt: string,
+    state: "READING" | "READ" | "READ_FAILED",
+    readFailure: "no_items_found" | "interrupted" | null = null,
+  ) =>
+    insertReread(db, {
+      listId,
+      locationId,
+      actorId,
+      state,
+      readFailure,
+      requestedAt: new Date(requestedAt),
+    });
+
+  async function listed(listId: string) {
+    const lists = await reader().lists();
+    const review = await reader().review(listId);
+    const fromList = lists.find(({ id }) => id === listId);
+    return {
+      list: { rereading: fromList?.rereading, lastRereadFailure: fromList?.lastRereadFailure },
+      review: {
+        rereading: review?.list.rereading,
+        lastRereadFailure: review?.list.lastRereadFailure,
+      },
+    };
+  }
+
+  const extractedList = () =>
+    insertPriceList(db, { supplierId, locationId, actorId, state: "EXTRACTED" });
+
+  it("is not being read again, with no failure, for a list that was never read again", async () => {
+    const listId = await extractedList();
+
+    expect(await listed(listId)).toEqual({
+      list: { rereading: false, lastRereadFailure: null },
+      review: { rereading: false, lastRereadFailure: null },
+    });
+  });
+
+  it("is being read again while a reread is being read, with no failure", async () => {
+    const listId = await extractedList();
+    await reread(listId, "2026-03-02T10:00:00.000Z", "READING");
+
+    expect(await listed(listId)).toEqual({
+      list: { rereading: true, lastRereadFailure: null },
+      review: { rereading: true, lastRereadFailure: null },
+    });
+  });
+
+  it("answers why the latest reread failed once it did", async () => {
+    const listId = await extractedList();
+    await reread(listId, "2026-03-02T10:00:00.000Z", "READ_FAILED", "no_items_found");
+
+    expect(await listed(listId)).toEqual({
+      list: { rereading: false, lastRereadFailure: "no_items_found" },
+      review: { rereading: false, lastRereadFailure: "no_items_found" },
+    });
+  });
+
+  it("answers the failure of the latest reread only, not an earlier one", async () => {
+    const listId = await extractedList();
+    await reread(listId, "2026-03-02T10:00:00.000Z", "READ_FAILED", "no_items_found");
+    await reread(listId, "2026-03-03T10:00:00.000Z", "READ_FAILED", "interrupted");
+
+    expect((await listed(listId)).list.lastRereadFailure).toBe("interrupted");
+  });
+
+  it("answers no failure when a later reread was read", async () => {
+    const listId = await extractedList();
+    await reread(listId, "2026-03-02T10:00:00.000Z", "READ_FAILED", "no_items_found");
+    await reread(listId, "2026-03-03T10:00:00.000Z", "READ");
+
+    expect((await listed(listId)).review.lastRereadFailure).toBeNull();
+  });
+
+  it("answers no failure while a reread after the failed one is being read", async () => {
+    const listId = await extractedList();
+    await reread(listId, "2026-03-02T10:00:00.000Z", "READ_FAILED", "no_items_found");
+    await reread(listId, "2026-03-03T10:00:00.000Z", "READING");
+
+    expect((await listed(listId)).list).toEqual({ rereading: true, lastRereadFailure: null });
+  });
+
+  it("keeps the rereads of one list from showing on another", async () => {
+    const listId = await extractedList();
+    const otherId = await extractedList();
+    await reread(listId, "2026-03-02T10:00:00.000Z", "READING");
+
+    expect((await listed(otherId)).list).toEqual({ rereading: false, lastRereadFailure: null });
   });
 });

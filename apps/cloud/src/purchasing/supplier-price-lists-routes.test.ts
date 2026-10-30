@@ -156,6 +156,38 @@ describe("GET /supplier-price-lists", () => {
   });
 });
 
+describe("GET /supplier-price-lists with a list read again", () => {
+  it("tells that the list is being read again, and the review why the last reread failed", async () => {
+    const { headers, locationId, userId } = await manager();
+    const { listId } = await storedList({ state: "EXTRACTED" });
+    await insertReread(db, {
+      listId,
+      locationId,
+      actorId: userId,
+      state: "READ_FAILED",
+      readFailure: "no_items_found",
+    });
+
+    const review = await app.inject({
+      method: "GET",
+      url: `/supplier-price-lists/${listId}`,
+      headers,
+    });
+    await insertReread(db, {
+      listId,
+      locationId,
+      actorId: userId,
+      requestedAt: new Date("2026-03-03T12:00:00.000Z"),
+    });
+    const lists = await app.inject({ method: "GET", url: "/supplier-price-lists", headers });
+
+    expect(review.json()).toMatchObject({
+      list: { rereading: false, lastRereadFailure: "no_items_found" },
+    });
+    expect(lists.json()).toMatchObject([{ id: listId, rereading: true, lastRereadFailure: null }]);
+  });
+});
+
 describe("GET /supplier-price-lists/:id", () => {
   it("answers the list with its rows and whether a newer list replaced it", async () => {
     const { headers } = await manager();
