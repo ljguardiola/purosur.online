@@ -26,6 +26,18 @@ export type CompletedReturn = {
 
 export type HandOverRefundModalProps = CompletedReturn & { onDone: () => void };
 
+function handOverTitle(
+  cashToHandOver: number,
+  pendingRefunds: readonly PendingReturnRefund[],
+): string {
+  if (cashToHandOver > 0) {
+    return "Entregá el dinero al cliente";
+  }
+  return pendingRefunds.length > 0
+    ? "El dinero vuelve por cada medio de pago"
+    : "No hay dinero para devolver";
+}
+
 export function HandOverRefundModal({
   cashToHandOver,
   pendingRefunds,
@@ -44,11 +56,7 @@ export function HandOverRefundModal({
       tone="success"
       icon={<CircleCheck />}
       context="DEVOLUCIÓN COMPLETADA"
-      title={
-        cashToHandOver > 0
-          ? "Entregá el dinero al cliente"
-          : "El dinero vuelve por cada medio de pago"
-      }
+      title={handOverTitle(cashToHandOver, pendingRefunds)}
       footer={
         <Button size="large" icon={<Check />} fullWidth onPress={onDone}>
           Listo
