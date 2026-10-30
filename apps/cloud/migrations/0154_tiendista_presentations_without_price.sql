@@ -5,12 +5,13 @@ SELECT
   "keyed"."last_confirmed_at",
   first_value("keyed"."id") OVER (
     PARTITION BY "keyed"."supplier_id", "keyed"."new_key"
-    ORDER BY "keyed"."last_confirmed_at" DESC NULLS LAST, "keyed"."id"
+    ORDER BY "keyed"."linked" DESC, "keyed"."last_confirmed_at" DESC NULLS LAST, "keyed"."id"
   ) AS "winner_id"
 FROM (
   SELECT
     "split"."id",
     "split"."supplier_id",
+    "split"."linked",
     "split"."last_confirmed_at",
     CASE
       WHEN "split"."presentation" = '' THEN "split"."description"
@@ -20,6 +21,7 @@ FROM (
     SELECT
       "item"."id",
       "item"."supplier_id",
+      "item"."product_id" IS NOT NULL AS "linked",
       split_part("item"."key_value", E'\n', 1) AS "description",
       btrim(regexp_replace(
         substr("item"."key_value", length(split_part("item"."key_value", E'\n', 1)) + 2),
@@ -36,12 +38,23 @@ FROM (
     WHERE "item"."key_kind" = 'description'
       AND EXISTS (
         SELECT 1
-        FROM "supplier_price_lists" "list"
-        WHERE "list"."supplier_id" = "item"."supplier_id"
+        FROM "supplier_item_prices" "price"
+        JOIN "supplier_price_lists" "list" ON "list"."id" = "price"."list_id"
+        WHERE "price"."item_id" = "item"."id"
           AND "list"."file_content_kind" = 'STORE_CATALOG'
       )
   ) "split"
 ) "keyed";
+--> statement-breakpoint
+DELETE FROM "tiendista_item_keys" "key"
+USING "supplier_items" "item", "supplier_items" "holder"
+WHERE "item"."id" = "key"."id"
+  AND "holder"."supplier_id" = "item"."supplier_id"
+  AND "holder"."key_kind" = 'description'
+  AND "holder"."key_value" = "key"."new_key"
+  AND NOT EXISTS (
+    SELECT 1 FROM "tiendista_item_keys" "other" WHERE "other"."id" = "holder"."id"
+  );
 --> statement-breakpoint
 UPDATE "supplier_item_prices" "price"
 SET "item_id" = "moved"."winner_id"
