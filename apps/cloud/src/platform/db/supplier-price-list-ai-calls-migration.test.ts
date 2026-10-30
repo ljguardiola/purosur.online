@@ -4,10 +4,22 @@ import {
   type SqlOnlyDatabase,
 } from "./test-support/migration-under-test.js";
 
+type ListProgress =
+  | { state: "READING"; sentAt: null; readFailure: null }
+  | { state: "READ_FAILED"; sentAt: null; readFailure: "reading_unavailable" }
+  | { state: "EXTRACTED"; sentAt: string; readFailure: null };
+
+const readList: ListProgress = {
+  state: "EXTRACTED",
+  sentAt: "2026-03-01T12:01:00Z",
+  readFailure: null,
+};
+
 async function insertList(
   database: SqlOnlyDatabase,
   { supplierId, locationId, userId }: { supplierId: string; locationId: string; userId: string },
   contentKind: "PDF" | "STORE_CATALOG",
+  { state, sentAt, readFailure }: ListProgress = readList,
 ): Promise<string> {
   const source =
     contentKind === "PDF"
@@ -15,9 +27,20 @@ async function insertList(
       : { kind: "WEB_PAGE", fileName: null, url: "https://distribuidora-sur.example/catalogo" };
   const { rows } = await database.query<{ id: string }>(
     `insert into supplier_price_lists
-       (supplier_id, location_id, source_kind, file_name, source_url, file_content_kind, file_byte_size, state, uploaded_at, uploaded_by)
-     values ($1, $2, $3, $4, $5, $6, 1000, 'EXTRACTED', '2026-03-01T12:00:00Z', $7) returning id`,
-    [supplierId, locationId, source.kind, source.fileName, source.url, contentKind, userId],
+       (supplier_id, location_id, source_kind, file_name, source_url, file_content_kind, file_byte_size, state, uploaded_at, uploaded_by, sent_at, read_failure)
+     values ($1, $2, $3, $4, $5, $6, 1000, $7, '2026-03-01T12:00:00Z', $8, $9, $10) returning id`,
+    [
+      supplierId,
+      locationId,
+      source.kind,
+      source.fileName,
+      source.url,
+      contentKind,
+      state,
+      userId,
+      sentAt,
+      readFailure,
+    ],
   );
   return rows[0]?.id as string;
 }
@@ -48,7 +71,7 @@ async function recordedFromStart(database: SqlOnlyDatabase, listId: string) {
 describe("the AI calls of supplier price lists migration applied over a database that already holds lists", {
   timeout: 30_000,
 }, () => {
-  it("marks every list that already existed as not having its AI calls recorded from the start", async () => {
+  it("marks every list already sent to be read as not having its AI calls recorded from the start", async () => {
     const { database, seed } = await databaseHoldingLists();
     const pdfListId = await insertList(database, seed, "PDF");
     const storeCatalogListId = await insertList(database, seed, "STORE_CATALOG");
@@ -57,6 +80,25 @@ describe("the AI calls of supplier price lists migration applied over a database
 
     expect(await recordedFromStart(migrated, pdfListId)).toBe(false);
     expect(await recordedFromStart(migrated, storeCatalogListId)).toBe(false);
+  });
+
+  it("keeps a list that existed but was never sent to be read as having its AI calls recorded from the start", async () => {
+    const { database, seed } = await databaseHoldingLists();
+    const waitingListId = await insertList(database, seed, "PDF", {
+      state: "READING",
+      sentAt: null,
+      readFailure: null,
+    });
+    const failedBeforeSendingListId = await insertList(database, seed, "PDF", {
+      state: "READ_FAILED",
+      sentAt: null,
+      readFailure: "reading_unavailable",
+    });
+
+    const migrated = await database.applyMigration();
+
+    expect(await recordedFromStart(migrated, waitingListId)).toBe(true);
+    expect(await recordedFromStart(migrated, failedBeforeSendingListId)).toBe(true);
   });
 
   it("marks a list added after it as having its AI calls recorded from the start", async () => {
