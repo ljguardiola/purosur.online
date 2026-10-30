@@ -32,8 +32,7 @@ async function buildBackoffice(outDir: string): Promise<void> {
   );
 }
 
-// The build and the cloud's start end on their own, so the setup waits for them however long the
-// machine takes.
+// The build and the cloud's start end on their own, so the setup sets no timeout of its own.
 beforeAll(async () => {
   staticDir = mkdtempSync(join(tmpdir(), "purosur-served-backoffice-"));
   await buildBackoffice(staticDir);

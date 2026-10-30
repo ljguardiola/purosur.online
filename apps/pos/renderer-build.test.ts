@@ -7,8 +7,7 @@ const POS_ROOT = fileURLToPath(new URL(".", import.meta.url));
 
 let chunks: Rollup.OutputChunk[];
 
-// The build ends on its own, succeeding or failing, so the setup waits for it however long the
-// machine takes to build.
+// The build ends on its own, succeeding or failing, so the setup sets no timeout of its own.
 beforeAll(async () => {
   const { config } = await resolveConfig(
     { root: POS_ROOT, configFile: `${POS_ROOT}electron.vite.config.ts`, logLevel: "silent" },

@@ -9,8 +9,7 @@ const BRANDS_LIST_PAGE = `${BACKOFFICE_ROOT}src/catalog/brands-list-page.tsx`;
 
 let chunks: Map<string, Rolldown.OutputChunk>;
 
-// The build ends on its own, succeeding or failing, so the setup waits for it however long the
-// machine takes to build.
+// The build ends on its own, succeeding or failing, so the setup sets no timeout of its own.
 beforeAll(async () => {
   const output = (await build({
     root: BACKOFFICE_ROOT,

@@ -15,6 +15,6 @@ export declare class HeldRunReporter implements Reporter {
   onTestRunStart: NonNullable<Reporter["onTestRunStart"]>;
   onTestModuleQueued: NonNullable<Reporter["onTestModuleQueued"]>;
   onTestCaseResult: NonNullable<Reporter["onTestCaseResult"]>;
-  onTestModuleEnd:NonNullable<Reporter["onTestModuleEnd"]>;
+  onTestModuleEnd: NonNullable<Reporter["onTestModuleEnd"]>;
   onTestRunEnd: NonNullable<Reporter["onTestRunEnd"]>;
 }

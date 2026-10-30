@@ -42,8 +42,8 @@ function filesUnder(dir: string): string[] {
     .map((entry) => join(entry.parentPath, entry.name));
 }
 
-// A build ends on its own, succeeding or failing, so every test that reads one waits for it
-// however long the machine takes to build.
+// A build ends on its own, succeeding or failing, so no test that reads one sets a timeout of its
+// own.
 function build(overrides: Record<string, string>): string {
   const outDir = mkdtempSync(join(tmpdir(), "purosur-pos-build-"));
   outputDirs.push(outDir);
@@ -324,7 +324,7 @@ describe("classNamesIn", () => {
   });
 });
 
-// The scan ends on its own, so the test waits for it however long the machine takes to scan.
+// The scan ends on its own, so the test sets no timeout of its own.
 describe("scanCandidates and classNamesIn end to end", { timeout: 0 }, () => {
   it("scans, compiles, minifies and matches classes the same way the real guard does", async () => {
     const fixtureDir = mkdtempSync(join(tmpdir(), "purosur-pos-class-scan-"));
