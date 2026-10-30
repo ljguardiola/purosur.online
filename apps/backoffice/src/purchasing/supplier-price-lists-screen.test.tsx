@@ -418,7 +418,13 @@ test("reading an unconfirmed list again says it is being updated and reads the l
 
   await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
 
-  await expect.element(screen.getByText("Se está leyendo la página de nuevo.")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se está leyendo la página de nuevo. Mientras tanto, la lista se puede revisar.",
+      ),
+    )
+    .toBeVisible();
   expect(screen.getByText("Lista cargada").query()).toBeNull();
   await expect
     .element(rowOf(screen, "Distribuidora del Sur").getByText("Actualizando la lista"))
