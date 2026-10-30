@@ -389,6 +389,19 @@ describe("cancelSale with a QR charge", () => {
     expect(store.state.outbox).toEqual([cancelledEvent()]);
   });
 
+  it("answers that it is unavailable while the outbox is not ready, keeping the sale open", () => {
+    const store = ledger({
+      outboxReady: false,
+      pendingMercadoPagoPayments: [pendingQrEndingAt(new Date(NOW.getTime() - 1))],
+    });
+    const before = structuredClone(store.state);
+
+    expect(cancel(store)).toEqual({ kind: "unavailable" });
+    expect(store.state).toEqual(before);
+  });
+});
+
+describe("cancelSale with Mercado Pago charges that all ended unpaid", () => {
   it("keeps the sale, cancelled now, when its Mercado Pago charges all ended unpaid, so they stay known", () => {
     const ended = [
       { id: "point-1", saleId: "sale-1" },
@@ -407,16 +420,5 @@ describe("cancelSale with a QR charge", () => {
 
     expect(cancel(store)).toEqual({ kind: "cancelled" });
     expect(store.state.sales).toEqual([]);
-  });
-
-  it("answers that it is unavailable while the outbox is not ready, keeping the sale open", () => {
-    const store = ledger({
-      outboxReady: false,
-      pendingMercadoPagoPayments: [pendingQrEndingAt(new Date(NOW.getTime() - 1))],
-    });
-    const before = structuredClone(store.state);
-
-    expect(cancel(store)).toEqual({ kind: "unavailable" });
-    expect(store.state).toEqual(before);
   });
 });
