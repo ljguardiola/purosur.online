@@ -268,14 +268,14 @@ describe("finding the sale to return", () => {
         amount: 5500,
         refunded_amount: 0,
         remaining: 5500,
-        eligible: false,
-        ineligible_reason: "not_cash",
+        eligible: true,
+        ineligible_reason: null,
       },
     ]);
   });
 
   it.each(["DEBIT", "CREDIT"] as const)(
-    "answers the %s card type of a Point payment, listed as not refundable from the register",
+    "answers the %s card type of a Point payment, which can be chosen for a refund",
     async (cardType) => {
       database
         .prepare(
@@ -292,8 +292,8 @@ describe("finding the sale to return", () => {
       ).toMatchObject({
         method: "POINT",
         card_type: cardType,
-        eligible: false,
-        ineligible_reason: "not_cash",
+        eligible: true,
+        ineligible_reason: null,
       });
     },
   );
@@ -656,6 +656,13 @@ describe("completing a return", () => {
       kind: "refund_refused",
       refusal: { kind: "total_mismatch", refundable_total: 5000, imputed: 4000 },
     });
+  });
+
+  it("refuses a refund above what a payment that is not cash has left, saying how much is left", async () => {
+    database
+      .prepare("UPDATE payment_transactions SET amount = 4000 WHERE id = 'pay-transfer'")
+      .run();
+
     expect(
       await completeReturnFor(
         deps(),
@@ -663,8 +670,43 @@ describe("completing a return", () => {
       ),
     ).toEqual({
       kind: "refund_refused",
-      refusal: { kind: "not_cash", payment_id: "pay-transfer" },
+      refusal: { kind: "exceeds_payment", payment_id: "pay-transfer", remaining: 4000 },
     });
+  });
+
+  it("completes a return refunded to a payment that is not cash, pending, taking no cash from the drawer", async () => {
+    const outcome = await completeReturnFor(
+      deps(),
+      completion({ refunds: [{ paymentId: "pay-transfer", amount: 5000 }] }),
+    );
+
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      refunded_total: 5000,
+      refunds: [{ payment_id: "pay-transfer", method: "TRANSFER", amount: 5000, state: "PENDING" }],
+    });
+    expect(
+      database
+        .prepare("SELECT payment_id, method, amount, state FROM payment_refunds ORDER BY id")
+        .all(),
+    ).toEqual([{ payment_id: "pay-transfer", method: "TRANSFER", amount: 5000, state: "PENDING" }]);
+    expect(count("cash_movements WHERE type = 'REFUND'")).toBe(0);
+  });
+
+  it("takes from the drawer only the cash part of a refund split with a payment that is not cash", async () => {
+    await completeReturnFor(
+      deps(),
+      completion({
+        refunds: [
+          { paymentId: "pay-cash", amount: 3000 },
+          { paymentId: "pay-transfer", amount: 2000 },
+        ],
+      }),
+    );
+
+    expect(
+      database.prepare("SELECT amount FROM cash_movements WHERE type = 'REFUND'").all(),
+    ).toEqual([{ amount: 3000 }]);
   });
 
   it("is unavailable while the register has no outbox chain key, changing nothing", async () => {
@@ -749,7 +791,7 @@ describe("the credit note of a completed return", () => {
     expect(calls).toMatchObject([
       {
         pointOfSale: 12,
-        saleEvent: { event_type: "sale_returned", schema_version: 2 },
+        saleEvent: { event_type: "sale_returned", schema_version: 3 },
         invoice: { voucher: { number: 41 }, buyerTaxStatusCode: expect.any(Number) },
       },
     ]);
