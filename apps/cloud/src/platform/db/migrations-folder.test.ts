@@ -5,8 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-// Node exits on its own once the module is imported, so the test waits for it however long the
-// machine takes to load the module.
+// Node exits on its own once the module is imported, so the test sets no timeout of its own.
 describe("the built migrations folder", { timeout: 0 }, () => {
   let checkoutParent: string | undefined;
 

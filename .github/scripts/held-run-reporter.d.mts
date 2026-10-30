@@ -13,6 +13,8 @@ export declare class HeldRunReporter implements Reporter {
   trackExecutedFiles(sequencer: TestSequencerConstructor): TestSequencerConstructor;
   onInit: NonNullable<Reporter["onInit"]>;
   onTestRunStart: NonNullable<Reporter["onTestRunStart"]>;
+  onTestModuleQueued: NonNullable<Reporter["onTestModuleQueued"]>;
+  onTestCaseResult: NonNullable<Reporter["onTestCaseResult"]>;
   onTestModuleEnd: NonNullable<Reporter["onTestModuleEnd"]>;
   onTestRunEnd: NonNullable<Reporter["onTestRunEnd"]>;
 }

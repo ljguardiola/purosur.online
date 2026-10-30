@@ -19,8 +19,7 @@ afterAll(() => {
   rmSync(outDir, { recursive: true, force: true });
 });
 
-// The build ends on its own, succeeding or failing, so the test waits for it however long the
-// machine takes to build.
+// The build ends on its own, succeeding or failing, so the test sets no timeout of its own.
 test("the catalog builds from the workspace packages' source, without their compiled output", async () => {
   await promisify(execFile)(
     process.execPath,

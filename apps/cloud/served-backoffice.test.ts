@@ -32,8 +32,7 @@ async function buildBackoffice(outDir: string): Promise<void> {
   );
 }
 
-// The build and the cloud's start end on their own, so the setup waits for them however long the
-// machine takes.
+// The build and the cloud's start end on their own, so the setup sets no timeout of its own.
 beforeAll(async () => {
   staticDir = mkdtempSync(join(tmpdir(), "purosur-served-backoffice-"));
   await buildBackoffice(staticDir);
@@ -56,7 +55,7 @@ afterAll(async () => {
 
 // Every screen the router ends on, the sign-in screen and the failure screen alike, renders a
 // heading; a policy violation, an uncaught page error and a failed script or stylesheet download
-// each end the wait too, so the test waits for whichever comes first however long it takes.
+// each end the wait too, so the test sets no timeout of its own.
 test("the built backoffice runs under the cloud's content security policy without a violation", {
   timeout: 0,
 }, async () => {

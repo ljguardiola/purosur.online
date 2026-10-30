@@ -29,6 +29,14 @@ function finishedModule(project, file, state = "passed") {
   return { moduleId: `${ROOT}/${file}`, project: { name: project }, state: () => state };
 }
 
+function startedModule(project, file) {
+  return { moduleId: `${ROOT}/${file}`, project: { name: project } };
+}
+
+function finishedTest(project, file) {
+  return { project: { name: project }, module: startedModule(project, file) };
+}
+
 class OrderPreservingSequencer {
   constructor(ctx) {
     this.ctx = ctx;
@@ -134,20 +142,6 @@ test("leaves a run that ends within the grace period to end by itself", async (t
   assert.deepEqual(lines, []);
 });
 
-test("never ends a run while one of its files has not reported", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
-  const { reporter, exits } = await startedReporter(fakeVitest(), [
-    spec("node", "a.test.ts"),
-    spec("browser", "b.test.tsx"),
-  ]);
-
-  reporter.onTestModuleEnd(finishedModule("node", "a.test.ts"));
-  t.mock.timers.tick(10 * STALL_MS);
-  await settle();
-
-  assert.deepEqual(exits, []);
-});
-
 test("names the browser pages still open when it ends a held run", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
   const { reporter, lines } = await startedReporter(
@@ -223,7 +217,142 @@ test("waits only on the files this shard runs when the run starts with every sha
   assert.deepEqual(exits, [0]);
 });
 
-test("names only this shard's files when one of its projects stalls", async (t) => {
+test("ends the run with a failure when a running file finishes no test within the stall period", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits } = await startedReporter(fakeVitest(), [spec("browser", "b.test.tsx")]);
+
+  reporter.onTestModuleQueued(startedModule("browser", "b.test.tsx"));
+  reporter.onTestCaseResult(finishedTest("browser", "b.test.tsx"));
+  t.mock.timers.tick(STALL_MS - 1);
+  await settle();
+  assert.deepEqual(exits, []);
+
+  t.mock.timers.tick(1);
+  await settle();
+  assert.deepEqual(exits, [1]);
+});
+
+test("ends the run when a file hangs before its first test finishes", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits, lines } = await startedReporter(fakeVitest(), [
+    spec("node", "a.test.ts"),
+    spec("node", "b.test.ts"),
+  ]);
+
+  t.mock.timers.tick(STALL_MS / 2);
+  reporter.onTestModuleQueued(startedModule("node", "a.test.ts"));
+  t.mock.timers.tick(STALL_MS - 1);
+  await settle();
+  assert.deepEqual(exits, []);
+
+  t.mock.timers.tick(1);
+  await settle();
+  assert.deepEqual(exits, [1]);
+  assert.match(
+    lines.join("\n"),
+    /no "node" test finished in the last 300s while one of its files ran/,
+  );
+});
+
+test("never ends a file whose tests keep finishing, however long the file takes", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits, lines } = await startedReporter(fakeVitest(), [
+    spec("browser", "slow.test.tsx"),
+  ]);
+
+  reporter.onTestModuleQueued(startedModule("browser", "slow.test.tsx"));
+  for (let i = 0; i < 10; i++) {
+    t.mock.timers.tick(STALL_MS - 1);
+    reporter.onTestCaseResult(finishedTest("browser", "slow.test.tsx"));
+  }
+  await settle();
+
+  assert.deepEqual(exits, []);
+  assert.deepEqual(lines, []);
+});
+
+test("never ends a project whose files only wait for a worker while others keep finishing tests", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits, lines } = await startedReporter(fakeVitest(), [
+    spec("node", "a.test.ts"),
+    spec("browser", "waiting.test.tsx"),
+  ]);
+
+  reporter.onTestModuleQueued(startedModule("node", "a.test.ts"));
+  for (let i = 0; i < 10; i++) {
+    t.mock.timers.tick(STALL_MS - 1);
+    reporter.onTestCaseResult(finishedTest("node", "a.test.ts"));
+  }
+  await settle();
+
+  assert.deepEqual(exits, []);
+  assert.deepEqual(lines, []);
+});
+
+test("ends the run when one project's running file stalls while another project keeps finishing tests", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits } = await startedReporter(fakeVitest(), [
+    spec("node", "a.test.ts"),
+    spec("browser", "stuck.test.tsx"),
+  ]);
+
+  reporter.onTestModuleQueued(startedModule("node", "a.test.ts"));
+  reporter.onTestModuleQueued(startedModule("browser", "stuck.test.tsx"));
+  for (let i = 0; i < 3; i++) {
+    t.mock.timers.tick(STALL_MS / 3);
+    reporter.onTestCaseResult(finishedTest("node", "a.test.ts"));
+  }
+  await settle();
+
+  assert.deepEqual(exits, [1]);
+});
+
+test("ends the run when nothing in it progresses within the stall period while a file never started", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits, lines } = await startedReporter(
+    fakeVitest({ openPages: { browser: ["s1"] } }),
+    [spec("node", "a.test.ts"), spec("browser", "never-started.test.tsx")],
+  );
+
+  reporter.onTestModuleQueued(startedModule("node", "a.test.ts"));
+  reporter.onTestModuleEnd(finishedModule("node", "a.test.ts"));
+  t.mock.timers.tick(STALL_MS - 1);
+  await settle();
+  assert.deepEqual(exits, []);
+
+  t.mock.timers.tick(1);
+  await settle();
+  assert.deepEqual(exits, [1]);
+  assert.deepEqual(lines, [
+    "held-run: no test finished and no test file started in the last 300s",
+    'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
+      '"browser" has 1 browser page open: s1',
+    "held-run: ending with a failure (1 files reported, 1 still to report)",
+  ]);
+});
+
+test("names each file still to report and the browser pages still open when it ends a stalled run", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const files = Array.from({ length: 12 }, (_, i) => `f${String(i).padStart(2, "0")}.test.tsx`);
+  const { reporter, lines } = await startedReporter(
+    fakeVitest({ openPages: { browser: ["s1", "s2"] } }),
+    [spec("node", "a.test.ts"), ...files.map((file) => spec("browser", file))],
+  );
+
+  reporter.onTestModuleQueued(startedModule("browser", "f00.test.tsx"));
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.deepEqual(lines, [
+    'held-run: no "browser" test finished in the last 300s while one of its files ran',
+    'held-run: 1 "node" file still to report: a.test.ts',
+    `held-run: 12 "browser" files still to report: ${files.join(", ")}; ` +
+      '"browser" has 2 browser pages open: s1, s2',
+    "held-run: ending with a failure (0 files reported, 13 still to report)",
+  ]);
+});
+
+test("names only this shard's files when it ends a stalled run", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
   const { lines } = await startedReporter(
     fakeVitest(),
@@ -234,50 +363,42 @@ test("names only this shard's files when one of its projects stalls", async (t) 
   t.mock.timers.tick(STALL_MS);
   await settle();
 
-  assert.deepEqual(lines, [
-    'held-run: no "node" test file finished in the last 300s; 1 still to report: a.test.ts',
-  ]);
+  assert.match(lines.join("\n"), /held-run: 1 "node" file still to report: a\.test\.ts\n/);
+  assert.doesNotMatch(lines.join("\n"), /b\.test\.ts|c\.test\.tsx/);
 });
 
-test("names a project none of whose remaining files finished within the stall period", async (t) => {
+test("gives every other reporter the failed end of a stalled run before ending it", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
-  const { reporter, lines } = await startedReporter(
-    fakeVitest({ openPages: { browser: ["s1"] } }),
-    [
-      spec("node", "a.test.ts"),
-      spec("node", "b.test.ts"),
-      spec("node", "c.test.ts"),
-      spec("browser", "x.test.tsx"),
-      spec("browser", "y.test.tsx"),
-    ],
+  const calls = [];
+  const order = [];
+  const vitest = fakeVitest({ reporters: [endingReporter("default", calls)] });
+  const { reporter } = await startedReporter(
+    vitest,
+    [spec("node", "a.test.ts"), spec("node", "b.test.ts")],
+    { exit: (code) => order.push({ code, calls: calls.length }) },
   );
 
-  t.mock.timers.tick(STALL_MS / 2);
+  reporter.onTestModuleQueued(startedModule("node", "a.test.ts"));
   reporter.onTestModuleEnd(finishedModule("node", "a.test.ts"));
-  t.mock.timers.tick(STALL_MS / 2);
-  reporter.onTestModuleEnd(finishedModule("node", "b.test.ts"));
+  reporter.onTestModuleQueued(startedModule("node", "b.test.ts"));
   t.mock.timers.tick(STALL_MS);
   await settle();
 
-  assert.deepEqual(lines, [
-    'held-run: no "browser" test file finished in the last 300s; 2 still to report: ' +
-      'x.test.tsx, y.test.tsx; "browser" has 1 browser page open: s1',
+  assert.deepEqual(calls, [
+    { name: "default", files: [`${ROOT}/a.test.ts`], errors: [], state: "failed" },
   ]);
+  assert.deepEqual(order, [{ code: 1, calls: 1 }]);
 });
 
-test("names at most ten of a stalled project's remaining files", async (t) => {
+test("ends a stalled run only once", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
-  const files = Array.from({ length: 12 }, (_, i) => `f${String(i).padStart(2, "0")}.test.ts`);
-  const { lines } = await startedReporter(
-    fakeVitest(),
-    files.map((file) => spec("node", file)),
-  );
+  const { reporter, exits } = await startedReporter(fakeVitest(), [spec("node", "a.test.ts")]);
 
-  t.mock.timers.tick(STALL_MS);
+  reporter.onTestModuleQueued(startedModule("node", "a.test.ts"));
+  t.mock.timers.tick(10 * STALL_MS);
   await settle();
 
-  assert.equal(lines.length, 1);
-  assert.match(lines[0], /12 still to report: f00\.test\.ts, .*f09\.test\.ts and 2 more$/);
+  assert.deepEqual(exits, [1]);
 });
 
 test("arms nothing in watch mode", async (t) => {
@@ -291,6 +412,35 @@ test("arms nothing in watch mode", async (t) => {
   t.mock.timers.tick(10 * STALL_MS);
   reporter.onTestModuleEnd(finishedModule("node", "b.test.ts"));
   t.mock.timers.tick(GRACE_MS);
+  await settle();
+
+  assert.deepEqual(exits, []);
+  assert.deepEqual(lines, []);
+});
+
+test("arms nothing when a test finishes in watch mode", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits, lines } = await startedReporter(fakeVitest({ watch: true }), [
+    spec("node", "a.test.ts"),
+  ]);
+
+  reporter.onTestCaseResult(finishedTest("node", "a.test.ts"));
+  t.mock.timers.tick(10 * STALL_MS);
+  await settle();
+
+  assert.deepEqual(exits, []);
+  assert.deepEqual(lines, []);
+});
+
+test("arms nothing when a test finishes after the run ended", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits, lines } = await startedReporter(fakeVitest(), [
+    spec("node", "a.test.ts"),
+  ]);
+
+  reporter.onTestRunEnd();
+  reporter.onTestCaseResult(finishedTest("node", "a.test.ts"));
+  t.mock.timers.tick(10 * STALL_MS);
   await settle();
 
   assert.deepEqual(exits, []);

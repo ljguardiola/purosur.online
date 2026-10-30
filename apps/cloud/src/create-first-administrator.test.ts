@@ -49,8 +49,8 @@ describe("parseCreateFirstAdministratorArgs", () => {
   });
 });
 
-// The command's process ends on its own once it refuses what it was given, so each test waits
-// for it to exit however long the machine takes to load the command.
+// The command's process ends on its own once it refuses what it was given, so each test sets
+// no timeout of its own.
 describe("the create-first-administrator command", { timeout: 0 }, () => {
   const ENTRYPOINT = join(inject("cloudBuildDir"), "create-first-administrator.js");
 

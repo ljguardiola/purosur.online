@@ -22,7 +22,7 @@ const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-const heldRunReporter = new HeldRunReporter({ graceMs: 60_000, stallMs: 5 * 60_000 });
+const heldRunReporter = new HeldRunReporter({ graceMs: 60_000, stallMs: 3 * 60_000 });
 
 process.env["TZ"] = "UTC";
 
