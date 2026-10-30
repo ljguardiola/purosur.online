@@ -114,7 +114,7 @@ describe("completing a return in the register", () => {
   it("keeps the return and its lines, with who authorized it and how the ticket was read", async () => {
     const outcome = await returnYerba({ authorizedBy: "u2" });
 
-    expect(outcome).toMatchObject({ kind: "completed", refundedTotal: 5000 });
+    expect(outcome).toMatchObject({ kind: "completed", refundedInCash: 5000 });
     expect(
       database
         .prepare(

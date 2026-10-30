@@ -102,7 +102,7 @@ describe("ReturnScreen completing the return", () => {
       completeReturn: async () => ({
         kind: "completed",
         return_id: "return-1",
-        refunded_total: 970_000,
+        refunded_in_cash: 500_000,
         refunds: [
           {
             payment_id: "pay-cash",
@@ -129,10 +129,28 @@ describe("ReturnScreen completing the return", () => {
     await expect.element(screen.getByText("$ 5.000,00", { exact: true }).first()).toBeVisible();
     await expect.element(screen.getByText("Transferencia · $ 4.700,00")).toBeVisible();
     await expect
-      .element(
-        screen.getByText("Queda un reembolso pendiente: una persona lo hace por fuera de la caja."),
-      )
+      .element(screen.getByText("Lo hace una persona por fuera de la caja."))
       .toBeVisible();
+  });
+
+  it("hands over the cash the core answers for the return", async () => {
+    const { screen } = await renderScreen({
+      completeReturn: async () => ({
+        kind: "completed",
+        return_id: "return-1",
+        refunded_in_cash: 300_000,
+        refunds: [],
+        authorized_by: null,
+      }),
+    });
+    await decideOnePasta(screen);
+
+    await complete(screen);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Entregá el dinero al cliente" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("$ 3.000,00", { exact: true })).toBeVisible();
   });
 
   it("refuses an amount typed badly in the payment, saying so on it", async () => {

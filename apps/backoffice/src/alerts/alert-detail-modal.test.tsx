@@ -1909,7 +1909,7 @@ test("tells a refund owed for a second paid order of a sale's Point payment that
   await expect.element(screen.getByText(/ORD01SECOND/)).toBeVisible();
 });
 
-test("explains the refund of a cancelled sale left pending to the branch, closing once its refund is done or discarded", async () => {
+test("explains a refund left pending to the branch, closing once its refund is done or discarded", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
@@ -1939,7 +1939,7 @@ test("explains the refund of a cancelled sale left pending to the branch, closin
   await expect
     .element(
       screen.getByText(
-        "Hay un reembolso de una venta anulada o cancelada que todavía no se completó.",
+        "Hay un reembolso de una venta anulada o cancelada, o de una devolución, que todavía no se completó.",
         { exact: true },
       ),
     )

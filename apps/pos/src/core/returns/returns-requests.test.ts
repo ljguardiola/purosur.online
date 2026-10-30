@@ -546,7 +546,7 @@ describe("completing a return", () => {
     expect(outcome).toEqual({
       kind: "completed",
       return_id: "id-1",
-      refunded_total: 5000,
+      refunded_in_cash: 5000,
       refunds: [
         {
           payment_id: "pay-cash",
@@ -690,7 +690,7 @@ describe("completing a return", () => {
 
     expect(outcome).toMatchObject({
       kind: "completed",
-      refunded_total: 5000,
+      refunded_in_cash: 0,
       refunds: [
         {
           payment_id: "pay-transfer",
@@ -821,7 +821,7 @@ describe("the credit note of a completed return", () => {
 
     const outcome = await completeReturnFor(deps(extra), completion());
 
-    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 5000 });
+    expect(outcome).toMatchObject({ kind: "completed", refunded_in_cash: 5000 });
     expect(steps).toEqual(["cloud"]);
     expect(calls).toMatchObject([
       {
@@ -981,7 +981,7 @@ describe("returning a sale another register rang up", () => {
     expect(outcome).toEqual({
       kind: "completed",
       return_id: "id-1",
-      refunded_total: 2500,
+      refunded_in_cash: 2500,
       refunds: [
         {
           payment_id: "pay-elsewhere",
@@ -1055,7 +1055,7 @@ describe("returning a sale another register rang up", () => {
       COMPLETION,
     );
 
-    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 2500 });
+    expect(outcome).toMatchObject({ kind: "completed", refunded_in_cash: 2500 });
     expect(calls).toMatchObject([
       { invoice: { voucher: { pointOfSale: 7, number: 501 }, buyerTaxStatusCode: 5 } },
     ]);
@@ -1080,7 +1080,7 @@ describe("returning a sale another register rang up", () => {
 
     const outcome = await completeReturnFor(deps(), COMPLETION);
 
-    expect(outcome).toMatchObject({ kind: "completed", refunded_total: 2500 });
+    expect(outcome).toMatchObject({ kind: "completed", refunded_in_cash: 2500 });
     expect(storedNotes()).toEqual([
       {
         sale_id: "sale-elsewhere",

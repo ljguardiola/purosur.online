@@ -74,7 +74,7 @@ describe("HandOverRefundModal", () => {
   it("lists no pending refund when everything goes back in cash", async () => {
     const { screen } = await renderModal();
 
-    await expect.element(screen.getByText("Pendiente")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("REEMBOLSOS PENDIENTES")).not.toBeInTheDocument();
   });
 
   it("shows only the cash part to hand over, and lists each refund that stays pending with who makes it", async () => {
@@ -84,28 +84,27 @@ describe("HandOverRefundModal", () => {
       .element(screen.getByRole("heading", { name: "Entregá el dinero al cliente" }))
       .toBeVisible();
     await expect.element(screen.getByText("$ 6.000,00", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("REEMBOLSOS PENDIENTES")).toBeVisible();
     await expect.element(screen.getByText("QR de Mercado Pago · $ 7.935,00")).toBeVisible();
-    await expect
-      .element(
-        screen.getByText(
-          "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
-        ),
-      )
-      .toBeVisible();
+    await expect.element(screen.getByText("La nube lo envía a Mercado Pago.")).toBeVisible();
     await expect.element(screen.getByText("Transferencia · $ 6.000,00")).toBeVisible();
     await expect
-      .element(
-        screen.getByText("Queda un reembolso pendiente: una persona lo hace por fuera de la caja."),
-      )
+      .element(screen.getByText("Lo hace una persona por fuera de la caja."))
       .toBeVisible();
-    await expect.element(screen.getByText("Pendiente").first()).toBeVisible();
+  });
+
+  it("says once that the refunds stay pending", async () => {
+    const { screen } = await renderModal(0, [PENDING_QR, PENDING_TRANSFER]);
+
+    await expect.element(screen.getByText("REEMBOLSOS PENDIENTES")).toBeVisible();
+    expect(screen.getByText(/pendiente/i).elements()).toHaveLength(1);
   });
 
   it("says nothing about cash when the whole refund stays pending", async () => {
     const { screen } = await renderModal(0, [PENDING_TRANSFER]);
 
     await expect
-      .element(screen.getByRole("heading", { name: "El reintegro queda pendiente" }))
+      .element(screen.getByRole("heading", { name: "El dinero vuelve por cada medio de pago" }))
       .toBeVisible();
     await expect.element(screen.getByText("DEVOLVÉ EN EFECTIVO")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Entregá el dinero al cliente")).not.toBeInTheDocument();

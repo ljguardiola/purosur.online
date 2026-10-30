@@ -81,7 +81,7 @@ export async function renderScreen(overrides: Overrides = {}) {
       async (): Promise<CompleteReturnOutcome> => ({
         kind: "completed",
         return_id: "return-1",
-        refunded_total: 970_000,
+        refunded_in_cash: 970_000,
         refunds: [
           {
             payment_id: "pay-cash",

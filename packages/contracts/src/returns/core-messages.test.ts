@@ -439,7 +439,7 @@ describe("the answer to completing a return", () => {
   const completed = {
     kind: "completed",
     return_id: "return-1",
-    refunded_total: 7000,
+    refunded_in_cash: 7000,
     refunds: [
       {
         payment_id: "pay-cash",
@@ -455,9 +455,10 @@ describe("the answer to completing a return", () => {
   it.each([
     completed,
     { ...completed, authorized_by: null },
-    { ...completed, refunds: [], refunded_total: 0 },
+    { ...completed, refunds: [], refunded_in_cash: 0 },
     {
       ...completed,
+      refunded_in_cash: 0,
       refunds: [
         {
           payment_id: "pay-transfer",
@@ -483,9 +484,10 @@ describe("the answer to completing a return", () => {
   });
 
   it.each([
-    { kind: "completed", refunded_total: 7000 },
+    { kind: "completed", refunded_in_cash: 7000 },
     { ...completed, authorized_by: undefined },
-    { ...completed, refunded_total: 10.5 },
+    { ...completed, refunded_in_cash: undefined },
+    { ...completed, refunded_in_cash: 10.5 },
     { ...completed, refunds: [{ ...completed.refunds[0], method: "CARD" }] },
     {
       ...completed,

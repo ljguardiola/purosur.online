@@ -1098,7 +1098,7 @@ test("describes a refund alert for a late payment by its kind when the cloud giv
     .toBeVisible();
 });
 
-test("summarizes the refund of a cancelled sale left pending by its method and amount, under its title and what to do", async () => {
+test("summarizes a refund left pending by its method and amount, under its title and what to do", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
     ok([
@@ -1122,7 +1122,7 @@ test("summarizes the refund of a cancelled sale left pending by its method and a
   await expect
     .element(
       row.getByText(
-        "Hay un reembolso de una venta anulada o cancelada que todavía no se completó. Si es de un pago con QR o Point, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
+        "Hay un reembolso de una venta anulada o cancelada, o de una devolución, que todavía no se completó. Si es de un pago con QR o Point, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
@@ -1133,7 +1133,7 @@ test("summarizes the refund of a cancelled sale left pending by its method and a
   expect(row.getByText(/3f2b8c1e/).query()).toBeNull();
 });
 
-test("summarizes a closed alert of a refund left pending as the refund of a cancelled sale, without telling to do it", async () => {
+test("summarizes a closed alert of a refund left pending as the refund of a voiding or a return, without telling to do it", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
     ok([
@@ -1154,7 +1154,7 @@ test("summarizes a closed alert of a refund left pending as the refund of a canc
 
   const row = screen.getByRole("row", { name: /Reembolso pendiente de confirmar/ });
   await expect
-    .element(row.getByText("Reembolso de una venta anulada", { exact: true }))
+    .element(row.getByText("Reembolso de una anulación o devolución", { exact: true }))
     .toBeVisible();
   expect(row.getByText(/todavía no/).query()).toBeNull();
   expect(row.getByText(/cuanto antes/).query()).toBeNull();
