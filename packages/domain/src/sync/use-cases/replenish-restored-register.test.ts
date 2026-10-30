@@ -1268,7 +1268,7 @@ describe("replenishRestoredRegister", () => {
 
     it("is not counted for a credit note still held to request", async () => {
       const { feed, store, run } = aRegisterReplenishingAVoidedSale();
-      feed.answers = [aPage([VOIDED], null, [CREDIT_NOTE.creditNoteId])];
+      feed.answers = [aPage([VOIDED], null, [], [], [CREDIT_NOTE.creditNoteId])];
 
       await run();
 
