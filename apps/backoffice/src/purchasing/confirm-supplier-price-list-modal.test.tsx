@@ -167,6 +167,7 @@ test("asks for the date when the cloud says the list has none", async () => {
 test.each([
   [{ kind: "unpriced_rows" }, "Hay ítems sin precio"],
   [{ kind: "no_rows" }, "La lista no tiene ítems"],
+  [{ kind: "rereading" }, "La lista se está actualizando"],
   [{ kind: "failed" }, "No se confirmó la lista"],
 ] as const)("tells %j", async (outcome, title) => {
   const confirmSupplierPriceList = vi

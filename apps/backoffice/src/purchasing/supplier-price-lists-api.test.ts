@@ -326,6 +326,24 @@ describe("refreshSupplierPriceList", () => {
     });
   });
 
+  test("returns reread_started when the cloud reads the page again into the same list", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(202, { listId: "list-1" }));
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual({ kind: "reread_started" });
+  });
+
+  test("returns failed when the accepted answer does not name a list", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(202, {}));
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual({ kind: "failed" });
+  });
+
+  test("returns already_reading when the list is already being read again", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "already_reading" }));
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual({ kind: "already_reading" });
+  });
+
   test.each<[number, object, object]>([
     [404, { code: "not_found" }, { kind: "not_found" }],
     [404, { code: "supplier_not_found" }, { kind: "supplier_not_found" }],
@@ -479,6 +497,7 @@ describe("confirmSupplierPriceList refusals", () => {
     ["unpriced_rows", { kind: "unpriced_rows" }],
     ["list_date_missing", { kind: "list_date_missing" }],
     ["vat_missing", { kind: "vat_missing" }],
+    ["rereading", { kind: "rereading" }],
   ])("answers a 409 with the code %s as %j", async (code, outcome) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
 

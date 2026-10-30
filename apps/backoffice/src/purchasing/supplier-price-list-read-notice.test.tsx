@@ -23,6 +23,18 @@ test.each([
   ],
   [{ kind: "supplierNotFound" }, "error", "Este proveedor ya no existe", "Elegí otro proveedor."],
   [
+    { kind: "rereadStarted" },
+    "success",
+    "Actualizando la lista",
+    "Se está leyendo la página de nuevo. Mientras tanto, la lista se puede revisar.",
+  ],
+  [
+    { kind: "alreadyReading" },
+    "warning",
+    "La lista ya se está actualizando",
+    "Cuando termine, se ven los cambios.",
+  ],
+  [
     { kind: "refreshedSupplierInactive" },
     "error",
     "Este proveedor está desactivado",

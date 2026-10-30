@@ -22,6 +22,8 @@ import {
   WEB_FAILED_LIST,
   WEB_LIST,
   WEB_READING_LIST,
+  WEB_REREAD_FAILED_LIST,
+  WEB_REREADING_LIST,
 } from "./test-support/supplier-price-lists";
 
 beforeEach(() => {
@@ -403,6 +405,83 @@ test("refreshes another list while the page of the first is being loaded", async
   expect(services.refreshSupplierPriceList).toHaveBeenCalledWith(WEB_FAILED_LIST.id);
   await expect.element(screen.getByText("Lista cargada")).toBeVisible();
   first.resolve({ kind: "ok" });
+});
+
+test("reading an unconfirmed list again says it is being updated and reads the lists again", async () => {
+  const services = createServices();
+  vi.mocked(services.refreshSupplierPriceList).mockResolvedValue({ kind: "reread_started" });
+  const screen = await loaded(services, [WEB_LIST]);
+  vi.mocked(services.fetchSupplierPriceLists).mockResolvedValue({
+    kind: "ok",
+    value: [{ ...WEB_LIST, rereading: true }],
+  });
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+
+  await expect.element(screen.getByText("Se está leyendo la página de nuevo.")).toBeVisible();
+  expect(screen.getByText("Lista cargada").query()).toBeNull();
+  await expect
+    .element(rowOf(screen, "Distribuidora del Sur").getByText("Actualizando la lista"))
+    .toBeVisible();
+});
+
+test("says the list is already being updated and reads the lists again", async () => {
+  const services = createServices();
+  vi.mocked(services.refreshSupplierPriceList).mockResolvedValue({ kind: "already_reading" });
+  const screen = await loaded(services, [WEB_LIST]);
+  vi.mocked(services.fetchSupplierPriceLists).mockResolvedValue({
+    kind: "ok",
+    value: [{ ...WEB_LIST, rereading: true }],
+  });
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+
+  await expect.element(screen.getByText("La lista ya se está actualizando")).toBeVisible();
+  await expect
+    .element(rowOf(screen, "Distribuidora del Sur").getByText("Actualizando la lista"))
+    .toBeVisible();
+});
+
+test("shows a list being read again as updating, with no refresh but still openable", async () => {
+  const onOpenReview = vi.fn();
+  const screen = await loaded(createServices(), [WEB_REREADING_LIST], { onOpenReview });
+  const row = rowOf(screen, "Verdulería Cuyo");
+
+  await expect.element(row.getByText("Actualizando la lista")).toBeVisible();
+  expect(refreshButton(screen, "Verdulería Cuyo").query()).toBeNull();
+  await userEvent.click(row.getByRole("button", { name: "Abrir la lista de Verdulería Cuyo" }));
+  expect(onOpenReview).toHaveBeenCalledWith(WEB_REREADING_LIST.id);
+});
+
+test("says the last update of a list failed and why, keeping the list as it was", async () => {
+  const screen = await loaded(createServices(), [WEB_REREAD_FAILED_LIST]);
+  const row = rowOf(screen, "Mayorista Pampa");
+
+  await expect.element(row.getByText("14 ítems para revisar")).toBeVisible();
+  await expect
+    .element(
+      row.getByText("No se pudo actualizar la lista. No se pudo leer el contenido de la página."),
+    )
+    .toBeVisible();
+  await expect.element(refreshButton(screen, "Mayorista Pampa")).toBeVisible();
+});
+
+test("reads the lists again on its own while one is being read again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSupplierPriceLists)
+    .mockResolvedValueOnce({ kind: "ok", value: [WEB_REREADING_LIST] })
+    .mockResolvedValue({ kind: "ok", value: [{ ...WEB_REREADING_LIST, rereading: false }] });
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Actualizando la lista")).toBeVisible();
+
+    vi.advanceTimersByTime(5_000);
+
+    await expect.element(screen.getByText("14 ítems para revisar")).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("says why the page was refused", async () => {
