@@ -26,14 +26,14 @@ export type SaleVoidCreditNoteRequestBody = z.output<typeof saleVoidCreditNoteRe
 
 export const saleVoidedEventCreditNoteSchema = z.object({
   event_type: z.literal(SALE_VOIDED_EVENT_TYPE),
-  schema_version: z.literal(3),
+  schema_version: z.literal([3, 4]),
   aggregate_id: z.string().min(1),
   payload: z.object({ credit_note: voidCreditNoteSchema }),
 });
 
 export const saleReturnedEventCreditNoteSchema = z.object({
   event_type: z.literal(SALE_RETURNED_EVENT_TYPE),
-  schema_version: z.literal(2),
+  schema_version: z.literal([2, 3]),
   aggregate_id: z.string().min(1),
   payload: z.object({
     id: z.string().min(1),
