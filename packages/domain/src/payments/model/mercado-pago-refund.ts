@@ -2,6 +2,7 @@ import { PAID_ORDER_PAYMENT_STATE } from "./paid-order-discovery.js";
 import { isMercadoPagoMethod } from "./payment.js";
 import {
   LATE_PAYMENT_REFUND_ORIGIN,
+  RETURN_REFUND_ORIGIN,
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "./payment-refund.js";
@@ -12,10 +13,13 @@ export const INSUFFICIENT_BALANCE_REFUSAL = "insufficient_balance";
 
 const PROCESSED_REFUND_STATUS = "processed";
 
+type CorrectionRefundOrigin = typeof SALE_VOIDED_REFUND_ORIGIN | typeof RETURN_REFUND_ORIGIN;
+
 export function isRefundSentByCloud(refund: { method: string; origin: string }): boolean {
   if (
     refund.origin === SALE_VOIDED_REFUND_ORIGIN ||
-    refund.origin === SALE_CANCELLED_REFUND_ORIGIN
+    refund.origin === SALE_CANCELLED_REFUND_ORIGIN ||
+    refund.origin === RETURN_REFUND_ORIGIN
   ) {
     return isMercadoPagoMethod(refund.method);
   }
@@ -31,8 +35,8 @@ export function isRefundInCloudHands(refund: {
   return isRefundSentByCloud(refund) && isAwaitingMercadoPago(refund);
 }
 
-export interface RecordedRefundOfVoidedSale {
-  origin: typeof SALE_VOIDED_REFUND_ORIGIN;
+export interface RecordedRefundOfCorrection {
+  origin: CorrectionRefundOrigin;
   paymentTransactionId: string | null;
   confirmedBy: string | null;
   confirmedAt: Date | null;
@@ -49,21 +53,26 @@ export function isRefundRefusedForGood(refund: {
   );
 }
 
-export function recordedRefundOfVoidedSale<Refund extends { paymentId: string; method: string }>(
+export function recordedRefundOfCorrection<Refund extends { paymentId: string; method: string }>(
   refund: Refund,
-  voiding: { actorId: string; voidedAt: Date },
-): Refund & RecordedRefundOfVoidedSale {
-  const sentByCloud = isRefundSentByCloud({
-    method: refund.method,
-    origin: SALE_VOIDED_REFUND_ORIGIN,
-  });
+  origin: CorrectionRefundOrigin,
+  completion: { actorId: string; at: Date },
+): Refund & RecordedRefundOfCorrection {
+  const sentByCloud = isRefundSentByCloud({ method: refund.method, origin });
   return {
     ...refund,
-    origin: SALE_VOIDED_REFUND_ORIGIN,
+    origin,
     paymentTransactionId: sentByCloud ? refund.paymentId : null,
-    confirmedBy: sentByCloud ? voiding.actorId : null,
-    confirmedAt: sentByCloud ? voiding.voidedAt : null,
+    confirmedBy: sentByCloud ? completion.actorId : null,
+    confirmedAt: sentByCloud ? completion.at : null,
   };
+}
+
+export function partialAmountOfOrderRefund(refund: {
+  origin: string;
+  amount: number;
+}): number | null {
+  return refund.origin === RETURN_REFUND_ORIGIN ? refund.amount : null;
 }
 
 export function refundIsBackedByItsCorrection(

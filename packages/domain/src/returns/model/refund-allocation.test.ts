@@ -38,7 +38,9 @@ describe("returnablePayments", () => {
   it.each(["TRANSFER", "QR", "POINT", "STANDALONE_TERMINAL"] as const)(
     "offers a %s payment with what it still has left to give back",
     (method) => {
-      expect(returnablePayments([payment({ method, provider: "X", refundedAmount: 1000 })])).toEqual([
+      expect(
+        returnablePayments([payment({ method, provider: "X", refundedAmount: 1000 })]),
+      ).toEqual([
         {
           paymentId: "pay-1",
           method,

@@ -473,7 +473,9 @@ describe("completeReturn", () => {
         const store = ledger({
           sales: [
             aSaleForReturn({
-              payments: [{ ...TRANSFER_PAYMENT, id: "pay-other", method, provider, amount: 15_000 }],
+              payments: [
+                { ...TRANSFER_PAYMENT, id: "pay-other", method, provider, amount: 15_000 },
+              ],
             }),
           ],
         });
