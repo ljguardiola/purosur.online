@@ -1,21 +1,31 @@
-import type { AiCostBody, AiCostByPeriodBody } from "@purosur/contracts";
+import type { AiCostByPeriodBody, SupplierPriceListAiCostBody } from "@purosur/contracts";
 
-export const LIST_AI_COST: AiCostBody = {
+export const LIST_AI_COST: SupplierPriceListAiCostBody = {
   reading: { costNanoUsd: 1_234_567_800, unpricedCalls: 0 },
   proposals: { costNanoUsd: 250_000_000, unpricedCalls: 0 },
   total: { costNanoUsd: 1_484_567_800, unpricedCalls: 0 },
+  recordedFromStart: true,
 };
 
-export const INCOMPLETE_LIST_AI_COST: AiCostBody = {
+export const INCOMPLETE_LIST_AI_COST: SupplierPriceListAiCostBody = {
   reading: { costNanoUsd: 1_234_567_800, unpricedCalls: 0 },
   proposals: { costNanoUsd: 250_000_000, unpricedCalls: 2 },
   total: { costNanoUsd: 1_484_567_800, unpricedCalls: 2 },
+  recordedFromStart: true,
 };
 
-export const SINGLE_UNPRICED_LIST_AI_COST: AiCostBody = {
+export const SINGLE_UNPRICED_LIST_AI_COST: SupplierPriceListAiCostBody = {
   reading: { costNanoUsd: 0, unpricedCalls: 1 },
   proposals: { costNanoUsd: 0, unpricedCalls: 0 },
   total: { costNanoUsd: 0, unpricedCalls: 1 },
+  recordedFromStart: true,
+};
+
+export const EARLY_LIST_AI_COST: SupplierPriceListAiCostBody = {
+  reading: { costNanoUsd: 0, unpricedCalls: 0 },
+  proposals: { costNanoUsd: 250_000_000, unpricedCalls: 0 },
+  total: { costNanoUsd: 250_000_000, unpricedCalls: 0 },
+  recordedFromStart: false,
 };
 
 const ANDINA_GROUP: AiCostByPeriodBody["groups"][number] = {

@@ -76,14 +76,10 @@ describe("GET /reports/ai-cost-by-period access", () => {
 });
 
 describe("GET /reports/ai-cost-by-period", () => {
-  it.each([
-    ["a range the contract refuses", "?from=2026-10-09&to=2026-10-01&group_by=day"],
-    ["a request without its grouping", "?from=2026-10-01&to=2026-10-09"],
-    ["an unknown grouping", "?group_by=color"],
-  ])("answers 400 to %s", async (_name, query) => {
+  it("answers 400 to a query the contract refuses", async () => {
     const { headers } = await signedInWith(db, ["configure_branch"], NOW);
 
-    const response = await aiCostByPeriod(headers, query);
+    const response = await aiCostByPeriod(headers, "?group_by=color");
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });

@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { supplierPriceLists } from "../platform/db/schema.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -29,6 +31,8 @@ beforeEach(async () => {
   supplierId = await insertSupplier(db, { actorId });
 });
 
+const reader = () => new DrizzleSupplierPriceListAiCostReader(db);
+
 describe("DrizzleSupplierPriceListAiCostReader.callsOfList", () => {
   it("answers the purpose and cost of each call recorded for the list, a cut short one and an unpriced one included", async () => {
     const listId = await insertPriceList(db, { supplierId, locationId, actorId });
@@ -37,23 +41,19 @@ describe("DrizzleSupplierPriceListAiCostReader.callsOfList", () => {
     await insertAiCall(db, { ...seed, outcome: "cut_short", costNanoUsd: 1_500_000 });
     await insertAiCall(db, { ...seed, purpose: "LINK_PROPOSAL", costNanoUsd: null });
 
-    const calls = await new DrizzleSupplierPriceListAiCostReader(db).callsOfList({
-      locationId,
-      listId,
-    });
+    const list = await reader().callsOfList(listId);
 
-    expect(calls).toHaveLength(3);
-    expect(calls).toContainEqual({ purpose: "READING", costNanoUsd: 4_000_000 });
-    expect(calls).toContainEqual({ purpose: "READING", costNanoUsd: 1_500_000 });
-    expect(calls).toContainEqual({ purpose: "LINK_PROPOSAL", costNanoUsd: null });
+    expect(list?.recordedFromStart).toBe(true);
+    expect(list?.calls).toHaveLength(3);
+    expect(list?.calls).toContainEqual({ purpose: "READING", costNanoUsd: 4_000_000 });
+    expect(list?.calls).toContainEqual({ purpose: "READING", costNanoUsd: 1_500_000 });
+    expect(list?.calls).toContainEqual({ purpose: "LINK_PROPOSAL", costNanoUsd: null });
   });
 
   it("answers no calls for a list nothing was recorded for", async () => {
     const listId = await insertPriceList(db, { supplierId, locationId, actorId });
 
-    expect(
-      await new DrizzleSupplierPriceListAiCostReader(db).callsOfList({ locationId, listId }),
-    ).toEqual([]);
+    expect(await reader().callsOfList(listId)).toEqual({ recordedFromStart: true, calls: [] });
   });
 
   it("answers the calls of the list asked for and no other", async () => {
@@ -61,21 +61,24 @@ describe("DrizzleSupplierPriceListAiCostReader.callsOfList", () => {
     const otherListId = await insertPriceList(db, { supplierId, locationId, actorId });
     await insertAiCall(db, { listId: otherListId, supplierId, locationId, actorId });
 
-    expect(
-      await new DrizzleSupplierPriceListAiCostReader(db).callsOfList({ locationId, listId }),
-    ).toEqual([]);
+    expect(await reader().callsOfList(listId)).toEqual({ recordedFromStart: true, calls: [] });
+  });
+
+  it("says when the list's AI use began before its calls were recorded", async () => {
+    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    await db
+      .update(supplierPriceLists)
+      .set({ aiCallsRecordedFromStart: false })
+      .where(eq(supplierPriceLists.id, listId));
+
+    expect(await reader().callsOfList(listId)).toEqual({ recordedFromStart: false, calls: [] });
   });
 
   it("answers undefined for a list that does not exist", async () => {
-    expect(
-      await new DrizzleSupplierPriceListAiCostReader(db).callsOfList({
-        locationId,
-        listId: "00000000-0000-4000-8000-000000000000",
-      }),
-    ).toBeUndefined();
+    expect(await reader().callsOfList("00000000-0000-4000-8000-000000000000")).toBeUndefined();
   });
 
-  it("answers undefined for a list of another branch, without its calls", async () => {
+  it("answers the calls of a list of any branch", async () => {
     const otherLocationId = await insertLocation(db);
     const listId = await insertPriceList(db, {
       supplierId,
@@ -84,8 +87,9 @@ describe("DrizzleSupplierPriceListAiCostReader.callsOfList", () => {
     });
     await insertAiCall(db, { listId, supplierId, locationId: otherLocationId, actorId });
 
-    expect(
-      await new DrizzleSupplierPriceListAiCostReader(db).callsOfList({ locationId, listId }),
-    ).toBeUndefined();
+    expect(await reader().callsOfList(listId)).toEqual({
+      recordedFromStart: true,
+      calls: [{ purpose: "READING", costNanoUsd: 4_000_000 }],
+    });
   });
 });

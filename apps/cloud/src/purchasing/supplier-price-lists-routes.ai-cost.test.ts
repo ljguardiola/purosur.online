@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { supplierPriceLists } from "../platform/db/schema.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -7,6 +9,7 @@ import {
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
 import { insertAiCall } from "./test-support/ai-call-fixtures.js";
 import { extractedListWithRow } from "./test-support/extracted-list-fixtures.js";
@@ -86,7 +89,21 @@ describe("GET /supplier-price-lists/:id/ai-cost", () => {
       reading: { costNanoUsd: 4_000_000, unpricedCalls: 0 },
       proposals: { costNanoUsd: 1_000_000, unpricedCalls: 1 },
       total: { costNanoUsd: 5_000_000, unpricedCalls: 1 },
+      recordedFromStart: true,
     });
+  });
+
+  it("says when the list's AI use began before its calls were recorded", async () => {
+    const { headers } = await signedInWith(db, ["configure_branch"], NOW);
+    const { listId } = await extractedListWithRow(db);
+    await db
+      .update(supplierPriceLists)
+      .set({ aiCallsRecordedFromStart: false })
+      .where(eq(supplierPriceLists.id, listId));
+
+    const response = await aiCost(headers, listId);
+
+    expect(response.json()).toMatchObject({ recordedFromStart: false });
   });
 
   it("answers 404 for a list that does not exist", async () => {
@@ -98,14 +115,17 @@ describe("GET /supplier-price-lists/:id/ai-cost", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
-  it("answers 404 for a list of another branch", async () => {
+  it("answers the cost of a list of another branch, as its review does", async () => {
     const { headers } = await signedInWith(db, ["configure_branch"], NOW, {
       locationId: await insertLocation(db),
     });
-    const { listId } = await extractedListWithRow(db);
+    const { listId, supplierId, actorId } = await extractedListWithRow(db);
+    const locationId = await seededLocationId(db);
+    await insertAiCall(db, { listId, supplierId, locationId, actorId, costNanoUsd: 4_000_000 });
 
     const response = await aiCost(headers, listId);
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ total: { costNanoUsd: 4_000_000, unpricedCalls: 0 } });
   });
 });

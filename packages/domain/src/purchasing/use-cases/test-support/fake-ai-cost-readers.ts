@@ -1,24 +1,24 @@
-import type { PricedAiCall, RecordedAiCall } from "../../model/ai-cost-report.js";
+import type { RecordedAiCall } from "../../model/ai-cost-report.js";
 import type { AiCostReportQuery, AiCostReportReader } from "../ai-cost-report-reader.js";
 import type {
-  SupplierPriceListAiCostQuery,
+  SupplierPriceListAiCalls,
   SupplierPriceListAiCostReader,
 } from "../supplier-price-list-ai-cost-reader.js";
 
 export class FakeSupplierPriceListAiCostReader implements SupplierPriceListAiCostReader {
-  readonly reads: SupplierPriceListAiCostQuery[] = [];
-  private readonly lists: ReadonlyMap<string, { locationId: string; calls: PricedAiCall[] }>;
+  readonly reads: string[] = [];
+  private readonly lists: ReadonlyMap<string, SupplierPriceListAiCalls>;
 
-  constructor(lists: Record<string, { locationId: string; calls: PricedAiCall[] }> = {}) {
+  constructor(lists: Record<string, SupplierPriceListAiCalls> = {}) {
     this.lists = new Map(Object.entries(lists));
   }
 
-  async callsOfList(query: SupplierPriceListAiCostQuery): Promise<PricedAiCall[] | undefined> {
-    this.reads.push({ ...query });
-    const list = this.lists.get(query.listId);
-    return list?.locationId === query.locationId
-      ? list.calls.map((call) => ({ ...call }))
-      : undefined;
+  async callsOfList(listId: string): Promise<SupplierPriceListAiCalls | undefined> {
+    this.reads.push(listId);
+    const list = this.lists.get(listId);
+    return list === undefined
+      ? undefined
+      : { ...list, calls: list.calls.map((call) => ({ ...call })) };
   }
 }
 

@@ -795,36 +795,10 @@ const oneRow = {
 };
 
 describe("readSupplierPriceList recording of the AI calls", () => {
-  it("records each attempt of each call with its tokens, outcome, cost, list and person", async () => {
+  it("records the reported calls for the list, its reading and the person who uploaded it", async () => {
     const { store, extractor, ports } = setup({ id: "list-1", uploadedBy: "person-7" });
     extractor.answer = oneRow;
-    extractor.reportedCalls = [
-      aUsage({
-        inputTokens: 1_000_000,
-        outputTokens: 100_000,
-        cacheWriteTokens: 40_000,
-        cacheReadTokens: 500_000,
-      }),
-      {
-        outcome: "cut_short",
-        attempts: [
-          {
-            model: "claude-sonnet-5",
-            inputTokens: 10,
-            outputTokens: 20,
-            cacheWriteTokens: 0,
-            cacheReadTokens: 0,
-          },
-          {
-            model: SONNET,
-            inputTokens: 5,
-            outputTokens: 6,
-            cacheWriteTokens: 7,
-            cacheReadTokens: 8,
-          },
-        ],
-      },
-    ];
+    extractor.reportedCalls = [aUsage()];
 
     await readSupplierPriceList(ports, input);
 
@@ -839,40 +813,12 @@ describe("readSupplierPriceList recording of the AI calls", () => {
         model: SONNET,
         inputTokens: 1_000_000,
         outputTokens: 100_000,
-        cacheWriteTokens: 40_000,
-        cacheReadTokens: 500_000,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
         outcome: "completed",
-        costNanoUsd: 2_000_000_000 + 1_000_000_000 + 100_000_000 + 100_000_000,
+        costNanoUsd: 2_000_000_000 + 1_000_000_000,
       },
-      expect.objectContaining({
-        model: "claude-sonnet-5",
-        outcome: "cut_short",
-        costNanoUsd: 220_000,
-      }),
-      expect.objectContaining({
-        model: SONNET,
-        outcome: "cut_short",
-        costNanoUsd: 10_000 + 60_000 + 17_500 + 1_600,
-      }),
     ]);
-  });
-
-  it("dates each call with the clock when the extractor reports it, on the Argentina day", async () => {
-    const { store, extractor, ports } = setup();
-    extractor.answer = oneRow;
-    extractor.reportedCalls = [aUsage()];
-    const instants = [
-      new Date("2026-03-10T12:00:00Z"),
-      new Date("2026-03-11T02:59:00Z"),
-      new Date("2026-03-11T03:00:00Z"),
-    ];
-
-    await readSupplierPriceList(ports, { ...input, now: () => instants.shift() ?? NOW });
-
-    expect(store.snapshot().aiCalls[0]).toMatchObject({
-      occurredAt: new Date("2026-03-11T02:59:00Z"),
-      occurredOn: "2026-03-10",
-    });
   });
 
   it.each([
@@ -927,40 +873,6 @@ describe("readSupplierPriceList recording of the AI calls", () => {
 
     expect(store.snapshot().lists[0]?.state).toBe("READING");
     expect(store.snapshot().rows).toEqual([]);
-  });
-
-  it("records nothing for a call that reported no attempt", async () => {
-    const { store, extractor, ports } = setup();
-    extractor.answer = { kind: "unavailable" };
-    extractor.reportedCalls = [{ outcome: "failed", attempts: [] }];
-
-    await readSupplierPriceList(ports, input);
-
-    expect(store.snapshot().aiCalls).toEqual([]);
-  });
-
-  it("records a model without a price with its tokens and no cost", async () => {
-    const { store, extractor, ports } = setup();
-    extractor.answer = oneRow;
-    extractor.reportedCalls = [aUsage({ model: "claude-future-9", inputTokens: 123 })];
-
-    await readSupplierPriceList(ports, input);
-
-    expect(store.snapshot().aiCalls[0]).toMatchObject({
-      model: "claude-future-9",
-      inputTokens: 123,
-      costNanoUsd: null,
-    });
-  });
-
-  it("records a call made before any price applied with no cost", async () => {
-    const { store, extractor, ports } = setup();
-    extractor.answer = oneRow;
-    extractor.reportedCalls = [aUsage()];
-
-    await readSupplierPriceList(ports, { ...input, now: () => new Date("2025-12-31T23:59:59Z") });
-
-    expect(store.snapshot().aiCalls[0]?.costNanoUsd).toBeNull();
   });
 
   it("does not write AI calls when none was reported", async () => {

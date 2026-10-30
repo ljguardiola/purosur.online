@@ -927,6 +927,17 @@ describe("linking and reviewing a row", () => {
   });
 });
 
+function constraintViolatedBy(error: unknown, name: string): boolean {
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ((current as { constraint?: unknown }).constraint === name) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
+}
+
 describe("recording the AI calls of an operation", () => {
   const record = (overrides: Partial<AiCallRecord> & { listId: string }): AiCallRecord => ({
     purpose: "READING",
@@ -1011,12 +1022,27 @@ describe("recording the AI calls of an operation", () => {
     ).rejects.toThrow();
   });
 
-  it("refuses a negative token count", async () => {
+  it.each([
+    ["an unknown purpose", { purpose: "SUMMARY" }, "supplier_price_list_ai_calls_purpose_check"],
+    ["an unknown outcome", { outcome: "timed_out" }, "supplier_price_list_ai_calls_outcome_check"],
+    [
+      "a reading made for a row",
+      { purpose: "READING", rowId: "00000000-0000-4000-8000-000000000001" },
+      "supplier_price_list_ai_calls_purpose_row_check",
+    ],
+    ["a negative token count", { inputTokens: -1 }, "supplier_price_list_ai_calls_tokens_check"],
+    ["a negative cost", { costNanoUsd: -1 }, "supplier_price_list_ai_calls_cost_check"],
+  ] as const)("refuses %s", async (_name, overrides, constraint) => {
     const listId = await insertPriceList(db, { supplierId, locationId, actorId });
 
     await expect(
-      store().transaction((tx) => tx.recordAiCalls([record({ listId, inputTokens: -1 })])),
-    ).rejects.toThrow();
+      db.insert(supplierPriceListAiCalls).values({
+        ...record({ listId }),
+        supplierId,
+        locationId,
+        ...overrides,
+      }),
+    ).rejects.toSatisfy((error) => constraintViolatedBy(error, constraint));
   });
 
   it("writes no record when its transaction fails after recording", async () => {

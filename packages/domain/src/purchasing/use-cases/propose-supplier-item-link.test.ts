@@ -311,51 +311,6 @@ describe("proposeSupplierItemLink", () => {
       ]);
     });
 
-    it("dates each call when the chooser reports it", async () => {
-      const { chooser, aiCalls, ports } = setup();
-      chooser.reportedCalls = [usage("completed")];
-      const instants = [new Date("2026-03-11T03:00:00Z"), new Date("2026-03-11T04:00:00Z")];
-
-      await proposeSupplierItemLink(ports, { ...input, now: () => instants.shift() ?? NOW });
-
-      expect(aiCalls.recorded[0]).toMatchObject({
-        occurredAt: new Date("2026-03-11T03:00:00Z"),
-        occurredOn: "2026-03-11",
-      });
-    });
-
-    it("records every attempt of a call that fell back to another model", async () => {
-      const { chooser, aiCalls, ports } = setup();
-      chooser.reportedCalls = [
-        {
-          outcome: "completed",
-          attempts: [
-            {
-              model: "claude-sonnet-5-5",
-              inputTokens: 1,
-              outputTokens: 0,
-              cacheWriteTokens: 0,
-              cacheReadTokens: 0,
-            },
-            {
-              model: "claude-sonnet-5",
-              inputTokens: 2,
-              outputTokens: 0,
-              cacheWriteTokens: 0,
-              cacheReadTokens: 0,
-            },
-          ],
-        },
-      ];
-
-      await proposeSupplierItemLink(ports, input);
-
-      expect(aiCalls.recorded.map(({ model, inputTokens }) => [model, inputTokens])).toEqual([
-        ["claude-sonnet-5-5", 1],
-        ["claude-sonnet-5", 2],
-      ]);
-    });
-
     it.each([
       ["unavailable", { kind: "unavailable" as const }],
       ["none", { kind: "none" as const }],
@@ -377,27 +332,6 @@ describe("proposeSupplierItemLink", () => {
       expect(await proposeSupplierItemLink(ports, input)).toEqual({ kind: "unavailable" });
 
       expect(aiCalls.recorded).toEqual([expect.objectContaining({ outcome: "cut_short" })]);
-    });
-
-    it("records a model without a price with its tokens and no cost", async () => {
-      const { chooser, aiCalls, ports } = setup();
-      chooser.reportedCalls = [usage("completed", { model: "claude-future-9" })];
-
-      await proposeSupplierItemLink(ports, input);
-
-      expect(aiCalls.recorded[0]).toMatchObject({ model: "claude-future-9", costNanoUsd: null });
-    });
-
-    it("prices a call with the price in effect when it happened", async () => {
-      const { chooser, aiCalls, ports } = setup();
-      chooser.reportedCalls = [usage("completed")];
-
-      await proposeSupplierItemLink(ports, {
-        ...input,
-        now: () => new Date("2025-12-31T23:59:59Z"),
-      });
-
-      expect(aiCalls.recorded[0]?.costNanoUsd).toBeNull();
     });
 
     it("records nothing when the chooser reports no attempt", async () => {

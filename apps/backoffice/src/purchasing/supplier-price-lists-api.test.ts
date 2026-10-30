@@ -558,8 +558,11 @@ describe("fetchSupplierPriceListAiCost", () => {
     expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/list-1/ai-cost");
   });
 
-  test("treats a body that does not match the cost's shape as a failed load", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...LIST_AI_COST, total: {} }));
+  test.each([
+    ["a total without its figures", { total: {} }],
+    ["no mark of the calls recorded from the start", { recordedFromStart: undefined }],
+  ])("treats a body with %s as a failed load", async (_name, change) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...LIST_AI_COST, ...change }));
 
     expect(await fetchSupplierPriceListAiCost("list-1")).toEqual({ kind: "failed" });
   });
