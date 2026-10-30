@@ -7,6 +7,7 @@ import type {
   StartupPending,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type {} from "@vitest/browser-playwright";
 import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
