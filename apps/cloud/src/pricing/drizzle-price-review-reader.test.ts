@@ -360,12 +360,14 @@ describe("DrizzlePriceReviewReader", () => {
     expect(ids(await pricesUnderReview({ search: "arr" }))).toEqual([riceId]);
   });
 
-  it("searches by name ignoring accents and case", async () => {
+  it("searches by name ignoring accents and case as the database folds them", async () => {
     const categoryId = await insertCategory("Almacén");
     const breadId = await insertProduct("Smørrebrød Clásico", categoryId);
+    const pepperId = await insertProduct("Kırmızı Biber", categoryId);
     await insertProduct("Arroz Yamaní", categoryId);
 
     expect(ids(await pricesUnderReview({ search: "SMORREBROD clasico" }))).toEqual([breadId]);
+    expect(ids(await pricesUnderReview({ search: "kirmizi" }))).toEqual([pepperId]);
   });
 
   it("searches the product's name followed by its brand's name", async () => {
