@@ -88,8 +88,9 @@ function pullWithRetriesCommand(spec) {
 }
 
 const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual";
-const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run --project='!catalog-visual'";
-const EXPECTED_VERIFY_VISUAL_SCRIPT = "vitest run --project=catalog-visual";
+const EXPECTED_VERIFY_TESTS_SCRIPT =
+  "vitest run --project='!catalog-visual' --project='!catalog-build'";
+const EXPECTED_VERIFY_VISUAL_SCRIPT = "vitest run --project=catalog-visual --project=catalog-build";
 const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "tsc --noEmit",
   "tsc --noEmit -p apps/backoffice",
