@@ -8,6 +8,7 @@ import {
   canManageSupplierPriceLists,
   canManageSuppliers,
   canRecordPurchases,
+  canSeeAiCostReport,
   canSeeReports,
 } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
@@ -15,6 +16,7 @@ import { ordersAreaRoute } from "../shell/orders-area";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
+import { aiCostReportFilters } from "./ai-cost-report-filters";
 import { reportPeriodFilters } from "./report-period-filters";
 import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import {
@@ -126,6 +128,15 @@ export const freightReportRoute = createRoute({
   validateSearch: reportPeriodFilters,
   search: { middlewares: [stripSearchParams(reportPeriodFilters.parse({}))] },
   component: lazyScreen(() => import("./freight-report-page"), "FreightReportPage"),
+});
+
+export const aiCostReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/ai-cost-by-period",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeAiCostReport),
+  validateSearch: aiCostReportFilters,
+  search: { middlewares: [stripSearchParams(aiCostReportFilters.parse({}))] },
+  component: lazyScreen(() => import("./ai-cost-report-page"), "AiCostReportPage"),
 });
 
 export const purchasesReportRoute = createRoute({

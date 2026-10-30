@@ -30,6 +30,10 @@ export function canSeeQuarantinedEvents(access: BackofficeAccess): boolean {
   return grants(access, "quarantined_events");
 }
 
+export function canSeeAiCostReport(access: BackofficeAccess): boolean {
+  return canSeeReports(access) && canSeeBranchArea(access);
+}
+
 export function canSeeBranchArea(access: BackofficeAccess): boolean {
   return grants(access, "branch_area");
 }

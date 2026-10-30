@@ -1,5 +1,7 @@
 import type {
   AiCostBody,
+  AiCostByPeriodBody,
+  AiCostByPeriodQuery,
   BrandSummary,
   CategorySummary,
   FreightByPeriodBody,
@@ -23,6 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchAiCostReport } from "./ai-cost-report-api";
 import type { fetchFreightReport } from "./freight-report-api";
 import type {
   FetchFreightsInput,
@@ -77,6 +80,16 @@ export function purchasesReportKey(query: PurchasesBySupplierQuery) {
 
 export function freightReportKey(query: FreightByPeriodQuery) {
   return [...purchasingKey, "freight-report", query.from ?? "", query.to ?? ""] as const;
+}
+
+export function aiCostReportKey(query: AiCostByPeriodQuery) {
+  return [
+    ...purchasingKey,
+    "ai-cost-report",
+    query.from ?? "",
+    query.to ?? "",
+    query.group_by,
+  ] as const;
 }
 
 const SUPPLIER_PRICE_LIST_READING_REFRESH_MS = 5_000;
@@ -136,6 +149,21 @@ export function useFreightReportQuery(params: {
     queryKey: freightReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchFreightReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useAiCostReportQuery(params: {
+  query: AiCostByPeriodQuery;
+  fetchAiCostReport: typeof fetchAiCostReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<AiCostByPeriodBody>({
+    queryKey: aiCostReportKey(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchAiCostReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
