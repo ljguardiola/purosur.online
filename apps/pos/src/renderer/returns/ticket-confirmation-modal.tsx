@@ -4,6 +4,7 @@ import {
   formatCents,
   formatDayAndTime,
   formatInvoiceNumber,
+  formatNumber,
   formatPointOfSaleNumber,
   Modal,
   plural,
@@ -26,7 +27,7 @@ function detailRows(
   const lines = sale.lines.length;
   const products: SummaryRowProps = {
     label: "Productos",
-    value: `${lines} ${plural(lines, { one: "línea", other: "líneas" })}`,
+    value: `${formatNumber(lines)} ${plural(lines, { one: "línea", other: "líneas" })}`,
   };
   const [first = products, ...others] = [
     ...(sale.invoice === null

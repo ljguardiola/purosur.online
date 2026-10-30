@@ -36,7 +36,7 @@ type Lot = ExpiringLotsReportBody["lots"][number];
 const NO_LOTS: Lot[] = [];
 
 function lotsText(count: number): string {
-  return plural(count, { one: "1 lote", other: `${count} lotes` });
+  return plural(count, { one: "1 lote", other: `${formatNumber(count)} lotes` });
 }
 
 function windowText(windowDays: number): string {

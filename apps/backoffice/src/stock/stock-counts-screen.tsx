@@ -3,6 +3,7 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
+  formatNumber,
   type ItemOrder,
   ListFilter,
   numericTextOrder,
@@ -61,7 +62,7 @@ function countedWay(count: StockCount): string {
   if (lotCount === null) {
     return "Por producto";
   }
-  return `Por lote · ${plural(lotCount, { one: "1 lote", other: `${lotCount} lotes` })}`;
+  return `Por lote · ${plural(lotCount, { one: "1 lote", other: `${formatNumber(lotCount)} lotes` })}`;
 }
 
 type CountSortColumn = StockCountsFilters["sortBy"];
@@ -341,7 +342,7 @@ export function StockCountsScreen({
               <p className="text-text-subtle text-detail">
                 {plural(matchCount, {
                   one: `1 recuento en los últimos ${days} días`,
-                  other: `${matchCount} recuentos en los últimos ${days} días`,
+                  other: `${formatNumber(matchCount)} recuentos en los últimos ${days} días`,
                 })}
               </p>
             )

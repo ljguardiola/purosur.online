@@ -4,6 +4,7 @@ import {
   dataColumn,
   formatCents,
   formatClockTime,
+  formatNumber,
   ListFilter,
   Pagination,
   plural,
@@ -46,11 +47,11 @@ function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): Tab
 function pageRange(page: number, pageSize: number, total: number): string {
   const sales = plural(total, { one: "venta", other: "ventas" });
   if (total <= pageSize) {
-    return `${total} ${sales}`;
+    return `${formatNumber(total)} ${sales}`;
   }
   const first = (page - 1) * pageSize + 1;
   const last = Math.min(page * pageSize, total);
-  return `${first} a ${last} de ${total} ${sales}`;
+  return `${formatNumber(first)} a ${formatNumber(last)} de ${formatNumber(total)} ${sales}`;
 }
 
 function emptyState(session: SessionFilter, state: StateFilter): EmptyStateProps {

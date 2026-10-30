@@ -183,4 +183,32 @@ describe("ContingencyBackupTicketsNoticeCard", () => {
     expect(borderColors(screen.container)).toHaveLength(3);
     expect(screen.getByRole("button", { name: "Cerrar" }).elements()).toHaveLength(1);
   });
+
+  it("writes the ticket and operation counts with the thousands separator", async () => {
+    const { screen } = await renderCard({
+      to_print: 1500,
+      awaiting_customer_document: 498,
+      missing_key: 1998,
+      discardable: 1998,
+      may_discard: true,
+    });
+
+    await expect
+      .element(
+        screen.getByText(
+          "1.998 tickets de respaldo de contingencia todavía no salieron de la impresora.",
+        ),
+      )
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("La caja no tiene su clave de respaldo para 1.998 operaciones."))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Esta caja sincronizó con la nube todo lo de la contingencia: los 1.998 tickets guardados en la caja del local ya no hacen falta.",
+        ),
+      )
+      .toBeVisible();
+  });
 });

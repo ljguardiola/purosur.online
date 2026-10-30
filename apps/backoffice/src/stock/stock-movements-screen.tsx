@@ -3,6 +3,7 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
+  formatNumber,
   ListFilter,
   plural,
   SearchField,
@@ -293,7 +294,10 @@ export function StockMovementsScreen({
           footer={
             matchCount === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
-                {plural(matchCount, { one: "1 movimiento", other: `${matchCount} movimientos` })}
+                {plural(matchCount, {
+                  one: "1 movimiento",
+                  other: `${formatNumber(matchCount)} movimientos`,
+                })}
               </p>
             )
           }

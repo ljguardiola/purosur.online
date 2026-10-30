@@ -254,3 +254,9 @@ test("shows an inline failure and keeps the modal open when the passkeys could n
   await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
   expect(onRemoved).not.toHaveBeenCalled();
 });
+
+test("counts the passkeys with the thousands separator", async () => {
+  const { dialog } = await renderModal(createServices(), {}, { passkeyCount: 1998 });
+
+  await expect.element(dialog.getByText(/^Sus 1\.998 passkeys dejan de servir/)).toBeVisible();
+});

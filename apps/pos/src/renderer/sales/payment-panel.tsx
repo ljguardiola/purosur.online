@@ -4,6 +4,7 @@ import {
   Button,
   FigureStat,
   formatCents,
+  formatNumber,
   InlineNotice,
   LoadingPlaceholder,
   plural,
@@ -91,7 +92,7 @@ export function PaymentPanel({
       {saleStatus === "loaded" ? (
         <SummaryRowGroup
           rows={[
-            { label: `${lineCount} ${lines}`, value: formatCents(grossSubtotal) },
+            { label: `${formatNumber(lineCount)} ${lines}`, value: formatCents(grossSubtotal) },
             ...(promotionSavings > 0
               ? [
                   {

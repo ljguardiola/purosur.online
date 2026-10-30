@@ -6,6 +6,7 @@ import {
   FigureStat,
   formatCents,
   formatClockTime,
+  formatNumber,
   formatOperationNumber,
   formatShortCode,
   LoadFailure,
@@ -52,7 +53,7 @@ function detailRows(sale: SaleDetail): SummaryRowProps[] {
     { label: "Atendió", value: sale.served_by_first_name },
     {
       label: "Productos",
-      value: `${sale.line_count} ${plural(sale.line_count, { one: "línea", other: "líneas" })}`,
+      value: `${formatNumber(sale.line_count)} ${plural(sale.line_count, { one: "línea", other: "líneas" })}`,
     },
   ];
 }

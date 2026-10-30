@@ -370,3 +370,22 @@ test("shows each product with its brand and net content, and names its lots by t
     .element(screen.getByRole("table", { name: "Lotes de Aceite de Almendras Vitora 30 ml" }))
     .toBeVisible();
 });
+
+test("shows the product counts with the thousands separator", async () => {
+  const report = currentStockReport();
+  const screen = await renderScreen(
+    listed({
+      ...report,
+      summary: {
+        ...report.summary,
+        product_count: 1998,
+        negative_balance_count: 1500,
+        without_cost_count: 1200,
+      },
+    }),
+  );
+
+  await expect.element(screen.getByText("1.998 productos")).toBeVisible();
+  await expect.element(screen.getByText("1.500 productos")).toBeVisible();
+  await expect.element(screen.getByText("1.200 productos")).toBeVisible();
+});

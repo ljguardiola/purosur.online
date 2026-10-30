@@ -1,5 +1,13 @@
 import type { PermissionCatalogWire } from "@purosur/contracts";
-import { actionsColumn, Button, dataColumn, plural, Table, useTableModel } from "@purosur/ui";
+import {
+  actionsColumn,
+  Button,
+  dataColumn,
+  formatNumber,
+  plural,
+  Table,
+  useTableModel,
+} from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -56,7 +64,10 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void, permission
       render: (item: RoleSummary) =>
         item.userCount === 0
           ? "Sin usuarios"
-          : plural(item.userCount, { one: "1 usuario", other: `${item.userCount} usuarios` }),
+          : plural(item.userCount, {
+              one: "1 usuario",
+              other: `${formatNumber(item.userCount)} usuarios`,
+            }),
     }),
     actionsColumn({
       id: "actions",
@@ -136,7 +147,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
         footer={
           roles.length === 0 ? undefined : (
             <p className="text-text-subtle text-detail">
-              {plural(roles.length, { one: "1 rol", other: `${roles.length} roles` })}
+              {plural(roles.length, { one: "1 rol", other: `${formatNumber(roles.length)} roles` })}
             </p>
           )
         }

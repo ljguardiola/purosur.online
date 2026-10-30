@@ -5,6 +5,7 @@ import type { TableLoadingState } from "@purosur/ui";
 import {
   dataColumn,
   formatClockTime,
+  formatNumber,
   ListFilter,
   plural,
   Table,
@@ -206,7 +207,7 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
               <p className="text-text-subtle text-detail">
                 {plural(matchCount, {
                   one: "1 movimiento",
-                  other: `${matchCount} movimientos`,
+                  other: `${formatNumber(matchCount)} movimientos`,
                 })}
               </p>
               <TablePagination table={table} label="Páginas de movimientos" />

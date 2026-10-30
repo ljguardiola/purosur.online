@@ -566,3 +566,23 @@ test("typing in the category filter offers only the matching categories", async 
       .map((option) => option.element().textContent),
   ).toEqual(["Frutos secos"]);
 });
+
+test("shows the product count with the thousands separator for each status filter", async () => {
+  const services = createServices();
+  const manyProducts = Array.from({ length: 1000 }, (_, index) => ({
+    ...honey,
+    id: `90d00000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    name: `Producto ${index}`,
+  }));
+  mockLoaded(services, manyProducts);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1.000 productos activos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
+  await expect.element(screen.getByText("1.000 productos inactivos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Inactivos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await expect.element(screen.getByText("1.000 productos")).toBeVisible();
+});

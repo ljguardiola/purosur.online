@@ -531,3 +531,19 @@ test.each([
     expect(entry.query() !== null).toBe(offered);
   },
 );
+
+test("shows the count total and a count's lot total with the thousands separator", async () => {
+  const manyCounts = Array.from({ length: 1000 }, (_, index) => ({
+    ...almondsCount,
+    id: `count-${index}`,
+    lotCount: 1000,
+  }));
+  const screen = await renderScreen(createServices(manyCounts));
+
+  await expect.element(screen.getByText("1.000 recuentos en los últimos 30 días")).toBeVisible();
+  await expect
+    .element(
+      screen.getByRole("table", { name: "Recuentos" }).getByText("Por lote · 1.000 lotes").first(),
+    )
+    .toBeVisible();
+});

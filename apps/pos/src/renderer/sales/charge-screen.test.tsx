@@ -567,4 +567,15 @@ describe("ChargeScreen", () => {
       await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
     },
   );
+
+  it("counts the lines of the sale with the thousands separator", async () => {
+    const lines = SALE_OF_TWO_LINES.lines.flatMap((line) =>
+      Array.from({ length: 999 }, (_, index) => ({ ...line, id: `${line.id}-${index}` })),
+    );
+    const { screen } = await renderScreen({
+      currentSale: async () => ({ ...SALE_OF_TWO_LINES, lines }),
+    });
+
+    await expect.element(screen.getByText("COBRO · VENTA DE 1.998 LÍNEAS")).toBeVisible();
+  });
 });

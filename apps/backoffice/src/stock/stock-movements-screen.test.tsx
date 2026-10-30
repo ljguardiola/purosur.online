@@ -460,3 +460,15 @@ test.each([
     expect(entry.query() !== null).toBe(offered);
   },
 );
+
+test("shows the movement count with the thousands separator", async () => {
+  const movements = Array.from({ length: 1000 }, (_, index) => ({
+    ...honeyLoss,
+    id: `movement-${index}`,
+  }));
+  const services = createServices(movements);
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("1.000 movimientos")).toBeVisible();
+});

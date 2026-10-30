@@ -425,3 +425,17 @@ test("names the product's lots by its brand and net content", async () => {
     .element(screen.getByRole("table", { name: "Lotes de Aceite de Almendras Vitora 30 ml" }))
     .toBeVisible();
 });
+
+test("writes the footer counts with the thousands separator", async () => {
+  const screen = await renderScreen(
+    listed([almonds], { productCount: 1998, valueCents: 12_400_100, withoutCostCount: 1500 }),
+  );
+
+  await expect
+    .element(
+      screen.getByText(
+        "1.998 productos con movimiento · valorizado $ 124.001,00 · 1.500 sin costo",
+      ),
+    )
+    .toBeVisible();
+});

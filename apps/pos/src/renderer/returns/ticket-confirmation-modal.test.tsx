@@ -85,4 +85,13 @@ describe("TicketConfirmationModal", () => {
 
     await expectNoAccessibilityViolations(document.body);
   });
+
+  it("counts the lines of the sale with the thousands separator", async () => {
+    const lines = SALE.lines.flatMap((line) =>
+      Array.from({ length: 500 }, (_, index) => ({ ...line, id: `${line.id}-${index}` })),
+    );
+    const { screen } = await renderModal({ ...SALE, lines });
+
+    await expect.element(screen.getByText("2.000 líneas")).toBeVisible();
+  });
 });

@@ -16,6 +16,7 @@ import type {
 import type { PointCardType } from "@purosur/domain";
 import {
   formatCents,
+  formatNumber,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -220,7 +221,7 @@ export function ChargeScreen({
         {sale === undefined ? null : (
           <>
             <ScreenHeader
-              eyebrow={`COBRO · VENTA DE ${lineCount} ${lines}`}
+              eyebrow={`COBRO · VENTA DE ${formatNumber(lineCount)} ${lines}`}
               title="Elegí el medio de pago"
             />
             {notice === "cancelled" && step.name === "methods" ? (

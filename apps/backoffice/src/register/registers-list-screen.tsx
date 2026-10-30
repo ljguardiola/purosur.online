@@ -390,7 +390,10 @@ export function RegistersListScreen({
           footer={
             registers.length === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
-                {plural(registers.length, { one: "1 caja", other: `${registers.length} cajas` })}
+                {plural(registers.length, {
+                  one: "1 caja",
+                  other: `${formatNumber(registers.length)} cajas`,
+                })}
               </p>
             )
           }

@@ -1,4 +1,4 @@
-import { Button, Modal, plural } from "@purosur/ui";
+import { Button, formatNumber, Modal, plural } from "@purosur/ui";
 import { ArrowLeft, Check, User, Users } from "lucide-react";
 import type { AssignedUser } from "./roles-api";
 
@@ -61,7 +61,7 @@ export function ConfirmRoleSaveModal({
       <p className="text-center text-body text-text-subtle">
         {`${plural(assignedUsers.length, {
           one: "Se aplica a la 1 persona",
-          other: `Se aplican a las ${assignedUsers.length} personas`,
+          other: `Se aplican a las ${formatNumber(assignedUsers.length)} personas`,
         })} con el rol ${roleName}:`}
       </p>
       <div className="max-h-60 w-full shrink-0 overflow-y-auto rounded-lg border border-border text-left">

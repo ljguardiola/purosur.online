@@ -3,6 +3,7 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
+  formatNumber,
   formatTenthsOfPercent,
   IconButton,
   ListFilter,
@@ -533,7 +534,7 @@ export function PricesListScreen({
                   : loaded
                     ? plural(pendingCount, {
                         one: "Revisar 1",
-                        other: `Revisar los ${pendingCount}`,
+                        other: `Revisar los ${formatNumber(pendingCount)}`,
                       })
                     : "Revisar"}
               </Button>
@@ -592,11 +593,11 @@ export function PricesListScreen({
                 {reviewFilter === "pending"
                   ? plural(products.length, {
                       one: "1 producto sin revisar, del más viejo al más nuevo",
-                      other: `${products.length} productos sin revisar, del más viejo al más nuevo`,
+                      other: `${formatNumber(products.length)} productos sin revisar, del más viejo al más nuevo`,
                     })
                   : plural(products.length, {
                       one: "1 producto",
-                      other: `${products.length} productos`,
+                      other: `${formatNumber(products.length)} productos`,
                     })}
               </p>
             )
