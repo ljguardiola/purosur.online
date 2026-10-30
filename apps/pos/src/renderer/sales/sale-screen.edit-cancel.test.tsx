@@ -425,6 +425,19 @@ describe("SaleScreen cancelling the sale", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 
+  it("tells a sale with no lines left could not be cancelled when the core is unavailable", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => EMPTY_SALE,
+      cancelSale: async () => ({ kind: "unavailable" }),
+    });
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(screen.getByText("No se pudo cancelar la venta")).toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("tells the sale cannot be cancelled, without inviting a retry, when it already has an approved payment", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
