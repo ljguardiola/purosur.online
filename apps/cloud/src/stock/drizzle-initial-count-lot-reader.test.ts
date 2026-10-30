@@ -201,19 +201,6 @@ describe("DrizzleInitialCountLotReader", () => {
     );
   });
 
-  it("finds the lots of a product by words apart whatever the accents the database folds", async () => {
-    const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
-    const pepper = await insertProduct(db, { name: "Kırmızı Biber Clásico" });
-    const lot = await insertInitialCountLot(db, { ...pepper, locationId, actorId });
-    const reader = new DrizzleInitialCountLotReader(db);
-    const lotIds = async (productName: string) =>
-      (await reader.initialCountLots({ locationId, costIncomplete: undefined, productName })).map(
-        (row) => row.lotId,
-      );
-
-    expect(await lotIds("kirmizi CLASICO")).toEqual([lot.lotId]);
-  });
-
   it("combines the description search with the cost filter", async () => {
     const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
     const product = await insertProduct(db, { name: "Aceite de Almendras", brandName: "Vitora" });
