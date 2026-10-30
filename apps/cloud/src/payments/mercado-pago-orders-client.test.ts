@@ -631,6 +631,51 @@ describe("the Mercado Pago orders client", () => {
       });
     });
 
+    it("reads an answer that does not state the order's total paid amount", async () => {
+      const { client } = clientAnswering(
+        answer(200, { ...createdOrder(), total_paid_amount: undefined }),
+      );
+
+      expect(await client.readOrder(ORDER_ID)).toStrictEqual({
+        kind: "read",
+        result: createdResult(),
+      });
+    });
+
+    it("reads a Point order canceled on the terminal as Mercado Pago answers it, with no total paid amount and no payment method", async () => {
+      const { client } = clientAnswering(
+        answer(200, {
+          id: ORDER_ID,
+          type: "point",
+          status: "canceled",
+          status_detail: "canceled",
+          total_paid_amount: null,
+          config: { payment_method: { default_type: "debit_card" } },
+          transactions: {
+            payments: [
+              {
+                status: "canceled",
+                status_detail: "cancel_by_terminal",
+                amount: "1500.00",
+                payment_method: null,
+              },
+            ],
+          },
+        }),
+      );
+
+      expect(await client.readOrder(ORDER_ID)).toStrictEqual({
+        kind: "read",
+        result: {
+          status: "canceled",
+          statusDetail: "canceled",
+          externalReference: null,
+          totalPaidAmount: null,
+          payments: [{ status: "canceled", statusDetail: "cancel_by_terminal", paidAmount: null }],
+        },
+      });
+    });
+
     it("keeps nothing the payment says about the payer or the card", async () => {
       const { client } = clientAnswering(answer(200, paidWithCardOrder()));
 

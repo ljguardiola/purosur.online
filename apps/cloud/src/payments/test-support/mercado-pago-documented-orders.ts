@@ -31,7 +31,7 @@ function documentedOrder(order: DocumentedOrder): Record<string, unknown> {
     processing_mode: "automatic",
     external_reference: ORDER_EXTERNAL_REFERENCE,
     ...(order.channel === "point" ? {} : { total_amount: order.amount }),
-    ...(order.paidAmount === undefined ? {} : { total_paid_amount: order.paidAmount }),
+    total_paid_amount: order.paidAmount ?? null,
     country_code: "ARG",
     user_id: "1234567890",
     status: order.status,
