@@ -3,6 +3,7 @@ import {
   type RestoredCreditNoteAnswer,
   type RestoredUnclearDeferral,
   rebuiltUnclearDeferral,
+  restoredCreditNoteIssuedAt,
 } from "../../fiscal/index.js";
 import { type PrintedDocumentKey, replenishedPrintAttempt } from "../../sales/index.js";
 import {
@@ -73,6 +74,17 @@ async function rebuildUnclearDeferral(
   );
 }
 
+async function holdReplenishedPrintAttempt(
+  tx: RegisterReplenishmentTransaction,
+  key: PrintedDocumentKey,
+  printableSince: Date,
+): Promise<void> {
+  const attempt = replenishedPrintAttempt(printableSince, await tx.printAttemptedAt(key));
+  if (attempt !== null) {
+    await tx.recordPrintAttempt(key, attempt);
+  }
+}
+
 async function applyPage<TFailure>(
   { store }: ReplenishRestoredRegisterPorts<TFailure>,
   {
@@ -112,14 +124,11 @@ async function applyPage<TFailure>(
         continue;
       }
       if (fact.kind === "sale_completed") {
-        const key: PrintedDocumentKey = { document: "sale_receipt", saleId: fact.sale.id };
-        const attempt = replenishedPrintAttempt(
+        await holdReplenishedPrintAttempt(
+          tx,
+          { document: "sale_receipt", saleId: fact.sale.id },
           fact.sale.completedAt,
-          await tx.printAttemptedAt(key),
         );
-        if (attempt !== null) {
-          await tx.recordPrintAttempt(key, attempt);
-        }
       }
       if (
         fact.kind === "fiscal_gate_failed" &&
@@ -142,6 +151,14 @@ async function applyPage<TFailure>(
           continue;
         }
         await tx.recordCreditNoteAnswer(fact.creditNote, answer);
+        const issuedAt = restoredCreditNoteIssuedAt(answer.answer);
+        if (issuedAt !== null) {
+          await holdReplenishedPrintAttempt(
+            tx,
+            { document: "credit_note", saleId: fact.creditNote.saleId, creditNoteId },
+            issuedAt,
+          );
+        }
       }
       await tx.recordEventApplied(event.event_id);
     }
