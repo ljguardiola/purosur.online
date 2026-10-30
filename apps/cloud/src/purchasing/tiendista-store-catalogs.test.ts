@@ -24,14 +24,13 @@ async function rowsOf(entries: unknown[]) {
 }
 
 describe("TiendistaStoreCatalogs", () => {
-  it(`reads every product and presentation of ${FICTIONAL_TIENDISTA_STORE}, sold out ones included, in order`, async () => {
+  it(`reads every product and presentation of ${FICTIONAL_TIENDISTA_STORE} but the sold out ones, in order`, async () => {
     expect(await catalogs.rows(fictionalTiendistaProductDataBytes())).toEqual({
       kind: "read",
       rows: [
         row("Yerba mate suave Don Ernesto", "101", "Unidad", 320000),
         row("Yerba mate suave Don Ernesto", "102", "Pack x 6", 1800000),
         row("Yerba mate suave Don Ernesto", "103", "Pack x 12", 3450000),
-        row("Fideos tirabuzon La Pampita", "104", "Unidad", 125050),
         row("Aceite de girasol Campo Verde", "105", "Botella 900 ml", 289050),
         row("Sal fina", "106", "Paquete 500 g", 70000),
         row("Aceite de oliva extra virgen x500 ml Olivares del Sur", null, "Unidad", 900000),
@@ -81,6 +80,7 @@ describe("TiendistaStoreCatalogs", () => {
         precio: 100,
       })),
       { id: "sin-nombre", precio: 100 },
+      { id: "agotado", nombre: "Producto agotado", precio: 100, agotado: true },
     ];
 
     expect(await rowsOf(entries)).toHaveLength(PRICE_LIST_EXTRACTION_MAX_ROWS);
@@ -99,6 +99,17 @@ describe("TiendistaStoreCatalogs", () => {
         { id: 4, nombre: "Sal fina", precio: 100 },
       ]),
     ).toEqual([row("Sal fina", "4", null, 10000)]);
+  });
+
+  it("skips the products the store marks as sold out", async () => {
+    expect(
+      await rowsOf([
+        { id: 1, nombre: "Trigo burgol", precio: 0, agotado: true },
+        { id: 2, nombre: "Sal fina", precio: 100, agotado: false },
+        { id: 3, nombre: "Arroz largo", precio: "", agotado: true },
+        { id: 4, nombre: "Polenta", precio: 200 },
+      ]),
+    ).toEqual([row("Sal fina", "2", null, 10000), row("Polenta", "4", null, 20000)]);
   });
 
   describe("the description", () => {
