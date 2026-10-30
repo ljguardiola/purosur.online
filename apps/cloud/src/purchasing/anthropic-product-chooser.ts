@@ -1,4 +1,5 @@
 import type {
+  OnAiCall,
   ProductChoice,
   ProductChoiceCandidate,
   ProductChooser,
@@ -33,6 +34,7 @@ export class AnthropicProductChooser implements ProductChooser {
   async choose(
     item: { description: string; presentation: string | null },
     candidates: ProductChoiceCandidate[],
+    onCall: OnAiCall,
   ): Promise<ProductChoice> {
     const answer = await askForStructuredAnswer(this.client, {
       systemPrompt: SYSTEM_PROMPT,
@@ -53,6 +55,7 @@ export class AnthropicProductChooser implements ProductChooser {
       format: choiceFormat,
       maxTokens: MAX_OUTPUT_TOKENS,
       effort: "low",
+      onCall,
     });
     if (answer.kind !== "answered") {
       return { kind: "unavailable" };

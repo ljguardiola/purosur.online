@@ -41,6 +41,7 @@ import {
   type BackofficeAccess,
   canManageProductsAndCategories,
   canManagePurchasePackagings,
+  canSeeBranchArea,
 } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ConfirmSupplierPriceListModal } from "./confirm-supplier-price-list-modal";
@@ -50,6 +51,7 @@ import { EditSupplierPriceListRowPriceModal } from "./edit-supplier-price-list-r
 import { LinkSupplierItemModal } from "./link-supplier-item-modal";
 import { useRefreshPurchasing, useSupplierPriceListReviewQuery } from "./purchasing-queries";
 import { RemoveSupplierPriceListRowModal } from "./remove-supplier-price-list-row-modal";
+import { SupplierPriceListAiCost } from "./supplier-price-list-ai-cost";
 import type { SupplierPriceListReviewScreenServices } from "./supplier-price-list-review-services";
 import {
   RowItemCell,
@@ -383,6 +385,13 @@ export function SupplierPriceListReviewScreen({
             icon={<TriangleAlert />}
             title={status.label}
             {...(status.reason === undefined ? {} : { description: status.reason })}
+          />
+        ) : null}
+        {list !== null && canSeeBranchArea(access) ? (
+          <SupplierPriceListAiCost
+            listId={list.id}
+            services={services}
+            onSessionEnded={onSessionEnded}
           />
         ) : null}
         {data.status === "loaded" && data.value.kind === "not_found" ? (

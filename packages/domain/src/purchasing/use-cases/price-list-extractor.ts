@@ -1,3 +1,5 @@
+import type { OnAiCall } from "./ai-call-usage.js";
+
 // What the AI service receives is the source and nothing else: no supplier, branch or person.
 export type PriceListSource =
   | { kind: "pdf"; bytes: Uint8Array }
@@ -25,5 +27,6 @@ export type PriceListExtraction =
   | { kind: "unavailable" };
 
 export interface PriceListExtractor {
-  extract(source: PriceListSource): Promise<PriceListExtraction>;
+  // Reports each call to the AI service as it ends, even when the extraction then throws.
+  extract(source: PriceListSource, onCall: OnAiCall): Promise<PriceListExtraction>;
 }

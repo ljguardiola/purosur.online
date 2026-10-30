@@ -1,3 +1,5 @@
+import { AI_MODEL_PRICES } from "@purosur/domain";
+import type { AiCallUsage } from "@purosur/domain/purchasing/use-cases";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
@@ -8,6 +10,7 @@ import {
 } from "./anthropic-structured-call.js";
 import {
   apiErrorResponse,
+  streamAbortedAfterItsStartResponse,
   streamedAnswerResponse,
   streamedJsonResponse,
   streamInterruptedByErrorResponse,
@@ -39,15 +42,40 @@ function clientAnswering(respond: () => Response | Promise<Response>) {
   return { client, requests };
 }
 
-function ask(client: ReturnType<typeof anthropicClient>, signal?: AbortSignal) {
+function ask(
+  client: ReturnType<typeof anthropicClient>,
+  signal?: AbortSignal,
+  onCall: (usage: AiCallUsage) => void = () => {},
+) {
   return askForStructuredAnswer(client, {
     systemPrompt: "Answer with the format given.",
     content: [{ type: "text", text: "Yerba 1 kg" }],
     format: FORMAT,
     maxTokens: 512,
     effort: "low",
+    onCall,
     ...(signal ? { signal } : {}),
   });
+}
+
+async function callsReportedBy(
+  respond: () => Response | Promise<Response>,
+  signal?: AbortSignal,
+): Promise<AiCallUsage[]> {
+  const { client } = clientAnswering(respond);
+  const calls: AiCallUsage[] = [];
+  await ask(client, signal, (usage) => calls.push(usage));
+  return calls;
+}
+
+function attempt(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheWriteTokens = 0,
+  cacheReadTokens = 0,
+) {
+  return { model, inputTokens, outputTokens, cacheWriteTokens, cacheReadTokens };
 }
 
 describe("the request it sends", () => {
@@ -162,4 +190,149 @@ describe("the answer it gives", () => {
 
     expect(await ask(client, controller.signal)).toEqual({ kind: "unavailable" });
   });
+});
+
+describe("the usage it reports", () => {
+  it("reports one completed call with the tokens of the message", async () => {
+    const calls = await callsReportedBy(() =>
+      streamedAnswerResponse({
+        textParts: ['{"answer":"sí"}'],
+        usage: { inputTokens: 100, outputTokens: 30, cacheWriteTokens: 7, cacheReadTokens: 9 },
+      }),
+    );
+
+    expect(calls).toEqual([
+      { outcome: "completed", attempts: [attempt(PURCHASING_AI_MODEL, 100, 30, 7, 9)] },
+    ]);
+  });
+
+  it("counts a token kind the provider did not report as none", async () => {
+    const calls = await callsReportedBy(() => streamedJsonResponse({ answer: "sí" }));
+
+    expect(calls).toEqual([
+      { outcome: "completed", attempts: [attempt(PURCHASING_AI_MODEL, 25, 40, 0, 0)] },
+    ]);
+  });
+
+  it("reports each attempt of the iterations under its own model, a fallback included", async () => {
+    const calls = await callsReportedBy(() =>
+      streamedAnswerResponse({
+        textParts: ['{"answer":"sí"}'],
+        usage: {
+          inputTokens: 999,
+          outputTokens: 999,
+          iterations: [
+            {
+              type: "message",
+              model: null,
+              input_tokens: 100,
+              output_tokens: 5,
+              cache_creation_input_tokens: 0,
+              cache_read_input_tokens: 0,
+            },
+            {
+              type: "fallback_message",
+              model: "claude-sonnet-5",
+              input_tokens: 100,
+              output_tokens: 30,
+              cache_creation_input_tokens: 4,
+              cache_read_input_tokens: 6,
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(calls).toEqual([
+      {
+        outcome: "completed",
+        attempts: [attempt(PURCHASING_AI_MODEL, 100, 5), attempt("claude-sonnet-5", 100, 30, 4, 6)],
+      },
+    ]);
+  });
+
+  it("reports an answer cut at the token limit as cut short", async () => {
+    const calls = await callsReportedBy(() =>
+      streamedAnswerResponse({ textParts: ["{"], stopReason: "max_tokens" }),
+    );
+
+    expect(calls).toEqual([
+      { outcome: "cut_short", attempts: [attempt(PURCHASING_AI_MODEL, 25, 40)] },
+    ]);
+  });
+
+  it("reports an answer the model refused as cut short", async () => {
+    const calls = await callsReportedBy(() =>
+      streamedAnswerResponse({ textParts: ["{}"], stopReason: "refusal" }),
+    );
+
+    expect(calls.map(({ outcome }) => outcome)).toEqual(["cut_short"]);
+  });
+
+  it("reports an error that interrupts the stream as cut short with the tokens the stream started with", async () => {
+    const calls = await callsReportedBy(streamInterruptedByErrorResponse);
+
+    expect(calls).toEqual([
+      { outcome: "cut_short", attempts: [attempt(PURCHASING_AI_MODEL, 25, 1)] },
+    ]);
+  });
+
+  it("reports a call the caller aborted mid-stream as cut short with the tokens so far", async () => {
+    const controller = new AbortController();
+    const calls = await callsReportedBy(
+      () => streamAbortedAfterItsStartResponse(controller.signal, () => controller.abort()),
+      controller.signal,
+    );
+
+    expect(calls).toEqual([
+      { outcome: "cut_short", attempts: [attempt(PURCHASING_AI_MODEL, 25, 1)] },
+    ]);
+  });
+
+  it.each([
+    [
+      "a request refused before the model started",
+      () => apiErrorResponse(400, "invalid_request_error"),
+    ],
+    ["a service that is overloaded", () => apiErrorResponse(529, "overloaded_error")],
+  ])("reports %s as failed with no attempt", async (_name, response) => {
+    const calls = await callsReportedBy(response);
+
+    expect(calls).toEqual([{ outcome: "failed", attempts: [] }]);
+  });
+
+  it("reports a request aborted before anything started as failed with no attempt", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const calls = await callsReportedBy(
+      () => streamedJsonResponse({ answer: "sí" }),
+      controller.signal,
+    );
+
+    expect(calls).toEqual([{ outcome: "failed", attempts: [] }]);
+  });
+
+  it("reports a connection that fails as failed with no attempt", async () => {
+    const calls = await callsReportedBy(() => {
+      throw new TypeError("fetch failed");
+    });
+
+    expect(calls).toEqual([{ outcome: "failed", attempts: [] }]);
+  });
+});
+
+describe("the prices of the models it may use", () => {
+  const WHEN_PRICES_WERE_CHECKED = new Date("2026-10-30T12:00:00.000Z");
+
+  it.each([PURCHASING_AI_MODEL, "claude-sonnet-5"])(
+    "has a price in effect for the adapter's model and its known fallback, %s",
+    (model) => {
+      const price = AI_MODEL_PRICES.find(
+        (entry) => entry.model === model && entry.appliesFrom <= WHEN_PRICES_WERE_CHECKED,
+      );
+
+      expect(price).toBeDefined();
+    },
+  );
 });

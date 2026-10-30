@@ -4,6 +4,7 @@ import {
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
   SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "@purosur/domain";
+import type { AiCallUsage } from "@purosur/domain/purchasing/use-cases";
 import { PDFDocument } from "pdf-lib";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AnthropicPriceListExtractor } from "./anthropic-price-list-extractor.js";
@@ -74,7 +75,7 @@ describe("the request the extractor sends", () => {
     const { extractor, requests } = extractorAnswering(() =>
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
     );
-    await extractor.extract(SOURCE);
+    await extractor.extract(SOURCE, () => {});
     return requests[0] as RecordedRequest;
   }
 
@@ -163,7 +164,7 @@ describe("the request the extractor sends", () => {
       apiErrorResponse(429, "rate_limit_error"),
     );
 
-    await extractor.extract(SOURCE);
+    await extractor.extract(SOURCE, () => {});
 
     expect(requests).toHaveLength(1);
   });
@@ -189,7 +190,7 @@ describe("the rows the extractor reads", () => {
       }),
     );
 
-    expect(await extractor.extract(SOURCE)).toEqual({
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({
       kind: "extracted",
       listDate: "2026-03-01",
       pricesIncludeVat: null,
@@ -214,7 +215,7 @@ describe("the rows the extractor reads", () => {
         streamedJsonResponse({ listDate: null, pricesIncludeVat, rows: [ROW] }),
       );
 
-      expect(await extractor.extract(SOURCE)).toEqual({
+      expect(await extractor.extract(SOURCE, () => {})).toEqual({
         kind: "extracted",
         listDate: null,
         pricesIncludeVat,
@@ -232,7 +233,7 @@ describe("the rows the extractor reads", () => {
       }),
     );
 
-    const extraction = await extractor.extract(SOURCE);
+    const extraction = await extractor.extract(SOURCE, () => {});
 
     expect(extraction).toMatchObject({
       rows: [{ barcode: "7790000000011" }, { barcode: null }],
@@ -244,8 +245,11 @@ describe("the rows the extractor reads", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
     );
 
-    await extractor.extract(SOURCE);
-    await extractor.extract({ kind: "web_page", html: new TextEncoder().encode("<p>Yerba</p>") });
+    await extractor.extract(SOURCE, () => {});
+    await extractor.extract(
+      { kind: "web_page", html: new TextEncoder().encode("<p>Yerba</p>") },
+      () => {},
+    );
 
     for (const request of requests) {
       const messages = request.body["messages"] as { content: { type: string; text?: string }[] }[];
@@ -259,7 +263,7 @@ describe("the rows the extractor reads", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
     );
 
-    expect(await extractor.extract(SOURCE)).toEqual({
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({
       kind: "extracted",
       listDate: null,
       pricesIncludeVat: null,
@@ -275,7 +279,10 @@ describe("the rows the extractor reads", () => {
       }),
     );
 
-    expect(await extractor.extract(SOURCE)).toMatchObject({ kind: "extracted", rows: [ROW] });
+    expect(await extractor.extract(SOURCE, () => {})).toMatchObject({
+      kind: "extracted",
+      rows: [ROW],
+    });
   });
 
   it("answers no rows for a document where the model found none", async () => {
@@ -283,7 +290,7 @@ describe("the rows the extractor reads", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [] }),
     );
 
-    expect(await extractor.extract(SOURCE)).toEqual({
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({
       kind: "extracted",
       listDate: null,
       pricesIncludeVat: null,
@@ -301,7 +308,7 @@ describe("the rows the extractor reads", () => {
       }),
     );
 
-    expect(await extractor.extract(SOURCE)).toEqual({
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({
       kind: "extracted",
       listDate: null,
       pricesIncludeVat: null,
@@ -327,7 +334,7 @@ describe("a value the domain judges", () => {
   ])("answers %s as the model read it", async (_name, answer) => {
     const { extractor } = extractorAnswering(() => streamedJsonResponse(answer));
 
-    expect(await extractor.extract(SOURCE)).toEqual({ kind: "extracted", ...answer });
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "extracted", ...answer });
   });
 });
 
@@ -393,7 +400,7 @@ describe("an answer the extractor does not accept", () => {
   ])("reads %s as an unreadable document", async (_name, answer) => {
     const { extractor } = extractorAnswering(() => streamedJsonResponse(answer));
 
-    expect(await extractor.extract(SOURCE)).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unreadable" });
   });
 
   it("reads an answer that is not JSON as an unreadable document", async () => {
@@ -401,7 +408,7 @@ describe("an answer the extractor does not accept", () => {
       streamedAnswerResponse({ textParts: ["Sorry, I cannot read this."] }),
     );
 
-    expect(await extractor.extract(SOURCE)).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unreadable" });
   });
 
   it("reads an answer without text as an unreadable document", async () => {
@@ -409,7 +416,7 @@ describe("an answer the extractor does not accept", () => {
       streamedAnswerResponse({ textParts: [], withTextBlock: false }),
     );
 
-    expect(await extractor.extract(SOURCE)).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unreadable" });
   });
 
   it.each(["refusal", "max_tokens"] as const)(
@@ -422,7 +429,7 @@ describe("an answer the extractor does not accept", () => {
         }),
       );
 
-      expect(await extractor.extract(SOURCE)).toEqual({ kind: "unreadable" });
+      expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unreadable" });
     },
   );
 });
@@ -434,7 +441,7 @@ describe("a failure of the service", () => {
   ])("reads an HTTP %i refusing the document as an unreadable document", async (status, type) => {
     const { extractor } = extractorAnswering(() => apiErrorResponse(status, type));
 
-    expect(await extractor.extract(SOURCE)).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unreadable" });
   });
 
   it.each([
@@ -446,7 +453,7 @@ describe("a failure of the service", () => {
   ])("reads an HTTP %i as the service being unavailable", async (status, type) => {
     const { extractor } = extractorAnswering(() => apiErrorResponse(status, type));
 
-    expect(await extractor.extract(SOURCE)).toEqual({ kind: "unavailable" });
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unavailable" });
   });
 
   it("reads a connection that fails as the service being unavailable", async () => {
@@ -454,13 +461,13 @@ describe("a failure of the service", () => {
       throw new TypeError("fetch failed");
     });
 
-    expect(await extractor.extract(SOURCE)).toEqual({ kind: "unavailable" });
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unavailable" });
   });
 
   it("reads an error that interrupts the stream as the service being unavailable", async () => {
     const { extractor } = extractorAnswering(streamInterruptedByErrorResponse);
 
-    expect(await extractor.extract(SOURCE)).toEqual({ kind: "unavailable" });
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unavailable" });
   });
 });
 
@@ -504,7 +511,7 @@ describe("a long list", () => {
   it("is read in one request when it fits one range of five pages", async () => {
     const { extractor, requests } = extractorAnswering(answerWithRowsOfEachPage);
 
-    await extractor.extract(await sourceOfPages(5));
+    await extractor.extract(await sourceOfPages(5), () => {});
 
     expect(await rangesSent(requests)).toEqual([[1, 2, 3, 4, 5]]);
   });
@@ -512,7 +519,7 @@ describe("a long list", () => {
   it("is read in one request per range of at most five pages", async () => {
     const { extractor, requests } = extractorAnswering(answerWithRowsOfEachPage);
 
-    await extractor.extract(await sourceOfPages(12));
+    await extractor.extract(await sourceOfPages(12), () => {});
 
     expect(await rangesSent(requests)).toEqual([
       [1, 2, 3, 4, 5],
@@ -524,7 +531,7 @@ describe("a long list", () => {
   it("sends each range alone with the fixed instruction and the same system prompt", async () => {
     const { extractor, requests } = extractorAnswering(answerWithRowsOfEachPage);
 
-    await extractor.extract(await sourceOfPages(7));
+    await extractor.extract(await sourceOfPages(7), () => {});
 
     const [first, second] = requests.map((request) => request.body);
     expect(first?.["system"]).toEqual(second?.["system"]);
@@ -551,7 +558,7 @@ describe("a long list", () => {
       });
     });
 
-    const result = await extractor.extract(await sourceOfPages(12));
+    const result = await extractor.extract(await sourceOfPages(12), () => {});
 
     expect(result.kind).toBe("extracted");
     const rows = result.kind === "extracted" ? result.rows : [];
@@ -577,7 +584,7 @@ describe("a long list", () => {
       ),
     );
 
-    const result = await extractor.extract(await sourceOfPages(7));
+    const result = await extractor.extract(await sourceOfPages(7), () => {});
 
     const rows = result.kind === "extracted" ? result.rows : [];
     expect(rows.map((row) => [row.description, row.page])).toEqual([
@@ -610,7 +617,7 @@ describe("a long list", () => {
       });
     });
 
-    const result = await extractor.extract(await sourceOfPages(12));
+    const result = await extractor.extract(await sourceOfPages(12), () => {});
 
     expect(result).toEqual({
       kind: "extracted",
@@ -634,7 +641,7 @@ describe("a long list", () => {
       });
     });
 
-    const result = await extractor.extract(await sourceOfPages(12));
+    const result = await extractor.extract(await sourceOfPages(12), () => {});
 
     expect(result).toEqual({
       kind: "extracted",
@@ -656,7 +663,7 @@ describe("a long list", () => {
       return answerWithRowsOfEachPage(request);
     });
 
-    await extractor.extract(await sourceOfPages(40));
+    await extractor.extract(await sourceOfPages(40), () => {});
 
     expect(requests).toHaveLength(8);
     expect(mostInFlight).toBe(3);
@@ -668,7 +675,9 @@ describe("a long list", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: half }),
     );
 
-    expect(await extractor.extract(await sourceOfPages(10))).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(await sourceOfPages(10), () => {})).toEqual({
+      kind: "unreadable",
+    });
   });
 });
 
@@ -693,7 +702,7 @@ describe("a range that is too long for one answer", () => {
   it("is read again in halves, down to the pages that fit, keeping each row on its page", async () => {
     const { extractor, requests } = extractorAnswering(answeringMaxTokensAbove(2));
 
-    const result = await extractor.extract(await sourceOfPages(5));
+    const result = await extractor.extract(await sourceOfPages(5), () => {});
 
     expect(
       (await Promise.all(requests.map(rangeOf))).map(({ pages }) => pages.join(",")).sort(),
@@ -705,7 +714,9 @@ describe("a range that is too long for one answer", () => {
   it("makes the whole list unreadable when one page alone does not fit an answer", async () => {
     const { extractor } = extractorAnswering(answeringMaxTokensAbove(0));
 
-    expect(await extractor.extract(await sourceOfPages(7))).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(await sourceOfPages(7), () => {})).toEqual({
+      kind: "unreadable",
+    });
   });
 });
 
@@ -739,7 +750,7 @@ describe("a range that fails", () => {
         return pages[0] === 6 ? failure() : answerWithRowsOfEachPage(request);
       });
 
-      expect(await extractor.extract(await sourceOfPages(15))).toEqual({ kind });
+      expect(await extractor.extract(await sourceOfPages(15), () => {})).toEqual({ kind });
     },
   );
 
@@ -748,7 +759,9 @@ describe("a range that fails", () => {
       throw new TypeError(`fetch failed ${request.url}`);
     });
 
-    expect(await extractor.extract(await sourceOfPages(15))).toEqual({ kind: "unavailable" });
+    expect(await extractor.extract(await sourceOfPages(15), () => {})).toEqual({
+      kind: "unavailable",
+    });
   });
 });
 
@@ -771,7 +784,7 @@ describe("a range that throws an unexpected error", () => {
       return answerWithRowsOfEachPage(request);
     });
 
-    await expect(extractor.extract(await sourceOfPages(30))).rejects.toThrow();
+    await expect(extractor.extract(await sourceOfPages(30), () => {})).rejects.toThrow();
 
     expect(rangesAnsweredAfterTheFailure).toBe(2);
     expect(await rangesSent(requests)).toEqual([
@@ -831,9 +844,11 @@ describe("the time a reading has", () => {
     elapsedMs: number,
   ) {
     let settled = false;
-    const extraction = extractor.extract(source).finally(() => {
-      settled = true;
-    });
+    const extraction = extractor
+      .extract(source, () => {})
+      .finally(() => {
+        settled = true;
+      });
     await vi.advanceTimersByTimeAsync(elapsedMs);
     return { extraction, settled: () => settled };
   }
@@ -889,7 +904,7 @@ describe("a PDF protected by a permissions password", () => {
     );
     const source = await protectedSource(12);
 
-    const result = await extractor.extract(source);
+    const result = await extractor.extract(source, () => {});
 
     expect(requests).toHaveLength(1);
     expect(documentSent(requests[0] as RecordedRequest)).toBe(
@@ -908,13 +923,17 @@ describe("a PDF protected by a permissions password", () => {
       streamedAnswerResponse({ textParts: [], stopReason: "max_tokens", withTextBlock: false }),
     );
 
-    expect(await extractor.extract(await protectedSource(12))).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(await protectedSource(12), () => {})).toEqual({
+      kind: "unreadable",
+    });
     expect(requests).toHaveLength(1);
   });
   it("is unavailable when the service fails", async () => {
     const { extractor } = extractorAnswering(() => apiErrorResponse(500, "api_error"));
 
-    expect(await extractor.extract(await protectedSource(3))).toEqual({ kind: "unavailable" });
+    expect(await extractor.extract(await protectedSource(3), () => {})).toEqual({
+      kind: "unavailable",
+    });
   });
 });
 
@@ -952,7 +971,7 @@ describe("a document the extractor cannot split into ranges", () => {
     );
     const bytes = await bytesOf();
 
-    const result = await extractor.extract({ kind: "pdf", bytes });
+    const result = await extractor.extract({ kind: "pdf", bytes }, () => {});
 
     expect(requests).toHaveLength(1);
     expect(documentSent(requests[0] as RecordedRequest)).toBe(
@@ -1019,7 +1038,7 @@ describe("a web page", () => {
       }),
     );
 
-    expect(await extractor.extract(WEB_PAGE)).toEqual({
+    expect(await extractor.extract(WEB_PAGE, () => {})).toEqual({
       kind: "extracted",
       listDate: "2026-03-01",
       pricesIncludeVat: true,
@@ -1035,7 +1054,7 @@ describe("a web page", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
     );
 
-    await extractor.extract(WEB_PAGE);
+    await extractor.extract(WEB_PAGE, () => {});
 
     const [request] = requests as [RecordedRequest];
     const messages = request.body["messages"] as { role: string; content: unknown[] }[];
@@ -1054,7 +1073,7 @@ describe("a web page", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
     );
 
-    await extractor.extract(WEB_PAGE);
+    await extractor.extract(WEB_PAGE, () => {});
 
     const sent = JSON.stringify(requests[0]?.body);
     expect(sent).not.toContain("distribuidora-sur.example");
@@ -1067,7 +1086,7 @@ describe("a web page", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [] }),
     );
 
-    await extractor.extract(WEB_PAGE);
+    await extractor.extract(WEB_PAGE, () => {});
 
     const system = requests[0]?.body["system"] as { text: string }[];
     expect(system[0]?.text).toMatch(/web page/i);
@@ -1079,10 +1098,13 @@ describe("a web page", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
     );
 
-    const result = await extractor.extract({
-      kind: "web_page",
-      html: new TextEncoder().encode("<html><body><script>1</script></body></html>"),
-    });
+    const result = await extractor.extract(
+      {
+        kind: "web_page",
+        html: new TextEncoder().encode("<html><body><script>1</script></body></html>"),
+      },
+      () => {},
+    );
 
     expect(result).toEqual({ kind: "extracted", listDate: null, pricesIncludeVat: null, rows: [] });
     expect(requests).toHaveLength(0);
@@ -1094,7 +1116,7 @@ describe("a web page", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [] }),
     );
 
-    await extractor.extract(source);
+    await extractor.extract(source, () => {});
 
     expect(requests).toHaveLength(1);
   });
@@ -1113,7 +1135,7 @@ describe("a web page", () => {
       });
     });
 
-    const result = await extractor.extract(source);
+    const result = await extractor.extract(source, () => {});
 
     expect(requests.length).toBeGreaterThan(1);
     expect(requests.map(textSent).join("\n")).toBe(lines.join("\n"));
@@ -1137,7 +1159,7 @@ describe("a web page", () => {
       });
     });
 
-    const result = await extractor.extract(source);
+    const result = await extractor.extract(source, () => {});
 
     expect(result).toMatchObject({ kind: "extracted", pricesIncludeVat: false });
   });
@@ -1160,7 +1182,7 @@ describe("a web page", () => {
       });
     });
 
-    const result = await extractor.extract(source);
+    const result = await extractor.extract(source, () => {});
 
     const secondPart = Math.min(...requests.map(firstItemOf).filter((item) => item > 0));
     expect(requests.length).toBeGreaterThan(2);
@@ -1181,7 +1203,7 @@ describe("a web page", () => {
           });
     });
 
-    const result = await extractor.extract(source);
+    const result = await extractor.extract(source, () => {});
 
     expect(requests.length).toBeGreaterThan(2);
     expect(result.kind === "extracted" ? result.rows.map((row) => row.description) : []).toEqual(
@@ -1194,7 +1216,7 @@ describe("a web page", () => {
       streamedAnswerResponse({ textParts: [], stopReason: "max_tokens", withTextBlock: false }),
     );
 
-    expect(await extractor.extract(WEB_PAGE)).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(WEB_PAGE, () => {})).toEqual({ kind: "unreadable" });
   });
 
   it("is unreadable when its rows together pass the limit of one list", async () => {
@@ -1204,7 +1226,7 @@ describe("a web page", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: half }),
     );
 
-    expect(await extractor.extract(source)).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(source, () => {})).toEqual({ kind: "unreadable" });
   });
 
   it("is unreadable when the answer is not accepted", async () => {
@@ -1216,7 +1238,7 @@ describe("a web page", () => {
       }),
     );
 
-    expect(await extractor.extract(WEB_PAGE)).toEqual({ kind: "unreadable" });
+    expect(await extractor.extract(WEB_PAGE, () => {})).toEqual({ kind: "unreadable" });
   });
 
   it.each([
@@ -1225,6 +1247,106 @@ describe("a web page", () => {
   ])("reads an HTTP %i as the page being %s", async (status, type, kind) => {
     const { extractor } = extractorAnswering(() => apiErrorResponse(status, type));
 
-    expect(await extractor.extract(WEB_PAGE)).toEqual({ kind });
+    expect(await extractor.extract(WEB_PAGE, () => {})).toEqual({ kind });
+  });
+});
+
+describe("the calls the extractor reports", () => {
+  const COMPLETED = {
+    outcome: "completed",
+    attempts: [
+      {
+        model: SUPPLIER_PRICE_LIST_READING_MODEL,
+        inputTokens: 25,
+        outputTokens: 40,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
+      },
+    ],
+  };
+
+  async function callsOf(
+    respond: (request: RecordedRequest) => Response | Promise<Response>,
+    source: Parameters<AnthropicPriceListExtractor["extract"]>[0],
+  ) {
+    const { extractor } = extractorAnswering(respond);
+    const calls: AiCallUsage[] = [];
+    await extractor.extract(source, (usage) => calls.push(usage));
+    return calls;
+  }
+
+  it("reports one call for a list read in one request", async () => {
+    const calls = await callsOf(
+      () => streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+      SOURCE,
+    );
+
+    expect(calls).toEqual([COMPLETED]);
+  });
+
+  it("reports one call for each range of a long list", async () => {
+    const calls = await callsOf(answerWithRowsOfEachPage, await sourceOfPages(11));
+
+    expect(calls).toEqual([COMPLETED, COMPLETED, COMPLETED]);
+  });
+
+  it("reports the call that was cut short and each call of the halves it is read again in", async () => {
+    const calls = await callsOf(
+      (request) =>
+        rangeOf(request).then(({ pages }) =>
+          pages.length > 2
+            ? streamedAnswerResponse({ textParts: ["{"], stopReason: "max_tokens" })
+            : streamedJsonResponse({
+                listDate: null,
+                pricesIncludeVat: null,
+                rows: rowsOfEachPage(pages),
+              }),
+        ),
+      await sourceOfPages(5),
+    );
+
+    expect(calls.map(({ outcome }) => outcome).sort()).toEqual([
+      "completed",
+      "completed",
+      "completed",
+      "cut_short",
+      "cut_short",
+    ]);
+  });
+
+  it("reports the call of a document protected by a permissions password read whole", async () => {
+    const calls = await callsOf(
+      () => streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [] }),
+      { kind: "pdf", bytes: await fictionalPermissionsProtectedPdf(3) },
+    );
+
+    expect(calls).toEqual([COMPLETED]);
+  });
+
+  it("reports one call for each part of a web page", async () => {
+    const lines = Array.from({ length: 2_000 }, (_, index) => `Item ${index} ${"x".repeat(60)}`);
+    const html = `<body>${lines.map((line) => `<p>${line}</p>`).join("")}</body>`;
+    const calls = await callsOf(
+      () => streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [] }),
+      { kind: "web_page", html: new TextEncoder().encode(html) },
+    );
+
+    expect(calls.length).toBeGreaterThan(1);
+    expect(calls.every((call) => call.outcome === "completed")).toBe(true);
+  });
+
+  it("reports a call that failed when the service is unavailable", async () => {
+    const calls = await callsOf(() => apiErrorResponse(529, "overloaded_error"), SOURCE);
+
+    expect(calls).toEqual([{ outcome: "failed", attempts: [] }]);
+  });
+
+  it("reports the calls already ended when a range throws an unexpected error", async () => {
+    const calls: AiCallUsage[] = [];
+    const { extractor } = extractorAnswering(() => streamEndingWithoutAMessageResponse(() => {}));
+
+    await expect(extractor.extract(SOURCE, (usage) => calls.push(usage))).rejects.toThrow();
+
+    expect(calls).toEqual([{ outcome: "failed", attempts: [] }]);
   });
 });

@@ -115,6 +115,7 @@ import {
   stockMovements,
   supplierItemPrices,
   supplierItems,
+  supplierPriceListAiCalls,
   supplierPriceListExtractionCaps,
   supplierPriceListRows,
   supplierPriceLists,
@@ -1060,6 +1061,22 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       listDate: "2026-10-14",
       pricesIncludeVat: false,
       confirmedAt: new Date("2026-10-14T09:00:00.000Z"),
+    });
+    await db.insert(supplierPriceListAiCalls).values({
+      listId: priceList?.id as string,
+      purpose: "READING",
+      supplierId: supplier?.id as string,
+      locationId: await seededLocationId(db),
+      actorId: user.id,
+      occurredAt: new Date("2026-10-14T09:00:00.000Z"),
+      occurredOn: "2026-10-14",
+      model: "claude-sonnet-5-5",
+      inputTokens: 1_000,
+      outputTokens: 200,
+      cacheWriteTokens: 0,
+      cacheReadTokens: 0,
+      outcome: "completed",
+      costNanoUsd: 4_000_000,
     });
     await db
       .insert(supplierPriceListExtractionCaps)

@@ -25,6 +25,7 @@ import {
   formatSignedCents,
   formatTimeAgo,
   formatTimeAgoInHours,
+  formatUsd,
   formatWeight,
   formatWeightInput,
   parseInvoiceNumber,
@@ -122,6 +123,38 @@ describe("formatCents", () => {
     expect(formatCents(750_050)).toBe("$ 7.500,50");
     expect(formatCents(1)).toBe("$ 0,01");
     expect(formatCents(2_147_483_647)).toBe("$ 21.474.836,47");
+  });
+});
+
+describe("formatUsd", () => {
+  it("writes nanodollars as US dollars with four decimals", () => {
+    expect(formatUsd(123_400_000)).toBe("US$ 0,1234");
+    expect(formatUsd(2_000_000_000)).toBe("US$ 2,0000");
+    expect(formatUsd(0)).toBe("US$ 0,0000");
+  });
+
+  it("groups thousands with a dot and keeps the decimals after a comma", () => {
+    expect(formatUsd(1_234_567_800_000)).toBe("US$ 1.234,5678");
+    expect(formatUsd(12_345_678_900_000_000)).toBe("US$ 12.345.678,9000");
+  });
+
+  it("rounds half up to the fourth decimal", () => {
+    expect(formatUsd(49_999)).toBe("US$ 0,0000");
+    expect(formatUsd(50_000)).toBe("US$ 0,0001");
+    expect(formatUsd(149_999)).toBe("US$ 0,0001");
+    expect(formatUsd(150_000)).toBe("US$ 0,0002");
+    expect(formatUsd(999_950_000)).toBe("US$ 1,0000");
+  });
+
+  it("keeps the leading zeros of the decimals", () => {
+    expect(formatUsd(100_000)).toBe("US$ 0,0001");
+    expect(formatUsd(5_000_000)).toBe("US$ 0,0050");
+  });
+
+  it("writes a negative amount with its sign after the currency, and never a negative zero", () => {
+    expect(formatUsd(-123_400_000)).toBe("US$ -0,1234");
+    expect(formatUsd(-1_234_567_800_000)).toBe("US$ -1.234,5678");
+    expect(formatUsd(-49_999)).toBe("US$ 0,0000");
   });
 });
 

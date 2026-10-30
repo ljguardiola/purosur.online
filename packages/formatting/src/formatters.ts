@@ -53,6 +53,18 @@ export function formatSignedCents(cents: number): string {
   return cents < 0 ? `− ${formatCents(-cents)}` : formatCents(cents);
 }
 
+const NANO_USD_PER_TEN_THOUSANDTH = 100_000n;
+const TEN_THOUSANDTHS_PER_USD = 10_000n;
+
+export function formatUsd(nanoUsd: number): string {
+  const tenThousandths =
+    (BigInt(Math.abs(nanoUsd)) + NANO_USD_PER_TEN_THOUSANDTH / 2n) / NANO_USD_PER_TEN_THOUSANDTH;
+  const dollars = formatNumber(Number(tenThousandths / TEN_THOUSANDTHS_PER_USD));
+  const decimals = String(tenThousandths % TEN_THOUSANDTHS_PER_USD).padStart(4, "0");
+  const sign = nanoUsd < 0 && tenThousandths > 0n ? "-" : "";
+  return `US$ ${sign}${dollars},${decimals}`;
+}
+
 export function formatAmountInput(cents: number): string {
   return formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

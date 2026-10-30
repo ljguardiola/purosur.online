@@ -178,6 +178,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     purchasesReportScreen: {
       fetchPurchasesReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    aiCostReportScreen: {
+      fetchAiCostReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     freightReportScreen: {
       fetchFreightReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
@@ -205,6 +208,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     supplierPriceListReviewScreen: {
       fetchSupplierPriceListReview: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchSupplierPriceListAiCost: vi.fn().mockReturnValue(new Promise(() => {})),
       setSupplierPriceListRowPrice: vi.fn(),
       removeSupplierPriceListRow: vi.fn(),
       markSupplierPriceListRowReviewed: vi.fn(),

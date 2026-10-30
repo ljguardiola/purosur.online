@@ -20,6 +20,7 @@ import {
   canRecordInitialInventory,
   canRecordPurchases,
   canRevokeInstallations,
+  canSeeAiCostReport,
   canSeeAlertsArea,
   canSeeBackupsArea,
   canSeeBranchArea,
@@ -97,4 +98,12 @@ test.each([
   expect(
     can(accessWith(...ADMINISTRATOR_ACCESS.capabilities.filter((c) => c !== capability))),
   ).toBe(false);
+});
+
+test("canSeeAiCostReport holds only when both the reports area and the branch area are granted", () => {
+  expect(canSeeAiCostReport(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeAiCostReport(accessWith("reports_area", "branch_area"))).toBe(true);
+  expect(canSeeAiCostReport(accessWith("reports_area"))).toBe(false);
+  expect(canSeeAiCostReport(accessWith("branch_area"))).toBe(false);
+  expect(canSeeAiCostReport(NO_CAPABILITIES_ACCESS)).toBe(false);
 });

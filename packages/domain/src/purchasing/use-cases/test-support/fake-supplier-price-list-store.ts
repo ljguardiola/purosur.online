@@ -8,6 +8,7 @@ import {
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
 } from "../../model/supplier-price-list.js";
+import type { AiCallRecord } from "../ai-call-recording.js";
 import type {
   FindPriceListSupplierResult,
   FindSupplierPriceListSourceResult,
@@ -87,6 +88,7 @@ export type FakeSupplierPriceListWrite =
   | "markSent"
   | "recordExtraction"
   | "recordReadFailure"
+  | "recordAiCalls"
   | "linkRow"
   | "markRowReviewed"
   | "addSupplierItem"
@@ -105,6 +107,7 @@ export interface FakeSupplierPriceListState {
   readingQueue: string[];
   items: FakeSupplierItem[];
   itemPrices: SupplierItemPriceEntry[];
+  aiCalls: AiCallRecord[];
   products: FakeCatalogProduct[];
   packagings: FakeCatalogPackaging[];
   nextId: number;
@@ -133,6 +136,7 @@ function cloneState(state: FakeSupplierPriceListState): FakeSupplierPriceListSta
       link: cloneLink(item.link),
     })),
     itemPrices: state.itemPrices.map((entry) => ({ ...entry })),
+    aiCalls: state.aiCalls.map((call) => ({ ...call, occurredAt: new Date(call.occurredAt) })),
     products: state.products.map((product) => ({ ...product })),
     packagings: state.packagings.map((packaging) => ({ ...packaging })),
     nextId: state.nextId,
@@ -229,6 +233,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       list: {
         id: list.id,
         supplierId: list.supplierId,
+        actorId: list.uploadedBy,
         sourceKind: list.sourceKind,
         contentKind: list.contentKind,
         state: list.state,
@@ -281,6 +286,13 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     list.state = "READ_FAILED";
     list.readFailure = reason;
     list.version += 1;
+  }
+
+  async recordAiCalls(records: AiCallRecord[]): Promise<void> {
+    this.beforeWrite("recordAiCalls");
+    for (const record of records) {
+      this.state.aiCalls.push({ ...record, occurredAt: new Date(record.occurredAt) });
+    }
   }
 
   async lockRow(listId: string, rowId: string): Promise<LockSupplierPriceListRowResult> {
@@ -489,6 +501,7 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
     readingQueue: [],
     items: [],
     itemPrices: [],
+    aiCalls: [],
     products: [],
     packagings: [],
     nextId: 1,

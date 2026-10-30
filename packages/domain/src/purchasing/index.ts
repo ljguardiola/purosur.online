@@ -1,3 +1,7 @@
+export { AI_CALL_OUTCOMES, AI_CALL_PURPOSES } from "./model/ai-call.js";
+export type { PricedAiCall, RecordedAiCall } from "./model/ai-cost-report.js";
+export { AI_COST_GROUPINGS } from "./model/ai-cost-report.js";
+export { AI_MODEL_PRICES } from "./model/ai-model-prices.js";
 export type { FreightMeans, FreightPeriodDays } from "./model/freight.js";
 export {
   DEFAULT_FREIGHT_PERIOD_DAYS,

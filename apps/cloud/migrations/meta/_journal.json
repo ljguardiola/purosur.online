@@ -1016,6 +1016,13 @@
       "when": 1793288041657,
       "tag": "0151_removed_sale_lines",
       "breakpoints": true
+    },
+    {
+      "idx": 145,
+      "version": "7",
+      "when": 1793323506828,
+      "tag": "0152_ai_calls_of_supplier_price_lists",
+      "breakpoints": true
     }
   ]
 }

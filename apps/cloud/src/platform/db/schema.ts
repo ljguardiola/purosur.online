@@ -1,4 +1,6 @@
 import {
+  AI_CALL_OUTCOMES,
+  AI_CALL_PURPOSES,
   ALERT_AUDIENCES,
   ALERT_LEVELS,
   CLOCK_PREVIOUS_READING_SOURCES,
@@ -3186,6 +3188,7 @@ export const supplierPriceLists = pgTable(
     discardedAt: timestamp("discarded_at", { withTimezone: true }),
     discardedBy: uuid("discarded_by").references(() => users.id),
     version: integer("version").notNull().default(1),
+    aiCallsRecordedFromStart: boolean("ai_calls_recorded_from_start").notNull().default(true),
   },
   (table) => [
     check(
@@ -3307,4 +3310,60 @@ export const supplierPriceListExtractionCaps = pgTable(
     dailyCap: integer("daily_cap").notNull(),
   },
   (table) => [check("supplier_price_list_extraction_caps_cap_check", sql`${table.dailyCap} > 0`)],
+);
+
+// One entry per attempt of a call to the AI service. A record outlives the row it was made for,
+// so its row is a plain value and not a reference.
+export const supplierPriceListAiCalls = pgTable(
+  "supplier_price_list_ai_calls",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => supplierPriceLists.id),
+    rowId: uuid("row_id"),
+    purpose: text("purpose").notNull(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    occurredOn: date("occurred_on", { mode: "string" }).notNull(),
+    model: text("model").notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).notNull(),
+    outputTokens: bigint("output_tokens", { mode: "number" }).notNull(),
+    cacheWriteTokens: bigint("cache_write_tokens", { mode: "number" }).notNull(),
+    cacheReadTokens: bigint("cache_read_tokens", { mode: "number" }).notNull(),
+    outcome: text("outcome").notNull(),
+    costNanoUsd: bigint("cost_nano_usd", { mode: "number" }),
+  },
+  (table) => [
+    check(
+      "supplier_price_list_ai_calls_purpose_check",
+      sql`${table.purpose} in (${quotedList(AI_CALL_PURPOSES)})`,
+    ),
+    check(
+      "supplier_price_list_ai_calls_outcome_check",
+      sql`${table.outcome} in (${quotedList(AI_CALL_OUTCOMES)})`,
+    ),
+    check(
+      "supplier_price_list_ai_calls_purpose_row_check",
+      sql`${table.purpose} <> 'READING' or ${table.rowId} is null`,
+    ),
+    check(
+      "supplier_price_list_ai_calls_tokens_check",
+      sql`${table.inputTokens} >= 0 and ${table.outputTokens} >= 0 and ${table.cacheWriteTokens} >= 0 and ${table.cacheReadTokens} >= 0`,
+    ),
+    check("supplier_price_list_ai_calls_cost_check", sql`${table.costNanoUsd} >= 0`),
+    index("supplier_price_list_ai_calls_list_idx").on(table.listId),
+    index("supplier_price_list_ai_calls_location_occurred_on_idx").on(
+      table.locationId,
+      table.occurredOn,
+    ),
+  ],
 );
