@@ -314,12 +314,12 @@ describe("proposeSupplierItemLink", () => {
     it("dates each call when the chooser reports it", async () => {
       const { chooser, aiCalls, ports } = setup();
       chooser.reportedCalls = [usage("completed")];
-      const instants = [new Date("2026-03-11T02:00:00Z"), new Date("2026-03-11T03:00:00Z")];
+      const instants = [new Date("2026-03-11T03:00:00Z"), new Date("2026-03-11T04:00:00Z")];
 
       await proposeSupplierItemLink(ports, { ...input, now: () => instants.shift() ?? NOW });
 
       expect(aiCalls.recorded[0]).toMatchObject({
-        occurredAt: new Date("2026-03-11T02:00:00Z"),
+        occurredAt: new Date("2026-03-11T03:00:00Z"),
         occurredOn: "2026-03-11",
       });
     });

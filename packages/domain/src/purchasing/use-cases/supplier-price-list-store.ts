@@ -6,6 +6,7 @@ import type {
   SupplierPriceListSourceKind,
   SupplierPriceListState,
 } from "../model/supplier-price-list.js";
+import type { AiCallRecord } from "./ai-call-recording.js";
 
 export type NewSupplierPriceListFields = {
   supplierId: string;
@@ -83,6 +84,8 @@ export type LockProductPackagingResult =
 export interface LockedSupplierPriceList {
   id: string;
   supplierId: string;
+  // The person who started the list.
+  actorId: string;
   sourceKind: SupplierPriceListSourceKind;
   contentKind: SupplierPriceListContentKind;
   state: SupplierPriceListState;
@@ -138,6 +141,7 @@ export interface SupplierPriceListStoreTransaction {
     rows: ProposedPriceListRow[],
   ): Promise<void>;
   recordReadFailure(listId: string, reason: SupplierPriceListReadFailure): Promise<void>;
+  recordAiCalls(records: AiCallRecord[]): Promise<void>;
   lockRow(listId: string, rowId: string): Promise<LockSupplierPriceListRowResult>;
   // The list's rows in the order the reading found them.
   listRows(listId: string): Promise<StoredPriceListRow[]>;
