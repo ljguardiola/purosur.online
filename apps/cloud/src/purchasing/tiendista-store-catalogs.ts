@@ -39,10 +39,11 @@ function parsedAmount(value: string): number | null {
   return value.trim() === "" ? null : Number(value);
 }
 
-const PRICE_PER_UNIT = /\s*\([^()]*c\/u\s*\)$/iu;
+// The store sometimes leaves out the parenthesis that opens a price per kilo.
+const UNIT_PRICE = /\s*(?:\([^()]*c\/u|\(\s*\$[^()]*kg|(?:^|\s)\$[^()]*kg)\s*\)$/iu;
 
 function packSizeOf(unit: string | null): string | null {
-  return unit === null ? null : nonBlankText(unit.replace(PRICE_PER_UNIT, ""));
+  return unit === null ? null : nonBlankText(unit.replace(UNIT_PRICE, ""));
 }
 
 function rowOf(item: unknown): ExtractedPriceListRow | null {
