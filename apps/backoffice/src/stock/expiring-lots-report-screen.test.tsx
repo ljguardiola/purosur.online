@@ -290,7 +290,10 @@ test("shows each lot's product with its brand and net content", async () => {
 test("shows the lot counts with the thousands separator", async () => {
   const report = expiringLotsReport([cheeseLot]);
   const screen = await renderScreen(
-    listed({ ...report, summary: { ...report.summary, lot_count: 1998, without_cost_count: 1500 } }),
+    listed({
+      ...report,
+      summary: { ...report.summary, lot_count: 1998, without_cost_count: 1500 },
+    }),
   );
 
   await expect.element(screen.getByText("1.998 lotes", { exact: true })).toBeVisible();

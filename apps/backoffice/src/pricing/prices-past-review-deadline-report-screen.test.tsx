@@ -281,9 +281,7 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
 
 test("counts the prices past their deadline with the thousands separator", async () => {
   const report = pricesPastReviewDeadlineReport([overdueCheese]);
-  const screen = await renderScreen(
-    listed({ ...report, summary: { price_count: 1998 } }),
-  );
+  const screen = await renderScreen(listed({ ...report, summary: { price_count: 1998 } }));
 
   await expect.element(screen.getByText("1.998 precios", { exact: true })).toBeVisible();
 });

@@ -542,6 +542,8 @@ test("shows the count total and a count's lot total with the thousands separator
 
   await expect.element(screen.getByText("1.998 recuentos en los últimos 30 días")).toBeVisible();
   await expect
-    .element(screen.getByRole("table", { name: "Recuentos" }).getByText("Por lote · 1.998 lotes").first())
+    .element(
+      screen.getByRole("table", { name: "Recuentos" }).getByText("Por lote · 1.998 lotes").first(),
+    )
     .toBeVisible();
 });
