@@ -406,7 +406,7 @@ describe("proposeSupplierItemLink", () => {
 
       await proposeSupplierItemLink(ports, input);
 
-      expect(aiCalls.recorded).toEqual([]);
+      expect(aiCalls.recordings).toBe(0);
     });
 
     it("records nothing for a proposal by barcode", async () => {
