@@ -3,6 +3,7 @@ import {
   cancellableWithoutAuthorization,
 } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
+import { endUnpaidSale } from "./end-unpaid-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { saleCancelledEvent } from "./sale-cancelled-event.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
@@ -67,11 +68,7 @@ export function cancelSale(
         occurredAt: now,
       }),
     );
-    if (pendingMercadoPagoPayments.length > 0) {
-      tx.recordCancelledSale(sale.id, now, undefined);
-    } else {
-      tx.discardOpenSale(sale.id);
-    }
+    endUnpaidSale(tx, sale.id, now);
     return { kind: "cancelled" };
   });
 }

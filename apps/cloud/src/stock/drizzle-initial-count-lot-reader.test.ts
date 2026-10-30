@@ -170,6 +170,57 @@ describe("DrizzleInitialCountLotReader", () => {
     expect(await lotIds("peladas vitora")).toEqual([lot.lotId]);
   });
 
+  it("finds the lots of a product by every word of its shown description, net content included, in any order", async () => {
+    const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
+    const otherLocationId = await insertLocation(db);
+    const oilOf = (quantity: number) =>
+      insertProduct(db, {
+        name: "Aceite de Almendras",
+        brandName: "Vitora",
+        netContent: { quantity, unit: "ML" },
+      });
+    const small = await oilOf(30);
+    const large = await oilOf(60);
+    const smallLot = await insertInitialCountLot(db, { ...small, locationId, actorId });
+    const largeLots = [
+      await insertInitialCountLot(db, { ...large, locationId, actorId }),
+      await insertInitialCountLot(db, { ...large, locationId, actorId, unitCostCents: 900 }),
+    ];
+    await insertPurchasedLot(db, { ...large, locationId, actorId });
+    await insertInitialCountLot(db, { ...large, locationId: otherLocationId, actorId });
+    const reader = new DrizzleInitialCountLotReader(db);
+    const lotIds = async (productName: string) =>
+      (await reader.initialCountLots({ locationId, costIncomplete: undefined, productName }))
+        .map((row) => row.lotId)
+        .sort();
+
+    expect(await lotIds("vitora 60")).toEqual(largeLots.map((lot) => lot.lotId).sort());
+    expect(await lotIds("30 ML aceite VITORA")).toEqual([smallLot.lotId]);
+    expect(await lotIds("almendras vitora")).toEqual(
+      [smallLot, ...largeLots].map((lot) => lot.lotId).sort(),
+    );
+  });
+
+  it("combines the description search with the cost filter", async () => {
+    const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
+    const product = await insertProduct(db, { name: "Aceite de Almendras", brandName: "Vitora" });
+    await insertInitialCountLot(db, { ...product, locationId, actorId });
+    const known = await insertInitialCountLot(db, {
+      ...product,
+      locationId,
+      actorId,
+      unitCostCents: 100,
+    });
+
+    const rows = await new DrizzleInitialCountLotReader(db).initialCountLots({
+      locationId,
+      costIncomplete: false,
+      productName: "vitora aceite",
+    });
+
+    expect(rows.map((row) => row.lotId)).toEqual([known.lotId]);
+  });
+
   it("keeps the lots whose cost is incomplete or known, as asked", async () => {
     const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
     const { productId } = await insertProduct(db);

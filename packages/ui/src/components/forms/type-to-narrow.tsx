@@ -1,10 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
-import {
-  ComboBoxStateContext as AriaComboBoxStateContext,
-  type Key,
-  useFilter,
-} from "react-aria-components";
+import { ComboBoxStateContext as AriaComboBoxStateContext, type Key } from "react-aria-components";
+import { textsContainEveryWord } from "../../messages/text-search";
 import { isOptionValue } from "./option";
 
 const NO_RESULTS_TEXT = "Sin resultados";
@@ -28,7 +25,6 @@ export function useTypeToNarrow<V extends string, O extends NarrowableOption<V>>
   onChange,
   matchTexts = labelOnly,
 }: UseTypeToNarrowArgs<V, O>) {
-  const { contains } = useFilter({ sensitivity: "base" });
   const chosen = options.find((option) => option.value === value);
   const [typed, setTyped] = useState<string | null>(null);
   const [shownValue, setShownValue] = useState(value);
@@ -47,7 +43,7 @@ export function useTypeToNarrow<V extends string, O extends NarrowableOption<V>>
   const items =
     typed === null
       ? options
-      : options.filter((option) => matchTexts(option).some((text) => contains(text, typed)));
+      : options.filter((option) => textsContainEveryWord(matchTexts(option), typed));
 
   const comboBoxProps = {
     items,

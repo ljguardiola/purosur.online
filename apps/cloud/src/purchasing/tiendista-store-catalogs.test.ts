@@ -164,6 +164,37 @@ describe("TiendistaStoreCatalogs", () => {
       expect(supplierItemKey(earlier)).toEqual(supplierItemKey(later));
     });
 
+    it("leaves out the unit's price per kilo, so a later list keeps matching each bulk size", async () => {
+      const [earlier] = await rowsOf([{ nombre: "Comino molido", unidad: "5 kg ($8400 kg)" }]);
+      const [later] = await rowsOf([{ nombre: "Comino molido", unidad: " 5 kg  ( $7900 KG ) " }]);
+      if (earlier === undefined || later === undefined) {
+        throw new Error("test setup: expected a row of each list");
+      }
+
+      expect(earlier.presentation).toBe("5 kg");
+      expect(later.presentation).toBe("5 kg");
+      expect(supplierItemKey(earlier)).toEqual(supplierItemKey(later));
+    });
+
+    it.each([
+      ["Bolsa x25kg ($3100kg)", "Bolsa x25kg"],
+      ["Caja x 4 bol ($5200 kg)", "Caja x 4 bol"],
+      ["800 grs ($12500 kg)", "800 grs"],
+      ["x5kg ($ kg)", "x5kg"],
+      ["x5kg $18600 kg)", "x5kg"],
+      ["x15kg $17850 kg)", "x15kg"],
+    ])("leaves the price per kilo out of the unit %j", async (unidad, expected) => {
+      const [first] = await rowsOf([{ nombre: "Comino molido", unidad }]);
+
+      expect(first?.presentation).toBe(expected);
+    });
+
+    it("keeps a parenthesis of the unit that is not a price per kilo", async () => {
+      const [first] = await rowsOf([{ nombre: "Comino molido", unidad: "Bolsa (5 kg)" }]);
+
+      expect(first?.presentation).toBe("Bolsa (5 kg)");
+    });
+
     it("tells each pack size of a product with no code apart as its own item", async () => {
       const [unit, pack] = await rowsOf([
         { nombre: "Sal fina", marca: "Campo Verde", unidad: "Unidad", precio: 700 },
@@ -182,7 +213,7 @@ describe("TiendistaStoreCatalogs", () => {
       expect(first?.presentation).toBe("Pack (6 u)");
     });
 
-    it.each([undefined, null, "", "  ", 3, "($650 c/u)", " ( $650 C/U ) "])(
+    it.each([undefined, null, "", "  ", 3, "($650 c/u)", " ( $650 C/U ) ", "($8400 kg)"])(
       "is none for the unit %j",
       async (unidad) => {
         const [first] = await rowsOf([{ nombre: "Sal", unidad }]);

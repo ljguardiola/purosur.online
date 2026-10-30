@@ -10,8 +10,7 @@ import type {
 import { and, desc, eq, isNull, min } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
-import { productNameWithBrand } from "../catalog/product-name-with-brand.js";
-import { containsText } from "../platform/contains-pattern.js";
+import { productIdsWithDescriptionContainingEveryWord } from "../catalog/product-ids-with-description-containing-every-word.js";
 import {
   branchSettings,
   brands,
@@ -210,12 +209,11 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       filtered = filtered.filter((row) => wanted.has(row.id));
     }
     if (query.search) {
-      const matching = await this.db
-        .select({ id: products.id })
-        .from(products)
-        .leftJoin(brands, eq(brands.id, products.brandId))
-        .where(containsText(productNameWithBrand(), query.search));
-      const matchingIds = new Set(matching.map((row) => row.id));
+      const matchingIds = await productIdsWithDescriptionContainingEveryWord(
+        this.db,
+        filtered,
+        query.search,
+      );
       filtered = filtered.filter((row) => matchingIds.has(row.id));
     }
     if (query.review === "pending") {

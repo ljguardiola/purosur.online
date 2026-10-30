@@ -2124,6 +2124,30 @@ describe("cancelling the sale", () => {
     ]);
   });
 
+  it("keeps the sale, cancelled, with its Mercado Pago charges that ended unpaid", async () => {
+    await sellTwoYerbas();
+    const { id: saleId } = database.prepare<[], { id: string }>("SELECT id FROM sales").get() ?? {
+      id: "",
+    };
+    const endCharge = database.prepare(
+      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at, card_type) VALUES (?, ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 3000, ?, ?, ?, 'CREDIT')",
+    );
+    endCharge.run("point-1", saleId, "CANCELLED", NOW.toISOString(), NOW.toISOString());
+    endCharge.run("point-2", saleId, "DECLINED", NOW.toISOString(), NOW.toISOString());
+
+    expect(await cancelSaleFor(deps())).toEqual({ kind: "cancelled" });
+
+    expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
+      { id: saleId, state: "CANCELLED" },
+    ]);
+    expect(
+      database.prepare("SELECT id, sale_id, state FROM payment_transactions ORDER BY id").all(),
+    ).toEqual([
+      { id: "point-1", sale_id: saleId, state: "CANCELLED" },
+      { id: "point-2", sale_id: saleId, state: "DECLINED" },
+    ]);
+  });
+
   it("lets the next scan start a new sale", async () => {
     const shared = deps();
     await scanProductFor(shared, "111");

@@ -89,6 +89,12 @@ export interface RestoredCreditNoteAnswer {
   answer: ConfirmedCreditNoteAnswer | { kind: "already_credited" } | CreditNoteIssuedOffline;
 }
 
+export function restoredCreditNoteIssuedAt(
+  answer: RestoredCreditNoteAnswer["answer"],
+): Date | null {
+  return answer.kind === "authorized" || answer.kind === "issued_offline" ? answer.issuedAt : null;
+}
+
 export type CreditNoteStanding =
   | { kind: "not_requested" }
   | {

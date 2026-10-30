@@ -19,6 +19,7 @@ import {
   A_GATE_FAILED_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
+  aDeferredSaleSatisfiedFact,
   aReturnedSaleFact,
   aVoidedSaleFact,
 } from "../model/test-support/synced-facts.js";
@@ -29,6 +30,7 @@ import {
   FakeRegisterReplenishmentDecoder,
   FakeRegisterReplenishmentFeed,
   FakeRegisterReplenishmentStore,
+  heldPrintKey,
 } from "./test-support/fake-register-replenishment.js";
 import { anEvent, aSaleVoidedEvent } from "./test-support/fake-restored-register-replenishment.js";
 
@@ -355,7 +357,7 @@ describe("replenishRestoredRegister", () => {
       creditNoteAnswers: [],
       heldCreditNotes: [],
       rebuiltUnclearDeferrals: [],
-      saleReceipts: {},
+      prints: {},
     });
   });
 
@@ -1037,6 +1039,7 @@ describe("replenishRestoredRegister", () => {
   });
 
   describe("the original receipt of a completed sale", () => {
+    const SALE_RECEIPT_KEY = heldPrintKey({ document: "sale_receipt", saleId: "sale-1" });
     const COMPLETED_AT = new Date("2026-10-07T10:00:00.000Z");
     const SALE = anEvent("device-old", 53);
     const PRINT_STATE = anEvent("device-old", 54);
@@ -1066,8 +1069,8 @@ describe("replenishRestoredRegister", () => {
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({
-        "sale-1": { attemptedAt: COMPLETED_AT, printedAt: null },
+      expect(store.state.prints).toEqual({
+        [SALE_RECEIPT_KEY]: { attemptedAt: COMPLETED_AT, printedAt: null },
       });
     });
 
@@ -1077,8 +1080,8 @@ describe("replenishRestoredRegister", () => {
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({
-        "sale-1": {
+      expect(store.state.prints).toEqual({
+        [SALE_RECEIPT_KEY]: {
           attemptedAt: new Date("2026-10-07T10:01:00.000Z"),
           printedAt: new Date("2026-10-07T10:02:00.000Z"),
         },
@@ -1088,12 +1091,12 @@ describe("replenishRestoredRegister", () => {
     it("keeps an attempt the register already holds", async () => {
       const { feed, store, run } = aRegisterReplenishingASale();
       const held = { attemptedAt: new Date("2026-10-07T10:05:00.000Z"), printedAt: null };
-      store.state.saleReceipts["sale-1"] = held;
+      store.state.prints[SALE_RECEIPT_KEY] = held;
       feed.answers = [aPage([SALE])];
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({ "sale-1": held });
+      expect(store.state.prints).toEqual({ [SALE_RECEIPT_KEY]: held });
     });
 
     it("changes nothing when the sale is replenished again", async () => {
@@ -1105,8 +1108,8 @@ describe("replenishRestoredRegister", () => {
       await run();
       await run();
 
-      expect(store.state.saleReceipts).toEqual({
-        "sale-1": {
+      expect(store.state.prints).toEqual({
+        [SALE_RECEIPT_KEY]: {
           attemptedAt: new Date("2026-10-07T10:01:00.000Z"),
           printedAt: new Date("2026-10-07T10:02:00.000Z"),
         },
@@ -1120,7 +1123,7 @@ describe("replenishRestoredRegister", () => {
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({});
+      expect(store.state.prints).toEqual({});
     });
 
     it("is not counted for a cancelled sale", async () => {
@@ -1130,18 +1133,397 @@ describe("replenishRestoredRegister", () => {
 
       await run();
 
-      expect(store.state.saleReceipts).toEqual({});
+      expect(store.state.prints).toEqual({});
     });
 
     it("leaves nothing behind when recording it fails", async () => {
       const { feed, store, run } = aRegisterReplenishingASale();
-      store.failAt = { operation: "recordSaleReceiptAttempt" };
+      store.failAt = { operation: "recordPrintAttempt" };
       feed.answers = [aPage([SALE])];
 
       await expect(run()).rejects.toThrow("storage unavailable");
 
-      expect(store.state.saleReceipts).toEqual({});
+      expect(store.state.prints).toEqual({});
       expect(store.state.facts).toEqual([]);
+      expect(store.state.appliedEventIds).toEqual([]);
+    });
+  });
+  describe("the original of a restored credit note", () => {
+    const ISSUED_AT = new Date("2026-10-07T10:29:00.000Z");
+    const CREDIT_NOTE = aCreditNote("sale-1");
+    const KEY = heldPrintKey({
+      document: "credit_note",
+      saleId: "sale-1",
+      creditNoteId: CREDIT_NOTE.creditNoteId,
+    });
+    const VOIDED = aSaleVoidedEvent("device-old", 53, "sale-1");
+    const PRINT_STATE = anEvent("device-old", 54);
+    const PRINTED: SyncedFact = {
+      kind: "sale_print_state_changed",
+      printState: {
+        saleId: "sale-1",
+        document: "credit_note",
+        creditNoteId: CREDIT_NOTE.creditNoteId,
+        printAttemptedAt: new Date("2026-10-07T10:31:00.000Z"),
+        printedAt: new Date("2026-10-07T10:32:00.000Z"),
+      },
+    };
+
+    function aRegisterReplenishingAVoidedSale() {
+      const register = aRestoredRegister();
+      register.decoder.facts.set(VOIDED.event.event_id, aVoidedSaleOf(CREDIT_NOTE, "sale-1"));
+      register.decoder.facts.set(PRINT_STATE.event.event_id, PRINTED);
+      return register;
+    }
+
+    it("counts as attempted when the credit note was issued, since the lost installation may have printed it", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      feed.answers = [aPage([VOIDED], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: { attemptedAt: ISSUED_AT, printedAt: null } });
+    });
+
+    it("counts a credit note issued offline as attempted when it was issued", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      const offline: RestoredCreditNoteAnswer = {
+        creditNoteId: CREDIT_NOTE.creditNoteId,
+        answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+        answer: {
+          kind: "issued_offline",
+          pointOfSale: 31,
+          number: 4,
+          issuedOn: "2026-10-07",
+          issuedAt: ISSUED_AT,
+          offlineAuthorizationCode: "71234567890123",
+          fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        },
+      };
+      feed.answers = [aPage([VOIDED], null, [], [offline])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: { attemptedAt: ISSUED_AT, printedAt: null } });
+    });
+
+    it("takes the print state replenished after the credit note", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      feed.answers = [aPage([VOIDED, PRINT_STATE], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-07T10:31:00.000Z"),
+          printedAt: new Date("2026-10-07T10:32:00.000Z"),
+        },
+      });
+    });
+
+    it("keeps an attempt the register already holds", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      const held = { attemptedAt: new Date("2026-10-07T10:35:00.000Z"), printedAt: null };
+      store.state.prints[KEY] = held;
+      feed.answers = [aPage([VOIDED], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: held });
+    });
+
+    it("changes nothing when the page is replenished again", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      const pending = anEvent("device-old", 55);
+      store.notYetApplicable.add(pending.event.event_id);
+      const answers = [anAuthorizedAnswer(CREDIT_NOTE)];
+      feed.answers = [
+        aPage([VOIDED, PRINT_STATE, pending], null, [], answers),
+        aPage([VOIDED, PRINT_STATE, pending], null, [], answers),
+      ];
+
+      await run();
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-07T10:31:00.000Z"),
+          printedAt: new Date("2026-10-07T10:32:00.000Z"),
+        },
+      });
+    });
+
+    it.each([
+      { kind: "rejected" },
+      { kind: "regularization_required" },
+      { kind: "already_credited" },
+    ] as const)("is not counted for an answer that issued nothing: $kind", async (answer) => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      feed.answers = [aPage([VOIDED], null, [], [{ ...anAuthorizedAnswer(CREDIT_NOTE), answer }])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({});
+    });
+
+    it("is not counted for a credit note still held to request", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      feed.answers = [aPage([VOIDED], null, [], [], [CREDIT_NOTE.creditNoteId])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({});
+    });
+
+    it("leaves nothing behind when recording it fails", async () => {
+      const { feed, store, run } = aRegisterReplenishingAVoidedSale();
+      store.failAt = { operation: "recordPrintAttempt" };
+      feed.answers = [aPage([VOIDED], null, [], [anAuthorizedAnswer(CREDIT_NOTE)])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state.prints).toEqual({});
+      expect(store.state.appliedEventIds).toEqual([]);
+    });
+  });
+  describe("the original invoice of a restored deferred sale", () => {
+    const KEY = heldPrintKey({ document: "deferred_invoice", saleId: "sale-1" });
+    const RECORD = anEvent("device-old", 53);
+    const SATISFIED = anEvent("device-old", 54);
+    const PRINT_STATE = anEvent("device-old", 55);
+    const SATISFIED_AT = new Date("2026-10-09T10:00:00.000Z");
+    const PRINTED: SyncedFact = {
+      kind: "sale_print_state_changed",
+      printState: {
+        saleId: "sale-1",
+        document: "deferred_invoice",
+        printAttemptedAt: new Date("2026-10-09T10:01:00.000Z"),
+        printedAt: new Date("2026-10-09T10:02:00.000Z"),
+      },
+    };
+
+    function aRegisterReplenishingASatisfiedDeferral() {
+      const register = aRestoredRegister();
+      register.decoder.facts.set(RECORD.event.event_id, A_DEFERRED_SALE_RECORDED_FACT);
+      register.decoder.facts.set(
+        SATISFIED.event.event_id,
+        aDeferredSaleSatisfiedFact(A_FACTURA_C.issuer),
+      );
+      register.decoder.facts.set(PRINT_STATE.event.event_id, PRINTED);
+      return register;
+    }
+
+    it("counts as attempted when the sale was satisfied, since the lost installation may have printed it", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      feed.answers = [aPage([RECORD, SATISFIED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: { attemptedAt: SATISFIED_AT, printedAt: null } });
+    });
+
+    it("takes the print state replenished after the satisfaction", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      feed.answers = [aPage([RECORD, SATISFIED, PRINT_STATE])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-09T10:01:00.000Z"),
+          printedAt: new Date("2026-10-09T10:02:00.000Z"),
+        },
+      });
+    });
+
+    it("keeps an attempt the register already holds", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      const held = { attemptedAt: new Date("2026-10-09T10:05:00.000Z"), printedAt: null };
+      store.state.prints[KEY] = held;
+      feed.answers = [aPage([RECORD, SATISFIED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: held });
+    });
+
+    it("changes nothing when the page is replenished again", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      const pending = anEvent("device-old", 56);
+      store.notYetApplicable.add(pending.event.event_id);
+      feed.answers = [
+        aPage([RECORD, SATISFIED, PRINT_STATE, pending]),
+        aPage([RECORD, SATISFIED, PRINT_STATE, pending]),
+      ];
+
+      await run();
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-09T10:01:00.000Z"),
+          printedAt: new Date("2026-10-09T10:02:00.000Z"),
+        },
+      });
+    });
+
+    it("is not counted while the satisfaction cannot be applied yet", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      feed.answers = [aPage([SATISFIED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({});
+    });
+
+    it("leaves nothing behind when recording it fails", async () => {
+      const { feed, store, run } = aRegisterReplenishingASatisfiedDeferral();
+      store.failAt = { operation: "recordPrintAttempt" };
+      feed.answers = [aPage([RECORD, SATISFIED])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state.prints).toEqual({});
+      expect(store.state.appliedEventIds).toEqual([]);
+    });
+  });
+
+  describe("the original invoice of a restored deferred sale of an unclear outcome", () => {
+    const KEY = heldPrintKey({ document: "deferred_invoice", saleId: "sale-2" });
+    const RECORD = anEvent("device-old", 53);
+    const PRINT_STATE = anEvent("device-old", 54);
+    const ANSWERED_AT = new Date("2026-10-08T15:00:00.000Z");
+    const PRINTED: SyncedFact = {
+      kind: "sale_print_state_changed",
+      printState: {
+        saleId: "sale-2",
+        document: "deferred_invoice",
+        printAttemptedAt: new Date("2026-10-08T15:01:00.000Z"),
+        printedAt: new Date("2026-10-08T15:02:00.000Z"),
+      },
+    };
+    const UNCLEAR_RECORD: SyncedFact = {
+      kind: "deferred_sale_recorded",
+      deferredSale: {
+        id: "deferred-of-sale-2",
+        saleId: "sale-2",
+        occurredAt: new Date("2026-10-07T11:00:00.000Z"),
+        total: 1200,
+        reason: "unclear_outcome",
+        shortCode: "CODE-sale-2",
+        routedAt: new Date("2026-10-07T11:00:01.000Z"),
+      },
+      unclearDocument: {
+        fiscalDocumentId: "document-of-sale-2",
+        pointOfSale: 7,
+        number: 42,
+        issuedOn: "2026-10-07",
+        document: A_FACTURA_C,
+        reservedAt: new Date("2026-10-07T10:59:58.000Z"),
+      },
+    };
+    const answerOf = (answer: RestoredUnclearDeferral["answer"]): RestoredUnclearDeferral => ({
+      fiscalDocumentId: "document-of-sale-2",
+      answer,
+    });
+    const AUTHORIZED = answerOf({
+      kind: "authorized",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-18",
+      answeredAt: ANSWERED_AT,
+    });
+
+    function aRegisterReplenishingAnUnclearDeferral() {
+      const register = aRestoredRegister();
+      register.decoder.facts.set(RECORD.event.event_id, UNCLEAR_RECORD);
+      register.decoder.facts.set(PRINT_STATE.event.event_id, PRINTED);
+      return register;
+    }
+
+    it("counts as attempted when the cloud authorized it, since the lost installation may have printed it", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      feed.answers = [aPage([RECORD], null, [], [], [], [AUTHORIZED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: { attemptedAt: ANSWERED_AT, printedAt: null } });
+    });
+
+    it("takes the print state replenished after the record", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      feed.answers = [aPage([RECORD, PRINT_STATE], null, [], [], [], [AUTHORIZED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-08T15:01:00.000Z"),
+          printedAt: new Date("2026-10-08T15:02:00.000Z"),
+        },
+      });
+    });
+
+    it("keeps an attempt the register already holds", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      const held = { attemptedAt: new Date("2026-10-08T15:05:00.000Z"), printedAt: null };
+      store.state.prints[KEY] = held;
+      feed.answers = [aPage([RECORD], null, [], [], [], [AUTHORIZED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({ [KEY]: held });
+    });
+
+    it("changes nothing when the page is replenished again", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      const pending = anEvent("device-old", 56);
+      store.notYetApplicable.add(pending.event.event_id);
+      feed.answers = [
+        aPage([RECORD, PRINT_STATE, pending], null, [], [], [], [AUTHORIZED]),
+        aPage([RECORD, PRINT_STATE, pending], null, [], [], [], [AUTHORIZED]),
+      ];
+
+      await run();
+      await run();
+
+      expect(store.state.prints).toEqual({
+        [KEY]: {
+          attemptedAt: new Date("2026-10-08T15:01:00.000Z"),
+          printedAt: new Date("2026-10-08T15:02:00.000Z"),
+        },
+      });
+    });
+
+    it.each([{ kind: "unsettled" }, { kind: "rejected" }] as const)(
+      "is not counted for a record the cloud left $kind",
+      async (answer) => {
+        const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+        feed.answers = [aPage([RECORD], null, [], [], [], [answerOf(answer)])];
+
+        await run();
+
+        expect(store.state.prints).toEqual({});
+      },
+    );
+
+    it("is not counted while the sale is not held yet", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      store.salesNotYetHeld.add("sale-2");
+      feed.answers = [aPage([RECORD], null, [], [], [], [AUTHORIZED])];
+
+      await run();
+
+      expect(store.state.prints).toEqual({});
+    });
+
+    it("leaves nothing behind when recording it fails", async () => {
+      const { feed, store, run } = aRegisterReplenishingAnUnclearDeferral();
+      store.failAt = { operation: "recordPrintAttempt" };
+      feed.answers = [aPage([RECORD], null, [], [], [], [AUTHORIZED])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state.prints).toEqual({});
       expect(store.state.appliedEventIds).toEqual([]);
     });
   });
