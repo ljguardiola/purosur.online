@@ -82,7 +82,7 @@ function groupOf(
 function costliestFirst(a: AiCostGroup, b: AiCostGroup): number {
   return (
     b.total.costNanoUsd - a.total.costNanoUsd ||
-    compareSpanishText(a.name ?? "", b.name ?? "") ||
+    compareSpanishText(a.name ?? a.key, b.name ?? b.key) ||
     compareSpanishText(a.key, b.key)
   );
 }
