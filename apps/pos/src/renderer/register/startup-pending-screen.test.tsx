@@ -7,9 +7,10 @@ import type {
   StartupPending,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type {} from "@vitest/browser-playwright";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { cdp, page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
@@ -108,6 +109,13 @@ function goSelling(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
   return screen.getByRole("button", { name: "Ir a vender" });
 }
 
+// React Aria opens a tooltip only after a real pointer move; a hover's enter event can fire
+// before that move and is then silently dropped, so this throwaway move supplies it.
+async function hoverGoSelling(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
+  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  await userEvent.hover(goSelling(screen));
+}
+
 async function expectGoSellingLocked(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
   await expect.element(goSelling(screen)).toHaveAttribute("aria-disabled", "true");
 }
@@ -135,8 +143,6 @@ type Overrides = {
 };
 
 async function renderScreen(overrides: Overrides = {}) {
-  await page.viewport(1280, 720);
-  onTestFinished(() => page.viewport(414, 896));
   const loadStartupPending = vi.fn(
     overrides.loadStartupPending ?? (async () => ({ ...NOTHING, sales_to_print: [NEVER_PRINTED] })),
   );
@@ -192,6 +198,14 @@ async function renderScreen(overrides: Overrides = {}) {
     onSessionInvalid,
   };
 }
+
+beforeAll(async () => {
+  await page.viewport(1280, 720);
+});
+
+afterAll(async () => {
+  await page.viewport(414, 896);
+});
 
 afterEach(() => {
   vi.useRealTimers();
@@ -697,7 +711,7 @@ describe("StartupPendingScreen", () => {
       await expectGoSellingLocked(screen);
       await expect.element(screen.getByText(SELLING_BLOCKED_REASON)).not.toBeInTheDocument();
 
-      await userEvent.hover(goSelling(screen));
+      await hoverGoSelling(screen);
 
       await expect.element(screen.getByRole("tooltip")).toHaveTextContent(SELLING_BLOCKED_REASON);
       goSelling(screen)
@@ -939,7 +953,7 @@ describe("StartupPendingScreen", () => {
       await expect.element(screen.getByText(WARNING)).not.toBeInTheDocument();
       await expectGoSellingLocked(screen);
       await expect.element(screen.getByText(CHECKING_REASON)).not.toBeInTheDocument();
-      await userEvent.hover(goSelling(screen));
+      await hoverGoSelling(screen);
       await expect.element(screen.getByRole("tooltip")).toHaveTextContent(CHECKING_REASON);
       goSelling(screen)
         .element()

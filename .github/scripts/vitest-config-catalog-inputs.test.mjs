@@ -180,7 +180,7 @@ test("reports a module imported twice once, and follows an import cycle to its e
   );
 });
 
-test("refuses an undeclared entry file of the catalog project and follows its imports", () => {
+test("refuses an undeclared entry file of the catalog-visual project and follows its imports", () => {
   withRepository(
     {
       "vitest.config.ts": "export default {};\n",
@@ -240,15 +240,15 @@ test("reads the catalog project's global setups and setup files from the config 
   assert.deepEqual(catalogEntryFiles(config, "/repo"), [
     {
       path: "setup/a.ts",
-      namedBy: "named by vitest.config.ts as a global setup of the catalog project",
+      namedBy: "named by vitest.config.ts as a global setup of the catalog-visual project",
     },
     {
       path: "setup/b.ts",
-      namedBy: "named by vitest.config.ts as a global setup of the catalog project",
+      namedBy: "named by vitest.config.ts as a global setup of the catalog-visual project",
     },
     {
       path: "setup/c.ts",
-      namedBy: "named by vitest.config.ts as a setup file of the catalog project",
+      namedBy: "named by vitest.config.ts as a setup file of the catalog-visual project",
     },
   ]);
 });
@@ -266,15 +266,69 @@ test("reads a catalog project's single entry file named without a list, and a pr
     [
       {
         path: "global.ts",
-        namedBy: "named by vitest.config.ts as a global setup of the catalog project",
+        namedBy: "named by vitest.config.ts as a global setup of the catalog-visual project",
       },
       {
         path: "each.ts",
-        namedBy: "named by vitest.config.ts as a setup file of the catalog project",
+        namedBy: "named by vitest.config.ts as a setup file of the catalog-visual project",
       },
     ],
   );
   assert.deepEqual(catalogEntryFiles(project({}), "/repo"), []);
+});
+
+test("reads the catalog build project's test files from the config as entry files, skipping a folder that matches", () => {
+  withRepository(
+    {
+      "packages/ui/.storybook/main.test.ts": "export {};\n",
+      "packages/ui/.storybook/old.test.ts/screenshot.png": "",
+      "packages/ui/.storybook/main.ts": "export {};\n",
+      "packages/ui/src/button.test.ts": "export {};\n",
+    },
+    (root) => {
+      const config = {
+        test: {
+          projects: [
+            { test: { name: "node", include: ["packages/ui/src/**/*.test.ts"] } },
+            { test: { name: "catalog-build", include: ["packages/ui/.storybook/*.test.ts"] } },
+          ],
+        },
+      };
+
+      assert.deepEqual(catalogEntryFiles(config, root), [
+        {
+          path: "packages/ui/.storybook/main.test.ts",
+          namedBy: "named by vitest.config.ts as a test file of the catalog-build project",
+        },
+      ]);
+    },
+  );
+});
+
+test("refuses an undeclared module imported by the Storybook config the catalog build reads", async () => {
+  const root = mkdtempSync(join(tmpdir(), "vitest-config-catalog-inputs-"));
+  try {
+    for (const [path, source] of Object.entries({
+      "vitest.config.ts": "export default {};\n",
+      "packages/ui/.storybook/main.ts": 'import { helper } from "../../../tools/helper.mjs";\n',
+      "packages/ui/.storybook/preview.tsx": 'import "../../../tools/preview-helper.mjs";\n',
+      "packages/ui/.storybook/manager.ts": 'import "../../../tools/manager-helper.mjs";\n',
+      "tools/helper.mjs": "export const helper = 1;\n",
+      "tools/preview-helper.mjs": "export {};\n",
+      "tools/manager-helper.mjs": "export {};\n",
+    })) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+
+    assert.deepEqual(await checkRepository({ root, importConfig: async () => ({ default: {} }) }), [
+      "tools/helper.mjs, imported at packages/ui/.storybook/main.ts:1, is not a catalog input in .github/scripts/change-scope.mjs",
+      "tools/manager-helper.mjs, imported at packages/ui/.storybook/manager.ts:1, is not a catalog input in .github/scripts/change-scope.mjs",
+      "tools/preview-helper.mjs, imported at packages/ui/.storybook/preview.tsx:1, is not a catalog input in .github/scripts/change-scope.mjs",
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("checks the catalog project's global setups and setup files named by the config it imports", async () => {
@@ -301,8 +355,8 @@ test("checks the catalog project's global setups and setup files named by the co
     assert.deepEqual(
       await checkRepository({ root, importConfig: async () => ({ default: config }) }),
       [
-        "setup/global.ts, named by vitest.config.ts as a global setup of the catalog project, is not a catalog input in .github/scripts/change-scope.mjs",
-        "setup/each.ts, named by vitest.config.ts as a setup file of the catalog project, is not a catalog input in .github/scripts/change-scope.mjs",
+        "setup/global.ts, named by vitest.config.ts as a global setup of the catalog-visual project, is not a catalog input in .github/scripts/change-scope.mjs",
+        "setup/each.ts, named by vitest.config.ts as a setup file of the catalog-visual project, is not a catalog input in .github/scripts/change-scope.mjs",
       ],
     );
   } finally {

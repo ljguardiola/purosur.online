@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, globSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
@@ -6,7 +6,9 @@ import { isCatalogInput } from "./change-scope.mjs";
 
 const REPOSITORY_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const VITEST_CONFIG = "vitest.config.ts";
-const CATALOG_PROJECT = "catalog-visual";
+const CATALOG_PROJECTS = ["catalog-visual", "catalog-build"];
+const STORYBOOK_CONFIG_DIR = "packages/ui/.storybook";
+const STORYBOOK_CONFIG_FILE = /^(main|manager|preview)\.[cm]?[jt]sx?$/;
 const RESOLVED_EXTENSIONS = [".ts", ".mts", ".tsx", ".js", ".mjs"];
 const SOURCE_FOR_EMITTED_EXTENSION = { ".js": [".ts", ".tsx"], ".mjs": [".mts"] };
 
@@ -99,16 +101,36 @@ export function findUndeclaredModules({ root, entries }) {
 const asList = (value) => (value === undefined ? [] : [value].flat());
 
 export function catalogEntryFiles(config, root) {
-  const project = config.test?.projects?.find((entry) => entry.test?.name === CATALOG_PROJECT);
-  const named = (role, paths) =>
-    asList(paths).map((path) => ({
-      path: relative(root, path),
-      namedBy: `named by ${VITEST_CONFIG} as a ${role} of the catalog project`,
+  return CATALOG_PROJECTS.flatMap((name) => {
+    const project = config.test?.projects?.find((entry) => entry.test?.name === name);
+    const named = (role, paths) =>
+      paths.map((path) => ({
+        path,
+        namedBy: `named by ${VITEST_CONFIG} as a ${role} of the ${name} project`,
+      }));
+    const fromRoot = (paths) => asList(paths).map((path) => relative(root, path));
+    const testFiles = asList(project?.test?.include)
+      .flatMap((pattern) => globSync(pattern, { cwd: root }))
+      .filter((path) => isFile(join(root, path)))
+      .sort();
+    return [
+      ...named("global setup", fromRoot(project?.test?.globalSetup)),
+      ...named("setup file", fromRoot(project?.test?.setupFiles)),
+      ...named("test file", testFiles),
+    ];
+  });
+}
+
+function storybookConfigFiles(root) {
+  const directory = join(root, STORYBOOK_CONFIG_DIR);
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory)
+    .filter((name) => STORYBOOK_CONFIG_FILE.test(name))
+    .sort()
+    .map((name) => ({
+      path: join(STORYBOOK_CONFIG_DIR, name),
+      namedBy: "read by the catalog build as its Storybook config",
     }));
-  return [
-    ...named("global setup", project?.test?.globalSetup),
-    ...named("setup file", project?.test?.setupFiles),
-  ];
 }
 
 export async function checkRepository({
@@ -121,6 +143,7 @@ export async function checkRepository({
     entries: [
       { path: VITEST_CONFIG, namedBy: "the vitest config" },
       ...catalogEntryFiles(config, root),
+      ...storybookConfigFiles(root),
     ],
   });
 }

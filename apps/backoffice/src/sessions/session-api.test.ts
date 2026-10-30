@@ -266,16 +266,13 @@ test("signOut reports failed when the cloud never ended the session", async () =
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "origin_rejected" }));
   await expect(signOut()).resolves.toEqual({ kind: "failed" });
 
-  vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
-  await expect(signOut()).resolves.toEqual({ kind: "failed" });
-});
-
-test("signOut reports rate_limited with the Retry-After seconds on 429, leaving the session live", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "300" }),
   );
+  await expect(signOut()).resolves.toEqual({ kind: "failed" });
 
-  await expect(signOut()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 300 });
+  vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
+  await expect(signOut()).resolves.toEqual({ kind: "failed" });
 });
 
 test("endEverySession deletes every session with no body and reports that they were ended", async () => {
