@@ -34,6 +34,13 @@ export function readSalePayments(database: LocalDatabase, saleId: string): SaleP
     .map(toPayment);
 }
 
+export function hasRecordedPayments(database: LocalDatabase, saleId: string): boolean {
+  return (
+    database.prepare("SELECT 1 FROM payment_transactions WHERE sale_id = ? LIMIT 1").get(saleId) !==
+    undefined
+  );
+}
+
 export function readRecordedPayments(
   database: LocalDatabase,
   saleId: string,
