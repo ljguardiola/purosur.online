@@ -13,16 +13,16 @@ const latePayment: Pick<
   | "sale_occurred_at"
   | "covered_by"
   | "provider_order_id"
-  | "cancelled_by"
-  | "cancelled_by_name"
+  | "corrected_by"
+  | "corrected_by_name"
 > = {
   origin: "late_payment",
   occurred_at: SALE_MOMENT,
   sale_occurred_at: SALE_MOMENT,
   covered_by: ["TRANSFER"],
   provider_order_id: null,
-  cancelled_by: null,
-  cancelled_by_name: null,
+  corrected_by: null,
+  corrected_by_name: null,
 };
 
 const cancelledSale: typeof latePayment = {
@@ -31,8 +31,8 @@ const cancelledSale: typeof latePayment = {
   sale_occurred_at: SALE_MOMENT,
   covered_by: [],
   provider_order_id: null,
-  cancelled_by: "user-1",
-  cancelled_by_name: "Lucía Pérez",
+  corrected_by: "user-1",
+  corrected_by_name: "Lucía Pérez",
 };
 
 test("tells a late approval after the sale was charged by transfer", () => {
@@ -71,13 +71,13 @@ test("tells a cancelled sale and who cancelled it", () => {
 });
 
 test("tells a cancelled sale alone when its canceller is not a known person", () => {
-  expect(refundReason({ ...cancelledSale, cancelled_by_name: null }).detail).toBe(
+  expect(refundReason({ ...cancelledSale, corrected_by_name: null }).detail).toBe(
     "La venta del 16/09 09:37 se canceló",
   );
 });
 
 test("tells a cancelled sale alone when nobody is recorded as its canceller", () => {
-  expect(refundReason({ ...cancelledSale, cancelled_by: null }).detail).toBe(
+  expect(refundReason({ ...cancelledSale, corrected_by: null }).detail).toBe(
     "La venta del 16/09 09:37 se canceló",
   );
 });
@@ -92,7 +92,7 @@ test("tells a voided sale and who voided it", () => {
 });
 
 test("tells a voided sale alone when nobody known is recorded as its voider", () => {
-  expect(refundReason({ ...voidedSale, cancelled_by_name: null }).detail).toBe(
+  expect(refundReason({ ...voidedSale, corrected_by_name: null }).detail).toBe(
     "La venta del 16/09 09:37 se anuló",
   );
 });
@@ -111,7 +111,7 @@ test("tells the return of a sale, when it was made and who made it", () => {
 });
 
 test("tells the return of a sale alone when nobody known is recorded as who made it", () => {
-  expect(refundReason({ ...returnedSale, cancelled_by_name: null }).detail).toBe(
+  expect(refundReason({ ...returnedSale, corrected_by_name: null }).detail).toBe(
     "La venta del 16/09 09:37 tuvo una devolución el 18/09 10:15",
   );
 });

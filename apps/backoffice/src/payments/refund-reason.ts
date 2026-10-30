@@ -27,8 +27,8 @@ function reasonDetail(
     | "sale_occurred_at"
     | "covered_by"
     | "provider_order_id"
-    | "cancelled_by"
-    | "cancelled_by_name"
+    | "corrected_by"
+    | "corrected_by_name"
   >,
 ): string {
   const saleMoment = refundDayAndTime(refund.sale_occurred_at);
@@ -38,15 +38,15 @@ function reasonDetail(
   if (refund.origin === "late_payment") {
     return `El QR de la venta del ${saleMoment} se pagó después de cobrarla ${coveringWords(refund.covered_by)}`;
   }
-  const known = refund.cancelled_by !== null && refund.cancelled_by_name !== null;
+  const known = refund.corrected_by !== null && refund.corrected_by_name !== null;
   if (refund.origin === "return") {
     const returned = `La venta del ${saleMoment} tuvo una devolución el ${refundDayAndTime(refund.occurred_at)}`;
-    return known ? `${returned} · la hizo ${refund.cancelled_by_name}` : returned;
+    return known ? `${returned} · la hizo ${refund.corrected_by_name}` : returned;
   }
   const voided = refund.origin === "sale_voided";
   const ended = `La venta del ${saleMoment} se ${voided ? "anuló" : "canceló"}`;
   return known
-    ? `${ended} · la ${voided ? "anuló" : "canceló"} ${refund.cancelled_by_name}`
+    ? `${ended} · la ${voided ? "anuló" : "canceló"} ${refund.corrected_by_name}`
     : ended;
 }
 
@@ -58,8 +58,8 @@ export function refundReason(
     | "sale_occurred_at"
     | "covered_by"
     | "provider_order_id"
-    | "cancelled_by"
-    | "cancelled_by_name"
+    | "corrected_by"
+    | "corrected_by_name"
   >,
 ): { title: string; detail: string } {
   return { title: refundOriginLabel(refund.origin), detail: reasonDetail(refund) };

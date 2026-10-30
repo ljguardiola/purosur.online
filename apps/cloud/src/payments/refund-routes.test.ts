@@ -201,12 +201,12 @@ describe("GET /refunds/pending", () => {
 
     const body = pendingRefundsSchema.parse(response.json());
     expect(
-      body.refunds.map(({ id, origin, discardable, method, cancelled_by }) => ({
+      body.refunds.map(({ id, origin, discardable, method, corrected_by }) => ({
         id,
         origin,
         discardable,
         method,
-        cancelled_by,
+        corrected_by,
       })),
     ).toEqual([
       {
@@ -214,14 +214,14 @@ describe("GET /refunds/pending", () => {
         origin: "late_payment",
         discardable: true,
         method: "QR",
-        cancelled_by: null,
+        corrected_by: null,
       },
       {
         id: cancelledId,
         origin: "sale_cancelled",
         discardable: false,
         method: "TRANSFER",
-        cancelled_by: expect.any(String),
+        corrected_by: expect.any(String),
       },
     ]);
   });

@@ -68,8 +68,8 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         saleOccurredAt: cancelled.cancelledAt,
         coveredBy: [],
         providerOrderId: null,
-        cancelledBy: userId,
-        cancelledByName: "Ada Lucero",
+        correctedBy: userId,
+        correctedByName: "Ada Lucero",
         confirmedAt: null,
         sentAt: null,
         lastRefusalReason: null,
@@ -151,8 +151,8 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         amount: 2400,
         occurredAt: returnedAt,
         saleOccurredAt: soldAt,
-        cancelledBy: userId,
-        cancelledByName: "Ada Lucero",
+        correctedBy: userId,
+        correctedByName: "Ada Lucero",
       }),
     ]);
   });
@@ -184,7 +184,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
 
     const [refund] = await reader().pendingRefunds(locationId);
 
-    expect(refund).toMatchObject({ cancelledBy: "not-a-known-user", cancelledByName: null });
+    expect(refund).toMatchObject({ correctedBy: "not-a-known-user", correctedByName: null });
   });
 
   it("lists the oldest refund first", async () => {
@@ -281,8 +281,8 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
           saleOccurredAt: late.saleOccurredAt,
           coveredBy: [],
           providerOrderId: null,
-          cancelledBy: null,
-          cancelledByName: null,
+          correctedBy: null,
+          correctedByName: null,
           confirmedAt: null,
           sentAt: null,
           lastRefusalReason: null,
