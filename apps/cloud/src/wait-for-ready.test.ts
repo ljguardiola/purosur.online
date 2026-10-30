@@ -11,8 +11,8 @@ function envWithout(...names: string[]): NodeJS.ProcessEnv {
   return env;
 }
 
-// The command's process ends on its own once it refuses what it was given, so each test waits
-// for it to exit however long the machine takes to load the command.
+// The command's process ends on its own once it refuses what it was given, so each test sets
+// no timeout of its own.
 describe("the wait-for-ready command", { timeout: 0 }, () => {
   it("fails with a clear message when DATABASE_URL is not set", () => {
     const result = spawnSync(

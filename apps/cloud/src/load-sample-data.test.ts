@@ -2,8 +2,8 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, inject, it } from "vitest";
 
-// The command's process ends on its own once it refuses what it was given, so each test waits
-// for it to exit however long the machine takes to load the command.
+// The command's process ends on its own once it refuses what it was given, so each test sets
+// no timeout of its own.
 describe("the load-sample-data command", { timeout: 0 }, () => {
   const ENTRYPOINT = join(inject("cloudBuildDir"), "load-sample-data.js");
   // RFC 5737's TEST-NET-3: reserved for documentation, so it is never routable and a stray

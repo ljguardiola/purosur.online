@@ -19,7 +19,7 @@ function runNode(args: string[]): Promise<{ status: number | null; stderr: strin
 }
 
 // Every command's process ends on its own, refusing to start without its configuration, so each
-// test waits for it to exit however long the machine takes to load the command.
+// test sets no timeout of its own.
 describe("each cloud command", { timeout: 0 }, () => {
   const buildDir = inject("cloudBuildDir");
   const linkParent = mkdtempSync(join(tmpdir(), "purosur-cloud-link-"));

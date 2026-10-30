@@ -46,7 +46,7 @@ async function runEntry(entrypoint: string, env: NodeJS.ProcessEnv) {
 }
 
 // The command's process ends on its own once it refuses what it was given or reports its calls,
-// so each test waits for it to exit however long the machine takes to load the command.
+// so each test sets no timeout of its own.
 describe("the check-arca-test-environment command", { timeout: 0 }, () => {
   const ENTRYPOINT = join(inject("cloudBuildDir"), "check-arca-test-environment.js");
 
