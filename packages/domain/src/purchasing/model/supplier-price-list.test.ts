@@ -14,6 +14,7 @@ import {
   isSupplierPriceListPdfTooLarge,
   isSupplierPriceListUnderReview,
   mayCreateProductFromRow,
+  maySupplierPriceListBeReadAgain,
   maySupplierPriceListRowBeLinked,
   pricedRows,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
@@ -369,4 +370,15 @@ describe("storeCatalogListTerms", () => {
       pricesIncludeVat: true,
     });
   });
+});
+
+describe("maySupplierPriceListBeReadAgain", () => {
+  it.each(SUPPLIER_PRICE_LIST_STATES)(
+    "is %s only for a list not confirmed or discarded",
+    (state) => {
+      expect(maySupplierPriceListBeReadAgain(state)).toBe(
+        state === "EXTRACTED" || state === "READ_FAILED",
+      );
+    },
+  );
 });
