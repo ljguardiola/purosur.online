@@ -10,6 +10,7 @@ import {
   Button,
   dataColumn,
   formatCents,
+  formatNumber,
   ListFilter,
   plural,
   SearchField,
@@ -86,16 +87,19 @@ function productsCountText(params: { count: number; status: ProductStatusFilter 
   if (params.status === "active") {
     return plural(params.count, {
       one: "1 producto activo",
-      other: `${params.count} productos activos`,
+      other: `${formatNumber(params.count)} productos activos`,
     });
   }
   if (params.status === "inactive") {
     return plural(params.count, {
       one: "1 producto inactivo",
-      other: `${params.count} productos inactivos`,
+      other: `${formatNumber(params.count)} productos inactivos`,
     });
   }
-  return plural(params.count, { one: "1 producto", other: `${params.count} productos` });
+  return plural(params.count, {
+    one: "1 producto",
+    other: `${formatNumber(params.count)} productos`,
+  });
 }
 
 function unitLabel(saleUnit: ProductSaleUnit): string {

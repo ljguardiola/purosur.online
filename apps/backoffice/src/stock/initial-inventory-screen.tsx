@@ -3,6 +3,7 @@ import {
   dataColumn,
   FloatingNotification,
   formatCalendarDayNumeric,
+  formatNumber,
   ListFilter,
   plural,
   SearchField,
@@ -114,9 +115,9 @@ function footerText(lots: readonly InitialInventoryLot[]): string {
   const withoutCost = lots.filter((lot) => lot.unitCostCents === null).length;
   const counted = plural(lots.length, {
     one: "1 lote de la puesta en marcha",
-    other: `${lots.length} lotes de la puesta en marcha`,
+    other: `${formatNumber(lots.length)} lotes de la puesta en marcha`,
   });
-  return withoutCost === 0 ? counted : `${counted} · ${withoutCost} sin costo`;
+  return withoutCost === 0 ? counted : `${counted} · ${formatNumber(withoutCost)} sin costo`;
 }
 
 export function InitialInventoryScreen({

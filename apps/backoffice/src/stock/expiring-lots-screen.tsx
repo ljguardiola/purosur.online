@@ -4,6 +4,7 @@ import {
   dataColumn,
   FloatingNotification,
   formatCalendarDayNumeric,
+  formatNumber,
   ListFilter,
   plural,
   SearchField,
@@ -89,11 +90,11 @@ function lotName(lot: ExpiringLot): string {
 }
 
 function summaryText({ valueCents, withoutCostCount }: ExpiringLotList["summary"], count: number) {
-  const lots = plural(count, { one: "1 lote", other: `${count} lotes` });
+  const lots = plural(count, { one: "1 lote", other: `${formatNumber(count)} lotes` });
   const value = `valorizado ${formatStockValue(valueCents)}`;
   return withoutCostCount === 0
     ? `${lots} · ${value}`
-    : `${lots} · ${value} · ${withoutCostCount} sin costo`;
+    : `${lots} · ${value} · ${formatNumber(withoutCostCount)} sin costo`;
 }
 
 function discardedNotice(lot: ExpiringLot, result: ExpiredLotDiscardResult) {

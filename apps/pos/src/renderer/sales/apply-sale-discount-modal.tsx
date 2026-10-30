@@ -11,6 +11,7 @@ import {
   Button,
   fieldErrorMessage,
   formatCents,
+  formatNumber,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -192,7 +193,7 @@ export function ApplySaleDiscountModal({
       width="standard"
       tone="info"
       icon={<Percent />}
-      context={`VENTA EN CURSO · ${lineCount} ${plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" })}`}
+      context={`VENTA EN CURSO · ${formatNumber(lineCount)} ${plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" })}`}
       title="Descuento sobre el total"
       closable={!submitting}
       footer={

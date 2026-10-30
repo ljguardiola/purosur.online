@@ -3,6 +3,7 @@ import {
   actionsColumn,
   Button,
   dataColumn,
+  formatNumber,
   plural,
   SearchField,
   Table,
@@ -150,7 +151,7 @@ export function CategoriesListScreen({
               <p className="text-text-subtle text-detail">
                 {plural(matchCount, {
                   one: "1 categoría",
-                  other: `${matchCount} categorías`,
+                  other: `${formatNumber(matchCount)} categorías`,
                 })}
               </p>
             )

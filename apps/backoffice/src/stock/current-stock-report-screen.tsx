@@ -4,6 +4,7 @@ import {
   Card,
   dataColumn,
   FigureStat,
+  formatNumber,
   formatSignedCents,
   type ItemOrder,
   ListFilter,
@@ -63,7 +64,7 @@ function figureTone(amount: number | null) {
 }
 
 function productsText(count: number): string {
-  return plural(count, { one: "1 producto", other: `${count} productos` });
+  return plural(count, { one: "1 producto", other: `${formatNumber(count)} productos` });
 }
 
 function positiveValueTotal(products: readonly Product[]): number {

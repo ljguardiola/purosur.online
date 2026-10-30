@@ -4,6 +4,7 @@ import {
   dataColumn,
   FigureStat,
   formatCents,
+  formatNumber,
   formatPercent,
   ListFilter,
   PercentBar,
@@ -213,8 +214,14 @@ export function SalesByProductAndCategoryScreen({
             <div className="flex items-center justify-between gap-4">
               <p className="text-text-subtle text-detail">
                 {group === "product"
-                  ? plural(rowCount, { one: "1 producto", other: `${rowCount} productos` })
-                  : plural(rowCount, { one: "1 categoría", other: `${rowCount} categorías` })}
+                  ? plural(rowCount, {
+                      one: "1 producto",
+                      other: `${formatNumber(rowCount)} productos`,
+                    })
+                  : plural(rowCount, {
+                      one: "1 categoría",
+                      other: `${formatNumber(rowCount)} categorías`,
+                    })}
               </p>
               <TablePagination
                 table={table}

@@ -2,6 +2,7 @@ import type { StockBalance, StockBalanceList } from "@purosur/contracts";
 import {
   actionsColumn,
   dataColumn,
+  formatNumber,
   formatSignedCents,
   type ItemOrder,
   ListFilter,
@@ -82,12 +83,12 @@ function matchesBalance(balance: number, filter: BalanceFilter): boolean {
 function summaryText({ productCount, valueCents, withoutCostCount }: StockBalanceList["summary"]) {
   const products = plural(productCount, {
     one: "1 producto con movimiento",
-    other: `${productCount} productos con movimiento`,
+    other: `${formatNumber(productCount)} productos con movimiento`,
   });
   const value = `valorizado ${formatSignedCents(valueCents)}`;
   return withoutCostCount === 0
     ? `${products} · ${value}`
-    : `${products} · ${value} · ${withoutCostCount} sin costo`;
+    : `${products} · ${value} · ${formatNumber(withoutCostCount)} sin costo`;
 }
 
 export function StockBalancesScreen({

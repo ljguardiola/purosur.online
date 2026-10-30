@@ -1,4 +1,4 @@
-import { Button, InlineNotice, Modal, plural } from "@purosur/ui";
+import { Button, formatNumber, InlineNotice, Modal, plural } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -99,7 +99,7 @@ export function RemoveEveryUserPasskeyModal({
 
   const subject = plural(passkeyCount, {
     one: "Su única passkey deja",
-    other: `Sus ${passkeyCount} passkeys dejan`,
+    other: `Sus ${formatNumber(passkeyCount)} passkeys dejan`,
   });
 
   return (

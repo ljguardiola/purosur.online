@@ -4,6 +4,7 @@ import {
   dataColumn,
   FigureStat,
   formatCalendarDayNumeric,
+  formatNumber,
   plural,
   Table,
   TableCellText,
@@ -148,7 +149,7 @@ export function PricesPastReviewDeadlineReportScreen({
                 label="Precios"
                 value={plural(data.value.summary.price_count, {
                   one: "1 precio",
-                  other: `${data.value.summary.price_count} precios`,
+                  other: `${formatNumber(data.value.summary.price_count)} precios`,
                 })}
               />
             ) : (

@@ -288,7 +288,10 @@ export function SupplierPriceListsScreen({
           footer={
             shownCount === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
-                {plural(shownCount, { one: "1 lista", other: `${shownCount} listas` })}
+                {plural(shownCount, {
+                  one: "1 lista",
+                  other: `${formatNumber(shownCount)} listas`,
+                })}
               </p>
             )
           }

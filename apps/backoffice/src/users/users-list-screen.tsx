@@ -3,6 +3,7 @@ import {
   actionsColumn,
   Button,
   dataColumn,
+  formatNumber,
   InlineNotice,
   ListFilter,
   LoadingPlaceholder,
@@ -415,7 +416,7 @@ function UsersListView({
           ? "—"
           : plural(item.passkeyCount, {
               one: "1 registrada",
-              other: `${item.passkeyCount} registradas`,
+              other: `${formatNumber(item.passkeyCount)} registradas`,
             }),
     }),
   ] as const;
@@ -511,7 +512,7 @@ function UsersListView({
               <p className="text-text-subtle text-detail">
                 {plural(matchCount, {
                   one: "1 usuario",
-                  other: `${matchCount} usuarios`,
+                  other: `${formatNumber(matchCount)} usuarios`,
                 })}
               </p>
             )

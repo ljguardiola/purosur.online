@@ -4,6 +4,7 @@ import {
   actionsColumn,
   dataColumn,
   formatCents,
+  formatNumber,
   isLocalAlertKind,
   ListFilter,
   type LocalAlertSubject,
@@ -314,7 +315,7 @@ export function AlertsListScreen({
             alerts.length === 0 ? undefined : (
               <div className="flex items-center justify-between gap-4">
                 <p className="text-text-subtle text-detail">
-                  {`${plural(openCount, { one: "1 alerta abierta", other: `${openCount} alertas abiertas` })} · ${plural(criticalCount, { one: "1 crítica", other: `${criticalCount} críticas` })}`}
+                  {`${plural(openCount, { one: "1 alerta abierta", other: `${formatNumber(openCount)} alertas abiertas` })} · ${plural(criticalCount, { one: "1 crítica", other: `${formatNumber(criticalCount)} críticas` })}`}
                 </p>
                 <Pagination
                   page={page}
