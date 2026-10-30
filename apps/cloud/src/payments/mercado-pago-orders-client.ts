@@ -74,7 +74,7 @@ function orderAnswerSchemaWith<TPaymentDetail extends z.ZodType<string | undefin
     status: z.string(),
     status_detail: z.string(),
     external_reference: z.string().optional(),
-    total_paid_amount: amountSchema.optional(),
+    total_paid_amount: amountSchema.nullable().optional(),
     transactions: z
       .object({
         payments: z.array(
