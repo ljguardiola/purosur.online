@@ -1044,6 +1044,13 @@
       "when": 1793397228024,
       "tag": "0155_rereads_of_supplier_price_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1793404272121,
+      "tag": "0156_supplier_price_list_row_page_prices",
+      "breakpoints": true
     }
   ]
 }

@@ -68,6 +68,8 @@ export interface StoredPriceListRow {
   code: string | null;
   presentation: string | null;
   priceCents: number | null;
+  // The price the page printed for the row when the list was last read.
+  pagePriceCents: number | null;
   link: SupplierItemLink | null;
   // Whether a person linked the row in this list, rather than its link being copied when the list
   // was read.
@@ -197,7 +199,8 @@ export interface SupplierPriceListStoreTransaction {
   linkRow(listId: string, rowId: string, link: SupplierItemLink, actorId: string): Promise<void>;
   markRowReviewed(listId: string, rowId: string, actorId: string): Promise<void>;
   setRowPrice(listId: string, rowId: string, priceCents: number, actorId: string): Promise<void>;
-  // Remembers the removed item, with its price, among the list's removed items.
+  // Remembers the removed item, with the price the page printed for it, among the list's removed
+  // items.
   removeRow(listId: string, rowId: string, actorId: string): Promise<void>;
   confirmList(
     listId: string,
