@@ -38,9 +38,9 @@ test("shows what reading the list cost, what its link proposals cost and their s
   await expect
     .element(screen.getByRole("heading", { name: "Costo de IA", level: 2 }))
     .toBeVisible();
-  await expect.element(screen.getByText(/^LecturaUS\$ 1\.234,5678$/)).toBeVisible();
+  await expect.element(screen.getByText(/^LecturaUS\$ 1,2346$/)).toBeVisible();
   await expect.element(screen.getByText(/^Propuestas de vínculoUS\$ 0,2500$/)).toBeVisible();
-  await expect.element(screen.getByText(/^TotalUS\$ 1\.484,5678$/)).toBeVisible();
+  await expect.element(screen.getByText(/^TotalUS\$ 1,4846$/)).toBeVisible();
   expect(services.fetchSupplierPriceListAiCost).toHaveBeenCalledWith(LIST_ID);
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -56,7 +56,7 @@ test("marks a cost as incomplete when some call's model had no price", async () 
     )
     .toBeVisible();
   await expect
-    .element(screen.getByText(/^TotalIncompleto: 2 llamadas sin precioUS\$ 1\.484,5678$/))
+    .element(screen.getByText(/^TotalIncompleto: 2 llamadas sin precioUS\$ 1,4846$/))
     .toBeVisible();
   expect(screen.getByText(/^LecturaIncompleto/).query()).toBeNull();
 });
@@ -103,7 +103,7 @@ test("shows a failed load of the cost with a retry that reads it again, leaving 
   await expect.element(screen.getByRole("table", { name: "Ítems de la lista" })).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(screen.getByText(/^TotalUS\$ 1\.484,5678$/)).toBeVisible();
+  await expect.element(screen.getByText(/^TotalUS\$ 1,4846$/)).toBeVisible();
   expect(services.fetchSupplierPriceListAiCost).toHaveBeenCalledTimes(2);
 });
 
@@ -138,11 +138,11 @@ test("reads the cost again after the AI proposed a link, so the cost shown stays
     value: LINK_CHOICES,
   });
   const screen = await loaded(services, review, { access: WITH_AI_COST });
-  await expect.element(screen.getByText(/^TotalUS\$ 1\.484,5678$/)).toBeVisible();
+  await expect.element(screen.getByText(/^TotalUS\$ 1,4846$/)).toBeVisible();
 
   await userEvent.click(
     screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
   );
 
-  await expect.element(screen.getByText(/^TotalUS\$ 1\.984,5678$/)).toBeVisible();
+  await expect.element(screen.getByText(/^TotalUS\$ 1,9846$/)).toBeVisible();
 });
