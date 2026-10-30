@@ -135,7 +135,7 @@ export const completeReturnOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("completed"),
     return_id: z.string(),
-    refunded_total: cents,
+    refunded_in_cash: cents,
     refunds: z.array(
       z.object({
         payment_id: z.string(),

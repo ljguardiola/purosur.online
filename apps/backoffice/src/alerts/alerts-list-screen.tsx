@@ -112,7 +112,7 @@ function alertRowDescription(alert: AlertSummary): string {
     return alert.resolvedAt === null ? `${payment} por reembolsar` : payment;
   }
   if (alert.kind === "refund_task" && alert.resolvedAt !== null) {
-    return "Reembolso de una venta anulada";
+    return "Reembolso de una anulación o devolución";
   }
   const subject = localSubjectOf(alert);
   if (subject === undefined) {

@@ -153,9 +153,7 @@ export function ReturnBuildStep({
       case "completed":
         authorization.performed();
         onCompleted({
-          cashToHandOver: outcome.refunds
-            .filter(({ state }) => state === "APPROVED")
-            .reduce((sum, { amount }) => sum + amount, 0),
+          cashToHandOver: outcome.refunded_in_cash,
           pendingRefunds: outcome.refunds
             .filter(({ state }) => state === "PENDING")
             .map((refund) => ({

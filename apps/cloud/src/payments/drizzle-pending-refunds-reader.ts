@@ -13,6 +13,7 @@ import {
   paymentTransactions,
   registers,
   salePayments,
+  saleReturns,
   sales,
   users,
 } from "../platform/db/schema.js";
@@ -20,6 +21,8 @@ import {
 function isRefundOrigin(origin: string): origin is RefundOrigin {
   return REFUND_ORIGINS.some((known) => known === origin);
 }
+
+const correctedBy = sql<string | null>`coalesce(${saleReturns.actorId}, ${sales.actorId})`;
 
 export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
   implements PendingRefundsReader
@@ -47,7 +50,7 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         saleVoidedAt: sales.voidedAt,
         saleCompletedAt: sales.completedAt,
         transactionCreatedAt: paymentTransactions.createdAt,
-        cancelledBy: sales.actorId,
+        cancelledBy: correctedBy,
         cancelledByName: users.firstName,
         confirmedAt: paymentRefunds.confirmedAt,
         sentAt: paymentRefunds.sentAt,
@@ -64,7 +67,8 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         registers,
         eq(registers.id, sql`coalesce(${sales.registerId}, ${paymentTransactions.registerId})`),
       )
-      .leftJoin(users, sql`${users.id}::text = ${sales.actorId}`)
+      .leftJoin(saleReturns, eq(saleReturns.originEventId, paymentRefunds.originEventId))
+      .leftJoin(users, sql`${users.id}::text = ${correctedBy}`)
       .where(
         and(
           eq(sql`coalesce(${sales.locationId}, ${registers.locationId})`, locationId),

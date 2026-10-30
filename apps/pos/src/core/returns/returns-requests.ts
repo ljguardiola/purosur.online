@@ -214,7 +214,7 @@ export async function completeReturnFor(
       return {
         kind: "completed",
         return_id: outcome.returnId,
-        refunded_total: outcome.refundedTotal,
+        refunded_in_cash: outcome.refundedInCash,
         refunds: outcome.refunds.map(({ paymentId, method, amount, state }) => ({
           payment_id: paymentId,
           method,

@@ -77,7 +77,7 @@ export type CompleteReturnOutcome<Grant extends CompleteReturnGrant> =
   | {
       kind: "completed";
       returnId: string;
-      refundedTotal: number;
+      refundedInCash: number;
       refunds: ReturnedRefund[];
       creditNote: ReturnCreditNote;
       grant: Grant;
@@ -265,7 +265,7 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
     return {
       kind: "completed",
       returnId,
-      refundedTotal,
+      refundedInCash,
       refunds: recordedRefunds.map(({ returnId: _returnId, saleId: _saleId, ...refund }) => refund),
       creditNote: returnCreditNote(route),
       grant,

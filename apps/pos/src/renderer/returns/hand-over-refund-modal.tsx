@@ -1,6 +1,5 @@
-import { Button, Eyebrow, FigureStat, formatCents, Modal, Tag } from "@purosur/ui";
+import { Button, Eyebrow, FigureStat, formatCents, Modal } from "@purosur/ui";
 import { Check, CircleCheck, Undo2 } from "lucide-react";
-import { pendingRefundPresentation } from "../platform/pending-refund-text";
 import type { ReturnDispositionValue } from "./return-text";
 import { dispositionOutcomeText } from "./return-text";
 
@@ -45,7 +44,11 @@ export function HandOverRefundModal({
       tone="success"
       icon={<CircleCheck />}
       context="DEVOLUCIÓN COMPLETADA"
-      title={cashToHandOver > 0 ? "Entregá el dinero al cliente" : "El reintegro queda pendiente"}
+      title={
+        cashToHandOver > 0
+          ? "Entregá el dinero al cliente"
+          : "El dinero vuelve por cada medio de pago"
+      }
       footer={
         <Button size="large" icon={<Check />} fullWidth onPress={onDone}>
           Listo
@@ -64,22 +67,20 @@ export function HandOverRefundModal({
         ) : null}
         {pendingRefunds.length > 0 ? (
           <div className="flex flex-col gap-3">
-            <Eyebrow text="REEMBOLSOS PENDIENTES · CADA PAGO VUELVE POR SU MEDIO" />
+            <Eyebrow text="REEMBOLSOS PENDIENTES" />
             <ul className="flex flex-col gap-3">
-              {pendingRefunds.map((refund) => {
-                const { description, chip } = pendingRefundPresentation(refund.sentByCloud);
-                return (
-                  <li key={refund.id} className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-body font-bold text-text">
-                        {`${refund.name} · ${formatCents(refund.amount)}`}
-                      </span>
-                      <Tag tone={chip.tone}>{chip.label}</Tag>
-                    </div>
-                    <p className="text-detail text-text-subtle">{description}</p>
-                  </li>
-                );
-              })}
+              {pendingRefunds.map((refund) => (
+                <li key={refund.id} className="flex flex-col gap-1">
+                  <span className="text-body font-bold text-text">
+                    {`${refund.name} · ${formatCents(refund.amount)}`}
+                  </span>
+                  <p className="text-detail text-text-subtle">
+                    {refund.sentByCloud
+                      ? "La nube lo envía a Mercado Pago."
+                      : "Lo hace una persona por fuera de la caja."}
+                  </p>
+                </li>
+              ))}
             </ul>
           </div>
         ) : null}
