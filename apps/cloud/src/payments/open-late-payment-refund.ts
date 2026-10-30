@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LatePaymentRefund } from "@purosur/domain";
 import type { LatePaymentRefundOpening } from "@purosur/domain/payments/use-cases";
-import { eq, isNotNull, isNull } from "drizzle-orm";
+import { eq, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { paymentRefunds, paymentTransactions, registers } from "../platform/db/schema.js";
@@ -34,7 +34,7 @@ export async function openLatePaymentRefund<TQueryResult extends PgQueryResultHK
   const [opened] = await (refund.providerOrderId === null
     ? insertion.onConflictDoNothing({
         target: paymentRefunds.paymentTransactionId,
-        where: isNull(paymentRefunds.providerOrderId),
+        where: sql`${paymentRefunds.providerOrderId} is null and ${paymentRefunds.origin} = 'late_payment'`,
       })
     : insertion.onConflictDoNothing({
         target: [paymentRefunds.paymentTransactionId, paymentRefunds.providerOrderId],

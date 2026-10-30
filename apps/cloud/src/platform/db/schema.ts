@@ -1761,7 +1761,7 @@ export const paymentRefunds = pgTable(
       .where(sql`${table.attemptKey} is not null`),
     uniqueIndex("payment_refunds_transaction_without_order_unique")
       .on(table.paymentTransactionId)
-      .where(sql`${table.providerOrderId} is null`),
+      .where(sql`${table.providerOrderId} is null and ${table.origin} = 'late_payment'`),
     uniqueIndex("payment_refunds_transaction_order_unique")
       .on(table.paymentTransactionId, table.providerOrderId)
       .where(sql`${table.providerOrderId} is not null`),
