@@ -8,6 +8,8 @@ import {
   REPLACED_LIST,
   REVIEWED_LIST,
   WEB_FAILED_LIST,
+  WEB_REREAD_FAILED_LIST,
+  WEB_REREADING_LIST,
 } from "./test-support/supplier-price-lists";
 
 describe("supplierPriceListStatusOf", () => {
@@ -28,6 +30,36 @@ describe("supplierPriceListStatusOf", () => {
       label: "Leyendo la lista",
       busy: true,
     });
+  });
+
+  test("shows a list being read again as busy, whatever it was before", () => {
+    const status = { tone: "info", label: "Actualizando la lista", busy: true };
+
+    expect(supplierPriceListStatusOf(WEB_REREADING_LIST)).toEqual(status);
+    expect(supplierPriceListStatusOf({ ...WEB_FAILED_LIST, rereading: true })).toEqual(status);
+  });
+
+  test.each([
+    ["unreadable_document", "No se pudo leer el contenido de la página."],
+    ["no_items_found", "No se encontró ningún ítem en la página."],
+    ["reading_unavailable", "La lectura no estuvo disponible."],
+    ["interrupted", "La lectura se interrumpió."],
+  ] as const)(
+    "keeps the list's status and gives why its last reread failed for %s",
+    (lastRereadFailure, rereadFailure) => {
+      expect(supplierPriceListStatusOf({ ...WEB_REREAD_FAILED_LIST, lastRereadFailure })).toEqual({
+        tone: "warning",
+        label: "14 ítems para revisar",
+        busy: false,
+        rereadFailure,
+      });
+    },
+  );
+
+  test("does not give the failure of the last reread while the list is read again", () => {
+    expect(
+      supplierPriceListStatusOf({ ...WEB_REREAD_FAILED_LIST, rereading: true }),
+    ).not.toHaveProperty("rereadFailure");
   });
 
   test("calls a confirmed list reviewed, and a confirmed list a newer one replaced", () => {

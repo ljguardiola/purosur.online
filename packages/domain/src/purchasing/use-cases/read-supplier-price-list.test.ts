@@ -4,40 +4,29 @@ import {
   SUPPLIER_PRICE_LIST_STATES,
   type SupplierPriceListReadFailure,
 } from "../model/supplier-price-list.js";
-import type { AiCallUsage } from "./ai-call-usage.js";
 import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
-import { FakePriceListExtractor } from "./test-support/fake-price-list-extractor.js";
-import { FakeStoreCatalogs } from "./test-support/fake-store-catalogs.js";
-import { FakeSupplierPriceListFiles } from "./test-support/fake-supplier-price-list-files.js";
-import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
+import type { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
+import {
+  aUsage,
+  HTML,
+  readInput as input,
+  NOW,
+  readingContext,
+  SENT_ON,
+} from "./test-support/read-supplier-price-list.js";
 
-const NOW = new Date("2026-03-11T01:30:00Z");
-const SENT_ON = "2026-03-10";
 const PDF = new Uint8Array([37, 80, 68, 70, 45]);
-const HTML = new Uint8Array([60, 104, 116, 109, 108, 62]);
 const STORE_CATALOG = new Uint8Array([91, 123, 125, 93]);
 
 function setup(
   listFields: Parameters<FakeSupplierPriceListStore["seedList"]>[0] = { id: "list-1" },
 ) {
-  const store = new FakeSupplierPriceListStore();
-  store.seedSupplier({ id: "supplier-a", name: "Distribuidora Sur", active: true });
-  store.seedList(listFields);
-  const files = new FakeSupplierPriceListFiles();
-  files.stored.set("list-1", PDF);
-  const extractor = new FakePriceListExtractor();
-  const storeCatalogs = new FakeStoreCatalogs();
-  return {
-    store,
-    files,
-    extractor,
-    storeCatalogs,
-    ports: { store, files, extractor, storeCatalogs, zoneRules: new FakeZoneRulesSource() },
-  };
+  const context = readingContext(new FakeZoneRulesSource());
+  context.store.seedList(listFields);
+  context.files.stored.set("list-1", PDF);
+  return context;
 }
-
-const input = { listId: "list-1", now: () => NOW, finalAttempt: false };
 
 describe("readSupplierPriceList", () => {
   it("answers not_found for a missing list", async () => {
@@ -764,27 +753,6 @@ describe("readSupplierPriceList of a store's catalog", () => {
   });
 });
 
-const SONNET = "claude-sonnet-5-5";
-
-function aUsage(
-  overrides: Partial<AiCallUsage["attempts"][number]> = {},
-  outcome: AiCallUsage["outcome"] = "completed",
-): AiCallUsage {
-  return {
-    outcome,
-    attempts: [
-      {
-        model: SONNET,
-        inputTokens: 1_000_000,
-        outputTokens: 100_000,
-        cacheWriteTokens: 0,
-        cacheReadTokens: 0,
-        ...overrides,
-      },
-    ],
-  };
-}
-
 const oneRow = {
   kind: "extracted" as const,
   listDate: null,
@@ -810,7 +778,7 @@ describe("readSupplierPriceList recording of the AI calls", () => {
         actorId: "person-7",
         occurredAt: NOW,
         occurredOn: SENT_ON,
-        model: SONNET,
+        model: "claude-sonnet-5-5",
         inputTokens: 1_000_000,
         outputTokens: 100_000,
         cacheWriteTokens: 0,

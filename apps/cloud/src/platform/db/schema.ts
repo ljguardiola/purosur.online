@@ -3253,6 +3253,74 @@ export const supplierPriceListRows = pgTable(
   ],
 );
 
+// A new reading of a list not confirmed yet. It counts toward the daily cap of the branch that
+// asked for it, which need not be the list's own.
+export const supplierPriceListRereads = pgTable(
+  "supplier_price_list_rereads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => supplierPriceLists.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    requestOrder: bigserial("request_order", { mode: "number" }).notNull(),
+    state: text("state").notNull(),
+    readFailure: text("read_failure"),
+    fileContentKind: text("file_content_kind").notNull(),
+    fileByteSize: bigint("file_byte_size", { mode: "number" }).notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull(),
+    requestedBy: uuid("requested_by")
+      .notNull()
+      .references(() => users.id),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    sentOn: date("sent_on", { mode: "string" }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (table) => [
+    check(
+      "supplier_price_list_rereads_state_check",
+      sql`${table.state} in ('READING', 'READ', 'READ_FAILED')`,
+    ),
+    check(
+      "supplier_price_list_rereads_file_content_kind_check",
+      sql`${table.fileContentKind} in (${quotedList(SUPPLIER_PRICE_LIST_CONTENT_KINDS)})`,
+    ),
+    check(
+      "supplier_price_list_rereads_read_failure_check",
+      sql`${table.readFailure} is null or ${table.readFailure} in (${quotedList(SUPPLIER_PRICE_LIST_READ_FAILURES)})`,
+    ),
+    uniqueIndex("supplier_price_list_rereads_reading_list_key")
+      .on(table.listId)
+      .where(sql`${table.state} = 'READING'`),
+    index("supplier_price_list_rereads_location_sent_on_idx").on(table.locationId, table.sentOn),
+  ],
+);
+
+// An item a person removed from a list, kept with the price it had so a reread does not bring it
+// back while the page prints it at that price.
+export const supplierPriceListRemovedItems = pgTable(
+  "supplier_price_list_removed_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => supplierPriceLists.id),
+    keyKind: text("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    priceCents: bigint("price_cents", { mode: "number" }),
+  },
+  (table) => [
+    check(
+      "supplier_price_list_removed_items_key_kind_check",
+      sql`${table.keyKind} in ('code', 'description')`,
+    ),
+    check("supplier_price_list_removed_items_price_check", sql`${table.priceCents} >= 0`),
+    index("supplier_price_list_removed_items_list_idx").on(table.listId),
+  ],
+);
+
 // A supplier's item is told apart by its code, or by its normalized description when it has none.
 export const supplierItems = pgTable(
   "supplier_items",

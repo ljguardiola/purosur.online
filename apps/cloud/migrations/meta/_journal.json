@@ -1037,6 +1037,13 @@
       "when": 1793392355706,
       "tag": "0154_tiendista_presentations_without_price",
       "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1793397228024,
+      "tag": "0155_rereads_of_supplier_price_lists",
+      "breakpoints": true
     }
   ]
 }

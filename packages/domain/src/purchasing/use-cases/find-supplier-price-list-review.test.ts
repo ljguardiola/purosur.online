@@ -11,6 +11,8 @@ const LIST = {
   unpricedRowCount: 1,
   state: "EXTRACTED" as const,
   readFailure: null,
+  rereading: false,
+  lastRereadFailure: null,
   uploadedAt: new Date("2026-03-01T12:00:00Z"),
   confirmedAt: null,
   version: 4,
@@ -125,6 +127,17 @@ describe("findSupplierPriceListReview", () => {
     });
   });
 
+  it("answers whether the list is being read again and why its latest reread failed", async () => {
+    const reader = new FakeSupplierPriceListReader({
+      lists: [{ ...LIST, rereading: true, lastRereadFailure: "interrupted" }],
+    });
+
+    expect(await findSupplierPriceListReview(reader, "list-1")).toMatchObject({
+      kind: "found",
+      list: { rereading: true, lastRereadFailure: "interrupted" },
+    });
+  });
+
   it("answers that a confirmed list was replaced by a newer confirmed list of its supplier", async () => {
     const reader = new FakeSupplierPriceListReader({
       lists: [
@@ -204,6 +217,34 @@ describe("findSupplierPriceListReview", () => {
 
     expect(outcome.kind === "found" && outcome.actions).toEqual(actions);
   });
+
+  it("does not offer confirming a list under review while its page is being read again", async () => {
+    const reader = new FakeSupplierPriceListReader({ lists: [{ ...LIST, rereading: true }] });
+
+    const outcome = await findSupplierPriceListReview(reader, "list-1");
+
+    expect(outcome.kind === "found" && outcome.actions).toEqual({
+      changeRows: true,
+      confirm: false,
+      discard: true,
+      linkRows: true,
+      markRowsReviewed: true,
+    });
+  });
+
+  it.each(["REVIEWED", "DISCARDED"] as const)(
+    "answers no reread failure for a %s list, which may no longer be read again",
+    async (state) => {
+      const reader = new FakeSupplierPriceListReader({
+        lists: [{ ...LIST, state, lastRereadFailure: "interrupted" }],
+      });
+
+      expect(await findSupplierPriceListReview(reader, "list-1")).toMatchObject({
+        kind: "found",
+        list: { lastRereadFailure: null },
+      });
+    },
+  );
 
   it.each(["EXTRACTED", "REVIEWED"] as const)(
     "answers that only a row without a link may create a product in a list in state %s",

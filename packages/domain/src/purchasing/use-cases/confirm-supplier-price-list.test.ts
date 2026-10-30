@@ -652,3 +652,43 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     expect(store.snapshot()).toEqual(before);
   });
 });
+
+describe("confirmSupplierPriceList while the list is read again", () => {
+  it("refuses to confirm a list with a reread being read, changing nothing", async () => {
+    const store = setup();
+    store.seedReread({ id: "reread-1", listId: "list-1" });
+    const before = store.snapshot();
+
+    expect(await confirmSupplierPriceList(store, input)).toEqual({ kind: "rereading" });
+
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("refuses with rereading before comparing versions", async () => {
+    const store = setup();
+    store.seedReread({ id: "reread-1", listId: "list-1" });
+
+    expect(await confirmSupplierPriceList(store, { ...input, version: 1 })).toEqual({
+      kind: "rereading",
+    });
+  });
+
+  it("refuses a list not under review as not editable even when a reread is open", async () => {
+    const store = setup({ state: "REVIEWED" });
+    store.seedReread({ id: "reread-1", listId: "list-1" });
+
+    expect(await confirmSupplierPriceList(store, input)).toEqual({ kind: "not_editable" });
+  });
+
+  it("confirms a list whose reread has ended", async () => {
+    const store = setup();
+    store.seedReread({
+      id: "reread-1",
+      listId: "list-1",
+      state: "READ_FAILED",
+      readFailure: "reading_unavailable",
+    });
+
+    expect(await confirmSupplierPriceList(store, input)).toEqual({ kind: "confirmed" });
+  });
+});

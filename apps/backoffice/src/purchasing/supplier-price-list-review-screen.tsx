@@ -379,7 +379,23 @@ export function SupplierPriceListReviewScreen({
             description="Cuando termine, los ítems aparecen acá para revisar."
           />
         ) : null}
-        {list?.state === "READ_FAILED" && status !== null ? (
+        {list?.rereading && status !== null ? (
+          <InlineNotice
+            tone="info"
+            icon={<LoaderCircle />}
+            title={status.label}
+            description="Se está leyendo la página de nuevo. Cuando termine, se ven los cambios."
+          />
+        ) : null}
+        {status?.rereadFailure === undefined ? null : (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="No se pudo actualizar la lista"
+            description={`${status.rereadFailure} La lista quedó como estaba.`}
+          />
+        )}
+        {list?.state === "READ_FAILED" && !list.rereading && status !== null ? (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}

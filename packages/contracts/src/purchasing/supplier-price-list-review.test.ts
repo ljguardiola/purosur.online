@@ -51,6 +51,8 @@ const review = {
     unpricedRowCount: 1,
     state: "EXTRACTED",
     readFailure: null,
+    rereading: false,
+    lastRereadFailure: null,
     uploadedAt: "2026-03-01T12:00:00.000Z",
     replaced: false,
     version: 4,

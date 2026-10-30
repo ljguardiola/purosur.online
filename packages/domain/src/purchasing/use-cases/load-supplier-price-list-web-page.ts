@@ -16,5 +16,5 @@ export function loadSupplierPriceListWebPage(
   ports: LoadSupplierPriceListWebPagePorts,
   { supplierId, url, ...request }: LoadSupplierPriceListWebPageInput,
 ): Promise<LoadSupplierPriceListWebPageOutcome> {
-  return loadWebPage(ports, request, async () => ({ kind: "target", supplierId, url }));
+  return loadWebPage(ports, request, { supplierId, url });
 }

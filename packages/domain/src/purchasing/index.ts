@@ -76,6 +76,7 @@ export { supplierOfferPrice } from "./model/supplier-offer.js";
 export type {
   SupplierPriceListContentKind,
   SupplierPriceListReadFailure,
+  SupplierPriceListRereadState,
   SupplierPriceListSourceKind,
   SupplierPriceListState,
 } from "./model/supplier-price-list.js";
@@ -88,6 +89,7 @@ export {
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
+  rereadCountsTowardDailyExtractionCap,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
@@ -101,6 +103,10 @@ export {
   SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
   SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "./model/supplier-price-list-reading.js";
+export type {
+  RemovedItem,
+  RereadPlan,
+} from "./model/supplier-price-list-reread.js";
 export type { SupplierPriceListWebPageRefusal } from "./model/supplier-price-list-web-page.js";
 export {
   isSupplierPriceListWebPageAddressTooLong,

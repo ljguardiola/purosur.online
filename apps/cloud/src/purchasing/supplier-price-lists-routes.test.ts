@@ -20,6 +20,7 @@ import { insertActor, insertPackaging, insertProduct } from "./test-support/purc
 import {
   insertPriceList,
   insertPriceListRows,
+  insertReread,
   insertSupplier,
 } from "./test-support/supplier-price-list-fixtures.js";
 
@@ -152,6 +153,38 @@ describe("GET /supplier-price-lists", () => {
         uploadedAt: "2026-03-02T11:00:00.000Z",
       },
     ]);
+  });
+});
+
+describe("GET /supplier-price-lists with a list read again", () => {
+  it("tells that the list is being read again, and the review why the last reread failed", async () => {
+    const { headers, locationId, userId } = await manager();
+    const { listId } = await storedList({ state: "EXTRACTED" });
+    await insertReread(db, {
+      listId,
+      locationId,
+      actorId: userId,
+      state: "READ_FAILED",
+      readFailure: "no_items_found",
+    });
+
+    const review = await app.inject({
+      method: "GET",
+      url: `/supplier-price-lists/${listId}`,
+      headers,
+    });
+    await insertReread(db, {
+      listId,
+      locationId,
+      actorId: userId,
+      requestedAt: new Date("2026-03-03T12:00:00.000Z"),
+    });
+    const lists = await app.inject({ method: "GET", url: "/supplier-price-lists", headers });
+
+    expect(review.json()).toMatchObject({
+      list: { rereading: false, lastRereadFailure: "no_items_found" },
+    });
+    expect(lists.json()).toMatchObject([{ id: listId, rereading: true, lastRereadFailure: null }]);
   });
 });
 
@@ -695,7 +728,7 @@ describe("POST /supplier-price-lists/:id/refresh", () => {
       sourceUrl: WEB_PAGE_URL,
       state: "REVIEWED",
     });
-    return { headers, locationId, supplierId, listId };
+    return { headers, locationId, supplierId, listId, userId };
   }
 
   it("rejects an Origin that is not the backoffice's own, reading nothing", async () => {
@@ -741,6 +774,22 @@ describe("POST /supplier-price-lists/:id/refresh", () => {
   it("answers 409 daily_cap_reached with the cap, reading nothing", async () => {
     const { headers, locationId, listId } = await webPageList();
     await db.insert(supplierPriceListExtractionCaps).values({ locationId, dailyCap: 1 });
+    await insertPriceList(db, {
+      supplierId: await storedSupplier(),
+      locationId,
+      actorId: await insertActor(db),
+      state: "READING",
+    });
+
+    const response = await refresh(headers, listId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "daily_cap_reached", cap: 1 });
+    expect(webPages.urls).toEqual([]);
+  });
+
+  it("answers 409 already_reading for a list whose page is being read, reading nothing", async () => {
+    const { headers, listId } = await webPageList();
     await db
       .update(supplierPriceLists)
       .set({ state: "READING" })
@@ -749,7 +798,22 @@ describe("POST /supplier-price-lists/:id/refresh", () => {
     const response = await refresh(headers, listId);
 
     expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "daily_cap_reached", cap: 1 });
+    expect(response.json()).toMatchObject({ code: "already_reading" });
+    expect(webPages.urls).toEqual([]);
+  });
+
+  it("answers 409 already_reading for an unconfirmed list whose page is already being read again", async () => {
+    const { headers, listId, locationId, userId } = await webPageList();
+    await db
+      .update(supplierPriceLists)
+      .set({ state: "EXTRACTED" })
+      .where(eq(supplierPriceLists.id, listId));
+    await insertReread(db, { listId, locationId, actorId: userId });
+
+    const response = await refresh(headers, listId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "already_reading" });
     expect(webPages.urls).toEqual([]);
   });
 
@@ -985,6 +1049,19 @@ describe("POST /supplier-price-lists/:id/confirmation", () => {
     });
 
     expect(response.statusCode).toBe(403);
+    expect((await listRow(listId))?.state).toBe("EXTRACTED");
+  });
+
+  it("answers 409 rereading for a list whose page is being read again, confirming nothing", async () => {
+    const { headers, locationId, userId } = await manager();
+    const { listId } = await storedList({ state: "EXTRACTED", listDate: "2026-03-01" });
+    await insertPriceListRows(db, listId, [{}]);
+    await insertReread(db, { listId, locationId, actorId: userId });
+
+    const response = await confirm(headers, listId, { version: 1, pricesIncludeVat: true });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "rereading" });
     expect((await listRow(listId))?.state).toBe("EXTRACTED");
   });
 

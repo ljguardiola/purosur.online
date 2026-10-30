@@ -6,8 +6,8 @@ import {
 } from "../model/supplier-item.js";
 import {
   decideConfirmation,
-  isSupplierPriceListUnderReview,
   pricedRows,
+  supplierPriceListConfirmationBlock,
 } from "../model/supplier-price-list.js";
 import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
 
@@ -25,6 +25,7 @@ export interface ConfirmSupplierPriceListInput {
 export type ConfirmSupplierPriceListOutcome =
   | { kind: "not_found" }
   | { kind: "not_editable" }
+  | { kind: "rereading" }
   | { kind: "stale_version" }
   | { kind: "no_rows" }
   | { kind: "unpriced_rows" }
@@ -41,8 +42,12 @@ export function confirmSupplierPriceList(
     if (locked.kind === "not_found") {
       return { kind: "not_found" };
     }
-    if (!isSupplierPriceListUnderReview(locked.list.state)) {
-      return { kind: "not_editable" };
+    const block = supplierPriceListConfirmationBlock({
+      state: locked.list.state,
+      rereading: locked.list.reread !== null,
+    });
+    if (block !== null) {
+      return { kind: block };
     }
     if (locked.list.version !== input.version) {
       return { kind: "stale_version" };

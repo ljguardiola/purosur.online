@@ -6,6 +6,7 @@ import type {
   SupplierPriceListSourceKind,
   SupplierPriceListState,
 } from "../model/supplier-price-list.js";
+import type { RemovedItem, RereadPlan } from "../model/supplier-price-list-reread.js";
 import type { AiCallRecord } from "./ai-call-recording.js";
 
 export type NewSupplierPriceListFields = {
@@ -81,6 +82,23 @@ export type LockProductPackagingResult =
       packaging: { productId: string; active: boolean; saleUnit: SaleUnit };
     };
 
+// A new reading of a list not confirmed yet, which replaces nothing of the list until it ends.
+export interface OpenReread {
+  id: string;
+  contentKind: SupplierPriceListContentKind;
+  // The instant the reread was sent to be read, null while it has not been.
+  sentAt: Date | null;
+}
+
+export interface NewRereadFields {
+  listId: string;
+  locationId: string;
+  contentKind: SupplierPriceListContentKind;
+  byteSize: number;
+  requestedAt: Date;
+  actorId: string;
+}
+
 export interface LockedSupplierPriceList {
   id: string;
   supplierId: string;
@@ -96,6 +114,8 @@ export interface LockedSupplierPriceList {
   pricesIncludeVat: boolean | null;
   // The instant the list was sent to be read, null while it has not been.
   sentAt: Date | null;
+  // The reread of the list being read, null when none is.
+  reread: OpenReread | null;
   rowPrices: (number | null)[];
 }
 
@@ -141,6 +161,23 @@ export interface SupplierPriceListStoreTransaction {
     rows: ProposedPriceListRow[],
   ): Promise<void>;
   recordReadFailure(listId: string, reason: SupplierPriceListReadFailure): Promise<void>;
+  // Counts toward the branch's cap like a list, on the day it is sent.
+  startReread(fields: NewRereadFields): Promise<{ id: string }>;
+  markRereadSent(rereadId: string, sentAt: Date, sentOn: string): Promise<void>;
+  // Leaves the list's rows, state and version as they were.
+  recordRereadFailure(rereadId: string, reason: SupplierPriceListReadFailure): Promise<void>;
+  // The items removed from the list that stay out of it while the page keeps printing them at
+  // the same price.
+  removedItems(listId: string): Promise<RemovedItem[]>;
+  // Applies the plan to the list's rows and removed items, sets the list's terms, returns it to
+  // EXTRACTED and advances its version.
+  recordReread(
+    listId: string,
+    rereadId: string,
+    listDate: string | null,
+    pricesIncludeVat: boolean | null,
+    plan: RereadPlan<SupplierItemLink>,
+  ): Promise<void>;
   recordAiCalls(records: AiCallRecord[]): Promise<void>;
   lockRow(listId: string, rowId: string): Promise<LockSupplierPriceListRowResult>;
   // The list's rows in the order the reading found them.
@@ -160,6 +197,7 @@ export interface SupplierPriceListStoreTransaction {
   linkRow(listId: string, rowId: string, link: SupplierItemLink, actorId: string): Promise<void>;
   markRowReviewed(listId: string, rowId: string, actorId: string): Promise<void>;
   setRowPrice(listId: string, rowId: string, priceCents: number, actorId: string): Promise<void>;
+  // Remembers the removed item, with its price, among the list's removed items.
   removeRow(listId: string, rowId: string, actorId: string): Promise<void>;
   confirmList(
     listId: string,

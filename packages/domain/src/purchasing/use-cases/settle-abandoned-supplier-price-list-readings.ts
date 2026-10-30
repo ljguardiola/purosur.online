@@ -3,7 +3,11 @@ import type {
   SupplierPriceListReadingInProgress,
   SupplierPriceListReadings,
 } from "./supplier-price-list-readings.js";
-import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
+import type {
+  LockedSupplierPriceList,
+  SupplierPriceListStore,
+  SupplierPriceListStoreTransaction,
+} from "./supplier-price-list-store.js";
 
 export interface SettleAbandonedSupplierPriceListReadingsPorts {
   store: SupplierPriceListStore;
@@ -56,17 +60,44 @@ function settleAbandoned(
 ): Promise<boolean> {
   return store.transaction(async (tx) => {
     const locked = await tx.lockList(reading.listId);
-    if (locked.kind === "not_found" || locked.list.state !== "READING") {
+    if (locked.kind === "not_found") {
       return false;
     }
-    const { sentAt } = locked.list;
+    const { list } = locked;
+    if (reading.rereadId === undefined) {
+      return settleAbandonedFirstReading(tx, reading, list, now);
+    }
+    if (list.reread?.id !== reading.rereadId) {
+      return false;
+    }
+    const { sentAt } = list.reread;
     if (!isSupplierPriceListReadingAbandoned({ ...reading, sentAt }, now)) {
       return false;
     }
-    await tx.recordReadFailure(
-      reading.listId,
+    await tx.recordRereadFailure(
+      reading.rereadId,
       sentAt === null ? "reading_unavailable" : "interrupted",
     );
     return true;
   });
+}
+
+async function settleAbandonedFirstReading(
+  tx: SupplierPriceListStoreTransaction,
+  reading: SupplierPriceListReadingInProgress,
+  list: LockedSupplierPriceList,
+  now: Date,
+): Promise<boolean> {
+  if (list.state !== "READING") {
+    return false;
+  }
+  const { sentAt } = list;
+  if (!isSupplierPriceListReadingAbandoned({ ...reading, sentAt }, now)) {
+    return false;
+  }
+  await tx.recordReadFailure(
+    reading.listId,
+    sentAt === null ? "reading_unavailable" : "interrupted",
+  );
+  return true;
 }

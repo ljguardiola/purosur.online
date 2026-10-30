@@ -3,10 +3,12 @@ import { sameSupplierItemKey, supplierItemKey } from "../model/supplier-item.js"
 import {
   isPriceListRowPrice,
   isSourcePage,
+  maySupplierPriceListBeReadAgain,
   type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
   storeCatalogListTerms,
 } from "../model/supplier-price-list.js";
+import { planReread } from "../model/supplier-price-list-reread.js";
 import { type AiCallCollector, collectAiCalls } from "./ai-call-recording.js";
 import type {
   ExtractedPriceListRow,
@@ -154,13 +156,118 @@ function settleFailedReading(
       return;
     }
     await recordReadingCalls(tx, locked.list, aiCalls);
-    if (finalAttempt && locked.list.state === "READING") {
-      await tx.recordReadFailure(
-        listId,
-        locked.list.sentAt === null ? "reading_unavailable" : "interrupted",
+    if (!finalAttempt) {
+      return;
+    }
+    const { state, sentAt, reread } = locked.list;
+    if (state === "READING") {
+      await tx.recordReadFailure(listId, sentAt === null ? "reading_unavailable" : "interrupted");
+    } else if (reread !== null) {
+      await tx.recordRereadFailure(
+        reread.id,
+        reread.sentAt === null ? "reading_unavailable" : "interrupted",
       );
     }
   });
+}
+
+// What is being read: the list itself the first time, a reread of it afterwards.
+type Reading = { kind: "first" } | { kind: "reread"; id: string };
+
+type Claim = Stop | { kind: "go"; reading: Reading; contentKind: SupplierPriceListContentKind };
+
+function claimReading(
+  tx: SupplierPriceListStoreTransaction,
+  list: LockedSupplierPriceList,
+): Promise<Claim> {
+  if (list.state === "READING") {
+    return claimFirstReading(tx, list);
+  }
+  return claimReread(tx, list);
+}
+
+async function claimFirstReading(
+  tx: SupplierPriceListStoreTransaction,
+  list: LockedSupplierPriceList,
+): Promise<Claim> {
+  if (list.sentAt !== null) {
+    await tx.recordReadFailure(list.id, "interrupted");
+    return { kind: "stop", outcome: { kind: "interrupted" } };
+  }
+  return { kind: "go", reading: { kind: "first" }, contentKind: list.contentKind };
+}
+
+async function claimReread(
+  tx: SupplierPriceListStoreTransaction,
+  { state, reread }: LockedSupplierPriceList,
+): Promise<Claim> {
+  if (reread === null) {
+    return { kind: "stop", outcome: { kind: "already_read" } };
+  }
+  if (!maySupplierPriceListBeReadAgain(state)) {
+    await tx.recordRereadFailure(reread.id, "interrupted");
+    return { kind: "stop", outcome: { kind: "already_read" } };
+  }
+  if (reread.sentAt !== null) {
+    await tx.recordRereadFailure(reread.id, "interrupted");
+    return { kind: "stop", outcome: { kind: "interrupted" } };
+  }
+  return {
+    kind: "go",
+    reading: { kind: "reread", id: reread.id },
+    contentKind: reread.contentKind,
+  };
+}
+
+function isUnsent(list: LockedSupplierPriceList, reading: Reading): boolean {
+  return reading.kind === "first"
+    ? list.state === "READING" && list.sentAt === null
+    : list.reread?.id === reading.id && list.reread.sentAt === null;
+}
+
+function isOpen(list: LockedSupplierPriceList, reading: Reading): boolean {
+  return reading.kind === "first" ? list.state === "READING" : list.reread?.id === reading.id;
+}
+
+function recordFailure(
+  tx: SupplierPriceListStoreTransaction,
+  listId: string,
+  reading: Reading,
+  reason: SupplierPriceListReadFailure,
+): Promise<void> {
+  return reading.kind === "first"
+    ? tx.recordReadFailure(listId, reason)
+    : tx.recordRereadFailure(reading.id, reason);
+}
+
+function markSent(
+  tx: SupplierPriceListStoreTransaction,
+  listId: string,
+  reading: Reading,
+  sentAt: Date,
+  sentOn: string,
+): Promise<void> {
+  return reading.kind === "first"
+    ? tx.markSent(listId, sentAt, sentOn)
+    : tx.markRereadSent(reading.id, sentAt, sentOn);
+}
+
+async function recordAnswer(
+  tx: SupplierPriceListStoreTransaction,
+  list: LockedSupplierPriceList,
+  reading: Reading,
+  listDate: string | null,
+  pricesIncludeVat: boolean | null,
+  rows: ProposedPriceListRow[],
+): Promise<number> {
+  const linked = await withRememberedLinks(tx, list.supplierId, rows);
+  if (reading.kind === "first") {
+    await tx.recordExtraction(list.id, listDate, pricesIncludeVat, linked);
+    return linked.length;
+  }
+  const plan = planReread(await tx.listRows(list.id), await tx.removedItems(list.id), linked);
+  await tx.recordReread(list.id, reading.id, listDate, pricesIncludeVat, plan);
+  return plan.rows.length;
 }
 
 async function readOnce(
@@ -168,42 +275,34 @@ async function readOnce(
   { listId, now }: ReadSupplierPriceListInput,
   aiCalls: AiCallCollector,
 ): Promise<ReadSupplierPriceListOutcome> {
-  const claim = await store.transaction<
-    Stop | { kind: "go"; contentKind: SupplierPriceListContentKind }
-  >(async (tx) => {
+  const claim = await store.transaction<Claim>(async (tx) => {
     const locked = await tx.lockList(listId);
-    if (locked.kind === "not_found") {
-      return { kind: "stop", outcome: { kind: "not_found" } };
-    }
-    if (locked.list.state !== "READING") {
-      return { kind: "stop", outcome: { kind: "already_read" } };
-    }
-    if (locked.list.sentAt !== null) {
-      await tx.recordReadFailure(listId, "interrupted");
-      return { kind: "stop", outcome: { kind: "interrupted" } };
-    }
-    return { kind: "go", contentKind: locked.list.contentKind };
+    return locked.kind === "not_found"
+      ? { kind: "stop", outcome: { kind: "not_found" } }
+      : claimReading(tx, locked.list);
   });
   if (claim.kind === "stop") {
     return claim.outcome;
   }
+  const { reading, contentKind } = claim;
 
-  const file = await files.read(listId, claim.contentKind);
+  const file = await files.read(reading.kind === "first" ? listId : reading.id, contentKind);
 
   const sent = await store.transaction<
     Stop | { kind: "sent"; source: ReadingSource; sentOn: string }
   >(async (tx) => {
-    if (!(await isUnsentReading(tx, listId))) {
+    const locked = await tx.lockList(listId);
+    if (locked.kind === "not_found" || !isUnsent(locked.list, reading)) {
       return { kind: "stop", outcome: { kind: "already_read" } };
     }
     if (file === null) {
-      await tx.recordReadFailure(listId, "reading_unavailable");
+      await recordFailure(tx, listId, reading, "reading_unavailable");
       return { kind: "stop", outcome: { kind: "failed", reason: "reading_unavailable" } };
     }
     const sentAt = now();
     const sentOn = argentinaCalendarDay(sentAt, zoneRules.zoneRules());
-    await tx.markSent(listId, sentAt, sentOn);
-    return { kind: "sent", source: readingSource(claim.contentKind, file), sentOn };
+    await markSent(tx, listId, reading, sentAt, sentOn);
+    return { kind: "sent", source: readingSource(contentKind, file), sentOn };
   });
   if (sent.kind === "stop") {
     return sent.outcome;
@@ -220,39 +319,37 @@ async function readOnce(
       return { kind: "already_read" };
     }
     await recordReadingCalls(tx, locked.list, aiCalls);
-    if (locked.list.state !== "READING") {
+    if (!isOpen(locked.list, reading)) {
       return { kind: "already_read" };
     }
+    if (reading.kind === "reread" && !maySupplierPriceListBeReadAgain(locked.list.state)) {
+      await tx.recordRereadFailure(reading.id, "interrupted");
+      return { kind: "interrupted" };
+    }
     if (extraction.kind === "unreadable") {
-      await tx.recordReadFailure(listId, "unreadable_document");
+      await recordFailure(tx, listId, reading, "unreadable_document");
       return { kind: "failed", reason: "unreadable_document" };
     }
     if (extraction.kind === "unavailable") {
-      await tx.recordReadFailure(listId, "reading_unavailable");
+      await recordFailure(tx, listId, reading, "reading_unavailable");
       return { kind: "failed", reason: "reading_unavailable" };
     }
     if (extraction.rows.length === 0) {
-      await tx.recordReadFailure(listId, "no_items_found");
+      await recordFailure(tx, listId, reading, "no_items_found");
       return { kind: "failed", reason: "no_items_found" };
     }
     const listDate =
       extraction.listDate !== null && isCalendarDay(extraction.listDate)
         ? extraction.listDate
         : null;
-    await tx.recordExtraction(
-      listId,
+    const rowCount = await recordAnswer(
+      tx,
+      locked.list,
+      reading,
       listDate,
       extraction.pricesIncludeVat,
-      await withRememberedLinks(tx, locked.list.supplierId, extraction.rows.map(proposedRow)),
+      extraction.rows.map(proposedRow),
     );
-    return { kind: "extracted", rowCount: extraction.rows.length };
+    return { kind: "extracted", rowCount };
   });
-}
-
-async function isUnsentReading(
-  tx: SupplierPriceListStoreTransaction,
-  listId: string,
-): Promise<boolean> {
-  const locked = await tx.lockList(listId);
-  return locked.kind === "locked" && locked.list.state === "READING" && locked.list.sentAt === null;
 }

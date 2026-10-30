@@ -21,6 +21,7 @@ test.each([
   [{ kind: "unpriced_rows" }, { kind: "unpricedRows" }],
   [{ kind: "list_date_missing" }, { kind: "listDateMissing" }],
   [{ kind: "vat_missing" }, { kind: "vatMissing" }],
+  [{ kind: "rereading" }, { kind: "rereading" }],
   [{ kind: "packaging_not_linkable" }, { kind: "packagingNotLinkable" }],
   [{ kind: "vat_rate_missing" }, { kind: "vatRateMissing" }],
   [{ kind: "vat_rate_invalid" }, { kind: "attemptFailed" }],
@@ -37,6 +38,7 @@ test("a notice says the list changed only when what the person saw is out of dat
   expect(supplierPriceListChangeOutdates({ kind: "alreadyLinked" })).toBe(true);
   expect(supplierPriceListChangeOutdates({ kind: "attemptFailed" })).toBe(false);
   expect(supplierPriceListChangeOutdates({ kind: "unpricedRows" })).toBe(false);
+  expect(supplierPriceListChangeOutdates({ kind: "rereading" })).toBe(false);
   expect(supplierPriceListChangeOutdates(null)).toBe(false);
 });
 
@@ -67,6 +69,7 @@ test.each([
     "Hay ítems sin precio",
     "Escribí el precio de cada uno o quitalos antes de confirmar.",
   ],
+  [{ kind: "rereading" }, "La lista se está actualizando", "Cuando termine, se puede confirmar."],
   [
     { kind: "presentationTooLong" },
     "La presentación de la lista es demasiado larga",

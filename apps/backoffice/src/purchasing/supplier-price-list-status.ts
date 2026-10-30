@@ -6,6 +6,7 @@ export type SupplierPriceListStatus = {
   label: string;
   busy: boolean;
   reason?: string;
+  rereadFailure?: string;
 };
 
 type ReadFailureReasons = Record<NonNullable<SupplierPriceListSummary["readFailure"]>, string>;
@@ -26,6 +27,19 @@ const READ_FAILURE_REASONS = {
 } satisfies Record<SupplierPriceListSummary["source"]["kind"], ReadFailureReasons>;
 
 export function supplierPriceListStatusOf(list: SupplierPriceListSummary): SupplierPriceListStatus {
+  if (list.rereading) {
+    return { tone: "info", label: "Actualizando la lista", busy: true };
+  }
+  const status = readStatusOf(list);
+  return list.lastRereadFailure === null
+    ? status
+    : {
+        ...status,
+        rereadFailure: READ_FAILURE_REASONS[list.source.kind][list.lastRereadFailure],
+      };
+}
+
+function readStatusOf(list: SupplierPriceListSummary): SupplierPriceListStatus {
   switch (list.state) {
     case "EXTRACTED": {
       const count = formatNumber(list.rowCount);

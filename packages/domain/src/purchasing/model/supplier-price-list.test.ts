@@ -14,8 +14,10 @@ import {
   isSupplierPriceListPdfTooLarge,
   isSupplierPriceListUnderReview,
   mayCreateProductFromRow,
+  maySupplierPriceListBeReadAgain,
   maySupplierPriceListRowBeLinked,
   pricedRows,
+  rereadCountsTowardDailyExtractionCap,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
@@ -24,7 +26,9 @@ import {
   SUPPLIER_PRICE_LIST_READ_FAILURES,
   SUPPLIER_PRICE_LIST_SOURCE_KINDS,
   SUPPLIER_PRICE_LIST_STATES,
+  standingRereadFailure,
   storeCatalogListTerms,
+  supplierPriceListConfirmationBlock,
 } from "./supplier-price-list.js";
 
 describe("supplier price list constants", () => {
@@ -108,6 +112,81 @@ describe("countsTowardDailyExtractionCap", () => {
       expect(countsTowardDailyExtractionCap({ state, sentOn: null }, DAY)).toBe(false);
     },
   );
+});
+
+describe("rereadCountsTowardDailyExtractionCap", () => {
+  const DAY = "2026-03-10";
+
+  it.each(["READING", "READ", "READ_FAILED"] as const)(
+    "counts a %s reread sent on the day",
+    (state) => {
+      expect(rereadCountsTowardDailyExtractionCap({ state, sentOn: DAY }, DAY)).toBe(true);
+    },
+  );
+
+  it.each(["READING", "READ", "READ_FAILED"] as const)(
+    "does not count a %s reread sent another day",
+    (state) => {
+      expect(rereadCountsTowardDailyExtractionCap({ state, sentOn: "2026-03-09" }, DAY)).toBe(
+        false,
+      );
+    },
+  );
+
+  it("counts a reread being read and not yet sent, because it will be sent", () => {
+    expect(rereadCountsTowardDailyExtractionCap({ state: "READING", sentOn: null }, DAY)).toBe(
+      true,
+    );
+  });
+
+  it.each(["READ", "READ_FAILED"] as const)(
+    "does not count a %s reread that was never sent",
+    (state) => {
+      expect(rereadCountsTowardDailyExtractionCap({ state, sentOn: null }, DAY)).toBe(false);
+    },
+  );
+});
+
+describe("supplierPriceListConfirmationBlock", () => {
+  it("lets only a list under review that is not being read again be confirmed", () => {
+    expect(supplierPriceListConfirmationBlock({ state: "EXTRACTED", rereading: false })).toBeNull();
+  });
+
+  it("refuses a list under review while its page is being read again", () => {
+    expect(supplierPriceListConfirmationBlock({ state: "EXTRACTED", rereading: true })).toBe(
+      "rereading",
+    );
+  });
+
+  it.each(["READING", "READ_FAILED", "REVIEWED", "DISCARDED"] as const)(
+    "refuses a %s list as not editable, whether or not it is being read again",
+    (state) => {
+      expect(supplierPriceListConfirmationBlock({ state, rereading: false })).toBe("not_editable");
+      expect(supplierPriceListConfirmationBlock({ state, rereading: true })).toBe("not_editable");
+    },
+  );
+});
+
+describe("standingRereadFailure", () => {
+  it.each(["EXTRACTED", "READ_FAILED"] as const)(
+    "answers why the latest reread of a %s list failed",
+    (state) => {
+      expect(standingRereadFailure({ state, lastRereadFailure: "interrupted" })).toBe(
+        "interrupted",
+      );
+    },
+  );
+
+  it.each(["READING", "REVIEWED", "DISCARDED"] as const)(
+    "answers no reread failure for a %s list, which may no longer be read again",
+    (state) => {
+      expect(standingRereadFailure({ state, lastRereadFailure: "interrupted" })).toBeNull();
+    },
+  );
+
+  it("answers no reread failure when the latest reread did not fail", () => {
+    expect(standingRereadFailure({ state: "EXTRACTED", lastRereadFailure: null })).toBeNull();
+  });
 });
 
 describe("isSupplierPriceListUnderReview", () => {
@@ -369,4 +448,15 @@ describe("storeCatalogListTerms", () => {
       pricesIncludeVat: true,
     });
   });
+});
+
+describe("maySupplierPriceListBeReadAgain", () => {
+  it.each(SUPPLIER_PRICE_LIST_STATES)(
+    "is %s only for a list not confirmed or discarded",
+    (state) => {
+      expect(maySupplierPriceListBeReadAgain(state)).toBe(
+        state === "EXTRACTED" || state === "READ_FAILED",
+      );
+    },
+  );
 });

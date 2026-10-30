@@ -1,5 +1,8 @@
 import {
   confirmSupplierPriceList,
+  readSupplierPriceList,
+  refreshSupplierPriceListWebPage,
+  removeSupplierPriceListRow,
   uploadSupplierPriceList,
 } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
@@ -10,6 +13,8 @@ import {
   supplierItemPrices,
   supplierItems,
   supplierPriceListExtractionCaps,
+  supplierPriceListRemovedItems,
+  supplierPriceListRereads,
   supplierPriceListRows,
   supplierPriceLists,
 } from "../platform/db/schema.js";
@@ -22,10 +27,14 @@ import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER } from "./supplier-price-list-reading-task-identifier.js";
+import { deferred } from "./test-support/deferred.js";
+import { FakeSupplierPriceListWebPages } from "./test-support/fake-supplier-price-list-web-pages.js";
+import { InMemorySupplierPriceListFiles } from "./test-support/in-memory-supplier-price-list-files.js";
 import { insertActor } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertPriceListRows,
+  insertReread,
   insertSupplier,
 } from "./test-support/supplier-price-list-fixtures.js";
 
@@ -53,6 +62,8 @@ afterAll(async () => {
 beforeEach(async () => {
   await sql`delete from supplier_item_prices`;
   await sql`delete from supplier_items`;
+  await sql`delete from supplier_price_list_removed_items`;
+  await sql`delete from supplier_price_list_rereads`;
   await sql`delete from supplier_price_list_rows`;
   await sql`delete from supplier_price_lists`;
   await sql`delete from supplier_price_list_extraction_caps`;
@@ -215,5 +226,229 @@ describe("two confirmations of one supplier's lists at once, on a real Postgres"
     expect(outcomes.map(({ kind }) => kind)).toEqual(["confirmed", "confirmed"]);
     expect(await db.select().from(supplierItems)).toHaveLength(1);
     expect(await db.select().from(supplierItemPrices)).toHaveLength(2);
+  });
+});
+
+describe("a list with at most one reread being read, on a real Postgres", () => {
+  it("refuses a second reread reading of the same list and lets another list have its own", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+    const otherListId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+    await insertReread(db, { listId, locationId, actorId });
+
+    await expect(insertReread(db, { listId, locationId, actorId })).rejects.toThrow();
+    await insertReread(db, { listId, locationId, actorId, state: "READ" });
+    await insertReread(db, { listId: otherListId, locationId, actorId });
+
+    expect(await db.select().from(supplierPriceListRereads)).toHaveLength(3);
+  });
+});
+
+describe("the web page of a list, read again", () => {
+  const WEB_PAGE_URL = "https://distribuidora-sur.example/lista";
+
+  function refreshPorts() {
+    return {
+      zoneRules: fixedZoneRulesSource(),
+      store: store(),
+      files: new InMemorySupplierPriceListFiles(),
+      webPages: new FakeSupplierPriceListWebPages(),
+    };
+  }
+
+  const refresh = (listId: string) =>
+    refreshSupplierPriceListWebPage(refreshPorts(), { listId, locationId, actorId, now: NOW });
+
+  function webPageList(state: "EXTRACTED" | "READ_FAILED" = "EXTRACTED") {
+    return insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      sourceUrl: WEB_PAGE_URL,
+      state,
+      ...(state === "READ_FAILED" ? { readFailure: "interrupted" as const } : {}),
+      listDate: "2026-03-01",
+      pricesIncludeVat: true,
+    });
+  }
+
+  it("starts one reread when two refreshes of the same list arrive at once, the other finding the list already being read", async () => {
+    const listId = await webPageList();
+
+    const outcomes = await runQueuedBehindHeldLock(
+      sql,
+      (connection) =>
+        connection`select id from locations where id = ${locationId} for no key update`,
+      () => refresh(listId),
+      () => refresh(listId),
+    );
+
+    expect(outcomes.map(({ kind }) => kind).sort()).toEqual(["already_reading", "reread_started"]);
+    expect(await db.select().from(supplierPriceListRereads)).toHaveLength(1);
+    expect(await db.select().from(supplierPriceLists)).toHaveLength(1);
+    expect(await queuedReadings()).toHaveLength(1);
+  });
+
+  it.each([
+    ["the refresh first", "refresh", "confirm"],
+    ["the confirmation first", "confirm", "refresh"],
+  ] as const)(
+    "never leaves a confirmed list with an open reread when a refresh and a confirmation arrive at once, %s",
+    async (_order, first, second) => {
+      const listId = await webPageList();
+      await insertPriceListRows(db, listId, [{ description: "Yerba 1 kg", code: "Y-01" }]);
+      const operations: Record<"refresh" | "confirm", () => Promise<unknown>> = {
+        refresh: () => refresh(listId),
+        confirm: () =>
+          confirmSupplierPriceList(store(), {
+            listId,
+            version: 1,
+            listDate: null,
+            pricesIncludeVat: null,
+            actorId,
+            now: NOW,
+          }),
+      };
+
+      await runQueuedBehindHeldLock(
+        sql,
+        (connection) =>
+          connection`select id from supplier_price_lists where id = ${listId} for update`,
+        operations[first],
+        operations[second],
+      );
+
+      const [list] = await db
+        .select()
+        .from(supplierPriceLists)
+        .where(eq(supplierPriceLists.id, listId));
+      const openRereads = await db
+        .select()
+        .from(supplierPriceListRereads)
+        .where(eq(supplierPriceListRereads.listId, listId));
+      expect(list?.state === "REVIEWED" && openRereads.some((r) => r.state === "READING")).toBe(
+        false,
+      );
+    },
+  );
+
+  it("refuses to confirm a list while its reread is being read", async () => {
+    const listId = await webPageList();
+    await insertPriceListRows(db, listId, [{ description: "Yerba 1 kg" }]);
+
+    await refresh(listId);
+
+    expect(
+      await confirmSupplierPriceList(store(), {
+        listId,
+        version: 1,
+        listDate: null,
+        pricesIncludeVat: null,
+        actorId,
+        now: NOW,
+      }),
+    ).toEqual({ kind: "rereading" });
+  });
+
+  describe("merged while a person reviews the list", () => {
+    async function readingWhileReviewing(
+      review: (list: { listId: string; rowIds: string[] }) => Promise<unknown>,
+    ) {
+      const listId = await webPageList();
+      const rowIds = await insertPriceListRows(db, listId, [
+        { description: "Yerba 1 kg", code: "Y-01", priceCents: 900, reviewed: true },
+        { description: "Azúcar 1 kg", code: "A-01", priceCents: 500 },
+      ]);
+      const rereadId = await insertReread(db, { listId, locationId, actorId });
+      const files = new InMemorySupplierPriceListFiles();
+      await files.store(rereadId, new Uint8Array([60]), "HTML");
+      const answering = deferred();
+      const sending = deferred();
+
+      const read = readSupplierPriceList(
+        {
+          store: store(),
+          files,
+          storeCatalogs: { rows: async () => ({ kind: "unreadable" }) },
+          zoneRules: fixedZoneRulesSource(),
+          extractor: {
+            extract: async () => {
+              sending.resolve();
+              await answering.promise;
+              return {
+                kind: "extracted",
+                listDate: "2026-03-09",
+                pricesIncludeVat: true,
+                rows: [
+                  {
+                    description: "Yerba 1 kg",
+                    code: "Y-01",
+                    presentation: null,
+                    priceCents: 900,
+                    page: 1,
+                    barcode: null,
+                  },
+                  {
+                    description: "Azúcar 1 kg",
+                    code: "A-01",
+                    presentation: null,
+                    priceCents: 500,
+                    page: 1,
+                    barcode: null,
+                  },
+                ],
+              };
+            },
+          },
+        },
+        { listId, now: () => NOW, finalAttempt: false },
+      );
+      await sending.promise;
+      await review({ listId, rowIds });
+      answering.resolve();
+      return { listId, rowIds, outcome: await read };
+    }
+
+    it("keeps a row removed while the page was being read out of the list, remembering it", async () => {
+      const { listId, rowIds, outcome } = await readingWhileReviewing(
+        ({ listId: reviewedListId, rowIds: [, removedId] }) =>
+          removeSupplierPriceListRow(store(), {
+            listId: reviewedListId,
+            rowId: removedId as string,
+            version: 1,
+            actorId,
+          }),
+      );
+
+      expect(outcome).toEqual({ kind: "extracted", rowCount: 1 });
+      expect((await db.select().from(supplierPriceListRows)).map((row) => row.id)).toEqual([
+        rowIds[0],
+      ]);
+      expect(await db.select().from(supplierPriceListRemovedItems)).toMatchObject([
+        { listId, keyKind: "code", keyValue: "A-01", priceCents: 500 },
+      ]);
+    });
+
+    it("answers a review action begun with the version before the merge that the list changed", async () => {
+      const { listId, rowIds } = await readingWhileReviewing(async () => {});
+
+      expect(
+        await removeSupplierPriceListRow(store(), {
+          listId,
+          rowId: rowIds[0] as string,
+          version: 1,
+          actorId,
+        }),
+      ).toEqual({ kind: "stale_version" });
+    });
   });
 });

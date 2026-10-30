@@ -17,6 +17,11 @@ export interface SupplierPriceListListing {
   unpricedRowCount: number;
   state: SupplierPriceListState;
   readFailure: SupplierPriceListReadFailure | null;
+  // Whether the list's page is being read again.
+  rereading: boolean;
+  // Why the list's latest requested reread failed; null when that reread was read or is being
+  // read, and when the list has had none.
+  lastRereadFailure: SupplierPriceListReadFailure | null;
   uploadedAt: Date;
   // Null until a person confirms the list.
   confirmedAt: Date | null;

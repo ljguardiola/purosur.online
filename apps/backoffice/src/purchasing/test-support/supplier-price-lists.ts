@@ -9,6 +9,8 @@ export const READ_LIST: SupplierPriceListSummary = {
   unpricedRowCount: 2,
   state: "EXTRACTED",
   readFailure: null,
+  rereading: false,
+  lastRereadFailure: null,
   uploadedAt: "2026-09-26T13:00:00.000Z",
   replaced: false,
 };
@@ -90,6 +92,20 @@ export const WEB_FAILED_LIST: SupplierPriceListSummary = {
   unpricedRowCount: 0,
   state: "READ_FAILED",
   readFailure: "unreadable_document",
+};
+
+export const WEB_REREADING_LIST: SupplierPriceListSummary = {
+  ...WEB_LIST,
+  id: "5b100000-0000-4000-8000-00000000000a",
+  supplier: { id: "5a900000-0000-4000-8000-00000000000a", name: "Verdulería Cuyo" },
+  rereading: true,
+};
+
+export const WEB_REREAD_FAILED_LIST: SupplierPriceListSummary = {
+  ...WEB_LIST,
+  id: "5b100000-0000-4000-8000-00000000000b",
+  supplier: { id: "5a900000-0000-4000-8000-00000000000b", name: "Mayorista Pampa" },
+  lastRereadFailure: "unreadable_document",
 };
 
 type ReviewActions = SupplierPriceListReview["actions"];

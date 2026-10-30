@@ -18,6 +18,8 @@ const extracted = {
   unpricedRowCount: 2,
   state: "EXTRACTED",
   readFailure: null,
+  rereading: false,
+  lastRereadFailure: null,
   uploadedAt: "2026-03-01T12:00:00.000Z",
   replaced: false,
 };
@@ -74,8 +76,23 @@ describe("supplierPriceListSummarySchema", () => {
     );
   });
 
+  it.each(SUPPLIER_PRICE_LIST_READ_FAILURES)(
+    "accepts the reread failure %s",
+    (lastRereadFailure) => {
+      expect(
+        supplierPriceListSummarySchema.safeParse({
+          ...extracted,
+          rereading: true,
+          lastRereadFailure,
+        }).data,
+      ).toEqual({ ...extracted, rereading: true, lastRereadFailure });
+    },
+  );
+
   it.each([
     ["state", "CONFIRMED"],
+    ["rereading", "yes"],
+    ["lastRereadFailure", "timeout"],
     ["source", { kind: "XLSX", fileName: "lista.xlsx" }],
     ["source", { kind: "PDF" }],
     ["source", { kind: "PDF", url: "https://distribuidora-sur.example/lista" }],

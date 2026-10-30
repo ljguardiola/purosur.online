@@ -246,3 +246,202 @@ describe("settleAbandonedSupplierPriceListReadings", () => {
     ]);
   });
 });
+
+describe("settleAbandonedSupplierPriceListReadings of rereads", () => {
+  function setupReread(reread: Parameters<FakeSupplierPriceListStore["seedReread"]>[0]) {
+    const store = new FakeSupplierPriceListStore();
+    store.seedList({ id: "list-1", state: "EXTRACTED", version: 4, sentOn: "2026-03-01" });
+    store.seedReread(reread);
+    return store;
+  }
+
+  it("fails as interrupted a reread sent to the AI service twenty-five minutes ago or more with no answer, leaving the list as it was", async () => {
+    const store = setupReread({
+      id: "reread-1",
+      listId: "list-1",
+      sentAt: THIRTY_MINUTES_AGO,
+      sentOn: "2026-03-10",
+    });
+    const readings = new FakeSupplierPriceListReadings([
+      {
+        listId: "list-1",
+        rereadId: "reread-1",
+        sentAt: THIRTY_MINUTES_AGO,
+        readingStartedAt: THIRTY_MINUTES_AGO,
+      },
+    ]);
+    const listBefore = store.snapshot().lists;
+
+    expect(
+      await settleAbandonedSupplierPriceListReadings({ store, readings }, { now: NOW }),
+    ).toEqual({ kind: "settled", listIds: ["list-1"] });
+
+    expect(store.snapshot().rereads[0]).toMatchObject({
+      state: "READ_FAILED",
+      readFailure: "interrupted",
+    });
+    expect(store.snapshot().lists).toEqual(listBefore);
+  });
+
+  it("fails as unavailable a reread whose reading started twenty-five minutes ago or more without sending it", async () => {
+    const store = setupReread({ id: "reread-1", listId: "list-1" });
+    const readings = new FakeSupplierPriceListReadings([
+      {
+        listId: "list-1",
+        rereadId: "reread-1",
+        sentAt: null,
+        readingStartedAt: THIRTY_MINUTES_AGO,
+      },
+    ]);
+
+    await settleAbandonedSupplierPriceListReadings({ store, readings }, { now: NOW });
+
+    expect(store.snapshot().rereads[0]).toMatchObject({
+      state: "READ_FAILED",
+      readFailure: "reading_unavailable",
+    });
+  });
+
+  it("leaves a reread still waiting for its reading to start and one still within its time", async () => {
+    const store = setupReread({ id: "reread-1", listId: "list-1" });
+    store.seedList({ id: "list-2", state: "EXTRACTED" });
+    store.seedReread({
+      id: "reread-2",
+      listId: "list-2",
+      sentAt: ONE_MINUTE_AGO,
+      sentOn: "2026-03-10",
+    });
+    const readings = new FakeSupplierPriceListReadings([
+      { listId: "list-1", rereadId: "reread-1", sentAt: null, readingStartedAt: null },
+      {
+        listId: "list-2",
+        rereadId: "reread-2",
+        sentAt: ONE_MINUTE_AGO,
+        readingStartedAt: ONE_MINUTE_AGO,
+      },
+    ]);
+    const before = store.snapshot();
+
+    expect(
+      await settleAbandonedSupplierPriceListReadings({ store, readings }, { now: NOW }),
+    ).toEqual({ kind: "settled", listIds: [] });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("leaves a reread that finished after it was listed", async () => {
+    const store = setupReread({
+      id: "reread-1",
+      listId: "list-1",
+      state: "READ",
+      sentAt: THIRTY_MINUTES_AGO,
+      sentOn: "2026-03-10",
+    });
+    const readings = new FakeSupplierPriceListReadings([
+      {
+        listId: "list-1",
+        rereadId: "reread-1",
+        sentAt: THIRTY_MINUTES_AGO,
+        readingStartedAt: THIRTY_MINUTES_AGO,
+      },
+    ]);
+    const before = store.snapshot();
+
+    expect(
+      await settleAbandonedSupplierPriceListReadings({ store, readings }, { now: NOW }),
+    ).toEqual({ kind: "settled", listIds: [] });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("leaves a newer reread of the list that took the place of the one listed", async () => {
+    const store = setupReread({
+      id: "reread-1",
+      listId: "list-1",
+      state: "READ_FAILED",
+      readFailure: "interrupted",
+      sentAt: THIRTY_MINUTES_AGO,
+      sentOn: "2026-03-10",
+    });
+    store.seedReread({
+      id: "reread-2",
+      listId: "list-1",
+      sentAt: ONE_MINUTE_AGO,
+      sentOn: "2026-03-10",
+    });
+    const readings = new FakeSupplierPriceListReadings([
+      {
+        listId: "list-1",
+        rereadId: "reread-1",
+        sentAt: THIRTY_MINUTES_AGO,
+        readingStartedAt: THIRTY_MINUTES_AGO,
+      },
+    ]);
+    const before = store.snapshot();
+
+    expect(
+      await settleAbandonedSupplierPriceListReadings({ store, readings }, { now: NOW }),
+    ).toEqual({ kind: "settled", listIds: [] });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("leaves a reread that was sent just after it was listed as unsent", async () => {
+    const store = setupReread({
+      id: "reread-1",
+      listId: "list-1",
+      sentAt: ONE_MINUTE_AGO,
+      sentOn: "2026-03-10",
+    });
+    const readings = new FakeSupplierPriceListReadings([
+      {
+        listId: "list-1",
+        rereadId: "reread-1",
+        sentAt: null,
+        readingStartedAt: THIRTY_MINUTES_AGO,
+      },
+    ]);
+    const before = store.snapshot();
+
+    expect(
+      await settleAbandonedSupplierPriceListReadings({ store, readings }, { now: NOW }),
+    ).toEqual({ kind: "settled", listIds: [] });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("leaves a reread of a list that was removed after it was listed", async () => {
+    const store = new FakeSupplierPriceListStore();
+    const readings = new FakeSupplierPriceListReadings([
+      {
+        listId: "list-1",
+        rereadId: "reread-1",
+        sentAt: THIRTY_MINUTES_AGO,
+        readingStartedAt: THIRTY_MINUTES_AGO,
+      },
+    ]);
+
+    expect(
+      await settleAbandonedSupplierPriceListReadings({ store, readings }, { now: NOW }),
+    ).toEqual({ kind: "settled", listIds: [] });
+  });
+
+  it("leaves the reread open when recording its failure fails", async () => {
+    const store = setupReread({
+      id: "reread-1",
+      listId: "list-1",
+      sentAt: THIRTY_MINUTES_AGO,
+      sentOn: "2026-03-10",
+    });
+    const readings = new FakeSupplierPriceListReadings([
+      {
+        listId: "list-1",
+        rereadId: "reread-1",
+        sentAt: THIRTY_MINUTES_AGO,
+        readingStartedAt: THIRTY_MINUTES_AGO,
+      },
+    ]);
+    store.failingWrites.add("recordRereadFailure");
+
+    await expect(
+      settleAbandonedSupplierPriceListReadings({ store, readings }, { now: NOW }),
+    ).rejects.toThrow("recordRereadFailure failed");
+    expect(store.snapshot().rereads[0]).toMatchObject({ state: "READING", readFailure: null });
+  });
+});

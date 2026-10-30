@@ -1,4 +1,4 @@
-import { currentConfirmedListId } from "../model/supplier-price-list.js";
+import { currentConfirmedListId, standingRereadFailure } from "../model/supplier-price-list.js";
 import type {
   SupplierPriceListListing,
   SupplierPriceListReader,
@@ -36,6 +36,7 @@ export async function listSupplierPriceLists(
   const replaced = replacedListIds(lists);
   return lists.map(({ confirmedAt: _confirmedAt, ...list }) => ({
     ...list,
+    lastRereadFailure: standingRereadFailure(list),
     replaced: replaced.has(list.id),
   }));
 }

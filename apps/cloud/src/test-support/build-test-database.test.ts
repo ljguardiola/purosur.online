@@ -117,6 +117,8 @@ import {
   supplierItems,
   supplierPriceListAiCalls,
   supplierPriceListExtractionCaps,
+  supplierPriceListRemovedItems,
+  supplierPriceListRereads,
   supplierPriceListRows,
   supplierPriceLists,
   suppliers,
@@ -1077,6 +1079,21 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       cacheReadTokens: 0,
       outcome: "completed",
       costNanoUsd: 4_000_000,
+    });
+    await db.insert(supplierPriceListRereads).values({
+      listId: priceList?.id as string,
+      locationId: await seededLocationId(db),
+      state: "READ",
+      fileContentKind: "HTML",
+      fileByteSize: 1_000,
+      requestedAt: new Date("2026-10-14T09:00:00.000Z"),
+      requestedBy: user.id,
+    });
+    await db.insert(supplierPriceListRemovedItems).values({
+      listId: priceList?.id as string,
+      keyKind: "code",
+      keyValue: "YM-1",
+      priceCents: 450_000,
     });
     await db
       .insert(supplierPriceListExtractionCaps)
