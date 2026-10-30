@@ -251,5 +251,3 @@ export function formatTimeAgo(seconds: number): string {
   }
   return "hace un momento";
 }
-
-export { foldedText, textContainsEveryWord } from "./text-search.js";
