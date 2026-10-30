@@ -206,7 +206,7 @@ describe("completing a return in the register", () => {
         )
         .all(),
     ).toEqual([
-      { aggregate_type: "Return", event_type: "sale_returned", schema_version: 2, actor_id: "u1" },
+      { aggregate_type: "Return", event_type: "sale_returned", schema_version: 3, actor_id: "u1" },
     ]);
   });
 
@@ -392,7 +392,7 @@ describe("the credit note of a return in the register", () => {
     await returnYerba();
 
     expect(returnedEvent()).toMatchObject({
-      version: 2,
+      version: 3,
       creditNote: { total: 5000, issued_on: "2026-09-20", corrects: { number: 41 } },
     });
   });
@@ -422,7 +422,7 @@ describe("the credit note of a return in the register", () => {
 
     expect(outcome).toMatchObject({ kind: "completed", creditNote: { kind: "none" } });
     expect(creditNotes()).toEqual([]);
-    expect(returnedEvent()).toMatchObject({ version: 2, creditNote: null });
+    expect(returnedEvent()).toMatchObject({ version: 3, creditNote: null });
   });
 
   it("is issued offline, held by the return, when the register is not online", async () => {
