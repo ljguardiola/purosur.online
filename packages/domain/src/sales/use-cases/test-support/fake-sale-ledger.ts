@@ -84,6 +84,7 @@ export interface FakeSaleLedgerState {
   sales: StoredSale[];
   payments: SalePayment[];
   pendingMercadoPagoPayments: PendingMercadoPagoSalePayment[];
+  endedMercadoPagoCharges: { id: string; saleId: string }[];
   replacedQrPaymentIds: string[];
   refunds: SaleRefund[];
   movements: CashMovement[];
@@ -120,6 +121,14 @@ export type FakeSaleLedgerWrite =
   | "decideSaleAuthorization"
   | "appendOutboxEvent";
 
+function recordedPaymentsOf(state: FakeSaleLedgerState, saleId: string): { saleId: string }[] {
+  return [
+    ...state.payments,
+    ...state.pendingMercadoPagoPayments,
+    ...state.endedMercadoPagoCharges,
+  ].filter((payment) => payment.saleId === saleId);
+}
+
 export class FakeSaleLedger implements SaleLedger {
   state: FakeSaleLedgerState;
   transactions = 0;
@@ -149,6 +158,7 @@ export class FakeSaleLedger implements SaleLedger {
       sales: [],
       payments: [],
       pendingMercadoPagoPayments: [],
+      endedMercadoPagoCharges: [],
       replacedQrPaymentIds: [],
       refunds: [],
       movements: [],
@@ -251,8 +261,12 @@ export class FakeSaleLedger implements SaleLedger {
               movement.ref?.type === "sale" && movement.ref.id === saleId,
           ),
         ),
+      hasRecordedPayments: (saleId) => recordedPaymentsOf(working, saleId).length > 0,
       discardOpenSale: (saleId) => {
         this.failIfAsked("discardOpenSale");
+        if (recordedPaymentsOf(working, saleId).length > 0) {
+          throw new Error("a sale with recorded payments cannot be discarded");
+        }
         working.sales = working.sales.filter((stored) => stored.id !== saleId);
       },
       recordPayment: (payment) => {

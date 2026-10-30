@@ -30,6 +30,7 @@ import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import { SqliteLocalPaidOrders } from "../payments/sqlite-local-paid-orders";
 import {
   approvePendingMercadoPagoPayment,
+  hasRecordedPayments,
   insertPaymentRefund,
   insertPendingMercadoPagoPayment,
   markQrPaymentReplaced,
@@ -305,6 +306,7 @@ export class SqliteSaleLedger implements SaleLedger {
       recordSaleDiscount: (saleId, discount) => updateSaleDiscount(this.database, saleId, discount),
       deleteSaleLine: (lineId) => deleteSaleLine(this.database, lineId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
+      hasRecordedPayments: (saleId) => hasRecordedPayments(this.database, saleId),
       discardOpenSale: (saleId) => discardOpenSale(this.database, saleId),
       recordPayment: (payment) => insertSalePayment(this.database, payment),
       recordPendingMercadoPagoPayment: (payment) =>

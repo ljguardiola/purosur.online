@@ -984,6 +984,25 @@ describe("cancelPaidSale", () => {
   });
 });
 
+describe("cancelPaidSale with Mercado Pago charges that all ended unpaid", () => {
+  const ENDED = [{ id: "point-1", saleId: "sale-1" }];
+
+  it.each(["sale", "locked_register"] as const)(
+    "keeps the sale from the %s, cancelled now, with its ended charges and its sale_cancelled event",
+    async (from) => {
+      const store = ledger({ payments: [], movements: [], endedMercadoPagoCharges: ENDED });
+      const grant = from === "sale" ? OWN_GRANT : CLOSER_GRANT;
+
+      const outcome = await cancel(store, grant, "sale-1", from);
+
+      expect(outcome).toEqual({ kind: "cancelled", refunds: [], grant });
+      expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
+      expect(store.state.endedMercadoPagoCharges).toEqual(ENDED);
+      expect(store.state.outbox).toHaveLength(1);
+    },
+  );
+});
+
 describe("cancelPaidSale with a QR charge", () => {
   function pendingQrEndingAt(waitEndsAt: Date) {
     return {

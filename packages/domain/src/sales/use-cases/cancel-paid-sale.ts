@@ -2,6 +2,7 @@ import { plannedRefunds } from "../../payments/index.js";
 import { registerOperationAccess } from "../../register/index.js";
 import type { Clock, OperationAuthority } from "../../shared/index.js";
 import { saleCancelRefusal } from "../model/open-sale-standing.js";
+import { endUnpaidSale } from "./end-unpaid-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { saleCancelledEvent } from "./sale-cancelled-event.js";
 import type {
@@ -84,11 +85,7 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
           occurredAt: now,
         }),
       );
-      if (pendingMercadoPagoPayments.length > 0) {
-        tx.recordCancelledSale(sale.id, now, undefined);
-      } else {
-        tx.discardOpenSale(sale.id);
-      }
+      endUnpaidSale(tx, sale.id, now);
       return { kind: "cancelled", refunds: [], grant };
     }
     if (from === "locked_register" && !mayVoidSale(tx, actorId)) {

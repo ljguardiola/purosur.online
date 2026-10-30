@@ -102,6 +102,7 @@ export interface SaleLedgerTransaction {
   deleteSaleLine(lineId: string): void;
   salePayments(saleId: string): SalePayment[];
   saleCashMovements(saleId: string): SaleCashMovement[];
+  hasRecordedPayments(saleId: string): boolean;
   discardOpenSale(saleId: string): void;
   recordPayment(payment: SalePayment): void;
   recordPendingMercadoPagoPayment(payment: PendingMercadoPagoSalePayment): void;

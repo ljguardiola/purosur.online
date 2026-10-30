@@ -400,3 +400,25 @@ describe("cancelSale with a QR charge", () => {
     expect(store.state).toEqual(before);
   });
 });
+
+describe("cancelSale with Mercado Pago charges that all ended unpaid", () => {
+  it("keeps the sale, cancelled now, when its Mercado Pago charges all ended unpaid, so they stay known", () => {
+    const ended = [
+      { id: "point-1", saleId: "sale-1" },
+      { id: "point-2", saleId: "sale-1" },
+    ];
+    const store = ledger({ endedMercadoPagoCharges: ended });
+
+    expect(cancel(store)).toEqual({ kind: "cancelled" });
+    expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
+    expect(store.state.endedMercadoPagoCharges).toEqual(ended);
+    expect(store.state.outbox).toEqual([cancelledEvent()]);
+  });
+
+  it("discards the sale when the ended Mercado Pago charges belong to another sale", () => {
+    const store = ledger({ endedMercadoPagoCharges: [{ id: "point-1", saleId: "sale-0" }] });
+
+    expect(cancel(store)).toEqual({ kind: "cancelled" });
+    expect(store.state.sales).toEqual([]);
+  });
+});
