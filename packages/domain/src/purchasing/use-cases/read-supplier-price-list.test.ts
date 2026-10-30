@@ -4,6 +4,7 @@ import {
   SUPPLIER_PRICE_LIST_STATES,
   type SupplierPriceListReadFailure,
 } from "../model/supplier-price-list.js";
+import type { AiCallUsage } from "./ai-call-usage.js";
 import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
 import { FakePriceListExtractor } from "./test-support/fake-price-list-extractor.js";
@@ -760,5 +761,195 @@ describe("readSupplierPriceList of a store's catalog", () => {
       reason: "no_items_found",
     });
     expect(store.snapshot().lists[0]).toMatchObject({ readFailure: "no_items_found" });
+  });
+});
+
+const SONNET = "claude-sonnet-5-5";
+
+function aUsage(
+  overrides: Partial<AiCallUsage["attempts"][number]> = {},
+  outcome: AiCallUsage["outcome"] = "completed",
+): AiCallUsage {
+  return {
+    outcome,
+    attempts: [
+      {
+        model: SONNET,
+        inputTokens: 1_000_000,
+        outputTokens: 100_000,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
+        ...overrides,
+      },
+    ],
+  };
+}
+
+const oneRow = {
+  kind: "extracted" as const,
+  listDate: null,
+  pricesIncludeVat: null,
+  rows: [
+    { description: "Yerba", code: null, presentation: null, priceCents: 1, page: 1, barcode: null },
+  ],
+};
+
+describe("readSupplierPriceList recording of the AI calls", () => {
+  it("records the reported calls for the list, its reading and the person who uploaded it", async () => {
+    const { store, extractor, ports } = setup({ id: "list-1", uploadedBy: "person-7" });
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [aUsage()];
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().aiCalls).toEqual([
+      {
+        purpose: "READING",
+        listId: "list-1",
+        rowId: null,
+        actorId: "person-7",
+        occurredAt: NOW,
+        occurredOn: SENT_ON,
+        model: SONNET,
+        inputTokens: 1_000_000,
+        outputTokens: 100_000,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
+        outcome: "completed",
+        costNanoUsd: 2_000_000_000 + 1_000_000_000,
+      },
+    ]);
+  });
+
+  it.each([
+    ["an extraction", oneRow],
+    ["an unreadable answer", { kind: "unreadable" as const }],
+    ["an unavailable answer", { kind: "unavailable" as const }],
+    ["an extraction without rows", { ...oneRow, rows: [] }],
+  ])("records the calls with %s", async (_name, answer) => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = answer;
+    extractor.reportedCalls = [aUsage({}, "failed")];
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().aiCalls).toEqual([
+      expect.objectContaining({ listId: "list-1", outcome: "failed" }),
+    ]);
+  });
+
+  it("records the calls reported before the extractor throws, answering unavailable", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = new Error("connection reset");
+    extractor.reportedCalls = [aUsage({}, "failed"), aUsage()];
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({
+      kind: "failed",
+      reason: "reading_unavailable",
+    });
+
+    expect(store.snapshot().aiCalls).toHaveLength(2);
+  });
+
+  it("records the calls of a list no longer reading when the answer arrives", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [aUsage()];
+    extractor.onExtract = () =>
+      store.transaction((tx) => tx.recordReadFailure("list-1", "interrupted"));
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({ kind: "already_read" });
+
+    expect(store.snapshot().aiCalls).toEqual([expect.objectContaining({ listId: "list-1" })]);
+  });
+
+  it("does not record the answer when its calls cannot be recorded", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [aUsage()];
+    store.failingWrites.add("recordAiCalls");
+
+    await expect(readSupplierPriceList(ports, input)).rejects.toThrow("recordAiCalls failed");
+
+    expect(store.snapshot().lists[0]?.state).toBe("READING");
+    expect(store.snapshot().rows).toEqual([]);
+  });
+
+  it("does not write AI calls when none was reported", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    store.failingWrites.add("recordAiCalls");
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({ kind: "extracted", rowCount: 1 });
+  });
+
+  it("records nothing for a store catalog, which makes no AI call", async () => {
+    const { store, files, storeCatalogs, extractor, ports } = setup();
+    store.seedList({
+      id: "list-2",
+      sourceKind: "WEB_PAGE",
+      fileName: null,
+      sourceUrl: "https://distribuidora-sur.example/catalogo",
+      contentKind: "STORE_CATALOG",
+    });
+    await files.store("list-2", STORE_CATALOG, "STORE_CATALOG");
+    storeCatalogs.answer = { kind: "read", rows: [] };
+    extractor.reportedCalls = [aUsage()];
+
+    await readSupplierPriceList(ports, { ...input, listId: "list-2" });
+
+    expect(store.snapshot().aiCalls).toEqual([]);
+  });
+
+  it.each([false, true])(
+    "records the calls reported before a failure to record the answer (final attempt: %s)",
+    async (finalAttempt) => {
+      const { store, extractor, ports } = setup({ id: "list-1", uploadedBy: "person-7" });
+      extractor.answer = oneRow;
+      extractor.reportedCalls = [aUsage()];
+      store.failingWrites.add("recordExtraction");
+
+      await expect(readSupplierPriceList(ports, { ...input, finalAttempt })).rejects.toThrow(
+        "recordExtraction failed",
+      );
+
+      expect(store.snapshot().aiCalls).toEqual([
+        expect.objectContaining({ listId: "list-1", actorId: "person-7" }),
+      ]);
+    },
+  );
+
+  it("records the calls of a failed run when only some of the reported calls had an attempt", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [{ outcome: "failed", attempts: [] }, aUsage()];
+    store.failingWrites.add("recordExtraction");
+
+    await expect(readSupplierPriceList(ports, input)).rejects.toThrow("recordExtraction failed");
+
+    expect(store.snapshot().aiCalls).toHaveLength(1);
+  });
+
+  it("opens no transaction to record calls after a failed run when no call had an attempt", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [{ outcome: "failed", attempts: [] }];
+    store.failingWrites.add("recordExtraction");
+
+    await expect(readSupplierPriceList(ports, input)).rejects.toThrow("recordExtraction failed");
+
+    expect(store.transactionCount).toBe(3);
+  });
+
+  it("records nothing more when the run fails before any call", async () => {
+    const { store, extractor, ports } = setup();
+    store.failingWrites.add("markSent");
+    extractor.reportedCalls = [aUsage()];
+
+    await expect(readSupplierPriceList(ports, { ...input, finalAttempt: true })).rejects.toThrow(
+      "markSent failed",
+    );
+
+    expect(store.snapshot().aiCalls).toEqual([]);
   });
 });

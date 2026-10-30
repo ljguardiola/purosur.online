@@ -1,9 +1,11 @@
+import type { AiCallRecord } from "@purosur/domain/purchasing/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   auditLog,
   supplierItemPrices,
   supplierItems,
+  supplierPriceListAiCalls,
   supplierPriceListExtractionCaps,
   supplierPriceListRows,
   supplierPriceLists,
@@ -269,6 +271,7 @@ describe("inserting and locking a list", () => {
         listDate: "2026-03-01",
         pricesIncludeVat: false,
         sentAt: NOW,
+        actorId,
         rowPrices: [500, null],
       },
     });
@@ -921,5 +924,137 @@ describe("linking and reviewing a row", () => {
         newValue: { reviewed: true },
       },
     ]);
+  });
+});
+
+function constraintViolatedBy(error: unknown, name: string): boolean {
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ((current as { constraint?: unknown }).constraint === name) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
+}
+
+describe("recording the AI calls of an operation", () => {
+  const record = (overrides: Partial<AiCallRecord> & { listId: string }): AiCallRecord => ({
+    purpose: "READING",
+    rowId: null,
+    actorId,
+    occurredAt: NOW,
+    occurredOn: "2026-03-10",
+    model: "claude-sonnet-5-5",
+    inputTokens: 1_000,
+    outputTokens: 200,
+    cacheWriteTokens: 30,
+    cacheReadTokens: 40,
+    outcome: "completed",
+    costNanoUsd: 4_100_000,
+    ...overrides,
+  });
+
+  it("writes each record with the supplier and the branch of its list", async () => {
+    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+
+    await store().transaction((tx) =>
+      tx.recordAiCalls([
+        record({ listId }),
+        record({ listId, outcome: "cut_short", costNanoUsd: null, model: "claude-sonnet-5" }),
+      ]),
+    );
+
+    const calls = await db.select().from(supplierPriceListAiCalls);
+    expect(calls).toHaveLength(2);
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        listId,
+        rowId: null,
+        purpose: "READING",
+        supplierId,
+        locationId,
+        actorId,
+        occurredAt: NOW,
+        occurredOn: "2026-03-10",
+        model: "claude-sonnet-5-5",
+        inputTokens: 1_000,
+        outputTokens: 200,
+        cacheWriteTokens: 30,
+        cacheReadTokens: 40,
+        outcome: "completed",
+        costNanoUsd: 4_100_000,
+      }),
+    );
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        outcome: "cut_short",
+        costNanoUsd: null,
+        model: "claude-sonnet-5",
+      }),
+    );
+  });
+
+  it("writes nothing when it has no record", async () => {
+    await store().transaction((tx) => tx.recordAiCalls([]));
+
+    expect(await db.select().from(supplierPriceListAiCalls)).toEqual([]);
+  });
+
+  it("keeps a record of a row after the row is removed from its list", async () => {
+    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    await insertPriceListRows(db, listId, [{}]);
+    const [row] = await rowsOf(listId);
+    await store().transaction((tx) =>
+      tx.recordAiCalls([record({ listId, purpose: "LINK_PROPOSAL", rowId: row?.id ?? "" })]),
+    );
+
+    await store().transaction((tx) => tx.removeRow(listId, row?.id ?? "", actorId));
+
+    expect(await db.select().from(supplierPriceListAiCalls)).toHaveLength(1);
+  });
+
+  it("refuses records of a list that does not exist", async () => {
+    await expect(
+      store().transaction((tx) =>
+        tx.recordAiCalls([record({ listId: "00000000-0000-4000-8000-000000000000" })]),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it.each([
+    ["an unknown purpose", { purpose: "SUMMARY" }, "supplier_price_list_ai_calls_purpose_check"],
+    ["an unknown outcome", { outcome: "timed_out" }, "supplier_price_list_ai_calls_outcome_check"],
+    [
+      "a reading made for a row",
+      { purpose: "READING", rowId: "00000000-0000-4000-8000-000000000001" },
+      "supplier_price_list_ai_calls_purpose_row_check",
+    ],
+    ["a negative token count", { inputTokens: -1 }, "supplier_price_list_ai_calls_tokens_check"],
+    ["a negative cost", { costNanoUsd: -1 }, "supplier_price_list_ai_calls_cost_check"],
+  ] as const)("refuses %s", async (_name, overrides, constraint) => {
+    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+
+    await expect(
+      db.insert(supplierPriceListAiCalls).values({
+        ...record({ listId }),
+        supplierId,
+        locationId,
+        ...overrides,
+      }),
+    ).rejects.toSatisfy((error) => constraintViolatedBy(error, constraint));
+  });
+
+  it("writes no record when its transaction fails after recording", async () => {
+    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+
+    await expect(
+      store().transaction(async (tx) => {
+        await tx.recordAiCalls([record({ listId })]);
+        throw new Error("fails after recording");
+      }),
+    ).rejects.toThrow("fails after recording");
+
+    expect(await db.select().from(supplierPriceListAiCalls)).toEqual([]);
   });
 });

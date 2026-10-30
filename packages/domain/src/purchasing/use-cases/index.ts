@@ -1,3 +1,6 @@
+export type { AiCallRecord } from "./ai-call-recording.js";
+export type { AiCallUsage, OnAiCall } from "./ai-call-usage.js";
+export type { AiCostReportQuery, AiCostReportReader } from "./ai-cost-report-reader.js";
 export type {
   ConfirmSupplierPriceListInput,
   ConfirmSupplierPriceListOutcome,
@@ -28,6 +31,11 @@ export { editPackaging } from "./edit-packaging.js";
 export type { EditSupplierInput, EditSupplierOutcome } from "./edit-supplier.js";
 export { editSupplier } from "./edit-supplier.js";
 export { findPackagingListing } from "./find-packaging-listing.js";
+export type {
+  FindSupplierPriceListAiCostInput,
+  FindSupplierPriceListAiCostOutcome,
+} from "./find-supplier-price-list-ai-cost.js";
+export { findSupplierPriceListAiCost } from "./find-supplier-price-list-ai-cost.js";
 export type {
   FindSupplierPriceListFilePorts,
   FoundSupplierPriceListFile,
@@ -149,6 +157,11 @@ export { reactivatePackaging } from "./reactivate-packaging.js";
 export type { ReactivateSupplierOutcome } from "./reactivate-supplier.js";
 export { reactivateSupplier } from "./reactivate-supplier.js";
 export type {
+  AiCostByPeriodReport,
+  ReadAiCostByPeriodInput,
+} from "./read-ai-cost-by-period.js";
+export { readAiCostByPeriod } from "./read-ai-cost-by-period.js";
+export type {
   FreightByPeriodReport,
   ReadFreightByPeriodInput,
 } from "./read-freight-by-period.js";
@@ -214,6 +227,11 @@ export type {
   SupplierOffer,
   SupplierPriceComparisonReader,
 } from "./supplier-price-comparison-reader.js";
+export type { SupplierPriceListAiCallStore } from "./supplier-price-list-ai-call-store.js";
+export type {
+  SupplierPriceListAiCalls,
+  SupplierPriceListAiCostReader,
+} from "./supplier-price-list-ai-cost-reader.js";
 export type { SupplierPriceListFiles } from "./supplier-price-list-files.js";
 export type {
   SupplierPriceListListing,

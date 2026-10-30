@@ -30,6 +30,7 @@ import {
   pricesPastReviewDeadlineReportRoute,
 } from "../pricing/routes";
 import {
+  aiCostReportRoute,
   freightReportRoute,
   freightsListRoute,
   newPurchaseRoute,
@@ -157,6 +158,7 @@ const routeTree = rootRoute.addChildren([
       pricesPastReviewDeadlineReportRoute,
       purchasesReportRoute,
       freightReportRoute,
+      aiCostReportRoute,
       salesByPromotionRoute,
       manualDiscountsRoute,
       returnsReportRoute,

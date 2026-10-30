@@ -1,4 +1,6 @@
 import type {
+  AiCostByPeriodBody,
+  AiCostByPeriodQuery,
   BrandSummary,
   CategorySummary,
   FreightByPeriodBody,
@@ -14,6 +16,7 @@ import type {
   SupplierItemLinkChoices,
   SupplierItemLinkProposal,
   SupplierPriceComparison,
+  SupplierPriceListAiCostBody,
   SupplierPriceListSummary,
   SupplierSummary,
   TagList,
@@ -22,6 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchAiCostReport } from "./ai-cost-report-api";
 import type { fetchFreightReport } from "./freight-report-api";
 import type {
   FetchFreightsInput,
@@ -43,6 +47,7 @@ import type {
 } from "./supplier-item-products-api";
 import type { fetchSupplierPriceComparison } from "./supplier-price-comparison-api";
 import type {
+  fetchSupplierPriceListAiCost,
   fetchSupplierPriceListReview,
   fetchSupplierPriceLists,
   SupplierPriceListReviewRead,
@@ -60,6 +65,7 @@ export const purchasingKeys = {
   linkablePurchases: [...purchasingKey, "linkable-purchases"] as const,
   supplierPriceLists: [...purchasingKey, "supplier-price-lists"] as const,
   supplierPriceListReview: [...purchasingKey, "supplier-price-list-review"] as const,
+  supplierPriceListAiCost: [...purchasingKey, "supplier-price-list-ai-cost"] as const,
   supplierItemLinkProposal: [...purchasingKey, "supplier-item-link-proposal"] as const,
   supplierItemLinkChoices: [...purchasingKey, "supplier-item-link-choices"] as const,
   productCreationCategories: [...purchasingKey, "product-creation-categories"] as const,
@@ -74,6 +80,16 @@ export function purchasesReportKey(query: PurchasesBySupplierQuery) {
 
 export function freightReportKey(query: FreightByPeriodQuery) {
   return [...purchasingKey, "freight-report", query.from ?? "", query.to ?? ""] as const;
+}
+
+export function aiCostReportKey(query: AiCostByPeriodQuery) {
+  return [
+    ...purchasingKey,
+    "ai-cost-report",
+    query.from ?? "",
+    query.to ?? "",
+    query.group_by,
+  ] as const;
 }
 
 const SUPPLIER_PRICE_LIST_READING_REFRESH_MS = 5_000;
@@ -133,6 +149,21 @@ export function useFreightReportQuery(params: {
     queryKey: freightReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchFreightReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useAiCostReportQuery(params: {
+  query: AiCostByPeriodQuery;
+  fetchAiCostReport: typeof fetchAiCostReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<AiCostByPeriodBody>({
+    queryKey: aiCostReportKey(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchAiCostReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -224,21 +255,53 @@ export function useSupplierPriceListsQuery(params: {
   );
 }
 
+function isListReading(read: SupplierPriceListReviewRead | undefined): boolean {
+  return read?.kind === "found" && read.review.list.state === "READING";
+}
+
 export function useSupplierPriceListReviewQuery(params: {
   listId: string;
   fetchSupplierPriceListReview: typeof fetchSupplierPriceListReview;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
+  const client = useQueryClient();
+  const queryKey = [...purchasingKeys.supplierPriceListReview, params.listId];
   return useCloudQueryWhileReading<SupplierPriceListReviewRead>(
     {
-      queryKey: [...purchasingKeys.supplierPriceListReview, params.listId],
-      read: () => params.fetchSupplierPriceListReview(params.listId),
+      queryKey,
+      read: async () => {
+        const wasReading = isListReading(
+          client.getQueryData<SupplierPriceListReviewRead>(queryKey),
+        );
+        const outcome = await params.fetchSupplierPriceListReview(params.listId);
+        if (wasReading && outcome.kind === "ok" && !isListReading(outcome.value)) {
+          void client.invalidateQueries({
+            queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
+          });
+        }
+        return outcome;
+      },
       onSessionEnded: params.onSessionEnded,
       onForbidden: sendToMyAccount,
     },
-    (read) => read.kind === "found" && read.review.list.state === "READING",
+    isListReading,
   );
+}
+
+export function useSupplierPriceListAiCostQuery(params: {
+  listId: string;
+  fetchSupplierPriceListAiCost: typeof fetchSupplierPriceListAiCost;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<SupplierPriceListAiCostBody>({
+    queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
+    keepPreviousData: true,
+    read: () => params.fetchSupplierPriceListAiCost(params.listId),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
 }
 
 export function useSupplierItemLinkProposalQuery(params: {
@@ -249,10 +312,17 @@ export function useSupplierItemLinkProposalQuery(params: {
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
+  const client = useQueryClient();
   return useCloudQuery<SupplierItemLinkProposal>({
     queryKey: [...purchasingKeys.supplierItemLinkProposal, params.listId, params.rowId],
     enabled: params.enabled,
-    read: () => params.fetchSupplierItemLinkProposal(params.listId, params.rowId),
+    read: async () => {
+      const outcome = await params.fetchSupplierItemLinkProposal(params.listId, params.rowId);
+      void client.invalidateQueries({
+        queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
+      });
+      return outcome;
+    },
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

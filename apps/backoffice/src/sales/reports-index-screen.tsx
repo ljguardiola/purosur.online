@@ -6,7 +6,13 @@ import { ScreenTopBar } from "../shell/screen-top-bar";
 
 const ReportRow = createLink(LinkListRow);
 
-export function ReportsIndexScreen({ returnsShown }: { returnsShown: boolean }) {
+export function ReportsIndexScreen({
+  returnsShown,
+  aiCostShown,
+}: {
+  returnsShown: boolean;
+  aiCostShown: boolean;
+}) {
   return (
     <ScreenLayout topBar={<ScreenTopBar eyebrow="Puro Sur" title="Reportes" />} bodyClassName="p-6">
       <LinkListCard title="Ventas" icon={<ShoppingBag />}>
@@ -38,6 +44,9 @@ export function ReportsIndexScreen({ returnsShown }: { returnsShown: boolean }) 
       <LinkListCard title="Compras" icon={<ShoppingCart />}>
         <ReportRow to="/reports/purchases-by-supplier" label="Compras por proveedor" />
         <ReportRow to="/reports/freight-by-period" label="Flete por período" />
+        {aiCostShown ? (
+          <ReportRow to="/reports/ai-cost-by-period" label="Costo de IA por período" />
+        ) : null}
       </LinkListCard>
       <LinkListCard title="Precios" icon={<Tag />}>
         <ReportRow to="/reports/prices-past-review-deadline" label="Precios sin revisar" />

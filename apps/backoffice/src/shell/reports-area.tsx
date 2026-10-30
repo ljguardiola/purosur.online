@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   BadgePercent,
   Ban,
+  Bot,
   Calculator,
   CalendarClock,
   ChartColumn,
@@ -22,7 +23,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeReports, canSeeReturnsReport } from "./backoffice-access";
+import { canSeeAiCostReport, canSeeReports, canSeeReturnsReport } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const reportsAreaRoute = createRoute({
@@ -58,6 +59,7 @@ function ReportsArea() {
     matchRoute({ to: "/reports/prices-past-review-deadline" }),
   );
   const freightReportShown = Boolean(matchRoute({ to: "/reports/freight-by-period" }));
+  const aiCostReportShown = Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }));
   const purchasesReportShown = Boolean(matchRoute({ to: "/reports/purchases-by-supplier" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   const issuedFiscalDocumentsShown = Boolean(matchRoute({ to: "/reports/fiscal-documents" }));
@@ -253,6 +255,17 @@ function ReportsArea() {
                   />
                 </li>
               </>
+            )}
+            {canSeeAiCostReport(session) && (
+              <li>
+                <SectionLink
+                  to="/reports/ai-cost-by-period"
+                  label="Costo de IA por período"
+                  icon={<Bot />}
+                  search={aiCostReportShown ? true : {}}
+                  active={aiCostReportShown}
+                />
+              </li>
             )}
             {canSeeReturnsReport(session) && (
               <li>

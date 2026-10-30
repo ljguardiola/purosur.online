@@ -7,6 +7,7 @@ import {
   SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "@purosur/domain";
 import type {
+  OnAiCall,
   PriceListExtraction,
   PriceListExtractor,
   PriceListSource,
@@ -262,11 +263,11 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     this.client = anthropicClient({ apiKey, fetch, timeoutMs: REQUEST_TIMEOUT_MS });
   }
 
-  async extract(source: PriceListSource): Promise<PriceListExtraction> {
+  async extract(source: PriceListSource, onCall: OnAiCall): Promise<PriceListExtraction> {
     const deadline = new AbortController();
     const timer = setTimeout(() => deadline.abort(), SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS);
     try {
-      return await this.extractBefore(source, deadline.signal);
+      return await this.extractBefore(source, deadline.signal, onCall);
     } finally {
       clearTimeout(timer);
     }
@@ -275,28 +276,34 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
   private async extractBefore(
     source: PriceListSource,
     deadline: AbortSignal,
+    onCall: OnAiCall,
   ): Promise<PriceListExtraction> {
     return source.kind === "web_page"
-      ? this.extractWebPage(source.html, deadline)
-      : this.extractPdf(source.bytes, deadline);
+      ? this.extractWebPage(source.html, deadline, onCall)
+      : this.extractPdf(source.bytes, deadline, onCall);
   }
 
-  private async extractPdf(bytes: Uint8Array, deadline: AbortSignal): Promise<PriceListExtraction> {
+  private async extractPdf(
+    bytes: Uint8Array,
+    deadline: AbortSignal,
+    onCall: OnAiCall,
+  ): Promise<PriceListExtraction> {
     if (declaresEncryption(bytes)) {
-      return this.readWhole(bytes, deadline);
+      return this.readWhole(bytes, deadline, onCall);
     }
     const document = await splittable(bytes);
     if (document === null) {
-      return this.readWhole(bytes, deadline);
+      return this.readWhole(bytes, deadline, onCall);
     }
     const ranges = await rangesOf(document);
     if (ranges === null) {
-      return this.readWhole(bytes, deadline);
+      return this.readWhole(bytes, deadline, onCall);
     }
     const readings = await inOrder(
       ranges,
       RANGES_READ_AT_ONCE,
-      (range) => this.readRange(document, range.firstPage, range.pageCount, range.pdf, deadline),
+      (range) =>
+        this.readRange(document, range.firstPage, range.pageCount, range.pdf, deadline, onCall),
       (reading) => reading.kind !== "read",
     );
     return combined(readings);
@@ -305,6 +312,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
   private async extractWebPage(
     html: Uint8Array,
     deadline: AbortSignal,
+    onCall: OnAiCall,
   ): Promise<PriceListExtraction> {
     const text = webPageText(html);
     if (text === "") {
@@ -313,13 +321,17 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     const readings = await inOrder(
       partsOfText(text.split("\n")),
       RANGES_READ_AT_ONCE,
-      (lines) => this.readLines(lines, deadline),
+      (lines) => this.readLines(lines, deadline, onCall),
       (reading) => reading.kind !== "read",
     );
     return combined(readings);
   }
 
-  private async readLines(lines: string[], deadline: AbortSignal): Promise<RangeReading> {
+  private async readLines(
+    lines: string[],
+    deadline: AbortSignal,
+    onCall: OnAiCall,
+  ): Promise<RangeReading> {
     const reading = withoutPages(
       await this.ask(
         WEB_PAGE_SYSTEM_PROMPT,
@@ -331,6 +343,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
           { type: "text", text: WEB_PAGE_INSTRUCTION_TEXT },
         ],
         deadline,
+        onCall,
       ),
     );
     if (reading.kind !== "too_long") {
@@ -339,16 +352,28 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     if (lines.length === 1) {
       return { kind: "unreadable" };
     }
-    const firstHalf = await this.readLines(lines.slice(0, Math.floor(lines.length / 2)), deadline);
+    const firstHalf = await this.readLines(
+      lines.slice(0, Math.floor(lines.length / 2)),
+      deadline,
+      onCall,
+    );
     if (firstHalf.kind !== "read") {
       return firstHalf;
     }
-    const secondHalf = await this.readLines(lines.slice(Math.floor(lines.length / 2)), deadline);
+    const secondHalf = await this.readLines(
+      lines.slice(Math.floor(lines.length / 2)),
+      deadline,
+      onCall,
+    );
     return secondHalf.kind === "read" ? joined(firstHalf, secondHalf) : secondHalf;
   }
 
-  private async readWhole(pdf: Uint8Array, deadline: AbortSignal): Promise<PriceListExtraction> {
-    const reading = withRealPages(await this.askAboutRange(pdf, deadline), 1, null);
+  private async readWhole(
+    pdf: Uint8Array,
+    deadline: AbortSignal,
+    onCall: OnAiCall,
+  ): Promise<PriceListExtraction> {
+    const reading = withRealPages(await this.askAboutRange(pdf, deadline, onCall), 1, null);
     switch (reading.kind) {
       case "read":
         return { ...reading, kind: "extracted" };
@@ -364,6 +389,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     firstPage: number,
     pageCount: number,
     deadline: AbortSignal,
+    onCall: OnAiCall,
   ): Promise<RangeReading> {
     let pdf: Uint8Array;
     try {
@@ -371,7 +397,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     } catch {
       return { kind: "unreadable" };
     }
-    return this.readRange(document, firstPage, pageCount, pdf, deadline);
+    return this.readRange(document, firstPage, pageCount, pdf, deadline, onCall);
   }
 
   private async readRange(
@@ -380,8 +406,9 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     pageCount: number,
     pdf: Uint8Array,
     deadline: AbortSignal,
+    onCall: OnAiCall,
   ): Promise<RangeReading> {
-    const reading = await this.askAboutRange(pdf, deadline);
+    const reading = await this.askAboutRange(pdf, deadline, onCall);
     if (reading.kind !== "too_long") {
       return withRealPages(reading, firstPage, pageCount);
     }
@@ -389,7 +416,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
       return { kind: "unreadable" };
     }
     const firstHalf = Math.floor(pageCount / 2);
-    const first = await this.readPart(document, firstPage, firstHalf, deadline);
+    const first = await this.readPart(document, firstPage, firstHalf, deadline, onCall);
     if (first.kind !== "read") {
       return first;
     }
@@ -398,6 +425,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
       firstPage + firstHalf,
       pageCount - firstHalf,
       deadline,
+      onCall,
     );
     if (second.kind !== "read") {
       return second;
@@ -405,7 +433,11 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     return joined(first, second);
   }
 
-  private askAboutRange(pdf: Uint8Array, deadline: AbortSignal): Promise<RangeReading> {
+  private askAboutRange(
+    pdf: Uint8Array,
+    deadline: AbortSignal,
+    onCall: OnAiCall,
+  ): Promise<RangeReading> {
     return this.ask(
       SYSTEM_PROMPT,
       [
@@ -420,6 +452,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
         { type: "text", text: INSTRUCTION_TEXT },
       ],
       deadline,
+      onCall,
     );
   }
 
@@ -427,6 +460,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     systemPrompt: string,
     content: BetaContentBlockParam[],
     deadline: AbortSignal,
+    onCall: OnAiCall,
   ): Promise<RangeReading> {
     const answer = await askForStructuredAnswer(this.client, {
       systemPrompt,
@@ -435,6 +469,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
       maxTokens: MAX_OUTPUT_TOKENS,
       effort: "medium",
       signal: deadline,
+      onCall,
     });
     return answer.kind === "answered" ? parsedAnswer(answer.text) : answer;
   }

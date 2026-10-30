@@ -1,2 +1,0 @@
-DROP INDEX "payment_refunds_transaction_without_order_unique";--> statement-breakpoint
-CREATE UNIQUE INDEX "payment_refunds_transaction_without_order_unique" ON "payment_refunds" USING btree ("payment_transaction_id") WHERE "payment_refunds"."provider_order_id" is null and "payment_refunds"."origin" = 'late_payment';

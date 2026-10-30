@@ -1,5 +1,5 @@
 {
-  "id": "92fda5b0-c348-4678-9695-a5e0bd398daa",
+  "id": "66ab7e93-9710-4171-99fc-2af4243d8a8a",
   "prevId": "eff70cb6-71b9-4a8d-81ba-1ddd123b5828",
   "version": "7",
   "dialect": "postgresql",
@@ -5466,7 +5466,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"payment_refunds\".\"provider_order_id\" is null and \"payment_refunds\".\"origin\" = 'late_payment'",
+          "where": "\"payment_refunds\".\"provider_order_id\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10948,6 +10948,211 @@
       },
       "isRLSEnabled": false
     },
+    "public.supplier_price_list_ai_calls": {
+      "name": "supplier_price_list_ai_calls",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "list_id": {
+          "name": "list_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "row_id": {
+          "name": "row_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_on": {
+          "name": "occurred_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_tokens": {
+          "name": "input_tokens",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "output_tokens": {
+          "name": "output_tokens",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cache_write_tokens": {
+          "name": "cache_write_tokens",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cache_read_tokens": {
+          "name": "cache_read_tokens",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cost_nano_usd": {
+          "name": "cost_nano_usd",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "supplier_price_list_ai_calls_list_idx": {
+          "name": "supplier_price_list_ai_calls_list_idx",
+          "columns": [
+            {
+              "expression": "list_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "supplier_price_list_ai_calls_location_occurred_on_idx": {
+          "name": "supplier_price_list_ai_calls_location_occurred_on_idx",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "supplier_price_list_ai_calls_list_id_supplier_price_lists_id_fk": {
+          "name": "supplier_price_list_ai_calls_list_id_supplier_price_lists_id_fk",
+          "tableFrom": "supplier_price_list_ai_calls",
+          "tableTo": "supplier_price_lists",
+          "columnsFrom": ["list_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "supplier_price_list_ai_calls_supplier_id_suppliers_id_fk": {
+          "name": "supplier_price_list_ai_calls_supplier_id_suppliers_id_fk",
+          "tableFrom": "supplier_price_list_ai_calls",
+          "tableTo": "suppliers",
+          "columnsFrom": ["supplier_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "supplier_price_list_ai_calls_location_id_locations_id_fk": {
+          "name": "supplier_price_list_ai_calls_location_id_locations_id_fk",
+          "tableFrom": "supplier_price_list_ai_calls",
+          "tableTo": "locations",
+          "columnsFrom": ["location_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "supplier_price_list_ai_calls_actor_id_users_id_fk": {
+          "name": "supplier_price_list_ai_calls_actor_id_users_id_fk",
+          "tableFrom": "supplier_price_list_ai_calls",
+          "tableTo": "users",
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "supplier_price_list_ai_calls_purpose_check": {
+          "name": "supplier_price_list_ai_calls_purpose_check",
+          "value": "\"supplier_price_list_ai_calls\".\"purpose\" in ('READING', 'LINK_PROPOSAL')"
+        },
+        "supplier_price_list_ai_calls_outcome_check": {
+          "name": "supplier_price_list_ai_calls_outcome_check",
+          "value": "\"supplier_price_list_ai_calls\".\"outcome\" in ('completed', 'cut_short', 'failed')"
+        },
+        "supplier_price_list_ai_calls_purpose_row_check": {
+          "name": "supplier_price_list_ai_calls_purpose_row_check",
+          "value": "\"supplier_price_list_ai_calls\".\"purpose\" <> 'READING' or \"supplier_price_list_ai_calls\".\"row_id\" is null"
+        },
+        "supplier_price_list_ai_calls_tokens_check": {
+          "name": "supplier_price_list_ai_calls_tokens_check",
+          "value": "\"supplier_price_list_ai_calls\".\"input_tokens\" >= 0 and \"supplier_price_list_ai_calls\".\"output_tokens\" >= 0 and \"supplier_price_list_ai_calls\".\"cache_write_tokens\" >= 0 and \"supplier_price_list_ai_calls\".\"cache_read_tokens\" >= 0"
+        },
+        "supplier_price_list_ai_calls_cost_check": {
+          "name": "supplier_price_list_ai_calls_cost_check",
+          "value": "\"supplier_price_list_ai_calls\".\"cost_nano_usd\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.supplier_price_list_extraction_caps": {
       "name": "supplier_price_list_extraction_caps",
       "schema": "",
@@ -11276,6 +11481,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "ai_calls_recorded_from_start": {
+          "name": "ai_calls_recorded_from_start",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         }
       },
       "indexes": {

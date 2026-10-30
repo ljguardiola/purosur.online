@@ -7,6 +7,7 @@ import {
   type SupplierPriceListReadFailure,
   storeCatalogListTerms,
 } from "../model/supplier-price-list.js";
+import { type AiCallCollector, collectAiCalls } from "./ai-call-recording.js";
 import type {
   ExtractedPriceListRow,
   PriceListExtraction,
@@ -16,6 +17,7 @@ import type {
 import type { StoreCatalogs } from "./store-catalogs.js";
 import type { SupplierPriceListFiles } from "./supplier-price-list-files.js";
 import type {
+  LockedSupplierPriceList,
   ProposedPriceListRow,
   SupplierPriceListStore,
   SupplierPriceListStoreTransaction,
@@ -71,9 +73,10 @@ async function withRememberedLinks(
 async function extractedOrUnavailable(
   extractor: PriceListExtractor,
   source: PriceListSource,
+  aiCalls: AiCallCollector,
 ): Promise<PriceListExtraction> {
   try {
-    return await extractor.extract(source);
+    return await extractor.extract(source, aiCalls.onCall);
   } catch {
     return { kind: "unavailable" };
   }
@@ -113,20 +116,45 @@ export async function readSupplierPriceList(
   ports: ReadSupplierPriceListPorts,
   input: ReadSupplierPriceListInput,
 ): Promise<ReadSupplierPriceListOutcome> {
+  const aiCalls = collectAiCalls(input.now, ports.zoneRules);
   try {
-    return await readOnce(ports, input);
+    return await readOnce(ports, input, aiCalls);
   } catch (error) {
-    if (input.finalAttempt) {
-      await settleUnfinishedReading(ports.store, input.listId);
+    if (input.finalAttempt || aiCalls.hasAttempts()) {
+      await settleFailedReading(ports.store, input, aiCalls);
     }
     throw error;
   }
 }
 
-function settleUnfinishedReading(store: SupplierPriceListStore, listId: string): Promise<void> {
+async function recordReadingCalls(
+  tx: SupplierPriceListStoreTransaction,
+  list: LockedSupplierPriceList,
+  aiCalls: AiCallCollector,
+): Promise<void> {
+  const records = aiCalls.records({
+    purpose: "READING",
+    listId: list.id,
+    rowId: null,
+    actorId: list.actorId,
+  });
+  if (records.length > 0) {
+    await tx.recordAiCalls(records);
+  }
+}
+
+function settleFailedReading(
+  store: SupplierPriceListStore,
+  { listId, finalAttempt }: ReadSupplierPriceListInput,
+  aiCalls: AiCallCollector,
+): Promise<void> {
   return store.transaction(async (tx) => {
     const locked = await tx.lockList(listId);
-    if (locked.kind === "locked" && locked.list.state === "READING") {
+    if (locked.kind === "not_found") {
+      return;
+    }
+    await recordReadingCalls(tx, locked.list, aiCalls);
+    if (finalAttempt && locked.list.state === "READING") {
       await tx.recordReadFailure(
         listId,
         locked.list.sentAt === null ? "reading_unavailable" : "interrupted",
@@ -138,6 +166,7 @@ function settleUnfinishedReading(store: SupplierPriceListStore, listId: string):
 async function readOnce(
   { store, files, extractor, storeCatalogs, zoneRules }: ReadSupplierPriceListPorts,
   { listId, now }: ReadSupplierPriceListInput,
+  aiCalls: AiCallCollector,
 ): Promise<ReadSupplierPriceListOutcome> {
   const claim = await store.transaction<
     Stop | { kind: "go"; contentKind: SupplierPriceListContentKind }
@@ -183,11 +212,15 @@ async function readOnce(
   const extraction =
     sent.source.kind === "store_catalog"
       ? await storeCatalogExtraction(storeCatalogs, sent.source.catalog, sent.sentOn)
-      : await extractedOrUnavailable(extractor, sent.source);
+      : await extractedOrUnavailable(extractor, sent.source, aiCalls);
 
   return store.transaction<ReadSupplierPriceListOutcome>(async (tx) => {
     const locked = await tx.lockList(listId);
-    if (locked.kind === "not_found" || locked.list.state !== "READING") {
+    if (locked.kind === "not_found") {
+      return { kind: "already_read" };
+    }
+    await recordReadingCalls(tx, locked.list, aiCalls);
+    if (locked.list.state !== "READING") {
       return { kind: "already_read" };
     }
     if (extraction.kind === "unreadable") {

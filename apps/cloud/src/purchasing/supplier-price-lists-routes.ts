@@ -3,6 +3,7 @@ import {
   categoryListSchema,
   supplierItemLinkChoicesSchema,
   supplierItemLinkProposalSchema,
+  supplierPriceListAiCostSchema,
   supplierPriceListConfirmationBodySchema,
   supplierPriceListDiscardBodySchema,
   supplierPriceListListSchema,
@@ -34,6 +35,7 @@ import {
   confirmSupplierPriceList,
   createProductFromSupplierItem,
   discardSupplierPriceList,
+  findSupplierPriceListAiCost,
   findSupplierPriceListFile,
   findSupplierPriceListReview,
   linkSupplierPriceListRow,
@@ -72,6 +74,8 @@ import {
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzleSupplierItemLinkProposalReader } from "./drizzle-supplier-item-link-proposal-reader.js";
 import { DrizzleSupplierItemProductStore } from "./drizzle-supplier-item-product-store.js";
+import { DrizzleSupplierPriceListAiCallStore } from "./drizzle-supplier-price-list-ai-call-store.js";
+import { DrizzleSupplierPriceListAiCostReader } from "./drizzle-supplier-price-list-ai-cost-reader.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { opensAsPdf } from "./opens-as-pdf.js";
@@ -314,11 +318,17 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   const productStore = new DrizzleSupplierItemProductStore(options.db, now);
   const reader = new DrizzleSupplierPriceListReader(options.db);
   const proposalReader = new DrizzleSupplierItemLinkProposalReader(options.db);
+  const aiCalls = new DrizzleSupplierPriceListAiCallStore(options.db);
+  const aiCostReader = new DrizzleSupplierPriceListAiCostReader(options.db);
   const purchasingReader = new DrizzlePurchasingListReader(options.db);
   const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("supplier_price_lists"), sessionSource };
   const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
+  const aiCostGuard = {
+    preHandler: sameOriginGuard(options.backofficeOrigin),
+    config: { access: capabilityAccess("branch_area"), sessionSource },
+  };
   const writeGuard = { preHandler: backofficeOriginGuard(options.backofficeOrigin), config };
 
   app.register(async (upload) => {
@@ -476,6 +486,24 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       .send(Buffer.from(found.bytes));
   });
 
+  app.get("/supplier-price-lists/:id/ai-cost", aiCostGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id"]);
+    if (!ids) {
+      return;
+    }
+    const outcome = await findSupplierPriceListAiCost({ reader: aiCostReader }, { listId: ids.id });
+    if (outcome.kind === "not_found") {
+      await reply.code(404).send(NOT_FOUND);
+      return;
+    }
+    await reply.code(200).send(
+      supplierPriceListAiCostSchema.parse({
+        ...outcome.cost,
+        recordedFromStart: outcome.recordedFromStart,
+      }),
+    );
+  });
+
   app.put("/supplier-price-lists/:id/rows/:rowId/price", writeGuard, async (request, reply) => {
     const ids = await readRecordIds(reply, request.params, ["id", "rowId"]);
     if (!ids) {
@@ -573,8 +601,8 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
         return;
       }
       const outcome = await proposeSupplierItemLink(
-        { reader: proposalReader, chooser: productChooser },
-        { listId: ids.id, rowId: ids.rowId },
+        { reader: proposalReader, chooser: productChooser, aiCalls, zoneRules: options.zoneRules },
+        { listId: ids.id, rowId: ids.rowId, actorId: openSessionOf(request).userId, now },
       );
       if (outcome.kind === "not_found") {
         await reply.code(404).send(NOT_FOUND);

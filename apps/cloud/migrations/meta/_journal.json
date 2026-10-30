@@ -1020,8 +1020,8 @@
     {
       "idx": 145,
       "version": "7",
-      "when": 1793364646799,
-      "tag": "0152_return_refunds_of_one_payment",
+      "when": 1793323506828,
+      "tag": "0152_ai_calls_of_supplier_price_lists",
       "breakpoints": true
     }
   ]

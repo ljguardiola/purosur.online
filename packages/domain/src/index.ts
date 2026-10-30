@@ -579,8 +579,10 @@ export {
 export type {
   FreightMeans,
   FreightPeriodDays,
+  PricedAiCall,
   PurchasedLine,
   ReceiptType,
+  RecordedAiCall,
   RegisteredFreight,
   SupplierItemKey,
   SupplierItemVatRate,
@@ -593,6 +595,10 @@ export type {
   SupplierPriceListWebPageRefusal,
 } from "./purchasing/index.js";
 export {
+  AI_CALL_OUTCOMES,
+  AI_CALL_PURPOSES,
+  AI_COST_GROUPINGS,
+  AI_MODEL_PRICES,
   countsTowardDailyExtractionCap,
   DEFAULT_FREIGHT_PERIOD_DAYS,
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,

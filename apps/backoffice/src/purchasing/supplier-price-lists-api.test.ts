@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   confirmSupplierPriceList,
   discardSupplierPriceList,
+  fetchSupplierPriceListAiCost,
   fetchSupplierPriceListReview,
   fetchSupplierPriceLists,
   linkSupplierPriceListRow,
@@ -12,6 +13,7 @@ import {
   setSupplierPriceListRowPrice,
   uploadSupplierPriceList,
 } from "./supplier-price-lists-api";
+import { INCOMPLETE_LIST_AI_COST, LIST_AI_COST } from "./test-support/ai-cost";
 import { EXTRACTED_ROWS, READ_LIST, reviewOf } from "./test-support/supplier-price-lists";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
@@ -542,5 +544,43 @@ describe("linkSupplierPriceListRow", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
 
     expect(await linkSupplierPriceListRow("list-1", "row-1", target)).toEqual(outcome);
+  });
+});
+
+describe("fetchSupplierPriceListAiCost", () => {
+  test("reads the cost of the list the cloud answers", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, INCOMPLETE_LIST_AI_COST));
+
+    expect(await fetchSupplierPriceListAiCost("list-1")).toEqual({
+      kind: "ok",
+      value: INCOMPLETE_LIST_AI_COST,
+    });
+    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/list-1/ai-cost");
+  });
+
+  test.each([
+    ["a total without its figures", { total: {} }],
+    ["no mark of the calls recorded from the start", { recordedFromStart: undefined }],
+  ])("treats a body with %s as a failed load", async (_name, change) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...LIST_AI_COST, ...change }));
+
+    expect(await fetchSupplierPriceListAiCost("list-1")).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [401, { kind: "unauthenticated" }],
+    [403, { kind: "forbidden" }],
+    [404, { kind: "failed" }],
+    [500, { kind: "failed" }],
+  ])("answers a %s as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchSupplierPriceListAiCost("list-1")).toEqual(outcome);
+  });
+
+  test("fails when the cloud cannot be reached", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+    expect(await fetchSupplierPriceListAiCost("list-1")).toEqual({ kind: "failed" });
   });
 });

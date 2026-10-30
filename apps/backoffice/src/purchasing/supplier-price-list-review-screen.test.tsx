@@ -1,21 +1,8 @@
-import type { SupplierPriceListReview } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import {
-  StubCategoryCreationModal,
-  StubProductCreationModal,
-} from "../platform/test-support/creation-parts";
-import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
-import { render } from "../shell/test-support/render-with-router";
-import { SupplierPriceListReviewScreen } from "./supplier-price-list-review-screen";
-import type { SupplierPriceListReviewScreenServices } from "./supplier-price-list-review-services";
-import {
-  type SupplierPriceListReviewFilters,
-  supplierPriceListReviewFilters,
-} from "./supplier-price-lists-filters";
+import { supplierPriceListReviewFilters } from "./supplier-price-lists-filters";
 import { LINK_CHOICES, NO_PROPOSAL, PROPOSED_BY_BARCODE } from "./test-support/supplier-item-links";
 import {
   CREATION_BRANDS,
@@ -23,6 +10,13 @@ import {
   CREATION_TAG_LIST,
   PRODUCT_CREATED,
 } from "./test-support/supplier-item-products";
+import {
+  createServices,
+  LIST_ID,
+  loaded,
+  renderScreen,
+  type screenElement,
+} from "./test-support/supplier-price-list-review-screen";
 import {
   DISCARDED_LIST,
   EVERY_REVIEW_ACTION,
@@ -40,36 +34,9 @@ import {
   WEB_PAGE_URL,
 } from "./test-support/supplier-price-lists";
 
-const LIST_ID = READ_LIST.id;
-
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
-
-function createServices(
-  overrides: Partial<SupplierPriceListReviewScreenServices> = {},
-): SupplierPriceListReviewScreenServices {
-  return {
-    fetchSupplierPriceListReview: vi.fn(),
-    setSupplierPriceListRowPrice: vi.fn(),
-    removeSupplierPriceListRow: vi.fn(),
-    markSupplierPriceListRowReviewed: vi.fn(),
-    linkSupplierPriceListRow: vi.fn(),
-    fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
-    fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
-    createPackaging: vi.fn(),
-    createProductFromSupplierItem: vi.fn(),
-    fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
-    fetchProductCreationBrands: vi.fn().mockReturnValue(new Promise(() => {})),
-    fetchProductCreationTags: vi.fn().mockReturnValue(new Promise(() => {})),
-    createBrand: vi.fn(),
-    createTag: vi.fn(),
-    generateInternalBarcode: vi.fn(),
-    confirmSupplierPriceList: vi.fn(),
-    discardSupplierPriceList: vi.fn(),
-    ...overrides,
-  };
-}
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
@@ -79,60 +46,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function screenElement(
-  services: SupplierPriceListReviewScreenServices,
-  {
-    filters = supplierPriceListReviewFilters.parse({}),
-    onFiltersChange = () => {},
-    onBack = () => {},
-    onSessionEnded = () => {},
-    access = ADMINISTRATOR_ACCESS,
-  }: {
-    access?: BackofficeAccess;
-    filters?: SupplierPriceListReviewFilters;
-    onFiltersChange?: (filters: SupplierPriceListReviewFilters) => void;
-    onBack?: () => void;
-    onSessionEnded?: () => void;
-  } = {},
-) {
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <SupplierPriceListReviewScreen
-          listId={LIST_ID}
-          access={access}
-          categoryCreationModal={StubCategoryCreationModal}
-          productCreationModal={StubProductCreationModal}
-          services={services}
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-          onBack={onBack}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
-function renderScreen(...args: Parameters<typeof screenElement>) {
-  return render(screenElement(...args));
-}
-
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
-
-async function loaded(
-  services: SupplierPriceListReviewScreenServices,
-  review: SupplierPriceListReview,
-  options: Parameters<typeof screenElement>[1] = {},
-) {
-  vi.mocked(services.fetchSupplierPriceListReview).mockResolvedValue({
-    kind: "ok",
-    value: { kind: "found", review },
-  });
-  const screen = await renderScreen(services, options);
-  await expect.element(screen.getByRole("table", { name: "Ítems de la lista" })).toBeVisible();
-  return screen;
-}
 
 function itemRows(screen: Screen) {
   return screen.getByRole("row").all().slice(1);

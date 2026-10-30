@@ -1,3 +1,4 @@
+import type { AiCallUsage } from "@purosur/domain/purchasing/use-cases";
 import { describe, expect, it } from "vitest";
 import { AnthropicProductChooser } from "./anthropic-product-chooser.js";
 import { PURCHASING_AI_MODEL } from "./anthropic-structured-call.js";
@@ -50,7 +51,7 @@ const CANDIDATES = [
 describe("the request the chooser sends", () => {
   async function sentRequest() {
     const { chooser, requests } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
-    await chooser.choose(ITEM, CANDIDATES);
+    await chooser.choose(ITEM, CANDIDATES, () => {});
     return requests[0] as RecordedRequest;
   }
 
@@ -86,7 +87,7 @@ describe("the request the chooser sends", () => {
     const { chooser, requests } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
     const extra = { ...(CANDIDATES[0] as (typeof CANDIDATES)[number]), barcode: "7790000000011" };
 
-    await chooser.choose(ITEM, [extra]);
+    await chooser.choose(ITEM, [extra], () => {});
 
     const messages = (requests[0] as RecordedRequest).body["messages"] as {
       content: { text: string }[];
@@ -138,7 +139,7 @@ describe("the request the chooser sends", () => {
   it("does not retry a refused request by itself", async () => {
     const { chooser, requests } = chooserAnswering(() => apiErrorResponse(429, "rate_limit_error"));
 
-    await chooser.choose(ITEM, CANDIDATES);
+    await chooser.choose(ITEM, CANDIDATES, () => {});
 
     expect(requests).toHaveLength(1);
   });
@@ -146,7 +147,7 @@ describe("the request the chooser sends", () => {
   it("sends an item without a presentation", async () => {
     const { chooser, requests } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
 
-    await chooser.choose({ description: "Yerba", presentation: null }, CANDIDATES);
+    await chooser.choose({ description: "Yerba", presentation: null }, CANDIDATES, () => {});
 
     expect(requests).toHaveLength(1);
   });
@@ -158,7 +159,7 @@ describe("the choice the chooser answers", () => {
       streamedJsonResponse({ productId: CANDIDATES[0]?.id }),
     );
 
-    expect(await chooser.choose(ITEM, CANDIDATES)).toEqual({
+    expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({
       kind: "chosen",
       productId: CANDIDATES[0]?.id,
     });
@@ -167,7 +168,7 @@ describe("the choice the chooser answers", () => {
   it("answers none when the model chose no product", async () => {
     const { chooser } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
 
-    expect(await chooser.choose(ITEM, CANDIDATES)).toEqual({ kind: "none" });
+    expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({ kind: "none" });
   });
 
   it("puts together an answer that arrives in pieces", async () => {
@@ -176,7 +177,7 @@ describe("the choice the chooser answers", () => {
       streamedAnswerResponse({ textParts: [json.slice(0, 10), json.slice(10)] }),
     );
 
-    expect(await chooser.choose(ITEM, CANDIDATES)).toEqual({
+    expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({
       kind: "chosen",
       productId: CANDIDATES[1]?.id,
     });
@@ -195,7 +196,7 @@ describe("what makes the chooser unavailable", () => {
   ])("an HTTP %i", async (status, type) => {
     const { chooser } = chooserAnswering(() => apiErrorResponse(status, type));
 
-    expect(await chooser.choose(ITEM, CANDIDATES)).toEqual({ kind: "unavailable" });
+    expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({ kind: "unavailable" });
   });
 
   it("a connection that fails", async () => {
@@ -203,13 +204,13 @@ describe("what makes the chooser unavailable", () => {
       throw new TypeError("fetch failed");
     });
 
-    expect(await chooser.choose(ITEM, CANDIDATES)).toEqual({ kind: "unavailable" });
+    expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({ kind: "unavailable" });
   });
 
   it("an error that interrupts the stream", async () => {
     const { chooser } = chooserAnswering(streamInterruptedByErrorResponse);
 
-    expect(await chooser.choose(ITEM, CANDIDATES)).toEqual({ kind: "unavailable" });
+    expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({ kind: "unavailable" });
   });
 
   it.each([
@@ -225,6 +226,44 @@ describe("what makes the chooser unavailable", () => {
   ])("%s", async (_name, response) => {
     const { chooser } = chooserAnswering(() => response);
 
-    expect(await chooser.choose(ITEM, CANDIDATES)).toEqual({ kind: "unavailable" });
+    expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("the calls the chooser reports", () => {
+  it("reports the one call it made with the tokens the provider reported", async () => {
+    const { chooser } = chooserAnswering(() =>
+      streamedAnswerResponse({
+        textParts: ['{"productId":null}'],
+        usage: { inputTokens: 80, outputTokens: 6, cacheReadTokens: 50 },
+      }),
+    );
+    const calls: AiCallUsage[] = [];
+
+    await chooser.choose(ITEM, CANDIDATES, (usage) => calls.push(usage));
+
+    expect(calls).toEqual([
+      {
+        outcome: "completed",
+        attempts: [
+          {
+            model: PURCHASING_AI_MODEL,
+            inputTokens: 80,
+            outputTokens: 6,
+            cacheWriteTokens: 0,
+            cacheReadTokens: 50,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("reports a call that failed when the service is unavailable", async () => {
+    const { chooser } = chooserAnswering(() => apiErrorResponse(529, "overloaded_error"));
+    const calls: AiCallUsage[] = [];
+
+    await chooser.choose(ITEM, CANDIDATES, (usage) => calls.push(usage));
+
+    expect(calls).toEqual([{ outcome: "failed", attempts: [] }]);
   });
 });
