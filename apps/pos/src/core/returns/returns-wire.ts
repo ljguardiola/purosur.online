@@ -25,7 +25,6 @@ export function toWireRefundRefusal(refusal: RefundAllocationRefusal): RefundAll
   switch (refusal.kind) {
     case "unknown_payment":
     case "invalid_amount":
-    case "not_cash":
       return { kind: refusal.kind, payment_id: refusal.paymentId };
     case "exceeds_payment":
       return {
