@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import type { AiCallUsage } from "./ai-call-usage.js";
 import { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
 import { FakeProductChooser } from "./test-support/fake-product-chooser.js";
 import {
   type FakeProposalData,
   FakeSupplierItemLinkProposalReader,
 } from "./test-support/fake-supplier-item-link-proposal-reader.js";
+import { FakeSupplierPriceListAiCallStore } from "./test-support/fake-supplier-price-list-ai-call-store.js";
 
 const YERBA = { id: "product-1", name: "Yerba Piragüé 1 kg", barcodes: ["7790001000012"] };
 const AZUCAR = { id: "product-2", name: "Azúcar Cañaral 1 kg" };
@@ -27,10 +30,17 @@ function setup(
     products,
   });
   const chooser = new FakeProductChooser();
-  return { reader, chooser, ports: { reader, chooser } };
+  const aiCalls = new FakeSupplierPriceListAiCallStore();
+  return {
+    reader,
+    chooser,
+    aiCalls,
+    ports: { reader, chooser, aiCalls, zoneRules: new FakeZoneRulesSource() },
+  };
 }
 
-const input = { listId: "list-1", rowId: "row-1" };
+const NOW = new Date("2026-03-11T01:30:00Z");
+const input = { listId: "list-1", rowId: "row-1", actorId: "person-1", now: () => NOW };
 
 describe("proposeSupplierItemLink", () => {
   it("answers not_found for a row that does not exist", async () => {
@@ -254,6 +264,183 @@ describe("proposeSupplierItemLink", () => {
       await proposeSupplierItemLink(ports, input);
 
       expect(chooser.asked[0]?.candidates).toHaveLength(20);
+    });
+  });
+
+  describe("recording of the AI calls", () => {
+    const usage = (
+      outcome: AiCallUsage["outcome"],
+      overrides: Partial<AiCallUsage["attempts"][number]> = {},
+    ): AiCallUsage => ({
+      outcome,
+      attempts: [
+        {
+          model: "claude-sonnet-5-5",
+          inputTokens: 2_000,
+          outputTokens: 100,
+          cacheWriteTokens: 10,
+          cacheReadTokens: 1_000,
+          ...overrides,
+        },
+      ],
+    });
+
+    it("records each attempt the chooser reports for the row, the person and the moment", async () => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.answer = { kind: "chosen", productId: "product-1" };
+      chooser.reportedCalls = [usage("completed")];
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(aiCalls.recorded).toEqual([
+        {
+          purpose: "LINK_PROPOSAL",
+          listId: "list-1",
+          rowId: "row-1",
+          actorId: "person-1",
+          occurredAt: NOW,
+          occurredOn: "2026-03-10",
+          model: "claude-sonnet-5-5",
+          inputTokens: 2_000,
+          outputTokens: 100,
+          cacheWriteTokens: 10,
+          cacheReadTokens: 1_000,
+          outcome: "completed",
+          costNanoUsd: 4_000_000 + 1_000_000 + 25_000 + 200_000,
+        },
+      ]);
+    });
+
+    it("dates each call when the chooser reports it", async () => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.reportedCalls = [usage("completed")];
+      const instants = [new Date("2026-03-11T02:00:00Z"), new Date("2026-03-11T03:00:00Z")];
+
+      await proposeSupplierItemLink(ports, { ...input, now: () => instants.shift() ?? NOW });
+
+      expect(aiCalls.recorded[0]).toMatchObject({
+        occurredAt: new Date("2026-03-11T02:00:00Z"),
+        occurredOn: "2026-03-11",
+      });
+    });
+
+    it("records every attempt of a call that fell back to another model", async () => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.reportedCalls = [
+        {
+          outcome: "completed",
+          attempts: [
+            {
+              model: "claude-sonnet-5-5",
+              inputTokens: 1,
+              outputTokens: 0,
+              cacheWriteTokens: 0,
+              cacheReadTokens: 0,
+            },
+            {
+              model: "claude-sonnet-5",
+              inputTokens: 2,
+              outputTokens: 0,
+              cacheWriteTokens: 0,
+              cacheReadTokens: 0,
+            },
+          ],
+        },
+      ];
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(aiCalls.recorded.map(({ model, inputTokens }) => [model, inputTokens])).toEqual([
+        ["claude-sonnet-5-5", 1],
+        ["claude-sonnet-5", 2],
+      ]);
+    });
+
+    it.each([
+      ["unavailable", { kind: "unavailable" as const }],
+      ["none", { kind: "none" as const }],
+    ])("records the calls of a choice that is %s", async (_name, answer) => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.answer = answer;
+      chooser.reportedCalls = [usage("failed")];
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(aiCalls.recorded).toEqual([expect.objectContaining({ outcome: "failed" })]);
+    });
+
+    it("records the calls reported before the chooser throws, answering unavailable", async () => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.answer = new Error("connection reset");
+      chooser.reportedCalls = [usage("cut_short")];
+
+      expect(await proposeSupplierItemLink(ports, input)).toEqual({ kind: "unavailable" });
+
+      expect(aiCalls.recorded).toEqual([expect.objectContaining({ outcome: "cut_short" })]);
+    });
+
+    it("records a model without a price with its tokens and no cost", async () => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.reportedCalls = [usage("completed", { model: "claude-future-9" })];
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(aiCalls.recorded[0]).toMatchObject({ model: "claude-future-9", costNanoUsd: null });
+    });
+
+    it("prices a call with the price in effect when it happened", async () => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.reportedCalls = [usage("completed")];
+
+      await proposeSupplierItemLink(ports, {
+        ...input,
+        now: () => new Date("2025-12-31T23:59:59Z"),
+      });
+
+      expect(aiCalls.recorded[0]?.costNanoUsd).toBeNull();
+    });
+
+    it("records nothing when the chooser reports no attempt", async () => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.reportedCalls = [{ outcome: "failed", attempts: [] }];
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(aiCalls.recorded).toEqual([]);
+    });
+
+    it("records nothing for a proposal by barcode", async () => {
+      const { chooser, aiCalls, ports } = setup({ barcode: "7790001000012" });
+      chooser.reportedCalls = [usage("completed")];
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(aiCalls.recordings).toBe(0);
+    });
+
+    it("records nothing when no candidate exists", async () => {
+      const { chooser, aiCalls, ports } = setup({ description: "Detergente" });
+      chooser.reportedCalls = [usage("completed")];
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(aiCalls.recordings).toBe(0);
+    });
+
+    it("records nothing for a row that does not exist", async () => {
+      const { aiCalls, ports } = setup();
+
+      await proposeSupplierItemLink(ports, { ...input, rowId: "missing" });
+
+      expect(aiCalls.recordings).toBe(0);
+    });
+
+    it("does not answer when the calls cannot be recorded", async () => {
+      const { chooser, aiCalls, ports } = setup();
+      chooser.reportedCalls = [usage("completed")];
+      aiCalls.failure = new Error("storage down");
+
+      await expect(proposeSupplierItemLink(ports, input)).rejects.toThrow("storage down");
     });
   });
 });

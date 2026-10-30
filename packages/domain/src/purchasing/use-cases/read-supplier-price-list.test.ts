@@ -4,6 +4,7 @@ import {
   SUPPLIER_PRICE_LIST_STATES,
   type SupplierPriceListReadFailure,
 } from "../model/supplier-price-list.js";
+import type { AiCallUsage } from "./ai-call-usage.js";
 import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
 import { FakePriceListExtractor } from "./test-support/fake-price-list-extractor.js";
@@ -760,5 +761,253 @@ describe("readSupplierPriceList of a store's catalog", () => {
       reason: "no_items_found",
     });
     expect(store.snapshot().lists[0]).toMatchObject({ readFailure: "no_items_found" });
+  });
+});
+
+const SONNET = "claude-sonnet-5-5";
+
+function aUsage(
+  overrides: Partial<AiCallUsage["attempts"][number]> = {},
+  outcome: AiCallUsage["outcome"] = "completed",
+): AiCallUsage {
+  return {
+    outcome,
+    attempts: [
+      {
+        model: SONNET,
+        inputTokens: 1_000_000,
+        outputTokens: 100_000,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
+        ...overrides,
+      },
+    ],
+  };
+}
+
+const oneRow = {
+  kind: "extracted" as const,
+  listDate: null,
+  pricesIncludeVat: null,
+  rows: [
+    { description: "Yerba", code: null, presentation: null, priceCents: 1, page: 1, barcode: null },
+  ],
+};
+
+describe("readSupplierPriceList recording of the AI calls", () => {
+  it("records each attempt of each call with its tokens, outcome, cost, list and person", async () => {
+    const { store, extractor, ports } = setup({ id: "list-1", uploadedBy: "person-7" });
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [
+      aUsage({
+        inputTokens: 1_000_000,
+        outputTokens: 100_000,
+        cacheWriteTokens: 40_000,
+        cacheReadTokens: 500_000,
+      }),
+      {
+        outcome: "cut_short",
+        attempts: [
+          {
+            model: "claude-sonnet-5",
+            inputTokens: 10,
+            outputTokens: 20,
+            cacheWriteTokens: 0,
+            cacheReadTokens: 0,
+          },
+          {
+            model: SONNET,
+            inputTokens: 5,
+            outputTokens: 6,
+            cacheWriteTokens: 7,
+            cacheReadTokens: 8,
+          },
+        ],
+      },
+    ];
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().aiCalls).toEqual([
+      {
+        purpose: "READING",
+        listId: "list-1",
+        rowId: null,
+        actorId: "person-7",
+        occurredAt: NOW,
+        occurredOn: SENT_ON,
+        model: SONNET,
+        inputTokens: 1_000_000,
+        outputTokens: 100_000,
+        cacheWriteTokens: 40_000,
+        cacheReadTokens: 500_000,
+        outcome: "completed",
+        costNanoUsd: 2_000_000_000 + 1_000_000_000 + 100_000_000 + 100_000_000,
+      },
+      expect.objectContaining({
+        model: "claude-sonnet-5",
+        outcome: "cut_short",
+        costNanoUsd: 220_000,
+      }),
+      expect.objectContaining({
+        model: SONNET,
+        outcome: "cut_short",
+        costNanoUsd: 10_000 + 60_000 + 17_500 + 1_600,
+      }),
+    ]);
+  });
+
+  it("dates each call with the clock when the extractor reports it, on the Argentina day", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [aUsage()];
+    const instants = [
+      new Date("2026-03-10T12:00:00Z"),
+      new Date("2026-03-11T02:59:00Z"),
+      new Date("2026-03-11T03:00:00Z"),
+    ];
+
+    await readSupplierPriceList(ports, { ...input, now: () => instants.shift() ?? NOW });
+
+    expect(store.snapshot().aiCalls[0]).toMatchObject({
+      occurredAt: new Date("2026-03-11T02:59:00Z"),
+      occurredOn: "2026-03-10",
+    });
+  });
+
+  it.each([
+    ["an extraction", oneRow],
+    ["an unreadable answer", { kind: "unreadable" as const }],
+    ["an unavailable answer", { kind: "unavailable" as const }],
+    ["an extraction without rows", { ...oneRow, rows: [] }],
+  ])("records the calls with %s", async (_name, answer) => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = answer;
+    extractor.reportedCalls = [aUsage({}, "failed")];
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().aiCalls).toEqual([
+      expect.objectContaining({ listId: "list-1", outcome: "failed" }),
+    ]);
+  });
+
+  it("records the calls reported before the extractor throws, answering unavailable", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = new Error("connection reset");
+    extractor.reportedCalls = [aUsage({}, "failed"), aUsage()];
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({
+      kind: "failed",
+      reason: "reading_unavailable",
+    });
+
+    expect(store.snapshot().aiCalls).toHaveLength(2);
+  });
+
+  it("records the calls of a list no longer reading when the answer arrives", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [aUsage()];
+    extractor.onExtract = () =>
+      store.transaction((tx) => tx.recordReadFailure("list-1", "interrupted"));
+
+    expect(await readSupplierPriceList(ports, input)).toEqual({ kind: "already_read" });
+
+    expect(store.snapshot().aiCalls).toEqual([expect.objectContaining({ listId: "list-1" })]);
+  });
+
+  it("does not record the answer when its calls cannot be recorded", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [aUsage()];
+    store.failingWrites.add("recordAiCalls");
+
+    await expect(readSupplierPriceList(ports, input)).rejects.toThrow("recordAiCalls failed");
+
+    expect(store.snapshot().lists[0]?.state).toBe("READING");
+    expect(store.snapshot().rows).toEqual([]);
+  });
+
+  it("records nothing for a call that reported no attempt", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = { kind: "unavailable" };
+    extractor.reportedCalls = [{ outcome: "failed", attempts: [] }];
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().aiCalls).toEqual([]);
+  });
+
+  it("records a model without a price with its tokens and no cost", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [aUsage({ model: "claude-future-9", inputTokens: 123 })];
+
+    await readSupplierPriceList(ports, input);
+
+    expect(store.snapshot().aiCalls[0]).toMatchObject({
+      model: "claude-future-9",
+      inputTokens: 123,
+      costNanoUsd: null,
+    });
+  });
+
+  it("records a call made before any price applied with no cost", async () => {
+    const { store, extractor, ports } = setup();
+    extractor.answer = oneRow;
+    extractor.reportedCalls = [aUsage()];
+
+    await readSupplierPriceList(ports, { ...input, now: () => new Date("2025-12-31T23:59:59Z") });
+
+    expect(store.snapshot().aiCalls[0]?.costNanoUsd).toBeNull();
+  });
+
+  it("records nothing for a store catalog, which makes no AI call", async () => {
+    const { store, files, storeCatalogs, extractor, ports } = setup();
+    store.seedList({
+      id: "list-2",
+      sourceKind: "WEB_PAGE",
+      fileName: null,
+      sourceUrl: "https://distribuidora-sur.example/catalogo",
+      contentKind: "STORE_CATALOG",
+    });
+    await files.store("list-2", STORE_CATALOG, "STORE_CATALOG");
+    storeCatalogs.answer = { kind: "read", rows: [] };
+    extractor.reportedCalls = [aUsage()];
+
+    await readSupplierPriceList(ports, { ...input, listId: "list-2" });
+
+    expect(store.snapshot().aiCalls).toEqual([]);
+  });
+
+  it.each([false, true])(
+    "records the calls reported before a failure to record the answer (final attempt: %s)",
+    async (finalAttempt) => {
+      const { store, extractor, ports } = setup({ id: "list-1", uploadedBy: "person-7" });
+      extractor.answer = oneRow;
+      extractor.reportedCalls = [aUsage()];
+      store.failingWrites.add("recordExtraction");
+
+      await expect(readSupplierPriceList(ports, { ...input, finalAttempt })).rejects.toThrow(
+        "recordExtraction failed",
+      );
+
+      expect(store.snapshot().aiCalls).toEqual([
+        expect.objectContaining({ listId: "list-1", actorId: "person-7" }),
+      ]);
+    },
+  );
+
+  it("records nothing more when the run fails before any call", async () => {
+    const { store, extractor, ports } = setup();
+    store.failingWrites.add("markSent");
+    extractor.reportedCalls = [aUsage()];
+
+    await expect(readSupplierPriceList(ports, { ...input, finalAttempt: true })).rejects.toThrow(
+      "markSent failed",
+    );
+
+    expect(store.snapshot().aiCalls).toEqual([]);
   });
 });
