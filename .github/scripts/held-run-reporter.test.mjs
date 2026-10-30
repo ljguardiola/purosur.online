@@ -248,7 +248,10 @@ test("ends the run when a file hangs before its first test finishes", async (t) 
   t.mock.timers.tick(1);
   await settle();
   assert.deepEqual(exits, [1]);
-  assert.match(lines.join("\n"), /no "node" test finished in the last 300s while one of its files ran/);
+  assert.match(
+    lines.join("\n"),
+    /no "node" test finished in the last 300s while one of its files ran/,
+  );
 });
 
 test("never ends a file whose tests keep finishing, however long the file takes", async (t) => {
@@ -409,6 +412,35 @@ test("arms nothing in watch mode", async (t) => {
   t.mock.timers.tick(10 * STALL_MS);
   reporter.onTestModuleEnd(finishedModule("node", "b.test.ts"));
   t.mock.timers.tick(GRACE_MS);
+  await settle();
+
+  assert.deepEqual(exits, []);
+  assert.deepEqual(lines, []);
+});
+
+test("arms nothing when a test finishes in watch mode", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits, lines } = await startedReporter(fakeVitest({ watch: true }), [
+    spec("node", "a.test.ts"),
+  ]);
+
+  reporter.onTestCaseResult(finishedTest("node", "a.test.ts"));
+  t.mock.timers.tick(10 * STALL_MS);
+  await settle();
+
+  assert.deepEqual(exits, []);
+  assert.deepEqual(lines, []);
+});
+
+test("arms nothing when a test finishes after the run ended", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { reporter, exits, lines } = await startedReporter(fakeVitest(), [
+    spec("node", "a.test.ts"),
+  ]);
+
+  reporter.onTestRunEnd();
+  reporter.onTestCaseResult(finishedTest("node", "a.test.ts"));
+  t.mock.timers.tick(10 * STALL_MS);
   await settle();
 
   assert.deepEqual(exits, []);
