@@ -194,7 +194,13 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
   }
 
   async extractionsCountedOn(locationId: string, day: string): Promise<number> {
-    const extractions = [...this.state.lists, ...this.state.rereads];
+    const extractions = [
+      ...this.state.lists,
+      ...this.state.rereads.map((reread) => ({
+        ...reread,
+        state: reread.state === "READING" ? ("READING" as const) : ("EXTRACTED" as const),
+      })),
+    ];
     return extractions.filter(
       (extraction) =>
         extraction.locationId === locationId && countsTowardDailyExtractionCap(extraction, day),
