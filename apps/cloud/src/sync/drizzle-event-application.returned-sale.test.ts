@@ -5,6 +5,11 @@ import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases"
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { ORDER_ID } from "../payments/test-support/fake-mercado-pago-orders.js";
+import {
+  pendingPointTransaction,
+  pendingTransaction,
+} from "../payments/test-support/payment-transaction-fixtures.js";
 import {
   alerts,
   branchSettings,
@@ -13,6 +18,7 @@ import {
   inbox,
   locations,
   paymentRefunds,
+  paymentTransactions,
   products,
   registers,
   returnLines,
@@ -257,6 +263,143 @@ describe("recording the returns of applied events", () => {
     ).rejects.toThrow();
 
     expect(await system.db.select().from(saleReturns)).toEqual([]);
+  });
+});
+
+describe("recording the refunds of a return to a payment that is not cash", () => {
+  const PROVIDERS = {
+    QR: "MERCADOPAGO_QR",
+    POINT: "MERCADOPAGO_POINT",
+    TRANSFER: "NONE",
+    STANDALONE_TERMINAL: "EXTERNAL_TERMINAL",
+  } as const;
+
+  async function returnRefundedTo(method: keyof typeof PROVIDERS) {
+    const paymentId = randomUUID();
+    const [cash] = aCompletedSale().payments;
+    const setup = await setUp({
+      payments: [
+        {
+          ...(cash as NonNullable<typeof cash>),
+          id: paymentId,
+          method,
+          provider: PROVIDERS[method],
+          cardType: method === "POINT" ? "DEBIT" : null,
+          tendered: null,
+          amount: 5000,
+        },
+      ],
+    });
+    if (method === "QR" || method === "POINT") {
+      const backing = {
+        id: paymentId,
+        saleId: setup.completed.id,
+        amount: 5000,
+        state: "APPROVED",
+        providerOrderId: ORDER_ID,
+      } as const;
+      await system.db
+        .insert(paymentTransactions)
+        .values(
+          method === "QR"
+            ? pendingTransaction(setup.registerId, backing)
+            : pendingPointTransaction(setup.registerId, backing),
+        );
+    }
+    const saleReturn = aReturnOf(setup.completed, {
+      sessionId: setup.returnSessionId,
+      refunds: [
+        {
+          id: randomUUID(),
+          paymentId,
+          method,
+          provider: PROVIDERS[method],
+          amount: 2400,
+          state: "PENDING",
+          occurredAt: RETURNED_AT,
+        },
+      ],
+      cashMovements: [],
+    });
+    await record(
+      { kind: "sale_returned", saleReturn, creditNote: null },
+      eventOf(setup.deviceId, "sale_returned", saleReturn.id),
+    );
+    return { paymentId, saleReturn };
+  }
+
+  it.each(["QR", "POINT"] as const)(
+    "keeps a %s refund pending on its payment, confirmed by who completed the return when they did, for the cloud to send",
+    async (method) => {
+      const { paymentId, saleReturn } = await returnRefundedTo(method);
+
+      expect(await system.db.select().from(paymentRefunds)).toEqual([
+        expect.objectContaining({
+          id: saleReturn.refunds[0]?.id,
+          paymentId,
+          paymentTransactionId: paymentId,
+          origin: "return",
+          method,
+          provider: PROVIDERS[method],
+          amount: 2400,
+          state: "PENDING",
+          confirmedBy: saleReturn.actorId,
+          confirmedAt: RETURNED_AT,
+        }),
+      ]);
+    },
+  );
+
+  it.each(["TRANSFER", "STANDALONE_TERMINAL"] as const)(
+    "keeps a %s refund pending and unconfirmed, for a person to make outside the register",
+    async (method) => {
+      await returnRefundedTo(method);
+
+      expect(await system.db.select().from(paymentRefunds)).toEqual([
+        expect.objectContaining({
+          method,
+          state: "PENDING",
+          paymentTransactionId: null,
+          confirmedBy: null,
+          confirmedAt: null,
+        }),
+      ]);
+    },
+  );
+
+  it("keeps two partial returns of the same QR payment, both pending", async () => {
+    const { paymentId, saleReturn } = await returnRefundedTo("QR");
+    const [setupSale] = await system.db.select().from(saleReturns);
+    const second: ReturnedSale = {
+      ...saleReturn,
+      id: randomUUID(),
+      refunds: [
+        {
+          id: randomUUID(),
+          paymentId,
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: 1000,
+          state: "PENDING",
+          occurredAt: RETURNED_AT,
+        },
+      ],
+      cashMovements: [],
+      stockMovements: [],
+    };
+    await record(
+      { kind: "sale_returned", saleReturn: second, creditNote: null },
+      eventOf(setupSale?.deviceId as string, "sale_returned", second.id),
+    );
+
+    expect(
+      (await system.db.select().from(paymentRefunds)).map(({ amount, state }) => [amount, state]),
+    ).toEqual(
+      expect.arrayContaining([
+        [2400, "PENDING"],
+        [1000, "PENDING"],
+      ]),
+    );
   });
 });
 
