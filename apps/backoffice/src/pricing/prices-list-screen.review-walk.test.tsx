@@ -288,3 +288,21 @@ test.each([
     expect(screen.getByRole("button", { name: "Reintentar" }).query()).toBeNull();
   },
 );
+
+test("Revisar los N names a pending count in the thousands with the es-AR thousands separator", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [withoutPrice, rice],
+      pendingCount: 1998,
+      activeProductCount: 1998,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Revisar los 1.998" })).toBeVisible();
+});
