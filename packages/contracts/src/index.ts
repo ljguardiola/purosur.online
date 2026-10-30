@@ -407,6 +407,13 @@ export {
   pricesPastReviewDeadlineReportQuerySchema,
   pricesPastReviewDeadlineReportSchema,
 } from "./pricing/prices-past-review-deadline-report.js";
+export type { AiCostBody } from "./purchasing/ai-cost.js";
+export { aiCostSchema } from "./purchasing/ai-cost.js";
+export type { AiCostByPeriodBody, AiCostByPeriodQuery } from "./purchasing/ai-cost-by-period.js";
+export {
+  aiCostByPeriodQuerySchema,
+  aiCostByPeriodSchema,
+} from "./purchasing/ai-cost-by-period.js";
 export type { ExactFraction } from "./purchasing/exact-fraction.js";
 export { exactFractionSchema } from "./purchasing/exact-fraction.js";
 export type { FreightBody } from "./purchasing/freight-body.js";
