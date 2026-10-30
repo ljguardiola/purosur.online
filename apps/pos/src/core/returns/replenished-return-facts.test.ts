@@ -132,6 +132,29 @@ describe("replenishing a return into a restored register", () => {
     expect(cashBalanceFor(database)?.expected).toBe(5000 - 1000);
   });
 
+  it("holds a refund still pending to a payment that is not cash, with no cash given back", () => {
+    returnSale({
+      cashMovements: [],
+      refunds: [
+        {
+          id: "refund-1",
+          paymentId: "payment-1",
+          method: "TRANSFER",
+          provider: "NONE",
+          amount: 1000,
+          state: "PENDING",
+          occurredAt: new Date("2026-10-08T10:00:00.000Z"),
+        },
+      ],
+    });
+
+    expect(rows("SELECT id, method, amount, state FROM payment_refunds")).toEqual([
+      { id: "refund-1", method: "TRANSFER", amount: 1000, state: "PENDING" },
+    ]);
+    expect(rows("SELECT id FROM cash_movements WHERE type = 'REFUND'")).toEqual([]);
+    expect(cashBalanceFor(database)?.expected).toBe(5000);
+  });
+
   it("puts the returned stock back on the balance and keeps the movement that did", () => {
     returnSale();
 
