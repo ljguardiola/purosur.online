@@ -4,6 +4,7 @@ import {
   type SalePayment,
   saleUnitOfWeightSource,
 } from "@purosur/domain";
+import { endUnpaidSale } from "@purosur/domain/sales/use-cases";
 import type { ReplenishedEventSource, SyncedFact } from "@purosur/domain/sync/use-cases";
 import {
   approvePendingMercadoPagoPayment,
@@ -14,16 +15,17 @@ import {
 } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readRegisterIdentity } from "../register/sqlite-cash-ledger";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { addToStockBalance, insertSaleStockMovement } from "../stock/sqlite-stock-ledger";
 import {
   advanceOperationCounterTo,
   deleteSaleLine,
-  discardOpenSale,
   insertOpenedSale,
   insertSaleLine,
   insertSalePayment,
   markSaleCancelled,
   markSaleCompleted,
+  SqliteSaleLedger,
   takeOperationNumber,
   updateSaleDiscount,
 } from "./sqlite-sale-ledger";
@@ -137,17 +139,19 @@ function held(database: LocalDatabase, query: string, id: string): boolean {
   return database.prepare(query).get(id) !== undefined;
 }
 
-function discardOtherOpenSales(
+function endOtherOpenSales(
   database: LocalDatabase,
   sale: CompletedSaleFact | CancelledSaleFact,
+  endedAt: Date,
 ) {
   const others = database
     .prepare<[string, string], { id: string }>(
       "SELECT id FROM sales WHERE session_id = ? AND state = 'OPEN' AND id <> ?",
     )
     .all(sale.sessionId, sale.id);
+  const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database));
   for (const { id } of others) {
-    discardOpenSale(database, id);
+    ledger.transaction((tx) => endUnpaidSale(tx, id, endedAt));
   }
 }
 
@@ -188,6 +192,7 @@ export function holdSaleCashMovements(
 function holdOpenSale(
   database: LocalDatabase,
   sale: CompletedSaleFact | CancelledSaleFact,
+  endedAt: Date,
   source: ReplenishedEventSource,
 ): boolean {
   const recorded = database
@@ -200,7 +205,7 @@ function holdOpenSale(
   if (identity === undefined) {
     throw new Error("the register has no identity");
   }
-  discardOtherOpenSales(database, sale);
+  endOtherOpenSales(database, sale, endedAt);
   if (recorded === undefined) {
     insertOpenedSale(database, {
       id: sale.id,
@@ -234,7 +239,7 @@ function completeSale(
   sale: CompletedSaleFact,
   source: ReplenishedEventSource,
 ): void {
-  if (!holdOpenSale(database, sale, source)) {
+  if (!holdOpenSale(database, sale, sale.completedAt, source)) {
     return;
   }
   const operationNumber = sale.operationNumber ?? takeOperationNumber(database);
@@ -254,7 +259,7 @@ function cancelSale(
   sale: CancelledSaleFact,
   source: ReplenishedEventSource,
 ): void {
-  if (!holdOpenSale(database, sale, source)) {
+  if (!holdOpenSale(database, sale, sale.cancelledAt, source)) {
     return;
   }
   for (const refund of sale.refunds) {
