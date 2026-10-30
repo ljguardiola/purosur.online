@@ -7,10 +7,10 @@ import type {
   PricesUnderReviewQuery,
   PriceUnderReview,
 } from "@purosur/domain/pricing/use-cases";
-import { and, desc, eq, isNull, min } from "drizzle-orm";
+import { formatProductDescription } from "@purosur/formatting";
+import { and, desc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
-import { productNameWithBrand } from "../catalog/product-name-with-brand.js";
 import { containsText } from "../platform/contains-pattern.js";
 import {
   branchSettings,
@@ -154,6 +154,23 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
     return new Map(latestReviewRows.map((row) => [row.productId, row.reviewedAt]));
   }
 
+  private async idsWithDescriptionContainingEveryWord(
+    rows: readonly PriceUnderReview[],
+    search: string,
+  ): Promise<Set<string>> {
+    const shownDescriptions = JSON.stringify(
+      rows.map((row) => ({ id: row.id, description: formatProductDescription(row) })),
+    );
+    const description = sql`shown.description`;
+    const matching = await this.db
+      .select({ id: sql<string>`shown.id` })
+      .from(
+        sql`jsonb_to_recordset(${shownDescriptions}::jsonb) as shown(id uuid, description text)`,
+      )
+      .where(and(...search.split(/\s+/).map((word) => containsText(description, word))));
+    return new Set(matching.map((row) => row.id));
+  }
+
   async pricesUnderReview(query: PricesUnderReviewQuery): Promise<PricesUnderReview> {
     const settings = await this.branchSettingsOf(query.locationId);
     const productRows = await this.activeProductRows();
@@ -210,12 +227,7 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       filtered = filtered.filter((row) => wanted.has(row.id));
     }
     if (query.search) {
-      const matching = await this.db
-        .select({ id: products.id })
-        .from(products)
-        .leftJoin(brands, eq(brands.id, products.brandId))
-        .where(containsText(productNameWithBrand(), query.search));
-      const matchingIds = new Set(matching.map((row) => row.id));
+      const matchingIds = await this.idsWithDescriptionContainingEveryWord(filtered, query.search);
       filtered = filtered.filter((row) => matchingIds.has(row.id));
     }
     if (query.review === "pending") {
