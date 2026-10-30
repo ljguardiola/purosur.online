@@ -104,8 +104,6 @@ export function refundRefusalText(refusal: RefundAllocationRefusalBody): string 
       return "Ese pago no es de esta venta.";
     case "invalid_amount":
       return "Ingresá un importe mayor a 0 en cada pago.";
-    case "not_cash":
-      return "Solo se puede reintegrar el pago en efectivo.";
     case "exceeds_payment":
       return `El pago solo permite reintegrar ${formatCents(refusal.remaining)}.`;
     case "total_mismatch":
@@ -113,11 +111,7 @@ export function refundRefusalText(refusal: RefundAllocationRefusalBody): string 
   }
 }
 
-export function paymentIneligibleText(reason: "not_cash" | "nothing_left"): string {
-  return reason === "not_cash"
-    ? "Este medio todavía no se reintegra desde la caja"
-    : "Este pago ya se reintegró completo";
-}
+export const PAYMENT_NOTHING_LEFT_TEXT = "Este pago ya se reintegró completo";
 
 export function windowTags(
   windows: SaleForReturn["windows"],

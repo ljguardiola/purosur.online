@@ -1,5 +1,6 @@
-import { Button, FigureStat, formatCents, Modal } from "@purosur/ui";
+import { Button, Eyebrow, FigureStat, formatCents, Modal, Tag } from "@purosur/ui";
 import { Check, CircleCheck, Undo2 } from "lucide-react";
+import { pendingRefundPresentation } from "../platform/pending-refund-text";
 import type { ReturnDispositionValue } from "./return-text";
 import { dispositionOutcomeText } from "./return-text";
 
@@ -11,14 +12,27 @@ export type CompletedReturnLine = {
   amount: number;
 };
 
+export type PendingReturnRefund = {
+  id: string;
+  name: string;
+  amount: number;
+  sentByCloud: boolean;
+};
+
 export type CompletedReturn = {
-  refundedTotal: number;
+  cashToHandOver: number;
+  pendingRefunds: readonly PendingReturnRefund[];
   lines: readonly CompletedReturnLine[];
 };
 
 export type HandOverRefundModalProps = CompletedReturn & { onDone: () => void };
 
-export function HandOverRefundModal({ refundedTotal, lines, onDone }: HandOverRefundModalProps) {
+export function HandOverRefundModal({
+  cashToHandOver,
+  pendingRefunds,
+  lines,
+  onDone,
+}: HandOverRefundModalProps) {
   return (
     <Modal
       open
@@ -31,7 +45,7 @@ export function HandOverRefundModal({ refundedTotal, lines, onDone }: HandOverRe
       tone="success"
       icon={<CircleCheck />}
       context="DEVOLUCIÓN COMPLETADA"
-      title="Entregá el dinero al cliente"
+      title={cashToHandOver > 0 ? "Entregá el dinero al cliente" : "El reintegro queda pendiente"}
       footer={
         <Button size="large" icon={<Check />} fullWidth onPress={onDone}>
           Listo
@@ -39,13 +53,36 @@ export function HandOverRefundModal({ refundedTotal, lines, onDone }: HandOverRe
       }
     >
       <div className="flex flex-col gap-5">
-        <div className="rounded-lg bg-success-subtle px-5 py-4">
-          <FigureStat
-            label="DEVOLVÉ EN EFECTIVO"
-            detail="Por el pago en efectivo"
-            value={formatCents(refundedTotal)}
-          />
-        </div>
+        {cashToHandOver > 0 ? (
+          <div className="rounded-lg bg-success-subtle px-5 py-4">
+            <FigureStat
+              label="DEVOLVÉ EN EFECTIVO"
+              detail="Por el pago en efectivo"
+              value={formatCents(cashToHandOver)}
+            />
+          </div>
+        ) : null}
+        {pendingRefunds.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <Eyebrow text="REEMBOLSOS PENDIENTES · CADA PAGO VUELVE POR SU MEDIO" />
+            <ul className="flex flex-col gap-3">
+              {pendingRefunds.map((refund) => {
+                const { description, chip } = pendingRefundPresentation(refund.sentByCloud);
+                return (
+                  <li key={refund.id} className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-body font-bold text-text">
+                        {`${refund.name} · ${formatCents(refund.amount)}`}
+                      </span>
+                      <Tag tone={chip.tone}>{chip.label}</Tag>
+                    </div>
+                    <p className="text-detail text-text-subtle">{description}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
         <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
           {lines.map((line) => (
             <li key={line.id} className="flex items-center gap-3 px-4 py-3">

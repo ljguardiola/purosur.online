@@ -115,7 +115,8 @@ function ReturnFlow({
       ) : null}
       {standing.step === "completed" ? (
         <HandOverRefundModal
-          refundedTotal={standing.completed.refundedTotal}
+          cashToHandOver={standing.completed.cashToHandOver}
+          pendingRefunds={standing.completed.pendingRefunds}
           lines={standing.completed.lines}
           onDone={restart}
         />

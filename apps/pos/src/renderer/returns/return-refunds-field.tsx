@@ -2,7 +2,7 @@ import { fieldErrorMessage, formatCents, TextField, useFieldContext } from "@pur
 import { paidPaymentName } from "../platform/payment-method-names";
 import type { PaymentRefundText, ReturnFormValues } from "./return-form";
 import { isRefundTextInvalid } from "./return-form";
-import { paymentIneligibleText } from "./return-text";
+import { PAYMENT_NOTHING_LEFT_TEXT } from "./return-text";
 
 export type ReturnRefundsFieldProps = {
   texts: readonly PaymentRefundText[];
@@ -51,7 +51,7 @@ export function ReturnRefundsField({ texts, disabled }: ReturnRefundsFieldProps)
                   value={formatCents(0)}
                   onChange={() => {}}
                   readOnly
-                  readOnlyReason={paymentIneligibleText(payment.ineligible_reason)}
+                  readOnlyReason={PAYMENT_NOTHING_LEFT_TEXT}
                 />
               )}
             </div>
