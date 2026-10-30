@@ -28,7 +28,7 @@ export interface RereadPageRow<TLink> extends PageFields {
   link: TLink | null;
 }
 
-export type RereadPlannedRow<TLink> =
+type RereadPlannedRow<TLink> =
   | ({ kind: "kept" | "repriced"; rowId: string } & PageFields)
   | ({ kind: "added"; link: TLink | null } & PageFields);
 
