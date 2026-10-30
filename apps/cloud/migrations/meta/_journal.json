@@ -1030,6 +1030,13 @@
       "when": 1793367949327,
       "tag": "0153_return_refunds_of_one_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 147,
+      "version": "7",
+      "when": 1793392355706,
+      "tag": "0154_tiendista_presentations_without_price",
+      "breakpoints": true
     }
   ]
 }
