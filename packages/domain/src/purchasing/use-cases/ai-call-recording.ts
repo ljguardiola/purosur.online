@@ -19,7 +19,7 @@ export interface AiCallRecord {
   costNanoUsd: number | null;
 }
 
-export interface AiCallContext {
+interface AiCallContext {
   purpose: AiCallPurpose;
   listId: string;
   rowId: string | null;

@@ -29,7 +29,7 @@ export interface RecordedAiCall extends PricedAiCall {
   personName: string;
 }
 
-export interface AiCostGroup extends AiCost {
+interface AiCostGroup extends AiCost {
   key: string;
   name: string | null;
 }
