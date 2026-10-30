@@ -3,6 +3,9 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { StubProductCreationModal } from "../platform/test-support/creation-parts";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { RecipesListScreen } from "./recipes-list-screen";
 import type { RecipesListScreenServices } from "./recipes-list-services";
@@ -42,7 +45,9 @@ function screenElement(
   {
     filters = recipesListFilters.parse({}),
     onFiltersChange = () => {},
+    access = ADMINISTRATOR_ACCESS,
   }: {
+    access?: BackofficeAccess;
     filters?: RecipesListFilters;
     onFiltersChange?: (filters: RecipesListFilters) => void;
   } = {},
@@ -51,6 +56,8 @@ function screenElement(
     <FieldSizeProvider size="backoffice">
       <main>
         <RecipesListScreen
+          access={access}
+          productCreationModal={StubProductCreationModal}
           services={services}
           onSessionEnded={onSessionEnded}
           filters={filters}
@@ -548,3 +555,27 @@ test("the replaced recipe is confirmed with its product's brand and net content"
     .element(screen.getByText("Se reemplazó la receta de Bálsamo de caléndula Herbaria 50 g."))
     .toBeVisible();
 });
+
+test.each([
+  ["a session that manages products and categories", ADMINISTRATOR_ACCESS, true],
+  ["a session that only manages recipes", accessWith("recipes"), false],
+])(
+  "offers creating a product from the new recipe's product selectors to %s only if allowed",
+  async (_name, access, offered) => {
+    const services = createServices();
+    vi.mocked(services.fetchRecipes).mockResolvedValue({
+      kind: "ok",
+      value: recipeList([cajaDeInfusiones]),
+    });
+    const screen = await renderScreen(services, () => {}, { access });
+    await expect.element(screen.getByText("Caja de infusiones")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Nueva receta" }));
+    const dialog = screen.getByRole("dialog");
+
+    await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto armado/ }), "Yerba mate");
+
+    const entry = screen.getByRole("option", { name: "Crear producto «Yerba mate»" });
+    await expect.element(offered ? entry : screen.getByText("Sin resultados")).toBeVisible();
+    expect(entry.query() !== null).toBe(offered);
+  },
+);

@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import type { FiscalAddress } from "./fiscal-addresses-api";
 import {
   NewFiscalAddressModal,
   type NewFiscalAddressModalServices,
@@ -20,10 +21,18 @@ function createServices(
   };
 }
 
+const depot: FiscalAddress = {
+  id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  name: "Depósito Central",
+  streetAddress: "Calle Ficticia 123, CABA",
+  version: 1,
+};
+
 type Handlers = {
   open?: boolean;
+  initialName?: string;
   onClose?: () => void;
-  onCreated?: () => void;
+  onCreated?: (fiscalAddress: FiscalAddress) => void;
   onSessionEnded?: () => void;
 };
 
@@ -33,6 +42,7 @@ function modalFor(services: NewFiscalAddressModalServices, handlers: Handlers = 
       <main>
         <NewFiscalAddressModal
           open={handlers.open ?? true}
+          {...(handlers.initialName === undefined ? {} : { initialName: handlers.initialName })}
           onClose={handlers.onClose ?? (() => {})}
           onCreated={handlers.onCreated ?? (() => {})}
           onSessionEnded={handlers.onSessionEnded ?? (() => {})}
@@ -101,7 +111,7 @@ test("refuses a name and an address that are too long, without calling the cloud
 
 test("creates the fiscal address from the trimmed values and reports it created", async () => {
   const services = createServices();
-  vi.mocked(services.createFiscalAddress).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createFiscalAddress).mockResolvedValue({ kind: "ok", fiscalAddress: depot });
   const onCreated = vi.fn();
   const { dialog } = await renderModal(services, { onCreated });
 
@@ -112,7 +122,7 @@ test("creates the fiscal address from the trimmed values and reports it created"
     name: "Depósito Central",
     street_address: "Calle Ficticia 123, CABA",
   });
-  expect(onCreated).toHaveBeenCalledWith("Depósito Central");
+  expect(onCreated).toHaveBeenCalledWith(depot);
 });
 
 test("opens the authorization modal on authorization_required, then authorizes and retries", async () => {
@@ -124,7 +134,10 @@ test("opens the authorization modal on authorization_required, then authorizes a
   });
   vi.mocked(services.startAuthentication).mockResolvedValue({ id: "existing-cred" } as never);
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
-  vi.mocked(services.createFiscalAddress).mockResolvedValueOnce({ kind: "ok" });
+  vi.mocked(services.createFiscalAddress).mockResolvedValueOnce({
+    kind: "ok",
+    fiscalAddress: depot,
+  });
   const onCreated = vi.fn();
   const { screen, dialog } = await renderModal(services, { onCreated });
 
@@ -210,4 +223,22 @@ test("empties the form each time it opens", async () => {
   await expect
     .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("");
+});
+
+test("opens with the initial name already in the name field, still editable", async () => {
+  const services = createServices();
+  vi.mocked(services.createFiscalAddress).mockResolvedValue({
+    kind: "ok",
+    fiscalAddress: depot,
+  });
+  const { dialog } = await renderModal(services, { initialName: "Local Sur" });
+  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Local Sur");
+
+  await fillAndSave(dialog, "Local Sur 2", "Calle Ficticia 123, CABA");
+
+  await expect.poll(() => vi.mocked(services.createFiscalAddress).mock.calls.length).toBe(1);
+  expect(services.createFiscalAddress).toHaveBeenCalledWith({
+    name: "Local Sur 2",
+    street_address: "Calle Ficticia 123, CABA",
+  });
 });

@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -25,6 +26,8 @@ function createServices(
   return {
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "ok", value: purchaseChoices }),
     registerPurchase: vi.fn(),
+    createSupplier: vi.fn(),
+    createPackaging: vi.fn(),
     ...overrides,
   };
 }
@@ -45,7 +48,12 @@ function screenFor(
   return (
     <FieldSizeProvider size="backoffice">
       <main>
-        <NewPurchaseScreen access={access} services={services} onSessionEnded={onSessionEnded} />
+        <NewPurchaseScreen
+          access={access}
+          productCreationModal={StubProductCreationModal}
+          services={services}
+          onSessionEnded={onSessionEnded}
+        />
       </main>
     </FieldSizeProvider>
   );
@@ -213,34 +221,34 @@ test("keeps the purchase date the person chose when the cloud answers a later da
   expect(purchaseDateSegments(screen)).toEqual(["10", "9", "2026"]);
 });
 
-test("says there is no supplier to choose, keeping the register action disabled", async () => {
+test("says there is no supplier to choose to a person who cannot create one, keeping the register action disabled", async () => {
   const services = createServices({
     fetchPurchaseChoices: vi
       .fn()
       .mockResolvedValue({ kind: "ok", value: { ...purchaseChoices, suppliers: [] } }),
   });
-  const screen = await renderScreen(services);
+  const screen = await renderScreen(services, () => {}, accessWith("purchases", "stock_area"));
 
   await expect.element(screen.getByText("No hay proveedores activos")).toBeVisible();
   expect(screen.getByRole("combobox", { name: /^Proveedor/ }).query()).toBeNull();
   await expect.element(screen.getByRole("button", { name: "Registrar la compra" })).toBeDisabled();
 });
 
-test("says there is no product to buy, keeping the register action disabled", async () => {
+test("says there is no product to buy to a person who cannot create one, keeping the register action disabled", async () => {
   const services = createServices({
     fetchPurchaseChoices: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { ...purchaseChoices, products: [], packagings: [] },
     }),
   });
-  const screen = await renderScreen(services);
+  const screen = await renderScreen(services, () => {}, accessWith("purchases", "suppliers"));
 
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Registrar la compra" })).toBeDisabled();
 });
 
-test("says a product has no active packaging to load a line by", async () => {
-  const screen = await opened();
+test("says a product has no active packaging to a person who cannot create one", async () => {
+  const screen = await opened(createServices(), accessWith("purchases", "suppliers"));
   const group = line(screen, 1);
   await chooseFromComboBox(screen, group, /^Producto/, "Almendras peladas");
 

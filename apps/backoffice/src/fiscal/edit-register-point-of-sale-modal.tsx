@@ -14,13 +14,19 @@ import { Check, Info, Landmark, RotateCcw, ShieldX, TriangleAlert, X } from "luc
 import { useEffect, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { creatableChoice } from "../platform/creatable-options";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { useStackedCreation } from "../platform/stacked-creation";
 import type { FiscalAddress } from "./fiscal-addresses-api";
+import {
+  NewFiscalAddressModal,
+  type NewFiscalAddressModalServices,
+} from "./new-fiscal-address-modal";
 import {
   EMPTY_REGISTER_POINT_OF_SALE_FORM,
   fiscalAddressMessage,
@@ -39,7 +45,7 @@ export type EditRegisterPointOfSaleModalServices = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
-};
+} & NewFiscalAddressModalServices;
 
 type ModalNotice =
   | { kind: "attemptFailed" }
@@ -52,6 +58,7 @@ type EditRegisterPointOfSaleModalProps = {
   onClose: () => void;
   onSaved: () => void;
   reload: () => Promise<CloudReadOutcome<RegisterPointOfSale[]>>;
+  refreshFiscalAddresses: () => Promise<unknown>;
   onSessionEnded: () => void;
   services: EditRegisterPointOfSaleModalServices;
 };
@@ -70,6 +77,7 @@ export function EditRegisterPointOfSaleModal({
   onClose,
   onSaved,
   reload,
+  refreshFiscalAddresses,
   onSessionEnded,
   services,
 }: EditRegisterPointOfSaleModalProps) {
@@ -81,7 +89,6 @@ export function EditRegisterPointOfSaleModal({
     startAuthentication,
   } = services;
   const open = target !== null;
-  const options = fiscalAddressOptions(fiscalAddresses);
   const [seededFrom, setSeededFrom] = useState<RegisterPointOfSale | null>(null);
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [reloading, setReloading] = useState(false);
@@ -150,18 +157,45 @@ export function EditRegisterPointOfSaleModal({
     },
   });
 
+  const fiscalAddressCreation = useStackedCreation<FiscalAddress>(
+    (created) => form.setFieldValue("fiscalAddressId", created.id),
+    {
+      markStale: () => Promise.resolve(),
+      refresh: async () => {
+        await refreshFiscalAddresses();
+      },
+    },
+  );
+  const closeForm = () => {
+    fiscalAddressCreation.finish();
+    onClose();
+  };
+  const offered = fiscalAddressCreation.created
+    ? [
+        ...fiscalAddresses.filter(({ id }) => id !== fiscalAddressCreation.created?.id),
+        fiscalAddressCreation.created,
+      ]
+    : fiscalAddresses;
+  const options = fiscalAddressOptions(offered);
+  const fiscalAddressChoice = creatableChoice(options, {
+    recordKind: "domicilio fiscal",
+    onCreate: fiscalAddressCreation.start,
+  });
+
   useEffect(() => {
     if (target === null) {
       if (seededFrom !== null) {
         reset();
         setSeededFrom(null);
+        fiscalAddressCreation.reset();
       }
     } else if (target !== seededFrom && !dirty) {
       reset(registerPointOfSaleFormValuesFrom(target));
       setSeededFrom(target);
       setNotice(null);
+      fiscalAddressCreation.reset();
     }
-  }, [target, seededFrom, dirty, reset]);
+  }, [target, seededFrom, dirty, reset, fiscalAddressCreation.reset]);
 
   async function handleReload() {
     if (target === null) {
@@ -189,7 +223,7 @@ export function EditRegisterPointOfSaleModal({
         open={open}
         onOpenChange={(open) => {
           if (!open) {
-            onClose();
+            closeForm();
           }
         }}
         width="standard"
@@ -200,7 +234,13 @@ export function EditRegisterPointOfSaleModal({
         closable
         footer={
           <>
-            <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
+            <Button
+              variant="secondary"
+              size="large"
+              icon={<X />}
+              disabled={busy}
+              onPress={closeForm}
+            >
               Cancelar
             </Button>
             {notice?.kind === "staleVersion" ? (
@@ -258,22 +298,23 @@ export function EditRegisterPointOfSaleModal({
             <form.AppField name="pointOfSaleNumber">
               {(field) => <field.TextField kind="plain-text" label="Punto de venta" required />}
             </form.AppField>
-            {options ? (
-              <form.AppField name="fiscalAddressId">
-                {(field) => <field.ComboBox label="Domicilio fiscal" options={options} required />}
-              </form.AppField>
-            ) : (
-              <InlineNotice
-                tone="warning"
-                icon={<TriangleAlert />}
-                title="Todavía no hay domicilios fiscales"
-                description="Creá uno para poder elegirlo acá."
-              />
-            )}
+            <form.AppField name="fiscalAddressId">
+              {(field) => (
+                <field.ComboBox label="Domicilio fiscal" required {...fiscalAddressChoice} />
+              )}
+            </form.AppField>
             <InlineNotice
               tone="warning"
               icon={<Info />}
               description="Tiene que ser un punto de venta dado de alta en ARCA solo para esta caja y que no se use en ningún otro sistema."
+            />
+            <NewFiscalAddressModal
+              open={fiscalAddressCreation.open}
+              initialName={fiscalAddressCreation.initialName}
+              onClose={fiscalAddressCreation.close}
+              onCreated={fiscalAddressCreation.select}
+              onSessionEnded={onSessionEnded}
+              services={services}
             />
           </div>
         ) : null}

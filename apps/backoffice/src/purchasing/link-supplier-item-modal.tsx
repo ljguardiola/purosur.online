@@ -26,9 +26,14 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { creatableChoice } from "../platform/creatable-options";
+import { withCreatedProducts } from "../platform/created-products";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { NewPackagingModal, type NewPackagingModalServices } from "./new-packaging-modal";
 import {
+  useMarkPurchasingStale,
   useRefreshSupplierItemLinkChoices,
   useSupplierItemLinkChoicesQuery,
   useSupplierItemLinkProposalQuery,
@@ -72,6 +77,7 @@ type LinkSupplierItemModalProps = {
   list: Pick<SupplierPriceListReviewList, "id" | "version" | "requiresVatRate" | "source">;
   target: SupplierPriceListRow | null;
   mayCreatePackaging: boolean;
+  productCreationModal?: ProductCreationModal | undefined;
   remembersOnConfirm: boolean;
   onCreateProduct: ((row: SupplierPriceListRow) => void) | null;
   services: LinkSupplierItemModalServices;
@@ -91,6 +97,7 @@ export function LinkSupplierItemModal({
   list,
   target,
   mayCreatePackaging,
+  productCreationModal: ProductCreation,
   remembersOnConfirm,
   onCreateProduct,
   services,
@@ -155,6 +162,46 @@ export function LinkSupplierItemModal({
     },
   });
 
+  const markPurchasingStale = useMarkPurchasingStale();
+  const productCreation = useStackedCreation<CreatedProduct>(
+    (product) => {
+      form.setFieldValue("productId", product.id);
+      form.setFieldValue("packagingId", null);
+    },
+    { markStale: markPurchasingStale, refresh: refreshChoices },
+  );
+  const resetProductCreation = productCreation.reset;
+  useEffect(() => {
+    if (target) {
+      resetProductCreation();
+    }
+  }, [target, resetProductCreation]);
+  const closeForm = () => {
+    productCreation.finish();
+    onClose();
+  };
+  const offered =
+    choices.status === "loaded"
+      ? {
+          ...choices.value,
+          products: withCreatedProducts(
+            choices.value.products,
+            productCreation.created
+              ? [
+                  {
+                    id: productCreation.created.id,
+                    name: productCreation.created.name,
+                    saleUnit: productCreation.created.saleUnit,
+                    brandName: productCreation.created.brandName,
+                    netContent: productCreation.created.netContent,
+                    packagings: [],
+                  },
+                ]
+              : [],
+          ),
+        }
+      : undefined;
+
   const proposedId = proposal.status === "loaded" ? proposedProductIdOf(proposal.value) : null;
   const proposedOffered =
     choices.status === "loaded" &&
@@ -183,16 +230,13 @@ export function LinkSupplierItemModal({
     }
   }, [target, proposedOffered, proposedId, form]);
 
-  const products =
-    choices.status === "loaded" ? choices.value.products.map(({ id, name }) => ({ id, name })) : [];
-  const productOptions =
-    choices.status === "loaded" ? linkProductOptions(choices.value) : undefined;
-  const packagingOptions =
-    choices.status === "loaded" ? linkPackagingOptions(choices.value, values.productId) : undefined;
-  const chosenProduct =
-    choices.status === "loaded"
-      ? choices.value.products.find((product) => product.id === values.productId)
-      : undefined;
+  const products = offered ? offered.products.map(({ id, name }) => ({ id, name })) : [];
+  const productChoice = creatableChoice(
+    offered ? linkProductOptions(offered) : undefined,
+    ProductCreation ? { recordKind: "producto", onCreate: productCreation.start } : undefined,
+  );
+  const packagingOptions = offered ? linkPackagingOptions(offered, values.productId) : undefined;
+  const chosenProduct = offered?.products.find((product) => product.id === values.productId);
   const pageLink =
     row?.page != null && list.source.kind === "PDF"
       ? `/api/supplier-price-lists/${list.id}/file#page=${row.page}`
@@ -247,7 +291,7 @@ export function LinkSupplierItemModal({
     if (choices.status === "failed") {
       return <LoadFailure {...cloudLoadFailure(choices, "los productos")} />;
     }
-    if (!productOptions) {
+    if (!productChoice) {
       return (
         <EmptyState
           icon={<Package />}
@@ -267,8 +311,8 @@ export function LinkSupplierItemModal({
             <field.ComboBox
               label="Producto del catálogo"
               placeholder="Buscar un producto"
-              options={productOptions}
               required
+              {...productChoice}
             />
           )}
         </form.AppField>
@@ -323,7 +367,7 @@ export function LinkSupplierItemModal({
         open={open}
         onOpenChange={(next) => {
           if (!next) {
-            onClose();
+            closeForm();
           }
         }}
         width="standard"
@@ -339,7 +383,7 @@ export function LinkSupplierItemModal({
               size="large"
               icon={<X />}
               disabled={submitting}
-              onPress={onClose}
+              onPress={closeForm}
             >
               Cancelar
             </Button>
@@ -418,6 +462,15 @@ export function LinkSupplierItemModal({
         onClose={() => setCreatingPackaging(false)}
         onSessionEnded={onSessionEnded}
       />
+      {ProductCreation ? (
+        <ProductCreation
+          open={productCreation.open}
+          initialName={productCreation.initialName}
+          onCreated={productCreation.select}
+          onClose={productCreation.close}
+          onSessionEnded={onSessionEnded}
+        />
+      ) : null}
     </>
   );
 }

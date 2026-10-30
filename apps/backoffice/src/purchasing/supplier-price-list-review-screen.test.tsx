@@ -3,6 +3,10 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import {
+  StubCategoryCreationModal,
+  StubProductCreationModal,
+} from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -97,6 +101,8 @@ function screenElement(
         <SupplierPriceListReviewScreen
           listId={LIST_ID}
           access={access}
+          categoryCreationModal={StubCategoryCreationModal}
+          productCreationModal={StubProductCreationModal}
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
@@ -897,6 +903,34 @@ test.each([
   expect(dialog.getByRole("button", { name: "Nueva presentación" }).query() !== null).toBe(offered);
 });
 
+test.each([
+  ["a session that manages products and categories", ADMINISTRATOR_ACCESS, true],
+  ["a session that may only link", accessWith("supplier_price_lists"), false],
+])(
+  "offers creating a product from the link modal's product selector to %s only if allowed",
+  async (_name, access, offered) => {
+    const services = createServices();
+    vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
+      kind: "ok",
+      value: LINK_CHOICES,
+    });
+    const screen = await loaded(services, extracted, { access });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
+    );
+    const dialog = screen.getByRole("dialog");
+
+    await userEvent.fill(
+      dialog.getByRole("combobox", { name: /Producto del catálogo/ }),
+      "Yerba mate",
+    );
+
+    const entry = screen.getByRole("option", { name: "Crear producto «Yerba mate»" });
+    await expect.element(offered ? entry : screen.getByText("Sin resultados")).toBeVisible();
+    expect(entry.query() !== null).toBe(offered);
+  },
+);
+
 test("offers to create a product for each item the cloud says can have one", async () => {
   const screen = await loaded(createServices(), withEveryKindOfRow, {
     filters: supplierPriceListReviewFilters.parse({ show: "all" }),
@@ -1018,13 +1052,15 @@ async function openCreateProductModal(access: Parameters<typeof screenElement>[1
 test("offers to create a brand to a session that may manage products and categories", async () => {
   const dialog = await openCreateProductModal({ access: ADMINISTRATOR_ACCESS });
 
-  await expect.element(dialog.getByRole("button", { name: "Nueva marca" })).toBeVisible();
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  await expect.element(page.getByRole("option", { name: "Crear marca «Cabriola»" })).toBeVisible();
 });
 
 test("offers no way to create a brand to a session that may only review supplier price lists", async () => {
   const dialog = await openCreateProductModal({ access: accessWith("supplier_price_lists") });
 
-  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
 });
 
 test("moves from the link modal to the create product modal for the same item", async () => {

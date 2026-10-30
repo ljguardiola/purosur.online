@@ -16,6 +16,7 @@ function createServices(
 ): EditRegisterPointOfSaleModalServices {
   return {
     configureRegisterPointOfSale: vi.fn(),
+    createFiscalAddress: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -63,6 +64,7 @@ type ModalOptions = {
   onClose?: () => void;
   onSaved?: () => void;
   reload?: () => Promise<{ kind: "ok"; value: RegisterPointOfSale[] }>;
+  refreshFiscalAddresses?: () => Promise<unknown>;
   onSessionEnded?: () => void;
 };
 
@@ -77,6 +79,7 @@ function modalElement({
   onClose = () => {},
   onSaved = () => {},
   reload = () => reloaded(configured),
+  refreshFiscalAddresses = () => Promise.resolve(),
   onSessionEnded = () => {},
 }: ModalOptions) {
   return (
@@ -89,6 +92,7 @@ function modalElement({
           onClose={onClose}
           onSaved={onSaved}
           reload={reload}
+          refreshFiscalAddresses={refreshFiscalAddresses}
           onSessionEnded={onSessionEnded}
         />
       </main>
@@ -329,14 +333,6 @@ test("shows a stale-version notice, and Recargar reads the data again so the sec
   });
 });
 
-test("without fiscal addresses it says to load one first and cannot save", async () => {
-  const services = createServices();
-  const { dialog } = await renderModal({ fiscalAddresses: [], services });
-
-  await expect.element(dialog.getByText("Todavía no hay domicilios fiscales")).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
-});
-
 test("typing in the fiscal address offers only the matching addresses", async () => {
   const { dialog } = await renderModal();
 
@@ -347,4 +343,81 @@ test("typing in the fiscal address offers only the matching addresses", async ()
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Local Norte"]);
+});
+
+const southShop: FiscalAddress = {
+  id: "5d1c4f8a-0b2f-4a4e-9a31-6f4b8c2d7e11",
+  name: "Local Sur",
+  streetAddress: "Calle Ficticia 9, CABA",
+  version: 1,
+};
+
+async function createFiscalAddressFromSelector(
+  dialog: Locator,
+  services: EditRegisterPointOfSaleModalServices,
+) {
+  vi.mocked(services.createFiscalAddress).mockResolvedValue({
+    kind: "ok",
+    fiscalAddress: southShop,
+  });
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }), "Local Sur");
+  await userEvent.click(page.getByRole("option", { name: "Crear domicilio fiscal «Local Sur»" }));
+  const stacked = page.getByRole("dialog", { name: "Nuevo domicilio fiscal" });
+  await expect.element(stacked.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Local Sur");
+  await userEvent.fill(stacked.getByRole("textbox", { name: /^Dirección/ }), "Calle Ficticia 9");
+  await userEvent.click(stacked.getByRole("button", { name: "Crear el domicilio fiscal" }));
+}
+
+test("without fiscal addresses the selector offers only creating one and saving waits for it", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal({ fiscalAddresses: [], services });
+  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+
+  await createFiscalAddressFromSelector(dialog, services);
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }))
+    .toHaveValue("Local Sur");
+  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeEnabled();
+});
+
+test("typing a fiscal address that does not exist offers to create it, then selects it keeping the number typed", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal({ services });
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Punto de venta/ }), "15");
+
+  await createFiscalAddressFromSelector(dialog, services);
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }))
+    .toHaveValue("Local Sur");
+  await expect.element(dialog.getByRole("textbox", { name: /^Punto de venta/ })).toHaveValue("15");
+  expect(services.createFiscalAddress).toHaveBeenCalledWith({
+    name: "Local Sur",
+    street_address: "Calle Ficticia 9",
+  });
+});
+
+test("reads the fiscal addresses again only once the modal closes after creating one", async () => {
+  const services = createServices();
+  const refreshFiscalAddresses = vi.fn(() => Promise.resolve());
+  const { dialog } = await renderModal({ services, refreshFiscalAddresses });
+
+  await createFiscalAddressFromSelector(dialog, services);
+  await expect
+    .element(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }))
+    .toHaveValue("Local Sur");
+  expect(refreshFiscalAddresses).not.toHaveBeenCalled();
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  expect(refreshFiscalAddresses).toHaveBeenCalledTimes(1);
+});
+
+test("typing part of an existing fiscal address offers it and no creation entry", async () => {
+  const { dialog } = await renderModal();
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }), "local");
+
+  await expect.element(page.getByRole("option", { name: "Local Norte" })).toBeVisible();
+  expect(page.getByRole("option", { name: /^Crear domicilio fiscal/ }).query()).toBeNull();
 });

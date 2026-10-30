@@ -4,14 +4,7 @@ import {
   productCreationBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
-import {
-  Button,
-  FieldGroup,
-  InlineNotice,
-  Modal,
-  SharedFieldError,
-  useRequestForm,
-} from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -21,11 +14,12 @@ import {
 } from "../platform/barcode-chips";
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
-import { categorySelectOptions } from "../platform/category-path";
+import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
+import { creatableChoice } from "../platform/creatable-options";
+import type { CreatedProduct } from "../platform/creation-parts";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
-import { useStackedBrandCreation } from "../platform/product-brand-field";
 import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields";
 import {
   EMPTY_PRODUCT_FORM,
@@ -38,22 +32,27 @@ import {
 import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import type { createCategory } from "./categories-api";
+import { NewCategoryModal } from "./new-category-modal";
 import { categoryNameOf, PRODUCT_CATEGORY_NOT_LEAF_ERROR } from "./product-form";
 import type { createProduct } from "./products-api";
 
 export type NewProductModalServices = {
   createProduct: typeof createProduct;
   createBrand: typeof createBrand;
+  createCategory: typeof createCategory;
   createTag: typeof createTag;
   generateInternalBarcode: typeof generateInternalBarcode;
 };
 
 type NewProductModalProps = {
   open: boolean;
+  initialName?: string;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (product: CreatedProduct) => void;
   onSessionEnded: () => void;
   categories: CategorySummary[];
   brands: BrandSummary[];
@@ -63,6 +62,7 @@ type NewProductModalProps = {
 
 export function NewProductModal({
   open,
+  initialName = "",
   onClose,
   onCreated,
   onSessionEnded,
@@ -71,7 +71,8 @@ export function NewProductModal({
   tags,
   services,
 }: NewProductModalProps) {
-  const { createProduct, createBrand, createTag, generateInternalBarcode } = services;
+  const { createProduct, createBrand, createCategory, createTag, generateInternalBarcode } =
+    services;
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<
     | { kind: "attemptFailed" }
@@ -91,7 +92,10 @@ export function NewProductModal({
       setNotice(null);
       const outcome = await createProduct(parsed);
       if (outcome.kind === "ok") {
-        onCreated();
+        const brand = [...brands, ...(brandCreation.created ? [brandCreation.created] : [])].find(
+          (candidate) => candidate.id === outcome.product.brandId,
+        );
+        onCreated({ ...outcome.product, brandName: brand?.name ?? null });
         return;
       }
       if (outcome.kind === "unauthenticated") {
@@ -154,8 +158,12 @@ export function NewProductModal({
   const markCatalogStale = useMarkCatalogStale();
   const refreshCatalog = useRefreshCatalog();
   const catalog = { markStale: markCatalogStale, refresh: refreshCatalog };
-  const brandCreation = useStackedBrandCreation(
-    (brandId) => form.setFieldValue("brandId", brandId),
+  const brandCreation = useStackedCreation<BrandSummary>(
+    (brand) => form.setFieldValue("brandId", brand.id),
+    catalog,
+  );
+  const categoryCreation = useStackedCreation<CategorySummary>(
+    (category) => form.setFieldValue("categoryId", category.id),
     catalog,
   );
   const tagCreation = useStackedTagCreation(
@@ -164,22 +172,37 @@ export function NewProductModal({
   );
   const closeForm = () => {
     brandCreation.finish();
+    categoryCreation.finish();
     tagCreation.finish();
     onClose();
   };
 
   useEffect(() => {
     if (open) {
-      reset();
+      reset({ ...EMPTY_PRODUCT_FORM, name: initialName });
       chips.reset();
       setNotice(null);
       generate.reset();
       brandCreation.reset();
+      categoryCreation.reset();
       tagCreation.reset();
     }
-  }, [open, reset, chips.reset, generate.reset, brandCreation.reset, tagCreation.reset]);
+  }, [
+    open,
+    initialName,
+    reset,
+    chips.reset,
+    generate.reset,
+    brandCreation.reset,
+    categoryCreation.reset,
+    tagCreation.reset,
+  ]);
 
-  const categoryOptions = categorySelectOptions(categories);
+  const offeredCategories = [...withCreatedCategory(categories, categoryCreation.created)];
+  const categoryChoice = creatableChoice(categorySelectOptions(offeredCategories), {
+    recordKind: "categoría",
+    onCreate: categoryCreation.start,
+  });
 
   return (
     <Modal
@@ -239,22 +262,7 @@ export function NewProductModal({
         <ProductFields
           form={form}
           fields={PRODUCT_GROUP_FIELDS}
-          categories={
-            categoryOptions
-              ? { state: "loaded", options: categoryOptions }
-              : {
-                  state: "unavailable",
-                  placeholder: (
-                    <form.AppField name="categoryId">
-                      {() => (
-                        <FieldGroup label="Categoría" required>
-                          <SharedFieldError>{() => null}</SharedFieldError>
-                        </FieldGroup>
-                      )}
-                    </form.AppField>
-                  ),
-                }
-          }
+          categories={{ state: "loaded", choice: categoryChoice }}
           brands={{ state: "loaded", items: brands, creation: brandCreation }}
           tags={{ state: "loaded", items: tags, creation: tagCreation }}
           chips={chips}
@@ -263,11 +271,21 @@ export function NewProductModal({
         />
         <NewBrandModal
           open={brandCreation.open}
+          initialName={brandCreation.initialName}
           context="Marcas"
           createBrand={createBrand}
           onCreated={brandCreation.select}
           onClose={brandCreation.close}
           onSessionEnded={onSessionEnded}
+        />
+        <NewCategoryModal
+          open={categoryCreation.open}
+          initialName={categoryCreation.initialName}
+          onClose={categoryCreation.close}
+          onCreated={categoryCreation.select}
+          onSessionEnded={onSessionEnded}
+          createCategory={createCategory}
+          categories={offeredCategories}
         />
         <NewTagModal
           open={tagCreation.open}

@@ -1,5 +1,9 @@
 import { parseDate } from "@internationalized/date";
-import { type PurchaseChoices, purchaseRegistrationBodySchema } from "@purosur/contracts";
+import {
+  type PurchaseChoices,
+  purchaseRegistrationBodySchema,
+  type SupplierSummary,
+} from "@purosur/contracts";
 import {
   Button,
   Card,
@@ -13,13 +17,18 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { creatableChoice } from "../platform/creatable-options";
+import { withCreatedProducts } from "../platform/created-products";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { AreaTopBar } from "../shell/area-top-bar";
-import type { BackofficeAccess } from "../shell/backoffice-access";
+import { type BackofficeAccess, canManageSuppliers } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
+import { NewSupplierModal } from "./new-supplier-modal";
 import {
   emptyPurchaseForm,
   PURCHASE_FIELDS,
@@ -37,13 +46,19 @@ import {
   purchaseRegistrationRequestFrom,
   purchaseSupplierOptions,
   RECEIPT_TYPE_OPTIONS,
+  withCreatedSupplier,
 } from "./purchase-form";
 import { PurchaseLinesField } from "./purchase-lines-field";
 import { PURCHASE_REGISTERED_STATE } from "./purchase-registered-state";
-import { usePurchaseChoicesQuery, useRefreshPurchasing } from "./purchasing-queries";
+import {
+  useMarkPurchasingStale,
+  usePurchaseChoicesQuery,
+  useRefreshPurchasing,
+} from "./purchasing-queries";
 
 export type NewPurchaseScreenProps = {
   access: BackofficeAccess;
+  productCreationModal: ProductCreationModal;
   onSessionEnded: () => void;
   services: NewPurchaseScreenServices;
 };
@@ -52,7 +67,12 @@ type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSecon
 
 const NO_CHOICES: Omit<PurchaseChoices, "today"> = { suppliers: [], products: [], packagings: [] };
 
-export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurchaseScreenProps) {
+export function NewPurchaseScreen({
+  access,
+  productCreationModal,
+  onSessionEnded,
+  services,
+}: NewPurchaseScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const navigate = useNavigate();
   const refreshPurchasing = useRefreshPurchasing();
@@ -62,7 +82,13 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
   });
   const [notice, setNotice] = useState<Notice | null>(null);
   const [lineRefusals, setLineRefusals] = useState<Record<number, string>>({});
-  const { suppliers, products, packagings } = data.status === "loaded" ? data.value : NO_CHOICES;
+  const [createdProducts, setCreatedProducts] = useState<CreatedProduct[]>([]);
+  const {
+    suppliers,
+    products: storedProducts,
+    packagings,
+  } = data.status === "loaded" ? data.value : NO_CHOICES;
+  const products = withCreatedProducts(storedProducts, createdProducts);
 
   const today = data.status === "loaded" ? data.value.today : null;
   const [datedOn, setDatedOn] = useState<string | null>(null);
@@ -152,6 +178,12 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
     },
   });
 
+  const markPurchasingStale = useMarkPurchasingStale();
+  const supplierCreation = useStackedCreation<SupplierSummary>(
+    (supplier) => form.setFieldValue("supplierId", supplier.id),
+    { markStale: markPurchasingStale, refresh: refreshPurchasing },
+  );
+
   useEffect(() => {
     if (today === null || today === datedOn) {
       return;
@@ -162,7 +194,15 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
     setDatedOn(today);
   }, [today, datedOn, form]);
 
-  const supplierOptions = purchaseSupplierOptions(suppliers);
+  const supplierOptions = purchaseSupplierOptions(
+    withCreatedSupplier(suppliers, supplierCreation.created),
+  );
+  const supplierChoice = creatableChoice(
+    supplierOptions,
+    canManageSuppliers(access)
+      ? { recordKind: "proveedor", onCreate: supplierCreation.start }
+      : undefined,
+  );
   const nothingToChoose = !supplierOptions || products.length === 0;
 
   return (
@@ -222,14 +262,14 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
             <h2 className="text-text-accent text-subheading">Compra</h2>
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
-                {supplierOptions ? (
+                {supplierChoice ? (
                   <form.AppField name="supplierId">
                     {(field) => (
                       <field.ComboBox
                         label="Proveedor"
                         placeholder="Elegí un proveedor"
-                        options={supplierOptions}
                         required
+                        {...supplierChoice}
                       />
                     )}
                   </form.AppField>
@@ -278,13 +318,25 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
                 <PurchaseLinesField
                   access={access}
                   products={products}
+                  productCreationModal={productCreationModal}
+                  onProductCreated={(product) => setCreatedProducts([...createdProducts, product])}
                   packagings={packagings}
                   refusals={lineRefusals}
                   onLinesChange={() => setLineRefusals({})}
+                  services={services}
+                  onSessionEnded={onSessionEnded}
                 />
               )}
             </form.AppField>
           </Card>
+          <NewSupplierModal
+            open={supplierCreation.open}
+            initialName={supplierCreation.initialName}
+            services={services}
+            onCreated={supplierCreation.select}
+            onClose={supplierCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
         </div>
       )}
     </ScreenLayout>

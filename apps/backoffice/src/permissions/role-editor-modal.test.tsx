@@ -21,6 +21,15 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
+const storeRole: RoleSummary = {
+  id: "role-store",
+  name: "Depósito",
+  isAdministrator: false,
+  permissionKeys: ["view_stock_balances"],
+  userCount: 0,
+  mayEdit: true,
+};
+
 function createServices(overrides: Partial<RoleEditorModalServices> = {}): RoleEditorModalServices {
   return {
     fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -81,7 +90,11 @@ const stockSummary: RoleSummary = {
 function renderModal(
   request: RoleEditorRequest | null,
   services: RoleEditorModalServices,
-  handlers: { onClose?: () => void; onSaved?: () => void; onSessionEnded?: () => void } = {},
+  handlers: {
+    onClose?: () => void;
+    onSaved?: (created?: RoleSummary) => void;
+    onSessionEnded?: () => void;
+  } = {},
 ) {
   return render(
     <main>
@@ -356,7 +369,7 @@ test("shows the generic failure notice when the cloud refuses a field the form d
 
 test("creates the role directly, without the authorization modal, when the session already has one", async () => {
   const services = createServices();
-  vi.mocked(services.createRole).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "ok", role: storeRole });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "new" }, services, { onSaved });
 
@@ -371,13 +384,22 @@ test("creates the role directly, without the authorization modal, when the sessi
     permissions: ["view_stock_balances"],
   });
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
+  expect(onSaved).toHaveBeenCalledWith(storeRole);
+});
+
+test("a new role opens with the given name already typed", async () => {
+  const screen = await renderModal({ kind: "new", initialName: "Depósito" }, createServices());
+
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
 });
 
 test("opens the nested authorization modal on authorization_required, then authorizes and retries the save", async () => {
   const services = createServices();
   vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
-  vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "ok" });
+  vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "ok", role: storeRole });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "new" }, services, { onSaved });
 
@@ -591,7 +613,7 @@ test("editing a role with nobody assigned saves directly, without the confirmati
 
 test("creating a role never shows the confirmation step", async () => {
   const services = createServices();
-  vi.mocked(services.createRole).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "ok", role: storeRole });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "new" }, services, { onSaved });
 
@@ -847,7 +869,7 @@ test("a save that succeeds after the editor moved on to another request never re
   const ui = modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved);
   await screen.rerender(ui);
 
-  pendingSave.resolve({ kind: "ok" });
+  pendingSave.resolve({ kind: "ok", role: storeRole });
   await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();
@@ -902,7 +924,7 @@ test("ignores a passkey-authorized retry that resolves late after the editor mov
   const ui = modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved);
   await screen.rerender(ui);
 
-  retry.resolve({ kind: "ok" });
+  retry.resolve({ kind: "ok", role: storeRole });
   await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();

@@ -12,9 +12,10 @@ import { type ComponentType, Suspense, useEffect, useState } from "react";
 import type { BranchUserRole } from "../platform/branch-users-api";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import type { RoleCreationModal } from "../platform/creation-parts";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { CloudData } from "../platform/use-cloud-query";
-import { type BackofficeAccess, canManageUsers } from "../shell/backoffice-access";
+import { type BackofficeAccess, canManageUsers, canSeeRolesArea } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { DeactivateUserModal } from "./deactivate-user-modal";
@@ -43,6 +44,7 @@ export type UserDetailScreenProps = {
   userId: string;
   signedInUserId: string;
   access: BackofficeAccess;
+  roleCreationModal: RoleCreationModal;
   onSessionEnded: () => void;
   credentialSections: ComponentType<UserCredentialSectionsProps>;
   services: UserDetailScreenServices;
@@ -93,6 +95,7 @@ function UserDetailView({
   userId,
   signedInUserId,
   access,
+  roleCreationModal,
   onSessionEnded,
   services,
   data,
@@ -238,6 +241,7 @@ function UserDetailView({
           open={modalOpen}
           user={user}
           roles={roles}
+          {...(canSeeRolesArea(access) ? { roleCreationModal } : {})}
           onClose={() => setModalOpen(false)}
           onSaved={() => {
             setModalOpen(false);

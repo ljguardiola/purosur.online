@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -82,6 +83,7 @@ function renderScreen(
       <main>
         <StockMovementsScreen
           access={access}
+          productCreationModal={StubProductCreationModal}
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
@@ -433,5 +435,28 @@ test.each([
     await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
 
     await expect.element(screen.getByRole("status").getByText(notice)).toBeInTheDocument();
+  },
+);
+
+test.each([
+  [
+    "a session that manages products and categories",
+    accessWith("stock_losses", "stock_movements", "stock_area", "products_and_categories"),
+    true,
+  ],
+  ["a session that only loads losses", LOSSES_ONLY, false],
+])(
+  "offers creating a product from the movement's product selector to %s only if allowed",
+  async (_name, access, offered) => {
+    const screen = await renderScreen(createServices(), {
+      access: { ...access, stockMovementKinds: ["loss"] },
+    });
+    const dialog = await openModal(screen, "Cargar pérdida");
+
+    await userEvent.fill(dialog.getByRole("combobox", { name: /Producto/ }), "Yerba mate");
+
+    const entry = screen.getByRole("option", { name: "Crear producto «Yerba mate»" });
+    await expect.element(offered ? entry : screen.getByText("Sin resultados")).toBeVisible();
+    expect(entry.query() !== null).toBe(offered);
   },
 );

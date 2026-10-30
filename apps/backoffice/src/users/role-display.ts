@@ -9,3 +9,10 @@ export function roleOptions(roles: BranchUserRole[]): Options<Option<string>> {
   }
   return [first, ...rest];
 }
+
+export function withCreatedRole(
+  roles: BranchUserRole[],
+  created: BranchUserRole | null,
+): BranchUserRole[] {
+  return created && !roles.some((role) => role.id === created.id) ? [...roles, created] : roles;
+}

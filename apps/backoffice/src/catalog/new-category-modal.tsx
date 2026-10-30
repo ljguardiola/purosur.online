@@ -1,9 +1,12 @@
 import { type CategorySummary, categoryCreationBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, ShieldX, Tags, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
+import { withCreatedCategory } from "../platform/category-path";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
+import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 import type { createCategory } from "./categories-api";
 import {
   CATEGORY_FIELDS,
@@ -19,8 +22,9 @@ import {
 
 type NewCategoryModalProps = {
   open: boolean;
+  initialName?: string;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (category: CategorySummary) => void;
   onSessionEnded: () => void;
   createCategory: typeof createCategory;
   categories: CategorySummary[];
@@ -28,6 +32,7 @@ type NewCategoryModalProps = {
 
 export function NewCategoryModal({
   open,
+  initialName = "",
   onClose,
   onCreated,
   onSessionEnded,
@@ -51,7 +56,7 @@ export function NewCategoryModal({
         parentId: request.parentId ?? null,
       });
       if (outcome.kind === "ok") {
-        onCreated();
+        onCreated(outcome.category);
         return;
       }
       if (outcome.kind === "unauthenticated") {
@@ -89,21 +94,38 @@ export function NewCategoryModal({
     },
   });
 
+  const markCatalogStale = useMarkCatalogStale();
+  const refreshCatalog = useRefreshCatalog();
+  const parentCreation = useStackedCreation<CategorySummary>(
+    (parent) => form.setFieldValue("parentValue", parent.id),
+    { markStale: markCatalogStale, refresh: refreshCatalog },
+  );
+  const closeForm = () => {
+    parentCreation.finish();
+    onClose();
+  };
+
+  const seed = useEffectEvent(() => {
+    reset({ ...EMPTY_CATEGORY_FORM, name: initialName });
+    parentCreation.reset();
+  });
+
   useEffect(() => {
     if (open) {
-      reset();
+      seed();
       setNotice(null);
     }
-  }, [open, reset]);
+  }, [open]);
 
-  const parentOptions = parentSelectOptions(categories, new Set());
+  const offeredCategories = withCreatedCategory(categories, parentCreation.created);
+  const parentOptions = parentSelectOptions([...offeredCategories], new Set());
 
   return (
     <Modal
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -119,7 +141,7 @@ export function NewCategoryModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -162,9 +184,21 @@ export function NewCategoryModal({
               label="Categoría superior"
               options={parentOptions}
               description={CATEGORY_PARENT_HELPER_TEXT}
+              creation={{ recordKind: "categoría", onCreate: parentCreation.start }}
             />
           )}
         </form.AppField>
+        {parentCreation.open ? (
+          <NewCategoryModal
+            open
+            initialName={parentCreation.initialName}
+            onClose={parentCreation.close}
+            onCreated={parentCreation.select}
+            onSessionEnded={onSessionEnded}
+            createCategory={createCategory}
+            categories={[...offeredCategories]}
+          />
+        ) : null}
       </div>
     </Modal>
   );

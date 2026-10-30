@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EMPTY_RECIPE_FORM,
+  recipeComponentOf,
   recipeComponentOptions,
   recipeComponentsHeading,
   recipeComponentsMessage,
@@ -304,5 +305,16 @@ describe("recipeRowRefusalOf", () => {
     expect(
       recipeRowRefusalOf({ kind: "invalid_recipe", reason: { kind: "no_components" } }, values),
     ).toBeUndefined();
+  });
+});
+
+describe("recipeComponentOf", () => {
+  it("makes a component of the product under its full description, with no quantity yet", () => {
+    expect(recipeComponentOf({ ...aceiteDeAlmendras, saleUnit: "UNIT" })).toEqual({
+      productId: aceiteDeAlmendras.id,
+      name: "Aceite de Almendras Vitora 30 ml",
+      saleUnit: "UNIT",
+      quantity: "",
+    });
   });
 });

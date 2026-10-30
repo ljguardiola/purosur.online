@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { BranchUser } from "../platform/branch-users-api";
+import { StubRoleCreationModal } from "../platform/test-support/creation-parts";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { usersListFilters } from "./routes";
@@ -692,6 +693,7 @@ test("a refresh of the roles in the background does not overwrite what is typed 
         services={services}
         onSessionEnded={() => {}}
         access={ADMINISTRATOR_ACCESS}
+        roleCreationModal={StubRoleCreationModal}
         filters={usersListFilters.parse({})}
         onFiltersChange={() => {}}
         endEverySessionSection={EndEverySessionSectionStub}

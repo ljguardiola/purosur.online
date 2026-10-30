@@ -92,6 +92,20 @@ test("sends the form with Ctrl+Enter pressed from a text field", async () => {
   expect(onSend).toHaveBeenCalledOnce();
 });
 
+test("sends the form with Ctrl+Enter pressed right after the modal opens, before any field is focused", async () => {
+  const onSend = vi.fn();
+  const screen = await render(
+    <FormModal onSend={onSend}>
+      <NameField />
+    </FormModal>,
+  );
+  await expect.element(screen.getByRole("dialog", { name: "Nuevo producto" })).toHaveFocus();
+
+  await userEvent.keyboard(CTRL_ENTER);
+
+  expect(onSend).toHaveBeenCalledOnce();
+});
+
 test("sends the form with Ctrl+Enter pressed from a field of a centered modal", async () => {
   const onSend = vi.fn();
   const screen = await render(

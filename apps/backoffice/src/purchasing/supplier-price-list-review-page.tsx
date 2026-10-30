@@ -16,6 +16,8 @@ export function SupplierPriceListReviewPage(): ReactElement {
     <SupplierPriceListReviewScreen
       listId={listId}
       access={session}
+      categoryCreationModal={services.categoryCreationModal}
+      productCreationModal={services.productCreationModal}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onBack={() => void navigate({ to: "/supplier-price-lists" })}

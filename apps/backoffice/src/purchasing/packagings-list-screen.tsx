@@ -17,8 +17,10 @@ import { deepEqual } from "@tanstack/react-router";
 import { Ban, Package, Pencil, Plus, RotateCcw, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { ProductCreationModal } from "../platform/creation-parts";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { AreaTopBar } from "../shell/area-top-bar";
+import { type BackofficeAccess, canManageProductsAndCategories } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { DeactivatePackagingModal } from "./deactivate-packaging-modal";
 import { EditPackagingModal } from "./edit-packaging-modal";
@@ -30,6 +32,8 @@ import { ReactivatePackagingModal } from "./reactivate-packaging-modal";
 import type { PackagingsListFilters } from "./routes";
 
 export type PackagingsListScreenProps = {
+  access: BackofficeAccess;
+  productCreationModal: ProductCreationModal;
   filters: PackagingsListFilters;
   onFiltersChange: (filters: PackagingsListFilters) => void;
   onSessionEnded: () => void;
@@ -58,6 +62,8 @@ function showsStatus(packaging: PackagingSummary, status: PackagingStatusFilter)
 }
 
 export function PackagingsListScreen({
+  access,
+  productCreationModal,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -234,6 +240,7 @@ export function PackagingsListScreen({
       <NewPackagingModal
         open={newModalOpen}
         products={products}
+        {...(canManageProductsAndCategories(access) ? { productCreationModal } : {})}
         services={services}
         onCreated={() => {
           setNewModalOpen(false);

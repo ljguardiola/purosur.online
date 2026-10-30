@@ -3,7 +3,11 @@ import { recipeSaveBodySchema } from "@purosur/contracts";
 import { Button, EmptyState, Modal, useRequestForm } from "@purosur/ui";
 import { BookOpen, Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
+import { withCreatedProducts } from "../platform/created-products";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { RecipeComponentsField } from "./recipe-components-field";
 import {
   EMPTY_RECIPE_FORM,
@@ -11,6 +15,7 @@ import {
   RECIPE_NO_COMPONENTS,
   RECIPE_PRODUCT_NOT_FOUND,
   RECIPE_PRODUCT_REQUIRED,
+  recipeComponentOf,
   recipeComponentsHeading,
   recipeComponentsMessage,
   recipeProductOptions,
@@ -19,7 +24,7 @@ import {
 } from "./recipe-form";
 import { RecipeSaveNotice } from "./recipe-save-notice";
 import type { saveRecipe } from "./recipes-api";
-import { useRefreshStock } from "./stock-queries";
+import { useMarkStockStale, useRefreshStock } from "./stock-queries";
 
 export type NewRecipeModalServices = {
   saveRecipe: typeof saveRecipe;
@@ -29,6 +34,7 @@ type NewRecipeModalProps = {
   open: boolean;
   products: RecipeList["products"];
   recipes: readonly RecipeSummary[];
+  productCreationModal?: ProductCreationModal | undefined;
   services: NewRecipeModalServices;
   onSaved: (recipe: RecipeSummary) => void;
   onClose: () => void;
@@ -37,8 +43,9 @@ type NewRecipeModalProps = {
 
 export function NewRecipeModal({
   open,
-  products,
+  products: storedProducts,
   recipes,
+  productCreationModal: ProductCreation,
   services,
   onSaved,
   onClose,
@@ -106,15 +113,44 @@ export function NewRecipeModal({
     },
   });
 
+  const markStockStale = useMarkStockStale();
+  const catalog = { markStale: markStockStale, refresh: refreshStock };
+  const assembledCreation = useStackedCreation<CreatedProduct>(
+    (product) => form.setFieldValue("productId", product.id),
+    catalog,
+  );
+  const componentCreation = useStackedCreation<CreatedProduct>(
+    (product) =>
+      form.setFieldValue("components", [
+        ...form.state.values.components,
+        recipeComponentOf(product),
+      ]),
+    catalog,
+  );
+  const products = withCreatedProducts(storedProducts, [
+    ...(assembledCreation.created ? [assembledCreation.created] : []),
+    ...(componentCreation.created ? [componentCreation.created] : []),
+  ]);
+  const closeForm = () => {
+    assembledCreation.finish();
+    componentCreation.finish();
+    onClose();
+  };
+
   useEffect(() => {
     if (open) {
       reset();
       setNotice(null);
       setRefusals({});
+      assembledCreation.reset();
+      componentCreation.reset();
     }
-  }, [open, reset]);
+  }, [open, reset, assembledCreation.reset, componentCreation.reset]);
 
-  const options = recipeProductOptions(products, recipes);
+  const assembledChoice = creatableChoice(
+    recipeProductOptions(products, recipes),
+    ProductCreation ? { recordKind: "producto", onCreate: assembledCreation.start } : undefined,
+  );
   const assembledUnit = products.find((product) => product.id === values.productId)?.saleUnit;
 
   return (
@@ -122,7 +158,7 @@ export function NewRecipeModal({
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -138,7 +174,7 @@ export function NewRecipeModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -147,7 +183,7 @@ export function NewRecipeModal({
             size="large"
             icon={<Check />}
             fullWidth
-            disabled={submitting || !options}
+            disabled={submitting || !assembledChoice}
             onPress={() => void submit()}
           >
             Crear la receta
@@ -157,15 +193,15 @@ export function NewRecipeModal({
     >
       <div className="flex flex-col gap-4">
         {notice ? <RecipeSaveNotice notice={notice} /> : null}
-        {options ? (
+        {assembledChoice ? (
           <>
             <form.AppField name="productId">
               {(field) => (
                 <field.ComboBox
                   label="Producto armado"
                   placeholder="Elegí un producto"
-                  options={options}
                   required
+                  {...assembledChoice}
                 />
               )}
             </form.AppField>
@@ -179,6 +215,7 @@ export function NewRecipeModal({
                   assembledProductId={values.productId}
                   refusals={refusals}
                   onComponentsChange={() => setRefusals({})}
+                  onCreateProduct={ProductCreation ? componentCreation.start : undefined}
                 />
               )}
             </form.AppField>
@@ -195,6 +232,24 @@ export function NewRecipeModal({
             variant="blank"
           />
         )}
+        {ProductCreation ? (
+          <>
+            <ProductCreation
+              open={assembledCreation.open}
+              initialName={assembledCreation.initialName}
+              onCreated={assembledCreation.select}
+              onClose={assembledCreation.close}
+              onSessionEnded={onSessionEnded}
+            />
+            <ProductCreation
+              open={componentCreation.open}
+              initialName={componentCreation.initialName}
+              onCreated={componentCreation.select}
+              onClose={componentCreation.close}
+              onSessionEnded={onSessionEnded}
+            />
+          </>
+        ) : null}
       </div>
     </Modal>
   );

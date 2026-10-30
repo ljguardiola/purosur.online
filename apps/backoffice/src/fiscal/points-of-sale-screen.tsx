@@ -119,6 +119,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
           announce("Punto de venta guardado", `${registerBeingEdited?.registerName ?? ""}.`);
         }}
         reload={reloadRegisters}
+        refreshFiscalAddresses={reloadFiscalAddresses}
         onSessionEnded={onSessionEnded}
         services={services}
       />
@@ -136,7 +137,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
       <NewFiscalAddressModal
         open={creating}
         onClose={() => setCreating(false)}
-        onCreated={(name) => {
+        onCreated={({ name }) => {
           setCreating(false);
           void reloadFiscalAddresses();
           announce("Domicilio fiscal creado", `${name}.`);

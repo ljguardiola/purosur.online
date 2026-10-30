@@ -2,7 +2,7 @@ import { fiscalAddressCreationBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Landmark, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -16,7 +16,11 @@ import {
   fiscalAddressNameMessage,
   fiscalAddressStreetAddressMessage,
 } from "./fiscal-address-form";
-import type { CreateFiscalAddressOutcome, createFiscalAddress } from "./fiscal-addresses-api";
+import type {
+  CreateFiscalAddressOutcome,
+  createFiscalAddress,
+  FiscalAddress,
+} from "./fiscal-addresses-api";
 
 export type NewFiscalAddressModalServices = {
   createFiscalAddress: typeof createFiscalAddress;
@@ -27,14 +31,16 @@ export type NewFiscalAddressModalServices = {
 
 type NewFiscalAddressModalProps = {
   open: boolean;
+  initialName?: string;
   onClose: () => void;
-  onCreated: (name: string) => void;
+  onCreated: (fiscalAddress: FiscalAddress) => void;
   onSessionEnded: () => void;
   services: NewFiscalAddressModalServices;
 };
 
 export function NewFiscalAddressModal({
   open,
+  initialName = "",
   onClose,
   onCreated,
   onSessionEnded,
@@ -73,7 +79,7 @@ export function NewFiscalAddressModal({
         return;
       }
       if (outcome.kind === "ok") {
-        onCreated(request.name);
+        onCreated(outcome.fiscalAddress);
         return;
       }
       if (outcome.kind === "unauthenticated") {
@@ -99,12 +105,14 @@ export function NewFiscalAddressModal({
     },
   });
 
+  const seedName = useEffectEvent(() => reset({ ...EMPTY_FISCAL_ADDRESS_FORM, name: initialName }));
+
   useEffect(() => {
     if (open) {
-      reset();
+      seedName();
       setNotice(null);
     }
-  }, [open, reset]);
+  }, [open]);
 
   return (
     <>

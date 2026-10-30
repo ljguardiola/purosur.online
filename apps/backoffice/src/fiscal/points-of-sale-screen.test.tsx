@@ -293,7 +293,7 @@ test("Nuevo domicilio fiscal opens the creation modal, and creating reads the li
   vi.mocked(services.fetchFiscalAddresses)
     .mockResolvedValueOnce({ kind: "ok", value: [depot] })
     .mockResolvedValue({ kind: "ok", value: [depot, shop] });
-  vi.mocked(services.createFiscalAddress).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createFiscalAddress).mockResolvedValue({ kind: "ok", fiscalAddress: shop });
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Nuevo domicilio fiscal" }));
   const dialog = screen.getByRole("dialog", { name: "Nuevo domicilio fiscal" });

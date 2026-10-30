@@ -17,6 +17,7 @@ const NEW_TAG_TEXTS = {
 
 type NewTagModalProps = {
   open: boolean;
+  initialName?: string;
   context: string;
   services: NewTagModalServices;
   onCreated: (tag: TagSummary) => void;

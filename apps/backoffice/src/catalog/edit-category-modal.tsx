@@ -2,11 +2,12 @@ import { type CategorySummary, categoryEditBodySchema } from "@purosur/contracts
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, RotateCcw, ShieldX, Tags, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { selfAndDescendantIds } from "../platform/category-path";
+import { selfAndDescendantIds, withCreatedCategory } from "../platform/category-path";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import type { CategoryReload } from "./catalog-queries";
-import type { editCategory } from "./categories-api";
+import { useStackedCreation } from "../platform/stacked-creation";
+import { type CategoryReload, useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import type { createCategory, editCategory } from "./categories-api";
 import {
   CATEGORY_EDIT_FIELDS,
   CATEGORY_MESSAGES,
@@ -19,6 +20,7 @@ import {
   nameTakenUnderParentError,
   parentSelectOptions,
 } from "./category-form";
+import { NewCategoryModal } from "./new-category-modal";
 
 type EditCategoryModalProps = {
   target: CategorySummary | null;
@@ -27,6 +29,7 @@ type EditCategoryModalProps = {
   onSessionEnded: () => void;
   reload: (id: string) => Promise<CategoryReload>;
   editCategory: typeof editCategory;
+  createCategory: typeof createCategory;
   categories: CategorySummary[];
 };
 
@@ -43,6 +46,7 @@ export function EditCategoryModal({
   onSessionEnded,
   reload,
   editCategory,
+  createCategory,
   categories,
 }: EditCategoryModalProps) {
   const sendToMyAccount = useSendToMyAccount();
@@ -116,17 +120,30 @@ export function EditCategoryModal({
     },
   });
 
+  const markCatalogStale = useMarkCatalogStale();
+  const refreshCatalog = useRefreshCatalog();
+  const parentCreation = useStackedCreation<CategorySummary>(
+    (parent) => form.setFieldValue("parentValue", parent.id),
+    { markStale: markCatalogStale, refresh: refreshCatalog },
+  );
+  const closeForm = () => {
+    parentCreation.finish();
+    onClose();
+  };
+
   useEffect(() => {
     if (open && target) {
+      parentCreation.reset();
       reset(categoryFormValues(target));
       setTitle(target.name);
       setNotice(null);
       setReloading(false);
     }
-  }, [open, target, reset]);
+  }, [open, target, reset, parentCreation.reset]);
 
+  const offeredCategories = [...withCreatedCategory(categories, parentCreation.created)];
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
-  const parentOptions = parentSelectOptions(categories, excludeIds);
+  const parentOptions = parentSelectOptions(offeredCategories, excludeIds);
 
   async function handleReload() {
     if (!target) {
@@ -152,7 +169,7 @@ export function EditCategoryModal({
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -168,7 +185,7 @@ export function EditCategoryModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -239,9 +256,21 @@ export function EditCategoryModal({
                 label="Categoría superior"
                 options={parentOptions}
                 description={CATEGORY_PARENT_HELPER_TEXT}
+                creation={{ recordKind: "categoría", onCreate: parentCreation.start }}
               />
             )}
           </form.AppField>
+          {parentCreation.open ? (
+            <NewCategoryModal
+              open
+              initialName={parentCreation.initialName}
+              onClose={parentCreation.close}
+              onCreated={parentCreation.select}
+              onSessionEnded={onSessionEnded}
+              createCategory={createCategory}
+              categories={offeredCategories}
+            />
+          ) : null}
         </div>
       ) : null}
     </Modal>

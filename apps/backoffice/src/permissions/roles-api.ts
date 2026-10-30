@@ -3,14 +3,15 @@ import {
   type RoleDetailWire,
   type RoleEditBody,
   roleDetailSchema,
+  roleSummarySchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
-import { roleSummaryFromWire } from "../platform/roles-api";
+import { type RoleSummary, roleSummaryFromWire } from "../platform/roles-api";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type CreateRoleOutcome =
-  | { kind: "ok" }
+  | { kind: "ok"; role: RoleSummary }
   | { kind: "validation_failed"; field: string }
   | { kind: "name_taken" }
   | { kind: "forbidden" }
@@ -81,7 +82,10 @@ export async function createRole(input: RoleCreationBody): Promise<CreateRoleOut
     return { kind: "failed" };
   }
   if (response.ok) {
-    return { kind: "ok" };
+    const parsed = roleSummarySchema.safeParse(await response.json().catch(() => undefined));
+    return parsed.success
+      ? { kind: "ok", role: roleSummaryFromWire(parsed.data) }
+      : { kind: "failed" };
   }
   if (response.status === 400) {
     const field = await readValidationFailedField(response);

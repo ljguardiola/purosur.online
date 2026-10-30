@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import { StubCategoryCreationModal } from "../platform/test-support/creation-parts";
 import { radioLabel } from "../platform/test-support/radio-label";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -62,7 +63,7 @@ function renderModal({
   services = createServices(),
   list = LIST,
   target = nutRow,
-  mayCreateBrandsAndTags = true,
+  mayCreateCatalogRecords = true,
   onCreated = () => {},
   onOutdated = () => {},
   onClose = () => {},
@@ -71,7 +72,7 @@ function renderModal({
   services?: CreateProductFromSupplierItemModalServices;
   list?: Parameters<typeof CreateProductFromSupplierItemModal>[0]["list"];
   target?: typeof nutRow | null;
-  mayCreateBrandsAndTags?: boolean;
+  mayCreateCatalogRecords?: boolean;
   onCreated?: () => void;
   onOutdated?: () => void;
   onClose?: () => void;
@@ -83,7 +84,8 @@ function renderModal({
         <CreateProductFromSupplierItemModal
           list={list}
           target={target}
-          mayCreateBrandsAndTags={mayCreateBrandsAndTags}
+          mayCreateCatalogRecords={mayCreateCatalogRecords}
+          categoryCreationModal={StubCategoryCreationModal}
           services={services}
           onCreated={onCreated}
           onOutdated={onOutdated}
@@ -307,7 +309,7 @@ test("offers only the active brands, and the active tags, by name", async () => 
         },
       }),
     }),
-    mayCreateBrandsAndTags: false,
+    mayCreateCatalogRecords: false,
   });
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
@@ -334,7 +336,8 @@ test("offers to create a brand and a tag to a session that may manage the catalo
   const dialog = dialogOf(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Aceite de almendras");
 
-  await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Cabriola»" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
   await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Cabriola");
   await userEvent.click(brandDialog.getByRole("button", { name: "Crear la marca" }));
@@ -363,7 +366,8 @@ test("creating a brand leaves the brands and the tags unread while the form is o
   const brandsReads = vi.mocked(services.fetchProductCreationBrands).mock.calls.length;
   const tagsReads = vi.mocked(services.fetchProductCreationTags).mock.calls.length;
 
-  await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Cabriola»" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
   await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Cabriola");
   await userEvent.click(brandDialog.getByRole("button", { name: "Crear la marca" }));
@@ -381,14 +385,16 @@ test("creating a brand leaves the brands and the tags unread while the form is o
 });
 
 test("offers no way to create a brand or a tag to a session that may not manage the catalog", async () => {
-  const screen = await renderModal({ mayCreateBrandsAndTags: false });
+  const screen = await renderModal({ mayCreateCatalogRecords: false });
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
-  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
   await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
   expect(page.getByRole("menuitem", { name: "Crear distintivo…" }).query()).toBeNull();
+  await userEvent.keyboard("{Escape}");
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
 });
 
 test("says the brands are loading and creating waits for them", async () => {
@@ -606,7 +612,7 @@ test("says there are no categories to choose from, without sending the person to
   const services = createServices({
     fetchProductCreationCategories: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
   });
-  const screen = await renderModal({ services });
+  const screen = await renderModal({ services, mayCreateCatalogRecords: false });
   const dialog = dialogOf(screen);
 
   await expect.element(dialog.getByText("No hay categorías para elegir")).toBeVisible();

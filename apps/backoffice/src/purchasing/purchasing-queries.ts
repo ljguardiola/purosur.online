@@ -331,12 +331,17 @@ export function useProductCreationChoicesRefresh() {
           queryKey: purchasingKeys.productCreationTags,
           refetchType: "none",
         }),
+        client.invalidateQueries({
+          queryKey: purchasingKeys.productCreationCategories,
+          refetchType: "none",
+        }),
       ]);
     },
     refresh: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: purchasingKeys.productCreationBrands }),
         client.invalidateQueries({ queryKey: purchasingKeys.productCreationTags }),
+        client.invalidateQueries({ queryKey: purchasingKeys.productCreationCategories }),
       ]);
     },
   };
@@ -358,6 +363,11 @@ export function useSupplierPriceComparisonQuery(params: {
 export function useRefreshSupplierItemLinkChoices(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: purchasingKeys.supplierItemLinkChoices });
+}
+
+export function useMarkPurchasingStale(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: purchasingKey, refetchType: "none" });
 }
 
 export function useRefreshPurchasing(): () => Promise<void> {

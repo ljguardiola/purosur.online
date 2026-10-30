@@ -110,3 +110,12 @@ export function categorySelectOptions(
   }
   return [first, ...rest];
 }
+
+export function withCreatedCategory<T extends CategoryNode>(
+  categories: readonly T[],
+  created: T | null,
+): readonly T[] {
+  return created && !categories.some((category) => category.id === created.id)
+    ? [...categories, created]
+    : categories;
+}

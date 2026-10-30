@@ -19,6 +19,7 @@ function renderModal({
   createPackaging = vi.fn<NewPackagingModalServices["createPackaging"]>(),
   products = packagableProducts,
   productId,
+  initialName,
   context,
   onCreated = () => {},
   onClose = () => {},
@@ -27,6 +28,7 @@ function renderModal({
   createPackaging?: NewPackagingModalServices["createPackaging"];
   products?: PackagingList["products"];
   productId?: string;
+  initialName?: string;
   context?: string;
   onCreated?: (packaging: PackagingSummary) => void;
   onClose?: () => void;
@@ -39,6 +41,7 @@ function renderModal({
           open
           products={products}
           {...(productId === undefined ? {} : { productId })}
+          {...(initialName === undefined ? {} : { initialName })}
           {...(context === undefined ? {} : { context })}
           services={{ createPackaging }}
           onCreated={onCreated}
@@ -357,4 +360,18 @@ test("takes the eyebrow from the screen that opens it", async () => {
   await expect
     .element(screen.getByRole("dialog").getByText("Pedidos · Vincular un ítem"))
     .toBeVisible();
+});
+
+test("opens with the initial name already in the name field and the given product chosen, still editable", async () => {
+  const createPackaging = vi.fn<NewPackagingModalServices["createPackaging"]>();
+  const screen = await renderModal({
+    createPackaging,
+    productId: cajaDeMiel.productId,
+    initialName: "Caja x 12",
+  });
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Caja x 12");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Caja x 24");
+  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Caja x 24");
 });

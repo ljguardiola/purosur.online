@@ -21,6 +21,7 @@ function createServices(
   return {
     editProduct: vi.fn(),
     createBrand: vi.fn(),
+    createCategory: vi.fn(),
     createTag: vi.fn(),
     ...overrides,
   };
@@ -563,7 +564,8 @@ test("the brand just created is selected even before the brands are read again",
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
   const { dialog } = await renderModal(honey, services, { brands: [granuz] });
 
-  await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(brandSelect(dialog), "Dulcor");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Dulcor»" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
   await expect.element(brandDialog).toBeVisible();
   await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Dulcor");
@@ -705,6 +707,23 @@ test("typing in the category of an edit offers only the matching categories, and
     honey.id,
     expect.objectContaining({ categoryId: driedFruits.id }),
   );
+});
+
+test("typing a brand that does not exist offers to create it, opening the brand modal with the typed name", async () => {
+  const { dialog } = await renderModal(honey, createServices(), { brands: [granuz] });
+
+  await userEvent.fill(brandSelect(dialog), "Dulcor");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Dulcor»" }));
+
+  const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
+  await expect.element(brandDialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Dulcor");
+});
+
+test("has no separate button to create a brand beside the brand selector", async () => {
+  const { dialog } = await renderModal(honey, createServices(), { brands: [granuz] });
+
+  await expect.element(brandSelect(dialog)).toBeVisible();
+  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
 });
 
 test("typing in the brand of an edit offers only the matching brands", async () => {

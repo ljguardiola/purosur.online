@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { StubRoleCreationModal } from "../../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
@@ -66,6 +67,7 @@ export function usersListScreenElement(
         services={services}
         onSessionEnded={onSessionEnded}
         access={access}
+        roleCreationModal={StubRoleCreationModal}
         filters={filters}
         onFiltersChange={onFiltersChange}
         endEverySessionSection={EndEverySessionSectionStub}

@@ -1,3 +1,4 @@
+import { createTag } from "../platform/tag-creation-api";
 import {
   createDiscount,
   editDiscount,
@@ -18,4 +19,5 @@ export const defaultDiscountsListScreenServices: DiscountsListScreenServices = {
   fetchDiscountTargets,
   createDiscount,
   editDiscount,
+  createTag,
 };

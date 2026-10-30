@@ -15,11 +15,13 @@ beforeEach(() => {
 
 function renderModal({
   createSupplier = vi.fn<NewSupplierModalServices["createSupplier"]>(),
+  initialName,
   onCreated = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
 }: {
   createSupplier?: NewSupplierModalServices["createSupplier"];
+  initialName?: string;
   onCreated?: (supplier: SupplierSummary) => void;
   onClose?: () => void;
   onSessionEnded?: () => void;
@@ -29,6 +31,7 @@ function renderModal({
       <main>
         <NewSupplierModal
           open
+          {...(initialName === undefined ? {} : { initialName })}
           services={{ createSupplier }}
           onCreated={onCreated}
           onClose={onClose}
@@ -215,4 +218,22 @@ test("cancel closes the modal without calling the API", async () => {
 
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(createSupplier).not.toHaveBeenCalled();
+});
+
+test("opens with the initial name already in the name field, still editable", async () => {
+  const createSupplier = vi
+    .fn<NewSupplierModalServices["createSupplier"]>()
+    .mockResolvedValue({ kind: "ok", supplier: andina });
+  const screen = await renderModal({ createSupplier, initialName: "Distribuidora Sur" });
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Distribuidora Sur");
+
+  await submit(screen, { name: "Distribuidora Sur SA" });
+
+  await expect.poll(() => createSupplier.mock.calls.length).toBe(1);
+  expect(createSupplier).toHaveBeenCalledWith(
+    expect.objectContaining({ name: "Distribuidora Sur SA" }),
+  );
 });

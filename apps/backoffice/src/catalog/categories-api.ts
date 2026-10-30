@@ -3,6 +3,7 @@ import {
   type CategoryEditBody,
   type CategorySummary,
   categoryListSchema,
+  categorySummarySchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
@@ -13,7 +14,7 @@ export type FetchCategoriesOutcome = CloudReadOutcome<CategorySummary[]>;
 export type CreateCategoryInput = { name: string; parentId: string | null };
 
 export type CreateCategoryOutcome =
-  | { kind: "ok" }
+  | { kind: "ok"; category: CategorySummary }
   | { kind: "validation_failed"; field: string }
   | { kind: "name_taken" }
   | { kind: "parent_has_products" }
@@ -84,7 +85,8 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
     return { kind: "failed" };
   }
   if (response.ok) {
-    return { kind: "ok" };
+    const parsed = categorySummarySchema.safeParse(await response.json().catch(() => undefined));
+    return parsed.success ? { kind: "ok", category: parsed.data } : { kind: "failed" };
   }
   if (response.status === 400) {
     const field = await readValidationFailedField(response);

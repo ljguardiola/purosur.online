@@ -2,9 +2,13 @@ import { type PackagingSummary, packagingCreationBodySchema } from "@purosur/con
 import type { SaleUnit } from "@purosur/domain";
 import { Button, EmptyState, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Package, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
+import { withCreatedProducts } from "../platform/created-products";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { quantityFieldKind } from "../platform/stock-quantity";
 import {
   EMPTY_PACKAGING_FORM,
@@ -20,7 +24,7 @@ import {
   packagingQuantityMessage,
 } from "./packaging-form";
 import type { createPackaging } from "./packagings-api";
-import { useRefreshPurchasing } from "./purchasing-queries";
+import { useMarkPurchasingStale, useRefreshPurchasing } from "./purchasing-queries";
 
 export type NewPackagingModalServices = {
   createPackaging: typeof createPackaging;
@@ -30,6 +34,8 @@ type NewPackagingModalProps = {
   open: boolean;
   products: PackagingProduct[];
   productId?: string;
+  productCreationModal?: ProductCreationModal | undefined;
+  initialName?: string;
   context?: string;
   services: NewPackagingModalServices;
   onCreated: (packaging: PackagingSummary) => void;
@@ -43,6 +49,8 @@ export function NewPackagingModal({
   open,
   products,
   productId,
+  productCreationModal: ProductCreation,
+  initialName = "",
   context = "Stock · Presentaciones de compra",
   services,
   onCreated,
@@ -54,7 +62,7 @@ export function NewPackagingModal({
   const [notice, setNotice] = useState<Notice | null>(null);
   const given = products.find((product) => product.id === productId);
   const unitOf = (chosenId: string | null): SaleUnit =>
-    products.find((product) => product.id === chosenId)?.saleUnit ?? "UNIT";
+    offeredProducts.find((product) => product.id === chosenId)?.saleUnit ?? "UNIT";
   const { form, values, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_PACKAGING_FORM,
     request: {
@@ -102,21 +110,43 @@ export function NewPackagingModal({
     },
   });
 
+  const markPurchasingStale = useMarkPurchasingStale();
+  const productCreation = useStackedCreation<CreatedProduct>(
+    (product) => form.setFieldValue("productId", product.id),
+    { markStale: markPurchasingStale, refresh: refreshPurchasing },
+  );
+  const offeredProducts = withCreatedProducts(
+    products,
+    productCreation.created ? [productCreation.created] : [],
+  );
+  const closeForm = () => {
+    productCreation.finish();
+    onClose();
+  };
+
+  const seed = useEffectEvent(() => {
+    reset({ ...EMPTY_PACKAGING_FORM, productId: productId ?? null, name: initialName });
+    productCreation.reset();
+  });
+
   useEffect(() => {
     if (open) {
-      reset({ ...EMPTY_PACKAGING_FORM, productId: productId ?? null });
+      seed();
       setNotice(null);
     }
-  }, [open, productId, reset]);
+  }, [open]);
 
-  const options = packagingProductOptions(products);
+  const productChoice = creatableChoice(
+    packagingProductOptions(offeredProducts),
+    ProductCreation ? { recordKind: "producto", onCreate: productCreation.start } : undefined,
+  );
 
   return (
     <Modal
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -132,7 +162,7 @@ export function NewPackagingModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -141,7 +171,7 @@ export function NewPackagingModal({
             size="large"
             icon={<Check />}
             fullWidth
-            disabled={submitting || !options}
+            disabled={submitting || !productChoice}
             onPress={() => void submit()}
           >
             Crear la presentación
@@ -166,7 +196,7 @@ export function NewPackagingModal({
             description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
-        {options ? (
+        {productChoice ? (
           <>
             {given ? (
               <p className="text-body text-text-subtle">Producto: {packagingProductLabel(given)}</p>
@@ -176,8 +206,8 @@ export function NewPackagingModal({
                   <field.ComboBox
                     label="Producto"
                     placeholder="Elegí un producto"
-                    options={options}
                     required
+                    {...productChoice}
                   />
                 )}
               </form.AppField>
@@ -203,6 +233,15 @@ export function NewPackagingModal({
             variant="blank"
           />
         )}
+        {ProductCreation ? (
+          <ProductCreation
+            open={productCreation.open}
+            initialName={productCreation.initialName}
+            onCreated={productCreation.select}
+            onClose={productCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
+        ) : null}
       </div>
     </Modal>
   );

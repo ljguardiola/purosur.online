@@ -9,17 +9,22 @@ import {
   TextField,
   useFieldContext,
 } from "@purosur/ui";
-import { formatProductDescription } from "@purosur/ui/formatters";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
 import { quantityFieldKind } from "../platform/stock-quantity";
-import { type RecipeComponentValues, recipeComponentOptions } from "./recipe-form";
+import {
+  type RecipeComponentValues,
+  recipeComponentOf,
+  recipeComponentOptions,
+} from "./recipe-form";
 
 type RecipeComponentsFieldProps = {
   products: RecipeList["products"];
   assembledProductId: string | null;
   refusals: Readonly<Record<string, string>>;
   onComponentsChange: () => void;
+  onCreateProduct?: ((typedName: string) => void) | undefined;
 };
 
 export function RecipeComponentsField({
@@ -27,11 +32,16 @@ export function RecipeComponentsField({
   assembledProductId,
   refusals,
   onComponentsChange,
+  onCreateProduct,
 }: RecipeComponentsFieldProps) {
   const field = useFieldContext<RecipeComponentValues[]>();
   const components = field.state.value;
   const [adding, setAdding] = useState(false);
   const [first, ...rest] = recipeComponentOptions(products, assembledProductId, components);
+  const componentChoice = creatableChoice(
+    first ? [first, ...rest] : undefined,
+    onCreateProduct ? { recordKind: "producto", onCreate: onCreateProduct } : undefined,
+  );
 
   function change(productId: string, patch: Partial<RecipeComponentValues>) {
     onComponentsChange();
@@ -46,15 +56,7 @@ export function RecipeComponentsField({
     const product = products.find((other) => other.id === productId);
     if (product) {
       onComponentsChange();
-      field.handleChange([
-        ...components,
-        {
-          productId,
-          name: formatProductDescription(product),
-          saleUnit: product.saleUnit,
-          quantity: "",
-        },
-      ]);
+      field.handleChange([...components, recipeComponentOf(product)]);
     }
     setAdding(false);
   }
@@ -102,20 +104,20 @@ export function RecipeComponentsField({
               </Card>
             );
           })}
-          {adding && first ? (
+          {adding && componentChoice ? (
             <ComboBox
               label="Componente"
               placeholder="Buscá un producto"
-              options={[first, ...rest]}
               value={null}
               onChange={add}
+              {...componentChoice}
             />
           ) : (
             <div>
               <Button
                 variant="text"
                 icon={<Plus />}
-                disabled={first === undefined}
+                disabled={componentChoice === undefined}
                 onPress={() => setAdding(true)}
               >
                 Agregar un componente

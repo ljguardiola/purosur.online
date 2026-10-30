@@ -1,4 +1,8 @@
-import { supplierPriceListRowProductCreationBodySchema } from "@purosur/contracts";
+import {
+  type BrandSummary,
+  type CategorySummary,
+  supplierPriceListRowProductCreationBodySchema,
+} from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -18,18 +22,20 @@ import {
 } from "../platform/barcode-chips";
 import { barcodeProblemMessage, barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
-import { categorySelectOptions } from "../platform/category-path";
+import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import { creatableChoice } from "../platform/creatable-options";
+import type { CategoryCreationModal } from "../platform/creation-parts";
 import type { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
-import { useStackedBrandCreation } from "../platform/product-brand-field";
 import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields";
 import { PRODUCT_BRAND_INACTIVE_ERROR, tagInactiveError } from "../platform/product-form";
 import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { quantityFieldKind } from "../platform/stock-quantity";
 import type { createTag } from "../platform/tag-creation-api";
 import type { CloudData } from "../platform/use-cloud-query";
@@ -79,7 +85,8 @@ export type CreateProductFromSupplierItemModalServices = {
 type CreateProductFromSupplierItemModalProps = {
   list: Pick<SupplierPriceListReviewList, "id" | "version" | "requiresVatRate" | "supplier">;
   target: SupplierPriceListRow | null;
-  mayCreateBrandsAndTags: boolean;
+  mayCreateCatalogRecords: boolean;
+  categoryCreationModal: CategoryCreationModal;
   services: CreateProductFromSupplierItemModalServices;
   onCreated: () => void;
   onOutdated: () => void;
@@ -94,7 +101,8 @@ function FieldHeading({ children }: { children: string }) {
 export function CreateProductFromSupplierItemModal({
   list,
   target,
-  mayCreateBrandsAndTags,
+  mayCreateCatalogRecords,
+  categoryCreationModal: CategoryCreation,
   services,
   onCreated,
   onOutdated,
@@ -193,8 +201,12 @@ export function CreateProductFromSupplierItemModal({
   );
 
   const catalog = useProductCreationChoicesRefresh();
-  const brandCreation = useStackedBrandCreation(
-    (brandId) => form.setFieldValue("brandId", brandId),
+  const brandCreation = useStackedCreation<BrandSummary>(
+    (brand) => form.setFieldValue("brandId", brand.id),
+    catalog,
+  );
+  const categoryCreation = useStackedCreation<CategorySummary>(
+    (category) => form.setFieldValue("categoryId", category.id),
     catalog,
   );
   const tagCreation = useStackedTagCreation(
@@ -203,6 +215,7 @@ export function CreateProductFromSupplierItemModal({
   );
   const closeForm = () => {
     brandCreation.finish();
+    categoryCreation.finish();
     tagCreation.finish();
     onClose();
   };
@@ -216,6 +229,7 @@ export function CreateProductFromSupplierItemModal({
       setShown(target);
       setNotice(null);
       brandCreation.reset();
+      categoryCreation.reset();
       tagCreation.reset();
     }
   }, [
@@ -225,6 +239,7 @@ export function CreateProductFromSupplierItemModal({
     chips.reset,
     generate.reset,
     brandCreation.reset,
+    categoryCreation.reset,
     tagCreation.reset,
   ]);
 
@@ -237,8 +252,17 @@ export function CreateProductFromSupplierItemModal({
     }
   }, [target, vatRates, form]);
 
-  const categoryOptions =
-    categories.status === "loaded" ? categorySelectOptions(categories.value) : undefined;
+  const categoryChoice =
+    categories.status === "loaded"
+      ? creatableChoice(
+          categorySelectOptions([
+            ...withCreatedCategory(categories.value, categoryCreation.created),
+          ]),
+          mayCreateCatalogRecords
+            ? { recordKind: "categoría", onCreate: categoryCreation.start }
+            : undefined,
+        )
+      : undefined;
   const productData = combineCloudData(combineCloudData(categories, brands), tags);
   const dataStatus = list.requiresVatRate
     ? combineCloudData(productData, choices).status
@@ -345,8 +369,8 @@ export function CreateProductFromSupplierItemModal({
             form={form}
             fields={PRODUCT_GROUP_FIELDS}
             categories={
-              categoryOptions
-                ? { state: "loaded", options: categoryOptions }
+              categoryChoice
+                ? { state: "loaded", choice: categoryChoice }
                 : { state: "unavailable", placeholder: categoryPlaceholder() }
             }
             brands={
@@ -354,7 +378,7 @@ export function CreateProductFromSupplierItemModal({
                 ? {
                     state: "loaded",
                     items: brands.value,
-                    creation: mayCreateBrandsAndTags ? brandCreation : null,
+                    creation: mayCreateCatalogRecords ? brandCreation : null,
                   }
                 : { state: "unavailable", placeholder: statusPlaceholder(brands, "las marcas") }
             }
@@ -363,7 +387,7 @@ export function CreateProductFromSupplierItemModal({
                 ? {
                     state: "loaded",
                     items: tags.value.tags,
-                    creation: mayCreateBrandsAndTags ? tagCreation : null,
+                    creation: mayCreateCatalogRecords ? tagCreation : null,
                   }
                 : {
                     state: "unavailable",
@@ -412,14 +436,22 @@ export function CreateProductFromSupplierItemModal({
               </div>
             )
           ) : null}
-          {mayCreateBrandsAndTags ? (
+          {mayCreateCatalogRecords ? (
             <>
               <NewBrandModal
                 open={brandCreation.open}
+                initialName={brandCreation.initialName}
                 context="Marcas"
                 createBrand={services.createBrand}
                 onCreated={brandCreation.select}
                 onClose={brandCreation.close}
+                onSessionEnded={onSessionEnded}
+              />
+              <CategoryCreation
+                open={categoryCreation.open}
+                initialName={categoryCreation.initialName}
+                onCreated={categoryCreation.select}
+                onClose={categoryCreation.close}
                 onSessionEnded={onSessionEnded}
               />
               <NewTagModal

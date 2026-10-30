@@ -15,8 +15,18 @@ import {
   useFieldContext,
 } from "@purosur/ui";
 import { Package, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
+import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
+import { useStackedCreation } from "../platform/stacked-creation";
 import { quantityFieldKind } from "../platform/stock-quantity";
-import { type BackofficeAccess, canSeePricesArea } from "../shell/backoffice-access";
+import {
+  type BackofficeAccess,
+  canManageProductsAndCategories,
+  canManagePurchasePackagings,
+  canSeePricesArea,
+} from "../shell/backoffice-access";
+import { NewPackagingModal, type NewPackagingModalServices } from "./new-packaging-modal";
 import { packagingProductOptions } from "./packaging-form";
 import {
   emptyPurchaseLine,
@@ -25,6 +35,7 @@ import {
   type PurchaseProducts,
   purchasePackagingOptions,
 } from "./purchase-form";
+import { useMarkPurchasingStale, useRefreshPurchasing } from "./purchasing-queries";
 
 const LOADED_BY_OPTIONS = [
   { value: "quantity" as const, label: "Cantidad" },
@@ -34,23 +45,67 @@ const LOADED_BY_OPTIONS = [
 type PurchaseLinesFieldProps = {
   access: BackofficeAccess;
   products: PurchaseProducts;
+  productCreationModal: ProductCreationModal;
+  onProductCreated: (product: CreatedProduct) => void;
   packagings: readonly PackagingSummary[];
   refusals: Readonly<Record<number, string>>;
   onLinesChange: () => void;
+  services: NewPackagingModalServices;
+  onSessionEnded: () => void;
 };
 
 export function PurchaseLinesField({
   access,
   products,
+  productCreationModal: ProductCreation,
+  onProductCreated,
   packagings,
   refusals,
   onLinesChange,
+  services,
+  onSessionEnded,
 }: PurchaseLinesFieldProps) {
   const field = useFieldContext<PurchaseLineValues[]>();
   const lines = field.state.value;
-  const productOptions = packagingProductOptions(products);
+  function change(id: number, patch: Partial<PurchaseLineValues>) {
+    onLinesChange();
+    field.handleChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
+  }
 
-  if (!productOptions) {
+  const productOptions = packagingProductOptions(products);
+  const markPurchasingStale = useMarkPurchasingStale();
+  const refreshPurchasing = useRefreshPurchasing();
+  const [creatingFor, setCreatingFor] = useState<{ lineId: number; productId: string } | null>(
+    null,
+  );
+  const [creatingProductFor, setCreatingProductFor] = useState<number | null>(null);
+  const productCreation = useStackedCreation<CreatedProduct>(
+    (product) => {
+      onProductCreated(product);
+      if (creatingProductFor !== null) {
+        change(creatingProductFor, { productId: product.id, packagingId: null });
+      }
+    },
+    { markStale: markPurchasingStale, refresh: refreshPurchasing },
+  );
+  const [createdPackagings, setCreatedPackagings] = useState<PackagingSummary[]>([]);
+  const packagingCreation = useStackedCreation<PackagingSummary>(
+    (packaging) => {
+      setCreatedPackagings([...createdPackagings, packaging]);
+      if (creatingFor !== null) {
+        change(creatingFor.lineId, { packagingId: packaging.id });
+      }
+    },
+    { markStale: markPurchasingStale, refresh: refreshPurchasing },
+  );
+  const offeredPackagings = [
+    ...packagings,
+    ...createdPackagings.filter(
+      (created) => !packagings.some((packaging) => packaging.id === created.id),
+    ),
+  ];
+
+  if (!productOptions && !canManageProductsAndCategories(access)) {
     return (
       <EmptyState
         icon={<Package />}
@@ -61,11 +116,6 @@ export function PurchaseLinesField({
     );
   }
 
-  function change(id: number, patch: Partial<PurchaseLineValues>) {
-    onLinesChange();
-    field.handleChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
-  }
-
   return (
     <SharedFieldError>
       {(errorMessageId) => (
@@ -74,24 +124,43 @@ export function PurchaseLinesField({
           {...(errorMessageId === undefined ? {} : { "aria-describedby": errorMessageId })}
           className="flex min-w-0 flex-col gap-3"
         >
-          {lines.map((line, index) => (
-            <PurchaseLineFields
-              key={line.id}
-              line={line}
-              offersPriceReview={canSeePricesArea(access)}
-              number={index + 1}
-              productOptions={productOptions}
-              products={products}
-              packagings={packagings}
-              refusal={refusals[index]}
-              removable={lines.length > 1}
-              onChange={(patch) => change(line.id, patch)}
-              onRemove={() => {
-                onLinesChange();
-                field.handleChange(lines.filter((other) => other.id !== line.id));
-              }}
-            />
-          ))}
+          {lines.map((line, index) => {
+            const productId = line.productId;
+            return (
+              <PurchaseLineFields
+                key={line.id}
+                line={line}
+                offersPriceReview={canSeePricesArea(access)}
+                number={index + 1}
+                productOptions={productOptions}
+                products={products}
+                packagings={offeredPackagings}
+                refusal={refusals[index]}
+                onCreateProduct={
+                  canManageProductsAndCategories(access)
+                    ? (typedName) => {
+                        setCreatingProductFor(line.id);
+                        productCreation.start(typedName);
+                      }
+                    : null
+                }
+                onCreatePackaging={
+                  canManagePurchasePackagings(access) && productId !== null
+                    ? (typedName) => {
+                        setCreatingFor({ lineId: line.id, productId });
+                        packagingCreation.start(typedName);
+                      }
+                    : null
+                }
+                removable={lines.length > 1}
+                onChange={(patch) => change(line.id, patch)}
+                onRemove={() => {
+                  onLinesChange();
+                  field.handleChange(lines.filter((other) => other.id !== line.id));
+                }}
+              />
+            );
+          })}
           <div>
             <Button
               variant="secondary"
@@ -104,6 +173,23 @@ export function PurchaseLinesField({
               Agregar línea
             </Button>
           </div>
+          <ProductCreation
+            open={productCreation.open}
+            initialName={productCreation.initialName}
+            onCreated={productCreation.select}
+            onClose={productCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
+          <NewPackagingModal
+            open={packagingCreation.open}
+            products={[...products]}
+            {...(creatingFor === null ? {} : { productId: creatingFor.productId })}
+            initialName={packagingCreation.initialName}
+            services={services}
+            onCreated={packagingCreation.select}
+            onClose={packagingCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
         </fieldset>
       )}
     </SharedFieldError>
@@ -121,10 +207,12 @@ type PurchaseLineFieldsProps = {
   line: PurchaseLineValues;
   offersPriceReview: boolean;
   number: number;
-  productOptions: NonNullable<ReturnType<typeof packagingProductOptions>>;
+  productOptions: ReturnType<typeof packagingProductOptions>;
   products: PurchaseProducts;
   packagings: readonly PackagingSummary[];
   refusal: string | undefined;
+  onCreateProduct: ((typedName: string) => void) | null;
+  onCreatePackaging: ((typedName: string) => void) | null;
   removable: boolean;
   onChange: (patch: Partial<PurchaseLineValues>) => void;
   onRemove: () => void;
@@ -138,6 +226,8 @@ function PurchaseLineFields({
   products,
   packagings,
   refusal,
+  onCreateProduct,
+  onCreatePackaging,
   removable,
   onChange,
   onRemove,
@@ -145,20 +235,32 @@ function PurchaseLineFields({
   const saleUnit = products.find((product) => product.id === line.productId)?.saleUnit ?? "UNIT";
   const packagingOptions = purchasePackagingOptions(packagings, line.productId);
   const [firstPackaging, ...otherPackagings] = packagingOptions;
+  const productChoice = creatableChoice(
+    productOptions,
+    onCreateProduct === null ? undefined : { recordKind: "producto", onCreate: onCreateProduct },
+  );
+  const packagingChoice = creatableChoice(
+    firstPackaging ? [firstPackaging, ...otherPackagings] : undefined,
+    onCreatePackaging === null
+      ? undefined
+      : { recordKind: "presentación", onCreate: onCreatePackaging },
+  );
 
   return (
     <fieldset aria-label={`Línea ${number}`} className="min-w-0">
       <Card variant="subtle">
         <div className="flex items-end gap-4">
           <div className="min-w-0 flex-1">
-            <ComboBox
-              label="Producto"
-              placeholder="Elegí un producto"
-              options={productOptions}
-              value={line.productId}
-              onChange={(productId) => onChange({ productId, packagingId: null })}
-              required
-            />
+            {productChoice ? (
+              <ComboBox
+                label="Producto"
+                placeholder="Elegí un producto"
+                value={line.productId}
+                onChange={(productId) => onChange({ productId, packagingId: null })}
+                required
+                {...productChoice}
+              />
+            ) : null}
           </div>
           <SegmentedControl
             label="Cargar por"
@@ -173,14 +275,14 @@ function PurchaseLineFields({
         {line.loadedBy === "packaging" ? (
           <div className="flex items-start gap-4">
             <div className="min-w-0 flex-1">
-              {firstPackaging ? (
+              {packagingChoice ? (
                 <ComboBox
                   label="Presentación"
                   placeholder="Elegí una presentación"
-                  options={[firstPackaging, ...otherPackagings]}
                   value={line.packagingId}
                   onChange={(packagingId) => onChange({ packagingId })}
                   required
+                  {...packagingChoice}
                 />
               ) : (
                 <InlineNotice

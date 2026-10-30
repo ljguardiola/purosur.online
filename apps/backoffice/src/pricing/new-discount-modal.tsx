@@ -12,7 +12,8 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { Check, Info, Percent, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
+import { creatableChoice } from "../platform/creatable-options";
 import { DISCOUNT_TARGET_KIND_LABELS } from "../platform/discount-terms-text";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -32,11 +33,17 @@ import {
   targetUnavailableMessage,
   WEEKDAY_OPTIONS,
 } from "./discount-form";
+import {
+  DiscountTargetCreationNotice,
+  type DiscountTargetCreationParts,
+  type DiscountTargetCreationServices,
+  useDiscountTargetCreation,
+} from "./discount-target-creation";
 import type { createDiscount } from "./discounts-api";
 
 export type NewDiscountModalServices = {
   createDiscount: typeof createDiscount;
-};
+} & DiscountTargetCreationServices;
 
 type NewDiscountModalProps = {
   open: boolean;
@@ -44,6 +51,7 @@ type NewDiscountModalProps = {
   onCreated: (discount: DiscountSummary) => void;
   onSessionEnded: () => void;
   targets: DiscountTargets;
+  creation?: DiscountTargetCreationParts | undefined;
   services: NewDiscountModalServices;
 };
 
@@ -55,6 +63,7 @@ export function NewDiscountModal({
   onCreated,
   onSessionEnded,
   targets,
+  creation,
   services,
 }: NewDiscountModalProps) {
   const { createDiscount } = services;
@@ -103,25 +112,44 @@ export function NewDiscountModal({
     },
   });
 
+  const targetCreation = useDiscountTargetCreation({
+    targets,
+    services,
+    parts: creation,
+    benefitKind: () => form.state.values.benefitKind,
+    choose: (targetId) => form.setFieldValue("targetId", targetId),
+    onSessionEnded,
+  });
+  const resetCreation = useEffectEvent(targetCreation.reset);
+  const closeForm = () => {
+    targetCreation.finish();
+    onClose();
+  };
+
   useEffect(() => {
     if (open) {
       reset();
+      resetCreation();
       setNotice(null);
     }
   }, [open, reset]);
 
   const targetKindLabel = DISCOUNT_TARGET_KIND_LABELS[values.targetKind];
-  const options = targetOptions(values.targetKind, eligibleTargets(values.benefitKind, targets));
+  const options = targetOptions(
+    values.targetKind,
+    eligibleTargets(values.benefitKind, targetCreation.sources),
+  );
+  const targetChoice = creatableChoice(options, targetCreation.creationOf(values.targetKind));
   const targetField = (
     <form.AppField name="targetId">
       {(field) =>
-        options ? (
+        targetChoice ? (
           <field.ComboBox
             key={values.targetKind}
             label={targetKindLabel}
             placeholder={targetPlaceholder(values.targetKind)}
-            options={options}
             required
+            {...targetChoice}
           />
         ) : (
           <FieldGroup label={targetKindLabel} required>
@@ -137,7 +165,7 @@ export function NewDiscountModal({
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -153,7 +181,7 @@ export function NewDiscountModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -187,6 +215,7 @@ export function NewDiscountModal({
             description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
+        <DiscountTargetCreationNotice text={targetCreation.notice} />
         <form.AppField name="name">
           {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
         </form.AppField>
@@ -195,7 +224,7 @@ export function NewDiscountModal({
             name="benefitKind"
             listeners={{
               onChange: ({ value }) => {
-                const target = targetForKind(form.state.values, value, targets);
+                const target = targetForKind(form.state.values, value, targetCreation.sources);
                 form.setFieldValue("targetKind", target.targetKind);
                 form.setFieldValue("targetId", target.targetId);
               },
@@ -206,7 +235,7 @@ export function NewDiscountModal({
             )}
           </form.AppField>
         </FieldGroup>
-        {offersTargetKindChoice(values.benefitKind, targets) && (
+        {offersTargetKindChoice(values.benefitKind, targetCreation.sources) && (
           <FieldGroup label="Se aplica sobre">
             <form.AppField
               name="targetKind"
@@ -215,7 +244,7 @@ export function NewDiscountModal({
               {(field) => (
                 <field.SegmentedControl
                   label="Se aplica sobre"
-                  options={targetKindOptions(values.benefitKind, targets)}
+                  options={targetKindOptions(values.benefitKind, targetCreation.sources)}
                 />
               )}
             </form.AppField>
@@ -271,6 +300,7 @@ export function NewDiscountModal({
           icon={<Info />}
           description="Una línea de la venta lleva una sola promoción: las promociones no se acumulan entre sí."
         />
+        {targetCreation.modals}
       </div>
     </Modal>
   );

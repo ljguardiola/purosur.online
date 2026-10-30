@@ -1,4 +1,8 @@
-import { type BrandSummary, productCreationBodySchema } from "@purosur/contracts";
+import {
+  type BrandSummary,
+  type CategorySummary,
+  productCreationBodySchema,
+} from "@purosur/contracts";
 import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
 import type { ComponentProps } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -10,7 +14,6 @@ import {
   useGenerateInternalBarcode,
 } from "./barcode-chips";
 import { barcodeProblemMessage } from "./barcode-list";
-import type { StackedBrandCreation } from "./product-brand-field";
 import { PRODUCT_GROUP_FIELDS, ProductFields } from "./product-fields";
 import {
   EMPTY_PRODUCT_FORM,
@@ -19,6 +22,7 @@ import {
   productRequestFrom,
 } from "./product-form";
 import type { StackedTagCreation } from "./product-tags-field";
+import type { StackedCreation } from "./stacked-creation";
 import { organico, sinColorantes, sinTacc } from "./test-support/tags";
 
 type FieldsProps = ComponentProps<typeof ProductFields>;
@@ -46,9 +50,12 @@ const cabriola: BrandSummary = {
   productCount: 0,
 };
 
-function brandCreation(overrides: Partial<StackedBrandCreation> = {}): StackedBrandCreation {
+function stackedCreation<Created>(
+  overrides: Partial<StackedCreation<Created>> = {},
+): StackedCreation<Created> {
   return {
     open: false,
+    initialName: "",
     created: null,
     start: vi.fn(),
     reset: vi.fn(),
@@ -58,6 +65,9 @@ function brandCreation(overrides: Partial<StackedBrandCreation> = {}): StackedBr
     ...overrides,
   };
 }
+
+const brandCreation = (overrides: Partial<StackedCreation<BrandSummary>> = {}) =>
+  stackedCreation<BrandSummary>(overrides);
 
 function tagCreation(overrides: Partial<StackedTagCreation> = {}): StackedTagCreation {
   return {
@@ -75,7 +85,9 @@ function tagCreation(overrides: Partial<StackedTagCreation> = {}): StackedTagCre
 const LOADED: Choices = {
   categories: {
     state: "loaded",
-    options: [{ value: "c4700000-0000-4000-8000-000000000001", label: "Almacén › Yerbas" }],
+    choice: {
+      options: [{ value: "c4700000-0000-4000-8000-000000000001", label: "Almacén › Yerbas" }],
+    },
   },
   brands: { state: "loaded", items: [granuz, litoral], creation: null },
   tags: { state: "loaded", items: [sinTacc, sinColorantes], creation: null },
@@ -166,17 +178,33 @@ test("shows the placeholder given in place of each list that is not available", 
   await expect.element(fields.getByRole("textbox", { name: /^Nombre/ })).toBeVisible();
 });
 
-test("offers no way to create a brand or a tag when no creation is given", async () => {
+test("offers no way to create a brand when no creation is given", async () => {
   const fields = await renderFields();
-  await expect.element(fields.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
+  await userEvent.fill(fields.getByRole("combobox", { name: /^Marca/ }), "Serenísima");
+
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
   expect(fields.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+});
+
+test("offers no way to create a category when no creation is given", async () => {
+  const fields = await renderFields();
+
+  await userEvent.fill(fields.getByRole("combobox", { name: /^Categoría/ }), "Fiambres");
+
+  expect(page.getByRole("option", { name: /^Crear categoría/ }).query()).toBeNull();
+});
+
+test("offers no way to create a tag when no creation is given", async () => {
+  const fields = await renderFields();
+
   await userEvent.click(fields.getByRole("button", { name: "Agregar distintivo" }));
+
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
   expect(page.getByRole("menuitem", { name: "Crear distintivo…" }).query()).toBeNull();
 });
 
-test("starts creating a brand or a tag through the creation given", async () => {
+test("starts creating a brand with the typed text from the entry the brand selector offers, and a tag through its menu", async () => {
   const brands = brandCreation();
   const tags = tagCreation();
   const fields = await renderFields({
@@ -184,12 +212,44 @@ test("starts creating a brand or a tag through the creation given", async () => 
     tags: { state: "loaded", items: [sinTacc], creation: tags },
   });
 
-  await userEvent.click(fields.getByRole("button", { name: "Nueva marca" }));
+  expect(fields.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+  await userEvent.fill(fields.getByRole("combobox", { name: /^Marca/ }), "Serenísima");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Serenísima»" }));
   await userEvent.click(fields.getByRole("button", { name: "Agregar distintivo" }));
   await userEvent.click(page.getByRole("menuitem", { name: "Crear distintivo…" }));
 
-  expect(brands.start).toHaveBeenCalledTimes(1);
+  expect(brands.start).toHaveBeenCalledExactlyOnceWith("Serenísima");
   expect(tags.start).toHaveBeenCalledTimes(1);
+});
+
+test("offers no brand creation entry when the typed text matches a brand", async () => {
+  const brands = brandCreation();
+  const fields = await renderFields({
+    brands: { state: "loaded", items: [granuz], creation: brands },
+  });
+
+  await userEvent.fill(fields.getByRole("combobox", { name: /^Marca/ }), "gran");
+
+  await expect.element(page.getByRole("option", { name: "Granuz" })).toBeVisible();
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
+});
+
+test("starts creating a category with the typed text from the entry the category selector offers", async () => {
+  const categories = stackedCreation<CategorySummary>();
+  const fields = await renderFields({
+    categories: {
+      state: "loaded",
+      choice: {
+        options: [{ value: "c4700000-0000-4000-8000-000000000001", label: "Almacén › Yerbas" }],
+        creation: { recordKind: "categoría", onCreate: categories.start },
+      },
+    },
+  });
+
+  await userEvent.fill(fields.getByRole("combobox", { name: /^Categoría/ }), "Fiambres");
+  await userEvent.click(page.getByRole("option", { name: "Crear categoría «Fiambres»" }));
+
+  expect(categories.start).toHaveBeenCalledExactlyOnceWith("Fiambres");
 });
 
 test("offers the active brands and tags, and the brand and tag just created though the lists do not hold them yet", async () => {
@@ -225,15 +285,35 @@ const ALMACEN = "c4700000-0000-4000-8000-000000000011";
 const BEBIDAS = "c4700000-0000-4000-8000-000000000012";
 const LACTEOS = "c4700000-0000-4000-8000-000000000013";
 
+test("keeps the category selector with only the creation entry when there are no categories to choose from", async () => {
+  const categories = stackedCreation<CategorySummary>();
+  const fields = await renderFields({
+    categories: {
+      state: "loaded",
+      choice: {
+        options: [],
+        creation: { recordKind: "categoría", onCreate: categories.start },
+      },
+    },
+  });
+
+  await userEvent.fill(fields.getByRole("combobox", { name: /^Categoría/ }), "Fiambres");
+  await userEvent.click(page.getByRole("option", { name: "Crear categoría «Fiambres»" }));
+
+  expect(categories.start).toHaveBeenCalledExactlyOnceWith("Fiambres");
+});
+
 test("typing in the category offers only the matching categories, and choosing one selects it", async () => {
   const fields = await renderFields({
     categories: {
       state: "loaded",
-      options: [
-        { value: ALMACEN, label: "Almacén" },
-        { value: BEBIDAS, label: "Bebidas" },
-        { value: LACTEOS, label: "Lácteos" },
-      ],
+      choice: {
+        options: [
+          { value: ALMACEN, label: "Almacén" },
+          { value: BEBIDAS, label: "Bebidas" },
+          { value: LACTEOS, label: "Lácteos" },
+        ],
+      },
     },
   });
 

@@ -5,29 +5,17 @@ import {
   productEditBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
-import {
-  Button,
-  FieldGroup,
-  InlineNotice,
-  Modal,
-  SharedFieldError,
-  useRequestForm,
-} from "@purosur/ui";
+import { Button, FieldGroup, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { BarcodeChips, useBarcodeChips } from "../platform/barcode-chips";
 import { barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
-import { categorySelectOptions } from "../platform/category-path";
+import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
+import { creatableChoice } from "../platform/creatable-options";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
-import {
-  BrandFieldWithCreation,
-  brandFieldHelp,
-  brandOptions,
-  useStackedBrandCreation,
-  withCreatedBrand,
-} from "../platform/product-brand-field";
+import { brandFieldHelp, brandOptions, withCreatedBrand } from "../platform/product-brand-field";
 import {
   EMPTY_PRODUCT_FORM,
   NET_CONTENT_UNIT_OPTIONS,
@@ -38,8 +26,11 @@ import { TagsField, useStackedTagCreation, withCreatedTags } from "../platform/p
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { type ProductReload, useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
+import type { createCategory } from "./categories-api";
+import { NewCategoryModal } from "./new-category-modal";
 import { productDescription } from "./product-description";
 import {
   categoryNameOf,
@@ -58,6 +49,7 @@ import type { editProduct } from "./products-api";
 export type EditProductModalServices = {
   editProduct: typeof editProduct;
   createBrand: typeof createBrand;
+  createCategory: typeof createCategory;
   createTag: typeof createTag;
 };
 
@@ -91,7 +83,7 @@ export function EditProductModal({
   tags,
   services,
 }: EditProductModalProps) {
-  const { editProduct, createBrand, createTag } = services;
+  const { editProduct, createBrand, createCategory, createTag } = services;
   const sendToMyAccount = useSendToMyAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
@@ -185,8 +177,12 @@ export function EditProductModal({
   const markCatalogStale = useMarkCatalogStale();
   const refreshCatalog = useRefreshCatalog();
   const catalog = { markStale: markCatalogStale, refresh: refreshCatalog };
-  const brandCreation = useStackedBrandCreation(
-    (brandId) => form.setFieldValue("brandId", brandId),
+  const brandCreation = useStackedCreation<BrandSummary>(
+    (brand) => form.setFieldValue("brandId", brand.id),
+    catalog,
+  );
+  const categoryCreation = useStackedCreation<CategorySummary>(
+    (category) => form.setFieldValue("categoryId", category.id),
     catalog,
   );
   const tagCreation = useStackedTagCreation(
@@ -195,6 +191,7 @@ export function EditProductModal({
   );
   const closeForm = () => {
     brandCreation.finish();
+    categoryCreation.finish();
     tagCreation.finish();
     onClose();
   };
@@ -210,11 +207,24 @@ export function EditProductModal({
       setNotice(null);
       setReloading(false);
       brandCreation.reset();
+      categoryCreation.reset();
       tagCreation.reset();
     }
-  }, [open, target, reset, chips.reset, brandCreation.reset, tagCreation.reset]);
+  }, [
+    open,
+    target,
+    reset,
+    chips.reset,
+    brandCreation.reset,
+    categoryCreation.reset,
+    tagCreation.reset,
+  ]);
 
-  const categoryOptions = categorySelectOptions(categories);
+  const offeredCategories = [...withCreatedCategory(categories, categoryCreation.created)];
+  const categoryChoice = creatableChoice(categorySelectOptions(offeredCategories), {
+    recordKind: "categoría",
+    onCreate: categoryCreation.start,
+  });
 
   async function handleReload() {
     if (!target) {
@@ -350,30 +360,17 @@ export function EditProductModal({
             {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
           </form.AppField>
           <form.AppField name="categoryId">
-            {(field) =>
-              categoryOptions ? (
-                <field.ComboBox label="Categoría" options={categoryOptions} required />
-              ) : (
-                <FieldGroup label="Categoría" required>
-                  <SharedFieldError>{() => null}</SharedFieldError>
-                </FieldGroup>
-              )
-            }
+            {(field) => <field.ComboBox label="Categoría" required {...categoryChoice} />}
           </form.AppField>
           <form.AppField name="brandId">
             {(field) => {
               const offered = withCreatedBrand(brands, brandCreation.created);
               return (
-                <BrandFieldWithCreation
-                  disabled={busy}
-                  onCreateBrand={brandCreation.start}
-                  select={
-                    <field.ComboBox
-                      label="Marca"
-                      options={brandOptions(offered, keptBrandId)}
-                      {...brandFieldHelp(offered, field.state.value)}
-                    />
-                  }
+                <field.ComboBox
+                  label="Marca"
+                  options={brandOptions(offered, keptBrandId)}
+                  {...brandFieldHelp(offered, field.state.value)}
+                  creation={{ recordKind: "marca", onCreate: brandCreation.start }}
                 />
               );
             }}
@@ -410,11 +407,21 @@ export function EditProductModal({
           <form.AppField name="barcodes">{() => <BarcodeChips chips={chips} />}</form.AppField>
           <NewBrandModal
             open={brandCreation.open}
+            initialName={brandCreation.initialName}
             context="Marcas"
             createBrand={createBrand}
             onCreated={brandCreation.select}
             onClose={brandCreation.close}
             onSessionEnded={onSessionEnded}
+          />
+          <NewCategoryModal
+            open={categoryCreation.open}
+            initialName={categoryCreation.initialName}
+            onClose={categoryCreation.close}
+            onCreated={categoryCreation.select}
+            onSessionEnded={onSessionEnded}
+            createCategory={createCategory}
+            categories={offeredCategories}
           />
           <NewTagModal
             open={tagCreation.open}

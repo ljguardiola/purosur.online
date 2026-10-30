@@ -3,12 +3,13 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import type { CreatedProduct } from "../platform/creation-parts";
 import type { GenerateInternalBarcodeOutcome } from "../platform/internal-barcodes-api";
 import { radioLabel } from "../platform/test-support/radio-label";
 import { render } from "../shell/test-support/render-with-router";
 import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
 import { fillNewProductFieldsExceptBarcodes, scanInputOf } from "./test-support/product-form";
-import { driedFruits, groceries } from "./test-support/products";
+import { driedFruits, groceries, honey } from "./test-support/products";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.
@@ -20,6 +21,7 @@ function createServices(overrides: Partial<NewProductModalServices> = {}): NewPr
   return {
     createProduct: vi.fn(),
     createBrand: vi.fn(),
+    createCategory: vi.fn(),
     createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     ...overrides,
@@ -30,7 +32,8 @@ type ModalOptions = {
   categories?: CategorySummary[];
   brands?: BrandSummary[];
   onClose?: () => void;
-  onCreated?: () => void;
+  onCreated?: (product: CreatedProduct) => void;
+  initialName?: string;
   onSessionEnded?: () => void;
 };
 
@@ -42,6 +45,7 @@ function modalElement(open: boolean, services: NewProductModalServices, options:
           open={open}
           onClose={options.onClose ?? (() => {})}
           onCreated={options.onCreated ?? (() => {})}
+          {...(options.initialName === undefined ? {} : { initialName: options.initialName })}
           onSessionEnded={options.onSessionEnded ?? (() => {})}
           categories={options.categories ?? [groceries, driedFruits]}
           brands={options.brands ?? []}
@@ -85,7 +89,7 @@ function pendingGenerate(services: NewProductModalServices) {
 
 test("creates a product with a net content", async () => {
   const services = createServices();
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const onCreated = vi.fn();
   const { dialog } = await renderModal(services, { onCreated });
 
@@ -111,11 +115,20 @@ test("creates a product with a net content", async () => {
     netContent: { quantity: 1.5, unit: "KG" },
   });
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
+  expect(onCreated).toHaveBeenCalledWith({ ...honey, brandName: null });
+});
+
+test("opens with the given name already typed in the description", async () => {
+  const { dialog } = await renderModal(createServices(), { initialName: "Pasta de maní" });
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Pasta de maní");
 });
 
 test("creates the product with Ctrl+Enter pressed from the field being typed in", async () => {
   const services = createServices();
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const onCreated = vi.fn();
   const { dialog } = await renderModal(services, { onCreated });
   await fillNewProductFieldsExceptBarcodes(dialog);
@@ -317,11 +330,11 @@ test("shows the name-too-long error on create, without calling the API", async (
   expect(services.createProduct).not.toHaveBeenCalled();
 });
 
-test("shows no category selector when there are no categories yet, and still blocks creating without one", async () => {
+test("keeps the category selector when there are no categories yet, and still blocks creating without one", async () => {
   const services = createServices();
   const { dialog } = await renderModal(services, { categories: [] });
 
-  expect(dialog.getByRole("button", { name: /Categoría/ }).query()).toBeNull();
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
   await userEvent.click(radioLabel(dialog, "Por unidad"));
   await scanCode(scanInputOf(dialog), "12345");
@@ -481,7 +494,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
     kind: "ok",
     code: "2000000000015",
   });
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const { dialog } = await renderModal(services);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Ensalada de fruta 300 g");
   await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
@@ -623,7 +636,8 @@ async function fillNewProduct(dialog: Locator) {
 }
 
 async function openStackedNewBrandModal(productDialog: Locator) {
-  await userEvent.click(productDialog.getByRole("button", { name: "Nueva marca" }));
+  await userEvent.fill(brandSelect(productDialog), "Dulcor");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Dulcor»" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
   await expect.element(brandDialog).toBeVisible();
   return brandDialog;
@@ -647,7 +661,7 @@ test("a new product starts with no brand, offering only the active brands by nam
 
 test("creates a product with no brand", async () => {
   const services = createServices();
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
   const { dialog } = await renderModal(services, { brands: [granuz] });
 
   await fillNewProduct(dialog);
@@ -657,10 +671,14 @@ test("creates a product with no brand", async () => {
   expect(services.createProduct).toHaveBeenCalledWith(expect.objectContaining({ brandId: null }));
 });
 
-test("creates a product with the brand chosen", async () => {
+test("creates a product with the brand chosen and hands it back with the brand's name", async () => {
   const services = createServices();
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
-  const { dialog } = await renderModal(services, { brands: [granuz] });
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "ok",
+    product: { ...honey, brandId: granuz.id },
+  });
+  const onCreated = vi.fn();
+  const { dialog } = await renderModal(services, { brands: [granuz], onCreated });
 
   await fillNewProduct(dialog);
   await userEvent.click(brandSelect(dialog));
@@ -671,13 +689,22 @@ test("creates a product with the brand chosen", async () => {
   expect(services.createProduct).toHaveBeenCalledWith(
     expect.objectContaining({ brandId: "b7a4d000-0000-4000-8000-000000000001" }),
   );
+  await expect.poll(() => onCreated.mock.calls.length).toBe(1);
+  expect(onCreated).toHaveBeenCalledWith({ ...honey, brandId: granuz.id, brandName: "Granuz" });
 });
 
 test("creates a brand in a modal stacked over the product form, then selects it without losing what was typed", async () => {
   const services = createServices();
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
-  const { screen, dialog: productDialog } = await renderModal(services, { brands: [granuz] });
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "ok",
+    product: { ...honey, brandId: dulcor.id },
+  });
+  const onCreated = vi.fn();
+  const { screen, dialog: productDialog } = await renderModal(services, {
+    brands: [granuz],
+    onCreated,
+  });
   await fillNewProduct(productDialog);
 
   const brandDialog = await openStackedNewBrandModal(productDialog);
@@ -705,6 +732,8 @@ test("creates a brand in a modal stacked over the product form, then selects it 
     tagIds: [],
     netContent: null,
   });
+  await expect.poll(() => onCreated.mock.calls.length).toBe(1);
+  expect(onCreated).toHaveBeenCalledWith({ ...honey, brandId: dulcor.id, brandName: "Dulcor" });
 });
 
 test("a brand name already taken shows the error in the stacked modal and keeps the product form", async () => {
@@ -776,4 +805,55 @@ test("has no accessibility violations with the brand modal stacked over the prod
   await openStackedNewBrandModal(dialog);
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+const serenisima: BrandSummary = {
+  ...dulcor,
+  id: "b7a4d000-0000-4000-8000-000000000010",
+  name: "Serenísima",
+};
+
+test("typing a brand that does not exist offers to create it, opening the brand modal with the typed name", async () => {
+  const { dialog } = await renderModal(createServices(), { brands: [granuz] });
+
+  await userEvent.fill(brandSelect(dialog), "Serenísima");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Serenísima»" }));
+
+  const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });
+  await expect
+    .element(brandDialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Serenísima");
+});
+
+test("typing part of an existing brand offers it and no creation entry", async () => {
+  const { dialog } = await renderModal(createServices(), { brands: [serenisima] });
+
+  await userEvent.fill(brandSelect(dialog), "seren");
+
+  await expect.element(page.getByRole("option", { name: "Serenísima" })).toBeVisible();
+  expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
+});
+
+test("has no separate button to create a brand beside the brand selector", async () => {
+  const { dialog } = await renderModal(createServices(), { brands: [granuz] });
+  await expect.element(brandSelect(dialog)).toBeVisible();
+
+  expect(dialog.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
+});
+
+test("Ctrl+Enter pressed in the stacked brand modal creates the brand and not the product", async () => {
+  const services = createServices();
+  vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: serenisima });
+  const { dialog } = await renderModal(services, { brands: [granuz] });
+  await fillNewProduct(dialog);
+  await userEvent.fill(brandSelect(dialog), "Serenísima");
+  await userEvent.click(page.getByRole("option", { name: "Crear marca «Serenísima»" }));
+  await expect.element(page.getByRole("dialog", { name: "Nueva marca" })).toBeVisible();
+
+  await userEvent.keyboard("{Control>}{Enter}{/Control}");
+
+  await expect.poll(() => vi.mocked(services.createBrand).mock.calls.length).toBe(1);
+  expect(services.createBrand).toHaveBeenCalledWith({ name: "Serenísima" });
+  await expect.element(brandSelect(dialog)).toHaveValue("Serenísima");
+  expect(services.createProduct).not.toHaveBeenCalled();
 });

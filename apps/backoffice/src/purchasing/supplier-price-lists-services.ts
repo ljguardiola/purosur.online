@@ -4,7 +4,7 @@ import {
   refreshSupplierPriceList,
   uploadSupplierPriceList,
 } from "./supplier-price-lists-api";
-import { fetchSuppliers } from "./suppliers-api";
+import { createSupplier, fetchSuppliers } from "./suppliers-api";
 import type { UploadSupplierPriceListModalServices } from "./upload-supplier-price-list-modal";
 
 export type SupplierPriceListsScreenServices = {
@@ -18,4 +18,5 @@ export const defaultSupplierPriceListsScreenServices: SupplierPriceListsScreenSe
   uploadSupplierPriceList,
   loadSupplierPriceListWebPage,
   fetchSuppliers,
+  createSupplier,
 };

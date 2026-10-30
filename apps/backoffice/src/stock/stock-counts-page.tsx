@@ -14,6 +14,7 @@ export function StockCountsPage(): ReactElement {
   return (
     <StockCountsScreen
       access={session}
+      productCreationModal={services.productCreationModal}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}

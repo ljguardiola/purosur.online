@@ -20,6 +20,7 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { AreaTopBar } from "../shell/area-top-bar";
+import { type BackofficeAccess, canManageSuppliers } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
 import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
@@ -31,6 +32,7 @@ import type { SupplierPriceListsScreenServices } from "./supplier-price-lists-se
 import { UploadSupplierPriceListModal } from "./upload-supplier-price-list-modal";
 
 export type SupplierPriceListsScreenProps = {
+  access: BackofficeAccess;
   filters: SupplierPriceListsFilters;
   onFiltersChange: (filters: SupplierPriceListsFilters) => void;
   onOpenReview: (listId: string) => void;
@@ -86,6 +88,7 @@ function readNoticeOf(
 }
 
 export function SupplierPriceListsScreen({
+  access,
   filters,
   onFiltersChange,
   onOpenReview,
@@ -294,6 +297,7 @@ export function SupplierPriceListsScreen({
       <UploadSupplierPriceListModal
         open={upload !== null}
         initialSupplierId={upload?.supplierId ?? null}
+        mayCreateSupplier={canManageSuppliers(access)}
         services={services}
         onUploaded={() => {
           setUpload(null);

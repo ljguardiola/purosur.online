@@ -95,24 +95,25 @@ async function watchedChoices() {
   return { client, reads, refresh: result.current };
 }
 
-test("marking the product creation choices stale marks the brands and the tags out of date without reading them, and leaves the categories alone", async () => {
+test("marking the product creation choices stale marks the brands, the tags and the categories out of date without reading them", async () => {
   const { client, reads, refresh } = await watchedChoices();
 
   await refresh.markStale();
 
   expect(client.getQueryState(purchasingKeys.productCreationBrands)?.isInvalidated).toBe(true);
   expect(client.getQueryState(purchasingKeys.productCreationTags)?.isInvalidated).toBe(true);
-  expect(client.getQueryState(purchasingKeys.productCreationCategories)?.isInvalidated).toBe(false);
+  expect(client.getQueryState(purchasingKeys.productCreationCategories)?.isInvalidated).toBe(true);
   expect(reads.brands).toHaveBeenCalledTimes(1);
   expect(reads.tags).toHaveBeenCalledTimes(1);
+  expect(reads.categories).toHaveBeenCalledTimes(1);
 });
 
-test("refreshing the product creation choices reads the brands and the tags again, and not the categories", async () => {
+test("refreshing the product creation choices reads the brands, the tags and the categories again", async () => {
   const { reads, refresh } = await watchedChoices();
 
   await refresh.refresh();
 
   expect(reads.brands).toHaveBeenCalledTimes(2);
   expect(reads.tags).toHaveBeenCalledTimes(2);
-  expect(reads.categories).toHaveBeenCalledTimes(1);
+  expect(reads.categories).toHaveBeenCalledTimes(2);
 });

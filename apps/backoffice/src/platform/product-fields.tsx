@@ -1,17 +1,13 @@
 import type { BrandSummary, TagSummary } from "@purosur/contracts";
-import { FieldGroup, type Option, type Options, withFieldGroup } from "@purosur/ui";
+import { FieldGroup, type Option, withFieldGroup } from "@purosur/ui";
 import type { ReactNode } from "react";
 import { BarcodeChips } from "./barcode-chips";
-import {
-  BrandFieldWithCreation,
-  brandFieldHelp,
-  brandOptions,
-  type StackedBrandCreation,
-  withCreatedBrand,
-} from "./product-brand-field";
+import type { CreatableChoice } from "./creatable-options";
+import { brandFieldHelp, brandOptions, withCreatedBrand } from "./product-brand-field";
 import { EMPTY_PRODUCT_FORM, NET_CONTENT_UNIT_OPTIONS } from "./product-form";
 import { type StackedTagCreation, TagsField, withCreatedTags } from "./product-tags-field";
 import { SALE_UNIT_OPTIONS } from "./sale-unit-options";
+import type { StackedCreation } from "./stacked-creation";
 
 type Choices<Item, Creation> =
   | { state: "loaded"; items: Item[]; creation: Creation | null }
@@ -27,11 +23,18 @@ export const PRODUCT_GROUP_FIELDS = {
   tagIds: "tagIds",
 } as const;
 
+function creationEntry(
+  recordKind: string,
+  creation: { start: (typedName: string) => void } | null,
+): { creation?: { recordKind: string; onCreate: (typedText: string) => void } } {
+  return creation === null ? {} : { creation: { recordKind, onCreate: creation.start } };
+}
+
 type ProductFieldsProps = {
   categories:
-    | { state: "loaded"; options: Options<Option<string>> }
+    | { state: "loaded"; choice: CreatableChoice<Option<string>> }
     | { state: "unavailable"; placeholder: ReactNode };
-  brands: Choices<BrandSummary, StackedBrandCreation>;
+  brands: Choices<BrandSummary, StackedCreation<BrandSummary>>;
   tags: Choices<TagSummary, StackedTagCreation>;
   chips: Parameters<typeof BarcodeChips>[0]["chips"];
   generation: NonNullable<Parameters<typeof BarcodeChips>[0]["generation"]>;
@@ -55,8 +58,8 @@ export const ProductFields = withFieldGroup({
               <field.ComboBox
                 label="Categoría"
                 placeholder="Elegí una categoría"
-                options={categories.options}
                 required
+                {...categories.choice}
               />
             )}
           </group.AppField>
@@ -67,21 +70,12 @@ export const ProductFields = withFieldGroup({
           <group.AppField name="brandId">
             {(field) => {
               const offered = withCreatedBrand(brands.items, brands.creation?.created ?? null);
-              const select = (
+              return (
                 <field.ComboBox
                   label="Marca"
                   options={brandOptions(offered, null)}
                   {...brandFieldHelp(offered, field.state.value)}
-                />
-              );
-              const creation = brands.creation;
-              return creation === null ? (
-                select
-              ) : (
-                <BrandFieldWithCreation
-                  disabled={disabled}
-                  onCreateBrand={creation.start}
-                  select={select}
+                  {...creationEntry("marca", brands.creation)}
                 />
               );
             }}

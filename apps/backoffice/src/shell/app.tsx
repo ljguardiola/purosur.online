@@ -28,6 +28,11 @@ import type { MercadoPagoRefundsScreenServices } from "../payments/mercado-pago-
 import type { OutsideRefundsScreenServices } from "../payments/outside-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
+import type {
+  CategoryCreationModal,
+  ProductCreationModal,
+  RoleCreationModal,
+} from "../platform/creation-parts";
 import { createQueryClient } from "../platform/query-client";
 import type { DiscountsListScreenServices } from "../pricing/discounts-list-services";
 import type { PricesListScreenServices } from "../pricing/prices-list-services";
@@ -130,6 +135,9 @@ export type AppServices = {
   cashSessionClosesScreen: CashSessionClosesScreenServices;
   cashMovementsScreen: CashMovementsScreenServices;
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
+  categoryCreationModal: CategoryCreationModal;
+  productCreationModal: ProductCreationModal;
+  roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
   mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
   outsideRefundsScreen: OutsideRefundsScreenServices;
@@ -177,6 +185,9 @@ type ShellServiceName =
   | "areaTopBarAlertsCount"
   | "areaTopBarUnbilledDeferredSales"
   | "reportFiltersRegisterFilter"
+  | "categoryCreationModal"
+  | "productCreationModal"
+  | "roleCreationModal"
   | "accountFooter"
   | "screenFailure";
 
@@ -205,6 +216,18 @@ const defaultRouteServices: RouteServices = {
   reportFiltersRegisterFilter: lazyScreen(
     () => import("../register/report-register-filter"),
     "ReportRegisterFilter",
+  ),
+  categoryCreationModal: lazyScreen(
+    () => import("../catalog/create-category-from-selector-modal"),
+    "CreateCategoryFromSelectorModal",
+  ),
+  productCreationModal: lazyScreen(
+    () => import("../catalog/create-product-from-selector-modal"),
+    "CreateProductFromSelectorModal",
+  ),
+  roleCreationModal: lazyScreen(
+    () => import("../permissions/create-role-from-selector-modal"),
+    "CreateRoleFromSelectorModal",
   ),
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,

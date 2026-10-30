@@ -12,6 +12,7 @@ export function NewPurchasePage(): ReactElement {
   return (
     <NewPurchaseScreen
       access={session}
+      productCreationModal={services.productCreationModal}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.newPurchaseScreen ?? defaultNewPurchaseScreenServices}
     />

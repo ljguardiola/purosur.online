@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import { ARGENTINA_ZONE_RULES } from "../platform/test-support/zone-rules";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith } from "../shell/test-support/backoffice-access";
@@ -64,6 +65,7 @@ function renderScreen(
       <main>
         <StockCountsScreen
           access={access}
+          productCreationModal={StubProductCreationModal}
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
@@ -505,5 +507,27 @@ test.each([
     await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
 
     await expect.element(screen.getByRole("status").getByText(notice)).toBeInTheDocument();
+  },
+);
+
+test.each([
+  [
+    "a session that manages products and categories",
+    accessWith("stock_counts", "stock_area", "products_and_categories"),
+    true,
+  ],
+  ["a session that only counts", COUNTER_WHO_VIEWS, false],
+])(
+  "offers creating a product from the new count's product selector to %s only if allowed",
+  async (_name, access, offered) => {
+    const screen = await renderScreen(createServices(), { access });
+    await expect.element(screen.getByText(almonds.name)).toBeVisible();
+    const dialog = await openNewCount(screen);
+
+    await userEvent.fill(dialog.getByRole("combobox", { name: /Producto/ }), "Yerba mate");
+
+    const entry = screen.getByRole("option", { name: "Crear producto «Yerba mate»" });
+    await expect.element(offered ? entry : screen.getByText("Sin resultados")).toBeVisible();
+    expect(entry.query() !== null).toBe(offered);
   },
 );

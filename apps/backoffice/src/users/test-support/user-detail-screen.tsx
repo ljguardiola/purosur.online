@@ -2,6 +2,7 @@ import { expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BranchUser } from "../../platform/branch-users-api";
 import type { RoleSummary } from "../../platform/roles-api";
+import { StubRoleCreationModal } from "../../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
@@ -114,6 +115,7 @@ export function renderScreen(
         userId={userId}
         signedInUserId={signedInUserId}
         access={access}
+        roleCreationModal={StubRoleCreationModal}
         credentialSections={credentialSections}
         services={services}
         onSessionEnded={onSessionEnded}

@@ -3,6 +3,8 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import {
   type SupplierPriceListsFilters,
@@ -35,6 +37,7 @@ function createServices(
     loadSupplierPriceListWebPage: vi.fn(),
     refreshSupplierPriceList: vi.fn(),
     fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    createSupplier: vi.fn(),
     ...overrides,
   };
 }
@@ -54,7 +57,9 @@ function screenElement(
     onFiltersChange = () => {},
     onOpenReview = () => {},
     onSessionEnded = () => {},
+    access = ADMINISTRATOR_ACCESS,
   }: {
+    access?: BackofficeAccess;
     filters?: SupplierPriceListsFilters;
     onFiltersChange?: (filters: SupplierPriceListsFilters) => void;
     onOpenReview?: (listId: string) => void;
@@ -65,6 +70,7 @@ function screenElement(
     <FieldSizeProvider size="backoffice">
       <main>
         <SupplierPriceListsScreen
+          access={access}
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
@@ -583,4 +589,46 @@ test("has no accessibility violations once loaded, and with the upload modal ope
   await expectNoAccessibilityViolations(screen.container);
   await userEvent.click(screen.getByRole("button", { name: "Cargar una lista" }));
   await expectNoAccessibilityViolations(document.body);
+});
+
+async function openUploadAndTypeUnknownSupplier(access: BackofficeAccess) {
+  const services = createServices();
+  vi.mocked(services.fetchSuppliers).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: READ_LIST.supplier.id,
+        name: "Distribuidora Andina",
+        cuit: null,
+        contact: null,
+        note: null,
+        active: true,
+        version: 1,
+      },
+    ],
+  });
+  const screen = await loaded(services, [], { access });
+  await userEvent.click(screen.getByRole("button", { name: "Cargar una lista" }));
+  await userEvent.fill(
+    screen.getByRole("dialog").getByRole("combobox", { name: /^Proveedor/ }),
+    "Distribuidora Sur",
+  );
+  return screen;
+}
+
+test("offers creating the supplier typed in the upload to a person who manages suppliers", async () => {
+  const screen = await openUploadAndTypeUnknownSupplier(
+    accessWith("supplier_price_lists", "suppliers"),
+  );
+
+  await expect
+    .element(screen.getByRole("option", { name: "Crear proveedor «Distribuidora Sur»" }))
+    .toBeVisible();
+});
+
+test("offers no supplier creation in the upload to a person who cannot manage suppliers", async () => {
+  const screen = await openUploadAndTypeUnknownSupplier(accessWith("supplier_price_lists"));
+
+  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  expect(screen.getByRole("option", { name: /^Crear proveedor/ }).query()).toBeNull();
 });

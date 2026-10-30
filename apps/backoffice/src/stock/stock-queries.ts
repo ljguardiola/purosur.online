@@ -300,6 +300,11 @@ export function useAssemblyBatchLotQuery(
   });
 }
 
+export function useMarkStockStale(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: stockKey, refetchType: "none" });
+}
+
 export function useRefreshStock(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: stockKey });

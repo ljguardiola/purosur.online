@@ -2,7 +2,7 @@ import { createBrand } from "../platform/brand-creation-api";
 import { generateInternalBarcode } from "../platform/internal-barcodes-api";
 import { createTag } from "../platform/tag-creation-api";
 import { fetchBrands } from "./brands-api";
-import { fetchCategories } from "./categories-api";
+import { createCategory, fetchCategories } from "./categories-api";
 import type { DeactivateProductModalServices } from "./deactivate-product-modal";
 import type { EditProductModalServices } from "./edit-product-modal";
 import type { NewProductModalServices } from "./new-product-modal";
@@ -39,6 +39,7 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
   fetchBrands,
   fetchTags,
   createBrand,
+  createCategory,
   createTag,
   generateInternalBarcode,
   printLabels,

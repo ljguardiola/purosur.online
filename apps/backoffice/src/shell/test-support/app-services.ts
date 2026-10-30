@@ -1,8 +1,11 @@
 import { vi } from "vitest";
 import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
 import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner";
+import { CreateCategoryFromSelectorModal } from "../../catalog/create-category-from-selector-modal";
+import { CreateProductFromSelectorModal } from "../../catalog/create-product-from-selector-modal";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
+import { CreateRoleFromSelectorModal } from "../../permissions/create-role-from-selector-modal";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import { ARGENTINA_ZONE_RULES } from "../../platform/test-support/zone-rules";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
@@ -93,6 +96,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
         .fn()
         .mockResolvedValue({ kind: "ok", value: { tags: [], taggedProductCount: 0 } }),
       createBrand: vi.fn(),
+      createCategory: vi.fn(),
       createTag: vi.fn(),
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),
@@ -119,6 +123,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       }),
       createDiscount: vi.fn(),
       editDiscount: vi.fn(),
+      createTag: vi.fn(),
     },
     expiringLotsScreen: {
       fetchExpiringLots: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -196,6 +201,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       loadSupplierPriceListWebPage: vi.fn(),
       refreshSupplierPriceList: vi.fn(),
       fetchSuppliers: vi.fn().mockReturnValue(new Promise(() => {})),
+      createSupplier: vi.fn(),
     },
     supplierPriceListReviewScreen: {
       fetchSupplierPriceListReview: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -222,6 +228,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       registerPurchase: vi.fn(),
+      createSupplier: vi.fn(),
+      createPackaging: vi.fn(),
     },
     salesByDayScreen: {
       fetchSalesReport: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -278,6 +286,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     reportFiltersRegisterFilter: ReportRegisterFilter,
+    categoryCreationModal: CreateCategoryFromSelectorModal,
+    productCreationModal: CreateProductFromSelectorModal,
+    roleCreationModal: CreateRoleFromSelectorModal,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
