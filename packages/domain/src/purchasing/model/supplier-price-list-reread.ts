@@ -44,8 +44,9 @@ function takeFirst<T>(candidates: T[], matches: (candidate: T) => boolean): T | 
   return index === -1 ? undefined : candidates.splice(index, 1)[0];
 }
 
-// Rows with the same key are matched in order of appearance. A row of the list or a removed item
-// answers a printing only while its item has the same price on the page.
+// A printing first answers a row of the list, then a removed item, of the same item at the same
+// price, whatever the order the page prints them in. Only a printing left over takes a remaining
+// row of the same item, in order of appearance, at its new price; any other is added.
 export function planReread<TLink>(
   currentRows: readonly RereadCurrentRow[],
   removedItems: readonly RemovedItem[],
@@ -54,29 +55,46 @@ export function planReread<TLink>(
   const unmatchedRows = currentRows.map((row) => ({ row, key: supplierItemKey(row) }));
   const unmatchedRemoved = [...removedItems];
   const remainingRemovedItems: RemovedItem[] = [];
-  const rows: RereadPlannedRow<TLink>[] = [];
+  const printings = pageRows.map(({ link, ...fields }) => ({
+    link,
+    fields,
+    key: supplierItemKey(fields),
+  }));
 
-  for (const { link, ...fields } of pageRows) {
-    const key = supplierItemKey(fields);
-    const current = takeFirst(unmatchedRows, (other) => sameSupplierItemKey(other.key, key));
-    if (current) {
-      rows.push({
-        kind: current.row.priceCents === fields.priceCents ? "kept" : "repriced",
-        rowId: current.row.id,
-        ...fields,
-      });
-      continue;
-    }
-    const removed = takeFirst(
-      unmatchedRemoved,
-      (other) => sameSupplierItemKey(other.key, key) && other.priceCents === fields.priceCents,
+  const answers = printings.map(({ fields, key }) => {
+    const samePrice = (other: { key: SupplierItemKey; priceCents: number | null }) =>
+      sameSupplierItemKey(other.key, key) && other.priceCents === fields.priceCents;
+    const kept = takeFirst(unmatchedRows, ({ row, key: rowKey }) =>
+      samePrice({ key: rowKey, priceCents: row.priceCents }),
     );
+    if (kept) {
+      return { kind: "kept" as const, rowId: kept.row.id };
+    }
+    const removed = takeFirst(unmatchedRemoved, samePrice);
     if (removed) {
       remainingRemovedItems.push(removed);
-      continue;
+      return { kind: "removed" as const };
     }
-    rows.push({ kind: "added", link, ...fields });
-  }
+    return null;
+  });
+
+  const rows: RereadPlannedRow<TLink>[] = [];
+  printings.forEach(({ link, fields, key }, index) => {
+    const answer = answers[index];
+    if (answer?.kind === "removed") {
+      return;
+    }
+    if (answer?.kind === "kept") {
+      rows.push({ kind: "kept", rowId: answer.rowId, ...fields });
+      return;
+    }
+    const repriced = takeFirst(unmatchedRows, (other) => sameSupplierItemKey(other.key, key));
+    rows.push(
+      repriced
+        ? { kind: "repriced", rowId: repriced.row.id, ...fields }
+        : { kind: "added", link, ...fields },
+    );
+  });
 
   return {
     rows,

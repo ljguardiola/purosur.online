@@ -37,8 +37,7 @@ export function readNoticeContent(notice: ReadNotice): ReadNoticeContent {
         tone: "success",
         icon: <Check />,
         title: "Actualizando la lista",
-        description:
-          "Se está leyendo la página de nuevo. Mientras tanto, la lista se puede revisar.",
+        description: "Se está leyendo la página de nuevo. Cuando termine, se ven los cambios.",
       };
     case "alreadyReading":
       return {

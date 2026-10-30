@@ -3,10 +3,12 @@ import {
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
   type RemovedItem,
   type RereadPlan,
+  rereadCountsTowardDailyExtractionCap,
   type SaleUnit,
   type SupplierItemKey,
   type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
+  type SupplierPriceListRereadState,
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
   sameSupplierItemKey,
@@ -122,18 +124,19 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       .select({ state: supplierPriceListRereads.state, sentOn: supplierPriceListRereads.sentOn })
       .from(supplierPriceListRereads)
       .where(eq(supplierPriceListRereads.locationId, locationId));
-    const extractions = [
-      ...lists.map((list) => ({
-        state: list.state as SupplierPriceListState,
-        sentOn: list.sentOn,
-      })),
-      ...rereads.map((reread) => ({
-        state: (reread.state === "READING" ? "READING" : "EXTRACTED") as SupplierPriceListState,
-        sentOn: reread.sentOn,
-      })),
-    ];
-    return extractions.filter((extraction) => countsTowardDailyExtractionCap(extraction, day))
-      .length;
+    const countedLists = lists.filter((list) =>
+      countsTowardDailyExtractionCap(
+        { state: list.state as SupplierPriceListState, sentOn: list.sentOn },
+        day,
+      ),
+    );
+    const countedRereads = rereads.filter((reread) =>
+      rereadCountsTowardDailyExtractionCap(
+        { state: reread.state as SupplierPriceListRereadState, sentOn: reread.sentOn },
+        day,
+      ),
+    );
+    return countedLists.length + countedRereads.length;
   }
 
   async findSupplier(supplierId: string): Promise<FindPriceListSupplierResult> {

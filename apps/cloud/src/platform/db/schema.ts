@@ -3265,6 +3265,7 @@ export const supplierPriceListRereads = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id),
+    requestOrder: bigserial("request_order", { mode: "number" }).notNull(),
     state: text("state").notNull(),
     readFailure: text("read_failure"),
     fileContentKind: text("file_content_kind").notNull(),

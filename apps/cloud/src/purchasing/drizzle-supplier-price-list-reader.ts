@@ -33,7 +33,7 @@ const unpricedRowCount = sql<number>`(select count(*)::int from ${supplierPriceL
 const rereading = sql<boolean>`exists (select 1 from ${supplierPriceListRereads} where ${supplierPriceListRereads.listId} = ${supplierPriceLists.id} and ${supplierPriceListRereads.state} = 'READING')`;
 const lastRereadFailure = sql<
   string | null
->`(select ${supplierPriceListRereads.readFailure} from ${supplierPriceListRereads} where ${supplierPriceListRereads.listId} = ${supplierPriceLists.id} order by ${supplierPriceListRereads.requestedAt} desc limit 1)`;
+>`(select ${supplierPriceListRereads.readFailure} from ${supplierPriceListRereads} where ${supplierPriceListRereads.listId} = ${supplierPriceLists.id} order by ${supplierPriceListRereads.requestOrder} desc limit 1)`;
 
 const listingColumns = {
   id: supplierPriceLists.id,

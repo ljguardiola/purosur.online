@@ -6,8 +6,8 @@ import {
 } from "../model/supplier-item.js";
 import {
   decideConfirmation,
-  isSupplierPriceListUnderReview,
   pricedRows,
+  supplierPriceListConfirmationBlock,
 } from "../model/supplier-price-list.js";
 import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
 
@@ -42,11 +42,12 @@ export function confirmSupplierPriceList(
     if (locked.kind === "not_found") {
       return { kind: "not_found" };
     }
-    if (!isSupplierPriceListUnderReview(locked.list.state)) {
-      return { kind: "not_editable" };
-    }
-    if (locked.list.reread !== null) {
-      return { kind: "rereading" };
+    const block = supplierPriceListConfirmationBlock({
+      state: locked.list.state,
+      rereading: locked.list.reread !== null,
+    });
+    if (block !== null) {
+      return { kind: block };
     }
     if (locked.list.version !== input.version) {
       return { kind: "stale_version" };

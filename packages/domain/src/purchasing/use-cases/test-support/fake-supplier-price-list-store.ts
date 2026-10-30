@@ -3,8 +3,10 @@ import { type SupplierItemKey, supplierItemKey } from "../../model/supplier-item
 import {
   countsTowardDailyExtractionCap,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
+  rereadCountsTowardDailyExtractionCap,
   type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
+  type SupplierPriceListRereadState,
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
 } from "../../model/supplier-price-list.js";
@@ -67,7 +69,7 @@ export interface FakeSupplierPriceListReread {
   byteSize: number;
   requestedAt: Date;
   requestedBy: string;
-  state: "READING" | "READ" | "READ_FAILED";
+  state: SupplierPriceListRereadState;
   readFailure: SupplierPriceListReadFailure | null;
   sentAt: Date | null;
   sentOn: string | null;
@@ -194,17 +196,14 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
   }
 
   async extractionsCountedOn(locationId: string, day: string): Promise<number> {
-    const extractions = [
-      ...this.state.lists,
-      ...this.state.rereads.map((reread) => ({
-        ...reread,
-        state: reread.state === "READING" ? ("READING" as const) : ("EXTRACTED" as const),
-      })),
-    ];
-    return extractions.filter(
-      (extraction) =>
-        extraction.locationId === locationId && countsTowardDailyExtractionCap(extraction, day),
-    ).length;
+    const lists = this.state.lists.filter(
+      (list) => list.locationId === locationId && countsTowardDailyExtractionCap(list, day),
+    );
+    const rereads = this.state.rereads.filter(
+      (reread) =>
+        reread.locationId === locationId && rereadCountsTowardDailyExtractionCap(reread, day),
+    );
+    return lists.length + rereads.length;
   }
 
   async findSupplier(supplierId: string): Promise<FindPriceListSupplierResult> {

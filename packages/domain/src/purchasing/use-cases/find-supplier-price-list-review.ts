@@ -13,6 +13,8 @@ import {
   isSupplierPriceListUnderReview,
   mayCreateProductFromRow,
   maySupplierPriceListRowBeLinked,
+  standingRereadFailure,
+  supplierPriceListConfirmationBlock,
 } from "../model/supplier-price-list.js";
 import { type ListedSupplierPriceList, replacedListIds } from "./list-supplier-price-lists.js";
 import type {
@@ -124,6 +126,7 @@ export async function findSupplierPriceListReview(
     kind: "found",
     list: {
       ...list,
+      lastRereadFailure: standingRereadFailure(list),
       replaced: replacedListIds(await reader.lists()).has(listId),
       requiresVatRate: requiresVatRate(list.pricesIncludeVat),
     },
@@ -134,7 +137,7 @@ export async function findSupplierPriceListReview(
     },
     actions: {
       changeRows: underReview,
-      confirm: underReview,
+      confirm: supplierPriceListConfirmationBlock(list) === null,
       discard: isSupplierPriceListDiscardable(list.state),
       linkRows: rowsMayBeLinked,
       markRowsReviewed: underReview,

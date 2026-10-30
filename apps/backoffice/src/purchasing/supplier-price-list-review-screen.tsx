@@ -384,7 +384,7 @@ export function SupplierPriceListReviewScreen({
             tone="info"
             icon={<LoaderCircle />}
             title={status.label}
-            description="La lista se está actualizando desde la página. No se puede confirmar hasta que termine."
+            description="Se está leyendo la página de nuevo. Cuando termine, se ven los cambios."
           />
         ) : null}
         {status?.rereadFailure === undefined ? null : (

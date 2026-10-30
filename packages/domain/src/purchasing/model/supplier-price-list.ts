@@ -27,6 +27,8 @@ export const SUPPLIER_PRICE_LIST_READ_FAILURES = [
 
 export type SupplierPriceListReadFailure = (typeof SUPPLIER_PRICE_LIST_READ_FAILURES)[number];
 
+export type SupplierPriceListRereadState = "READING" | "READ" | "READ_FAILED";
+
 export const SUPPLIER_PRICE_LIST_PDF_MAX_BYTES = 20 * 1024 * 1024;
 
 export const SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH = 255;
@@ -60,12 +62,38 @@ export function countsTowardDailyExtractionCap(
   return list.sentOn === day || (list.state === "READING" && list.sentOn === null);
 }
 
+// A reread counts like a list: on the day it was sent, or while it waits to be sent.
+export function rereadCountsTowardDailyExtractionCap(
+  reread: { state: SupplierPriceListRereadState; sentOn: string | null },
+  day: string,
+): boolean {
+  return reread.sentOn === day || (reread.state === "READING" && reread.sentOn === null);
+}
+
 export function isSupplierPriceListUnderReview(state: SupplierPriceListState): boolean {
   return state === "EXTRACTED";
 }
 
 export function maySupplierPriceListBeReadAgain(state: SupplierPriceListState): boolean {
   return state === "EXTRACTED" || state === "READ_FAILED";
+}
+
+export function supplierPriceListConfirmationBlock(list: {
+  state: SupplierPriceListState;
+  rereading: boolean;
+}): "not_editable" | "rereading" | null {
+  if (!isSupplierPriceListUnderReview(list.state)) {
+    return "not_editable";
+  }
+  return list.rereading ? "rereading" : null;
+}
+
+// Once a list may no longer be read again, why its latest reread failed no longer matters.
+export function standingRereadFailure(list: {
+  state: SupplierPriceListState;
+  lastRereadFailure: SupplierPriceListReadFailure | null;
+}): SupplierPriceListReadFailure | null {
+  return maySupplierPriceListBeReadAgain(list.state) ? list.lastRereadFailure : null;
 }
 
 export function maySupplierPriceListRowBeLinked(state: SupplierPriceListState): boolean {

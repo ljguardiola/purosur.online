@@ -11295,6 +11295,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "request_order": {
+          "name": "request_order",
+          "type": "bigserial",
+          "primaryKey": false,
+          "notNull": true
+        },
         "state": {
           "name": "state",
           "type": "text",

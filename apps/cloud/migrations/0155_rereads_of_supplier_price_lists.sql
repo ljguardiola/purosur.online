@@ -12,6 +12,7 @@ CREATE TABLE "supplier_price_list_rereads" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"list_id" uuid NOT NULL,
 	"location_id" uuid NOT NULL,
+	"request_order" bigserial NOT NULL,
 	"state" text NOT NULL,
 	"read_failure" text,
 	"file_content_kind" text NOT NULL,

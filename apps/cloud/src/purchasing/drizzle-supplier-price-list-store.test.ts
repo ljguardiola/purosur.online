@@ -1,19 +1,18 @@
 import type { AiCallRecord } from "@purosur/domain/purchasing/use-cases";
-import { asc, eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
 import {
   auditLog,
   supplierItemPrices,
   supplierItems,
   supplierPriceListAiCalls,
   supplierPriceListExtractionCaps,
-  supplierPriceListRows,
-  supplierPriceLists,
 } from "../platform/db/schema.js";
-import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
-import { insertActor, insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
+import {
+  NOW,
+  supplierPriceListStoreDatabase,
+} from "./test-support/drizzle-supplier-price-list-store.js";
+import { insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertPriceListRows,
@@ -22,85 +21,65 @@ import {
   insertSupplierItemPrice,
 } from "./test-support/supplier-price-list-fixtures.js";
 
-const NOW = new Date("2026-03-10T15:00:00.000Z");
-
-let testDatabase: TestDatabase;
-let db: TestDatabase["db"];
-let actorId: string;
-let locationId: string;
-let supplierId: string;
-
-const store = () => new DrizzleSupplierPriceListStore(db, () => NOW);
-
-beforeAll(async () => {
-  testDatabase = await buildTestDatabase();
-  db = testDatabase.db;
-});
-
-afterAll(async () => {
-  await testDatabase.close();
-});
-
-beforeEach(async () => {
-  await testDatabase.clear();
-  actorId = await insertActor(db);
-  locationId = await seededLocationId(db);
-  supplierId = await insertSupplier(db, { actorId });
-});
-
-async function listRow(listId: string) {
-  const [row] = await db.select().from(supplierPriceLists).where(eq(supplierPriceLists.id, listId));
-  return row;
-}
-
-function rowsOf(listId: string) {
-  return db
-    .select()
-    .from(supplierPriceListRows)
-    .where(eq(supplierPriceListRows.listId, listId))
-    .orderBy(asc(supplierPriceListRows.position));
-}
+const context = supplierPriceListStoreDatabase();
 
 describe("the branch's extraction quota", () => {
   it("answers the default cap of ten when the branch has set none", async () => {
-    const quota = await store().transaction((tx) => tx.lockBranchExtractionQuota(locationId));
+    const quota = await context
+      .store()
+      .transaction((tx) => tx.lockBranchExtractionQuota(context.locationId));
 
     expect(quota).toEqual({ cap: 10 });
   });
 
   it("answers the cap the branch has set", async () => {
-    await db.insert(supplierPriceListExtractionCaps).values({ locationId, dailyCap: 3 });
+    await context.db
+      .insert(supplierPriceListExtractionCaps)
+      .values({ locationId: context.locationId, dailyCap: 3 });
 
-    const quota = await store().transaction((tx) => tx.lockBranchExtractionQuota(locationId));
+    const quota = await context
+      .store()
+      .transaction((tx) => tx.lockBranchExtractionQuota(context.locationId));
 
     expect(quota).toEqual({ cap: 3 });
   });
 });
 
 describe("the extractions counted on a day", () => {
-  const count = (day: string, branch = locationId) =>
-    store().transaction((tx) => tx.extractionsCountedOn(branch, day));
+  const count = (day: string, branch = context.locationId) =>
+    context.store().transaction((tx) => tx.extractionsCountedOn(branch, day));
 
   it("counts a list sent on that day whatever its outcome", async () => {
     const sentOn = "2026-03-10";
     for (const state of ["EXTRACTED", "READ_FAILED", "REVIEWED", "DISCARDED"] as const) {
-      await insertPriceList(db, { supplierId, locationId, actorId, state, sentOn });
+      await insertPriceList(context.db, {
+        supplierId: context.supplierId,
+        locationId: context.locationId,
+        actorId: context.actorId,
+        state,
+        sentOn,
+      });
     }
 
     expect(await count("2026-03-10")).toBe(4);
   });
 
   it("counts a list still waiting to be read, because it will be sent", async () => {
-    await insertPriceList(db, { supplierId, locationId, actorId, state: "READING" });
+    await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+      state: "READING",
+    });
 
     expect(await count("2026-03-10")).toBe(1);
   });
 
   it("does not count a list sent on another day", async () => {
-    await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
       sentOn: "2026-03-09",
     });
@@ -109,10 +88,10 @@ describe("the extractions counted on a day", () => {
   });
 
   it("does not count a list that failed before it was sent", async () => {
-    await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "READ_FAILED",
       readFailure: "reading_unavailable",
     });
@@ -121,10 +100,10 @@ describe("the extractions counted on a day", () => {
   });
 
   it("counts a list that was sent and is still waiting for its answer on the day it was sent", async () => {
-    await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "READING",
       sentAt: NOW,
       sentOn: "2026-03-10",
@@ -135,7 +114,12 @@ describe("the extractions counted on a day", () => {
   });
 
   it("counts only the lists of the branch asked about", async () => {
-    await insertPriceList(db, { supplierId, locationId, actorId, state: "READING" });
+    await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+      state: "READING",
+    });
 
     expect(await count("2026-03-10", "00000000-0000-4000-8000-000000000000")).toBe(0);
   });
@@ -143,17 +127,22 @@ describe("the extractions counted on a day", () => {
 
 describe("finding the supplier", () => {
   it("answers whether the supplier exists and is active", async () => {
-    const inactiveId = await insertSupplier(db, { actorId, active: false });
+    const inactiveId = await insertSupplier(context.db, {
+      actorId: context.actorId,
+      active: false,
+    });
 
-    const [found, inactive, missing] = await store().transaction((tx) =>
-      Promise.all([
-        tx.findSupplier(supplierId),
-        tx.findSupplier(inactiveId),
-        tx.findSupplier("00000000-0000-4000-8000-000000000000"),
-      ]),
-    );
+    const [found, inactive, missing] = await context
+      .store()
+      .transaction((tx) =>
+        Promise.all([
+          tx.findSupplier(context.supplierId),
+          tx.findSupplier(inactiveId),
+          tx.findSupplier("00000000-0000-4000-8000-000000000000"),
+        ]),
+      );
 
-    expect(found).toEqual({ kind: "found", supplier: { id: supplierId, active: true } });
+    expect(found).toEqual({ kind: "found", supplier: { id: context.supplierId, active: true } });
     expect(inactive).toEqual({ kind: "found", supplier: { id: inactiveId, active: false } });
     expect(missing).toEqual({ kind: "not_found" });
   });
@@ -161,22 +150,22 @@ describe("finding the supplier", () => {
 
 describe("inserting and locking a list", () => {
   it("inserts a list reading, at version 1, with the file's details and who uploaded it", async () => {
-    const { id } = await store().transaction((tx) =>
+    const { id } = await context.store().transaction((tx) =>
       tx.insertList({
-        supplierId,
-        locationId,
+        supplierId: context.supplierId,
+        locationId: context.locationId,
         sourceKind: "PDF",
         fileName: "lista.pdf",
         contentKind: "PDF",
         byteSize: 2_048,
         uploadedAt: NOW,
-        actorId,
+        actorId: context.actorId,
       }),
     );
 
-    expect(await listRow(id)).toMatchObject({
-      supplierId,
-      locationId,
+    expect(await context.listRow(id)).toMatchObject({
+      supplierId: context.supplierId,
+      locationId: context.locationId,
       sourceKind: "PDF",
       fileName: "lista.pdf",
       sourceUrl: null,
@@ -185,7 +174,7 @@ describe("inserting and locking a list", () => {
       state: "READING",
       version: 1,
       uploadedAt: NOW,
-      uploadedBy: actorId,
+      uploadedBy: context.actorId,
       sentAt: null,
       sentOn: null,
       listDate: null,
@@ -193,20 +182,20 @@ describe("inserting and locking a list", () => {
   });
 
   it("inserts a list read from a web page with its address and the kind of page kept", async () => {
-    const { id } = await store().transaction((tx) =>
+    const { id } = await context.store().transaction((tx) =>
       tx.insertList({
-        supplierId,
-        locationId,
+        supplierId: context.supplierId,
+        locationId: context.locationId,
         sourceKind: "WEB_PAGE",
         sourceUrl: "https://distribuidora-sur.example/lista",
         contentKind: "HTML",
         byteSize: 4_096,
         uploadedAt: NOW,
-        actorId,
+        actorId: context.actorId,
       }),
     );
 
-    expect(await listRow(id)).toMatchObject({
+    expect(await context.listRow(id)).toMatchObject({
       sourceKind: "WEB_PAGE",
       fileName: null,
       sourceUrl: "https://distribuidora-sur.example/lista",
@@ -218,36 +207,42 @@ describe("inserting and locking a list", () => {
   });
 
   it("finds where a list came from: a file, or the address of a web page", async () => {
-    const pdfId = await insertPriceList(db, { supplierId, locationId, actorId });
-    const webPageId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const pdfId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
+    const webPageId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       sourceUrl: "https://distribuidora-sur.example/lista",
     });
 
-    const [pdf, webPage, missing] = await store().transaction((tx) =>
-      Promise.all([
-        tx.findListSource(pdfId),
-        tx.findListSource(webPageId),
-        tx.findListSource("00000000-0000-4000-8000-000000000000"),
-      ]),
-    );
+    const [pdf, webPage, missing] = await context
+      .store()
+      .transaction((tx) =>
+        Promise.all([
+          tx.findListSource(pdfId),
+          tx.findListSource(webPageId),
+          tx.findListSource("00000000-0000-4000-8000-000000000000"),
+        ]),
+      );
 
-    expect(pdf).toEqual({ kind: "found", supplierId, source: { kind: "PDF" } });
+    expect(pdf).toEqual({ kind: "found", supplierId: context.supplierId, source: { kind: "PDF" } });
     expect(webPage).toEqual({
       kind: "found",
-      supplierId,
+      supplierId: context.supplierId,
       source: { kind: "WEB_PAGE", url: "https://distribuidora-sur.example/lista" },
     });
     expect(missing).toEqual({ kind: "not_found" });
   });
 
   it("locks a list with its state, version, dates and the prices of its rows in order", async () => {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
       listDate: "2026-03-01",
       pricesIncludeVat: false,
@@ -255,15 +250,15 @@ describe("inserting and locking a list", () => {
       sentOn: "2026-03-10",
       version: 4,
     });
-    await insertPriceListRows(db, listId, [{ priceCents: 500 }, { priceCents: null }]);
+    await insertPriceListRows(context.db, listId, [{ priceCents: 500 }, { priceCents: null }]);
 
-    const locked = await store().transaction((tx) => tx.lockList(listId));
+    const locked = await context.store().transaction((tx) => tx.lockList(listId));
 
     expect(locked).toEqual({
       kind: "locked",
       list: {
         id: listId,
-        supplierId,
+        supplierId: context.supplierId,
         sourceKind: "PDF",
         contentKind: "PDF",
         state: "EXTRACTED",
@@ -271,7 +266,7 @@ describe("inserting and locking a list", () => {
         listDate: "2026-03-01",
         pricesIncludeVat: false,
         sentAt: NOW,
-        actorId,
+        actorId: context.actorId,
         reread: null,
         rowPrices: [500, null],
       },
@@ -279,15 +274,15 @@ describe("inserting and locking a list", () => {
   });
 
   it("locks a list read from a web page with the kind of content kept for it", async () => {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       sourceUrl: "https://distribuidora-sur.example/lista",
       contentKind: "HTML",
     });
 
-    const locked = await store().transaction((tx) => tx.lockList(listId));
+    const locked = await context.store().transaction((tx) => tx.lockList(listId));
 
     expect(locked).toMatchObject({
       kind: "locked",
@@ -296,9 +291,9 @@ describe("inserting and locking a list", () => {
   });
 
   it("answers not found for a list that does not exist", async () => {
-    const locked = await store().transaction((tx) =>
-      tx.lockList("00000000-0000-4000-8000-000000000000"),
-    );
+    const locked = await context
+      .store()
+      .transaction((tx) => tx.lockList("00000000-0000-4000-8000-000000000000"));
 
     expect(locked).toEqual({ kind: "not_found" });
   });
@@ -306,11 +301,15 @@ describe("inserting and locking a list", () => {
 
 describe("recording what the reading found", () => {
   it("marks the list sent with the instant and the Argentina day", async () => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
 
-    await store().transaction((tx) => tx.markSent(listId, NOW, "2026-03-10"));
+    await context.store().transaction((tx) => tx.markSent(listId, NOW, "2026-03-10"));
 
-    expect(await listRow(listId)).toMatchObject({
+    expect(await context.listRow(listId)).toMatchObject({
       state: "READING",
       sentAt: NOW,
       sentOn: "2026-03-10",
@@ -318,11 +317,15 @@ describe("recording what the reading found", () => {
   });
 
   it("records the proposed rows in the order found, the list date and the instant, and advances the version", async () => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
-    const packagingId = await insertPackaging(db, { productId, actorId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
+    const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
+    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
 
-    await store().transaction((tx) =>
+    await context.store().transaction((tx) =>
       tx.recordExtraction(listId, "2026-02-27", false, [
         {
           description: "Yerba 1 kg",
@@ -345,7 +348,7 @@ describe("recording what the reading found", () => {
       ]),
     );
 
-    expect(await listRow(listId)).toMatchObject({
+    expect(await context.listRow(listId)).toMatchObject({
       state: "EXTRACTED",
       listDate: "2026-02-27",
       pricesIncludeVat: false,
@@ -353,7 +356,7 @@ describe("recording what the reading found", () => {
       readFailure: null,
       version: 2,
     });
-    expect(await rowsOf(listId)).toMatchObject([
+    expect(await context.rowsOf(listId)).toMatchObject([
       {
         position: 0,
         description: "Yerba 1 kg",
@@ -383,11 +386,15 @@ describe("recording what the reading found", () => {
   });
 
   it("records why the reading ended without rows and advances the version", async () => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
 
-    await store().transaction((tx) => tx.recordReadFailure(listId, "no_items_found"));
+    await context.store().transaction((tx) => tx.recordReadFailure(listId, "no_items_found"));
 
-    expect(await listRow(listId)).toMatchObject({
+    expect(await context.listRow(listId)).toMatchObject({
       state: "READ_FAILED",
       readFailure: "no_items_found",
       version: 2,
@@ -397,22 +404,28 @@ describe("recording what the reading found", () => {
 
 describe("reviewing the rows", () => {
   it("locks a row of the list and refuses one of another list or that does not exist", async () => {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
     });
-    const otherListId = await insertPriceList(db, { supplierId, locationId, actorId });
-    const [rowId] = await insertPriceListRows(db, listId, [{ presentation: "Caja x10" }]);
+    const otherListId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
+    const [rowId] = await insertPriceListRows(context.db, listId, [{ presentation: "Caja x10" }]);
 
-    const [own, foreign, missing] = await store().transaction((tx) =>
-      Promise.all([
-        tx.lockRow(listId, rowId as string),
-        tx.lockRow(otherListId, rowId as string),
-        tx.lockRow(listId, "00000000-0000-4000-8000-000000000000"),
-      ]),
-    );
+    const [own, foreign, missing] = await context
+      .store()
+      .transaction((tx) =>
+        Promise.all([
+          tx.lockRow(listId, rowId as string),
+          tx.lockRow(otherListId, rowId as string),
+          tx.lockRow(listId, "00000000-0000-4000-8000-000000000000"),
+        ]),
+      );
 
     expect(own).toEqual({
       kind: "locked",
@@ -423,29 +436,31 @@ describe("reviewing the rows", () => {
   });
 
   it("sets a row's price, advances the list's version and audits the change with who made it", async () => {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
     });
-    const [rowId] = await insertPriceListRows(db, listId, [
+    const [rowId] = await insertPriceListRows(context.db, listId, [
       { priceCents: null },
       { priceCents: 700 },
     ]);
 
-    await store().transaction((tx) => tx.setRowPrice(listId, rowId as string, 1_250, actorId));
+    await context
+      .store()
+      .transaction((tx) => tx.setRowPrice(listId, rowId as string, 1_250, context.actorId));
 
-    expect((await rowsOf(listId)).map((row) => row.priceCents)).toEqual([1_250, 700]);
-    expect((await listRow(listId))?.version).toBe(2);
-    const audits = await db
+    expect((await context.rowsOf(listId)).map((row) => row.priceCents)).toEqual([1_250, 700]);
+    expect((await context.listRow(listId))?.version).toBe(2);
+    const audits = await context.db
       .select()
       .from(auditLog)
       .where(eq(auditLog.entityId, rowId as string));
     expect(audits).toMatchObject([
       {
         entity: "supplier_price_list_row",
-        actorId,
+        actorId: context.actorId,
         previousValue: { priceCents: null },
         newValue: { priceCents: 1_250 },
       },
@@ -453,29 +468,31 @@ describe("reviewing the rows", () => {
   });
 
   it("removes a row, advances the list's version and audits the removal with the row it had", async () => {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
     });
-    const [firstId, secondId] = await insertPriceListRows(db, listId, [
+    const [firstId, secondId] = await insertPriceListRows(context.db, listId, [
       { description: "Yerba 1 kg", priceCents: 900 },
       { description: "Azúcar 1 kg" },
     ]);
 
-    await store().transaction((tx) => tx.removeRow(listId, firstId as string, actorId));
+    await context
+      .store()
+      .transaction((tx) => tx.removeRow(listId, firstId as string, context.actorId));
 
-    expect((await rowsOf(listId)).map((row) => row.id)).toEqual([secondId]);
-    expect((await listRow(listId))?.version).toBe(2);
-    const audits = await db
+    expect((await context.rowsOf(listId)).map((row) => row.id)).toEqual([secondId]);
+    expect((await context.listRow(listId))?.version).toBe(2);
+    const audits = await context.db
       .select()
       .from(auditLog)
       .where(eq(auditLog.entityId, firstId as string));
     expect(audits).toMatchObject([
       {
         entity: "supplier_price_list_row",
-        actorId,
+        actorId: context.actorId,
         previousValue: { description: "Yerba 1 kg", priceCents: 900 },
         newValue: null,
       },
@@ -485,39 +502,41 @@ describe("reviewing the rows", () => {
 
 describe("closing the review", () => {
   it("confirms a list with its date, the instant and who confirmed it, and advances the version", async () => {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
     });
 
-    await store().transaction((tx) => tx.confirmList(listId, "2026-03-05", false, NOW, actorId));
+    await context
+      .store()
+      .transaction((tx) => tx.confirmList(listId, "2026-03-05", false, NOW, context.actorId));
 
-    expect(await listRow(listId)).toMatchObject({
+    expect(await context.listRow(listId)).toMatchObject({
       state: "REVIEWED",
       listDate: "2026-03-05",
       pricesIncludeVat: false,
       confirmedAt: NOW,
-      confirmedBy: actorId,
+      confirmedBy: context.actorId,
       version: 2,
     });
   });
 
   it("discards a list with the instant and who discarded it, and advances the version", async () => {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
     });
 
-    await store().transaction((tx) => tx.discardList(listId, NOW, actorId));
+    await context.store().transaction((tx) => tx.discardList(listId, NOW, context.actorId));
 
-    expect(await listRow(listId)).toMatchObject({
+    expect(await context.listRow(listId)).toMatchObject({
       state: "DISCARDED",
       discardedAt: NOW,
-      discardedBy: actorId,
+      discardedBy: context.actorId,
       version: 2,
     });
   });
@@ -525,10 +544,14 @@ describe("closing the review", () => {
 
 describe("the rows of a list", () => {
   it("lists them in the order the reading found them with their price, the link they carry and whether a person made it", async () => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
-    const packagingId = await insertPackaging(db, { productId, actorId });
-    const [firstId, secondId] = await insertPriceListRows(db, listId, [
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
+    const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
+    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
+    const [firstId, secondId] = await insertPriceListRows(context.db, listId, [
       {
         description: "Yerba 1 kg",
         code: "Y-01",
@@ -543,7 +566,7 @@ describe("the rows of a list", () => {
       { description: "Azúcar 1 kg", priceCents: null, reviewed: true },
     ]);
 
-    const rows = await store().transaction((tx) => tx.listRows(listId));
+    const rows = await context.store().transaction((tx) => tx.listRows(listId));
 
     expect(rows).toEqual([
       {
@@ -568,11 +591,17 @@ describe("the rows of a list", () => {
   });
 
   it("lists none for a list that has no rows or that does not exist", async () => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
 
-    const [empty, missing] = await store().transaction((tx) =>
-      Promise.all([tx.listRows(listId), tx.listRows("00000000-0000-4000-8000-000000000000")]),
-    );
+    const [empty, missing] = await context
+      .store()
+      .transaction((tx) =>
+        Promise.all([tx.listRows(listId), tx.listRows("00000000-0000-4000-8000-000000000000")]),
+      );
 
     expect(empty).toEqual([]);
     expect(missing).toEqual([]);
@@ -584,43 +613,56 @@ describe("a supplier's remembered items", () => {
   const description = (value: string) => ({ kind: "description" as const, value });
 
   it.each([
-    ["supplierItems", (tx: Tx, keys: Key[]) => tx.supplierItems(supplierId, keys)],
-    ["lockSupplierItems", (tx: Tx, keys: Key[]) => tx.lockSupplierItems(supplierId, keys)],
+    ["supplierItems", (tx: Tx, keys: Key[]) => tx.supplierItems(context.supplierId, keys)],
+    ["lockSupplierItems", (tx: Tx, keys: Key[]) => tx.lockSupplierItems(context.supplierId, keys)],
   ])(
     "%s answers the items with those keys, their link and the list date of their latest price",
     async (_name, find) => {
-      const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
-      const packagingId = await insertPackaging(db, { productId, actorId });
-      const olderListId = await insertPriceList(db, { supplierId, locationId, actorId });
-      const newerListId = await insertPriceList(db, { supplierId, locationId, actorId });
-      const linkedId = await insertSupplierItem(db, {
-        supplierId,
+      const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
+      const packagingId = await insertPackaging(context.db, {
+        productId,
+        actorId: context.actorId,
+      });
+      const olderListId = await insertPriceList(context.db, {
+        supplierId: context.supplierId,
+        locationId: context.locationId,
+        actorId: context.actorId,
+      });
+      const newerListId = await insertPriceList(context.db, {
+        supplierId: context.supplierId,
+        locationId: context.locationId,
+        actorId: context.actorId,
+      });
+      const linkedId = await insertSupplierItem(context.db, {
+        supplierId: context.supplierId,
         keyValue: "Y-01",
         description: "Yerba 1 kg",
         productId,
         packagingId,
         vatRate: 1_050,
       });
-      await insertSupplierItemPrice(db, {
+      await insertSupplierItemPrice(context.db, {
         itemId: linkedId,
         listId: newerListId,
         listDate: "2026-03-05",
       });
-      await insertSupplierItemPrice(db, {
+      await insertSupplierItemPrice(context.db, {
         itemId: linkedId,
         listId: olderListId,
         listDate: "2026-02-01",
       });
-      const unlinkedId = await insertSupplierItem(db, {
-        supplierId,
+      const unlinkedId = await insertSupplierItem(context.db, {
+        supplierId: context.supplierId,
         keyKind: "description",
         keyValue: "azucar 1 kg",
         description: "Azúcar 1 kg",
       });
 
-      const items = await store().transaction((tx) =>
-        find(tx, [code("Y-01"), description("azucar 1 kg"), code("never-seen")]),
-      );
+      const items = await context
+        .store()
+        .transaction((tx) =>
+          find(tx, [code("Y-01"), description("azucar 1 kg"), code("never-seen")]),
+        );
 
       expect(items).toEqual(
         expect.arrayContaining([
@@ -645,51 +687,60 @@ describe("a supplier's remembered items", () => {
   );
 
   it.each([
-    ["supplierItems", (tx: Tx, keys: Key[]) => tx.supplierItems(supplierId, keys)],
-    ["lockSupplierItems", (tx: Tx, keys: Key[]) => tx.lockSupplierItems(supplierId, keys)],
+    ["supplierItems", (tx: Tx, keys: Key[]) => tx.supplierItems(context.supplierId, keys)],
+    ["lockSupplierItems", (tx: Tx, keys: Key[]) => tx.lockSupplierItems(context.supplierId, keys)],
   ])(
     "%s leaves out the item of another supplier and one whose value is of the other kind",
     async (_name, find) => {
-      const otherSupplierId = await insertSupplier(db, { actorId });
-      await insertSupplierItem(db, { supplierId: otherSupplierId, keyValue: "Y-01" });
-      await insertSupplierItem(db, { supplierId, keyKind: "description", keyValue: "Y-01" });
+      const otherSupplierId = await insertSupplier(context.db, { actorId: context.actorId });
+      await insertSupplierItem(context.db, { supplierId: otherSupplierId, keyValue: "Y-01" });
+      await insertSupplierItem(context.db, {
+        supplierId: context.supplierId,
+        keyKind: "description",
+        keyValue: "Y-01",
+      });
 
-      const items = await store().transaction((tx) => find(tx, [code("Y-01")]));
+      const items = await context.store().transaction((tx) => find(tx, [code("Y-01")]));
 
       expect(items).toEqual([]);
     },
   );
 
   it.each([
-    ["supplierItems", (tx: Tx, keys: Key[]) => tx.supplierItems(supplierId, keys)],
-    ["lockSupplierItems", (tx: Tx, keys: Key[]) => tx.lockSupplierItems(supplierId, keys)],
+    ["supplierItems", (tx: Tx, keys: Key[]) => tx.supplierItems(context.supplierId, keys)],
+    ["lockSupplierItems", (tx: Tx, keys: Key[]) => tx.lockSupplierItems(context.supplierId, keys)],
   ])("%s answers none for no keys", async (_name, find) => {
-    await insertSupplierItem(db, { supplierId });
+    await insertSupplierItem(context.db, { supplierId: context.supplierId });
 
-    expect(await store().transaction((tx) => find(tx, []))).toEqual([]);
+    expect(await context.store().transaction((tx) => find(tx, []))).toEqual([]);
   });
 });
 
-type Tx = Parameters<Parameters<ReturnType<typeof store>["transaction"]>[0]>[0];
+type Tx = Parameters<Parameters<ReturnType<typeof context.store>["transaction"]>[0]>[0];
 type Key = { kind: "code" | "description"; value: string };
 
 describe("locking a product and its packaging", () => {
   it("answers whether the product and the packaging are active, their sale units and whose packaging it is", async () => {
-    const { id: productId } = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
-    const packagingId = await insertPackaging(db, {
+    const { id: productId } = await insertProduct(context.db, { name: "Harina", saleUnit: "KG" });
+    const packagingId = await insertPackaging(context.db, {
       productId,
-      actorId,
+      actorId: context.actorId,
       saleUnit: "KG",
       active: false,
     });
-    const { id: otherProductId } = await insertProduct(db, { name: "Yerba", active: false });
+    const { id: otherProductId } = await insertProduct(context.db, {
+      name: "Yerba",
+      active: false,
+    });
 
-    const [own, ofAnother] = await store().transaction((tx) =>
-      Promise.all([
-        tx.lockProductPackaging(productId, packagingId),
-        tx.lockProductPackaging(otherProductId, packagingId),
-      ]),
-    );
+    const [own, ofAnother] = await context
+      .store()
+      .transaction((tx) =>
+        Promise.all([
+          tx.lockProductPackaging(productId, packagingId),
+          tx.lockProductPackaging(otherProductId, packagingId),
+        ]),
+      );
 
     expect(own).toEqual({
       kind: "locked",
@@ -704,16 +755,18 @@ describe("locking a product and its packaging", () => {
   });
 
   it("answers not found for a product or a packaging that does not exist", async () => {
-    const { id: productId } = await insertProduct(db, { name: "Harina" });
-    const packagingId = await insertPackaging(db, { productId, actorId });
+    const { id: productId } = await insertProduct(context.db, { name: "Harina" });
+    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
     const missing = "00000000-0000-4000-8000-000000000000";
 
-    const [noProduct, noPackaging] = await store().transaction((tx) =>
-      Promise.all([
-        tx.lockProductPackaging(missing, packagingId),
-        tx.lockProductPackaging(productId, missing),
-      ]),
-    );
+    const [noProduct, noPackaging] = await context
+      .store()
+      .transaction((tx) =>
+        Promise.all([
+          tx.lockProductPackaging(missing, packagingId),
+          tx.lockProductPackaging(productId, missing),
+        ]),
+      );
 
     expect(noProduct).toEqual({ kind: "not_found" });
     expect(noPackaging).toEqual({ kind: "not_found" });
@@ -722,21 +775,21 @@ describe("locking a product and its packaging", () => {
 
 describe("remembering an item", () => {
   async function linkedTarget() {
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
-    const packagingId = await insertPackaging(db, { productId, actorId });
+    const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
+    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
     return { productId, packagingId };
   }
 
   function itemRows() {
-    return db.select().from(supplierItems);
+    return context.db.select().from(supplierItems);
   }
 
   it("adds an item of the supplier with its key, description and link", async () => {
     const link = { ...(await linkedTarget()), vatRate: 2_100 };
 
-    const { id } = await store().transaction((tx) =>
+    const { id } = await context.store().transaction((tx) =>
       tx.addSupplierItem({
-        supplierId,
+        supplierId: context.supplierId,
         key: { kind: "description", value: "yerba 1 kg" },
         description: "Yerba 1 Kg",
         link,
@@ -746,7 +799,7 @@ describe("remembering an item", () => {
     expect(await itemRows()).toEqual([
       {
         id,
-        supplierId,
+        supplierId: context.supplierId,
         keyKind: "description",
         keyValue: "yerba 1 kg",
         description: "Yerba 1 Kg",
@@ -758,9 +811,9 @@ describe("remembering an item", () => {
   });
 
   it("adds an item without a link", async () => {
-    await store().transaction((tx) =>
+    await context.store().transaction((tx) =>
       tx.addSupplierItem({
-        supplierId,
+        supplierId: context.supplierId,
         key: { kind: "code", value: "Y-01" },
         description: "Yerba 1 kg",
         link: null,
@@ -773,9 +826,12 @@ describe("remembering an item", () => {
   });
 
   it("changes the description of an item", async () => {
-    const itemId = await insertSupplierItem(db, { supplierId, description: "Yerba 1 kg" });
+    const itemId = await insertSupplierItem(context.db, {
+      supplierId: context.supplierId,
+      description: "Yerba 1 kg",
+    });
 
-    await store().transaction((tx) => tx.describeSupplierItem(itemId, "Yerba Suave 1 kg"));
+    await context.store().transaction((tx) => tx.describeSupplierItem(itemId, "Yerba Suave 1 kg"));
 
     expect(await itemRows()).toMatchObject([{ id: itemId, description: "Yerba Suave 1 kg" }]);
   });
@@ -783,20 +839,28 @@ describe("remembering an item", () => {
   it("remembers a link for an item, replacing the one it had and dropping its VAT rate when the link has none", async () => {
     const first = await linkedTarget();
     const second = await linkedTarget();
-    const itemId = await insertSupplierItem(db, { supplierId, ...first, vatRate: 1_050 });
+    const itemId = await insertSupplierItem(context.db, {
+      supplierId: context.supplierId,
+      ...first,
+      vatRate: 1_050,
+    });
 
-    await store().transaction((tx) =>
-      tx.rememberSupplierItemLink(itemId, { ...second, vatRate: null }),
-    );
+    await context
+      .store()
+      .transaction((tx) => tx.rememberSupplierItemLink(itemId, { ...second, vatRate: null }));
 
     expect(await itemRows()).toMatchObject([{ id: itemId, ...second, vatRate: null }]);
   });
 
   it("records the price an item had in a list, with the list's date and VAT answer and the instant", async () => {
-    const itemId = await insertSupplierItem(db, { supplierId });
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const itemId = await insertSupplierItem(context.db, { supplierId: context.supplierId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
 
-    await store().transaction((tx) =>
+    await context.store().transaction((tx) =>
       tx.recordSupplierItemPrice({
         itemId,
         listId,
@@ -806,7 +870,7 @@ describe("remembering an item", () => {
       }),
     );
 
-    expect(await db.select().from(supplierItemPrices)).toEqual([
+    expect(await context.db.select().from(supplierItemPrices)).toEqual([
       {
         itemId,
         listId,
@@ -819,16 +883,16 @@ describe("remembering an item", () => {
   });
 
   it("dates the prices of a list with the instant it is confirmed at", async () => {
-    const itemId = await insertSupplierItem(db, { supplierId });
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const itemId = await insertSupplierItem(context.db, { supplierId: context.supplierId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
     });
     const confirmedAt = new Date("2026-03-10T15:00:00.250Z");
 
-    await store().transaction(async (tx) => {
+    await context.store().transaction(async (tx) => {
       await tx.recordSupplierItemPrice({
         itemId,
         listId,
@@ -836,28 +900,28 @@ describe("remembering an item", () => {
         listDate: "2026-03-05",
         pricesIncludeVat: true,
       });
-      await tx.confirmList(listId, "2026-03-05", true, confirmedAt, actorId);
+      await tx.confirmList(listId, "2026-03-05", true, confirmedAt, context.actorId);
     });
 
-    expect(await db.select().from(supplierItemPrices)).toMatchObject([{ confirmedAt }]);
+    expect(await context.db.select().from(supplierItemPrices)).toMatchObject([{ confirmedAt }]);
   });
 });
 
 describe("linking and reviewing a row", () => {
   async function target() {
-    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
-    const packagingId = await insertPackaging(db, { productId, actorId });
+    const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
+    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
     return { productId, packagingId };
   }
 
   async function extractedListWithARow() {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
       state: "EXTRACTED",
     });
-    const [rowId] = await insertPriceListRows(db, listId, [{ description: "Yerba 1 kg" }]);
+    const [rowId] = await insertPriceListRows(context.db, listId, [{ description: "Yerba 1 kg" }]);
     return { listId, rowId: rowId as string };
   }
 
@@ -865,18 +929,20 @@ describe("linking and reviewing a row", () => {
     const { listId, rowId } = await extractedListWithARow();
     const link = { ...(await target()), vatRate: 1_050 };
 
-    await store().transaction((tx) => tx.linkRow(listId, rowId, link, actorId));
+    await context.store().transaction((tx) => tx.linkRow(listId, rowId, link, context.actorId));
 
-    expect((await rowsOf(listId))[0]).toMatchObject({
+    expect((await context.rowsOf(listId))[0]).toMatchObject({
       ...link,
       reviewed: true,
       linkedByPerson: true,
     });
-    expect((await listRow(listId))?.version).toBe(2);
-    expect(await db.select().from(auditLog).where(eq(auditLog.entityId, rowId))).toMatchObject([
+    expect((await context.listRow(listId))?.version).toBe(2);
+    expect(
+      await context.db.select().from(auditLog).where(eq(auditLog.entityId, rowId)),
+    ).toMatchObject([
       {
         entity: "supplier_price_list_row",
-        actorId,
+        actorId: context.actorId,
         previousValue: {
           productId: null,
           packagingId: null,
@@ -893,34 +959,36 @@ describe("linking and reviewing a row", () => {
     const first = { ...(await target()), vatRate: 2_100 };
     const second = { ...(await target()), vatRate: null };
     const { listId, rowId } = await extractedListWithARow();
-    await store().transaction((tx) => tx.linkRow(listId, rowId, first, actorId));
+    await context.store().transaction((tx) => tx.linkRow(listId, rowId, first, context.actorId));
 
-    await store().transaction((tx) => tx.linkRow(listId, rowId, second, actorId));
+    await context.store().transaction((tx) => tx.linkRow(listId, rowId, second, context.actorId));
 
-    const audits = await db.select().from(auditLog).where(eq(auditLog.entityId, rowId));
+    const audits = await context.db.select().from(auditLog).where(eq(auditLog.entityId, rowId));
     expect(audits.map((audit) => audit.previousValue)).toContainEqual({
       ...first,
       reviewed: true,
       linkedByPerson: true,
     });
-    expect((await rowsOf(listId))[0]).toMatchObject({ ...second, reviewed: true });
+    expect((await context.rowsOf(listId))[0]).toMatchObject({ ...second, reviewed: true });
   });
 
   it("marks a row reviewed without touching its link or making it a person's, advances the version and audits it", async () => {
     const { listId, rowId } = await extractedListWithARow();
 
-    await store().transaction((tx) => tx.markRowReviewed(listId, rowId, actorId));
+    await context.store().transaction((tx) => tx.markRowReviewed(listId, rowId, context.actorId));
 
-    expect((await rowsOf(listId))[0]).toMatchObject({
+    expect((await context.rowsOf(listId))[0]).toMatchObject({
       reviewed: true,
       linkedByPerson: false,
       productId: null,
     });
-    expect((await listRow(listId))?.version).toBe(2);
-    expect(await db.select().from(auditLog).where(eq(auditLog.entityId, rowId))).toMatchObject([
+    expect((await context.listRow(listId))?.version).toBe(2);
+    expect(
+      await context.db.select().from(auditLog).where(eq(auditLog.entityId, rowId)),
+    ).toMatchObject([
       {
         entity: "supplier_price_list_row",
-        actorId,
+        actorId: context.actorId,
         previousValue: { reviewed: false },
         newValue: { reviewed: true },
       },
@@ -943,7 +1011,7 @@ describe("recording the AI calls of an operation", () => {
   const record = (overrides: Partial<AiCallRecord> & { listId: string }): AiCallRecord => ({
     purpose: "READING",
     rowId: null,
-    actorId,
+    actorId: context.actorId,
     occurredAt: NOW,
     occurredOn: "2026-03-10",
     model: "claude-sonnet-5-5",
@@ -957,25 +1025,31 @@ describe("recording the AI calls of an operation", () => {
   });
 
   it("writes each record with the supplier and the branch of its list", async () => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
 
-    await store().transaction((tx) =>
-      tx.recordAiCalls([
-        record({ listId }),
-        record({ listId, outcome: "cut_short", costNanoUsd: null, model: "claude-sonnet-5" }),
-      ]),
-    );
+    await context
+      .store()
+      .transaction((tx) =>
+        tx.recordAiCalls([
+          record({ listId }),
+          record({ listId, outcome: "cut_short", costNanoUsd: null, model: "claude-sonnet-5" }),
+        ]),
+      );
 
-    const calls = await db.select().from(supplierPriceListAiCalls);
+    const calls = await context.db.select().from(supplierPriceListAiCalls);
     expect(calls).toHaveLength(2);
     expect(calls).toContainEqual(
       expect.objectContaining({
         listId,
         rowId: null,
         purpose: "READING",
-        supplierId,
-        locationId,
-        actorId,
+        supplierId: context.supplierId,
+        locationId: context.locationId,
+        actorId: context.actorId,
         occurredAt: NOW,
         occurredOn: "2026-03-10",
         model: "claude-sonnet-5-5",
@@ -997,29 +1071,37 @@ describe("recording the AI calls of an operation", () => {
   });
 
   it("writes nothing when it has no record", async () => {
-    await store().transaction((tx) => tx.recordAiCalls([]));
+    await context.store().transaction((tx) => tx.recordAiCalls([]));
 
-    expect(await db.select().from(supplierPriceListAiCalls)).toEqual([]);
+    expect(await context.db.select().from(supplierPriceListAiCalls)).toEqual([]);
   });
 
   it("keeps a record of a row after the row is removed from its list", async () => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
-    await insertPriceListRows(db, listId, [{}]);
-    const [row] = await rowsOf(listId);
-    await store().transaction((tx) =>
-      tx.recordAiCalls([record({ listId, purpose: "LINK_PROPOSAL", rowId: row?.id ?? "" })]),
-    );
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
+    await insertPriceListRows(context.db, listId, [{}]);
+    const [row] = await context.rowsOf(listId);
+    await context
+      .store()
+      .transaction((tx) =>
+        tx.recordAiCalls([record({ listId, purpose: "LINK_PROPOSAL", rowId: row?.id ?? "" })]),
+      );
 
-    await store().transaction((tx) => tx.removeRow(listId, row?.id ?? "", actorId));
+    await context.store().transaction((tx) => tx.removeRow(listId, row?.id ?? "", context.actorId));
 
-    expect(await db.select().from(supplierPriceListAiCalls)).toHaveLength(1);
+    expect(await context.db.select().from(supplierPriceListAiCalls)).toHaveLength(1);
   });
 
   it("refuses records of a list that does not exist", async () => {
     await expect(
-      store().transaction((tx) =>
-        tx.recordAiCalls([record({ listId: "00000000-0000-4000-8000-000000000000" })]),
-      ),
+      context
+        .store()
+        .transaction((tx) =>
+          tx.recordAiCalls([record({ listId: "00000000-0000-4000-8000-000000000000" })]),
+        ),
     ).rejects.toThrow();
   });
 
@@ -1034,28 +1116,36 @@ describe("recording the AI calls of an operation", () => {
     ["a negative token count", { inputTokens: -1 }, "supplier_price_list_ai_calls_tokens_check"],
     ["a negative cost", { costNanoUsd: -1 }, "supplier_price_list_ai_calls_cost_check"],
   ] as const)("refuses %s", async (_name, overrides, constraint) => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
 
     await expect(
-      db.insert(supplierPriceListAiCalls).values({
+      context.db.insert(supplierPriceListAiCalls).values({
         ...record({ listId }),
-        supplierId,
-        locationId,
+        supplierId: context.supplierId,
+        locationId: context.locationId,
         ...overrides,
       }),
     ).rejects.toSatisfy((error) => constraintViolatedBy(error, constraint));
   });
 
   it("writes no record when its transaction fails after recording", async () => {
-    const listId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+    });
 
     await expect(
-      store().transaction(async (tx) => {
+      context.store().transaction(async (tx) => {
         await tx.recordAiCalls([record({ listId })]);
         throw new Error("fails after recording");
       }),
     ).rejects.toThrow("fails after recording");
 
-    expect(await db.select().from(supplierPriceListAiCalls)).toEqual([]);
+    expect(await context.db.select().from(supplierPriceListAiCalls)).toEqual([]);
   });
 });
