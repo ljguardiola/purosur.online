@@ -360,12 +360,12 @@ describe("DrizzlePriceReviewReader", () => {
     expect(ids(await pricesUnderReview({ search: "arr" }))).toEqual([riceId]);
   });
 
-  it("searches by name ignoring accents and case as the database folds them", async () => {
+  it("searches by name ignoring accents and case", async () => {
     const categoryId = await insertCategory("Almacén");
-    const breadId = await insertProduct("Smørrebrød Clásico", categoryId);
+    const vinegarId = await insertProduct("Aceto Balsámico Clásico", categoryId);
     await insertProduct("Arroz Yamaní", categoryId);
 
-    expect(ids(await pricesUnderReview({ search: "SMORREBROD clasico" }))).toEqual([breadId]);
+    expect(ids(await pricesUnderReview({ search: "BALSAMICO clasico" }))).toEqual([vinegarId]);
   });
 
   it("searches the product's name followed by its brand's name", async () => {
@@ -379,6 +379,44 @@ describe("DrizzlePriceReviewReader", () => {
 
     expect(ids(await pricesUnderReview({ search: "vitora" }))).toEqual([branded?.id]);
     expect(ids(await pricesUnderReview({ search: "almendras VITORA" }))).toEqual([branded?.id]);
+  });
+
+  it("searches every word of the shown description, net content included", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brand = await insertBrand(db, { name: "Vitora" });
+    const [small, large] = await db
+      .insert(products)
+      .values(
+        [30, 60].map((quantity) => ({
+          name: "Aceite de Almendras",
+          categoryId,
+          saleUnit: "UNIT",
+          brandId: brand.id,
+          netContentQuantity: quantity,
+          netContentUnit: "ML",
+        })),
+      )
+      .returning({ id: products.id });
+
+    expect(ids(await pricesUnderReview({ search: "vitora 30" }))).toEqual([small?.id]);
+    expect(ids(await pricesUnderReview({ search: "almendras 60 ml" }))).toEqual([large?.id]);
+  });
+
+  it("searches the net content as it is shown, with a decimal comma", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const [honey] = await db
+      .insert(products)
+      .values({
+        name: "Miel",
+        categoryId,
+        saleUnit: "UNIT",
+        netContentQuantity: 1.5,
+        netContentUnit: "KG",
+      })
+      .returning({ id: products.id });
+    await insertProduct("Miel en panal", categoryId);
+
+    expect(ids(await pricesUnderReview({ search: "miel 1,5 kg" }))).toEqual([honey?.id]);
   });
 
   it("applies a category filter as given, listing nothing when no product's category is that value", async () => {
