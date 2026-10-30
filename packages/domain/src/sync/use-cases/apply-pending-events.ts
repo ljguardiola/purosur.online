@@ -2,6 +2,7 @@ import { creditWithinInvoice, type VoucherReference } from "../../fiscal/index.j
 import {
   isRefundSentByCloud,
   mercadoPagoPaymentIsBacked,
+  RETURN_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "../../payments/index.js";
 import { returnHistoryBreaks } from "../../returns/index.js";
@@ -161,7 +162,15 @@ async function recordFact(
       return;
     case "sale_returned":
       await tx.record(fact, event);
-      return applyStock(tx.applyReturnStock(fact.saleReturn, event));
+      await applyStock(tx.applyReturnStock(fact.saleReturn, event));
+      if (
+        fact.saleReturn.refunds.some(({ method }) =>
+          isRefundSentByCloud({ method, origin: RETURN_REFUND_ORIGIN }),
+        )
+      ) {
+        await tx.requestMercadoPagoRefundFollow();
+      }
+      return;
     default:
       return tx.record(fact, event);
   }
