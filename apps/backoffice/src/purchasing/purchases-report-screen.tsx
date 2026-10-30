@@ -11,12 +11,12 @@ import {
 import { ShoppingCart } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ReportFilters } from "../shell/report-filters";
+import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { PurchasesReportScreenServices } from "./purchases-report-services";
 import { usePurchasesReportQuery } from "./purchasing-queries";
 import { reportMonthText } from "./report-month-text";
-import type { ReportPeriodFilters } from "./report-period-filters";
 
 export type PurchasesReportScreenProps = {
   filters: ReportPeriodFilters;

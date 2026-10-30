@@ -3,13 +3,10 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
 import { formatCentsWithUnit } from "./money";
-import {
-  type PricesPastReviewDeadlineReportFilters,
-  pricesPastReviewDeadlineReportFilters,
-} from "./prices-past-review-deadline-report-filters";
 import { PricesPastReviewDeadlineReportScreen } from "./prices-past-review-deadline-report-screen";
 import type { PricesPastReviewDeadlineReportScreenServices } from "./prices-past-review-deadline-report-services";
 import {
@@ -38,13 +35,13 @@ function listed(report = pricesPastReviewDeadlineReport()) {
 
 function Harness({
   services,
-  initial = pricesPastReviewDeadlineReportFilters.parse({}),
+  initial = reportPeriodSearch.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
 }: {
   services: PricesPastReviewDeadlineReportScreenServices;
-  initial?: PricesPastReviewDeadlineReportFilters;
-  onFiltersChange?: (filters: PricesPastReviewDeadlineReportFilters) => void;
+  initial?: ReportPeriodFilters;
+  onFiltersChange?: (filters: ReportPeriodFilters) => void;
   onSessionEnded?: () => void;
 }) {
   const [filters, setFilters] = useState(initial);
@@ -176,7 +173,7 @@ test("asks for the period the URL carries", async () => {
   const services = listed();
 
   await renderScreen(services, {
-    initial: pricesPastReviewDeadlineReportFilters.parse({ from: "2026-12-01", to: "2026-12-31" }),
+    initial: reportPeriodSearch.parse({ from: "2026-12-01", to: "2026-12-31" }),
   });
 
   await expect

@@ -8,12 +8,9 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
-import {
-  type ExpiringLotsReportFilters,
-  expiringLotsReportFilters,
-} from "./expiring-lots-report-filters";
 import { ExpiringLotsReportScreen } from "./expiring-lots-report-screen";
 import type { ExpiringLotsReportScreenServices } from "./expiring-lots-report-services";
 import {
@@ -40,13 +37,13 @@ function listed(report = expiringLotsReport()) {
 
 function Harness({
   services,
-  initial = expiringLotsReportFilters.parse({}),
+  initial = reportPeriodSearch.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
 }: {
   services: ExpiringLotsReportScreenServices;
-  initial?: ExpiringLotsReportFilters;
-  onFiltersChange?: (filters: ExpiringLotsReportFilters) => void;
+  initial?: ReportPeriodFilters;
+  onFiltersChange?: (filters: ReportPeriodFilters) => void;
   onSessionEnded?: () => void;
 }) {
   const [filters, setFilters] = useState(initial);
@@ -193,7 +190,7 @@ test("asks for the period the URL carries", async () => {
   const services = listed();
 
   await renderScreen(services, {
-    initial: expiringLotsReportFilters.parse({ from: "2026-12-01", to: "2026-12-31" }),
+    initial: reportPeriodSearch.parse({ from: "2026-12-01", to: "2026-12-31" }),
   });
 
   await expect

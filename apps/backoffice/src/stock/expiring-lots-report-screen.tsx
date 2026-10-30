@@ -17,16 +17,16 @@ import { CalendarClock } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { ReportFilters } from "../shell/report-filters";
+import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
-import type { ExpiringLotsReportFilters } from "./expiring-lots-report-filters";
 import type { ExpiringLotsReportScreenServices } from "./expiring-lots-report-services";
 import { formatStockValue } from "./stock-cost";
 import { useExpiringLotsReportQuery } from "./stock-queries";
 
 export type ExpiringLotsReportScreenProps = {
-  filters: ExpiringLotsReportFilters;
-  onFiltersChange: (filters: ExpiringLotsReportFilters) => void;
+  filters: ReportPeriodFilters;
+  onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
   services: ExpiringLotsReportScreenServices;
 };
