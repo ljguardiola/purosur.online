@@ -91,7 +91,7 @@ export default defineConfig({
         node: 1000,
         "railway-iac": 1000,
         "backoffice-build": 1000,
-        "catalog-build": 1000,
+        "catalog-build": 15000,
         "register-build": 1000,
         "served-backoffice": 1000,
         "dependency-patches": 30000,
