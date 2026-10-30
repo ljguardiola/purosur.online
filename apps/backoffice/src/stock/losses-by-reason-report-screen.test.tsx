@@ -3,12 +3,9 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
-import {
-  type LossesByReasonReportFilters,
-  lossesByReasonReportFilters,
-} from "./losses-by-reason-report-filters";
 import { LossesByReasonReportScreen } from "./losses-by-reason-report-screen";
 import type { LossesByReasonReportScreenServices } from "./losses-by-reason-report-services";
 import {
@@ -34,13 +31,13 @@ function listed(report = lossesByReasonReport()) {
 
 function Harness({
   services,
-  initial = lossesByReasonReportFilters.parse({}),
+  initial = reportPeriodSearch.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
 }: {
   services: LossesByReasonReportScreenServices;
-  initial?: LossesByReasonReportFilters;
-  onFiltersChange?: (filters: LossesByReasonReportFilters) => void;
+  initial?: ReportPeriodFilters;
+  onFiltersChange?: (filters: ReportPeriodFilters) => void;
   onSessionEnded?: () => void;
 }) {
   const [filters, setFilters] = useState(initial);
@@ -127,7 +124,7 @@ test("asks for the period the URL carries", async () => {
   const services = listed();
 
   await renderScreen(services, {
-    initial: lossesByReasonReportFilters.parse({ from: "2026-12-01", to: "2026-12-31" }),
+    initial: reportPeriodSearch.parse({ from: "2026-12-01", to: "2026-12-31" }),
   });
 
   await expect

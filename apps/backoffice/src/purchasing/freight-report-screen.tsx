@@ -11,12 +11,12 @@ import {
 import { Truck } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ReportFilters } from "../shell/report-filters";
+import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { FreightReportScreenServices } from "./freight-report-services";
 import { useFreightReportQuery } from "./purchasing-queries";
 import { reportMonthText } from "./report-month-text";
-import type { ReportPeriodFilters } from "./report-period-filters";
 
 export type FreightReportScreenProps = {
   filters: ReportPeriodFilters;

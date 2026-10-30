@@ -10,17 +10,17 @@ import {
 import { PackageX } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { ReportFilters } from "../shell/report-filters";
+import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { lossCountText } from "./loss-count-text";
-import type { LossesByReasonReportFilters } from "./losses-by-reason-report-filters";
 import { LossesByReasonReportReasonSection } from "./losses-by-reason-report-reason-section";
 import type { LossesByReasonReportScreenServices } from "./losses-by-reason-report-services";
 import { useLossesByReasonReportQuery } from "./stock-queries";
 
 export type LossesByReasonReportScreenProps = {
-  filters: LossesByReasonReportFilters;
-  onFiltersChange: (filters: LossesByReasonReportFilters) => void;
+  filters: ReportPeriodFilters;
+  onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
   services: LossesByReasonReportScreenServices;
 };

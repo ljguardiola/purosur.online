@@ -3,9 +3,9 @@ import { z } from "zod";
 import { canManagePromotions, canSeePricesArea, canSeeReports } from "../shell/backoffice-access";
 import { catalogAreaRoute } from "../shell/catalog-area";
 import { lazyScreen } from "../shell/lazy-screen";
+import { reportPeriodSearch } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
-import { pricesPastReviewDeadlineReportFilters } from "./prices-past-review-deadline-report-filters";
 
 export const pricesListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -50,9 +50,9 @@ export const pricesPastReviewDeadlineReportRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
   path: "reports/prices-past-review-deadline",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
-  validateSearch: pricesPastReviewDeadlineReportFilters,
+  validateSearch: reportPeriodSearch,
   search: {
-    middlewares: [stripSearchParams(pricesPastReviewDeadlineReportFilters.parse({}))],
+    middlewares: [stripSearchParams(reportPeriodSearch.parse({}))],
   },
   component: lazyScreen(
     () => import("./prices-past-review-deadline-report-page"),
