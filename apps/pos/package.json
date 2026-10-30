@@ -20,7 +20,7 @@
     "@purosur/contracts": "workspace:*",
     "@purosur/domain": "workspace:*",
     "@purosur/ui": "workspace:*",
-    "@react-aria/optimize-locales-plugin": "^2.0.2",
+    "@react-aria/optimize-locales-plugin": "^2.1.0",
     "@resvg/resvg-js": "^2.6.2",
     "@rolldown/plugin-babel": "^0.2.4",
     "@sentry/electron": "^8.3.0",

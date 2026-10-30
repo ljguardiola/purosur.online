@@ -144,8 +144,8 @@ importers:
         specifier: ^7.29.7
         version: 7.29.7(supports-color@10.2.2)
       '@react-aria/optimize-locales-plugin':
-        specifier: ^2.0.2
-        version: 2.0.2
+        specifier: ^2.1.0
+        version: 2.1.0
       '@rolldown/plugin-babel':
         specifier: ^0.2.4
         version: 0.2.4(@babel/core@7.29.7(supports-color@10.2.2))(@babel/runtime@7.29.7)(rolldown@1.2.14)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
@@ -275,8 +275,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@react-aria/optimize-locales-plugin':
-        specifier: ^2.0.2
-        version: 2.0.2
+        specifier: ^2.1.0
+        version: 2.1.0
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2
@@ -2189,8 +2189,8 @@ packages:
   '@protobufjs/utf8@1.1.2':
     resolution: {integrity: sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug==}
 
-  '@react-aria/optimize-locales-plugin@2.0.2':
-    resolution: {integrity: sha512-YxRwGC76G/aOozUEzl93irjhGuLsC63clF5abOX+lNAlg7EGns7250Ud8Ice6dy5oLv9mSXQx8LEf0b+56Cclg==}
+  '@react-aria/optimize-locales-plugin@2.1.0':
+    resolution: {integrity: sha512-JN8dyMW/9qNbJt08xPDYin4MDe2IntrnCrnAgbmWfi9ob0uQaNv/m1k030kwlep3ip3Xf9DcPSgartxe26nZ/g==}
 
   '@react-types/shared@3.37.0':
     resolution: {integrity: sha512-VNlZuifu4tHdxWPfHvoMfKsHA9kVTCGkduv5vKVTdinm8wHFJNhyVB5RzIMiRFj0q3RKoCbP68u2zaoBSiFueg==}
@@ -7804,7 +7804,7 @@ snapshots:
 
   '@protobufjs/utf8@1.1.2': {}
 
-  '@react-aria/optimize-locales-plugin@2.0.2':
+  '@react-aria/optimize-locales-plugin@2.1.0':
     dependencies:
       unplugin: 2.3.11
 
