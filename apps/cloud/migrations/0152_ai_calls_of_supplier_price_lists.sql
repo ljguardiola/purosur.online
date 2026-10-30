@@ -23,7 +23,7 @@ CREATE TABLE "supplier_price_list_ai_calls" (
 );
 --> statement-breakpoint
 ALTER TABLE "supplier_price_lists" ADD COLUMN "ai_calls_recorded_from_start" boolean DEFAULT true NOT NULL;--> statement-breakpoint
-UPDATE "supplier_price_lists" SET "ai_calls_recorded_from_start" = false;--> statement-breakpoint
+UPDATE "supplier_price_lists" SET "ai_calls_recorded_from_start" = false WHERE "sent_at" IS NOT NULL;--> statement-breakpoint
 ALTER TABLE "supplier_price_list_ai_calls" ADD CONSTRAINT "supplier_price_list_ai_calls_list_id_supplier_price_lists_id_fk" FOREIGN KEY ("list_id") REFERENCES "public"."supplier_price_lists"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "supplier_price_list_ai_calls" ADD CONSTRAINT "supplier_price_list_ai_calls_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "supplier_price_list_ai_calls" ADD CONSTRAINT "supplier_price_list_ai_calls_location_id_locations_id_fk" FOREIGN KEY ("location_id") REFERENCES "public"."locations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
