@@ -286,10 +286,12 @@ export {
 } from "./fiscal/unclear-outcome-question.js";
 export type {
   AbandonMercadoPagoChargeOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   FollowMercadoPagoChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
+  RebuildSaleAgainstPaidOrderOutcome,
   StartMercadoPagoChargeOutcome,
 } from "./payments/core-messages.js";
 export {

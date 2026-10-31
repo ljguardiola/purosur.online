@@ -44,6 +44,18 @@ const convertPaidOrderIntoRefundMessageSchema = z.object({
   payment_transaction_id: z.string(),
 });
 
+const rebuildSaleAgainstPaidOrderMessageSchema = z.object({
+  type: z.literal("rebuild-sale-against-paid-order"),
+  request_id: requestIdSchema,
+  payment_transaction_id: z.string(),
+});
+
+const chargeSaleWithPaidOrderMessageSchema = z.object({
+  type: z.literal("charge-sale-with-paid-order"),
+  request_id: requestIdSchema,
+  sale_id: z.string(),
+});
+
 const paymentMethodAvailabilityMessageSchema = z.object({
   type: z.literal("payment-method-availability"),
   request_id: requestIdSchema,
@@ -54,6 +66,8 @@ export const paymentsRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   followMercadoPagoChargeMessageSchema,
   abandonMercadoPagoChargeMessageSchema,
   convertPaidOrderIntoRefundMessageSchema,
+  rebuildSaleAgainstPaidOrderMessageSchema,
+  chargeSaleWithPaidOrderMessageSchema,
   paymentMethodAvailabilityMessageSchema,
 ]);
 export type PaymentsRendererToCoreMessage = z.infer<typeof paymentsRendererToCoreMessageSchema>;
@@ -69,6 +83,7 @@ const saleChargeRefusals = [
   z.object({ kind: z.literal("no_open_session") }),
   restorationInProgressOutcomeSchema,
   z.object({ kind: z.literal("unavailable") }),
+  z.object({ kind: z.literal("paid_order_not_applied") }),
 ] as const;
 
 const followedOrderFields = {
@@ -143,6 +158,50 @@ export type ConvertPaidOrderIntoRefundOutcome = z.infer<
   typeof convertPaidOrderIntoRefundOutcomeSchema
 >;
 
+const rebuildSaleAgainstPaidOrderOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("rebuilt"), sale_id: z.string() }),
+  z.object({ kind: z.literal("already_open"), sale_id: z.string() }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("already_resolved") }),
+  z.object({ kind: z.literal("another_sale_open") }),
+  z.object({ kind: z.literal("not_permitted") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
+  z.object({ kind: z.literal("installation_revoked") }),
+  z.object({ kind: z.literal("local_database_damaged") }),
+  z.object({ kind: z.literal("battery_critical") }),
+  z.object({ kind: z.literal("disk_space_short") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type RebuildSaleAgainstPaidOrderOutcome = z.infer<
+  typeof rebuildSaleAgainstPaidOrderOutcomeSchema
+>;
+
+const chargeSaleWithPaidOrderOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("completed"),
+    sale_id: z.string(),
+    total: z.int().nonnegative(),
+    applied: z.int().positive(),
+    surplus: z.int().nonnegative(),
+  }),
+  partiallyPaidOutcomeSchema,
+  z.object({ kind: z.literal("no_paid_order") }),
+  z.object({ kind: z.literal("already_applied") }),
+  z.object({ kind: z.literal("empty_sale") }),
+  z.object({ kind: z.literal("zero_total") }),
+  reachesThresholdRefusalSchema,
+  noThresholdRefusalSchema,
+  z.object({ kind: z.literal("no_open_sale") }),
+  z.object({ kind: z.literal("not_permitted") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type ChargeSaleWithPaidOrderOutcome = z.infer<typeof chargeSaleWithPaidOrderOutcomeSchema>;
+
 export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("payment-method-availability-result"),
@@ -168,6 +227,16 @@ export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     type: z.literal("convert-paid-order-into-refund-result"),
     request_id: requestIdSchema,
     outcome: convertPaidOrderIntoRefundOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("rebuild-sale-against-paid-order-result"),
+    request_id: requestIdSchema,
+    outcome: rebuildSaleAgainstPaidOrderOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("charge-sale-with-paid-order-result"),
+    request_id: requestIdSchema,
+    outcome: chargeSaleWithPaidOrderOutcomeSchema,
   }),
 ]);
 export type PaymentsCoreToRendererMessage = z.infer<typeof paymentsCoreToRendererMessageSchema>;
