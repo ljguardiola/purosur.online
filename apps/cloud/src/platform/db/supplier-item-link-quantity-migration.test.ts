@@ -224,17 +224,22 @@ describe("the link by quantity migration applied over links that refer to packag
   );
 
   it.each(["supplier_price_list_rows", "supplier_items"] as const)(
-    "refuses a quantity of %s without a product",
+    "keeps no quantity on a row of %s that has no product",
     async (table) => {
       const { database, unlinkedRowId, unlinkedItemId } = await databaseHoldingLinks();
       const migrated = await database.applyMigration();
       const id = table === "supplier_items" ? unlinkedItemId : unlinkedRowId;
 
-      await expect(
-        migrated.query(`update ${table} set quantity = 1000, sale_unit = 'UNIT' where id = $1`, [
-          id,
-        ]),
-      ).rejects.toThrow();
+      await migrated.query(
+        `update ${table} set quantity = 1000, sale_unit = 'UNIT', relink_required = true where id = $1`,
+        [id],
+      );
+
+      expect(await linkOf(migrated, table, id)).toEqual({
+        quantity: null,
+        sale_unit: null,
+        relink_required: false,
+      });
     },
   );
 });
