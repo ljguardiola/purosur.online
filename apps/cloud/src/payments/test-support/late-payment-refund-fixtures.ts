@@ -17,6 +17,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
     amount,
     refundAmount,
     transactionState = "APPROVED",
+    heldBySale = false,
   }: {
     openedAt: Date;
     registerName?: string;
@@ -27,6 +28,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
     amount?: number;
     refundAmount?: number;
     transactionState?: PaymentTransactionState;
+    heldBySale?: boolean;
   },
 ) {
   const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
@@ -44,25 +46,43 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
       ? pendingPointTransaction(registerId, overrides)
       : pendingTransaction(registerId, overrides);
   await db.insert(paymentTransactions).values(transaction);
-  if (coveredBy.length > 0) {
+  if (coveredBy.length > 0 || heldBySale) {
     await applyCompletedSale(db, {
       deviceId,
       completedAt: transaction.createdAt,
       total: 5000,
       overrides: {
         id: transaction.saleId,
-        payments: coveredBy.map((method) => ({
-          id: crypto.randomUUID(),
-          method,
-          provider: "NONE",
-          cardType: null,
-          amount: 1000,
-          tendered: null,
-          state: "APPROVED",
-          occurredAt: transaction.createdAt,
-          authorizedBy: null,
-          confirmedAt: null,
-        })),
+        payments: [
+          ...(heldBySale
+            ? [
+                {
+                  id: transaction.id,
+                  method: transaction.method,
+                  provider: transaction.provider,
+                  cardType: null,
+                  amount: transaction.amount,
+                  tendered: null,
+                  state: "APPROVED" as const,
+                  occurredAt: transaction.createdAt,
+                  authorizedBy: null,
+                  confirmedAt: null,
+                },
+              ]
+            : []),
+          ...coveredBy.map((method) => ({
+            id: crypto.randomUUID(),
+            method,
+            provider: "NONE" as const,
+            cardType: null,
+            amount: 1000,
+            tendered: null,
+            state: "APPROVED" as const,
+            occurredAt: transaction.createdAt,
+            authorizedBy: null,
+            confirmedAt: null,
+          })),
+        ],
       },
     });
   }

@@ -244,6 +244,16 @@ describe("GET /refunds/pending", () => {
     });
   });
 
+  it("tells the surplus of a sale rebuilt against its paid order", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, heldBySale: true });
+
+    const response = await pendingRefunds(headers);
+
+    const [refund] = pendingRefundsSchema.parse(response.json()).refunds;
+    expect(refund).toMatchObject({ id: late.refundId, of_rebuilt_sale: true });
+  });
+
   it("tells the Mercado Pago order of a late payment refund that names one, and none for the others", async () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
     const cancelledId = await aPendingRefund();
