@@ -184,10 +184,8 @@ function pendingItemsOf(pending: StartupPendingAnswer): PendingItem[] {
   const paidOrders = pending.paid_orders_without_sale.map((order) => ({
     id: order.payment_transaction_id,
     title: `Cobro con ${order.method === "QR" ? "QR" : "Point"} pagado sin venta`,
-    detail: `${formatCents(order.amount)} cobrados a las ${formatClockTime(order.created_at)}. ${
-      order.rebuilt_sale_id === null
-        ? "La venta no quedó en la caja."
-        : "La venta se está armando con este cobro."
+    detail: `${formatCents(order.amount)} cobrados a las ${formatClockTime(order.created_at)}.${
+      order.rebuilt_sale_id === null ? " La venta no quedó en la caja." : ""
     }`,
     sale: undefined,
     paidOrder: order,

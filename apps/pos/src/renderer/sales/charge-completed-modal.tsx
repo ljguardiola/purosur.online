@@ -101,7 +101,10 @@ export function ChargeCompletedModal({
           total={payment.charge.total}
           method="QR"
           amount={payment.charge.applied}
-          surplus={payment.charge.surplus}
+          surplusRefund={{
+            amount: payment.charge.surplus,
+            sentByCloud: payment.charge.surplus_sent_by_cloud,
+          }}
         />
       ) : (
         <SaleCompletedModal
@@ -110,7 +113,10 @@ export function ChargeCompletedModal({
           method="POINT"
           cardType={null}
           amount={payment.charge.applied}
-          surplus={payment.charge.surplus}
+          surplusRefund={{
+            amount: payment.charge.surplus,
+            sentByCloud: payment.charge.surplus_sent_by_cloud,
+          }}
         />
       );
   }

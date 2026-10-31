@@ -187,6 +187,7 @@ const chargeSaleWithPaidOrderOutcomeSchema = z.discriminatedUnion("kind", [
     total: z.int().nonnegative(),
     applied: z.int().positive(),
     surplus: z.int().nonnegative(),
+    surplus_sent_by_cloud: z.boolean(),
   }),
   partiallyPaidOutcomeSchema,
   z.object({ kind: z.literal("no_paid_order") }),

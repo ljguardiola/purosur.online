@@ -3,9 +3,8 @@ import { paidOrdersSellingRefusal } from "../../payments/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
 import type { Clock, ZoneRules } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
-import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
-import { amountToCharge } from "../model/sale-discount.js";
+import { type OpenSaleAnswerStanding, openSaleStandingOf } from "./open-sale-standing-of.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { withoutSaleDiscount } from "./remove-sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
@@ -37,7 +36,7 @@ export type AddedLineOutcome = {
   removedSaleDiscount: boolean;
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
-} & OpenSaleStanding;
+} & OpenSaleAnswerStanding;
 
 export interface SaleAddition {
   actorId: string;
@@ -141,12 +140,7 @@ export function added(
     removedSaleDiscount,
     sale,
     chargeRefusal: saleChargeRefusal(tx, sale, moment, rules),
-    ...openSaleStanding(
-      amountToCharge(sale),
-      tx.salePayments(sale.id),
-      tx.pendingMercadoPagoPaymentsOf(sale.id),
-      moment,
-    ),
+    ...openSaleStandingOf(tx, sale, moment),
   };
 }
 

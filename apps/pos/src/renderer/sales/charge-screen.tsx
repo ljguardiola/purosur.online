@@ -162,9 +162,7 @@ export function ChargeScreen({
   });
   const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
   const [step, setStep] = useState<Step>({ name: "methods" });
-  const [notice, setNotice] = useState<
-    { kind: "cancelled" } | { kind: "remaining"; pending: number }
-  >();
+  const [notice, setNotice] = useState<{ kind: "cancelled" }>();
 
   function backToSale() {
     void navigate({ to: "/session" });
@@ -235,13 +233,6 @@ export function ChargeScreen({
             {notice?.kind === "cancelled" && step.name === "methods" ? (
               <InlineNotice tone="info" icon={<Info />} title="Se canceló la orden QR." />
             ) : null}
-            {notice?.kind === "remaining" && step.name === "methods" ? (
-              <InlineNotice
-                tone="info"
-                icon={<Info />}
-                title={`Quedan ${formatCents(notice.pending)} por cobrar con otro medio`}
-              />
-            ) : null}
             {paidOrderToApply === undefined || step.name !== "methods" ? null : (
               <RebuiltPaidOrderNotice
                 paidOrder={paidOrderToApply}
@@ -253,10 +244,7 @@ export function ChargeScreen({
                     sale,
                   })
                 }
-                onPartiallyPaid={async (charge) => {
-                  await backToMethodsWithBalance();
-                  setNotice({ kind: "remaining", pending: charge.pending });
-                }}
+                onPartiallyPaid={backToMethodsWithBalance}
                 onSaleChanged={backToMethodsWithBalance}
                 onSaleUnavailable={backToSale}
                 onSessionInvalid={onSessionInvalid}

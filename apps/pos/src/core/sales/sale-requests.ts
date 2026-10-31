@@ -40,9 +40,9 @@ import {
   type PaidOrderDiscoveryState,
   type PlannedRefund,
   promotionSavings,
+  type RebuiltPaidOrderStanding,
   type RegisterActor,
   type RegisterOperation,
-  rebuiltPaidOrderStanding,
   registerOperationAccess,
   type SaleDiscountValue,
   type SaleLine,
@@ -190,22 +190,18 @@ interface OpenSaleAnswer {
   cancelRefusal: OpenSale["cancel_refusal"];
   refundsOnCancel: readonly PlannedRefund[];
   mercadoPagoChargeInProgress: MercadoPagoChargeInProgress | null;
+  rebuiltPaidOrder: RebuiltPaidOrderStanding | null;
 }
 
 interface SaleView {
   cancelAuthorizationRequired: boolean;
   adjustAuthorizationRequired: boolean;
   saleDiscountAuthorizationRequired: boolean;
-  rebuiltPaidOrderOf: (saleId: string) => OpenSale["rebuilt_paid_order"];
 }
 
-function rebuiltPaidOrderOfSale(
-  database: LocalDatabase,
-  saleId: string,
+function toWireRebuiltPaidOrder(
+  standing: RebuiltPaidOrderStanding | null,
 ): OpenSale["rebuilt_paid_order"] {
-  const standing = saleLedger(database).transaction((tx) =>
-    rebuiltPaidOrderStanding(tx.paidOrderOfSale(saleId), tx.salePayments(saleId)),
-  );
   return standing === null
     ? null
     : {
@@ -232,7 +228,6 @@ function saleView(database: LocalDatabase, userId: string): SaleView {
     cancelAuthorizationRequired: needsAuthorization({ kind: "cancel_paid_sale" }),
     adjustAuthorizationRequired: needsAuthorization({ kind: "adjust_sale_line" }),
     saleDiscountAuthorizationRequired: needsAuthorization({ kind: "apply_sale_discount" }),
-    rebuiltPaidOrderOf: (saleId) => rebuiltPaidOrderOfSale(database, saleId),
   };
 }
 
@@ -272,6 +267,7 @@ function toOpenSale(
     cancelRefusal,
     refundsOnCancel,
     mercadoPagoChargeInProgress,
+    rebuiltPaidOrder,
   }: OpenSaleAnswer,
   view: SaleView,
 ): OpenSale {
@@ -307,7 +303,7 @@ function toOpenSale(
     charge_refusal: chargeRefusal ?? null,
     mercado_pago_charge_in_progress:
       mercadoPagoChargeInProgress === null ? null : chargeInProgressOf(mercadoPagoChargeInProgress),
-    rebuilt_paid_order: view.rebuiltPaidOrderOf(sale.id),
+    rebuilt_paid_order: toWireRebuiltPaidOrder(rebuiltPaidOrder),
   };
 }
 
@@ -662,6 +658,7 @@ export async function chargeSaleWithPaidOrderFor(
         total: outcome.total,
         applied: outcome.applied,
         surplus: outcome.surplus,
+        surplus_sent_by_cloud: outcome.surplusSentByCloud,
       };
     case "partially_paid":
       return partiallyPaid(outcome);

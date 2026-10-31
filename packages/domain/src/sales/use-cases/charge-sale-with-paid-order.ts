@@ -1,5 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import {
+  isRefundSentByCloud,
+  LATE_PAYMENT_REFUND_ORIGIN,
   paidOrderAwaitsApplication,
   rebuiltPaidOrderAppliedAmount,
   rebuiltPaidOrderSurplus,
@@ -35,7 +37,14 @@ export type ChargeSaleWithPaidOrderOutcome =
   | { kind: "no_paid_order" }
   | { kind: "already_applied" }
   | PartiallyPaid
-  | { kind: "completed"; saleId: string; total: number; applied: number; surplus: number };
+  | {
+      kind: "completed";
+      saleId: string;
+      total: number;
+      applied: number;
+      surplus: number;
+      surplusSentByCloud: boolean;
+    };
 
 export function chargeSaleWithPaidOrder(
   { ledger, restoration, clock, zoneRules, ids }: ChargeSaleWithPaidOrderPorts,
@@ -106,6 +115,10 @@ export function chargeSaleWithPaidOrder(
       total,
       applied,
       surplus: rebuiltPaidOrderSurplus(paidOrder.amount, total),
+      surplusSentByCloud: isRefundSentByCloud({
+        method: paidOrder.method,
+        origin: LATE_PAYMENT_REFUND_ORIGIN,
+      }),
     };
   });
 }

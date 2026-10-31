@@ -114,6 +114,14 @@ function backupTicketStatus(standing: BackupStanding, printerFailure: PrinterFai
   }
 }
 
+type SurplusRefund = { amount: number; sentByCloud: boolean };
+
+const SURPLUS_SENT_BY_CLOUD =
+  "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.";
+
+const SURPLUS_MADE_BY_HAND =
+  "Lo devuelve una persona desde Mercado Pago, cuando lo atiende en el backoffice.";
+
 export type SaleCompletedModalProps = {
   saleId: string;
   total: number;
@@ -125,8 +133,13 @@ export type SaleCompletedModalProps = {
 } & (
   | { tendered: number; change: number; method?: "CASH" }
   | { method: "TRANSFER"; amount: number }
-  | { method: "QR"; amount: number; surplus?: number }
-  | { method: "POINT"; cardType: PointCardType | null; amount: number; surplus?: number }
+  | { method: "QR"; amount: number; surplusRefund?: SurplusRefund }
+  | {
+      method: "POINT";
+      cardType: PointCardType | null;
+      amount: number;
+      surplusRefund?: SurplusRefund;
+    }
   | { method: "STANDALONE_TERMINAL"; amount: number }
 );
 
@@ -142,7 +155,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   } = props;
   const navigate = useNavigate();
   const change = "change" in props ? props.change : 0;
-  const surplus = "surplus" in props ? (props.surplus ?? 0) : 0;
+  const surplusRefund = "surplusRefund" in props ? props.surplusRefund : undefined;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
   const backupTicket = useBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
   const backupStanding = backupTicket.status === "loaded" ? backupTicket.value.standing : null;
@@ -304,12 +317,12 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
                 : { label: "Ticket", value: printState },
           ]}
         />
-        {surplus > 0 ? (
+        {surplusRefund !== undefined && surplusRefund.amount > 0 ? (
           <InlineNotice
             tone="info"
             icon={<Undo2 />}
-            title={`Mercado Pago le devuelve ${formatCents(surplus)} al cliente`}
-            description="No se entrega vuelto en el mostrador."
+            title={`Reembolso pendiente de ${formatCents(surplusRefund.amount)} por Mercado Pago`}
+            description={surplusRefund.sentByCloud ? SURPLUS_SENT_BY_CLOUD : SURPLUS_MADE_BY_HAND}
           />
         ) : null}
         {firstDocument === undefined ? null : (

@@ -8,6 +8,7 @@ export type TicketableRendererRequests = Pick<
   | "chargeSaleInCash"
   | "chargeSaleByTransfer"
   | "chargeSaleOnStandaloneTerminal"
+  | "chargeSaleWithPaidOrder"
   | "followMercadoPagoCharge"
   | "abandonMercadoPagoCharge"
   | "cancelPaidSale"
@@ -44,6 +45,7 @@ export function ticketedRendererRequests<TRequests extends TicketableRendererReq
       requests.chargeSaleOnStandaloneTerminal,
       completedSale,
     ),
+    chargeSaleWithPaidOrder: ticketed("sale", requests.chargeSaleWithPaidOrder, completedSale),
     followMercadoPagoCharge: ticketed(
       "sale",
       requests.followMercadoPagoCharge,

@@ -8,7 +8,7 @@ import {
 } from "@purosur/domain";
 import type { PendingRefundRecord, PendingRefundsReader } from "@purosur/domain/payments/use-cases";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   paymentRefunds,
   paymentTransactions,
@@ -22,6 +22,8 @@ import {
 function isRefundOrigin(origin: string): origin is RefundOrigin {
   return REFUND_ORIGINS.some((known) => known === origin);
 }
+
+const refundedSale = alias(sales, "refunded_sale");
 
 const correctedBy = sql<string | null>`coalesce(${saleReturns.actorId}, ${sales.actorId})`;
 
@@ -52,6 +54,7 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         saleVoidedAt: sales.voidedAt,
         saleCompletedAt: sales.completedAt,
         transactionCreatedAt: paymentTransactions.createdAt,
+        refundedSaleCompletedAt: refundedSale.completedAt,
         correctedBy,
         correctedByName: users.firstName,
         confirmedAt: paymentRefunds.confirmedAt,
@@ -69,6 +72,7 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         registers,
         eq(registers.id, sql`coalesce(${sales.registerId}, ${paymentTransactions.registerId})`),
       )
+      .leftJoin(refundedSale, eq(refundedSale.id, paymentRefunds.saleId))
       .leftJoin(saleReturns, eq(saleReturns.originEventId, paymentRefunds.originEventId))
       .leftJoin(users, sql`${users.id}::text = ${correctedBy}`)
       .where(
@@ -86,6 +90,7 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         saleVoidedAt,
         saleCompletedAt,
         transactionCreatedAt,
+        refundedSaleCompletedAt,
         paymentTransactionId,
         ...row
       }) => {
@@ -98,8 +103,9 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
           { origin, providerOrderId: row.providerOrderId, paymentTransactionId },
           salePayments,
         );
-        const saleOccurredAt =
-          saleCancelledAt ?? saleVoidedAt ?? saleCompletedAt ?? transactionCreatedAt;
+        const saleOccurredAt = ofRebuiltSale
+          ? refundedSaleCompletedAt
+          : (saleCancelledAt ?? saleVoidedAt ?? saleCompletedAt ?? transactionCreatedAt);
         if (!saleOccurredAt) {
           throw new Error(`refund ${row.id} has no sale or payment transaction to date it by`);
         }

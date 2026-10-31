@@ -87,6 +87,7 @@ export {
   exceedsRefundable,
   isRefundPending,
   isSurplusOfRebuiltSale,
+  LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
   latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
@@ -125,6 +126,7 @@ export { isPointTerminalId } from "./model/point-terminal-id.js";
 export { isQrExternalPosId } from "./model/qr-external-pos-id.js";
 export type {
   RebuildablePaidOrder,
+  RebuiltPaidOrderStanding,
   RebuiltSaleState,
   SaleRebuiltAgainstPaidOrder,
 } from "./model/rebuilt-paid-order.js";

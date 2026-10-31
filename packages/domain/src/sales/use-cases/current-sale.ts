@@ -1,8 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { Clock, ZoneRulesSource } from "../../shared/index.js";
-import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { amountToCharge } from "../model/sale-discount.js";
+import { type OpenSaleAnswerStanding, openSaleStandingOf } from "./open-sale-standing-of.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedger } from "./sale-ledger.js";
@@ -28,7 +27,7 @@ export type CurrentSaleOutcome =
       kind: "open";
       sale: SaleWithLines;
       chargeRefusal: ChargeRefusal | undefined;
-    } & OpenSaleStanding);
+    } & OpenSaleAnswerStanding);
 
 export function currentSale(
   { ledger, restoration, clock, zoneRules }: CurrentSalePorts,
@@ -47,12 +46,7 @@ export function currentSale(
       kind: "open",
       sale,
       chargeRefusal: saleChargeRefusal(tx, sale, clock.now(), zoneRules.zoneRules()),
-      ...openSaleStanding(
-        amountToCharge(sale),
-        tx.salePayments(sale.id),
-        tx.pendingMercadoPagoPaymentsOf(sale.id),
-        clock.now(),
-      ),
+      ...openSaleStandingOf(tx, sale, clock.now()),
     };
   });
 }

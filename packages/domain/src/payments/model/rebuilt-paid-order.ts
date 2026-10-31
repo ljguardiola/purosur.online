@@ -28,15 +28,17 @@ export function paidOrderAwaitsApplication(
   );
 }
 
-export function rebuiltPaidOrderStanding(
-  paidOrder: { paymentTransactionId: string; amount: number; method: "QR" | "POINT" } | undefined,
-  salePayments: readonly { id: string }[],
-): {
+export interface RebuiltPaidOrderStanding {
   paymentTransactionId: string;
   amount: number;
   method: "QR" | "POINT";
   applied: boolean;
-} | null {
+}
+
+export function rebuiltPaidOrderStanding(
+  paidOrder: { paymentTransactionId: string; amount: number; method: "QR" | "POINT" } | undefined,
+  salePayments: readonly { id: string }[],
+): RebuiltPaidOrderStanding | null {
   if (paidOrder === undefined) {
     return null;
   }

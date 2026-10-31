@@ -8,13 +8,11 @@ import type { CompletedPaidOrder } from "./charge-completed-modal";
 const FAILED_MESSAGE = "No se pudo cobrar con el pago de Mercado Pago. Probá de nuevo.";
 const RESTORING_MESSAGE = "La caja se está restaurando. Esperá a que termine.";
 
-type PartiallyPaid = Extract<ChargeSaleWithPaidOrderOutcome, { kind: "partially_paid" }>;
-
 export type RebuiltPaidOrderNoticeProps = {
   paidOrder: NonNullable<OpenSale["rebuilt_paid_order"]>;
   apply: () => Promise<ChargeSaleWithPaidOrderOutcome>;
   onCompleted: (charge: CompletedPaidOrder) => void;
-  onPartiallyPaid: (charge: PartiallyPaid) => Promise<void>;
+  onPartiallyPaid: () => Promise<void>;
   onSaleChanged: () => Promise<void>;
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
@@ -48,7 +46,7 @@ export function RebuiltPaidOrderNotice({
         onCompleted(outcome);
         break;
       case "partially_paid":
-        await onPartiallyPaid(outcome);
+        await onPartiallyPaid();
         break;
       case "no_paid_order":
       case "already_applied":
