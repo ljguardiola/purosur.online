@@ -3,6 +3,7 @@ import type {
   CashBalance,
   ConvertPaidOrderIntoRefundOutcome,
   PrintOriginalReceiptOutcome,
+  RebuildSaleAgainstPaidOrderOutcome,
   ReceiptCopyShown,
   ReprintSaleReceiptOutcome,
   SignInUser,
@@ -25,9 +26,9 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
-import { ArrowRight, CheckCheck, Printer, TriangleAlert, Undo2 } from "lucide-react";
+import { ArrowRight, CheckCheck, Printer, ShoppingCart, TriangleAlert, Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
@@ -69,6 +70,29 @@ const PRINT_PROBLEMS = {
   },
 } as const;
 
+const SEE_STATUS_BAR = "El motivo y qué hacer se muestran arriba de la pantalla.";
+const CANNOT_OPEN_SALE = { title: "No se puede abrir la venta", description: SEE_STATUS_BAR };
+
+const REBUILD_PROBLEMS = {
+  another_sale_open: {
+    title: "Ya hay otra venta abierta",
+    description: "Terminala o cancelala antes de armar la venta con este cobro.",
+  },
+  not_permitted: {
+    title: "No tenés permiso para armar la venta",
+    description: "Pedile a quien pueda que la arme.",
+  },
+  restoration_in_progress: {
+    title: "La caja se está restaurando",
+    description: "Esperá a que termine para armar la venta.",
+  },
+  installation_revoked: CANNOT_OPEN_SALE,
+  disk_space_short: CANNOT_OPEN_SALE,
+  local_database_damaged: CANNOT_OPEN_SALE,
+  battery_critical: CANNOT_OPEN_SALE,
+  unavailable: { title: "No se pudo armar la venta", description: "Probá de nuevo." },
+} as const;
+
 export type StartupPendingScreenProps = {
   sessionId: string;
   person: SignedInPerson;
@@ -87,9 +111,13 @@ export type StartupPendingScreenProps = {
   convertPaidOrderIntoRefund: (
     paymentTransactionId: string,
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
+  rebuildSaleAgainstPaidOrder: (
+    paymentTransactionId: string,
+  ) => Promise<RebuildSaleAgainstPaidOrderOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   clockGuard?: ReactNode | undefined;
   onGoSelling: () => void;
+  onGoToSale: () => void;
   onNothingLeft: () => void;
   onSessionInvalid: () => void;
 };
@@ -151,7 +179,11 @@ function pendingItemsOf(pending: StartupPendingAnswer): PendingItem[] {
   const paidOrders = pending.paid_orders_without_sale.map((order) => ({
     id: order.payment_transaction_id,
     title: `Cobro con ${order.method === "QR" ? "QR" : "Point"} pagado sin venta`,
-    detail: `${formatCents(order.amount)} cobrados a las ${formatClockTime(order.created_at)}. La venta no quedó en la caja.`,
+    detail: `${formatCents(order.amount)} cobrados a las ${formatClockTime(order.created_at)}. ${
+      order.rebuilt_sale_id === null
+        ? "La venta no quedó en la caja."
+        : "La venta se está armando con este cobro."
+    }`,
     sale: undefined,
     paidOrder: order,
     unchecked: undefined,
@@ -188,6 +220,9 @@ function itemState(
   sellingBlocked: boolean,
 ) {
   if (item.paidOrder !== undefined) {
+    if (item.paidOrder.rebuilt_sale_id !== null) {
+      return <StatusIndicator tone="info">Armando la venta</StatusIndicator>;
+    }
     return sellingBlocked ? <StatusIndicator tone="error">Bloquea la venta</StatusIndicator> : null;
   }
   if (item.unchecked === "deferred") {
@@ -218,11 +253,15 @@ function PendingTable({
   data,
   printingSaleIds,
   onPrint,
+  onRebuild,
+  onGoToSale,
   onRefund,
 }: {
   data: CoreData<StartupPendingAnswer>;
   printingSaleIds: ReadonlySet<string>;
   onPrint: (sale: SaleToPrint) => void;
+  onRebuild: (order: PaidOrder) => void;
+  onGoToSale: () => void;
   onRefund: (order: PaidOrder) => void;
 }) {
   const columns = [
@@ -252,6 +291,23 @@ function PendingTable({
           return sale === undefined
             ? undefined
             : { icon: <Printer />, "aria-label": printLabel(sale), onPress: () => onPrint(sale) };
+        },
+        ({ paidOrder }: PendingItem) => {
+          if (paidOrder === undefined) {
+            return undefined;
+          }
+          const time = formatClockTime(paidOrder.created_at);
+          return paidOrder.rebuilt_sale_id === null
+            ? {
+                icon: <ShoppingCart />,
+                "aria-label": `Armar la venta con el cobro de las ${time}`,
+                onPress: () => onRebuild(paidOrder),
+              }
+            : {
+                icon: <ShoppingCart />,
+                "aria-label": `Volver a la venta armada con el cobro de las ${time}`,
+                onPress: onGoToSale,
+              };
         },
         ({ paidOrder }: PendingItem) =>
           paidOrder === undefined
@@ -300,9 +356,11 @@ export function StartupPendingScreen({
   printOriginalReceipt,
   reprintSaleReceipt,
   convertPaidOrderIntoRefund,
+  rebuildSaleAgainstPaidOrder,
   loadAuthorizers,
   clockGuard,
   onGoSelling,
+  onGoToSale,
   onNothingLeft,
   onSessionInvalid,
 }: StartupPendingScreenProps) {
@@ -313,6 +371,7 @@ export function StartupPendingScreen({
   const [duplicateOf, setDuplicateOf] = useState<SaleToPrint>();
   const [refundOf, setRefundOf] = useState<PaidOrder>();
   const [refunded, setRefunded] = useState(false);
+  const rebuilding = useRef(false);
   const [sent, setSent] = useState<ReceiptCopyShown>();
   const [problem, setProblem] = useState<{ title: string; description: string }>();
 
@@ -350,6 +409,34 @@ export function StartupPendingScreen({
         break;
       default:
         setProblem(PRINT_PROBLEMS[outcome.kind]);
+    }
+  }
+
+  async function rebuild(order: PaidOrder) {
+    if (rebuilding.current) {
+      return;
+    }
+    rebuilding.current = true;
+    setProblem(undefined);
+    const outcome = await rebuildSaleAgainstPaidOrder(order.payment_transaction_id).catch(
+      (): RebuildSaleAgainstPaidOrderOutcome => ({ kind: "unavailable" }),
+    );
+    rebuilding.current = false;
+    switch (outcome.kind) {
+      case "rebuilt":
+      case "already_open":
+        onGoToSale();
+        break;
+      case "not_found":
+      case "already_resolved":
+        void refreshPending();
+        break;
+      case "not_signed_in":
+      case "no_open_session":
+        onSessionInvalid();
+        break;
+      default:
+        setProblem(REBUILD_PROBLEMS[outcome.kind]);
     }
   }
 
@@ -408,6 +495,8 @@ export function StartupPendingScreen({
           data={pending}
           printingSaleIds={printingSaleIds}
           onPrint={print}
+          onRebuild={(order) => void rebuild(order)}
+          onGoToSale={onGoToSale}
           onRefund={setRefundOf}
         />
       </main>

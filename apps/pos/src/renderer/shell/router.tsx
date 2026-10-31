@@ -809,6 +809,7 @@ const startupPendingRoute = createRoute({
       printOriginalReceipt,
       reprintSaleReceipt,
       convertPaidOrderIntoRefund,
+      rebuildSaleAgainstPaidOrder,
       authorizers,
       readClockGuard,
       correctRegisterClock,
@@ -817,6 +818,10 @@ const startupPendingRoute = createRoute({
     const registerName = useRegisterName();
     const navigate = startupPendingRoute.useNavigate();
     const router = useRouter();
+    const goToSale = () => {
+      startupPendingGate.dismiss();
+      void navigate({ to: "/session" });
+    };
     return (
       <StartupPendingScreen
         sessionId={id}
@@ -830,6 +835,7 @@ const startupPendingRoute = createRoute({
         printOriginalReceipt={printOriginalReceipt}
         reprintSaleReceipt={reprintSaleReceipt}
         convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
+        rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
         loadAuthorizers={authorizers}
         clockGuard={
           <ClockGuardOffer
@@ -840,10 +846,8 @@ const startupPendingRoute = createRoute({
             onSessionInvalid={() => void refreshCashSession()}
           />
         }
-        onGoSelling={() => {
-          startupPendingGate.dismiss();
-          void navigate({ to: "/session" });
-        }}
+        onGoSelling={goToSale}
+        onGoToSale={goToSale}
         onNothingLeft={() => void router.invalidate()}
         onSessionInvalid={() => void refreshCashSession()}
       />
