@@ -475,6 +475,14 @@ export type { SupplierItemLinkChoices } from "./purchasing/supplier-item-link-ch
 export { supplierItemLinkChoicesSchema } from "./purchasing/supplier-item-link-choices.js";
 export type { SupplierItemLinkProposal } from "./purchasing/supplier-item-link-proposal.js";
 export { supplierItemLinkProposalSchema } from "./purchasing/supplier-item-link-proposal.js";
+export type {
+  SupplierItemQuantityProposal,
+  SupplierItemQuantityProposalBody,
+} from "./purchasing/supplier-item-quantity-proposal.js";
+export {
+  supplierItemQuantityProposalBodySchema,
+  supplierItemQuantityProposalSchema,
+} from "./purchasing/supplier-item-quantity-proposal.js";
 export type { SupplierPriceComparison } from "./purchasing/supplier-price-comparison.js";
 export { supplierPriceComparisonSchema } from "./purchasing/supplier-price-comparison.js";
 export type { SupplierPriceListConfirmationBody } from "./purchasing/supplier-price-list-confirmation.js";
