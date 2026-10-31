@@ -74,17 +74,43 @@ test("describes the linked product with its brand name and net content", async (
   await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
 });
 
-test("says the item may no longer be bought by the packaging it is linked to", async () => {
+test("shows the quantity the link brings in the product's sale unit", async () => {
   const link = LINKED_ROW.link as NonNullable<typeof LINKED_ROW.link>;
-  const notBuyable = await render(
+  const heavy = await render(
+    <RowLinkCell row={{ ...LINKED_ROW, link: { ...link, quantity: 11_340 } }} />,
+  );
+  await expect.element(heavy.getByText("11,34 kg")).toBeVisible();
+
+  const light = await render(
+    <RowLinkCell row={{ ...LINKED_ROW, link: { ...link, quantity: 500 } }} />,
+  );
+  await expect.element(light.getByText("500 g")).toBeVisible();
+
+  const units = await render(
     <RowLinkCell
-      row={{ ...LINKED_ROW, link: { ...link, packaging: { ...link.packaging, buyable: false } } }}
+      row={{
+        ...LINKED_ROW,
+        link: {
+          ...link,
+          quantity: 12_000,
+          saleUnit: "UNIT",
+          product: { ...link.product, saleUnit: "UNIT" },
+        },
+      }}
     />,
   );
-  await expect.element(notBuyable.getByText("Ya no se compra en esta presentación")).toBeVisible();
+  await expect.element(units.getByText("12 u")).toBeVisible();
+});
 
-  const buyable = await render(<RowLinkCell row={LINKED_ROW} />);
-  expect(buyable.container.textContent).not.toContain("Ya no se compra");
+test("says the item has to be linked again when its link is no longer current", async () => {
+  const link = LINKED_ROW.link as NonNullable<typeof LINKED_ROW.link>;
+  const outdated = await render(
+    <RowLinkCell row={{ ...LINKED_ROW, link: { ...link, current: false } }} />,
+  );
+  await expect.element(outdated.getByText("Hay que volver a vincularlo")).toBeVisible();
+
+  const current = await render(<RowLinkCell row={LINKED_ROW} />);
+  expect(current.container.textContent).not.toContain("Hay que volver a vincularlo");
 });
 
 test("shows the status, and the earlier price only when there is one", async () => {

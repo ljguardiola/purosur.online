@@ -215,7 +215,6 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       linkSupplierPriceListRow: vi.fn(),
       fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
-      createPackaging: vi.fn(),
       createProductFromSupplierItem: vi.fn(),
       fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchProductCreationBrands: vi.fn().mockReturnValue(new Promise(() => {})),
