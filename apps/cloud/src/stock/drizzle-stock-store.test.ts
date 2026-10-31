@@ -670,7 +670,7 @@ describe("DrizzleStockStore saleLineLotAllocations", () => {
     productId: string;
     locationId: string;
     actorId: string;
-    kind: "sale" | "sale_void" | "return";
+    kind: "sale" | "sale_void" | "return" | "loss";
     saleLineId: string;
     allocations: { lotId: string; quantity: number }[];
   }): Promise<void> {
@@ -679,7 +679,7 @@ describe("DrizzleStockStore saleLineLotAllocations", () => {
       .insert(stockMovements)
       .values({
         ...movement,
-        reason: null,
+        reason: params.kind === "loss" ? "return_discard" : null,
         delta: allocations.reduce((sum, allocation) => sum + allocation.quantity, 0),
         occurredAt: params.kind === "sale" ? SOLD_AT : VOIDED_AT,
       })
@@ -806,6 +806,46 @@ describe("DrizzleStockStore saleLineLotAllocations", () => {
       expect.arrayContaining([
         { lotId, quantity: 1000 },
         { lotId: otherLotId, quantity: 500 },
+      ]),
+    );
+  });
+
+  it("answers the allocations of the discard losses of that sale line beside those of its returns", async () => {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, { now: NOW });
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const [thisLine, otherLine] = await recordedSale(deviceId, productId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const discarded = { productId, locationId, actorId } as const;
+    await allocatedBy({
+      ...discarded,
+      kind: "return",
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: 2000 }],
+    });
+    await allocatedBy({
+      ...discarded,
+      kind: "loss",
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: -2000 }],
+    });
+    await allocatedBy({
+      ...discarded,
+      kind: "loss",
+      saleLineId: otherLine as string,
+      allocations: [{ lotId, quantity: -7000 }],
+    });
+    const store = new DrizzleStockStore(db);
+
+    const allocations = await store.transaction((tx) =>
+      tx.saleLineReturnedLotAllocations({ productId, locationId }, thisLine as string),
+    );
+
+    expect(allocations).toHaveLength(2);
+    expect(allocations).toEqual(
+      expect.arrayContaining([
+        { lotId, quantity: 2000 },
+        { lotId, quantity: -2000 },
       ]),
     );
   });

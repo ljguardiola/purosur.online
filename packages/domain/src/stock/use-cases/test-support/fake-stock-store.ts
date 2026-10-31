@@ -208,7 +208,8 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
     return this.state.allocations.flatMap(({ movementId, lotId, quantity }) => {
       const movement = this.state.movements.find((row) => row.id === movementId);
       return movement &&
-        movement.kind === "return" &&
+        (movement.kind === "return" ||
+          (movement.kind === "loss" && movement.reason === "return_discard")) &&
         movement.saleLineId === saleLineId &&
         sameKey(movement, key)
         ? [{ lotId, quantity }]

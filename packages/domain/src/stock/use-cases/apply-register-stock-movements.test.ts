@@ -652,7 +652,7 @@ describe("applyRegisterStockMovements", () => {
       ]);
     });
 
-    it("leaves the balance unchanged when the returned merchandise is discarded, recording the loss with its system reason", async () => {
+    it("leaves the balance unchanged when the returned merchandise is discarded, recording the loss with its system reason and sale line", async () => {
       const store = storeWithProducts();
 
       const outcome = await apply(store, sale(discarded(3000)));
@@ -660,12 +660,28 @@ describe("applyRegisterStockMovements", () => {
       expect(outcome).toEqual({ kind: "applied" });
       expect(store.balanceOf(BREAD)).toBe(10_000);
       expect(
-        store
-          .snapshot()
-          .movements.map(({ id, kind, reason, delta }) => ({ id, kind, reason, delta })),
+        store.snapshot().movements.map(({ id, saleLineId, kind, reason, delta }) => ({
+          id,
+          saleLineId,
+          kind,
+          reason,
+          delta,
+        })),
       ).toEqual([
-        { id: "return-movement-1", kind: "return", reason: null, delta: 3000 },
-        { id: "return-movement-2", kind: "loss", reason: "return_discard", delta: -3000 },
+        {
+          id: "return-movement-1",
+          saleLineId: "sale-line-1",
+          kind: "return",
+          reason: null,
+          delta: 3000,
+        },
+        {
+          id: "return-movement-2",
+          saleLineId: "sale-line-1",
+          kind: "loss",
+          reason: "return_discard",
+          delta: -3000,
+        },
       ]);
     });
 
@@ -752,6 +768,23 @@ describe("applyRegisterStockMovements", () => {
 
       expect(remainingByLot(store)).toEqual({
         soon: 2000,
+        late: 2000,
+        "other-line": 500,
+        earlier: 5000,
+      });
+    });
+
+    it("gives a later restock the room an earlier discarded return of the line left on its lots", async () => {
+      const store = storeWithSoldLots();
+
+      await apply(store, sale(discarded(2000)));
+      await apply(store, {
+        ...sale(restocked(2000, "return-movement-3")),
+        occurredAt: AFTER_SALE,
+      });
+
+      expect(remainingByLot(store)).toEqual({
+        soon: 0,
         late: 2000,
         "other-line": 500,
         earlier: 5000,

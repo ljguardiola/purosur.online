@@ -562,8 +562,8 @@ describe("putting a return's merchandise back in stock", () => {
     ]);
   });
 
-  it("leaves the balance as it was when the line is discarded, recording the loss under its system reason", async () => {
-    const { deviceId, saleReturn, lossId } = await returnOfStock("discard");
+  it("leaves the balance as it was when the line is discarded, recording the loss under its system reason and sale line", async () => {
+    const { deviceId, saleReturn, lossId, saleLineId } = await returnOfStock("discard");
 
     const outcome = await applyStock(deviceId, saleReturn);
 
@@ -581,7 +581,7 @@ describe("putting a return's merchandise back in stock", () => {
         .from(stockMovements)
         .orderBy(asc(stockMovements.delta)),
     ).toEqual([
-      { id: lossId, kind: "loss", reason: "return_discard", saleLineId: null, delta: -1000 },
+      { id: lossId, kind: "loss", reason: "return_discard", saleLineId, delta: -1000 },
       {
         id: saleReturn.stockMovements[0]?.id,
         kind: "return",
@@ -669,6 +669,25 @@ describe("putting a return's merchandise back in stock", () => {
       expect(await remainingByLot()).toEqual({
         [soonLotId]: 0,
         [lateLotId]: 0,
+        [unrelatedLotId]: 5000,
+      });
+    });
+
+    it("gives a later restock of the line the room its earlier discarded return left on the lots", async () => {
+      const { deviceId, saleReturn, soonLotId, lateLotId, unrelatedLotId } =
+        await soldFromTwoLots("discard");
+      await applyStock(deviceId, saleReturn);
+      const [returned] = saleReturn.stockMovements;
+
+      await applyStock(deviceId, {
+        ...saleReturn,
+        id: randomUUID(),
+        stockMovements: [{ ...(returned as NonNullable<typeof returned>), id: randomUUID() }],
+      });
+
+      expect(await remainingByLot()).toEqual({
+        [soonLotId]: 500,
+        [lateLotId]: 500,
         [unrelatedLotId]: 5000,
       });
     });
