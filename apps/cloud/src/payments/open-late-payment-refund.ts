@@ -4,7 +4,12 @@ import type { LatePaymentRefundOpening } from "@purosur/domain/payments/use-case
 import { eq, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
-import { paymentRefunds, paymentTransactions, registers, salePayments } from "../platform/db/schema.js";
+import {
+  paymentRefunds,
+  paymentTransactions,
+  registers,
+  salePayments,
+} from "../platform/db/schema.js";
 
 export async function openLatePaymentRefund<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,

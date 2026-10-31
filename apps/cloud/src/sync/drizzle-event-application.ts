@@ -133,9 +133,10 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
     return this.enqueueRefundFollow(this.tx);
   }
 
-  async openSurplusRefundOfRebuiltSale(
-    surplus: { paymentTransactionId: string; amount: number },
-  ): Promise<void> {
+  async openSurplusRefundOfRebuiltSale(surplus: {
+    paymentTransactionId: string;
+    amount: number;
+  }): Promise<void> {
     await openSurplusRefundOfRebuiltSale(this.tx, surplus, this.now());
   }
 

@@ -47,10 +47,12 @@ describe("applying the push of a register that rebuilt sales against paid orders
       categoryId: category?.id as string,
       saleUnit: "UNIT",
     });
-    await system.db.insert(paymentTransactions).values([
-      pendingTransaction(registerId, { id: COMPLETED_ORDER, amount: 3000, state: "APPROVED" }),
-      pendingTransaction(registerId, { id: CANCELLED_ORDER, amount: 1000, state: "APPROVED" }),
-    ]);
+    await system.db
+      .insert(paymentTransactions)
+      .values([
+        pendingTransaction(registerId, { id: COMPLETED_ORDER, amount: 3000, state: "APPROVED" }),
+        pendingTransaction(registerId, { id: CANCELLED_ORDER, amount: 1000, state: "APPROVED" }),
+      ]);
     const rebuilt = recordedPush().push.events.filter((event) =>
       [COMPLETED_ORDER, CANCELLED_ORDER].some((order) =>
         JSON.stringify(event.payload).includes(order),
@@ -95,7 +97,11 @@ describe("applying the push of a register that rebuilt sales against paid orders
     const refunds = await system.db.select().from(paymentRefunds);
     expect(
       refunds
-        .map(({ origin, paymentTransactionId, amount }) => ({ origin, paymentTransactionId, amount }))
+        .map(({ origin, paymentTransactionId, amount }) => ({
+          origin,
+          paymentTransactionId,
+          amount,
+        }))
         .sort((a, b) => a.amount - b.amount),
     ).toEqual([
       { origin: "late_payment", paymentTransactionId: COMPLETED_ORDER, amount: 600 },
