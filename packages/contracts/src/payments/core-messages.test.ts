@@ -437,6 +437,7 @@ describe("converting a paid order without a sale into a refund", () => {
     "converted",
     "already_resolved",
     "not_found",
+    "rebuilt_sale_open",
     "refused",
     "unreachable",
     "not_permitted",
