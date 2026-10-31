@@ -88,6 +88,7 @@ const QR_PAID_ORDER: StartupPending["paid_orders_without_sale"][number] = {
   method: "QR",
   amount: 80_000,
   created_at: "2026-09-30T15:30:00.000-03:00",
+  rebuilt_sale_id: null,
 };
 const POINT_PAID_ORDER: StartupPending["paid_orders_without_sale"][number] = {
   payment_transaction_id: "tx-2",
@@ -95,6 +96,7 @@ const POINT_PAID_ORDER: StartupPending["paid_orders_without_sale"][number] = {
   method: "POINT",
   amount: 45_550,
   created_at: "2026-09-30T15:45:00.000-03:00",
+  rebuilt_sale_id: null,
 };
 const BLOCKED_BY_QR: StartupPending = {
   ...NOTHING,

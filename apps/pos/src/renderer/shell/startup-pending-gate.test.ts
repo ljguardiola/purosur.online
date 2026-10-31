@@ -55,6 +55,7 @@ const A_PAID_ORDER_WITHOUT_SALE: StartupPending = {
       method: "QR",
       amount: 80_000,
       created_at: "2026-09-30T10:30:00.000-03:00",
+      rebuilt_sale_id: null,
     },
   ],
   selling_blocked: true,
