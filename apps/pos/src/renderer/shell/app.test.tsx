@@ -122,6 +122,8 @@ function coreAnswering(
     followMercadoPagoCharge?: CoreClient["followMercadoPagoCharge"];
     abandonMercadoPagoCharge?: CoreClient["abandonMercadoPagoCharge"];
     convertPaidOrderIntoRefund?: CoreClient["convertPaidOrderIntoRefund"];
+    rebuildSaleAgainstPaidOrder?: CoreClient["rebuildSaleAgainstPaidOrder"];
+    chargeSaleWithPaidOrder?: CoreClient["chargeSaleWithPaidOrder"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
@@ -450,6 +452,16 @@ function coreAnswering(
       return sales.convertPaidOrderIntoRefund === undefined
         ? { kind: "unavailable" }
         : sales.convertPaidOrderIntoRefund(paymentTransactionId);
+    },
+    async rebuildSaleAgainstPaidOrder(paymentTransactionId) {
+      return sales.rebuildSaleAgainstPaidOrder === undefined
+        ? { kind: "unavailable" }
+        : sales.rebuildSaleAgainstPaidOrder(paymentTransactionId);
+    },
+    async chargeSaleWithPaidOrder(saleId) {
+      return sales.chargeSaleWithPaidOrder === undefined
+        ? { kind: "unavailable" }
+        : sales.chargeSaleWithPaidOrder(saleId);
     },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);

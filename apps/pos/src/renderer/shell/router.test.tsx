@@ -291,6 +291,8 @@ function contextWith(
     printCreditNote: async () => ({ kind: "unavailable" }),
     reprintCreditNote: async () => ({ kind: "unavailable" }),
     convertPaidOrderIntoRefund: async () => ({ kind: "unavailable" }),
+    rebuildSaleAgainstPaidOrder: async () => ({ kind: "unavailable" }),
+    chargeSaleWithPaidOrder: async () => ({ kind: "unavailable" }),
     reprintSaleReceipt: async () => ({ kind: "unavailable" }),
     salesHistory: async () => ({ kind: "unavailable" }),
     saleHistoryDetail: async () => ({ kind: "unavailable" }),
