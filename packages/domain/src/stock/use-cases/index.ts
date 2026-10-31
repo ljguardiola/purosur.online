@@ -125,6 +125,11 @@ export type {
 } from "./read-losses-by-reason-report.js";
 export { readLossesByReasonReport } from "./read-losses-by-reason-report.js";
 export type {
+  MarginReportView,
+  ReadMarginReportInput,
+} from "./read-margin-report.js";
+export { readMarginReport } from "./read-margin-report.js";
+export type {
   LotOrigin,
   ReadStockBalancesInput,
   StockBalancesView,
@@ -173,6 +178,7 @@ export type {
   ReplicatedStockLedger,
   ReplicatedStockMovement,
 } from "./replicated-stock-ledger.js";
+export type { MarginQuery, SaleMarginReportReader } from "./sale-margin-report-reader.js";
 export type {
   InvalidRecipeReason,
   SaveRecipeInput,

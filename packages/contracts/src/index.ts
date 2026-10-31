@@ -937,6 +937,8 @@ export {
   lossesByReasonReportQuerySchema,
   lossesByReasonReportSchema,
 } from "./stock/losses-by-reason-report.js";
+export type { MarginReportBody, MarginReportQuery } from "./stock/margin-report.js";
+export { marginReportQuerySchema, marginReportSchema } from "./stock/margin-report.js";
 export type { RecipeSaveBody } from "./stock/recipe-save-body.js";
 export { recipeSaveBodySchema } from "./stock/recipe-save-body.js";
 export type { RecipeSaveRefusal } from "./stock/recipe-save-refusal.js";
