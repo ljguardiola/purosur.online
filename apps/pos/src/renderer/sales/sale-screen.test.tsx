@@ -789,7 +789,7 @@ describe("SaleScreen", () => {
         name: "a paid order without a sale",
         outcome: { kind: "paid_order_without_sale" },
         title: "Hay un cobro pagado sin venta",
-        help: "Pasalo a reembolso en Antes de empezar.",
+        help: "Armá la venta o pasalo a reembolso en Antes de empezar.",
       },
       {
         name: "a paid-order check still waiting for the cloud",
