@@ -148,6 +148,14 @@ export function partialAmountOfOrderRefund(refund: RefundedPaymentFacts): number
   ) {
     return refund.amount;
   }
+  if (
+    refund.origin !== LATE_PAYMENT_REFUND_ORIGIN &&
+    refund.paymentTransaction !== null &&
+    refund.salePaymentAmount !== null &&
+    refund.salePaymentAmount < refund.paymentTransaction.amount
+  ) {
+    return refund.amount;
+  }
   return null;
 }
 
