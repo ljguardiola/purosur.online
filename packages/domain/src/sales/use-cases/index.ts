@@ -85,6 +85,12 @@ export type {
 } from "./charge-sale-on-standalone-terminal.js";
 export { chargeSaleOnStandaloneTerminal } from "./charge-sale-on-standalone-terminal.js";
 export type {
+  ChargeSaleWithPaidOrderInput,
+  ChargeSaleWithPaidOrderOutcome,
+  ChargeSaleWithPaidOrderPorts,
+} from "./charge-sale-with-paid-order.js";
+export { chargeSaleWithPaidOrder } from "./charge-sale-with-paid-order.js";
+export type {
   CurrentSaleInput,
   CurrentSaleOutcome,
   CurrentSalePorts,

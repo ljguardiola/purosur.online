@@ -172,7 +172,10 @@ describe("cancelSale", () => {
     });
 
     it("lets the paid order be rebuilt again afterwards", () => {
-      const store = ledger(REBUILT);
+      const store = ledger({
+        ...REBUILT,
+        identity: { registerId: "register-1", deviceId: "device-1" },
+      });
       cancel(store);
 
       const rebuilt = rebuildSaleAgainstPaidOrder(

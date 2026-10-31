@@ -1,5 +1,9 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import { aMercadoPagoChargeInProgress, saleBalance } from "../../payments/index.js";
+import {
+  aMercadoPagoChargeInProgress,
+  paidOrderAwaitsApplication,
+  saleBalance,
+} from "../../payments/index.js";
 import type { ZoneRules } from "../../shared/index.js";
 import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
@@ -71,7 +75,10 @@ export function chargeableSale(
   return { session, sale, total, paid, pending };
 }
 
-export type NewPaymentRefusal = SaleRefusal | { kind: "mercado_pago_charge_in_progress" };
+export type NewPaymentRefusal =
+  | SaleRefusal
+  | { kind: "mercado_pago_charge_in_progress" }
+  | { kind: "paid_order_not_applied" };
 
 export function saleOpenToNewPayment(
   tx: SaleLedgerTransaction,
@@ -84,6 +91,14 @@ export function saleOpenToNewPayment(
   const chargeable = chargeableSale(tx, actorId, saleId, at, restoration, rules);
   if (isSaleRefusal(chargeable)) {
     return chargeable;
+  }
+  if (
+    paidOrderAwaitsApplication(
+      tx.paidOrderOfSale(chargeable.sale.id),
+      tx.salePayments(chargeable.sale.id),
+    )
+  ) {
+    return { kind: "paid_order_not_applied" };
   }
   if (aMercadoPagoChargeInProgress(tx.pendingMercadoPagoPaymentsOf(chargeable.sale.id), at)) {
     return { kind: "mercado_pago_charge_in_progress" };

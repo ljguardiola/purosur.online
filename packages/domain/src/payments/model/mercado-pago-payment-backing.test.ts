@@ -57,9 +57,9 @@ describe("rebuiltPaidOrderPaymentIsBacked", () => {
   });
 
   it("does not ask for the transaction to belong to the sale", () => {
-    expect(
-      rebuiltPaidOrderPaymentIsBacked(applied, 3000, { ...paidOrder, saleId: "another-sale" }),
-    ).toBe(true);
+    const ofAnotherSale = { ...paidOrder, saleId: "another-sale" };
+
+    expect(rebuiltPaidOrderPaymentIsBacked(applied, 3000, ofAnotherSale)).toBe(true);
   });
 
   it("is backed by a transaction of exactly the payment's amount when there is no surplus", () => {
