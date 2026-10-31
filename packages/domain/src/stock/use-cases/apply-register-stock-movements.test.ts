@@ -825,6 +825,34 @@ describe("applyRegisterStockMovements", () => {
       expect(remainingByLot(store)).toEqual({ ...before, "other-line": 1500 });
     });
 
+    it("never offsets a discard against the return of another product on the same sale line", async () => {
+      const store = storeWithSoldLots();
+      store.seedLot({ ...CHEESE, id: "cheese-lot", remaining: 1000 });
+
+      await apply(
+        store,
+        sale([
+          ...restocked(3000),
+          {
+            id: "return-movement-7",
+            saleLineId: "sale-line-1",
+            productId: "product-cheese",
+            kind: "loss",
+            reason: "return_discard",
+            delta: -1000,
+          },
+        ]),
+      );
+
+      expect(remainingByLot(store)).toEqual({
+        soon: 1000,
+        late: 2000,
+        "other-line": 500,
+        earlier: 5000,
+        "cheese-lot": 0,
+      });
+    });
+
     it("takes a discard with no return of its line in the same batch by expiry order", async () => {
       const store = storeWithSoldLots();
 

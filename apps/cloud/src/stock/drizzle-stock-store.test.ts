@@ -754,6 +754,11 @@ describe("DrizzleStockStore saleLineLotAllocations", () => {
     const { deviceId, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const otherLocationId = await insertLocation();
     const productId = await insertProduct();
+    const [product] = await db.select().from(products).where(eq(products.id, productId));
+    const [otherProduct] = await db
+      .insert(products)
+      .values({ name: "Nueces peladas", categoryId: product?.categoryId as string, saleUnit: "KG" })
+      .returning({ id: products.id });
     const actorId = await insertUser(locationId);
     const [thisLine, otherLine] = await recordedSale(deviceId, productId);
     const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
@@ -777,6 +782,12 @@ describe("DrizzleStockStore saleLineLotAllocations", () => {
       locationId: otherLocationId,
       saleLineId: thisLine as string,
       allocations: [{ lotId, quantity: 8000 }],
+    });
+    await allocatedBy({
+      ...returned,
+      productId: otherProduct?.id as string,
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: 6000 }],
     });
     await allocatedBy({
       ...returned,

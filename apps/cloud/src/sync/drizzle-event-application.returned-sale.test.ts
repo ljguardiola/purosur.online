@@ -628,12 +628,12 @@ describe("putting a return's merchandise back in stock", () => {
           actorId: CASHIER,
           kind: "sale",
           saleLineId,
-          delta: -1000,
+          delta: -2000,
           occurredAt: COMPLETED_AT,
         })
         .returning({ id: stockMovements.id });
       await system.db.insert(lotAllocations).values([
-        { movementId: sold?.id as string, lotId: soonLotId, quantity: -500 },
+        { movementId: sold?.id as string, lotId: soonLotId, quantity: -1500 },
         { movementId: sold?.id as string, lotId: lateLotId, quantity: -500 },
       ]);
       return { ...stock, soonLotId, lateLotId, unrelatedLotId };

@@ -667,6 +667,25 @@ describe("restockedReturnAllocations", () => {
     ]);
   });
 
+  it("orders the lots the product no longer lists as the sale took from them", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "gone-first", quantity: -1000 },
+          { lotId: "gone-second", quantity: -1000 },
+          { lotId: "soon", quantity: -1000 },
+        ],
+        [],
+        2500,
+      ),
+    ).toEqual([
+      { target: target("soon"), quantity: 1000 },
+      { target: target("gone-first"), quantity: 1000 },
+      { target: target("gone-second"), quantity: 500 },
+    ]);
+  });
+
   it("gives what the sale's lots cannot take to the most recently received lot", () => {
     const received = [
       lot("older", { receivedAt: new Date("2026-01-01T12:00:00.000Z") }),
