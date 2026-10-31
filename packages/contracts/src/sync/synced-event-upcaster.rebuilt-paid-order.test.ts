@@ -7,6 +7,7 @@ import { unappliedEventOf } from "./test-support/unapplied-event.js";
 const RECORDED_SALES = recordedPushes()
   .flatMap(({ push }) => push.events)
   .filter((event) => event.event_type === "sale_completed");
+const NOT_REBUILT = (event: PushedEvent) => event.payload["rebuilt_paid_order"] == null;
 
 const PAID_ORDER = "0199b7a0-0000-7000-8000-000000000b01";
 
@@ -23,7 +24,10 @@ function version10Sale(
 
 describe("decoding a completed sale for the paid order it was rebuilt against", () => {
   it.each(
-    RECORDED_SALES.map((event): [string, PushedEvent] => [`v${event.schema_version}`, event]),
+    RECORDED_SALES.filter(NOT_REBUILT).map((event): [string, PushedEvent] => [
+      `v${event.schema_version}`,
+      event,
+    ]),
   )("reads a recorded %s sale as one rebuilt against no paid order", (_version, event) => {
     expect(syncedEventUpcaster.decode(unappliedEventOf(event))).toMatchObject({
       kind: "fact",
@@ -72,7 +76,7 @@ function version10CancelledSale(
 
 describe("decoding a cancelled sale for the paid order it was rebuilt against", () => {
   it.each(
-    RECORDED_CANCELLED_SALES.map((event): [string, PushedEvent] => [
+    RECORDED_CANCELLED_SALES.filter(NOT_REBUILT).map((event): [string, PushedEvent] => [
       `v${event.schema_version}`,
       event,
     ]),
@@ -108,4 +112,22 @@ describe("decoding a cancelled sale for the paid order it was rebuilt against", 
       },
     });
   });
+});
+
+describe("decoding the sales a register recorded as rebuilt against a paid order", () => {
+  it.each([
+    ["completed", RECORDED_SALES, "sale_completed", 600],
+    ["cancelled", RECORDED_CANCELLED_SALES, "sale_cancelled", 0],
+  ] as const)(
+    "reads the paid order and the surplus of a recorded %s sale",
+    (_kind, events, kind, surplus) => {
+      const rebuilt = events.find((event) => !NOT_REBUILT(event)) as PushedEvent;
+      const decoded = syncedEventUpcaster.decode(unappliedEventOf(rebuilt));
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: { kind, sale: { rebuiltPaidOrder: { surplus } } },
+      });
+    },
+  );
 });
