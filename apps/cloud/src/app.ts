@@ -4,6 +4,7 @@ import type { ErrorReportingConfiguration } from "@purosur/contracts";
 import type { ZoneRulesSource } from "@purosur/domain";
 import type {
   ProductChooser,
+  SupplierItemQuantityReader,
   SupplierPriceListFiles,
   SupplierPriceListWebPages,
 } from "@purosur/domain/purchasing/use-cases";
@@ -386,6 +387,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   supplierPriceListFiles?: SupplierPriceListFiles;
   supplierPriceListWebPages?: SupplierPriceListWebPages;
   productChooser?: ProductChooser;
+  supplierItemQuantityReader?: SupplierItemQuantityReader;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -422,6 +424,9 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
         ? { supplierPriceListWebPages: wiring.supplierPriceListWebPages }
         : {}),
       ...(wiring.productChooser ? { productChooser: wiring.productChooser } : {}),
+      ...(wiring.supplierItemQuantityReader
+        ? { supplierItemQuantityReader: wiring.supplierItemQuantityReader }
+        : {}),
     },
     tags: backoffice,
     products: backoffice,
