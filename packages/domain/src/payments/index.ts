@@ -128,7 +128,6 @@ export type {
   RebuildablePaidOrder,
   RebuiltPaidOrderStanding,
   RebuiltSaleState,
-  SaleRebuiltAgainstPaidOrder,
 } from "./model/rebuilt-paid-order.js";
 export {
   paidOrderAwaitsApplication,
