@@ -14,7 +14,10 @@ export {
   MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
   mercadoPagoChargeInProgress,
 } from "./model/mercado-pago-order-charge-wait.js";
-export { mercadoPagoPaymentIsBacked } from "./model/mercado-pago-payment-backing.js";
+export {
+  mercadoPagoPaymentIsBacked,
+  rebuiltPaidOrderPaymentIsBacked,
+} from "./model/mercado-pago-payment-backing.js";
 export {
   isValidPointOrderAmount,
   MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
@@ -44,6 +47,16 @@ export {
   paidOrderWithoutSaleBlocksSelling,
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
 } from "./model/paid-order-discovery.js";
+export type {
+  RebuiltSaleState,
+  SaleRebuiltAgainstPaidOrder,
+} from "./model/rebuilt-paid-order.js";
+export {
+  paidOrderAwaitsApplication,
+  paidOrderWithoutSaleIsResolved,
+  rebuiltPaidOrderAppliedAmount,
+  rebuiltPaidOrderSurplus,
+} from "./model/rebuilt-paid-order.js";
 export type {
   ConfirmedByHandMethod,
   MercadoPagoPaymentMethod,
