@@ -4,6 +4,7 @@ import { compareFractions } from "../../shared/index.js";
 import {
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
   isEarlierPrice,
+  isLinkCurrent,
   isSupplierItemVatRate,
   keepingRememberedVatRate,
   lastRowOfEachItem,
@@ -177,7 +178,7 @@ describe("pricePerSaleUnit", () => {
         priceCents: 1_000,
         pricesIncludeVat: true,
         vatRate: null,
-        quantityPerPackage: 3_000,
+        quantity: 3_000,
       }),
     ).toEqual({ numerator: 1_000n, denominator: 3n });
   });
@@ -188,7 +189,7 @@ describe("pricePerSaleUnit", () => {
         priceCents: 1_001,
         pricesIncludeVat: false,
         vatRate: 1050,
-        quantityPerPackage: 3_000,
+        quantity: 3_000,
       }),
     ).toEqual({ numerator: 221_221n, denominator: 600n });
   });
@@ -199,7 +200,7 @@ describe("pricePerSaleUnit", () => {
         priceCents: 1_000,
         pricesIncludeVat: true,
         vatRate: 2100,
-        quantityPerPackage: 1_000,
+        quantity: 1_000,
       }),
     ).toEqual({ numerator: 1_000n, denominator: 1n });
   });
@@ -210,7 +211,7 @@ describe("pricePerSaleUnit", () => {
         priceCents: 1_000,
         pricesIncludeVat: false,
         vatRate: null,
-        quantityPerPackage: 1_000,
+        quantity: 1_000,
       }),
     ).toBeNull();
   });
@@ -221,7 +222,7 @@ describe("pricePerSaleUnit", () => {
         priceCents: 1_000,
         pricesIncludeVat: null,
         vatRate: null,
-        quantityPerPackage: 1_000,
+        quantity: 1_000,
       }),
     ).toBeNull();
     expect(
@@ -229,7 +230,7 @@ describe("pricePerSaleUnit", () => {
         priceCents: 1_000,
         pricesIncludeVat: null,
         vatRate: 2100,
-        quantityPerPackage: 1_000,
+        quantity: 1_000,
       }),
     ).toEqual({ numerator: 1_210n, denominator: 1n });
   });
@@ -240,7 +241,7 @@ describe("pricePerSaleUnit", () => {
         priceCents: 500,
         pricesIncludeVat: true,
         vatRate: null,
-        quantityPerPackage: 500,
+        quantity: 500,
       }),
     ).toEqual({ numerator: 1_000n, denominator: 1n });
   });
@@ -251,24 +252,40 @@ describe("pricePerSaleUnit", () => {
         fc.integer({ min: 0, max: 100_000_000 }),
         fc.integer({ min: 1, max: 1_000_000 }),
         fc.constantFrom(2100, 1050),
-        (priceCents, quantityPerPackage, vatRate) => {
+        (priceCents, quantity, vatRate) => {
           const fraction = pricePerSaleUnit({
             priceCents,
             pricesIncludeVat: false,
             vatRate,
-            quantityPerPackage,
+            quantity,
           });
 
           expect(fraction?.denominator).toBeGreaterThan(0n);
           expect(
             compareFractions(fraction ?? { numerator: -1n, denominator: 1n }, {
               numerator: BigInt(priceCents) * BigInt(10_000 + vatRate) * 1_000n,
-              denominator: 10_000n * BigInt(quantityPerPackage),
+              denominator: 10_000n * BigInt(quantity),
             }),
           ).toBe(0);
         },
       ),
     );
+  });
+});
+
+describe("isLinkCurrent", () => {
+  it("holds for a link that needs no relinking and states its quantity in the product's sale unit", () => {
+    expect(isLinkCurrent({ relinkRequired: false, saleUnit: "UNIT" }, "UNIT")).toBe(true);
+    expect(isLinkCurrent({ relinkRequired: false, saleUnit: "KG" }, "KG")).toBe(true);
+  });
+
+  it("fails for a link that requires linking again", () => {
+    expect(isLinkCurrent({ relinkRequired: true, saleUnit: "UNIT" }, "UNIT")).toBe(false);
+  });
+
+  it("fails for a link stated in another sale unit than the product's", () => {
+    expect(isLinkCurrent({ relinkRequired: false, saleUnit: "UNIT" }, "KG")).toBe(false);
+    expect(isLinkCurrent({ relinkRequired: false, saleUnit: "KG" }, "UNIT")).toBe(false);
   });
 });
 
@@ -633,6 +650,6 @@ describe("keepingRememberedVatRate", () => {
 
 describe("SUPPLIER_OFFER_UNPRICED_REASONS", () => {
   it("names why an offer has no price per sale unit", () => {
-    expect(SUPPLIER_OFFER_UNPRICED_REASONS).toEqual(["vat_rate_missing", "packaging_not_buyable"]);
+    expect(SUPPLIER_OFFER_UNPRICED_REASONS).toEqual(["vat_rate_missing", "link_outdated"]);
   });
 });
