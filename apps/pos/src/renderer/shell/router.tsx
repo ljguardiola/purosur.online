@@ -872,6 +872,7 @@ const chargeRoute = createRoute({
       chargeSaleInCash,
       chargeSaleByTransfer,
       chargeSaleOnStandaloneTerminal,
+      chargeSaleWithPaidOrder,
       paymentMethodAvailability,
       startMercadoPagoCharge,
       followMercadoPagoCharge,
@@ -893,6 +894,7 @@ const chargeRoute = createRoute({
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
         chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
+        chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
         paymentMethodAvailability={paymentMethodAvailability}
         startMercadoPagoCharge={startMercadoPagoCharge}
         followMercadoPagoCharge={followMercadoPagoCharge}

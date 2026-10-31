@@ -4,6 +4,7 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   OpenSale,
@@ -42,6 +43,7 @@ import { PointPaymentWaitModal } from "./point-payment-wait-modal";
 import type { ShownQrOrder } from "./qr-charge-modal";
 import { QrChargeModal } from "./qr-charge-modal";
 import { QrPaymentWaitModal } from "./qr-payment-wait-modal";
+import { RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
 import {
   useCurrentSaleQuery,
   usePaymentMethodAvailabilityQuery,
@@ -108,6 +110,7 @@ export type ChargeScreenProps = {
     saleId: string,
     amount: number,
   ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>;
+  chargeSaleWithPaidOrder: (saleId: string) => Promise<ChargeSaleWithPaidOrderOutcome>;
   paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge: (
     saleId: string,
@@ -138,6 +141,7 @@ export function ChargeScreen({
   chargeSaleInCash,
   chargeSaleByTransfer,
   chargeSaleOnStandaloneTerminal,
+  chargeSaleWithPaidOrder,
   paymentMethodAvailability,
   startMercadoPagoCharge,
   followMercadoPagoCharge,
@@ -158,7 +162,9 @@ export function ChargeScreen({
   });
   const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
   const [step, setStep] = useState<Step>({ name: "methods" });
-  const [notice, setNotice] = useState<"cancelled">();
+  const [notice, setNotice] = useState<
+    { kind: "cancelled" } | { kind: "remaining"; pending: number }
+  >();
 
   function backToSale() {
     void navigate({ to: "/session" });
@@ -194,6 +200,8 @@ export function ChargeScreen({
   }, [nothingToCharge, navigate]);
 
   const sale = saleKept ? step.sale : chargeable;
+  const paidOrder = sale?.rebuilt_paid_order;
+  const paidOrderToApply = paidOrder?.applied === false ? paidOrder : undefined;
   const { options, belowMinimum } = chargeMethodOptions(availability);
   const pointMinimum =
     availability.status === "loaded" ? availability.value.point_minimum : undefined;
@@ -224,9 +232,36 @@ export function ChargeScreen({
               eyebrow={`COBRO · VENTA DE ${formatNumber(lineCount)} ${lines}`}
               title="Elegí el medio de pago"
             />
-            {notice === "cancelled" && step.name === "methods" ? (
+            {notice?.kind === "cancelled" && step.name === "methods" ? (
               <InlineNotice tone="info" icon={<Info />} title="Se canceló la orden QR." />
             ) : null}
+            {notice?.kind === "remaining" && step.name === "methods" ? (
+              <InlineNotice
+                tone="info"
+                icon={<Info />}
+                title={`Quedan ${formatCents(notice.pending)} por cobrar con otro medio`}
+              />
+            ) : null}
+            {paidOrderToApply === undefined || step.name !== "methods" ? null : (
+              <RebuiltPaidOrderNotice
+                paidOrder={paidOrderToApply}
+                apply={() => chargeSaleWithPaidOrder(sale.id)}
+                onCompleted={(charge) =>
+                  setStep({
+                    name: "completed",
+                    payment: { method: "PAID_ORDER", orderMethod: paidOrderToApply.method, charge },
+                    sale,
+                  })
+                }
+                onPartiallyPaid={async (charge) => {
+                  await backToMethodsWithBalance();
+                  setNotice({ kind: "remaining", pending: charge.pending });
+                }}
+                onSaleChanged={backToMethodsWithBalance}
+                onSaleUnavailable={backToSale}
+                onSessionInvalid={onSessionInvalid}
+              />
+            )}
             {belowMinimum === undefined ? null : (
               <InlineNotice
                 tone="info"
@@ -325,7 +360,7 @@ export function ChargeScreen({
           follow={followMercadoPagoCharge}
           abandon={abandonMercadoPagoCharge}
           onCancelled={() => {
-            setNotice("cancelled");
+            setNotice({ kind: "cancelled" });
             void backToMethodsWithBalance();
           }}
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
