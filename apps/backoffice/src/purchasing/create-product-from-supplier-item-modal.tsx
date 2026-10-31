@@ -1,6 +1,7 @@
 import {
   type BrandSummary,
   type CategorySummary,
+  type SupplierItemQuantityProposalBody,
   supplierPriceListRowProductCreationBodySchema,
 } from "@purosur/contracts";
 import {
@@ -202,36 +203,43 @@ export function CreateProductFromSupplierItemModal({
   const wantedSaleUnit = wanted?.saleUnit ?? null;
   const wantedNetQuantity = wanted?.netContent?.quantity ?? null;
   const wantedNetUnit = wanted?.netContent?.unit ?? null;
-  const [asked, setAsked] = useState({
-    saleUnit: wantedSaleUnit,
-    netQuantity: wantedNetQuantity,
-    netUnit: wantedNetUnit,
-  });
+  const [askedOpening, setAskedOpening] = useState<SupplierPriceListRow | null>(null);
+  const [asked, setAsked] = useState<SupplierItemQuantityProposalBody | null>(null);
+  if (target !== askedOpening) {
+    setAskedOpening(target);
+    setAsked(
+      target === null
+        ? null
+        : supplierItemQuantityProposalRequestFrom(
+            supplierItemProductFormValuesOf(target, list.version),
+          ),
+    );
+  }
   useEffect(() => {
+    if (target === null) {
+      return;
+    }
     const handle = setTimeout(
       () =>
-        setAsked({
-          saleUnit: wantedSaleUnit,
-          netQuantity: wantedNetQuantity,
-          netUnit: wantedNetUnit,
-        }),
+        setAsked(
+          wantedSaleUnit === null
+            ? null
+            : {
+                saleUnit: wantedSaleUnit,
+                netContent:
+                  wantedNetQuantity === null || wantedNetUnit === null
+                    ? null
+                    : { quantity: wantedNetQuantity, unit: wantedNetUnit },
+              },
+        ),
       QUANTITY_PROPOSAL_DEBOUNCE_MS,
     );
     return () => clearTimeout(handle);
-  }, [wantedSaleUnit, wantedNetQuantity, wantedNetUnit]);
+  }, [target, wantedSaleUnit, wantedNetQuantity, wantedNetUnit]);
   const quantityProposal = useSupplierItemQuantityProposalQuery({
     listId: list.id,
     rowId: row?.id ?? "",
-    request:
-      open && asked.saleUnit !== null
-        ? {
-            saleUnit: asked.saleUnit,
-            netContent:
-              asked.netQuantity === null || asked.netUnit === null
-                ? null
-                : { quantity: asked.netQuantity, unit: asked.netUnit },
-          }
-        : null,
+    request: open ? asked : null,
     fetchSupplierItemQuantityProposal: services.fetchSupplierItemQuantityProposal,
     onSessionEnded,
   });
@@ -240,7 +248,7 @@ export function CreateProductFromSupplierItemModal({
       ? quantityProposal.value.quantity
       : null;
   const proposalSettled = quantityProposal.status === "loaded";
-  const proposalSaleUnit = asked.saleUnit === values.saleUnit ? asked.saleUnit : null;
+  const proposalSaleUnit = asked?.saleUnit === values.saleUnit ? asked.saleUnit : null;
   const [proposalFill, setProposalFill] = useState("");
   useEffect(() => {
     if (!open || !proposalSettled || proposalSaleUnit === null) {

@@ -22,8 +22,8 @@ export type ProductChoice =
   | { kind: "none" }
   | { kind: "unavailable" };
 
-// What the AI service receives is the item's text and the candidates' names, brands and net contents: no supplier, branch
-// or person.
+// What the AI service receives is the item's description, its presentation and the other presentations the list states for
+// it, and the candidates' ids, names, brands, net contents and sale units: no supplier, branch or person.
 export interface ProductChooser {
   choose(
     item: ProductChoiceItem,
