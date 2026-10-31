@@ -139,16 +139,22 @@ export function restockedReturnAllocations(
   returnedAllocations: readonly { lotId: string; quantity: number }[],
   delta: number,
 ): PlannedLotAllocation[] {
-  const room = new Map<string, number>();
+  const taken = new Map<string, number>();
   for (const { lotId, quantity } of saleAllocations) {
-    room.set(lotId, (room.get(lotId) ?? 0) - quantity);
+    taken.set(lotId, (taken.get(lotId) ?? 0) - quantity);
   }
+  const givenBack = new Map<string, number>();
   for (const { lotId, quantity } of returnedAllocations) {
-    room.set(lotId, (room.get(lotId) ?? 0) - quantity);
+    givenBack.set(lotId, (givenBack.get(lotId) ?? 0) + quantity);
   }
 
   const known = new Map(lots.map((lot) => [lot.id, lot]));
-  const withRoom = [...room].filter(([, quantity]) => quantity > 0);
+  const withRoom = [...taken]
+    .map(([lotId, quantity]): [string, number] => [
+      lotId,
+      Math.min(quantity - (givenBack.get(lotId) ?? 0), quantity),
+    ])
+    .filter(([, quantity]) => quantity > 0);
   const listed = withRoom
     .flatMap(([lotId, quantity]) => {
       const lot = known.get(lotId);
