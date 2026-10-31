@@ -489,7 +489,13 @@ describe("readSupplierPriceList", () => {
 });
 
 describe("readSupplierPriceList rows of a supplier with remembered items", () => {
-  const LINK = { productId: "product-1", quantity: 1_000, saleUnit: "UNIT", vatRate: 1050, relinkRequired: false };
+  const LINK = {
+    productId: "product-1",
+    quantity: 1_000,
+    saleUnit: "UNIT",
+    vatRate: 1050,
+    relinkRequired: false,
+  };
 
   function rowOf(fields: { code?: string | null; description: string; barcode?: string | null }) {
     return {
@@ -609,7 +615,13 @@ describe("readSupplierPriceList rows of a supplier with remembered items", () =>
   });
 
   it("gives each row the link of its own item when the supplier has several", async () => {
-    const other = { productId: "product-2", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false };
+    const other = {
+      productId: "product-2",
+      quantity: 1_000,
+      saleUnit: "UNIT",
+      vatRate: null,
+      relinkRequired: false,
+    };
     const rows = await readRows(
       [rowOf({ code: "abc", description: "A" }), rowOf({ description: "abc" })],
       (store) => {
@@ -699,7 +711,13 @@ describe("readSupplierPriceList of a store's catalog", () => {
 
   it("gives a catalog row the link remembered for its item", async () => {
     const { store, storeCatalogs, ports } = await setupCatalog();
-    const link = { productId: "product-1", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false };
+    const link = {
+      productId: "product-1",
+      quantity: 1_000,
+      saleUnit: "UNIT",
+      vatRate: null,
+      relinkRequired: false,
+    };
     store.seedSupplierItem({
       description: "Yerba Monte Verde 1 kg",
       key: { kind: "description", value: "yerba monte verde 1 kg\nunidad" },
@@ -714,7 +732,13 @@ describe("readSupplierPriceList of a store's catalog", () => {
 
   it("gives the link remembered for one pack size of a product with no code to that pack size only", async () => {
     const { store, storeCatalogs, ports } = await setupCatalog();
-    const link = { productId: "product-1", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false };
+    const link = {
+      productId: "product-1",
+      quantity: 1_000,
+      saleUnit: "UNIT",
+      vatRate: null,
+      relinkRequired: false,
+    };
     store.seedSupplierItem({
       description: "Yerba Monte Verde 1 kg",
       key: { kind: "description", value: "yerba monte verde 1 kg\nunidad" },

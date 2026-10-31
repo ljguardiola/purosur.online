@@ -15,8 +15,20 @@ import {
 } from "./test-support/read-supplier-price-list.js";
 
 const FIRST_SENT_AT = new Date("2026-03-01T15:00:00Z");
-const LINK = { productId: "product-1", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false };
-const OTHER_LINK = { productId: "product-2", quantity: 1_000, saleUnit: "UNIT", vatRate: 2100, relinkRequired: false };
+const LINK = {
+  productId: "product-1",
+  quantity: 1_000,
+  saleUnit: "UNIT",
+  vatRate: null,
+  relinkRequired: false,
+};
+const OTHER_LINK = {
+  productId: "product-2",
+  quantity: 1_000,
+  saleUnit: "UNIT",
+  vatRate: 2100,
+  relinkRequired: false,
+};
 
 function pageRow(description: string, priceCents: number | null, overrides = {}) {
   return {

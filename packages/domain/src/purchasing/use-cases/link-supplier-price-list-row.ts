@@ -1,4 +1,4 @@
-import { mayBuyByPackaging } from "../model/packaging.js";
+import { isMovementQuantity } from "../../stock/index.js";
 import { maySupplierPriceListRowBeLinked } from "../model/supplier-price-list.js";
 import { decideRowVatRate, linkRowAndRememberItem } from "./supplier-price-list-row-link-steps.js";
 import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
@@ -8,7 +8,8 @@ export interface LinkSupplierPriceListRowInput {
   rowId: string;
   version: number;
   productId: string;
-  packagingId: string;
+  // In thousandths of the product's sale unit.
+  quantity: number;
   // In basis points; null when none was chosen.
   vatRate: number | null;
   actorId: string;
@@ -18,7 +19,8 @@ export type LinkSupplierPriceListRowOutcome =
   | { kind: "not_found" }
   | { kind: "not_editable" }
   | { kind: "stale_version" }
-  | { kind: "packaging_not_linkable" }
+  | { kind: "product_not_linkable" }
+  | { kind: "invalid_quantity" }
   | { kind: "vat_rate_missing" }
   | { kind: "vat_rate_invalid" }
   | { kind: "linked" };
@@ -44,14 +46,12 @@ export function linkSupplierPriceListRow(
       return { kind: "not_found" };
     }
 
-    const target = await tx.lockProductPackaging(input.productId, input.packagingId);
-    if (
-      target.kind === "not_found" ||
-      !target.product.active ||
-      target.packaging.productId !== input.productId ||
-      !mayBuyByPackaging(target.packaging, target.product.saleUnit)
-    ) {
-      return { kind: "packaging_not_linkable" };
+    const target = await tx.lockLinkableProduct(input.productId);
+    if (target.kind === "not_found" || !target.product.active) {
+      return { kind: "product_not_linkable" };
+    }
+    if (!isMovementQuantity(target.product.saleUnit, input.quantity)) {
+      return { kind: "invalid_quantity" };
     }
 
     const decision = decideRowVatRate(list.pricesIncludeVat, input.vatRate);
@@ -62,7 +62,13 @@ export function linkSupplierPriceListRow(
     await linkRowAndRememberItem(
       tx,
       { list, listId: input.listId, rowId: input.rowId, row: lockedRow.row },
-      { productId: input.productId, packagingId: input.packagingId, vatRate: decision.vatRate },
+      {
+        productId: input.productId,
+        quantity: input.quantity,
+        saleUnit: target.product.saleUnit,
+        vatRate: decision.vatRate,
+        relinkRequired: false,
+      },
       input.actorId,
     );
     return { kind: "linked" };

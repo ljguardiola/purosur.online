@@ -30,12 +30,16 @@ export type FindSupplierPriceListSourceResult =
       source: { kind: "PDF" } | { kind: "WEB_PAGE"; url: string };
     };
 
-// The catalog product and purchase presentation a supplier's item stands for. The rate is in basis
-// points and is null for an item whose list prices include VAT.
+// The catalog product a supplier's item stands for and the quantity of the product's sale unit the
+// item brings, in thousandths of that unit, stated in `saleUnit`. The rate is in basis points and
+// is null for an item whose list prices include VAT. A link whose product was sold by another unit
+// when it was made, or that a deactivated packaging left behind, requires linking again.
 export interface SupplierItemLink {
   productId: string;
-  packagingId: string;
+  quantity: number;
+  saleUnit: SaleUnit;
   vatRate: number | null;
+  relinkRequired: boolean;
 }
 
 export interface SupplierItem {
@@ -76,13 +80,9 @@ export interface StoredPriceListRow {
   linkedByPerson: boolean;
 }
 
-export type LockProductPackagingResult =
+export type LockLinkableProductResult =
   | { kind: "not_found" }
-  | {
-      kind: "locked";
-      product: { active: boolean; saleUnit: SaleUnit };
-      packaging: { productId: string; active: boolean; saleUnit: SaleUnit };
-    };
+  | { kind: "locked"; product: { active: boolean; saleUnit: SaleUnit } };
 
 // A new reading of a list not confirmed yet, which replaces nothing of the list until it ends.
 export interface OpenReread {
@@ -189,7 +189,8 @@ export interface SupplierPriceListStoreTransaction {
   // Like supplierItems, and serializes the writers of the supplier's items, those not yet
   // remembered included.
   lockSupplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]>;
-  lockProductPackaging(productId: string, packagingId: string): Promise<LockProductPackagingResult>;
+  // Locks the product so its sale unit cannot change before the link is written.
+  lockLinkableProduct(productId: string): Promise<LockLinkableProductResult>;
   addSupplierItem(fields: NewSupplierItemFields): Promise<{ id: string }>;
   describeSupplierItem(itemId: string, description: string): Promise<void>;
   rememberSupplierItemLink(itemId: string, link: SupplierItemLink): Promise<void>;

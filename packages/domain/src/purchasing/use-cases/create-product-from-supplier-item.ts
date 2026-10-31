@@ -1,5 +1,5 @@
 import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
-import { isPackagingNameTooLong, isQuantityPerPackage } from "../model/packaging.js";
+import { isMovementQuantity } from "../../stock/index.js";
 import {
   mayCreateProductFromRow,
   maySupplierPriceListRowBeLinked,
@@ -21,9 +21,8 @@ export interface CreateProductFromSupplierItemInput {
   barcodes: string[];
   tagIds: string[];
   netContent: { quantity: number; unit: NetContentUnit } | null;
-  // Names the presentation only for an item whose list states none.
-  packagingName: string | null;
-  quantityPerPackage: number;
+  // In thousandths of `saleUnit`.
+  quantity: number;
   // In basis points; null when none was chosen.
   vatRate: number | null;
   actorId: string;
@@ -34,13 +33,11 @@ export type CreateProductFromSupplierItemOutcome =
   | { kind: "not_editable" }
   | { kind: "stale_version" }
   | { kind: "already_linked" }
-  | { kind: "presentation_missing" }
-  | { kind: "presentation_too_long" }
   | { kind: "invalid_quantity" }
   | { kind: "vat_rate_missing" }
   | { kind: "vat_rate_invalid" }
   | Exclude<CreateCatalogProductOutcome, { kind: "created" }>
-  | { kind: "created"; productId: string; packagingId: string };
+  | { kind: "created"; productId: string };
 
 export function createProductFromSupplierItem(
   store: SupplierItemProductStore,
@@ -66,15 +63,7 @@ export function createProductFromSupplierItem(
     if (!mayCreateProductFromRow(row)) {
       return { kind: "already_linked" };
     }
-    const packagingName = row.presentation ?? input.packagingName;
-    if (packagingName === null) {
-      return { kind: "presentation_missing" };
-    }
-    if (isPackagingNameTooLong(packagingName)) {
-      return { kind: "presentation_too_long" };
-    }
-
-    if (!isQuantityPerPackage(input.saleUnit, input.quantityPerPackage)) {
+    if (!isMovementQuantity(input.saleUnit, input.quantity)) {
       return { kind: "invalid_quantity" };
     }
     const decision = decideRowVatRate(list.pricesIncludeVat, input.vatRate);
@@ -94,20 +83,18 @@ export function createProductFromSupplierItem(
     if (product.kind !== "created") {
       return product;
     }
-    const packaging = await tx.insertPackaging({
-      productId: product.productId,
-      name: packagingName,
-      quantityPerPackage: input.quantityPerPackage,
-      saleUnit: input.saleUnit,
-      actorId: input.actorId,
-    });
-
     await linkRowAndRememberItem(
       tx,
       { list, listId: input.listId, rowId: input.rowId, row },
-      { productId: product.productId, packagingId: packaging.id, vatRate: decision.vatRate },
+      {
+        productId: product.productId,
+        quantity: input.quantity,
+        saleUnit: input.saleUnit,
+        vatRate: decision.vatRate,
+        relinkRequired: false,
+      },
       input.actorId,
     );
-    return { kind: "created", productId: product.productId, packagingId: packaging.id };
+    return { kind: "created", productId: product.productId };
   });
 }

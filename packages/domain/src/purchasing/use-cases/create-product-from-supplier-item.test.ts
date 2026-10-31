@@ -118,12 +118,7 @@ describe("createProductFromSupplierItem", () => {
 
     await createProductFromSupplierItem(store, input);
 
-    expect(store.callOrder).toEqual([
-      "lockList",
-      "lockRow",
-      "createCatalogProduct",
-      "linkRow",
-    ]);
+    expect(store.callOrder).toEqual(["lockList", "lockRow", "createCatalogProduct", "linkRow"]);
   });
 
   it("leaves the supplier's items alone while the list is under review", async () => {
@@ -180,7 +175,13 @@ describe("createProductFromSupplierItem", () => {
     store.lists.seedSupplierItem({
       description: "Yerba 1 kg",
       key: { kind: "code", value: "Y-1" },
-      link: { productId: "old", quantity: 1_000, saleUnit: "UNIT", vatRate: 1050, relinkRequired: false },
+      link: {
+        productId: "old",
+        quantity: 1_000,
+        saleUnit: "UNIT",
+        vatRate: 1050,
+        relinkRequired: false,
+      },
     });
 
     await createProductFromSupplierItem(store, { ...input, vatRate: 2100 });

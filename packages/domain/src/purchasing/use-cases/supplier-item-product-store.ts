@@ -1,5 +1,4 @@
 import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
-import type { NewPackagingFields } from "./purchasing-store.js";
 import type {
   SupplierItemLink,
   SupplierPriceListStoreTransaction,
@@ -44,7 +43,6 @@ export interface SupplierItemProductStoreTransaction
   > {
   lockRow(listId: string, rowId: string): Promise<LockSupplierItemRowResult>;
   createCatalogProduct(input: CreateCatalogProductInput): Promise<CreateCatalogProductOutcome>;
-  insertPackaging(fields: NewPackagingFields): Promise<{ id: string }>;
 }
 
 export interface SupplierItemProductStore {

@@ -1123,7 +1123,7 @@ describe("editProduct", () => {
       expect(store.lockCallOrder).toEqual([
         "lockProduct",
         "activePackagingNamesOf",
-      "hasCurrentSupplierItemLink",
+        "hasCurrentSupplierItemLink",
         "lockLeafCategory",
       ]);
     });
@@ -1157,7 +1157,7 @@ describe("editProduct", () => {
       expect(store.lockCallOrder).toEqual([
         "lockProduct",
         "activePackagingNamesOf",
-      "hasCurrentSupplierItemLink",
+        "hasCurrentSupplierItemLink",
         "buyNPayMDiscountsOn",
         "lockLeafCategory",
       ]);

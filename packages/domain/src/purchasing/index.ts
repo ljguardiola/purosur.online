@@ -64,6 +64,7 @@ export type {
 } from "./model/supplier-item.js";
 export {
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
+  isLinkCurrent,
   isSupplierItemVatRate,
   latestEarlierPrice,
   SUPPLIER_ITEM_VAT_RATES,

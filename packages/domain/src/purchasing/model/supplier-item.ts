@@ -137,10 +137,7 @@ export function pricePerSaleUnit(item: {
   return { numerator: numerator / divisor, denominator: denominator / divisor };
 }
 
-export const SUPPLIER_OFFER_UNPRICED_REASONS = [
-  "vat_rate_missing",
-  "link_outdated",
-] as const;
+export const SUPPLIER_OFFER_UNPRICED_REASONS = ["vat_rate_missing", "link_outdated"] as const;
 
 export type SupplierOfferUnpricedReason = (typeof SUPPLIER_OFFER_UNPRICED_REASONS)[number];
 

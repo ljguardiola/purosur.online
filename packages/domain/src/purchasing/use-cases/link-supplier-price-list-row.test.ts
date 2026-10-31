@@ -66,7 +66,13 @@ describe("linkSupplierPriceListRow", () => {
     store.seedSupplierItem({
       description: "Yerba 1 kg",
       key: { kind: "code", value: "Y-1" },
-      link: { productId: "old", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false },
+      link: {
+        productId: "old",
+        quantity: 1_000,
+        saleUnit: "UNIT",
+        vatRate: null,
+        relinkRequired: false,
+      },
     });
     store.seedSupplierItem({ description: "Otro", key: { kind: "code", value: "Z-9" } });
 
@@ -97,7 +103,7 @@ describe("linkSupplierPriceListRow", () => {
     store.seedList({ id: "list-1", state: "REVIEWED", pricesIncludeVat: true, version: 3 });
     store.seedRow({ id: "row-1", listId: "list-1", code: null, description: " YERBÁ  1 kg" });
     store.seedProduct({ id: "product-1" });
-      store.seedSupplierItem({
+    store.seedSupplierItem({
       description: "Yerba 1 kg",
       key: { kind: "description", value: "yerba 1 kg" },
     });
@@ -118,7 +124,13 @@ describe("linkSupplierPriceListRow", () => {
     store.seedSupplierItem({
       description: "Yerba 1 kg",
       key: { kind: "code", value: "Y-1" },
-      link: { productId: "old", quantity: 1_000, saleUnit: "UNIT", vatRate: 1050, relinkRequired: false },
+      link: {
+        productId: "old",
+        quantity: 1_000,
+        saleUnit: "UNIT",
+        vatRate: 1050,
+        relinkRequired: false,
+      },
     });
 
     await linkSupplierPriceListRow(store, { ...input, vatRate: null });
@@ -279,21 +291,26 @@ describe("linkSupplierPriceListRow", () => {
       ["UNIT", -1_000],
       ["KG", 0],
       ["KG", 1.5],
-    ] as const)("refuses %s sold with a quantity of %s and writes nothing", async (saleUnit, quantity) => {
-      const store = setup();
-      store.seedProduct({ id: "product-2", saleUnit });
-      const before = store.snapshot();
+    ] as const)(
+      "refuses %s sold with a quantity of %s and writes nothing",
+      async (saleUnit, quantity) => {
+        const store = setup();
+        store.seedProduct({ id: "product-2", saleUnit });
+        const before = store.snapshot();
 
-      expect(
-        await linkSupplierPriceListRow(store, { ...input, productId: "product-2", quantity }),
-      ).toEqual({ kind: "invalid_quantity" });
-      expect(store.snapshot()).toEqual(before);
-    });
+        expect(
+          await linkSupplierPriceListRow(store, { ...input, productId: "product-2", quantity }),
+        ).toEqual({ kind: "invalid_quantity" });
+        expect(store.snapshot()).toEqual(before);
+      },
+    );
 
     it("reports the quantity before the missing rate", async () => {
       const store = setup();
 
-      expect(await linkSupplierPriceListRow(store, { ...input, quantity: 0, vatRate: null })).toEqual({
+      expect(
+        await linkSupplierPriceListRow(store, { ...input, quantity: 0, vatRate: null }),
+      ).toEqual({
         kind: "invalid_quantity",
       });
     });
