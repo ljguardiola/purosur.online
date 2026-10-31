@@ -9055,3 +9055,143 @@ describe("the held back pulled tables migration", () => {
     ]);
   });
 });
+
+describe("the sales rebuilt against paid orders migration", () => {
+  const MIGRATION = "0093_sales_rebuilt_against_paid_orders";
+
+  function openBefore(path: string) {
+    const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+    expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+    return openLocalDatabase(path, previous, migrationClock);
+  }
+
+  function recordOrder(
+    database: LocalDatabase,
+    id: string,
+    method: string,
+    provider: string,
+    cardType: string | null,
+  ) {
+    return database
+      .prepare(
+        `INSERT INTO paid_orders_without_sale
+           (payment_transaction_id, sale_id, method, provider, card_type, amount, created_at, recorded_at)
+         VALUES (?, 'sale-gone', ?, ?, ?, 5000, '2026-10-10T16:00:00.000Z', '2026-10-10T16:45:00.000Z')`,
+      )
+      .run(id, method, provider, cardType);
+  }
+
+  function openSale(database: LocalDatabase, id: string) {
+    database
+      .prepare(
+        `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES (?, 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL)`,
+      )
+      .run(id);
+  }
+
+  function withSessionAndOrders(work: (database: LocalDatabase) => void) {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    try {
+      database.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+      );
+      recordOrder(database, "order-1", "QR", "MERCADOPAGO_QR", null);
+      recordOrder(database, "order-2", "POINT", "MERCADOPAGO_POINT", "DEBIT");
+      work(database);
+    } finally {
+      database.close();
+    }
+  }
+
+  it("keeps the paid orders a register already holds, with no card type", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const before = openBefore(path);
+      before.exec(
+        `INSERT INTO paid_orders_without_sale
+           (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at)
+         VALUES ('order-1', 'sale-gone', 'POINT', 'MERCADOPAGO_POINT', 5000,
+                 '2026-10-10T16:00:00.000Z', '2026-10-10T16:45:00.000Z')`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        expect(
+          after
+            .prepare("SELECT payment_transaction_id, card_type FROM paid_orders_without_sale")
+            .all(),
+        ).toEqual([{ payment_transaction_id: "order-1", card_type: null }]);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("holds a card type only for a Point order and only a known one", () => {
+    withSessionAndOrders((database) => {
+      expect(() => recordOrder(database, "order-3", "QR", "MERCADOPAGO_QR", "DEBIT")).toThrow(
+        /CHECK/,
+      );
+      expect(() => recordOrder(database, "order-4", "POINT", "MERCADOPAGO_POINT", "GIFT")).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        recordOrder(database, "order-5", "POINT", "MERCADOPAGO_POINT", "CREDIT"),
+      ).not.toThrow();
+    });
+  });
+
+  it("links a sale to a paid order, one order per sale and one sale per order", () => {
+    withSessionAndOrders((database) => {
+      openSale(database, "sale-1");
+      openSale(database, "sale-2");
+      const link = (saleId: string, orderId: string) =>
+        database
+          .prepare(
+            "INSERT INTO sales_rebuilt_against_paid_orders (sale_id, payment_transaction_id) VALUES (?, ?)",
+          )
+          .run(saleId, orderId);
+
+      expect(() => link("sale-1", "order-1")).not.toThrow();
+      expect(() => link("sale-1", "order-2")).toThrow(/UNIQUE|PRIMARY/);
+      expect(() => link("sale-2", "order-1")).toThrow(/UNIQUE|PRIMARY/);
+      expect(() => link("sale-2", "order-2")).not.toThrow();
+    });
+  });
+
+  it("links only a sale and a paid order that exist", () => {
+    withSessionAndOrders((database) => {
+      openSale(database, "sale-1");
+      const link = (saleId: string, orderId: string) =>
+        database
+          .prepare(
+            "INSERT INTO sales_rebuilt_against_paid_orders (sale_id, payment_transaction_id) VALUES (?, ?)",
+          )
+          .run(saleId, orderId);
+
+      expect(() => link("missing", "order-1")).toThrow(/FOREIGN KEY/);
+      expect(() => link("sale-1", "missing")).toThrow(/FOREIGN KEY/);
+    });
+  });
+
+  it("keeps a sale from being deleted while a paid order is linked to it", () => {
+    withSessionAndOrders((database) => {
+      openSale(database, "sale-1");
+      database
+        .prepare(
+          "INSERT INTO sales_rebuilt_against_paid_orders (sale_id, payment_transaction_id) VALUES ('sale-1', 'order-1')",
+        )
+        .run();
+
+      expect(() => database.prepare("DELETE FROM sales WHERE id = 'sale-1'").run()).toThrow(
+        /FOREIGN KEY/,
+      );
+    });
+  });
+});
