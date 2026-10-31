@@ -47,6 +47,7 @@ const sale = {
   lines_lock: "approved_payment",
   cancel_refusal: null,
   charge_refusal: null,
+  rebuilt_paid_order: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
@@ -1293,9 +1294,12 @@ describe("the paid order an open sale was rebuilt against", () => {
     applied: false,
   };
 
-  it("is optional, so a sale not rebuilt against a paid order needs none", () => {
-    expect(saleSchema.parse(sale).rebuilt_paid_order).toBeUndefined();
+  it("is null for a sale not rebuilt against a paid order", () => {
     expect(saleSchema.parse({ ...sale, rebuilt_paid_order: null }).rebuilt_paid_order).toBeNull();
+  });
+
+  it("is required", () => {
+    expect(saleSchema.safeParse({ ...sale, rebuilt_paid_order: undefined }).success).toBe(false);
   });
 
   it.each(["QR", "POINT"])("accepts a paid order paid by %s", (method) => {

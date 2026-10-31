@@ -232,6 +232,36 @@ describe("partialAmountOfOrderRefund", () => {
     },
   );
 
+  it.each(["sale_voided", "sale_cancelled"])(
+    "is the refund's own amount for a refund of origin %s of a payment that holds less than its transaction, whose surplus was refunded apart",
+    (origin) => {
+      expect(
+        partialAmountOfOrderRefund({
+          ...facts,
+          origin,
+          amount: 600,
+          salePaymentAmount: 600,
+          paymentTransaction: { orderId: "ORD-1", amount: 1000, state: "APPROVED" },
+        }),
+      ).toBe(600);
+    },
+  );
+
+  it.each(["sale_voided", "sale_cancelled"])(
+    "is nothing for a refund of origin %s whose transaction the cloud does not hold",
+    (origin) => {
+      expect(
+        partialAmountOfOrderRefund({
+          ...facts,
+          origin,
+          amount: 600,
+          salePaymentAmount: 600,
+          paymentTransaction: null,
+        }),
+      ).toBeNull();
+    },
+  );
+
   it("is nothing for a late payment on an order the cloud did not create, which holds exactly what it refunds", () => {
     expect(
       partialAmountOfOrderRefund({

@@ -29,6 +29,7 @@ const PAID_ORDER_WITHOUT_SALE = {
   method: "POINT",
   amount: 75000,
   created_at: "2026-10-13T11:00:00.000Z",
+  rebuilt_sale_id: null,
 };
 
 const PENDING = {
@@ -265,8 +266,8 @@ describe("the sale rebuilt against a paid order on the startup screen", () => {
     ).toBe(saleId);
   });
 
-  it("accepts an order that says nothing of a rebuilt sale", () => {
-    expect(startupPendingSchema.safeParse(PENDING).success).toBe(true);
+  it("refuses an order that says nothing of a rebuilt sale", () => {
+    expect(startupPendingSchema.safeParse(withRebuiltSale(undefined)).success).toBe(false);
   });
 
   it("refuses a rebuilt sale that is not an id", () => {
