@@ -131,6 +131,7 @@ export {
   paidOrderAwaitsApplication,
   paidOrderWithoutSaleIsResolved,
   rebuiltPaidOrderAppliedAmount,
+  rebuiltPaidOrderStanding,
   rebuiltPaidOrderSurplus,
 } from "./model/rebuilt-paid-order.js";
 export type { SaleBalance } from "./model/sale-balance.js";

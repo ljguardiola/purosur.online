@@ -47,7 +47,8 @@ type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@6"
   | "sale_cancelled@7"
   | "sale_cancelled@8"
-  | "sale_cancelled@9"];
+  | "sale_cancelled@9"
+  | "sale_cancelled@10"];
 
 type VoidedSalePayload = SyncedEventPayloads[
   | "sale_voided@1"
@@ -152,6 +153,15 @@ function saleRefunds(refunds: CancelledSalePayload["refunds"] | VoidedSalePayloa
   }));
 }
 
+function rebuiltPaidOrder(
+  payload: CompletedSalePayload | CancelledSalePayload,
+): { paymentTransactionId: string; surplus: number } | null {
+  const rebuilt = "rebuilt_paid_order" in payload ? payload.rebuilt_paid_order : null;
+  return rebuilt === null
+    ? null
+    : { paymentTransactionId: rebuilt.payment_transaction_id, surplus: rebuilt.surplus };
+}
+
 function cancelledSale(payload: CancelledSalePayload): SyncedFact {
   return {
     kind: "sale_cancelled",
@@ -165,6 +175,7 @@ function cancelledSale(payload: CancelledSalePayload): SyncedFact {
       ...saleParts(payload),
       payments: salePayments(payload.payments),
       refunds: saleRefunds(payload.refunds),
+      rebuiltPaidOrder: rebuiltPaidOrder(payload),
     },
   };
 }
@@ -322,7 +333,6 @@ function completedSale(
     | null,
   operationNumber: number | null,
 ): SyncedFact {
-  const rebuilt = "rebuilt_paid_order" in payload ? payload.rebuilt_paid_order : null;
   return {
     kind: "sale_completed",
     sale: {
@@ -343,10 +353,7 @@ function completedSale(
               productId: movement.product_id,
               delta: movement.delta,
             })),
-      rebuiltPaidOrder:
-        rebuilt === null
-          ? null
-          : { paymentTransactionId: rebuilt.payment_transaction_id, surplus: rebuilt.surplus },
+      rebuiltPaidOrder: rebuiltPaidOrder(payload),
     },
   };
 }
@@ -559,6 +566,7 @@ const FACT_OF: {
   "sale_cancelled@7": cancelledSale,
   "sale_cancelled@8": cancelledSale,
   "sale_cancelled@9": cancelledSale,
+  "sale_cancelled@10": cancelledSale,
   "sale_line_removed@1": (payload) => ({
     kind: "sale_line_removed",
     removal: {

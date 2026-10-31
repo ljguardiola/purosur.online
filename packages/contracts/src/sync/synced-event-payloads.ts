@@ -281,13 +281,15 @@ const saleCompletedV9Schema = saleCompletedV8Schema.extend({
   payments: z.array(paymentWithPointCardTypeSchema).min(1),
 });
 
+const rebuiltPaidOrderSchema = z
+  .object({
+    payment_transaction_id: text,
+    surplus: z.int().min(0),
+  })
+  .nullable();
+
 const saleCompletedV10Schema = saleCompletedV9Schema.extend({
-  rebuilt_paid_order: z
-    .object({
-      payment_transaction_id: text,
-      surplus: z.int().min(0),
-    })
-    .nullable(),
+  rebuilt_paid_order: rebuiltPaidOrderSchema,
 });
 
 const printedDocumentSchema = z.enum(PRINTED_DOCUMENTS);
@@ -477,6 +479,10 @@ const saleCancelledV8Schema = saleCancelledV7Schema.extend({
 const saleCancelledV9Schema = saleCancelledV8Schema.extend({
   payments: z.array(paymentWithPointCardTypeSchema),
   refunds: z.array(saleRefundWithMercadoPagoSchema),
+});
+
+const saleCancelledV10Schema = saleCancelledV9Schema.extend({
+  rebuilt_paid_order: rebuiltPaidOrderSchema,
 });
 
 const saleLineRemovedV1Schema = z.object({
@@ -757,6 +763,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@7": saleCancelledV7Schema,
   "sale_cancelled@8": saleCancelledV8Schema,
   "sale_cancelled@9": saleCancelledV9Schema,
+  "sale_cancelled@10": saleCancelledV10Schema,
   "sale_line_removed@1": saleLineRemovedV1Schema,
   "sale_voided@1": saleVoidedV1Schema,
   "sale_voided@2": saleVoidedV2Schema,

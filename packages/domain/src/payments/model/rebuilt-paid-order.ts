@@ -28,6 +28,27 @@ export function paidOrderAwaitsApplication(
   );
 }
 
+export function rebuiltPaidOrderStanding(
+  paidOrder: { paymentTransactionId: string; amount: number; method: "QR" | "POINT" } | undefined,
+  salePayments: readonly { id: string }[],
+): {
+  paymentTransactionId: string;
+  amount: number;
+  method: "QR" | "POINT";
+  applied: boolean;
+} | null {
+  if (paidOrder === undefined) {
+    return null;
+  }
+  const { paymentTransactionId, amount, method } = paidOrder;
+  return {
+    paymentTransactionId,
+    amount,
+    method,
+    applied: !paidOrderAwaitsApplication(paidOrder, salePayments),
+  };
+}
+
 export function paidOrderWithoutSaleIsResolved({
   convertedIntoRefund,
   rebuiltSales,

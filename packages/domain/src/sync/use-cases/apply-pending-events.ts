@@ -88,7 +88,7 @@ function failureOf(ports: ApplyPendingEventsPorts, error: unknown): Failure {
 
 async function requireMercadoPagoPaymentsBacked(
   tx: EventApplicationTransaction,
-  sale: Pick<CompletedSale, "id" | "payments"> & Partial<Pick<CompletedSale, "rebuiltPaidOrder">>,
+  sale: Pick<CompletedSale, "id" | "payments" | "rebuiltPaidOrder">,
 ): Promise<void> {
   for (const payment of sale.payments) {
     if (payment.method !== "QR" && payment.method !== "POINT") {

@@ -63,6 +63,7 @@ export function cancelSale(
         payments: tx.salePayments(sale.id),
         refunds: [],
         movements: tx.saleCashMovements(sale.id),
+        paidOrder: tx.paidOrderOfSale(sale.id),
         actorId,
         authorizedBy: undefined,
         occurredAt: now,
