@@ -43,10 +43,10 @@ test("shows no price per sale unit for a linked item the cloud gave none for", a
   expect(screen.container.textContent).toBe("$ 198.450,00");
 });
 
-test("shows the product and the packaging an item is linked to, or that it is not linked", async () => {
+test("shows the product and the quantity an item is linked with, or that it is not linked", async () => {
   const linked = await render(<RowLinkCell row={LINKED_ROW} />);
   await expect.element(linked.getByText("Castañas de cajú")).toBeVisible();
-  await expect.element(linked.getByText("Caja de 11,34 kg")).toBeVisible();
+  await expect.element(linked.getByText("11,34 kg")).toBeVisible();
 
   const notLinked = await render(<RowLinkCell row={bare} />);
   await expect.element(notLinked.getByText("Sin vincular")).toBeVisible();

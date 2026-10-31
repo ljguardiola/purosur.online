@@ -925,7 +925,7 @@ test("says the product was created, and reads the list again", async () => {
     screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
   );
   const dialog = screen.getByRole("dialog");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Contiene/ }), "10");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad que trae/ }), "10");
   await userEvent.click(dialog.getByRole("combobox", { name: /^Categoría/ }));
   await userEvent.click(page.getByRole("option", { name: "Almacén › Frutos secos" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));

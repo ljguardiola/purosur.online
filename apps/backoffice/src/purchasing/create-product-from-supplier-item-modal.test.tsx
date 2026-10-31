@@ -709,7 +709,7 @@ test("shows the field the cloud refuses, on that field", async () => {
   const services = createServices();
   vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({
     kind: "validation_failed",
-    field: "quantityPerPackage",
+    field: "quantity",
   });
   const screen = await renderModal({ services });
 
