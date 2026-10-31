@@ -43,6 +43,11 @@ const SALE_UNIT_HELD_BY_PACKAGING_RESPONSE = {
     "a product cannot change its sale unit while an active purchase packaging is defined for it",
 } as const;
 
+const SALE_UNIT_HELD_BY_SUPPLIER_ITEM_RESPONSE = {
+  code: "sale_unit_held_by_supplier_item",
+  message: "a product cannot change its sale unit while a supplier item is linked to it",
+} as const;
+
 const INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_RESPONSE = {
   code: "internal_barcode_on_product_with_barcodes",
   message: "an internal barcode can only be added to a product that has no barcode",
@@ -129,6 +134,10 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
         await reply
           .code(409)
           .send({ ...SALE_UNIT_HELD_BY_PACKAGING_RESPONSE, packagingName: outcome.packagingName });
+        return;
+      }
+      if (outcome.kind === "sale_unit_held_by_supplier_item") {
+        await reply.code(409).send(SALE_UNIT_HELD_BY_SUPPLIER_ITEM_RESPONSE);
         return;
       }
       if (outcome.kind === "sale_unit_held_by_discount") {

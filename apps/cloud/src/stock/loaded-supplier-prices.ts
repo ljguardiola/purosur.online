@@ -32,7 +32,8 @@ export async function loadedSupplierPricesOf<TQueryResult extends PgQueryResultH
         {
           supplierItemId: offer.supplierItemId,
           supplierName: offer.supplier.name,
-          packagingName: offer.packaging.name,
+          quantity: offer.link.quantity,
+          saleUnit: offer.link.saleUnit,
           listDate: offer.listDate,
           pricePerSaleUnit: price.pricePerSaleUnit,
         },

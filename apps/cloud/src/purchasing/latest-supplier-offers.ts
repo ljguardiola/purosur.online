@@ -2,13 +2,7 @@ import type { SaleUnit } from "@purosur/domain";
 import type { SupplierOffer } from "@purosur/domain/purchasing/use-cases";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import {
-  productPackagings,
-  products,
-  supplierItemPrices,
-  supplierItems,
-  suppliers,
-} from "../platform/db/schema.js";
+import { products, supplierItemPrices, supplierItems, suppliers } from "../platform/db/schema.js";
 
 export interface LatestSupplierOffer extends SupplierOffer {
   supplierItemId: string;
@@ -29,10 +23,9 @@ export async function latestSupplierOffers<TQueryResult extends PgQueryResultHKT
       productId: sql<string>`${products.id}`.as("product_id"),
       supplierId: sql<string>`${suppliers.id}`.as("supplier_id"),
       supplierName: sql<string>`${suppliers.name}`.as("supplier_name"),
-      packagingName: sql<string>`${productPackagings.name}`.as("packaging_name"),
-      quantityPerPackage: productPackagings.quantityPerPackage,
-      packagingActive: sql<boolean>`${productPackagings.active}`.as("packaging_active"),
-      packagingSaleUnit: sql<string>`${productPackagings.saleUnit}`.as("packaging_sale_unit"),
+      quantity: sql<number>`${supplierItems.quantity}`.as("link_quantity"),
+      saleUnit: sql<string>`${supplierItems.saleUnit}`.as("link_sale_unit"),
+      relinkRequired: sql<boolean>`${supplierItems.relinkRequired}`.as("link_relink_required"),
       priceCents: supplierItemPrices.priceCents,
       pricesIncludeVat: supplierItemPrices.pricesIncludeVat,
       vatRate: supplierItems.vatRate,
@@ -40,7 +33,6 @@ export async function latestSupplierOffers<TQueryResult extends PgQueryResultHKT
     })
     .from(supplierItems)
     .innerJoin(products, eq(products.id, supplierItems.productId))
-    .innerJoin(productPackagings, eq(productPackagings.id, supplierItems.packagingId))
     .innerJoin(suppliers, eq(suppliers.id, supplierItems.supplierId))
     .innerJoin(supplierItemPrices, eq(supplierItemPrices.itemId, supplierItems.id))
     .where(productIds === undefined ? undefined : inArray(supplierItems.productId, [...productIds]))
@@ -53,25 +45,10 @@ export async function latestSupplierOffers<TQueryResult extends PgQueryResultHKT
   const rows = await db
     .select()
     .from(latest)
-    .orderBy(asc(latest.supplierName), asc(latest.supplierId), asc(latest.packagingName));
-  return rows.map(
-    ({
-      supplierId,
-      supplierName,
-      packagingName,
-      quantityPerPackage,
-      packagingActive,
-      packagingSaleUnit,
-      ...offer
-    }) => ({
-      ...offer,
-      supplier: { id: supplierId, name: supplierName },
-      packaging: {
-        name: packagingName,
-        quantityPerPackage,
-        active: packagingActive,
-        saleUnit: packagingSaleUnit as SaleUnit,
-      },
-    }),
-  );
+    .orderBy(asc(latest.supplierName), asc(latest.supplierId), asc(latest.quantity));
+  return rows.map(({ supplierId, supplierName, quantity, saleUnit, relinkRequired, ...offer }) => ({
+    ...offer,
+    supplier: { id: supplierId, name: supplierName },
+    link: { quantity, saleUnit: saleUnit as SaleUnit, relinkRequired },
+  }));
 }

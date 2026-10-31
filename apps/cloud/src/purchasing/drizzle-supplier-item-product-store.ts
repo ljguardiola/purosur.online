@@ -4,7 +4,6 @@ import type {
   CreateCatalogProductInput,
   CreateCatalogProductOutcome,
   LockSupplierItemRowResult,
-  NewPackagingFields,
   SupplierItemLink,
   SupplierItemProductStore,
   SupplierItemProductStoreTransaction,
@@ -14,7 +13,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { supplierPriceListRows } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
-import { DrizzlePurchasingStoreTransaction } from "./drizzle-purchasing-store.js";
 import {
   DrizzleSupplierPriceListStoreTransaction,
   linkOf,
@@ -26,18 +24,15 @@ class DrizzleSupplierItemProductStoreTransaction<TQueryResult extends PgQueryRes
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly pending: PendingChanges;
   private readonly lists: DrizzleSupplierPriceListStoreTransaction<TQueryResult>;
-  private readonly purchasing: DrizzlePurchasingStoreTransaction<TQueryResult>;
 
   constructor(
     tx: PgDatabase<TQueryResult>,
     lists: DrizzleSupplierPriceListStoreTransaction<TQueryResult>,
-    now: () => Date,
     pending: PendingChanges,
   ) {
     this.tx = tx;
     this.pending = pending;
     this.lists = lists;
-    this.purchasing = new DrizzlePurchasingStoreTransaction(tx, now, pending);
   }
 
   lockList(listId: string) {
@@ -63,7 +58,9 @@ class DrizzleSupplierItemProductStoreTransaction<TQueryResult extends PgQueryRes
         code: supplierPriceListRows.supplierCode,
         presentation: supplierPriceListRows.presentation,
         productId: supplierPriceListRows.productId,
-        packagingId: supplierPriceListRows.packagingId,
+        quantity: supplierPriceListRows.quantity,
+        saleUnit: supplierPriceListRows.saleUnit,
+        relinkRequired: supplierPriceListRows.relinkRequired,
         vatRate: supplierPriceListRows.vatRate,
       })
       .from(supplierPriceListRows)
@@ -90,10 +87,6 @@ class DrizzleSupplierItemProductStoreTransaction<TQueryResult extends PgQueryRes
       ? { kind: "created", productId: outcome.product.id }
       : outcome;
   }
-
-  insertPackaging(fields: NewPackagingFields) {
-    return this.purchasing.insertPackaging(fields);
-  }
 }
 
 export class DrizzleSupplierItemProductStore<TQueryResult extends PgQueryResultHKT>
@@ -113,7 +106,7 @@ export class DrizzleSupplierItemProductStore<TQueryResult extends PgQueryResultH
     return withPendingChanges(this.db, undefined, async (tx, pending) => {
       const lists = new DrizzleSupplierPriceListStoreTransaction(tx, this.now);
       const outcome = await work(
-        new DrizzleSupplierItemProductStoreTransaction(tx, lists, this.now, pending),
+        new DrizzleSupplierItemProductStoreTransaction(tx, lists, pending),
       );
       await lists.flushItems();
       return outcome;

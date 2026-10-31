@@ -87,6 +87,7 @@ export {
   isPriceListRowPrice,
   isSupplierPriceListDailyExtractionCap,
   isSupplierPriceListFileNameTooLong,
+  maySupplierPriceListRowBeLinked,
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,

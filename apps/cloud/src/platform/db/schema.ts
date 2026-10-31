@@ -3237,6 +3237,9 @@ export const supplierPriceListRows = pgTable(
     barcode: text("barcode"),
     productId: uuid("product_id").references(() => products.id),
     packagingId: uuid("packaging_id").references(() => productPackagings.id),
+    quantity: bigint("quantity", { mode: "number" }),
+    saleUnit: text("sale_unit"),
+    relinkRequired: boolean("relink_required").notNull().default(false),
     vatRate: integer("vat_rate"),
     reviewed: boolean("reviewed").notNull().default(false),
     linkedByPerson: boolean("linked_by_person").notNull().default(false),
@@ -3248,8 +3251,13 @@ export const supplierPriceListRows = pgTable(
     check("supplier_price_list_rows_page_check", sql`${table.page} > 0`),
     check(
       "supplier_price_list_rows_link_check",
-      sql`(${table.productId} is null) = (${table.packagingId} is null)`,
+      sql`(${table.productId} is null) = (${table.quantity} is null)`,
     ),
+    check(
+      "supplier_price_list_rows_link_sale_unit_check",
+      sql`(${table.quantity} is null) = (${table.saleUnit} is null) and ${table.saleUnit} in ('UNIT', 'KG')`,
+    ),
+    check("supplier_price_list_rows_link_quantity_check", sql`${table.quantity} > 0`),
     check(
       "supplier_price_list_rows_vat_rate_check",
       sql`${table.vatRate} in (${supplierItemVatRates})`,
@@ -3338,6 +3346,9 @@ export const supplierItems = pgTable(
     description: text("description").notNull(),
     productId: uuid("product_id").references(() => products.id),
     packagingId: uuid("packaging_id").references(() => productPackagings.id),
+    quantity: bigint("quantity", { mode: "number" }),
+    saleUnit: text("sale_unit"),
+    relinkRequired: boolean("relink_required").notNull().default(false),
     vatRate: integer("vat_rate"),
   },
   (table) => [
@@ -3345,8 +3356,13 @@ export const supplierItems = pgTable(
     check("supplier_items_key_kind_check", sql`${table.keyKind} in ('code', 'description')`),
     check(
       "supplier_items_link_check",
-      sql`(${table.productId} is null) = (${table.packagingId} is null)`,
+      sql`(${table.productId} is null) = (${table.quantity} is null)`,
     ),
+    check(
+      "supplier_items_link_sale_unit_check",
+      sql`(${table.quantity} is null) = (${table.saleUnit} is null) and ${table.saleUnit} in ('UNIT', 'KG')`,
+    ),
+    check("supplier_items_link_quantity_check", sql`${table.quantity} > 0`),
     check("supplier_items_vat_rate_check", sql`${table.vatRate} in (${supplierItemVatRates})`),
     index("supplier_items_product_id_idx").on(table.productId),
   ],

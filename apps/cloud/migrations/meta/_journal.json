@@ -1051,6 +1051,13 @@
       "when": 1793404272121,
       "tag": "0156_supplier_price_list_row_page_prices",
       "breakpoints": true
+    },
+    {
+      "idx": 150,
+      "version": "7",
+      "when": 1793407057224,
+      "tag": "0157_link_by_quantity",
+      "breakpoints": true
     }
   ]
 }
