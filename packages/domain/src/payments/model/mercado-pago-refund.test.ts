@@ -191,16 +191,60 @@ describe("recordedRefundOfCorrection", () => {
 });
 
 describe("partialAmountOfOrderRefund", () => {
+  const facts = {
+    origin: "sale_cancelled",
+    amount: 1000,
+    ownOrderId: null,
+    salePaymentAmount: 1000,
+    refundedOfSalePayment: 0,
+    paymentTransaction: { orderId: "ORD-1", amount: 1000, state: "APPROVED" },
+    refundedOfPaymentTransactionByOrder: [],
+  };
+
   it("is the refund's own amount for a return, which gives back part of the order", () => {
-    expect(partialAmountOfOrderRefund({ origin: "return", amount: 1000 })).toBe(1000);
+    expect(partialAmountOfOrderRefund({ ...facts, origin: "return" })).toBe(1000);
   });
 
   it.each(["sale_voided", "sale_cancelled", "late_payment"])(
-    "is nothing for a refund of origin %s, which gives back the whole order",
+    "is nothing for a refund of origin %s that gives back the whole payment",
     (origin) => {
-      expect(partialAmountOfOrderRefund({ origin, amount: 1000 })).toBeNull();
+      expect(partialAmountOfOrderRefund({ ...facts, origin })).toBeNull();
     },
   );
+
+  it("is the refund's own amount for a late payment that gives back less than its transaction holds", () => {
+    expect(
+      partialAmountOfOrderRefund({
+        ...facts,
+        origin: "late_payment",
+        amount: 400,
+        paymentTransaction: { orderId: "ORD-1", amount: 1000, state: "APPROVED" },
+      }),
+    ).toBe(400);
+  });
+
+  it("is nothing for a late payment on an order the cloud did not create, which holds exactly what it refunds", () => {
+    expect(
+      partialAmountOfOrderRefund({
+        ...facts,
+        origin: "late_payment",
+        amount: 400,
+        ownOrderId: "ORD-2",
+        paymentTransaction: null,
+      }),
+    ).toBeNull();
+  });
+
+  it("is nothing for a late payment whose transaction the cloud does not hold", () => {
+    expect(
+      partialAmountOfOrderRefund({
+        ...facts,
+        origin: "late_payment",
+        amount: 400,
+        paymentTransaction: null,
+      }),
+    ).toBeNull();
+  });
 });
 
 describe("refundIsBackedByItsCorrection", () => {
