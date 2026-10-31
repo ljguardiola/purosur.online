@@ -92,6 +92,37 @@ describe("confirmMercadoPagoRefund of a late QR payment", () => {
     ]);
   });
 
+  it("asks Mercado Pago for a partial refund when the late payment's refund is less than the payment holds", async () => {
+    const world = refundWorld([
+      aQrRefundOfLatePayment({
+        amount: 1800,
+        paymentTransaction: aPaymentTransaction({ amount: 5000 }),
+      }),
+    ]);
+
+    const outcome = await confirm(world);
+
+    expect(outcome).toEqual({ kind: "sent", refundId: "refund-1" });
+    expect(world.mercadoPago.refundRequests).toEqual([
+      { orderId: "ORD-1", idempotencyKey: "refund-key-1", amount: 1800 },
+    ]);
+  });
+
+  it("asks for the whole order when the late payment's refund is what the payment holds", async () => {
+    const world = refundWorld([
+      aQrRefundOfLatePayment({
+        amount: 5000,
+        paymentTransaction: aPaymentTransaction({ amount: 5000 }),
+      }),
+    ]);
+
+    await confirm(world);
+
+    expect(world.mercadoPago.refundRequests).toEqual([
+      { orderId: "ORD-1", idempotencyKey: "refund-key-1" },
+    ]);
+  });
+
   describe("refusals, which send nothing and confirm nothing", () => {
     async function refusedWith(world: ReturnType<typeof refundWorld>) {
       const before = structuredClone(world.store.refunds);
