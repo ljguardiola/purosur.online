@@ -41,7 +41,7 @@ export function rebuildSaleAgainstPaidOrder(
     if (paidOrder.resolved) {
       return { kind: "already_resolved" };
     }
-    if (paidOrder.method === "POINT" && paidOrder.cardType === null) {
+    if (paidOrder.cardType === null) {
       return { kind: "card_type_unknown" };
     }
     const open = tx.openSale(session.id);
