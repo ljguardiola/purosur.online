@@ -594,8 +594,9 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
     this.describedItems.clear();
     for (const batch of batchesOf([...this.linkedItems])) {
       await this.tx.execute(sql`update ${supplierItems} as item
-        set product_id = linked.product_id, quantity = linked.quantity, sale_unit = linked.sale_unit,
-          relink_required = linked.relink_required, vat_rate = linked.vat_rate
+        set product_id = linked.product_id, packaging_id = null, quantity = linked.quantity,
+          sale_unit = linked.sale_unit, relink_required = linked.relink_required,
+          vat_rate = linked.vat_rate
         from (values ${sql.join(
           batch.map(
             ([id, link]) =>
@@ -629,9 +630,12 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       })
       .from(supplierPriceListRows)
       .where(eq(supplierPriceListRows.id, rowId));
+    // A packaging left behind a link by quantity would keep the database from filling the quantity
+    // when the release that links through packagings, still serving while a deploy swaps it, links
+    // the same packaging again.
     await this.tx
       .update(supplierPriceListRows)
-      .set({ ...linkColumns(link), reviewed: true, linkedByPerson: true })
+      .set({ ...linkColumns(link), packagingId: null, reviewed: true, linkedByPerson: true })
       .where(eq(supplierPriceListRows.id, rowId));
     await this.advanceVersion(listId);
     await this.tx.insert(auditLog).values({
