@@ -98,8 +98,8 @@ describe("applying the push of a register that rebuilt sales against paid orders
         .map(({ origin, paymentTransactionId, amount }) => ({ origin, paymentTransactionId, amount }))
         .sort((a, b) => a.amount - b.amount),
     ).toEqual([
-      { origin: "sale_cancelled", paymentTransactionId: CANCELLED_ORDER, amount: 1000 },
       { origin: "late_payment", paymentTransactionId: COMPLETED_ORDER, amount: 600 },
+      { origin: "sale_cancelled", paymentTransactionId: CANCELLED_ORDER, amount: 1000 },
     ]);
   });
 });

@@ -69,6 +69,7 @@ export async function pushRebuiltSaleCompleted<TQueryResult extends PgQueryResul
       actor_id: CASHIER,
       occurred_at: OCCURRED_AT,
       total: push.applied,
+      sale_discount: null,
       lines: [],
       cash_movements: [],
       stock_movements: [],

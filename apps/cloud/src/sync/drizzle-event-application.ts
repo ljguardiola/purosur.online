@@ -42,6 +42,7 @@ import {
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import type { EnqueueMercadoPagoRefundFollow } from "../payments/enqueue-mercado-pago-refund-follow.js";
+import { openSurplusRefundOfRebuiltSale } from "../payments/open-surplus-refund-of-rebuilt-sale.js";
 import { describeDatabaseFailure, errorCode } from "../platform/db/describe-database-failure.js";
 import { inbox, registerInstallations, registers } from "../platform/db/schema.js";
 import {
@@ -130,6 +131,12 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
 
   requestMercadoPagoRefundFollow(): Promise<void> {
     return this.enqueueRefundFollow(this.tx);
+  }
+
+  async openSurplusRefundOfRebuiltSale(
+    surplus: { paymentTransactionId: string; amount: number },
+  ): Promise<void> {
+    await openSurplusRefundOfRebuiltSale(this.tx, surplus, this.now());
   }
 
   async lockAggregate({ aggregateType, aggregateId }: AggregateKey): Promise<boolean> {
