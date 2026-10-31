@@ -687,6 +687,34 @@ describe("voidSale", () => {
     });
   });
 
+  describe("a completed sale rebuilt against a paid order that carried a surplus", () => {
+    const APPLIED_ORDER_PAYMENT: SalePayment = {
+      ...QR_PAYMENT,
+      id: "order-1",
+      amount: 6750,
+    };
+
+    it("refunds only the applied amount once, leaving the surplus refund to the completion", async () => {
+      const store = ledger({ payments: [APPLIED_ORDER_PAYMENT] });
+
+      const outcome = await void_(store, { pendingRefundsConfirmed: true });
+
+      expect(outcome).toMatchObject({ kind: "voided" });
+      expect(store.state.refunds).toEqual([
+        {
+          id: "id-1",
+          saleId: "sale-1",
+          paymentId: "order-1",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: 6750,
+          state: "PENDING",
+          occurredAt: NOW,
+        },
+      ]);
+    });
+  });
+
   describe("a sale that carries an authorized invoice", () => {
     const REAL_TIME_CREDIT_NOTE = {
       creditNoteId: "id-4",

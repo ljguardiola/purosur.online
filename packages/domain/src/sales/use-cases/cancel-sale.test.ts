@@ -92,7 +92,7 @@ function cancelledEvent(overrides: Record<string, unknown> = {}) {
     aggregate_type: "Sale",
     aggregate_id: "sale-1",
     event_type: "sale_cancelled",
-    schema_version: 9,
+    schema_version: 10,
     payload: {
       id: "sale-1",
       register_id: "register-1",
@@ -107,6 +107,7 @@ function cancelledEvent(overrides: Record<string, unknown> = {}) {
       payments: [],
       refunds: [],
       cash_movements: [],
+      rebuilt_paid_order: null,
       ...overrides,
     },
     occurred_at: NOW.toISOString(),

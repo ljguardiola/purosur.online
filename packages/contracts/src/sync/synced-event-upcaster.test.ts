@@ -2778,6 +2778,7 @@ describe("decoding a removed sale line and a cancelled sale without payments", (
           payments: [],
           refunds: [],
           cashMovements: [],
+          rebuiltPaidOrder: null,
         },
       },
     });

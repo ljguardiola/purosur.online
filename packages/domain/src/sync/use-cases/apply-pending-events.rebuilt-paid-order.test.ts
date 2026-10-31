@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
-import { aCompletedSaleFact } from "../model/test-support/synced-facts.js";
+import { aCancelledSaleFact, aCompletedSaleFact } from "../model/test-support/synced-facts.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
 import {
   aStoredEvent,
@@ -52,7 +52,10 @@ function rebuiltSale(surplus: number, payments = [qrPayment()]) {
   });
 }
 
-async function apply(application: FakeEventApplication, fact: ReturnType<typeof rebuiltSale>) {
+async function apply(
+  application: FakeEventApplication,
+  fact: ReturnType<typeof rebuiltSale> | ReturnType<typeof aCancelledSaleFact>,
+) {
   await applyPendingEvents(
     {
       zoneRules: new FakeZoneRulesSource(),
@@ -189,5 +192,64 @@ describe("applying a sale rebuilt against a paid order", () => {
     await apply(held, aCompletedSaleFact({ payments: [qrPayment()] }));
 
     expect(held.event("sale-event").appliedAt).toBeNull();
+  });
+});
+
+describe("applying the cancellation of a sale rebuilt against a paid order", () => {
+  const qrRefund = {
+    id: "refund-1",
+    paymentId: "order-1",
+    method: "QR",
+    provider: "MERCADOPAGO_QR",
+    amount: 4500,
+    state: "PENDING",
+    occurredAt: new Date("2026-10-07T10:05:00.000Z"),
+  } as const;
+
+  function cancelledSale(rebuilt: { paymentTransactionId: string; surplus: number } | null) {
+    return aCancelledSaleFact({
+      payments: [qrPayment({ amount: 4500 })],
+      refunds: [qrRefund],
+      rebuiltPaidOrder: rebuilt,
+    });
+  }
+
+  const ORDERS_TRANSACTION = { ...PAID_ORDER_TRANSACTION, amount: 4500 };
+
+  it("is applied when the payment of the order is backed by its approved transaction of any sale", async () => {
+    const held = application();
+    held.providerTransactions.set("order-1", ORDERS_TRANSACTION);
+
+    await apply(held, cancelledSale({ paymentTransactionId: "order-1", surplus: 0 }));
+
+    expect(held.event("sale-event").appliedAt).toEqual(NOW);
+  });
+
+  it("is retried and left unrecorded when the transaction is not the whole amount of the payment", async () => {
+    const held = application();
+    held.providerTransactions.set("order-1", { ...ORDERS_TRANSACTION, amount: 6000 });
+
+    await apply(held, cancelledSale({ paymentTransactionId: "order-1", surplus: 0 }));
+
+    expect(held.event("sale-event")).toMatchObject({ appliedAt: null, attempts: 1 });
+    expect(held.state.recorded).toEqual([]);
+  });
+
+  it("hands no surplus refund over", async () => {
+    const held = application();
+    held.providerTransactions.set("order-1", ORDERS_TRANSACTION);
+
+    await apply(held, cancelledSale({ paymentTransactionId: "order-1", surplus: 0 }));
+
+    expect(held.state.surplusRefunds).toEqual([]);
+  });
+
+  it("refuses a payment of another sale's transaction when the cancellation names no paid order", async () => {
+    const held = application();
+    held.providerTransactions.set("order-1", ORDERS_TRANSACTION);
+
+    await apply(held, cancelledSale(null));
+
+    expect(held.event("sale-event")).toMatchObject({ appliedAt: null, attempts: 1 });
   });
 });

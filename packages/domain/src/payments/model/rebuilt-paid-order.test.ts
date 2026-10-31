@@ -4,6 +4,7 @@ import {
   paidOrderAwaitsApplication,
   paidOrderWithoutSaleIsResolved,
   rebuiltPaidOrderAppliedAmount,
+  rebuiltPaidOrderStanding,
   rebuiltPaidOrderSurplus,
 } from "./rebuilt-paid-order.js";
 
@@ -152,5 +153,24 @@ describe("paidOrderWithoutSaleIsResolved", () => {
         rebuiltSales: [resolving, unresolving],
       }),
     ).toBe(true);
+  });
+});
+
+describe("rebuiltPaidOrderStanding", () => {
+  const order = { paymentTransactionId: "order-1", amount: 4500, method: "QR" } as const;
+
+  it("is nothing for a sale that was not rebuilt against a paid order", () => {
+    expect(rebuiltPaidOrderStanding(undefined, [])).toBeNull();
+  });
+
+  it("names the order with its amount and method, waiting to be applied, while the sale holds no payment of it", () => {
+    expect(rebuiltPaidOrderStanding(order, [{ id: "cash-1" }])).toEqual({ ...order, applied: false });
+  });
+
+  it("names the order as applied once the sale holds the payment of it", () => {
+    expect(rebuiltPaidOrderStanding(order, [{ id: "cash-1" }, { id: "order-1" }])).toEqual({
+      ...order,
+      applied: true,
+    });
   });
 });

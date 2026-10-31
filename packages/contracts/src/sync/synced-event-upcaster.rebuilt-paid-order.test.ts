@@ -52,3 +52,54 @@ describe("decoding a completed sale for the paid order it was rebuilt against", 
     });
   });
 });
+
+const RECORDED_CANCELLED_SALES = recordedPushes()
+  .flatMap(({ push }) => push.events)
+  .filter((event) => event.event_type === "sale_cancelled");
+
+function version10CancelledSale(
+  rebuilt: { payment_transaction_id: string; surplus: number } | null,
+): PushedEvent {
+  const recorded = RECORDED_CANCELLED_SALES.find(
+    (event) => event.schema_version === 9,
+  ) as PushedEvent;
+  return {
+    ...recorded,
+    schema_version: 10,
+    payload: { ...recorded.payload, rebuilt_paid_order: rebuilt },
+  };
+}
+
+describe("decoding a cancelled sale for the paid order it was rebuilt against", () => {
+  it.each(
+    RECORDED_CANCELLED_SALES.map((event): [string, PushedEvent] => [
+      `v${event.schema_version}`,
+      event,
+    ]),
+  )("reads a recorded %s cancelled sale as one rebuilt against no paid order", (_version, event) => {
+    expect(syncedEventUpcaster.decode(unappliedEventOf(event))).toMatchObject({
+      kind: "fact",
+      fact: { kind: "sale_cancelled", sale: { rebuiltPaidOrder: null } },
+    });
+  });
+
+  it("reads a version 10 cancelled sale that was not rebuilt as one rebuilt against no paid order", () => {
+    expect(syncedEventUpcaster.decode(unappliedEventOf(version10CancelledSale(null)))).toMatchObject(
+      { kind: "fact", fact: { kind: "sale_cancelled", sale: { rebuiltPaidOrder: null } } },
+    );
+  });
+
+  it("reads the paid order a version 10 cancelled sale names", () => {
+    const decoded = syncedEventUpcaster.decode(
+      unappliedEventOf(version10CancelledSale({ payment_transaction_id: PAID_ORDER, surplus: 0 })),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: {
+        kind: "sale_cancelled",
+        sale: { rebuiltPaidOrder: { paymentTransactionId: PAID_ORDER, surplus: 0 } },
+      },
+    });
+  });
+});

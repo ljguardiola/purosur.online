@@ -65,3 +65,56 @@ describe("sale_completed version 10", () => {
     expect(accepts(9, recordedSale(9))).toBe(true);
   });
 });
+
+function recordedCancelledSale(schemaVersion: number): Payload {
+  const matching = recordedEvents().filter(
+    (event) => event.event_type === "sale_cancelled" && event.schema_version === schemaVersion,
+  );
+  return structuredClone(matching[0]?.["payload"] as Payload);
+}
+
+function acceptsCancelled(schemaVersion: number, payload: unknown): boolean {
+  const key = syncedEventPayloadKey("sale_cancelled", schemaVersion);
+  return key !== undefined && syncedEventPayloadSchema(key).safeParse(payload).success;
+}
+
+function cancelledVersion10(rebuilt: unknown): Payload {
+  return { ...recordedCancelledSale(9), rebuilt_paid_order: rebuilt };
+}
+
+describe("sale_cancelled version 10", () => {
+  it("is a readable version", () => {
+    expect(READABLE_EVENT_VERSIONS).toContain("sale_cancelled@10");
+  });
+
+  it("accepts a sale that was not rebuilt against a paid order", () => {
+    expect(acceptsCancelled(10, cancelledVersion10(null))).toBe(true);
+  });
+
+  it("accepts a sale rebuilt against a paid order with no surplus", () => {
+    expect(
+      acceptsCancelled(10, cancelledVersion10({ payment_transaction_id: PAID_ORDER, surplus: 0 })),
+    ).toBe(true);
+  });
+
+  it("refuses a sale that does not say whether it was rebuilt", () => {
+    expect(acceptsCancelled(10, recordedCancelledSale(9))).toBe(false);
+  });
+
+  it.each([
+    ["a negative surplus", { payment_transaction_id: PAID_ORDER, surplus: -1 }],
+    ["a fractional surplus", { payment_transaction_id: PAID_ORDER, surplus: 10.5 }],
+    ["no surplus", { payment_transaction_id: PAID_ORDER }],
+    ["an empty paid order id", { payment_transaction_id: "", surplus: 0 }],
+  ])("refuses %s", (_case, rebuilt) => {
+    expect(acceptsCancelled(10, cancelledVersion10(rebuilt))).toBe(false);
+  });
+
+  it("still holds the rest of a version 9 cancelled sale to its rules", () => {
+    expect(acceptsCancelled(10, { ...cancelledVersion10(null), lines: "none" })).toBe(false);
+  });
+
+  it("keeps accepting a recorded version 9 cancelled sale exactly as it was", () => {
+    expect(acceptsCancelled(9, recordedCancelledSale(9))).toBe(true);
+  });
+});

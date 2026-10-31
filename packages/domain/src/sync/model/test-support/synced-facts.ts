@@ -133,6 +133,7 @@ export function aCancelledSaleFact(overrides: Partial<SaleCancelled["sale"]> = {
           occurredAt: new Date("2026-10-07T10:05:00.000Z"),
         },
       ],
+      rebuiltPaidOrder: null,
       ...overrides,
     },
   };
