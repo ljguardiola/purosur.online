@@ -138,13 +138,26 @@ export function latePaymentRefundOfUnrecordedOrder(
 
 export function methodsCoveringRefundedSale(
   origin: RefundOrigin,
-  salePayments: readonly { method: string; state: string }[],
+  salePayments: readonly { id: string; method: string; state: string }[],
+  paymentTransactionId: string | null,
 ): PaymentMethod[] {
   if (origin !== LATE_PAYMENT_REFUND_ORIGIN) {
     return [];
   }
+  const otherPayments = salePayments.filter((payment) => payment.id !== paymentTransactionId);
   return PAYMENT_METHODS.filter((method) =>
-    hasApprovedPayment(salePayments.filter((payment) => payment.method === method)),
+    hasApprovedPayment(otherPayments.filter((payment) => payment.method === method)),
+  );
+}
+
+export function isSurplusOfRebuiltSale(
+  refund: { origin: string; providerOrderId: string | null; paymentTransactionId: string | null },
+  salePayments: readonly { id: string }[],
+): boolean {
+  return (
+    refund.origin === LATE_PAYMENT_REFUND_ORIGIN &&
+    refund.providerOrderId === null &&
+    salePayments.some((payment) => payment.id === refund.paymentTransactionId)
   );
 }
 

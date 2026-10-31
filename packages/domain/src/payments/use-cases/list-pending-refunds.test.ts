@@ -18,6 +18,7 @@ const TRANSFER_REFUND: FakePendingRefund = {
   occurredAt: new Date("2026-10-07T15:30:00.000Z"),
   saleOccurredAt: new Date("2026-10-07T15:30:00.000Z"),
   coveredBy: [],
+  ofRebuiltSale: false,
   providerOrderId: null,
   correctedBy: "cashier",
   correctedByName: "Lucia",
@@ -196,6 +197,17 @@ describe("listPendingRefunds", () => {
       saleOccurredAt: new Date("2026-10-07T12:00:00.000Z"),
       coveredBy: ["CASH", "TRANSFER"],
     });
+  });
+
+  it("hands on whether the refund is the surplus of a rebuilt sale", async () => {
+    const store = new FakeRefundStore(
+      [],
+      [{ ...TRANSFER_REFUND, origin: "late_payment", ofRebuiltSale: true }],
+    );
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund?.ofRebuiltSale).toBe(true);
   });
 
   it("lists a refund of a cancelled sale paid by QR as one the cloud sends, with how far it got", async () => {

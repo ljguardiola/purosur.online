@@ -79,7 +79,11 @@ async function handle(
 ): Promise<Handled> {
   const { refunds, local, clock } = ports;
   try {
-    if (local.paidOrderWithoutSale(order.paymentTransactionId)) {
+    const recorded = local.paidOrderWithoutSale(order.paymentTransactionId);
+    if (recorded) {
+      if (!recorded.resolved && order.method === "POINT" && order.cardType !== null) {
+        local.recordCardTypeOfPaidOrderWithoutSale(order.paymentTransactionId, order.cardType);
+      }
       return { kind: "nothing" };
     }
     switch (classifyPaidOrder(local.localStateOf(order))) {

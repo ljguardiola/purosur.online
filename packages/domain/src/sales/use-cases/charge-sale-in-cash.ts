@@ -31,6 +31,7 @@ export type ChargeSaleInCashOutcome =
   | { kind: "zero_total" }
   | ChargeRefusal
   | { kind: "mercado_pago_charge_in_progress" }
+  | { kind: "paid_order_not_applied" }
   | { kind: "invalid_amount" }
   | PartiallyPaid
   | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };

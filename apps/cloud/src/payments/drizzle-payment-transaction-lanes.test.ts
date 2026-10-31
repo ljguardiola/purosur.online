@@ -474,6 +474,16 @@ describe("DrizzlePaymentTransactionLanes", () => {
       expect(await heldBySale(transaction.id)).toBe(true);
     });
 
+    it("is held when a sale rebuilt against it holds its payment approved, though the transaction was created for another sale", async () => {
+      const transaction = await recorded();
+      await insertSyncedSaleHolding(db, transaction, "APPROVED", {
+        saleId: crypto.randomUUID(),
+        amount: 2400,
+      });
+
+      expect(await heldBySale(transaction.id)).toBe(true);
+    });
+
     it("is not held when the synced sale holds its payment as not approved", async () => {
       const transaction = await recorded();
       await insertSyncedSaleHolding(db, transaction, "EXPIRED");

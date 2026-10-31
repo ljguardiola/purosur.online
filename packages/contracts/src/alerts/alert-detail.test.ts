@@ -672,6 +672,38 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
+    it("accepts a late payment refund alert of the surplus of a rebuilt sale", () => {
+      const alert = {
+        ...base,
+        kind: "late_payment_refund",
+        detail: {
+          saleId: "sale-1",
+          amount: 250000,
+          providerOrderId: null,
+          method: "QR",
+          ofRebuiltSale: true,
+        },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it("refuses a late payment refund alert whose rebuilt-sale flag is not a boolean", () => {
+      const alert = {
+        ...base,
+        kind: "late_payment_refund",
+        detail: {
+          saleId: "sale-1",
+          amount: 250000,
+          providerOrderId: null,
+          method: "QR",
+          ofRebuiltSale: "yes",
+        },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
     it("refuses a late payment refund alert that does not say how the payment was made", () => {
       const alert = {
         ...base,

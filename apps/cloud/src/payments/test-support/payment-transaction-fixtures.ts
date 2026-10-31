@@ -73,6 +73,7 @@ export async function insertSyncedSaleHolding<TQueryResult extends PgQueryResult
   db: PgDatabase<TQueryResult>,
   transaction: MercadoPagoOrderTransaction,
   salePaymentState: PaymentTransactionState,
+  { saleId = transaction.saleId, amount = transaction.amount } = {},
 ): Promise<void> {
   const [enrolled] = await db
     .select({ deviceId: registerInstallations.id })
@@ -106,21 +107,21 @@ export async function insertSyncedSaleHolding<TQueryResult extends PgQueryResult
     openingFloat: 0,
   });
   await db.insert(sales).values({
-    id: transaction.saleId,
+    id: saleId,
     ...origin,
     sessionId,
     actorId,
     state: "COMPLETED",
     completedAt: transaction.createdAt,
-    total: transaction.amount,
+    total: amount,
     appliedAt: transaction.createdAt,
   });
   await db.insert(salePayments).values({
     id: transaction.id,
-    saleId: transaction.saleId,
+    saleId,
     method: transaction.method,
     provider: transaction.provider,
-    amount: transaction.amount,
+    amount,
     state: salePaymentState,
     occurredAt: transaction.createdAt,
   });

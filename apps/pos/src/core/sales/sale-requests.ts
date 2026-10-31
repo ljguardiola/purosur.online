@@ -15,11 +15,13 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   ManualAdjustmentRequest,
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  RebuildSaleAgainstPaidOrderOutcome,
   RemoveSaleLineOutcome,
   SaleDiscountRequest,
   ScanProductOutcome,
@@ -38,6 +40,7 @@ import {
   type PaidOrderDiscoveryState,
   type PlannedRefund,
   promotionSavings,
+  type RebuiltPaidOrderStanding,
   type RegisterActor,
   type RegisterOperation,
   registerOperationAccess,
@@ -66,11 +69,13 @@ import {
   chargeSaleByTransfer,
   chargeSaleInCash,
   chargeSaleOnStandaloneTerminal,
+  chargeSaleWithPaidOrder,
   currentSale,
   type IdGenerator,
   type OperationAuthorization,
   previewSaleDiscount,
   previewSaleLineAdjustment,
+  rebuildSaleAgainstPaidOrder,
   removeSaleLine,
   type Scale,
   searchProductsByName,
@@ -185,12 +190,26 @@ interface OpenSaleAnswer {
   cancelRefusal: OpenSale["cancel_refusal"];
   refundsOnCancel: readonly PlannedRefund[];
   mercadoPagoChargeInProgress: MercadoPagoChargeInProgress | null;
+  rebuiltPaidOrder: RebuiltPaidOrderStanding | null;
 }
 
 interface SaleView {
   cancelAuthorizationRequired: boolean;
   adjustAuthorizationRequired: boolean;
   saleDiscountAuthorizationRequired: boolean;
+}
+
+function toWireRebuiltPaidOrder(
+  standing: RebuiltPaidOrderStanding | null,
+): OpenSale["rebuilt_paid_order"] {
+  return standing === null
+    ? null
+    : {
+        payment_transaction_id: standing.paymentTransactionId,
+        amount: standing.amount,
+        method: standing.method,
+        applied: standing.applied,
+      };
 }
 
 interface SellerAnswer<Outcome> {
@@ -248,6 +267,7 @@ function toOpenSale(
     cancelRefusal,
     refundsOnCancel,
     mercadoPagoChargeInProgress,
+    rebuiltPaidOrder,
   }: OpenSaleAnswer,
   view: SaleView,
 ): OpenSale {
@@ -283,6 +303,7 @@ function toOpenSale(
     charge_refusal: chargeRefusal ?? null,
     mercado_pago_charge_in_progress:
       mercadoPagoChargeInProgress === null ? null : chargeInProgressOf(mercadoPagoChargeInProgress),
+    rebuilt_paid_order: toWireRebuiltPaidOrder(rebuiltPaidOrder),
   };
 }
 
@@ -571,6 +592,81 @@ export async function currentSaleFor({
   }
   const { outcome, view } = guarded.result;
   return outcome.kind === "open" ? toOpenSale(outcome, view) : null;
+}
+
+export async function rebuildSaleAgainstPaidOrderFor(
+  {
+    database,
+    gate,
+    ids,
+    paidOrderDiscovery,
+    newSalesStoppedByDisk,
+    localDatabaseDamaged,
+    newSalesStoppedByBattery,
+    restoration,
+  }: SellingRequestDeps,
+  { paymentTransactionId }: { paymentTransactionId: string },
+): Promise<RebuildSaleAgainstPaidOrderOutcome> {
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
+    rebuildSaleAgainstPaidOrder(
+      {
+        ledger: sellingLedger(
+          database,
+          paidOrderDiscovery,
+          newSalesStoppedByDisk,
+          localDatabaseDamaged,
+          newSalesStoppedByBattery,
+        ),
+        restoration,
+        ids,
+      },
+      { actorId: signedInUserId, paymentTransactionId },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  return outcome.kind === "rebuilt" || outcome.kind === "already_open"
+    ? { kind: outcome.kind, sale_id: outcome.saleId }
+    : { kind: outcome.kind };
+}
+
+export async function chargeSaleWithPaidOrderFor(
+  { database, gate, now, zoneRules, ids, readOutboxChainKey, restoration }: OutboxSaleRequestDeps,
+  { saleId }: { saleId: string },
+): Promise<ChargeSaleWithPaidOrderOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
+    chargeSaleWithPaidOrder(
+      { zoneRules, ledger: saleLedger(database, outboxChainKey), restoration, clock: { now }, ids },
+      { actorId: signedInUserId, saleId },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  switch (outcome.kind) {
+    case "completed":
+      return {
+        kind: "completed",
+        sale_id: outcome.saleId,
+        total: outcome.total,
+        applied: outcome.applied,
+        surplus: outcome.surplus,
+        surplus_sent_by_cloud: outcome.surplusSentByCloud,
+      };
+    case "partially_paid":
+      return partiallyPaid(outcome);
+    case "reaches_buyer_identification_threshold":
+      return { kind: outcome.kind, threshold: outcome.threshold };
+    default:
+      return { kind: outcome.kind };
+  }
 }
 
 export async function cashChargeFor(

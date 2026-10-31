@@ -3,6 +3,7 @@ import {
   isRefundSentByCloud,
   mercadoPagoPaymentIsBacked,
   RETURN_REFUND_ORIGIN,
+  rebuiltPaidOrderPaymentIsBacked,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "../../payments/index.js";
 import { returnHistoryBreaks } from "../../returns/index.js";
@@ -87,16 +88,29 @@ function failureOf(ports: ApplyPendingEventsPorts, error: unknown): Failure {
 
 async function requireMercadoPagoPaymentsBacked(
   tx: EventApplicationTransaction,
-  sale: Pick<CompletedSale, "id" | "payments">,
+  sale: Pick<CompletedSale, "id" | "payments" | "rebuiltPaidOrder">,
 ): Promise<void> {
   for (const payment of sale.payments) {
-    if (
-      (payment.method === "QR" || payment.method === "POINT") &&
-      !mercadoPagoPaymentIsBacked(
-        { saleId: sale.id, amount: payment.amount, method: payment.method },
-        await tx.providerTransactionOfPayment(payment.id),
-      )
-    ) {
+    if (payment.method !== "QR" && payment.method !== "POINT") {
+      continue;
+    }
+    const transaction = await tx.providerTransactionOfPayment(payment.id);
+    const rebuilt =
+      sale.rebuiltPaidOrder?.paymentTransactionId === payment.id
+        ? sale.rebuiltPaidOrder
+        : undefined;
+    const backed =
+      rebuilt === undefined
+        ? mercadoPagoPaymentIsBacked(
+            { saleId: sale.id, amount: payment.amount, method: payment.method },
+            transaction,
+          )
+        : rebuiltPaidOrderPaymentIsBacked(
+            { amount: payment.amount, method: payment.method },
+            rebuilt.surplus,
+            transaction,
+          );
+    if (!backed) {
       throw new EventRefused(
         { kind: "not_recorded" },
         `payment ${payment.id} is not backed by an approved Mercado Pago transaction of this sale and amount`,
@@ -147,6 +161,15 @@ async function recordFact(
       await tx.record(fact, event);
       if (fact.sale.stockMovements !== null) {
         await applyStock(tx.applySaleStock(fact.sale, fact.sale.stockMovements, event));
+      }
+      if (fact.sale.rebuiltPaidOrder !== null && fact.sale.rebuiltPaidOrder.surplus > 0) {
+        await tx.openSurplusRefundOfRebuiltSale(
+          {
+            paymentTransactionId: fact.sale.rebuiltPaidOrder.paymentTransactionId,
+            amount: fact.sale.rebuiltPaidOrder.surplus,
+          },
+          event,
+        );
       }
       return;
     case "sale_voided":

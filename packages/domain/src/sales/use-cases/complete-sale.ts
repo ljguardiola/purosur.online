@@ -1,7 +1,8 @@
 import { preEmissionGate, preEmissionGateFailedEvent } from "../../fiscal/index.js";
 import type { SalePayment } from "../../payments/index.js";
-import { paymentRecord } from "../../payments/index.js";
+import { paymentRecord, rebuiltPaidOrderSurplus } from "../../payments/index.js";
 import {
+  type JsonValue,
   type OutboxEventDraft,
   SALE_COMPLETED_EVENT_TYPE,
   type ZoneRules,
@@ -53,6 +54,7 @@ export function completeSale(
     tx.recordSaleStockMovement(stockMovement);
     tx.addToStockBalance(stockMovement.productId, stockMovement.delta);
   }
+  const paidOrder = tx.paidOrderOfSale(sale.id);
   tx.appendOutboxEvent(
     saleCompletedEvent(
       eventId,
@@ -62,6 +64,12 @@ export function completeSale(
       payments,
       movements,
       stockMovements,
+      paidOrder === undefined
+        ? null
+        : {
+            payment_transaction_id: paidOrder.paymentTransactionId,
+            surplus: rebuiltPaidOrderSurplus(paidOrder.amount, total),
+          },
       actorId,
       completedAt,
     ),
@@ -103,6 +111,7 @@ function saleCompletedEvent(
   payments: readonly SalePayment[],
   movements: readonly SaleCashMovement[],
   stockMovements: readonly SaleStockMovement[],
+  rebuiltPaidOrder: JsonValue,
   actorId: string,
   completedAt: Date,
 ): OutboxEventDraft {
@@ -112,7 +121,7 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_COMPLETED_EVENT_TYPE,
-    schema_version: 9,
+    schema_version: 10,
     payload: {
       id: sale.id,
       operation_number: operationNumber,
@@ -127,6 +136,7 @@ function saleCompletedEvent(
       payments: payments.map(paymentRecord),
       cash_movements: movements.map(saleCashMovementRecord),
       stock_movements: stockMovements.map(saleStockMovementRecord),
+      rebuilt_paid_order: rebuiltPaidOrder,
     },
     occurred_at: completedAtIso,
     actor_id: actorId,

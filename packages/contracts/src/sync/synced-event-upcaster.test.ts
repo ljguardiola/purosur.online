@@ -211,6 +211,7 @@ describe("decoding the events the registers pushed", () => {
           ],
           cashMovements: [decodedMovement],
           stockMovements: null,
+          rebuiltPaidOrder: null,
         },
       },
     });
@@ -1830,6 +1831,7 @@ describe("decoding the events the registers pushed", () => {
             },
           ],
           cashMovements: [decodedMovement],
+          rebuiltPaidOrder: null,
         },
       },
     });
@@ -2595,11 +2597,11 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 10 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 11 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 10",
+      reason: "no schema reads sale_completed version 11",
     });
   });
 
@@ -2777,6 +2779,7 @@ describe("decoding a removed sale line and a cancelled sale without payments", (
           payments: [],
           refunds: [],
           cashMovements: [],
+          rebuiltPaidOrder: null,
         },
       },
     });

@@ -29,6 +29,7 @@ const PAID_ORDER_WITHOUT_SALE = {
   method: "POINT",
   amount: 75000,
   created_at: "2026-10-13T11:00:00.000Z",
+  rebuilt_sale_id: null,
 };
 
 const PENDING = {
@@ -249,5 +250,27 @@ describe("startupPendingSchema", () => {
     ],
   ])("rejects %s", (_name, pending) => {
     expect(startupPendingSchema.safeParse(pending).success).toBe(false);
+  });
+});
+
+describe("the sale rebuilt against a paid order on the startup screen", () => {
+  const withRebuiltSale = (rebuilt_sale_id: unknown) => ({
+    ...PENDING,
+    paid_orders_without_sale: [{ ...PAID_ORDER_WITHOUT_SALE, rebuilt_sale_id }],
+  });
+
+  it.each([["sale-9"], [null]])("accepts %s as the sale rebuilt against the order", (saleId) => {
+    expect(
+      startupPendingSchema.parse(withRebuiltSale(saleId)).paid_orders_without_sale[0]
+        ?.rebuilt_sale_id,
+    ).toBe(saleId);
+  });
+
+  it("refuses an order that says nothing of a rebuilt sale", () => {
+    expect(startupPendingSchema.safeParse(withRebuiltSale(undefined)).success).toBe(false);
+  });
+
+  it("refuses a rebuilt sale that is not an id", () => {
+    expect(startupPendingSchema.safeParse(withRebuiltSale(7)).success).toBe(false);
   });
 });

@@ -1,4 +1,7 @@
-import type { ApprovedOrderOfRegister } from "@purosur/domain/payments/use-cases";
+import {
+  type ApprovedOrderOfRegister,
+  discoverPaidOrdersWithoutSale,
+} from "@purosur/domain/payments/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -269,5 +272,234 @@ describe("the paid orders without a sale", () => {
       "qr-2",
       "point-1",
     ]);
+  });
+});
+
+describe("the paid orders a sale was rebuilt against", () => {
+  function addApprovedOrderPayment(saleId: string, id = "qr-1"): void {
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+         VALUES (?, ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 3000, 'APPROVED', '2026-10-09T12:00:00.000Z', '2026-10-09T12:00:00.000Z')`,
+      )
+      .run(id, saleId);
+  }
+
+  function endSale(saleId: string, state: "COMPLETED" | "CANCELLED"): void {
+    database
+      .prepare(
+        "UPDATE sales SET state = ?, occurred_at = '2026-10-09T12:05:00.000Z', operation_number = ? WHERE id = ?",
+      )
+      .run(state, state === "COMPLETED" ? 1 : null, saleId);
+  }
+
+  async function rebuiltSale(order = anOrder()): Promise<string> {
+    const local = localPaidOrders();
+    const saleId = await openSale();
+    local.recordPaidOrderWithoutSale(order, RECORDED_AT);
+    local.recordSaleRebuiltAgainstPaidOrder(saleId, order.paymentTransactionId);
+    return saleId;
+  }
+
+  it("offer a QR order with its amount, method and provider", () => {
+    localPaidOrders().recordPaidOrderWithoutSale(anOrder(), RECORDED_AT);
+
+    expect(localPaidOrders().rebuildablePaidOrder("qr-1")).toEqual({
+      paymentTransactionId: "qr-1",
+      amount: 3000,
+      resolved: false,
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+    });
+  });
+
+  it.each(["DEBIT", "CREDIT"] as const)(
+    "offer a Point order with the %s card type it was paid on",
+    (cardType) => {
+      localPaidOrders().recordPaidOrderWithoutSale(aPointOrder({ cardType }), RECORDED_AT);
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toEqual({
+        paymentTransactionId: "point-1",
+        amount: 3000,
+        resolved: false,
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        cardType,
+      });
+    },
+  );
+
+  it("offer a Point order recorded before card types were kept with no card type", () => {
+    database
+      .prepare(
+        `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at)
+         VALUES ('point-1', 'sale-gone', 'POINT', 'MERCADOPAGO_POINT', 3000, '2026-10-09T11:59:00.000Z', '2026-10-09T12:00:00.000Z')`,
+      )
+      .run();
+
+    expect(localPaidOrders().rebuildablePaidOrder("point-1")).toMatchObject({ cardType: null });
+  });
+
+  describe("learning the card type of a Point order recorded without it", () => {
+    function recordPointOrderWithoutCardType(): void {
+      localPaidOrders().recordPaidOrderWithoutSale(aPointOrder({ cardType: null }), RECORDED_AT);
+    }
+
+    it("offers the card type once learned", () => {
+      recordPointOrderWithoutCardType();
+
+      localPaidOrders().recordCardTypeOfPaidOrderWithoutSale("point-1", "CREDIT");
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toMatchObject({
+        cardType: "CREDIT",
+      });
+    });
+
+    it("never replaces a card type already known", () => {
+      localPaidOrders().recordPaidOrderWithoutSale(aPointOrder({ cardType: "DEBIT" }), RECORDED_AT);
+
+      localPaidOrders().recordCardTypeOfPaidOrderWithoutSale("point-1", "CREDIT");
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toMatchObject({
+        cardType: "DEBIT",
+      });
+    });
+
+    it("changes nothing for an order that is not recorded", () => {
+      localPaidOrders().recordCardTypeOfPaidOrderWithoutSale("point-1", "CREDIT");
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toBeUndefined();
+    });
+
+    it("is learned through discovery when the cloud lists the recorded order again", async () => {
+      recordPointOrderWithoutCardType();
+
+      await discoverPaidOrdersWithoutSale({
+        cloud: {
+          approvedSince: async () => ({
+            kind: "listed",
+            orders: [aPointOrder({ cardType: "CREDIT" })],
+          }),
+        },
+        refunds: { openLatePaymentRefund: async () => ({ kind: "opened" }) },
+        local: localPaidOrders(),
+        sale: { settleApprovedPayment: () => ({ kind: "refused" }) },
+        clock: { now: () => RECORDED_AT },
+      });
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toMatchObject({
+        cardType: "CREDIT",
+      });
+    });
+  });
+
+  it("offer nothing for a payment that is not a recorded paid order", () => {
+    expect(localPaidOrders().rebuildablePaidOrder("qr-1")).toBeUndefined();
+  });
+
+  it("are resolved once converted into a refund", () => {
+    localPaidOrders().recordPaidOrderWithoutSale(anOrder(), RECORDED_AT);
+    localPaidOrders().resolvePaidOrderWithoutSale("qr-1", RESOLVED_AT);
+
+    expect(localPaidOrders().rebuildablePaidOrder("qr-1")?.resolved).toBe(true);
+  });
+
+  it("stay unresolved, and are listed with their sale, while the rebuilt sale is open", async () => {
+    const saleId = await rebuiltSale();
+
+    expect(localPaidOrders().rebuildablePaidOrder("qr-1")?.resolved).toBe(false);
+    expect(localPaidOrders().paidOrdersWithoutSale()).toEqual([
+      { ...anOrder(), recordedAt: RECORDED_AT, resolved: false, rebuiltSaleId: saleId },
+    ]);
+  });
+
+  it("are resolved once the rebuilt sale completed", async () => {
+    const saleId = await rebuiltSale();
+    addApprovedOrderPayment(saleId);
+    endSale(saleId, "COMPLETED");
+
+    expect(localPaidOrders().rebuildablePaidOrder("qr-1")?.resolved).toBe(true);
+    expect(localPaidOrders().paidOrdersWithoutSale()[0]).toMatchObject({ resolved: true });
+  });
+
+  it("are resolved once the rebuilt sale was cancelled after the order was applied", async () => {
+    const saleId = await rebuiltSale();
+    addApprovedOrderPayment(saleId);
+    endSale(saleId, "CANCELLED");
+
+    expect(localPaidOrders().rebuildablePaidOrder("qr-1")?.resolved).toBe(true);
+  });
+
+  it("stay unresolved when the rebuilt sale was cancelled before the order was applied", async () => {
+    const saleId = await rebuiltSale();
+    endSale(saleId, "CANCELLED");
+
+    expect(localPaidOrders().rebuildablePaidOrder("qr-1")?.resolved).toBe(false);
+  });
+
+  it("are found from the sale that was rebuilt against them", async () => {
+    const saleId = await rebuiltSale();
+
+    expect(localPaidOrders().paidOrderOfSale(saleId)).toMatchObject({
+      paymentTransactionId: "qr-1",
+      amount: 3000,
+      method: "QR",
+    });
+    expect(localPaidOrders().paidOrderOfSale("another-sale")).toBeUndefined();
+  });
+
+  it("are linked to one sale at a time", async () => {
+    await rebuiltSale();
+    database
+      .prepare(
+        `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-2', 'register-1', 'device-1', 'session-1', 'u1', 'CANCELLED', '2026-10-09T12:05:00.000Z')`,
+      )
+      .run();
+
+    expect(() => localPaidOrders().recordSaleRebuiltAgainstPaidOrder("sale-2", "qr-1")).toThrow(
+      /UNIQUE/,
+    );
+  });
+
+  it("are held by the payment the rebuilt sale took, so a later discovery finds the order recorded", async () => {
+    const saleId = await rebuiltSale();
+    addApprovedOrderPayment(saleId);
+    endSale(saleId, "COMPLETED");
+
+    expect(localPaidOrders().localStateOf(anOrder())).toEqual({
+      payment: "APPROVED",
+      sale: undefined,
+    });
+  });
+
+  it("are neither listed again nor refunded when a later discovery finds them in the cloud", async () => {
+    const saleId = await rebuiltSale();
+    addApprovedOrderPayment(saleId);
+    endSale(saleId, "COMPLETED");
+    const refunded: string[] = [];
+
+    const outcome = await discoverPaidOrdersWithoutSale({
+      cloud: { approvedSince: async () => ({ kind: "listed", orders: [anOrder()] }) },
+      refunds: {
+        openLatePaymentRefund: async (paymentTransactionId) => {
+          refunded.push(paymentTransactionId);
+          return { kind: "opened" };
+        },
+      },
+      local: localPaidOrders(),
+      sale: { settleApprovedPayment: () => ({ kind: "refused" }) },
+      clock: { now: () => RESOLVED_AT },
+    });
+
+    expect(outcome).toMatchObject({
+      kind: "checked",
+      withoutSale: 0,
+      duplicateCharges: 0,
+      failed: 0,
+    });
+    expect(refunded).toEqual([]);
+    expect(localPaidOrders().paidOrdersWithoutSale()).toHaveLength(1);
+    expect(localPaidOrders().rebuildablePaidOrder("qr-1")?.resolved).toBe(true);
   });
 });

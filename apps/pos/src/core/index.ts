@@ -180,9 +180,11 @@ import {
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   chargeSaleOnStandaloneTerminalFor,
+  chargeSaleWithPaidOrderFor,
   currentSaleFor,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
+  rebuildSaleAgainstPaidOrderFor,
   removeSaleLineFor,
   scanProductFor,
   searchProductsFor,
@@ -1476,6 +1478,42 @@ const rendererRequestDeps: RendererRequestDeps = {
           }),
   abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
   convertPaidOrderIntoRefund: paidOrderDiscovery.convertIntoRefund,
+  rebuildSaleAgainstPaidOrder:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          rebuildSaleAgainstPaidOrderFor(
+            {
+              zoneRules,
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
+              newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
+            },
+            request,
+          ),
+  chargeSaleWithPaidOrder:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleWithPaidOrderFor(
+            {
+              zoneRules,
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1657,6 +1695,9 @@ const answeredRendererRequestDeps: RendererRequestDeps = ticketedRendererRequest
     ),
     chargeSaleOnStandaloneTerminal: receiptPrinting.afterCompletedSale(
       rendererRequestDeps.chargeSaleOnStandaloneTerminal,
+    ),
+    chargeSaleWithPaidOrder: receiptPrinting.afterCompletedSale(
+      rendererRequestDeps.chargeSaleWithPaidOrder,
     ),
     followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
       rendererRequestDeps.followMercadoPagoCharge,

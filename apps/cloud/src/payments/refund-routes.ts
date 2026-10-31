@@ -140,6 +140,7 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
             seconds_pending: refund.secondsPending,
             sale_occurred_at: refund.saleOccurredAt.toISOString(),
             covered_by: refund.coveredBy,
+            of_rebuilt_sale: refund.ofRebuiltSale,
             provider_order_id: refund.providerOrderId,
             corrected_by: refund.correctedBy,
             corrected_by_name: refund.correctedByName,

@@ -3,6 +3,7 @@ import type {
   CashBalance,
   ConvertPaidOrderIntoRefundOutcome,
   PrintOriginalReceiptOutcome,
+  RebuildSaleAgainstPaidOrderOutcome,
   ReprintSaleReceiptOutcome,
   StartupPending,
 } from "@purosur/contracts";
@@ -88,6 +89,7 @@ const QR_PAID_ORDER: StartupPending["paid_orders_without_sale"][number] = {
   method: "QR",
   amount: 80_000,
   created_at: "2026-09-30T15:30:00.000-03:00",
+  rebuilt_sale_id: null,
 };
 const POINT_PAID_ORDER: StartupPending["paid_orders_without_sale"][number] = {
   payment_transaction_id: "tx-2",
@@ -95,6 +97,7 @@ const POINT_PAID_ORDER: StartupPending["paid_orders_without_sale"][number] = {
   method: "POINT",
   amount: 45_550,
   created_at: "2026-09-30T15:45:00.000-03:00",
+  rebuilt_sale_id: null,
 };
 const BLOCKED_BY_QR: StartupPending = {
   ...NOTHING,
@@ -138,6 +141,9 @@ type Overrides = {
   convertPaidOrderIntoRefund?: (
     paymentTransactionId: string,
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
+  rebuildSaleAgainstPaidOrder?: (
+    paymentTransactionId: string,
+  ) => Promise<RebuildSaleAgainstPaidOrderOutcome>;
   registerName?: string | null;
   clockGuard?: ReactNode;
 };
@@ -164,7 +170,15 @@ async function renderScreen(overrides: Overrides = {}) {
     overrides.convertPaidOrderIntoRefund ??
       (async (): Promise<ConvertPaidOrderIntoRefundOutcome> => ({ kind: "converted" })),
   );
+  const rebuildSaleAgainstPaidOrder = vi.fn(
+    overrides.rebuildSaleAgainstPaidOrder ??
+      (async (): Promise<RebuildSaleAgainstPaidOrderOutcome> => ({
+        kind: "rebuilt",
+        sale_id: "sale-new",
+      })),
+  );
   const onGoSelling = vi.fn();
+  const onGoToSale = vi.fn();
   const onNothingLeft = vi.fn();
   const onSessionInvalid = vi.fn();
   const screen = await render(
@@ -180,9 +194,11 @@ async function renderScreen(overrides: Overrides = {}) {
       printOriginalReceipt={printOriginalReceipt}
       reprintSaleReceipt={reprintSaleReceipt}
       convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
+      rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
       loadAuthorizers={async () => []}
       clockGuard={overrides.clockGuard}
       onGoSelling={onGoSelling}
+      onGoToSale={onGoToSale}
       onNothingLeft={onNothingLeft}
       onSessionInvalid={onSessionInvalid}
     />,
@@ -193,7 +209,9 @@ async function renderScreen(overrides: Overrides = {}) {
     printOriginalReceipt,
     reprintSaleReceipt,
     convertPaidOrderIntoRefund,
+    rebuildSaleAgainstPaidOrder,
     onGoSelling,
+    onGoToSale,
     onNothingLeft,
     onSessionInvalid,
   };
@@ -897,6 +915,177 @@ describe("StartupPendingScreen", () => {
         }),
       });
       await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
+
+      await expectNoAccessibilityViolations(screen.container);
+    });
+  });
+
+  describe("rebuilding the sale of a paid order without a sale", () => {
+    const REBUILD = "Armar la venta con el cobro de las 15:30";
+    const BACK_TO_SALE = "Volver a la venta armada con el cobro de las 15:30";
+    const REBUILT_QR: StartupPending = {
+      ...BLOCKED_BY_QR,
+      paid_orders_without_sale: [{ ...QR_PAID_ORDER, rebuilt_sale_id: "sale-new" }],
+    };
+
+    it("offers to rebuild the sale beside passing the order to refund", async () => {
+      const { screen } = await renderScreen({ loadStartupPending: async () => BLOCKED_BY_QR });
+
+      await expect.element(screen.getByRole("button", { name: REBUILD })).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }))
+        .toBeVisible();
+    });
+
+    it.each([
+      ["rebuilt", { kind: "rebuilt", sale_id: "sale-new" }],
+      ["already_open", { kind: "already_open", sale_id: "sale-new" }],
+    ] as const)(
+      "asks the core for the order and goes to the sale on %s",
+      async (_kind, outcome) => {
+        const { screen, rebuildSaleAgainstPaidOrder, onGoToSale } = await renderScreen({
+          loadStartupPending: async () => BLOCKED_BY_QR,
+          rebuildSaleAgainstPaidOrder: async () => outcome,
+        });
+
+        await userEvent.click(screen.getByRole("button", { name: REBUILD }));
+
+        expect(rebuildSaleAgainstPaidOrder).toHaveBeenCalledExactlyOnceWith("tx-1");
+        await vi.waitFor(() => expect(onGoToSale).toHaveBeenCalledOnce());
+      },
+    );
+
+    it("sends one request while the first is still being answered", async () => {
+      const answer = deferred<RebuildSaleAgainstPaidOrderOutcome>();
+      const { screen, rebuildSaleAgainstPaidOrder } = await renderScreen({
+        loadStartupPending: async () => BLOCKED_BY_QR,
+        rebuildSaleAgainstPaidOrder: () => answer.promise,
+      });
+      const rebuild = screen.getByRole("button", { name: REBUILD });
+      await expect.element(rebuild).toBeVisible();
+      const element = rebuild.element() as HTMLElement;
+
+      element.click();
+      element.click();
+      answer.resolve({ kind: "rebuilt", sale_id: "sale-new" });
+
+      await vi.waitFor(() => expect(rebuildSaleAgainstPaidOrder).toHaveBeenCalledOnce());
+    });
+
+    it.each([
+      [
+        { kind: "another_sale_open" },
+        "Ya hay otra venta abierta",
+        "Terminala o cancelala antes de armar la venta con este cobro.",
+      ],
+      [
+        { kind: "card_type_unknown" },
+        "Todavía falta el tipo de tarjeta de este cobro",
+        "La caja lo consulta sola cuando hay conexión. Probá de nuevo más tarde o pasalo a reembolso.",
+      ],
+      [
+        { kind: "not_permitted" },
+        "No tenés permiso para armar la venta",
+        "Pedile a quien pueda que la arme.",
+      ],
+      [
+        { kind: "restoration_in_progress" },
+        "La caja se está restaurando",
+        "Esperá a que termine para armar la venta.",
+      ],
+      [
+        { kind: "battery_critical" },
+        "No se puede abrir la venta",
+        "El motivo y qué hacer se muestran arriba de la pantalla.",
+      ],
+      [{ kind: "unavailable" }, "No se pudo armar la venta", "Probá de nuevo."],
+    ] as const)(
+      "shows why the sale was not rebuilt on %j and stays on the screen",
+      async (outcome, title, description) => {
+        const { screen, onGoToSale } = await renderScreen({
+          loadStartupPending: async () => BLOCKED_BY_QR,
+          rebuildSaleAgainstPaidOrder: async () => outcome,
+        });
+
+        await userEvent.click(screen.getByRole("button", { name: REBUILD }));
+
+        await expect.element(screen.getByText(title)).toBeVisible();
+        await expect.element(screen.getByText(description)).toBeVisible();
+        expect(onGoToSale).not.toHaveBeenCalled();
+      },
+    );
+
+    it("says the sale could not be rebuilt when the request itself fails", async () => {
+      const { screen } = await renderScreen({
+        loadStartupPending: async () => BLOCKED_BY_QR,
+        rebuildSaleAgainstPaidOrder: async () => {
+          throw new Error("core down");
+        },
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: REBUILD }));
+
+      await expect.element(screen.getByText("No se pudo armar la venta")).toBeVisible();
+    });
+
+    it.each(["not_found", "already_resolved"] as const)(
+      "reads the items again on %s",
+      async (kind) => {
+        const load = vi
+          .fn<() => Promise<StartupPending>>()
+          .mockResolvedValueOnce(BLOCKED_BY_QR)
+          .mockResolvedValue(NOTHING);
+        const { screen, onGoToSale } = await renderScreen({
+          loadStartupPending: load,
+          rebuildSaleAgainstPaidOrder: async () => ({ kind }),
+        });
+
+        await userEvent.click(screen.getByRole("button", { name: REBUILD }));
+
+        await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
+        expect(onGoToSale).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["not_signed_in", "no_open_session"] as const)(
+      "tells the route the session is no longer valid on %s",
+      async (kind) => {
+        const { screen, onSessionInvalid } = await renderScreen({
+          loadStartupPending: async () => BLOCKED_BY_QR,
+          rebuildSaleAgainstPaidOrder: async () => ({ kind }),
+        });
+
+        await userEvent.click(screen.getByRole("button", { name: REBUILD }));
+
+        await vi.waitFor(() => expect(onSessionInvalid).toHaveBeenCalledOnce());
+      },
+    );
+
+    it("offers to go back to the sale instead once the order has its sale being rebuilt", async () => {
+      const { screen, rebuildSaleAgainstPaidOrder, onGoToSale } = await renderScreen({
+        loadStartupPending: async () => REBUILT_QR,
+      });
+
+      await expect.element(screen.getByText("Armando la venta")).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: REBUILD })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: BACK_TO_SALE }));
+
+      expect(onGoToSale).toHaveBeenCalledOnce();
+      expect(rebuildSaleAgainstPaidOrder).not.toHaveBeenCalled();
+    });
+
+    it("leaves to the order's status that its sale is being rebuilt, its detail telling only what was paid", async () => {
+      const { screen } = await renderScreen({ loadStartupPending: async () => REBUILT_QR });
+
+      await expect.element(screen.getByText("Armando la venta")).toBeVisible();
+      await expect
+        .element(screen.getByText("$ 800,00 cobrados a las 15:30.", { exact: true }))
+        .toBeVisible();
+    });
+
+    it("has no accessibility violations", async () => {
+      const { screen } = await renderScreen({ loadStartupPending: async () => REBUILT_QR });
+      await expect.element(screen.getByText("Armando la venta")).toBeVisible();
 
       await expectNoAccessibilityViolations(screen.container);
     });

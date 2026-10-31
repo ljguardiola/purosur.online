@@ -450,6 +450,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       paymentMethodAvailability: undefined,
       abandonMercadoPagoCharge: undefined,
       convertPaidOrderIntoRefund: undefined,
+      rebuildSaleAgainstPaidOrder: undefined,
+      chargeSaleWithPaidOrder: undefined,
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
         return { kind: "results", products: [], more: false };
@@ -1669,6 +1671,114 @@ describe("answerRendererRequest", () => {
     expect(await answerRendererRequest(deps(true).deps, message)).toEqual(unavailable);
   });
 
+  it("rebuilds a sale against a paid order and answers the outcome", async () => {
+    const requests: { paymentTransactionId: string }[] = [];
+    const { deps: withRebuild } = deps(true, {
+      rebuildSaleAgainstPaidOrder: async (request) => {
+        requests.push(request);
+        return { kind: "rebuilt", sale_id: "sale-9" };
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withRebuild, {
+        type: "rebuild-sale-against-paid-order",
+        request_id: "r72",
+        payment_transaction_id: "qr-1",
+      }),
+    ).toEqual({
+      type: "rebuild-sale-against-paid-order-result",
+      request_id: "r72",
+      outcome: { kind: "rebuilt", sale_id: "sale-9" },
+    });
+    expect(requests).toEqual([{ paymentTransactionId: "qr-1" }]);
+  });
+
+  it("answers that rebuilding a sale is unavailable when it fails or the register cannot, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      rebuildSaleAgainstPaidOrder: async () => {
+        throw error;
+      },
+    });
+    const message = {
+      type: "rebuild-sale-against-paid-order",
+      request_id: "r73",
+      payment_transaction_id: "qr-1",
+    } as const;
+    const unavailable = {
+      type: "rebuild-sale-against-paid-order-result",
+      request_id: "r73",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(unavailable);
+    expect(failing.failures).toEqual([
+      { context: "rebuilding a sale against a paid order", error },
+    ]);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(unavailable);
+  });
+
+  it("charges a rebuilt sale with its paid order and answers the outcome", async () => {
+    const requests: { saleId: string }[] = [];
+    const { deps: withCharge } = deps(true, {
+      chargeSaleWithPaidOrder: async (request) => {
+        requests.push(request);
+        return {
+          kind: "completed",
+          sale_id: "s1",
+          total: 3000,
+          applied: 3000,
+          surplus: 0,
+          surplus_sent_by_cloud: true,
+        };
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withCharge, {
+        type: "charge-sale-with-paid-order",
+        request_id: "r74",
+        sale_id: "s1",
+      }),
+    ).toEqual({
+      type: "charge-sale-with-paid-order-result",
+      request_id: "r74",
+      outcome: {
+        kind: "completed",
+        sale_id: "s1",
+        total: 3000,
+        applied: 3000,
+        surplus: 0,
+        surplus_sent_by_cloud: true,
+      },
+    });
+    expect(requests).toEqual([{ saleId: "s1" }]);
+  });
+
+  it("answers that charging with a paid order is unavailable when it fails or the register cannot, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      chargeSaleWithPaidOrder: async () => {
+        throw error;
+      },
+    });
+    const message = {
+      type: "charge-sale-with-paid-order",
+      request_id: "r75",
+      sale_id: "s1",
+    } as const;
+    const unavailable = {
+      type: "charge-sale-with-paid-order-result",
+      request_id: "r75",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "charging a sale with its paid order", error }]);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(unavailable);
+  });
+
   it("answers that a QR charge is unavailable when it fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
@@ -2014,6 +2124,7 @@ describe("answerRendererRequest", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
+      rebuilt_paid_order: null,
       mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,

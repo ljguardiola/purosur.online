@@ -87,6 +87,20 @@ describe("converting a paid order without a sale into a refund at the register",
     expect(refunds.asked).toEqual(["order-1"]);
   });
 
+  it("refuses to convert while the sale rebuilt against the order is open, asking the cloud for nothing", async () => {
+    database.exec(
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('rebuilt-sale', 'register-1', 'device-1', 'session-1', 'u1', 'OPEN', NULL);
+       INSERT INTO sales_rebuilt_against_paid_orders (sale_id, payment_transaction_id)
+       VALUES ('rebuilt-sale', 'order-1')`,
+    );
+    const refunds = new FakeRefunds();
+
+    expect(await convert(refunds)).toEqual({ kind: "rebuilt_sale_open" });
+    expect(refunds.asked).toEqual([]);
+    expect(resolvedAt()).toEqual({ resolved_at: null });
+  });
+
   it("answers not found for a payment the register never recorded", async () => {
     const refunds = new FakeRefunds();
 

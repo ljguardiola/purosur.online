@@ -1,8 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { Clock, ZoneRules } from "../../shared/index.js";
-import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
-import { amountToCharge } from "../model/sale-discount.js";
+import { type OpenSaleAnswerStanding, openSaleStandingOf } from "./open-sale-standing-of.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { withoutSaleDiscount } from "./remove-sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
@@ -23,7 +22,7 @@ export type ChangedLineOutcome = {
   removedSaleDiscount: boolean;
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
-} & OpenSaleStanding;
+} & OpenSaleAnswerStanding;
 
 export function saleToChange(
   tx: SaleLedgerTransaction,
@@ -71,11 +70,6 @@ export function changedLine(
     removedSaleDiscount,
     sale: changed,
     chargeRefusal: saleChargeRefusal(tx, changed, moment, rules),
-    ...openSaleStanding(
-      amountToCharge(changed),
-      tx.salePayments(changed.id),
-      tx.pendingMercadoPagoPaymentsOf(changed.id),
-      moment,
-    ),
+    ...openSaleStandingOf(tx, changed, moment),
   };
 }

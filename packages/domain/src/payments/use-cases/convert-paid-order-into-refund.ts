@@ -15,6 +15,7 @@ export type ConvertPaidOrderIntoRefundOutcome =
   | { kind: "converted" }
   | { kind: "already_resolved" }
   | { kind: "not_found" }
+  | { kind: "rebuilt_sale_open" }
   | { kind: "refused" }
   | { kind: "unreachable" };
 
@@ -28,6 +29,9 @@ export async function convertPaidOrderIntoRefund(
   }
   if (paidOrder.resolved) {
     return { kind: "already_resolved" };
+  }
+  if (paidOrder.rebuiltSaleId !== undefined) {
+    return { kind: "rebuilt_sale_open" };
   }
   const answer = await refunds.openLatePaymentRefund(paymentTransactionId);
   if (answer.kind === "unreachable" || answer.kind === "refused") {

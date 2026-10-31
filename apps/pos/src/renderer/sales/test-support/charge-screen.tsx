@@ -4,6 +4,7 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   OpenSale,
@@ -60,6 +61,7 @@ export const SALE_OF_ONE_LINE: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  rebuilt_paid_order: null,
   mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -80,6 +82,7 @@ export const SALE_OF_TWO_LINES: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  rebuilt_paid_order: null,
   mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -168,6 +171,7 @@ export type Overrides = {
     saleId: string,
     amount: number,
   ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>;
+  chargeSaleWithPaidOrder?: (saleId: string) => Promise<ChargeSaleWithPaidOrderOutcome>;
   receiptPrintStatus?: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   contingencyBackupTicketOfSale?: (
     saleId: string,
@@ -194,6 +198,17 @@ export async function renderScreen(overrides: Overrides = {}) {
   );
   const chargeSaleOnStandaloneTerminal = vi.fn(
     overrides.chargeSaleOnStandaloneTerminal ?? (async () => STANDALONE_TERMINAL_COMPLETED),
+  );
+  const chargeSaleWithPaidOrder = vi.fn(
+    overrides.chargeSaleWithPaidOrder ??
+      (async (): Promise<ChargeSaleWithPaidOrderOutcome> => ({
+        kind: "completed",
+        sale_id: "sale-1",
+        total: 476_000,
+        applied: 476_000,
+        surplus: 0,
+        surplus_sent_by_cloud: true,
+      })),
   );
   const paymentMethodAvailability = vi.fn(
     overrides.paymentMethodAvailability ?? (async () => AVAILABLE),
@@ -232,6 +247,7 @@ export async function renderScreen(overrides: Overrides = {}) {
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleByTransfer={chargeSaleByTransfer}
       chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
+      chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
       paymentMethodAvailability={paymentMethodAvailability}
       startMercadoPagoCharge={startMercadoPagoCharge}
       followMercadoPagoCharge={followMercadoPagoCharge}
@@ -249,6 +265,7 @@ export async function renderScreen(overrides: Overrides = {}) {
     chargeSaleInCash,
     chargeSaleByTransfer,
     chargeSaleOnStandaloneTerminal,
+    chargeSaleWithPaidOrder,
     paymentMethodAvailability,
     startMercadoPagoCharge,
     followMercadoPagoCharge,
@@ -311,6 +328,20 @@ export function saleWithChargeInProgress(
             card_type: charge.cardType,
           }
         : { ...inProgress, payment_transaction_id: QR_PAYMENT_ID, method: "QR" },
+  };
+}
+
+export function saleRebuiltAgainstPaidOrder(
+  paidOrder: { method: "QR" | "POINT"; amount: number; applied?: boolean },
+  sale: OpenSale = SALE_OF_ONE_LINE,
+): OpenSale {
+  return {
+    ...sale,
+    rebuilt_paid_order: {
+      payment_transaction_id: QR_PAYMENT_ID,
+      applied: false,
+      ...paidOrder,
+    },
   };
 }
 

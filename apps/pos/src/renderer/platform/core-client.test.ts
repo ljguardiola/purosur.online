@@ -664,6 +664,60 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to rebuild a sale against a paid order and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.rebuildSaleAgainstPaidOrder("019a0000-0000-7000-8000-0000000000a1");
+    port.answer({
+      type: "rebuild-sale-against-paid-order-result",
+      request_id: "request-1",
+      outcome: { kind: "rebuilt", sale_id: "sale-9" },
+    });
+
+    expect(await outcome).toEqual({ kind: "rebuilt", sale_id: "sale-9" });
+    expect(port.posted).toEqual([
+      {
+        type: "rebuild-sale-against-paid-order",
+        request_id: "request-1",
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+      },
+    ]);
+  });
+
+  it("asks the core to charge a sale with its paid order and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.chargeSaleWithPaidOrder("sale-9");
+    port.answer({
+      type: "charge-sale-with-paid-order-result",
+      request_id: "request-1",
+      outcome: {
+        kind: "completed",
+        sale_id: "sale-9",
+        total: 6000,
+        applied: 6750,
+        surplus: 750,
+        surplus_sent_by_cloud: true,
+      },
+    });
+
+    expect(await outcome).toEqual({
+      kind: "completed",
+      sale_id: "sale-9",
+      total: 6000,
+      applied: 6750,
+      surplus: 750,
+      surplus_sent_by_cloud: true,
+    });
+    expect(port.posted).toEqual([
+      { type: "charge-sale-with-paid-order", request_id: "request-1", sale_id: "sale-9" },
+    ]);
+  });
+
   it("asks the core how a Mercado Pago QR charge is going and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -1361,6 +1415,7 @@ describe("createCoreClient", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
+      rebuilt_paid_order: null,
       mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
@@ -1395,6 +1450,7 @@ describe("createCoreClient", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000_000 },
+      rebuilt_paid_order: null,
       mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,

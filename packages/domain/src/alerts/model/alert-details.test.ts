@@ -18,6 +18,36 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts that a late-payment refund alert is of a rebuilt sale's surplus", () => {
+    expectTypeOf<{
+      kind: "late_payment_refund";
+      scope: string;
+      locationId: string;
+      detail: {
+        saleId: string;
+        amount: number;
+        providerOrderId: string | null;
+        method: "QR";
+        ofRebuiltSale: true;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a late-payment refund alert whose rebuilt-sale flag is not a boolean", () => {
+    expectTypeOf<{
+      kind: "late_payment_refund";
+      scope: string;
+      locationId: string;
+      detail: {
+        saleId: string;
+        amount: number;
+        providerOrderId: string | null;
+        method: "QR";
+        ofRebuiltSale: "yes";
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a late-payment refund alert without the payment method", () => {
     expectTypeOf<{
       kind: "late_payment_refund";

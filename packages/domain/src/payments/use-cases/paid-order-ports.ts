@@ -1,5 +1,6 @@
 import type { Clock } from "../../shared/index.js";
 import type { LocalStateOfPaidOrder } from "../model/paid-order-discovery.js";
+import type { PointCardType } from "../model/payment.js";
 import type {
   MercadoPagoPaymentTransaction,
   MercadoPagoPointPaymentTransaction,
@@ -47,6 +48,7 @@ export interface PaidOrderWithoutSale extends ApprovedOrder {
   recordedAt: Date;
   resolved: boolean;
   resolvedAt?: Date;
+  rebuiltSaleId?: string;
 }
 
 export interface LocalPaidOrders {
@@ -57,6 +59,7 @@ export interface LocalPaidOrders {
   approvePayment(paymentTransactionId: string): void;
   paidOrderWithoutSale(paymentTransactionId: string): PaidOrderWithoutSale | undefined;
   recordPaidOrderWithoutSale(order: ApprovedOrderOfRegister, recordedAt: Date): void;
+  recordCardTypeOfPaidOrderWithoutSale(paymentTransactionId: string, cardType: PointCardType): void;
   resolvePaidOrderWithoutSale(paymentTransactionId: string, resolvedAt: Date): void;
   paidOrdersWithoutSale(): PaidOrderWithoutSale[];
 }

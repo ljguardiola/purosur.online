@@ -22,6 +22,7 @@ import {
   exceedsPendingMessage,
   ORDER_FAILED_MESSAGE,
   ORDER_UNREACHABLE_MESSAGE,
+  PAID_ORDER_NOT_APPLIED_MESSAGE,
 } from "./mercado-pago-charge-messages";
 
 const REFUSED_MESSAGE = "Mercado Pago no pudo crear la orden. Cobrá con otro medio.";
@@ -77,6 +78,9 @@ export function QrChargeModal({
           break;
         case "mercado_pago_charge_in_progress":
           setNotice(CHARGE_IN_PROGRESS_MESSAGE);
+          break;
+        case "paid_order_not_applied":
+          setNotice(PAID_ORDER_NOT_APPLIED_MESSAGE);
           break;
         case "empty_sale":
         case "zero_total":

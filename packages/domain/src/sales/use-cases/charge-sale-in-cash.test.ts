@@ -408,7 +408,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 9,
+        schema_version: 10,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -491,6 +491,7 @@ describe("chargeSaleInCash", () => {
             { id: "id-5", sale_line_id: "line-1", product_id: "yerba", delta: -2000 },
             { id: "id-6", sale_line_id: "line-2", product_id: "fideos", delta: -1000 },
           ],
+          rebuilt_paid_order: null,
         },
       },
     ]);

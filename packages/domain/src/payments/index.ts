@@ -14,7 +14,10 @@ export {
   MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
   mercadoPagoChargeInProgress,
 } from "./model/mercado-pago-order-charge-wait.js";
-export { mercadoPagoPaymentIsBacked } from "./model/mercado-pago-payment-backing.js";
+export {
+  mercadoPagoPaymentIsBacked,
+  rebuiltPaidOrderPaymentIsBacked,
+} from "./model/mercado-pago-payment-backing.js";
 export {
   isValidPointOrderAmount,
   MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
@@ -83,6 +86,8 @@ export type {
 export {
   exceedsRefundable,
   isRefundPending,
+  isSurplusOfRebuiltSale,
+  LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
   latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
@@ -119,5 +124,17 @@ export {
 } from "./model/payment-transaction.js";
 export { isPointTerminalId } from "./model/point-terminal-id.js";
 export { isQrExternalPosId } from "./model/qr-external-pos-id.js";
+export type {
+  RebuildablePaidOrder,
+  RebuiltPaidOrderStanding,
+  RebuiltSaleState,
+} from "./model/rebuilt-paid-order.js";
+export {
+  paidOrderAwaitsApplication,
+  paidOrderWithoutSaleIsResolved,
+  rebuiltPaidOrderAppliedAmount,
+  rebuiltPaidOrderStanding,
+  rebuiltPaidOrderSurplus,
+} from "./model/rebuilt-paid-order.js";
 export type { SaleBalance } from "./model/sale-balance.js";
 export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";

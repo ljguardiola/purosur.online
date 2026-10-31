@@ -3,6 +3,7 @@ import type {
   CompletedSaleCashMovement,
   CompletedSaleLine,
   CompletedSalePayment,
+  CompletedSaleRebuiltPaidOrder,
 } from "./completed-sale.js";
 import type { SaleDiscount } from "./sale-discount.js";
 
@@ -24,4 +25,5 @@ export interface CancelledSale {
   payments: CompletedSalePayment[];
   refunds: CancelledSaleRefund[];
   cashMovements: CompletedSaleCashMovement[];
+  rebuiltPaidOrder: CompletedSaleRebuiltPaidOrder | null;
 }

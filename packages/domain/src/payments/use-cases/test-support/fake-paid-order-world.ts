@@ -2,6 +2,7 @@ import type {
   LocalSaleOfPaidOrder,
   LocalStateOfPaidOrder,
 } from "../../model/paid-order-discovery.js";
+import type { PointCardType } from "../../model/payment.js";
 import type { PaymentTransactionState } from "../../model/payment-transaction.js";
 import type {
   ApprovedOrderOfRegister,
@@ -74,6 +75,7 @@ class FakeLocalPaidOrders implements LocalPaidOrders {
   readonly sales = new Map<string, LocalSaleOfPaidOrder>();
   readonly saleActors = new Map<string, string>();
   readonly recordedOrders = new Map<string, PaidOrderWithoutSale>();
+  readonly cardTypes = new Map<string, PointCardType>();
   readonly steps: string[] = [];
 
   localStateOf(order: ApprovedOrderOfRegister): LocalStateOfPaidOrder {
@@ -126,6 +128,15 @@ class FakeLocalPaidOrders implements LocalPaidOrders {
         recordedAt: new Date(recordedAt),
         resolved: false,
       });
+    }
+  }
+
+  recordCardTypeOfPaidOrderWithoutSale(
+    paymentTransactionId: string,
+    cardType: PointCardType,
+  ): void {
+    if (!this.cardTypes.has(paymentTransactionId)) {
+      this.cardTypes.set(paymentTransactionId, cardType);
     }
   }
 

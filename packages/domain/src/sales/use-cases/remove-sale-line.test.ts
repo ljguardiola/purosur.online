@@ -159,6 +159,7 @@ describe("removeSaleLine", () => {
       cancelRefusal: null,
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
+      rebuiltPaidOrder: null,
     });
     expect(store.state).toEqual({
       ...before,
@@ -306,6 +307,7 @@ describe("removeSaleLine", () => {
       cancelRefusal: null,
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
+      rebuiltPaidOrder: null,
     });
     expect(store.state.sales[0]?.state).toBe("OPEN");
   });

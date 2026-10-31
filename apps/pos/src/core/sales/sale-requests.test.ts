@@ -283,6 +283,7 @@ describe("scanning a product on the register", () => {
         cancel_refusal: null,
         charge_refusal: null,
         mercado_pago_charge_in_progress: null,
+        rebuilt_paid_order: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
@@ -509,6 +510,7 @@ describe("adding a searched product on the register", () => {
         cancel_refusal: null,
         charge_refusal: null,
         mercado_pago_charge_in_progress: null,
+        rebuilt_paid_order: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
@@ -613,6 +615,7 @@ describe("adding a product sold by weight on the register", () => {
         cancel_refusal: null,
         charge_refusal: null,
         mercado_pago_charge_in_progress: null,
+        rebuilt_paid_order: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
@@ -944,6 +947,7 @@ describe("the sale in progress", () => {
       cancel_refusal: null,
       charge_refusal: null,
       mercado_pago_charge_in_progress: null,
+      rebuilt_paid_order: null,
       refunds_on_cancel: [],
       cancel_authorization_required: true,
       adjust_authorization_required: true,
@@ -2044,6 +2048,7 @@ describe("removing a line", () => {
         cancel_refusal: null,
         charge_refusal: null,
         mercado_pago_charge_in_progress: null,
+        rebuilt_paid_order: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
@@ -2120,7 +2125,7 @@ describe("cancelling the sale", () => {
 
     expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 9 },
+      { event_type: "sale_cancelled", schema_version: 10 },
     ]);
   });
 
@@ -2994,7 +2999,7 @@ describe("cancelling the open sale of a locked register", () => {
 
     expect(saleStates()).toEqual([]);
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 9 },
+      { event_type: "sale_cancelled", schema_version: 10 },
     ]);
   });
 
@@ -3353,7 +3358,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 9 },
+      { event_type: "sale_cancelled", schema_version: 10 },
     ]);
   });
 
@@ -3383,7 +3388,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 9 },
+      { event_type: "sale_cancelled", schema_version: 10 },
     ]);
   });
 
@@ -3419,7 +3424,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 9 },
+      { event_type: "sale_cancelled", schema_version: 10 },
     ]);
   });
 

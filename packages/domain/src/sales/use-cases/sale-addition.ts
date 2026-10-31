@@ -3,9 +3,8 @@ import { paidOrdersSellingRefusal } from "../../payments/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
 import type { Clock, ZoneRules } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
-import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
-import { amountToCharge } from "../model/sale-discount.js";
+import { type OpenSaleAnswerStanding, openSaleStandingOf } from "./open-sale-standing-of.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { withoutSaleDiscount } from "./remove-sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
@@ -37,7 +36,7 @@ export type AddedLineOutcome = {
   removedSaleDiscount: boolean;
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
-} & OpenSaleStanding;
+} & OpenSaleAnswerStanding;
 
 export interface SaleAddition {
   actorId: string;
@@ -61,17 +60,9 @@ export function saleToAddTo(
   if (existing && saleLinesLocked(tx, existing.id, clock.now())) {
     return { kind: "sale_has_payments" };
   }
-  if (!existing && tx.installationRevoked()) {
-    return { kind: "installation_revoked" };
-  }
-  if (!existing && tx.localDatabaseDamaged()) {
-    return { kind: "local_database_damaged" };
-  }
-  if (!existing && tx.newSalesStoppedByBattery()) {
-    return { kind: "battery_critical" };
-  }
-  if (!existing && tx.newSalesStoppedByDisk()) {
-    return { kind: "disk_space_short" };
+  const startRefusal = existing ? undefined : newSaleRefusal(tx);
+  if (startRefusal !== undefined) {
+    return startRefusal;
   }
   const paidOrdersRefusal = paidOrdersSellingRefusal(tx.paidOrdersWithoutSale(), {
     openSale: !!existing,
@@ -85,6 +76,33 @@ export function saleToAddTo(
     return { kind: "unavailable" };
   }
   return { actorId, session, existing, target };
+}
+
+export type NewSaleRefusal = Extract<
+  SaleAdditionRefusal,
+  {
+    kind:
+      | "installation_revoked"
+      | "local_database_damaged"
+      | "battery_critical"
+      | "disk_space_short";
+  }
+>;
+
+export function newSaleRefusal(tx: SaleLedgerTransaction): NewSaleRefusal | undefined {
+  if (tx.installationRevoked()) {
+    return { kind: "installation_revoked" };
+  }
+  if (tx.localDatabaseDamaged()) {
+    return { kind: "local_database_damaged" };
+  }
+  if (tx.newSalesStoppedByBattery()) {
+    return { kind: "battery_critical" };
+  }
+  if (tx.newSalesStoppedByDisk()) {
+    return { kind: "disk_space_short" };
+  }
+  return undefined;
 }
 
 export function isSaleAdditionRefusal(
@@ -122,12 +140,7 @@ export function added(
     removedSaleDiscount,
     sale,
     chargeRefusal: saleChargeRefusal(tx, sale, moment, rules),
-    ...openSaleStanding(
-      amountToCharge(sale),
-      tx.salePayments(sale.id),
-      tx.pendingMercadoPagoPaymentsOf(sale.id),
-      moment,
-    ),
+    ...openSaleStandingOf(tx, sale, moment),
   };
 }
 
@@ -144,7 +157,7 @@ export function validPromotions(
     .map(({ id, name, benefit }) => ({ id, name, benefit }));
 }
 
-function startSale(
+export function startSale(
   tx: SaleLedgerTransaction,
   id: string,
   identity: RegisterIdentity,

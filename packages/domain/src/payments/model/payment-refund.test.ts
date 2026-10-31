@@ -5,6 +5,7 @@ import {
   isRefundDiscarded,
   isRefundOriginDiscardable,
   isRefundPending,
+  isSurplusOfRebuiltSale,
   LATE_PAYMENT_REFUND_ORIGIN,
   type LatePaymentRefund,
   latePaymentRefund,
@@ -314,48 +315,113 @@ describe("latePaymentRefund", () => {
   });
 });
 
+const TRANSACTION_ID = "transaction-1";
+
 describe("methodsCoveringRefundedSale", () => {
   it("names each method an approved payment of a late payment's sale used, once, in the catalog's order", () => {
     expect(
-      methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [
-        { method: "TRANSFER", state: "APPROVED" },
-        { method: "CASH", state: "APPROVED" },
-        { method: "TRANSFER", state: "APPROVED" },
-      ]),
+      methodsCoveringRefundedSale(
+        LATE_PAYMENT_REFUND_ORIGIN,
+        [
+          { id: "p-1", method: "TRANSFER", state: "APPROVED" },
+          { id: "p-2", method: "CASH", state: "APPROVED" },
+          { id: "p-3", method: "TRANSFER", state: "APPROVED" },
+        ],
+        TRANSACTION_ID,
+      ),
     ).toEqual(["CASH", "TRANSFER"]);
   });
 
   it("leaves out the methods of payments that were not approved", () => {
     expect(
-      methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [
-        { method: "QR", state: "DECLINED" },
-        { method: "CASH", state: "APPROVED" },
-        { method: "TRANSFER", state: "PENDING" },
-      ]),
+      methodsCoveringRefundedSale(
+        LATE_PAYMENT_REFUND_ORIGIN,
+        [
+          { id: "p-1", method: "QR", state: "DECLINED" },
+          { id: "p-2", method: "CASH", state: "APPROVED" },
+          { id: "p-3", method: "TRANSFER", state: "PENDING" },
+        ],
+        TRANSACTION_ID,
+      ),
     ).toEqual(["CASH"]);
   });
 
   it("names none while the late payment's sale has no payment", () => {
-    expect(methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [])).toEqual([]);
+    expect(methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [], TRANSACTION_ID)).toEqual([]);
+  });
+
+  it("leaves out the payment that is the refund's own transaction, whatever method it used", () => {
+    expect(
+      methodsCoveringRefundedSale(
+        LATE_PAYMENT_REFUND_ORIGIN,
+        [
+          { id: TRANSACTION_ID, method: "QR", state: "APPROVED" },
+          { id: "p-2", method: "CASH", state: "APPROVED" },
+        ],
+        TRANSACTION_ID,
+      ),
+    ).toEqual(["CASH"]);
   });
 
   it("names none for the refund of a voided sale, whatever paid it", () => {
     expect(
-      methodsCoveringRefundedSale(SALE_VOIDED_REFUND_ORIGIN, [
-        { method: "CASH", state: "APPROVED" },
-        { method: "TRANSFER", state: "APPROVED" },
-      ]),
+      methodsCoveringRefundedSale(
+        SALE_VOIDED_REFUND_ORIGIN,
+        [
+          { id: "p-1", method: "CASH", state: "APPROVED" },
+          { id: "p-2", method: "TRANSFER", state: "APPROVED" },
+        ],
+        TRANSACTION_ID,
+      ),
     ).toEqual([]);
   });
 
   it("names none for the refund of a cancelled sale, whatever paid it", () => {
     expect(
-      methodsCoveringRefundedSale(SALE_CANCELLED_REFUND_ORIGIN, [
-        { method: "CASH", state: "APPROVED" },
-        { method: "TRANSFER", state: "APPROVED" },
-      ]),
+      methodsCoveringRefundedSale(
+        SALE_CANCELLED_REFUND_ORIGIN,
+        [
+          { id: "p-1", method: "CASH", state: "APPROVED" },
+          { id: "p-2", method: "TRANSFER", state: "APPROVED" },
+        ],
+        TRANSACTION_ID,
+      ),
     ).toEqual([]);
   });
+});
+
+describe("isSurplusOfRebuiltSale", () => {
+  const surplus = {
+    origin: LATE_PAYMENT_REFUND_ORIGIN,
+    providerOrderId: null,
+    paymentTransactionId: TRANSACTION_ID,
+  };
+
+  it("is the late payment whose transaction is a payment of its own sale", () => {
+    expect(
+      isSurplusOfRebuiltSale(surplus, [{ id: "p-1" }, { id: TRANSACTION_ID }, { id: "p-3" }]),
+    ).toBe(true);
+  });
+
+  it("is not while the sale holds no payment with the refund's transaction", () => {
+    expect(isSurplusOfRebuiltSale(surplus, [{ id: "p-1" }])).toBe(false);
+    expect(isSurplusOfRebuiltSale(surplus, [])).toBe(false);
+  });
+
+  it("is not for a refund of another order, which names its provider order", () => {
+    expect(
+      isSurplusOfRebuiltSale({ ...surplus, providerOrderId: "ORD01SECOND" }, [
+        { id: TRANSACTION_ID },
+      ]),
+    ).toBe(false);
+  });
+
+  it.each([SALE_CANCELLED_REFUND_ORIGIN, SALE_VOIDED_REFUND_ORIGIN, RETURN_REFUND_ORIGIN])(
+    "is not for the %s refund of a payment the sale holds",
+    (origin) => {
+      expect(isSurplusOfRebuiltSale({ ...surplus, origin }, [{ id: TRANSACTION_ID }])).toBe(false);
+    },
+  );
 });
 
 describe("LatePaymentRefund", () => {

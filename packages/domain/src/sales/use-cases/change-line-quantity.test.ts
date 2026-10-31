@@ -152,6 +152,7 @@ describe("changeLineQuantity", () => {
       cancelRefusal: null,
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
+      rebuiltPaidOrder: null,
     });
     expect(store.state.outbox).toEqual([]);
   });
@@ -174,6 +175,7 @@ describe("changeLineQuantity", () => {
       cancelRefusal: null,
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
+      rebuiltPaidOrder: null,
     });
     expect(store.state).toEqual({
       ...before,
@@ -276,6 +278,7 @@ describe("changeLineQuantity", () => {
       cancelRefusal: null,
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
+      rebuiltPaidOrder: null,
     });
     expect(store.state).toEqual(before);
   });

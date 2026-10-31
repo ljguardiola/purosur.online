@@ -1,6 +1,7 @@
 import {
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
+  MERCADO_PAGO_PAYMENT_METHODS,
   manualAdjustmentReason,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
@@ -124,6 +125,14 @@ export const saleSchema = z.object({
       }),
     ])
     .nullable(),
+  rebuilt_paid_order: z
+    .object({
+      payment_transaction_id: recordIdSchema(),
+      amount: z.int().positive(),
+      method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
+      applied: z.boolean(),
+    })
+    .nullable(),
 });
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
@@ -163,6 +172,7 @@ const paidOrderWithoutSaleOutcome = z.object({ kind: z.literal("paid_order_witho
 const paidOrdersNotCheckedOutcome = z.object({ kind: z.literal("paid_orders_not_checked") });
 const unavailableOutcome = z.object({ kind: z.literal("unavailable") });
 const saleHasPaymentsOutcome = z.object({ kind: z.literal("sale_has_payments") });
+const paidOrderNotAppliedOutcome = z.object({ kind: z.literal("paid_order_not_applied") });
 export const qrChargeInProgressOutcome = z.object({
   kind: z.literal("mercado_pago_charge_in_progress"),
 });
@@ -457,6 +467,7 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
   restorationInProgressOutcomeSchema,
   z.object({ kind: z.literal("unavailable") }),
   qrChargeInProgressOutcome,
+  paidOrderNotAppliedOutcome,
 ]);
 export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSchema>;
 
@@ -476,6 +487,7 @@ const chargeSaleConfirmedByHandOutcomeSchema = z.discriminatedUnion("kind", [
   restorationInProgressOutcomeSchema,
   z.object({ kind: z.literal("unavailable") }),
   qrChargeInProgressOutcome,
+  paidOrderNotAppliedOutcome,
 ]);
 export const chargeSaleByTransferOutcomeSchema = chargeSaleConfirmedByHandOutcomeSchema;
 export type ChargeSaleByTransferOutcome = z.infer<typeof chargeSaleByTransferOutcomeSchema>;

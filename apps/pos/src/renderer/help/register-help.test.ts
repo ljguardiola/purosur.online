@@ -125,14 +125,26 @@ describe("the register's help", () => {
     expect(titlesFound("No frena la venta")).toEqual([]);
   });
 
+  it("explains how to rebuild the sale of a paid order, charge the rest with another method and that a surplus goes back through Mercado Pago with no change", () => {
+    expect(titlesFound("Armar la venta con ese cobro")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("Cobrar con el pago de Mercado Pago")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("el resto se cobra con otro medio")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("la diferencia se le devuelve al cliente por Mercado Pago")).toEqual([
+      STARTUP_PENDING_TITLE,
+    ]);
+    expect(titlesFound("Armando la venta")).toEqual([STARTUP_PENDING_TITLE]);
+  });
+
   it("explains how to pass a paid order without a sale to refund, and the warning shown when there was no connection to look for one", () => {
     expect(titlesFound("Pasar a reembolso")).toEqual([STARTUP_PENDING_TITLE]);
     expect(titlesFound("la flecha de vuelta de la fila")).toEqual([STARTUP_PENDING_TITLE]);
     expect(titlesFound("Cobros pagados sin consultar")).toEqual([STARTUP_PENDING_TITLE]);
     expect(titlesFound("Ir a vender lleva a terminarla")).toEqual([STARTUP_PENDING_TITLE]);
-    expect(titlesFound("no deja empezar una venta nueva hasta que lo pases a reembolso")).toEqual([
-      STARTUP_PENDING_TITLE,
-    ]);
+    expect(
+      titlesFound(
+        "no deja empezar una venta nueva hasta que armes la venta o lo pases a reembolso",
+      ),
+    ).toEqual([STARTUP_PENDING_TITLE]);
     expect(titlesFound("Tocá Pasar a reembolso en la fila")).toEqual([]);
     expect(titlesFound("cuando vuelve la conexión")).toEqual([STARTUP_PENDING_TITLE]);
   });

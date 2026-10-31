@@ -108,6 +108,10 @@ describe("RefundPaidOrderModal", () => {
     ["unreachable", "No hay conexión con la nube. Probá de nuevo cuando vuelva."],
     ["refused", "La nube no aceptó pasar el cobro a reembolso. Probá de nuevo más tarde."],
     ["not_permitted", "No tenés permiso para pasar un cobro a reembolso."],
+    [
+      "rebuilt_sale_open",
+      "Ya hay una venta armada con este cobro. Volvé a esa venta o cancelala antes de pasarlo a reembolso.",
+    ],
     ["unavailable", "No se pudo pasar el cobro a reembolso. Probá de nuevo."],
   ])("keeps the dialog open and says why on %s", async (kind, message) => {
     const { screen, dialog, onConverted, onGone } = await renderModal({

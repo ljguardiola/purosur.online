@@ -255,4 +255,65 @@ describe("discoverPaidOrdersWithoutSale", () => {
       });
     },
   );
+
+  describe("the card type of a Point order recorded before card types were kept", () => {
+    function aPointOrder(cardType: "DEBIT" | "CREDIT" | null) {
+      return {
+        ...anApprovedOrder(),
+        method: "POINT" as const,
+        provider: "MERCADOPAGO_POINT" as const,
+        cardType,
+      };
+    }
+
+    it("is recorded when the cloud lists the unresolved order again with its card type", async () => {
+      const order = aPointOrder("CREDIT");
+      const { local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+      local.recordPaidOrderWithoutSale(order, NOW);
+
+      expect(await discoverPaidOrdersWithoutSale(ports)).toEqual(NOTHING_FOUND);
+
+      expect(local.cardTypes).toEqual(new Map([[order.paymentTransactionId, "CREDIT"]]));
+    });
+
+    it("is not recorded for an order already resolved", async () => {
+      const order = aPointOrder("CREDIT");
+      const { local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+      local.recordPaidOrderWithoutSale(order, NOW);
+      local.resolvePaidOrderWithoutSale(order.paymentTransactionId, NOW);
+
+      await discoverPaidOrdersWithoutSale(ports);
+
+      expect(local.cardTypes.size).toBe(0);
+    });
+
+    it("is not recorded when the cloud does not know it either", async () => {
+      const order = aPointOrder(null);
+      const { local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+      local.recordPaidOrderWithoutSale(order, NOW);
+
+      await discoverPaidOrdersWithoutSale(ports);
+
+      expect(local.cardTypes.size).toBe(0);
+    });
+
+    it("is not recorded for an order the register never recorded", async () => {
+      const order = aPointOrder("DEBIT");
+      const { local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+
+      await discoverPaidOrdersWithoutSale(ports);
+
+      expect(local.cardTypes.size).toBe(0);
+    });
+
+    it("is not asked for a QR order", async () => {
+      const order = anApprovedOrder();
+      const { local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+      local.recordPaidOrderWithoutSale(order, NOW);
+
+      await discoverPaidOrdersWithoutSale(ports);
+
+      expect(local.cardTypes.size).toBe(0);
+    });
+  });
 });

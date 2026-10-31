@@ -301,6 +301,19 @@ describe("TransferChargeModal", () => {
     expect(callbacks.onCompleted).not.toHaveBeenCalled();
   });
 
+  it("says the paid order of the sale must be applied first", async () => {
+    const { screen, seen, callbacks } = await renderModal(async () => ({
+      kind: "paid_order_not_applied",
+    }));
+
+    await userEvent.click(seen);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("Aplicá primero el pago de Mercado Pago de esta venta.");
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
+  });
+
   it("treats a failed request as the core being unavailable", async () => {
     const { screen, seen } = await renderModal(() =>
       Promise.reject(new Error("the core connection was replaced")),

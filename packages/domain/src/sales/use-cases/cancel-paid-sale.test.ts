@@ -11,6 +11,7 @@ import {
 import type { SaleCashMovement } from "./sale-ledger.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
 import {
+  aRebuildablePaidOrder,
   FakeSaleLedger,
   type FakeSaleLedgerState,
   type FakeSaleLedgerWrite,
@@ -224,7 +225,7 @@ function unpaidCancellationEvent(actorId: string, authorizedBy: string | null) {
     aggregate_type: "Sale",
     aggregate_id: "sale-1",
     event_type: "sale_cancelled",
-    schema_version: 9,
+    schema_version: 10,
     payload: {
       id: "sale-1",
       register_id: "register-1",
@@ -239,6 +240,7 @@ function unpaidCancellationEvent(actorId: string, authorizedBy: string | null) {
       payments: [],
       refunds: [],
       cash_movements: [],
+      rebuilt_paid_order: null,
     },
     occurred_at: NOW.toISOString(),
     actor_id: actorId,
@@ -318,7 +320,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 9,
+          schema_version: 10,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -355,6 +357,7 @@ describe("cancelPaidSale", () => {
                 occurred_at: NOW.toISOString(),
               },
             ],
+            rebuilt_paid_order: null,
           },
           occurred_at: NOW.toISOString(),
           actor_id: "cashier",
@@ -493,6 +496,7 @@ describe("cancelPaidSale", () => {
             },
           ],
           cash_movements: [],
+          rebuilt_paid_order: null,
         },
       });
     });
@@ -625,7 +629,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 9,
+        schema_version: 10,
         payload: {
           payments: [{ id: "payment-5", method: "STANDALONE_TERMINAL", state: "APPROVED" }],
           refunds: [
@@ -687,7 +691,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 9,
+        schema_version: 10,
         payload: {
           payments: [{ id: "payment-3", method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [
@@ -701,6 +705,59 @@ describe("cancelPaidSale", () => {
           ],
         },
       });
+    });
+  });
+
+  describe("a sale rebuilt against a paid order", () => {
+    const ORDER_PAYMENT: SalePayment = { ...QR_PAYMENT, id: "order-1", amount: 4500 };
+    const REBUILT = {
+      paidOrders: [aRebuildablePaidOrder({ amount: 4500 })],
+      rebuiltSales: [{ saleId: "sale-1", paymentTransactionId: "order-1" }],
+    };
+
+    it("refunds the whole transaction amount of the applied order once, with nothing for a surplus", async () => {
+      const store = ledger({ ...REBUILT, payments: [ORDER_PAYMENT] });
+
+      const outcome = await cancel(store);
+
+      expect(outcome).toMatchObject({ kind: "cancelled" });
+      expect(store.state.refunds).toEqual([
+        {
+          id: "id-1",
+          saleId: "sale-1",
+          paymentId: "order-1",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: 4500,
+          state: "PENDING",
+          occurredAt: NOW,
+        },
+      ]);
+    });
+
+    it("names the applied order in the sale_cancelled event with no surplus", async () => {
+      const store = ledger({ ...REBUILT, payments: [ORDER_PAYMENT, CASH_PAYMENT] });
+
+      await cancel(store);
+
+      expect(store.state.outbox[0]).toMatchObject({
+        event_type: "sale_cancelled",
+        schema_version: 10,
+        payload: { rebuilt_paid_order: { payment_transaction_id: "order-1", surplus: 0 } },
+      });
+    });
+
+    it("names no order in the sale_cancelled event when the order was not applied yet", async () => {
+      const store = ledger({ ...REBUILT, payments: [] });
+
+      await cancel(store);
+
+      expect(store.state.outbox[0]).toMatchObject({
+        event_type: "sale_cancelled",
+        schema_version: 10,
+        payload: { rebuilt_paid_order: null },
+      });
+      expect(store.state.rebuiltSales).toEqual([]);
     });
   });
 
@@ -749,7 +806,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 9,
+        schema_version: 10,
         payload: {
           payments: [
             {

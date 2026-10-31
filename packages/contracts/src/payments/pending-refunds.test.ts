@@ -25,6 +25,7 @@ const refund: Record<string, unknown> = {
   seconds_pending: 3600,
   sale_occurred_at: "2026-10-07T15:30:00.000Z",
   covered_by: [],
+  of_rebuilt_sale: false,
   provider_order_id: null,
   corrected_by: "u1",
   corrected_by_name: "Lucia",
@@ -76,6 +77,14 @@ describe("pendingRefundsSchema", () => {
   it("accepts the methods that already covered the sale of a late payment", () => {
     const list = {
       refunds: [{ ...refund, origin: "late_payment", covered_by: ["CASH", "TRANSFER"] }],
+    };
+
+    expect(pendingRefundsSchema.parse(list)).toEqual(list);
+  });
+
+  it("accepts the refund of the surplus of a sale rebuilt against its paid order", () => {
+    const list = {
+      refunds: [{ ...refund, origin: "late_payment", method: "QR", of_rebuilt_sale: true }],
     };
 
     expect(pendingRefundsSchema.parse(list)).toEqual(list);
@@ -136,6 +145,8 @@ describe("pendingRefundsSchema", () => {
     ["a sale date that is not ISO", { sale_occurred_at: "ayer" }],
     ["a method that covered the sale and no payment has", { covered_by: ["CARD"] }],
     ["covering methods that are not a list", { covered_by: "CASH" }],
+    ["a rebuilt-sale flag that is not a boolean", { of_rebuilt_sale: "yes" }],
+    ["no rebuilt-sale flag", { of_rebuilt_sale: undefined }],
     ["an order that is not text", { provider_order_id: 1 }],
     ["an empty order", { provider_order_id: "" }],
     ["a sent-by-cloud flag that is not a boolean", { sent_by_cloud: "yes" }],
