@@ -7,12 +7,10 @@ import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
   type FakeSaleLedgerWrite,
-  FixedClock,
   RESTORATION_IN_PROGRESS,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
-const NOW = new Date("2026-10-30T12:00:00.000Z");
 const IDENTITY = { registerId: "register-1", deviceId: "device-1" };
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
@@ -42,7 +40,6 @@ function rebuild(store: FakeSaleLedger, paymentTransactionId = "order-1", actorI
     {
       ledger: store,
       restoration: store.restoration,
-      clock: new FixedClock(NOW),
       ids: new SequentialIds(),
     },
     { actorId, paymentTransactionId },
@@ -75,9 +72,7 @@ describe("rebuildSaleAgainstPaidOrder", () => {
         lines: [],
       },
     ]);
-    expect(store.state.rebuiltSales).toEqual([
-      { saleId: "id-1", paymentTransactionId: "order-1" },
-    ]);
+    expect(store.state.rebuiltSales).toEqual([{ saleId: "id-1", paymentTransactionId: "order-1" }]);
   });
 
   it("rebuilds against an integrated terminal paid order as well", () => {

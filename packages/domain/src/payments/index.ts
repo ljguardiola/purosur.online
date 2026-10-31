@@ -48,16 +48,6 @@ export {
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
 } from "./model/paid-order-discovery.js";
 export type {
-  RebuiltSaleState,
-  SaleRebuiltAgainstPaidOrder,
-} from "./model/rebuilt-paid-order.js";
-export {
-  paidOrderAwaitsApplication,
-  paidOrderWithoutSaleIsResolved,
-  rebuiltPaidOrderAppliedAmount,
-  rebuiltPaidOrderSurplus,
-} from "./model/rebuilt-paid-order.js";
-export type {
   ConfirmedByHandMethod,
   MercadoPagoPaymentMethod,
   PaymentMethod,
@@ -132,5 +122,16 @@ export {
 } from "./model/payment-transaction.js";
 export { isPointTerminalId } from "./model/point-terminal-id.js";
 export { isQrExternalPosId } from "./model/qr-external-pos-id.js";
+export type {
+  RebuildablePaidOrder,
+  RebuiltSaleState,
+  SaleRebuiltAgainstPaidOrder,
+} from "./model/rebuilt-paid-order.js";
+export {
+  paidOrderAwaitsApplication,
+  paidOrderWithoutSaleIsResolved,
+  rebuiltPaidOrderAppliedAmount,
+  rebuiltPaidOrderSurplus,
+} from "./model/rebuilt-paid-order.js";
 export type { SaleBalance } from "./model/sale-balance.js";
 export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";

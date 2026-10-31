@@ -205,6 +205,12 @@ export type {
 } from "./read-sales-to-print-at-startup.js";
 export { readSalesToPrintAtStartup } from "./read-sales-to-print-at-startup.js";
 export type {
+  RebuildSaleAgainstPaidOrderInput,
+  RebuildSaleAgainstPaidOrderOutcome,
+  RebuildSaleAgainstPaidOrderPorts,
+} from "./rebuild-sale-against-paid-order.js";
+export { rebuildSaleAgainstPaidOrder } from "./rebuild-sale-against-paid-order.js";
+export type {
   ReceiptDeliveryOfInput,
   ReceiptDeliveryOfOutcome,
   ReceiptDeliveryOfPorts,

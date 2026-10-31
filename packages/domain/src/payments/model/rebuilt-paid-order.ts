@@ -1,3 +1,8 @@
+import type {
+  MercadoPagoPointPaymentTransaction,
+  MercadoPagoQrPaymentTransaction,
+} from "./payment-transaction.js";
+
 export type RebuiltSaleState = "OPEN" | "COMPLETED" | "CANCELLED";
 
 export interface SaleRebuiltAgainstPaidOrder {
@@ -38,3 +43,12 @@ export function paidOrderWithoutSaleIsResolved({
     )
   );
 }
+
+export type RebuildablePaidOrder = {
+  paymentTransactionId: string;
+  amount: number;
+  resolved: boolean;
+} & (
+  | Pick<MercadoPagoQrPaymentTransaction, "method" | "provider" | "cardType">
+  | Pick<MercadoPagoPointPaymentTransaction, "method" | "provider" | "cardType">
+);
