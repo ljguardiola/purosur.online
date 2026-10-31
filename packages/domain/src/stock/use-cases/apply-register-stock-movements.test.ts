@@ -593,10 +593,13 @@ describe("applyRegisterStockMovements", () => {
   });
 
   describe("a customer's return", () => {
-    function restocked(delta: number): ApplyRegisterStockMovementsInput["movements"] {
+    function restocked(
+      delta: number,
+      id = "return-movement-1",
+    ): ApplyRegisterStockMovementsInput["movements"] {
       return [
         {
-          id: "return-movement-1",
+          id,
           saleLineId: "sale-line-1",
           productId: "product-bread",
           kind: "return",
@@ -610,6 +613,7 @@ describe("applyRegisterStockMovements", () => {
         ...restocked(delta),
         {
           id: "return-movement-2",
+          saleLineId: "sale-line-1",
           productId: "product-bread",
           kind: "loss",
           reason: "return_discard",
@@ -676,6 +680,141 @@ describe("applyRegisterStockMovements", () => {
       expect(
         Object.fromEntries(store.snapshot().lots.map((lot) => [lot.id, lot.remaining])),
       ).toEqual({ late: 4000, soon: 2000 });
+    });
+
+    function seedSale(
+      store: FakeStockStore,
+      saleLineId: string,
+      allocations: { lotId: string; quantity: number }[],
+    ): void {
+      const movementId = store.seedMovement({
+        ...BREAD,
+        saleLineId,
+        kind: "sale",
+        reason: null,
+        delta: allocations.reduce((sum, allocation) => sum + allocation.quantity, 0),
+        occurredAt: BEFORE_SALE,
+        actorId: "cashier-1",
+        supersededByCountId: null,
+      });
+      for (const allocation of allocations) {
+        store.seedAllocation({ movementId, ...allocation });
+      }
+    }
+
+    function remainingByLot(store: FakeStockStore): Record<string, number> {
+      return Object.fromEntries(store.snapshot().lots.map((lot) => [lot.id, lot.remaining]));
+    }
+
+    function storeWithSoldLots(): FakeStockStore {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "soon", expiresOn: "2027-01-01", remaining: 0 });
+      store.seedLot({ ...BREAD, id: "late", expiresOn: "2027-06-01", remaining: 0 });
+      store.seedLot({ ...BREAD, id: "other-line", expiresOn: "2028-01-01", remaining: 500 });
+      store.seedLot({ ...BREAD, id: "earlier", expiresOn: "2026-11-01", remaining: 5000 });
+      seedSale(store, "sale-line-1", [
+        { lotId: "soon", quantity: -3000 },
+        { lotId: "late", quantity: -2000 },
+      ]);
+      seedSale(store, "sale-line-2", [{ lotId: "other-line", quantity: -4000 }]);
+      return store;
+    }
+
+    it("puts a restocked quantity back on the lots of the sale line, the one that expires latest first", async () => {
+      const store = storeWithSoldLots();
+
+      await apply(store, sale(restocked(3000)));
+
+      expect(remainingByLot(store)).toEqual({
+        soon: 1000,
+        late: 2000,
+        "other-line": 500,
+        earlier: 5000,
+      });
+    });
+
+    it("never puts back on a lot more than the sale line took from it across partial returns", async () => {
+      const store = storeWithSoldLots();
+
+      await apply(store, sale(restocked(1500)));
+      await apply(store, {
+        ...sale(restocked(2500, "return-movement-3")),
+        occurredAt: AFTER_SALE,
+      });
+
+      expect(remainingByLot(store)).toEqual({
+        soon: 2000,
+        late: 2000,
+        "other-line": 500,
+        earlier: 5000,
+      });
+    });
+
+    it("leaves every lot as it was when the returned merchandise is discarded", async () => {
+      const store = storeWithSoldLots();
+      const before = remainingByLot(store);
+
+      await apply(store, sale(discarded(3000)));
+
+      expect(remainingByLot(store)).toEqual(before);
+    });
+
+    it("offsets the discard of a partial return with what that return put back", async () => {
+      const store = storeWithSoldLots();
+      await apply(store, sale(restocked(1500)));
+      const before = remainingByLot(store);
+
+      await apply(store, {
+        ...sale([
+          ...restocked(2500, "return-movement-3"),
+          {
+            id: "return-movement-4",
+            saleLineId: "sale-line-1",
+            productId: "product-bread",
+            kind: "loss",
+            reason: "return_discard",
+            delta: -2500,
+          },
+        ]),
+      });
+
+      expect(remainingByLot(store)).toEqual(before);
+      const allocations = store.snapshot().allocations;
+      expect(allocations.filter((row) => row.movementId === "return-movement-3")).toEqual(
+        allocations
+          .filter((row) => row.movementId === "return-movement-4")
+          .map((row) => ({ ...row, movementId: "return-movement-3", quantity: -row.quantity })),
+      );
+    });
+
+    it("gives a line without allocations the most recently received lot, restocked or discarded", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "older", remaining: 1000 });
+      store.seedLot({
+        ...BREAD,
+        id: "newest",
+        remaining: 2000,
+        receivedAt: new Date("2026-09-01T12:00:00.000Z"),
+      });
+
+      await apply(store, sale(restocked(3000)));
+      expect(remainingByLot(store)).toEqual({ older: 1000, newest: 5000 });
+
+      await apply(store, sale(discarded(1000)));
+      expect(remainingByLot(store)).toEqual({ older: 1000, newest: 5000 });
+    });
+
+    it("allocates nothing for a return and its discard that a count already supersedes", async () => {
+      const store = storeWithSoldLots();
+      seedCount(store, AFTER_SALE);
+      const before = remainingByLot(store);
+
+      await apply(store, sale(discarded(3000)));
+
+      expect(remainingByLot(store)).toEqual(before);
+      expect(
+        store.snapshot().allocations.filter((row) => row.movementId.startsWith("return-movement")),
+      ).toEqual([]);
     });
 
     it("answers invalid_quantity for a quantity the product's unit can't be returned in, writing nothing", async () => {
