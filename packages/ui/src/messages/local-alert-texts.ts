@@ -193,6 +193,7 @@ export type LocalAlertSubject =
       kind: "late_payment_refund";
       providerOrderId: string | null;
       method: "QR" | "POINT";
+      ofRebuiltSale?: boolean | undefined;
       reason?: undefined;
     }
   | BatteryLowSubject
@@ -234,6 +235,15 @@ function latePaymentRefundText(
   subject: Extract<LocalAlertSubject, { kind: "late_payment_refund" }>,
 ): LocalAlertText {
   const { title, whatToDo } = FIXED_LOCAL_ALERT_TEXTS.late_payment_refund;
+  if (subject.ofRebuiltSale) {
+    return {
+      title,
+      meaning: `La venta se armó con un cobro mayor a su total; el excedente se cobró ${
+        subject.method === "POINT" ? "con tarjeta en el Point" : "con un QR de Mercado Pago"
+      }.`,
+      whatToDo: subject.method === "POINT" ? POINT_LATE_PAYMENT_REFUND_WHAT_TO_DO : whatToDo,
+    };
+  }
   if (subject.method === "POINT") {
     return {
       title,

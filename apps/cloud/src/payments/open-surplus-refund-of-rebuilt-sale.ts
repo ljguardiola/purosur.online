@@ -26,5 +26,6 @@ export async function openSurplusRefundOfRebuiltSale<TQueryResult extends PgQuer
       amount: surplus.amount,
     }),
     openedAt,
+    { ofRebuiltSale: true },
   );
 }

@@ -15,6 +15,7 @@ export async function openLatePaymentRefund<TQueryResult extends PgQueryResultHK
   tx: PgDatabase<TQueryResult>,
   refund: LatePaymentRefund,
   openedAt: Date,
+  { ofRebuiltSale = false }: { ofRebuiltSale?: boolean } = {},
 ): Promise<LatePaymentRefundOpening> {
   const [payment] = await tx
     .select({
@@ -64,6 +65,7 @@ export async function openLatePaymentRefund<TQueryResult extends PgQueryResultHK
         amount: refund.amount,
         providerOrderId: refund.providerOrderId,
         method: refund.method,
+        ...(ofRebuiltSale ? { ofRebuiltSale } : {}),
       },
     },
     { now: () => openedAt },

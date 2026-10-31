@@ -188,6 +188,7 @@ const latePaymentRefundDetailSchema = z.object({
   amount: z.int(),
   providerOrderId: z.string().nullable(),
   method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
+  ofRebuiltSale: z.boolean().optional(),
 });
 
 const refundTaskDetailSchema = z.object({
