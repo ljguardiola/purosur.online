@@ -896,7 +896,9 @@ describe("remembering an item", () => {
       .set({ packagingId })
       .where(eq(supplierItems.id, itemId));
 
-    await context.store().transaction((tx) => tx.rememberSupplierItemLink(itemId, second));
+    await context
+      .store()
+      .transaction((tx) => tx.rememberSupplierItemLink(itemId, { ...second, vatRate: 2_100 }));
 
     expect(await itemRows()).toMatchObject([{ id: itemId, ...second, packagingId: null }]);
   });
