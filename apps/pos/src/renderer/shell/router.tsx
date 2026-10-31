@@ -16,6 +16,7 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
@@ -50,6 +51,7 @@ import type {
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
+  RebuildSaleAgainstPaidOrderOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -299,6 +301,10 @@ export interface RouterContext {
   convertPaidOrderIntoRefund: (
     paymentTransactionId: string,
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
+  rebuildSaleAgainstPaidOrder: (
+    paymentTransactionId: string,
+  ) => Promise<RebuildSaleAgainstPaidOrderOutcome>;
+  chargeSaleWithPaidOrder: (saleId: string) => Promise<ChargeSaleWithPaidOrderOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -1417,6 +1423,8 @@ export function createAppRouter(
     | "printCreditNote"
     | "reprintCreditNote"
     | "convertPaidOrderIntoRefund"
+    | "rebuildSaleAgainstPaidOrder"
+    | "chargeSaleWithPaidOrder"
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"

@@ -4,6 +4,7 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   EnrollmentStandingAnswer,
@@ -259,6 +260,7 @@ function Register({ core }: { core: CoreClient }) {
       | ChargeSaleInCashOutcome
       | ChargeSaleByTransferOutcome
       | ChargeSaleOnStandaloneTerminalOutcome
+      | ChargeSaleWithPaidOrderOutcome
       | StartMercadoPagoChargeOutcome
       | FollowMercadoPagoChargeOutcome
       | AbandonMercadoPagoChargeOutcome
@@ -298,6 +300,20 @@ function Register({ core }: { core: CoreClient }) {
 
   async function chargeSaleOnStandaloneTerminal(saleId: string, amount: number) {
     const outcome = await core.chargeSaleOnStandaloneTerminal(saleId, amount);
+    await refreshAfterCharge(outcome.kind);
+    return outcome;
+  }
+
+  async function rebuildSaleAgainstPaidOrder(paymentTransactionId: string) {
+    const outcome = await core.rebuildSaleAgainstPaidOrder(paymentTransactionId);
+    if (outcome.kind === "rebuilt" || outcome.kind === "already_open") {
+      void queryClient.invalidateQueries({ queryKey: salesKeys.currentSaleRoot });
+    }
+    return outcome;
+  }
+
+  async function chargeSaleWithPaidOrder(saleId: string) {
+    const outcome = await core.chargeSaleWithPaidOrder(saleId);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
@@ -453,6 +469,8 @@ function Register({ core }: { core: CoreClient }) {
     ) => core.reprintCreditNote(saleId, creditNoteId, reason, authorization),
     convertPaidOrderIntoRefund: (paymentTransactionId: string) =>
       core.convertPaidOrderIntoRefund(paymentTransactionId),
+    rebuildSaleAgainstPaidOrder,
+    chargeSaleWithPaidOrder,
     reprintSaleReceipt: (
       saleId: string,
       reason: string,
