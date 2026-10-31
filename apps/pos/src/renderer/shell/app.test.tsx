@@ -1968,6 +1968,41 @@ describe("App", () => {
       await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     });
 
+    it("rebuilds the sale of a paid order through the core and goes on to the sale", async () => {
+      let pending = BLOCKING_PENDING;
+      const rebuildSaleAgainstPaidOrder = vi.fn<CoreClient["rebuildSaleAgainstPaidOrder"]>(
+        async () => {
+          pending = {
+            ...BLOCKING_PENDING,
+            paid_orders_without_sale: BLOCKING_PENDING.paid_orders_without_sale.map((order) => ({
+              ...order,
+              rebuilt_sale_id: "sale-new",
+            })),
+            may_go_selling: true,
+          };
+          return { kind: "rebuilt", sale_id: "sale-new" };
+        },
+      );
+      const { core } = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        GRACE_SIGNED_IN,
+        { cashSession: lockedUntilResumed(), startupPending: async () => pending },
+        { rebuildSaleAgainstPaidOrder },
+      );
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await resumeLockedRegister(screen);
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "Armar la venta con el cobro de las 15:30" }),
+      );
+
+      expect(rebuildSaleAgainstPaidOrder).toHaveBeenCalledExactlyOnceWith("tx-1");
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
     it("goes straight to the sale when the core lists nothing", async () => {
       const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
         cashSession: lockedUntilResumed(),
