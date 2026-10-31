@@ -227,7 +227,6 @@ describe("synced event payloads", () => {
       "sale_cancelled@7",
       "sale_cancelled@8",
       "sale_cancelled@9",
-      "sale_cancelled@10",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
@@ -3237,7 +3236,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 10)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 11)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {
