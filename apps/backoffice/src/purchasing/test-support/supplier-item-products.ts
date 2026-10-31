@@ -47,7 +47,6 @@ export const CREATION_TAG_LIST: TagList = {
 
 export const PRODUCT_CREATED: SupplierPriceListRowProductCreated = {
   productId: "90d00000-0000-4000-8000-000000000061",
-  packagingId: "9ac00000-0000-4000-8000-000000000061",
 };
 
 export const CREATION_BODY: SupplierPriceListRowProductCreationBody = {
@@ -59,7 +58,6 @@ export const CREATION_BODY: SupplierPriceListRowProductCreationBody = {
   barcodes: ["7790001000029"],
   tagIds: [],
   netContent: null,
-  packagingName: null,
-  quantityPerPackage: 10_000,
+  quantity: 10_000,
   vatRate: null,
 };

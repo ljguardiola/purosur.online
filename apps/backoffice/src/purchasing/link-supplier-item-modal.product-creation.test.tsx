@@ -27,7 +27,6 @@ function createServices(products = LINK_CHOICES.products): LinkSupplierItemModal
     fetchSupplierItemLinkChoices: vi
       .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
       .mockResolvedValue({ kind: "ok", value: { ...LINK_CHOICES, products } }),
-    createPackaging: vi.fn<LinkSupplierItemModalServices["createPackaging"]>(),
   };
 }
 
@@ -41,7 +40,6 @@ async function opened(
         <LinkSupplierItemModal
           list={LIST}
           target={nutRow}
-          mayCreatePackaging
           remembersOnConfirm
           onCreateProduct={null}
           {...(productCreationModal ? { productCreationModal } : {})}
@@ -83,7 +81,7 @@ test("typing a product that does not exist offers to create it, opening the prod
     .toBeVisible();
 });
 
-test("saving the created product selects it, with no purchase packaging to choose yet", async () => {
+test("saving the created product selects it, asking for the quantity it brings", async () => {
   const { screen, dialog } = await opened(StubProductCreationModal);
   await userEvent.fill(
     dialog.getByRole("combobox", { name: /^Producto del catálogo/ }),
@@ -103,9 +101,7 @@ test("saving the created product selects it, with no purchase packaging to choos
   await expect
     .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
     .toHaveValue("Yerba mate");
-  await expect
-    .element(dialog.getByText("Este producto no tiene presentaciones de compra"))
-    .toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ })).toBeVisible();
 });
 
 test("offers no product creation when the modal is given no way to create one", async () => {

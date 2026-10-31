@@ -399,12 +399,12 @@ const reviewChanges = [
       linkSupplierPriceListRow("list-1", "row-1", {
         version: 3,
         productId: "product-1",
-        packagingId: "packaging-1",
+        quantity: 12_000,
         vatRate: 1_050,
       }),
     "PUT",
     "/api/supplier-price-lists/list-1/rows/row-1/link",
-    { version: 3, productId: "product-1", packagingId: "packaging-1", vatRate: 1_050 },
+    { version: 3, productId: "product-1", quantity: 12_000, vatRate: 1_050 },
   ],
   [
     "markSupplierPriceListRowReviewed",
@@ -542,7 +542,7 @@ describe("confirmSupplierPriceList refusals", () => {
 });
 
 describe("linkSupplierPriceListRow", () => {
-  const target = { version: 3, productId: "product-1", packagingId: "packaging-1" };
+  const target = { version: 3, productId: "product-1", quantity: 12_000 };
 
   test("sends no VAT rate as null", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
@@ -556,7 +556,7 @@ describe("linkSupplierPriceListRow", () => {
   });
 
   test.each([
-    ["packaging_not_linkable", { kind: "packaging_not_linkable" }],
+    ["product_not_linkable", { kind: "product_not_linkable" }],
     ["vat_rate_missing", { kind: "vat_rate_missing" }],
     ["vat_rate_invalid", { kind: "vat_rate_invalid" }],
   ])("answers a 409 with the code %s as %j", async (code, outcome) => {

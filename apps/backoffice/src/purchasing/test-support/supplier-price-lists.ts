@@ -180,12 +180,9 @@ export const ALMOND_LINK: NonNullable<ReviewRow["link"]> = {
     netContent: null,
     saleUnit: "KG",
   },
-  packaging: {
-    id: "9ac00000-0000-4000-8000-000000000010",
-    name: "Bolsa de 25 kg",
-    quantityPerPackage: 25_000,
-    buyable: true,
-  },
+  quantity: 25_000,
+  saleUnit: "KG",
+  current: true,
   vatRate: null,
 };
 
@@ -253,12 +250,9 @@ export const LINKED_ROW: ReviewRow = {
       netContent: null,
       saleUnit: "KG",
     },
-    packaging: {
-      id: "9ac00000-0000-4000-8000-000000000051",
-      name: "Caja de 11,34 kg",
-      quantityPerPackage: 11_340,
-      buyable: true,
-    },
+    quantity: 11_340,
+    saleUnit: "KG",
+    current: true,
     vatRate: null,
   },
   status: "linked",

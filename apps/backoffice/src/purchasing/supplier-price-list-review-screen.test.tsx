@@ -18,6 +18,7 @@ import {
   type screenElement,
 } from "./test-support/supplier-price-list-review-screen";
 import {
+  ALMOND_LINK,
   DISCARDED_LIST,
   EVERY_REVIEW_ACTION,
   EXTRACTED_ROWS,
@@ -508,14 +509,15 @@ test("offers the filters to review, every item and the items without a price", a
   ).toEqual(["Para revisar", "Todos", "Sin precio"]);
 });
 
-test("shows the product and presentation an item is linked to, or that it is not linked", async () => {
+test("shows the product and the quantity an item is linked with, or that it is not linked", async () => {
   const screen = await loaded(createServices(), withEveryKindOfRow, {
     filters: supplierPriceListReviewFilters.parse({ show: "all" }),
   });
 
   const almond = screen.getByRole("row", { name: /Almendra pelada/ });
   await expect.element(almond.getByText("Almendras peladas")).toBeVisible();
-  await expect.element(almond.getByText("Bolsa de 25 kg")).toBeVisible();
+  await expect.element(almond.getByText("25 kg", { exact: true })).toBeVisible();
+  expect(almond.getByText("Hay que volver a vincularlo").query()).toBeNull();
   await expect
     .element(
       screen
@@ -524,6 +526,21 @@ test("shows the product and presentation an item is linked to, or that it is not
         .first(),
     )
     .toBeVisible();
+});
+
+test("says an item whose link has to be made again must be linked again", async () => {
+  const outdated = {
+    ...itemRow(8),
+    description: "Almendra laminada x 25 kg",
+    link: { ...ALMOND_LINK, current: false },
+  };
+  const screen = await loaded(
+    createServices(),
+    reviewOf(READ_LIST, [outdated], EVERY_REVIEW_ACTION),
+  );
+
+  const row = screen.getByRole("row", { name: /Almendra laminada/ });
+  await expect.element(row.getByText("Hay que volver a vincularlo")).toBeVisible();
 });
 
 test("says only once that an item seen in another list is not linked", async () => {
@@ -631,9 +648,7 @@ async function linkPasasInTheOpenModal(screen: Screen) {
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("combobox", { name: /Producto del catálogo/ }));
   await userEvent.click(screen.getByRole("option", { name: "Pasas de uva" }));
-  const radio = dialog.getByRole("radio", { name: "Caja de 10 kg" });
-  await expect.element(radio).toBeVisible();
-  radio.element().closest("label")?.click();
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad que trae/ }), "10");
   await userEvent.click(dialog.getByRole("button", { name: "Vincular" }));
 }
 
@@ -793,28 +808,6 @@ test("ends the session when marking an item as reviewed comes back unauthenticat
   );
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
-test.each([
-  ["a session that may create packagings", ADMINISTRATOR_ACCESS, true],
-  ["a session that may only link", accessWith("supplier_price_lists"), false],
-])("hands the link modal whether %s may create one", async (_name, access, offered) => {
-  const services = createServices();
-  vi.mocked(services.fetchSupplierItemLinkChoices).mockResolvedValue({
-    kind: "ok",
-    value: LINK_CHOICES,
-  });
-  const screen = await loaded(services, extracted, { access });
-
-  await userEvent.click(
-    screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
-  );
-  const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("combobox", { name: /Producto del catálogo/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Pasas de uva" }));
-
-  await expect.element(dialog.getByRole("radio", { name: "Caja de 10 kg" })).toBeVisible();
-  expect(dialog.getByRole("button", { name: "Nueva presentación" }).query() !== null).toBe(offered);
 });
 
 test.each([

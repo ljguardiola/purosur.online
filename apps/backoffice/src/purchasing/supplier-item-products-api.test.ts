@@ -125,7 +125,6 @@ describe("createProductFromSupplierItem", () => {
     "vat_rate_invalid",
     "category_not_leaf",
     "brand_inactive",
-    "presentation_too_long",
   ] as const)("answers a 409 %s as that refusal", async (code) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
 

@@ -310,7 +310,7 @@ test("reads the lots again when a typed cost is refused for loaded prices, so th
 
   await expect
     .element(reopened.getByRole("combobox", { name: /Lista de proveedor/ }))
-    .toHaveValue("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kg");
+    .toHaveValue("Alfa del 01/03/2026 · 10 kg · $ 9.500,00 / kg");
   await expect.element(reopened.getByText("La más barata")).toBeVisible();
 });
 
