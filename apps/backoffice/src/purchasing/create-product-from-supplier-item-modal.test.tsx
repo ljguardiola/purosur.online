@@ -9,7 +9,13 @@ import {
   CreateProductFromSupplierItemModal,
   type CreateProductFromSupplierItemModalServices,
 } from "./create-product-from-supplier-item-modal";
-import { LINK_CHOICES } from "./test-support/supplier-item-links";
+import {
+  LINK_CHOICES,
+  NO_QUANTITY_PROPOSAL,
+  PROPOSED_QUANTITY_OF_KILOS,
+  PROPOSED_QUANTITY_OF_UNITS,
+  UNAVAILABLE_QUANTITY_PROPOSAL,
+} from "./test-support/supplier-item-links";
 import {
   CREATION_BRAND,
   CREATION_BRANDS,
@@ -55,6 +61,9 @@ function createServices(
       .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
     generateInternalBarcode:
       vi.fn<CreateProductFromSupplierItemModalServices["generateInternalBarcode"]>(),
+    fetchSupplierItemQuantityProposal: vi
+      .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemQuantityProposal"]>()
+      .mockResolvedValue({ kind: "ok", value: NO_QUANTITY_PROPOSAL }),
     ...overrides,
   };
 }
@@ -827,4 +836,206 @@ test("has no accessibility violations", async () => {
     .toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+function quantityProposal(
+  value: typeof PROPOSED_QUANTITY_OF_UNITS | typeof NO_QUANTITY_PROPOSAL,
+): Partial<CreateProductFromSupplierItemModalServices> {
+  return {
+    fetchSupplierItemQuantityProposal: vi
+      .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemQuantityProposal"]>()
+      .mockResolvedValue({ kind: "ok", value }),
+  };
+}
+
+const quantityField = (screen: ModalScreen) =>
+  dialogOf(screen).getByRole("textbox", { name: /^Cantidad que trae/ });
+
+test("reads the quantity proposal of the item for the sale unit the product starts with", async () => {
+  const services = createServices();
+  await renderModal({ services });
+
+  await expect
+    .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls)
+    .toEqual([[LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null }]]);
+});
+
+test("reads nothing while no item is chosen", async () => {
+  const services = createServices();
+  await renderModal({ services, target: null });
+
+  expect(services.fetchSupplierItemQuantityProposal).not.toHaveBeenCalled();
+});
+
+test("fills the quantity with the units proposed", async () => {
+  const screen = await renderModal({
+    services: createServices(quantityProposal(PROPOSED_QUANTITY_OF_UNITS)),
+  });
+
+  await expect.element(quantityField(screen)).toHaveValue("36");
+});
+
+test("fills the quantity a product sold by weight brings in kilos", async () => {
+  const screen = await renderModal({
+    services: createServices(quantityProposal(PROPOSED_QUANTITY_OF_KILOS)),
+  });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+
+  await userEvent.click(radioLabel(dialog, "Por peso"));
+
+  await expect.element(quantityField(screen)).toHaveValue("12,5");
+  await expect.element(dialog.getByRole("radio", { name: "kg", exact: true })).toBeChecked();
+});
+
+test("reads the proposal again for the sale unit the person chooses", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+
+  await userEvent.click(radioLabel(dialog, "Por peso"));
+
+  await expect
+    .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls.at(-1))
+    .toEqual([LIST.id, nutRow.id, { saleUnit: "KG", netContent: null }]);
+});
+
+test("reads the proposal again with the net content once the person types it", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "250");
+
+  await expect
+    .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls.at(-1))
+    .toEqual([LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: { quantity: 250, unit: "G" } }]);
+});
+
+test("does not read a proposal for a net content that is not valid", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "abc");
+  await userEvent.click(radioLabel(dialog, "Por peso"));
+
+  await expect
+    .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls.length)
+    .toBe(1);
+  expect(
+    vi
+      .mocked(services.fetchSupplierItemQuantityProposal)
+      .mock.calls.some(([, , body]) => body.saleUnit === "KG"),
+  ).toBe(false);
+});
+
+test.each([
+  ["no quantity can be told", quantityProposal(NO_QUANTITY_PROPOSAL)],
+  [
+    "the proposal is unavailable",
+    {
+      fetchSupplierItemQuantityProposal: vi
+        .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemQuantityProposal"]>()
+        .mockResolvedValue({ kind: "ok", value: UNAVAILABLE_QUANTITY_PROPOSAL }),
+    },
+  ],
+  [
+    "the proposal cannot be read",
+    {
+      fetchSupplierItemQuantityProposal: vi
+        .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemQuantityProposal"]>()
+        .mockResolvedValue({ kind: "failed" }),
+    },
+  ],
+])("leaves the quantity empty and refuses to create when %s", async (_name, overrides) => {
+  const services = createServices(overrides);
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+  await expect
+    .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls.length)
+    .toBe(1);
+
+  await chooseCategory(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(quantityField(screen)).toHaveValue("");
+  await expect.element(dialog.getByText("Ingresá la cantidad que trae el ítem.")).toBeVisible();
+  expect(services.createProductFromSupplierItem).not.toHaveBeenCalled();
+});
+
+test("creates the product with the quantity proposed once the person confirms it", async () => {
+  const services = createServices(quantityProposal(PROPOSED_QUANTITY_OF_UNITS));
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(quantityField(screen)).toHaveValue("36");
+
+  await chooseCategory(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .poll(() => vi.mocked(services.createProductFromSupplierItem).mock.calls.length)
+    .toBe(1);
+  expect(services.createProductFromSupplierItem).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({ saleUnit: "UNIT", quantity: 36_000 }),
+  );
+});
+
+test("never overwrites a quantity the person typed with the proposal that arrives later", async () => {
+  let resolveProposal: (outcome: { kind: "ok"; value: typeof PROPOSED_QUANTITY_OF_UNITS }) => void =
+    () => {};
+  const services = createServices({
+    fetchSupplierItemQuantityProposal: vi
+      .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemQuantityProposal"]>()
+      .mockReturnValue(
+        new Promise((settle) => {
+          resolveProposal = settle;
+        }),
+      ),
+  });
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+  await userEvent.fill(quantityField(screen), "7");
+
+  resolveProposal({ kind: "ok", value: PROPOSED_QUANTITY_OF_UNITS });
+
+  await expect.element(quantityField(screen)).toHaveValue("7");
+});
+
+test("does not refill a quantity the person emptied", async () => {
+  const services = createServices(quantityProposal(PROPOSED_QUANTITY_OF_UNITS));
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(quantityField(screen)).toHaveValue("36");
+
+  await userEvent.clear(quantityField(screen));
+  await userEvent.click(radioLabel(dialog, "Por peso"));
+  await userEvent.click(radioLabel(dialog, "Por unidad"));
+
+  await expect.element(quantityField(screen)).toHaveValue("");
+});
+
+test("replaces a quantity it proposed, and the person did not touch, when the sale unit changes to one with no proposal", async () => {
+  const services = createServices({
+    fetchSupplierItemQuantityProposal: vi
+      .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemQuantityProposal"]>()
+      .mockImplementation(async (_listId, _rowId, body) => ({
+        kind: "ok",
+        value: body.saleUnit === "UNIT" ? PROPOSED_QUANTITY_OF_UNITS : NO_QUANTITY_PROPOSAL,
+      })),
+  });
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(quantityField(screen)).toHaveValue("36");
+
+  await userEvent.click(radioLabel(dialog, "Por peso"));
+
+  await expect.element(quantityField(screen)).toHaveValue("");
 });
