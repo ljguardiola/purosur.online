@@ -62,9 +62,9 @@ export async function applyRegisterStockMovements(
       {
         ...key,
         id: movement.id,
-        ...(movement.kind === "loss"
-          ? { kind: movement.kind, reason: movement.reason }
-          : { kind: movement.kind, reason: null, saleLineId: movement.saleLineId }),
+        kind: movement.kind,
+        reason: movement.kind === "loss" ? movement.reason : null,
+        saleLineId: movement.saleLineId,
         delta: movement.delta,
         occurredAt: input.occurredAt,
         actorId: input.actorId,

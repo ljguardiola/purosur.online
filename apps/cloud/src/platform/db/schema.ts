@@ -603,7 +603,7 @@ export const stockMovements = pgTable(
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
-      sql`(${table.kind} in ('sale', 'sale_void', 'return')) = (${table.saleLineId} is not null)`,
+      sql`(${table.kind} in ('sale', 'sale_void', 'return') or (${table.kind} = 'loss' and ${table.reason} = 'return_discard')) = (${table.saleLineId} is not null)`,
     ),
     check(
       "stock_movements_purchase_line_iff_receipt_check",
