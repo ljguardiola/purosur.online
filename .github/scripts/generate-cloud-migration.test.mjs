@@ -291,3 +291,11 @@ test("restores the folder when drizzle-kit leaves more than one new entry", asyn
 
   assert.deepEqual(await listFolder(folder), before);
 });
+
+test("writes the journal ending with a newline, as the formatter keeps it", async () => {
+  const folder = await writeMigrationFolder(SHIPPED_ENTRIES);
+
+  await generateCloudMigration({ folder, runDrizzleKit: drizzleKitWriting("added") });
+
+  assert.ok((await readFile(join(folder, "meta", "_journal.json"), "utf8")).endsWith("}\n"));
+});
