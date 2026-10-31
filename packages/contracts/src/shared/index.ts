@@ -62,6 +62,8 @@ export {
   partiallyPaidOutcomeSchema,
   reachesThresholdRefusalSchema,
 } from "./sale-charge-outcome.js";
+export type { SalesReportGroupBody } from "./sales-report-group.js";
+export { salesReportGroupSchema } from "./sales-report-group.js";
 export { serialDeviceIdentitySchema } from "./serial-device-identity.js";
 export type { SignInUser } from "./sign-in-user.js";
 export { signInUserSchema } from "./sign-in-user.js";

@@ -1011,6 +1011,8 @@ export type {
   InitialCountCostFilter,
   LossReason,
   ManualStockMovementKind,
+  MarginAllocation,
+  MarginSaleLine,
   StockCorrection,
   StockDirection,
   StockMovementKind,

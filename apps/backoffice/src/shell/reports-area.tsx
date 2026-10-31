@@ -16,6 +16,7 @@ import {
   Scale,
   ShoppingCart,
   TagX,
+  TrendingUp,
   Truck,
   Undo2,
   Users,
@@ -55,6 +56,7 @@ function ReportsArea() {
   const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
   const lossesByReasonShown = Boolean(matchRoute({ to: "/reports/losses-by-reason" }));
+  const marginReportShown = Boolean(matchRoute({ to: "/reports/margin" }));
   const pricesPastReviewDeadlineShown = Boolean(
     matchRoute({ to: "/reports/prices-past-review-deadline" }),
   );
@@ -198,6 +200,15 @@ function ReportsArea() {
                     icon={<PackageX />}
                     search={lossesByReasonShown ? true : {}}
                     active={lossesByReasonShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/margin"
+                    label="Margen por producto y por categoría"
+                    icon={<TrendingUp />}
+                    search={marginReportShown ? true : {}}
+                    active={marginReportShown}
                   />
                 </li>
                 <li>

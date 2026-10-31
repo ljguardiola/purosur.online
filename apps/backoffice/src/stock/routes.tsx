@@ -17,6 +17,7 @@ import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
 import { currentStockReportFilters } from "./current-stock-report-filters";
+import { marginReportFilters } from "./margin-report-filters";
 
 const periodFilter = stockPeriodSchema.default(stockPeriodSchema.parse(undefined));
 
@@ -116,6 +117,15 @@ export const lossesByReasonReportRoute = createRoute({
   validateSearch: reportPeriodSearch,
   search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
   component: lazyScreen(() => import("./losses-by-reason-report-page"), "LossesByReasonReportPage"),
+});
+
+export const marginReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/margin",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: marginReportFilters,
+  search: { middlewares: [stripSearchParams(marginReportFilters.parse({}))] },
+  component: lazyScreen(() => import("./margin-report-page"), "MarginReportPage"),
 });
 
 export const stockCountsRoute = createRoute({
