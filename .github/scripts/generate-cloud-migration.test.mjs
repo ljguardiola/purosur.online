@@ -269,7 +269,11 @@ test("restores the overwritten snapshot when drizzle-kit fails", async () => {
 });
 
 test("restores the folder when drizzle-kit leaves more than one new entry", async () => {
-  const folder = await writeMigrationFolder(SHIPPED_ENTRIES);
+  const folder = await writeMigrationFolder([
+    entry(0, "0000_first", 100),
+    entry(1, "0001_second", 200),
+    entry(2, "0009_third", 300),
+  ]);
   const before = await listFolder(folder);
   const writeOne = drizzleKitWriting("one");
   const writeTwo = drizzleKitWriting("two", { when: 500 });
