@@ -458,6 +458,7 @@ export {
   isQrExternalPosId,
   isRefundPending,
   isRefundSentByCloud,
+  isSurplusOfRebuiltSale,
   isValidOrderAmount,
   isValidPointOrderAmount,
   latePaymentRefund,

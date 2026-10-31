@@ -26,6 +26,7 @@ export const pendingRefundsSchema = z.object({
       seconds_pending: z.int().nonnegative(),
       sale_occurred_at: instant.meta({ timeZone: ARGENTINA_TIME_ZONE }),
       covered_by: z.array(z.enum(PAYMENT_METHODS)),
+      of_rebuilt_sale: z.boolean(),
       provider_order_id: z.string().min(1).nullable(),
       corrected_by: z.string().nullable(),
       corrected_by_name: z.string().nullable(),

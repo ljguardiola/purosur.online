@@ -86,6 +86,7 @@ export type {
 export {
   exceedsRefundable,
   isRefundPending,
+  isSurplusOfRebuiltSale,
   latePaymentRefund,
   latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
