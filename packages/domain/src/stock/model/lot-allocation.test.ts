@@ -650,6 +650,46 @@ describe("restockedReturnAllocations", () => {
     ).toEqual([{ target: target("soon"), quantity: 1000 }]);
   });
 
+  it("offers no capacity in a lot the sale never took from, whatever earlier returns did to it", () => {
+    const history = [
+      lot("a", { expiresOn: "2027-01-01", remaining: 1000 }),
+      lot("c", { expiresOn: "2027-03-01" }),
+      lot("b", { expiresOn: "2027-12-01", receivedAt: new Date("2026-09-01T12:00:00.000Z") }),
+    ];
+
+    expect(
+      restockedReturnAllocations(
+        history,
+        [{ lotId: "a", quantity: -1000 }],
+        [
+          { lotId: "b", quantity: 1000 },
+          { lotId: "c", quantity: -1000 },
+        ],
+        1000,
+      ),
+    ).toEqual([{ target: target("a"), quantity: 1000 }]);
+  });
+
+  it("offers no lot more capacity than the sale took from it, whatever earlier returns took out of it", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "soon", quantity: -2000 },
+          { lotId: "late", quantity: -1000 },
+        ],
+        [
+          { lotId: "never", quantity: 1000 },
+          { lotId: "late", quantity: -1000 },
+        ],
+        2000,
+      ),
+    ).toEqual([
+      { target: target("late"), quantity: 1000 },
+      { target: target("soon"), quantity: 1000 },
+    ]);
+  });
+
   it("orders a lot the product no longer lists after every listed one", () => {
     expect(
       restockedReturnAllocations(
@@ -721,7 +761,10 @@ describe("restockedReturnAllocations for any sale and any quantity", () => {
     { maxLength: 8 },
   );
   const returns = fc.array(
-    fc.record({ lotIndex: fc.nat(5), quantity: fc.integer({ min: 1, max: 40 }) }),
+    fc.record({
+      lotIndex: fc.nat(7),
+      quantity: fc.integer({ min: -40, max: 40 }).filter((quantity) => quantity !== 0),
+    }),
     { maxLength: 4 },
   );
 
@@ -736,18 +779,19 @@ describe("restockedReturnAllocations for any sale and any quantity", () => {
       quantity: -quantity,
     }));
     const returnedRows = returned.map(({ lotIndex, quantity }) => ({
-      lotId: lotId(lotIndex),
+      lotId: lotIndex > 5 ? `elsewhere-${lotIndex}` : lotId(lotIndex),
       quantity,
     }));
-    const capacity = new Map<string, number>();
+    const taken = new Map<string, number>();
     for (const row of saleRows) {
-      capacity.set(row.lotId, (capacity.get(row.lotId) ?? 0) - row.quantity);
+      taken.set(row.lotId, (taken.get(row.lotId) ?? 0) - row.quantity);
     }
-    for (const row of returnedRows) {
-      capacity.set(row.lotId, (capacity.get(row.lotId) ?? 0) - row.quantity);
-    }
-    for (const [id, value] of capacity) {
-      capacity.set(id, Math.max(value, 0));
+    const capacity = new Map<string, number>();
+    for (const [id, quantity] of taken) {
+      const givenBack = returnedRows
+        .filter((row) => row.lotId === id)
+        .reduce((sum, row) => sum + row.quantity, 0);
+      capacity.set(id, Math.min(Math.max(quantity - givenBack, 0), quantity));
     }
     return { saleRows, returnedRows, capacity };
   }
@@ -772,7 +816,7 @@ describe("restockedReturnAllocations for any sale and any quantity", () => {
     );
   });
 
-  it("gives no lot more than the sale took from it less what earlier returns gave back", () => {
+  it("gives nothing to a lot the sale never took from, and no sale lot more than it took less what earlier returns gave back", () => {
     fc.assert(
       fc.property(
         lotsArbitrary,

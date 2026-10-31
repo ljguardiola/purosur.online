@@ -791,6 +791,35 @@ describe("applyRegisterStockMovements", () => {
       });
     });
 
+    it("never puts back on a lot more than the sale line took from it after a discard whose loss came from another lot", async () => {
+      const store = storeWithSoldLots();
+      for (const { kind, reason, lotId, quantity } of [
+        { kind: "return", reason: null, lotId: "earlier", quantity: 1000 },
+        { kind: "loss", reason: "return_discard", lotId: "late", quantity: -1000 },
+      ] as const) {
+        const movementId = store.seedMovement({
+          ...BREAD,
+          saleLineId: "sale-line-1",
+          kind,
+          reason,
+          delta: quantity,
+          occurredAt: BEFORE_SALE,
+          actorId: "cashier-1",
+          supersededByCountId: null,
+        });
+        store.seedAllocation({ movementId, lotId, quantity });
+      }
+
+      await apply(store, sale(restocked(3000)));
+
+      expect(remainingByLot(store)).toEqual({
+        soon: 1000,
+        late: 2000,
+        "other-line": 500,
+        earlier: 5000,
+      });
+    });
+
     it("leaves every lot as it was when the returned merchandise is discarded", async () => {
       const store = storeWithSoldLots();
       const before = remainingByLot(store);
