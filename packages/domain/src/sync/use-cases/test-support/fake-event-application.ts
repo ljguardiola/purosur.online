@@ -28,6 +28,7 @@ export interface FakeEventApplicationState {
   stockApplied: { eventId: string; saleId: string }[];
   stockReturned: { eventId: string; saleId: string }[];
   refundFollowRequests: string[];
+  surplusRefunds: { paymentTransactionId: string; amount: number; eventId: string }[];
   stockReturnedByCustomers: { eventId: string; returnId: string }[];
   openingCountsApplied: { eventId: string; movementId: string }[];
   openingCountsWithdrawn: { eventId: string; withdrawnMovementId: string }[];
@@ -75,6 +76,7 @@ export class FakeEventApplication implements EventApplication {
     stockApplied: [],
     stockReturned: [],
     refundFollowRequests: [],
+    surplusRefunds: [],
     stockReturnedByCustomers: [],
     openingCountsApplied: [],
     openingCountsWithdrawn: [],
@@ -248,6 +250,10 @@ export class FakeEventApplication implements EventApplication {
           returnId: saleReturn.id,
         });
         return { kind: "applied" };
+      },
+      openSurplusRefundOfRebuiltSale: async (surplus, event) => {
+        this.state.writeOrder.push("surplus refund");
+        this.state.surplusRefunds.push({ ...surplus, eventId: event.eventId });
       },
       requestMercadoPagoRefundFollow: async () => {
         this.state.writeOrder.push("refund follow");

@@ -4,17 +4,27 @@ import type { LatePaymentRefundOpening } from "@purosur/domain/payments/use-case
 import { eq, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
-import { paymentRefunds, paymentTransactions, registers } from "../platform/db/schema.js";
+import {
+  paymentRefunds,
+  paymentTransactions,
+  registers,
+  salePayments,
+} from "../platform/db/schema.js";
 
 export async function openLatePaymentRefund<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   refund: LatePaymentRefund,
   openedAt: Date,
+  { ofRebuiltSale = false }: { ofRebuiltSale?: boolean } = {},
 ): Promise<LatePaymentRefundOpening> {
   const [payment] = await tx
-    .select({ saleId: paymentTransactions.saleId, locationId: registers.locationId })
+    .select({
+      saleId: sql<string>`coalesce(${salePayments.saleId}, ${paymentTransactions.saleId})`,
+      locationId: registers.locationId,
+    })
     .from(paymentTransactions)
     .innerJoin(registers, eq(registers.id, paymentTransactions.registerId))
+    .leftJoin(salePayments, eq(salePayments.id, paymentTransactions.id))
     .where(eq(paymentTransactions.id, refund.paymentId));
   if (!payment) {
     throw new Error(`payment transaction ${refund.paymentId} is not recorded`);
@@ -55,6 +65,7 @@ export async function openLatePaymentRefund<TQueryResult extends PgQueryResultHK
         amount: refund.amount,
         providerOrderId: refund.providerOrderId,
         method: refund.method,
+        ...(ofRebuiltSale ? { ofRebuiltSale } : {}),
       },
     },
     { now: () => openedAt },

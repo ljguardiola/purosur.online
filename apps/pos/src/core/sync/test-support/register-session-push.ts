@@ -18,6 +18,7 @@ import {
   followMercadoPagoChargeFor,
   startMercadoPagoChargeFor,
 } from "../../payments/mercado-pago-charge-requests";
+import { SqliteLocalPaidOrders } from "../../payments/sqlite-local-paid-orders";
 import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
 import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source.js";
@@ -48,7 +49,9 @@ import {
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   chargeSaleOnStandaloneTerminalFor,
+  chargeSaleWithPaidOrderFor,
   currentSaleFor,
+  rebuildSaleAgainstPaidOrderFor,
   removeSaleLineFor,
   scanProductFor,
 } from "../../sales/sale-requests";
@@ -90,6 +93,9 @@ const THRESHOLD = "d3e6a9c1-5f28-4b74-8a0d-9c2e7f1b4a11";
 const CATEGORY = "f1a7c3e9-4b52-4d68-9e01-7a3c5b8d2f12";
 const OFFLINE_NUMBER_BLOCK = "3e9a5c1f-7b24-4d86-a0c3-5f1e8b2d7a21";
 const OFFLINE_CREDIT_NOTE_NUMBER_BLOCK = "5b1c7e3a-9d46-4f08-b2e5-7a3c9d1f6b42";
+const SURPLUS_PAID_ORDER = "0199b7a0-0000-7000-8000-000000000c01";
+const CANCELLED_PAID_ORDER = "0199b7a0-0000-7000-8000-000000000c02";
+const ORDERS_OWN_SALE = "0199b7a0-0000-7000-8000-000000000c03";
 const OFFLINE_POINT_OF_SALE = 31;
 const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN = "4826";
@@ -786,6 +792,46 @@ export async function withRegisterSession<TResult>(
     nextStep();
     const cancelledUnpaid = await cancelSaleFor(deps());
     expectOutcome("cancel the sale without payments", cancelledUnpaid.kind, "cancelled");
+    for (const [order, amount] of [
+      [SURPLUS_PAID_ORDER, 3000],
+      [CANCELLED_PAID_ORDER, 1000],
+    ] as const) {
+      nextStep();
+      new SqliteLocalPaidOrders({ database }).recordPaidOrderWithoutSale(
+        {
+          paymentTransactionId: order,
+          saleId: ORDERS_OWN_SALE,
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount,
+          createdAt: new Date(current.getTime() - 60_000),
+        },
+        current,
+      );
+      nextStep();
+      const rebuilt = await rebuildSaleAgainstPaidOrderFor(deps(), { paymentTransactionId: order });
+      if (rebuilt.kind !== "rebuilt") {
+        throw new Error(`The register session's "rebuild a sale" ended as "${rebuilt.kind}"`);
+      }
+      nextStep();
+      const rebuiltScan = await scanProductFor(deps(), "7790001000028");
+      expectOutcome("scan a product of the rebuilt sale", rebuiltScan.kind, "added");
+      nextStep();
+      const applied = await chargeSaleWithPaidOrderFor(deps(), { saleId: rebuilt.sale_id });
+      expectOutcome(
+        "charge the rebuilt sale with its paid order",
+        applied.kind,
+        amount === 3000 ? "completed" : "partially_paid",
+      );
+      if (amount === 1000) {
+        nextStep();
+        const undone = await cancelPaidSaleFor(deps(), {
+          saleId: rebuilt.sale_id,
+          authorization: { user_id: GRACE, pin: PIN },
+        });
+        expectOutcome("cancel the rebuilt sale authorized by PIN", undone.kind, "cancelled");
+      }
+    }
     nextStep();
     const replacedScan = await scanProductFor(deps(), "7790001000028");
     if (replacedScan.kind !== "added") {

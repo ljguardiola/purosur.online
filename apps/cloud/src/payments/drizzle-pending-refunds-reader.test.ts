@@ -67,6 +67,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         occurredAt: refund?.occurredAt,
         saleOccurredAt: cancelled.cancelledAt,
         coveredBy: [],
+        ofRebuiltSale: false,
         providerOrderId: null,
         correctedBy: userId,
         correctedByName: "Ada Lucero",
@@ -94,6 +95,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         occurredAt: voidedAt,
         saleOccurredAt: voidedAt,
         coveredBy: [],
+        ofRebuiltSale: false,
       }),
     ]);
   });
@@ -280,6 +282,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
           occurredAt: NOW,
           saleOccurredAt: late.saleOccurredAt,
           coveredBy: [],
+          ofRebuiltSale: false,
           providerOrderId: null,
           correctedBy: null,
           correctedByName: null,
@@ -310,6 +313,68 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
       const [refund] = await reader().pendingRefunds(late.locationId);
 
       expect(refund?.coveredBy).toEqual(["CASH", "TRANSFER"]);
+    });
+
+    it("tells the surplus of a sale rebuilt against its paid order, held by the sale as its own payment", async () => {
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        heldBySale: true,
+        refundAmount: 400,
+      });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(refund).toMatchObject({ saleId: late.saleId, amount: 400, ofRebuiltSale: true });
+    });
+
+    it("dates the surplus of a rebuilt sale by the sale's completion, not by its paid order", async () => {
+      const rebuiltAt = new Date("2026-10-09T13:00:00.000Z");
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        heldBySale: true,
+        refundAmount: 400,
+        saleCompletedAt: rebuiltAt,
+      });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(late.saleOccurredAt).not.toEqual(rebuiltAt);
+      expect(refund?.saleOccurredAt).toEqual(rebuiltAt);
+    });
+
+    it("keeps the paid order's own payment out of the methods that covered the sale of its surplus", async () => {
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        heldBySale: true,
+        coveredBy: ["CASH"],
+      });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(refund?.coveredBy).toEqual(["CASH"]);
+    });
+
+    it("does not tell a late payment of a sale charged by other means as a rebuilt sale's surplus", async () => {
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        coveredBy: ["TRANSFER"],
+      });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(refund?.ofRebuiltSale).toBe(false);
+    });
+
+    it("does not tell the refund of a second paid order as a rebuilt sale's surplus, though the sale holds the first one", async () => {
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        heldBySale: true,
+        providerOrderId: "ORD01SECOND",
+      });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(refund?.ofRebuiltSale).toBe(false);
     });
 
     it("lists no covering method while its sale has not reached the cloud", async () => {

@@ -5,6 +5,7 @@ import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-s
 import type { SaleWithLines } from "../model/sale.js";
 import { currentSale } from "./current-sale.js";
 import {
+  aRebuildablePaidOrder,
   FakeSaleLedger,
   type FakeSaleLedgerState,
   FixedClock,
@@ -76,7 +77,45 @@ describe("currentSale", () => {
       cancelRefusal: null,
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
+      rebuiltPaidOrder: null,
     });
+  });
+
+  it("answers the paid order the sale was rebuilt against, waiting to be applied", () => {
+    const store = ledger({
+      paidOrders: [aRebuildablePaidOrder({ amount: 4500 })],
+      rebuiltSales: [{ saleId: "sale-1", paymentTransactionId: "order-1" }],
+    });
+
+    expect(read(store)).toMatchObject({
+      kind: "open",
+      rebuiltPaidOrder: {
+        paymentTransactionId: "order-1",
+        amount: 4500,
+        method: "QR",
+        applied: false,
+      },
+    });
+  });
+
+  it("answers the paid order of a rebuilt sale as applied once the sale holds its payment", () => {
+    const payment: SalePayment = {
+      id: "order-1",
+      saleId: "sale-1",
+      kind: "SALE",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 4500,
+      state: "APPROVED",
+      occurredAt: NOW,
+    };
+    const store = ledger({
+      payments: [payment],
+      paidOrders: [aRebuildablePaidOrder({ amount: 4500 })],
+      rebuiltSales: [{ saleId: "sale-1", paymentTransactionId: "order-1" }],
+    });
+
+    expect(read(store)).toMatchObject({ rebuiltPaidOrder: { applied: true } });
   });
 
   it("reports what the approved payments paid and what is still pending", () => {

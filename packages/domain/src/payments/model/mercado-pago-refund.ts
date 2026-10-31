@@ -68,13 +68,6 @@ export function recordedRefundOfCorrection<Refund extends { paymentId: string; m
   };
 }
 
-export function partialAmountOfOrderRefund(refund: {
-  origin: string;
-  amount: number;
-}): number | null {
-  return refund.origin === RETURN_REFUND_ORIGIN ? refund.amount : null;
-}
-
 export function refundIsBackedByItsCorrection(
   refund: { saleId: string; origin: string; originEventId: string | null; orderId: string | null },
   correction: { origin: string; saleId: string } | null,
@@ -143,6 +136,27 @@ export function alreadyRefundedOfPayment(refund: RefundedPaymentFacts): number {
   return refund.refundedOfPaymentTransactionByOrder
     .filter((refunded) => refunded.orderId === refund.ownOrderId)
     .reduce((sum, refunded) => sum + refunded.amount, 0);
+}
+
+export function partialAmountOfOrderRefund(refund: RefundedPaymentFacts): number | null {
+  if (refund.origin === RETURN_REFUND_ORIGIN) {
+    return refund.amount;
+  }
+  if (
+    refund.origin === LATE_PAYMENT_REFUND_ORIGIN &&
+    refund.amount < amountHeldByRefundedPayment(refund)
+  ) {
+    return refund.amount;
+  }
+  if (
+    refund.origin !== LATE_PAYMENT_REFUND_ORIGIN &&
+    refund.paymentTransaction !== null &&
+    refund.salePaymentAmount !== null &&
+    refund.salePaymentAmount < refund.paymentTransaction.amount
+  ) {
+    return refund.amount;
+  }
+  return null;
 }
 
 export type MercadoPagoRefundAnswer =

@@ -24,6 +24,7 @@ export interface PendingRefundRecord {
   occurredAt: Date;
   saleOccurredAt: Date;
   coveredBy: PaymentMethod[];
+  ofRebuiltSale: boolean;
   providerOrderId: string | null;
   correctedBy: string | null;
   correctedByName: string | null;

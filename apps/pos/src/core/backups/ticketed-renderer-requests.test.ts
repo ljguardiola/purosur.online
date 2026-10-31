@@ -42,6 +42,14 @@ function setup(overrides: Partial<TicketableRendererRequests> = {}) {
       sale_id: "sale-on-terminal",
       total: 1,
     }),
+    chargeSaleWithPaidOrder: async () => ({
+      kind: "completed",
+      sale_id: "sale-with-paid-order",
+      total: 1,
+      applied: 1,
+      surplus: 0,
+      surplus_sent_by_cloud: true,
+    }),
     followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 30 }),
     abandonMercadoPagoCharge: async () => ({ kind: "replaced" }),
     cancelPaidSale: async () => ({ kind: "not_signed_in" }),
@@ -85,11 +93,13 @@ describe("the renderer requests that leave a contingency backup ticket", () => {
     await ticketedRequests.chargeSaleInCash?.({ saleId: "sale-1", tendered: 100 });
     await ticketedRequests.chargeSaleByTransfer?.({ saleId: "sale-1", amount: 1 });
     await ticketedRequests.chargeSaleOnStandaloneTerminal?.({ saleId: "sale-1", amount: 1 });
+    await ticketedRequests.chargeSaleWithPaidOrder?.({ saleId: "sale-1" });
 
     expect(recorded).toEqual([
       { operation: "sale", subjectId: "sale-in-cash" },
       { operation: "sale", subjectId: "sale-by-transfer" },
       { operation: "sale", subjectId: "sale-on-terminal" },
+      { operation: "sale", subjectId: "sale-with-paid-order" },
     ]);
   });
 

@@ -31,11 +31,13 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@6"
   | "sale_completed@7"
   | "sale_completed@8"
-  | "sale_completed@9"];
+  | "sale_completed@9"
+  | "sale_completed@10"];
 type SalePayment = SyncedEventPayloads[
   | "sale_completed@1"
   | "sale_completed@8"
-  | "sale_completed@9"]["payments"][number];
+  | "sale_completed@9"
+  | "sale_completed@10"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@1"
   | "sale_cancelled@2"
@@ -45,7 +47,8 @@ type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@6"
   | "sale_cancelled@7"
   | "sale_cancelled@8"
-  | "sale_cancelled@9"];
+  | "sale_cancelled@9"
+  | "sale_cancelled@10"];
 
 type VoidedSalePayload = SyncedEventPayloads[
   | "sale_voided@1"
@@ -150,6 +153,15 @@ function saleRefunds(refunds: CancelledSalePayload["refunds"] | VoidedSalePayloa
   }));
 }
 
+function rebuiltPaidOrder(
+  payload: CompletedSalePayload | CancelledSalePayload,
+): { paymentTransactionId: string; surplus: number } | null {
+  const rebuilt = "rebuilt_paid_order" in payload ? payload.rebuilt_paid_order : null;
+  return rebuilt === null
+    ? null
+    : { paymentTransactionId: rebuilt.payment_transaction_id, surplus: rebuilt.surplus };
+}
+
 function cancelledSale(payload: CancelledSalePayload): SyncedFact {
   return {
     kind: "sale_cancelled",
@@ -163,6 +175,7 @@ function cancelledSale(payload: CancelledSalePayload): SyncedFact {
       ...saleParts(payload),
       payments: salePayments(payload.payments),
       refunds: saleRefunds(payload.refunds),
+      rebuiltPaidOrder: rebuiltPaidOrder(payload),
     },
   };
 }
@@ -340,6 +353,7 @@ function completedSale(
               productId: movement.product_id,
               delta: movement.delta,
             })),
+      rebuiltPaidOrder: rebuiltPaidOrder(payload),
     },
   };
 }
@@ -518,6 +532,14 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
+  "sale_completed@10": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
   "sale_print_state_changed@1": (payload) => printStateChanged(payload, "sale_receipt", null),
   "sale_print_state_changed@2": (payload) => printStateChanged(payload, payload.document, null),
   "sale_print_state_changed@3": (payload) =>
@@ -544,6 +566,7 @@ const FACT_OF: {
   "sale_cancelled@7": cancelledSale,
   "sale_cancelled@8": cancelledSale,
   "sale_cancelled@9": cancelledSale,
+  "sale_cancelled@10": cancelledSale,
   "sale_line_removed@1": (payload) => ({
     kind: "sale_line_removed",
     removal: {

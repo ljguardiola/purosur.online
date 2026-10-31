@@ -12,6 +12,7 @@ const latePayment: Pick<
   | "occurred_at"
   | "sale_occurred_at"
   | "covered_by"
+  | "of_rebuilt_sale"
   | "provider_order_id"
   | "corrected_by"
   | "corrected_by_name"
@@ -20,6 +21,7 @@ const latePayment: Pick<
   occurred_at: SALE_MOMENT,
   sale_occurred_at: SALE_MOMENT,
   covered_by: ["TRANSFER"],
+  of_rebuilt_sale: false,
   provider_order_id: null,
   corrected_by: null,
   corrected_by_name: null,
@@ -30,6 +32,7 @@ const cancelledSale: typeof latePayment = {
   occurred_at: SALE_MOMENT,
   sale_occurred_at: SALE_MOMENT,
   covered_by: [],
+  of_rebuilt_sale: false,
   provider_order_id: null,
   corrected_by: "user-1",
   corrected_by_name: "Lucía Pérez",
@@ -46,6 +49,13 @@ test("tells a QR order paid twice, keeping the origin label", () => {
   expect(refundReason({ ...latePayment, provider_order_id: "ORD01SECOND" })).toEqual({
     title: "Aprobación tardía",
     detail: "El QR de la venta del 16/09 09:37 se pagó dos veces",
+  });
+});
+
+test("tells the surplus of a sale rebuilt against its paid order, whatever the order was paid with", () => {
+  expect(refundReason({ ...latePayment, covered_by: [], of_rebuilt_sale: true })).toEqual({
+    title: "Aprobación tardía",
+    detail: "La venta del 16/09 09:37 se armó con un cobro mayor a su total",
   });
 });
 

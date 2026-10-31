@@ -55,6 +55,7 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
     ],
     stockMovements: null,
     operationNumber: null,
+    rebuiltPaidOrder: null,
     ...overrides,
   };
 }
@@ -103,6 +104,7 @@ export function aCancelledSale(overrides: Partial<CancelledSale> = {}): Cancelle
       { id: randomUUID(), type: "SALE", amount: 1000, actorId: USER, occurredAt: COMPLETED_AT },
       { id: randomUUID(), type: "REFUND", amount: 1000, actorId: USER, occurredAt: cancelledAt },
     ],
+    rebuiltPaidOrder: null,
     ...overrides,
   };
 }

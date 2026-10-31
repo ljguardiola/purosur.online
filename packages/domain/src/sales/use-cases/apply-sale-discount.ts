@@ -1,14 +1,13 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { Clock, OperationAuthority, ZoneRulesSource } from "../../shared/index.js";
-import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
 import {
-  amountToCharge,
   type SaleDiscount,
   type SaleDiscountRefusal,
   type SaleDiscountValue,
   saleDiscountRefusal,
 } from "../model/sale-discount.js";
+import { type OpenSaleAnswerStanding, openSaleStandingOf } from "./open-sale-standing-of.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedger } from "./sale-ledger.js";
@@ -43,7 +42,7 @@ export type ApplySaleDiscountOutcome =
       kind: "applied";
       sale: SaleWithLines;
       chargeRefusal: ChargeRefusal | undefined;
-    } & OpenSaleStanding);
+    } & OpenSaleAnswerStanding);
 
 export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Refusal>(
   { ledger, restoration, clock, zoneRules, authority }: ApplySaleDiscountPorts<Grant, Refusal>,
@@ -73,12 +72,7 @@ export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Re
       kind: "applied",
       sale: discounted,
       chargeRefusal: saleChargeRefusal(tx, discounted, moment, zoneRules.zoneRules()),
-      ...openSaleStanding(
-        amountToCharge(discounted),
-        tx.salePayments(sale.id),
-        tx.pendingMercadoPagoPaymentsOf(sale.id),
-        moment,
-      ),
+      ...openSaleStandingOf(tx, discounted, moment),
     };
   });
 }

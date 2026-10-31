@@ -11,6 +11,7 @@ import { newWeighedSaleLine, withManualAdjustment, withQuantity } from "../model
 import { addScannedProduct } from "./add-scanned-product.js";
 import type { CandidatePromotion } from "./sale-ledger.js";
 import {
+  aRebuildablePaidOrder,
   FakeSaleLedger,
   type FakeSaleLedgerState,
   type FakeSaleLedgerWrite,
@@ -172,8 +173,27 @@ describe("addScannedProduct", () => {
       cancelRefusal: null,
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
+      rebuiltPaidOrder: null,
     });
     expect(store.state.sales).toEqual([sale]);
+  });
+
+  it("answers the paid order the sale was rebuilt against with the added line", () => {
+    const store = ledger({
+      sales: [OPEN_SALE],
+      paidOrders: [aRebuildablePaidOrder({ amount: 4500 })],
+      rebuiltSales: [{ saleId: "sale-0", paymentTransactionId: "order-1" }],
+    });
+
+    expect(scan(store)).toMatchObject({
+      kind: "added",
+      rebuiltPaidOrder: {
+        paymentTransactionId: "order-1",
+        amount: 4500,
+        method: "QR",
+        applied: false,
+      },
+    });
   });
 
   it("does everything in one transaction", () => {

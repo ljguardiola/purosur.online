@@ -61,6 +61,10 @@ export interface EventApplicationTransaction {
   saleReturnHistory(saleId: string, event: UnappliedEvent): Promise<SaleReturnHistory | undefined>;
   applyReturnStock(saleReturn: ReturnedSale, event: UnappliedEvent): Promise<StockApplication>;
   requestMercadoPagoRefundFollow(): Promise<void>;
+  openSurplusRefundOfRebuiltSale(
+    surplus: { paymentTransactionId: string; amount: number },
+    event: UnappliedEvent,
+  ): Promise<void>;
   applySaleStock(
     sale: CompletedSale,
     movements: NonNullable<CompletedSale["stockMovements"]>,

@@ -122,6 +122,8 @@ function coreAnswering(
     followMercadoPagoCharge?: CoreClient["followMercadoPagoCharge"];
     abandonMercadoPagoCharge?: CoreClient["abandonMercadoPagoCharge"];
     convertPaidOrderIntoRefund?: CoreClient["convertPaidOrderIntoRefund"];
+    rebuildSaleAgainstPaidOrder?: CoreClient["rebuildSaleAgainstPaidOrder"];
+    chargeSaleWithPaidOrder?: CoreClient["chargeSaleWithPaidOrder"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
@@ -450,6 +452,16 @@ function coreAnswering(
       return sales.convertPaidOrderIntoRefund === undefined
         ? { kind: "unavailable" }
         : sales.convertPaidOrderIntoRefund(paymentTransactionId);
+    },
+    async rebuildSaleAgainstPaidOrder(paymentTransactionId) {
+      return sales.rebuildSaleAgainstPaidOrder === undefined
+        ? { kind: "unavailable" }
+        : sales.rebuildSaleAgainstPaidOrder(paymentTransactionId);
+    },
+    async chargeSaleWithPaidOrder(saleId) {
+      return sales.chargeSaleWithPaidOrder === undefined
+        ? { kind: "unavailable" }
+        : sales.chargeSaleWithPaidOrder(saleId);
     },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
@@ -1886,6 +1898,7 @@ describe("App", () => {
           method: "QR",
           amount: 80_000,
           created_at: "2026-09-30T15:30:00.000-03:00",
+          rebuilt_sale_id: null,
         },
       ],
       selling_blocked: true,
@@ -1952,6 +1965,41 @@ describe("App", () => {
       );
 
       expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("rebuilds the sale of a paid order through the core and goes on to the sale", async () => {
+      let pending = BLOCKING_PENDING;
+      const rebuildSaleAgainstPaidOrder = vi.fn<CoreClient["rebuildSaleAgainstPaidOrder"]>(
+        async () => {
+          pending = {
+            ...BLOCKING_PENDING,
+            paid_orders_without_sale: BLOCKING_PENDING.paid_orders_without_sale.map((order) => ({
+              ...order,
+              rebuilt_sale_id: "sale-new",
+            })),
+            may_go_selling: true,
+          };
+          return { kind: "rebuilt", sale_id: "sale-new" };
+        },
+      );
+      const { core } = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        GRACE_SIGNED_IN,
+        { cashSession: lockedUntilResumed(), startupPending: async () => pending },
+        { rebuildSaleAgainstPaidOrder },
+      );
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await resumeLockedRegister(screen);
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "Armar la venta con el cobro de las 15:30" }),
+      );
+
+      expect(rebuildSaleAgainstPaidOrder).toHaveBeenCalledExactlyOnceWith("tx-1");
       await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     });
 
@@ -2022,6 +2070,7 @@ describe("App", () => {
             lines_lock: null,
             cancel_refusal: null,
             charge_refusal: null,
+            rebuilt_paid_order: null,
             mercado_pago_charge_in_progress: null,
             refunds_on_cancel: [],
             cancel_authorization_required: false,
@@ -2076,6 +2125,7 @@ describe("App", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
@@ -2141,6 +2191,7 @@ describe("App", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          rebuilt_paid_order: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
@@ -2276,6 +2327,7 @@ describe("App", () => {
                 lines_lock: null,
                 cancel_refusal: null,
                 charge_refusal: null,
+                rebuilt_paid_order: null,
                 mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
@@ -2349,6 +2401,7 @@ describe("App", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
@@ -2411,6 +2464,7 @@ describe("App", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
@@ -2475,6 +2529,7 @@ describe("App", () => {
                 lines_lock: null,
                 cancel_refusal: null,
                 charge_refusal: null,
+                rebuilt_paid_order: null,
                 mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
@@ -2542,6 +2597,7 @@ describe("App", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
@@ -2604,6 +2660,7 @@ describe("App", () => {
                 lines_lock: null,
                 cancel_refusal: null,
                 charge_refusal: null,
+                rebuilt_paid_order: null,
                 mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
@@ -2684,6 +2741,7 @@ describe("App", () => {
                 lines_lock: null,
                 cancel_refusal: null,
                 charge_refusal: null,
+                rebuilt_paid_order: null,
                 mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
@@ -3718,6 +3776,7 @@ describe("App", () => {
             lines_lock: null,
             cancel_refusal: null,
             charge_refusal: null,
+            rebuilt_paid_order: null,
             mercado_pago_charge_in_progress: null,
             refunds_on_cancel: [],
             cancel_authorization_required: false,

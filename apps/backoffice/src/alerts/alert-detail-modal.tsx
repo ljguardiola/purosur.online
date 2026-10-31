@@ -816,6 +816,7 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
         kind={alert.kind}
         providerOrderId={alert.detail.providerOrderId}
         method={alert.detail.method}
+        ofRebuiltSale={alert.detail.ofRebuiltSale}
       />
     );
   }

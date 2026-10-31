@@ -140,6 +140,7 @@ interface LatePaymentRefundDetail {
   amount: number;
   providerOrderId: string | null;
   method: MercadoPagoPaymentMethod;
+  ofRebuiltSale?: boolean | undefined;
 }
 
 interface RefundTaskDetail {

@@ -155,6 +155,20 @@ describe("QrChargeModal", () => {
     expect(callbacks.onOrderShown).not.toHaveBeenCalled();
   });
 
+  it("says the paid order of the sale must be applied first, keeping the way to another method", async () => {
+    const { screen, create, callbacks } = await renderModal(async () => ({
+      kind: "paid_order_not_applied",
+    }));
+
+    await userEvent.click(create);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("Aplicá primero el pago de Mercado Pago de esta venta.");
+    await expect.element(create).toBeEnabled();
+    expect(callbacks.onOrderShown).not.toHaveBeenCalled();
+  });
+
   it("says the order could not be created because the register cannot reach the cloud", async () => {
     const { screen, create } = await renderModal(async () => ({ kind: "unreachable" }));
 

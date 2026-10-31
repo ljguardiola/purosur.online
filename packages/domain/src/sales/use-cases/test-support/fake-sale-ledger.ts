@@ -8,6 +8,7 @@ import {
 import type {
   PaidOrderDiscoveryState,
   PendingMercadoPagoSalePayment,
+  RebuildablePaidOrder,
   SalePayment,
 } from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
@@ -73,6 +74,8 @@ export interface FakeSaleLedgerState {
   localDatabaseDamaged: boolean;
   newSalesStoppedByBattery: boolean;
   paidOrdersWithoutSale: { resolved: boolean }[];
+  paidOrders: RebuildablePaidOrder[];
+  rebuiltSales: { saleId: string; paymentTransactionId: string }[];
   paidOrderDiscovery: PaidOrderDiscoveryState;
   session: SellingSession | undefined;
   restoration: RestorationEvidence;
@@ -101,6 +104,7 @@ export interface FakeSaleLedgerState {
 
 export type FakeSaleLedgerWrite =
   | "recordOpenedSale"
+  | "recordSaleRebuiltAgainstPaidOrder"
   | "recordSaleLine"
   | "recordChangedLine"
   | "recordSaleDiscount"
@@ -147,6 +151,8 @@ export class FakeSaleLedger implements SaleLedger {
       localDatabaseDamaged: false,
       newSalesStoppedByBattery: false,
       paidOrdersWithoutSale: [],
+      paidOrders: [],
+      rebuiltSales: [],
       paidOrderDiscovery: "checked",
       session: undefined,
       restoration: RESTORATION_COMPLETED,
@@ -193,6 +199,22 @@ export class FakeSaleLedger implements SaleLedger {
       newSalesStoppedByBattery: () => working.newSalesStoppedByBattery,
       paidOrdersWithoutSale: () => structuredClone(working.paidOrdersWithoutSale),
       paidOrderDiscovery: () => working.paidOrderDiscovery,
+      rebuildablePaidOrder: (paymentTransactionId) =>
+        structuredClone(
+          working.paidOrders.find((order) => order.paymentTransactionId === paymentTransactionId),
+        ),
+      paidOrderOfSale: (saleId) => {
+        const rebuilt = working.rebuiltSales.find((link) => link.saleId === saleId);
+        return structuredClone(
+          working.paidOrders.find(
+            (order) => order.paymentTransactionId === rebuilt?.paymentTransactionId,
+          ),
+        );
+      },
+      recordSaleRebuiltAgainstPaidOrder: (saleId, paymentTransactionId) => {
+        this.failIfAsked("recordSaleRebuiltAgainstPaidOrder");
+        working.rebuiltSales.push({ saleId, paymentTransactionId });
+      },
       registerIdentity: () => working.identity,
       activeProductByBarcode: (code) => {
         this.barcodeLookups += 1;
@@ -268,6 +290,7 @@ export class FakeSaleLedger implements SaleLedger {
           throw new Error("a sale with recorded payments cannot be discarded");
         }
         working.sales = working.sales.filter((stored) => stored.id !== saleId);
+        working.rebuiltSales = working.rebuiltSales.filter((link) => link.saleId !== saleId);
       },
       recordPayment: (payment) => {
         this.failIfAsked("recordPayment");
@@ -403,6 +426,33 @@ function completedSalesContaining(state: FakeSaleLedgerState, productId: string)
 function newestPriceOf(prices: readonly FakePrice[], productId: string): ListPrice | undefined {
   const newest = newestPrice(prices.filter((price) => price.productId === productId));
   return newest && { priceListId: newest.priceListId, unitPrice: newest.unitPrice };
+}
+
+export function aRebuildablePaidOrder(
+  overrides: Partial<Extract<RebuildablePaidOrder, { method: "QR" }>> = {},
+): Extract<RebuildablePaidOrder, { method: "QR" }> {
+  return {
+    paymentTransactionId: "order-1",
+    amount: 2500,
+    resolved: false,
+    method: "QR",
+    provider: "MERCADOPAGO_QR",
+    ...overrides,
+  };
+}
+
+export function aPointPaidOrder(
+  overrides: Partial<Extract<RebuildablePaidOrder, { method: "POINT" }>> = {},
+): Extract<RebuildablePaidOrder, { method: "POINT" }> {
+  return {
+    paymentTransactionId: "order-1",
+    amount: 2500,
+    resolved: false,
+    method: "POINT",
+    provider: "MERCADOPAGO_POINT",
+    cardType: "DEBIT",
+    ...overrides,
+  };
 }
 
 export class SequentialIds implements IdGenerator {

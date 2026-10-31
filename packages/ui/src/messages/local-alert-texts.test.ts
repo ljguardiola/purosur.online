@@ -216,6 +216,51 @@ test("tells the refund owed for a second paid order of a sale's QR that the QR w
   });
 });
 
+test("tells the surplus of a sale rebuilt against its paid order, paid by QR, that the sale was charged more than its total", () => {
+  expect(
+    localAlertText({
+      kind: "late_payment_refund",
+      providerOrderId: null,
+      method: "QR",
+      ofRebuiltSale: true,
+    }),
+  ).toEqual({
+    title: "Reembolso pendiente por un pago tardío",
+    meaning:
+      "La venta se armó con un cobro mayor a su total; el excedente se cobró con un QR de Mercado Pago.",
+    whatToDo:
+      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+  });
+});
+
+test("tells the surplus of a sale rebuilt against its paid order, paid at the Point, that the sale was charged more than its total", () => {
+  expect(
+    localAlertText({
+      kind: "late_payment_refund",
+      providerOrderId: null,
+      method: "POINT",
+      ofRebuiltSale: true,
+    }),
+  ).toEqual({
+    title: "Reembolso pendiente por un pago tardío",
+    meaning:
+      "La venta se armó con un cobro mayor a su total; el excedente se cobró con tarjeta en el Point.",
+    whatToDo:
+      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+  });
+});
+
+test("reads a late payment refund whose rebuilt-sale flag is false as a late payment proper", () => {
+  expect(
+    localAlertText({
+      kind: "late_payment_refund",
+      providerOrderId: null,
+      method: "QR",
+      ofRebuiltSale: false,
+    }),
+  ).toEqual(localAlertText({ kind: "late_payment_refund", providerOrderId: null, method: "QR" }));
+});
+
 test("gives the refund owed for a late Point payment its title, what it means and what to do", () => {
   expect(
     localAlertText({ kind: "late_payment_refund", providerOrderId: null, method: "POINT" }),

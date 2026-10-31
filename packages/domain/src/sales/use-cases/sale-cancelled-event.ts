@@ -1,5 +1,5 @@
 import type { SalePayment } from "../../payments/index.js";
-import { paymentRecord } from "../../payments/index.js";
+import { paidOrderAwaitsApplication, paymentRecord } from "../../payments/index.js";
 import type { OutboxEventDraft } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge, settledLines } from "../model/sale-discount.js";
@@ -15,6 +15,7 @@ export interface SaleCancellation {
   payments: readonly SalePayment[];
   refunds: readonly SaleRefund[];
   movements: readonly SaleCashMovement[];
+  paidOrder: { paymentTransactionId: string } | undefined;
   actorId: string;
   authorizedBy: string | undefined;
   occurredAt: Date;
@@ -22,7 +23,16 @@ export interface SaleCancellation {
 
 export function saleCancelledEvent(
   eventId: string,
-  { sale, payments, refunds, movements, actorId, authorizedBy, occurredAt }: SaleCancellation,
+  {
+    sale,
+    payments,
+    refunds,
+    movements,
+    paidOrder,
+    actorId,
+    authorizedBy,
+    occurredAt,
+  }: SaleCancellation,
 ): OutboxEventDraft {
   const occurredAtIso = occurredAt.toISOString();
   return {
@@ -30,7 +40,7 @@ export function saleCancelledEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: "sale_cancelled",
-    schema_version: 9,
+    schema_version: 10,
     payload: {
       id: sale.id,
       register_id: sale.registerId,
@@ -54,6 +64,10 @@ export function saleCancelledEvent(
         occurred_at: occurredAtIso,
       })),
       cash_movements: movements.map(saleCashMovementRecord),
+      rebuilt_paid_order:
+        paidOrder === undefined || paidOrderAwaitsApplication(paidOrder, payments)
+          ? null
+          : { payment_transaction_id: paidOrder.paymentTransactionId, surplus: 0 },
     },
     occurred_at: occurredAtIso,
     actor_id: actorId,

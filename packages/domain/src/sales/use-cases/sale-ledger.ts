@@ -10,6 +10,7 @@ import type {
   PaidOrderResolution,
   PendingMercadoPagoSalePayment,
   PlannedRefund,
+  RebuildablePaidOrder,
   SalePayment,
 } from "../../payments/index.js";
 import type { RoleAccess } from "../../permissions/index.js";
@@ -88,6 +89,9 @@ export interface SaleLedgerTransaction {
   newSalesStoppedByBattery(): boolean;
   paidOrdersWithoutSale(): PaidOrderResolution[];
   paidOrderDiscovery(): PaidOrderDiscoveryState;
+  rebuildablePaidOrder(paymentTransactionId: string): RebuildablePaidOrder | undefined;
+  paidOrderOfSale(saleId: string): RebuildablePaidOrder | undefined;
+  recordSaleRebuiltAgainstPaidOrder(saleId: string, paymentTransactionId: string): void;
   registerIdentity(): RegisterIdentity | undefined;
   activeProductByBarcode(code: string): SellableProduct | undefined;
   activeProductById(productId: string): SellableProduct | undefined;

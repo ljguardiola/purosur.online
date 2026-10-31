@@ -16,6 +16,7 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
@@ -50,6 +51,7 @@ import type {
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
+  RebuildSaleAgainstPaidOrderOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -299,6 +301,10 @@ export interface RouterContext {
   convertPaidOrderIntoRefund: (
     paymentTransactionId: string,
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
+  rebuildSaleAgainstPaidOrder: (
+    paymentTransactionId: string,
+  ) => Promise<RebuildSaleAgainstPaidOrderOutcome>;
+  chargeSaleWithPaidOrder: (saleId: string) => Promise<ChargeSaleWithPaidOrderOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -803,6 +809,7 @@ const startupPendingRoute = createRoute({
       printOriginalReceipt,
       reprintSaleReceipt,
       convertPaidOrderIntoRefund,
+      rebuildSaleAgainstPaidOrder,
       authorizers,
       readClockGuard,
       correctRegisterClock,
@@ -811,6 +818,10 @@ const startupPendingRoute = createRoute({
     const registerName = useRegisterName();
     const navigate = startupPendingRoute.useNavigate();
     const router = useRouter();
+    const goToSale = () => {
+      startupPendingGate.dismiss();
+      void navigate({ to: "/session" });
+    };
     return (
       <StartupPendingScreen
         sessionId={id}
@@ -824,6 +835,7 @@ const startupPendingRoute = createRoute({
         printOriginalReceipt={printOriginalReceipt}
         reprintSaleReceipt={reprintSaleReceipt}
         convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
+        rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
         loadAuthorizers={authorizers}
         clockGuard={
           <ClockGuardOffer
@@ -834,10 +846,8 @@ const startupPendingRoute = createRoute({
             onSessionInvalid={() => void refreshCashSession()}
           />
         }
-        onGoSelling={() => {
-          startupPendingGate.dismiss();
-          void navigate({ to: "/session" });
-        }}
+        onGoSelling={goToSale}
+        onGoToSale={goToSale}
         onNothingLeft={() => void router.invalidate()}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -862,6 +872,7 @@ const chargeRoute = createRoute({
       chargeSaleInCash,
       chargeSaleByTransfer,
       chargeSaleOnStandaloneTerminal,
+      chargeSaleWithPaidOrder,
       paymentMethodAvailability,
       startMercadoPagoCharge,
       followMercadoPagoCharge,
@@ -883,6 +894,7 @@ const chargeRoute = createRoute({
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
         chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
+        chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
         paymentMethodAvailability={paymentMethodAvailability}
         startMercadoPagoCharge={startMercadoPagoCharge}
         followMercadoPagoCharge={followMercadoPagoCharge}
@@ -1417,6 +1429,8 @@ export function createAppRouter(
     | "printCreditNote"
     | "reprintCreditNote"
     | "convertPaidOrderIntoRefund"
+    | "rebuildSaleAgainstPaidOrder"
+    | "chargeSaleWithPaidOrder"
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"

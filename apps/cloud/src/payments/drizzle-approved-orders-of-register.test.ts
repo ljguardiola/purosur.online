@@ -139,6 +139,22 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
     expect(await orders().approvedWithoutSaleSince(registerId, SINCE)).toEqual([]);
   });
 
+  it("leaves out an approved order a sale rebuilt against it holds, though it was created for another sale", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    const held = pendingTransaction(registerId, {
+      state: "APPROVED",
+      amount: 3000,
+      createdAt: new Date("2026-10-12T09:00:00.000Z"),
+    });
+    await db.insert(paymentTransactions).values(held);
+    await insertSyncedSaleHolding(db, held, "APPROVED", {
+      saleId: crypto.randomUUID(),
+      amount: 2400,
+    });
+
+    expect(await orders().approvedWithoutSaleSince(registerId, SINCE)).toEqual([]);
+  });
+
   it("keeps an approved order the sale the register synced holds as not approved", async () => {
     const registerId = await insertRegister(db, "Caja 1");
     const chargedAgain = pendingTransaction(registerId, {

@@ -14,7 +14,10 @@ import { ArrowLeft, Check, Landmark, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
 import { chargeSaleByTransferRequestSchema, handChargeRequestFrom } from "./hand-charge-form";
-import { CHARGE_IN_PROGRESS_MESSAGE } from "./mercado-pago-charge-messages";
+import {
+  CHARGE_IN_PROGRESS_MESSAGE,
+  PAID_ORDER_NOT_APPLIED_MESSAGE,
+} from "./mercado-pago-charge-messages";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
@@ -86,6 +89,9 @@ export function TransferChargeModal({
           break;
         case "mercado_pago_charge_in_progress":
           setNotice(CHARGE_IN_PROGRESS_MESSAGE);
+          break;
+        case "paid_order_not_applied":
+          setNotice(PAID_ORDER_NOT_APPLIED_MESSAGE);
           break;
         case "unavailable":
           setNotice(FAILED_MESSAGE);

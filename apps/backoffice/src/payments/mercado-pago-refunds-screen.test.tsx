@@ -22,6 +22,7 @@ import {
   pendingRefundsWithLatePayment,
   pendingRefundsWithLatePaymentOfOtherOrder,
   pendingRefundsWithLatePointPayment,
+  pendingRefundsWithSurplusOfRebuiltSale,
   pendingRefundsWithUnconfirmedCloudRefund,
   pendingRefundsWithUnconfirmedPointRefund,
 } from "./test-support/refund-fixtures";
@@ -130,6 +131,21 @@ test("leaves out a Point refund that is made outside the system", async () => {
 
   await expect.element(screen.getByText("Sin reembolsos de Mercado Pago pendientes")).toBeVisible();
   expect(screen.getByText("$ 760,00", { exact: true }).query()).toBeNull();
+});
+
+test("tells that a sale rebuilt against its paid order was charged more than its total", async () => {
+  const services = createMercadoPagoRefundsServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithSurplusOfRebuiltSale,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 400,00", { exact: true })).toBeVisible();
+
+  const rows = rowTexts(screen);
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toContain("La venta del 08/10 09:37 se armó con un cobro mayor a su total");
+  expect(rows[0]).not.toContain("se pagó");
 });
 
 test("tells, in the method cell of a refund for a second paid order, the order Mercado Pago gave", async () => {

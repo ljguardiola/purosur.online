@@ -26,6 +26,7 @@ function reasonDetail(
     | "occurred_at"
     | "sale_occurred_at"
     | "covered_by"
+    | "of_rebuilt_sale"
     | "provider_order_id"
     | "corrected_by"
     | "corrected_by_name"
@@ -34,6 +35,9 @@ function reasonDetail(
   const saleMoment = refundDayAndTime(refund.sale_occurred_at);
   if (refund.origin === "late_payment" && refund.provider_order_id !== null) {
     return `El QR de la venta del ${saleMoment} se pagó dos veces`;
+  }
+  if (refund.origin === "late_payment" && refund.of_rebuilt_sale) {
+    return `La venta del ${saleMoment} se armó con un cobro mayor a su total`;
   }
   if (refund.origin === "late_payment") {
     return `El QR de la venta del ${saleMoment} se pagó después de cobrarla ${coveringWords(refund.covered_by)}`;
@@ -57,6 +61,7 @@ export function refundReason(
     | "occurred_at"
     | "sale_occurred_at"
     | "covered_by"
+    | "of_rebuilt_sale"
     | "provider_order_id"
     | "corrected_by"
     | "corrected_by_name"

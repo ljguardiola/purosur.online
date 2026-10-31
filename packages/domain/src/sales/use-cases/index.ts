@@ -85,6 +85,12 @@ export type {
 } from "./charge-sale-on-standalone-terminal.js";
 export { chargeSaleOnStandaloneTerminal } from "./charge-sale-on-standalone-terminal.js";
 export type {
+  ChargeSaleWithPaidOrderInput,
+  ChargeSaleWithPaidOrderOutcome,
+  ChargeSaleWithPaidOrderPorts,
+} from "./charge-sale-with-paid-order.js";
+export { chargeSaleWithPaidOrder } from "./charge-sale-with-paid-order.js";
+export type {
   CurrentSaleInput,
   CurrentSaleOutcome,
   CurrentSalePorts,
@@ -204,6 +210,12 @@ export type {
   StartupSales,
 } from "./read-sales-to-print-at-startup.js";
 export { readSalesToPrintAtStartup } from "./read-sales-to-print-at-startup.js";
+export type {
+  RebuildSaleAgainstPaidOrderInput,
+  RebuildSaleAgainstPaidOrderOutcome,
+  RebuildSaleAgainstPaidOrderPorts,
+} from "./rebuild-sale-against-paid-order.js";
+export { rebuildSaleAgainstPaidOrder } from "./rebuild-sale-against-paid-order.js";
 export type {
   ReceiptDeliveryOfInput,
   ReceiptDeliveryOfOutcome,

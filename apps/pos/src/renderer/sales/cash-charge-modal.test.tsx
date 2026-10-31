@@ -495,6 +495,20 @@ describe("CashChargeModal", () => {
     expect(callbacks.onCompleted).not.toHaveBeenCalled();
   });
 
+  it("says the paid order of the sale must be applied first", async () => {
+    const { screen, field, complete, callbacks } = await renderModal(async () => ({
+      kind: "paid_order_not_applied",
+    }));
+
+    await userEvent.fill(field, "5.000,00");
+    await userEvent.click(complete);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("Aplicá primero el pago de Mercado Pago de esta venta.");
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
+  });
+
   it("says the sale could not be charged when the request fails", async () => {
     const { screen, field, complete } = await renderModal(async () => {
       throw new Error("the core connection was replaced");

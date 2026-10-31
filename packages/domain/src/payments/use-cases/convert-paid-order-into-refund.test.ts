@@ -67,4 +67,18 @@ describe("convertPaidOrderIntoRefund", () => {
 
     expect(refunds.asked).toEqual([ORDER.paymentTransactionId]);
   });
+
+  it("refuses, asking the cloud nothing, while the sale rebuilt against the order is open", async () => {
+    const { refunds, local, ports } = worldWithAPaidOrderWithoutSale();
+    const recorded = local.recordedOrders.get(ORDER.paymentTransactionId);
+    if (recorded === undefined) {
+      throw new Error("test setup: the order was not recorded");
+    }
+    recorded.rebuiltSaleId = "sale-9";
+
+    expect(await convertPaidOrderIntoRefund(ports, INPUT)).toEqual({ kind: "rebuilt_sale_open" });
+
+    expect(refunds.asked).toEqual([]);
+    expect(local.paidOrderWithoutSale(ORDER.paymentTransactionId)?.resolved).toBe(false);
+  });
 });

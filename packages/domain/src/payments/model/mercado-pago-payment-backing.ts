@@ -12,3 +12,16 @@ export function mercadoPagoPaymentIsBacked(
     transaction.method === payment.method
   );
 }
+
+export function rebuiltPaidOrderPaymentIsBacked(
+  payment: { amount: number; method: MercadoPagoPaymentTransaction["method"] },
+  surplus: number,
+  transaction: Pick<MercadoPagoPaymentTransaction, "amount" | "state" | "method"> | null,
+): boolean {
+  return (
+    transaction !== null &&
+    transaction.state === "APPROVED" &&
+    transaction.amount === payment.amount + surplus &&
+    transaction.method === payment.method
+  );
+}

@@ -21,6 +21,8 @@ export interface PendingMercadoPagoRefund {
 interface PendingRefundOptions {
   cancelledAt: Date;
   amount?: number;
+  transactionAmount?: number;
+  rebuiltSaleId?: string;
   orderId?: string | null;
   cancellingEvent?: boolean;
   registerName?: string;
@@ -46,6 +48,8 @@ async function aPendingMercadoPagoRefundOfCancelledSale<TQueryResult extends PgQ
   {
     cancelledAt,
     amount = 2_450,
+    transactionAmount = amount,
+    rebuiltSaleId,
     orderId = ORDER_ID,
     cancellingEvent = true,
     registerName = "Caja 1",
@@ -55,7 +59,11 @@ async function aPendingMercadoPagoRefundOfCancelledSale<TQueryResult extends PgQ
     now: cancelledAt,
     registerName,
   });
-  const backing = { state: "APPROVED", amount, providerOrderId: orderId } as const;
+  const backing = {
+    state: "APPROVED",
+    amount: transactionAmount,
+    providerOrderId: orderId,
+  } as const;
   const transaction =
     method === "QR"
       ? pendingTransaction(registerId, backing)
@@ -78,7 +86,7 @@ async function aPendingMercadoPagoRefundOfCancelledSale<TQueryResult extends PgQ
     cancelledAt,
     total: amount,
     overrides: {
-      id: transaction.saleId,
+      id: rebuiltSaleId ?? transaction.saleId,
       payments: [payment],
       refunds: [
         {

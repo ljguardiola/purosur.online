@@ -18,6 +18,7 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
@@ -59,6 +60,7 @@ import type {
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
+  RebuildSaleAgainstPaidOrderOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -346,6 +348,10 @@ export interface CoreClient {
   convertPaidOrderIntoRefund(
     paymentTransactionId: string,
   ): Promise<ConvertPaidOrderIntoRefundOutcome>;
+  rebuildSaleAgainstPaidOrder(
+    paymentTransactionId: string,
+  ): Promise<RebuildSaleAgainstPaidOrderOutcome>;
+  chargeSaleWithPaidOrder(saleId: string): Promise<ChargeSaleWithPaidOrderOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
@@ -1159,6 +1165,24 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         },
         (answer) =>
           answer.type === "convert-paid-order-into-refund-result" ? answer.outcome : undefined,
+      );
+    },
+    rebuildSaleAgainstPaidOrder(paymentTransactionId) {
+      return ask(
+        {
+          type: "rebuild-sale-against-paid-order",
+          request_id: deps.newRequestId(),
+          payment_transaction_id: paymentTransactionId,
+        },
+        (answer) =>
+          answer.type === "rebuild-sale-against-paid-order-result" ? answer.outcome : undefined,
+      );
+    },
+    chargeSaleWithPaidOrder(saleId) {
+      return ask(
+        { type: "charge-sale-with-paid-order", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) =>
+          answer.type === "charge-sale-with-paid-order-result" ? answer.outcome : undefined,
       );
     },
     closeCashSession(sessionId, countedCash) {

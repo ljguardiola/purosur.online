@@ -1841,6 +1841,42 @@ test("tells a refund owed for a second paid order of a sale's QR that the QR was
   expect(screen.getByText(/por otro medio/).query()).toBeNull();
 });
 
+test("tells the refund owed for the surplus of a rebuilt sale, not a late payment after another charge", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "late_payment_refund",
+        level: "warning",
+        audience: "local",
+        scope: "refund-1",
+        scopeDisplay: "refund-1",
+        scopeKind: "refund",
+        closing: "with_its_refund",
+        detail: {
+          saleId: "sale-1",
+          amount: 250_000,
+          providerOrderId: null,
+          method: "QR",
+          ofRebuiltSale: true,
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "La venta se armó con un cobro mayor a su total; el excedente se cobró con un QR de Mercado Pago.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/por otro medio/).query()).toBeNull();
+});
+
 test("tells a refund owed for a Point payment that arrived late that it was a card payment at the Point", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

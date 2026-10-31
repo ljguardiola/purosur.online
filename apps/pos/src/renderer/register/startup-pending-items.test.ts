@@ -18,6 +18,7 @@ const A_PAID_ORDER: StartupPending["paid_orders_without_sale"][number] = {
   method: "QR",
   amount: 80_000,
   created_at: "2026-09-30T15:30:00.000Z",
+  rebuilt_sale_id: null,
 };
 
 describe("hasStartupPendingItems", () => {
