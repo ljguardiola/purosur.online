@@ -21,7 +21,9 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
 
     await expect
       .element(screen.getByRole("status"))
-      .toHaveTextContent("Pago con QR de Mercado Pago de $ 5.000,00");
+      .toHaveTextContent(
+        "Pago con QR de Mercado Pago de $ 5.000,00 Aplicalo a la venta antes de cobrar con otro medio.",
+      );
     await expect.element(screen.getByRole("button", { name: APPLY })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -33,7 +35,9 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
 
     await expect
       .element(screen.getByRole("status"))
-      .toHaveTextContent("Pago con Point de $ 5.000,00");
+      .toHaveTextContent(
+        "Pago con Point de $ 5.000,00 Aplicalo a la venta antes de cobrar con otro medio.",
+      );
   });
 
   it.each([
@@ -63,7 +67,9 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
       .toBeVisible();
-    await expect.element(screen.getByText("QR de Mercado Pago", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByRole("dialog").getByText("QR de Mercado Pago", { exact: true }))
+      .toBeVisible();
     expect(chargeSaleWithPaidOrder).toHaveBeenCalledExactlyOnceWith("sale-1");
   });
 
