@@ -1,7 +1,12 @@
-import { voidedMovementAllocations } from "../model/lot-allocation.js";
+import {
+  lotTarget,
+  type PlannedLotAllocation,
+  restockedReturnAllocations,
+  voidedMovementAllocations,
+} from "../model/lot-allocation.js";
 import { isMovementQuantity } from "../model/stock-quantity.js";
-import { recordStockMovement } from "./apply-stock-movement.js";
-import type { StockStoreTransaction } from "./stock-store.js";
+import { type AppliedLotAllocation, recordStockMovement } from "./apply-stock-movement.js";
+import type { ProductStockKey, StockStoreTransaction } from "./stock-store.js";
 
 export type RegisterStockMovement = {
   id: string;
@@ -9,7 +14,7 @@ export type RegisterStockMovement = {
   delta: number;
 } & (
   | { kind: "sale" | "sale_void" | "return"; saleLineId: string }
-  | { kind: "loss"; reason: "return_discard" }
+  | { kind: "loss"; reason: "return_discard"; saleLineId: string }
 );
 
 export interface ApplyRegisterStockMovementsInput {
@@ -47,18 +52,12 @@ export async function applyRegisterStockMovements(
     }
   }
 
+  const appliedReturns = new Map<string, AppliedLotAllocation[]>();
   for (const movement of input.movements) {
     const key = { productId: movement.productId, locationId: input.locationId };
     const coveringCount = await tx.earliestCountAtOrAfter(key, input.occurredAt);
-    const returnedToLots =
-      movement.kind === "sale_void"
-        ? voidedMovementAllocations(
-            await tx.productLots(key),
-            await tx.saleLineLotAllocations(key, movement.saleLineId),
-            movement.delta,
-          )
-        : undefined;
-    await recordStockMovement(
+    const planned = await plannedAllocations(tx, key, movement, appliedReturns);
+    const { allocations } = await recordStockMovement(
       tx,
       {
         ...key,
@@ -71,8 +70,44 @@ export async function applyRegisterStockMovements(
         actorId: input.actorId,
         supersededByCountId: coveringCount?.movementId ?? null,
       },
-      returnedToLots,
+      planned,
     );
+    if (movement.kind === "return") {
+      appliedReturns.set(discardPairKey(movement), allocations);
+    }
   }
   return { kind: "applied" };
+}
+
+function discardPairKey(movement: { productId: string; saleLineId: string }): string {
+  return `${movement.productId}:${movement.saleLineId}`;
+}
+
+async function plannedAllocations(
+  tx: StockStoreTransaction,
+  key: ProductStockKey,
+  movement: RegisterStockMovement,
+  appliedReturns: ReadonlyMap<string, readonly AppliedLotAllocation[]>,
+): Promise<PlannedLotAllocation[] | undefined> {
+  switch (movement.kind) {
+    case "sale_void":
+      return voidedMovementAllocations(
+        await tx.productLots(key),
+        await tx.saleLineLotAllocations(key, movement.saleLineId),
+        movement.delta,
+      );
+    case "return":
+      return restockedReturnAllocations(
+        await tx.productLots(key),
+        await tx.saleLineLotAllocations(key, movement.saleLineId),
+        await tx.saleLineReturnedLotAllocations(key, movement.saleLineId),
+        movement.delta,
+      );
+    case "loss":
+      return appliedReturns
+        .get(discardPairKey(movement))
+        ?.map(({ lotId, quantity }) => ({ target: lotTarget(lotId), quantity: -quantity }));
+    case "sale":
+      return undefined;
+  }
 }
