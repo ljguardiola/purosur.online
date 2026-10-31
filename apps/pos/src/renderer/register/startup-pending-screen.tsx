@@ -78,6 +78,11 @@ const REBUILD_PROBLEMS = {
     title: "Ya hay otra venta abierta",
     description: "Terminala o cancelala antes de armar la venta con este cobro.",
   },
+  card_type_unknown: {
+    title: "Todavía falta el tipo de tarjeta de este cobro",
+    description:
+      "La caja lo consulta sola cuando hay conexión. Probá de nuevo más tarde o pasalo a reembolso.",
+  },
   not_permitted: {
     title: "No tenés permiso para armar la venta",
     description: "Pedile a quien pueda que la arme.",

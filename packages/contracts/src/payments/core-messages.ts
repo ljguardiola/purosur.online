@@ -165,6 +165,7 @@ const rebuildSaleAgainstPaidOrderOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("already_resolved") }),
   z.object({ kind: z.literal("another_sale_open") }),
+  z.object({ kind: z.literal("card_type_unknown") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("no_open_session") }),

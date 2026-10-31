@@ -21,6 +21,7 @@ export type RebuildSaleAgainstPaidOrderOutcome =
   | { kind: "already_resolved" }
   | { kind: "already_open"; saleId: string }
   | { kind: "another_sale_open" }
+  | { kind: "card_type_unknown" }
   | { kind: "unavailable" }
   | { kind: "rebuilt"; saleId: string };
 
@@ -39,6 +40,9 @@ export function rebuildSaleAgainstPaidOrder(
     }
     if (paidOrder.resolved) {
       return { kind: "already_resolved" };
+    }
+    if (paidOrder.method === "POINT" && paidOrder.cardType === null) {
+      return { kind: "card_type_unknown" };
     }
     const open = tx.openSale(session.id);
     if (open) {

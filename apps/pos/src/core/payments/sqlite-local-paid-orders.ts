@@ -197,6 +197,17 @@ export class SqliteLocalPaidOrders implements LocalPaidOrders {
       );
   }
 
+  recordCardTypeOfPaidOrderWithoutSale(
+    paymentTransactionId: string,
+    cardType: PointCardType,
+  ): void {
+    this.deps.database
+      .prepare(
+        "UPDATE paid_orders_without_sale SET card_type = ? WHERE payment_transaction_id = ? AND method = 'POINT' AND card_type IS NULL",
+      )
+      .run(cardType, paymentTransactionId);
+  }
+
   resolvePaidOrderWithoutSale(paymentTransactionId: string, resolvedAt: Date): void {
     this.deps.database
       .prepare(
