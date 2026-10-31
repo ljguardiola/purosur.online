@@ -986,6 +986,8 @@ export {
   areZoneTransitionsOrdered,
   argentinaCalendarDay,
   argentinaInstant,
+  compareCodeUnits,
+  compareSpanishText,
   FIXED_ARGENTINA_ZONE_RULES,
   isCalendarDay,
   isoWeekdayOf,

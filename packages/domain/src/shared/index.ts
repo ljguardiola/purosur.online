@@ -42,7 +42,7 @@ export { SALES_DENIED_REASONS, STORAGE_SALES_DENIED_REASONS } from "./sales-deni
 export type { Scale, ScaleReading } from "./scale.js";
 export type { SlidingWindowLimit } from "./sliding-window-limit.js";
 export { slidingWindowRetryAfterSeconds, slidingWindowStart } from "./sliding-window-limit.js";
-export { compareSpanishText } from "./text-order.js";
+export { compareCodeUnits, compareSpanishText } from "./text-order.js";
 export type { VersionedKey } from "./versioned-key.js";
 export { inVersionOrder, latestKey } from "./versioned-key.js";
 export type { PublishedZoneRulesReader, ZoneRules, ZoneTransition } from "./zone-rules.js";

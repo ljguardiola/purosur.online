@@ -14,6 +14,16 @@ export function textOrder<T>(text: (item: T) => string): ItemOrder<T> {
   return (a, b) => collator.compare(text(a), text(b));
 }
 
+export function codeUnitOrder<T>(text: (item: T) => string): ItemOrder<T> {
+  return (a, b) => {
+    const first = text(a);
+    const second = text(b);
+    if (first < second) return -1;
+    if (first > second) return 1;
+    return 0;
+  };
+}
+
 export function numericTextOrder<T>(text: (item: T) => string): ItemOrder<T> {
   const collator = new Intl.Collator("es-AR", { numeric: true });
   return (a, b) => collator.compare(text(a), text(b));
