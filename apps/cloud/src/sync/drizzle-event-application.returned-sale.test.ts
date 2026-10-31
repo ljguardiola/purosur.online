@@ -17,6 +17,8 @@ import {
   categories,
   inbox,
   locations,
+  lotAllocations,
+  lots,
   paymentRefunds,
   paymentTransactions,
   products,
@@ -28,6 +30,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   APPLICATION_NOW,
@@ -559,8 +562,8 @@ describe("putting a return's merchandise back in stock", () => {
     ]);
   });
 
-  it("leaves the balance as it was when the line is discarded, recording the loss under its system reason", async () => {
-    const { deviceId, saleReturn, lossId } = await returnOfStock("discard");
+  it("leaves the balance as it was when the line is discarded, recording the loss under its system reason and sale line", async () => {
+    const { deviceId, saleReturn, lossId, saleLineId } = await returnOfStock("discard");
 
     const outcome = await applyStock(deviceId, saleReturn);
 
@@ -578,7 +581,7 @@ describe("putting a return's merchandise back in stock", () => {
         .from(stockMovements)
         .orderBy(asc(stockMovements.delta)),
     ).toEqual([
-      { id: lossId, kind: "loss", reason: "return_discard", saleLineId: null, delta: -1000 },
+      { id: lossId, kind: "loss", reason: "return_discard", saleLineId, delta: -1000 },
       {
         id: saleReturn.stockMovements[0]?.id,
         kind: "return",
@@ -587,6 +590,107 @@ describe("putting a return's merchandise back in stock", () => {
         delta: 1000,
       },
     ]);
+  });
+
+  describe("over the lots the sale took the merchandise from", () => {
+    async function soldFromTwoLots(disposition: "restock" | "discard") {
+      const stock = await returnOfStock(disposition);
+      const { productId, locationId, saleLineId } = stock;
+      const soonLotId = await insertPurchasedLot(system.db, {
+        productId,
+        locationId,
+        actorId: CASHIER,
+        expiresOn: "2027-01-01",
+        remaining: 0,
+        createdAt: new Date("2026-10-03T12:00:00.000Z"),
+      });
+      const lateLotId = await insertPurchasedLot(system.db, {
+        productId,
+        locationId,
+        actorId: CASHIER,
+        expiresOn: "2027-06-01",
+        remaining: 0,
+        createdAt: new Date("2026-10-02T12:00:00.000Z"),
+      });
+      const unrelatedLotId = await insertPurchasedLot(system.db, {
+        productId,
+        locationId,
+        actorId: CASHIER,
+        expiresOn: "2026-11-01",
+        remaining: 5000,
+        createdAt: new Date("2026-10-01T12:00:00.000Z"),
+      });
+      const [sold] = await system.db
+        .insert(stockMovements)
+        .values({
+          productId,
+          locationId,
+          actorId: CASHIER,
+          kind: "sale",
+          saleLineId,
+          delta: -2000,
+          occurredAt: COMPLETED_AT,
+        })
+        .returning({ id: stockMovements.id });
+      await system.db.insert(lotAllocations).values([
+        { movementId: sold?.id as string, lotId: soonLotId, quantity: -1500 },
+        { movementId: sold?.id as string, lotId: lateLotId, quantity: -500 },
+      ]);
+      return { ...stock, soonLotId, lateLotId, unrelatedLotId };
+    }
+
+    async function remainingByLot() {
+      return Object.fromEntries(
+        (await system.db.select({ id: lots.id, remaining: lots.remaining }).from(lots)).map(
+          (row) => [row.id, row.remaining],
+        ),
+      );
+    }
+
+    it("puts a restocked quantity back on the lot that expires latest, up to what the sale took from it", async () => {
+      const { deviceId, saleReturn, soonLotId, lateLotId, unrelatedLotId } =
+        await soldFromTwoLots("restock");
+
+      await applyStock(deviceId, saleReturn);
+
+      expect(await remainingByLot()).toEqual({
+        [soonLotId]: 500,
+        [lateLotId]: 500,
+        [unrelatedLotId]: 5000,
+      });
+    });
+
+    it("changes no lot when the line is discarded", async () => {
+      const { deviceId, saleReturn, soonLotId, lateLotId, unrelatedLotId } =
+        await soldFromTwoLots("discard");
+
+      await applyStock(deviceId, saleReturn);
+
+      expect(await remainingByLot()).toEqual({
+        [soonLotId]: 0,
+        [lateLotId]: 0,
+        [unrelatedLotId]: 5000,
+      });
+    });
+
+    it("gives a later restock of the line the room its earlier discarded return left on the lots", async () => {
+      const { deviceId, saleReturn, soonLotId, lateLotId, unrelatedLotId } =
+        await soldFromTwoLots("discard");
+      await applyStock(deviceId, saleReturn);
+      const [returned] = saleReturn.stockMovements;
+
+      await applyStock(deviceId, {
+        ...saleReturn,
+        id: randomUUID(),
+        stockMovements: [{ ...(returned as NonNullable<typeof returned>), id: randomUUID() }],
+      });
+
+      expect(await remainingByLot()).toEqual({
+        [soonLotId]: 500,
+        [lateLotId]: 500,
+        [unrelatedLotId]: 5000,
+      });
+    });
   });
 
   it("refuses a return of a product the catalog doesn't have, writing no movement", async () => {

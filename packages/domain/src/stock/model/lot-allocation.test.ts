@@ -2,8 +2,10 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   allocatesToLots,
+  compareFirstToConsume,
   movementAllocations,
   receiptAllocations,
+  restockedReturnAllocations,
   type StockLot,
   voidedMovementAllocations,
 } from "./lot-allocation.js";
@@ -518,6 +520,354 @@ describe("voidedMovementAllocations", () => {
           expect(total(allocations)).toBe(delta);
           expect(new Set(targetKeys(allocations)).size).toBe(allocations.length);
           expect(allocations.every((allocation) => allocation.quantity !== 0)).toBe(true);
+        },
+      ),
+    );
+  });
+});
+
+describe("restockedReturnAllocations", () => {
+  const lots = [
+    lot("soon", { expiresOn: "2026-11-01" }),
+    lot("middle", { expiresOn: "2026-12-01" }),
+    lot("late", { expiresOn: "2027-01-01" }),
+    lot("never", { expiresOn: null }),
+  ];
+
+  it("returns to the lot that expires latest first, up to what the sale took from it", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "soon", quantity: -3000 },
+          { lotId: "late", quantity: -2000 },
+          { lotId: "middle", quantity: -1000 },
+        ],
+        [],
+        4000,
+      ),
+    ).toEqual([
+      { target: target("late"), quantity: 2000 },
+      { target: target("middle"), quantity: 1000 },
+      { target: target("soon"), quantity: 1000 },
+    ]);
+  });
+
+  it("treats a lot without expiry as the one that expires latest", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "late", quantity: -2000 },
+          { lotId: "never", quantity: -2000 },
+        ],
+        [],
+        3000,
+      ),
+    ).toEqual([
+      { target: target("never"), quantity: 2000 },
+      { target: target("late"), quantity: 1000 },
+    ]);
+  });
+
+  it("breaks an expiry tie by the later purchase, then the greater id", () => {
+    const tied = [
+      lot("a", { expiresOn: "2026-12-01", purchasedOn: "2026-02-01" }),
+      lot("b", { expiresOn: "2026-12-01", purchasedOn: "2026-03-01" }),
+      lot("c", { expiresOn: "2026-12-01", purchasedOn: "2026-03-01" }),
+    ];
+
+    expect(
+      restockedReturnAllocations(
+        tied,
+        [
+          { lotId: "a", quantity: -1000 },
+          { lotId: "b", quantity: -1000 },
+          { lotId: "c", quantity: -1000 },
+        ],
+        [],
+        3000,
+      ).map((allocation) => allocation.target),
+    ).toEqual([target("c"), target("b"), target("a")]);
+  });
+
+  it("adds up what the sale took from the same lot more than once", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "late", quantity: -1000 },
+          { lotId: "late", quantity: -500 },
+        ],
+        [],
+        1500,
+      ),
+    ).toEqual([{ target: target("late"), quantity: 1500 }]);
+  });
+
+  it("leaves out of each lot what earlier returns already gave back", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "soon", quantity: -3000 },
+          { lotId: "late", quantity: -2000 },
+        ],
+        [{ lotId: "late", quantity: 1500 }],
+        1000,
+      ),
+    ).toEqual([
+      { target: target("late"), quantity: 500 },
+      { target: target("soon"), quantity: 500 },
+    ]);
+  });
+
+  it("offers no capacity in a lot that earlier returns filled exactly", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "soon", quantity: -3000 },
+          { lotId: "late", quantity: -2000 },
+        ],
+        [{ lotId: "late", quantity: 2000 }],
+        1000,
+      ),
+    ).toEqual([{ target: target("soon"), quantity: 1000 }]);
+  });
+
+  it("offers no capacity in a lot that earlier returns filled beyond the sale", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "soon", quantity: -3000 },
+          { lotId: "late", quantity: -2000 },
+        ],
+        [{ lotId: "late", quantity: 2500 }],
+        1000,
+      ),
+    ).toEqual([{ target: target("soon"), quantity: 1000 }]);
+  });
+
+  it("offers no capacity in a lot the sale never took from, whatever earlier returns did to it", () => {
+    const history = [
+      lot("a", { expiresOn: "2027-01-01", remaining: 1000 }),
+      lot("c", { expiresOn: "2027-03-01" }),
+      lot("b", { expiresOn: "2027-12-01", receivedAt: new Date("2026-09-01T12:00:00.000Z") }),
+    ];
+
+    expect(
+      restockedReturnAllocations(
+        history,
+        [{ lotId: "a", quantity: -1000 }],
+        [
+          { lotId: "b", quantity: 1000 },
+          { lotId: "c", quantity: -1000 },
+        ],
+        1000,
+      ),
+    ).toEqual([{ target: target("a"), quantity: 1000 }]);
+  });
+
+  it("offers no lot more capacity than the sale took from it, whatever earlier returns took out of it", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "soon", quantity: -2000 },
+          { lotId: "late", quantity: -1000 },
+        ],
+        [
+          { lotId: "never", quantity: 1000 },
+          { lotId: "late", quantity: -1000 },
+        ],
+        2000,
+      ),
+    ).toEqual([
+      { target: target("late"), quantity: 1000 },
+      { target: target("soon"), quantity: 1000 },
+    ]);
+  });
+
+  it("orders a lot the product no longer lists after every listed one", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "gone", quantity: -2000 },
+          { lotId: "soon", quantity: -2000 },
+        ],
+        [],
+        3000,
+      ),
+    ).toEqual([
+      { target: target("soon"), quantity: 2000 },
+      { target: target("gone"), quantity: 1000 },
+    ]);
+  });
+
+  it("orders the lots the product no longer lists as the sale took from them", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "gone-first", quantity: -1000 },
+          { lotId: "gone-second", quantity: -1000 },
+          { lotId: "soon", quantity: -1000 },
+        ],
+        [],
+        2500,
+      ),
+    ).toEqual([
+      { target: target("soon"), quantity: 1000 },
+      { target: target("gone-first"), quantity: 1000 },
+      { target: target("gone-second"), quantity: 500 },
+    ]);
+  });
+
+  it("gives what the sale's lots cannot take to the most recently received lot", () => {
+    const received = [
+      lot("older", { receivedAt: new Date("2026-01-01T12:00:00.000Z") }),
+      lot("newest", { receivedAt: new Date("2026-09-01T12:00:00.000Z") }),
+    ];
+
+    expect(restockedReturnAllocations(received, [], [], 3000)).toEqual([
+      { target: target("newest"), quantity: 3000 },
+    ]);
+  });
+
+  it("adds the remainder to the lot the sale took from when it is the most recently received", () => {
+    const received = [
+      lot("older", { receivedAt: new Date("2026-01-01T12:00:00.000Z") }),
+      lot("newest", { receivedAt: new Date("2026-09-01T12:00:00.000Z") }),
+    ];
+
+    expect(
+      restockedReturnAllocations(received, [{ lotId: "newest", quantity: -2000 }], [], 3000),
+    ).toEqual([{ target: target("newest"), quantity: 3000 }]);
+  });
+
+  it("opens a technical lot for the remainder when the product has no lot", () => {
+    expect(restockedReturnAllocations([], [], [], 3000)).toEqual([
+      { target: { kind: "new_technical_lot" }, quantity: 3000 },
+    ]);
+  });
+});
+
+describe("restockedReturnAllocations for any sale and any quantity", () => {
+  const saleAllocations = fc.array(
+    fc.record({ lotIndex: fc.nat(5), quantity: fc.integer({ min: 1, max: 40 }) }),
+    { maxLength: 8 },
+  );
+  const returns = fc.array(
+    fc.record({
+      lotIndex: fc.nat(7),
+      quantity: fc.integer({ min: -40, max: 40 }).filter((quantity) => quantity !== 0),
+    }),
+    { maxLength: 4 },
+  );
+
+  function scenario(
+    lots: readonly StockLot[],
+    sold: readonly { lotIndex: number; quantity: number }[],
+    returned: readonly { lotIndex: number; quantity: number }[],
+  ) {
+    const lotId = (index: number) => `lot-${index % Math.max(lots.length, 1)}`;
+    const saleRows = sold.map(({ lotIndex, quantity }) => ({
+      lotId: lotId(lotIndex),
+      quantity: -quantity,
+    }));
+    const returnedRows = returned.map(({ lotIndex, quantity }) => ({
+      lotId: lotIndex > 5 ? `elsewhere-${lotIndex}` : lotId(lotIndex),
+      quantity,
+    }));
+    const taken = new Map<string, number>();
+    for (const row of saleRows) {
+      taken.set(row.lotId, (taken.get(row.lotId) ?? 0) - row.quantity);
+    }
+    const capacity = new Map<string, number>();
+    for (const [id, quantity] of taken) {
+      const givenBack = returnedRows
+        .filter((row) => row.lotId === id)
+        .reduce((sum, row) => sum + row.quantity, 0);
+      capacity.set(id, Math.min(Math.max(quantity - givenBack, 0), quantity));
+    }
+    return { saleRows, returnedRows, capacity };
+  }
+
+  it("allocates exactly the returned quantity", () => {
+    fc.assert(
+      fc.property(
+        lotsArbitrary,
+        saleAllocations,
+        returns,
+        fc.integer({ min: 1, max: 200 }),
+        (lots, sold, returned, delta) => {
+          const { saleRows, returnedRows } = scenario(lots, sold, returned);
+
+          const allocations = restockedReturnAllocations(lots, saleRows, returnedRows, delta);
+
+          expect(total(allocations)).toBe(delta);
+          expect(allocations.every((allocation) => allocation.quantity > 0)).toBe(true);
+          expect(new Set(targetKeys(allocations)).size).toBe(allocations.length);
+        },
+      ),
+    );
+  });
+
+  it("gives nothing to a lot the sale never took from, and no sale lot more than it took less what earlier returns gave back", () => {
+    fc.assert(
+      fc.property(
+        lotsArbitrary,
+        saleAllocations,
+        returns,
+        fc.integer({ min: 1, max: 200 }),
+        (lots, sold, returned, delta) => {
+          const { saleRows, returnedRows, capacity } = scenario(lots, sold, returned);
+          const room = [...capacity.values()].reduce((sum, value) => sum + value, 0);
+          fc.pre(delta <= room);
+
+          const allocations = restockedReturnAllocations(lots, saleRows, returnedRows, delta);
+
+          for (const allocation of allocations) {
+            const id = allocation.target.kind === "lot" ? allocation.target.lotId : "";
+            expect(allocation.quantity).toBeLessThanOrEqual(capacity.get(id) ?? 0);
+          }
+        },
+      ),
+    );
+  });
+
+  it("fills every lot that expires later before it gives anything to a lot", () => {
+    fc.assert(
+      fc.property(
+        lotsArbitrary,
+        saleAllocations,
+        returns,
+        fc.integer({ min: 1, max: 200 }),
+        (lots, sold, returned, delta) => {
+          const { saleRows, returnedRows, capacity } = scenario(lots, sold, returned);
+          const room = [...capacity.values()].reduce((sum, value) => sum + value, 0);
+          fc.pre(delta <= room);
+
+          const allocations = restockedReturnAllocations(lots, saleRows, returnedRows, delta);
+          const given = new Map(
+            allocations.map((allocation) => [
+              allocation.target.kind === "lot" ? allocation.target.lotId : "",
+              allocation.quantity,
+            ]),
+          );
+          const latestFirst = lots
+            .filter((row) => (capacity.get(row.id) ?? 0) > 0)
+            .sort((a, b) => compareFirstToConsume(b, a));
+          latestFirst.forEach((row, position) => {
+            if ((given.get(row.id) ?? 0) > 0) {
+              for (const later of latestFirst.slice(0, position)) {
+                expect(given.get(later.id)).toBe(capacity.get(later.id));
+              }
+            }
+          });
         },
       ),
     );

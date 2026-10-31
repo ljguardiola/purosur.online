@@ -76,6 +76,10 @@ export interface StockStoreTransaction {
     key: ProductStockKey,
     saleLineId: string,
   ): Promise<{ lotId: string; quantity: number }[]>;
+  saleLineReturnedLotAllocations(
+    key: ProductStockKey,
+    saleLineId: string,
+  ): Promise<{ lotId: string; quantity: number }[]>;
   recordCount(count: NewStockCount): Promise<void>;
   recordCountedLots(movementId: string, lots: readonly CountedLot[]): Promise<void>;
   lotProduct(lotId: string, locationId: string): Promise<string | undefined>;
