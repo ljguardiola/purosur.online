@@ -2,30 +2,39 @@ import { describe, expect, it } from "vitest";
 import { supplierOfferPrice } from "./supplier-offer.js";
 
 const offer = {
-  packaging: { active: true, saleUnit: "UNIT" as const, quantityPerPackage: 6_000 },
+  link: { quantity: 6_000, saleUnit: "UNIT" as const, relinkRequired: false },
   priceCents: 6_000,
   pricesIncludeVat: true,
   vatRate: null,
 };
 
 describe("supplierOfferPrice", () => {
-  it("prices an offer of a buyable packaging per sale unit", () => {
+  it("prices an offer of a current link per sale unit", () => {
     expect(supplierOfferPrice(offer, "UNIT")).toEqual({
       kind: "priced",
       pricePerSaleUnit: { numerator: 1_000n, denominator: 1n },
     });
   });
 
-  it("leaves unpriced an offer of an inactive packaging", () => {
+  it("prices an offer by weight from the quantity in thousandths of a kilogram", () => {
     expect(
-      supplierOfferPrice({ ...offer, packaging: { ...offer.packaging, active: false } }, "UNIT"),
-    ).toEqual({ kind: "unpriced", reason: "packaging_not_buyable" });
+      supplierOfferPrice(
+        { ...offer, link: { quantity: 500, saleUnit: "KG", relinkRequired: false } },
+        "KG",
+      ),
+    ).toEqual({ kind: "priced", pricePerSaleUnit: { numerator: 12_000n, denominator: 1n } });
   });
 
-  it("leaves unpriced an offer of a packaging in another sale unit than the product", () => {
+  it("leaves unpriced an offer whose link requires linking again", () => {
+    expect(
+      supplierOfferPrice({ ...offer, link: { ...offer.link, relinkRequired: true } }, "UNIT"),
+    ).toEqual({ kind: "unpriced", reason: "link_outdated" });
+  });
+
+  it("leaves unpriced an offer whose link is stated in another sale unit than the product", () => {
     expect(supplierOfferPrice(offer, "KG")).toEqual({
       kind: "unpriced",
-      reason: "packaging_not_buyable",
+      reason: "link_outdated",
     });
   });
 

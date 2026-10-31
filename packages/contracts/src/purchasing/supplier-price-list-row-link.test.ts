@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import { supplierPriceListRowLinkBodySchema } from "./supplier-price-list-row-link.js";
 
 const PRODUCT_ID = "0b8f6c1e-2d4a-4a57-9a3e-5f1d7c9b2e10";
-const PACKAGING_ID = "7c1a9e52-3b6d-4f08-8d2a-1e4b5c6d7f80";
-const body = { version: 3, productId: PRODUCT_ID, packagingId: PACKAGING_ID, vatRate: 2100 };
+const body = {
+  version: 3,
+  productId: PRODUCT_ID,
+  saleUnit: "UNIT",
+  quantity: 12_000,
+  vatRate: 2100,
+};
 
 describe("supplierPriceListRowLinkBodySchema", () => {
-  it("reads the version loaded, the product, its packaging and the rate", () => {
+  it("reads the version loaded, the product, the sale unit, the quantity and the rate", () => {
     expect(supplierPriceListRowLinkBodySchema.safeParse(body).data).toEqual(body);
   });
 
@@ -32,19 +37,52 @@ describe("supplierPriceListRowLinkBodySchema", () => {
     });
   });
 
-  it.each(["productId", "packagingId"])("requires %s to be an id", (field) => {
+  it("requires productId to be an id", () => {
     for (const value of [undefined, "", "  ", 5, null]) {
-      const result = supplierPriceListRowLinkBodySchema.safeParse({ ...body, [field]: value });
+      const result = supplierPriceListRowLinkBodySchema.safeParse({ ...body, productId: value });
 
       expect(result.success).toBe(false);
       expect(result.error?.issues[0]).toMatchObject({
-        path: [field],
-        message:
-          field === "productId"
-            ? "productId must be a product's id"
-            : "packagingId must be a packaging's id",
+        path: ["productId"],
+        message: "productId must be a product's id",
       });
     }
+  });
+
+  it("reads a quantity stated in kilograms", () => {
+    expect(
+      supplierPriceListRowLinkBodySchema.safeParse({ ...body, saleUnit: "KG" }).data?.saleUnit,
+    ).toBe("KG");
+  });
+
+  it.each([undefined, null, "", "unit", "G"])("refuses the sale unit %j", (saleUnit) => {
+    const result = supplierPriceListRowLinkBodySchema.safeParse({ ...body, saleUnit });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["saleUnit"],
+      message: "saleUnit must be UNIT or KG",
+    });
+  });
+
+  it.each([undefined, null, "12", 0, -1000, 1.5, Number.NaN])(
+    "refuses the quantity %j",
+    (quantity) => {
+      const result = supplierPriceListRowLinkBodySchema.safeParse({ ...body, quantity });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]).toMatchObject({
+        path: ["quantity"],
+        message: "quantity must be a positive integer number of thousandths",
+      });
+    },
+  );
+
+  it("tells a form the decimals a quantity holds", () => {
+    expect(supplierPriceListRowLinkBodySchema.shape.quantity.meta()).toEqual({
+      decimals: 3,
+      perUnit: 1000,
+    });
   });
 
   it.each([undefined, 0, -1, 1.5, "1", null])("rejects the version %j", (version) => {

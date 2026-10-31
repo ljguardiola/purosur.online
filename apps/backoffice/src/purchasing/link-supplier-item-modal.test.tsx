@@ -1,4 +1,3 @@
-import type { PackagingSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -9,8 +8,6 @@ import {
   type LinkSupplierItemModalServices,
 } from "./link-supplier-item-modal";
 import {
-  BOLSA_DE_PASAS,
-  CAJA_DE_PASAS,
   GRANOLA_LINK_CHOICES,
   LINK_CHOICES,
   NO_PROPOSAL,
@@ -45,7 +42,6 @@ function createServices(
     fetchSupplierItemLinkChoices: vi
       .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
       .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
-    createPackaging: vi.fn<LinkSupplierItemModalServices["createPackaging"]>(),
     ...overrides,
   };
 }
@@ -54,7 +50,6 @@ function renderModal({
   services = createServices(),
   list = LIST,
   target = nutRow,
-  mayCreatePackaging = true,
   remembersOnConfirm = true,
   onCreateProduct = null,
   onLinked = () => {},
@@ -65,7 +60,6 @@ function renderModal({
   services?: LinkSupplierItemModalServices;
   list?: Parameters<typeof LinkSupplierItemModal>[0]["list"];
   target?: typeof nutRow | null;
-  mayCreatePackaging?: boolean;
   remembersOnConfirm?: boolean;
   onCreateProduct?: ((row: typeof nutRow) => void) | null;
   onLinked?: () => void;
@@ -79,7 +73,6 @@ function renderModal({
         <LinkSupplierItemModal
           list={list}
           target={target}
-          mayCreatePackaging={mayCreatePackaging}
           remembersOnConfirm={remembersOnConfirm}
           onCreateProduct={onCreateProduct}
           services={services}
@@ -104,7 +97,7 @@ async function chooseProduct(screen: ModalScreen, name: string) {
 }
 
 async function chooseRadio(screen: ModalScreen, name: string) {
-  const radio = screen.getByRole("dialog").getByRole("radio", { name });
+  const radio = screen.getByRole("dialog").getByRole("radio", { name, exact: true });
   await expect.element(radio).toBeVisible();
   const label = radio.element().closest("label");
   if (!label) {
@@ -113,8 +106,11 @@ async function chooseRadio(screen: ModalScreen, name: string) {
   label.click();
 }
 
-async function choosePackaging(screen: ModalScreen, name: string) {
-  await chooseRadio(screen, name);
+async function typeQuantity(screen: ModalScreen, quantity: string) {
+  await userEvent.fill(
+    screen.getByRole("dialog").getByRole("textbox", { name: /^Cantidad que trae/ }),
+    quantity,
+  );
 }
 
 async function link(screen: ModalScreen) {
@@ -125,7 +121,7 @@ async function link(screen: ModalScreen) {
 
 async function linkPasas(screen: ModalScreen) {
   await chooseProduct(screen, "Pasas de uva");
-  await choosePackaging(screen, "Caja de 10 kg");
+  await typeQuantity(screen, "10");
   return link(screen);
 }
 
@@ -245,7 +241,7 @@ test("proposes the product of the barcode and chooses it without linking", async
   await expect
     .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
     .toHaveValue("Pasas de uva");
-  await expect.element(dialog.getByRole("radio", { name: "Caja de 10 kg" })).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ })).toBeVisible();
   expect(services.linkSupplierPriceListRow).not.toHaveBeenCalled();
 });
 
@@ -438,51 +434,46 @@ test("searches the products of the catalog by typing", async () => {
   expect(screen.getByRole("option", { name: "Pasas de uva" }).query()).toBeNull();
 });
 
-test("shows the packagings of the chosen product with what each holds", async () => {
+test("asks for the quantity in kilos or grams of a product sold by weight", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
   await chooseProduct(screen, "Pasas de uva");
 
-  await expect.element(dialog.getByRole("radio", { name: "Caja de 10 kg" })).toBeVisible();
-  await expect.element(dialog.getByText("Contiene 10,000 kg")).toBeVisible();
-  await expect.element(dialog.getByRole("radio", { name: "Bolsa de 5 kg" })).toBeVisible();
-  await expect.element(dialog.getByText("Contiene 5,000 kg")).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "kg", exact: true })).toBeChecked();
+  await expect.element(dialog.getByRole("radio", { name: "g", exact: true })).toBeVisible();
 });
 
-test("shows no packagings until a product is chosen", async () => {
+test("asks for the quantity in units of a product sold by the unit, with no unit to choose", async () => {
+  const screen = await renderModal();
+  const dialog = screen.getByRole("dialog");
+
+  await chooseProduct(screen, "Miel pura de abeja 1 kg");
+
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ })).toBeVisible();
+  expect(dialog.getByRole("radio", { name: "kg", exact: true }).query()).toBeNull();
+});
+
+test("asks for no quantity until a product is chosen", async () => {
   const screen = await renderModal();
 
   await expect
     .element(screen.getByRole("dialog").getByRole("heading", { name: nutRow.description }))
     .toBeVisible();
-  expect(screen.getByRole("radio").query()).toBeNull();
+  expect(screen.getByRole("textbox", { name: /^Cantidad que trae/ }).query()).toBeNull();
 });
 
-test("clears the packaging chosen when another product is chosen", async () => {
+test("clears the quantity typed when another product is chosen", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
   await chooseProduct(screen, "Pasas de uva");
-  await choosePackaging(screen, "Caja de 10 kg");
+  await typeQuantity(screen, "10");
 
   await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }), "");
   await chooseProduct(screen, "Miel pura de abeja 1 kg");
-  await expect.element(dialog.getByRole("radio", { name: "Caja x 12" })).toBeVisible();
-  await link(screen);
 
-  await expect.element(dialog.getByText("Elegí la presentación de compra.")).toBeVisible();
-});
-
-test("says a product has no packagings to buy it by", async () => {
-  const screen = await renderModal();
-  const dialog = screen.getByRole("dialog");
-
-  await chooseProduct(screen, "Almendras peladas");
-
-  await expect
-    .element(dialog.getByText("Este producto no tiene presentaciones de compra"))
-    .toBeVisible();
-  expect(dialog.getByRole("radio").query()).toBeNull();
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ })).toHaveValue("");
 });
 
 test("says the link is remembered for the next lists of the supplier once the list is confirmed", async () => {
@@ -514,7 +505,7 @@ test("remembers the link for the next lists of the supplier of a confirmed list"
     .toBeVisible();
 });
 
-test("links the item to the chosen product and packaging against the loaded version, and reports it", async () => {
+test("links the item to the chosen product with the quantity in kilos against the loaded version, and reports it", async () => {
   const services = createServices();
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
   const onLinked = vi.fn();
@@ -525,13 +516,47 @@ test("links the item to the chosen product and packaging against the loaded vers
   expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(LIST.id, nutRow.id, {
     version: 3,
     productId: PASAS_ID,
-    packagingId: CAJA_DE_PASAS.id,
+    saleUnit: "KG",
+    quantity: 10_000,
     vatRate: null,
   });
   await expect.poll(() => onLinked.mock.calls.length).toBe(1);
 });
 
-test("links a proposed product once the person confirms it with a packaging", async () => {
+test("links a quantity written in grams of a product sold by weight", async () => {
+  const services = createServices();
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ services });
+  await chooseProduct(screen, "Pasas de uva");
+  await chooseRadio(screen, "g");
+  await typeQuantity(screen, "500");
+
+  await link(screen);
+
+  expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({ productId: PASAS_ID, quantity: 500 }),
+  );
+});
+
+test("links a quantity of units of a product sold by the unit", async () => {
+  const services = createServices();
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ services });
+  await chooseProduct(screen, "Miel pura de abeja 1 kg");
+  await typeQuantity(screen, "12");
+
+  await link(screen);
+
+  expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({ saleUnit: "UNIT", quantity: 12_000 }),
+  );
+});
+
+test("links a proposed product once the person confirms it with a quantity", async () => {
   const services = createServices({
     fetchSupplierItemLinkProposal: vi
       .fn()
@@ -540,20 +565,20 @@ test("links a proposed product once the person confirms it with a packaging", as
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
   const screen = await renderModal({ services });
   await expect
-    .element(screen.getByRole("dialog").getByRole("radio", { name: "Bolsa de 5 kg" }))
+    .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Cantidad que trae/ }))
     .toBeVisible();
 
-  await choosePackaging(screen, "Bolsa de 5 kg");
+  await typeQuantity(screen, "5");
   await link(screen);
 
   expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
     LIST.id,
     nutRow.id,
-    expect.objectContaining({ productId: PASAS_ID, packagingId: BOLSA_DE_PASAS.id }),
+    expect.objectContaining({ productId: PASAS_ID, quantity: 5_000 }),
   );
 });
 
-test("asks for the product and the packaging without calling the cloud", async () => {
+test("asks for the product and the quantity without calling the cloud", async () => {
   const services = createServices();
   const screen = await renderModal({ services });
 
@@ -562,7 +587,7 @@ test("asks for the product and the packaging without calling the cloud", async (
   await expect.element(dialog.getByText("Elegí el producto del catálogo.")).toBeVisible();
   await chooseProduct(screen, "Pasas de uva");
   await link(screen);
-  await expect.element(dialog.getByText("Elegí la presentación de compra.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá la cantidad que trae el ítem.")).toBeVisible();
   expect(services.linkSupplierPriceListRow).not.toHaveBeenCalled();
 });
 
@@ -630,7 +655,7 @@ test("links with the 10,5 % rate when it is chosen", async () => {
   );
 });
 
-test("starts with the product, packaging and rate an item is already linked with", async () => {
+test("starts with the product, quantity and rate an item is already linked with", async () => {
   const choices = {
     products: [
       {
@@ -639,7 +664,6 @@ test("starts with the product, packaging and rate an item is already linked with
         saleUnit: "KG" as const,
         brandName: null,
         netContent: null,
-        packagings: [ALMOND_LINK.packaging],
       },
     ],
     vatRates: LINK_CHOICES.vatRates,
@@ -659,14 +683,17 @@ test("starts with the product, packaging and rate an item is already linked with
   await expect
     .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
     .toHaveValue("Almendras peladas");
-  await expect.element(dialog.getByRole("radio", { name: "Bolsa de 25 kg" })).toBeChecked();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ }))
+    .toHaveValue("25");
   await expect.element(dialog.getByRole("radio", { name: "10,5 %" })).toBeChecked();
   await link(screen);
 
   expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(LIST.id, target.id, {
     version: 3,
     productId: ALMOND_LINK.product.id,
-    packagingId: ALMOND_LINK.packaging.id,
+    saleUnit: "KG",
+    quantity: 25_000,
     vatRate: 1_050,
   });
 });
@@ -684,22 +711,73 @@ test("tells the list changed, and updating it reports it", async () => {
   expect(onOutdated).toHaveBeenCalledTimes(1);
 });
 
-test("tells the product or the packaging can no longer be linked, and reads the choices again", async () => {
+test("starts without a quantity for an item whose link has to be made again", async () => {
+  const services = createServices();
+  const target = { ...almondRow, link: { ...ALMOND_LINK, current: false } };
+  const screen = await renderModal({ services, target });
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Cantidad que trae/ }))
+    .toHaveValue("");
+});
+
+test("shows the quantity the cloud refused on its own field", async () => {
   const services = createServices();
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({
-    kind: "packaging_not_linkable",
+    kind: "validation_failed",
+    field: "quantity",
   });
   const screen = await renderModal({ services });
 
   const dialog = await linkPasas(screen);
 
   await expect
-    .element(dialog.getByText("El producto o la presentación ya no se pueden vincular"))
+    .element(
+      dialog.getByText(
+        "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+      ),
+    )
     .toBeVisible();
-  expect(dialog.getByText(/creá una nueva/).query()).toBeNull();
+});
+
+test("tells the product can no longer be linked, and reads the choices again", async () => {
+  const services = createServices();
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({
+    kind: "product_not_linkable",
+  });
+  const screen = await renderModal({ services });
+
+  const dialog = await linkPasas(screen);
+
+  await expect.element(dialog.getByText("El producto ya no se puede vincular")).toBeVisible();
   await expect
     .poll(() => vi.mocked(services.fetchSupplierItemLinkChoices).mock.calls.length)
     .toBeGreaterThan(1);
+  await expect.element(dialog.getByRole("button", { name: "Vincular" })).toBeEnabled();
+});
+
+test("tells the product changed its sale unit, and asks for the quantity again in the new one", async () => {
+  const pasasByTheUnit = {
+    ...LINK_CHOICES,
+    products: LINK_CHOICES.products.map((product) =>
+      product.id === PASAS_ID ? { ...product, saleUnit: "UNIT" as const } : product,
+    ),
+  };
+  const services = createServices({
+    fetchSupplierItemLinkChoices: vi
+      .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
+      .mockResolvedValueOnce({ kind: "ok", value: LINK_CHOICES })
+      .mockResolvedValue({ kind: "ok", value: pasasByTheUnit }),
+  });
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "sale_unit_changed" });
+  const screen = await renderModal({ services });
+
+  const dialog = await linkPasas(screen);
+
+  await expect.element(dialog.getByText("El producto cambió de unidad de venta")).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ })).toHaveValue("");
+  await expect.element(dialog.getByText("u", { exact: true })).toBeVisible();
+  expect(dialog.getByRole("radio", { name: "g", exact: true }).query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: "Vincular" })).toBeEnabled();
 });
 
@@ -797,98 +875,7 @@ test("cancel closes the modal without calling the cloud", async () => {
   expect(services.linkSupplierPriceListRow).not.toHaveBeenCalled();
 });
 
-test("offers a new packaging only once a product is chosen, and only to a session that may create one", async () => {
-  const screen = await renderModal();
-  const dialog = screen.getByRole("dialog");
-  await expect
-    .element(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }))
-    .toBeVisible();
-  expect(dialog.getByRole("button", { name: "Nueva presentación" }).query()).toBeNull();
-
-  await chooseProduct(screen, "Pasas de uva");
-
-  await expect.element(dialog.getByRole("button", { name: "Nueva presentación" })).toBeVisible();
-});
-
-test("offers no new packaging to a session that may not create one", async () => {
-  const screen = await renderModal({ mayCreatePackaging: false });
-  await chooseProduct(screen, "Pasas de uva");
-
-  await expect
-    .element(screen.getByRole("dialog").getByRole("radio", { name: "Caja de 10 kg" }))
-    .toBeVisible();
-  expect(screen.getByRole("button", { name: "Nueva presentación" }).query()).toBeNull();
-});
-
-test("creates a packaging for the chosen product, reads the choices again and chooses it", async () => {
-  const created: PackagingSummary = {
-    id: "9ac00000-0000-4000-8000-000000000099",
-    productId: PASAS_ID,
-    productName: "Pasas de uva",
-    brandName: null,
-    netContent: null,
-    productSaleUnit: "KG",
-    saleUnit: "KG",
-    saleUnitChanged: false,
-    name: "Caja de 20 kg",
-    quantityPerPackage: 20_000,
-    active: true,
-    version: 1,
-  };
-  const withCreated = {
-    ...LINK_CHOICES,
-    products: LINK_CHOICES.products.map((product) =>
-      product.id === PASAS_ID
-        ? {
-            ...product,
-            packagings: [
-              ...product.packagings,
-              {
-                id: created.id,
-                name: created.name,
-                quantityPerPackage: created.quantityPerPackage,
-              },
-            ],
-          }
-        : product,
-    ),
-  };
-  const services = createServices({
-    fetchSupplierItemLinkChoices: vi
-      .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
-      .mockResolvedValueOnce({ kind: "ok", value: LINK_CHOICES })
-      .mockResolvedValue({ kind: "ok", value: withCreated }),
-  });
-  vi.mocked(services.createPackaging).mockResolvedValue({ kind: "ok", packaging: created });
-  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
-  const screen = await renderModal({ services });
-  await chooseProduct(screen, "Pasas de uva");
-
-  await userEvent.click(screen.getByRole("button", { name: "Nueva presentación" }));
-  const newDialog = screen.getByRole("dialog", { name: "Nueva presentación" });
-  await userEvent.fill(newDialog.getByRole("textbox", { name: /^Nombre/ }), "Caja de 20 kg");
-  await userEvent.fill(
-    newDialog.getByRole("textbox", { name: /^Cantidad por presentación/ }),
-    "20",
-  );
-  await userEvent.click(newDialog.getByRole("button", { name: "Crear la presentación" }));
-
-  expect(services.createPackaging).toHaveBeenCalledWith({
-    productId: PASAS_ID,
-    name: "Caja de 20 kg",
-    quantityPerPackage: 20_000,
-  });
-  await expect.element(screen.getByRole("radio", { name: "Caja de 20 kg" })).toBeChecked();
-  expect(services.fetchSupplierItemLinkProposal).toHaveBeenCalledTimes(1);
-  await userEvent.click(screen.getByRole("button", { name: "Vincular" }));
-  expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
-    LIST.id,
-    nutRow.id,
-    expect.objectContaining({ productId: PASAS_ID, packagingId: created.id }),
-  );
-});
-
-test("has no accessibility violations loaded and with the product's packagings shown", async () => {
+test("has no accessibility violations loaded and with the quantity of the chosen product shown", async () => {
   const screen = await renderModal({ list: { ...LIST, requiresVatRate: true } });
   await expect
     .element(screen.getByRole("dialog").getByText("Sin propuesta para este ítem."))
@@ -897,7 +884,7 @@ test("has no accessibility violations loaded and with the product's packagings s
   await expectNoAccessibilityViolations(document.body);
   await chooseProduct(screen, "Pasas de uva");
   await expect
-    .element(screen.getByRole("dialog").getByRole("radio", { name: "Caja de 10 kg" }))
+    .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Cantidad que trae/ }))
     .toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });

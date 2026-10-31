@@ -1,7 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { formatAmountInput, formatWeightInput } from "./formatters";
-import { parseAmountCents, parseEsArNumber, parseWeightThousandths } from "./parsers";
+import {
+  parseAmountCents,
+  parseEsArNumber,
+  parseWeightQuantity,
+  parseWeightThousandths,
+} from "./parsers";
 
 const MAX_POSTGRES_INTEGER = 2_147_483_647;
 
@@ -181,6 +186,38 @@ describe("parseWeightThousandths of formatWeightInput", () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 99_999_999_999_999 }), (thousandths) => {
         expect(parseWeightThousandths(formatWeightInput(thousandths))).toBe(thousandths);
+      }),
+    );
+  });
+});
+
+describe("parseWeightQuantity", () => {
+  it("reads kilograms with up to three decimals as thousandths of a kilogram", () => {
+    expect(parseWeightQuantity("2,5", "KG")).toBe(2_500);
+    expect(parseWeightQuantity("10", "KG")).toBe(10_000);
+    expect(parseWeightQuantity("0,001", "KG")).toBe(1);
+    expect(parseWeightQuantity("1.234,567", "KG")).toBe(1_234_567);
+  });
+
+  it("reads whole grams as thousandths of a kilogram", () => {
+    expect(parseWeightQuantity("500", "G")).toBe(500);
+    expect(parseWeightQuantity("1.500", "G")).toBe(1_500);
+  });
+
+  it("refuses grams with decimals", () => {
+    expect(parseWeightQuantity("500,5", "G")).toBeUndefined();
+  });
+
+  it.each(["", "abc", "1,2,3", "1.5", "-1", "1,0001"])("refuses %j in either unit", (text) => {
+    expect(parseWeightQuantity(text, "KG")).toBeUndefined();
+    expect(parseWeightQuantity(text, "G")).toBeUndefined();
+  });
+
+  it("reads kilograms the way weights are read", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 99_999_999_999_999 }), (thousandths) => {
+        const typed = formatWeightInput(thousandths);
+        expect(parseWeightQuantity(typed, "KG")).toBe(parseWeightThousandths(typed));
       }),
     );
   });

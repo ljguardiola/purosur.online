@@ -1,7 +1,7 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { Fraction } from "../../shared/index.js";
-import { mayBuyByPackaging } from "../model/packaging.js";
 import {
+  isLinkCurrent,
   needsReview,
   pricePerSaleUnit,
   requiresVatRate,
@@ -33,8 +33,11 @@ interface SupplierPriceListReviewActions {
 
 export interface FoundSupplierPriceListReviewRowLink {
   product: { id: string; name: string; saleUnit: SaleUnit };
-  // Whether the item may still be bought by the packaging, which only then prices its sale unit.
-  packaging: { id: string; name: string; quantityPerPackage: number; buyable: boolean };
+  // In thousandths of `saleUnit`.
+  quantity: number;
+  saleUnit: SaleUnit;
+  // Whether the link still holds for the product, which only then prices its sale unit.
+  current: boolean;
   vatRate: number | null;
 }
 
@@ -47,7 +50,7 @@ export interface FoundSupplierPriceListReviewRow
   // What the supplier's other lists recorded as the price, only for a row whose price changed.
   previousPriceCents: number | null;
   // Cents per sale unit with VAT, exact; null for a row without a link, a price or the rate its
-  // list needs, and for one linked to a packaging it may no longer be bought by.
+  // list needs, and for one whose link is no longer current.
   pricePerSaleUnit: Fraction | null;
 }
 
@@ -66,14 +69,8 @@ export type FoundSupplierPriceListReview =
     };
 
 function foundLink(link: SupplierPriceListReviewRowLink): FoundSupplierPriceListReviewRowLink {
-  const { active, saleUnit, ...packaging } = link.packaging;
-  return {
-    ...link,
-    packaging: {
-      ...packaging,
-      buyable: mayBuyByPackaging({ active, saleUnit }, link.product.saleUnit),
-    },
-  };
+  const { relinkRequired, ...shown } = link;
+  return { ...shown, current: isLinkCurrent(link, link.product.saleUnit) };
 }
 
 function reviewedRow(
@@ -99,13 +96,13 @@ function reviewedRow(
     needsReview: needsReview(status),
     previousPriceCents: status === "price_changed" ? (earlier?.priceCents ?? null) : null,
     pricePerSaleUnit:
-      link === null || row.priceCents === null || !link.packaging.buyable
+      link === null || row.priceCents === null || !link.current
         ? null
         : pricePerSaleUnit({
             priceCents: row.priceCents,
             pricesIncludeVat,
             vatRate: link.vatRate,
-            quantityPerPackage: link.packaging.quantityPerPackage,
+            quantity: link.quantity,
           }),
   };
 }

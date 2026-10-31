@@ -95,7 +95,9 @@ export interface PriceListRowSeed {
   page?: number | null;
   barcode?: string | null;
   productId?: string | null;
-  packagingId?: string | null;
+  quantity?: number | null;
+  saleUnit?: "UNIT" | "KG" | null;
+  relinkRequired?: boolean;
   vatRate?: number | null;
   reviewed?: boolean;
   linkedByPerson?: boolean;
@@ -127,7 +129,9 @@ export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>
           page: row.page ?? null,
           barcode: row.barcode ?? null,
           productId: row.productId ?? null,
-          packagingId: row.packagingId ?? null,
+          quantity: row.quantity ?? null,
+          saleUnit: row.saleUnit ?? null,
+          relinkRequired: row.relinkRequired ?? false,
           vatRate: row.vatRate ?? null,
           reviewed: row.reviewed ?? false,
           linkedByPerson: row.linkedByPerson ?? false,
@@ -145,7 +149,9 @@ export interface SupplierItemSeed {
   keyValue?: string;
   description?: string;
   productId?: string | null;
-  packagingId?: string | null;
+  quantity?: number | null;
+  saleUnit?: "UNIT" | "KG" | null;
+  relinkRequired?: boolean;
   vatRate?: number | null;
 }
 
@@ -161,7 +167,9 @@ export async function insertSupplierItem<TQueryResult extends PgQueryResultHKT>(
       keyValue: seed.keyValue ?? `C-${crypto.randomUUID()}`,
       description: seed.description ?? "Yerba 1 kg",
       productId: seed.productId ?? null,
-      packagingId: seed.packagingId ?? null,
+      quantity: seed.quantity ?? null,
+      saleUnit: seed.saleUnit ?? null,
+      relinkRequired: seed.relinkRequired ?? false,
       vatRate: seed.vatRate ?? null,
     })
     .returning({ id: supplierItems.id });

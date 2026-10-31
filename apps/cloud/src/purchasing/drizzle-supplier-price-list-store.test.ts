@@ -3,16 +3,18 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
   auditLog,
+  productPackagings,
   supplierItemPrices,
   supplierItems,
   supplierPriceListAiCalls,
   supplierPriceListExtractionCaps,
+  supplierPriceListRows,
 } from "../platform/db/schema.js";
 import {
   NOW,
   supplierPriceListStoreDatabase,
 } from "./test-support/drizzle-supplier-price-list-store.js";
-import { insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertPriceListRows,
@@ -22,6 +24,20 @@ import {
 } from "./test-support/supplier-price-list-fixtures.js";
 
 const context = supplierPriceListStoreDatabase();
+
+async function packagingOf(productId: string) {
+  const [packaging] = await context.db
+    .insert(productPackagings)
+    .values({
+      productId,
+      name: "Caja x12",
+      quantityPerPackage: 12_000,
+      saleUnit: "UNIT",
+      actorId: context.actorId,
+    })
+    .returning({ id: productPackagings.id });
+  return packaging?.id ?? "";
+}
 
 describe("the branch's extraction quota", () => {
   it("answers the default cap of ten when the branch has set none", async () => {
@@ -323,7 +339,6 @@ describe("recording what the reading found", () => {
       actorId: context.actorId,
     });
     const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
-    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
 
     await context.store().transaction((tx) =>
       tx.recordExtraction(listId, "2026-02-27", false, [
@@ -334,7 +349,13 @@ describe("recording what the reading found", () => {
           priceCents: 1_500,
           page: 1,
           barcode: "7790000000011",
-          link: { productId, packagingId, vatRate: 1_050 },
+          link: {
+            productId,
+            quantity: 10_000,
+            saleUnit: "UNIT",
+            vatRate: 1_050,
+            relinkRequired: false,
+          },
         },
         {
           description: "Azúcar 1 kg",
@@ -367,7 +388,8 @@ describe("recording what the reading found", () => {
         page: 1,
         barcode: "7790000000011",
         productId,
-        packagingId,
+        quantity: 10_000,
+        saleUnit: "UNIT",
         vatRate: 1_050,
         reviewed: false,
         linkedByPerson: false,
@@ -381,7 +403,8 @@ describe("recording what the reading found", () => {
         page: null,
         barcode: null,
         productId: null,
-        packagingId: null,
+        quantity: null,
+        saleUnit: null,
         vatRate: null,
       },
     ]);
@@ -552,7 +575,6 @@ describe("the rows of a list", () => {
       actorId: context.actorId,
     });
     const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
-    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
     const [firstId, secondId] = await insertPriceListRows(context.db, listId, [
       {
         description: "Yerba 1 kg",
@@ -560,7 +582,8 @@ describe("the rows of a list", () => {
         presentation: "Paquete",
         priceCents: 900,
         productId,
-        packagingId,
+        quantity: 10_000,
+        saleUnit: "UNIT",
         vatRate: 2_100,
         reviewed: true,
         linkedByPerson: true,
@@ -578,7 +601,13 @@ describe("the rows of a list", () => {
         presentation: "Paquete",
         priceCents: 900,
         pagePriceCents: 900,
-        link: { productId, packagingId, vatRate: 2_100 },
+        link: {
+          productId,
+          quantity: 10_000,
+          saleUnit: "UNIT",
+          vatRate: 2_100,
+          relinkRequired: false,
+        },
         linkedByPerson: true,
       },
       {
@@ -639,10 +668,6 @@ describe("a supplier's remembered items", () => {
     "%s answers the items with those keys, their link and the list date of their latest price",
     async (_name, find) => {
       const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
-      const packagingId = await insertPackaging(context.db, {
-        productId,
-        actorId: context.actorId,
-      });
       const olderListId = await insertPriceList(context.db, {
         supplierId: context.supplierId,
         locationId: context.locationId,
@@ -658,7 +683,8 @@ describe("a supplier's remembered items", () => {
         keyValue: "Y-01",
         description: "Yerba 1 kg",
         productId,
-        packagingId,
+        quantity: 10_000,
+        saleUnit: "UNIT",
         vatRate: 1_050,
       });
       await insertSupplierItemPrice(context.db, {
@@ -690,7 +716,13 @@ describe("a supplier's remembered items", () => {
             id: linkedId,
             key: code("Y-01"),
             description: "Yerba 1 kg",
-            link: { productId, packagingId, vatRate: 1_050 },
+            link: {
+              productId,
+              quantity: 10_000,
+              saleUnit: "UNIT",
+              vatRate: 1_050,
+              relinkRequired: false,
+            },
             currentListDate: "2026-03-05",
           },
           {
@@ -739,65 +771,34 @@ describe("a supplier's remembered items", () => {
 type Tx = Parameters<Parameters<ReturnType<typeof context.store>["transaction"]>[0]>[0];
 type Key = { kind: "code" | "description"; value: string };
 
-describe("locking a product and its packaging", () => {
-  it("answers whether the product and the packaging are active, their sale units and whose packaging it is", async () => {
-    const { id: productId } = await insertProduct(context.db, { name: "Harina", saleUnit: "KG" });
-    const packagingId = await insertPackaging(context.db, {
-      productId,
-      actorId: context.actorId,
-      saleUnit: "KG",
-      active: false,
-    });
-    const { id: otherProductId } = await insertProduct(context.db, {
-      name: "Yerba",
-      active: false,
-    });
+describe("locking the product to link", () => {
+  it("answers whether the product is active and the sale unit it is sold by", async () => {
+    const { id: weighed } = await insertProduct(context.db, { name: "Harina", saleUnit: "KG" });
+    const { id: inactive } = await insertProduct(context.db, { name: "Yerba", active: false });
 
-    const [own, ofAnother] = await context
+    const [byWeight, deactivated] = await context
       .store()
       .transaction((tx) =>
-        Promise.all([
-          tx.lockProductPackaging(productId, packagingId),
-          tx.lockProductPackaging(otherProductId, packagingId),
-        ]),
+        Promise.all([tx.lockLinkableProduct(weighed), tx.lockLinkableProduct(inactive)]),
       );
 
-    expect(own).toEqual({
-      kind: "locked",
-      product: { active: true, saleUnit: "KG" },
-      packaging: { productId, active: false, saleUnit: "KG" },
-    });
-    expect(ofAnother).toEqual({
-      kind: "locked",
-      product: { active: false, saleUnit: "UNIT" },
-      packaging: { productId, active: false, saleUnit: "KG" },
-    });
+    expect(byWeight).toEqual({ kind: "locked", product: { active: true, saleUnit: "KG" } });
+    expect(deactivated).toEqual({ kind: "locked", product: { active: false, saleUnit: "UNIT" } });
   });
 
-  it("answers not found for a product or a packaging that does not exist", async () => {
-    const { id: productId } = await insertProduct(context.db, { name: "Harina" });
-    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
+  it("answers not found for a product that does not exist", async () => {
     const missing = "00000000-0000-4000-8000-000000000000";
 
-    const [noProduct, noPackaging] = await context
-      .store()
-      .transaction((tx) =>
-        Promise.all([
-          tx.lockProductPackaging(missing, packagingId),
-          tx.lockProductPackaging(productId, missing),
-        ]),
-      );
-
-    expect(noProduct).toEqual({ kind: "not_found" });
-    expect(noPackaging).toEqual({ kind: "not_found" });
+    expect(await context.store().transaction((tx) => tx.lockLinkableProduct(missing))).toEqual({
+      kind: "not_found",
+    });
   });
 });
 
 describe("remembering an item", () => {
   async function linkedTarget() {
     const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
-    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
-    return { productId, packagingId };
+    return { productId, quantity: 10_000, saleUnit: "UNIT" as const, relinkRequired: false };
   }
 
   function itemRows() {
@@ -824,7 +825,10 @@ describe("remembering an item", () => {
         keyValue: "yerba 1 kg",
         description: "Yerba 1 Kg",
         productId: link.productId,
-        packagingId: link.packagingId,
+        packagingId: null,
+        quantity: 10_000,
+        saleUnit: "UNIT",
+        relinkRequired: false,
         vatRate: 2_100,
       },
     ]);
@@ -841,7 +845,14 @@ describe("remembering an item", () => {
     );
 
     expect(await itemRows()).toMatchObject([
-      { keyKind: "code", keyValue: "Y-01", productId: null, packagingId: null, vatRate: null },
+      {
+        keyKind: "code",
+        keyValue: "Y-01",
+        productId: null,
+        quantity: null,
+        saleUnit: null,
+        vatRate: null,
+      },
     ]);
   });
 
@@ -870,6 +881,23 @@ describe("remembering an item", () => {
       .transaction((tx) => tx.rememberSupplierItemLink(itemId, { ...second, vatRate: null }));
 
     expect(await itemRows()).toMatchObject([{ id: itemId, ...second, vatRate: null }]);
+  });
+
+  it("remembers a link for an item the release that links through packagings linked, leaving no packaging behind", async () => {
+    const first = await linkedTarget();
+    const second = await linkedTarget();
+    const itemId = await insertSupplierItem(context.db, {
+      supplierId: context.supplierId,
+      ...first,
+    });
+    const packagingId = await packagingOf(first.productId);
+    await context.db.update(supplierItems).set({ packagingId }).where(eq(supplierItems.id, itemId));
+
+    await context
+      .store()
+      .transaction((tx) => tx.rememberSupplierItemLink(itemId, { ...second, vatRate: 2_100 }));
+
+    expect(await itemRows()).toMatchObject([{ id: itemId, ...second, packagingId: null }]);
   });
 
   it("records the price an item had in a list, with the list's date and VAT answer and the instant", async () => {
@@ -930,8 +958,7 @@ describe("remembering an item", () => {
 describe("linking and reviewing a row", () => {
   async function target() {
     const { id: productId } = await insertProduct(context.db, { name: "Yerba 1 kg" });
-    const packagingId = await insertPackaging(context.db, { productId, actorId: context.actorId });
-    return { productId, packagingId };
+    return { productId, quantity: 10_000, saleUnit: "UNIT" as const, relinkRequired: false };
   }
 
   async function extractedListWithARow() {
@@ -965,7 +992,9 @@ describe("linking and reviewing a row", () => {
         actorId: context.actorId,
         previousValue: {
           productId: null,
-          packagingId: null,
+          quantity: null,
+          saleUnit: null,
+          relinkRequired: false,
           vatRate: null,
           reviewed: false,
           linkedByPerson: false,
@@ -990,6 +1019,22 @@ describe("linking and reviewing a row", () => {
       linkedByPerson: true,
     });
     expect((await context.rowsOf(listId))[0]).toMatchObject({ ...second, reviewed: true });
+  });
+
+  it("links a row the release that links through packagings linked, leaving no packaging behind", async () => {
+    const first = { ...(await target()), vatRate: 2_100 };
+    const second = { ...(await target()), vatRate: 2_100 };
+    const { listId, rowId } = await extractedListWithARow();
+    await context.store().transaction((tx) => tx.linkRow(listId, rowId, first, context.actorId));
+    const packagingId = await packagingOf(first.productId);
+    await context.db
+      .update(supplierPriceListRows)
+      .set({ packagingId })
+      .where(eq(supplierPriceListRows.id, rowId));
+
+    await context.store().transaction((tx) => tx.linkRow(listId, rowId, second, context.actorId));
+
+    expect((await context.rowsOf(listId))[0]).toMatchObject({ ...second, packagingId: null });
   });
 
   it("marks a row reviewed without touching its link or making it a person's, advances the version and audits it", async () => {

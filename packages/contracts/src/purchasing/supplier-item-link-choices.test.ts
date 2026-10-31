@@ -9,7 +9,6 @@ const choices = {
       saleUnit: "UNIT",
       brandName: "Piragüé",
       netContent: { quantity: 1, unit: "KG" },
-      packagings: [{ id: "pk-1", name: "Caja x 10", quantityPerPackage: 10_000 }],
     },
     {
       id: "p-2",
@@ -17,14 +16,13 @@ const choices = {
       saleUnit: "KG",
       brandName: null,
       netContent: null,
-      packagings: [],
     },
   ],
   vatRates: { offered: [2100, 1050], default: 2100 },
 };
 
 describe("supplierItemLinkChoicesSchema", () => {
-  it("accepts products with and without packagings", () => {
+  it("accepts products sold by unit and by weight", () => {
     expect(supplierItemLinkChoicesSchema.safeParse(choices).data).toEqual(choices);
   });
 
@@ -38,16 +36,6 @@ describe("supplierItemLinkChoicesSchema", () => {
     const unknown = { ...choices, products: [{ ...choices.products[0], saleUnit: "LITER" }] };
 
     expect(supplierItemLinkChoicesSchema.safeParse(unknown).success).toBe(false);
-  });
-
-  it("refuses a product without its packagings", () => {
-    const { packagings: _packagings, ...bare } = choices.products[0] as object & {
-      packagings: unknown;
-    };
-
-    expect(supplierItemLinkChoicesSchema.safeParse({ ...choices, products: [bare] }).success).toBe(
-      false,
-    );
   });
 
   it.each(["brandName", "netContent"])("refuses a product without its %s", (field) => {
@@ -65,20 +53,6 @@ describe("supplierItemLinkChoicesSchema", () => {
     };
 
     expect(supplierItemLinkChoicesSchema.safeParse(unknown).success).toBe(false);
-  });
-
-  it("refuses a packaging whose quantity is not a whole number", () => {
-    const fractional = {
-      ...choices,
-      products: [
-        {
-          ...choices.products[0],
-          packagings: [{ id: "pk-1", name: "Caja", quantityPerPackage: 1.5 }],
-        },
-      ],
-    };
-
-    expect(supplierItemLinkChoicesSchema.safeParse(fractional).success).toBe(false);
   });
 
   it("refuses choices without the VAT rates", () => {

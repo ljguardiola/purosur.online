@@ -32,3 +32,12 @@ export function parseWeightThousandths(value: string): number | undefined {
   }
   return Number(digits.whole) * 1000 + Number(digits.fraction.padEnd(3, "0"));
 }
+
+// Weights are held in thousandths of a kilogram, so a gram is one thousandth.
+export function parseWeightQuantity(value: string, unit: "KG" | "G"): number | undefined {
+  if (unit === "KG") {
+    return parseWeightThousandths(value);
+  }
+  const digits = parseEsArNumber(value, 0);
+  return digits ? Number(digits.whole) : undefined;
+}

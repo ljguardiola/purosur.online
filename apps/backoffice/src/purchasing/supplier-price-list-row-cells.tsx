@@ -1,4 +1,4 @@
-import { formatCents, formatPricePerSaleUnit, Tag } from "@purosur/ui";
+import { formatCents, formatPricePerSaleUnit, formatSaleUnitQuantity, Tag } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { supplierPriceListRowStatusOf } from "./supplier-price-list-row-status";
 import type { SupplierPriceListRow } from "./supplier-price-lists-api";
@@ -46,11 +46,11 @@ export function RowLinkCell({ row }: { row: SupplierPriceListRow }) {
   return (
     <div className="flex flex-col">
       <span>{formatProductDescription(row.link.product)}</span>
-      <span className="text-detail text-text-subtle">{row.link.packaging.name}</span>
-      {row.link.packaging.buyable ? null : (
-        <span className="text-detail text-warning-strong">
-          Ya no se compra en esta presentación
-        </span>
+      <span className="text-detail text-text-subtle">
+        {formatSaleUnitQuantity(row.link.quantity, row.link.saleUnit)}
+      </span>
+      {row.link.current ? null : (
+        <span className="text-detail text-warning-strong">Hay que volver a vincularlo</span>
       )}
     </div>
   );

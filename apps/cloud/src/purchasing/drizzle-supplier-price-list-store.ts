@@ -18,7 +18,7 @@ import type {
   AiCallRecord,
   FindPriceListSupplierResult,
   FindSupplierPriceListSourceResult,
-  LockProductPackagingResult,
+  LockLinkableProductResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
   NewRereadFields,
@@ -38,7 +38,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   auditLog,
   locations,
-  productPackagings,
   products,
   supplierItemPrices,
   supplierItems,
@@ -70,19 +69,29 @@ function batchesOf<T>(rows: T[]): T[][] {
 function linkColumns(link: SupplierItemLink | null) {
   return {
     productId: link?.productId ?? null,
-    packagingId: link?.packagingId ?? null,
+    quantity: link?.quantity ?? null,
+    saleUnit: link?.saleUnit ?? null,
+    relinkRequired: link?.relinkRequired ?? false,
     vatRate: link?.vatRate ?? null,
   };
 }
 
 export function linkOf(columns: {
   productId: string | null;
-  packagingId: string | null;
+  quantity: number | null;
+  saleUnit: string | null;
+  relinkRequired: boolean;
   vatRate: number | null;
 }): SupplierItemLink | null {
-  return columns.productId === null || columns.packagingId === null
+  return columns.productId === null || columns.quantity === null || columns.saleUnit === null
     ? null
-    : { productId: columns.productId, packagingId: columns.packagingId, vatRate: columns.vatRate };
+    : {
+        productId: columns.productId,
+        quantity: columns.quantity,
+        saleUnit: columns.saleUnit as SaleUnit,
+        vatRate: columns.vatRate,
+        relinkRequired: columns.relinkRequired,
+      };
 }
 
 export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResultHKT>
@@ -468,16 +477,18 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         priceCents: supplierPriceListRows.priceCents,
         pagePriceCents: supplierPriceListRows.pagePriceCents,
         productId: supplierPriceListRows.productId,
-        packagingId: supplierPriceListRows.packagingId,
+        quantity: supplierPriceListRows.quantity,
+        saleUnit: supplierPriceListRows.saleUnit,
+        relinkRequired: supplierPriceListRows.relinkRequired,
         vatRate: supplierPriceListRows.vatRate,
         linkedByPerson: supplierPriceListRows.linkedByPerson,
       })
       .from(supplierPriceListRows)
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
-    return rows.map(({ productId, packagingId, vatRate, ...row }) => ({
+    return rows.map(({ productId, quantity, saleUnit, relinkRequired, vatRate, ...row }) => ({
       ...row,
-      link: linkOf({ productId, packagingId, vatRate }),
+      link: linkOf({ productId, quantity, saleUnit, relinkRequired, vatRate }),
     }));
   }
 
@@ -493,7 +504,9 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         keyValue: supplierItems.keyValue,
         description: supplierItems.description,
         productId: supplierItems.productId,
-        packagingId: supplierItems.packagingId,
+        quantity: supplierItems.quantity,
+        saleUnit: supplierItems.saleUnit,
+        relinkRequired: supplierItems.relinkRequired,
         vatRate: supplierItems.vatRate,
         currentListDate: sql<
           string | null
@@ -526,29 +539,16 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
     return this.supplierItems(supplierId, keys);
   }
 
-  async lockProductPackaging(
-    productId: string,
-    packagingId: string,
-  ): Promise<LockProductPackagingResult> {
+  async lockLinkableProduct(productId: string): Promise<LockLinkableProductResult> {
     const [product] = await this.tx
       .select({ active: products.active, saleUnit: products.saleUnit })
       .from(products)
       .where(eq(products.id, productId))
       .for("share");
-    const [packaging] = await this.tx
-      .select({
-        productId: productPackagings.productId,
-        active: productPackagings.active,
-        saleUnit: productPackagings.saleUnit,
-      })
-      .from(productPackagings)
-      .where(eq(productPackagings.id, packagingId))
-      .for("share");
-    return product && packaging
+    return product
       ? {
           kind: "locked",
           product: { active: product.active, saleUnit: product.saleUnit as SaleUnit },
-          packaging: { ...packaging, saleUnit: packaging.saleUnit as SaleUnit },
         }
       : { kind: "not_found" };
   }
@@ -594,14 +594,16 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
     this.describedItems.clear();
     for (const batch of batchesOf([...this.linkedItems])) {
       await this.tx.execute(sql`update ${supplierItems} as item
-        set product_id = linked.product_id, packaging_id = linked.packaging_id, vat_rate = linked.vat_rate
+        set product_id = linked.product_id, packaging_id = null, quantity = linked.quantity,
+          sale_unit = linked.sale_unit, relink_required = linked.relink_required,
+          vat_rate = linked.vat_rate
         from (values ${sql.join(
           batch.map(
             ([id, link]) =>
-              sql`(${id}::uuid, ${link.productId}::uuid, ${link.packagingId}::uuid, ${link.vatRate}::integer)`,
+              sql`(${id}::uuid, ${link.productId}::uuid, ${link.quantity}::bigint, ${link.saleUnit}::text, ${link.relinkRequired}::boolean, ${link.vatRate}::integer)`,
           ),
           sql`, `,
-        )}) as linked(id, product_id, packaging_id, vat_rate)
+        )}) as linked(id, product_id, quantity, sale_unit, relink_required, vat_rate)
         where item.id = linked.id`);
     }
     this.linkedItems.clear();
@@ -619,16 +621,21 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
     const [previous] = await this.tx
       .select({
         productId: supplierPriceListRows.productId,
-        packagingId: supplierPriceListRows.packagingId,
+        quantity: supplierPriceListRows.quantity,
+        saleUnit: supplierPriceListRows.saleUnit,
+        relinkRequired: supplierPriceListRows.relinkRequired,
         vatRate: supplierPriceListRows.vatRate,
         reviewed: supplierPriceListRows.reviewed,
         linkedByPerson: supplierPriceListRows.linkedByPerson,
       })
       .from(supplierPriceListRows)
       .where(eq(supplierPriceListRows.id, rowId));
+    // A packaging left behind a link by quantity would keep the database from filling the quantity
+    // when the release that links through packagings, still serving while a deploy swaps it, links
+    // the same packaging again.
     await this.tx
       .update(supplierPriceListRows)
-      .set({ ...linkColumns(link), reviewed: true, linkedByPerson: true })
+      .set({ ...linkColumns(link), packagingId: null, reviewed: true, linkedByPerson: true })
       .where(eq(supplierPriceListRows.id, rowId));
     await this.advanceVersion(listId);
     await this.tx.insert(auditLog).values({

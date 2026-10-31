@@ -3,35 +3,47 @@ import type {
   SupplierItemLinkProposal,
   SupplierPriceListRowLinkBody,
 } from "@purosur/contracts";
+import type { SaleUnit } from "@purosur/domain";
 import { formatPercent, sortedItems, textOrder } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { formatStockQuantity } from "../platform/stock-quantity";
+import {
+  type SupplierItemQuantityUnit,
+  supplierItemQuantityInputOf,
+  supplierItemQuantityMessage,
+  supplierItemQuantityOf,
+} from "./supplier-item-quantity";
 import type { SupplierPriceListRow } from "./supplier-price-lists-api";
 
 export type SupplierItemLinkFormValues = {
   productId: string | null;
-  packagingId: string | null;
+  saleUnit: SaleUnit;
+  quantity: string;
+  quantityUnit: SupplierItemQuantityUnit;
   vatRate: string;
   version: number;
 };
 
 export const EMPTY_SUPPLIER_ITEM_LINK_FORM: SupplierItemLinkFormValues = {
   productId: null,
-  packagingId: null,
+  saleUnit: "UNIT",
+  quantity: "",
+  quantityUnit: "KG",
   vatRate: "",
   version: 1,
 };
 
 export const SUPPLIER_ITEM_LINK_FIELDS = {
   productId: "productId",
-  packagingId: "packagingId",
+  saleUnit: null,
+  quantity: "quantity",
+  quantityUnit: null,
   vatRate: "vatRate",
   version: null,
 } as const;
 
 export const SUPPLIER_ITEM_LINK_FIELD_MESSAGES = {
   productId: "Elegí el producto del catálogo.",
-  packagingId: "Elegí la presentación de compra.",
+  quantity: supplierItemQuantityMessage,
   vatRate: "Elegí el IVA del ítem.",
 };
 
@@ -54,22 +66,25 @@ export function supplierItemLinkFormValuesOf(
   version: number,
 ): SupplierItemLinkFormValues {
   return {
+    ...EMPTY_SUPPLIER_ITEM_LINK_FORM,
     productId: link?.product.id ?? null,
-    packagingId: link?.packaging.id ?? null,
+    saleUnit: link?.product.saleUnit ?? EMPTY_SUPPLIER_ITEM_LINK_FORM.saleUnit,
+    ...(link?.current ? supplierItemQuantityInputOf(link.quantity, link.product.saleUnit) : {}),
     vatRate: link?.vatRate == null ? "" : String(link.vatRate),
     version,
   };
 }
 
 export function supplierItemLinkRequestFrom(
-  { productId, packagingId, vatRate, version }: SupplierItemLinkFormValues,
+  values: SupplierItemLinkFormValues,
   requiresVatRate: boolean,
 ): SupplierPriceListRowLinkBody {
   return {
-    version,
-    productId: productId ?? "",
-    packagingId: packagingId ?? "",
-    vatRate: requiresVatRate ? Number(vatRate) : null,
+    version: values.version,
+    productId: values.productId ?? "",
+    saleUnit: values.saleUnit,
+    quantity: supplierItemQuantityOf(values),
+    vatRate: requiresVatRate ? Number(values.vatRate) : null,
   };
 }
 
@@ -89,19 +104,6 @@ export function linkProductOptions(
     order: productOrder,
     direction: "ascending",
   }).map((product) => ({ value: product.id, label: formatProductDescription(product) }));
-  return first && [first, ...rest];
-}
-
-export function linkPackagingOptions(
-  choices: SupplierItemLinkChoices,
-  productId: string | null,
-): Options<{ value: string; label: string; description: string }> {
-  const product = choices.products.find((candidate) => candidate.id === productId);
-  const [first, ...rest] = (product?.packagings ?? []).map((packaging) => ({
-    value: packaging.id,
-    label: packaging.name,
-    description: `Contiene ${formatStockQuantity(packaging.quantityPerPackage, product?.saleUnit ?? "UNIT")}`,
-  }));
   return first && [first, ...rest];
 }
 

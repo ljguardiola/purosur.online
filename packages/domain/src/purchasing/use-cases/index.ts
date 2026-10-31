@@ -249,7 +249,7 @@ export type {
   FindPriceListSupplierResult,
   FindSupplierPriceListSourceResult,
   LockedSupplierPriceList,
-  LockProductPackagingResult,
+  LockLinkableProductResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
   NewRereadFields,

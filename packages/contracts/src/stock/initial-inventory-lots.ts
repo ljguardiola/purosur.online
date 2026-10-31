@@ -43,7 +43,8 @@ export const initialInventoryLotListSchema = z.object({
         z.object({
           supplierItemId: z.string(),
           supplierName: z.string(),
-          packagingName: z.string(),
+          quantity: z.int(),
+          saleUnit: z.enum(SALE_UNITS),
           listDate: z.string().refine(isCalendarDay),
           unitCostCents: z.int(),
           cheapest: z.boolean(),

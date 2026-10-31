@@ -57,7 +57,7 @@ function translatePackagingViolation(error: unknown): unknown {
     : error;
 }
 
-export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
+class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PurchasingStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;

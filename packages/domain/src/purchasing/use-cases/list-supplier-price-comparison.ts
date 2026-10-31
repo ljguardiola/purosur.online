@@ -15,8 +15,9 @@ import type {
 
 export interface ComparedOffer {
   supplier: { id: string; name: string };
-  packagingName: string;
-  quantityPerPackage: number;
+  // In thousandths of `saleUnit`.
+  quantity: number;
+  saleUnit: SaleUnit;
   priceCents: number;
   // Cents per sale unit with VAT, exact.
   pricePerSaleUnit: Fraction;
@@ -26,7 +27,8 @@ export interface ComparedOffer {
 
 export interface UnpricedOffer {
   supplier: { id: string; name: string };
-  packagingName: string;
+  quantity: number;
+  saleUnit: SaleUnit;
   priceCents: number;
   listDate: string;
   reason: SupplierOfferUnpricedReason;
@@ -50,7 +52,8 @@ function pricedOrUnpriced(
 ): { kind: "priced"; offer: PricedOffer } | { kind: "unpriced"; offer: UnpricedOffer } {
   const shown = {
     supplier: offer.supplier,
-    packagingName: offer.packaging.name,
+    quantity: offer.link.quantity,
+    saleUnit: offer.link.saleUnit,
     priceCents: offer.priceCents,
     listDate: offer.listDate,
   };
@@ -61,7 +64,6 @@ function pricedOrUnpriced(
         kind: "priced",
         offer: {
           ...shown,
-          quantityPerPackage: offer.packaging.quantityPerPackage,
           pricePerSaleUnit: price.pricePerSaleUnit,
         },
       };

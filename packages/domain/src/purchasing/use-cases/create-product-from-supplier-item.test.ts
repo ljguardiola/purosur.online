@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { PRODUCT_NAME_MAX_LENGTH, type SaleUnit } from "../../catalog/index.js";
-import { PACKAGING_NAME_MAX_LENGTH } from "../model/packaging.js";
 import {
   maySupplierPriceListRowBeLinked,
   SUPPLIER_PRICE_LIST_STATES,
@@ -41,23 +40,18 @@ const input = {
   barcodes: ["7790001000012"],
   tagIds: [] as string[],
   netContent: null as { quantity: number; unit: "KG" | "G" | "ML" | "L" | "UNIT" } | null,
-  packagingName: null as string | null,
-  quantityPerPackage: 10_000,
+  quantity: 10_000,
   vatRate: 2100 as number | null,
   actorId: "person-1",
 };
 
 describe("createProductFromSupplierItem", () => {
-  it("creates the product with the name given, its purchase presentation named as the list states it, and links the row to them", async () => {
+  it("creates the product with the name given and links the row to it with the quantity given", async () => {
     const store = setup();
 
     const outcome = await createProductFromSupplierItem(store, input);
 
-    expect(outcome).toEqual({
-      kind: "created",
-      productId: "product-new-1",
-      packagingId: "packaging-new-1",
-    });
+    expect(outcome).toEqual({ kind: "created", productId: "product-new-1" });
     const state = store.snapshot();
     expect(state.products).toEqual([
       {
@@ -71,18 +65,14 @@ describe("createProductFromSupplierItem", () => {
         netContent: null,
       },
     ]);
-    expect(state.packagings).toEqual([
-      {
-        id: "packaging-new-1",
-        productId: "product-new-1",
-        name: "Caja x 10",
-        quantityPerPackage: 10_000,
-        saleUnit: "UNIT",
-        actorId: "person-1",
-      },
-    ]);
     expect(state.lists.rows[0]).toMatchObject({
-      link: { productId: "product-new-1", packagingId: "packaging-new-1", vatRate: 2100 },
+      link: {
+        productId: "product-new-1",
+        quantity: 10_000,
+        saleUnit: "UNIT",
+        vatRate: 2100,
+        relinkRequired: false,
+      },
       reviewed: true,
       editedBy: "person-1",
     });
@@ -115,35 +105,12 @@ describe("createProductFromSupplierItem", () => {
     expect(store.snapshot().products[0]?.name).toBe("Yerba mate 1 kg");
   });
 
-  it("names the presentation as the list states it even when another name is given", async () => {
+  it("states the quantity in the sale unit the product was created with", async () => {
     const store = setup();
 
-    await createProductFromSupplierItem(store, { ...input, packagingName: "Bolsa" });
+    await createProductFromSupplierItem(store, { ...input, saleUnit: "KG", quantity: 1_500 });
 
-    expect(store.snapshot().packagings[0]?.name).toBe("Caja x 10");
-  });
-
-  it("names the presentation as given for an item whose list states none", async () => {
-    const store = setup({}, { presentation: null });
-
-    await createProductFromSupplierItem(store, { ...input, packagingName: "Bolsa" });
-
-    expect(store.snapshot().packagings[0]?.name).toBe("Bolsa");
-  });
-
-  it("gives the presentation the sale unit the product was created with", async () => {
-    const store = setup();
-
-    await createProductFromSupplierItem(store, {
-      ...input,
-      saleUnit: "KG",
-      quantityPerPackage: 1_500,
-    });
-
-    expect(store.snapshot().packagings[0]).toMatchObject({
-      saleUnit: "KG",
-      quantityPerPackage: 1_500,
-    });
+    expect(store.snapshot().lists.rows[0]?.link).toMatchObject({ saleUnit: "KG", quantity: 1_500 });
   });
 
   it("locks the list, then the row, before it writes anything", async () => {
@@ -151,13 +118,7 @@ describe("createProductFromSupplierItem", () => {
 
     await createProductFromSupplierItem(store, input);
 
-    expect(store.callOrder).toEqual([
-      "lockList",
-      "lockRow",
-      "createCatalogProduct",
-      "insertPackaging",
-      "linkRow",
-    ]);
+    expect(store.callOrder).toEqual(["lockList", "lockRow", "createCatalogProduct", "linkRow"]);
   });
 
   it("leaves the supplier's items alone while the list is under review", async () => {
@@ -185,7 +146,13 @@ describe("createProductFromSupplierItem", () => {
 
     expect(outcome.kind).toBe("created");
     expect(store.snapshot().lists.items.map((item) => item.link)).toEqual([
-      { productId: "product-new-1", packagingId: "packaging-new-1", vatRate: 2100 },
+      {
+        productId: "product-new-1",
+        quantity: 10_000,
+        saleUnit: "UNIT",
+        vatRate: 2100,
+        relinkRequired: false,
+      },
       null,
     ]);
     expect(store.callOrder.slice(-3)).toEqual([
@@ -208,7 +175,13 @@ describe("createProductFromSupplierItem", () => {
     store.lists.seedSupplierItem({
       description: "Yerba 1 kg",
       key: { kind: "code", value: "Y-1" },
-      link: { productId: "old", packagingId: "old", vatRate: 1050 },
+      link: {
+        productId: "old",
+        quantity: 1_000,
+        saleUnit: "UNIT",
+        vatRate: 1050,
+        relinkRequired: false,
+      },
     });
 
     await createProductFromSupplierItem(store, { ...input, vatRate: 2100 });
@@ -217,8 +190,10 @@ describe("createProductFromSupplierItem", () => {
     expect(state.lists.rows[0]?.link?.vatRate).toBeNull();
     expect(state.lists.items[0]?.link).toEqual({
       productId: "product-new-1",
-      packagingId: "packaging-new-1",
+      quantity: 10_000,
+      saleUnit: "UNIT",
       vatRate: 1050,
+      relinkRequired: false,
     });
   });
 
@@ -278,28 +253,18 @@ describe("createProductFromSupplierItem", () => {
       store.lists.seedRow({
         id: "row-2",
         listId: "list-1",
-        link: { productId: "product-1", packagingId: "packaging-1", vatRate: 2100 },
+        link: {
+          productId: "product-1",
+          quantity: 1_000,
+          saleUnit: "UNIT",
+          vatRate: 2100,
+          relinkRequired: false,
+        },
       });
 
       expect(await refusedWithNothingWritten(store, { rowId: "row-2" })).toEqual({
         kind: "already_linked",
       });
-      expect(store.callOrder).toEqual(["lockList", "lockRow"]);
-    });
-
-    it("answers presentation_missing for an item whose list states no presentation when none is given", async () => {
-      const store = setup({}, { presentation: null });
-
-      expect(await refusedWithNothingWritten(store, { packagingName: null })).toEqual({
-        kind: "presentation_missing",
-      });
-      expect(store.callOrder).toEqual(["lockList", "lockRow"]);
-    });
-
-    it("answers presentation_too_long for an item whose presentation is longer than a presentation's name may be", async () => {
-      const store = setup({}, { presentation: "a".repeat(PACKAGING_NAME_MAX_LENGTH + 1) });
-
-      expect(await refusedWithNothingWritten(store)).toEqual({ kind: "presentation_too_long" });
       expect(store.callOrder).toEqual(["lockList", "lockRow"]);
     });
 
@@ -309,11 +274,11 @@ describe("createProductFromSupplierItem", () => {
       ["KG", 0],
       ["KG", 1.5],
     ] as const)(
-      "answers invalid_quantity for %s sold %s per package",
-      async (saleUnit, quantityPerPackage) => {
+      "answers invalid_quantity for %s sold with a quantity of %s",
+      async (saleUnit, quantity) => {
         const store = setup();
 
-        expect(await refusedWithNothingWritten(store, { saleUnit, quantityPerPackage })).toEqual({
+        expect(await refusedWithNothingWritten(store, { saleUnit, quantity })).toEqual({
           kind: "invalid_quantity",
         });
         expect(store.callOrder).toEqual(["lockList", "lockRow"]);

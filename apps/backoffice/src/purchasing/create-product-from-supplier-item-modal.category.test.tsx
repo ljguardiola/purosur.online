@@ -86,7 +86,7 @@ test("typing a category that does not exist offers to create it, opening the cat
 
 test("saving the created category selects it and keeps what was typed in the product form", async () => {
   const { screen, dialog } = await opened(true);
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Contiene/ }), "10");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad que trae/ }), "10");
   await userEvent.fill(dialog.getByRole("combobox", { name: /^Categoría/ }), "Fiambres");
   await userEvent.click(page.getByRole("option", { name: "Crear categoría «Fiambres»" }));
 
@@ -102,7 +102,9 @@ test("saving the created category selects it and keeps what was typed in the pro
   await expect
     .element(dialog.getByRole("combobox", { name: /^Categoría/ }))
     .toHaveValue("Fiambres");
-  await expect.element(dialog.getByRole("textbox", { name: /^Contiene/ })).toHaveValue("10");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ }))
+    .toHaveValue("10");
 });
 
 test("offers no category creation to a person who may not manage the catalog", async () => {

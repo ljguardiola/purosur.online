@@ -5,7 +5,6 @@ import {
   categories,
   locations,
   productBarcodes,
-  productPackagings,
   products,
   users,
 } from "../../platform/db/schema.js";
@@ -66,34 +65,6 @@ export async function insertProduct<TQueryResult extends PgQueryResultHKT>(
     throw new Error("test setup: seeding the product returned no row");
   }
   return product;
-}
-
-export async function insertPackaging<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: {
-    productId: string;
-    actorId: string;
-    name?: string;
-    quantityPerPackage?: number;
-    saleUnit?: SaleUnit;
-    active?: boolean;
-  },
-): Promise<string> {
-  const [packaging] = await db
-    .insert(productPackagings)
-    .values({
-      productId: input.productId,
-      name: input.name ?? `Caja ${crypto.randomUUID()}`,
-      quantityPerPackage: input.quantityPerPackage ?? 10_000,
-      saleUnit: input.saleUnit ?? "UNIT",
-      active: input.active ?? true,
-      actorId: input.actorId,
-    })
-    .returning({ id: productPackagings.id });
-  if (!packaging) {
-    throw new Error("test setup: seeding the packaging returned no row");
-  }
-  return packaging.id;
 }
 
 export async function insertBarcode<TQueryResult extends PgQueryResultHKT>(

@@ -3,8 +3,8 @@ import { supplierPriceComparisonSchema } from "./supplier-price-comparison.js";
 
 const offer = {
   supplier: { id: "s-1", name: "Distribuidora Sur" },
-  packagingName: "Caja x 10",
-  quantityPerPackage: 10_000,
+  quantity: 10_000,
+  saleUnit: "UNIT",
   priceCents: 12_000,
   pricePerSaleUnit: { numerator: "1105", denominator: "1" },
   listDate: "2026-03-01",
@@ -12,7 +12,8 @@ const offer = {
 };
 const unpricedOffer = {
   supplier: { id: "s-2", name: "Mayorista Norte" },
-  packagingName: "Bolsa x 5",
+  quantity: 5_000,
+  saleUnit: "UNIT",
   priceCents: 9_000,
   listDate: "2026-02-01",
   reason: "vat_rate_missing",
@@ -62,7 +63,7 @@ describe("supplierPriceComparisonSchema", () => {
     expect(supplierPriceComparisonSchema.safeParse(incomplete).success).toBe(false);
   });
 
-  it.each(["vat_rate_missing", "packaging_not_buyable"])(
+  it.each(["vat_rate_missing", "link_outdated"])(
     "accepts an offer with no price per sale unit because of %s",
     (reason) => {
       const withReason = {
@@ -114,7 +115,8 @@ describe("supplierPriceComparisonSchema", () => {
 
   it.each([
     ["priceCents", 1.5],
-    ["quantityPerPackage", "10"],
+    ["quantity", "10"],
+    ["saleUnit", "BOX"],
     ["cheapest", "yes"],
     ["pricePerSaleUnit", { numerator: "1", denominator: "0" }],
     ["pricePerSaleUnit", null],

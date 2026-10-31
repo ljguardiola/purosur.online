@@ -12,7 +12,7 @@ export interface ComparableProduct extends ProductBrandAndNetContent {
 export interface SupplierOffer {
   productId: string;
   supplier: { id: string; name: string };
-  packaging: { name: string; quantityPerPackage: number; active: boolean; saleUnit: SaleUnit };
+  link: { quantity: number; saleUnit: SaleUnit; relinkRequired: boolean };
   priceCents: number;
   pricesIncludeVat: boolean;
   // In basis points, null for an item whose list prices include VAT.

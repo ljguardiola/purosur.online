@@ -109,7 +109,7 @@ async function chooseCategory(dialog: Locator) {
 }
 
 async function fillTheRest(dialog: Locator, quantity = "10") {
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Contiene/ }), quantity);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad que trae/ }), quantity);
   await chooseCategory(dialog);
 }
 
@@ -140,7 +140,7 @@ test("names the supplier, and shows the item's code, presentation and price as t
   expect(dialog.getByRole("textbox", { name: /^Presentación de compra/ }).query()).toBeNull();
 });
 
-test("offers the product's fields, the name filled from the item's description, followed by the quantity the presentation contains", async () => {
+test("offers the product's fields, the name filled from the item's description, followed by the quantity the item brings", async () => {
   const screen = await renderModal();
   const dialog = dialogOf(screen);
 
@@ -150,7 +150,7 @@ test("offers the product's fields, the name filled from the item's description, 
   await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
   const lastProductField = dialog.getByRole("button", { name: "Generar código interno" }).element();
-  const quantity = dialog.getByRole("textbox", { name: /^Contiene/ }).element();
+  const quantity = dialog.getByRole("textbox", { name: /^Cantidad que trae/ }).element();
   expect(
     lastProductField.compareDocumentPosition(quantity) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
@@ -162,13 +162,12 @@ test("starts with the barcode the reading found", async () => {
   await expect.element(dialogOf(screen).getByText("7790001000029")).toBeVisible();
 });
 
-test("asks for the presentation, empty, and no barcode when the item has none", async () => {
+test("asks for no presentation and starts with no barcode when the item has none", async () => {
   const screen = await renderModal({ target: pasasRow });
   const dialog = dialogOf(screen);
 
-  await expect
-    .element(dialog.getByRole("textbox", { name: /^Presentación de compra/ }))
-    .toHaveValue("");
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+  expect(dialog.getByRole("textbox", { name: /^Presentación de compra/ }).query()).toBeNull();
   expect(dialog.getByRole("button", { name: /^Quitar el código/ }).query()).toBeNull();
 });
 
@@ -209,8 +208,7 @@ test("creates the product with what was filled in and tells the screen", async (
     barcodes: ["7790001000029"],
     tagIds: [],
     netContent: null,
-    packagingName: null,
-    quantityPerPackage: 10_000,
+    quantity: 10_000,
     vatRate: null,
   });
 });
@@ -493,16 +491,12 @@ test("tells the tag that was deactivated by name, on the tags, the way a new pro
     .toBeVisible();
 });
 
-test("creates the product with the presentation typed for an item whose list states none", async () => {
+test("creates the product with the barcode typed for an item whose list gives none", async () => {
   const services = createServices();
   const screen = await renderModal({ services, target: pasasRow });
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
 
-  await userEvent.fill(
-    dialog.getByRole("textbox", { name: /^Presentación de compra/ }),
-    "Caja 10 kg",
-  );
   await userEvent.fill(
     dialog.getByRole("textbox", { name: "Escanear otro código" }),
     "7790001000036",
@@ -516,7 +510,7 @@ test("creates the product with the presentation typed for an item whose list sta
   expect(services.createProductFromSupplierItem).toHaveBeenCalledWith(
     LIST.id,
     pasasRow.id,
-    expect.objectContaining({ packagingName: "Caja 10 kg", barcodes: ["7790001000036"] }),
+    expect.objectContaining({ barcodes: ["7790001000036"] }),
   );
 });
 
@@ -537,7 +531,29 @@ test("lets the person sell by weight, and then the quantity is in kilos", async 
   expect(services.createProductFromSupplierItem).toHaveBeenCalledWith(
     LIST.id,
     nutRow.id,
-    expect.objectContaining({ saleUnit: "KG", quantityPerPackage: 10_500 }),
+    expect.objectContaining({ saleUnit: "KG", quantity: 10_500 }),
+  );
+});
+
+test("lets the person write the quantity of a product sold by weight in grams", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+
+  await userEvent.click(radioLabel(dialog, "Por peso"));
+  const grams = dialog.getByRole("radio", { name: "g", exact: true }).element();
+  await userEvent.click(grams.closest("label") as HTMLElement);
+  await fillTheRest(dialog, "500");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .poll(() => vi.mocked(services.createProductFromSupplierItem).mock.calls.length)
+    .toBe(1);
+  expect(services.createProductFromSupplierItem).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({ saleUnit: "KG", quantity: 500 }),
   );
 });
 
@@ -551,8 +567,7 @@ test("does not create the product without a category, a barcode or a quantity, a
 
   await expect.element(dialog.getByText("Elegí una categoría.")).toBeVisible();
   await expect.element(dialog.getByText("Escaneá al menos un código de barras.")).toBeVisible();
-  await expect.element(dialog.getByText("Ingresá la cantidad por presentación.")).toBeVisible();
-  await expect.element(dialog.getByText("Ingresá el nombre de la presentación.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá la cantidad que trae el ítem.")).toBeVisible();
   expect(services.createProductFromSupplierItem).not.toHaveBeenCalled();
 });
 
@@ -694,7 +709,7 @@ test("shows the field the cloud refuses, on that field", async () => {
   const services = createServices();
   vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({
     kind: "validation_failed",
-    field: "quantityPerPackage",
+    field: "quantity",
   });
   const screen = await renderModal({ services });
 
@@ -738,21 +753,6 @@ test("tells the product was not created, and creating stays available", async ()
   const dialog = await create(screen);
 
   await expect.element(dialog.getByText("No se pudo crear el producto")).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeEnabled();
-});
-
-test("tells the item's presentation is too long, and creating stays available", async () => {
-  const services = createServices();
-  vi.mocked(services.createProductFromSupplierItem).mockResolvedValue({
-    kind: "presentation_too_long",
-  });
-  const screen = await renderModal({ services });
-
-  const dialog = await create(screen);
-
-  await expect
-    .element(dialog.getByText("La presentación de la lista es demasiado larga"))
-    .toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeEnabled();
 });
 

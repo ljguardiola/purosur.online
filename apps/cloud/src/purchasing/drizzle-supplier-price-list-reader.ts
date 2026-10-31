@@ -17,7 +17,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import {
   brands,
-  productPackagings,
   products,
   supplierItemPrices,
   supplierItems,
@@ -134,17 +133,14 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
         netContentQuantity: products.netContentQuantity,
         netContentUnit: products.netContentUnit,
         productSaleUnit: products.saleUnit,
-        packagingId: productPackagings.id,
-        packagingName: productPackagings.name,
-        quantityPerPackage: productPackagings.quantityPerPackage,
-        packagingActive: productPackagings.active,
-        packagingSaleUnit: productPackagings.saleUnit,
+        quantity: supplierPriceListRows.quantity,
+        saleUnit: supplierPriceListRows.saleUnit,
+        relinkRequired: supplierPriceListRows.relinkRequired,
         vatRate: supplierPriceListRows.vatRate,
       })
       .from(supplierPriceListRows)
       .leftJoin(products, eq(products.id, supplierPriceListRows.productId))
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .leftJoin(productPackagings, eq(productPackagings.id, supplierPriceListRows.packagingId))
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
     const remembered = await this.rememberedItems(list, rows);
@@ -166,7 +162,7 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
           page: row.page,
           barcode: row.barcode,
           link:
-            row.productId !== null && row.packagingId !== null
+            row.productId !== null && row.quantity !== null && row.saleUnit !== null
               ? {
                   product: {
                     id: row.productId,
@@ -178,13 +174,9 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
                     }),
                     saleUnit: row.productSaleUnit as SaleUnit,
                   },
-                  packaging: {
-                    id: row.packagingId,
-                    name: row.packagingName as string,
-                    quantityPerPackage: row.quantityPerPackage as number,
-                    active: row.packagingActive as boolean,
-                    saleUnit: row.packagingSaleUnit as SaleUnit,
-                  },
+                  quantity: row.quantity,
+                  saleUnit: row.saleUnit as SaleUnit,
+                  relinkRequired: row.relinkRequired,
                   vatRate: row.vatRate,
                 }
               : null,

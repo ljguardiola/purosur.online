@@ -33,7 +33,6 @@ export type CreateProductFromSupplierItemOutcome =
   | { kind: "already_linked" }
   | { kind: "vat_rate_missing" }
   | { kind: "vat_rate_invalid" }
-  | { kind: "presentation_too_long" }
   | { kind: "not_editable" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
@@ -50,7 +49,6 @@ const CONFLICTS = [
   "vat_rate_invalid",
   "category_not_leaf",
   "brand_inactive",
-  "presentation_too_long",
 ] as const;
 
 export function fetchProductCreationCategories(): Promise<FetchProductCreationCategoriesOutcome> {
@@ -132,8 +130,7 @@ export async function createProductFromSupplierItem(
     barcodes: input.barcodes,
     tagIds: input.tagIds,
     netContent: input.netContent,
-    packagingName: input.packagingName,
-    quantityPerPackage: input.quantityPerPackage,
+    quantity: input.quantity,
     vatRate: input.vatRate,
   };
   let response: Response;

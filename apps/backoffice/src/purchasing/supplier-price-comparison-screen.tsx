@@ -4,6 +4,7 @@ import {
   formatCents,
   formatNumber,
   formatPricePerSaleUnit,
+  formatSaleUnitQuantity,
   ListFilter,
   plural,
   SearchField,
@@ -48,7 +49,7 @@ const ALL_CATEGORIES = "";
 
 const UNPRICED_REASONS: Record<UnpricedOffer["reason"], string> = {
   vat_rate_missing: "Falta el IVA del ítem",
-  packaging_not_buyable: "Ya no se compra en esta presentación",
+  link_outdated: "Hay que volver a vincularlo",
 };
 
 const categoryOrder = textOrder((name: string) => name);
@@ -62,7 +63,7 @@ function rowsOf(products: readonly ComparedProduct[]): OfferRow[] {
     return offers.length === 0
       ? [{ id: product.id, product, offer: null, first: true }]
       : offers.map((entry, index) => ({
-          id: `${product.id}/${entry.kind}/${entry.offer.supplier.id}/${entry.offer.packagingName}`,
+          id: `${product.id}/${entry.kind}/${index}`,
           product,
           offer: entry,
           first: index === 0,
@@ -101,11 +102,11 @@ const columns = [
   }),
   dataColumn({
     id: "price",
-    header: "Presentación y precio",
+    header: "Cantidad y precio",
     render: (row: OfferRow) =>
       row.offer === null
         ? null
-        : `${row.offer.offer.packagingName} · ${formatCents(row.offer.offer.priceCents)}`,
+        : `${formatSaleUnitQuantity(row.offer.offer.quantity, row.offer.offer.saleUnit)} · ${formatCents(row.offer.offer.priceCents)}`,
   }),
   dataColumn({
     id: "perSaleUnit",

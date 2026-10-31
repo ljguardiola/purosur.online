@@ -36,7 +36,6 @@ import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
-import { quantityFieldKind } from "../platform/stock-quantity";
 import type { createTag } from "../platform/tag-creation-api";
 import type { CloudData } from "../platform/use-cloud-query";
 import {
@@ -63,6 +62,10 @@ import type {
   fetchProductCreationCategories,
   fetchProductCreationTags,
 } from "./supplier-item-products-api";
+import {
+  SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS,
+  supplierItemQuantityFieldKind,
+} from "./supplier-item-quantity";
 import {
   type SupplierPriceListChangeNotice,
   SupplierPriceListChangeNotices,
@@ -398,27 +401,29 @@ export function CreateProductFromSupplierItemModal({
             generation={generate.generation}
             disabled={submitting}
           />
-          <div className="grid grid-cols-3 items-start gap-3">
-            {row.presentation === null ? (
-              <div className="col-span-2">
-                <form.AppField name="packagingName">
+          <div className="flex flex-col gap-2">
+            <form.AppField name="quantity">
+              {(field) => (
+                <field.TextField
+                  {...supplierItemQuantityFieldKind(values.saleUnit, values.quantityUnit)}
+                  label="Cantidad que trae"
+                  required
+                />
+              )}
+            </form.AppField>
+            {values.saleUnit === "KG" ? (
+              <>
+                <FieldHeading>Unidad de la cantidad</FieldHeading>
+                <form.AppField name="quantityUnit">
                   {(field) => (
-                    <field.TextField kind="plain-text" label="Presentación de compra" required />
+                    <field.SegmentedControl
+                      label="Unidad de la cantidad"
+                      options={SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS}
+                    />
                   )}
                 </form.AppField>
-              </div>
+              </>
             ) : null}
-            <div>
-              <form.AppField name="quantity">
-                {(field) => (
-                  <field.TextField
-                    {...quantityFieldKind(values.saleUnit)}
-                    label="Contiene"
-                    required
-                  />
-                )}
-              </form.AppField>
-            </div>
           </div>
           {list.requiresVatRate ? (
             choices.status === "failed" ? (

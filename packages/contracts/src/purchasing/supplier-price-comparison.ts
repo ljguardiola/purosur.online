@@ -5,8 +5,8 @@ import { exactFractionSchema } from "./exact-fraction.js";
 
 const supplierOfferSchema = z.object({
   supplier: z.object({ id: z.string(), name: z.string() }),
-  packagingName: z.string(),
-  quantityPerPackage: z.int(),
+  quantity: z.int(),
+  saleUnit: z.enum(SALE_UNITS),
   priceCents: z.int(),
   pricePerSaleUnit: exactFractionSchema,
   listDate: z.string(),
@@ -15,7 +15,8 @@ const supplierOfferSchema = z.object({
 
 const unpricedOfferSchema = z.object({
   supplier: z.object({ id: z.string(), name: z.string() }),
-  packagingName: z.string(),
+  quantity: z.int(),
+  saleUnit: z.enum(SALE_UNITS),
   priceCents: z.int(),
   listDate: z.string(),
   reason: z.enum(SUPPLIER_OFFER_UNPRICED_REASONS),

@@ -40,7 +40,8 @@ export interface InitialCountLotView extends ProductBrandAndNetContent {
 export interface InitialCountLotSupplierPrice {
   supplierItemId: string;
   supplierName: string;
-  packagingName: string;
+  quantity: number;
+  saleUnit: SaleUnit;
   listDate: string;
   unitCostCents: number;
   cheapest: boolean;
@@ -59,7 +60,8 @@ function supplierPricesOf(row: InitialCountLotRow): InitialCountLotSupplierPrice
           {
             supplierItemId: price.supplierItemId,
             supplierName: price.supplierName,
-            packagingName: price.packagingName,
+            quantity: price.quantity,
+            saleUnit: price.saleUnit,
             listDate: price.listDate,
             unitCostCents: unitCostCents(cost.totalCents, cost.quantity),
             cheapest: price === cheapest,

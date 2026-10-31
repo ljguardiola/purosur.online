@@ -21,12 +21,9 @@ const supplierPriceListRowSchema = z.object({
         netContent: netContentSchema.nullable(),
         saleUnit: z.enum(SALE_UNITS),
       }),
-      packaging: z.object({
-        id: z.string(),
-        name: z.string(),
-        quantityPerPackage: z.int(),
-        buyable: z.boolean(),
-      }),
+      quantity: z.int(),
+      saleUnit: z.enum(SALE_UNITS),
+      current: z.boolean(),
       vatRate: z.int().nullable(),
     })
     .nullable(),

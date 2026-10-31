@@ -7,6 +7,7 @@ import {
   reactivationBarcodeTakenError,
   saleUnitHeldByDiscountError,
   saleUnitHeldByPackagingError,
+  saleUnitHeldBySupplierItemError,
 } from "./product-form";
 
 describe("PRODUCT_EDIT_MESSAGES", () => {
@@ -57,6 +58,14 @@ describe("saleUnitHeldByPackagingError", () => {
   it("names the active purchase packaging that keeps the sale unit", () => {
     expect(saleUnitHeldByPackagingError("Caja x 12")).toBe(
       'No se puede cambiar la unidad de venta mientras la presentación de compra "Caja x 12" esté activa.',
+    );
+  });
+});
+
+describe("saleUnitHeldBySupplierItemError", () => {
+  it("says a linked supplier item keeps the sale unit", () => {
+    expect(saleUnitHeldBySupplierItemError).toBe(
+      "No se puede cambiar la unidad de venta mientras un ítem de proveedor esté vinculado al producto.",
     );
   });
 });

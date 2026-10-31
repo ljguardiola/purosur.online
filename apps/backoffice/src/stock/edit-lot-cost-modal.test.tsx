@@ -224,17 +224,17 @@ const lotWithPrices = {
   ],
 };
 
-test("offers the loaded prices instead of a typed cost, each with its supplier, list date, packaging and cost, marking the cheapest", async () => {
+test("offers the loaded prices instead of a typed cost, each with its supplier, list date, quantity and cost, marking the cheapest", async () => {
   const screen = await renderModal(createProps({ lot: lotWithPrices }));
 
   const dialog = screen.getByRole("dialog", { name: "Almendras peladas" });
   await userEvent.click(dialog.getByRole("combobox", { name: PRICE_LIST }));
   await expect
     .element(screen.getByRole("option", { name: /^Alfa/ }))
-    .toHaveTextContent("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kg La más barata");
+    .toHaveTextContent("Alfa del 01/03/2026 · 10 kg · $ 9.500,00 / kg La más barata");
   await expect
     .element(screen.getByRole("option", { name: /^Beta/ }))
-    .toHaveTextContent("Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg");
+    .toHaveTextContent("Beta del 15/02/2026 · 500 g · $ 10.180,00 / kg");
   expect(dialog.getByRole("textbox").query()).toBeNull();
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -246,7 +246,7 @@ test("starts on the price the lot's cost already equals and saves it as the supp
 
   await expect
     .element(screen.getByRole("combobox", { name: PRICE_LIST }))
-    .toHaveValue("Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg");
+    .toHaveValue("Beta del 15/02/2026 · 500 g · $ 10.180,00 / kg");
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
   await expect
@@ -266,7 +266,7 @@ test("starts on the cheapest price when the lot's cost equals none, and saves an
 
   await expect
     .element(screen.getByRole("combobox", { name: PRICE_LIST }))
-    .toHaveValue("Alfa del 01/03/2026 · Caja x 10 · $ 9.500,00 / kg");
+    .toHaveValue("Alfa del 01/03/2026 · 10 kg · $ 9.500,00 / kg");
   await expect.element(screen.getByRole("dialog").getByText("La más barata")).toBeVisible();
   await choosePrice(screen, /^Beta/);
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
@@ -285,7 +285,7 @@ test("typing part of a supplier's name offers only that supplier's prices", asyn
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
-  ).toEqual(["Beta del 15/02/2026 · Bolsa · $ 10.180,00 / kg"]);
+  ).toEqual(["Beta del 15/02/2026 · 500 g · $ 10.180,00 / kg"]);
 });
 
 test("fits six loaded prices in the modal and offers every one", async () => {

@@ -328,7 +328,8 @@ type InitialLot = InitialInventoryLotList["lots"][number];
 export const supplierPriceAlfa: InitialLot["supplierPrices"][number] = {
   supplierItemId: "00000000-0000-4000-8000-0000000000c1",
   supplierName: "Alfa",
-  packagingName: "Caja x 10",
+  quantity: 10_000,
+  saleUnit: "KG",
   listDate: "2026-03-01",
   unitCostCents: 950_000,
   cheapest: true,
@@ -338,7 +339,8 @@ export const supplierPriceAlfa: InitialLot["supplierPrices"][number] = {
 export const supplierPriceBeta: InitialLot["supplierPrices"][number] = {
   supplierItemId: "00000000-0000-4000-8000-0000000000c2",
   supplierName: "Beta",
-  packagingName: "Bolsa",
+  quantity: 500,
+  saleUnit: "KG",
   listDate: "2026-02-15",
   unitCostCents: 1_018_000,
   cheapest: false,

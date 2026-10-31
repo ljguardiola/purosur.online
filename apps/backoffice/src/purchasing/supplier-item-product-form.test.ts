@@ -22,35 +22,35 @@ const FILLED: SupplierItemProductFormValues = {
   netContent: { quantity: "", unit: "G" },
   barcodes: { codes: ["7790001000029"], scan: "" },
   tagIds: [],
-  packagingName: " Caja 10 kg ",
   quantity: "10",
+  quantityUnit: "KG",
   vatRate: "",
   version: 3,
 };
 
 describe("supplierItemProductFormValuesOf", () => {
-  it("starts as a new product does, with the item's description as the name and its barcode, and no presentation to type when the list states one", () => {
+  it("starts as a new product does, with the item's description as the name and its barcode, and no quantity typed", () => {
     expect(supplierItemProductFormValuesOf(nutRow, 3)).toEqual({
       ...EMPTY_PRODUCT_FORM,
       name: nutRow.description,
       barcodes: { codes: ["7790001000029"], scan: "" },
-      packagingName: null,
       quantity: "",
+      quantityUnit: "KG",
       vatRate: "",
       version: 3,
     });
   });
 
-  it("leaves the presentation to type and the barcodes empty when the item has none", () => {
-    const values = supplierItemProductFormValuesOf(unlinkedWithoutPresentation, 3);
-
-    expect(values.packagingName).toBe("");
-    expect(values.barcodes).toEqual({ codes: [], scan: "" });
+  it("leaves the barcodes empty when the item has none", () => {
+    expect(supplierItemProductFormValuesOf(unlinkedWithoutPresentation, 3).barcodes).toEqual({
+      codes: [],
+      scan: "",
+    });
   });
 });
 
 describe("supplierItemProductRequestFrom", () => {
-  it("builds the request with the presentation's name trimmed and the quantity in the stock's units", () => {
+  it("builds the request with the quantity in the stock's units", () => {
     expect(supplierItemProductRequestFrom(FILLED, false)).toEqual({
       version: 3,
       name: "Aceite de almendras",
@@ -60,8 +60,7 @@ describe("supplierItemProductRequestFrom", () => {
       barcodes: ["7790001000029"],
       tagIds: [],
       netContent: null,
-      packagingName: "Caja 10 kg",
-      quantityPerPackage: 10_000,
+      quantity: 10_000,
       vatRate: null,
     });
   });
@@ -77,19 +76,22 @@ describe("supplierItemProductRequestFrom", () => {
     expect(supplierItemProductRequestFrom(filled, false)).toMatchObject(productRequestFrom(filled));
   });
 
-  it("sends no presentation's name when the list states the presentation", () => {
-    expect(
-      supplierItemProductRequestFrom({ ...FILLED, packagingName: null }, false).packagingName,
-    ).toBeNull();
-  });
-
   it("reads the quantity in kilos when the product is sold by weight", () => {
     const request = supplierItemProductRequestFrom(
       { ...FILLED, saleUnit: "KG", quantity: "12,5" },
       false,
     );
 
-    expect(request.quantityPerPackage).toBe(12_500);
+    expect(request.quantity).toBe(12_500);
+  });
+
+  it("reads the quantity in grams when the product is sold by weight and grams are chosen", () => {
+    const request = supplierItemProductRequestFrom(
+      { ...FILLED, saleUnit: "KG", quantity: "500", quantityUnit: "G" },
+      false,
+    );
+
+    expect(request.quantity).toBe(500);
   });
 
   it("includes the code still typed in the scan input", () => {
@@ -110,7 +112,7 @@ describe("supplierItemProductRequestFrom", () => {
 
   it("sends an unreadable quantity as not a number so the contract refuses it", () => {
     expect(
-      supplierItemProductRequestFrom({ ...FILLED, quantity: "diez" }, false).quantityPerPackage,
+      supplierItemProductRequestFrom({ ...FILLED, quantity: "diez" }, false).quantity,
     ).toBeNaN();
   });
 
@@ -122,21 +124,9 @@ describe("supplierItemProductRequestFrom", () => {
 });
 
 describe("SUPPLIER_ITEM_PRODUCT_MESSAGES", () => {
-  it("asks for the presentation's name, then for a shorter one", () => {
-    expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.packagingName({ ...FILLED, packagingName: " " })).toBe(
-      "Ingresá el nombre de la presentación.",
-    );
-    expect(
-      SUPPLIER_ITEM_PRODUCT_MESSAGES.packagingName({
-        ...FILLED,
-        packagingName: "x".repeat(1000),
-      }),
-    ).toMatch(/^El nombre puede tener hasta \d+ caracteres\.$/);
-  });
-
   it("asks for the quantity, then explains how to write it for the sale unit", () => {
     expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.quantity({ ...FILLED, quantity: "" })).toBe(
-      "Ingresá la cantidad por presentación.",
+      "Ingresá la cantidad que trae el ítem.",
     );
     expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.quantity({ ...FILLED, quantity: "1,5" })).toBe(
       "Escribí una cantidad entera de unidades, por ejemplo 16.",
@@ -144,6 +134,14 @@ describe("SUPPLIER_ITEM_PRODUCT_MESSAGES", () => {
     expect(
       SUPPLIER_ITEM_PRODUCT_MESSAGES.quantity({ ...FILLED, saleUnit: "KG", quantity: "x" }),
     ).toBe("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
+    expect(
+      SUPPLIER_ITEM_PRODUCT_MESSAGES.quantity({
+        ...FILLED,
+        saleUnit: "KG",
+        quantity: "x",
+        quantityUnit: "G",
+      }),
+    ).toBe("Escribí los gramos como un número entero, por ejemplo 500.");
   });
 
   it("asks for the VAT rate", () => {

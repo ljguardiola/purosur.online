@@ -100,11 +100,11 @@ test("shows a row for each offer, with the product and its category on the first
   expect(second.element().textContent).not.toContain("Almendras peladas");
 });
 
-test("shows each offer's supplier, presentation with its price, price per sale unit and list date", async () => {
+test("shows each offer's supplier, quantity with its price, price per sale unit and list date", async () => {
   const screen = await loaded(createServices());
 
   const offer = screen.getByRole("row", { name: /Distribuidora del Sur/ });
-  await expect.element(offer.getByText("Bolsa 5 kg · $ 53.200,00")).toBeVisible();
+  await expect.element(offer.getByText("5 kg · $ 53.200,00")).toBeVisible();
   await expect.element(offer.getByText("$ 10.640,00 / kg")).toBeVisible();
   await expect.element(offer.getByText("02/09/2026")).toBeVisible();
 });
@@ -113,7 +113,7 @@ test("writes the price per sale unit of a product sold by the unit with no unit"
   const screen = await loaded(createServices());
 
   const honey = screen.getByRole("row", { name: /Apícola Los Tilos/ });
-  await expect.element(honey.getByText("Caja x 12 · $ 67.000,00")).toBeVisible();
+  await expect.element(honey.getByText("12 u · $ 67.000,00")).toBeVisible();
   await expect.element(honey.getByText("$ 5.583,33", { exact: true })).toBeVisible();
 });
 
@@ -144,11 +144,7 @@ const [almonds] = PRICE_COMPARISON.products as [SupplierPriceComparison["product
 
 test.each([
   ["missing its VAT rate", "vat_rate_missing", "Falta el IVA del ítem"],
-  [
-    "through a packaging no longer bought by",
-    "packaging_not_buyable",
-    "Ya no se compra en esta presentación",
-  ],
+  ["through a link that has to be made again", "link_outdated", "Hay que volver a vincularlo"],
 ] as const)(
   "shows an offer %s after the compared ones, with its price and why it has no price per sale unit",
   async (_name, reason, text) => {
@@ -159,7 +155,8 @@ test.each([
           unpricedOffers: [
             {
               supplier: { id: "5a900000-0000-4000-8000-000000000009", name: "Mayorista Norte" },
-              packagingName: "Bolsa 10 kg",
+              quantity: 10_000,
+              saleUnit: "KG",
               priceCents: 9_900_000,
               listDate: "2026-08-15",
               reason,
@@ -171,7 +168,7 @@ test.each([
 
     await expect.poll(() => offerRows(screen)).toHaveLength(3);
     const unpriced = screen.getByRole("row", { name: /Mayorista Norte/ });
-    await expect.element(unpriced.getByText("Bolsa 10 kg · $ 99.000,00")).toBeVisible();
+    await expect.element(unpriced.getByText("10 kg · $ 99.000,00")).toBeVisible();
     await expect.element(unpriced.getByText(text)).toBeVisible();
     await expect.element(unpriced.getByText("15/08/2026")).toBeVisible();
     expect(unpriced.getByText("El más barato").query()).toBeNull();
@@ -188,7 +185,8 @@ test("does not say a product priced only by an offer without a price per sale un
         unpricedOffers: [
           {
             supplier: { id: "5a900000-0000-4000-8000-000000000009", name: "Mayorista Norte" },
-            packagingName: "Bolsa 10 kg",
+            quantity: 10_000,
+            saleUnit: "KG",
             priceCents: 9_900_000,
             listDate: "2026-08-15",
             reason: "vat_rate_missing",

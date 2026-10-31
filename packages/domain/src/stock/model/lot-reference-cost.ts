@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import {
   cheapestOffer,
   compareFractions,
@@ -20,7 +21,9 @@ export function isReferenceUnitCost(cents: number): boolean {
 export interface LoadedSupplierPrice {
   supplierItemId: string;
   supplierName: string;
-  packagingName: string;
+  // In thousandths of `saleUnit`, as the supplier item brings it.
+  quantity: number;
+  saleUnit: SaleUnit;
   listDate: string;
   pricePerSaleUnit: Fraction;
 }

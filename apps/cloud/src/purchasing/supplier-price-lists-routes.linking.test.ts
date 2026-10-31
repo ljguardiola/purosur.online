@@ -17,12 +17,7 @@ import {
   storedListRow,
   storedListVersion,
 } from "./test-support/extracted-list-fixtures.js";
-import {
-  insertActor,
-  insertBarcode,
-  insertPackaging,
-  insertProduct,
-} from "./test-support/purchasing-fixtures.js";
+import { insertBarcode, insertProduct } from "./test-support/purchasing-fixtures.js";
 
 const NOW = new Date("2026-09-16T15:00:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
@@ -74,19 +69,12 @@ const extractedListWithRow = (
   row?: Parameters<typeof sharedExtractedListWithRow>[2],
 ) => sharedExtractedListWithRow(db, list, row);
 
-async function productWithPackaging(
-  actorId: string,
+async function productToLink(
   name = "Yerba 1 kg",
   description: { brandName?: string; netContent?: { quantity: number; unit: "G" | "KG" } } = {},
 ) {
   const { id: productId } = await insertProduct(db, { name, ...description });
-  const packagingId = await insertPackaging(db, {
-    productId,
-    actorId,
-    name: "Caja x 10",
-    quantityPerPackage: 10_000,
-  });
-  return { productId, packagingId };
+  return { productId, saleUnit: "UNIT", quantity: 10_000 };
 }
 
 const storedRow = (rowId: string) => storedListRow(db, rowId);
@@ -128,8 +116,8 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
 
   it("rejects an Origin that is not the backoffice's own, changing nothing", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow();
-    const target = await productWithPackaging(actorId);
+    const { listId, rowId } = await extractedListWithRow();
+    const target = await productToLink();
 
     const response = await link({ ...headers, origin: "https://attacker.example" }, listId, rowId, {
       ...target,
@@ -145,10 +133,11 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
     ["a VAT rate that is not offered", { vatRate: 500 }],
     ["a product that is not an id", { productId: "not-an-id" }],
     ["no version", { version: undefined }],
+    ["no sale unit", { saleUnit: undefined }],
   ])("answers 400 for %s", async (_name, overrides) => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow();
-    const target = await productWithPackaging(actorId);
+    const { listId, rowId } = await extractedListWithRow();
+    const target = await productToLink();
 
     const response = await link(headers, listId, rowId, {
       ...target,
@@ -161,10 +150,10 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
-  it("links the row to the product and packaging with the VAT rate, marking it reviewed, and answers 200", async () => {
+  it("links the row to the product with the quantity and the VAT rate, marking it reviewed, and answers 200", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow();
-    const target = await productWithPackaging(actorId);
+    const { listId, rowId } = await extractedListWithRow();
+    const target = await productToLink();
 
     const response = await link(headers, listId, rowId, { ...target, version: 1, vatRate: 1_050 });
 
@@ -177,8 +166,8 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
 
   it("links a row of a list whose prices include VAT without a rate", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow({ pricesIncludeVat: true });
-    const target = await productWithPackaging(actorId);
+    const { listId, rowId } = await extractedListWithRow({ pricesIncludeVat: true });
+    const target = await productToLink();
 
     const response = await link(headers, listId, rowId, { ...target, version: 1 });
 
@@ -188,8 +177,8 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
 
   it("answers 404 for a list or a row that does not exist", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow();
-    const target = await productWithPackaging(actorId);
+    const { listId, rowId } = await extractedListWithRow();
+    const target = await productToLink();
     const body = { ...target, version: 1, vatRate: 2_100 };
 
     const noList = await link(headers, MISSING_ID, rowId, body);
@@ -202,8 +191,8 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
 
   it("answers 409 stale_version for a list changed since it was loaded, changing nothing", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow({ version: 3 });
-    const target = await productWithPackaging(actorId);
+    const { listId, rowId } = await extractedListWithRow({ version: 3 });
+    const target = await productToLink();
 
     const response = await link(headers, listId, rowId, { ...target, version: 2, vatRate: 2_100 });
 
@@ -214,8 +203,8 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
 
   it("answers 409 not_editable for a list that was discarded", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow({ state: "DISCARDED" });
-    const target = await productWithPackaging(actorId);
+    const { listId, rowId } = await extractedListWithRow({ state: "DISCARDED" });
+    const target = await productToLink();
 
     const response = await link(headers, listId, rowId, { ...target, version: 1, vatRate: 2_100 });
 
@@ -223,35 +212,67 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
     expect(response.json()).toMatchObject({ code: "not_editable" });
   });
 
-  it("answers 409 packaging_not_linkable for a packaging that is deactivated, of another product or that does not exist", async () => {
+  it("answers 409 product_not_linkable for a product that is deactivated or that does not exist", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow();
-    const target = await productWithPackaging(actorId);
-    const other = await productWithPackaging(actorId, "Azúcar 1 kg");
-    const inactive = await insertPackaging(db, {
-      productId: target.productId,
-      actorId,
-      active: false,
-    });
+    const { listId, rowId } = await extractedListWithRow();
+    const inactive = await insertProduct(db, { name: "Descontinuado", active: false });
 
-    for (const packagingId of [inactive, other.packagingId, MISSING_ID]) {
+    for (const productId of [inactive.id, MISSING_ID]) {
       const response = await link(headers, listId, rowId, {
-        productId: target.productId,
-        packagingId,
+        productId,
+        saleUnit: "UNIT",
+        quantity: 10_000,
         version: 1,
         vatRate: 2_100,
       });
 
       expect(response.statusCode).toBe(409);
-      expect(response.json()).toMatchObject({ code: "packaging_not_linkable" });
+      expect(response.json()).toMatchObject({ code: "product_not_linkable" });
     }
+    expect((await storedRow(rowId))?.productId).toBeNull();
+  });
+
+  it("answers 409 sale_unit_changed for a quantity stated in a sale unit the product is no longer sold by, linking nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const target = await productToLink();
+
+    const response = await link(headers, listId, rowId, {
+      ...target,
+      saleUnit: "KG",
+      version: 1,
+      vatRate: 2_100,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "sale_unit_changed" });
+    expect((await storedRow(rowId))?.productId).toBeNull();
+  });
+
+  it("answers 400 for a quantity that is part of a unit for a product sold by the unit, linking nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const target = await productToLink();
+
+    const response = await link(headers, listId, rowId, {
+      ...target,
+      quantity: 1_500,
+      version: 1,
+      vatRate: 2_100,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "quantity" }],
+    });
     expect((await storedRow(rowId))?.productId).toBeNull();
   });
 
   it("answers 409 vat_rate_missing for a list whose prices exclude VAT when no rate was given", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow({ pricesIncludeVat: false });
-    const target = await productWithPackaging(actorId);
+    const { listId, rowId } = await extractedListWithRow({ pricesIncludeVat: false });
+    const target = await productToLink();
 
     const response = await link(headers, listId, rowId, { ...target, version: 1 });
 
@@ -520,17 +541,17 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
 describe("GET /supplier-price-lists/:id with linked rows", () => {
   it("answers each row with its barcode, link, status and exact price per sale unit, and the counts", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow(
+    const { listId, rowId } = await extractedListWithRow(
       { pricesIncludeVat: true },
       { priceCents: 1_000, barcode: "7790000000011" },
     );
-    const { productId, packagingId } = await productWithPackaging(actorId, "Yerba", {
+    const { productId, quantity } = await productToLink("Yerba", {
       brandName: "Piragüé",
       netContent: { quantity: 1, unit: "KG" },
     });
     await db
       .update(supplierPriceListRows)
-      .set({ productId, packagingId })
+      .set({ productId, quantity, saleUnit: "UNIT" })
       .where(eq(supplierPriceListRows.id, rowId));
 
     const response = await app.inject({
@@ -553,12 +574,9 @@ describe("GET /supplier-price-lists/:id with linked rows", () => {
               netContent: { quantity: 1, unit: "KG" },
               saleUnit: "UNIT",
             },
-            packaging: {
-              id: packagingId,
-              name: "Caja x 10",
-              quantityPerPackage: 10_000,
-              buyable: true,
-            },
+            quantity: 10_000,
+            saleUnit: "UNIT",
+            current: true,
             vatRate: null,
           },
           status: "new",
@@ -594,17 +612,9 @@ describe("GET /supplier-price-lists/link-choices", () => {
     return app.inject({ method: "GET", url: "/supplier-price-lists/link-choices", headers });
   }
 
-  it("answers each active product with the packagings it may be bought by, including a product with none", async () => {
+  it("answers each active product with the unit it is sold by", async () => {
     const { headers } = await manager();
-    const actorId = await insertActor(db);
     const yerba = await insertProduct(db, { name: "Yerba 1 kg" });
-    const caja = await insertPackaging(db, {
-      productId: yerba.id,
-      actorId,
-      name: "Caja x 10",
-      quantityPerPackage: 10_000,
-    });
-    await insertPackaging(db, { productId: yerba.id, actorId, name: "Vieja", active: false });
     const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
     await insertProduct(db, { name: "Descontinuado", active: false });
 
@@ -621,7 +631,6 @@ describe("GET /supplier-price-lists/link-choices", () => {
           saleUnit: "UNIT",
           brandName: null,
           netContent: null,
-          packagings: [{ id: caja, name: "Caja x 10", quantityPerPackage: 10_000 }],
         },
         {
           id: harina.id,
@@ -629,7 +638,6 @@ describe("GET /supplier-price-lists/link-choices", () => {
           saleUnit: "KG",
           brandName: null,
           netContent: null,
-          packagings: [],
         },
       ]),
     );

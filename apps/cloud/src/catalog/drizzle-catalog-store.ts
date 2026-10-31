@@ -1,4 +1,9 @@
-import type { SaleUnit } from "@purosur/domain";
+import {
+  isLinkCurrent,
+  maySupplierPriceListRowBeLinked,
+  type SaleUnit,
+  type SupplierPriceListState,
+} from "@purosur/domain";
 import {
   type BrandFields,
   type BuyNPayMDiscount,
@@ -31,6 +36,9 @@ import {
   productPackagings,
   products,
   productTags,
+  supplierItems,
+  supplierPriceListRows,
+  supplierPriceLists,
   tags,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
@@ -159,6 +167,39 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .from(productPackagings)
       .where(and(eq(productPackagings.productId, productId), eq(productPackagings.active, true)));
     return rows.map((row) => row.name);
+  }
+
+  async hasCurrentSupplierItemLink(productId: string, saleUnit: SaleUnit): Promise<boolean> {
+    const remembered = await this.tx
+      .selectDistinct({
+        saleUnit: supplierItems.saleUnit,
+        relinkRequired: supplierItems.relinkRequired,
+      })
+      .from(supplierItems)
+      .where(eq(supplierItems.productId, productId));
+    const listed = await this.tx
+      .selectDistinct({
+        saleUnit: supplierPriceListRows.saleUnit,
+        relinkRequired: supplierPriceListRows.relinkRequired,
+        listState: supplierPriceLists.state,
+      })
+      .from(supplierPriceListRows)
+      .innerJoin(supplierPriceLists, eq(supplierPriceLists.id, supplierPriceListRows.listId))
+      .where(eq(supplierPriceListRows.productId, productId));
+    const isCurrent = (link: { saleUnit: string | null; relinkRequired: boolean }) =>
+      link.saleUnit !== null &&
+      isLinkCurrent(
+        { saleUnit: link.saleUnit as SaleUnit, relinkRequired: link.relinkRequired },
+        saleUnit,
+      );
+    return (
+      remembered.some(isCurrent) ||
+      listed.some(
+        (row) =>
+          maySupplierPriceListRowBeLinked(row.listState as SupplierPriceListState) &&
+          isCurrent(row),
+      )
+    );
   }
 
   async lockCategory(categoryId: string): Promise<LockCategoryResult> {

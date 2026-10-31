@@ -23,8 +23,12 @@ import {
   productBarcodes,
   productPackagings,
   products,
+  supplierItems,
+  supplierPriceListRows,
+  supplierPriceLists,
   users,
 } from "../platform/db/schema.js";
+import { insertSupplier } from "../purchasing/test-support/supplier-price-list-fixtures.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
@@ -535,5 +539,139 @@ describe("changing the sale unit of a product with purchase packagings", () => {
     const outcome = await editSaleUnit(product, category.id, "KG");
 
     expect(outcome.kind).toBe("applied");
+  });
+});
+
+describe("changing the sale unit of a product with a linked supplier item", () => {
+  async function actor() {
+    const [location] = await db.select({ id: locations.id }).from(locations);
+    const [created] = await db
+      .insert(users)
+      .values({
+        firstName: "Ada",
+        email: `ada-${crypto.randomUUID()}@example.com`,
+        locationId: location?.id ?? "",
+      })
+      .returning({ id: users.id });
+    return { actorId: created?.id ?? "", locationId: location?.id ?? "" };
+  }
+
+  async function rememberedLink(
+    productId: string,
+    link: { quantity?: number; saleUnit?: "UNIT" | "KG"; relinkRequired?: boolean } = {},
+  ) {
+    const { actorId } = await actor();
+    const supplierId = await insertSupplier(db, { actorId });
+    await db.insert(supplierItems).values({
+      supplierId,
+      keyKind: "code",
+      keyValue: crypto.randomUUID(),
+      description: "Yerba",
+      productId,
+      quantity: link.quantity ?? 10_000,
+      saleUnit: link.saleUnit ?? "UNIT",
+      relinkRequired: link.relinkRequired ?? false,
+    });
+  }
+
+  async function listedLink(productId: string, state: "EXTRACTED" | "REVIEWED" | "DISCARDED") {
+    const { actorId, locationId } = await actor();
+    const supplierId = await insertSupplier(db, { actorId });
+    const [list] = await db
+      .insert(supplierPriceLists)
+      .values({
+        supplierId,
+        locationId,
+        sourceKind: "PDF",
+        fileName: "lista.pdf",
+        fileContentKind: "PDF",
+        fileByteSize: 1_000,
+        state,
+        uploadedAt: new Date("2026-03-01T12:00:00.000Z"),
+        uploadedBy: actorId,
+      })
+      .returning({ id: supplierPriceLists.id });
+    await db.insert(supplierPriceListRows).values({
+      listId: list?.id ?? "",
+      position: 0,
+      description: "Yerba",
+      productId,
+      quantity: 10_000,
+      saleUnit: "UNIT",
+    });
+  }
+
+  function editSaleUnit(
+    product: { id: string; name: string; version: number },
+    categoryId: string,
+    saleUnit: "UNIT" | "KG",
+  ) {
+    return editProduct(
+      { zoneRules: fixedZoneRulesSource(), store: store(), clock },
+      {
+        id: product.id,
+        name: product.name,
+        categoryId,
+        brandId: null,
+        saleUnit,
+        barcodes: ["7790001000011", "7790001000028"],
+        netContent: null,
+        tagIds: [],
+        version: product.version,
+      },
+    );
+  }
+
+  it("is refused while a supplier item's link current for the sale unit refers to the product, which keeps its sale unit", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    await rememberedLink(product.id);
+
+    const outcome = await editSaleUnit(product, category.id, "KG");
+
+    expect(outcome).toEqual({ kind: "sale_unit_held_by_supplier_item" });
+    const [stored] = await db.select().from(products).where(eq(products.id, product.id));
+    expect(stored?.saleUnit).toBe("UNIT");
+  });
+
+  it.each(["EXTRACTED", "REVIEWED"] as const)(
+    "is refused while a row of a list that is %s refers to the product",
+    async (state) => {
+      const category = await newCategory();
+      const product = await newProduct(category.id);
+      await listedLink(product.id, state);
+
+      expect(await editSaleUnit(product, category.id, "KG")).toEqual({
+        kind: "sale_unit_held_by_supplier_item",
+      });
+    },
+  );
+
+  it("is saved when the only row referring to the product is in a discarded list", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    await listedLink(product.id, "DISCARDED");
+
+    expect((await editSaleUnit(product, category.id, "KG")).kind).toBe("applied");
+  });
+
+  it.each([
+    ["requires linking again", { relinkRequired: true }],
+    ["is stated in another sale unit", { saleUnit: "KG" as const }],
+  ])("is saved when the only link %s", async (_name, link) => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    await rememberedLink(product.id, link);
+
+    expect((await editSaleUnit(product, category.id, "KG")).kind).toBe("applied");
+  });
+
+  it("is saved when the link belongs to another product", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    const other = await newProduct(category.id, ["7790001000035"]);
+    await rememberedLink(other.id);
+
+    expect((await editSaleUnit(product, category.id, "KG")).kind).toBe("applied");
   });
 });
