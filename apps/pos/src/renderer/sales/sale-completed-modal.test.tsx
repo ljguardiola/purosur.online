@@ -30,6 +30,7 @@ function found(
 
 type Amounts =
   | { total: number; tendered: number; change: number }
+  | { total: number; method: "QR"; amount: number; surplus: number }
   | { total: number; method: "TRANSFER"; amount: number }
   | { total: number; method: "QR"; amount: number }
   | { total: number; method: "POINT"; cardType: "DEBIT" | "CREDIT" | null; amount: number }
@@ -150,6 +151,37 @@ describe("SaleCompletedModal", () => {
     await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
     await expect.element(screen.getByText("Efectivo entregado")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("tells the surplus of a paid order goes back to the customer through Mercado Pago, with no change", async () => {
+    const { screen } = await renderModal({
+      total: 476_000,
+      method: "QR",
+      amount: 500_000,
+      surplus: 24_000,
+    });
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("Mercado Pago le devuelve $ 240,00 al cliente"))
+      .toBeVisible();
+    await expect.element(screen.getByText("No se entrega vuelto en el mostrador.")).toBeVisible();
+    await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("says nothing of a surplus when the paid order had none", async () => {
+    const { screen } = await renderModal({
+      total: 476_000,
+      method: "QR",
+      amount: 476_000,
+      surplus: 0,
+    });
+
+    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect.element(screen.getByText(/Mercado Pago le devuelve/)).not.toBeInTheDocument();
   });
 
   it("says there is no change to hand over and shows what the standalone terminal charged", async () => {

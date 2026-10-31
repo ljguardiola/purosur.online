@@ -77,4 +77,27 @@ describe("ChargeCompletedModal", () => {
     await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
     await expect.element(screen.getByText("$ 3.000,00")).toBeVisible();
   });
+
+  it.each([
+    ["QR", "QR de Mercado Pago"],
+    ["POINT", "Point"],
+  ] as const)(
+    "shows the amount of the %s paid order applied and what goes back to the customer",
+    async (orderMethod, label) => {
+      const screen = await renderModal({
+        method: "PAID_ORDER",
+        orderMethod,
+        charge: { kind: "completed", ...SALE, applied: 500_000, surplus: 24_000 },
+      });
+
+      await expect
+        .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+        .toBeVisible();
+      await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("$ 5.000,00")).toBeVisible();
+      await expect
+        .element(screen.getByText("Mercado Pago le devuelve $ 240,00 al cliente"))
+        .toBeVisible();
+    },
+  );
 });
