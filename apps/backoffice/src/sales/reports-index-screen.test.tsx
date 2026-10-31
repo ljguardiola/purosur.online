@@ -245,3 +245,14 @@ test("leaves the AI cost by period report out when it is not shown", async () =>
 
   expect(screen.getByRole("link", { name: "Costo de IA por período" }).query()).toBeNull();
 });
+
+test("groups the profitability reports in a card titled Rentabilidad", async () => {
+  const screen = await renderScreen();
+
+  const profitability = screen.getByRole("region", { name: "Rentabilidad" });
+  await expect.element(profitability).toBeVisible();
+  expect(profitability.getByRole("link").elements()).toHaveLength(1);
+  await expect
+    .element(profitability.getByRole("link", { name: "Margen por producto y por categoría" }))
+    .toHaveAttribute("href", "/reports/margin");
+});
