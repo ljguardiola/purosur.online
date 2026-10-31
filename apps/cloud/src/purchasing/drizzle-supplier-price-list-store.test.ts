@@ -891,10 +891,7 @@ describe("remembering an item", () => {
       ...first,
     });
     const packagingId = await packagingOf(first.productId);
-    await context.db
-      .update(supplierItems)
-      .set({ packagingId })
-      .where(eq(supplierItems.id, itemId));
+    await context.db.update(supplierItems).set({ packagingId }).where(eq(supplierItems.id, itemId));
 
     await context
       .store()
