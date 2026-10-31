@@ -4,7 +4,27 @@ import {
   supplierItemQuantityProposalSchema,
 } from "./supplier-item-quantity-proposal.js";
 
+function firstFailure(candidate: unknown): { field: unknown; message: unknown } | undefined {
+  const result = supplierItemQuantityProposalBodySchema.safeParse(candidate);
+  const issue = result.success ? undefined : result.error.issues[0];
+  return issue && { field: issue.path[0], message: issue.message };
+}
+
 describe("supplierItemQuantityProposalBodySchema", () => {
+  it.each([undefined, "", "KILO", 1])("names the sale unit when it is %j", (saleUnit) => {
+    expect(firstFailure({ saleUnit })).toEqual({
+      field: "saleUnit",
+      message: "saleUnit must be UNIT or KG",
+    });
+  });
+
+  it.each([0, -5, 1.2345])("names the net content's quantity when it is %j", (quantity) => {
+    expect(firstFailure({ saleUnit: "UNIT", netContent: { quantity, unit: "G" } })).toEqual({
+      field: "netContentQuantity",
+      message: expect.stringContaining("netContent's quantity must be a positive number"),
+    });
+  });
+
   it("reads the sale unit and the net content", () => {
     const body = { saleUnit: "KG", netContent: { quantity: 250, unit: "G" } };
 
