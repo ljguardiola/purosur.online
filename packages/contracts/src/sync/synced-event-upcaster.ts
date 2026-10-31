@@ -31,11 +31,13 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@6"
   | "sale_completed@7"
   | "sale_completed@8"
-  | "sale_completed@9"];
+  | "sale_completed@9"
+  | "sale_completed@10"];
 type SalePayment = SyncedEventPayloads[
   | "sale_completed@1"
   | "sale_completed@8"
-  | "sale_completed@9"]["payments"][number];
+  | "sale_completed@9"
+  | "sale_completed@10"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@1"
   | "sale_cancelled@2"
@@ -320,6 +322,7 @@ function completedSale(
     | null,
   operationNumber: number | null,
 ): SyncedFact {
+  const rebuilt = "rebuilt_paid_order" in payload ? payload.rebuilt_paid_order : null;
   return {
     kind: "sale_completed",
     sale: {
@@ -340,6 +343,10 @@ function completedSale(
               productId: movement.product_id,
               delta: movement.delta,
             })),
+      rebuiltPaidOrder:
+        rebuilt === null
+          ? null
+          : { paymentTransactionId: rebuilt.payment_transaction_id, surplus: rebuilt.surplus },
     },
   };
 }
@@ -511,6 +518,14 @@ const FACT_OF: {
       payload.operation_number,
     ),
   "sale_completed@9": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
+  "sale_completed@10": (payload) =>
     completedSale(
       payload,
       payload.occurred_at,

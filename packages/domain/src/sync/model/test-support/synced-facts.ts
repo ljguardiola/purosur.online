@@ -55,6 +55,7 @@ export function aCompletedSaleFact(overrides: Partial<SaleCompleted["sale"]> = {
         },
       ],
       stockMovements: null,
+      rebuiltPaidOrder: null,
       ...overrides,
     },
   };

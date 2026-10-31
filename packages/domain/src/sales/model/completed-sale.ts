@@ -55,6 +55,11 @@ export interface CompletedSaleStockMovement {
   delta: number;
 }
 
+export interface CompletedSaleRebuiltPaidOrder {
+  paymentTransactionId: string;
+  surplus: number;
+}
+
 export interface CompletedSale {
   id: string;
   sessionId: string;
@@ -68,6 +73,7 @@ export interface CompletedSale {
   payments: CompletedSalePayment[];
   cashMovements: CompletedSaleCashMovement[];
   stockMovements: CompletedSaleStockMovement[] | null;
+  rebuiltPaidOrder: CompletedSaleRebuiltPaidOrder | null;
 }
 
 export function stockMovementsMatchLines(

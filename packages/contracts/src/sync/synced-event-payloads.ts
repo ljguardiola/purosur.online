@@ -281,6 +281,15 @@ const saleCompletedV9Schema = saleCompletedV8Schema.extend({
   payments: z.array(paymentWithPointCardTypeSchema).min(1),
 });
 
+const saleCompletedV10Schema = saleCompletedV9Schema.extend({
+  rebuilt_paid_order: z
+    .object({
+      payment_transaction_id: text,
+      surplus: z.int().min(0),
+    })
+    .nullable(),
+});
+
 const printedDocumentSchema = z.enum(PRINTED_DOCUMENTS);
 
 const salePrintStateChangedV1Schema = z.object({
@@ -732,6 +741,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@7": saleCompletedV7Schema,
   "sale_completed@8": saleCompletedV8Schema,
   "sale_completed@9": saleCompletedV9Schema,
+  "sale_completed@10": saleCompletedV10Schema,
   "sale_print_state_changed@1": salePrintStateChangedV1Schema,
   "sale_print_state_changed@2": salePrintStateChangedV2Schema,
   "sale_print_state_changed@3": salePrintStateChangedV3Schema,

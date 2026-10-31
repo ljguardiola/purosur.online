@@ -10,7 +10,9 @@ const RECORDED_SALES = recordedPushes()
 
 const PAID_ORDER = "0199b7a0-0000-7000-8000-000000000b01";
 
-function version10Sale(rebuilt: unknown): PushedEvent {
+function version10Sale(
+  rebuilt: { payment_transaction_id: string; surplus: number } | null,
+): PushedEvent {
   const recorded = RECORDED_SALES.find((event) => event.schema_version === 9) as PushedEvent;
   return {
     ...recorded,
