@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { cancelSale } from "./cancel-sale.js";
+import { rebuildSaleAgainstPaidOrder } from "./rebuild-sale-against-paid-order.js";
 import {
+  aRebuildablePaidOrder,
   FakeSaleLedger,
   type FakeSaleLedgerState,
   FixedClock,
@@ -150,6 +152,52 @@ describe("cancelSale", () => {
     expect(outcome).toEqual({ kind: "cancelled" });
     expect(store.state).toEqual({ ...before, sales: [], outbox: [cancelledEvent()] });
     expect(store.transactions).toBe(1);
+  });
+
+  describe("a sale rebuilt against a paid order", () => {
+    const REBUILT = {
+      paidOrders: [aRebuildablePaidOrder({ amount: 6750 })],
+      rebuiltSales: [{ saleId: "sale-1", paymentTransactionId: "order-1" }],
+    };
+
+    it("is discarded with its link when the order was not applied, leaving the order unresolved", () => {
+      const store = ledger(REBUILT);
+
+      const outcome = cancel(store);
+
+      expect(outcome).toEqual({ kind: "cancelled" });
+      expect(store.state.sales).toEqual([]);
+      expect(store.state.rebuiltSales).toEqual([]);
+      expect(store.state.paidOrders).toEqual([aRebuildablePaidOrder({ amount: 6750 })]);
+    });
+
+    it("lets the paid order be rebuilt again afterwards", () => {
+      const store = ledger(REBUILT);
+      cancel(store);
+
+      const rebuilt = rebuildSaleAgainstPaidOrder(
+        {
+          ledger: store,
+          restoration: store.restoration,
+          ids: new SequentialIds(),
+        },
+        { actorId: "cashier", paymentTransactionId: "order-1" },
+      );
+
+      expect(rebuilt.kind).toBe("rebuilt");
+    });
+
+    it("cannot be cancelled without authorization once the order was applied, keeping its link", () => {
+      const store = ledger({
+        ...REBUILT,
+        payments: [{ ...APPROVED_PAYMENT, id: "order-1", method: "CASH" }],
+      });
+      const before = structuredClone(store.state);
+
+      expect(cancel(store)).toEqual({ kind: "has_approved_payment" });
+
+      expect(store.state).toEqual(before);
+    });
   });
 
   it("records the lines with the share of the sale discount they carried", () => {

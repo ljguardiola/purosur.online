@@ -239,7 +239,7 @@ describe("chargeSaleByTransfer", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 9,
+        schema_version: 10,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -303,6 +303,7 @@ describe("chargeSaleByTransfer", () => {
             { id: "id-3", sale_line_id: "line-1", product_id: "yerba", delta: -2000 },
             { id: "id-4", sale_line_id: "line-2", product_id: "fideos", delta: -1000 },
           ],
+          rebuilt_paid_order: null,
         },
       },
     ]);
