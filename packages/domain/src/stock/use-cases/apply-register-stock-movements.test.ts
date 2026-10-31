@@ -736,9 +736,9 @@ describe("applyRegisterStockMovements", () => {
     it("never puts back on a lot more than the sale line took from it across partial returns", async () => {
       const store = storeWithSoldLots();
 
-      await apply(store, sale(restocked(1500)));
+      await apply(store, sale(restocked(1000)));
       await apply(store, {
-        ...sale(restocked(2500, "return-movement-3")),
+        ...sale(restocked(3000, "return-movement-3")),
         occurredAt: AFTER_SALE,
       });
 
@@ -761,25 +761,26 @@ describe("applyRegisterStockMovements", () => {
 
     it("offsets the discard of a partial return with what that return put back", async () => {
       const store = storeWithSoldLots();
-      await apply(store, sale(restocked(1500)));
+      await apply(store, sale(restocked(1000)));
       const before = remainingByLot(store);
 
       await apply(store, {
         ...sale([
-          ...restocked(2500, "return-movement-3"),
+          ...restocked(3000, "return-movement-3"),
           {
             id: "return-movement-4",
             saleLineId: "sale-line-1",
             productId: "product-bread",
             kind: "loss",
             reason: "return_discard",
-            delta: -2500,
+            delta: -3000,
           },
         ]),
       });
 
       expect(remainingByLot(store)).toEqual(before);
       const allocations = store.snapshot().allocations;
+      expect(allocations.filter((row) => row.movementId === "return-movement-3")).not.toEqual([]);
       expect(allocations.filter((row) => row.movementId === "return-movement-3")).toEqual(
         allocations
           .filter((row) => row.movementId === "return-movement-4")

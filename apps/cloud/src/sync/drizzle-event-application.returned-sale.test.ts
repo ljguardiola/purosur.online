@@ -628,12 +628,12 @@ describe("putting a return's merchandise back in stock", () => {
           actorId: CASHIER,
           kind: "sale",
           saleLineId,
-          delta: -2000,
+          delta: -1000,
           occurredAt: COMPLETED_AT,
         })
         .returning({ id: stockMovements.id });
       await system.db.insert(lotAllocations).values([
-        { movementId: sold?.id as string, lotId: soonLotId, quantity: -1500 },
+        { movementId: sold?.id as string, lotId: soonLotId, quantity: -500 },
         { movementId: sold?.id as string, lotId: lateLotId, quantity: -500 },
       ]);
       return { ...stock, soonLotId, lateLotId, unrelatedLotId };
@@ -650,15 +650,11 @@ describe("putting a return's merchandise back in stock", () => {
     it("puts a restocked quantity back on the lot that expires latest, up to what the sale took from it", async () => {
       const { deviceId, saleReturn, soonLotId, lateLotId, unrelatedLotId } =
         await soldFromTwoLots("restock");
-      const [returned] = saleReturn.stockMovements;
 
-      await applyStock(deviceId, {
-        ...saleReturn,
-        stockMovements: [{ ...(returned as NonNullable<typeof returned>), delta: 800 }],
-      });
+      await applyStock(deviceId, saleReturn);
 
       expect(await remainingByLot()).toEqual({
-        [soonLotId]: 300,
+        [soonLotId]: 500,
         [lateLotId]: 500,
         [unrelatedLotId]: 5000,
       });
