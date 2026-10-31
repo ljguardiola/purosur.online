@@ -1,16 +1,21 @@
 import type { AiCallUsage } from "../ai-call-usage.js";
-import type { ProductChoice, ProductChoiceCandidate, ProductChooser } from "../product-chooser.js";
+import type {
+  ProductChoice,
+  ProductChoiceCandidate,
+  ProductChoiceItem,
+  ProductChooser,
+} from "../product-chooser.js";
 
 export class FakeProductChooser implements ProductChooser {
   readonly asked: {
-    item: { description: string; presentation: string | null };
+    item: ProductChoiceItem;
     candidates: ProductChoiceCandidate[];
   }[] = [];
   answer: ProductChoice | Error = { kind: "none" };
   reportedCalls: AiCallUsage[] = [];
 
   async choose(
-    item: { description: string; presentation: string | null },
+    item: ProductChoiceItem,
     candidates: ProductChoiceCandidate[],
     onCall: (usage: AiCallUsage) => void,
   ): Promise<ProductChoice> {
