@@ -120,7 +120,7 @@ export function messageFor(problem: ScanProblem): Message {
       return {
         icon: Ban,
         title: "Hay un cobro pagado sin venta",
-        help: "Pasalo a reembolso en Antes de empezar.",
+        help: "Armá la venta o pasalo a reembolso en Antes de empezar.",
       };
     case "paid_orders_not_checked":
       return {
