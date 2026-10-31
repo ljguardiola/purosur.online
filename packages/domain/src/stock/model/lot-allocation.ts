@@ -157,8 +157,7 @@ export function restockedReturnAllocations(
     .sort((a, b) => compareFirstToConsume(b.lot, a.lot));
   const unlisted = withRoom
     .filter(([lotId]) => !known.has(lotId))
-    .map(([lotId, quantity]) => ({ lotId, quantity }))
-    .sort((a, b) => compareNullsLast(b.lotId, a.lotId));
+    .map(([lotId, quantity]) => ({ lotId, quantity }));
 
   const allocations: PlannedLotAllocation[] = [];
   let uncovered = delta;
