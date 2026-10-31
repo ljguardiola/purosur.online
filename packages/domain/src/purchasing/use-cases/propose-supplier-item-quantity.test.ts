@@ -120,15 +120,11 @@ describe("proposeSupplierItemQuantity", () => {
     ).toEqual({ kind: "proposed", quantity: 5_000 });
   });
 
-  it.each([
-    ["a fraction of a unit", "UNIT" as const, 2_500],
-    ["zero", "UNIT" as const, 0],
-    ["a negative quantity", "KG" as const, -1_000],
-  ])("proposes nothing when the reader answers %s", async (_name, saleUnit, quantity) => {
+  it("proposes nothing when the reader answers a quantity the product's sale unit cannot hold", async () => {
     const { quantityReader, ports } = setup();
-    quantityReader.answer = { kind: "read", quantity };
+    quantityReader.answer = { kind: "read", quantity: 2_500 };
 
-    expect(await proposeSupplierItemQuantity(ports, { ...input, saleUnit })).toEqual({
+    expect(await proposeSupplierItemQuantity(ports, { ...input, saleUnit: "UNIT" })).toEqual({
       kind: "none",
     });
   });

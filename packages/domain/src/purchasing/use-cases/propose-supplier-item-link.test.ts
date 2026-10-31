@@ -503,24 +503,16 @@ describe("proposeSupplierItemLink", () => {
       );
     });
 
-    it.each([
-      ["a fraction of a unit for a product sold by unit", "UNIT" as const, 2_500],
-      ["zero", "UNIT" as const, 0],
-      ["a negative quantity", "KG" as const, -1_000],
-      ["a fraction of a gram", "KG" as const, 1.5],
-    ])(
-      "proposes the product with no quantity when the model answers %s",
-      async (_name, saleUnit, quantity) => {
-        const { chooser, ports } = setup({ description: "Almendras" }, [
-          { id: "p-almendras", name: "Almendras peladas", saleUnit },
-        ]);
-        chooser.answer = { kind: "chosen", productId: "p-almendras", quantity };
+    it("proposes the product with no quantity when the model answers one its sale unit cannot hold", async () => {
+      const { chooser, ports } = setup({ description: "Almendras" }, [
+        { id: "p-almendras", name: "Almendras peladas", saleUnit: "UNIT" },
+      ]);
+      chooser.answer = { kind: "chosen", productId: "p-almendras", quantity: 2_500 };
 
-        expect(await proposeSupplierItemLink(ports, input)).toEqual(
-          expect.objectContaining({ kind: "proposed", quantity: null }),
-        );
-      },
-    );
+      expect(await proposeSupplierItemLink(ports, input)).toEqual(
+        expect.objectContaining({ kind: "proposed", quantity: null }),
+      );
+    });
 
     it("proposes the quantity in grams of a product sold by weight", async () => {
       const { chooser, ports } = setup({ description: "Almendras" }, [

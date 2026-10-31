@@ -3,7 +3,11 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { LIST_AI_COST } from "./test-support/ai-cost";
-import { LINK_CHOICES, NO_PROPOSAL } from "./test-support/supplier-item-links";
+import {
+  LINK_CHOICES,
+  NO_PROPOSAL,
+  PROPOSED_QUANTITY_OF_UNITS,
+} from "./test-support/supplier-item-links";
 import {
   createServices,
   LIST_ID,
@@ -83,6 +87,32 @@ test("reads the cost again after the AI proposed a link, so the cost shown stays
 
   await userEvent.click(
     screen.getByRole("button", { name: "Vincular Nuez mariposa extra light x 10 kg" }),
+  );
+
+  await expect.element(screen.getByText(/^TotalUS\$ 1,9846$/)).toBeVisible();
+});
+
+test("reads the cost again after the AI proposed the quantity of the item a product is created from, so the cost shown stays current", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSupplierPriceListAiCost)
+    .mockResolvedValueOnce({ kind: "ok", value: LIST_AI_COST })
+    .mockResolvedValue({
+      kind: "ok",
+      value: {
+        ...LIST_AI_COST,
+        proposals: { costNanoUsd: 750_000_000, unpricedCalls: 0 },
+        total: { costNanoUsd: 1_984_567_800, unpricedCalls: 0 },
+      },
+    });
+  vi.mocked(services.fetchSupplierItemQuantityProposal).mockResolvedValue({
+    kind: "ok",
+    value: PROPOSED_QUANTITY_OF_UNITS,
+  });
+  const screen = await loaded(services, review, { access: WITH_AI_COST });
+  await expect.element(screen.getByText(/^TotalUS\$ 1,4846$/)).toBeVisible();
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Crear producto Nuez mariposa extra light x 10 kg" }),
   );
 
   await expect.element(screen.getByText(/^TotalUS\$ 1,9846$/)).toBeVisible();

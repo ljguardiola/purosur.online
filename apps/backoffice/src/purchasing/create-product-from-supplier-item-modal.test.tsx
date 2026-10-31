@@ -1,5 +1,7 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useIsFetching } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { StubCategoryCreationModal } from "../platform/test-support/creation-parts";
@@ -9,6 +11,7 @@ import {
   CreateProductFromSupplierItemModal,
   type CreateProductFromSupplierItemModalServices,
 } from "./create-product-from-supplier-item-modal";
+import { purchasingKeys } from "./purchasing-queries";
 import {
   LINK_CHOICES,
   NO_QUANTITY_PROPOSAL,
@@ -68,16 +71,7 @@ function createServices(
   };
 }
 
-function renderModal({
-  services = createServices(),
-  list = LIST,
-  target = nutRow,
-  mayCreateCatalogRecords = true,
-  onCreated = () => {},
-  onOutdated = () => {},
-  onClose = () => {},
-  onSessionEnded = () => {},
-}: {
+type ModalOptions = {
   services?: CreateProductFromSupplierItemModalServices;
   list?: Parameters<typeof CreateProductFromSupplierItemModal>[0]["list"];
   target?: typeof nutRow | null;
@@ -86,8 +80,21 @@ function renderModal({
   onOutdated?: () => void;
   onClose?: () => void;
   onSessionEnded?: () => void;
-} = {}) {
-  return render(
+  besideModal?: ReactNode;
+};
+
+function modalElement({
+  services = createServices(),
+  list = LIST,
+  target = nutRow,
+  mayCreateCatalogRecords = true,
+  onCreated = () => {},
+  onOutdated = () => {},
+  onClose = () => {},
+  onSessionEnded = () => {},
+  besideModal = null,
+}: ModalOptions = {}) {
+  return (
     <FieldSizeProvider size="backoffice">
       <main>
         <CreateProductFromSupplierItemModal
@@ -101,9 +108,14 @@ function renderModal({
           onClose={onClose}
           onSessionEnded={onSessionEnded}
         />
+        {besideModal}
       </main>
-    </FieldSizeProvider>,
+    </FieldSizeProvider>
   );
+}
+
+function renderModal(options: ModalOptions = {}) {
+  return render(modalElement(options));
 }
 
 type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
@@ -848,6 +860,9 @@ function quantityProposal(
   };
 }
 
+const quantityProposalReads = (services: CreateProductFromSupplierItemModalServices) =>
+  vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls;
+
 const quantityField = (screen: ModalScreen) =>
   dialogOf(screen).getByRole("textbox", { name: /^Cantidad que trae/ });
 
@@ -919,18 +934,72 @@ test("does not read a proposal for a net content that is not valid", async () =>
   const screen = await renderModal({ services });
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+  await expect.poll(() => quantityProposalReads(services).length).toBe(1);
+  const netContent = dialog.getByRole("textbox", { name: "Contenido neto" });
 
-  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "abc");
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await userEvent.fill(netContent, "abc");
+    await userEvent.click(radioLabel(dialog, "Por peso"));
+    await vi.advanceTimersByTimeAsync(1_000);
+    await userEvent.fill(netContent, "250");
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect
+      .poll(() => quantityProposalReads(services))
+      .toEqual([
+        [LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null }],
+        [LIST.id, nutRow.id, { saleUnit: "KG", netContent: { quantity: 250, unit: "G" } }],
+      ]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("reads one proposal for the net content the person ends up typing, not one for each key", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
+  await expect.poll(() => quantityProposalReads(services).length).toBe(1);
+  await userEvent.click(dialog.getByRole("textbox", { name: "Contenido neto" }));
+
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await userEvent.keyboard("2");
+    await vi.advanceTimersByTimeAsync(200);
+    await userEvent.keyboard("5");
+    await vi.advanceTimersByTimeAsync(200);
+    await userEvent.keyboard("0");
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect
+      .poll(() => quantityProposalReads(services))
+      .toEqual([
+        [LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null }],
+        [LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: { quantity: 250, unit: "G" } }],
+      ]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("reads the proposal of the next item it opens for that item's own sale unit, not for the one chosen before", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = dialogOf(screen);
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await userEvent.click(radioLabel(dialog, "Por peso"));
+  await expect
+    .poll(() => quantityProposalReads(services).at(-1))
+    .toEqual([LIST.id, nutRow.id, { saleUnit: "KG", netContent: null }]);
+
+  await screen.rerender(modalElement({ services, target: null }));
+  await screen.rerender(modalElement({ services, target: pasasRow }));
 
   await expect
-    .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls.length)
-    .toBe(1);
-  expect(
-    vi
-      .mocked(services.fetchSupplierItemQuantityProposal)
-      .mock.calls.some(([, , body]) => body.saleUnit === "KG"),
-  ).toBe(false);
+    .poll(() => quantityProposalReads(services).filter(([, rowId]) => rowId === pasasRow.id))
+    .toEqual([[LIST.id, pasasRow.id, { saleUnit: "UNIT", netContent: null }]]);
 });
 
 test.each([
@@ -987,6 +1056,11 @@ test("creates the product with the quantity proposed once the person confirms it
   );
 });
 
+function QuantityProposalsBeingRead() {
+  const reading = useIsFetching({ queryKey: purchasingKeys.supplierItemQuantityProposal });
+  return <output aria-label="Propuestas de cantidad en lectura">{reading}</output>;
+}
+
 test("never overwrites a quantity the person typed with the proposal that arrives later", async () => {
   let resolveProposal: (outcome: { kind: "ok"; value: typeof PROPOSED_QUANTITY_OF_UNITS }) => void =
     () => {};
@@ -999,13 +1073,16 @@ test("never overwrites a quantity the person typed with the proposal that arrive
         }),
       ),
   });
-  const screen = await renderModal({ services });
+  const screen = await renderModal({ services, besideModal: <QuantityProposalsBeingRead /> });
   const dialog = dialogOf(screen);
+  const proposalsBeingRead = screen.getByLabelText("Propuestas de cantidad en lectura");
   await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
   await userEvent.fill(quantityField(screen), "7");
+  await expect.element(proposalsBeingRead).toHaveTextContent("1");
 
   resolveProposal({ kind: "ok", value: PROPOSED_QUANTITY_OF_UNITS });
 
+  await expect.element(proposalsBeingRead).toHaveTextContent("0");
   await expect.element(quantityField(screen)).toHaveValue("7");
 });
 
