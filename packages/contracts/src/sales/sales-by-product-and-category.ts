@@ -4,8 +4,8 @@ import {
   netContentSchema,
   recordIdSchema,
   reportQuerySchema,
+  salesReportGroupSchema,
 } from "../shared/index.js";
-import { salesReportGroupSchema } from "./sales-report-group.js";
 
 const count = z.int().nonnegative();
 const cents = z.int().nonnegative();

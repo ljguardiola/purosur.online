@@ -10,6 +10,8 @@ import type {
   InitialInventoryLotsQuery,
   LossesByReasonReportBody,
   LossesByReasonReportQuery,
+  MarginReportBody,
+  MarginReportQuery,
   RecipeList,
   StockBalanceList,
   StockCountList,
@@ -32,6 +34,7 @@ import type {
 import type { fetchCurrentStockReport } from "./current-stock-report-api";
 import type { fetchExpiringLotsReport } from "./expiring-lots-report-api";
 import type { fetchLossesByReasonReport } from "./losses-by-reason-report-api";
+import type { fetchMarginReport } from "./margin-report-api";
 import type { fetchRecipes } from "./recipes-api";
 import type {
   fetchExpectedBalance,
@@ -56,6 +59,15 @@ export const stockKeys = {
     [...stockKey, "expiring-lots-report", query.from ?? "", query.to ?? ""] as const,
   lossesByReasonReport: (query: LossesByReasonReportQuery) =>
     [...stockKey, "losses-by-reason-report", query.from ?? "", query.to ?? ""] as const,
+  marginReport: (query: MarginReportQuery) =>
+    [
+      ...stockKey,
+      "margin-report",
+      query.group,
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
+    ] as const,
   recipes: [...stockKey, "recipes"] as const,
   assemblyBatches: (days: StockPeriodDays) => [...stockKey, "assembly-batches", days] as const,
   assemblyBatchProposal: ({ productId, size }: AssemblyBatchPreviewRequest) =>
@@ -129,6 +141,22 @@ export function useLossesByReasonReportQuery(
     queryKey: stockKeys.lossesByReasonReport(params.query),
     keepPreviousData: true,
     read: () => params.fetchLossesByReasonReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useMarginReportQuery(
+  params: ReadParams & {
+    query: MarginReportQuery;
+    fetchMarginReport: typeof fetchMarginReport;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<MarginReportBody>({
+    queryKey: stockKeys.marginReport(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchMarginReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

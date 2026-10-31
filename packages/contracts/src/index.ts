@@ -795,8 +795,6 @@ export type {
 } from "./sales/sales-history.js";
 export type { SalesReportBody } from "./sales/sales-report.js";
 export { salesReportSchema } from "./sales/sales-report.js";
-export type { SalesReportGroupBody } from "./sales/sales-report-group.js";
-export { salesReportGroupSchema } from "./sales/sales-report-group.js";
 export type {
   CompromiseResponseBody,
   CompromiseResponseSessionsAndPasskeysBody,
@@ -833,6 +831,7 @@ export type {
   OpenCashSession,
   PinAttemptRefusal,
   ReportQuery,
+  SalesReportGroupBody,
   SignInUser,
 } from "./shared/index.js";
 export {
@@ -852,6 +851,7 @@ export {
   recordIdSchema,
   reportQuerySchema,
   reportsFailedQuery,
+  salesReportGroupSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
@@ -937,6 +937,8 @@ export {
   lossesByReasonReportQuerySchema,
   lossesByReasonReportSchema,
 } from "./stock/losses-by-reason-report.js";
+export type { MarginReportBody, MarginReportQuery } from "./stock/margin-report.js";
+export { marginReportQuerySchema, marginReportSchema } from "./stock/margin-report.js";
 export type { RecipeSaveBody } from "./stock/recipe-save-body.js";
 export { recipeSaveBodySchema } from "./stock/recipe-save-body.js";
 export type { RecipeSaveRefusal } from "./stock/recipe-save-refusal.js";
