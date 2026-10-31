@@ -107,6 +107,24 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
       );
   }
 
+  async saleLineReturnedLotAllocations(
+    key: ProductStockKey,
+    saleLineId: string,
+  ): Promise<{ lotId: string; quantity: number }[]> {
+    return this.tx
+      .select({ lotId: lotAllocations.lotId, quantity: lotAllocations.quantity })
+      .from(lotAllocations)
+      .innerJoin(stockMovements, eq(stockMovements.id, lotAllocations.movementId))
+      .where(
+        and(
+          eq(stockMovements.kind, "return"),
+          eq(stockMovements.saleLineId, saleLineId),
+          eq(stockMovements.productId, key.productId),
+          eq(stockMovements.locationId, key.locationId),
+        ),
+      );
+  }
+
   async recordMovement(movement: NewStockMovement): Promise<string> {
     const [recorded] = await this.tx
       .insert(stockMovements)
