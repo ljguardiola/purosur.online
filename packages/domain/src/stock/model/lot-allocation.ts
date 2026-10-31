@@ -132,3 +132,57 @@ export function voidedMovementAllocations(
     ? allocations
     : [...allocations, { target, quantity: uncovered }];
 }
+
+export function restockedReturnAllocations(
+  lots: readonly StockLot[],
+  saleAllocations: readonly { lotId: string; quantity: number }[],
+  returnedAllocations: readonly { lotId: string; quantity: number }[],
+  delta: number,
+): PlannedLotAllocation[] {
+  const room = new Map<string, number>();
+  for (const { lotId, quantity } of saleAllocations) {
+    room.set(lotId, (room.get(lotId) ?? 0) - quantity);
+  }
+  for (const { lotId, quantity } of returnedAllocations) {
+    room.set(lotId, (room.get(lotId) ?? 0) - quantity);
+  }
+
+  const known = new Map(lots.map((lot) => [lot.id, lot]));
+  const withRoom = [...room].filter(([, quantity]) => quantity > 0);
+  const listed = withRoom
+    .flatMap(([lotId, quantity]) => {
+      const lot = known.get(lotId);
+      return lot ? [{ lot, quantity }] : [];
+    })
+    .sort((a, b) => compareFirstToConsume(b.lot, a.lot));
+  const unlisted = withRoom
+    .filter(([lotId]) => !known.has(lotId))
+    .map(([lotId, quantity]) => ({ lotId, quantity }))
+    .sort((a, b) => compareNullsLast(b.lotId, a.lotId));
+
+  const allocations: PlannedLotAllocation[] = [];
+  let uncovered = delta;
+  for (const { lotId, quantity } of [
+    ...listed.map((entry) => ({ lotId: entry.lot.id, quantity: entry.quantity })),
+    ...unlisted,
+  ]) {
+    if (uncovered === 0) {
+      break;
+    }
+    const given = Math.min(quantity, uncovered);
+    allocations.push({ target: lotTarget(lotId), quantity: given });
+    uncovered -= given;
+  }
+  if (uncovered === 0) {
+    return allocations;
+  }
+
+  const target = shortfallTarget(lots);
+  const filled = allocations.find((allocation) => sameTarget(allocation.target, target));
+  if (filled) {
+    filled.quantity += uncovered;
+  } else {
+    allocations.push({ target, quantity: uncovered });
+  }
+  return allocations;
+}
