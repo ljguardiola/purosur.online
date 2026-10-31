@@ -29,9 +29,16 @@ export async function readMigrationFolder(folder) {
   return { journal, sqlFiles, snapshotFiles };
 }
 
-export function findMigrationNumberingProblems({ journal, sqlFiles, snapshotFiles }) {
+export function readBaseJournal({ base, runGit }) {
+  return JSON.parse(
+    runGit(["show", `${base}:${journalPath(CLOUD_MIGRATIONS_FOLDER)}`]).toString("utf8"),
+  );
+}
+
+export function findMigrationNumberingProblems({ journal, sqlFiles, snapshotFiles, baseJournal }) {
   const problems = [];
   const fix = `generate cloud migrations with \`${GENERATE_COMMAND}\``;
+  const baseTags = new Set(baseJournal.entries.map((entry) => entry.tag));
   const expectedSql = new Set();
   const expectedSnapshots = new Set();
   let previous;
@@ -44,6 +51,11 @@ export function findMigrationNumberingProblems({ journal, sqlFiles, snapshotFile
       );
     } else {
       expectedSnapshots.add(snapshotName(number));
+      if (!baseTags.has(entry.tag) && entry.idx !== Number(number)) {
+        problems.push(
+          `${entry.tag}: added since main with idx ${entry.idx} instead of its number ${Number(number)} — ${fix}`,
+        );
+      }
       if (previous?.number !== undefined && Number(number) <= Number(previous.number)) {
         problems.push(
           `${entry.tag}: numbered at or below ${previous.entry.tag}, the entry before it — ${fix}`,
@@ -83,15 +95,6 @@ export function findMigrationNumberingProblems({ journal, sqlFiles, snapshotFile
   return problems;
 }
 
-async function readIfPresent(path) {
-  try {
-    return await readFile(path);
-  } catch (error) {
-    if (error.code === "ENOENT") return undefined;
-    throw error;
-  }
-}
-
 async function folderPaths(folder) {
   const top = (await readdir(folder)).filter((name) => name !== "meta");
   const meta = (await readdir(join(folder, "meta"))).map((name) => join("meta", name));
@@ -110,26 +113,26 @@ function highestNumber({ journal, sqlFiles }) {
   return numbers.length === 0 ? -1 : Math.max(...numbers);
 }
 
-// drizzle-kit numbers a new migration with the journal's last idx plus one, and writes its snapshot
-// over any snapshot already holding that number.
-function drizzleKitNumber(journal) {
-  const last = journal.entries.at(-1);
-  return padded(last === undefined ? 0 : last.idx + 1);
+async function readFolderBytes(folder) {
+  const bytes = new Map();
+  for (const path of await folderPaths(folder)) bytes.set(path, await readFile(join(folder, path)));
+  return bytes;
 }
 
 export async function generateCloudMigration({ folder, runDrizzleKit }) {
   const before = await readMigrationFolder(folder);
-  const journalBytes = await readFile(journalPath(folder));
-  const overwrittenPath = join(folder, "meta", snapshotName(drizzleKitNumber(before.journal)));
-  const overwrittenBytes = await readIfPresent(overwrittenPath);
-  const pathsBefore = new Set(await folderPaths(folder));
+  const bytesBefore = await readFolderBytes(folder);
 
   async function restore() {
-    for (const path of await folderPaths(folder)) {
-      if (!pathsBefore.has(path)) await rm(join(folder, path));
+    const pathsAfter = new Set(await folderPaths(folder));
+    for (const path of pathsAfter) {
+      if (!bytesBefore.has(path)) await rm(join(folder, path));
     }
-    if (overwrittenBytes !== undefined) await writeFile(overwrittenPath, overwrittenBytes);
-    await writeFile(journalPath(folder), journalBytes);
+    for (const [path, bytes] of bytesBefore) {
+      if (!pathsAfter.has(path) || !bytes.equals(await readFile(join(folder, path)))) {
+        await writeFile(join(folder, path), bytes);
+      }
+    }
   }
 
   try {
@@ -164,31 +167,41 @@ export async function generateCloudMigration({ folder, runDrizzleKit }) {
   }
 }
 
-function runPnpm(args) {
-  const result = spawnSync("pnpm", args, { stdio: "inherit" });
+export function runPnpmViaChildProcess(args, { spawn = spawnSync } = {}) {
+  const result = spawn("pnpm", args, { stdio: "inherit" });
   if (result.error !== undefined) throw result.error;
-  if (result.status !== 0)
+  if (result.status !== 0) {
     throw new Error(`pnpm ${args.join(" ")} exited with status ${result.status}`);
+  }
 }
 
-if (import.meta.main) {
-  const args = process.argv.slice(2).filter((arg, index) => !(index === 0 && arg === "--"));
+export async function runCli({
+  argv = process.argv.slice(2),
+  folder = CLOUD_MIGRATIONS_FOLDER,
+  runPnpm = runPnpmViaChildProcess,
+  log = console.log,
+} = {}) {
+  const args = argv.filter((arg, index) => !(index === 0 && arg === "--"));
   const { generated } = await generateCloudMigration({
-    folder: CLOUD_MIGRATIONS_FOLDER,
+    folder,
     runDrizzleKit: async () =>
       runPnpm(["--filter", "@purosur/cloud", "exec", "drizzle-kit", "generate", ...args]),
   });
   if (generated === undefined) {
-    console.log("No cloud migration generated.");
-  } else {
-    runPnpm([
-      "exec",
-      "biome",
-      "format",
-      "--write",
-      journalPath(CLOUD_MIGRATIONS_FOLDER),
-      join(CLOUD_MIGRATIONS_FOLDER, "meta", snapshotName(tagNumber(generated))),
-    ]);
-    console.log(`Cloud migration ${CLOUD_MIGRATIONS_FOLDER}/${generated}.sql`);
+    log("No cloud migration generated.");
+    return;
   }
+  await runPnpm([
+    "exec",
+    "biome",
+    "format",
+    "--write",
+    journalPath(folder),
+    join(folder, "meta", snapshotName(tagNumber(generated))),
+  ]);
+  log(`Cloud migration ${folder}/${generated}.sql`);
+}
+
+if (import.meta.main) {
+  await runCli();
 }
