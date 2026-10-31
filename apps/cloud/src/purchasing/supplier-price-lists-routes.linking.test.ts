@@ -74,7 +74,7 @@ async function productToLink(
   description: { brandName?: string; netContent?: { quantity: number; unit: "G" | "KG" } } = {},
 ) {
   const { id: productId } = await insertProduct(db, { name, ...description });
-  return { productId, quantity: 10_000 };
+  return { productId, saleUnit: "UNIT", quantity: 10_000 };
 }
 
 const storedRow = (rowId: string) => storedListRow(db, rowId);
@@ -133,6 +133,7 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
     ["a VAT rate that is not offered", { vatRate: 500 }],
     ["a product that is not an id", { productId: "not-an-id" }],
     ["no version", { version: undefined }],
+    ["no sale unit", { saleUnit: undefined }],
   ])("answers 400 for %s", async (_name, overrides) => {
     const { headers } = await manager();
     const { listId, rowId } = await extractedListWithRow();
@@ -219,6 +220,7 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
     for (const productId of [inactive.id, MISSING_ID]) {
       const response = await link(headers, listId, rowId, {
         productId,
+        saleUnit: "UNIT",
         quantity: 10_000,
         version: 1,
         vatRate: 2_100,
@@ -227,6 +229,23 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/link", () => {
       expect(response.statusCode).toBe(409);
       expect(response.json()).toMatchObject({ code: "product_not_linkable" });
     }
+    expect((await storedRow(rowId))?.productId).toBeNull();
+  });
+
+  it("answers 409 sale_unit_changed for a quantity stated in a sale unit the product is no longer sold by, linking nothing", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const target = await productToLink();
+
+    const response = await link(headers, listId, rowId, {
+      ...target,
+      saleUnit: "KG",
+      version: 1,
+      vatRate: 2_100,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "sale_unit_changed" });
     expect((await storedRow(rowId))?.productId).toBeNull();
   });
 

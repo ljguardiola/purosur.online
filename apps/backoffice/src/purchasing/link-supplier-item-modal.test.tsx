@@ -516,6 +516,7 @@ test("links the item to the chosen product with the quantity in kilos against th
   expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(LIST.id, nutRow.id, {
     version: 3,
     productId: PASAS_ID,
+    saleUnit: "KG",
     quantity: 10_000,
     vatRate: null,
   });
@@ -551,7 +552,7 @@ test("links a quantity of units of a product sold by the unit", async () => {
   expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
     LIST.id,
     nutRow.id,
-    expect.objectContaining({ quantity: 12_000 }),
+    expect.objectContaining({ saleUnit: "UNIT", quantity: 12_000 }),
   );
 });
 
@@ -691,6 +692,7 @@ test("starts with the product, quantity and rate an item is already linked with"
   expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(LIST.id, target.id, {
     version: 3,
     productId: ALMOND_LINK.product.id,
+    saleUnit: "KG",
     quantity: 25_000,
     vatRate: 1_050,
   });
@@ -751,6 +753,31 @@ test("tells the product can no longer be linked, and reads the choices again", a
   await expect
     .poll(() => vi.mocked(services.fetchSupplierItemLinkChoices).mock.calls.length)
     .toBeGreaterThan(1);
+  await expect.element(dialog.getByRole("button", { name: "Vincular" })).toBeEnabled();
+});
+
+test("tells the product changed its sale unit, and asks for the quantity again in the new one", async () => {
+  const pasasByTheUnit = {
+    ...LINK_CHOICES,
+    products: LINK_CHOICES.products.map((product) =>
+      product.id === PASAS_ID ? { ...product, saleUnit: "UNIT" as const } : product,
+    ),
+  };
+  const services = createServices({
+    fetchSupplierItemLinkChoices: vi
+      .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
+      .mockResolvedValueOnce({ kind: "ok", value: LINK_CHOICES })
+      .mockResolvedValue({ kind: "ok", value: pasasByTheUnit }),
+  });
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "sale_unit_changed" });
+  const screen = await renderModal({ services });
+
+  const dialog = await linkPasas(screen);
+
+  await expect.element(dialog.getByText("El producto cambió de unidad de venta")).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad que trae/ })).toHaveValue("");
+  await expect.element(dialog.getByText("u", { exact: true })).toBeVisible();
+  expect(dialog.getByRole("radio", { name: "g", exact: true }).query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: "Vincular" })).toBeEnabled();
 });
 

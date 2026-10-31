@@ -25,6 +25,7 @@ const input = {
   rowId: "row-1",
   version: 3,
   productId: "product-1",
+  saleUnit: "UNIT" as const,
   quantity: 12_000,
   vatRate: 2100 as number | null,
   actorId: "person-1",
@@ -261,13 +262,54 @@ describe("linkSupplierPriceListRow", () => {
       store.seedProduct({ id: "product-2", saleUnit: "KG" });
 
       expect(
-        await linkSupplierPriceListRow(store, { ...input, productId: "product-2", quantity: 500 }),
+        await linkSupplierPriceListRow(store, {
+          ...input,
+          productId: "product-2",
+          saleUnit: "KG",
+          quantity: 500,
+        }),
       ).toEqual({ kind: "linked" });
       expect(store.snapshot().rows[0]?.link).toMatchObject({
         productId: "product-2",
         quantity: 500,
         saleUnit: "KG",
       });
+    });
+
+    it("refuses a quantity stated in a sale unit the product is no longer sold by and writes nothing", async () => {
+      const store = setup();
+      store.seedProduct({ id: "product-2", saleUnit: "KG" });
+      const before = store.snapshot();
+
+      expect(
+        await linkSupplierPriceListRow(store, {
+          ...input,
+          productId: "product-2",
+          saleUnit: "UNIT",
+          quantity: 12_000,
+        }),
+      ).toEqual({ kind: "sale_unit_changed" });
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("reports the changed sale unit before the quantity", async () => {
+      const store = setup();
+
+      expect(
+        await linkSupplierPriceListRow(store, { ...input, saleUnit: "KG", quantity: 500 }),
+      ).toEqual({ kind: "sale_unit_changed" });
+    });
+
+    it("reports the product before the changed sale unit", async () => {
+      const store = setup();
+
+      expect(
+        await linkSupplierPriceListRow(store, {
+          ...input,
+          productId: "missing",
+          saleUnit: "KG",
+        }),
+      ).toEqual({ kind: "product_not_linkable" });
     });
 
     it("reports the product before the quantity and the missing rate", async () => {
@@ -299,7 +341,12 @@ describe("linkSupplierPriceListRow", () => {
         const before = store.snapshot();
 
         expect(
-          await linkSupplierPriceListRow(store, { ...input, productId: "product-2", quantity }),
+          await linkSupplierPriceListRow(store, {
+            ...input,
+            productId: "product-2",
+            saleUnit,
+            quantity,
+          }),
         ).toEqual({ kind: "invalid_quantity" });
         expect(store.snapshot()).toEqual(before);
       },

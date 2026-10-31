@@ -22,6 +22,7 @@ test.each([
   [{ kind: "vat_missing" }, { kind: "vatMissing" }],
   [{ kind: "rereading" }, { kind: "rereading" }],
   [{ kind: "product_not_linkable" }, { kind: "productNotLinkable" }],
+  [{ kind: "sale_unit_changed" }, { kind: "saleUnitChanged" }],
   [{ kind: "vat_rate_missing" }, { kind: "vatRateMissing" }],
   [{ kind: "vat_rate_invalid" }, { kind: "attemptFailed" }],
   [{ kind: "already_linked" }, { kind: "alreadyLinked" }],
@@ -37,6 +38,7 @@ test("a notice says the list changed only when what the person saw is out of dat
   expect(supplierPriceListChangeOutdates({ kind: "attemptFailed" })).toBe(false);
   expect(supplierPriceListChangeOutdates({ kind: "unpricedRows" })).toBe(false);
   expect(supplierPriceListChangeOutdates({ kind: "rereading" })).toBe(false);
+  expect(supplierPriceListChangeOutdates({ kind: "saleUnitChanged" })).toBe(false);
   expect(supplierPriceListChangeOutdates(null)).toBe(false);
 });
 
@@ -53,6 +55,11 @@ test.each([
   [{ kind: "alreadyLinked" }, "Este ítem ya tiene un producto", "Actualizá la lista para verlo."],
   [{ kind: "noRows" }, "La lista no tiene ítems", "Cargá otra lista o descartá esta."],
   [{ kind: "productNotLinkable" }, "El producto ya no se puede vincular", "Elegí otro producto."],
+  [
+    { kind: "saleUnitChanged" },
+    "El producto cambió de unidad de venta",
+    "Escribí de nuevo la cantidad que trae.",
+  ],
   [
     { kind: "vatRateMissing" },
     "Elegí el IVA del ítem",

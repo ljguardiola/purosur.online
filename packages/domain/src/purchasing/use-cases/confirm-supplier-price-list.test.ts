@@ -412,6 +412,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
         rowId: "row-0",
         version: 3,
         productId: "product-3",
+        saleUnit: "UNIT",
         quantity: 1_000,
         vatRate: null,
         actorId: "person-1",

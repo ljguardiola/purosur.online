@@ -36,6 +36,7 @@ describe("supplierItemLinkRequestFrom", () => {
     expect(supplierItemLinkRequestFrom({ ...filled, vatRate: "1050" }, true)).toEqual({
       version: 3,
       productId: PASAS_ID,
+      saleUnit: "KG",
       quantity: 10_000,
       vatRate: 1_050,
     });
@@ -48,10 +49,10 @@ describe("supplierItemLinkRequestFrom", () => {
     ).toBe(500);
   });
 
-  it("sends the quantity in units of a product sold by the unit", () => {
+  it("sends the quantity in units of a product sold by the unit, saying it is stated in units", () => {
     expect(
-      supplierItemLinkRequestFrom({ ...filled, saleUnit: "UNIT", quantity: "12" }, false).quantity,
-    ).toBe(12_000);
+      supplierItemLinkRequestFrom({ ...filled, saleUnit: "UNIT", quantity: "12" }, false),
+    ).toMatchObject({ saleUnit: "UNIT", quantity: 12_000 });
   });
 
   it("sends a quantity the shape refuses when it is not readable", () => {

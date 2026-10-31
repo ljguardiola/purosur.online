@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import { supplierPriceListRowLinkBodySchema } from "./supplier-price-list-row-link.js";
 
 const PRODUCT_ID = "0b8f6c1e-2d4a-4a57-9a3e-5f1d7c9b2e10";
-const body = { version: 3, productId: PRODUCT_ID, quantity: 12_000, vatRate: 2100 };
+const body = {
+  version: 3,
+  productId: PRODUCT_ID,
+  saleUnit: "UNIT",
+  quantity: 12_000,
+  vatRate: 2100,
+};
 
 describe("supplierPriceListRowLinkBodySchema", () => {
-  it("reads the version loaded, the product, the quantity and the rate", () => {
+  it("reads the version loaded, the product, the sale unit, the quantity and the rate", () => {
     expect(supplierPriceListRowLinkBodySchema.safeParse(body).data).toEqual(body);
   });
 
@@ -41,6 +47,22 @@ describe("supplierPriceListRowLinkBodySchema", () => {
         message: "productId must be a product's id",
       });
     }
+  });
+
+  it("reads a quantity stated in kilograms", () => {
+    expect(
+      supplierPriceListRowLinkBodySchema.safeParse({ ...body, saleUnit: "KG" }).data?.saleUnit,
+    ).toBe("KG");
+  });
+
+  it.each([undefined, null, "", "unit", "G"])("refuses the sale unit %j", (saleUnit) => {
+    const result = supplierPriceListRowLinkBodySchema.safeParse({ ...body, saleUnit });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["saleUnit"],
+      message: "saleUnit must be UNIT or KG",
+    });
   });
 
   it.each([undefined, null, "12", 0, -1000, 1.5, Number.NaN])(

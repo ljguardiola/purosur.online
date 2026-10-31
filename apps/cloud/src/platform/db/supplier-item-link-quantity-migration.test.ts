@@ -1,4 +1,4 @@
-import { isLinkCurrent, supplierOfferPrice } from "@purosur/domain";
+import { supplierOfferPrice } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
@@ -191,7 +191,6 @@ describe("the link by quantity migration applied over links that refer to packag
       kind: "unpriced",
       reason: "link_outdated",
     });
-    expect(isLinkCurrent({ relinkRequired: false, saleUnit: "UNIT" }, "KG")).toBe(false);
   });
 
   it("leaves an unlinked row and item without a quantity", async () => {

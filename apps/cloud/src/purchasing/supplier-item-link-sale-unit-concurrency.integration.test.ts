@@ -17,7 +17,6 @@ import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-sto
 import { extractedListWithRow, storedListRow } from "./test-support/extracted-list-fixtures.js";
 import { insertProduct } from "./test-support/purchasing-fixtures.js";
 
-// Each test pins the interleaving by holding the product's row lock until both writes queue.
 const now = () => new Date("2026-10-15T15:00:00Z");
 const clock = { now };
 const TWELVE_UNITS = 12_000;
@@ -85,6 +84,7 @@ function linkOf(target: { listId: string; rowId: string; actorId: string }, prod
       rowId: target.rowId,
       version: 1,
       productId,
+      saleUnit: "UNIT",
       quantity: TWELVE_UNITS,
       vatRate: 2_100,
       actorId: target.actorId,
@@ -92,7 +92,7 @@ function linkOf(target: { listId: string; rowId: string; actorId: string }, prod
 }
 
 describe("selling a product by weight while a supplier item is linked to it, on a real Postgres", () => {
-  it("links the item in the weight the product is sold by when the edit commits first", async () => {
+  it("refuses the link stated in units when the edit commits first", async () => {
     const product = await unitProduct();
     const target = await extractedListWithRow(db);
 
@@ -104,8 +104,8 @@ describe("selling a product by weight while a supplier item is linked to it, on 
     );
 
     expect(edit.kind).toBe("applied");
-    expect(linking.kind).toBe("linked");
-    expect(await storedListRow(db, target.rowId)).toMatchObject({ saleUnit: "KG" });
+    expect(linking.kind).toBe("sale_unit_changed");
+    expect(await storedListRow(db, target.rowId)).toMatchObject({ productId: null });
   });
 
   it("refuses the edit when the link commits first", async () => {
