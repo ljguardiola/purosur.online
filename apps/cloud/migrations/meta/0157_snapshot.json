@@ -1,5 +1,5 @@
 {
-  "id": "a93e005b-1534-4562-a42f-cddd7b1ff5da",
+  "id": "d067cde4-3151-4ad5-b9ac-7bc37c79f634",
   "prevId": "c8916706-5ac4-45db-83f2-4e1bd7c07438",
   "version": "7",
   "dialect": "postgresql",
@@ -10732,7 +10732,7 @@
         },
         "stock_movements_sale_line_iff_sale_check": {
           "name": "stock_movements_sale_line_iff_sale_check",
-          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void', 'return')) = (\"stock_movements\".\"sale_line_id\" is not null)"
+          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void', 'return') or (\"stock_movements\".\"kind\" = 'loss' and \"stock_movements\".\"reason\" = 'return_discard')) = (\"stock_movements\".\"sale_line_id\" is not null)"
         },
         "stock_movements_purchase_line_iff_receipt_check": {
           "name": "stock_movements_purchase_line_iff_receipt_check",
@@ -10870,25 +10870,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "quantity": {
-          "name": "quantity",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_unit": {
-          "name": "sale_unit",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "relink_required": {
-          "name": "relink_required",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "vat_rate": {
           "name": "vat_rate",
           "type": "integer",
@@ -10958,15 +10939,7 @@
         },
         "supplier_items_link_check": {
           "name": "supplier_items_link_check",
-          "value": "(\"supplier_items\".\"product_id\" is null) = (\"supplier_items\".\"quantity\" is null)"
-        },
-        "supplier_items_link_sale_unit_check": {
-          "name": "supplier_items_link_sale_unit_check",
-          "value": "(\"supplier_items\".\"quantity\" is null) = (\"supplier_items\".\"sale_unit\" is null) and \"supplier_items\".\"sale_unit\" in ('UNIT', 'KG')"
-        },
-        "supplier_items_link_quantity_check": {
-          "name": "supplier_items_link_quantity_check",
-          "value": "\"supplier_items\".\"quantity\" > 0"
+          "value": "(\"supplier_items\".\"product_id\" is null) = (\"supplier_items\".\"packaging_id\" is null)"
         },
         "supplier_items_vat_rate_check": {
           "name": "supplier_items_vat_rate_check",
@@ -11547,25 +11520,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "quantity": {
-          "name": "quantity",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_unit": {
-          "name": "sale_unit",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "relink_required": {
-          "name": "relink_required",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "vat_rate": {
           "name": "vat_rate",
           "type": "integer",
@@ -11641,15 +11595,7 @@
         },
         "supplier_price_list_rows_link_check": {
           "name": "supplier_price_list_rows_link_check",
-          "value": "(\"supplier_price_list_rows\".\"product_id\" is null) = (\"supplier_price_list_rows\".\"quantity\" is null)"
-        },
-        "supplier_price_list_rows_link_sale_unit_check": {
-          "name": "supplier_price_list_rows_link_sale_unit_check",
-          "value": "(\"supplier_price_list_rows\".\"quantity\" is null) = (\"supplier_price_list_rows\".\"sale_unit\" is null) and \"supplier_price_list_rows\".\"sale_unit\" in ('UNIT', 'KG')"
-        },
-        "supplier_price_list_rows_link_quantity_check": {
-          "name": "supplier_price_list_rows_link_quantity_check",
-          "value": "\"supplier_price_list_rows\".\"quantity\" > 0"
+          "value": "(\"supplier_price_list_rows\".\"product_id\" is null) = (\"supplier_price_list_rows\".\"packaging_id\" is null)"
         },
         "supplier_price_list_rows_vat_rate_check": {
           "name": "supplier_price_list_rows_vat_rate_check",

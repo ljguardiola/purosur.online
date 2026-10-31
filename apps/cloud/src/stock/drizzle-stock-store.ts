@@ -15,7 +15,7 @@ import type {
   StockStore,
   StockStoreTransaction,
 } from "@purosur/domain/stock/use-cases";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   lotAllocations,
@@ -100,6 +100,27 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(
         and(
           eq(stockMovements.kind, "sale"),
+          eq(stockMovements.saleLineId, saleLineId),
+          eq(stockMovements.productId, key.productId),
+          eq(stockMovements.locationId, key.locationId),
+        ),
+      );
+  }
+
+  async saleLineReturnedLotAllocations(
+    key: ProductStockKey,
+    saleLineId: string,
+  ): Promise<{ lotId: string; quantity: number }[]> {
+    return this.tx
+      .select({ lotId: lotAllocations.lotId, quantity: lotAllocations.quantity })
+      .from(lotAllocations)
+      .innerJoin(stockMovements, eq(stockMovements.id, lotAllocations.movementId))
+      .where(
+        and(
+          or(
+            eq(stockMovements.kind, "return"),
+            and(eq(stockMovements.kind, "loss"), eq(stockMovements.reason, "return_discard")),
+          ),
           eq(stockMovements.saleLineId, saleLineId),
           eq(stockMovements.productId, key.productId),
           eq(stockMovements.locationId, key.locationId),

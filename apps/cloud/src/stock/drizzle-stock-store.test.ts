@@ -670,7 +670,7 @@ describe("DrizzleStockStore saleLineLotAllocations", () => {
     productId: string;
     locationId: string;
     actorId: string;
-    kind: "sale" | "sale_void";
+    kind: "sale" | "sale_void" | "return" | "loss";
     saleLineId: string;
     allocations: { lotId: string; quantity: number }[];
   }): Promise<void> {
@@ -679,7 +679,7 @@ describe("DrizzleStockStore saleLineLotAllocations", () => {
       .insert(stockMovements)
       .values({
         ...movement,
-        reason: null,
+        reason: params.kind === "loss" ? "return_discard" : null,
         delta: allocations.reduce((sum, allocation) => sum + allocation.quantity, 0),
         occurredAt: params.kind === "sale" ? SOLD_AT : VOIDED_AT,
       })
@@ -746,6 +746,106 @@ describe("DrizzleStockStore saleLineLotAllocations", () => {
       expect.arrayContaining([
         { lotId, quantity: -1000 },
         { lotId: otherLotId, quantity: -500 },
+      ]),
+    );
+  });
+
+  it("answers the allocations of the return movements of that sale line, product and branch, and no other", async () => {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, { now: NOW });
+    const otherLocationId = await insertLocation();
+    const productId = await insertProduct();
+    const [product] = await db.select().from(products).where(eq(products.id, productId));
+    const [otherProduct] = await db
+      .insert(products)
+      .values({ name: "Nueces peladas", categoryId: product?.categoryId as string, saleUnit: "KG" })
+      .returning({ id: products.id });
+    const actorId = await insertUser(locationId);
+    const [thisLine, otherLine] = await recordedSale(deviceId, productId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const otherLotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const returned = { productId, locationId, actorId, kind: "return" } as const;
+    await allocatedBy({
+      ...returned,
+      saleLineId: thisLine as string,
+      allocations: [
+        { lotId, quantity: 1000 },
+        { lotId: otherLotId, quantity: 500 },
+      ],
+    });
+    await allocatedBy({
+      ...returned,
+      saleLineId: otherLine as string,
+      allocations: [{ lotId, quantity: 7000 }],
+    });
+    await allocatedBy({
+      ...returned,
+      locationId: otherLocationId,
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: 8000 }],
+    });
+    await allocatedBy({
+      ...returned,
+      productId: otherProduct?.id as string,
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: 6000 }],
+    });
+    await allocatedBy({
+      ...returned,
+      kind: "sale",
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: -9000 }],
+    });
+    const store = new DrizzleStockStore(db);
+
+    const allocations = await store.transaction((tx) =>
+      tx.saleLineReturnedLotAllocations({ productId, locationId }, thisLine as string),
+    );
+
+    expect(allocations).toHaveLength(2);
+    expect(allocations).toEqual(
+      expect.arrayContaining([
+        { lotId, quantity: 1000 },
+        { lotId: otherLotId, quantity: 500 },
+      ]),
+    );
+  });
+
+  it("answers the allocations of the discard losses of that sale line beside those of its returns", async () => {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, { now: NOW });
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const [thisLine, otherLine] = await recordedSale(deviceId, productId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const discarded = { productId, locationId, actorId } as const;
+    await allocatedBy({
+      ...discarded,
+      kind: "return",
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: 2000 }],
+    });
+    await allocatedBy({
+      ...discarded,
+      kind: "loss",
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: -2000 }],
+    });
+    await allocatedBy({
+      ...discarded,
+      kind: "loss",
+      saleLineId: otherLine as string,
+      allocations: [{ lotId, quantity: -7000 }],
+    });
+    const store = new DrizzleStockStore(db);
+
+    const allocations = await store.transaction((tx) =>
+      tx.saleLineReturnedLotAllocations({ productId, locationId }, thisLine as string),
+    );
+
+    expect(allocations).toHaveLength(2);
+    expect(allocations).toEqual(
+      expect.arrayContaining([
+        { lotId, quantity: 2000 },
+        { lotId, quantity: -2000 },
       ]),
     );
   });
