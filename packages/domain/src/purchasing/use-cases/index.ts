@@ -114,6 +114,7 @@ export type {
 export type {
   ProductChoice,
   ProductChoiceCandidate,
+  ProductChoiceItem,
   ProductChooser,
 } from "./product-chooser.js";
 export type {
@@ -122,6 +123,12 @@ export type {
   ProposeSupplierItemLinkPorts,
 } from "./propose-supplier-item-link.js";
 export { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
+export type {
+  ProposeSupplierItemQuantityInput,
+  ProposeSupplierItemQuantityOutcome,
+  ProposeSupplierItemQuantityPorts,
+} from "./propose-supplier-item-quantity.js";
+export { proposeSupplierItemQuantity } from "./propose-supplier-item-quantity.js";
 export type {
   PurchasesReportQuery,
   PurchasesReportReader,
@@ -222,6 +229,10 @@ export type {
   SupplierItemProductStore,
   SupplierItemProductStoreTransaction,
 } from "./supplier-item-product-store.js";
+export type {
+  SupplierItemQuantityReader,
+  SupplierItemQuantityReading,
+} from "./supplier-item-quantity-reader.js";
 export type {
   ComparableProduct,
   SupplierOffer,

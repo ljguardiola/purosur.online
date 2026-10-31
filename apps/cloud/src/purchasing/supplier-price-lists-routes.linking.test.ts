@@ -1,4 +1,8 @@
-import type { ProductChoice } from "@purosur/domain/purchasing/use-cases";
+import type {
+  AiCallUsage,
+  ProductChoice,
+  SupplierItemQuantityReading,
+} from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -18,6 +22,7 @@ import {
   storedListVersion,
 } from "./test-support/extracted-list-fixtures.js";
 import { insertBarcode, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertPriceListRows } from "./test-support/supplier-price-list-fixtures.js";
 
 const NOW = new Date("2026-09-16T15:00:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
@@ -62,6 +67,33 @@ async function appChoosing(choice: ProductChoice): Promise<void> {
   });
 }
 
+async function appReadingQuantity(
+  reading: SupplierItemQuantityReading | Error,
+  asked: { item: unknown; product: unknown }[] = [],
+  reportedCalls: AiCallUsage[] = [],
+): Promise<void> {
+  await app.close();
+  app = Fastify();
+  registerSupplierPriceListsRoutes(app, {
+    zoneRules: fixedZoneRulesSource(),
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOW,
+    supplierItemQuantityReader: {
+      read: async (item, product, onCall) => {
+        asked.push({ item, product });
+        for (const usage of reportedCalls) {
+          onCall(usage);
+        }
+        if (reading instanceof Error) {
+          throw reading;
+        }
+        return reading;
+      },
+    },
+  });
+}
+
 const manager = () => signedInWith(db, ["manage_supplier_price_lists"], NOW);
 
 const extractedListWithRow = (
@@ -85,6 +117,7 @@ describe("authorization of the linking routes", () => {
     ["PUT", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/link`],
     ["PUT", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/review`],
     ["GET", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/link-proposal`],
+    ["POST", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/quantity-proposal`],
     ["GET", "/supplier-price-lists/link-choices"],
   ] as const;
 
@@ -379,6 +412,7 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
     expect(response.json()).toEqual({
       kind: "proposed",
       by: "barcode",
+      quantity: null,
       product: { id: productId, name: "Yerba 1 kg", brandName: null, netContent: null },
     });
   });
@@ -387,13 +421,14 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
     const { headers } = await manager();
     const { listId, rowId } = await extractedListWithRow({}, { description: "Yerba suave 1 kg" });
     const { id: productId } = await insertProduct(db, { name: "Yerba Suave 1 kg" });
-    await appChoosing({ kind: "chosen", productId });
+    await appChoosing({ kind: "chosen", productId, quantity: null });
 
     const response = await proposal(headers, listId, rowId);
 
     expect(response.json()).toEqual({
       kind: "proposed",
       by: "ai",
+      quantity: null,
       product: { id: productId, name: "Yerba Suave 1 kg", brandName: null, netContent: null },
     });
   });
@@ -416,13 +451,14 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
       brandId: kos.id,
       netContent: { quantity: 1, unit: "KG" },
     });
-    await appChoosing({ kind: "chosen", productId });
+    await appChoosing({ kind: "chosen", productId, quantity: null });
 
     const response = await proposal(headers, listId, rowId);
 
     expect(response.json()).toEqual({
       kind: "proposed",
       by: "ai",
+      quantity: null,
       product: {
         id: productId,
         name: "Granola Berries",
@@ -535,6 +571,251 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
     const response = await proposal(headers, "not-an-id", MISSING_ID);
 
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe("link proposals with a quantity", () => {
+  const proposal = (headers: Record<string, string>, listId: string, rowId: string) =>
+    app.inject({
+      method: "GET",
+      url: `/supplier-price-lists/${listId}/rows/${rowId}/link-proposal`,
+      headers,
+    });
+
+  it("proposes the quantity the model chose with the product, from the other presentations of the list", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow(
+      {},
+      { description: "Aceite de palta 250 ml", presentation: "x3 packs" },
+    );
+    await insertPriceListRows(
+      db,
+      listId,
+      [{ description: "Aceite de palta 250 ml", presentation: "Pack x12u" }],
+      1,
+    );
+    const { id: productId } = await insertProduct(db, { name: "Aceite de palta 250 ml" });
+    const asked: unknown[] = [];
+    await app.close();
+    app = Fastify();
+    registerSupplierPriceListsRoutes(app, {
+      zoneRules: fixedZoneRulesSource(),
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOW,
+      productChooser: {
+        choose: async (item) => {
+          asked.push(item);
+          return { kind: "chosen", productId, quantity: 36_000 };
+        },
+      },
+    });
+
+    const response = await proposal(headers, listId, rowId);
+
+    expect(response.json()).toEqual({
+      kind: "proposed",
+      by: "ai",
+      quantity: 36_000,
+      product: { id: productId, name: "Aceite de palta 250 ml", brandName: null, netContent: null },
+    });
+    expect(asked).toEqual([
+      {
+        description: "Aceite de palta 250 ml",
+        presentation: "x3 packs",
+        otherPresentations: ["Pack x12u"],
+      },
+    ]);
+  });
+
+  it("proposes the quantity of a product proposed by barcode from the quantity reader", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow(
+      {},
+      { barcode: "7790000000011", presentation: "Bolsa 2,5 kg" },
+    );
+    const { id: productId } = await insertProduct(db, { name: "Almendras", saleUnit: "KG" });
+    await insertBarcode(db, { productId, code: "7790000000011" });
+    const asked: { item: unknown; product: unknown }[] = [];
+    await appReadingQuantity({ kind: "read", quantity: 12_500 }, asked);
+
+    const response = await proposal(headers, listId, rowId);
+
+    expect(response.json()).toEqual({
+      kind: "proposed",
+      by: "barcode",
+      quantity: 12_500,
+      product: { id: productId, name: "Almendras", brandName: null, netContent: null },
+    });
+    expect(asked).toEqual([
+      {
+        item: expect.objectContaining({ presentation: "Bolsa 2,5 kg", otherPresentations: [] }),
+        product: { saleUnit: "KG", netContent: null },
+      },
+    ]);
+  });
+
+  it("proposes the product of a barcode with no quantity when no reader is configured", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow({}, { barcode: "7790000000011" });
+    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    await insertBarcode(db, { productId, code: "7790000000011" });
+
+    const response = await proposal(headers, listId, rowId);
+
+    expect(response.json()).toMatchObject({ kind: "proposed", by: "barcode", quantity: null });
+  });
+});
+
+describe("POST /supplier-price-lists/:id/rows/:rowId/quantity-proposal", () => {
+  const proposeQuantity = (
+    headers: Record<string, string>,
+    listId: string,
+    rowId: string,
+    payload: object = { saleUnit: "UNIT", netContent: null },
+  ) =>
+    app.inject({
+      method: "POST",
+      url: `/supplier-price-lists/${listId}/rows/${rowId}/quantity-proposal`,
+      headers,
+      payload,
+    });
+
+  it("proposes the quantity the reader read for the row, given the sale unit and net content", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow(
+      {},
+      { description: "Aceite de palta 250 ml", presentation: "x3 packs" },
+    );
+    await insertPriceListRows(
+      db,
+      listId,
+      [{ description: "Aceite de palta 250 ml", presentation: "Pack x12u" }],
+      1,
+    );
+    const asked: { item: unknown; product: unknown }[] = [];
+    await appReadingQuantity({ kind: "read", quantity: 36_000 }, asked);
+
+    const response = await proposeQuantity(headers, listId, rowId, {
+      saleUnit: "UNIT",
+      netContent: { quantity: 250, unit: "ML" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ kind: "proposed", quantity: 36_000 });
+    expect(asked).toEqual([
+      {
+        item: {
+          description: "Aceite de palta 250 ml",
+          presentation: "x3 packs",
+          otherPresentations: ["Pack x12u"],
+        },
+        product: { saleUnit: "UNIT", netContent: { quantity: 250, unit: "ML" } },
+      },
+    ]);
+  });
+
+  it.each([
+    ["none", { kind: "none" as const }, { kind: "none" }],
+    ["unavailable", { kind: "unavailable" as const }, { kind: "unavailable" }],
+    [
+      "a quantity the sale unit refuses",
+      { kind: "read" as const, quantity: 1_500 },
+      { kind: "none" },
+    ],
+    ["a failure", new Error("network down"), { kind: "unavailable" }],
+  ])("answers %s of the reader", async (_name, reading, answer) => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    await appReadingQuantity(reading);
+
+    const response = await proposeQuantity(headers, listId, rowId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(answer);
+  });
+
+  it("answers unavailable when no reader is configured", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+
+    const response = await proposeQuantity(headers, listId, rowId);
+
+    expect(response.json()).toEqual({ kind: "unavailable" });
+  });
+
+  it("records the call of the reader for the person who asked and for the list", async () => {
+    const { headers, userId } = await manager();
+    const { listId, rowId, supplierId } = await extractedListWithRow();
+    await appReadingQuantity(
+      { kind: "none" },
+      [],
+      [
+        {
+          outcome: "completed",
+          attempts: [
+            {
+              model: "claude-sonnet-5-5",
+              inputTokens: 1_000,
+              outputTokens: 100,
+              cacheWriteTokens: 0,
+              cacheReadTokens: 0,
+            },
+          ],
+        },
+      ],
+    );
+
+    await proposeQuantity(headers, listId, rowId);
+
+    expect(await db.select().from(supplierPriceListAiCalls)).toEqual([
+      expect.objectContaining({
+        purpose: "LINK_PROPOSAL",
+        listId,
+        rowId,
+        supplierId,
+        actorId: userId,
+        occurredAt: NOW,
+        outcome: "completed",
+        costNanoUsd: 3_000_000,
+      }),
+    ]);
+  });
+
+  it("answers 404 for a list or a row that does not exist", async () => {
+    const { headers } = await manager();
+    const { listId } = await extractedListWithRow();
+
+    const noRow = await proposeQuantity(headers, listId, MISSING_ID);
+    const noList = await proposeQuantity(headers, MISSING_ID, MISSING_ID);
+
+    expect(noRow.statusCode).toBe(404);
+    expect(noRow.json()).toMatchObject({ code: "not_found" });
+    expect(noList.statusCode).toBe(404);
+  });
+
+  it("answers 400 for an id that is not a record id", async () => {
+    const { headers } = await manager();
+
+    const response = await proposeQuantity(headers, "not-an-id", MISSING_ID);
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it.each([
+    {},
+    { saleUnit: "KILO" },
+    { saleUnit: "UNIT", netContent: { quantity: -1, unit: "G" } },
+  ])("answers 400 for the body %j, without reading", async (payload) => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const asked: { item: unknown; product: unknown }[] = [];
+    await appReadingQuantity({ kind: "none" }, asked);
+
+    const response = await proposeQuantity(headers, listId, rowId, payload);
+
+    expect(response.statusCode).toBe(400);
+    expect(asked).toEqual([]);
   });
 });
 

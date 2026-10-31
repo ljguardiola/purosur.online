@@ -29,6 +29,7 @@ export function createServices(
     linkSupplierPriceListRow: vi.fn(),
     fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
     fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
+    fetchSupplierItemQuantityProposal: vi.fn().mockReturnValue(new Promise(() => {})),
     createProductFromSupplierItem: vi.fn(),
     fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
     fetchProductCreationBrands: vi.fn().mockReturnValue(new Promise(() => {})),

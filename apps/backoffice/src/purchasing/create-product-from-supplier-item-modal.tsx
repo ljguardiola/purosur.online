@@ -1,6 +1,7 @@
 import {
   type BrandSummary,
   type CategorySummary,
+  type SupplierItemQuantityProposalBody,
   supplierPriceListRowProductCreationBodySchema,
 } from "@purosur/contracts";
 import {
@@ -44,10 +45,14 @@ import {
   useProductCreationChoicesRefresh,
   useProductCreationTagsQuery,
   useSupplierItemLinkChoicesQuery,
+  useSupplierItemQuantityProposalQuery,
 } from "./purchasing-queries";
 import { SupplierItemFact } from "./supplier-item-fact";
 import { vatRateOptionsOf, vatRateOrDefault } from "./supplier-item-link-form";
-import type { fetchSupplierItemLinkChoices } from "./supplier-item-links-api";
+import type {
+  fetchSupplierItemLinkChoices,
+  fetchSupplierItemQuantityProposal,
+} from "./supplier-item-links-api";
 import {
   EMPTY_SUPPLIER_ITEM_PRODUCT_FORM,
   SUPPLIER_ITEM_PRODUCT_CATEGORY_NOT_LEAF_ERROR,
@@ -55,6 +60,7 @@ import {
   SUPPLIER_ITEM_PRODUCT_MESSAGES,
   supplierItemProductFormValuesOf,
   supplierItemProductRequestFrom,
+  supplierItemQuantityProposalRequestFrom,
 } from "./supplier-item-product-form";
 import type {
   createProductFromSupplierItem,
@@ -65,6 +71,7 @@ import type {
 import {
   SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS,
   supplierItemQuantityFieldKind,
+  supplierItemQuantityInputOf,
 } from "./supplier-item-quantity";
 import {
   type SupplierPriceListChangeNotice,
@@ -82,6 +89,7 @@ export type CreateProductFromSupplierItemModalServices = {
   createBrand: typeof createBrand;
   createTag: typeof createTag;
   fetchSupplierItemLinkChoices: typeof fetchSupplierItemLinkChoices;
+  fetchSupplierItemQuantityProposal: typeof fetchSupplierItemQuantityProposal;
   generateInternalBarcode: typeof generateInternalBarcode;
 };
 
@@ -96,6 +104,8 @@ type CreateProductFromSupplierItemModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
 };
+
+const QUANTITY_PROPOSAL_DEBOUNCE_MS = 300;
 
 function FieldHeading({ children }: { children: string }) {
   return <p className="text-detail font-bold">{children}</p>;
@@ -189,6 +199,75 @@ export function CreateProductFromSupplierItemModal({
       setNotice(supplierPriceListChangeNoticeOf(outcome));
     },
   });
+  const wanted = supplierItemQuantityProposalRequestFrom(values);
+  const wantedSaleUnit = wanted?.saleUnit ?? null;
+  const wantedNetQuantity = wanted?.netContent?.quantity ?? null;
+  const wantedNetUnit = wanted?.netContent?.unit ?? null;
+  const [askedOpening, setAskedOpening] = useState<SupplierPriceListRow | null>(null);
+  const [asked, setAsked] = useState<SupplierItemQuantityProposalBody | null>(null);
+  if (target !== askedOpening) {
+    setAskedOpening(target);
+    setAsked(
+      target === null
+        ? null
+        : supplierItemQuantityProposalRequestFrom(
+            supplierItemProductFormValuesOf(target, list.version),
+          ),
+    );
+  }
+  useEffect(() => {
+    if (target === null) {
+      return;
+    }
+    const handle = setTimeout(
+      () =>
+        setAsked(
+          wantedSaleUnit === null
+            ? null
+            : {
+                saleUnit: wantedSaleUnit,
+                netContent:
+                  wantedNetQuantity === null || wantedNetUnit === null
+                    ? null
+                    : { quantity: wantedNetQuantity, unit: wantedNetUnit },
+              },
+        ),
+      QUANTITY_PROPOSAL_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(handle);
+  }, [target, wantedSaleUnit, wantedNetQuantity, wantedNetUnit]);
+  const quantityProposal = useSupplierItemQuantityProposalQuery({
+    listId: list.id,
+    rowId: row?.id ?? "",
+    request: open ? asked : null,
+    fetchSupplierItemQuantityProposal: services.fetchSupplierItemQuantityProposal,
+    onSessionEnded,
+  });
+  const proposedQuantity =
+    quantityProposal.status === "loaded" && quantityProposal.value.kind === "proposed"
+      ? quantityProposal.value.quantity
+      : null;
+  const proposalSettled = quantityProposal.status === "loaded";
+  const proposalSaleUnit = asked?.saleUnit === values.saleUnit ? asked.saleUnit : null;
+  const [proposalFill, setProposalFill] = useState("");
+  useEffect(() => {
+    if (!open || !proposalSettled || proposalSaleUnit === null) {
+      return;
+    }
+    if (form.getFieldValue("quantity") !== proposalFill) {
+      return;
+    }
+    const proposed =
+      proposedQuantity === null
+        ? { quantity: "", quantityUnit: form.getFieldValue("quantityUnit") }
+        : supplierItemQuantityInputOf(proposedQuantity, proposalSaleUnit);
+    if (proposed.quantity !== proposalFill) {
+      form.setFieldValue("quantity", proposed.quantity);
+      form.setFieldValue("quantityUnit", proposed.quantityUnit);
+      setProposalFill(proposed.quantity);
+    }
+  }, [open, proposalSettled, proposedQuantity, proposalSaleUnit, proposalFill, form]);
+
   const chips = useBarcodeChips({
     list: values.barcodes,
     setList: (next) => form.setFieldValue("barcodes", next),
@@ -226,6 +305,7 @@ export function CreateProductFromSupplierItemModal({
   useEffect(() => {
     if (target) {
       reset(supplierItemProductFormValuesOf(target, list.version));
+      setProposalFill("");
       chips.reset();
       generate.reset();
       setGenerateRateLimit(null);

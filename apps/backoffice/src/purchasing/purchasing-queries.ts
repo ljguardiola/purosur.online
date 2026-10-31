@@ -15,6 +15,8 @@ import type {
   PurchasesBySupplierQuery,
   SupplierItemLinkChoices,
   SupplierItemLinkProposal,
+  SupplierItemQuantityProposal,
+  SupplierItemQuantityProposalBody,
   SupplierPriceComparison,
   SupplierPriceListAiCostBody,
   SupplierPriceListSummary,
@@ -39,6 +41,7 @@ import type { fetchPurchasesReport } from "./purchases-report-api";
 import type {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
+  fetchSupplierItemQuantityProposal,
 } from "./supplier-item-links-api";
 import type {
   fetchProductCreationBrands,
@@ -67,6 +70,7 @@ export const purchasingKeys = {
   supplierPriceListReview: [...purchasingKey, "supplier-price-list-review"] as const,
   supplierPriceListAiCost: [...purchasingKey, "supplier-price-list-ai-cost"] as const,
   supplierItemLinkProposal: [...purchasingKey, "supplier-item-link-proposal"] as const,
+  supplierItemQuantityProposal: [...purchasingKey, "supplier-item-quantity-proposal"] as const,
   supplierItemLinkChoices: [...purchasingKey, "supplier-item-link-choices"] as const,
   productCreationCategories: [...purchasingKey, "product-creation-categories"] as const,
   productCreationBrands: [...purchasingKey, "product-creation-brands"] as const,
@@ -320,6 +324,45 @@ export function useSupplierItemLinkProposalQuery(params: {
     enabled: params.enabled,
     read: async () => {
       const outcome = await params.fetchSupplierItemLinkProposal(params.listId, params.rowId);
+      void client.invalidateQueries({
+        queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
+      });
+      return outcome;
+    },
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useSupplierItemQuantityProposalQuery(params: {
+  listId: string;
+  rowId: string;
+  request: SupplierItemQuantityProposalBody | null;
+  fetchSupplierItemQuantityProposal: typeof fetchSupplierItemQuantityProposal;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const client = useQueryClient();
+  const { request } = params;
+  return useCloudQuery<SupplierItemQuantityProposal>({
+    queryKey: [
+      ...purchasingKeys.supplierItemQuantityProposal,
+      params.listId,
+      params.rowId,
+      request?.saleUnit,
+      request?.netContent?.quantity,
+      request?.netContent?.unit,
+    ],
+    enabled: request !== null,
+    read: async () => {
+      if (request === null) {
+        return { kind: "failed" };
+      }
+      const outcome = await params.fetchSupplierItemQuantityProposal(
+        params.listId,
+        params.rowId,
+        request,
+      );
       void client.invalidateQueries({
         queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
       });

@@ -5,9 +5,11 @@ import type {
 } from "../supplier-item-link-proposal-reader.js";
 
 export interface FakeProposalData {
-  rows?: (ProposalRow & { listId: string; id: string })[];
+  rows?: (Omit<ProposalRow, "otherPresentations"> & { listId: string; id: string })[];
   products?: (Pick<ProposalProduct, "id" | "name"> &
-    Partial<Pick<ProposalProduct, "brandName" | "netContent">> & { barcodes?: string[] })[];
+    Partial<Pick<ProposalProduct, "brandName" | "netContent" | "saleUnit">> & {
+      barcodes?: string[];
+    })[];
 }
 
 function proposalProduct({
@@ -15,8 +17,15 @@ function proposalProduct({
   name,
   brandName,
   netContent,
+  saleUnit,
 }: Required<FakeProposalData>["products"][number]): ProposalProduct {
-  return { id, name, brandName: brandName ?? null, netContent: netContent ?? null };
+  return {
+    id,
+    name,
+    brandName: brandName ?? null,
+    netContent: netContent ?? null,
+    saleUnit: saleUnit ?? "UNIT",
+  };
 }
 
 export class FakeSupplierItemLinkProposalReader implements SupplierItemLinkProposalReader {
@@ -35,6 +44,18 @@ export class FakeSupplierItemLinkProposalReader implements SupplierItemLinkPropo
           description: found.description,
           presentation: found.presentation,
           barcode: found.barcode,
+          otherPresentations: [
+            ...new Set(
+              this.data.rows.flatMap((other) =>
+                other.listId === listId &&
+                other.id !== rowId &&
+                other.description === found.description &&
+                other.presentation !== null
+                  ? [other.presentation]
+                  : [],
+              ),
+            ),
+          ],
         }
       : undefined;
   }

@@ -1,9 +1,11 @@
-import type { NetContentUnit } from "../../catalog/index.js";
+import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
 
 export interface ProposalRow {
   description: string;
   presentation: string | null;
   barcode: string | null;
+  // The presentations the other rows of the list state for the same description, without repeats.
+  otherPresentations: string[];
 }
 
 export interface ProposalProduct {
@@ -11,6 +13,7 @@ export interface ProposalProduct {
   name: string;
   brandName: string | null;
   netContent: { quantity: number; unit: NetContentUnit } | null;
+  saleUnit: SaleUnit;
 }
 
 export interface SupplierItemLinkProposalReader {

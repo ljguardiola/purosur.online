@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { netContentSchema } from "../shared/index.js";
+import { supplierItemQuantitySchema } from "./supplier-price-list-row-link.js";
 
 export const supplierItemLinkProposalSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("proposed"),
     by: z.enum(["barcode", "ai"]),
+    quantity: supplierItemQuantitySchema.nullable(),
     product: z.object({
       id: z.string(),
       name: z.string(),

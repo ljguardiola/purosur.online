@@ -15,6 +15,9 @@ import {
   PROPOSED_BY_AI,
   PROPOSED_BY_BARCODE,
   PROPOSED_GRANOLA_KOS,
+  PROPOSED_MIEL_WITH_UNITS,
+  PROPOSED_PASAS_WITH_GRAMS,
+  PROPOSED_PASAS_WITH_KILOS,
   UNAVAILABLE_PROPOSAL,
 } from "./test-support/supplier-item-links";
 import { ALMOND_LINK, EXTRACTED_ROWS, READ_LIST } from "./test-support/supplier-price-lists";
@@ -887,4 +890,116 @@ test("has no accessibility violations loaded and with the quantity of the chosen
     .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Cantidad que trae/ }))
     .toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+function proposing(value: typeof PROPOSED_BY_AI) {
+  return createServices({
+    fetchSupplierItemLinkProposal: vi.fn().mockResolvedValue({ kind: "ok", value }),
+  });
+}
+
+const quantityField = (screen: ModalScreen) =>
+  screen.getByRole("dialog").getByRole("textbox", { name: /^Cantidad que trae/ });
+
+test("fills the quantity with the kilos proposed with the product", async () => {
+  const screen = await renderModal({ services: proposing(PROPOSED_PASAS_WITH_KILOS) });
+
+  await expect.element(quantityField(screen)).toHaveValue("12,5");
+  await expect
+    .element(screen.getByRole("dialog").getByRole("radio", { name: "kg", exact: true }))
+    .toBeChecked();
+});
+
+test("fills the quantity with the grams proposed when they are less than a kilo", async () => {
+  const screen = await renderModal({ services: proposing(PROPOSED_PASAS_WITH_GRAMS) });
+
+  await expect.element(quantityField(screen)).toHaveValue("500");
+  await expect
+    .element(screen.getByRole("dialog").getByRole("radio", { name: "g", exact: true }))
+    .toBeChecked();
+});
+
+test("fills the quantity with the units proposed with a product sold by the unit", async () => {
+  const screen = await renderModal({ services: proposing(PROPOSED_MIEL_WITH_UNITS) });
+
+  await expect.element(quantityField(screen)).toHaveValue("36");
+});
+
+test("links the proposed product with the proposed quantity once the person confirms it", async () => {
+  const services = proposing(PROPOSED_PASAS_WITH_KILOS);
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ services });
+  await expect.element(quantityField(screen)).toHaveValue("12,5");
+
+  await link(screen);
+
+  expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({ productId: PASAS_ID, quantity: 12_500 }),
+  );
+});
+
+test("links the quantity the person changed instead of the one proposed", async () => {
+  const services = proposing(PROPOSED_PASAS_WITH_KILOS);
+  vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ services });
+  await expect.element(quantityField(screen)).toHaveValue("12,5");
+
+  await typeQuantity(screen, "10");
+  await link(screen);
+
+  expect(services.linkSupplierPriceListRow).toHaveBeenCalledWith(
+    LIST.id,
+    nutRow.id,
+    expect.objectContaining({ quantity: 10_000 }),
+  );
+});
+
+test.each([
+  ["by barcode", PROPOSED_BY_BARCODE],
+  ["by the model", PROPOSED_BY_AI],
+])(
+  "leaves the quantity empty and refuses to link when none is proposed with the product %s",
+  async (_how, proposal) => {
+    const services = proposing(proposal);
+    const screen = await renderModal({ services });
+    await expect.element(quantityField(screen)).toBeVisible();
+
+    const dialog = await link(screen);
+
+    await expect.element(quantityField(screen)).toHaveValue("");
+    await expect.element(dialog.getByText("Ingresá la cantidad que trae el ítem.")).toBeVisible();
+    expect(services.linkSupplierPriceListRow).not.toHaveBeenCalled();
+  },
+);
+
+test("never overwrites the quantity the person typed with the proposal that arrives later", async () => {
+  let resolveProposal: (outcome: { kind: "ok"; value: typeof PROPOSED_BY_AI }) => void = () => {};
+  const services = createServices({
+    fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(
+      new Promise((settle) => {
+        resolveProposal = settle;
+      }),
+    ),
+  });
+  const screen = await renderModal({ services });
+  await chooseProduct(screen, "Pasas de uva");
+  await typeQuantity(screen, "7");
+
+  resolveProposal({ kind: "ok", value: PROPOSED_PASAS_WITH_KILOS });
+
+  await expect.element(screen.getByText("Propuesto por IA: Pasas de uva").first()).toBeVisible();
+  await expect.element(quantityField(screen)).toHaveValue("7");
+});
+
+test("clears the proposed quantity when another product is chosen, and does not propose it again", async () => {
+  const screen = await renderModal({ services: proposing(PROPOSED_PASAS_WITH_KILOS) });
+  const dialog = screen.getByRole("dialog");
+  await expect.element(quantityField(screen)).toHaveValue("12,5");
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto del catálogo/ }), "");
+  await chooseProduct(screen, "Miel pura de abeja 1 kg");
+
+  await expect.element(quantityField(screen)).toHaveValue("");
 });

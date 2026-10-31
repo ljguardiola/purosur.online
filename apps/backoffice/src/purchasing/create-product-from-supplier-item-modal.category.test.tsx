@@ -7,7 +7,7 @@ import {
   CreateProductFromSupplierItemModal,
   type CreateProductFromSupplierItemModalServices,
 } from "./create-product-from-supplier-item-modal";
-import { LINK_CHOICES } from "./test-support/supplier-item-links";
+import { LINK_CHOICES, NO_QUANTITY_PROPOSAL } from "./test-support/supplier-item-links";
 import {
   CREATION_BRANDS,
   CREATION_CATEGORIES,
@@ -45,6 +45,9 @@ function createServices(): CreateProductFromSupplierItemModalServices {
       .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
     generateInternalBarcode:
       vi.fn<CreateProductFromSupplierItemModalServices["generateInternalBarcode"]>(),
+    fetchSupplierItemQuantityProposal: vi
+      .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemQuantityProposal"]>()
+      .mockResolvedValue({ kind: "ok", value: NO_QUANTITY_PROPOSAL }),
   };
 }
 

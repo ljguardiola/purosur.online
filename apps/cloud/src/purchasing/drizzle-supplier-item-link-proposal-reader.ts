@@ -1,9 +1,10 @@
+import { SALE_UNITS } from "@purosur/domain";
 import type {
   ProposalProduct,
   ProposalRow,
   SupplierItemLinkProposalReader,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, ne } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import { brands, productBarcodes, products, supplierPriceListRows } from "../platform/db/schema.js";
@@ -14,7 +15,16 @@ const PRODUCT_COLUMNS = {
   brandName: brands.name,
   netContentQuantity: products.netContentQuantity,
   netContentUnit: products.netContentUnit,
+  saleUnit: products.saleUnit,
 };
+
+function saleUnitOf(stored: string) {
+  const saleUnit = SALE_UNITS.find((known) => known === stored);
+  if (saleUnit === undefined) {
+    throw new Error(`a product has no known sale unit: ${stored}`);
+  }
+  return saleUnit;
+}
 
 function proposalProduct(row: {
   id: string;
@@ -22,8 +32,15 @@ function proposalProduct(row: {
   brandName: string | null;
   netContentQuantity: number | null;
   netContentUnit: string | null;
+  saleUnit: string;
 }): ProposalProduct {
-  return { id: row.id, name: row.name, brandName: row.brandName, netContent: netContentRow(row) };
+  return {
+    id: row.id,
+    name: row.name,
+    brandName: row.brandName,
+    netContent: netContentRow(row),
+    saleUnit: saleUnitOf(row.saleUnit),
+  };
 }
 
 export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryResultHKT>
@@ -44,7 +61,27 @@ export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryR
       })
       .from(supplierPriceListRows)
       .where(and(eq(supplierPriceListRows.id, rowId), eq(supplierPriceListRows.listId, listId)));
-    return row;
+    if (!row) {
+      return undefined;
+    }
+    const siblings = await this.db
+      .selectDistinct({ presentation: supplierPriceListRows.presentation })
+      .from(supplierPriceListRows)
+      .where(
+        and(
+          eq(supplierPriceListRows.listId, listId),
+          eq(supplierPriceListRows.description, row.description),
+          ne(supplierPriceListRows.id, rowId),
+          isNotNull(supplierPriceListRows.presentation),
+        ),
+      )
+      .orderBy(supplierPriceListRows.presentation);
+    return {
+      ...row,
+      otherPresentations: siblings.flatMap(({ presentation }) =>
+        presentation === null ? [] : [presentation],
+      ),
+    };
   }
 
   async activeProductsWithBarcode(barcode: string): Promise<ProposalProduct[]> {

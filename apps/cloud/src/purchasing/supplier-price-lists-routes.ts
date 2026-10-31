@@ -3,6 +3,8 @@ import {
   categoryListSchema,
   supplierItemLinkChoicesSchema,
   supplierItemLinkProposalSchema,
+  supplierItemQuantityProposalBodySchema,
+  supplierItemQuantityProposalSchema,
   supplierPriceListAiCostSchema,
   supplierPriceListConfirmationBodySchema,
   supplierPriceListDiscardBodySchema,
@@ -31,6 +33,7 @@ import type {
   LinkSupplierPriceListRowOutcome,
   LoadSupplierPriceListWebPageOutcome,
   ProductChooser,
+  SupplierItemQuantityReader,
 } from "@purosur/domain/purchasing/use-cases";
 import {
   confirmSupplierPriceList,
@@ -45,6 +48,7 @@ import {
   loadSupplierPriceListWebPage,
   markSupplierPriceListRowReviewed,
   proposeSupplierItemLink,
+  proposeSupplierItemQuantity,
   refreshSupplierPriceListWebPage,
   removeSupplierPriceListRow,
   setSupplierPriceListRowPrice,
@@ -130,6 +134,10 @@ const LINK_REFUSALS = {
 
 const unavailableProductChooser: ProductChooser = {
   choose: async () => ({ kind: "unavailable" }),
+};
+
+const unavailableSupplierItemQuantityReader: SupplierItemQuantityReader = {
+  read: async () => ({ kind: "unavailable" }),
 };
 
 function exactFraction(fraction: { numerator: bigint; denominator: bigint }) {
@@ -312,6 +320,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     supplierPriceListFiles: files,
     supplierPriceListWebPages: webPages,
     productChooser = unavailableProductChooser,
+    supplierItemQuantityReader = unavailableSupplierItemQuantityReader,
   } = options;
   registerRouteAccess(app);
   const store = new DrizzleSupplierPriceListStore(options.db, now);
@@ -597,7 +606,13 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
         return;
       }
       const outcome = await proposeSupplierItemLink(
-        { reader: proposalReader, chooser: productChooser, aiCalls, zoneRules: options.zoneRules },
+        {
+          reader: proposalReader,
+          chooser: productChooser,
+          quantityReader: supplierItemQuantityReader,
+          aiCalls,
+          zoneRules: options.zoneRules,
+        },
         { listId: ids.id, rowId: ids.rowId, actorId: openSessionOf(request).userId, now },
       );
       if (outcome.kind === "not_found") {
@@ -605,6 +620,45 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
         return;
       }
       await reply.code(200).send(supplierItemLinkProposalSchema.parse(outcome));
+    },
+  );
+
+  app.post(
+    "/supplier-price-lists/:id/rows/:rowId/quantity-proposal",
+    readGuard,
+    async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id", "rowId"]);
+      if (!ids) {
+        return;
+      }
+      const body = await readValidatedBody(
+        reply,
+        supplierItemQuantityProposalBodySchema,
+        request.body,
+      );
+      if (!body) {
+        return;
+      }
+      const outcome = await proposeSupplierItemQuantity(
+        {
+          reader: proposalReader,
+          quantityReader: supplierItemQuantityReader,
+          aiCalls,
+          zoneRules: options.zoneRules,
+        },
+        {
+          ...body,
+          listId: ids.id,
+          rowId: ids.rowId,
+          actorId: openSessionOf(request).userId,
+          now,
+        },
+      );
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(NOT_FOUND);
+        return;
+      }
+      await reply.code(200).send(supplierItemQuantityProposalSchema.parse(outcome));
     },
   );
 

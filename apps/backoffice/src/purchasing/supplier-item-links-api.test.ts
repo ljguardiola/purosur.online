@@ -2,10 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
+  fetchSupplierItemQuantityProposal,
 } from "./supplier-item-links-api";
 import {
   LINK_CHOICES,
+  NO_QUANTITY_PROPOSAL,
   PROPOSED_BY_AI,
+  PROPOSED_QUANTITY_OF_UNITS,
   UNAVAILABLE_PROPOSAL,
 } from "./test-support/supplier-item-links";
 
@@ -91,5 +94,52 @@ describe("fetchSupplierItemLinkChoices", () => {
       kind: "rate_limited",
       retryAfterSeconds: 12,
     });
+  });
+});
+
+describe("fetchSupplierItemQuantityProposal", () => {
+  const body = { saleUnit: "UNIT", netContent: { quantity: 250, unit: "ML" } } as const;
+
+  test("asks for the quantity of the row with the sale unit and net content, and reads the proposal", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, PROPOSED_QUANTITY_OF_UNITS));
+
+    expect(await fetchSupplierItemQuantityProposal("list-1", "row-1", body)).toEqual({
+      kind: "ok",
+      value: PROPOSED_QUANTITY_OF_UNITS,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/supplier-price-lists/list-1/rows/row-1/quantity-proposal",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+  });
+
+  test("reads a proposal that holds no quantity", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, NO_QUANTITY_PROPOSAL));
+
+    expect(await fetchSupplierItemQuantityProposal("list-1", "row-1", body)).toEqual({
+      kind: "ok",
+      value: NO_QUANTITY_PROPOSAL,
+    });
+  });
+
+  test.each([{ kind: "guessed" }, { kind: "proposed" }, { kind: "proposed", quantity: 1.5 }])(
+    "returns failed when the proposal %j does not have the expected shape",
+    async (answer) => {
+      vi.mocked(fetch).mockResolvedValue(jsonResponse(200, answer));
+
+      expect(await fetchSupplierItemQuantityProposal("list-1", "row-1", body)).toEqual({
+        kind: "failed",
+      });
+    },
+  );
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchSupplierItemQuantityProposal("list-1", "row-1", body)).toEqual(outcome);
   });
 });
