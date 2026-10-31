@@ -72,6 +72,12 @@ export interface FakePackagingRow {
   active: boolean;
 }
 
+export interface FakeSupplierItemLinkRow {
+  productId: string;
+  saleUnit: SaleUnit;
+  relinkRequired: boolean;
+}
+
 interface FakeBarcodeRow {
   productId: string;
   code: string;
@@ -92,6 +98,7 @@ export interface FakeCatalogState {
   productTags: FakeProductTagRow[];
   discounts: FakeDiscountRow[];
   packagings: FakePackagingRow[];
+  supplierItemLinks: FakeSupplierItemLinkRow[];
   nextId: number;
 }
 
@@ -105,6 +112,7 @@ function emptyState(): FakeCatalogState {
     productTags: [],
     discounts: [],
     packagings: [],
+    supplierItemLinks: [],
     nextId: 1,
   };
 }
@@ -122,6 +130,7 @@ function cloneState(state: FakeCatalogState): FakeCatalogState {
     productTags: state.productTags.map((row) => ({ ...row })),
     discounts: state.discounts.map((row) => ({ ...row })),
     packagings: state.packagings.map((row) => ({ ...row })),
+    supplierItemLinks: state.supplierItemLinks.map((row) => ({ ...row })),
     nextId: state.nextId,
   };
 }
@@ -209,6 +218,13 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
     return this.state.packagings
       .filter((row) => row.active && sameId(row.productId, productId))
       .map((row) => row.name);
+  }
+
+  async hasCurrentSupplierItemLink(productId: string, saleUnit: SaleUnit): Promise<boolean> {
+    this.store.lockCallOrder.push("hasCurrentSupplierItemLink");
+    return this.state.supplierItemLinks.some(
+      (row) => sameId(row.productId, productId) && !row.relinkRequired && row.saleUnit === saleUnit,
+    );
   }
 
   async lockCategory(categoryId: string): Promise<LockCategoryResult> {
@@ -500,6 +516,10 @@ export class FakeCatalogStore implements CatalogStore {
 
   seedPackaging(packaging: FakePackagingRow): void {
     this.state.packagings.push({ ...packaging });
+  }
+
+  seedSupplierItemLink(link: Partial<FakeSupplierItemLinkRow> & { productId: string }): void {
+    this.state.supplierItemLinks.push({ saleUnit: "UNIT", relinkRequired: false, ...link });
   }
 
   seedProduct(

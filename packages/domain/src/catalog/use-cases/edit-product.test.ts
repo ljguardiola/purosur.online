@@ -435,6 +435,7 @@ describe("editProduct", () => {
     expect(store.lockCallOrder).toEqual([
       "lockProduct",
       "activePackagingNamesOf",
+      "hasCurrentSupplierItemLink",
       "buyNPayMDiscountsOn",
       "lockLeafCategory",
     ]);
@@ -1122,6 +1123,7 @@ describe("editProduct", () => {
       expect(store.lockCallOrder).toEqual([
         "lockProduct",
         "activePackagingNamesOf",
+      "hasCurrentSupplierItemLink",
         "lockLeafCategory",
       ]);
     });
@@ -1155,6 +1157,7 @@ describe("editProduct", () => {
       expect(store.lockCallOrder).toEqual([
         "lockProduct",
         "activePackagingNamesOf",
+      "hasCurrentSupplierItemLink",
         "buyNPayMDiscountsOn",
         "lockLeafCategory",
       ]);
@@ -1318,6 +1321,122 @@ describe("editProduct", () => {
       );
 
       expect(outcome).toEqual({ kind: "stale_version" });
+      expect(store.lockCallOrder).toEqual(["lockProduct"]);
+    });
+  });
+
+  describe("changing the sale unit while a supplier item is linked", () => {
+    function productWithLinks(
+      saleUnit: "UNIT" | "KG",
+      links: { productId?: string; saleUnit?: "UNIT" | "KG"; relinkRequired?: boolean }[],
+    ): FakeCatalogStore {
+      const store = new FakeCatalogStore();
+      leafCategory(store);
+      store.seedProduct(
+        {
+          id: "product-1",
+          name: "Yerba",
+          categoryId: "category-1",
+          brandId: null,
+          saleUnit,
+          netContent: null,
+          active: true,
+          version: 1,
+        },
+        [{ code: "111" }],
+      );
+      for (const link of links) {
+        store.seedSupplierItemLink({ ...link, productId: link.productId ?? "product-1" });
+      }
+      return store;
+    }
+
+    function edit(store: FakeCatalogStore, saleUnit: "UNIT" | "KG", version = 1) {
+      return editProduct(
+        { zoneRules: new FakeZoneRulesSource(), store, clock },
+        {
+          id: "product-1",
+          name: "Yerba",
+          categoryId: "category-1",
+          brandId: null,
+          saleUnit,
+          barcodes: ["111"],
+          tagIds: [],
+          netContent: null,
+          version,
+        },
+      );
+    }
+
+    it.each([
+      ["unit to weight", "UNIT", "KG"],
+      ["weight to unit", "KG", "UNIT"],
+    ] as const)("is refused from %s, leaving the product unchanged", async (_label, from, to) => {
+      const store = productWithLinks(from, [{ saleUnit: from }]);
+      const before = store.snapshot();
+
+      expect(await edit(store, to)).toEqual({ kind: "sale_unit_held_by_supplier_item" });
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("asks whether a link current for the product's present sale unit refers to it", async () => {
+      const store = productWithLinks("KG", [{ saleUnit: "KG" }]);
+
+      await edit(store, "UNIT");
+
+      expect(store.lockCallOrder).toEqual([
+        "lockProduct",
+        "activePackagingNamesOf",
+        "hasCurrentSupplierItemLink",
+      ]);
+    });
+
+    it.each([
+      ["requires linking again", { relinkRequired: true }],
+      ["is stated in another sale unit than the product's", { saleUnit: "KG" as const }],
+      ["belongs to another product", { productId: "decoy" }],
+    ])("is allowed when the only link %s", async (_name, link) => {
+      const store = productWithLinks("UNIT", [link]);
+
+      expect(await edit(store, "KG")).toMatchObject({ kind: "applied" });
+    });
+
+    it("lets the product keep its sale unit without reading its links", async () => {
+      const store = productWithLinks("UNIT", [{}]);
+
+      expect(await edit(store, "UNIT")).toMatchObject({ kind: "applied" });
+      expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
+    });
+
+    it("is refused for an active packaging before it is refused for a link", async () => {
+      const store = productWithLinks("UNIT", [{}]);
+      store.seedPackaging({ productId: "product-1", name: "Caja x 12", active: true });
+
+      expect(await edit(store, "KG")).toEqual({
+        kind: "sale_unit_held_by_packaging",
+        packagingName: "Caja x 12",
+      });
+    });
+
+    it("is refused for a link before it is refused for a live discount", async () => {
+      const store = productWithLinks("UNIT", [{}]);
+      store.seedDiscount({
+        id: "discount-1",
+        name: "3x2 Yerba",
+        kind: "BUY_N_PAY_M",
+        productId: "product-1",
+        active: true,
+        validFrom: "2026-06-01",
+        validTo: "2026-06-30",
+      });
+
+      expect(await edit(store, "KG")).toEqual({ kind: "sale_unit_held_by_supplier_item" });
+    });
+
+    it("answers stale_version before reading the links", async () => {
+      const store = productWithLinks("UNIT", [{}]);
+
+      expect(await edit(store, "KG", 9)).toEqual({ kind: "stale_version" });
       expect(store.lockCallOrder).toEqual(["lockProduct"]);
     });
   });
