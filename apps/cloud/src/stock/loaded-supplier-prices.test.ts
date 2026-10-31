@@ -68,6 +68,8 @@ describe("loadedSupplierPricesOf", () => {
             {
               supplierItemId: harina.supplierItemId,
               supplierName: "Molinos del Norte",
+              quantity: 1_000,
+              saleUnit: "UNIT",
               listDate: "2026-02-15",
               pricePerSaleUnit: { numerator: 1_210n, denominator: 1n },
             },

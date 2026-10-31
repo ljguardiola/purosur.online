@@ -223,6 +223,8 @@ describe("GET /initial-inventory-lots", () => {
         {
           supplierItemId: dear.supplierItemId,
           supplierName: "Beta",
+          quantity: 1_000,
+          saleUnit: "UNIT",
           listDate: "2026-03-01",
           unitCostCents: 900,
           cheapest: false,
