@@ -123,6 +123,7 @@ const CONFIRMATION_REFUSALS = {
 
 const LINK_REFUSALS = {
   product_not_linkable: "the product cannot be linked: it does not exist or is deactivated",
+  sale_unit_changed: "the product is no longer sold in the sale unit the quantity is stated in",
   vat_rate_missing: "the list does not include VAT in its prices, so the item needs a VAT rate",
   vat_rate_invalid: "the VAT rate is not one of those offered",
 } as const;
@@ -223,6 +224,7 @@ async function answerRowLink(
   }
   if (
     outcome.kind === "product_not_linkable" ||
+    outcome.kind === "sale_unit_changed" ||
     outcome.kind === "vat_rate_missing" ||
     outcome.kind === "vat_rate_invalid"
   ) {
@@ -534,6 +536,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       rowId: ids.rowId,
       version: body.version,
       productId: body.productId,
+      saleUnit: body.saleUnit,
       quantity: body.quantity,
       vatRate: body.vatRate,
       actorId: openSessionOf(request).userId,

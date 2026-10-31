@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
 import { maySupplierPriceListRowBeLinked } from "../model/supplier-price-list.js";
 import { decideRowVatRate, linkRowAndRememberItem } from "./supplier-price-list-row-link-steps.js";
@@ -8,7 +9,8 @@ export interface LinkSupplierPriceListRowInput {
   rowId: string;
   version: number;
   productId: string;
-  // In thousandths of the product's sale unit.
+  saleUnit: SaleUnit;
+  // In thousandths of the sale unit.
   quantity: number;
   // In basis points; null when none was chosen.
   vatRate: number | null;
@@ -20,6 +22,7 @@ export type LinkSupplierPriceListRowOutcome =
   | { kind: "not_editable" }
   | { kind: "stale_version" }
   | { kind: "product_not_linkable" }
+  | { kind: "sale_unit_changed" }
   | { kind: "invalid_quantity" }
   | { kind: "vat_rate_missing" }
   | { kind: "vat_rate_invalid" }
@@ -50,7 +53,10 @@ export function linkSupplierPriceListRow(
     if (target.kind === "not_found" || !target.product.active) {
       return { kind: "product_not_linkable" };
     }
-    if (!isMovementQuantity(target.product.saleUnit, input.quantity)) {
+    if (target.product.saleUnit !== input.saleUnit) {
+      return { kind: "sale_unit_changed" };
+    }
+    if (!isMovementQuantity(input.saleUnit, input.quantity)) {
       return { kind: "invalid_quantity" };
     }
 
@@ -65,7 +71,7 @@ export function linkSupplierPriceListRow(
       {
         productId: input.productId,
         quantity: input.quantity,
-        saleUnit: target.product.saleUnit,
+        saleUnit: input.saleUnit,
         vatRate: decision.vatRate,
         relinkRequired: false,
       },

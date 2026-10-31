@@ -82,6 +82,7 @@ export function supplierItemLinkRequestFrom(
   return {
     version: values.version,
     productId: values.productId ?? "",
+    saleUnit: values.saleUnit,
     quantity: supplierItemQuantityOf(values),
     vatRate: requiresVatRate ? Number(values.vatRate) : null,
   };

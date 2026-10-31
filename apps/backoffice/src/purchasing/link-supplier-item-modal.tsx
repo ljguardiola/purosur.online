@@ -155,6 +155,10 @@ export function LinkSupplierItemModal({
         form.setFieldValue("productId", null);
         void refreshChoices();
       }
+      if (outcome.kind === "sale_unit_changed") {
+        form.setFieldValue("quantity", "");
+        void refreshChoices();
+      }
       setNotice(supplierPriceListChangeNoticeOf(outcome));
     },
   });

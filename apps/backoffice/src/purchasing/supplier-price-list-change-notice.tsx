@@ -19,6 +19,7 @@ export type SupplierPriceListChangeNotice =
   | { kind: "vatMissing" }
   | { kind: "rereading" }
   | { kind: "productNotLinkable" }
+  | { kind: "saleUnitChanged" }
   | { kind: "vatRateMissing" }
   | { kind: "alreadyLinked" };
 
@@ -62,6 +63,8 @@ export function supplierPriceListChangeNoticeOf(
       return { kind: "rereading" };
     case "product_not_linkable":
       return { kind: "productNotLinkable" };
+    case "sale_unit_changed":
+      return { kind: "saleUnitChanged" };
     case "vat_rate_missing":
       return { kind: "vatRateMissing" };
     case "already_linked":
@@ -167,6 +170,15 @@ export function SupplierPriceListChangeNotices({
           icon={<TriangleAlert />}
           title="El producto ya no se puede vincular"
           description="Elegí otro producto."
+        />
+      );
+    case "saleUnitChanged":
+      return (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title="El producto cambió de unidad de venta"
+          description="Escribí de nuevo la cantidad que trae."
         />
       );
     case "vatRateMissing":

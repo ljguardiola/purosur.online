@@ -1,6 +1,7 @@
 import {
   isSupplierItemVatRate,
   mayBeMovementQuantity,
+  SALE_UNITS,
   STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
 } from "@purosur/domain";
@@ -25,6 +26,7 @@ export const supplierItemQuantitySchema = z
 export const supplierPriceListRowLinkBodySchema = z.object({
   version: loadedVersionSchema,
   productId: recordIdSchema("productId must be a product's id"),
+  saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
   quantity: supplierItemQuantitySchema,
   vatRate: supplierItemVatRateSchema,
 });

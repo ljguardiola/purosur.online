@@ -1,5 +1,7 @@
+import { supplierPriceListRowLinkBodySchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { formatNumber, parseWeightQuantity } from "@purosur/ui";
+import { schemaLimit } from "../platform/schema-limit";
 import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
 
 export type SupplierItemQuantityUnit = "KG" | "G";
@@ -10,7 +12,9 @@ export interface SupplierItemQuantityInput {
   quantityUnit: SupplierItemQuantityUnit;
 }
 
-const THOUSANDTHS_PER_KILO = 1_000;
+const THOUSANDTHS_PER_KILO = schemaLimit(
+  supplierPriceListRowLinkBodySchema.shape.quantity.meta()?.["perUnit"],
+);
 
 export const SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS = [
   { value: "KG", label: "kg" },

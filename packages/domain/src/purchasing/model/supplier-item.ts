@@ -109,8 +109,6 @@ function greatestCommonDivisor(a: bigint, b: bigint): bigint {
   return b === 0n ? a : greatestCommonDivisor(b, a % b);
 }
 
-// A link stays current while nothing asks to link the item again and its quantity is stated in the
-// unit the product is sold by.
 export function isLinkCurrent(
   link: { relinkRequired: boolean; saleUnit: SaleUnit },
   productSaleUnit: SaleUnit,
