@@ -19,7 +19,7 @@ function line(overrides: Partial<MarginSaleLine> = {}): MarginSaleLine {
     brandName: null,
     netContent: null,
     amount: 9_000,
-    allocations: [],
+    allocations: [allocation({ quantity: -1_000 })],
     ...overrides,
   };
 }
@@ -109,7 +109,28 @@ describe("marginReport", () => {
       }),
     ]);
 
-    expect(report.rows[0]).toMatchObject({ amount: 0, cost: 0, margin: 0 });
+    expect(report.rows[0]).toMatchObject({ amount: 0, cost: 0, margin: 0, incompleteSales: 0 });
+  });
+
+  it("values a line whose sale took from no lot at no cost and flags the sale", () => {
+    const report = marginReport([line({ allocations: [] })]);
+
+    expect(report.rows[0]).toMatchObject({
+      amount: 9_000,
+      cost: 0,
+      margin: 9_000,
+      incompleteSales: 1,
+    });
+    expect(report.totals.incompleteSales).toBe(1);
+  });
+
+  it("credits no cost for a return its sale never took from a lot, and flags the sale", () => {
+    const report = marginReport([
+      line({ amount: 0, allocations: [allocation({ movementKind: "return", quantity: 1_000 })] }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ amount: 0, cost: 0, margin: 0, incompleteSales: 1 });
+    expect(report.totals).toEqual({ amount: 0, cost: 0, margin: 0, incompleteSales: 1 });
   });
 
   it("leaves a lot with an unknown cost out of the cost and flags the sale", () => {
@@ -156,22 +177,30 @@ describe("marginReport", () => {
     expect(report.rows[0]?.incompleteSales).toBe(1);
   });
 
-  it("does not flag a sale for an incomplete lot only its return touched", () => {
+  it("credits no cost for a return on a lot its sale never took from, and flags the sale", () => {
     const report = marginReport([
       line({
         allocations: [
           allocation({ quantity: -1_000 }),
-          allocation({
-            movementKind: "return",
-            quantity: 500,
-            lotId: "other",
-            costIncomplete: true,
-          }),
+          allocation({ movementKind: "return", quantity: 500, lotId: "other" }),
         ],
       }),
     ]);
 
-    expect(report.rows[0]?.incompleteSales).toBe(0);
+    expect(report.rows[0]).toMatchObject({ cost: 5_000, incompleteSales: 1 });
+  });
+
+  it("credits a return on a lot its sale took from no more than the sale took there", () => {
+    const report = marginReport([
+      line({
+        allocations: [
+          allocation({ quantity: -1_000 }),
+          allocation({ movementKind: "return", quantity: 1_500 }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 0, incompleteSales: 1 });
   });
 
   it("counts a sale once in a row however many of its lines are incomplete", () => {
@@ -256,6 +285,15 @@ describe("marginReport", () => {
     expect(report.rows.map((row) => row.id)).toEqual([null, "parent", "child", "longer"]);
   });
 
+  it("breaks a tie of amounts by the first name of the path before the names after it", () => {
+    const report = marginReport([
+      line({ id: "a", path: ["AB"], amount: 100 }),
+      line({ id: "b", path: ["A", "B"], amount: 100 }),
+    ]);
+
+    expect(report.rows.map((row) => row.id)).toEqual(["b", "a"]);
+  });
+
   it("keeps the lines without a category in one row", () => {
     const report = marginReport([
       line({ id: null, path: [], amount: 100 }),
@@ -269,8 +307,8 @@ describe("marginReport", () => {
         brandName: null,
         netContent: null,
         amount: 300,
-        cost: 0,
-        margin: 300,
+        cost: 10_000,
+        margin: -9_700,
         incompleteSales: 0,
       },
     ]);
