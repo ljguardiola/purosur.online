@@ -695,7 +695,14 @@ describe("createCoreClient", () => {
     port.answer({
       type: "charge-sale-with-paid-order-result",
       request_id: "request-1",
-      outcome: { kind: "completed", sale_id: "sale-9", total: 6000, applied: 6750, surplus: 750 },
+      outcome: {
+        kind: "completed",
+        sale_id: "sale-9",
+        total: 6000,
+        applied: 6750,
+        surplus: 750,
+        surplus_sent_by_cloud: true,
+      },
     });
 
     expect(await outcome).toEqual({
@@ -704,6 +711,7 @@ describe("createCoreClient", () => {
       total: 6000,
       applied: 6750,
       surplus: 750,
+      surplus_sent_by_cloud: true,
     });
     expect(port.posted).toEqual([
       { type: "charge-sale-with-paid-order", request_id: "request-1", sale_id: "sale-9" },
