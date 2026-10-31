@@ -194,6 +194,16 @@ describe("PointChargeModal", () => {
       .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
   });
 
+  it("says the paid order of the sale must be applied first", async () => {
+    const { screen, send } = await renderModal(async () => ({ kind: "paid_order_not_applied" }));
+
+    await userEvent.click(send);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("Aplicá primero el pago de Mercado Pago de esta venta.");
+  });
+
   it("follows the charge, offering no other method, when the cloud could not confirm the order reached the terminal", async () => {
     const unconfirmed = { ...ORDER_SHOWN, kind: "order_unconfirmed" } as const;
     const { screen, send, callbacks } = await renderModal(async () => unconfirmed);
