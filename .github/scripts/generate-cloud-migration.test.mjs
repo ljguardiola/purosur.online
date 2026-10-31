@@ -437,10 +437,41 @@ async function cliRun({ argv, writeMigration = async () => {} }) {
   return { folder, calls, logs };
 }
 
+const BUILD_DOMAIN_AND_CONTRACTS = ["exec", "tsc", "-b", "packages/domain", "packages/contracts"];
+
+test("the command builds the domain and the contracts before running drizzle-kit", async () => {
+  const { calls } = await cliRun({ argv: [] });
+
+  assert.deepEqual(calls[0], BUILD_DOMAIN_AND_CONTRACTS);
+  assert.ok(calls[1].includes("drizzle-kit"));
+});
+
+test("the command stops before drizzle-kit and leaves the migrations folder untouched when the build fails", async () => {
+  const folder = await writeMigrationFolder(SHIPPED_ENTRIES);
+  const before = await listFolder(folder);
+  const calls = [];
+
+  await assert.rejects(
+    runCli({
+      argv: ["--name", "added"],
+      folder,
+      log: () => {},
+      runPnpm: async (args) => {
+        calls.push(args);
+        if (args.includes("tsc")) throw new Error("pnpm exec tsc exited with status 2");
+        if (args.includes("drizzle-kit")) await drizzleKitWriting("added")(folder);
+      },
+    }),
+    /exited with status 2/,
+  );
+  assert.deepEqual(calls, [BUILD_DOMAIN_AND_CONTRACTS]);
+  assert.deepEqual(await listFolder(folder), before);
+});
+
 test("the command passes its arguments to drizzle-kit generate in the cloud, dropping a leading --", async () => {
   const { calls } = await cliRun({ argv: ["--", "--name", "added"] });
 
-  assert.deepEqual(calls[0], [
+  assert.deepEqual(calls[1], [
     "--filter",
     "@purosur/cloud",
     "exec",
@@ -457,7 +488,7 @@ test("the command formats the journal and the new snapshot and prints the new mi
     writeMigration: drizzleKitWriting("added"),
   });
 
-  assert.deepEqual(calls.slice(1), [
+  assert.deepEqual(calls.slice(2), [
     [
       "exec",
       "biome",
@@ -473,7 +504,7 @@ test("the command formats the journal and the new snapshot and prints the new mi
 test("the command formats nothing and says so when drizzle-kit generates no migration", async () => {
   const { calls, logs } = await cliRun({ argv: [] });
 
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   assert.deepEqual(logs, ["No cloud migration generated."]);
 });
 
@@ -488,12 +519,12 @@ test("the command stops when drizzle-kit fails", async () => {
       log: () => {},
       runPnpm: async (args) => {
         calls.push(args);
-        throw new Error("pnpm exited with status 1");
+        if (args.includes("drizzle-kit")) throw new Error("pnpm exited with status 1");
       },
     }),
     /exited with status 1/,
   );
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
 });
 
 test("runs pnpm with the given arguments, showing its output", () => {
