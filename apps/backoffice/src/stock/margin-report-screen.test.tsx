@@ -94,7 +94,7 @@ test("names the report and shows the amount sold, the cost and the margin of the
     .element(screen.getByRole("heading", { name: "Margen por producto y por categoría", level: 1 }))
     .toBeVisible();
   await expect.element(screen.getByText("Reportes · Rentabilidad", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Vendido", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Vendido", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
   await expect.element(screen.getByText("Costo", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("$ 6.700,00")).toBeVisible();
@@ -131,7 +131,11 @@ test("warns how many sales have an incomplete cost and that their margin counts 
 
   await expect.element(screen.getByText("2 ventas tienen el costo incompleto")).toBeVisible();
   await expect
-    .element(screen.getByText(/margen incluye esas ventas con el costo conocido solamente/))
+    .element(
+      screen.getByText("El margen incluye esas ventas con el costo conocido solamente.", {
+        exact: true,
+      }),
+    )
     .toBeVisible();
 });
 
@@ -154,9 +158,7 @@ test("flags only the rows with sales of incomplete cost", async () => {
 
   const table = screen.getByRole("table");
   await expect
-    .element(
-      table.getByRole("row", { name: /Fiambres/ }).getByText("Costo incompleto · 2 ventas"),
-    )
+    .element(table.getByRole("row", { name: /Fiambres/ }).getByText("Costo incompleto · 2 ventas"))
     .toBeVisible();
   expect(screen.getByText(/Costo incompleto/).elements()).toHaveLength(1);
 });
@@ -338,7 +340,7 @@ test("shows placeholders while the report loads", async () => {
   await expect
     .element(screen.getByRole("table", { name: "Margen por producto y por categoría" }))
     .toHaveAttribute("aria-busy", "true");
-  await expect.element(screen.getByText("Vendido", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Vendido", { exact: true }).first()).toBeVisible();
   expect(screen.getByText("$ 10.000,00").query()).toBeNull();
   expect(screen.getByText(/costo incompleto/i).query()).toBeNull();
 });

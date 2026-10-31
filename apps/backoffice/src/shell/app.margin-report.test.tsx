@@ -76,11 +76,8 @@ test("offers the report in the reports side column", async () => {
 
 test("keeps the grouping, the period and the register in the URL and asks the cloud for them", async () => {
   const services = reportsServices(["reports_area"]);
-  window.history.pushState(
-    null,
-    "",
-    `/reports/margin?group=product&from=2026-10-01&to=2026-10-31&register=${FRONT_REGISTER_ID}`,
-  );
+  const search = `?from=2026-10-01&group=product&register=${FRONT_REGISTER_ID}&to=2026-10-31`;
+  window.history.pushState(null, "", `/reports/margin${search}`);
 
   await render(<App help={emptyHelp} services={services} />);
 
@@ -92,9 +89,7 @@ test("keeps the grouping, the period and the register in the URL and asks the cl
       to: "2026-10-31",
       register_id: FRONT_REGISTER_ID,
     });
-  expect(window.location.search).toBe(
-    `?from=2026-10-01&to=2026-10-31&register=${FRONT_REGISTER_ID}&group=product`,
-  );
+  expect(window.location.search).toBe(search);
 });
 
 test("writes a URL with a period the cloud would refuse without it", async () => {
