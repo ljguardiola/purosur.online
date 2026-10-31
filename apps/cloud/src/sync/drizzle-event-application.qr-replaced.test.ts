@@ -102,6 +102,17 @@ describe("recording the replacement of a pending QR payment", () => {
     ]);
   });
 
+  it("marks a payment transaction created for another sale when the event names the sale rebuilt against it", async () => {
+    const { deviceId, registerId } = await system.enrollInstallation();
+    const transaction = pendingTransaction(registerId, { state: "APPROVED" });
+    await system.db.insert(paymentTransactions).values(transaction);
+    const rebuiltSaleId = randomUUID();
+
+    await record(replacementFact(transaction.id, rebuiltSaleId), rebuiltSaleId, deviceId);
+
+    expect(await replacedOf(transaction.id)).toEqual({ replaced: true, state: "APPROVED" });
+  });
+
   it("opens no refund task for a payment the provider has not approved", async () => {
     const { deviceId, registerId } = await system.enrollInstallation();
     const transaction = pendingTransaction(registerId, { state: "PENDING" });
