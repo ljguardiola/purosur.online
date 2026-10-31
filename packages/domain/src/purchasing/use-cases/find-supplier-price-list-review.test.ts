@@ -27,13 +27,9 @@ const LINKED = {
     netContent: { quantity: 1, unit: "KG" as const },
     saleUnit: "UNIT" as const,
   },
-  packaging: {
-    id: "packaging-1",
-    name: "Caja x 10",
-    quantityPerPackage: 10_000,
-    active: true,
-    saleUnit: "UNIT" as const,
-  },
+  quantity: 10_000,
+  saleUnit: "UNIT" as const,
+  relinkRequired: false,
   vatRate: 1050,
 };
 
@@ -331,13 +327,9 @@ describe("findSupplierPriceListReview", () => {
         netContent: { quantity: 1, unit: "KG" as const },
         saleUnit: "UNIT" as const,
       },
-      packaging: {
-        id: "packaging-1",
-        name: "Caja x 10",
-        quantityPerPackage: 10_000,
-        active: true,
-        saleUnit: "UNIT" as "UNIT" | "KG",
-      },
+      quantity: 10_000,
+      saleUnit: "UNIT" as "UNIT" | "KG",
+      relinkRequired: false,
       vatRate: 1050 as number | null,
     };
 
@@ -401,35 +393,37 @@ describe("findSupplierPriceListReview", () => {
         barcode: "7790001000012",
         link: {
           product: LINK.product,
-          packaging: { id: "packaging-1", name: "Caja x 10", quantityPerPackage: 10_000 },
+          quantity: 10_000,
+          saleUnit: "UNIT",
+          current: true,
           vatRate: 1050,
         },
       });
     });
 
-    it("answers whether the packaging of the link may still be bought by", async () => {
-      const buyable = await reviewOf({});
-      const inactive = await reviewOf({
-        link: { ...LINK, packaging: { ...LINK.packaging, active: false } },
+    it("answers whether the link is current", async () => {
+      const current = await reviewOf({});
+      const relinkRequired = await reviewOf({
+        link: { ...LINK, relinkRequired: true },
       });
       const otherSaleUnit = await reviewOf({
-        link: { ...LINK, packaging: { ...LINK.packaging, saleUnit: "KG" } },
+        link: { ...LINK, saleUnit: "KG" as const },
       });
 
-      expect(buyable?.rows[0]?.link?.packaging.buyable).toBe(true);
-      expect(inactive?.rows[0]?.link?.packaging.buyable).toBe(false);
-      expect(otherSaleUnit?.rows[0]?.link?.packaging.buyable).toBe(false);
+      expect(current?.rows[0]?.link?.current).toBe(true);
+      expect(relinkRequired?.rows[0]?.link?.current).toBe(false);
+      expect(otherSaleUnit?.rows[0]?.link?.current).toBe(false);
     });
 
-    it("answers no price per sale unit through a packaging that may no longer be bought by", async () => {
-      const inactive = await reviewOf({
-        link: { ...LINK, packaging: { ...LINK.packaging, active: false } },
+    it("answers no price per sale unit through a link that is no longer current", async () => {
+      const relinkRequired = await reviewOf({
+        link: { ...LINK, relinkRequired: true },
       });
       const otherSaleUnit = await reviewOf({
-        link: { ...LINK, packaging: { ...LINK.packaging, saleUnit: "KG" } },
+        link: { ...LINK, saleUnit: "KG" as const },
       });
 
-      expect(inactive?.rows[0]?.pricePerSaleUnit).toBeNull();
+      expect(relinkRequired?.rows[0]?.pricePerSaleUnit).toBeNull();
       expect(otherSaleUnit?.rows[0]?.pricePerSaleUnit).toBeNull();
     });
 

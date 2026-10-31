@@ -15,7 +15,7 @@ import type { AiCallRecord } from "../ai-call-recording.js";
 import type {
   FindPriceListSupplierResult,
   FindSupplierPriceListSourceResult,
-  LockProductPackagingResult,
+  LockLinkableProductResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
   NewRereadFields,
@@ -99,13 +99,6 @@ export interface FakeCatalogProduct {
   saleUnit: SaleUnit;
 }
 
-export interface FakeCatalogPackaging {
-  id: string;
-  productId: string;
-  active: boolean;
-  saleUnit: SaleUnit;
-}
-
 export type FakeSupplierPriceListWrite =
   | "insertList"
   | "enqueueReading"
@@ -139,7 +132,6 @@ export interface FakeSupplierPriceListState {
   itemPrices: SupplierItemPriceEntry[];
   aiCalls: AiCallRecord[];
   products: FakeCatalogProduct[];
-  packagings: FakeCatalogPackaging[];
   nextId: number;
 }
 
@@ -174,7 +166,6 @@ function cloneState(state: FakeSupplierPriceListState): FakeSupplierPriceListSta
     itemPrices: state.itemPrices.map((entry) => ({ ...entry })),
     aiCalls: state.aiCalls.map((call) => ({ ...call, occurredAt: new Date(call.occurredAt) })),
     products: state.products.map((product) => ({ ...product })),
-    packagings: state.packagings.map((packaging) => ({ ...packaging })),
     nextId: state.nextId,
   };
 }
@@ -492,23 +483,11 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     return this.supplierItems(supplierId, keys);
   }
 
-  async lockProductPackaging(
-    productId: string,
-    packagingId: string,
-  ): Promise<LockProductPackagingResult> {
-    this.store.lockCallOrder.push("lockProductPackaging");
+  async lockLinkableProduct(productId: string): Promise<LockLinkableProductResult> {
+    this.store.lockCallOrder.push("lockLinkableProduct");
     const product = this.state.products.find((row) => row.id === productId);
-    const packaging = this.state.packagings.find((row) => row.id === packagingId);
-    return product && packaging
-      ? {
-          kind: "locked",
-          product: { active: product.active, saleUnit: product.saleUnit },
-          packaging: {
-            productId: packaging.productId,
-            active: packaging.active,
-            saleUnit: packaging.saleUnit,
-          },
-        }
+    return product
+      ? { kind: "locked", product: { active: product.active, saleUnit: product.saleUnit } }
       : { kind: "not_found" };
   }
 
@@ -677,7 +656,6 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
     itemPrices: [],
     aiCalls: [],
     products: [],
-    packagings: [],
     nextId: 1,
   };
 
@@ -788,12 +766,6 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
 
   seedProduct(product: Partial<FakeCatalogProduct> & { id: string }): void {
     this.state.products.push({ active: true, saleUnit: "UNIT", ...product });
-  }
-
-  seedPackaging(
-    packaging: Partial<FakeCatalogPackaging> & { id: string; productId: string },
-  ): void {
-    this.state.packagings.push({ active: true, saleUnit: "UNIT", ...packaging });
   }
 
   snapshot(): FakeSupplierPriceListState {

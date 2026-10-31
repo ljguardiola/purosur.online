@@ -165,8 +165,10 @@ describe("confirmSupplierPriceList", () => {
 describe("confirmSupplierPriceList and the supplier's items", () => {
   const LINK: SupplierItemLink = {
     productId: "product-1",
-    packagingId: "packaging-1",
+    quantity: 1_000,
+    saleUnit: "UNIT",
     vatRate: 2100,
+    relinkRequired: false,
   };
 
   type SeededRow = {
@@ -331,7 +333,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     store.seedSupplierItem({
       description: "Yerba",
       key: { kind: "code", value: "Y-1" },
-      link: { productId: "old", packagingId: "old", vatRate: null },
+      link: { productId: "old", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false },
     });
 
     await confirmSupplierPriceList(store, input);
@@ -340,7 +342,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
   });
 
   it("leaves the item's link alone when the row only carries the link copied when the list was read", async () => {
-    const relinked = { productId: "product-2", packagingId: "packaging-2", vatRate: 1050 };
+    const relinked = { productId: "product-2", quantity: 1_000, saleUnit: "UNIT", vatRate: 1050, relinkRequired: false };
     const store = setupRows([
       { code: "Y-1", description: "Yerba", priceCents: 100, link: LINK, reviewed: false },
     ]);
@@ -356,7 +358,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
   });
 
   describe("a row whose link was copied when the list was read", () => {
-    const relinked = { productId: "product-2", packagingId: "packaging-2", vatRate: 1050 };
+    const relinked = { productId: "product-2", quantity: 1_000, saleUnit: "UNIT", vatRate: 1050, relinkRequired: false };
 
     function setupCopied() {
       const store = setupRows([
@@ -368,7 +370,6 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
         link: relinked,
       });
       store.seedProduct({ id: "product-3" });
-      store.seedPackaging({ id: "packaging-3", productId: "product-3" });
       return store;
     }
 
@@ -393,7 +394,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
         rowId: "row-0",
         version: 3,
         productId: "product-3",
-        packagingId: "packaging-3",
+        quantity: 1_000,
         vatRate: null,
         actorId: "person-1",
       });
@@ -402,14 +403,16 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
 
       expect(store.snapshot().items[0]?.link).toEqual({
         productId: "product-3",
-        packagingId: "packaging-3",
+        quantity: 1_000,
+        saleUnit: "UNIT",
         vatRate: 1050,
+        relinkRequired: false,
       });
     });
   });
 
   it("takes the link of the last row a person linked over a later row's copied link", async () => {
-    const copied = { productId: "product-2", packagingId: "packaging-2", vatRate: 1050 };
+    const copied = { productId: "product-2", quantity: 1_000, saleUnit: "UNIT", vatRate: 1050, relinkRequired: false };
     const store = setupRows([
       {
         code: "Y-1",
@@ -433,7 +436,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
         code: "Y-1",
         description: "Yerba",
         priceCents: 100,
-        link: { productId: "product-2", packagingId: "packaging-2", vatRate: null },
+        link: { productId: "product-2", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false },
         reviewed: true,
         linkedByPerson: true,
       },
@@ -441,15 +444,17 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     store.seedSupplierItem({
       description: "Yerba",
       key: { kind: "code", value: "Y-1" },
-      link: { productId: "product-1", packagingId: "packaging-1", vatRate: 1050 },
+      link: { productId: "product-1", quantity: 1_000, saleUnit: "UNIT", vatRate: 1050, relinkRequired: false },
     });
 
     await confirmSupplierPriceList(store, input);
 
     expect(store.snapshot().items[0]?.link).toEqual({
       productId: "product-2",
-      packagingId: "packaging-2",
+      quantity: 1_000,
+      saleUnit: "UNIT",
       vatRate: 1050,
+      relinkRequired: false,
     });
   });
 
@@ -523,7 +528,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     });
 
     it("takes the link of the last row when several are linked", async () => {
-      const other = { productId: "product-2", packagingId: "packaging-2", vatRate: null };
+      const other = { productId: "product-2", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false };
       const store = setupRows([
         {
           code: "Y-1",

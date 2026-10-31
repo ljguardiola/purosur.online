@@ -17,7 +17,6 @@ function setup(list: { state?: SupplierPriceListState; pricesIncludeVat?: boolea
   });
   store.seedRow({ id: "row-1", listId: "list-1", code: "Y-1", description: "Yerba 1 kg" });
   store.seedProduct({ id: "product-1" });
-  store.seedPackaging({ id: "packaging-1", productId: "product-1" });
   return store;
 }
 
@@ -26,7 +25,7 @@ const input = {
   rowId: "row-1",
   version: 3,
   productId: "product-1",
-  packagingId: "packaging-1",
+  quantity: 12_000,
   vatRate: 2100 as number | null,
   actorId: "person-1",
 };
@@ -39,7 +38,13 @@ describe("linkSupplierPriceListRow", () => {
 
     const state = store.snapshot();
     expect(state.rows[0]).toMatchObject({
-      link: { productId: "product-1", packagingId: "packaging-1", vatRate: 2100 },
+      link: {
+        productId: "product-1",
+        quantity: 12_000,
+        saleUnit: "UNIT",
+        vatRate: 2100,
+        relinkRequired: false,
+      },
       reviewed: true,
       editedBy: "person-1",
     });
@@ -61,7 +66,7 @@ describe("linkSupplierPriceListRow", () => {
     store.seedSupplierItem({
       description: "Yerba 1 kg",
       key: { kind: "code", value: "Y-1" },
-      link: { productId: "old", packagingId: "old", vatRate: null },
+      link: { productId: "old", quantity: 1_000, saleUnit: "UNIT", vatRate: null, relinkRequired: false },
     });
     store.seedSupplierItem({ description: "Otro", key: { kind: "code", value: "Z-9" } });
 
@@ -70,11 +75,19 @@ describe("linkSupplierPriceListRow", () => {
     const state = store.snapshot();
     expect(state.rows[0]?.link).toEqual({
       productId: "product-1",
-      packagingId: "packaging-1",
+      quantity: 12_000,
+      saleUnit: "UNIT",
       vatRate: 2100,
+      relinkRequired: false,
     });
     expect(state.items.map((item) => item.link)).toEqual([
-      { productId: "product-1", packagingId: "packaging-1", vatRate: 2100 },
+      {
+        productId: "product-1",
+        quantity: 12_000,
+        saleUnit: "UNIT",
+        vatRate: 2100,
+        relinkRequired: false,
+      },
       null,
     ]);
   });
@@ -84,8 +97,7 @@ describe("linkSupplierPriceListRow", () => {
     store.seedList({ id: "list-1", state: "REVIEWED", pricesIncludeVat: true, version: 3 });
     store.seedRow({ id: "row-1", listId: "list-1", code: null, description: " YERBÁ  1 kg" });
     store.seedProduct({ id: "product-1" });
-    store.seedPackaging({ id: "packaging-1", productId: "product-1" });
-    store.seedSupplierItem({
+      store.seedSupplierItem({
       description: "Yerba 1 kg",
       key: { kind: "description", value: "yerba 1 kg" },
     });
@@ -94,8 +106,10 @@ describe("linkSupplierPriceListRow", () => {
 
     expect(store.snapshot().items[0]?.link).toEqual({
       productId: "product-1",
-      packagingId: "packaging-1",
+      quantity: 12_000,
+      saleUnit: "UNIT",
       vatRate: null,
+      relinkRequired: false,
     });
   });
 
@@ -104,7 +118,7 @@ describe("linkSupplierPriceListRow", () => {
     store.seedSupplierItem({
       description: "Yerba 1 kg",
       key: { kind: "code", value: "Y-1" },
-      link: { productId: "old", packagingId: "old", vatRate: 1050 },
+      link: { productId: "old", quantity: 1_000, saleUnit: "UNIT", vatRate: 1050, relinkRequired: false },
     });
 
     await linkSupplierPriceListRow(store, { ...input, vatRate: null });
@@ -113,8 +127,10 @@ describe("linkSupplierPriceListRow", () => {
     expect(state.rows[0]?.link?.vatRate).toBeNull();
     expect(state.items[0]?.link).toEqual({
       productId: "product-1",
-      packagingId: "packaging-1",
+      quantity: 12_000,
+      saleUnit: "UNIT",
       vatRate: 1050,
+      relinkRequired: false,
     });
   });
 
@@ -141,7 +157,7 @@ describe("linkSupplierPriceListRow", () => {
     expect(state.rows[0]?.reviewed).toBe(true);
   });
 
-  it("takes the locks in the order list, row, product and packaging, then the supplier's items", async () => {
+  it("takes the locks in the order list, row, product, then the supplier's items", async () => {
     const store = setup({ state: "REVIEWED" });
 
     await linkSupplierPriceListRow(store, input);
@@ -149,7 +165,7 @@ describe("linkSupplierPriceListRow", () => {
     expect(store.lockCallOrder).toEqual([
       "lockList",
       "lockRow",
-      "lockProductPackaging",
+      "lockLinkableProduct",
       "lockSupplierItems",
     ]);
   });
@@ -206,90 +222,80 @@ describe("linkSupplierPriceListRow", () => {
     expect(store.snapshot()).toEqual(before);
   });
 
-  describe("the product and its packaging", () => {
-    it.each([
-      ["a product that does not exist", { productId: "missing" }],
-      ["a packaging that does not exist", { packagingId: "missing" }],
-    ])("refuses %s", async (_name, changes) => {
+  describe("the product", () => {
+    it("refuses a product that does not exist", async () => {
       const store = setup();
       const before = store.snapshot();
 
-      expect(await linkSupplierPriceListRow(store, { ...input, ...changes })).toEqual({
-        kind: "packaging_not_linkable",
+      expect(await linkSupplierPriceListRow(store, { ...input, productId: "missing" })).toEqual({
+        kind: "product_not_linkable",
       });
       expect(store.snapshot()).toEqual(before);
-    });
-
-    it("refuses a packaging of another product", async () => {
-      const store = setup();
-      store.seedProduct({ id: "product-2" });
-
-      expect(await linkSupplierPriceListRow(store, { ...input, productId: "product-2" })).toEqual({
-        kind: "packaging_not_linkable",
-      });
     });
 
     it("refuses a deactivated product", async () => {
       const store = setup();
       store.seedProduct({ id: "product-2", active: false });
-      store.seedPackaging({ id: "packaging-2", productId: "product-2" });
+      const before = store.snapshot();
 
-      expect(
-        await linkSupplierPriceListRow(store, {
-          ...input,
-          productId: "product-2",
-          packagingId: "packaging-2",
-        }),
-      ).toEqual({ kind: "packaging_not_linkable" });
+      expect(await linkSupplierPriceListRow(store, { ...input, productId: "product-2" })).toEqual({
+        kind: "product_not_linkable",
+      });
+      expect(store.snapshot()).toEqual(before);
     });
 
-    it("refuses a deactivated packaging", async () => {
-      const store = setup();
-      store.seedPackaging({ id: "packaging-2", productId: "product-1", active: false });
-
-      expect(
-        await linkSupplierPriceListRow(store, { ...input, packagingId: "packaging-2" }),
-      ).toEqual({ kind: "packaging_not_linkable" });
-    });
-
-    it("refuses a packaging whose sale unit is no longer the product's", async () => {
+    it("states the quantity in the sale unit the product is sold by", async () => {
       const store = setup();
       store.seedProduct({ id: "product-2", saleUnit: "KG" });
-      store.seedPackaging({ id: "packaging-2", productId: "product-2", saleUnit: "UNIT" });
 
       expect(
-        await linkSupplierPriceListRow(store, {
-          ...input,
-          productId: "product-2",
-          packagingId: "packaging-2",
-        }),
-      ).toEqual({ kind: "packaging_not_linkable" });
-    });
-
-    it("accepts a packaging sold by the kilo of a product sold by the kilo", async () => {
-      const store = setup();
-      store.seedProduct({ id: "product-2", saleUnit: "KG" });
-      store.seedPackaging({ id: "packaging-2", productId: "product-2", saleUnit: "KG" });
-
-      expect(
-        await linkSupplierPriceListRow(store, {
-          ...input,
-          productId: "product-2",
-          packagingId: "packaging-2",
-        }),
+        await linkSupplierPriceListRow(store, { ...input, productId: "product-2", quantity: 500 }),
       ).toEqual({ kind: "linked" });
+      expect(store.snapshot().rows[0]?.link).toMatchObject({
+        productId: "product-2",
+        quantity: 500,
+        saleUnit: "KG",
+      });
     });
 
-    it("reports the packaging before the missing rate", async () => {
+    it("reports the product before the quantity and the missing rate", async () => {
       const store = setup();
 
       expect(
         await linkSupplierPriceListRow(store, {
           ...input,
-          packagingId: "missing",
+          productId: "missing",
+          quantity: 0,
           vatRate: null,
         }),
-      ).toEqual({ kind: "packaging_not_linkable" });
+      ).toEqual({ kind: "product_not_linkable" });
+    });
+  });
+
+  describe("the quantity", () => {
+    it.each([
+      ["UNIT", 1_500],
+      ["UNIT", 0],
+      ["UNIT", -1_000],
+      ["KG", 0],
+      ["KG", 1.5],
+    ] as const)("refuses %s sold with a quantity of %s and writes nothing", async (saleUnit, quantity) => {
+      const store = setup();
+      store.seedProduct({ id: "product-2", saleUnit });
+      const before = store.snapshot();
+
+      expect(
+        await linkSupplierPriceListRow(store, { ...input, productId: "product-2", quantity }),
+      ).toEqual({ kind: "invalid_quantity" });
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("reports the quantity before the missing rate", async () => {
+      const store = setup();
+
+      expect(await linkSupplierPriceListRow(store, { ...input, quantity: 0, vatRate: null })).toEqual({
+        kind: "invalid_quantity",
+      });
     });
   });
 

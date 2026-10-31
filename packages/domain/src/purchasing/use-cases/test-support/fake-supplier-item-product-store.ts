@@ -1,4 +1,3 @@
-import type { NewPackagingFields } from "../purchasing-store.js";
 import type {
   CreateCatalogProductInput,
   CreateCatalogProductOutcome,
@@ -14,7 +13,6 @@ import { FakeSupplierPriceListStore } from "./fake-supplier-price-list-store.js"
 export interface FakeSupplierItemProductState {
   lists: FakeSupplierPriceListState;
   products: ({ id: string } & CreateCatalogProductInput)[];
-  packagings: (NewPackagingFields & { id: string })[];
 }
 
 export class FakeSupplierItemProductStore implements SupplierItemProductStore {
@@ -22,7 +20,6 @@ export class FakeSupplierItemProductStore implements SupplierItemProductStore {
   catalogRefusal: Exclude<CreateCatalogProductOutcome, { kind: "created" }> | null = null;
   callOrder: string[] = [];
   private products: FakeSupplierItemProductState["products"] = [];
-  private packagings: FakeSupplierItemProductState["packagings"] = [];
 
   failWrite(operation: FakeSupplierPriceListWrite): void {
     this.lists.failingWrites.add(operation);
@@ -36,7 +33,6 @@ export class FakeSupplierItemProductStore implements SupplierItemProductStore {
         barcodes: [...product.barcodes],
         tagIds: [...product.tagIds],
       })),
-      packagings: this.packagings.map((packaging) => ({ ...packaging })),
     };
   }
 
@@ -44,7 +40,6 @@ export class FakeSupplierItemProductStore implements SupplierItemProductStore {
     work: (tx: SupplierItemProductStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     const products = [...this.products];
-    const packagings = [...this.packagings];
     const callOrder = [...this.callOrder];
     try {
       return await this.lists.transaction((inner) =>
@@ -95,17 +90,10 @@ export class FakeSupplierItemProductStore implements SupplierItemProductStore {
             });
             return { kind: "created", productId: id };
           },
-          insertPackaging: async (fields) => {
-            this.callOrder.push("insertPackaging");
-            const id = `packaging-new-${this.packagings.length + 1}`;
-            this.packagings.push({ id, ...fields });
-            return { id };
-          },
         }),
       );
     } catch (error) {
       this.products = products;
-      this.packagings = packagings;
       this.callOrder = callOrder;
       throw error;
     }

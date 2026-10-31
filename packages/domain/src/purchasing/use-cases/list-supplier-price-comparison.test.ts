@@ -16,14 +16,13 @@ function offer(
     productId: string;
     supplierId: string;
     supplierName: string;
-    packagingName: string;
-    quantityPerPackage: number;
+    quantity: number;
     priceCents: number;
     pricesIncludeVat: boolean;
     vatRate: number | null;
     listDate: string;
-    packagingActive: boolean;
-    packagingSaleUnit: "UNIT" | "KG";
+    relinkRequired: boolean;
+    linkSaleUnit: "UNIT" | "KG";
   }> = {},
 ) {
   return {
@@ -32,11 +31,10 @@ function offer(
       id: fields.supplierId ?? "supplier-a",
       name: fields.supplierName ?? "Distribuidora Sur",
     },
-    packaging: {
-      name: fields.packagingName ?? "Caja x 10",
-      quantityPerPackage: fields.quantityPerPackage ?? 10_000,
-      active: fields.packagingActive ?? true,
-      saleUnit: fields.packagingSaleUnit ?? "UNIT",
+    link: {
+      quantity: fields.quantity ?? 10_000,
+      saleUnit: fields.linkSaleUnit ?? "UNIT",
+      relinkRequired: fields.relinkRequired ?? false,
     },
     priceCents: fields.priceCents ?? 10_000,
     pricesIncludeVat: fields.pricesIncludeVat ?? true,
@@ -53,16 +51,16 @@ describe("listSupplierPriceComparison", () => {
         offer({
           supplierId: "a",
           supplierName: "A",
-          quantityPerPackage: 10_000,
+          quantity: 10_000,
           priceCents: 12_000,
         }),
         offer({
           supplierId: "b",
           supplierName: "B",
-          quantityPerPackage: 20_000,
+          quantity: 20_000,
           priceCents: 20_000,
         }),
-        offer({ supplierId: "c", supplierName: "C", quantityPerPackage: 1_000, priceCents: 1_500 }),
+        offer({ supplierId: "c", supplierName: "C", quantity: 1_000, priceCents: 1_500 }),
       ],
     );
 
@@ -71,8 +69,8 @@ describe("listSupplierPriceComparison", () => {
     expect(product?.offers).toEqual([
       {
         supplier: { id: "b", name: "B" },
-        packagingName: "Caja x 10",
-        quantityPerPackage: 20_000,
+        quantity: 20_000,
+        saleUnit: "UNIT",
         priceCents: 20_000,
         pricePerSaleUnit: { numerator: 1_000n, denominator: 1n },
         listDate: "2026-03-01",
@@ -80,8 +78,8 @@ describe("listSupplierPriceComparison", () => {
       },
       {
         supplier: { id: "a", name: "A" },
-        packagingName: "Caja x 10",
-        quantityPerPackage: 10_000,
+        quantity: 10_000,
+        saleUnit: "UNIT",
         priceCents: 12_000,
         pricePerSaleUnit: { numerator: 1_200n, denominator: 1n },
         listDate: "2026-03-01",
@@ -89,8 +87,8 @@ describe("listSupplierPriceComparison", () => {
       },
       {
         supplier: { id: "c", name: "C" },
-        packagingName: "Caja x 10",
-        quantityPerPackage: 1_000,
+        quantity: 1_000,
+        saleUnit: "UNIT",
         priceCents: 1_500,
         pricePerSaleUnit: { numerator: 1_500n, denominator: 1n },
         listDate: "2026-03-01",
@@ -140,7 +138,8 @@ describe("listSupplierPriceComparison", () => {
     expect(product?.unpricedOffers).toEqual([
       {
         supplier: { id: "a", name: "Distribuidora Sur" },
-        packagingName: "Caja x 10",
+        quantity: 10_000,
+        saleUnit: "UNIT",
         priceCents: 90_000,
         listDate: "2026-03-01",
         reason: "vat_rate_missing",
@@ -149,15 +148,15 @@ describe("listSupplierPriceComparison", () => {
   });
 
   it.each([
-    ["deactivated", { packagingActive: false }],
-    ["measuring a sale unit the product no longer has", { packagingSaleUnit: "KG" as const }],
+    ["requiring to be linked again", { relinkRequired: true }],
+    ["stated in a sale unit the product no longer has", { linkSaleUnit: "KG" as const }],
   ])(
-    "answers apart, with no price per sale unit, an offer through a packaging %s",
-    async (_name, packaging) => {
+    "answers apart, with no price per sale unit, an offer through a link %s",
+    async (_name, link) => {
       const reader = new FakeSupplierPriceComparisonReader(
         [YERBA],
         [
-          offer({ supplierId: "a", priceCents: 1_000, ...packaging }),
+          offer({ supplierId: "a", priceCents: 1_000, ...link }),
           offer({ supplierId: "b", priceCents: 20_000 }),
         ],
       );
@@ -168,20 +167,20 @@ describe("listSupplierPriceComparison", () => {
         ["b", true],
       ]);
       expect(product?.unpricedOffers.map((entry) => [entry.supplier.id, entry.reason])).toEqual([
-        ["a", "packaging_not_buyable"],
+        ["a", "link_outdated"],
       ]);
     },
   );
 
-  it("tells a packaging that may no longer be bought by before a missing VAT rate", async () => {
+  it("tells a link that is outdated before a missing VAT rate", async () => {
     const reader = new FakeSupplierPriceComparisonReader(
       [YERBA],
-      [offer({ pricesIncludeVat: false, vatRate: null, packagingActive: false })],
+      [offer({ pricesIncludeVat: false, vatRate: null, relinkRequired: true })],
     );
 
     const [product] = await listSupplierPriceComparison(reader);
 
-    expect(product?.unpricedOffers.map((entry) => entry.reason)).toEqual(["packaging_not_buyable"]);
+    expect(product?.unpricedOffers.map((entry) => entry.reason)).toEqual(["link_outdated"]);
   });
 
   it("keeps the products' offers apart when answering those without a price per sale unit", async () => {
@@ -242,9 +241,9 @@ describe("listSupplierPriceComparison", () => {
     const reader = new FakeSupplierPriceComparisonReader(
       [YERBA],
       [
-        offer({ supplierId: "a", priceCents: 20_000, quantityPerPackage: 20_000 }),
-        offer({ supplierId: "b", priceCents: 10_000, quantityPerPackage: 10_000 }),
-        offer({ supplierId: "c", priceCents: 30_000, quantityPerPackage: 20_000 }),
+        offer({ supplierId: "a", priceCents: 20_000, quantity: 20_000 }),
+        offer({ supplierId: "b", priceCents: 10_000, quantity: 10_000 }),
+        offer({ supplierId: "c", priceCents: 30_000, quantity: 20_000 }),
       ],
     );
 
