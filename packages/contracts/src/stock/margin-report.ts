@@ -1,21 +1,22 @@
-import { SALES_REPORT_GROUPS } from "@purosur/domain";
 import { z } from "zod";
 import {
   answeredRangeSchema,
   netContentSchema,
   recordIdSchema,
   reportQuerySchema,
+  salesReportGroupSchema,
 } from "../shared/index.js";
 
-const groupSchema = z.enum(SALES_REPORT_GROUPS);
 const cents = z.int();
 const count = z.int().nonnegative();
 
-export const marginReportQuerySchema = reportQuerySchema.and(z.object({ group: groupSchema }));
+export const marginReportQuerySchema = reportQuerySchema.and(
+  z.object({ group: salesReportGroupSchema }),
+);
 
 export const marginReportSchema = z.object({
   range: answeredRangeSchema,
-  group: groupSchema,
+  group: salesReportGroupSchema,
   rows: z.array(
     z.object({
       id: recordIdSchema().nullable(),

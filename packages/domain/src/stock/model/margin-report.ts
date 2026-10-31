@@ -36,19 +36,28 @@ export interface MarginReport {
   totals: MarginTotals;
 }
 
-function costOfSales(allocations: readonly MarginAllocation[]): number {
-  const netByLot = new Map<string, { net: number; allocation: MarginAllocation }>();
+interface LotNet {
+  net: number;
+  allocation: MarginAllocation;
+}
+
+function netByLot(allocations: readonly MarginAllocation[]): LotNet[] {
+  const lots = new Map<string, LotNet>();
   for (const allocation of allocations) {
-    const lot = netByLot.get(allocation.lotId);
-    netByLot.set(allocation.lotId, {
+    const lot = lots.get(allocation.lotId);
+    lots.set(allocation.lotId, {
       net: (lot?.net ?? 0) + allocation.quantity,
       allocation: lot?.allocation ?? allocation,
     });
   }
+  return [...lots.values()];
+}
+
+function costOfSales(allocations: readonly MarginAllocation[]): number {
   let cost = 0;
-  for (const { net, allocation } of netByLot.values()) {
+  for (const { net, allocation } of netByLot(allocations)) {
     const value = lotValueCents({
-      remaining: net,
+      remaining: Math.min(net, 0),
       cost: allocation.cost,
       costIncomplete: isLotCostIncomplete(allocation),
     });
@@ -58,8 +67,10 @@ function costOfSales(allocations: readonly MarginAllocation[]): number {
 }
 
 function hasIncompleteCost(allocations: readonly MarginAllocation[]): boolean {
-  return allocations.some(
-    (allocation) => allocation.movementKind === "sale" && isLotCostIncomplete(allocation),
+  const lots = netByLot(allocations);
+  return (
+    lots.length === 0 ||
+    lots.some(({ net, allocation }) => net > 0 || isLotCostIncomplete(allocation))
   );
 }
 

@@ -6,20 +6,12 @@ import {
 import type { ProductSalesReportReader, SoldLinesQuery } from "@purosur/domain/sales/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { categoryPaths } from "../catalog/category-paths.js";
 import { netContentRow } from "../catalog/net-content-row.js";
 import { brands, products, saleLines, sales } from "../platform/db/schema.js";
 import { storedWeightSource } from "../platform/db/stored-weight-source.js";
 
 const saleDay = sql<string>`to_char(${sales.completedAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
-
-const categoryPaths = sql`(
-  with recursive walk(id, path) as (
-    select id, array[name] from categories where parent_id is null
-    union all
-    select child.id, walk.path || child.name from categories child join walk on child.parent_id = walk.id
-  )
-  select id, path from walk
-) as category_paths`;
 
 export class DrizzleProductSalesReportReader<TQueryResult extends PgQueryResultHKT>
   implements ProductSalesReportReader
