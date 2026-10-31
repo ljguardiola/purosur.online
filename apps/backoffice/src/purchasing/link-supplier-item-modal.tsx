@@ -4,7 +4,6 @@ import {
   ButtonLink,
   EmptyState,
   formatCents,
-  type Icon,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -18,7 +17,6 @@ import {
   Link2,
   Package,
   PackagePlus,
-  Plus,
   RotateCcw,
   ScanBarcode,
   Sparkles,
@@ -31,7 +29,6 @@ import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
-import { NewPackagingModal, type NewPackagingModalServices } from "./new-packaging-modal";
 import {
   useMarkPurchasingStale,
   useRefreshSupplierItemLinkChoices,
@@ -41,7 +38,6 @@ import {
 import { SupplierItemFact } from "./supplier-item-fact";
 import {
   EMPTY_SUPPLIER_ITEM_LINK_FORM,
-  linkPackagingOptions,
   linkProductOptions,
   proposedProductIdOf,
   SUPPLIER_ITEM_LINK_FIELD_MESSAGES,
@@ -55,6 +51,10 @@ import type {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
 } from "./supplier-item-links-api";
+import {
+  SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS,
+  supplierItemQuantityFieldKind,
+} from "./supplier-item-quantity";
 import {
   type SupplierPriceListChangeNotice,
   SupplierPriceListChangeNotices,
@@ -71,12 +71,11 @@ export type LinkSupplierItemModalServices = {
   linkSupplierPriceListRow: typeof linkSupplierPriceListRow;
   fetchSupplierItemLinkProposal: typeof fetchSupplierItemLinkProposal;
   fetchSupplierItemLinkChoices: typeof fetchSupplierItemLinkChoices;
-} & NewPackagingModalServices;
+};
 
 type LinkSupplierItemModalProps = {
   list: Pick<SupplierPriceListReviewList, "id" | "version" | "requiresVatRate" | "source">;
   target: SupplierPriceListRow | null;
-  mayCreatePackaging: boolean;
   productCreationModal?: ProductCreationModal | undefined;
   remembersOnConfirm: boolean;
   onCreateProduct: ((row: SupplierPriceListRow) => void) | null;
@@ -96,7 +95,6 @@ function FieldHeading({ children }: { children: string }) {
 export function LinkSupplierItemModal({
   list,
   target,
-  mayCreatePackaging,
   productCreationModal: ProductCreation,
   remembersOnConfirm,
   onCreateProduct,
@@ -111,7 +109,6 @@ export function LinkSupplierItemModal({
   const open = target !== null;
   const [shown, setShown] = useState<SupplierPriceListRow | null>(null);
   const [notice, setNotice] = useState<SupplierPriceListChangeNotice | null>(null);
-  const [creatingPackaging, setCreatingPackaging] = useState(false);
   const row = target ?? shown;
   const choices = useSupplierItemLinkChoicesQuery({
     enabled: open,
@@ -154,8 +151,8 @@ export function LinkSupplierItemModal({
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
         return;
       }
-      if (outcome.kind === "packaging_not_linkable") {
-        form.setFieldValue("packagingId", null);
+      if (outcome.kind === "product_not_linkable") {
+        form.setFieldValue("productId", null);
         void refreshChoices();
       }
       setNotice(supplierPriceListChangeNoticeOf(outcome));
@@ -166,7 +163,7 @@ export function LinkSupplierItemModal({
   const productCreation = useStackedCreation<CreatedProduct>(
     (product) => {
       form.setFieldValue("productId", product.id);
-      form.setFieldValue("packagingId", null);
+      form.setFieldValue("quantity", "");
     },
     { markStale: markPurchasingStale, refresh: refreshChoices },
   );
@@ -194,7 +191,6 @@ export function LinkSupplierItemModal({
                     saleUnit: productCreation.created.saleUnit,
                     brandName: productCreation.created.brandName,
                     netContent: productCreation.created.netContent,
-                    packagings: [],
                   },
                 ]
               : [],
@@ -230,13 +226,18 @@ export function LinkSupplierItemModal({
     }
   }, [target, proposedOffered, proposedId, form]);
 
-  const products = offered ? offered.products.map(({ id, name }) => ({ id, name })) : [];
   const productChoice = creatableChoice(
     offered ? linkProductOptions(offered) : undefined,
     ProductCreation ? { recordKind: "producto", onCreate: productCreation.start } : undefined,
   );
-  const packagingOptions = offered ? linkPackagingOptions(offered, values.productId) : undefined;
   const chosenProduct = offered?.products.find((product) => product.id === values.productId);
+  const chosenSaleUnit = chosenProduct?.saleUnit;
+
+  useEffect(() => {
+    if (chosenSaleUnit !== undefined && form.getFieldValue("saleUnit") !== chosenSaleUnit) {
+      form.setFieldValue("saleUnit", chosenSaleUnit);
+    }
+  }, [chosenSaleUnit, form]);
   const pageLink =
     row?.page != null && list.source.kind === "PDF"
       ? `/api/supplier-price-lists/${list.id}/file#page=${row.page}`
@@ -305,7 +306,7 @@ export function LinkSupplierItemModal({
       <>
         <form.AppField
           name="productId"
-          listeners={{ onChange: () => form.setFieldValue("packagingId", null) }}
+          listeners={{ onChange: () => form.setFieldValue("quantity", "") }}
         >
           {(field) => (
             <field.ComboBox
@@ -316,36 +317,29 @@ export function LinkSupplierItemModal({
             />
           )}
         </form.AppField>
-        {values.productId === null ? null : (
+        {chosenProduct === undefined ? null : (
           <div className="flex flex-col gap-2">
-            <FieldHeading>Presentación de compra</FieldHeading>
-            {packagingOptions ? (
-              <form.AppField name="packagingId">
-                {(field) => (
-                  <field.OptionCardGroup
-                    layout="row"
-                    label="Presentación de compra"
-                    options={withPackageIcon(packagingOptions)}
-                    required
-                  />
-                )}
-              </form.AppField>
-            ) : (
-              <InlineNotice
-                tone="info"
-                icon={<Package />}
-                title="Este producto no tiene presentaciones de compra"
-                {...(mayCreatePackaging
-                  ? { description: "Creá una para poder vincular el ítem." }
-                  : {})}
-              />
-            )}
-            {mayCreatePackaging ? (
-              <div>
-                <Button variant="text" icon={<Plus />} onPress={() => setCreatingPackaging(true)}>
-                  Nueva presentación
-                </Button>
-              </div>
+            <form.AppField name="quantity">
+              {(field) => (
+                <field.TextField
+                  {...supplierItemQuantityFieldKind(chosenProduct.saleUnit, values.quantityUnit)}
+                  label="Cantidad que trae"
+                  required
+                />
+              )}
+            </form.AppField>
+            {chosenProduct.saleUnit === "KG" ? (
+              <>
+                <FieldHeading>Unidad de la cantidad</FieldHeading>
+                <form.AppField name="quantityUnit">
+                  {(field) => (
+                    <field.SegmentedControl
+                      label="Unidad de la cantidad"
+                      options={SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS}
+                    />
+                  )}
+                </form.AppField>
+              </>
             ) : null}
           </div>
         )}
@@ -448,20 +442,6 @@ export function LinkSupplierItemModal({
           </div>
         ) : null}
       </Modal>
-      <NewPackagingModal
-        open={creatingPackaging && chosenProduct !== undefined}
-        products={products.length === 0 || !chosenProduct ? [] : [chosenProduct]}
-        {...(chosenProduct ? { productId: chosenProduct.id } : {})}
-        context={CONTEXT}
-        services={services}
-        onCreated={(packaging) => {
-          setCreatingPackaging(false);
-          void refreshChoices();
-          form.setFieldValue("packagingId", packaging.id);
-        }}
-        onClose={() => setCreatingPackaging(false)}
-        onSessionEnded={onSessionEnded}
-      />
       {ProductCreation ? (
         <ProductCreation
           open={productCreation.open}
@@ -473,17 +453,4 @@ export function LinkSupplierItemModal({
       ) : null}
     </>
   );
-}
-
-function withPackageIcon(
-  options: NonNullable<ReturnType<typeof linkPackagingOptions>>,
-): readonly [
-  { value: string; label: string; description: string; icon: Icon },
-  ...{ value: string; label: string; description: string; icon: Icon }[],
-] {
-  const [first, ...rest] = options;
-  return [
-    { ...first, icon: <Package /> },
-    ...rest.map((option) => ({ ...option, icon: <Package /> })),
-  ];
 }

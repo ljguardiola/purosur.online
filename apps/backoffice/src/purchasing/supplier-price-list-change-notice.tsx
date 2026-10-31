@@ -1,8 +1,6 @@
-import { supplierPriceListRowProductCreationBodySchema } from "@purosur/contracts";
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { schemaLimit } from "../platform/schema-limit";
 import type { CreateProductFromSupplierItemOutcome } from "./supplier-item-products-api";
 import type {
   ConfirmSupplierPriceListOutcome,
@@ -20,14 +18,9 @@ export type SupplierPriceListChangeNotice =
   | { kind: "listDateMissing" }
   | { kind: "vatMissing" }
   | { kind: "rereading" }
-  | { kind: "packagingNotLinkable" }
+  | { kind: "productNotLinkable" }
   | { kind: "vatRateMissing" }
-  | { kind: "alreadyLinked" }
-  | { kind: "presentationTooLong" };
-
-const PRESENTATION_LIMIT = schemaLimit(
-  supplierPriceListRowProductCreationBodySchema.shape.packagingName.meta()?.["maxLength"],
-);
+  | { kind: "alreadyLinked" };
 
 type RefusedChange = Exclude<
   | ConfirmSupplierPriceListOutcome
@@ -67,14 +60,12 @@ export function supplierPriceListChangeNoticeOf(
       return { kind: "vatMissing" };
     case "rereading":
       return { kind: "rereading" };
-    case "packaging_not_linkable":
-      return { kind: "packagingNotLinkable" };
+    case "product_not_linkable":
+      return { kind: "productNotLinkable" };
     case "vat_rate_missing":
       return { kind: "vatRateMissing" };
     case "already_linked":
       return { kind: "alreadyLinked" };
-    case "presentation_too_long":
-      return { kind: "presentationTooLong" };
     case "failed":
     case "validation_failed":
     case "vat_rate_invalid":
@@ -151,15 +142,6 @@ export function SupplierPriceListChangeNotices({
           description="Actualizá la lista para verlo."
         />
       );
-    case "presentationTooLong":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="La presentación de la lista es demasiado larga"
-          description={`Tiene más de ${PRESENTATION_LIMIT} caracteres, el máximo de una presentación de compra. No se puede crear el producto desde esta lista.`}
-        />
-      );
     case "rereading":
       return (
         <InlineNotice
@@ -178,13 +160,13 @@ export function SupplierPriceListChangeNotices({
           description="Cargá otra lista o descartá esta."
         />
       );
-    case "packagingNotLinkable":
+    case "productNotLinkable":
       return (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title="El producto o la presentación ya no se pueden vincular"
-          description="Elegí otro producto o presentación."
+          title="El producto ya no se puede vincular"
+          description="Elegí otro producto."
         />
       );
     case "vatRateMissing":

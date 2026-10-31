@@ -78,6 +78,9 @@ export function saleUnitHeldByPackagingError(packagingName: string): string {
   return `No se puede cambiar la unidad de venta mientras la presentación de compra "${packagingName}" esté activa.`;
 }
 
+export const saleUnitHeldBySupplierItemError =
+  "No se puede cambiar la unidad de venta mientras un ítem de proveedor esté vinculado al producto.";
+
 function reactivationBarcodeTakenAdvice(codes: string[]): string {
   if (codes.length === 0) {
     return "Revisá los códigos de este producto y volvé a intentarlo.";

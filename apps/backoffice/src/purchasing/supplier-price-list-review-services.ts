@@ -5,7 +5,6 @@ import type { CreateProductFromSupplierItemModalServices } from "./create-produc
 import type { DiscardSupplierPriceListModalServices } from "./discard-supplier-price-list-modal";
 import type { EditSupplierPriceListRowPriceModalServices } from "./edit-supplier-price-list-row-price-modal";
 import type { LinkSupplierItemModalServices } from "./link-supplier-item-modal";
-import { createPackaging } from "./packagings-api";
 import type { RemoveSupplierPriceListRowModalServices } from "./remove-supplier-price-list-row-modal";
 import {
   fetchSupplierItemLinkChoices,
@@ -49,7 +48,6 @@ export const defaultSupplierPriceListReviewScreenServices: SupplierPriceListRevi
   linkSupplierPriceListRow,
   fetchSupplierItemLinkProposal,
   fetchSupplierItemLinkChoices,
-  createPackaging,
   createProductFromSupplierItem,
   fetchProductCreationCategories,
   fetchProductCreationBrands,

@@ -82,7 +82,7 @@ export type ChangeSupplierPriceListRowOutcome = { kind: "ok" } | ReviewChangeRef
 
 export type LinkSupplierPriceListRowOutcome =
   | { kind: "ok" }
-  | { kind: "packaging_not_linkable" }
+  | { kind: "product_not_linkable" }
   | { kind: "vat_rate_missing" }
   | { kind: "vat_rate_invalid" }
   | ReviewChangeRefusal;
@@ -99,7 +99,7 @@ export type ConfirmSupplierPriceListOutcome =
 export type DiscardSupplierPriceListOutcome = { kind: "ok" } | ReviewChangeRefusal;
 
 const REVIEW_CONFLICTS = ["not_editable", "stale_version"] as const;
-const LINK_CONFLICTS = ["packaging_not_linkable", "vat_rate_missing", "vat_rate_invalid"] as const;
+const LINK_CONFLICTS = ["product_not_linkable", "vat_rate_missing", "vat_rate_invalid"] as const;
 const CONFIRMATION_CONFLICTS = [
   "no_rows",
   "unpriced_rows",
@@ -355,7 +355,7 @@ export function linkSupplierPriceListRow(
   const body: SupplierPriceListRowLinkBody = {
     version: input.version,
     productId: input.productId,
-    packagingId: input.packagingId,
+    quantity: input.quantity,
     vatRate: input.vatRate ?? null,
   };
   return changeReview("PUT", `/api/supplier-price-lists/${listId}/rows/${rowId}/link`, body, [

@@ -62,6 +62,7 @@ export type EditProductOutcome =
   | { kind: "tag_inactive"; tagId: string }
   | { kind: "sale_unit_held_by_discount"; discountName: string }
   | { kind: "sale_unit_held_by_packaging"; packagingName: string }
+  | { kind: "sale_unit_held_by_supplier_item" }
   | { kind: "internal_barcode_on_product_with_barcodes" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
@@ -285,6 +286,9 @@ export async function editProduct(
       return typeof body.packagingName === "string"
         ? { kind: "sale_unit_held_by_packaging", packagingName: body.packagingName }
         : { kind: "failed" };
+    }
+    if (body?.code === "sale_unit_held_by_supplier_item") {
+      return { kind: "sale_unit_held_by_supplier_item" };
     }
     const codes = Array.isArray(body?.codes)
       ? body.codes.filter((code): code is string => typeof code === "string")

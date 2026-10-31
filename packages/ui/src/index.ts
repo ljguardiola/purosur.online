@@ -207,7 +207,6 @@ export {
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
   formatSaleUnitQuantity,
-  formatSaleUnitQuantity,
   formatShortCode,
   formatSignedCents,
   formatTimeAgo,

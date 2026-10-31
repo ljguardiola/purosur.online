@@ -43,6 +43,7 @@ import {
   productFormValues,
   saleUnitHeldByDiscountError,
   saleUnitHeldByPackagingError,
+  saleUnitHeldBySupplierItemError,
 } from "./product-form";
 import type { editProduct } from "./products-api";
 
@@ -155,6 +156,10 @@ export function EditProductModal({
       }
       if (outcome.kind === "sale_unit_held_by_packaging") {
         showFieldError("saleUnit", saleUnitHeldByPackagingError(outcome.packagingName));
+        return;
+      }
+      if (outcome.kind === "sale_unit_held_by_supplier_item") {
+        showFieldError("saleUnit", saleUnitHeldBySupplierItemError);
         return;
       }
       if (outcome.kind === "sale_unit_held_by_discount") {

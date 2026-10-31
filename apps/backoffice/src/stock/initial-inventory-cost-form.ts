@@ -1,6 +1,11 @@
 import { type LotReferenceCostBody, lotReferenceCostBodySchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { formatCalendarDayNumeric, formatCents, parseAmountCents } from "@purosur/ui";
+import {
+  formatCalendarDayNumeric,
+  formatCents,
+  formatSaleUnitQuantity,
+  parseAmountCents,
+} from "@purosur/ui";
 import { schemaLimit } from "../platform/schema-limit";
 import type { InitialInventoryLot } from "./edit-lot-cost-modal";
 import { formatStockUnitCost } from "./stock-cost";
@@ -31,7 +36,7 @@ export function costRequestFrom({ cost, supplierItemId }: CostFormValues): LotRe
 export function supplierPriceOptions({ saleUnit, supplierPrices }: InitialInventoryLot) {
   return supplierPrices.map((price) => ({
     value: price.supplierItemId,
-    label: `${price.supplierName} del ${formatCalendarDayNumeric(price.listDate)} · ${price.packagingName} · ${formatStockUnitCost(price.unitCostCents, saleUnit)}`,
+    label: `${price.supplierName} del ${formatCalendarDayNumeric(price.listDate)} · ${formatSaleUnitQuantity(price.quantity, price.saleUnit)} · ${formatStockUnitCost(price.unitCostCents, saleUnit)}`,
     ...(price.cheapest ? { status: "La más barata" } : {}),
   }));
 }
