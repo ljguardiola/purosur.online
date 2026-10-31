@@ -1,6 +1,14 @@
 import { LinkListCard, LinkListRow } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { FileText, ShoppingBag, ShoppingCart, Tag, Wallet, Warehouse } from "lucide-react";
+import {
+  FileText,
+  ShoppingBag,
+  ShoppingCart,
+  Tag,
+  TrendingUp,
+  Wallet,
+  Warehouse,
+} from "lucide-react";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 
@@ -47,6 +55,9 @@ export function ReportsIndexScreen({
         {aiCostShown ? (
           <ReportRow to="/reports/ai-cost-by-period" label="Costo de IA por período" />
         ) : null}
+      </LinkListCard>
+      <LinkListCard title="Rentabilidad" icon={<TrendingUp />}>
+        <ReportRow to="/reports/margin" label="Margen por producto y por categoría" />
       </LinkListCard>
       <LinkListCard title="Precios" icon={<Tag />}>
         <ReportRow to="/reports/prices-past-review-deadline" label="Precios sin revisar" />
