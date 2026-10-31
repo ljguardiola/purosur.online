@@ -3,11 +3,11 @@ import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-s
 import type { AiCallUsage } from "./ai-call-usage.js";
 import { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
 import { FakeProductChooser } from "./test-support/fake-product-chooser.js";
-import { FakeSupplierItemQuantityReader } from "./test-support/fake-supplier-item-quantity-reader.js";
 import {
   type FakeProposalData,
   FakeSupplierItemLinkProposalReader,
 } from "./test-support/fake-supplier-item-link-proposal-reader.js";
+import { FakeSupplierItemQuantityReader } from "./test-support/fake-supplier-item-quantity-reader.js";
 import { FakeSupplierPriceListAiCallStore } from "./test-support/fake-supplier-price-list-ai-call-store.js";
 
 const YERBA = { id: "product-1", name: "Yerba Piragüé 1 kg", barcodes: ["7790001000012"] };
@@ -538,8 +538,8 @@ describe("proposeSupplierItemLink", () => {
       const PRODUCT = {
         ...ACEITE,
         barcodes: ["7790001000012"],
-        netContent: { quantity: 250, unit: "ML" },
-      } as const;
+        netContent: { quantity: 250, unit: "ML" as const },
+      };
 
       it("is read by the quantity reader from the item and the product", async () => {
         const { quantityReader, ports } = setup(withBarcode, [PRODUCT], ["Pack x12u"]);
