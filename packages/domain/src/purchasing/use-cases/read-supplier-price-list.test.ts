@@ -492,7 +492,7 @@ describe("readSupplierPriceList rows of a supplier with remembered items", () =>
   const LINK = {
     productId: "product-1",
     quantity: 1_000,
-    saleUnit: "UNIT",
+    saleUnit: "UNIT" as const,
     vatRate: 1050,
     relinkRequired: false,
   };
@@ -618,7 +618,7 @@ describe("readSupplierPriceList rows of a supplier with remembered items", () =>
     const other = {
       productId: "product-2",
       quantity: 1_000,
-      saleUnit: "UNIT",
+      saleUnit: "UNIT" as const,
       vatRate: null,
       relinkRequired: false,
     };
@@ -714,7 +714,7 @@ describe("readSupplierPriceList of a store's catalog", () => {
     const link = {
       productId: "product-1",
       quantity: 1_000,
-      saleUnit: "UNIT",
+      saleUnit: "UNIT" as const,
       vatRate: null,
       relinkRequired: false,
     };
@@ -735,7 +735,7 @@ describe("readSupplierPriceList of a store's catalog", () => {
     const link = {
       productId: "product-1",
       quantity: 1_000,
-      saleUnit: "UNIT",
+      saleUnit: "UNIT" as const,
       vatRate: null,
       relinkRequired: false,
     };

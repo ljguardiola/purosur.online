@@ -18,14 +18,14 @@ const FIRST_SENT_AT = new Date("2026-03-01T15:00:00Z");
 const LINK = {
   productId: "product-1",
   quantity: 1_000,
-  saleUnit: "UNIT",
+  saleUnit: "UNIT" as const,
   vatRate: null,
   relinkRequired: false,
 };
 const OTHER_LINK = {
   productId: "product-2",
   quantity: 1_000,
-  saleUnit: "UNIT",
+  saleUnit: "UNIT" as const,
   vatRate: 2100,
   relinkRequired: false,
 };

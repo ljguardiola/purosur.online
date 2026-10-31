@@ -166,7 +166,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
   const LINK: SupplierItemLink = {
     productId: "product-1",
     quantity: 1_000,
-    saleUnit: "UNIT",
+    saleUnit: "UNIT" as const,
     vatRate: 2100,
     relinkRequired: false,
   };
@@ -336,7 +336,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
       link: {
         productId: "old",
         quantity: 1_000,
-        saleUnit: "UNIT",
+        saleUnit: "UNIT" as const,
         vatRate: null,
         relinkRequired: false,
       },
@@ -351,7 +351,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     const relinked = {
       productId: "product-2",
       quantity: 1_000,
-      saleUnit: "UNIT",
+      saleUnit: "UNIT" as const,
       vatRate: 1050,
       relinkRequired: false,
     };
@@ -373,7 +373,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     const relinked = {
       productId: "product-2",
       quantity: 1_000,
-      saleUnit: "UNIT",
+      saleUnit: "UNIT" as const,
       vatRate: 1050,
       relinkRequired: false,
     };
@@ -422,7 +422,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
       expect(store.snapshot().items[0]?.link).toEqual({
         productId: "product-3",
         quantity: 1_000,
-        saleUnit: "UNIT",
+        saleUnit: "UNIT" as const,
         vatRate: 1050,
         relinkRequired: false,
       });
@@ -433,7 +433,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     const copied = {
       productId: "product-2",
       quantity: 1_000,
-      saleUnit: "UNIT",
+      saleUnit: "UNIT" as const,
       vatRate: 1050,
       relinkRequired: false,
     };
@@ -463,7 +463,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
         link: {
           productId: "product-2",
           quantity: 1_000,
-          saleUnit: "UNIT",
+          saleUnit: "UNIT" as const,
           vatRate: null,
           relinkRequired: false,
         },
@@ -477,7 +477,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
       link: {
         productId: "product-1",
         quantity: 1_000,
-        saleUnit: "UNIT",
+        saleUnit: "UNIT" as const,
         vatRate: 1050,
         relinkRequired: false,
       },
@@ -488,7 +488,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
     expect(store.snapshot().items[0]?.link).toEqual({
       productId: "product-2",
       quantity: 1_000,
-      saleUnit: "UNIT",
+      saleUnit: "UNIT" as const,
       vatRate: 1050,
       relinkRequired: false,
     });
@@ -567,7 +567,7 @@ describe("confirmSupplierPriceList and the supplier's items", () => {
       const other = {
         productId: "product-2",
         quantity: 1_000,
-        saleUnit: "UNIT",
+        saleUnit: "UNIT" as const,
         vatRate: null,
         relinkRequired: false,
       };
