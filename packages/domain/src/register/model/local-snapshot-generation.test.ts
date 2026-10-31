@@ -67,6 +67,13 @@ describe("pendingSnapshotGenerationsNewestFirst", () => {
     expect(pendingSnapshotGenerationsNewestFirst([second, first])).toEqual([second, first]);
   });
 
+  it("orders generations created in the same instant whose ids differ only in letter case by their code units, lowercase first", () => {
+    const upper = generation({ generationId: "00000000-0000-4000-8000-00000000000A" });
+    const lower = generation({ generationId: "00000000-0000-4000-8000-00000000000a" });
+
+    expect(pendingSnapshotGenerationsNewestFirst([upper, lower])).toEqual([lower, upper]);
+  });
+
   it("leaves the generations it was given in their order", () => {
     const given = [OLDER, NEWER];
 

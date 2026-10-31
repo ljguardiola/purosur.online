@@ -211,6 +211,13 @@ describe("snapshotRetentionTiers", () => {
     ).toEqual(["g6", "g5", "g4", "g3", "g2", "g1"]);
   });
 
+  it("breaks a tie between ids that differ only in letter case by their code units, lowercase first", () => {
+    const generations = [verified("G", minutesBefore(0)), verified("g", minutesBefore(0))];
+    expect(
+      snapshotRetentionTiers(generations, ONE_HOUR_RULES, NOW, FIXED_ARGENTINA_ZONE_RULES).recent,
+    ).toEqual(["g", "G"]);
+  });
+
   it("ignores generations that are not verified", () => {
     const generations: RetainableSnapshotGeneration[] = [
       { id: "declared", createdAt: minutesBefore(1), status: "declared" },

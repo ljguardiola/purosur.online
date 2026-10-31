@@ -58,6 +58,17 @@ describe("listAssemblyBatches", () => {
 
     expect(listed.map((item) => item.id)).toEqual(["b", "a"]);
   });
+
+  it("orders batches of the same moment whose ids differ only in letter case by their code units, lowercase first", async () => {
+    const reader = new FakeAssemblyBatchListReader([
+      batch("A", "2026-05-10T10:00:00.000Z"),
+      batch("a", "2026-05-10T10:00:00.000Z"),
+    ]);
+
+    const listed = await listAssemblyBatches(reader, QUERY);
+
+    expect(listed.map((item) => item.id)).toEqual(["a", "A"]);
+  });
 });
 
 describe("listAssemblyBatches status", () => {

@@ -63,6 +63,18 @@ test("finds an alias of localeCompare called through call without a locale", () 
   assert.deepEqual(lines(source), [2]);
 });
 
+test("finds a comparison given an empty list of locales", () => {
+  const source = [
+    "a.localeCompare(b, []);",
+    "a.localeCompare(b, [], { numeric: true });",
+    "String.prototype.localeCompare.call(a, b, []);",
+    "const c = new Intl.Collator([], { numeric: true });",
+    "const d = Intl.Collator([]);",
+  ].join("\n");
+
+  assert.deepEqual(lines(source), [1, 2, 3, 4, 5]);
+});
+
 test("finds nothing in localeCompare called with a locale", () => {
   const source = [
     'a.localeCompare(b, "es-AR");',

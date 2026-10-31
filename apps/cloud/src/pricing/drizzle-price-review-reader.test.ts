@@ -317,6 +317,14 @@ describe("DrizzlePriceReviewReader", () => {
     ]);
   });
 
+  it("orders products by name in Spanish, with Ñ after N", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const gnocchiId = await insertProduct("Ñoquis de papa", categoryId);
+    const walnutId = await insertProduct("Nuez mariposa", categoryId);
+
+    expect(ids(await pricesUnderReview())).toEqual([walnutId, gnocchiId]);
+  });
+
   it("marks each product pending against the branch's own window, and the pending filter keeps only those", async () => {
     const userId = await insertUser();
     const categoryId = await insertCategory("Almacén");

@@ -181,6 +181,15 @@ describe("readPricesPastReviewDeadlineReport", () => {
     ]);
   });
 
+  it("orders prices of the same day and name whose ids differ only in letter case by their code units, uppercase first", async () => {
+    const { report } = await read([
+      history("sal", { name: "Sal fina", lastReviewedAt: daysBefore(50) }),
+      history("SAL", { name: "Sal fina", lastReviewedAt: daysBefore(50) }),
+    ]);
+
+    expect(idsOf(report)).toEqual(["SAL", "sal"]);
+  });
+
   it("answers, when no period is asked, the period from the earliest deadline day to today", async () => {
     const { report } = await read([
       history("recent", { lastReviewedAt: daysBefore(35) }),
