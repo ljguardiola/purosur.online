@@ -69,6 +69,19 @@ export const LatePaymentRefundOfSecondOrderOfPointPayment: Story = {
   },
 };
 
+export const LatePaymentRefundOfRebuiltSale: Story = {
+  args: { kind: "late_payment_refund", providerOrderId: null, method: "QR", ofRebuiltSale: true },
+};
+
+export const LatePaymentRefundOfRebuiltSaleOfPointPayment: Story = {
+  args: {
+    kind: "late_payment_refund",
+    providerOrderId: null,
+    method: "POINT",
+    ofRebuiltSale: true,
+  },
+};
+
 export const SalesDeniedShortOfDiskAtStartup: Story = {
   args: {
     kind: "sales_denied",

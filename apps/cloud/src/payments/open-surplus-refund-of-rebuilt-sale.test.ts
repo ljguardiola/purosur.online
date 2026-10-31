@@ -83,7 +83,13 @@ describe("openSurplusRefundOfRebuiltSale", () => {
       expect.objectContaining({
         kind: "late_payment_refund",
         scope: refund?.id,
-        detail: { saleId: rebuiltSaleId, amount: 600, providerOrderId: null, method: "QR" },
+        detail: {
+          saleId: rebuiltSaleId,
+          amount: 600,
+          providerOrderId: null,
+          method: "QR",
+          ofRebuiltSale: true,
+        },
       }),
     ]);
   });
