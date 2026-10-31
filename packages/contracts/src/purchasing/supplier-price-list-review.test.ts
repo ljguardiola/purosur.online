@@ -17,7 +17,9 @@ const row = {
       netContent: { quantity: 1, unit: "KG" },
       saleUnit: "UNIT",
     },
-    packaging: { id: "pk-1", name: "Caja x 10", quantityPerPackage: 10_000, buyable: true },
+    quantity: 10_000,
+    saleUnit: "UNIT",
+    current: true,
     vatRate: 1050,
   },
   status: "price_changed",
@@ -175,17 +177,6 @@ describe("supplierPriceListReviewSchema", () => {
     ).toBe(false);
   });
 
-  it("requires whether the linked packaging may still be bought by", () => {
-    const { buyable: _buyable, ...packaging } = row.link.packaging;
-
-    expect(
-      supplierPriceListReviewSchema.safeParse({
-        ...review,
-        rows: [{ ...row, link: { ...row.link, packaging } }],
-      }).success,
-    ).toBe(false);
-  });
-
   it("strips keys it does not define from the rows", () => {
     const parsed = supplierPriceListReviewSchema.safeParse({
       ...review,
@@ -287,13 +278,16 @@ describe("supplierPriceListReviewSchema", () => {
     expect(supplierPriceListReviewSchema.safeParse(linked).data).toEqual(linked);
   });
 
-  it.each(["product", "packaging", "vatRate"])("requires %s in a link", (field) => {
-    const { [field as keyof typeof row.link]: _omitted, ...link } = row.link;
+  it.each(["product", "quantity", "saleUnit", "current", "vatRate"])(
+    "requires %s in a link",
+    (field) => {
+      const { [field as keyof typeof row.link]: _omitted, ...link } = row.link;
 
-    expect(
-      supplierPriceListReviewSchema.safeParse({ ...review, rows: [{ ...row, link }] }).success,
-    ).toBe(false);
-  });
+      expect(
+        supplierPriceListReviewSchema.safeParse({ ...review, rows: [{ ...row, link }] }).success,
+      ).toBe(false);
+    },
+  );
 
   it.each([
     ["numerator", "1.5"],

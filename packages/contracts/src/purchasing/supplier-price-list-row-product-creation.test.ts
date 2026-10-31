@@ -1,4 +1,3 @@
-import { PACKAGING_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   supplierPriceListRowProductCreatedSchema,
@@ -17,8 +16,7 @@ const body = {
   barcodes: ["7790001000012"],
   tagIds: [],
   netContent: null,
-  packagingName: "Caja x 10",
-  quantityPerPackage: 10_000,
+  quantity: 10_000,
   vatRate: 2100,
 };
 
@@ -29,14 +27,13 @@ function firstFailure(candidate: unknown): { field: unknown; message: unknown } 
 }
 
 describe("supplierPriceListRowProductCreationBodySchema", () => {
-  it("reads the version loaded, the product, its presentation and the rate", () => {
+  it("reads the version loaded, the product, the quantity and the rate", () => {
     expect(supplierPriceListRowProductCreationBodySchema.safeParse(body).data).toEqual(body);
   });
 
-  it("trims the presentation's name and the barcodes", () => {
+  it("trims the barcodes", () => {
     const parsed = supplierPriceListRowProductCreationBodySchema.safeParse({
       ...body,
-      packagingName: " Caja x 10  ",
       barcodes: [" 7790001000012 "],
     });
 
@@ -88,47 +85,12 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
     },
   );
 
-  it.each([null, undefined])("reads the presentation name %j as none", (packagingName) => {
-    expect(
-      supplierPriceListRowProductCreationBodySchema.safeParse({ ...body, packagingName }).data
-        ?.packagingName,
-    ).toBeNull();
-  });
-
-  it.each(["", "   ", 5])("rejects the presentation name %j", (packagingName) => {
-    expect(firstFailure({ ...body, packagingName })).toEqual({
-      field: "packagingName",
-      message: `packagingName must be a non-empty string of at most ${PACKAGING_NAME_MAX_LENGTH} characters`,
+  it.each([undefined, null, "12", 0, -1000, 1.5])("rejects the quantity %j", (quantity) => {
+    expect(firstFailure({ ...body, quantity })).toEqual({
+      field: "quantity",
+      message: "quantity must be a positive integer number of thousandths",
     });
   });
-
-  it("accepts a presentation name of exactly the maximum length and rejects a longer one", () => {
-    expect(
-      supplierPriceListRowProductCreationBodySchema.safeParse({
-        ...body,
-        packagingName: "a".repeat(PACKAGING_NAME_MAX_LENGTH),
-      }).success,
-    ).toBe(true);
-    expect(
-      firstFailure({ ...body, packagingName: "a".repeat(PACKAGING_NAME_MAX_LENGTH + 1) })?.field,
-    ).toBe("packagingName");
-  });
-
-  it("tells a form how long the presentation's name may be", () => {
-    expect(supplierPriceListRowProductCreationBodySchema.shape.packagingName.meta()).toEqual({
-      maxLength: PACKAGING_NAME_MAX_LENGTH,
-    });
-  });
-
-  it.each([undefined, null, "12", 0, -1000, 1.5])(
-    "rejects the quantity %j",
-    (quantityPerPackage) => {
-      expect(firstFailure({ ...body, quantityPerPackage })).toEqual({
-        field: "quantityPerPackage",
-        message: "quantityPerPackage must be a positive integer number of thousandths",
-      });
-    },
-  );
 
   it("strips keys it does not know", () => {
     expect(
@@ -215,15 +177,15 @@ describe("supplierPriceListRowProductCreationBodySchema", () => {
 });
 
 describe("supplierPriceListRowProductCreatedSchema", () => {
-  const created = { productId: "product-1", packagingId: "packaging-1" };
+  const created = { productId: "product-1" };
 
-  it("reads the new product and its presentation", () => {
+  it("reads the new product", () => {
     expect(supplierPriceListRowProductCreatedSchema.safeParse(created).data).toEqual(created);
   });
 
-  it.each(["productId", "packagingId"])("requires %s", (field) => {
+  it("requires productId", () => {
     expect(
-      supplierPriceListRowProductCreatedSchema.safeParse({ ...created, [field]: undefined })
+      supplierPriceListRowProductCreatedSchema.safeParse({ ...created, productId: undefined })
         .success,
     ).toBe(false);
   });
