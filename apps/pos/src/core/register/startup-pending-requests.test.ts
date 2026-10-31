@@ -172,6 +172,7 @@ describe("what a stopped register left pending", () => {
         method: "QR",
         amount: 5000,
         created_at: "2026-10-13T07:00:00.000-03:00",
+        rebuilt_sale_id: null,
       },
     ]);
     expect(pending.selling_blocked).toBe(true);
@@ -190,6 +191,42 @@ describe("what a stopped register left pending", () => {
     const pending = await pendingOf();
 
     expect([pending.selling_blocked, pending.may_go_selling]).toEqual([true, true]);
+  });
+
+  it("lists the paid order with the sale rebuilt against it while that sale is open, still blocking a new sale", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+               '2026-10-13T10:00:00.000Z', '2026-10-13T11:00:00.000Z', NULL);
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('rebuilt-sale', 'register-1', 'device-1', 'session-1', 'u1', 'OPEN', NULL);
+       INSERT INTO sales_rebuilt_against_paid_orders (sale_id, payment_transaction_id)
+       VALUES ('rebuilt-sale', 'order-1')`,
+    );
+
+    const pending = await pendingOf();
+
+    expect(pending.paid_orders_without_sale).toMatchObject([
+      { payment_transaction_id: "order-1", rebuilt_sale_id: "rebuilt-sale" },
+    ]);
+    expect([pending.selling_blocked, pending.may_go_selling]).toEqual([true, true]);
+  });
+
+  it("stops listing a paid order once the sale rebuilt against it completed, lifting the block on selling", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+               '2026-10-13T10:00:00.000Z', '2026-10-13T11:00:00.000Z', NULL);
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
+       VALUES ('rebuilt-sale', 'register-1', 'device-1', 'session-1', 'u1', 'COMPLETED', '2026-10-13T11:10:00.000Z', 1);
+       INSERT INTO sales_rebuilt_against_paid_orders (sale_id, payment_transaction_id)
+       VALUES ('rebuilt-sale', 'order-1')`,
+    );
+
+    const pending = await pendingOf();
+
+    expect(pending.paid_orders_without_sale).toEqual([]);
+    expect([pending.selling_blocked, pending.may_go_selling]).toEqual([false, true]);
   });
 
   it("does not block selling once every paid order without a sale was converted", async () => {
