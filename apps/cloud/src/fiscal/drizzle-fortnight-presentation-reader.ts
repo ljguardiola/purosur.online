@@ -1,4 +1,5 @@
 import {
+  compareCodeUnits,
   fortnightPresentationRows,
   fortnightReportDeadline,
   type ZoneRulesSource,
@@ -106,7 +107,7 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
       })
       .sort(
         (a, b) =>
-          b.fortnight.start.localeCompare(a.fortnight.start) ||
+          compareCodeUnits(b.fortnight.start, a.fortnight.start) ||
           a.pointOfSaleNumber - b.pointOfSaleNumber,
       );
   }

@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "../../shared/index.js";
 import type { SnapshotSequences } from "./snapshot-cycle.js";
 
 export interface LocalSnapshotGeneration {
@@ -19,7 +20,8 @@ export function isPendingSnapshotGeneration(generation: LocalSnapshotGeneration)
 
 function newestFirst(a: LocalSnapshotGeneration, b: LocalSnapshotGeneration): number {
   return (
-    b.createdAt.getTime() - a.createdAt.getTime() || b.generationId.localeCompare(a.generationId)
+    b.createdAt.getTime() - a.createdAt.getTime() ||
+    compareCodeUnits(b.generationId, a.generationId)
   );
 }
 

@@ -1,3 +1,4 @@
+import { compareSpanishText } from "../../../shared/index.js";
 import type {
   PackagingListing,
   PurchaseListing,
@@ -14,7 +15,7 @@ export interface FakePurchasingListData {
 }
 
 function byName(first: { name: string }, second: { name: string }): number {
-  return first.name.localeCompare(second.name);
+  return compareSpanishText(first.name, second.name);
 }
 
 export class FakePurchasingListReader implements PurchasingListReader {

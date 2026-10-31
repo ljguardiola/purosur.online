@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "../../shared/index.js";
 export interface CreationOrderFields {
   eventId: string;
   deviceId: string;
@@ -18,7 +19,7 @@ interface Placed<T> {
 function placed<T extends CreationOrderFields>(events: readonly T[]): Placed<T>[] {
   const latest = new Map<string, { occurredAt: number; receivedAt: number }>();
   const bySequence = [...events].sort(
-    (a, b) => a.deviceId.localeCompare(b.deviceId) || a.deviceSeq - b.deviceSeq,
+    (a, b) => compareCodeUnits(a.deviceId, b.deviceId) || a.deviceSeq - b.deviceSeq,
   );
   return bySequence.map((event) => {
     const before = latest.get(event.deviceId);
@@ -35,7 +36,7 @@ export function inCreationOrder<T extends CreationOrderFields>(events: readonly 
       (a, b) =>
         a.occurredAt - b.occurredAt ||
         a.receivedAt - b.receivedAt ||
-        a.event.deviceId.localeCompare(b.event.deviceId),
+        compareCodeUnits(a.event.deviceId, b.event.deviceId),
     )
     .map(({ event }) => event);
 }

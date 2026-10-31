@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { numericTextOrder, sortedItems, textOrder } from "./item-ordering";
+import { codeUnitOrder, numericTextOrder, sortedItems, textOrder } from "./item-ordering";
 
 type Node = { id: string; name: string; parentId: string | null };
 
@@ -24,6 +24,27 @@ describe("textOrder", () => {
       "ñandú",
       "Oliva",
     ]);
+  });
+});
+
+describe("codeUnitOrder", () => {
+  it("orders texts by their characters' codes, whatever language a reader speaks", () => {
+    const order = codeUnitOrder((text: string) => text);
+
+    expect(["2026-11-01", "2026-10-31", "ñ", "n", "B", "a"].sort(order)).toEqual([
+      "2026-10-31",
+      "2026-11-01",
+      "B",
+      "a",
+      "n",
+      "ñ",
+    ]);
+  });
+
+  it("finds equal texts equal", () => {
+    const order = codeUnitOrder((text: string) => text);
+
+    expect(order("2026-10-31", "2026-10-31")).toBe(0);
   });
 });
 

@@ -368,13 +368,13 @@ describe("offlineDocumentPresentations", () => {
     expect(offlineDocumentPresentations([])).toEqual([]);
   });
 
-  it("orders the presentations by document type alphabetically, whatever the case of its letters", () => {
+  it("orders the presentations by document type code units, uppercase before lowercase", () => {
     expect(
       offlineDocumentPresentations([
         { documentType: "B", number: 1 },
         { documentType: "a", number: 1 },
       ]).map(({ documentType }) => documentType),
-    ).toEqual(["a", "B"]);
+    ).toEqual(["B", "a"]);
   });
 
   it("never mixes document types and keeps every document, for every set of documents", () => {

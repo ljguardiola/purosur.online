@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { compareCodeUnits } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -91,7 +92,7 @@ describe("DrizzlePaymentsReportReader.approvedPaymentsByMethod", () => {
       registerId: undefined,
     });
 
-    expect([...report.methods].sort((a, b) => a.method.localeCompare(b.method))).toEqual([
+    expect([...report.methods].sort((a, b) => compareCodeUnits(a.method, b.method))).toEqual([
       { method: "CASH", salesCount: 2, amount: 5_000 },
       { method: "POINT", salesCount: 1, amount: 2_500 },
       { method: "QR", salesCount: 1, amount: 6_000 },

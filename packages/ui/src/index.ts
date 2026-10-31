@@ -248,4 +248,9 @@ export {
 } from "./messages/tenths-of-percent";
 export { textContains } from "./messages/text-search";
 export type { ItemOrder, ItemsSort } from "./ordering/item-ordering";
-export { numericTextOrder, sortedItems, textOrder } from "./ordering/item-ordering";
+export {
+  codeUnitOrder,
+  numericTextOrder,
+  sortedItems,
+  textOrder,
+} from "./ordering/item-ordering";

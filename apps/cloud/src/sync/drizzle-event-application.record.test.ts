@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ManualAdjustment } from "@purosur/domain";
+import { compareCodeUnits } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
@@ -803,7 +804,7 @@ describe("recording the cancelled sales of applied events", () => {
           refId,
           authorizedBy,
         }))
-        .sort((a, b) => a.type.localeCompare(b.type)),
+        .sort((a, b) => compareCodeUnits(a.type, b.type)),
     ).toEqual(
       cancelled.cashMovements
         .map((movement) => ({
@@ -814,7 +815,7 @@ describe("recording the cancelled sales of applied events", () => {
           refId: cancelled.id,
           authorizedBy: movement.type === "REFUND" ? "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13" : null,
         }))
-        .sort((a, b) => a.type.localeCompare(b.type)),
+        .sort((a, b) => compareCodeUnits(a.type, b.type)),
     );
   });
 

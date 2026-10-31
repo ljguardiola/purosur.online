@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "@purosur/domain";
 import {
   assignAwaitedOfflineNumberBlock,
   configureRegisterOfflinePointOfSale,
@@ -508,7 +509,7 @@ describe("the tax authority's count behind the offline number blocks", () => {
     expect(
       blocks
         .map((block) => [block.documentType, block.firstNumber, block.lastNumber])
-        .sort(([a], [b]) => String(a).localeCompare(String(b))),
+        .sort(([a], [b]) => compareCodeUnits(String(a), String(b))),
     ).toEqual([
       ["credit_note_c", 5, 1004],
       ["factura_c", 38, 1037],

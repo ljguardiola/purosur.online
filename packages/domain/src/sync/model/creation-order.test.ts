@@ -61,6 +61,13 @@ describe("the order events of one aggregate were created in", () => {
     expect(ids(inCreationOrder([second, first]))).toEqual(["b", "a"]);
   });
 
+  it("orders installation ids that differ only in letter case by their code units, uppercase first", () => {
+    const lower = event("lower", "register-a", 1, "2026-10-07T10:00:00.000Z");
+    const upper = event("upper", "REGISTER-A", 1, "2026-10-07T10:00:00.000Z");
+
+    expect(ids(inCreationOrder([lower, upper]))).toEqual(["upper", "lower"]);
+  });
+
   it("keeps the sequence of an installation whose clock was set back, placing its later events by the latest instant it reported before them", () => {
     const first = event("a", "register-1", 1, "2026-10-07T10:00:00.000Z");
     const afterClockChange = event("b", "register-1", 2, "2026-10-07T09:00:00.000Z");

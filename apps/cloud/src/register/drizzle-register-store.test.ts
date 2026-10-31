@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "@purosur/domain";
 import {
   enrollInstallation,
   type RegisterStoreTransaction,
@@ -571,7 +572,7 @@ describe("DrizzleRegisterStore", () => {
     const open = await db
       .select({ kind: alerts.kind, level: alerts.level, resolvedAt: alerts.resolvedAt })
       .from(alerts);
-    expect(open.sort((a, b) => a.kind.localeCompare(b.kind))).toEqual([
+    expect(open.sort((a, b) => compareCodeUnits(a.kind, b.kind))).toEqual([
       { kind: "backoffice_passkey_changed", level: "critical", resolvedAt: null },
       { kind: "register_enrolled", level: "critical", resolvedAt: null },
     ]);
@@ -587,9 +588,7 @@ describe("DrizzleRegisterStore", () => {
           documentType: taxAuthorityLastAuthorizedNumbers.documentType,
         })
         .from(taxAuthorityLastAuthorizedNumbers);
-      return rows
-        .map((row) => `${row.pointOfSale}:${row.documentType}`)
-        .sort((a, b) => a.localeCompare(b));
+      return rows.map((row) => `${row.pointOfSale}:${row.documentType}`).sort(compareCodeUnits);
     }
 
     function storeEnqueueingInto(enqueued: string[]) {
@@ -664,7 +663,7 @@ describe("DrizzleRegisterStore", () => {
         "4:factura_c",
         "7:factura_c",
       ]);
-      expect(enqueued.sort((a, b) => a.localeCompare(b))).toEqual([
+      expect(enqueued.sort(compareCodeUnits)).toEqual([
         "7:factura_c",
         "8:credit_note_c",
         "8:factura_c",

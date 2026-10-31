@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "@purosur/domain";
 import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
@@ -59,7 +60,7 @@ const CLOSED_NOW = new Date("2026-01-05T13:10:00.000Z");
 const OPEN_NOW = new Date("2026-01-05T12:30:00.000Z");
 
 function byAccountAndAttempt(a: { entityId: string; attempt: string }, b: typeof a): number {
-  return `${a.entityId}:${a.attempt}`.localeCompare(`${b.entityId}:${b.attempt}`);
+  return compareCodeUnits(`${a.entityId}:${a.attempt}`, `${b.entityId}:${b.attempt}`);
 }
 
 describe("flushClosedRecoveryRejectedAttemptWindows", () => {

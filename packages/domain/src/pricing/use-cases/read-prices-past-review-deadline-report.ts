@@ -2,6 +2,7 @@ import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js
 import {
   argentinaCalendarDay,
   type Clock,
+  compareCodeUnits,
   compareSpanishText,
   type ReportPeriod,
   type ZoneRulesSource,
@@ -51,10 +52,11 @@ function compareAwaitingReview(a: PriceAwaitingReview, b: PriceAwaitingReview): 
     if (b.pastDeadlineOn === null) {
       return 1;
     }
-    return a.pastDeadlineOn.localeCompare(b.pastDeadlineOn);
+    return compareCodeUnits(a.pastDeadlineOn, b.pastDeadlineOn);
   }
   return (
-    compareSpanishText(a.product.name, b.product.name) || a.product.id.localeCompare(b.product.id)
+    compareSpanishText(a.product.name, b.product.name) ||
+    compareCodeUnits(a.product.id, b.product.id)
   );
 }
 

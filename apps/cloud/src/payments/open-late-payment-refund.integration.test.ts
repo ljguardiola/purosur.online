@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { latePaymentRefund, latePaymentRefundOfUnrecordedOrder } from "@purosur/domain";
+import {
+  compareCodeUnits,
+  latePaymentRefund,
+  latePaymentRefundOfUnrecordedOrder,
+} from "@purosur/domain";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -107,7 +111,7 @@ describe("openLatePaymentRefund", () => {
     expect(
       refunds
         .map(({ providerOrderId, amount }) => ({ providerOrderId, amount }))
-        .sort((a, b) => (a.providerOrderId ?? "").localeCompare(b.providerOrderId ?? "")),
+        .sort((a, b) => compareCodeUnits(a.providerOrderId ?? "", b.providerOrderId ?? "")),
     ).toEqual([
       { providerOrderId: "order-2", amount: 4200 },
       { providerOrderId: "order-3", amount: 4300 },

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { MarginAllocation } from "@purosur/domain";
+import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
 import { readMarginReport } from "@purosur/domain/stock/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -100,7 +101,8 @@ function ordered<T extends { allocations: readonly MarginAllocation[] }>(lines: 
   return lines.map((line) => ({
     ...line,
     allocations: [...line.allocations].sort(
-      (a, b) => b.movementKind.localeCompare(a.movementKind) || a.lotId.localeCompare(b.lotId),
+      (a, b) =>
+        compareCodeUnits(b.movementKind, a.movementKind) || compareCodeUnits(a.lotId, b.lotId),
     ),
   }));
 }
@@ -192,12 +194,12 @@ describe("DrizzleSaleMarginReportReader.completedSaleLinesByProduct", () => {
     expect(
       lines
         .map(({ saleId, amount, allocations }) => [saleId, amount, allocations])
-        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+        .sort((a, b) => compareCodeUnits(String(a[0]), String(b[0]))),
     ).toEqual(
       [
         [firstSale, 30_000, [saleAllocation(lotId, -3_000)]],
         [secondSale, 10_000, [saleAllocation(lotId, -1_000)]],
-      ].sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+      ].sort((a, b) => compareCodeUnits(String(a[0]), String(b[0]))),
     );
   });
 
@@ -428,7 +430,7 @@ describe("DrizzleSaleMarginReportReader.completedSaleLinesByCategory", () => {
           netContent,
           amount,
         }))
-        .sort((a, b) => a.path.join().localeCompare(b.path.join())),
+        .sort((a, b) => compareSpanishText(a.path.join(), b.path.join())),
     ).toEqual([
       { id: grocery, path: ["Almacén"], brandName: null, netContent: null, amount: 3_000 },
       { id: sweets, path: ["Almacén", "Dulces"], brandName: null, netContent: null, amount: 5_000 },

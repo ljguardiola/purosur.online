@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "@purosur/domain";
 import { rotateRegisterSnapshotKey } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -267,7 +268,7 @@ describe("revoking every installation on a real Postgres", () => {
       registerName: "Caja fallida 2",
       inOtherBranch: true,
     });
-    const [, last] = [first, second].sort((a, b) => a.registerId.localeCompare(b.registerId));
+    const [, last] = [first, second].sort((a, b) => compareCodeUnits(a.registerId, b.registerId));
     if (!last) {
       throw new Error("test setup: no register to fail on");
     }
