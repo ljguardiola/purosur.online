@@ -1724,7 +1724,14 @@ describe("answerRendererRequest", () => {
     const { deps: withCharge } = deps(true, {
       chargeSaleWithPaidOrder: async (request) => {
         requests.push(request);
-        return { kind: "completed", sale_id: "s1", total: 3000, applied: 3000, surplus: 0 };
+        return {
+          kind: "completed",
+          sale_id: "s1",
+          total: 3000,
+          applied: 3000,
+          surplus: 0,
+          surplus_sent_by_cloud: true,
+        };
       },
     });
 
@@ -1737,7 +1744,14 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "charge-sale-with-paid-order-result",
       request_id: "r74",
-      outcome: { kind: "completed", sale_id: "s1", total: 3000, applied: 3000, surplus: 0 },
+      outcome: {
+        kind: "completed",
+        sale_id: "s1",
+        total: 3000,
+        applied: 3000,
+        surplus: 0,
+        surplus_sent_by_cloud: true,
+      },
     });
     expect(requests).toEqual([{ saleId: "s1" }]);
   });

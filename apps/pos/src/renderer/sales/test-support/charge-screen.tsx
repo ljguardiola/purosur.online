@@ -207,6 +207,7 @@ export async function renderScreen(overrides: Overrides = {}) {
         total: 476_000,
         applied: 476_000,
         surplus: 0,
+        surplus_sent_by_cloud: true,
       })),
   );
   const paymentMethodAvailability = vi.fn(

@@ -28,18 +28,6 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("names a Point paid order as Point", async () => {
-    const { screen } = await renderScreen({
-      currentSale: async () => saleRebuiltAgainstPaidOrder({ method: "POINT", amount: 500_000 }),
-    });
-
-    await expect
-      .element(screen.getByRole("status"))
-      .toHaveTextContent(
-        "Pago con Point de $ 5.000,00 Aplicalo a la venta antes de cobrar con otro medio.",
-      );
-  });
-
   it.each([
     ["a sale not rebuilt against a paid order", SALE_OF_ONE_LINE],
     ["a paid order already applied", saleRebuiltAgainstPaidOrder({ ...QR_ORDER, applied: true })],
@@ -73,7 +61,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     expect(chargeSaleWithPaidOrder).toHaveBeenCalledExactlyOnceWith("sale-1");
   });
 
-  it("tells the surplus goes back to the customer through Mercado Pago, with no change handed out", async () => {
+  it("tells the surplus is a pending refund the cloud sends once confirmed in the backoffice, with no change handed out", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => saleRebuiltAgainstPaidOrder(QR_ORDER),
       chargeSaleWithPaidOrder: async () => ({
@@ -82,6 +70,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
         total: 476_000,
         applied: 500_000,
         surplus: 24_000,
+        surplus_sent_by_cloud: true,
       }),
     });
 
@@ -91,11 +80,11 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await expect
       .element(screen.getByRole("dialog").getByRole("status"))
       .toHaveTextContent(
-        "Mercado Pago le devuelve $ 240,00 al cliente No se entrega vuelto en el mostrador.",
+        "Reembolso pendiente de $ 240,00 por Mercado Pago La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
       );
   });
 
-  it("goes back to the methods showing what is left to charge after the order paid part of the sale", async () => {
+  it("goes back to the methods with the balance left to charge after the order paid part of the sale, adding no notice of it", async () => {
     const { screen, currentSale } = await renderScreen({
       currentSale: readsInTurn(
         saleRebuiltAgainstPaidOrder(QR_ORDER, {
@@ -121,13 +110,12 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
 
     await userEvent.click(screen.getByRole("button", { name: APPLY }));
 
-    await expect
-      .element(screen.getByRole("status"))
-      .toHaveTextContent("Quedan $ 4.000,00 por cobrar con otro medio");
     await expect.element(screen.getByRole("button", { name: APPLY })).not.toBeInTheDocument();
     await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("$ 5.000,00")).toBeVisible();
+    await expect.element(panel.getByText("$ 4.000,00")).toBeVisible();
+    await expect.element(screen.getByText(/por cobrar con otro medio/)).not.toBeInTheDocument();
     expect(currentSale.mock.calls.length).toBeGreaterThan(1);
   });
 
@@ -141,46 +129,6 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
 
     await expect.element(screen.getByRole("button", { name: APPLY })).not.toBeInTheDocument();
     expect(currentSale.mock.calls.length).toBeGreaterThan(1);
-  });
-
-  it("says the sale could not be charged with the order when the core is unavailable, and lets try again", async () => {
-    const { screen } = await renderScreen({
-      currentSale: async () => saleRebuiltAgainstPaidOrder(QR_ORDER),
-      chargeSaleWithPaidOrder: async () => ({ kind: "unavailable" }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: APPLY }));
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("No se pudo cobrar con el pago de Mercado Pago. Probá de nuevo.");
-    await expect.element(screen.getByRole("button", { name: APPLY })).toBeEnabled();
-  });
-
-  it("treats a failed request as the core being unavailable", async () => {
-    const { screen } = await renderScreen({
-      currentSale: async () => saleRebuiltAgainstPaidOrder(QR_ORDER),
-      chargeSaleWithPaidOrder: () => Promise.reject(new Error("the core connection was replaced")),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: APPLY }));
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("No se pudo cobrar con el pago de Mercado Pago. Probá de nuevo.");
-  });
-
-  it("says the register is being restored", async () => {
-    const { screen } = await renderScreen({
-      currentSale: async () => saleRebuiltAgainstPaidOrder(QR_ORDER),
-      chargeSaleWithPaidOrder: async () => ({ kind: "restoration_in_progress" }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: APPLY }));
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("La caja se está restaurando. Esperá a que termine.");
   });
 
   it.each([

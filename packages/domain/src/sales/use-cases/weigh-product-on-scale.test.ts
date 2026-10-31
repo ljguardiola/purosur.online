@@ -123,6 +123,7 @@ describe("weighProductOnScale", () => {
       cancelRefusal: null,
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
+      rebuiltPaidOrder: null,
     });
     expect(store.state.sales).toEqual([sale]);
   });

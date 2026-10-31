@@ -114,6 +114,7 @@ describe("chargeSaleWithPaidOrder", () => {
         total: 5000,
         applied: 5000,
         surplus: 0,
+        surplusSentByCloud: true,
       });
       expect(store.state.payments).toEqual([
         {
@@ -205,11 +206,22 @@ describe("chargeSaleWithPaidOrder", () => {
         total: 5000,
         applied: 5000,
         surplus: 3000,
+        surplusSentByCloud: true,
       });
       expect(store.state.payments).toMatchObject([{ id: "order-1", amount: 5000 }]);
       expect(store.state.movements).toEqual([]);
       expect(completedEvent(store)).toMatchObject({
         payload: { rebuilt_paid_order: { payment_transaction_id: "order-1", surplus: 3000 } },
+      });
+    });
+
+    it("tells the surplus of a Point order is not sent to Mercado Pago by the cloud", () => {
+      const store = ledger({ paidOrders: [aPointPaidOrder({ amount: 8000 })] });
+
+      expect(chargeWithPaidOrder(store)).toMatchObject({
+        kind: "completed",
+        surplus: 3000,
+        surplusSentByCloud: false,
       });
     });
   });

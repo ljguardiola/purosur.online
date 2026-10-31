@@ -546,8 +546,22 @@ describe("charging a sale with the paid order it was rebuilt against", () => {
   });
 
   it.each([
-    { kind: "completed", sale_id: "sale-9", total: 6750, applied: 4500, surplus: 0 },
-    { kind: "completed", sale_id: "sale-9", total: 2000, applied: 2000, surplus: 2500 },
+    {
+      kind: "completed",
+      sale_id: "sale-9",
+      total: 6750,
+      applied: 4500,
+      surplus: 0,
+      surplus_sent_by_cloud: true,
+    },
+    {
+      kind: "completed",
+      sale_id: "sale-9",
+      total: 2000,
+      applied: 2000,
+      surplus: 2500,
+      surplus_sent_by_cloud: false,
+    },
     { kind: "partially_paid", sale_id: "sale-9", total: 6750, paid: 4500, pending: 2250 },
     { kind: "no_paid_order" },
     { kind: "already_applied" },
@@ -572,11 +586,40 @@ describe("charging a sale with the paid order it was rebuilt against", () => {
   });
 
   it.each([
-    ["no applied amount", { kind: "completed", sale_id: "sale-9", total: 6750, surplus: 0 }],
-    ["no surplus", { kind: "completed", sale_id: "sale-9", total: 6750, applied: 4500 }],
+    [
+      "no applied amount",
+      {
+        kind: "completed",
+        sale_id: "sale-9",
+        total: 6750,
+        surplus: 0,
+        surplus_sent_by_cloud: true,
+      },
+    ],
+    [
+      "no surplus",
+      {
+        kind: "completed",
+        sale_id: "sale-9",
+        total: 6750,
+        applied: 4500,
+        surplus_sent_by_cloud: true,
+      },
+    ],
     [
       "a negative surplus",
-      { kind: "completed", sale_id: "sale-9", total: 6750, applied: 4500, surplus: -1 },
+      {
+        kind: "completed",
+        sale_id: "sale-9",
+        total: 6750,
+        applied: 4500,
+        surplus: -1,
+        surplus_sent_by_cloud: true,
+      },
+    ],
+    [
+      "no word on whether the cloud sends its surplus back",
+      { kind: "completed", sale_id: "sale-9", total: 6750, applied: 4500, surplus: 0 },
     ],
   ])("rejects a completion with %s", (_case, outcome) => {
     expect(

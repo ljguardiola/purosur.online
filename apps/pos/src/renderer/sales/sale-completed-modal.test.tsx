@@ -30,7 +30,19 @@ function found(
 
 type Amounts =
   | { total: number; tendered: number; change: number }
-  | { total: number; method: "QR"; amount: number; surplus: number }
+  | {
+      total: number;
+      method: "QR";
+      amount: number;
+      surplusRefund: { amount: number; sentByCloud: boolean };
+    }
+  | {
+      total: number;
+      method: "POINT";
+      cardType: null;
+      amount: number;
+      surplusRefund: { amount: number; sentByCloud: boolean };
+    }
   | { total: number; method: "TRANSFER"; amount: number }
   | { total: number; method: "QR"; amount: number }
   | { total: number; method: "POINT"; cardType: "DEBIT" | "CREDIT" | null; amount: number }
@@ -153,12 +165,12 @@ describe("SaleCompletedModal", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("tells the surplus of a paid order goes back to the customer through Mercado Pago, with no change", async () => {
+  it("tells the surplus of a paid order is a pending refund the cloud sends once confirmed in the backoffice, with no change", async () => {
     const { screen } = await renderModal({
       total: 476_000,
       method: "QR",
       amount: 500_000,
-      surplus: 24_000,
+      surplusRefund: { amount: 24_000, sentByCloud: true },
     });
 
     await expect
@@ -167,10 +179,26 @@ describe("SaleCompletedModal", () => {
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent(
-        "Mercado Pago le devuelve $ 240,00 al cliente No se entrega vuelto en el mostrador.",
+        "Reembolso pendiente de $ 240,00 por Mercado Pago La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
       );
     await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("tells the surplus of a paid order is a pending refund a person makes from Mercado Pago when the cloud does not send it", async () => {
+    const { screen } = await renderModal({
+      total: 476_000,
+      method: "POINT",
+      cardType: null,
+      amount: 500_000,
+      surplusRefund: { amount: 24_000, sentByCloud: false },
+    });
+
+    await expect
+      .element(screen.getByRole("status"))
+      .toHaveTextContent(
+        "Reembolso pendiente de $ 240,00 por Mercado Pago Lo devuelve una persona desde Mercado Pago, cuando lo atiende en el backoffice.",
+      );
   });
 
   it("says nothing of a surplus when the paid order had none", async () => {
@@ -178,11 +206,11 @@ describe("SaleCompletedModal", () => {
       total: 476_000,
       method: "QR",
       amount: 476_000,
-      surplus: 0,
+      surplusRefund: { amount: 0, sentByCloud: true },
     });
 
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
-    await expect.element(screen.getByText(/Mercado Pago le devuelve/)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/Reembolso pendiente/)).not.toBeInTheDocument();
   });
 
   it("says there is no change to hand over and shows what the standalone terminal charged", async () => {

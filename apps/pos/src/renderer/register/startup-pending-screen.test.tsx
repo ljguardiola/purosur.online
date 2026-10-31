@@ -1074,15 +1074,12 @@ describe("StartupPendingScreen", () => {
       expect(rebuildSaleAgainstPaidOrder).not.toHaveBeenCalled();
     });
 
-    it("tells the sale is being rebuilt in the order's detail", async () => {
+    it("leaves to the order's status that its sale is being rebuilt, its detail telling only what was paid", async () => {
       const { screen } = await renderScreen({ loadStartupPending: async () => REBUILT_QR });
 
+      await expect.element(screen.getByText("Armando la venta")).toBeVisible();
       await expect
-        .element(
-          screen.getByText(
-            "$ 800,00 cobrados a las 15:30. La venta se está armando con este cobro.",
-          ),
-        )
+        .element(screen.getByText("$ 800,00 cobrados a las 15:30.", { exact: true }))
         .toBeVisible();
     });
 

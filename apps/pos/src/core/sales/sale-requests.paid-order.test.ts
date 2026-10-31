@@ -212,6 +212,7 @@ describe("charging a rebuilt sale with its paid order", () => {
       total: 3000,
       applied: 3000,
       surplus: 0,
+      surplus_sent_by_cloud: true,
     });
     expect(
       database.prepare("SELECT id, sale_id, state, amount FROM payment_transactions").all(),
@@ -222,6 +223,19 @@ describe("charging a rebuilt sale with its paid order", () => {
     expect(new SqliteLocalPaidOrders({ database }).rebuildablePaidOrder("order-1")?.resolved).toBe(
       true,
     );
+  });
+
+  it("tells the surplus of a Point order is not sent back by the cloud", async () => {
+    recordPaidOrder(5000, "POINT");
+    const { saleId } = await rebuildAndSell(2);
+
+    const outcome = await chargeSaleWithPaidOrderFor(deps(), { saleId });
+
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      surplus: 2000,
+      surplus_sent_by_cloud: false,
+    });
   });
 
   it("emits the completed sale as version 10 naming the order and the surplus of a higher payment", async () => {

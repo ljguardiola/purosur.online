@@ -79,15 +79,31 @@ describe("ChargeCompletedModal", () => {
   });
 
   it.each([
-    ["QR", "QR de Mercado Pago"],
-    ["POINT", "Point"],
+    [
+      "QR",
+      "QR de Mercado Pago",
+      true,
+      "Reembolso pendiente de $ 240,00 por Mercado Pago La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
+    ],
+    [
+      "POINT",
+      "Point",
+      false,
+      "Reembolso pendiente de $ 240,00 por Mercado Pago Lo devuelve una persona desde Mercado Pago, cuando lo atiende en el backoffice.",
+    ],
   ] as const)(
-    "shows the amount of the %s paid order applied and what goes back to the customer",
-    async (orderMethod, label) => {
+    "shows the amount of the %s paid order applied and how its surplus goes back to the customer",
+    async (orderMethod, label, sentByCloud, surplusNotice) => {
       const screen = await renderModal({
         method: "PAID_ORDER",
         orderMethod,
-        charge: { kind: "completed", ...SALE, applied: 500_000, surplus: 24_000 },
+        charge: {
+          kind: "completed",
+          ...SALE,
+          applied: 500_000,
+          surplus: 24_000,
+          surplus_sent_by_cloud: sentByCloud,
+        },
       });
 
       await expect
@@ -95,11 +111,7 @@ describe("ChargeCompletedModal", () => {
         .toBeVisible();
       await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
       await expect.element(screen.getByText("$ 5.000,00")).toBeVisible();
-      await expect
-        .element(screen.getByRole("status"))
-        .toHaveTextContent(
-          "Mercado Pago le devuelve $ 240,00 al cliente No se entrega vuelto en el mostrador.",
-        );
+      await expect.element(screen.getByRole("status")).toHaveTextContent(surplusNotice);
     },
   );
 });

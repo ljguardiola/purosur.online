@@ -18,6 +18,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
     refundAmount,
     transactionState = "APPROVED",
     heldBySale = false,
+    saleCompletedAt,
   }: {
     openedAt: Date;
     registerName?: string;
@@ -29,6 +30,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
     refundAmount?: number;
     transactionState?: PaymentTransactionState;
     heldBySale?: boolean;
+    saleCompletedAt?: Date;
   },
 ) {
   const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
@@ -49,7 +51,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
   if (coveredBy.length > 0 || heldBySale) {
     await applyCompletedSale(db, {
       deviceId,
-      completedAt: transaction.createdAt,
+      completedAt: saleCompletedAt ?? transaction.createdAt,
       total: 5000,
       overrides: {
         id: transaction.saleId,

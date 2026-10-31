@@ -327,6 +327,21 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
       expect(refund).toMatchObject({ saleId: late.saleId, amount: 400, ofRebuiltSale: true });
     });
 
+    it("dates the surplus of a rebuilt sale by the sale's completion, not by its paid order", async () => {
+      const rebuiltAt = new Date("2026-10-09T13:00:00.000Z");
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        heldBySale: true,
+        refundAmount: 400,
+        saleCompletedAt: rebuiltAt,
+      });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(late.saleOccurredAt).not.toEqual(rebuiltAt);
+      expect(refund?.saleOccurredAt).toEqual(rebuiltAt);
+    });
+
     it("keeps the paid order's own payment out of the methods that covered the sale of its surplus", async () => {
       const late = await aPendingLatePaymentRefund(db, {
         openedAt: NOW,

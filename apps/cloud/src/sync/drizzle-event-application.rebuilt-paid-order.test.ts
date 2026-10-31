@@ -107,7 +107,7 @@ describe("applying a pushed sale rebuilt against a paid order", () => {
       expect.objectContaining({
         kind: "late_payment_refund",
         scope: refund?.id,
-        detail: { saleId, amount: 600, providerOrderId: null, method: "QR" },
+        detail: { saleId, amount: 600, providerOrderId: null, method: "QR", ofRebuiltSale: true },
       }),
     ]);
   });
