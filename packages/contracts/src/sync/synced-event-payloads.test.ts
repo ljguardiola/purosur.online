@@ -227,6 +227,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@7",
       "sale_cancelled@8",
       "sale_cancelled@9",
+      "sale_cancelled@10",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
@@ -333,7 +334,7 @@ describe("synced event payloads", () => {
   it.each([
     ["an unknown event type", "sale_opened", 1],
     ["a sale_completed version nobody emitted", "sale_completed", 11],
-    ["a sale_cancelled version nobody emitted", "sale_cancelled", 10],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 11],
     ["a sale_line_removed version nobody emitted", "sale_line_removed", 2],
     ["a sale_voided version nobody emitted", "sale_voided", 5],
     ["version zero", "sale_completed", 0],

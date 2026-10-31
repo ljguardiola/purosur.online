@@ -1831,6 +1831,7 @@ describe("decoding the events the registers pushed", () => {
             },
           ],
           cashMovements: [decodedMovement],
+          rebuiltPaidOrder: null,
         },
       },
     });
