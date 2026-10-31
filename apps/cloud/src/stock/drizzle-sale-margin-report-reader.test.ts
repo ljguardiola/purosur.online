@@ -100,7 +100,7 @@ function ordered<T extends { allocations: readonly MarginAllocation[] }>(lines: 
   return lines.map((line) => ({
     ...line,
     allocations: [...line.allocations].sort(
-      (a, b) => a.movementKind.localeCompare(b.movementKind) || a.lotId.localeCompare(b.lotId),
+      (a, b) => b.movementKind.localeCompare(a.movementKind) || a.lotId.localeCompare(b.lotId),
     ),
   }));
 }
