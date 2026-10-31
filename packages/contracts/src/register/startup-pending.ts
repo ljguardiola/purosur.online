@@ -34,7 +34,7 @@ const startupPaidOrderWithoutSaleSchema = z.object({
   method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
   amount: z.number().refine(isValidOrderAmount),
   created_at: z.string(),
-  rebuilt_sale_id: z.string().nullable().optional(),
+  rebuilt_sale_id: z.string().nullable(),
 });
 
 export const startupPendingSchema = z.object({

@@ -132,8 +132,7 @@ export const saleSchema = z.object({
       method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
       applied: z.boolean(),
     })
-    .nullable()
-    .optional(),
+    .nullable(),
 });
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
