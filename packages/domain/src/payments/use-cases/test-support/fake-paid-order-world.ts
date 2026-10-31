@@ -2,7 +2,8 @@ import type {
   LocalSaleOfPaidOrder,
   LocalStateOfPaidOrder,
 } from "../../model/paid-order-discovery.js";
-import type { PaymentTransactionState, PointCardType } from "../../model/payment-transaction.js";
+import type { PointCardType } from "../../model/payment.js";
+import type { PaymentTransactionState } from "../../model/payment-transaction.js";
 import type {
   ApprovedOrderOfRegister,
   ApprovedOrdersAnswer,
