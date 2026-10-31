@@ -148,6 +148,7 @@ const convertPaidOrderIntoRefundOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("converted") }),
   z.object({ kind: z.literal("already_resolved") }),
   z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("rebuilt_sale_open") }),
   z.object({ kind: z.literal("refused") }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("not_permitted") }),
