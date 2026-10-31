@@ -215,6 +215,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       linkSupplierPriceListRow: vi.fn(),
       fetchSupplierItemLinkProposal: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierItemLinkChoices: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchSupplierItemQuantityProposal: vi.fn().mockReturnValue(new Promise(() => {})),
       createProductFromSupplierItem: vi.fn(),
       fetchProductCreationCategories: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchProductCreationBrands: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -248,6 +249,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     lossesByReasonReportScreen: {
       fetchLossesByReasonReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    marginReportScreen: {
+      fetchMarginReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     pricesPastReviewDeadlineReportScreen: {
       fetchPricesPastReviewDeadlineReport: vi.fn().mockReturnValue(new Promise(() => {})),

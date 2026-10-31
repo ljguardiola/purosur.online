@@ -50,7 +50,52 @@ describe("the row to propose a product for", () => {
       description: "Yerba 1 kg",
       presentation: "Caja x 10",
       barcode: "7790000000011",
+      otherPresentations: [],
     });
+  });
+
+  it("answers the presentations the other rows of the list state for the same description, without repeats", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+    const [rowId] = await insertPriceListRows(db, listId, [
+      { description: "Aceite de palta 250 ml", presentation: "x3 packs" },
+      { description: "Aceite de palta 250 ml", presentation: "Pack x12u" },
+      { description: "Aceite de palta 250 ml", presentation: "Pack x12u" },
+      { description: "Aceite de palta 250 ml", presentation: null },
+      { description: "Aceite de palta 250 ml", presentation: "Caja" },
+      { description: "Aceite de palta 500 ml", presentation: "Botella" },
+    ]);
+
+    const row = await reader().row(listId, rowId as string);
+
+    expect([...(row?.otherPresentations ?? [])].sort()).toEqual(["Caja", "Pack x12u"]);
+  });
+
+  it("leaves out the presentations of the same description in another list", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+    const otherListId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+    const [rowId] = await insertPriceListRows(db, listId, [
+      { description: "Aceite de palta 250 ml", presentation: "x3 packs" },
+    ]);
+    await insertPriceListRows(db, otherListId, [
+      { description: "Aceite de palta 250 ml", presentation: "Pack x12u" },
+    ]);
+
+    expect((await reader().row(listId, rowId as string))?.otherPresentations).toEqual([]);
   });
 
   it("answers nothing for a row of another list or one that does not exist", async () => {
@@ -76,7 +121,7 @@ describe("the active products carrying a barcode", () => {
     await insertBarcode(db, { productId: other, code: "7790000000028" });
 
     expect(await reader().activeProductsWithBarcode("7790000000011")).toEqual([
-      { id, name: "Yerba 1 kg", brandName: null, netContent: null },
+      { id, name: "Yerba 1 kg", brandName: null, netContent: null, saleUnit: "UNIT" },
     ]);
   });
 
@@ -90,7 +135,13 @@ describe("the active products carrying a barcode", () => {
     await insertBarcode(db, { productId: id, code: "7790000000011" });
 
     expect(await reader().activeProductsWithBarcode("7790000000011")).toEqual([
-      { id, name: "Granola Berries", brandName: "Kos", netContent: { quantity: 1, unit: "KG" } },
+      {
+        id,
+        name: "Granola Berries",
+        brandName: "Kos",
+        netContent: { quantity: 1, unit: "KG" },
+        saleUnit: "UNIT",
+      },
     ]);
   });
 
@@ -111,7 +162,7 @@ describe("the active products carrying a barcode", () => {
     await insertBarcode(db, { productId: id, code: "7790000000028", position: 1 });
 
     expect(await reader().activeProductsWithBarcode("7790000000028")).toEqual([
-      { id, name: "Yerba 1 kg", brandName: null, netContent: null },
+      { id, name: "Yerba 1 kg", brandName: null, netContent: null, saleUnit: "UNIT" },
     ]);
   });
 });
@@ -129,10 +180,24 @@ describe("the active products", () => {
 
     expect(await reader().activeProducts()).toEqual(
       expect.arrayContaining([
-        { id, name: "Granola Berries", brandName: "Kos", netContent: { quantity: 500, unit: "G" } },
-        { id: plain, name: "Yerba 1 kg", brandName: null, netContent: null },
+        {
+          id,
+          name: "Granola Berries",
+          brandName: "Kos",
+          netContent: { quantity: 500, unit: "G" },
+          saleUnit: "UNIT",
+        },
+        { id: plain, name: "Yerba 1 kg", brandName: null, netContent: null, saleUnit: "UNIT" },
       ]),
     );
     expect(await reader().activeProducts()).toHaveLength(2);
+  });
+
+  it("answers the sale unit of each product", async () => {
+    const { id } = await insertProduct(db, { name: "Almendras peladas", saleUnit: "KG" });
+
+    expect(await reader().activeProducts()).toEqual([
+      { id, name: "Almendras peladas", brandName: null, netContent: null, saleUnit: "KG" },
+    ]);
   });
 });

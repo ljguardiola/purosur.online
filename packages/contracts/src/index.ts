@@ -477,6 +477,14 @@ export type { SupplierItemLinkChoices } from "./purchasing/supplier-item-link-ch
 export { supplierItemLinkChoicesSchema } from "./purchasing/supplier-item-link-choices.js";
 export type { SupplierItemLinkProposal } from "./purchasing/supplier-item-link-proposal.js";
 export { supplierItemLinkProposalSchema } from "./purchasing/supplier-item-link-proposal.js";
+export type {
+  SupplierItemQuantityProposal,
+  SupplierItemQuantityProposalBody,
+} from "./purchasing/supplier-item-quantity-proposal.js";
+export {
+  supplierItemQuantityProposalBodySchema,
+  supplierItemQuantityProposalSchema,
+} from "./purchasing/supplier-item-quantity-proposal.js";
 export type { SupplierPriceComparison } from "./purchasing/supplier-price-comparison.js";
 export { supplierPriceComparisonSchema } from "./purchasing/supplier-price-comparison.js";
 export type { SupplierPriceListConfirmationBody } from "./purchasing/supplier-price-list-confirmation.js";
@@ -797,8 +805,6 @@ export type {
 } from "./sales/sales-history.js";
 export type { SalesReportBody } from "./sales/sales-report.js";
 export { salesReportSchema } from "./sales/sales-report.js";
-export type { SalesReportGroupBody } from "./sales/sales-report-group.js";
-export { salesReportGroupSchema } from "./sales/sales-report-group.js";
 export type {
   CompromiseResponseBody,
   CompromiseResponseSessionsAndPasskeysBody,
@@ -835,6 +841,7 @@ export type {
   OpenCashSession,
   PinAttemptRefusal,
   ReportQuery,
+  SalesReportGroupBody,
   SignInUser,
 } from "./shared/index.js";
 export {
@@ -854,6 +861,7 @@ export {
   recordIdSchema,
   reportQuerySchema,
   reportsFailedQuery,
+  salesReportGroupSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
@@ -939,6 +947,8 @@ export {
   lossesByReasonReportQuerySchema,
   lossesByReasonReportSchema,
 } from "./stock/losses-by-reason-report.js";
+export type { MarginReportBody, MarginReportQuery } from "./stock/margin-report.js";
+export { marginReportQuerySchema, marginReportSchema } from "./stock/margin-report.js";
 export type { RecipeSaveBody } from "./stock/recipe-save-body.js";
 export { recipeSaveBodySchema } from "./stock/recipe-save-body.js";
 export type { RecipeSaveRefusal } from "./stock/recipe-save-refusal.js";

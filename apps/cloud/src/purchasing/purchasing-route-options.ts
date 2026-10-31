@@ -1,6 +1,7 @@
 import type { ZoneRulesSource } from "@purosur/domain";
 import type {
   ProductChooser,
+  SupplierItemQuantityReader,
   SupplierPriceListFiles,
   SupplierPriceListWebPages,
 } from "@purosur/domain/purchasing/use-cases";
@@ -16,4 +17,6 @@ export interface PurchasingRouteOptions<TQueryResult extends PgQueryResultHKT> {
   supplierPriceListWebPages?: SupplierPriceListWebPages;
   // Present only when the AI choice of a product for a supplier's item is configured.
   productChooser?: ProductChooser;
+  // Present only when the AI reading of the quantity a supplier's item brings is configured.
+  supplierItemQuantityReader?: SupplierItemQuantityReader;
 }

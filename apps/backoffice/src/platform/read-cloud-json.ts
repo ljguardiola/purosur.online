@@ -19,10 +19,18 @@ function refusalOf(response: Response): Exclude<CloudReadOutcome<never>, { kind:
 export async function readCloudJson<T>(
   path: string,
   schema: Schema<T>,
+  request?: { body: unknown },
 ): Promise<CloudReadOutcome<T>> {
   let response: Response;
   try {
-    response = await fetch(path);
+    response =
+      request === undefined
+        ? await fetch(path)
+        : await fetch(path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request.body),
+          });
   } catch {
     return { kind: "failed" };
   }

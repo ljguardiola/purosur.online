@@ -5,6 +5,7 @@ import {
   type SupplierItemProductFormValues,
   supplierItemProductFormValuesOf,
   supplierItemProductRequestFrom,
+  supplierItemQuantityProposalRequestFrom,
 } from "./supplier-item-product-form";
 import { EXTRACTED_ROWS } from "./test-support/supplier-price-lists";
 
@@ -154,5 +155,32 @@ describe("SUPPLIER_ITEM_PRODUCT_MESSAGES", () => {
     );
     expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.saleUnit()).toBe(PRODUCT_MESSAGES.saleUnit());
     expect(SUPPLIER_ITEM_PRODUCT_MESSAGES.brandId()).toBe(PRODUCT_MESSAGES.brandId());
+  });
+});
+
+describe("supplierItemQuantityProposalRequestFrom", () => {
+  it("asks with the sale unit and no net content when none was typed", () => {
+    expect(supplierItemQuantityProposalRequestFrom({ ...FILLED, saleUnit: "KG" })).toEqual({
+      saleUnit: "KG",
+      netContent: null,
+    });
+  });
+
+  it("asks with the net content typed", () => {
+    expect(
+      supplierItemQuantityProposalRequestFrom({
+        ...FILLED,
+        netContent: { quantity: "1,5", unit: "KG" },
+      }),
+    ).toEqual({ saleUnit: "UNIT", netContent: { quantity: 1.5, unit: "KG" } });
+  });
+
+  it.each(["abc", "0", "-3", "1,23456"])("asks nothing for the net content %j", (quantity) => {
+    expect(
+      supplierItemQuantityProposalRequestFrom({
+        ...FILLED,
+        netContent: { quantity, unit: "G" },
+      }),
+    ).toBeNull();
   });
 });

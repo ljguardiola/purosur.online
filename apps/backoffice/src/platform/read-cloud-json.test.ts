@@ -26,6 +26,20 @@ test("reads the body the schema accepts from the path", async () => {
   expect(fetch).toHaveBeenCalledWith("/api/thing");
 });
 
+test("posts the body as JSON when one is given", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { name: "x" }));
+
+  expect(await readCloudJson("/api/thing", schema, { body: { size: 3 } })).toEqual({
+    kind: "ok",
+    value: { name: "x" },
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/thing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ size: 3 }),
+  });
+});
+
 test.each([
   [401, { kind: "unauthenticated" }],
   [403, { kind: "forbidden" }],

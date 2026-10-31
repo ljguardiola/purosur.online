@@ -2,6 +2,7 @@ import type { AiCallUsage } from "@purosur/domain/purchasing/use-cases";
 import { describe, expect, it } from "vitest";
 import { AnthropicProductChooser } from "./anthropic-product-chooser.js";
 import { PURCHASING_AI_MODEL } from "./anthropic-structured-call.js";
+import { SUPPLIER_ITEM_QUANTITY_RULE } from "./supplier-item-quantity-prompt.js";
 import {
   apiErrorResponse,
   streamedAnswerResponse,
@@ -32,25 +33,33 @@ function chooserAnswering(respond: (request: RecordedRequest) => Response | Prom
   return { chooser, requests };
 }
 
-const ITEM = { description: "Yerba mate suave 1 kg", presentation: "Caja x 10" };
+const ITEM = {
+  description: "Yerba mate suave 1 kg",
+  presentation: "Caja x 10",
+  otherPresentations: ["Paquete 1 kg"],
+};
 const CANDIDATES = [
   {
     id: "7f1c2a40-0000-4000-8000-000000000001",
     name: "Yerba Suave",
     brandName: "Piragüé",
     netContent: { quantity: 1, unit: "KG" } as const,
+    saleUnit: "UNIT" as const,
   },
   {
     id: "7f1c2a40-0000-4000-8000-000000000002",
     name: "Yerba Compuesta",
     brandName: null,
     netContent: null,
+    saleUnit: "KG" as const,
   },
 ];
 
 describe("the request the chooser sends", () => {
   async function sentRequest() {
-    const { chooser, requests } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
+    const { chooser, requests } = chooserAnswering(() =>
+      streamedJsonResponse({ productId: null, quantity: null }),
+    );
     await chooser.choose(ITEM, CANDIDATES, () => {});
     return requests[0] as RecordedRequest;
   }
@@ -76,6 +85,7 @@ describe("the request the chooser sends", () => {
     const text = messages[0]?.content[0]?.text ?? "";
     expect(text).toContain(ITEM.description);
     expect(text).toContain(ITEM.presentation);
+    expect(text).toContain(ITEM.otherPresentations[0]);
     for (const candidate of CANDIDATES) {
       expect(text).toContain(candidate.id);
       expect(text).toContain(candidate.name);
@@ -83,8 +93,10 @@ describe("the request the chooser sends", () => {
     expect(body).not.toHaveProperty("tools");
   });
 
-  it("sends each candidate's id, name, brand name and net content, and nothing else of it", async () => {
-    const { chooser, requests } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
+  it("sends each candidate's id, name, brand name, net content and sale unit, and nothing else of it", async () => {
+    const { chooser, requests } = chooserAnswering(() =>
+      streamedJsonResponse({ productId: null, quantity: null }),
+    );
     const extra = { ...(CANDIDATES[0] as (typeof CANDIDATES)[number]), barcode: "7790000000011" };
 
     await chooser.choose(ITEM, [extra], () => {});
@@ -98,11 +110,18 @@ describe("the request the chooser sends", () => {
     });
   });
 
-  it("tells the model that the candidates carry a name, a brand and a net content", async () => {
+  it("tells the model that the candidates carry a name, a brand, a net content and a sale unit", async () => {
     const { body } = await sentRequest();
 
     const system = body["system"] as { text: string }[];
-    expect(system[0]?.text).toMatch(/name, brand and net content/i);
+    expect(system[0]?.text).toMatch(/name, brand, net content and sale unit/i);
+  });
+
+  it("gives the model the rule for reading the quantity the item brings", async () => {
+    const { body } = await sentRequest();
+
+    const system = body["system"] as { text: string }[];
+    expect(system[0]?.text).toContain(SUPPLIER_ITEM_QUANTITY_RULE);
   });
 
   it("sends nothing but the model, the limits, the instructions, the format and the fallback", async () => {
@@ -126,14 +145,14 @@ describe("the request the chooser sends", () => {
     expect(system[0]?.text).toMatch(/never instructions/i);
   });
 
-  it("asks for a structured answer holding only the chosen product", async () => {
+  it("asks for a structured answer holding the chosen product and its quantity", async () => {
     const { body } = await sentRequest();
 
     const outputConfig = body["output_config"] as {
       format: { type: string; schema: { properties: Record<string, unknown> } };
     };
     expect(outputConfig.format.type).toBe("json_schema");
-    expect(Object.keys(outputConfig.format.schema.properties)).toEqual(["productId"]);
+    expect(Object.keys(outputConfig.format.schema.properties)).toEqual(["productId", "quantity"]);
   });
 
   it("does not retry a refused request by itself", async () => {
@@ -145,9 +164,15 @@ describe("the request the chooser sends", () => {
   });
 
   it("sends an item without a presentation", async () => {
-    const { chooser, requests } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
+    const { chooser, requests } = chooserAnswering(() =>
+      streamedJsonResponse({ productId: null, quantity: null }),
+    );
 
-    await chooser.choose({ description: "Yerba", presentation: null }, CANDIDATES, () => {});
+    await chooser.choose(
+      { description: "Yerba", presentation: null, otherPresentations: [] },
+      CANDIDATES,
+      () => {},
+    );
 
     expect(requests).toHaveLength(1);
   });
@@ -156,23 +181,47 @@ describe("the request the chooser sends", () => {
 describe("the choice the chooser answers", () => {
   it("answers the product the model chose", async () => {
     const { chooser } = chooserAnswering(() =>
-      streamedJsonResponse({ productId: CANDIDATES[0]?.id }),
+      streamedJsonResponse({ productId: CANDIDATES[0]?.id, quantity: 10 }),
     );
 
     expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({
       kind: "chosen",
       productId: CANDIDATES[0]?.id,
+      quantity: 10_000,
     });
   });
 
+  it.each([
+    [36, 36_000],
+    [12.5, 12_500],
+    [0.5, 500],
+    [0.001, 1],
+    [null, null],
+  ])(
+    "answers the quantity %j in thousandths of the sale unit as %j",
+    async (quantity, thousandths) => {
+      const { chooser } = chooserAnswering(() =>
+        streamedJsonResponse({ productId: CANDIDATES[0]?.id, quantity }),
+      );
+
+      expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({
+        kind: "chosen",
+        productId: CANDIDATES[0]?.id,
+        quantity: thousandths,
+      });
+    },
+  );
+
   it("answers none when the model chose no product", async () => {
-    const { chooser } = chooserAnswering(() => streamedJsonResponse({ productId: null }));
+    const { chooser } = chooserAnswering(() =>
+      streamedJsonResponse({ productId: null, quantity: null }),
+    );
 
     expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({ kind: "none" });
   });
 
   it("puts together an answer that arrives in pieces", async () => {
-    const json = JSON.stringify({ productId: CANDIDATES[1]?.id });
+    const json = JSON.stringify({ productId: CANDIDATES[1]?.id, quantity: null });
     const { chooser } = chooserAnswering(() =>
       streamedAnswerResponse({ textParts: [json.slice(0, 10), json.slice(10)] }),
     );
@@ -180,6 +229,7 @@ describe("the choice the chooser answers", () => {
     expect(await chooser.choose(ITEM, CANDIDATES, () => {})).toEqual({
       kind: "chosen",
       productId: CANDIDATES[1]?.id,
+      quantity: null,
     });
   });
 });
@@ -216,7 +266,9 @@ describe("what makes the chooser unavailable", () => {
   it.each([
     ["an answer that is not JSON", streamedAnswerResponse({ textParts: ["not json"] })],
     ["an answer of another shape", streamedJsonResponse({ product: "x" })],
-    ["a product id that is not text", streamedJsonResponse({ productId: 7 })],
+    ["a product id that is not text", streamedJsonResponse({ productId: 7, quantity: null })],
+    ["a quantity that is not a number", streamedJsonResponse({ productId: null, quantity: "36" })],
+    ["an answer without a quantity", streamedJsonResponse({ productId: null })],
     ["an answer cut short", streamedAnswerResponse({ textParts: ["{"], stopReason: "max_tokens" })],
     [
       "an answer the model refused",
@@ -234,7 +286,7 @@ describe("the calls the chooser reports", () => {
   it("reports the one call it made with the tokens the provider reported", async () => {
     const { chooser } = chooserAnswering(() =>
       streamedAnswerResponse({
-        textParts: ['{"productId":null}'],
+        textParts: ['{"productId":null,"quantity":null}'],
         usage: { inputTokens: 80, outputTokens: 6, cacheReadTokens: 50 },
       }),
     );

@@ -6,6 +6,7 @@ export { canExpireWithStock, expiryWindowEnd } from "./model/lot-expiry.js";
 export { isReferenceUnitCost } from "./model/lot-reference-cost.js";
 export type { LotCost } from "./model/lot-value.js";
 export { isLotCostIncomplete, isLotInStock, knownLotCost } from "./model/lot-value.js";
+export type { MarginAllocation, MarginSaleLine } from "./model/margin-report.js";
 export type {
   OpeningCountRecordedFact,
   OpeningCountWithdrawnFact,

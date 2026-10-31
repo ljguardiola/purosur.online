@@ -103,6 +103,7 @@ import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 import { AnthropicPriceListExtractor } from "./purchasing/anthropic-price-list-extractor.js";
 import { AnthropicProductChooser } from "./purchasing/anthropic-product-chooser.js";
+import { AnthropicSupplierItemQuantityReader } from "./purchasing/anthropic-supplier-item-quantity-reader.js";
 import { BucketSupplierPriceListFiles } from "./purchasing/bucket-supplier-price-list-files.js";
 import { createGuardedWebPageReader } from "./purchasing/guarded-web-page-reader.js";
 import { supplierPriceListReadingJobs } from "./purchasing/supplier-price-list-reading-task.js";
@@ -860,7 +861,12 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           releaseCheckToken: env.RELEASE_CHECK_TOKEN,
           offsiteDumpCheckToken: env.OFFSITE_DUMP_CHECK_TOKEN,
           ...(env.ANTHROPIC_API_KEY
-            ? { productChooser: new AnthropicProductChooser({ apiKey: env.ANTHROPIC_API_KEY }) }
+            ? {
+                productChooser: new AnthropicProductChooser({ apiKey: env.ANTHROPIC_API_KEY }),
+                supplierItemQuantityReader: new AnthropicSupplierItemQuantityReader({
+                  apiKey: env.ANTHROPIC_API_KEY,
+                }),
+              }
             : {}),
           ...(supplierPriceListReading
             ? {

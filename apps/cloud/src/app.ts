@@ -4,6 +4,7 @@ import type { ErrorReportingConfiguration } from "@purosur/contracts";
 import type { ZoneRulesSource } from "@purosur/domain";
 import type {
   ProductChooser,
+  SupplierItemQuantityReader,
   SupplierPriceListFiles,
   SupplierPriceListWebPages,
 } from "@purosur/domain/purchasing/use-cases";
@@ -239,6 +240,7 @@ import { registerExpiringLotsReportRoute } from "./stock/expiring-lots-report-ro
 import { registerExpiringLotsRoutes } from "./stock/expiring-lots-route.js";
 import { registerInitialInventoryLotsRoutes } from "./stock/initial-inventory-lots-route.js";
 import { registerLossesByReasonReportRoute } from "./stock/losses-by-reason-report-route.js";
+import { registerMarginReportRoute } from "./stock/margin-report-route.js";
 import { registerRecipesRoutes } from "./stock/recipes-routes.js";
 import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
 import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
@@ -386,6 +388,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   supplierPriceListFiles?: SupplierPriceListFiles;
   supplierPriceListWebPages?: SupplierPriceListWebPages;
   productChooser?: ProductChooser;
+  supplierItemQuantityReader?: SupplierItemQuantityReader;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -422,6 +425,9 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
         ? { supplierPriceListWebPages: wiring.supplierPriceListWebPages }
         : {}),
       ...(wiring.productChooser ? { productChooser: wiring.productChooser } : {}),
+      ...(wiring.supplierItemQuantityReader
+        ? { supplierItemQuantityReader: wiring.supplierItemQuantityReader }
+        : {}),
     },
     tags: backoffice,
     products: backoffice,
@@ -730,6 +736,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerCurrentStockReportRoute(api, { ...options.stock, now });
         registerExpiringLotsReportRoute(api, { ...options.stock, now });
         registerLossesByReasonReportRoute(api, { ...options.stock, now });
+        registerMarginReportRoute(api, { ...options.stock, now });
         registerStockProductsRoute(api, { ...options.stock, now });
         registerRecipesRoutes(api, { ...options.stock, now });
         registerAssemblyBatchesRoutes(api, { ...options.stock, now });

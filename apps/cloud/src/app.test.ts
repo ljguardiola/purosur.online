@@ -1398,6 +1398,11 @@ describe("wiring the purchasing routes", () => {
         url: `/api/supplier-price-lists/${ID}/rows/${ID}/link-proposal`,
       }),
       app.inject({
+        method: "POST",
+        url: `/api/supplier-price-lists/${ID}/rows/${ID}/quantity-proposal`,
+        headers: ORIGIN,
+      }),
+      app.inject({
         method: "DELETE",
         url: `/api/supplier-price-lists/${ID}/rows/${ID}`,
         headers: ORIGIN,
@@ -1425,7 +1430,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(36).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(37).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1439,7 +1444,7 @@ describe("wiring the purchasing routes", () => {
       },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(36).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(37).fill(401));
   });
 });
 
@@ -1805,6 +1810,7 @@ describe("wiring the stock routes", () => {
     { method: "GET", url: "/api/reports/current-stock" },
     { method: "GET", url: "/api/reports/expiring-lots" },
     { method: "GET", url: "/api/reports/losses-by-reason" },
+    { method: "GET", url: "/api/reports/margin" },
     { method: "GET", url: "/api/inventory-items" },
     { method: "GET", url: "/api/inventory-counts" },
     { method: "POST", url: "/api/inventory-counts" },
@@ -2911,6 +2917,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("supplier_price_lists"),
       },
       {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/quantity-proposal",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
         method: "DELETE",
         url: "/api/supplier-price-lists/:id/rows/:rowId",
         access: capabilityAccess("supplier_price_lists"),
@@ -3096,6 +3107,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/losses-by-reason",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/margin",
         access: capabilityAccess("reports_area"),
       },
       {

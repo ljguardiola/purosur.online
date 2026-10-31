@@ -9,6 +9,7 @@ import type { RemoveSupplierPriceListRowModalServices } from "./remove-supplier-
 import {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
+  fetchSupplierItemQuantityProposal,
 } from "./supplier-item-links-api";
 import {
   createProductFromSupplierItem,
@@ -48,6 +49,7 @@ export const defaultSupplierPriceListReviewScreenServices: SupplierPriceListRevi
   linkSupplierPriceListRow,
   fetchSupplierItemLinkProposal,
   fetchSupplierItemLinkChoices,
+  fetchSupplierItemQuantityProposal,
   createProductFromSupplierItem,
   fetchProductCreationCategories,
   fetchProductCreationBrands,

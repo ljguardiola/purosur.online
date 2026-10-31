@@ -1,4 +1,8 @@
-import type { SupplierPriceListRowProductCreationBody } from "@purosur/contracts";
+import {
+  type SupplierItemQuantityProposalBody,
+  type SupplierPriceListRowProductCreationBody,
+  supplierItemQuantityProposalBodySchema,
+} from "@purosur/contracts";
 import {
   EMPTY_PRODUCT_FORM,
   PRODUCT_FIELDS,
@@ -68,3 +72,12 @@ export const SUPPLIER_ITEM_PRODUCT_MESSAGES = {
   quantity: supplierItemQuantityMessage,
   vatRate: () => "Elegí el IVA del ítem.",
 };
+
+// Null while the net content typed is not valid, so nothing is asked about a product that is not shaped yet.
+export function supplierItemQuantityProposalRequestFrom(
+  values: SupplierItemProductFormValues,
+): SupplierItemQuantityProposalBody | null {
+  const { saleUnit, netContent } = productRequestFrom(values);
+  const parsed = supplierItemQuantityProposalBodySchema.safeParse({ saleUnit, netContent });
+  return parsed.success ? parsed.data : null;
+}

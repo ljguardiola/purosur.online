@@ -10,7 +10,7 @@ const PRODUCT = {
 
 describe("supplierItemLinkProposalSchema", () => {
   it.each(["barcode", "ai"])("accepts a product proposed by %s", (by) => {
-    const proposal = { kind: "proposed", by, product: PRODUCT };
+    const proposal = { kind: "proposed", by, quantity: 36_000, product: PRODUCT };
 
     expect(supplierItemLinkProposalSchema.safeParse(proposal).data).toEqual(proposal);
   });
@@ -19,10 +19,28 @@ describe("supplierItemLinkProposalSchema", () => {
     const proposal = {
       kind: "proposed",
       by: "ai",
+      quantity: null,
       product: { id: "p-1", name: "Yerba", brandName: null, netContent: null },
     };
 
     expect(supplierItemLinkProposalSchema.safeParse(proposal).data).toEqual(proposal);
+  });
+
+  it("accepts a proposal that could not tell the quantity", () => {
+    const proposal = { kind: "proposed", by: "barcode", quantity: null, product: PRODUCT };
+
+    expect(supplierItemLinkProposalSchema.safeParse(proposal).data).toEqual(proposal);
+  });
+
+  it.each([0, -1_000, 1.5, "36000", undefined])("refuses the quantity %j", (quantity) => {
+    expect(
+      supplierItemLinkProposalSchema.safeParse({
+        kind: "proposed",
+        by: "ai",
+        quantity,
+        product: PRODUCT,
+      }).success,
+    ).toBe(false);
   });
 
   it.each([{ kind: "none" }, { kind: "unavailable" }])("accepts %j", (proposal) => {
@@ -30,14 +48,25 @@ describe("supplierItemLinkProposalSchema", () => {
   });
 
   it.each([
-    { kind: "proposed", by: "guess", product: PRODUCT },
-    { kind: "proposed", by: "ai" },
-    { kind: "proposed", by: "ai", product: { id: "p-1" } },
-    { kind: "proposed", by: "ai", product: { id: "p-1", name: "Yerba", netContent: null } },
-    { kind: "proposed", by: "ai", product: { id: "p-1", name: "Yerba", brandName: null } },
+    { kind: "proposed", by: "guess", quantity: null, product: PRODUCT },
+    { kind: "proposed", by: "ai", quantity: null },
+    { kind: "proposed", by: "ai", quantity: null, product: { id: "p-1" } },
     {
       kind: "proposed",
       by: "ai",
+      quantity: null,
+      product: { id: "p-1", name: "Yerba", netContent: null },
+    },
+    {
+      kind: "proposed",
+      by: "ai",
+      quantity: null,
+      product: { id: "p-1", name: "Yerba", brandName: null },
+    },
+    {
+      kind: "proposed",
+      by: "ai",
+      quantity: null,
       product: { ...PRODUCT, netContent: { quantity: 1, unit: "OZ" } },
     },
     { kind: "chosen" },

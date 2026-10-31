@@ -107,6 +107,7 @@ export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>
   db: PgDatabase<TQueryResult>,
   listId: string,
   rows: PriceListRowSeed[],
+  firstPosition = 0,
 ): Promise<string[]> {
   const inserted: { id: string; position: number }[] = [];
   for (let start = 0; start < rows.length; start += ROWS_PER_INSERT) {
@@ -115,7 +116,7 @@ export async function insertPriceListRows<TQueryResult extends PgQueryResultHKT>
       .values(
         rows.slice(start, start + ROWS_PER_INSERT).map((row, offset) => ({
           listId,
-          position: start + offset,
+          position: firstPosition + start + offset,
           description: row.description ?? `Producto ${start + offset}`,
           supplierCode: row.code ?? null,
           presentation: row.presentation ?? null,

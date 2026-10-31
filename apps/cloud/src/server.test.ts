@@ -2061,6 +2061,7 @@ describe("startServer reading supplier price lists", () => {
           supplierPriceListFiles?: unknown;
           supplierPriceListWebPages?: unknown;
           productChooser?: unknown;
+          supplierItemQuantityReader?: unknown;
         };
       },
     ];
@@ -2108,6 +2109,20 @@ describe("startServer reading supplier price lists", () => {
 
     expect(appOptions.purchasing).toBeDefined();
     expect(appOptions.purchasing).not.toHaveProperty("productChooser");
+  });
+
+  it("gives the purchasing routes a reader of the quantity a supplier item brings when the AI key is configured", async () => {
+    const { appOptions } = await startedWith({ ...env, ...aiKey });
+
+    expect(appOptions.purchasing?.supplierItemQuantityReader).toEqual(
+      expect.objectContaining({ read: expect.any(Function) }),
+    );
+  });
+
+  it("gives the purchasing routes no reader of quantities without the AI key", async () => {
+    const { appOptions } = await startedWith({ ...env, ...priceListsBucket });
+
+    expect(appOptions.purchasing).not.toHaveProperty("supplierItemQuantityReader");
   });
 
   it("gives the purchasing routes no files and no reader of web pages without the AI key", async () => {
