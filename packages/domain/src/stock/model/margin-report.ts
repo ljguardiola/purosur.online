@@ -36,8 +36,6 @@ export interface MarginReport {
   totals: MarginTotals;
 }
 
-const PATH_ORDER_SEPARATOR = "\u0000";
-
 function costOfSales(allocations: readonly MarginAllocation[]): number {
   const netByLot = new Map<string, { net: number; allocation: MarginAllocation }>();
   for (const allocation of allocations) {
@@ -65,10 +63,19 @@ function hasIncompleteCost(allocations: readonly MarginAllocation[]): boolean {
   );
 }
 
+function comparePaths(a: readonly string[], b: readonly string[]): number {
+  const [firstOfA, ...restOfA] = a;
+  const [firstOfB, ...restOfB] = b;
+  if (firstOfA === undefined || firstOfB === undefined) {
+    return a.length - b.length;
+  }
+  return compareSpanishText(firstOfA, firstOfB) || comparePaths(restOfA, restOfB);
+}
+
 function rowOrder(a: MarginOfGroup, b: MarginOfGroup): number {
   return (
     b.amount - a.amount ||
-    compareSpanishText(a.path.join(PATH_ORDER_SEPARATOR), b.path.join(PATH_ORDER_SEPARATOR)) ||
+    comparePaths(a.path, b.path) ||
     compareSpanishText(String(a.id), String(b.id))
   );
 }

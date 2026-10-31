@@ -250,9 +250,10 @@ describe("marginReport", () => {
       line({ id: "child", path: ["Almacén", "Dulces"], amount: 100 }),
       line({ id: "longer", path: ["Almacenes"], amount: 100 }),
       line({ id: "parent", path: ["Almacén"], amount: 100 }),
+      line({ id: null, path: [], amount: 100 }),
     ]);
 
-    expect(report.rows.map((row) => row.id)).toEqual(["parent", "child", "longer"]);
+    expect(report.rows.map((row) => row.id)).toEqual([null, "parent", "child", "longer"]);
   });
 
   it("keeps the lines without a category in one row", () => {
