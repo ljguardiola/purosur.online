@@ -165,9 +165,10 @@ describe("SaleCompletedModal", () => {
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
       .toBeVisible();
     await expect
-      .element(screen.getByText("Mercado Pago le devuelve $ 240,00 al cliente"))
-      .toBeVisible();
-    await expect.element(screen.getByText("No se entrega vuelto en el mostrador.")).toBeVisible();
+      .element(screen.getByRole("status"))
+      .toHaveTextContent(
+        "Mercado Pago le devuelve $ 240,00 al cliente No se entrega vuelto en el mostrador.",
+      );
     await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });

@@ -96,8 +96,8 @@ describe("ChargeCompletedModal", () => {
       await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
       await expect.element(screen.getByText("$ 5.000,00")).toBeVisible();
       await expect
-        .element(screen.getByText("Mercado Pago le devuelve $ 240,00 al cliente"))
-        .toBeVisible();
+        .element(screen.getByRole("status"))
+        .toHaveTextContent("Mercado Pago le devuelve $ 240,00 al cliente");
     },
   );
 });

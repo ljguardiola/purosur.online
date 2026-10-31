@@ -15,7 +15,7 @@ import {
   Tag,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert, Undo2 } from "lucide-react";
 import { pointCardName } from "../platform/payment-method-names";
 import { backupPrinterState } from "../shell/contingency-backup-printer-failure-text";
 import type { ReceiptPrintStatus } from "./sales-queries";
@@ -125,8 +125,8 @@ export type SaleCompletedModalProps = {
 } & (
   | { tendered: number; change: number; method?: "CASH" }
   | { method: "TRANSFER"; amount: number }
-  | { method: "QR"; amount: number }
-  | { method: "POINT"; cardType: PointCardType | null; amount: number }
+  | { method: "QR"; amount: number; surplus?: number }
+  | { method: "POINT"; cardType: PointCardType | null; amount: number; surplus?: number }
   | { method: "STANDALONE_TERMINAL"; amount: number }
 );
 
@@ -142,6 +142,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   } = props;
   const navigate = useNavigate();
   const change = "change" in props ? props.change : 0;
+  const surplus = "surplus" in props ? (props.surplus ?? 0) : 0;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
   const backupTicket = useBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
   const backupStanding = backupTicket.status === "loaded" ? backupTicket.value.standing : null;
@@ -303,6 +304,14 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
                 : { label: "Ticket", value: printState },
           ]}
         />
+        {surplus > 0 ? (
+          <InlineNotice
+            tone="info"
+            icon={<Undo2 />}
+            title={`Mercado Pago le devuelve ${formatCents(surplus)} al cliente`}
+            description="No se entrega vuelto en el mostrador."
+          />
+        ) : null}
         {firstDocument === undefined ? null : (
           <DocumentList label="Documentos" rows={[firstDocument, ...otherDocuments]} />
         )}

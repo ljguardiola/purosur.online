@@ -20,8 +20,8 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     });
 
     await expect
-      .element(screen.getByText("Pago con QR de Mercado Pago de $ 5.000,00"))
-      .toBeVisible();
+      .element(screen.getByRole("status"))
+      .toHaveTextContent("Pago con QR de Mercado Pago de $ 5.000,00");
     await expect.element(screen.getByRole("button", { name: APPLY })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -31,7 +31,9 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
       currentSale: async () => saleRebuiltAgainstPaidOrder({ method: "POINT", amount: 500_000 }),
     });
 
-    await expect.element(screen.getByText("Pago con Point de $ 5.000,00")).toBeVisible();
+    await expect
+      .element(screen.getByRole("status"))
+      .toHaveTextContent("Pago con Point de $ 5.000,00");
   });
 
   it.each([
@@ -81,9 +83,10 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
 
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
     await expect
-      .element(screen.getByText("Mercado Pago le devuelve $ 240,00 al cliente"))
-      .toBeVisible();
-    await expect.element(screen.getByText("No se entrega vuelto en el mostrador.")).toBeVisible();
+      .element(screen.getByRole("dialog").getByRole("status"))
+      .toHaveTextContent(
+        "Mercado Pago le devuelve $ 240,00 al cliente No se entrega vuelto en el mostrador.",
+      );
   });
 
   it("goes back to the methods showing what is left to charge after the order paid part of the sale", async () => {
@@ -113,8 +116,8 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await userEvent.click(screen.getByRole("button", { name: APPLY }));
 
     await expect
-      .element(screen.getByText("Quedan $ 4.000,00 por cobrar con otro medio"))
-      .toBeVisible();
+      .element(screen.getByRole("status"))
+      .toHaveTextContent("Quedan $ 4.000,00 por cobrar con otro medio");
     await expect.element(screen.getByRole("button", { name: APPLY })).not.toBeInTheDocument();
     await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
