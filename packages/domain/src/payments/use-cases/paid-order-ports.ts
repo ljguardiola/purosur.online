@@ -47,6 +47,7 @@ export interface PaidOrderWithoutSale extends ApprovedOrder {
   recordedAt: Date;
   resolved: boolean;
   resolvedAt?: Date;
+  rebuiltSaleId?: string;
 }
 
 export interface LocalPaidOrders {

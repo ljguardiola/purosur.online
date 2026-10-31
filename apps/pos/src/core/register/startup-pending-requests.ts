@@ -66,12 +66,13 @@ export async function startupPendingFor({
         occurred_at: inArgentinaTime(occurredAt, rules),
       })),
       paid_orders_without_sale: paidOrders.map(
-        ({ paymentTransactionId, saleId, method, amount, createdAt }) => ({
+        ({ paymentTransactionId, saleId, method, amount, createdAt, rebuiltSaleId }) => ({
           payment_transaction_id: paymentTransactionId,
           sale_id: saleId,
           method,
           amount,
           created_at: inArgentinaTime(createdAt, rules),
+          rebuilt_sale_id: rebuiltSaleId ?? null,
         }),
       ),
       paid_order_discovery: paidOrderDiscovery(),

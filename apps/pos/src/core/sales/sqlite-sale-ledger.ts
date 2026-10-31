@@ -165,6 +165,7 @@ export function deleteSaleLine(database: LocalDatabase, lineId: string): void {
 }
 
 function discardOpenSale(database: LocalDatabase, saleId: string): void {
+  database.prepare("DELETE FROM sales_rebuilt_against_paid_orders WHERE sale_id = ?").run(saleId);
   database
     .prepare(
       "DELETE FROM sale_line_promotions WHERE line_id IN (SELECT id FROM sale_lines WHERE sale_id = ?)",
@@ -172,6 +173,29 @@ function discardOpenSale(database: LocalDatabase, saleId: string): void {
     .run(saleId);
   database.prepare("DELETE FROM sale_lines WHERE sale_id = ?").run(saleId);
   database.prepare("DELETE FROM sales WHERE id = ?").run(saleId);
+}
+
+function insertApprovedPayment(database: LocalDatabase, payment: SalePayment): void {
+  if (payment.method !== "QR" && payment.method !== "POINT") {
+    insertSalePayment(database, payment);
+    return;
+  }
+  const pending = {
+    id: payment.id,
+    saleId: payment.saleId,
+    kind: payment.kind,
+    state: "PENDING",
+    amount: payment.amount,
+    occurredAt: payment.occurredAt,
+    waitEndsAt: payment.occurredAt,
+  } as const;
+  insertPendingMercadoPagoPayment(
+    database,
+    payment.method === "POINT"
+      ? { ...pending, method: "POINT", provider: "MERCADOPAGO_POINT", cardType: payment.cardType }
+      : { ...pending, method: "QR", provider: "MERCADOPAGO_QR" },
+  );
+  approvePendingMercadoPagoPayment(database, payment.id);
 }
 
 export function insertSalePayment(database: LocalDatabase, payment: SalePayment): void {
@@ -293,6 +317,17 @@ export class SqliteSaleLedger implements SaleLedger {
       paidOrdersWithoutSale: () =>
         new SqliteLocalPaidOrders({ database: this.database }).paidOrdersWithoutSale(),
       paidOrderDiscovery: () => this.paidOrderDiscovery(),
+      rebuildablePaidOrder: (paymentTransactionId) =>
+        new SqliteLocalPaidOrders({ database: this.database }).rebuildablePaidOrder(
+          paymentTransactionId,
+        ),
+      paidOrderOfSale: (saleId) =>
+        new SqliteLocalPaidOrders({ database: this.database }).paidOrderOfSale(saleId),
+      recordSaleRebuiltAgainstPaidOrder: (saleId, paymentTransactionId) =>
+        new SqliteLocalPaidOrders({ database: this.database }).recordSaleRebuiltAgainstPaidOrder(
+          saleId,
+          paymentTransactionId,
+        ),
       registerIdentity: () => readRegisterIdentity(this.database),
       activeProductByBarcode: (code) => readActiveProductByBarcode(this.database, code),
       activeProductById: (productId) => readActiveProductById(this.database, productId),
@@ -308,7 +343,7 @@ export class SqliteSaleLedger implements SaleLedger {
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       hasRecordedPayments: (saleId) => hasRecordedPayments(this.database, saleId),
       discardOpenSale: (saleId) => discardOpenSale(this.database, saleId),
-      recordPayment: (payment) => insertSalePayment(this.database, payment),
+      recordPayment: (payment) => insertApprovedPayment(this.database, payment),
       recordPendingMercadoPagoPayment: (payment) =>
         insertPendingMercadoPagoPayment(this.database, payment),
       pendingMercadoPagoPayment: (paymentTransactionId) =>

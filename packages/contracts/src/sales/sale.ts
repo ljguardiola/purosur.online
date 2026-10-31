@@ -1,8 +1,8 @@
 import {
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
-  manualAdjustmentReason,
   MERCADO_PAGO_PAYMENT_METHODS,
+  manualAdjustmentReason,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   mayBeOverriddenUnitPrice,

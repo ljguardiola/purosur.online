@@ -16,6 +16,7 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
@@ -42,6 +43,7 @@ import type {
   PrintOriginalReceiptOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
+  RebuildSaleAgainstPaidOrderOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -148,6 +150,12 @@ export interface RendererRequestDeps {
     | undefined;
   convertPaidOrderIntoRefund:
     | ((request: { paymentTransactionId: string }) => Promise<ConvertPaidOrderIntoRefundOutcome>)
+    | undefined;
+  rebuildSaleAgainstPaidOrder:
+    | ((request: { paymentTransactionId: string }) => Promise<RebuildSaleAgainstPaidOrderOutcome>)
+    | undefined;
+  chargeSaleWithPaidOrder:
+    | ((request: { saleId: string }) => Promise<ChargeSaleWithPaidOrderOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
@@ -613,6 +621,30 @@ async function attemptConvertPaidOrderIntoRefund(
     return (await deps.convertPaidOrderIntoRefund?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("converting a paid order into a refund", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptRebuildSaleAgainstPaidOrder(
+  deps: RendererRequestDeps,
+  request: { paymentTransactionId: string },
+): Promise<RebuildSaleAgainstPaidOrderOutcome> {
+  try {
+    return (await deps.rebuildSaleAgainstPaidOrder?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("rebuilding a sale against a paid order", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptChargeSaleWithPaidOrder(
+  deps: RendererRequestDeps,
+  request: { saleId: string },
+): Promise<ChargeSaleWithPaidOrderOutcome> {
+  try {
+    return (await deps.chargeSaleWithPaidOrder?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("charging a sale with its paid order", error);
     return { kind: "unavailable" };
   }
 }
@@ -1274,6 +1306,20 @@ export async function answerRendererRequest(
         outcome: await attemptConvertPaidOrderIntoRefund(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
+      };
+    case "rebuild-sale-against-paid-order":
+      return {
+        type: "rebuild-sale-against-paid-order-result",
+        request_id: message.request_id,
+        outcome: await attemptRebuildSaleAgainstPaidOrder(deps, {
+          paymentTransactionId: message.payment_transaction_id,
+        }),
+      };
+    case "charge-sale-with-paid-order":
+      return {
+        type: "charge-sale-with-paid-order-result",
+        request_id: message.request_id,
+        outcome: await attemptChargeSaleWithPaidOrder(deps, { saleId: message.sale_id }),
       };
     case "payment-method-availability":
       return {
