@@ -245,6 +245,16 @@ describe("marginReport", () => {
     expect(report.rows.map((row) => row.id)).toEqual(["a", "z", "b"]);
   });
 
+  it("breaks a tie of amounts by comparing the path name by name, a parent before its children", () => {
+    const report = marginReport([
+      line({ id: "child", path: ["Almacén", "Dulces"], amount: 100 }),
+      line({ id: "longer", path: ["Almacenes"], amount: 100 }),
+      line({ id: "parent", path: ["Almacén"], amount: 100 }),
+    ]);
+
+    expect(report.rows.map((row) => row.id)).toEqual(["parent", "child", "longer"]);
+  });
+
   it("keeps the lines without a category in one row", () => {
     const report = marginReport([
       line({ id: null, path: [], amount: 100 }),
