@@ -223,6 +223,15 @@ describe("partialAmountOfOrderRefund", () => {
     ).toBe(400);
   });
 
+  it.each(["sale_voided", "sale_cancelled"])(
+    "is nothing for a refund of origin %s even when it is below what its payment holds",
+    (origin) => {
+      expect(
+        partialAmountOfOrderRefund({ ...facts, origin, amount: 400, salePaymentAmount: 1000 }),
+      ).toBeNull();
+    },
+  );
+
   it("is nothing for a late payment on an order the cloud did not create, which holds exactly what it refunds", () => {
     expect(
       partialAmountOfOrderRefund({
