@@ -462,3 +462,143 @@ describe("converting a paid order without a sale into a refund", () => {
     ).toBe(false);
   });
 });
+
+describe("rebuilding a sale against a paid order", () => {
+  const message = {
+    type: "rebuild-sale-against-paid-order",
+    request_id: REQUEST_ID,
+    payment_transaction_id: PAYMENT_ID,
+  };
+
+  it("accepts the paid order to rebuild the sale against", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is rebuilding from the renderer", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(
+      message,
+    );
+  });
+
+  it.each([
+    ["request id", { ...message, request_id: undefined }],
+    ["payment", { ...message, payment_transaction_id: undefined }],
+  ])("rejects a rebuild without a %s", (_case, value) => {
+    expect(paymentsRendererToCoreMessageSchema.safeParse(value).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "rebuilt", sale_id: "sale-9" },
+    { kind: "already_open", sale_id: "sale-9" },
+    { kind: "not_found" },
+    { kind: "already_resolved" },
+    { kind: "another_sale_open" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
+    { kind: "installation_revoked" },
+    { kind: "local_database_damaged" },
+    { kind: "battery_critical" },
+    { kind: "disk_space_short" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const result = {
+      type: "rebuild-sale-against-paid-order-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
+  });
+
+  it.each([{ kind: "rebuilt" }, { kind: "already_open" }, { kind: "refunded" }])(
+    "rejects the result %o",
+    (outcome) => {
+      expect(
+        paymentsCoreToRendererMessageSchema.safeParse({
+          type: "rebuild-sale-against-paid-order-result",
+          request_id: REQUEST_ID,
+          outcome,
+        }).success,
+      ).toBe(false);
+    },
+  );
+});
+
+describe("charging a sale with the paid order it was rebuilt against", () => {
+  const message = {
+    type: "charge-sale-with-paid-order",
+    request_id: REQUEST_ID,
+    sale_id: "sale-9",
+  };
+
+  it("accepts the sale to charge", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a charge without a sale", () => {
+    expect(
+      paymentsRendererToCoreMessageSchema.safeParse({ ...message, sale_id: undefined }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    { kind: "completed", sale_id: "sale-9", total: 6750, applied: 4500, surplus: 0 },
+    { kind: "completed", sale_id: "sale-9", total: 2000, applied: 2000, surplus: 2500 },
+    { kind: "partially_paid", sale_id: "sale-9", total: 6750, paid: 4500, pending: 2250 },
+    { kind: "no_paid_order" },
+    { kind: "already_applied" },
+    { kind: "empty_sale" },
+    { kind: "zero_total" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
+    { kind: "no_buyer_identification_threshold" },
+    { kind: "no_open_sale" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const result = {
+      type: "charge-sale-with-paid-order-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
+  });
+
+  it.each([
+    ["no applied amount", { kind: "completed", sale_id: "sale-9", total: 6750, surplus: 0 }],
+    ["no surplus", { kind: "completed", sale_id: "sale-9", total: 6750, applied: 4500 }],
+    [
+      "a negative surplus",
+      { kind: "completed", sale_id: "sale-9", total: 6750, applied: 4500, surplus: -1 },
+    ],
+  ])("rejects a completion with %s", (_case, outcome) => {
+    expect(
+      paymentsCoreToRendererMessageSchema.safeParse({
+        type: "charge-sale-with-paid-order-result",
+        request_id: REQUEST_ID,
+        outcome,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("a Mercado Pago charge refused until the paid order is applied", () => {
+  it.each([
+    "start-mercado-pago-charge-result",
+    "follow-mercado-pago-charge-result",
+    "abandon-mercado-pago-charge-result",
+  ])("is a possible outcome of %s", (type) => {
+    const result = {
+      type,
+      request_id: REQUEST_ID,
+      outcome: { kind: "paid_order_not_applied" },
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
+  });
+});

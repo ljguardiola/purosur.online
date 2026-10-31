@@ -251,3 +251,25 @@ describe("startupPendingSchema", () => {
     expect(startupPendingSchema.safeParse(pending).success).toBe(false);
   });
 });
+
+describe("the sale rebuilt against a paid order on the startup screen", () => {
+  const withRebuiltSale = (rebuilt_sale_id: unknown) => ({
+    ...PENDING,
+    paid_orders_without_sale: [{ ...PAID_ORDER_WITHOUT_SALE, rebuilt_sale_id }],
+  });
+
+  it.each([["sale-9"], [null]])("accepts %s as the sale rebuilt against the order", (saleId) => {
+    expect(
+      startupPendingSchema.parse(withRebuiltSale(saleId)).paid_orders_without_sale[0]
+        ?.rebuilt_sale_id,
+    ).toBe(saleId);
+  });
+
+  it("accepts an order that says nothing of a rebuilt sale", () => {
+    expect(startupPendingSchema.safeParse(PENDING).success).toBe(true);
+  });
+
+  it("refuses a rebuilt sale that is not an id", () => {
+    expect(startupPendingSchema.safeParse(withRebuiltSale(7)).success).toBe(false);
+  });
+});

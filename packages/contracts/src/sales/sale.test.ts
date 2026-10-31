@@ -992,6 +992,7 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     { kind: "restoration_in_progress" },
     { kind: "unavailable" },
     { kind: "mercado_pago_charge_in_progress" },
+    { kind: "paid_order_not_applied" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(chargeSaleInCashOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -1270,5 +1271,54 @@ describe("addProductOutcomeSchema", () => {
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(addProductOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("a charge refused until the paid order is applied", () => {
+  it.each([
+    ["by transfer", chargeSaleByTransferOutcomeSchema],
+    ["on the standalone terminal", chargeSaleOnStandaloneTerminalOutcomeSchema],
+  ])("is a possible outcome of a charge %s", (_method, schema) => {
+    expect(schema.parse({ kind: "paid_order_not_applied" })).toEqual({
+      kind: "paid_order_not_applied",
+    });
+  });
+});
+
+describe("the paid order an open sale was rebuilt against", () => {
+  const paidOrder = {
+    payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+    amount: 6750,
+    method: "QR",
+    applied: false,
+  };
+
+  it("is optional, so a sale not rebuilt against a paid order needs none", () => {
+    expect(saleSchema.parse(sale).rebuilt_paid_order).toBeUndefined();
+    expect(saleSchema.parse({ ...sale, rebuilt_paid_order: null }).rebuilt_paid_order).toBeNull();
+  });
+
+  it.each(["QR", "POINT"])("accepts a paid order paid by %s", (method) => {
+    expect(
+      saleSchema.parse({ ...sale, rebuilt_paid_order: { ...paidOrder, method } })
+        .rebuilt_paid_order,
+    ).toEqual({ ...paidOrder, method });
+  });
+
+  it.each([true, false])("accepts a paid order whose application is %s", (applied) => {
+    expect(
+      saleSchema.parse({ ...sale, rebuilt_paid_order: { ...paidOrder, applied } })
+        .rebuilt_paid_order?.applied,
+    ).toBe(applied);
+  });
+
+  it.each([
+    ["another method", { ...paidOrder, method: "CASH" }],
+    ["no amount", { ...paidOrder, amount: undefined }],
+    ["a fractional amount", { ...paidOrder, amount: 10.5 }],
+    ["no payment", { ...paidOrder, payment_transaction_id: undefined }],
+    ["no application", { ...paidOrder, applied: undefined }],
+  ])("refuses a paid order with %s", (_case, rebuilt_paid_order) => {
+    expect(saleSchema.safeParse({ ...sale, rebuilt_paid_order }).success).toBe(false);
   });
 });
