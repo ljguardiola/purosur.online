@@ -150,8 +150,8 @@ describe("rebuilding a sale against a paid order", () => {
   });
 
   it("answers that another sale is open instead of rebuilding", async () => {
-    recordPaidOrder(3000);
     await scanProductFor(deps(), "111");
+    recordPaidOrder(3000);
 
     expect(
       await rebuildSaleAgainstPaidOrderFor(deps(), { paymentTransactionId: "order-1" }),
@@ -193,9 +193,9 @@ describe("charging a rebuilt sale with its paid order", () => {
       applied: 3000,
       surplus: 0,
     });
-    expect(database.prepare("SELECT id, sale_id, state, amount FROM payment_transactions").all()).toEqual([
-      { id: "order-1", sale_id: saleId, state: "APPROVED", amount: 3000 },
-    ]);
+    expect(
+      database.prepare("SELECT id, sale_id, state, amount FROM payment_transactions").all(),
+    ).toEqual([{ id: "order-1", sale_id: saleId, state: "APPROVED", amount: 3000 }]);
     expect(database.prepare("SELECT state FROM sales WHERE id = ?").get(saleId)).toEqual({
       state: "COMPLETED",
     });

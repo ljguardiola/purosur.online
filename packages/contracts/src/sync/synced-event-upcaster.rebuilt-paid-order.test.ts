@@ -76,17 +76,23 @@ describe("decoding a cancelled sale for the paid order it was rebuilt against", 
       `v${event.schema_version}`,
       event,
     ]),
-  )("reads a recorded %s cancelled sale as one rebuilt against no paid order", (_version, event) => {
-    expect(syncedEventUpcaster.decode(unappliedEventOf(event))).toMatchObject({
+  )(
+    "reads a recorded %s cancelled sale as one rebuilt against no paid order",
+    (_version, event) => {
+      expect(syncedEventUpcaster.decode(unappliedEventOf(event))).toMatchObject({
+        kind: "fact",
+        fact: { kind: "sale_cancelled", sale: { rebuiltPaidOrder: null } },
+      });
+    },
+  );
+
+  it("reads a version 10 cancelled sale that was not rebuilt as one rebuilt against no paid order", () => {
+    expect(
+      syncedEventUpcaster.decode(unappliedEventOf(version10CancelledSale(null))),
+    ).toMatchObject({
       kind: "fact",
       fact: { kind: "sale_cancelled", sale: { rebuiltPaidOrder: null } },
     });
-  });
-
-  it("reads a version 10 cancelled sale that was not rebuilt as one rebuilt against no paid order", () => {
-    expect(syncedEventUpcaster.decode(unappliedEventOf(version10CancelledSale(null)))).toMatchObject(
-      { kind: "fact", fact: { kind: "sale_cancelled", sale: { rebuiltPaidOrder: null } } },
-    );
   });
 
   it("reads the paid order a version 10 cancelled sale names", () => {

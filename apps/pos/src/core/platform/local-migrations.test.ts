@@ -8,6 +8,7 @@ import {
   insertOfflineCreditNote,
   insertOfflineFiscalDocument,
 } from "../fiscal/test-support/real-time-authorization-database";
+import type { LocalDatabase } from "./local-database";
 import { LOCAL_MIGRATIONS } from "./local-migrations";
 import { migrationClock } from "./test-support/migration-clock";
 import { openLocalDatabase } from "./test-support/open-local-database";

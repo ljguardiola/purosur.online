@@ -295,8 +295,8 @@ describe("the paid orders a sale was rebuilt against", () => {
 
   async function rebuiltSale(order = anOrder()): Promise<string> {
     const local = localPaidOrders();
-    local.recordPaidOrderWithoutSale(order, RECORDED_AT);
     const saleId = await openSale();
+    local.recordPaidOrderWithoutSale(order, RECORDED_AT);
     local.recordSaleRebuiltAgainstPaidOrder(saleId, order.paymentTransactionId);
     return saleId;
   }
@@ -439,7 +439,12 @@ describe("the paid orders a sale was rebuilt against", () => {
       clock: { now: () => RESOLVED_AT },
     });
 
-    expect(outcome).toMatchObject({ kind: "checked", withoutSale: 0, duplicateCharges: 0, failed: 0 });
+    expect(outcome).toMatchObject({
+      kind: "checked",
+      withoutSale: 0,
+      duplicateCharges: 0,
+      failed: 0,
+    });
     expect(refunded).toEqual([]);
     expect(localPaidOrders().paidOrdersWithoutSale()).toHaveLength(1);
     expect(localPaidOrders().rebuildablePaidOrder("qr-1")?.resolved).toBe(true);

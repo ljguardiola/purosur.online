@@ -164,7 +164,10 @@ describe("rebuiltPaidOrderStanding", () => {
   });
 
   it("names the order with its amount and method, waiting to be applied, while the sale holds no payment of it", () => {
-    expect(rebuiltPaidOrderStanding(order, [{ id: "cash-1" }])).toEqual({ ...order, applied: false });
+    expect(rebuiltPaidOrderStanding(order, [{ id: "cash-1" }])).toEqual({
+      ...order,
+      applied: false,
+    });
   });
 
   it("names the order as applied once the sale holds the payment of it", () => {
