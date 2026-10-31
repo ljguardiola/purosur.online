@@ -5,7 +5,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceComparisonRoutes } from "./supplier-price-comparison-routes.js";
-import { insertActor, insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertSupplier,
@@ -78,12 +78,12 @@ describe("GET /supplier-price-comparison", () => {
     ];
     for (const offer of offers) {
       const supplierId = await insertSupplier(db, { actorId, name: offer.name });
-      const packagingId = await insertPackaging(db, {
+      const itemId = await insertSupplierItem(db, {
+        supplierId,
         productId,
-        actorId,
-        quantityPerPackage: offer.quantityPerPackage,
+        quantity: offer.quantityPerPackage,
+        saleUnit: "UNIT",
       });
-      const itemId = await insertSupplierItem(db, { supplierId, productId, packagingId });
       const listId = await insertPriceList(db, {
         supplierId,
         locationId,
@@ -149,8 +149,12 @@ describe("GET /supplier-price-comparison", () => {
     const locationId = await seededLocationId(db);
     const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
-    const packagingId = await insertPackaging(db, { productId, actorId, name: "Caja x 10" });
-    const itemId = await insertSupplierItem(db, { supplierId, productId, packagingId });
+    const itemId = await insertSupplierItem(db, {
+      supplierId,
+      productId,
+      quantity: 10_000,
+      saleUnit: "UNIT",
+    });
     const listId = await insertPriceList(db, {
       supplierId,
       locationId,
@@ -184,7 +188,8 @@ describe("GET /supplier-price-comparison", () => {
         unpricedOffers: [
           {
             supplier: { id: supplierId, name: "Alfa" },
-            packagingName: "Caja x 10",
+            quantity: 10_000,
+            saleUnit: "UNIT",
             priceCents: 9_000,
             listDate: "2026-03-01",
             reason: "vat_rate_missing",

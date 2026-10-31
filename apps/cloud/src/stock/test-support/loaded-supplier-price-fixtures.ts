@@ -1,7 +1,6 @@
 import type { SaleUnit } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { locations } from "../../platform/db/schema.js";
-import { insertPackaging } from "../../purchasing/test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertSupplier,
@@ -13,9 +12,8 @@ export interface LoadedSupplierPriceSeed {
   productId: string;
   actorId: string;
   supplierName?: string;
-  packagingName?: string;
-  quantityPerPackage?: number;
-  packagingSaleUnit?: SaleUnit;
+  quantity?: number;
+  linkSaleUnit?: SaleUnit;
   priceCents: number;
   pricesIncludeVat?: boolean;
   vatRate?: number;
@@ -34,17 +32,11 @@ export async function insertLoadedSupplierPrice<TQueryResult extends PgQueryResu
     actorId: seed.actorId,
     ...(seed.supplierName === undefined ? {} : { name: seed.supplierName }),
   });
-  const packagingId = await insertPackaging(db, {
-    productId: seed.productId,
-    actorId: seed.actorId,
-    quantityPerPackage: seed.quantityPerPackage ?? 1_000,
-    ...(seed.packagingName === undefined ? {} : { name: seed.packagingName }),
-    ...(seed.packagingSaleUnit === undefined ? {} : { saleUnit: seed.packagingSaleUnit }),
-  });
   const supplierItemId = await insertSupplierItem(db, {
     supplierId,
     productId: seed.productId,
-    packagingId,
+    quantity: seed.quantity ?? 1_000,
+    saleUnit: seed.linkSaleUnit ?? "UNIT",
     vatRate: seed.vatRate ?? 2_100,
   });
   const listId = await insertPriceList(db, {

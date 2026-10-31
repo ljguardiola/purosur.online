@@ -27,7 +27,8 @@ const LOT = {
 const SUPPLIER_PRICE = {
   supplierItemId: "33333333-3333-4333-8333-333333333333",
   supplierName: "Distribuidora Sur",
-  packagingName: "Caja x 10",
+  quantity: 10_000,
+  saleUnit: "UNIT",
   listDate: "2026-03-01",
   unitCostCents: 3_500,
   cheapest: true,
@@ -110,7 +111,10 @@ describe("initialInventoryLotListSchema", () => {
     ["no cheapest mark", { cheapest: undefined }],
     ["no current mark", { current: undefined }],
     ["no supplier name", { supplierName: undefined }],
-    ["no packaging name", { packagingName: undefined }],
+    ["no quantity", { quantity: undefined }],
+    ["no sale unit", { saleUnit: undefined }],
+    ["a fractional quantity", { quantity: 1.5 }],
+    ["an unknown sale unit", { saleUnit: "BOX" }],
     ["no supplier item", { supplierItemId: undefined }],
   ])("refuses a lot with %s", (_case, override) => {
     const supplierPrices =

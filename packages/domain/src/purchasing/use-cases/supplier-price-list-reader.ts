@@ -29,13 +29,9 @@ export interface SupplierPriceListListing {
 
 export interface SupplierPriceListReviewRowLink {
   product: ProductBrandAndNetContent & { id: string; name: string; saleUnit: SaleUnit };
-  packaging: {
-    id: string;
-    name: string;
-    quantityPerPackage: number;
-    active: boolean;
-    saleUnit: SaleUnit;
-  };
+  quantity: number;
+  saleUnit: SaleUnit;
+  relinkRequired: boolean;
   // In basis points, null for an item whose list prices include VAT.
   vatRate: number | null;
 }

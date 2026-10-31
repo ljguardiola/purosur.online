@@ -40,7 +40,6 @@ import { AreaTopBar } from "../shell/area-top-bar";
 import {
   type BackofficeAccess,
   canManageProductsAndCategories,
-  canManagePurchasePackagings,
   canSeeBranchArea,
 } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -493,7 +492,6 @@ export function SupplierPriceListReviewScreen({
           <LinkSupplierItemModal
             list={list}
             target={linkTarget}
-            mayCreatePackaging={canManagePurchasePackagings(access)}
             {...(canManageProductsAndCategories(access) ? { productCreationModal } : {})}
             remembersOnConfirm={actions?.confirm === true}
             onCreateProduct={

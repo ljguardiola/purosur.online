@@ -206,6 +206,7 @@ export {
   formatPercent,
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
+  formatSaleUnitQuantity,
   formatShortCode,
   formatSignedCents,
   formatTimeAgo,
@@ -235,7 +236,12 @@ export type {
 export { isLocalAlertKind, localAlertText, localAlertTitle } from "./messages/local-alert-texts";
 export type { LocaleProviderProps } from "./messages/locale-provider";
 export { LocaleProvider } from "./messages/locale-provider";
-export { parseAmountCents, parseEsArNumber, parseWeightThousandths } from "./messages/parsers";
+export {
+  parseAmountCents,
+  parseEsArNumber,
+  parseWeightQuantity,
+  parseWeightThousandths,
+} from "./messages/parsers";
 export {
   formatSignedTenthsOfPercent,
   formatTenthsOfPercent,

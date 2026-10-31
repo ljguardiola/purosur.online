@@ -3,17 +3,6 @@ import type { SupplierItemLinkChoices, SupplierItemLinkProposal } from "@purosur
 export const PASAS_ID = "90d00000-0000-4000-8000-000000000021";
 const ALMENDRAS_ID = "90d00000-0000-4000-8000-000000000003";
 
-export const CAJA_DE_PASAS = {
-  id: "9ac00000-0000-4000-8000-000000000031",
-  name: "Caja de 10 kg",
-  quantityPerPackage: 10_000,
-};
-export const BOLSA_DE_PASAS = {
-  id: "9ac00000-0000-4000-8000-000000000032",
-  name: "Bolsa de 5 kg",
-  quantityPerPackage: 5_000,
-};
-
 export const LINK_CHOICES: SupplierItemLinkChoices = {
   products: [
     {
@@ -22,7 +11,6 @@ export const LINK_CHOICES: SupplierItemLinkChoices = {
       saleUnit: "KG",
       brandName: null,
       netContent: null,
-      packagings: [CAJA_DE_PASAS, BOLSA_DE_PASAS],
     },
     {
       id: ALMENDRAS_ID,
@@ -30,7 +18,6 @@ export const LINK_CHOICES: SupplierItemLinkChoices = {
       saleUnit: "KG",
       brandName: null,
       netContent: null,
-      packagings: [],
     },
     {
       id: "90d00000-0000-4000-8000-000000000022",
@@ -38,13 +25,6 @@ export const LINK_CHOICES: SupplierItemLinkChoices = {
       saleUnit: "UNIT",
       brandName: null,
       netContent: null,
-      packagings: [
-        {
-          id: "9ac00000-0000-4000-8000-000000000033",
-          name: "Caja x 12",
-          quantityPerPackage: 12_000,
-        },
-      ],
     },
   ],
   vatRates: { offered: [2100, 1050], default: 2100 },
@@ -71,7 +51,6 @@ export const GRANOLA_LINK_CHOICES: SupplierItemLinkChoices = {
       saleUnit: "UNIT",
       brandName: "Naturalia",
       netContent: { quantity: 500, unit: "G" },
-      packagings: [],
     },
     {
       id: GRANOLA_KOS_ID,
@@ -79,7 +58,6 @@ export const GRANOLA_LINK_CHOICES: SupplierItemLinkChoices = {
       saleUnit: "UNIT",
       brandName: "Kos",
       netContent: { quantity: 1, unit: "KG" },
-      packagings: [],
     },
   ],
 };

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
-import { insertActor, insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertPriceListRows,
@@ -278,13 +278,9 @@ describe("what a review says about the link and the earlier price of each row", 
       brandName: "Piragüé",
       netContent: { quantity: 1, unit: "KG" },
     });
-    const packagingId = await insertPackaging(db, {
-      productId,
-      actorId,
-      name: "Caja x 10",
-      quantityPerPackage: 10_000,
-    });
-    const { listId } = await extractedList([{ productId, packagingId, vatRate: 1_050 }]);
+    const { listId } = await extractedList([
+      { productId, quantity: 10_000, saleUnit: "UNIT", vatRate: 1_050 },
+    ]);
 
     const review = await reader().review(listId);
 
@@ -296,21 +292,16 @@ describe("what a review says about the link and the earlier price of each row", 
         netContent: { quantity: 1, unit: "KG" },
         saleUnit: "UNIT",
       },
-      packaging: {
-        id: packagingId,
-        name: "Caja x 10",
-        quantityPerPackage: 10_000,
-        active: true,
-        saleUnit: "UNIT",
-      },
+      quantity: 10_000,
+      saleUnit: "UNIT",
+      relinkRequired: false,
       vatRate: 1_050,
     });
   });
 
   it("gives a linked product without a brand or a net content as having none", async () => {
     const { id: productId } = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
-    const packagingId = await insertPackaging(db, { productId, actorId });
-    const { listId } = await extractedList([{ productId, packagingId }]);
+    const { listId } = await extractedList([{ productId, quantity: 1_000, saleUnit: "KG" }]);
 
     const review = await reader().review(listId);
 
@@ -323,19 +314,19 @@ describe("what a review says about the link and the earlier price of each row", 
     });
   });
 
-  it("tells whether the linked packaging is active and the sale unit it holds", async () => {
+  it("tells the sale unit the quantity of the link is stated in and whether it requires linking again", async () => {
     const { id: productId } = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
-    const packagingId = await insertPackaging(db, {
-      productId,
-      actorId,
-      saleUnit: "UNIT",
-      active: false,
-    });
-    const { listId } = await extractedList([{ productId, packagingId }]);
+    const { listId } = await extractedList([
+      { productId, quantity: 500, saleUnit: "UNIT", relinkRequired: true },
+    ]);
 
     const review = await reader().review(listId);
 
-    expect(review?.rows[0]?.link?.packaging).toMatchObject({ active: false, saleUnit: "UNIT" });
+    expect(review?.rows[0]?.link).toMatchObject({
+      quantity: 500,
+      saleUnit: "UNIT",
+      relinkRequired: true,
+    });
   });
 
   it("gives a row the description and price the supplier's other lists last recorded for its code", async () => {

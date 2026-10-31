@@ -64,6 +64,7 @@ export type {
 } from "./model/supplier-item.js";
 export {
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
+  isLinkCurrent,
   isSupplierItemVatRate,
   latestEarlierPrice,
   SUPPLIER_ITEM_VAT_RATES,
@@ -86,6 +87,7 @@ export {
   isPriceListRowPrice,
   isSupplierPriceListDailyExtractionCap,
   isSupplierPriceListFileNameTooLong,
+  maySupplierPriceListRowBeLinked,
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,

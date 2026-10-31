@@ -21,7 +21,6 @@ import {
 import {
   insertBarcode,
   insertLeafCategory,
-  insertPackaging,
   insertProduct,
 } from "./test-support/purchasing-fixtures.js";
 
@@ -92,21 +91,22 @@ describe("lockRow", () => {
   it("answers the row's current link", async () => {
     const target = await insertProduct(db, { name: "Yerba" });
     const { listId, rowId, actorId } = await extractedListWithRow(db);
-    const packagingId = await insertPackaging(db, { productId: target.id, actorId });
+    const link = {
+      productId: target.id,
+      quantity: 10_000,
+      saleUnit: "UNIT" as const,
+      vatRate: 2_100,
+      relinkRequired: false,
+    };
     await store().transaction(async (tx) => {
-      await tx.linkRow(
-        listId,
-        rowId,
-        { productId: target.id, packagingId, vatRate: 2_100 },
-        actorId,
-      );
+      await tx.linkRow(listId, rowId, link, actorId);
     });
 
     const result = await store().transaction((tx) => tx.lockRow(listId, rowId));
 
     expect(result).toMatchObject({
       kind: "locked",
-      row: { link: { productId: target.id, packagingId, vatRate: 2_100 } },
+      row: { link },
     });
   });
 
@@ -274,9 +274,9 @@ describe("createCatalogProduct", () => {
 });
 
 describe("a product creation that fails after the product was inserted", () => {
-  it("leaves no product, barcode, packaging or change behind", async () => {
+  it("leaves no product, barcode or change behind", async () => {
     const categoryId = await leafCategory();
-    const { actorId } = await extractedListWithRow(db);
+    await extractedListWithRow(db);
     const before = await catalogRowCounts();
 
     await expect(
@@ -285,16 +285,9 @@ describe("a product creation that fails after the product was inserted", () => {
         if (created.kind !== "created") {
           throw new Error("test setup: expected the product to be created");
         }
-        await tx.insertPackaging({
-          productId: created.productId,
-          name: "Paquete",
-          quantityPerPackage: 1,
-          saleUnit: "UNIT",
-          actorId,
-        });
-        throw new Error("the operation failed after the packaging");
+        throw new Error("the operation failed after the product");
       }),
-    ).rejects.toThrow("the operation failed after the packaging");
+    ).rejects.toThrow("the operation failed after the product");
 
     expect(await catalogRowCounts()).toEqual(before);
   });
@@ -312,7 +305,13 @@ describe("a product creation that fails after the product was inserted", () => {
         await tx.linkRow(
           listId,
           rowId,
-          { productId: created.productId, packagingId: MISSING_ID, vatRate: null },
+          {
+            productId: created.productId,
+            quantity: 0,
+            saleUnit: "UNIT",
+            vatRate: null,
+            relinkRequired: false,
+          },
           actorId,
         );
       }),
@@ -325,7 +324,7 @@ describe("a product creation that fails after the product was inserted", () => {
 });
 
 describe("creating a product from a supplier item through the use case", () => {
-  it("creates the product, its packaging and the link together", async () => {
+  it("creates the product and the link together", async () => {
     const categoryId = await leafCategory();
     const { listId, rowId, actorId } = await extractedListWithRow(db, {}, { description: "Yerba" });
 
@@ -340,8 +339,7 @@ describe("creating a product from a supplier item through the use case", () => {
       barcodes: ["7790000000001"],
       tagIds: [],
       netContent: null,
-      packagingName: "Caja x 10",
-      quantityPerPackage: 10_000,
+      quantity: 10_000,
       vatRate: 2_100,
       actorId,
     });
@@ -351,14 +349,10 @@ describe("creating a product from a supplier item through the use case", () => {
     }
     expect(await storedListRow(db, rowId)).toMatchObject({
       productId: outcome.productId,
-      packagingId: outcome.packagingId,
+      quantity: 10_000,
+      saleUnit: "UNIT",
       vatRate: 2_100,
       reviewed: true,
     });
-    const [packaging] = await db
-      .select()
-      .from(productPackagings)
-      .where(eq(productPackagings.id, outcome.packagingId));
-    expect(packaging).toMatchObject({ productId: outcome.productId, name: "Caja x 10" });
   });
 });

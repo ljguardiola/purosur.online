@@ -272,7 +272,8 @@ describe("readInitialCountLots", () => {
       return {
         supplierItemId,
         supplierName: "Distribuidora Sur",
-        packagingName: "Caja",
+        quantity: 12_000,
+        saleUnit: "UNIT",
         listDate: "2026-03-01",
         pricePerSaleUnit,
         ...overrides,
@@ -283,7 +284,7 @@ describe("readInitialCountLots", () => {
       const { lots } = await read([
         row("l1", {
           supplierPrices: [
-            price("dear", { numerator: 900n, denominator: 1n }, { packagingName: "Bolsa" }),
+            price("dear", { numerator: 900n, denominator: 1n }, { quantity: 6_000 }),
             price("cheap", { numerator: 1_000n, denominator: 3n }, { listDate: "2026-04-01" }),
           ],
         }),
@@ -293,7 +294,8 @@ describe("readInitialCountLots", () => {
         {
           supplierItemId: "cheap",
           supplierName: "Distribuidora Sur",
-          packagingName: "Caja",
+          quantity: 12_000,
+          saleUnit: "UNIT",
           listDate: "2026-04-01",
           unitCostCents: 333,
           cheapest: true,
@@ -302,7 +304,8 @@ describe("readInitialCountLots", () => {
         {
           supplierItemId: "dear",
           supplierName: "Distribuidora Sur",
-          packagingName: "Bolsa",
+          quantity: 6_000,
+          saleUnit: "UNIT",
           listDate: "2026-03-01",
           unitCostCents: 900,
           cheapest: false,

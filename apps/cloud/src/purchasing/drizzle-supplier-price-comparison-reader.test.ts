@@ -3,7 +3,7 @@ import { categories } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSupplierPriceComparisonReader } from "./drizzle-supplier-price-comparison-reader.js";
-import { insertActor, insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertSupplier,
@@ -71,16 +71,11 @@ describe("the offers of the suppliers", () => {
   it("answers the latest offer of each linked item", async () => {
     const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
-    const packagingId = await insertPackaging(db, {
-      productId,
-      actorId,
-      name: "Caja x 10",
-      quantityPerPackage: 10_000,
-    });
     const itemId = await insertSupplierItem(db, {
       supplierId,
       productId,
-      packagingId,
+      quantity: 10_000,
+      saleUnit: "UNIT",
       vatRate: 1_050,
     });
     await insertSupplierItemPrice(db, {
@@ -95,12 +90,7 @@ describe("the offers of the suppliers", () => {
       {
         productId,
         supplier: { id: supplierId, name: "Alfa" },
-        packaging: {
-          name: "Caja x 10",
-          quantityPerPackage: 10_000,
-          active: true,
-          saleUnit: "UNIT",
-        },
+        link: { quantity: 10_000, saleUnit: "UNIT", relinkRequired: false },
         priceCents: 2_000,
         pricesIncludeVat: true,
         vatRate: 1_050,

@@ -40,7 +40,8 @@ function loadedPrice(
   return {
     supplierItemId,
     supplierName: "Distribuidora Sur",
-    packagingName: "Caja",
+    quantity: 12_000,
+    saleUnit: "UNIT",
     listDate: "2026-03-01",
     pricePerSaleUnit,
     ...overrides,

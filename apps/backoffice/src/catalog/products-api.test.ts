@@ -408,6 +408,16 @@ test("editProduct returns sale_unit_held_by_packaging with the packaging's name 
   });
 });
 
+test("editProduct returns sale_unit_held_by_supplier_item on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "sale_unit_held_by_supplier_item" }),
+  );
+
+  expect(await editProduct("product-1", editInput)).toEqual({
+    kind: "sale_unit_held_by_supplier_item",
+  });
+});
+
 test.each([
   { code: "sale_unit_held_by_packaging" },
   { code: "sale_unit_held_by_packaging", packagingName: 2 },

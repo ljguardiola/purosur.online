@@ -77,6 +77,19 @@ export function formatWeightInput(thousandths: number): string {
   return formatNumber(thousandths / 1000, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
+const THOUSANDTHS_PER_SALE_UNIT = 1000;
+
+// A quantity of the sale unit, in thousandths of it: whole units, kilograms with only the
+// decimals they need, or grams below a kilogram.
+export function formatSaleUnitQuantity(thousandths: number, saleUnit: "UNIT" | "KG"): string {
+  if (saleUnit === "UNIT") {
+    return `${formatNumber(thousandths / THOUSANDTHS_PER_SALE_UNIT, { maximumFractionDigits: 0 })} u`;
+  }
+  return thousandths < THOUSANDTHS_PER_SALE_UNIT
+    ? `${formatNumber(thousandths)} g`
+    : `${formatNumber(thousandths / THOUSANDTHS_PER_SALE_UNIT, { maximumFractionDigits: 3 })} kg`;
+}
+
 export const NET_CONTENT_UNIT_LABELS = {
   G: "g",
   KG: "kg",

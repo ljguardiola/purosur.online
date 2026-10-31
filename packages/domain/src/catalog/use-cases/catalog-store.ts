@@ -147,6 +147,11 @@ export interface CatalogStoreTransaction {
   // Read only, never locking, like the discounts: a caller holds the product's row lock first, and
   // every write that can leave a packaging of the product active takes that same row first.
   activePackagingNamesOf(productId: string): Promise<string[]>;
+  // Whether a supplier item, or a row of a supplier price list that can still be linked, refers
+  // to the product through a link that is current for the sale unit given. Read only, never
+  // locking, like the packagings: a caller holds the product's row lock first, and every write
+  // of such a link takes that same row first.
+  hasCurrentSupplierItemLink(productId: string, saleUnit: SaleUnit): Promise<boolean>;
   lockCategory(categoryId: string): Promise<LockCategoryResult>;
   // Acquired before any row lock, so two concurrent moves can never each hold their own row lock
   // and deadlock trying to lock each other's row as the new parent.

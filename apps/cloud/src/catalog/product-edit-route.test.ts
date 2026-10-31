@@ -16,6 +16,10 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import {
+  insertSupplier,
+  insertSupplierItem,
+} from "../purchasing/test-support/supplier-price-list-fixtures.js";
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -1119,6 +1123,42 @@ describe("PUT /products/:id", () => {
       message:
         "a product cannot change its sale unit while an active purchase packaging is defined for it",
       packagingName: "Caja x 12",
+    });
+    expect(await db.select().from(products)).toMatchObject([{ saleUnit: "UNIT", version: 1 }]);
+  });
+
+  it("rejects changing the sale unit of a product a supplier item is linked to with 409 sale_unit_held_by_supplier_item, changing nothing", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const supplierId = await insertSupplier(db, { actorId: userId });
+    await insertSupplierItem(db, {
+      supplierId,
+      productId: product.id,
+      quantity: 12_000,
+      saleUnit: "UNIT",
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Galletitas",
+      categoryId,
+      brandId: null,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      tagIds: [],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      code: "sale_unit_held_by_supplier_item",
+      message: "a product cannot change its sale unit while a supplier item is linked to it",
     });
     expect(await db.select().from(products)).toMatchObject([{ saleUnit: "UNIT", version: 1 }]);
   });

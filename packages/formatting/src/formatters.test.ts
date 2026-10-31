@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   formatAmountInput,
@@ -21,6 +22,7 @@ import {
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
   formatProductDescription,
+  formatSaleUnitQuantity,
   formatShortCode,
   formatSignedCents,
   formatTimeAgo,
@@ -486,5 +488,43 @@ describe("formatProductDescription", () => {
         netContent: { quantity: 1, unit: "KG" },
       }),
     ).toBe("Harina 1 kg");
+  });
+});
+
+describe("formatSaleUnitQuantity", () => {
+  it("writes a quantity of units as whole units", () => {
+    expect(formatSaleUnitQuantity(12_000, "UNIT")).toBe("12 u");
+    expect(formatSaleUnitQuantity(1_000, "UNIT")).toBe("1 u");
+    expect(formatSaleUnitQuantity(1_234_000, "UNIT")).toBe("1.234 u");
+  });
+
+  it("writes a weight of a kilogram or more in kilograms with only the decimals it needs", () => {
+    expect(formatSaleUnitQuantity(10_000, "KG")).toBe("10 kg");
+    expect(formatSaleUnitQuantity(1_000, "KG")).toBe("1 kg");
+    expect(formatSaleUnitQuantity(2_500, "KG")).toBe("2,5 kg");
+    expect(formatSaleUnitQuantity(1_001, "KG")).toBe("1,001 kg");
+    expect(formatSaleUnitQuantity(1_234_567, "KG")).toBe("1.234,567 kg");
+  });
+
+  it("writes a weight under a kilogram in grams", () => {
+    expect(formatSaleUnitQuantity(500, "KG")).toBe("500 g");
+    expect(formatSaleUnitQuantity(1, "KG")).toBe("1 g");
+    expect(formatSaleUnitQuantity(999, "KG")).toBe("999 g");
+  });
+
+  it("writes every weight under a kilogram as its thousandths in grams", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 999 }), (grams) => {
+        expect(formatSaleUnitQuantity(grams, "KG")).toBe(`${grams} g`);
+      }),
+    );
+  });
+
+  it("writes every whole number of units followed by u", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 999 }), (units) => {
+        expect(formatSaleUnitQuantity(units * 1_000, "UNIT")).toBe(`${units} u`);
+      }),
+    );
   });
 });

@@ -1,4 +1,4 @@
-import { PACKAGING_NAME_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
+import { PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -6,7 +6,6 @@ import {
   brands,
   categories,
   productBarcodes,
-  productPackagings,
   products,
   productTags,
   supplierPriceListRows,
@@ -24,7 +23,6 @@ import {
 import {
   insertBarcode,
   insertLeafCategory,
-  insertPackaging,
   insertProduct,
 } from "./test-support/purchasing-fixtures.js";
 
@@ -76,8 +74,7 @@ async function validBody(overrides: object = {}) {
     barcodes: ["7790000000001"],
     tagIds: [],
     netContent: null,
-    packagingName: "Caja x 10",
-    quantityPerPackage: 10_000,
+    quantity: 10_000,
     vatRate: 2_100,
     ...overrides,
   };
@@ -158,7 +155,7 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it("creates the product named as given and its packaging named as the list states it, with the given sale unit, links them, and answers 201 with their ids", async () => {
+  it("creates the product named as given, with the given sale unit, links the row to it with the quantity given, and answers 201 with its id", async () => {
     const { headers } = await manager();
     const { listId, rowId } = await extractedListWithRow(
       {},
@@ -167,16 +164,12 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     const body = await validBody({
       saleUnit: "KG",
       barcodes: ["7791234567890"],
-      packagingName: null,
     });
 
     const response = await createProduct(headers, listId, rowId, body);
 
     expect(response.statusCode).toBe(201);
-    const { productId, packagingId } = response.json() as {
-      productId: string;
-      packagingId: string;
-    };
+    const { productId } = response.json() as { productId: string };
     const [product] = await db.select().from(products).where(eq(products.id, productId));
     expect(product).toMatchObject({
       name: "Yerba mate 1 kg",
@@ -184,11 +177,6 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
       categoryId: body.categoryId,
       active: true,
     });
-    const [packaging] = await db
-      .select()
-      .from(productPackagings)
-      .where(eq(productPackagings.id, packagingId));
-    expect(packaging).toMatchObject({ productId, name: "Caja x 10", quantityPerPackage: 10_000 });
     const barcodes = await db
       .select()
       .from(productBarcodes)
@@ -196,7 +184,8 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     expect(barcodes.map((barcode) => barcode.code)).toEqual(["7791234567890"]);
     expect(await storedListRow(db, rowId)).toMatchObject({
       productId,
-      packagingId,
+      quantity: 10_000,
+      saleUnit: "KG",
       vatRate: 2_100,
       reviewed: true,
       linkedByPerson: true,
@@ -371,12 +360,11 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
 
   it("answers 409 already_linked for a row that already has a product, creating nothing", async () => {
     const { headers } = await manager();
-    const { listId, rowId, actorId } = await extractedListWithRow();
+    const { listId, rowId } = await extractedListWithRow();
     const target = await insertProduct(db, { name: "Yerba" });
-    const packagingId = await insertPackaging(db, { productId: target.id, actorId });
     await db
       .update(supplierPriceListRows)
-      .set({ productId: target.id, packagingId })
+      .set({ productId: target.id, quantity: 1_000, saleUnit: "UNIT" })
       .where(eq(supplierPriceListRows.id, rowId));
 
     const response = await createProduct(headers, listId, rowId, await validBody());
@@ -386,7 +374,7 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
     expect(await db.select().from(products)).toHaveLength(1);
   });
 
-  it("answers 400 naming quantityPerPackage for a fraction of a unit on a product sold by the unit, creating nothing", async () => {
+  it("answers 400 naming quantity for a fraction of a unit on a product sold by the unit, creating nothing", async () => {
     const { headers } = await manager();
     const { listId, rowId } = await extractedListWithRow();
 
@@ -394,47 +382,14 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/product", () => {
       headers,
       listId,
       rowId,
-      await validBody({ saleUnit: "UNIT", quantityPerPackage: 10_500 }),
+      await validBody({ saleUnit: "UNIT", quantity: 10_500 }),
     );
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
       code: "validation_failed",
-      details: [{ field: "quantityPerPackage" }],
+      details: [{ field: "quantity" }],
     });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
-  it("answers 400 naming packagingName for an item whose list states no presentation when none was given, creating nothing", async () => {
-    const { headers } = await manager();
-    const { listId, rowId } = await extractedListWithRow({}, { presentation: null });
-
-    const response = await createProduct(
-      headers,
-      listId,
-      rowId,
-      await validBody({ packagingName: null }),
-    );
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "packagingName" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
-  it("answers 409 presentation_too_long for an item whose list presentation does not fit, creating nothing", async () => {
-    const { headers } = await manager();
-    const { listId, rowId } = await extractedListWithRow(
-      {},
-      { presentation: "a".repeat(PACKAGING_NAME_MAX_LENGTH + 1) },
-    );
-
-    const response = await createProduct(headers, listId, rowId, await validBody());
-
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "presentation_too_long" });
     expect(await db.select().from(products)).toHaveLength(0);
   });
 

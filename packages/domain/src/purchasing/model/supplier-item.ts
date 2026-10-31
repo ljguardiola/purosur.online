@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import { type Fraction, foldedText } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
 
@@ -108,13 +109,20 @@ function greatestCommonDivisor(a: bigint, b: bigint): bigint {
   return b === 0n ? a : greatestCommonDivisor(b, a % b);
 }
 
+export function isLinkCurrent(
+  link: { relinkRequired: boolean; saleUnit: SaleUnit },
+  productSaleUnit: SaleUnit,
+): boolean {
+  return !link.relinkRequired && link.saleUnit === productSaleUnit;
+}
+
 // Cents per sale unit, VAT included, as the reduced fraction of the price over the sale units the
-// package holds; the quantity is in thousandths of a sale unit.
+// item brings; the quantity is in thousandths of a sale unit.
 export function pricePerSaleUnit(item: {
   priceCents: number;
   pricesIncludeVat: boolean | null;
   vatRate: number | null;
-  quantityPerPackage: number;
+  quantity: number;
 }): Fraction | null {
   const rateApplies = requiresVatRate(item.pricesIncludeVat);
   if (rateApplies && item.vatRate === null) {
@@ -122,15 +130,12 @@ export function pricePerSaleUnit(item: {
   }
   const withVat = BASIS_POINTS_PER_UNIT + (rateApplies ? BigInt(item.vatRate ?? 0) : 0n);
   const numerator = BigInt(item.priceCents) * withVat * BigInt(STOCK_QUANTITY_PER_UNIT);
-  const denominator = BASIS_POINTS_PER_UNIT * BigInt(item.quantityPerPackage);
+  const denominator = BASIS_POINTS_PER_UNIT * BigInt(item.quantity);
   const divisor = greatestCommonDivisor(numerator, denominator);
   return { numerator: numerator / divisor, denominator: denominator / divisor };
 }
 
-export const SUPPLIER_OFFER_UNPRICED_REASONS = [
-  "vat_rate_missing",
-  "packaging_not_buyable",
-] as const;
+export const SUPPLIER_OFFER_UNPRICED_REASONS = ["vat_rate_missing", "link_outdated"] as const;
 
 export type SupplierOfferUnpricedReason = (typeof SUPPLIER_OFFER_UNPRICED_REASONS)[number];
 

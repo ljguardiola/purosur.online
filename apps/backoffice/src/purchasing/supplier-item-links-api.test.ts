@@ -65,7 +65,7 @@ describe("fetchSupplierItemLinkProposal", () => {
 });
 
 describe("fetchSupplierItemLinkChoices", () => {
-  test("reads the products with the packagings an item may be linked to", async () => {
+  test("reads the products an item may be linked to", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, LINK_CHOICES));
 
     expect(await fetchSupplierItemLinkChoices()).toEqual({ kind: "ok", value: LINK_CHOICES });

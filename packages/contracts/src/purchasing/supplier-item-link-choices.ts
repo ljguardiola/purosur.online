@@ -12,9 +12,6 @@ export const supplierItemLinkChoicesSchema = z.object({
       saleUnit: z.enum(SALE_UNITS),
       brandName: z.string().nullable(),
       netContent: netContentSchema.nullable(),
-      packagings: z.array(
-        z.object({ id: z.string(), name: z.string(), quantityPerPackage: z.int() }),
-      ),
     }),
   ),
   vatRates: z.object({ offered: z.array(vatRateSchema).min(1), default: vatRateSchema }),

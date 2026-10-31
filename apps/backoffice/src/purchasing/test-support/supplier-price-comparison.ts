@@ -12,8 +12,8 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
       offers: [
         {
           supplier: { id: "5a900000-0000-4000-8000-000000000001", name: "Frutos Secos Mendoza" },
-          packagingName: "Bolsa 25 kg",
-          quantityPerPackage: 25_000,
+          quantity: 25_000,
+          saleUnit: "KG",
           priceCents: 25_450_000,
           pricePerSaleUnit: { numerator: "25450000", denominator: "25" },
           listDate: "2026-10-20",
@@ -21,8 +21,8 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
         },
         {
           supplier: { id: "5a900000-0000-4000-8000-000000000002", name: "Distribuidora del Sur" },
-          packagingName: "Bolsa 5 kg",
-          quantityPerPackage: 5_000,
+          quantity: 5_000,
+          saleUnit: "KG",
           priceCents: 5_320_000,
           pricePerSaleUnit: { numerator: "5320000", denominator: "5" },
           listDate: "2026-09-02",
@@ -41,8 +41,8 @@ export const PRICE_COMPARISON: SupplierPriceComparison = {
       offers: [
         {
           supplier: { id: "5a900000-0000-4000-8000-000000000003", name: "Apícola Los Tilos" },
-          packagingName: "Caja x 12",
-          quantityPerPackage: 12_000,
+          quantity: 12_000,
+          saleUnit: "UNIT",
           priceCents: 6_700_000,
           pricePerSaleUnit: { numerator: "6700000", denominator: "12" },
           listDate: "2026-10-11",

@@ -54,8 +54,7 @@ describe("creating two products with the same barcode from two supplier items on
         barcodes: [code],
         tagIds: [],
         netContent: null,
-        packagingName: "Paquete",
-        quantityPerPackage: 1_000,
+        quantity: 1_000,
         vatRate: 2_100,
         actorId,
       });

@@ -1,7 +1,4 @@
-import {
-  type SupplierPriceListRowProductCreationBody,
-  supplierPriceListRowProductCreationBodySchema,
-} from "@purosur/contracts";
+import type { SupplierPriceListRowProductCreationBody } from "@purosur/contracts";
 import {
   EMPTY_PRODUCT_FORM,
   PRODUCT_FIELDS,
@@ -9,31 +6,32 @@ import {
   type ProductFormValues,
   productRequestFrom,
 } from "../platform/product-form";
-import { schemaLimit } from "../platform/schema-limit";
-import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
+import {
+  type SupplierItemQuantityUnit,
+  supplierItemQuantityMessage,
+  supplierItemQuantityOf,
+} from "./supplier-item-quantity";
 import type { SupplierPriceListRow } from "./supplier-price-lists-api";
 
 export type SupplierItemProductFormValues = ProductFormValues & {
-  packagingName: string | null;
   quantity: string;
+  quantityUnit: SupplierItemQuantityUnit;
   vatRate: string;
   version: number;
 };
 
 export const SUPPLIER_ITEM_PRODUCT_FIELDS = {
   ...PRODUCT_FIELDS,
-  packagingName: "packagingName",
-  quantityPerPackage: "quantity",
+  quantity: "quantity",
+  quantityUnit: null,
   vatRate: "vatRate",
   version: null,
 } as const;
 
-const packagingNameSchema = supplierPriceListRowProductCreationBodySchema.shape.packagingName;
-
 export const EMPTY_SUPPLIER_ITEM_PRODUCT_FORM: SupplierItemProductFormValues = {
   ...EMPTY_PRODUCT_FORM,
-  packagingName: "",
   quantity: "",
+  quantityUnit: "KG",
   vatRate: "",
   version: 1,
 };
@@ -48,7 +46,6 @@ export function supplierItemProductFormValuesOf(
   return {
     ...EMPTY_SUPPLIER_ITEM_PRODUCT_FORM,
     name: row.description,
-    packagingName: row.presentation === null ? "" : null,
     barcodes: { codes: row.barcode === null ? [] : [row.barcode], scan: "" },
     version,
   };
@@ -61,27 +58,13 @@ export function supplierItemProductRequestFrom(
   return {
     ...productRequestFrom(values),
     version: values.version,
-    packagingName: values.packagingName?.trim() ?? null,
-    quantityPerPackage: parseStockQuantity(values.quantity, values.saleUnit) ?? Number.NaN,
+    quantity: supplierItemQuantityOf(values),
     vatRate: requiresVatRate ? Number(values.vatRate) : null,
   };
 }
 
-function packagingNameMessage({ packagingName }: SupplierItemProductFormValues): string {
-  const trimmed = packagingName?.trim() ?? "";
-  if (trimmed === "") {
-    return "Ingresá el nombre de la presentación.";
-  }
-  if (!packagingNameSchema.safeParse(trimmed).success) {
-    return `El nombre puede tener hasta ${schemaLimit(packagingNameSchema.meta()?.["maxLength"])} caracteres.`;
-  }
-  return "Revisá el nombre de la presentación.";
-}
-
 export const SUPPLIER_ITEM_PRODUCT_MESSAGES = {
   ...PRODUCT_MESSAGES,
-  packagingName: packagingNameMessage,
-  quantity: ({ quantity, saleUnit }: SupplierItemProductFormValues) =>
-    quantity.trim() === "" ? "Ingresá la cantidad por presentación." : quantityMessage(saleUnit),
+  quantity: supplierItemQuantityMessage,
   vatRate: () => "Elegí el IVA del ítem.",
 };

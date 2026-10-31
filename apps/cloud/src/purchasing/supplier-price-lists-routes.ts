@@ -72,7 +72,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
-import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzleSupplierItemLinkProposalReader } from "./drizzle-supplier-item-link-proposal-reader.js";
 import { DrizzleSupplierItemProductStore } from "./drizzle-supplier-item-product-store.js";
 import { DrizzleSupplierPriceListAiCallStore } from "./drizzle-supplier-price-list-ai-call-store.js";
@@ -80,7 +79,6 @@ import { DrizzleSupplierPriceListAiCostReader } from "./drizzle-supplier-price-l
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { opensAsPdf } from "./opens-as-pdf.js";
-import { PART_OF_A_UNIT_RESPONSE } from "./packagings-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing-route-options.js";
 
 const NOT_FOUND = { code: "not_found", message: "no supplier price list with that id" } as const;
@@ -124,7 +122,8 @@ const CONFIRMATION_REFUSALS = {
 } as const;
 
 const LINK_REFUSALS = {
-  packaging_not_linkable: "the product or its packaging cannot be linked",
+  product_not_linkable: "the product cannot be linked: it does not exist or is deactivated",
+  sale_unit_changed: "the product is no longer sold in the sale unit the quantity is stated in",
   vat_rate_missing: "the list does not include VAT in its prices, so the item needs a VAT rate",
   vat_rate_invalid: "the VAT rate is not one of those offered",
 } as const;
@@ -219,8 +218,13 @@ async function answerRowLink(
     await reply.code(200).send();
     return;
   }
+  if (outcome.kind === "invalid_quantity") {
+    await reply.code(400).send(PART_OF_A_UNIT_RESPONSE);
+    return;
+  }
   if (
-    outcome.kind === "packaging_not_linkable" ||
+    outcome.kind === "product_not_linkable" ||
+    outcome.kind === "sale_unit_changed" ||
     outcome.kind === "vat_rate_missing" ||
     outcome.kind === "vat_rate_invalid"
   ) {
@@ -235,15 +239,10 @@ const ALREADY_LINKED = {
   message: "this item already has a product, so none can be created from it",
 } as const;
 
-const PRESENTATION_MISSING_RESPONSE = {
+const PART_OF_A_UNIT_RESPONSE = {
   code: "validation_failed",
-  message: "packagingName must be given for an item whose list states no presentation",
-  details: [{ field: "packagingName" }],
-} as const;
-
-const PRESENTATION_TOO_LONG_RESPONSE = {
-  code: "presentation_too_long",
-  message: "the item's presentation is longer than a presentation's name may be",
+  message: "a product sold by the unit is bought in whole units",
+  details: [{ field: "quantity" }],
 } as const;
 
 async function answerProductCreation(
@@ -252,24 +251,15 @@ async function answerProductCreation(
 ): Promise<void> {
   switch (outcome.kind) {
     case "created":
-      await reply.code(201).send(
-        supplierPriceListRowProductCreatedSchema.parse({
-          productId: outcome.productId,
-          packagingId: outcome.packagingId,
-        }),
-      );
+      await reply
+        .code(201)
+        .send(supplierPriceListRowProductCreatedSchema.parse({ productId: outcome.productId }));
       return;
     case "already_linked":
       await reply.code(409).send(ALREADY_LINKED);
       return;
     case "invalid_quantity":
       await reply.code(400).send(PART_OF_A_UNIT_RESPONSE);
-      return;
-    case "presentation_missing":
-      await reply.code(400).send(PRESENTATION_MISSING_RESPONSE);
-      return;
-    case "presentation_too_long":
-      await reply.code(409).send(PRESENTATION_TOO_LONG_RESPONSE);
       return;
     case "vat_rate_missing":
     case "vat_rate_invalid":
@@ -330,7 +320,6 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   const proposalReader = new DrizzleSupplierItemLinkProposalReader(options.db);
   const aiCalls = new DrizzleSupplierPriceListAiCallStore(options.db);
   const aiCostReader = new DrizzleSupplierPriceListAiCostReader(options.db);
-  const purchasingReader = new DrizzlePurchasingListReader(options.db);
   const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("supplier_price_lists"), sessionSource };
@@ -421,11 +410,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
 
   app.get("/supplier-price-lists/link-choices", readGuard, async (_request, reply) => {
     const products = await catalog.products(PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR);
-    const choices = await listSupplierItemLinkChoices(
-      purchasingReader,
-      products,
-      await listBrands({ catalog }),
-    );
+    const choices = listSupplierItemLinkChoices(products, await listBrands({ catalog }));
     await reply.code(200).send(supplierItemLinkChoicesSchema.parse(choices));
   });
 
@@ -551,7 +536,8 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       rowId: ids.rowId,
       version: body.version,
       productId: body.productId,
-      packagingId: body.packagingId,
+      saleUnit: body.saleUnit,
+      quantity: body.quantity,
       vatRate: body.vatRate,
       actorId: openSessionOf(request).userId,
     });

@@ -1005,7 +1005,7 @@ describe("DrizzleStockStore initial count", () => {
       productId,
       actorId,
       priceCents: 1_000,
-      quantityPerPackage: 3_000,
+      quantity: 3_000,
     });
 
     await count(new DrizzleStockStore(db), { productId, locationId, actorId });
