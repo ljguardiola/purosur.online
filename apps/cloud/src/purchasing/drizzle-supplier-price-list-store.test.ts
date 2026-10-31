@@ -3,10 +3,12 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
   auditLog,
+  productPackagings,
   supplierItemPrices,
   supplierItems,
   supplierPriceListAiCalls,
   supplierPriceListExtractionCaps,
+  supplierPriceListRows,
 } from "../platform/db/schema.js";
 import {
   NOW,
@@ -22,6 +24,20 @@ import {
 } from "./test-support/supplier-price-list-fixtures.js";
 
 const context = supplierPriceListStoreDatabase();
+
+async function packagingOf(productId: string) {
+  const [packaging] = await context.db
+    .insert(productPackagings)
+    .values({
+      productId,
+      name: "Caja x12",
+      quantityPerPackage: 12_000,
+      saleUnit: "UNIT",
+      actorId: context.actorId,
+    })
+    .returning({ id: productPackagings.id });
+  return packaging?.id ?? "";
+}
 
 describe("the branch's extraction quota", () => {
   it("answers the default cap of ten when the branch has set none", async () => {
@@ -867,6 +883,24 @@ describe("remembering an item", () => {
     expect(await itemRows()).toMatchObject([{ id: itemId, ...second, vatRate: null }]);
   });
 
+  it("remembers a link for an item the release that links through packagings linked, leaving no packaging behind", async () => {
+    const first = await linkedTarget();
+    const second = await linkedTarget();
+    const itemId = await insertSupplierItem(context.db, {
+      supplierId: context.supplierId,
+      ...first,
+    });
+    const packagingId = await packagingOf(first.productId);
+    await context.db
+      .update(supplierItems)
+      .set({ packagingId })
+      .where(eq(supplierItems.id, itemId));
+
+    await context.store().transaction((tx) => tx.rememberSupplierItemLink(itemId, second));
+
+    expect(await itemRows()).toMatchObject([{ id: itemId, ...second, packagingId: null }]);
+  });
+
   it("records the price an item had in a list, with the list's date and VAT answer and the instant", async () => {
     const itemId = await insertSupplierItem(context.db, { supplierId: context.supplierId });
     const listId = await insertPriceList(context.db, {
@@ -986,6 +1020,22 @@ describe("linking and reviewing a row", () => {
       linkedByPerson: true,
     });
     expect((await context.rowsOf(listId))[0]).toMatchObject({ ...second, reviewed: true });
+  });
+
+  it("links a row the release that links through packagings linked, leaving no packaging behind", async () => {
+    const first = { ...(await target()), vatRate: 2_100 };
+    const second = { ...(await target()), vatRate: 2_100 };
+    const { listId, rowId } = await extractedListWithARow();
+    await context.store().transaction((tx) => tx.linkRow(listId, rowId, first, context.actorId));
+    const packagingId = await packagingOf(first.productId);
+    await context.db
+      .update(supplierPriceListRows)
+      .set({ packagingId })
+      .where(eq(supplierPriceListRows.id, rowId));
+
+    await context.store().transaction((tx) => tx.linkRow(listId, rowId, second, context.actorId));
+
+    expect((await context.rowsOf(listId))[0]).toMatchObject({ ...second, packagingId: null });
   });
 
   it("marks a row reviewed without touching its link or making it a person's, advances the version and audits it", async () => {
