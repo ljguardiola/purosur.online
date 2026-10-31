@@ -31,16 +31,14 @@ describe("loadedSupplierPricesOf", () => {
       productId: yerbaId,
       actorId,
       supplierName: "Distribuidora Sur",
-      packagingName: "Caja x 3",
       priceCents: 1_000,
-      quantityPerPackage: 3_000,
+      quantity: 3_000,
       listDate: "2026-03-01",
     });
     const harina = await insertLoadedSupplierPrice(db, {
       productId: harinaId,
       actorId,
       supplierName: "Molinos del Norte",
-      packagingName: "Bolsa",
       priceCents: 1_000,
       pricesIncludeVat: false,
       vatRate: 2_100,
@@ -57,7 +55,8 @@ describe("loadedSupplierPricesOf", () => {
             {
               supplierItemId: yerba.supplierItemId,
               supplierName: "Distribuidora Sur",
-              packagingName: "Caja x 3",
+              quantity: 3_000,
+              saleUnit: "UNIT",
               listDate: "2026-03-01",
               pricePerSaleUnit: { numerator: 1_000n, denominator: 3n },
             },
@@ -69,7 +68,6 @@ describe("loadedSupplierPricesOf", () => {
             {
               supplierItemId: harina.supplierItemId,
               supplierName: "Molinos del Norte",
-              packagingName: "Bolsa",
               listDate: "2026-02-15",
               pricePerSaleUnit: { numerator: 1_210n, denominator: 1n },
             },
@@ -85,13 +83,13 @@ describe("loadedSupplierPricesOf", () => {
       productId,
       actorId,
       priceCents: 1_000,
-      packagingSaleUnit: "UNIT",
+      linkSaleUnit: "UNIT",
     });
     const { supplierItemId } = await insertLoadedSupplierPrice(db, {
       productId,
       actorId,
       priceCents: 1_000,
-      packagingSaleUnit: "KG",
+      linkSaleUnit: "KG",
     });
 
     const prices = await loadedSupplierPricesOf(db, [productId]);

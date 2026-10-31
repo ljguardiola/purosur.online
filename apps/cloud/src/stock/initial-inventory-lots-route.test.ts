@@ -190,16 +190,14 @@ describe("GET /initial-inventory-lots", () => {
       productId,
       actorId: userId,
       supplierName: "Alfa",
-      packagingName: "Caja x 3",
       priceCents: 1_000,
-      quantityPerPackage: 3_000,
+      quantity: 3_000,
       listDate: "2026-04-01",
     });
     const dear = await insertLoadedSupplierPrice(db, {
       productId,
       actorId: userId,
       supplierName: "Beta",
-      packagingName: "Bolsa",
       priceCents: 900,
       listDate: "2026-03-01",
     });
@@ -215,7 +213,8 @@ describe("GET /initial-inventory-lots", () => {
         {
           supplierItemId: cheap.supplierItemId,
           supplierName: "Alfa",
-          packagingName: "Caja x 3",
+          quantity: 3_000,
+          saleUnit: "UNIT",
           listDate: "2026-04-01",
           unitCostCents: 333,
           cheapest: true,
@@ -224,7 +223,6 @@ describe("GET /initial-inventory-lots", () => {
         {
           supplierItemId: dear.supplierItemId,
           supplierName: "Beta",
-          packagingName: "Bolsa",
           listDate: "2026-03-01",
           unitCostCents: 900,
           cheapest: false,
@@ -456,7 +454,7 @@ describe("PUT /initial-inventory-lots/:lotId/reference-cost with supplier prices
       productId,
       actorId: userId,
       priceCents: 1_000,
-      quantityPerPackage: 3_000,
+      quantity: 3_000,
     });
 
     const response = await setCostRequest(headers, lotId, { supplierItemId });

@@ -1,4 +1,4 @@
-import { isLinkCurrent, supplierOfferPrice } from "@purosur/domain/purchasing";
+import { isLinkCurrent, supplierOfferPrice } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 

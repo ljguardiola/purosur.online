@@ -5,7 +5,7 @@ import {
   NOW,
   supplierPriceListStoreDatabase,
 } from "./test-support/drizzle-supplier-price-list-store.js";
-import { insertPackaging, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertProduct } from "./test-support/purchasing-fixtures.js";
 import {
   insertPriceList,
   insertPriceListRows,
@@ -325,11 +325,13 @@ describe("removing a row", () => {
 describe("recording a reread", () => {
   async function linkedProduct() {
     const { id: productId } = await insertProduct(context.db, { name: "Yerba" });
-    const packagingId = await insertPackaging(context.db, {
+    return {
       productId,
-      actorId: context.actorId,
-    });
-    return { productId, packagingId, vatRate: 2100 } satisfies SupplierItemLink;
+      quantity: 10_000,
+      saleUnit: "UNIT",
+      vatRate: 2100,
+      relinkRequired: false,
+    } satisfies SupplierItemLink;
   }
 
   async function startedReread() {
@@ -382,7 +384,8 @@ describe("recording a reread", () => {
         page: 2,
         reviewed: true,
         productId: link.productId,
-        packagingId: link.packagingId,
+        quantity: link.quantity,
+        saleUnit: link.saleUnit,
         vatRate: 2100,
         linkedByPerson: true,
       },
@@ -447,7 +450,8 @@ describe("recording a reread", () => {
         pagePriceCents: null,
         reviewed: true,
         productId: link.productId,
-        packagingId: link.packagingId,
+        quantity: link.quantity,
+        saleUnit: link.saleUnit,
         linkedByPerson: true,
       },
     ]);
