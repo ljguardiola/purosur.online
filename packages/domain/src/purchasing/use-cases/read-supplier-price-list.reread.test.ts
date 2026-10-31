@@ -3,6 +3,8 @@ import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-s
 import type { SupplierPriceListReadFailure } from "../model/supplier-price-list.js";
 import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
+import { removeSupplierPriceListRow } from "./remove-supplier-price-list-row.js";
+import { setSupplierPriceListRowPrice } from "./set-supplier-price-list-row-price.js";
 import {
   aUsage,
   HTML,
@@ -174,6 +176,121 @@ describe("readSupplierPriceList of a reread", () => {
       await readSupplierPriceList(ports, input);
 
       expect(store.lockCallOrder).toEqual(["lockList", "lockList", "lockList"]);
+    });
+
+    it("keeps a typed price, its link and its review mark on a row whose page price did not change", async () => {
+      const { store, extractor, ports } = setup();
+      store.seedRow({
+        id: "row-typed",
+        listId: "list-1",
+        description: "Yerba 1 kg",
+        priceCents: 500,
+        pagePriceCents: null,
+        link: LINK,
+        linkedByPerson: true,
+        reviewed: true,
+      });
+      store.seedRow({
+        id: "row-typed-over",
+        listId: "list-1",
+        description: "Azucar 1 kg",
+        priceCents: 300,
+        pagePriceCents: 90,
+        reviewed: true,
+      });
+      extractor.answer = extracted([pageRow("Yerba 1 kg", null), pageRow("Azucar 1 kg", 90)]);
+
+      await readSupplierPriceList(ports, input);
+
+      expect(store.snapshot().rows).toEqual([
+        expect.objectContaining({
+          id: "row-typed",
+          priceCents: 500,
+          pagePriceCents: null,
+          link: LINK,
+          linkedByPerson: true,
+          reviewed: true,
+        }),
+        expect.objectContaining({
+          id: "row-typed-over",
+          priceCents: 300,
+          pagePriceCents: 90,
+          reviewed: true,
+        }),
+      ]);
+    });
+
+    it("sends a row with a typed price back to review at the page's price when the page price changed", async () => {
+      const { store, extractor, ports } = setup();
+      store.seedRow({
+        id: "row-repriced",
+        listId: "list-1",
+        description: "Yerba 1 kg",
+        priceCents: 500,
+        pagePriceCents: null,
+        link: LINK,
+        reviewed: true,
+      });
+      store.seedRow({
+        id: "row-unpriced",
+        listId: "list-1",
+        description: "Azucar 1 kg",
+        priceCents: 300,
+        pagePriceCents: 90,
+        reviewed: true,
+      });
+      extractor.answer = extracted([pageRow("Yerba 1 kg", 120), pageRow("Azucar 1 kg", null)]);
+
+      await readSupplierPriceList(ports, input);
+
+      expect(store.snapshot().rows).toEqual([
+        expect.objectContaining({
+          id: "row-repriced",
+          priceCents: 120,
+          pagePriceCents: 120,
+          link: LINK,
+          reviewed: false,
+        }),
+        expect.objectContaining({
+          id: "row-unpriced",
+          priceCents: null,
+          pagePriceCents: null,
+          reviewed: false,
+        }),
+      ]);
+    });
+
+    it("keeps out an item removed after its price was typed while the page still prints it unchanged", async () => {
+      const { store, extractor, ports } = setup();
+      store.seedRow({
+        id: "row-removed",
+        listId: "list-1",
+        description: "Yerba 1 kg",
+        priceCents: 100,
+        pagePriceCents: 100,
+      });
+      await setSupplierPriceListRowPrice(store, {
+        listId: "list-1",
+        rowId: "row-removed",
+        priceCents: 500,
+        version: 5,
+        actorId: "person-7",
+      });
+      await removeSupplierPriceListRow(store, {
+        listId: "list-1",
+        rowId: "row-removed",
+        version: 6,
+        actorId: "person-7",
+      });
+      extractor.answer = extracted([pageRow("Yerba 1 kg", 100)]);
+
+      await readSupplierPriceList(ports, input);
+
+      const state = store.snapshot();
+      expect(state.rows).toEqual([]);
+      expect(state.removedItems).toEqual([
+        expect.objectContaining({ listId: "list-1", priceCents: 100 }),
+      ]);
     });
 
     it("keeps a removed item out while its price is unchanged and brings it back when it changed", async () => {

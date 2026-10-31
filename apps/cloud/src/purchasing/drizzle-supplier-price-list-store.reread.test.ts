@@ -33,6 +33,7 @@ const page = (description: string, priceCents: number | null, extra: { code?: st
   code: extra.code ?? null,
   presentation: null,
   priceCents,
+  pagePriceCents: priceCents,
   page: 1,
   barcode: null,
 });
@@ -259,6 +260,33 @@ describe("removing a row", () => {
     ]);
   });
 
+  it("remembers the price the page printed for the row, not one a person typed", async () => {
+    const listId = await extractedWebPageList();
+    const [typedOverPrinted, typedOverNone] = await insertPriceListRows(context.db, listId, [
+      { description: "Yerba 1 kg", code: "Y-01", priceCents: 1_250, pagePriceCents: 900 },
+      { description: "Azúcar 1 kg", code: "A-01", priceCents: 700, pagePriceCents: null },
+    ]);
+
+    for (const rowId of [typedOverPrinted, typedOverNone]) {
+      await context
+        .store()
+        .transaction((tx) => tx.removeRow(listId, rowId as string, context.actorId));
+    }
+
+    expect(await context.store().transaction((tx) => tx.removedItems(listId))).toEqual(
+      expect.arrayContaining([
+        {
+          key: supplierItemKey({ code: "Y-01", description: "Yerba 1 kg", presentation: null }),
+          priceCents: 900,
+        },
+        {
+          key: supplierItemKey({ code: "A-01", description: "Azúcar 1 kg", presentation: null }),
+          priceCents: null,
+        },
+      ]),
+    );
+  });
+
   it("remembers an item without a price and one without a code by its description", async () => {
     const listId = await extractedWebPageList();
     const [rowId] = await insertPriceListRows(context.db, listId, [
@@ -383,6 +411,116 @@ describe("recording a reread", () => {
         linkedByPerson: true,
       },
     ]);
+  });
+
+  it("keeps the price a person typed on a row the page prints without one, with its link and marks", async () => {
+    const link = await linkedProduct();
+    const { listId, rereadId } = await startedReread();
+    const [rowId] = await insertPriceListRows(context.db, listId, [
+      {
+        description: "Yerba 1 kg",
+        priceCents: 1_250,
+        pagePriceCents: null,
+        ...link,
+        reviewed: true,
+        linkedByPerson: true,
+      },
+    ]);
+
+    await record(listId, rereadId, {
+      rows: [
+        {
+          kind: "kept",
+          rowId: rowId as string,
+          ...page("Yerba 1 kg", null),
+          priceCents: 1_250,
+        },
+      ],
+      droppedRowIds: [],
+      remainingRemovedItems: [],
+    });
+
+    expect(await context.rowsOf(listId)).toMatchObject([
+      {
+        id: rowId,
+        priceCents: 1_250,
+        pagePriceCents: null,
+        reviewed: true,
+        productId: link.productId,
+        packagingId: link.packagingId,
+        linkedByPerson: true,
+      },
+    ]);
+  });
+
+  it("keeps the price a person typed over a printed one while the page still prints that one", async () => {
+    const { listId, rereadId } = await startedReread();
+    const [rowId] = await insertPriceListRows(context.db, listId, [
+      { description: "Yerba 1 kg", priceCents: 1_250, pagePriceCents: 900, reviewed: true },
+    ]);
+
+    await record(listId, rereadId, {
+      rows: [
+        {
+          kind: "kept",
+          rowId: rowId as string,
+          ...page("Yerba 1 kg", 900),
+          priceCents: 1_250,
+        },
+      ],
+      droppedRowIds: [],
+      remainingRemovedItems: [],
+    });
+
+    expect(await context.rowsOf(listId)).toMatchObject([
+      { id: rowId, priceCents: 1_250, pagePriceCents: 900, reviewed: true },
+    ]);
+  });
+
+  it("gives a repriced row the page's price as its price and its page price, over a typed one", async () => {
+    const { listId, rereadId } = await startedReread();
+    const [rowId] = await insertPriceListRows(context.db, listId, [
+      { description: "Yerba 1 kg", priceCents: 1_250, pagePriceCents: 900, reviewed: true },
+    ]);
+
+    await record(listId, rereadId, {
+      rows: [{ kind: "repriced", rowId: rowId as string, ...page("Yerba 1 kg", 1_100) }],
+      droppedRowIds: [],
+      remainingRemovedItems: [],
+    });
+
+    expect(await context.rowsOf(listId)).toMatchObject([
+      { id: rowId, priceCents: 1_100, pagePriceCents: 1_100, reviewed: false },
+    ]);
+  });
+
+  it("takes a page that newly prints no price as no price, back to review", async () => {
+    const { listId, rereadId } = await startedReread();
+    const [rowId] = await insertPriceListRows(context.db, listId, [
+      { description: "Yerba 1 kg", priceCents: 1_250, pagePriceCents: 900, reviewed: true },
+    ]);
+
+    await record(listId, rereadId, {
+      rows: [{ kind: "repriced", rowId: rowId as string, ...page("Yerba 1 kg", null) }],
+      droppedRowIds: [],
+      remainingRemovedItems: [],
+    });
+
+    expect(await context.rowsOf(listId)).toMatchObject([
+      { id: rowId, priceCents: null, pagePriceCents: null, reviewed: false },
+    ]);
+  });
+
+  it("records the page's price as the price and the page price of an added row", async () => {
+    const { listId, rereadId } = await startedReread();
+
+    await record(listId, rereadId, {
+      rows: [{ kind: "added", link: null, ...page("Yerba 1 kg", 900) }],
+      droppedRowIds: [],
+      remainingRemovedItems: [],
+    });
+
+    expect(await context.rowsOf(listId)).toMatchObject([{ priceCents: 900, pagePriceCents: 900 }]);
   });
 
   it("adds a row with the link the supplier remembered, unreviewed and not made by a person", async () => {

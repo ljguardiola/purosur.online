@@ -3230,6 +3230,9 @@ export const supplierPriceListRows = pgTable(
     supplierCode: text("supplier_code"),
     presentation: text("presentation"),
     priceCents: bigint("price_cents", { mode: "number" }),
+    // The price the page printed for the row when the list was last read; price_cents is what the
+    // review holds, which a typed price changes.
+    pagePriceCents: bigint("page_price_cents", { mode: "number" }),
     page: integer("page"),
     barcode: text("barcode"),
     productId: uuid("product_id").references(() => products.id),
@@ -3241,6 +3244,7 @@ export const supplierPriceListRows = pgTable(
   (table) => [
     unique("supplier_price_list_rows_list_position_key").on(table.listId, table.position),
     check("supplier_price_list_rows_price_check", sql`${table.priceCents} >= 0`),
+    check("supplier_price_list_rows_page_price_check", sql`${table.pagePriceCents} >= 0`),
     check("supplier_price_list_rows_page_check", sql`${table.page} > 0`),
     check(
       "supplier_price_list_rows_link_check",
@@ -3298,8 +3302,8 @@ export const supplierPriceListRereads = pgTable(
   ],
 );
 
-// An item a person removed from a list, kept with the price it had so a reread does not bring it
-// back while the page prints it at that price.
+// An item a person removed from a list, kept with the price the page printed for it so a reread does
+// not bring it back while the page prints it at that price.
 export const supplierPriceListRemovedItems = pgTable(
   "supplier_price_list_removed_items",
   {

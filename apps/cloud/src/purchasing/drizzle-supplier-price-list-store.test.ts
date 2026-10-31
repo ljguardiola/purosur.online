@@ -363,6 +363,7 @@ describe("recording what the reading found", () => {
         supplierCode: "Y-01",
         presentation: "Caja x 10",
         priceCents: 1_500,
+        pagePriceCents: 1_500,
         page: 1,
         barcode: "7790000000011",
         productId,
@@ -376,6 +377,7 @@ describe("recording what the reading found", () => {
         description: "Azúcar 1 kg",
         supplierCode: null,
         priceCents: null,
+        pagePriceCents: null,
         page: null,
         barcode: null,
         productId: null,
@@ -575,6 +577,7 @@ describe("the rows of a list", () => {
         code: "Y-01",
         presentation: "Paquete",
         priceCents: 900,
+        pagePriceCents: 900,
         link: { productId, packagingId, vatRate: 2_100 },
         linkedByPerson: true,
       },
@@ -584,10 +587,27 @@ describe("the rows of a list", () => {
         code: null,
         presentation: null,
         priceCents: null,
+        pagePriceCents: null,
         link: null,
         linkedByPerson: false,
       },
     ]);
+  });
+
+  it("lists the price the page printed beside the one a person typed", async () => {
+    const listId = await insertPriceList(context.db, {
+      supplierId: context.supplierId,
+      locationId: context.locationId,
+      actorId: context.actorId,
+      state: "EXTRACTED",
+    });
+    await insertPriceListRows(context.db, listId, [
+      { description: "Yerba 1 kg", priceCents: 1_250, pagePriceCents: null },
+    ]);
+
+    const rows = await context.store().transaction((tx) => tx.listRows(listId));
+
+    expect(rows).toMatchObject([{ priceCents: 1_250, pagePriceCents: null }]);
   });
 
   it("lists none for a list that has no rows or that does not exist", async () => {

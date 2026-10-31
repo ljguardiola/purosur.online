@@ -15,9 +15,11 @@ export interface RereadCurrentRow {
   code: string | null;
   presentation: string | null;
   priceCents: number | null;
+  // The price the page printed for the row when it was last read, whatever the review typed since.
+  pagePriceCents: number | null;
 }
 
-// An item a person removed from the list, with the price it had when removed.
+// An item a person removed from the list, with the price the page printed for it.
 export interface RemovedItem {
   key: SupplierItemKey;
   priceCents: number | null;
@@ -28,9 +30,12 @@ export interface RereadPageRow<TLink> extends PageFields {
   link: TLink | null;
 }
 
+// A planned row holds the page's price as its page price, and as its price unless it is kept.
+type PlannedFields = PageFields & { pagePriceCents: number | null };
+
 type RereadPlannedRow<TLink> =
-  | ({ kind: "kept" | "repriced"; rowId: string } & PageFields)
-  | ({ kind: "added"; link: TLink | null } & PageFields);
+  | ({ kind: "kept" | "repriced"; rowId: string } & PlannedFields)
+  | ({ kind: "added"; link: TLink | null } & PlannedFields);
 
 export interface RereadPlan<TLink> {
   // The list's rows after the reread, in the page's order.
@@ -45,8 +50,9 @@ function takeFirst<T>(candidates: T[], matches: (candidate: T) => boolean): T | 
 }
 
 // A printing first answers a row of the list, then a removed item, of the same item at the same
-// price, whatever the order the page prints them in. Only a printing left over takes a remaining
-// row of the same item, in order of appearance, at its new price; any other is added.
+// price the page printed last time, whatever the order the page prints them in. Only a printing
+// left over takes a remaining row of the same item, in order of appearance, at its new price; any
+// other is added.
 export function planReread<TLink>(
   currentRows: readonly RereadCurrentRow[],
   removedItems: readonly RemovedItem[],
@@ -65,10 +71,10 @@ export function planReread<TLink>(
     const samePrice = (other: { key: SupplierItemKey; priceCents: number | null }) =>
       sameSupplierItemKey(other.key, key) && other.priceCents === fields.priceCents;
     const kept = takeFirst(unmatchedRows, ({ row, key: rowKey }) =>
-      samePrice({ key: rowKey, priceCents: row.priceCents }),
+      samePrice({ key: rowKey, priceCents: row.pagePriceCents }),
     );
     if (kept) {
-      return { kind: "kept" as const, rowId: kept.row.id };
+      return { kind: "kept" as const, rowId: kept.row.id, priceCents: kept.row.priceCents };
     }
     const removed = takeFirst(unmatchedRemoved, samePrice);
     if (removed) {
@@ -84,15 +90,16 @@ export function planReread<TLink>(
     if (answer?.kind === "removed") {
       return;
     }
+    const planned = { ...fields, pagePriceCents: fields.priceCents };
     if (answer?.kind === "kept") {
-      rows.push({ kind: "kept", rowId: answer.rowId, ...fields });
+      rows.push({ kind: "kept", rowId: answer.rowId, ...planned, priceCents: answer.priceCents });
       return;
     }
     const repriced = takeFirst(unmatchedRows, (other) => sameSupplierItemKey(other.key, key));
     rows.push(
       repriced
-        ? { kind: "repriced", rowId: repriced.row.id, ...fields }
-        : { kind: "added", link, ...fields },
+        ? { kind: "repriced", rowId: repriced.row.id, ...planned }
+        : { kind: "added", link, ...planned },
     );
   });
 

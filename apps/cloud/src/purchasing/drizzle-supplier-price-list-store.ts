@@ -276,6 +276,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       supplierCode: row.code,
       presentation: row.presentation,
       priceCents: row.priceCents,
+      pagePriceCents: row.priceCents,
       page: row.page,
       barcode: row.barcode,
       ...linkColumns(row.link),
@@ -379,15 +380,16 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       await this.tx.execute(sql`update ${supplierPriceListRows} as stored
         set position = planned.position, description = planned.description,
           supplier_code = planned.supplier_code, presentation = planned.presentation,
-          price_cents = planned.price_cents, page = planned.page, barcode = planned.barcode,
+          price_cents = planned.price_cents, page_price_cents = planned.page_price_cents,
+          page = planned.page, barcode = planned.barcode,
           reviewed = case when planned.repriced then false else stored.reviewed end
         from (values ${sql.join(
           batch.map(
             ({ row, position }) =>
-              sql`(${row.rowId}::uuid, ${position}::integer, ${row.description}::text, ${row.code}::text, ${row.presentation}::text, ${row.priceCents}::bigint, ${row.page}::integer, ${row.barcode}::text, ${row.kind === "repriced"}::boolean)`,
+              sql`(${row.rowId}::uuid, ${position}::integer, ${row.description}::text, ${row.code}::text, ${row.presentation}::text, ${row.priceCents}::bigint, ${row.pagePriceCents}::bigint, ${row.page}::integer, ${row.barcode}::text, ${row.kind === "repriced"}::boolean)`,
           ),
           sql`, `,
-        )}) as planned(id, position, description, supplier_code, presentation, price_cents, page, barcode, repriced)
+        )}) as planned(id, position, description, supplier_code, presentation, price_cents, page_price_cents, page, barcode, repriced)
         where stored.id = planned.id and stored.list_id = ${listId}`);
     }
     const added = positioned.flatMap(({ row, position }) =>
@@ -400,6 +402,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
               supplierCode: row.code,
               presentation: row.presentation,
               priceCents: row.priceCents,
+              pagePriceCents: row.pagePriceCents,
               page: row.page,
               barcode: row.barcode,
               ...linkColumns(row.link),
@@ -463,6 +466,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         code: supplierPriceListRows.supplierCode,
         presentation: supplierPriceListRows.presentation,
         priceCents: supplierPriceListRows.priceCents,
+        pagePriceCents: supplierPriceListRows.pagePriceCents,
         productId: supplierPriceListRows.productId,
         packagingId: supplierPriceListRows.packagingId,
         vatRate: supplierPriceListRows.vatRate,
@@ -687,6 +691,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         code: supplierPriceListRows.supplierCode,
         presentation: supplierPriceListRows.presentation,
         priceCents: supplierPriceListRows.priceCents,
+        pagePriceCents: supplierPriceListRows.pagePriceCents,
         page: supplierPriceListRows.page,
       });
     if (removed) {
@@ -695,7 +700,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         listId,
         keyKind: key.kind,
         keyValue: key.value,
-        priceCents: removed.priceCents,
+        priceCents: removed.pagePriceCents,
       });
     }
     await this.advanceVersion(listId);
