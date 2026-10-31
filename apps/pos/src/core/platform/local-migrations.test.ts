@@ -942,6 +942,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1057,6 +1058,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1167,6 +1169,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1276,6 +1279,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1414,6 +1418,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1542,6 +1547,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1674,6 +1680,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1814,6 +1821,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1921,6 +1929,7 @@ describe("the register's local migrations", () => {
         "0090_brands",
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
+        "0093_sales_rebuilt_against_paid_orders",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -9081,13 +9090,13 @@ describe("the sales rebuilt against paid orders migration", () => {
       .run(id, method, provider, cardType);
   }
 
-  function openSale(database: LocalDatabase, id: string) {
+  function openSale(database: LocalDatabase, id: string, state = "OPEN") {
     database
       .prepare(
         `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-         VALUES (?, 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL)`,
+         VALUES (?, 'r1', 'device-a', 's1', 'u1', ?, ?)`,
       )
-      .run(id);
+      .run(id, state, state === "OPEN" ? null : "2026-09-30T12:05:00.000Z");
   }
 
   function withSessionAndOrders(work: (database: LocalDatabase) => void) {
@@ -9150,7 +9159,7 @@ describe("the sales rebuilt against paid orders migration", () => {
   it("links a sale to a paid order, one order per sale and one sale per order", () => {
     withSessionAndOrders((database) => {
       openSale(database, "sale-1");
-      openSale(database, "sale-2");
+      openSale(database, "sale-2", "CANCELLED");
       const link = (saleId: string, orderId: string) =>
         database
           .prepare(
