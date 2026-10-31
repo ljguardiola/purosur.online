@@ -54,6 +54,7 @@ import type {
 import {
   SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS,
   supplierItemQuantityFieldKind,
+  supplierItemQuantityInputOf,
 } from "./supplier-item-quantity";
 import {
   type SupplierPriceListChangeNotice,
@@ -224,11 +225,27 @@ export function LinkSupplierItemModal({
     }
   }, [target, vatRates, form]);
 
+  const proposedQuantity =
+    proposal.status === "loaded" && proposal.value.kind === "proposed"
+      ? proposal.value.quantity
+      : null;
+  const proposedSaleUnit =
+    choices.status === "loaded"
+      ? choices.value.products.find((product) => product.id === proposedId)?.saleUnit
+      : undefined;
+
   useEffect(() => {
     if (target && proposedOffered && form.getFieldValue("productId") === null) {
+      const quantityUntouched =
+        form.getFieldValue("quantity") === "" && !form.getFieldMeta("quantity")?.isTouched;
       form.setFieldValue("productId", proposedId);
+      if (quantityUntouched && proposedQuantity !== null && proposedSaleUnit !== undefined) {
+        const proposed = supplierItemQuantityInputOf(proposedQuantity, proposedSaleUnit);
+        form.setFieldValue("quantity", proposed.quantity);
+        form.setFieldValue("quantityUnit", proposed.quantityUnit);
+      }
     }
-  }, [target, proposedOffered, proposedId, form]);
+  }, [target, proposedOffered, proposedId, proposedQuantity, proposedSaleUnit, form]);
 
   const productChoice = creatableChoice(
     offered ? linkProductOptions(offered) : undefined,
