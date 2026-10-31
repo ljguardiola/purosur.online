@@ -622,7 +622,21 @@ describe("restockedReturnAllocations", () => {
     ]);
   });
 
-  it("offers no capacity in a lot that earlier returns filled", () => {
+  it("offers no capacity in a lot that earlier returns filled exactly", () => {
+    expect(
+      restockedReturnAllocations(
+        lots,
+        [
+          { lotId: "soon", quantity: -3000 },
+          { lotId: "late", quantity: -2000 },
+        ],
+        [{ lotId: "late", quantity: 2000 }],
+        1000,
+      ),
+    ).toEqual([{ target: target("soon"), quantity: 1000 }]);
+  });
+
+  it("offers no capacity in a lot that earlier returns filled beyond the sale", () => {
     expect(
       restockedReturnAllocations(
         lots,
