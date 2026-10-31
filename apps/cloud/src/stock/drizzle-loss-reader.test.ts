@@ -1,4 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
+import { aCompletedSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleLossReader } from "./drizzle-loss-reader.js";
 import {
@@ -29,6 +33,19 @@ const wholeOctober = { from: "2026-10-01", to: "2026-10-31" };
 async function seededActor(): Promise<{ actorId: string; locationId: string }> {
   const { userId, locationId } = await signedInWith(db, [], new Date("2026-10-01T12:00:00.000Z"));
   return { actorId: userId, locationId };
+}
+
+async function soldLineOf(productId: string, soldAt: Date): Promise<string> {
+  const { deviceId } = await insertEnrolledInstallation(db, { now: soldAt });
+  const [line] = aCompletedSale().lines;
+  const sold = { ...(line as NonNullable<typeof line>), id: randomUUID(), productId };
+  await applyCompletedSale(db, {
+    deviceId,
+    completedAt: soldAt,
+    total: sold.lineTotal,
+    overrides: { lines: [sold] },
+  });
+  return sold.id;
 }
 
 describe("DrizzleLossReader.lossesRecorded", () => {
@@ -74,6 +91,7 @@ describe("DrizzleLossReader.lossesRecorded", () => {
     const { actorId, locationId } = await seededActor();
     const { productId } = await insertProduct(db);
     const at = new Date("2026-10-05T15:00:00.000Z");
+    const discardedLineId = await soldLineOf(productId, at);
     for (const reason of ["theft", "return_discard", "expired"]) {
       await insertMovement(db, {
         productId,
@@ -81,6 +99,7 @@ describe("DrizzleLossReader.lossesRecorded", () => {
         actorId,
         kind: "loss",
         reason,
+        ...(reason === "return_discard" ? { saleLineId: discardedLineId } : {}),
         delta: -1_000,
         occurredAt: at,
       });

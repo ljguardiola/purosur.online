@@ -158,6 +158,7 @@ export async function insertMovement(
     actorId: string;
     kind: StockMovementKind;
     reason?: string | null;
+    saleLineId?: string;
     delta: number;
     occurredAt: Date;
     supersededByCountId?: string | null;
