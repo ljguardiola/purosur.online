@@ -182,6 +182,7 @@ export async function runCli({
   log = console.log,
 } = {}) {
   const args = argv.filter((arg, index) => !(index === 0 && arg === "--"));
+  await runPnpm(["exec", "tsc", "-b", "packages/domain", "packages/contracts"]);
   const { generated } = await generateCloudMigration({
     folder,
     runDrizzleKit: async () =>
