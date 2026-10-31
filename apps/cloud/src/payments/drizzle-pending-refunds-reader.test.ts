@@ -67,6 +67,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         occurredAt: refund?.occurredAt,
         saleOccurredAt: cancelled.cancelledAt,
         coveredBy: [],
+        ofRebuiltSale: false,
         providerOrderId: null,
         correctedBy: userId,
         correctedByName: "Ada Lucero",
@@ -94,6 +95,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         occurredAt: voidedAt,
         saleOccurredAt: voidedAt,
         coveredBy: [],
+        ofRebuiltSale: false,
       }),
     ]);
   });
