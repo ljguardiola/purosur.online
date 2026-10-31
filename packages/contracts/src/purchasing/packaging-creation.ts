@@ -10,7 +10,7 @@ import { recordIdSchema, requiredTextSchema } from "../shared/index.js";
 
 const QUANTITY_MESSAGE = "quantityPerPackage must be a positive integer number of thousandths";
 
-export const packagingQuantitySchema = z
+const packagingQuantitySchema = z
   .number({ error: QUANTITY_MESSAGE })
   .refine(mayBeMovementQuantity, QUANTITY_MESSAGE)
   .meta({ decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT });
