@@ -100,7 +100,8 @@ function isMissingLocale(argument) {
   const inner = unwrapped(argument);
   return (
     (ts.isIdentifier(inner) && inner.text === "undefined") ||
-    (ts.isVoidExpression(inner) && ts.isNumericLiteral(unwrapped(inner.expression)))
+    (ts.isVoidExpression(inner) && ts.isNumericLiteral(unwrapped(inner.expression))) ||
+    (ts.isArrayLiteralExpression(inner) && inner.elements.length === 0)
   );
 }
 
