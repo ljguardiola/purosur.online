@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "../../shared/index.js";
 import {
   type AssignNextOfflineNumberBlockInput,
   type AssignNextOfflineNumberBlockOutcome,
@@ -22,7 +23,7 @@ export async function assignNextOfflineNumberBlocks(
   }
   const inLockOrder = [...distinct.values()].sort(
     (a, b) =>
-      a.pointOfSaleNumber - b.pointOfSaleNumber || a.documentType.localeCompare(b.documentType),
+      a.pointOfSaleNumber - b.pointOfSaleNumber || compareCodeUnits(a.documentType, b.documentType),
   );
   const outcomes: AssignNextOfflineNumberBlocksOutcome[] = [];
   for (const each of inLockOrder) {

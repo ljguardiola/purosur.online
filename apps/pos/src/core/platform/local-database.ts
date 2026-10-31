@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { compareCodeUnits } from "@purosur/domain";
 import Database from "better-sqlite3";
 
 export type LocalDatabase = Database.Database;
@@ -51,7 +52,7 @@ export function applyMigrations(
   );
   const pending = migrations
     .filter((migration) => !applied.has(migration.name))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => compareCodeUnits(a.name, b.name));
   for (const migration of pending) {
     database.transaction(() => {
       database.exec(migration.sql);

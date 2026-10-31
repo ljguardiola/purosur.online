@@ -49,7 +49,9 @@ export function findUndeclaredRedeliveries({ migrations, pulledTables }) {
   const database = new DatabaseSync(":memory:");
   const violations = [];
   try {
-    const ordered = [...migrations].sort((a, b) => a.name.localeCompare(b.name));
+    const ordered = [...migrations].sort((a, b) =>
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+    );
     for (const migration of ordered) {
       const before = columnsOfTables(database);
       if (before.has(DECLARATION_TABLE)) {

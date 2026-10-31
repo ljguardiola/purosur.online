@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { lotAllocations } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -224,7 +225,7 @@ describe("DrizzleStockReader.products", () => {
     const products = await new DrizzleStockReader(db).products();
 
     const [firstHoney, secondHoney] = [honey, sameName].sort((a, b) =>
-      a.productId.localeCompare(b.productId),
+      compareCodeUnits(a.productId, b.productId),
     );
     expect(products.map((product) => product.id)).toEqual([
       oats.productId,

@@ -1,4 +1,9 @@
-import { argentinaInstant, shiftCalendarDay, type ZoneRules } from "../../shared/index.js";
+import {
+  argentinaInstant,
+  compareCodeUnits,
+  shiftCalendarDay,
+  type ZoneRules,
+} from "../../shared/index.js";
 import type { TaxAuthorityRejection } from "./fiscal-rejection-standing.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 import {
@@ -150,7 +155,7 @@ export function offlineDocumentPresentations<
   return [...byType.entries()]
     .sort(
       ([left], [right]) =>
-        presentationRank(left) - presentationRank(right) || left.localeCompare(right),
+        presentationRank(left) - presentationRank(right) || compareCodeUnits(left, right),
     )
     .map(([documentType, presented]) => ({
       documentType,

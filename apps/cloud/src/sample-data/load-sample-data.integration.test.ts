@@ -4,6 +4,7 @@ import {
   type AlertLevel,
   alertKindPolicy,
   argentinaCalendarDay,
+  compareSpanishText,
   FIXED_ARGENTINA_ZONE_RULES,
   isAlertKind,
   isInternalBarcode,
@@ -214,8 +215,8 @@ describe("loadSampleData", () => {
     expect(allProducts.some((product) => product.active)).toBe(true);
 
     const storedTags = await db.select({ name: tags.name, active: tags.active }).from(tags);
-    expect([...storedTags].sort((a, b) => a.name.localeCompare(b.name))).toEqual(
-      [...SAMPLE_TAGS].sort((a, b) => a.name.localeCompare(b.name)),
+    expect([...storedTags].sort((a, b) => compareSpanishText(a.name, b.name))).toEqual(
+      [...SAMPLE_TAGS].sort((a, b) => compareSpanishText(a.name, b.name)),
     );
     const assignments = await db.select().from(productTags);
     const tagCountByProduct = new Map<string, number>();

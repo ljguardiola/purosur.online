@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { compareCodeUnits } from "@purosur/domain";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import {
   configureRegisterOfflinePointOfSale,
@@ -82,7 +83,7 @@ let unusedPriceId: string;
 
 function sorted(list: readonly Pulled[]): Pulled[] {
   return [...list].sort((left, right) =>
-    `${left.entityId}:${left.entity}`.localeCompare(`${right.entityId}:${right.entity}`),
+    compareCodeUnits(`${left.entityId}:${left.entity}`, `${right.entityId}:${right.entity}`),
   );
 }
 

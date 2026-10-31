@@ -1,5 +1,6 @@
 import type { BranchSettingsBody } from "@purosur/contracts";
 import type { BranchWeeklyHoursRange, NetContentUnit, SaleUnit } from "@purosur/domain";
+import { compareCodeUnits } from "@purosur/domain";
 import { applyPulledStockMovement } from "@purosur/domain/stock/use-cases";
 import type {
   LocalReplica,
@@ -142,7 +143,7 @@ export class SqliteLocalReplica
     }
     return [...cursors]
       .map(([entity, cursor]) => ({ entity, cursor }))
-      .sort((a, b) => a.entity.localeCompare(b.entity));
+      .sort((a, b) => compareCodeUnits(a.entity, b.entity));
   }
 
   // A row of a version the register already has is rewritten with what the cloud holds now, except

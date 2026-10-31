@@ -1,3 +1,4 @@
+import { compareSpanishText } from "../../../shared/index.js";
 import type { ProductActivityScope } from "../../model/product-activity.js";
 import type {
   CatalogBrandSummary,
@@ -26,7 +27,7 @@ function inScope(product: CatalogListProduct, scope: ProductActivityScope): bool
 }
 
 function byName(first: { name: string }, second: { name: string }): number {
-  return first.name.localeCompare(second.name);
+  return compareSpanishText(first.name, second.name);
 }
 
 export class FakeCatalogListReader implements CatalogListReader {

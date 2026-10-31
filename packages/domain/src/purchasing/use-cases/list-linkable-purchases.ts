@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "../../shared/index.js";
 import { purchaseValueCents } from "../model/freight-distribution.js";
 import type { ReceiptType } from "../model/purchase.js";
 import type {
@@ -31,7 +32,7 @@ export async function listLinkablePurchases(
     .sort()
     .map((id) => byId.get(id) as LinkablePurchaseListing)
     .sort((left, right) => right.recordedAt.getTime() - left.recordedAt.getTime())
-    .sort((left, right) => right.purchasedOn.localeCompare(left.purchasedOn))
+    .sort((left, right) => compareCodeUnits(right.purchasedOn, left.purchasedOn))
     .map((purchase) => ({
       id: purchase.id,
       purchasedOn: purchase.purchasedOn,

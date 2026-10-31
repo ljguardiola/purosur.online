@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "../../shared/index.js";
 import { OFFLINE_SERIES_DOCUMENT_TYPES } from "../model/fiscal-voucher-type.js";
 import { mayRegisterClaimPointOfSale } from "../model/point-of-sale.js";
 import { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
@@ -67,9 +68,7 @@ export async function configureRegisterOfflinePointOfSale(
         ...setup,
         actorId: input.actorId,
       });
-      for (const documentType of [...OFFLINE_SERIES_DOCUMENT_TYPES].sort((a, b) =>
-        a.localeCompare(b),
-      )) {
+      for (const documentType of [...OFFLINE_SERIES_DOCUMENT_TYPES].sort(compareCodeUnits)) {
         await assignFirstOfflineNumberBlock(tx, {
           pointOfSaleNumber: input.pointOfSaleNumber,
           documentType,

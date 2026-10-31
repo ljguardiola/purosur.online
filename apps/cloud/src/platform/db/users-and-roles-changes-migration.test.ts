@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
@@ -48,7 +49,7 @@ describe("the users and roles changes migration applied over a database that alr
         { id: ROLE_A, version: 6 },
         { id: ROLE_B, version: 1 },
       ]
-        .sort((first, second) => (first.id ?? "").localeCompare(second.id ?? ""))
+        .sort((first, second) => compareCodeUnits(first.id ?? "", second.id ?? ""))
         .map(({ id, version }) => ({
           ...insert,
           entity: "role",

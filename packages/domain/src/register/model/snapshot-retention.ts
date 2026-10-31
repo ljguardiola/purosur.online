@@ -1,5 +1,6 @@
 import {
   argentinaCalendarDay,
+  compareCodeUnits,
   localClock,
   shiftCalendarDay,
   type ZoneRules,
@@ -28,7 +29,7 @@ function monthOf(day: string): number {
 }
 
 function newestFirst(a: RetainableSnapshotGeneration, b: RetainableSnapshotGeneration): number {
-  return b.createdAt.getTime() - a.createdAt.getTime() || b.id.localeCompare(a.id);
+  return b.createdAt.getTime() - a.createdAt.getTime() || compareCodeUnits(b.id, a.id);
 }
 
 function newestOfEachBucket(

@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "@purosur/domain";
 import type { LocalMigration } from "./local-database";
 
 const migrationFiles = import.meta.glob<string>("../migrations/*.sql", {
@@ -11,4 +12,4 @@ export const LOCAL_MIGRATIONS: readonly LocalMigration[] = Object.entries(migrat
     name: path.replace(/^.*\//, "").replace(/\.sql$/, ""),
     sql,
   }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+  .sort((a, b) => compareCodeUnits(a.name, b.name));

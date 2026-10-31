@@ -3,6 +3,7 @@ import type { DiscountStatus } from "@purosur/domain";
 import {
   actionsColumn,
   Button,
+  codeUnitOrder,
   dataColumn,
   FloatingNotification,
   type ItemOrder,
@@ -117,8 +118,11 @@ const benefitOrder: ItemOrder<DiscountSummary> = (a, b) => {
   return rankA - rankB || firstA - firstB || secondA - secondB || nameOrder(a, b);
 };
 
+const validFromOrder = codeUnitOrder((discount: DiscountSummary) => discount.validFrom);
+const validToOrder = codeUnitOrder((discount: DiscountSummary) => discount.validTo);
+
 const validityOrder: ItemOrder<DiscountSummary> = (a, b) =>
-  a.validFrom.localeCompare(b.validFrom) || a.validTo.localeCompare(b.validTo) || nameOrder(a, b);
+  validFromOrder(a, b) || validToOrder(a, b) || nameOrder(a, b);
 
 function showsStatus(status: DiscountStatus, statusFilter: DiscountStatusFilter): boolean {
   if (statusFilter === "all") {

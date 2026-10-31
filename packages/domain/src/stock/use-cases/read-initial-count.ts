@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "../../shared/index.js";
 import { isInitialCountOffered, mayRecordInitialInventory } from "./initial-count-access.js";
 import type { InitialCountLedger } from "./initial-count-ledger.js";
 import type { InitialCountLineView } from "./record-initial-count-line.js";
@@ -11,7 +12,8 @@ function compareConfirmation(
   b: { confirmedAt: Date; movementId: string },
 ): number {
   return (
-    a.confirmedAt.getTime() - b.confirmedAt.getTime() || a.movementId.localeCompare(b.movementId)
+    a.confirmedAt.getTime() - b.confirmedAt.getTime() ||
+    compareCodeUnits(a.movementId, b.movementId)
   );
 }
 

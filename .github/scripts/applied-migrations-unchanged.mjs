@@ -130,10 +130,7 @@ export function findMisnumberedRegisterMigrations({ basePaths, currentPaths }) {
   const baseMigrations = basePaths.filter(isRegisterMigrationFile);
   const lastOnMain = baseMigrations
     .map(registerMigrationName)
-    .reduce(
-      (last, name) => (last !== undefined && last.localeCompare(name) >= 0 ? last : name),
-      undefined,
-    );
+    .reduce((last, name) => (last !== undefined && last >= name ? last : name), undefined);
   if (lastOnMain === undefined) return [];
   const lastNumberOnMain = leadingNumber(lastOnMain);
   const width = lastNumberOnMain.length;

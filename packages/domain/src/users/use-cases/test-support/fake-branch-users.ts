@@ -1,3 +1,4 @@
+import { compareSpanishText } from "../../../shared/index.js";
 import type { BranchUserActiveScope, BranchUserFacts, BranchUsers } from "../branch-users.js";
 
 export interface FakeBranchUser extends BranchUserFacts {
@@ -33,7 +34,7 @@ export class FakeBranchUsers implements BranchUsers {
     this.lookups.push("branchUsers");
     return this.users
       .filter((user) => user.locationId === locationId && inScope(user, activeScope))
-      .sort((a, b) => a.firstName.localeCompare(b.firstName))
+      .sort((a, b) => compareSpanishText(a.firstName, b.firstName))
       .map(factsOf);
   }
 

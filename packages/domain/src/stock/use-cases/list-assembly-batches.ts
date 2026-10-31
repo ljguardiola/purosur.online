@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "../../shared/index.js";
 import { assemblyBatchStatus } from "../model/assembly-batch.js";
 import type {
   AssemblyBatchesQuery,
@@ -15,5 +16,7 @@ export async function listAssemblyBatches(
       ...batch,
       status: assemblyBatchStatus({ id: batch.id, voided, lotMovements }),
     }))
-    .sort((a, b) => b.assembledAt.getTime() - a.assembledAt.getTime() || b.id.localeCompare(a.id));
+    .sort(
+      (a, b) => b.assembledAt.getTime() - a.assembledAt.getTime() || compareCodeUnits(b.id, a.id),
+    );
 }

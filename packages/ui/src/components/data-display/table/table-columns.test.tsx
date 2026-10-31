@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { textOrder } from "../../../ordering/item-ordering";
 import { actionsColumn, dataColumn } from "./table-columns";
 import type { TableAction, TableColumn, TableColumnMeta, TableProps } from "./table-types";
 
@@ -6,7 +7,7 @@ type Product = { id: string; name: string };
 
 type Accepts<F, Options> = F extends (options: Options) => unknown ? true : false;
 
-const sortOrder = (a: Product, b: Product) => a.name.localeCompare(b.name);
+const sortOrder = textOrder((product: Product) => product.name);
 
 describe("dataColumn", () => {
   it("is a column with its id and title, whose cell renders the item", () => {

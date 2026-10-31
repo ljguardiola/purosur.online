@@ -1,4 +1,9 @@
-import { priceReviewAt, type SaleUnit } from "@purosur/domain";
+import {
+  compareCodeUnits,
+  compareSpanishText,
+  priceReviewAt,
+  type SaleUnit,
+} from "@purosur/domain";
 import type {
   PriceReviewCategory,
   PriceReviewHistories,
@@ -228,8 +233,8 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
           return aTime - bTime;
         }
       }
-      const nameCompare = a.name.localeCompare(b.name);
-      return nameCompare !== 0 ? nameCompare : a.id.localeCompare(b.id);
+      const nameCompare = compareSpanishText(a.name, b.name);
+      return nameCompare !== 0 ? nameCompare : compareCodeUnits(a.id, b.id);
     });
 
     const allCategories = await this.db

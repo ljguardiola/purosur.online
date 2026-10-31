@@ -1,3 +1,4 @@
+import { compareSpanishText } from "../../../shared/index.js";
 import type { RecipeListing, RecipeListReader } from "../recipe-list-reader.js";
 
 export class FakeRecipeListReader implements RecipeListReader {
@@ -11,7 +12,7 @@ export class FakeRecipeListReader implements RecipeListReader {
 
   async recipes(locationId: string): Promise<RecipeListing[]> {
     this.locationsAsked.push(locationId);
-    return [...this.listings].sort((a, b) => a.productName.localeCompare(b.productName));
+    return [...this.listings].sort((a, b) => compareSpanishText(a.productName, b.productName));
   }
 
   async recipe(productId: string, locationId: string): Promise<RecipeListing | undefined> {
