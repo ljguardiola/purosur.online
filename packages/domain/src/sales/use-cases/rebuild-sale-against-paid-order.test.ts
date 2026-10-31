@@ -81,6 +81,12 @@ describe("rebuildSaleAgainstPaidOrder", () => {
     expect(rebuild(store).kind).toBe("rebuilt");
   });
 
+  it("refuses an integrated terminal paid order whose card type is not known yet, leaving everything as it was", () => {
+    const store = ledger({ paidOrders: [aPointPaidOrder({ cardType: null })] });
+
+    expect(refusedWith(store)).toEqual({ kind: "card_type_unknown" });
+  });
+
   it("lets the cashier rebuild while other paid orders still block selling and discovery is pending", () => {
     const store = ledger({
       paidOrdersWithoutSale: [{ resolved: false }],

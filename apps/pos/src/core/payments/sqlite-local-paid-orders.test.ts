@@ -340,6 +340,59 @@ describe("the paid orders a sale was rebuilt against", () => {
     expect(localPaidOrders().rebuildablePaidOrder("point-1")).toMatchObject({ cardType: null });
   });
 
+  describe("learning the card type of a Point order recorded without it", () => {
+    function recordPointOrderWithoutCardType(): void {
+      localPaidOrders().recordPaidOrderWithoutSale(aPointOrder({ cardType: null }), RECORDED_AT);
+    }
+
+    it("offers the card type once learned", () => {
+      recordPointOrderWithoutCardType();
+
+      localPaidOrders().recordCardTypeOfPaidOrderWithoutSale("point-1", "CREDIT");
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toMatchObject({
+        cardType: "CREDIT",
+      });
+    });
+
+    it("never replaces a card type already known", () => {
+      localPaidOrders().recordPaidOrderWithoutSale(aPointOrder({ cardType: "DEBIT" }), RECORDED_AT);
+
+      localPaidOrders().recordCardTypeOfPaidOrderWithoutSale("point-1", "CREDIT");
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toMatchObject({
+        cardType: "DEBIT",
+      });
+    });
+
+    it("changes nothing for an order that is not recorded", () => {
+      localPaidOrders().recordCardTypeOfPaidOrderWithoutSale("point-1", "CREDIT");
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toBeUndefined();
+    });
+
+    it("is learned through discovery when the cloud lists the recorded order again", async () => {
+      recordPointOrderWithoutCardType();
+
+      await discoverPaidOrdersWithoutSale({
+        cloud: {
+          approvedSince: async () => ({
+            kind: "listed",
+            orders: [aPointOrder({ cardType: "CREDIT" })],
+          }),
+        },
+        refunds: { openLatePaymentRefund: async () => ({ kind: "opened" }) },
+        local: localPaidOrders(),
+        sale: { settleApprovedPayment: () => ({ kind: "refused" }) },
+        clock: { now: () => RECORDED_AT },
+      });
+
+      expect(localPaidOrders().rebuildablePaidOrder("point-1")).toMatchObject({
+        cardType: "CREDIT",
+      });
+    });
+  });
+
   it("offer nothing for a payment that is not a recorded paid order", () => {
     expect(localPaidOrders().rebuildablePaidOrder("qr-1")).toBeUndefined();
   });

@@ -149,6 +149,26 @@ describe("rebuilding a sale against a paid order", () => {
     ).toEqual({ kind: "already_open", sale_id: "id-1" });
   });
 
+  it("refuses a Point order whose card type is not known yet instead of failing when its sale completes", async () => {
+    new SqliteLocalPaidOrders({ database }).recordPaidOrderWithoutSale(
+      {
+        paymentTransactionId: "order-1",
+        saleId: "sale-gone",
+        amount: 3000,
+        createdAt: new Date("2026-10-09T11:00:00.000Z"),
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        cardType: null,
+      },
+      NOW,
+    );
+
+    expect(
+      await rebuildSaleAgainstPaidOrderFor(deps(), { paymentTransactionId: "order-1" }),
+    ).toEqual({ kind: "card_type_unknown" });
+    expect(await currentSaleFor(deps())).toBeNull();
+  });
+
   it("answers that another sale is open instead of rebuilding", async () => {
     await scanProductFor(deps(), "111");
     recordPaidOrder(3000);

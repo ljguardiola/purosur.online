@@ -494,6 +494,7 @@ describe("rebuilding a sale against a paid order", () => {
     { kind: "not_found" },
     { kind: "already_resolved" },
     { kind: "another_sale_open" },
+    { kind: "card_type_unknown" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },

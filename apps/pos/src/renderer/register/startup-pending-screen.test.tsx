@@ -979,6 +979,11 @@ describe("StartupPendingScreen", () => {
         "Terminala o cancelala antes de armar la venta con este cobro.",
       ],
       [
+        { kind: "card_type_unknown" },
+        "Todavía falta el tipo de tarjeta de este cobro",
+        "La caja lo consulta sola cuando hay conexión. Probá de nuevo más tarde o pasalo a reembolso.",
+      ],
+      [
         { kind: "not_permitted" },
         "No tenés permiso para armar la venta",
         "Pedile a quien pueda que la arme.",
