@@ -142,7 +142,7 @@ describe("the purchase orders of a branch", () => {
     const { id: yerbaId } = await insertProduct(db, {
       name: "Yerba",
       brandName: "Taragüí",
-      netContent: { quantity: 1_000, unit: "g" },
+      netContent: { quantity: 1_000, unit: "G" },
     });
     const { id: azucarId } = await insertProduct(db, { name: "Azúcar", saleUnit: "KG" });
     const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
@@ -204,7 +204,7 @@ describe("the purchase orders of a branch", () => {
             id: yerbaId,
             name: "Yerba",
             brandName: "Taragüí",
-            netContent: { quantity: 1_000, unit: "g" },
+            netContent: { quantity: 1_000, unit: "G" },
             saleUnit: "UNIT",
           },
           packages: 1,
