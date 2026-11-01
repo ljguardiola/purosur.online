@@ -2533,7 +2533,7 @@ test("says the month has no vouchers yet instead of a share when the fiscal addr
     .toBeVisible();
 });
 
-test("says a single comprobante in the singular in the warning about a second month", async () => {
+test("says a single comprobante issued by exception in the singular in the warning about a second month", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(secondMonthAtRiskAlert({ exceptionCount: 1, totalCount: 1, shareTenthsOfPercent: 1000 })),
@@ -2544,7 +2544,25 @@ test("says a single comprobante in the singular in the warning about a second mo
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitieron por excepción (CAEA) 1 de 1 comprobante de este domicilio fiscal, el 100,0 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 1 comprobante de este domicilio fiscal, el 100,0 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("says one comprobante issued by exception in the singular out of several in the warning about a second month", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(secondMonthAtRiskAlert({ exceptionCount: 1, totalCount: 80, shareTenthsOfPercent: 12 })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 80 comprobantes de este domicilio fiscal, el 1,2 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
