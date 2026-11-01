@@ -41,6 +41,9 @@ describe("fiscalAddressMonthScopeFiscalAddressId", () => {
     expect(fiscalAddressMonthScopeFiscalAddressId("fa-1")).toBeUndefined();
     expect(fiscalAddressMonthScopeFiscalAddressId("fa-1:september")).toBeUndefined();
     expect(fiscalAddressMonthScopeFiscalAddressId(":2026-09")).toBeUndefined();
+    expect(fiscalAddressMonthScopeFiscalAddressId("fa-1:2026-13")).toBeUndefined();
+    expect(fiscalAddressMonthScopeFiscalAddressId("fa-1:2026-09:x")).toBeUndefined();
+    expect(fiscalAddressMonthScopeFiscalAddressId("x:fa-1:2026-09")).toBeUndefined();
   });
 });
 
