@@ -2,9 +2,9 @@ import type { PurchaseOrderDetail, PurchaseOrderSummary } from "@purosur/contrac
 import { AVENA_PRODUCT_ID, MIEL_PRODUCT_ID } from "./purchase-products";
 
 export const ORDER_ID = "90e00000-0000-4000-8000-000000000001";
-export const CANCELLED_ORDER_ID = "90e00000-0000-4000-8000-000000000002";
+const CANCELLED_ORDER_ID = "90e00000-0000-4000-8000-000000000002";
 export const SUPPLIER_ID = "90e00000-0000-4000-8000-0000000000a1";
-export const OTHER_SUPPLIER_ID = "90e00000-0000-4000-8000-0000000000a2";
+const OTHER_SUPPLIER_ID = "90e00000-0000-4000-8000-0000000000a2";
 
 export const DRAFT_SUMMARY: PurchaseOrderSummary = {
   id: ORDER_ID,

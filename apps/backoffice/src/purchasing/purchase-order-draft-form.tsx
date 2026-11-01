@@ -15,7 +15,7 @@ import { PurchaseOrderLinesField } from "./purchase-order-lines-field";
 import type { editPurchaseOrderLines } from "./purchase-orders-api";
 import { useRefreshPurchasing } from "./purchasing-queries";
 
-export type PurchaseOrderDraftFormServices = {
+type PurchaseOrderDraftFormServices = {
   editPurchaseOrderLines: typeof editPurchaseOrderLines;
 };
 
