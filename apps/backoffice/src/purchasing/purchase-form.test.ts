@@ -13,7 +13,6 @@ import {
   priceReviewProductIds,
   purchaseLineQuantityRefusal,
   purchaseLinesMessage,
-  purchasePackagingOptions,
   purchaseReceiptNumberMessage,
   purchaseRegistrationRequestFrom,
   purchaseSupplierOptions,
@@ -21,11 +20,10 @@ import {
   withCreatedSupplier,
 } from "./purchase-form";
 import {
-  bolsaDeAlmendras,
-  bolsaDeAvena,
-  cajaDeMiel,
-  packagableProducts,
-} from "./test-support/packagings";
+  AVENA_PRODUCT_ID,
+  MIEL_PRODUCT_ID,
+  purchasableProducts,
+} from "./test-support/purchase-products";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
 const TODAY = new CalendarDate(2026, 9, 16);
@@ -78,29 +76,29 @@ describe("nextPurchaseLineId", () => {
 });
 
 describe("purchaseRegistrationRequestFrom", () => {
-  it("builds a line loaded by quantity in the product's sale unit and a line loaded by packaging", () => {
+  it("builds a line loaded by quantity in the product's sale unit and a line loaded by packages", () => {
     const request = purchaseRegistrationRequestFrom(
       form({
         purchasedOn: new CalendarDate(2026, 9, 14),
         note: " Entrega de la tarde ",
         lines: [
           line({
-            productId: bolsaDeAvena.productId,
+            productId: AVENA_PRODUCT_ID,
             quantity: "12,5",
             cost: "25.000,50",
             lotNumber: " L-1 ",
             expiresOn: new CalendarDate(2027, 1, 31),
           }),
           line({
-            productId: cajaDeMiel.productId,
-            loadedBy: "packaging",
-            packagingId: cajaDeMiel.id,
+            productId: MIEL_PRODUCT_ID,
+            loadedBy: "packages",
             packages: "2",
+            quantityPerPackage: "12",
             cost: "14.400",
           }),
         ],
       }),
-      packagableProducts,
+      purchasableProducts,
     );
 
     expect(request).toEqual({
@@ -112,17 +110,17 @@ describe("purchaseRegistrationRequestFrom", () => {
       lines: [
         {
           loadedBy: "quantity",
-          productId: bolsaDeAvena.productId,
+          productId: AVENA_PRODUCT_ID,
           quantity: 12_500,
           costPaidCents: 2_500_050,
           lotNumber: "L-1",
           expiresOn: "2027-01-31",
         },
         {
-          loadedBy: "packaging",
-          productId: cajaDeMiel.productId,
-          packagingId: cajaDeMiel.id,
+          loadedBy: "packages",
+          productId: MIEL_PRODUCT_ID,
           packages: 2,
+          quantityPerPackage: 12_000,
           costPaidCents: 1_440_000,
           lotNumber: "",
           expiresOn: "",
@@ -135,8 +133,8 @@ describe("purchaseRegistrationRequestFrom", () => {
   it("reads a line loaded by quantity of a product sold by the unit in whole units", () => {
     const request = purchaseRegistrationBodySchema.parse(
       purchaseRegistrationRequestFrom(
-        form({ lines: [line({ productId: cajaDeMiel.productId, quantity: "16", cost: "8" })] }),
-        packagableProducts,
+        form({ lines: [line({ productId: MIEL_PRODUCT_ID, quantity: "16", cost: "8" })] }),
+        purchasableProducts,
       ),
     );
 
@@ -145,7 +143,7 @@ describe("purchaseRegistrationRequestFrom", () => {
 
   it("leaves the receipt type empty until one is chosen", () => {
     expect(
-      purchaseRegistrationRequestFrom(form({ receiptType: null }), packagableProducts).receiptType,
+      purchaseRegistrationRequestFrom(form({ receiptType: null }), purchasableProducts).receiptType,
     ).toBeNull();
   });
 
@@ -156,7 +154,7 @@ describe("purchaseRegistrationRequestFrom", () => {
     ["a receipt without a number", { receiptNumber: " " }],
     ["no line", { lines: [] }],
   ])("builds a request the contract refuses with %s", (_name, overrides) => {
-    const request = purchaseRegistrationRequestFrom(form(overrides), packagableProducts);
+    const request = purchaseRegistrationRequestFrom(form(overrides), purchasableProducts);
 
     expect(purchaseRegistrationBodySchema.safeParse(request).success).toBe(false);
   });
@@ -169,29 +167,50 @@ describe("purchaseRegistrationRequestFrom", () => {
     ["no cost", { quantity: "1", cost: "" }],
   ] as const)("builds a line the contract refuses with %s", (_name, overrides) => {
     const request = purchaseRegistrationRequestFrom(
-      form({ lines: [line({ productId: bolsaDeAvena.productId, ...overrides })] }),
-      packagableProducts,
+      form({ lines: [line({ productId: AVENA_PRODUCT_ID, ...overrides })] }),
+      purchasableProducts,
     );
 
     expect(purchaseRegistrationBodySchema.safeParse(request).success).toBe(false);
   });
 
   it.each([
-    ["no packaging", { packagingId: null, packages: "1" }],
-    ["a count that is not a whole number", { packagingId: cajaDeMiel.id, packages: "1,5" }],
-    ["a count of zero", { packagingId: cajaDeMiel.id, packages: "0" }],
-    ["no count", { packagingId: cajaDeMiel.id, packages: "" }],
-  ] as const)("builds a packaged line the contract refuses with %s", (_name, overrides) => {
+    ["a count that is not a whole number", { packages: "1,5", quantityPerPackage: "12" }],
+    ["a count of zero", { packages: "0", quantityPerPackage: "12" }],
+    ["no count", { packages: "", quantityPerPackage: "12" }],
+    ["no quantity per package", { packages: "2", quantityPerPackage: "" }],
+    ["a quantity per package of zero", { packages: "2", quantityPerPackage: "0" }],
+    ["a fraction of a unit per package", { packages: "2", quantityPerPackage: "1,5" }],
+  ] as const)("builds a line loaded by packages the contract refuses with %s", (_name, overrides) => {
     const request = purchaseRegistrationRequestFrom(
       form({
         lines: [
-          line({ productId: cajaDeMiel.productId, loadedBy: "packaging", cost: "5", ...overrides }),
+          line({ productId: MIEL_PRODUCT_ID, loadedBy: "packages", cost: "5", ...overrides }),
         ],
       }),
-      packagableProducts,
+      purchasableProducts,
     );
 
     expect(purchaseRegistrationBodySchema.safeParse(request).success).toBe(false);
+  });
+
+  it("types the quantity per package in kilos for a product sold by weight", () => {
+    const request = purchaseRegistrationRequestFrom(
+      form({
+        lines: [
+          line({
+            productId: AVENA_PRODUCT_ID,
+            loadedBy: "packages",
+            packages: "3",
+            quantityPerPackage: "2,5",
+            cost: "1",
+          }),
+        ],
+      }),
+      purchasableProducts,
+    );
+
+    expect(request.lines[0]).toMatchObject({ packages: 3, quantityPerPackage: 2_500 });
   });
 });
 
@@ -230,7 +249,7 @@ describe("purchaseReceiptNumberMessage", () => {
 
 describe("purchaseLinesMessage", () => {
   const message = (lines: PurchaseLineValues[]) =>
-    purchaseLinesMessage(form({ lines }), packagableProducts);
+    purchaseLinesMessage(form({ lines }), purchasableProducts);
 
   it("asks for a line when there is none", () => {
     expect(message([])).toBe("Agregá al menos una línea.");
@@ -239,38 +258,47 @@ describe("purchaseLinesMessage", () => {
   it("points at the first line with something to fix, numbered from one", () => {
     expect(
       message([
-        line({ productId: bolsaDeAvena.productId, quantity: "1", cost: "10" }),
+        line({ productId: AVENA_PRODUCT_ID, quantity: "1", cost: "10" }),
         line({ productId: null, quantity: "1", cost: "10" }),
       ]),
     ).toBe("Línea 2: Elegí el producto.");
   });
 
-  it("asks for the packaging and its count of a line loaded by packaging", () => {
-    const packaged = { productId: cajaDeMiel.productId, loadedBy: "packaging", cost: "5" } as const;
+  it("asks for the count of packages and the quantity of each of a line loaded by packages", () => {
+    const packaged = { productId: MIEL_PRODUCT_ID, loadedBy: "packages", cost: "5" } as const;
 
-    expect(message([line({ ...packaged, packages: "1" })])).toBe("Línea 1: Elegí la presentación.");
-    expect(message([line({ ...packaged, packagingId: cajaDeMiel.id, packages: "" })])).toBe(
-      "Línea 1: Ingresá cuántas presentaciones compraste, en un número entero.",
+    expect(message([line({ ...packaged, packages: "", quantityPerPackage: "12" })])).toBe(
+      "Línea 1: Ingresá cuántos paquetes compraste, en un número entero.",
+    );
+    expect(message([line({ ...packaged, packages: "2", quantityPerPackage: "" })])).toBe(
+      "Línea 1: Escribí una cantidad entera de unidades, por ejemplo 16.",
+    );
+    expect(
+      message([
+        line({ productId: AVENA_PRODUCT_ID, loadedBy: "packages", cost: "5", packages: "2" }),
+      ]),
+    ).toBe(
+      "Línea 1: Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
     );
   });
 
   it("tells how to type the quantity in the product's sale unit", () => {
-    expect(message([line({ productId: bolsaDeAvena.productId, quantity: "x", cost: "1" })])).toBe(
+    expect(message([line({ productId: AVENA_PRODUCT_ID, quantity: "x", cost: "1" })])).toBe(
       "Línea 1: Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
     );
-    expect(message([line({ productId: cajaDeMiel.productId, quantity: "x", cost: "1" })])).toBe(
+    expect(message([line({ productId: MIEL_PRODUCT_ID, quantity: "x", cost: "1" })])).toBe(
       "Línea 1: Escribí una cantidad entera de unidades, por ejemplo 16.",
     );
   });
 
   it("tells how to type the cost paid", () => {
-    expect(message([line({ productId: bolsaDeAvena.productId, quantity: "1", cost: "" })])).toBe(
+    expect(message([line({ productId: AVENA_PRODUCT_ID, quantity: "1", cost: "" })])).toBe(
       "Línea 1: Escribí el costo pagado con coma para los centavos, por ejemplo 1.250,50.",
     );
   });
 
   it("asks to review a line whose values are all well formed", () => {
-    expect(message([line({ productId: bolsaDeAvena.productId, quantity: "0", cost: "1" })])).toBe(
+    expect(message([line({ productId: AVENA_PRODUCT_ID, quantity: "0", cost: "1" })])).toBe(
       "Línea 1: Revisá los valores.",
     );
   });
@@ -281,10 +309,6 @@ describe("PURCHASE_LINE_REFUSALS", () => {
     expect(PURCHASE_LINE_REFUSALS).toEqual({
       product_not_found: "Este producto ya no está disponible.",
       product_inactive: "Este producto ya no está activo.",
-      packaging_not_found: "Esta presentación ya no está disponible.",
-      packaging_inactive: "Esta presentación ya no está activa.",
-      packaging_sale_unit_changed:
-        "La presentación no coincide con la unidad de venta actual del producto.",
     });
   });
 });
@@ -292,20 +316,20 @@ describe("PURCHASE_LINE_REFUSALS", () => {
 describe("purchaseLineQuantityRefusal", () => {
   it("tells how to type the quantity of a line loaded by quantity, in its product's sale unit", () => {
     expect(
-      purchaseLineQuantityRefusal(line({ productId: bolsaDeAvena.productId }), packagableProducts),
+      purchaseLineQuantityRefusal(line({ productId: AVENA_PRODUCT_ID }), purchasableProducts),
     ).toBe("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
     expect(
-      purchaseLineQuantityRefusal(line({ productId: cajaDeMiel.productId }), packagableProducts),
+      purchaseLineQuantityRefusal(line({ productId: MIEL_PRODUCT_ID }), purchasableProducts),
     ).toBe("Escribí una cantidad entera de unidades, por ejemplo 16.");
   });
 
-  it("says a line loaded by packaging adds up to more than a line may hold", () => {
+  it("says a line loaded by packages adds up to more than a line may hold", () => {
     expect(
       purchaseLineQuantityRefusal(
-        line({ productId: cajaDeMiel.productId, loadedBy: "packaging" }),
-        packagableProducts,
+        line({ productId: MIEL_PRODUCT_ID, loadedBy: "packages" }),
+        purchasableProducts,
       ),
-    ).toBe("Son demasiadas presentaciones para una sola línea.");
+    ).toBe("Los paquetes suman más de lo que admite una sola línea.");
   });
 });
 
@@ -336,21 +360,6 @@ describe("purchaseSupplierOptions", () => {
   });
 });
 
-describe("purchasePackagingOptions", () => {
-  it("offers every packaging of the chosen product the cloud offers, with its quantity in its sale unit", () => {
-    expect(
-      purchasePackagingOptions(
-        [cajaDeMiel, bolsaDeAvena, bolsaDeAlmendras],
-        bolsaDeAlmendras.productId,
-      ),
-    ).toEqual([{ value: bolsaDeAlmendras.id, label: "Bolsa de 2,5 kg (2,500 kg)" }]);
-  });
-
-  it("offers nothing before a product is chosen", () => {
-    expect(purchasePackagingOptions([cajaDeMiel], null)).toEqual([]);
-  });
-});
-
 describe("reviewPriceNow", () => {
   it("starts unchosen on every new line", () => {
     expect(emptyPurchaseLine(1).reviewPriceNow).toBe(false);
@@ -359,19 +368,19 @@ describe("reviewPriceNow", () => {
 
   it("is not part of the registration request", () => {
     const chosen = line({
-      productId: bolsaDeAvena.productId,
+      productId: AVENA_PRODUCT_ID,
       quantity: "12,5",
       cost: "2.000",
       reviewPriceNow: true,
     });
     const unchosen = { ...chosen, reviewPriceNow: false };
 
-    expect(purchaseRegistrationRequestFrom(form({ lines: [chosen] }), packagableProducts)).toEqual(
-      purchaseRegistrationRequestFrom(form({ lines: [unchosen] }), packagableProducts),
+    expect(purchaseRegistrationRequestFrom(form({ lines: [chosen] }), purchasableProducts)).toEqual(
+      purchaseRegistrationRequestFrom(form({ lines: [unchosen] }), purchasableProducts),
     );
     expect(
       JSON.stringify(
-        purchaseRegistrationRequestFrom(form({ lines: [chosen] }), packagableProducts),
+        purchaseRegistrationRequestFrom(form({ lines: [chosen] }), purchasableProducts),
       ),
     ).not.toContain("reviewPriceNow");
   });

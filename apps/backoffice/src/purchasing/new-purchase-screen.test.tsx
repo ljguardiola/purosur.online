@@ -9,7 +9,7 @@ import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffi
 import { render } from "../shell/test-support/render-with-router";
 import { NewPurchaseScreen } from "./new-purchase-screen";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
-import { bolsaDeAvena, cajaDeMiel } from "./test-support/packagings";
+import { AVENA_PRODUCT_ID, MIEL_PRODUCT_ID } from "./test-support/purchase-products";
 import { compraDeAvena, purchaseChoicesFrom } from "./test-support/purchases";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
@@ -27,7 +27,6 @@ function createServices(
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "ok", value: purchaseChoices }),
     registerPurchase: vi.fn(),
     createSupplier: vi.fn(),
-    createPackaging: vi.fn(),
     ...overrides,
   };
 }
@@ -125,7 +124,7 @@ async function register(screen: Screen) {
 
 const avenaLine = {
   loadedBy: "quantity",
-  productId: bolsaDeAvena.productId,
+  productId: AVENA_PRODUCT_ID,
   quantity: 12_500,
   costPaidCents: 200_000,
   lotNumber: null,
@@ -238,25 +237,13 @@ test("says there is no product to buy to a person who cannot create one, keeping
   const services = createServices({
     fetchPurchaseChoices: vi.fn().mockResolvedValue({
       kind: "ok",
-      value: { ...purchaseChoices, products: [], packagings: [] },
+      value: { ...purchaseChoices, products: [] },
     }),
   });
   const screen = await renderScreen(services, () => {}, accessWith("purchases", "suppliers"));
 
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Registrar la compra" })).toBeDisabled();
-});
-
-test("says a product has no active packaging to a person who cannot create one", async () => {
-  const screen = await opened(createServices(), accessWith("purchases", "suppliers"));
-  const group = line(screen, 1);
-  await chooseFromComboBox(screen, group, /^Producto/, "Almendras peladas");
-
-  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
-
-  await expect
-    .element(group.getByText("Este producto no tiene presentaciones activas").first())
-    .toBeVisible();
 });
 
 test("registers a purchase with a line loaded by quantity, then goes back to the list with a confirmation to show", async () => {
@@ -321,7 +308,7 @@ test("goes to the prices to review the products of the lines chosen for it, inst
   await expect.poll(() => window.location.pathname).toBe("/prices");
   expect(window.location.search).toBe("");
   expect(window.history.state).toMatchObject({
-    purchasedProductsToReview: [bolsaDeAvena.productId],
+    purchasedProductsToReview: [AVENA_PRODUCT_ID],
   });
 });
 
@@ -353,7 +340,7 @@ test("stays on the form when the registration is refused, even with lines chosen
   expect(window.location.pathname).toBe("/purchases/new");
 });
 
-test("registers a purchase with a line loaded by packaging, the lot and its expiry", async () => {
+test("registers a purchase with a line loaded by packages, the lot and its expiry", async () => {
   const services = createServices();
   vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
   const screen = await opened(services);
@@ -366,10 +353,10 @@ test("registers a purchase with a line loaded by packaging, the lot and its expi
   const group = line(screen, 1);
   await chooseFromComboBox(screen, group, /^Producto/, "Miel pura de abeja 1 kg");
 
-  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
-  await chooseFromSelect(screen, group, /Presentación/, "Caja x 12 (12 u)");
-  await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de presentaciones/ }), "2");
-  await userEvent.fill(group.getByRole("textbox", { name: /^Costo por presentación/ }), "7.200");
+  await userEvent.click(group.getByText("Paquetes", { exact: true }).last());
+  await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de paquetes/ }), "2");
+  await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad por paquete/ }), "12");
+  await userEvent.fill(group.getByRole("textbox", { name: /^Costo por paquete/ }), "7.200");
   await userEvent.fill(group.getByRole("textbox", { name: /^Lote/ }), "L-17");
   await userEvent.click(
     group
@@ -388,10 +375,10 @@ test("registers a purchase with a line loaded by packaging, the lot and its expi
     note: null,
     lines: [
       {
-        loadedBy: "packaging",
-        productId: cajaDeMiel.productId,
-        packagingId: cajaDeMiel.id,
+        loadedBy: "packages",
+        productId: MIEL_PRODUCT_ID,
         packages: 2,
+        quantityPerPackage: 12_000,
         costPaidCents: 720_000,
         lotNumber: "L-17",
         expiresOn: "2027-01-31",
@@ -498,12 +485,6 @@ test.each([
 test.each([
   ["product_not_found", "Este producto ya no está disponible."],
   ["product_inactive", "Este producto ya no está activo."],
-  ["packaging_not_found", "Esta presentación ya no está disponible."],
-  ["packaging_inactive", "Esta presentación ya no está activa."],
-  [
-    "packaging_sale_unit_changed",
-    "La presentación no coincide con la unidad de venta actual del producto.",
-  ],
 ] as const)("shows the cloud's %s refusal at the line it names", async (reason, message) => {
   const services = createServices();
   vi.mocked(services.registerPurchase).mockResolvedValue({
@@ -694,19 +675,43 @@ test("has no accessibility violations once loaded", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("typing in the packaging of a line offers only the matching packagings", async () => {
-  const screen = await opened();
-  await chooseFromComboBox(screen, screen, /^Proveedor/, "Distribuidora Andina");
+test("types the quantity of each package in the product's sale unit, in kilos for a product sold by weight", async () => {
+  const services = createServices();
+  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
+  const screen = await opened(services);
+  await fillHeader(screen);
   const group = line(screen, 1);
-  await chooseFromComboBox(screen, group, /^Producto/, "Miel pura de abeja 1 kg");
-  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
+  await chooseFromComboBox(screen, group, /^Producto/, "Avena arrollada");
+  await userEvent.click(group.getByText("Paquetes", { exact: true }).last());
+  await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de paquetes/ }), "3");
+  await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad por paquete/ }), "2,5");
+  await userEvent.fill(group.getByRole("textbox", { name: /^Costo por paquete/ }), "5.000");
 
-  await userEvent.fill(group.getByRole("combobox", { name: /Presentación/ }), "x 12");
+  await register(screen);
 
-  expect(
-    screen
-      .getByRole("option")
-      .all()
-      .map((option) => option.element().textContent),
-  ).toEqual(["Caja x 12 (12 u)"]);
+  expect(services.registerPurchase).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lines: [
+        expect.objectContaining({
+          loadedBy: "packages",
+          productId: AVENA_PRODUCT_ID,
+          packages: 3,
+          quantityPerPackage: 2_500,
+          costPaidCents: 500_000,
+        }),
+      ],
+    }),
+  );
+});
+
+test("loading a line by packages asks for the number of packages and the quantity of each, with no packaging to choose", async () => {
+  const screen = await opened();
+  const group = line(screen, 1);
+
+  await userEvent.click(group.getByText("Paquetes", { exact: true }).last());
+
+  expect(group.getByText("Presentación").query()).toBeNull();
+  await expect
+    .element(group.getByRole("textbox", { name: /^Cantidad por paquete/ }))
+    .toBeVisible();
 });
