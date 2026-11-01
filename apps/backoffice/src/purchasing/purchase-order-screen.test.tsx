@@ -365,6 +365,42 @@ test("a cancelled order is read-only: its lines are shown in a table with no inp
   expect(screen.getByRole("button", { name: "Agregar línea" }).query()).toBeNull();
 });
 
+test("decides whether the lines are editable from the cloud's answer, not from the state", async () => {
+  const services = createServices({
+    fetchPurchaseOrder: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", order: { ...DRAFT_ORDER, editable: false, cancellable: false } },
+    }),
+  });
+  const screen = await loaded(services);
+
+  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  expect(screen.getByRole("textbox").query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+});
+
+test("shows the totals the cloud answers", async () => {
+  const services = createServices({
+    fetchPurchaseOrder: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: {
+        kind: "found",
+        order: {
+          ...CANCELLED_ORDER,
+          expectedTotalCents: 777_000,
+          hasUnpricedLine: false,
+          lines: [{ ...DRAFT_ORDER.lines[0], expectedTotalCents: 666_000 }],
+        },
+      },
+    }),
+  });
+  const screen = await loaded(services);
+
+  await expect.element(screen.getByText("$ 7.770,00")).toBeVisible();
+  await expect.element(screen.getByText("$ 6.660,00")).toBeVisible();
+  expect(screen.getByText("Hay líneas sin precio de lista").query()).toBeNull();
+});
+
 test("offers no way to add a product while the products fail to load, and keeps the rest editable", async () => {
   const services = createServices({
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "failed" }),

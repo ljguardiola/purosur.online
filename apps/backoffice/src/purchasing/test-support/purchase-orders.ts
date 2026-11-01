@@ -53,6 +53,7 @@ export const DRAFT_ORDER: PurchaseOrderDetail = {
       packages: 3,
       quantityPerPackage: 12_000,
       expectedPackagePriceCents: 185_000,
+      expectedTotalCents: 555_000,
     },
     {
       product: {
@@ -65,12 +66,19 @@ export const DRAFT_ORDER: PurchaseOrderDetail = {
       packages: 2,
       quantityPerPackage: 25_000,
       expectedPackagePriceCents: null,
+      expectedTotalCents: null,
     },
   ],
+  expectedTotalCents: 555_000,
+  hasUnpricedLine: true,
+  editable: true,
+  cancellable: true,
 };
 
 export const CANCELLED_ORDER: PurchaseOrderDetail = {
   ...DRAFT_ORDER,
   id: CANCELLED_ORDER_ID,
   state: "CANCELLED",
+  editable: false,
+  cancellable: false,
 };

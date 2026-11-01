@@ -1,4 +1,8 @@
-import { purchaseOrderDetailSchema, purchaseOrderListSchema } from "@purosur/contracts";
+import {
+  purchaseOrderBuildResponseSchema,
+  purchaseOrderDetailSchema,
+  purchaseOrderListSchema,
+} from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -185,7 +189,18 @@ describe("GET /purchase-orders/:id", () => {
     expect(purchaseOrderDetailSchema.parse(response.json())).toMatchObject({
       id: orderId,
       state: "DRAFT",
-      lines: [{ product: { id: productId }, packages: 2, quantityPerPackage: 6_000 }],
+      lines: [
+        {
+          product: { id: productId },
+          packages: 2,
+          quantityPerPackage: 6_000,
+          expectedTotalCents: 24_000,
+        },
+      ],
+      expectedTotalCents: 24_000,
+      hasUnpricedLine: false,
+      editable: true,
+      cancellable: true,
     });
   });
 
@@ -248,7 +263,7 @@ describe("POST /purchase-orders", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    const { orderIds } = response.json();
+    const { orderIds } = purchaseOrderBuildResponseSchema.parse(response.json());
     const stored = await db.select().from(purchaseOrders);
     expect(orderIds.sort()).toEqual(stored.map((order) => order.id).sort());
     expect(stored.every((order) => order.locationId === locationId)).toBe(true);
@@ -460,7 +475,11 @@ describe("POST /purchase-orders/:id/cancel", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(purchaseOrderDetailSchema.parse(response.json()).state).toBe("CANCELLED");
+    expect(purchaseOrderDetailSchema.parse(response.json())).toMatchObject({
+      state: "CANCELLED",
+      editable: false,
+      cancellable: false,
+    });
     const [order] = await db.select().from(purchaseOrders);
     expect(order).toMatchObject({ state: "CANCELLED", cancelledAt: NOW, cancelledBy: userId });
   });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  expectedLineTotal,
   expectedOrderTotal,
   mayBeCancelled,
   mayBeEdited,
@@ -51,5 +52,15 @@ describe("expectedOrderTotal", () => {
       expectedTotalCents: 0,
       hasUnpricedLine: true,
     });
+  });
+});
+
+describe("expectedLineTotal", () => {
+  it("multiplies the packages by the expected package price", () => {
+    expect(expectedLineTotal({ packages: 3, expectedPackagePriceCents: 1_250 })).toBe(3_750);
+  });
+
+  it("has no total for a line without a price", () => {
+    expect(expectedLineTotal({ packages: 3, expectedPackagePriceCents: null })).toBeNull();
   });
 });

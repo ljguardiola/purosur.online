@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { purchaseOrderBuildBodySchema } from "./purchase-order-build.js";
+import { purchaseOrderBuildBodySchema, purchaseOrderBuildResponseSchema } from "./purchase-order-build.js";
 
 const SUPPLIER_ID = "11111111-1111-1111-1111-111111111111";
 const PRODUCT_ID = "22222222-2222-2222-2222-222222222222";
@@ -50,5 +50,17 @@ describe("purchaseOrderBuildBodySchema", () => {
   it("rejects choices that are not a list", () => {
     expect(firstFailure({ choices: "nope" })?.path).toEqual(["choices"]);
     expect(firstFailure({})?.path).toEqual(["choices"]);
+  });
+});
+
+describe("purchaseOrderBuildResponseSchema", () => {
+  it("accepts the ids of the orders built", () => {
+    expect(purchaseOrderBuildResponseSchema.safeParse({ orderIds: ["a", "b"] }).data).toEqual({
+      orderIds: ["a", "b"],
+    });
+  });
+
+  it.each([{}, { orderIds: "a" }, { orderIds: [1] }])("rejects %j", (body) => {
+    expect(purchaseOrderBuildResponseSchema.safeParse(body).success).toBe(false);
   });
 });
