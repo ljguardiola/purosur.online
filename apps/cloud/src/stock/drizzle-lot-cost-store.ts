@@ -3,12 +3,12 @@ import type {
   LockedLot,
   LotCostStore,
   LotCostTransaction,
-  LotOriginKind,
 } from "@purosur/domain/stock/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { lots } from "../platform/db/schema.js";
 import { loadedSupplierPricesOf } from "./loaded-supplier-prices.js";
+import { lotOriginOf } from "./lot-origin.js";
 
 class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
   implements LotCostTransaction
@@ -35,13 +35,7 @@ class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
     if (!lot) {
       return undefined;
     }
-    const origin: LotOriginKind = lot.technical
-      ? "technical"
-      : lot.assemblyBatchId !== null
-        ? "assembly_batch"
-        : lot.purchaseLineId === null
-          ? "initial_count"
-          : "purchase";
+    const origin = lotOriginOf(lot);
     return {
       productId: lot.productId,
       origin,

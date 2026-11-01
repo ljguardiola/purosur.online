@@ -53,6 +53,7 @@ function toAnswerWire({
         sale_unit: line.saleUnit,
         quantity: line.quantity,
         promotion_id: line.promotionId,
+        promotion_kind: line.promotionKind,
         line_total: line.lineTotal,
       })),
     },

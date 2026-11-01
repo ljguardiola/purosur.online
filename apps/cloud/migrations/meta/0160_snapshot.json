@@ -1,5 +1,5 @@
 {
-  "id": "a6f696ac-d0bd-4d79-b00a-c358e1a99706",
+  "id": "fc1de1c7-cca8-4fd2-b0af-43e11d781846",
   "prevId": "af664d06-5f4b-419a-b556-64079daf9fc6",
   "version": "7",
   "dialect": "postgresql",
@@ -2858,79 +2858,6 @@
         "discounts_weekdays_check": {
           "name": "discounts_weekdays_check",
           "value": "\"discounts\".\"weekdays\" <@ array[1, 2, 3, 4, 5, 6, 7]::smallint[]"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.exception_share_breaches": {
-      "name": "exception_share_breaches",
-      "schema": "",
-      "columns": {
-        "fiscal_address_id": {
-          "name": "fiscal_address_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "month": {
-          "name": "month",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "exception_count": {
-          "name": "exception_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total_count": {
-          "name": "total_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "exception_share_breaches_fiscal_address_id_fiscal_addresses_id_fk": {
-          "name": "exception_share_breaches_fiscal_address_id_fiscal_addresses_id_fk",
-          "tableFrom": "exception_share_breaches",
-          "tableTo": "fiscal_addresses",
-          "columnsFrom": ["fiscal_address_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "exception_share_breaches_pkey": {
-          "name": "exception_share_breaches_pkey",
-          "columns": ["fiscal_address_id", "month"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "exception_share_breaches_month_format": {
-          "name": "exception_share_breaches_month_format",
-          "value": "\"exception_share_breaches\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        },
-        "exception_share_breaches_counts_consistent": {
-          "name": "exception_share_breaches_counts_consistent",
-          "value": "\"exception_share_breaches\".\"exception_count\" >= 0 and \"exception_share_breaches\".\"exception_count\" <= \"exception_share_breaches\".\"total_count\""
         }
       },
       "isRLSEnabled": false
@@ -9324,6 +9251,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "promotion_kind": {
+          "name": "promotion_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "discount_amount": {
           "name": "discount_amount",
           "type": "bigint",
@@ -9393,6 +9326,10 @@
         "sale_lines_sale_discount_share_check": {
           "name": "sale_lines_sale_discount_share_check",
           "value": "\"sale_lines\".\"sale_discount_share\" >= 0"
+        },
+        "sale_lines_promotion_kind_check": {
+          "name": "sale_lines_promotion_kind_check",
+          "value": "\"sale_lines\".\"promotion_kind\" IS NULL OR (\"sale_lines\".\"promotion_id\" IS NOT NULL AND \"sale_lines\".\"promotion_kind\" IN ('PERCENT_OFF', 'BUY_N_PAY_M'))"
         },
         "sale_lines_weight_source_check": {
           "name": "sale_lines_weight_source_check",

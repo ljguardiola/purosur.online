@@ -23,7 +23,7 @@ export async function latestSupplierOffers<TQueryResult extends PgQueryResultHKT
       productId: sql<string>`${products.id}`.as("product_id"),
       supplierId: sql<string>`${suppliers.id}`.as("supplier_id"),
       supplierName: sql<string>`${suppliers.name}`.as("supplier_name"),
-      quantity: sql<number>`${supplierItems.quantity}`.as("link_quantity"),
+      quantity: sql<number>`${supplierItems.quantity}`.mapWith(Number).as("link_quantity"),
       saleUnit: sql<string>`${supplierItems.saleUnit}`.as("link_sale_unit"),
       relinkRequired: sql<boolean>`${supplierItems.relinkRequired}`.as("link_relink_required"),
       priceCents: supplierItemPrices.priceCents,

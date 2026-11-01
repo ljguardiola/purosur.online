@@ -19,6 +19,7 @@ export async function insertAssemblyBatch(
     cost?: { totalCents: number; quantity: number } | null;
     costIncomplete?: boolean;
     expiresOn?: string | null;
+    lotCreatedAt?: Date;
   },
 ): Promise<InsertedAssemblyBatch> {
   const output = batch.output ?? 14_000;
@@ -48,6 +49,7 @@ export async function insertAssemblyBatch(
       costQuantity: cost?.quantity ?? null,
       costIncomplete: batch.costIncomplete ?? cost === null,
       expiresOn: batch.expiresOn ?? null,
+      ...(batch.lotCreatedAt ? { createdAt: batch.lotCreatedAt } : {}),
     })
     .returning({ id: lots.id });
   if (!lot) {

@@ -1664,6 +1664,7 @@ export const saleLines = pgTable(
     listUnitPrice: bigint("list_unit_price", { mode: "number" }).notNull(),
     priceListId: uuid("price_list_id").notNull(),
     promotionId: uuid("promotion_id"),
+    promotionKind: text("promotion_kind"),
     discountAmount: bigint("discount_amount", { mode: "number" }).notNull(),
     lineTotal: bigint("line_total", { mode: "number" }).notNull(),
     weightSource: text("weight_source"),
@@ -1675,6 +1676,10 @@ export const saleLines = pgTable(
   },
   (table) => [
     check("sale_lines_sale_discount_share_check", sql`${table.saleDiscountShare} >= 0`),
+    check(
+      "sale_lines_promotion_kind_check",
+      sql`${table.promotionKind} IS NULL OR (${table.promotionId} IS NOT NULL AND ${table.promotionKind} IN ('PERCENT_OFF', 'BUY_N_PAY_M'))`,
+    ),
     check("sale_lines_weight_source_check", sql`${table.weightSource} IN ('SCALE', 'MANUAL')`),
     check(
       "sale_lines_manual_adjustment_kind_check",

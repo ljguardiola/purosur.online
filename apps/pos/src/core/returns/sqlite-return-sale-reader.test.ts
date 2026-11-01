@@ -40,9 +40,43 @@ describe("the sale a return starts from", () => {
       invoice: null,
       returned: [],
     });
-    expect(found?.sale.lines.map(({ id, promotionId }) => ({ id, promotionId }))).toEqual([
-      { id: "line-1", promotionId: null },
-      { id: "line-2", promotionId: "two-for-one" },
+    expect(
+      found?.sale.lines.map(({ id, promotionId, promotionKind }) => ({
+        id,
+        promotionId,
+        promotionKind,
+      })),
+    ).toEqual([
+      { id: "line-1", promotionId: null, promotionKind: null },
+      { id: "line-2", promotionId: "two-for-one", promotionKind: "BUY_N_PAY_M" },
+    ]);
+  });
+
+  it("names the kind of the promotion the line applied, not of another it was a candidate for", () => {
+    database.exec(
+      `INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent, buy_qty, pay_qty)
+       VALUES ('line-2', 'ten-off', 'Diez por ciento', 'PERCENT_OFF', 10, NULL, NULL);
+       UPDATE sale_lines SET promotion_id = 'ten-off' WHERE id = 'line-2'`,
+    );
+
+    const found = reader.saleForReturn({ kind: "sale", saleId: "sale-1" });
+
+    expect(found?.sale.lines.map(({ promotionKind }) => promotionKind)).toEqual([
+      null,
+      "PERCENT_OFF",
+    ]);
+  });
+
+  it("leaves the kind unknown when the line's promotion is not among the ones the sale recorded", () => {
+    database.exec("DELETE FROM sale_line_promotions WHERE line_id = 'line-2'");
+
+    const found = reader.saleForReturn({ kind: "sale", saleId: "sale-1" });
+
+    expect(
+      found?.sale.lines.map(({ promotionId, promotionKind }) => [promotionId, promotionKind]),
+    ).toEqual([
+      [null, null],
+      ["two-for-one", null],
     ]);
   });
 
@@ -239,6 +273,7 @@ describe("the sale of another register a return starts from", () => {
             saleUnit: "UNIT",
             quantity: 3,
             promotionId: null,
+            promotionKind: null,
             lineTotal: 7500,
           },
         ],

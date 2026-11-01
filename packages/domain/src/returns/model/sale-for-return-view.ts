@@ -1,14 +1,14 @@
 import { saleTotal } from "../../sales/index.js";
 import type { ZoneRules } from "../../shared/index.js";
 import { type PaymentRefundability, returnablePayments } from "./refund-allocation.js";
-import { mustBeReturnedWhole, returnableQuantity } from "./return-line.js";
+import { returnableQuantity, wholeOnlyReasons } from "./return-line.js";
 import type { ReturnReason } from "./return-reasons.js";
 import { type ReturnStandingLine, returnSaleLines, type SaleForReturn } from "./return-sale.js";
 import { type ReturnWindow, returnWindows } from "./return-window.js";
 
-export type ReturnableLineView = Omit<ReturnStandingLine, "promotionId"> & {
+export type ReturnableLineView = Omit<ReturnStandingLine, "promotionId" | "promotionKind"> & {
   returnableQuantity: number;
-  mustBeReturnedWhole: boolean;
+  wholeOnlyReasons: readonly ReturnReason[];
 };
 
 export interface SaleForReturnView {
@@ -26,11 +26,15 @@ export type SaleForReturnOutcome =
   | { kind: "voided" }
   | { kind: "found"; sale: SaleForReturnView };
 
-function viewOfLine({ promotionId, ...line }: ReturnStandingLine): ReturnableLineView {
+function viewOfLine({
+  promotionId,
+  promotionKind,
+  ...line
+}: ReturnStandingLine): ReturnableLineView {
   return {
     ...line,
     returnableQuantity: returnableQuantity(line),
-    mustBeReturnedWhole: mustBeReturnedWhole({ promotionId }),
+    wholeOnlyReasons: wholeOnlyReasons({ promotionId, promotionKind }),
   };
 }
 

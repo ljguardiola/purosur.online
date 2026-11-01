@@ -9,6 +9,7 @@ import {
   Select,
   sortedItems,
   Table,
+  Tag,
   textOrder,
   useTableModel,
 } from "@purosur/ui";
@@ -118,8 +119,15 @@ export function OrderSuggestionScreen({
       id: "coverage",
       header: "Cobertura",
       align: "end",
-      render: (line: SuggestedLine) =>
-        `${formatNumber(line.coverageDays)} ${plural(line.coverageDays, { one: "día", other: "días" })}`,
+      render: (line: SuggestedLine) => (
+        <div className="flex flex-col items-end">
+          <span>
+            {formatNumber(line.effectiveDays)}{" "}
+            {plural(line.effectiveDays, { one: "día", other: "días" })}
+          </span>
+          {line.cappedByExpiry ? <Tag tone="neutral">Tope por vencimiento</Tag> : null}
+        </div>
+      ),
     }),
     dataColumn({
       id: "supplier",

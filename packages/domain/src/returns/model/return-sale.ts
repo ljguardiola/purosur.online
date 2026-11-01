@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { DiscountBenefit } from "../../pricing/index.js";
 import type { Sale, SettledSaleLine } from "../../sales/index.js";
 import type { ReturnablePayment } from "./refund-allocation.js";
 import type { ReturnSaleLine } from "./return-draft.js";
@@ -12,7 +13,7 @@ export interface ReturnedFromLine {
 type SaleLineForReturn = Pick<
   SettledSaleLine,
   "id" | "productId" | "productName" | "saleUnit" | "quantity" | "promotionId" | "lineTotal"
->;
+> & { promotionKind: DiscountBenefit["kind"] | null };
 
 type SaleOfReturn = Sale & { lines: SaleLineForReturn[] };
 
@@ -43,6 +44,7 @@ export function returnSaleLines({
       saleUnit: line.saleUnit,
       soldQuantity: line.quantity,
       promotionId: line.promotionId,
+      promotionKind: line.promotionKind,
       chargedAmount: line.lineTotal,
       returnedQuantity: earlier?.quantity ?? 0,
       refundedAmount: earlier?.refundedAmount ?? 0,
