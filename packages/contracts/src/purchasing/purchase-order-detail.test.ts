@@ -44,8 +44,8 @@ describe("purchaseOrderDetailSchema", () => {
 
   it("rejects a line without the expected price field", () => {
     const { expectedPackagePriceCents: _price, ...withoutPrice } = priced;
-    expect(
-      purchaseOrderDetailSchema.safeParse({ ...detail, lines: [withoutPrice] }).success,
-    ).toBe(false);
+    expect(purchaseOrderDetailSchema.safeParse({ ...detail, lines: [withoutPrice] }).success).toBe(
+      false,
+    );
   });
 });
